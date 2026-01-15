@@ -32,6 +32,7 @@ var (
 	DeviceB  = DeviceType{"B", 0xA0, true}
 	DeviceF  = DeviceType{"F", 0x93, true}
 	DeviceSB = DeviceType{"SB", 0xA1, true}
+	DeviceS  = DeviceType{"S", 0x98, true}  // Step Relay
 	DeviceTS = DeviceType{"TS", 0xC1, true} // Timer Contact
 	DeviceTC = DeviceType{"TC", 0xC0, true} // Timer Coil
 	DeviceCS = DeviceType{"CS", 0xC4, true} // Counter Contact
@@ -49,7 +50,7 @@ var (
 
 var deviceMap = map[string]DeviceType{
 	"M": DeviceM, "X": DeviceX, "Y": DeviceY, "L": DeviceL, "B": DeviceB, "F": DeviceF,
-	"SB": DeviceSB, "TS": DeviceTS, "TC": DeviceTC, "CS": DeviceCS, "CC": DeviceCC,
+	"SB": DeviceSB, "S": DeviceS, "TS": DeviceTS, "TC": DeviceTC, "CS": DeviceCS, "CC": DeviceCC,
 	"D": DeviceD, "W": DeviceW, "R": DeviceR, "TN": DeviceTN, "CN": DeviceCN,
 	"SW": DeviceSW, "Z": DeviceZ,
 }

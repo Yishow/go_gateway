@@ -320,7 +320,7 @@ class MCProtocol:
         """
         dev_code, is_bit = self._parse_device_code(device_type)
         if not is_bit:
-             pass 
+            raise ValueError(f"設備類型 {device_type} 不是位元設備 (Bit Device)") 
         
         # Command: 0401 (Batch Read)
         # Subcommand: 0001 (Bit Access)
@@ -334,13 +334,14 @@ class MCProtocol:
         
         expected_bytes = (count + 1) // 2
         if len(response) != expected_bytes:
-             if len(response) < expected_bytes:
-                raise MCProtocolError(f"回應長度不足: 預期 {expected_bytes}, 實際 {len(response)}")
+            raise MCProtocolError(f"回應長度不符: 預期 {expected_bytes}, 實際 {len(response)}")
 
         result = []
         for i in range(count):
             byte_idx = i // 2
-            is_high_nibble = (i % 2) == 1
+            # High nibble is first device (i=0), Low nibble is second device (i=1)
+            # 與寫入邏輯一致：val1 << 4 | val2，其中 val1 是 i，val2 是 i+1
+            is_high_nibble = (i % 2) == 0
             byte_val = response[byte_idx]
             
             if is_high_nibble:

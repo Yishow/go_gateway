@@ -106,7 +106,7 @@ func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, err
 		return nil, err
 	}
 	if !devType.IsBit {
-		// Can read words as bits? Usually strictly separate in MC Protocol 3E
+		return nil, fmt.Errorf("device type %s is not a bit device", device)
 	}
 
 	data := make([]byte, 6)
