@@ -4,8 +4,6 @@ import "time"
 
 // CreateSerialClient 建立配置為串列埠通訊的 FatekClient
 //
-// 注意：目前 SerialTransport 尚未完整實作，此函數為預留介面
-//
 // Args:
 //   - port: 串列埠名稱
 //   - station: PLC 站號 ID
@@ -18,11 +16,11 @@ import "time"
 // Returns:
 //   - 配置好的客戶端實例
 func CreateSerialClient(port string, station, baudrate, dataBits, stopBits int, parity string, timeout time.Duration) *FatekClient {
-	// TODO: 實作完整的 SerialTransport
-	// 目前返回 nil，需要整合 "go.bug.st/serial" 或類似套件
-	// transport := NewSerialTransport(port, baudrate, dataBits, stopBits, parity, timeout)
-	// return NewClient(transport, station)
-	return nil
+	if parity == "" {
+		parity = "E"
+	}
+	transport := NewSerialTransport(port, baudrate, dataBits, stopBits, parity, timeout)
+	return NewClient(transport, station)
 }
 
 // CreateTCPClient 建立配置為 TCP 通訊的 FatekClient

@@ -41,6 +41,9 @@ func (c *FatekClient) execute(cmd, body string) (string, error) {
 
 	req := BuildFrame(c.station, cmd, body)
 	
+	// Debug: 顯示發送的請求（僅在調試模式下）
+	// fmt.Printf("DEBUG: Sending frame: %q (body: %q)\n", string(req), body)
+	
 	resp, err := c.transport.SendReceive(req)
 	if err != nil {
 		return "", err
@@ -222,10 +225,26 @@ func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]interface{}
 			return nil, err
 		}
 		comps[i] = comp
-		sb.WriteString(FormatAddress(comp, item.Addr))
+		
+		// 驗證地址範圍
+		// D: 0-4999, R: 0-4167, X/Y/M/S/T/C: 0-9999
+		maxAddr := 9999
+		switch comp.Name {
+		case SymbolD:
+			maxAddr = 4999
+		case SymbolR:
+			maxAddr = 4167
+		}
+		if item.Addr < 0 || item.Addr > maxAddr {
+			return nil, fmt.Errorf("address %s%d out of range (0-%d)", item.Symbol, item.Addr, maxAddr)
+		}
+		
+		addrStr := FormatAddress(comp, item.Addr)
+		sb.WriteString(addrStr)
 	}
 
-	dataStr, err := c.execute("48", sb.String())
+	body := sb.String()
+	dataStr, err := c.execute("48", body)
 	if err != nil {
 		return nil, err
 	}

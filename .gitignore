@@ -1,0 +1,90 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# Build output directories
+bin/
+dist/
+build/
+out/
+
+# IDE and Editor files
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# VS Code - keep project settings, ignore user-specific
+# Note: .vscode/launch.json and settings.json are kept for project consistency
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100
+.Trashes
+
+# Project specific
+fatek_test.exe
+.temp/
+
+# PDF files (keep docs PDFs if needed, but ignore others)
+*.pdf
+!docs/*.pdf
+
+# Debug files
+debug
+__debug_bin
+
+# Coverage reports
+coverage.html
+coverage.xml
+coverage.txt
+
+# Air (live reload tool) tmp directory
+tmp/
+
+# Delve (debugger) output
+__debug_bin
+
+# Local configuration files
+config.local.yaml
+config.local.yml
+*.local
+
+# Backup files
+*.bak
+*.backup
+*~

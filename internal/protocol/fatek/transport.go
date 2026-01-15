@@ -3,9 +3,10 @@ package fatek
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"time"
+
+	"go.bug.st/serial"
 )
 
 type Transport interface {
@@ -87,10 +88,113 @@ func (t *TCPTransport) SendReceive(data []byte) ([]byte, error) {
 	return response, nil
 }
 
-// SerialTransport (Stub for io.ReadWriteCloser compatible serial libs)
+// SerialTransport 實作串列埠通訊
 type SerialTransport struct {
-	Port string
-	// Underlying serial port interface usually matches io.ReadWriteCloser
-	dev io.ReadWriteCloser 
+	Port     string
+	BaudRate int
+	DataBits int
+	Parity   serial.Parity
+	StopBits serial.StopBits
+	Timeout  time.Duration
+	port     serial.Port
+	reader   *bufio.Reader
 }
-// Implementation would depend on "go.bug.st/serial" or similar
+
+// NewSerialTransport 建立新的串列埠傳輸實例
+func NewSerialTransport(port string, baudRate, dataBits, stopBits int, parity string, timeout time.Duration) *SerialTransport {
+	if baudRate == 0 {
+		baudRate = 9600
+	}
+	if dataBits == 0 {
+		dataBits = 7
+	}
+	if timeout == 0 {
+		timeout = 1 * time.Second
+	}
+
+	// 轉換 Parity
+	var p serial.Parity
+	switch parity {
+	case "N", "n":
+		p = serial.NoParity
+	case "E", "e":
+		p = serial.EvenParity
+	case "O", "o":
+		p = serial.OddParity
+	default:
+		p = serial.EvenParity
+	}
+
+	// 轉換 StopBits
+	var sb serial.StopBits
+	switch stopBits {
+	case 1:
+		sb = serial.OneStopBit
+	case 2:
+		sb = serial.TwoStopBits
+	default:
+		sb = serial.OneStopBit
+	}
+
+	return &SerialTransport{
+		Port:     port,
+		BaudRate: baudRate,
+		DataBits: dataBits,
+		Parity:   p,
+		StopBits: sb,
+		Timeout:  timeout,
+	}
+}
+
+func (s *SerialTransport) Connect() error {
+	mode := &serial.Mode{
+		BaudRate: s.BaudRate,
+		DataBits: s.DataBits,
+		Parity:   s.Parity,
+		StopBits: s.StopBits,
+	}
+
+	port, err := serial.Open(s.Port, mode)
+	if err != nil {
+		return fmt.Errorf("failed to open serial port %s: %w", s.Port, err)
+	}
+
+	s.port = port
+	s.reader = bufio.NewReader(port)
+	return nil
+}
+
+func (s *SerialTransport) Close() error {
+	if s.port != nil {
+		err := s.port.Close()
+		s.port = nil
+		s.reader = nil
+		return err
+	}
+	return nil
+}
+
+func (s *SerialTransport) SendReceive(data []byte) ([]byte, error) {
+	if s.port == nil {
+		return nil, ErrConnectionClosed
+	}
+
+	// 設定讀取逾時
+	s.port.SetReadTimeout(s.Timeout)
+
+	// 寫入資料
+	_, err := s.port.Write(data)
+	if err != nil {
+		s.Close()
+		return nil, fmt.Errorf("serial write error: %w", err)
+	}
+
+	// 讀取直到 ETX
+	response, err := s.reader.ReadBytes(ETX)
+	if err != nil {
+		s.Close()
+		return nil, fmt.Errorf("serial read error: %w", err)
+	}
+
+	return response, nil
+}
