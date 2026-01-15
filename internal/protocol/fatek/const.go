@@ -42,26 +42,5 @@ var (
 	ErrConnectionClosed = errors.New("connection closed")
 )
 
-// Protocol Errors
-type ProtocolError struct {
-	Code    string
-	Command string
-	Msg     string
-}
-
-func (e *ProtocolError) Error() string {
-	return e.Msg
-}
-
-func NewProtocolError(code, cmd string) *ProtocolError {
-	msg := "PLC Error " + code + " on Command " + cmd
-	switch code {
-	case "2":
-		msg += ": Illegal Value"
-	case "4":
-		msg += ": Illegal Format/Command or Checksum Error"
-	case "A":
-		msg += ": Illegal Address"
-	}
-	return &ProtocolError{Code: code, Command: cmd, Msg: msg}
-}
+// 注意：ProtocolError 已統一定義於 errors.go 中
+// 請使用 errors.go 中的 NewFatekProtocolError 或 NewProtocolError

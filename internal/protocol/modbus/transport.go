@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -49,7 +50,8 @@ func (t *TCPTransport) Connect() error {
 		t.conn.Close()
 	}
 
-	addr := fmt.Sprintf("%s:%d", t.Host, t.Port)
+	// 使用 net.JoinHostPort 支援 IPv6
+	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
 	conn, err := net.DialTimeout("tcp", addr, t.Timeout)
 	if err != nil {
 		return fmt.Errorf("TCP 連線失敗: %w", err)
@@ -166,7 +168,8 @@ func (u *UDPTransport) Connect() error {
 		u.conn.Close()
 	}
 
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", u.Host, u.Port))
+	// 使用 net.JoinHostPort 支援 IPv6
+	addr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(u.Host, strconv.Itoa(u.Port)))
 	if err != nil {
 		return fmt.Errorf("UDP 地址解析失敗: %w", err)
 	}

@@ -1,0 +1,189 @@
+# golangci-lint 配置檔案
+# 執行方式: golangci-lint run ./...
+# 安裝方式: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+run:
+  # 逾時時間
+  timeout: 5m
+  # 並行執行的工作數
+  concurrency: 4
+  # 包含測試檔案
+  tests: true
+  # 跳過的目錄
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+
+output:
+  # 輸出格式：colored-line-number, line-number, json, tab, checkstyle, code-climate
+  format: colored-line-number
+  # 印出導致問題的程式碼行
+  print-linter-name: true
+  # 顯示統計資訊
+  print-issued-lines: true
+
+linters:
+  # 啟用的 linters
+  enable:
+    # 預設啟用
+    - errcheck      # 檢查未處理的錯誤
+    - gosimple      # 簡化程式碼建議
+    - govet         # 報告可疑的程式碼結構
+    - ineffassign   # 檢查無效的賦值
+    - staticcheck   # 靜態分析工具
+    - unused        # 檢查未使用的程式碼
+
+    # 額外啟用的重要 linters
+    - bodyclose     # 檢查 HTTP response body 是否關閉
+    - contextcheck  # 檢查 context 使用
+    - durationcheck # 檢查 time.Duration 乘法
+    - errname       # 檢查錯誤命名慣例
+    - errorlint     # 檢查錯誤包裝
+    - exportloopref # 檢查迴圈變數的指標導出
+    - goconst       # 檢查可以定義為常數的字串
+    - gocritic      # 程式碼風格和效能建議
+    - gofmt         # 檢查程式碼格式
+    - goimports     # 檢查 import 排序
+    - gosec         # 安全性檢查
+    - misspell      # 檢查拼寫錯誤
+    - nilerr        # 檢查 nil error 返回
+    - noctx         # 檢查 http 請求是否使用 context
+    - prealloc      # 檢查可以預分配的 slice
+    - predeclared   # 檢查是否覆蓋了預定義識別符
+    - revive        # golint 的替代品
+    - unconvert     # 檢查不必要的類型轉換
+    - unparam       # 檢查未使用的函數參數
+    - wastedassign  # 檢查無效的賦值
+
+  disable:
+    # 停用過於嚴格或不適用的 linters
+    - exhaustive    # 要求 switch 窮舉所有 enum 值
+    - funlen        # 函數長度限制（會與專案習慣衝突）
+    - gochecknoglobals # 禁止全域變數（協議常數需要）
+    - gochecknoinits   # 禁止 init 函數
+    - gocognit      # 認知複雜度（會與專案習慣衝突）
+    - gocyclo       # 循環複雜度
+    - godot         # 註解必須以句號結尾
+    - gomnd         # 禁止魔術數字（協議常數需要）
+    - lll           # 行長度限制
+    - nlreturn      # return 前需要空行
+    - testpackage   # 測試必須在 _test 套件
+    - wrapcheck     # 必須包裝外部錯誤
+    - wsl           # 空白行樣式
+
+linters-settings:
+  errcheck:
+    # 檢查 type assertions
+    check-type-assertions: true
+    # 檢查空白識別符
+    check-blank: true
+
+  govet:
+    # 啟用所有分析器
+    enable-all: true
+    # 停用特定分析器
+    disable:
+      - fieldalignment # 欄位對齊優化建議（可能影響可讀性）
+      - shadow         # 變數遮蔽（有時是合理的）
+
+  gosec:
+    # 排除某些規則
+    excludes:
+      - G104 # 未檢查的錯誤（由 errcheck 處理）
+      - G304 # 檔案路徑注入（協議庫需要動態路徑）
+
+  gocritic:
+    # 啟用的檢查類別
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+    # 停用特定檢查
+    disabled-checks:
+      - hugeParam        # 大參數傳值（有時是合理的）
+      - rangeValCopy     # range 值複製（有時是合理的）
+      - appendAssign     # append 賦值風格
+
+  revive:
+    # 信心閾值
+    confidence: 0.8
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+        disabled: true  # 不強制套件註解
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+        disabled: true  # 未使用參數（有時是介面要求）
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  gofmt:
+    # 使用 goimports 風格
+    simplify: true
+
+  goimports:
+    # 本地 import 前綴
+    local-prefixes: go_gateway
+
+  misspell:
+    # 使用美式英語
+    locale: US
+
+  prealloc:
+    # 建議簡單迴圈預分配
+    simple: true
+    # 建議 range 迴圈預分配
+    range-loops: true
+    # 建議 for 迴圈預分配
+    for-loops: true
+
+issues:
+  # 每個 linter 的最大問題數（0 = 無限制）
+  max-issues-per-linter: 0
+  # 相同問題的最大數量（0 = 無限制）
+  max-same-issues: 0
+
+  # 排除特定規則
+  exclude-rules:
+    # 測試檔案排除某些檢查
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - goconst
+
+    # 排除 doc.go 的套件註解檢查
+    - path: doc\.go
+      linters:
+        - revive
+
+    # 排除 example 檔案的未使用程式碼檢查
+    - path: example
+      linters:
+        - unused
+        - deadcode
+
+  # 排除特定文字
+  exclude:
+    # 排除常見的誤報
+    - "should have a package comment"
+    - "should have comment or be unexported"

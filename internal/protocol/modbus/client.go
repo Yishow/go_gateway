@@ -26,11 +26,15 @@ func NewClient(transport Transport, unitID byte) *ModbusClient {
 
 // Connect 建立連線
 func (c *ModbusClient) Connect() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.transport.Connect()
 }
 
 // Close 關閉連線
 func (c *ModbusClient) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.transport.Close()
 }
 

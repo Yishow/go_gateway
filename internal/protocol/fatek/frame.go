@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+// hexChars 預定義十六進位字元表，用於高效能轉換
+var hexChars = [16]byte{'0', '1', '2', '3', '4', '5', '6', '7',
+	'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'}
+
 // CalculateLRC calculates the Longitudinal Redundancy Check
 // Logic: Sum of all bytes (including STX) modulo 256, returned as Hex string.
 func CalculateLRC(data []byte) string {
@@ -140,8 +144,30 @@ func HexToInt(hexStr string) (int, error) {
 	return val, err
 }
 
-// IntToHex converts int to Hex string with fixed width
+// IntToHex 將整數轉換為固定寬度的十六進位字串
+// 使用查表法避免 fmt.Sprintf 的效能開銷
+// Args:
+//   - val: 要轉換的整數值
+//   - width: 輸出字串的固定寬度 (1-8)
+//
+// Returns:
+//   - 大寫十六進位字串，左側補零至指定寬度
 func IntToHex(val int, width int) string {
-	format := fmt.Sprintf("%%0%dX", width)
-	return fmt.Sprintf(format, val)
+	// 防護性預設：確保寬度在合理範圍內
+	if width <= 0 {
+		width = 1
+	} else if width > 8 {
+		width = 8
+	}
+
+	// 使用固定大小陣列避免堆分配（小於 64 bytes 的陣列通常在棧上分配）
+	buf := make([]byte, width)
+
+	// 從低位到高位填充
+	for i := width - 1; i >= 0; i-- {
+		buf[i] = hexChars[val&0x0F]
+		val >>= 4
+	}
+
+	return string(buf)
 }

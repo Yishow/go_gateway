@@ -151,22 +151,24 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 
 	// 16-bit = 4 chars, 32-bit = 8 chars
 	charsPerVal := comp.Width / 4
-	if len(dataStr) != count*charsPerVal {
-		// Just a warning or strict check? 
-		// Sometimes PLC returns partial? Unlikely.
+	expectedLen := count * charsPerVal
+
+	// 嚴格驗證回應長度
+	if len(dataStr) != expectedLen {
+		return nil, fmt.Errorf(
+			"response length mismatch for %s: expected %d chars, got %d",
+			symbol, expectedLen, len(dataStr),
+		)
 	}
 
-	result := make([]int, 0, count)
-	for i := 0; i < len(dataStr); i += charsPerVal {
-		if i+charsPerVal > len(dataStr) {
-			break
-		}
-		valHex := dataStr[i : i+charsPerVal]
+	result := make([]int, count)
+	for i := 0; i < count; i++ {
+		valHex := dataStr[i*charsPerVal : (i+1)*charsPerVal]
 		val, err := HexToInt(valHex)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse value at index %d: %w", i, err)
 		}
-		result = append(result, val)
+		result[i] = val
 	}
 	return result, nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -39,12 +40,13 @@ func NewTCPTransport(host string, port int) *TCPTransport {
 func (t *TCPTransport) Connect() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	if t.conn != nil {
 		t.conn.Close()
 	}
-	
-	addr := fmt.Sprintf("%s:%d", t.Host, t.Port)
+
+	// 使用 net.JoinHostPort 支援 IPv6
+	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
 	conn, err := net.DialTimeout("tcp", addr, t.Timeout)
 	if err != nil {
 		return err
@@ -122,7 +124,8 @@ func (t *TCPTransport) internalConnect() error {
 	if t.conn != nil {
 		t.conn.Close()
 	}
-	addr := fmt.Sprintf("%s:%d", t.Host, t.Port)
+	// 使用 net.JoinHostPort 支援 IPv6
+	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
 	conn, err := net.DialTimeout("tcp", addr, t.Timeout)
 	if err != nil {
 		return err

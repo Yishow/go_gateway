@@ -72,3 +72,9 @@ func NewFatekProtocolError(errorCode, command string) *FatekProtocolError {
 		Command:    command,
 	}
 }
+
+// NewProtocolError 建立協定錯誤（統一介面）
+// 此函數為 NewFatekProtocolError 的別名，用於統一 API
+func NewProtocolError(code, cmd string) *FatekProtocolError {
+	return NewFatekProtocolError(code, cmd)
+}

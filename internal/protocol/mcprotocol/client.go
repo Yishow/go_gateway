@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+// 最小回應長度常數
+const (
+	minResponseLen = 2 // EndCode (2 bytes)
+)
+
 type MCClient struct {
 	transport Transport
 	frame     RequestFrame
@@ -82,6 +87,11 @@ func (c *MCClient) BatchReadWord(device string, addr int, count int) ([]int, err
 		return nil, err
 	}
 
+	// 驗證回應最小長度
+	if len(resp) < minResponseLen {
+		return nil, fmt.Errorf("response too short: expected at least %d bytes, got %d", minResponseLen, len(resp))
+	}
+
 	// Check EndCode (First 2 bytes)
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
@@ -92,9 +102,10 @@ func (c *MCClient) BatchReadWord(device string, addr int, count int) ([]int, err
 	}
 
 	// Data follows EndCode
+	expectedLen := count * 2
 	raw := resp[2:]
-	if len(raw) != count*2 {
-		return nil, fmt.Errorf("response length mismatch: expected %d, got %d", count*2, len(raw))
+	if len(raw) < expectedLen {
+		return nil, fmt.Errorf("response data too short: expected %d bytes, got %d", expectedLen, len(raw))
 	}
 
 	res := make([]int, count)
@@ -143,6 +154,11 @@ func (c *MCClient) BatchWriteWord(device string, addr int, values []int) error {
 		return err
 	}
 
+	// 驗證回應最小長度
+	if len(resp) < minResponseLen {
+		return fmt.Errorf("response too short: expected at least %d bytes, got %d", minResponseLen, len(resp))
+	}
+
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
 		return &MCError{
@@ -186,6 +202,11 @@ func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, err
 		return nil, err
 	}
 
+	// 驗證回應最小長度
+	if len(resp) < minResponseLen {
+		return nil, fmt.Errorf("response too short: expected at least %d bytes, got %d", minResponseLen, len(resp))
+	}
+
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
 		return nil, &MCError{
@@ -196,8 +217,8 @@ func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, err
 
 	raw := resp[2:]
 	expectedBytes := (count + 1) / 2
-	if len(raw) != expectedBytes {
-		return nil, fmt.Errorf("response length mismatch: expected %d, got %d", expectedBytes, len(raw))
+	if len(raw) < expectedBytes {
+		return nil, fmt.Errorf("response data too short: expected %d bytes, got %d", expectedBytes, len(raw))
 	}
 
 	return UnpackBits(raw, count), nil
@@ -239,6 +260,11 @@ func (c *MCClient) BatchWriteBit(device string, addr int, values []bool) error {
 	resp, err := c.transport.SendReceive(req)
 	if err != nil {
 		return err
+	}
+
+	// 驗證回應最小長度
+	if len(resp) < minResponseLen {
+		return fmt.Errorf("response too short: expected at least %d bytes, got %d", minResponseLen, len(resp))
 	}
 
 	endCode := binary.LittleEndian.Uint16(resp[0:])
@@ -300,6 +326,11 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 		return nil, err
 	}
 
+	// 驗證回應最小長度
+	if len(resp) < minResponseLen {
+		return nil, fmt.Errorf("response too short: expected at least %d bytes, got %d", minResponseLen, len(resp))
+	}
+
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
 		return nil, &MCError{
@@ -309,8 +340,9 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 	}
 
 	raw := resp[2:]
-	if len(raw) != count*2 {
-		return nil, fmt.Errorf("response length mismatch: expected %d bytes, got %d bytes for %d items", count*2, len(raw), count)
+	expectedLen := count * 2
+	if len(raw) < expectedLen {
+		return nil, fmt.Errorf("response data too short: expected %d bytes, got %d bytes for %d items", expectedLen, len(raw), count)
 	}
 
 	res := make([]int, count)

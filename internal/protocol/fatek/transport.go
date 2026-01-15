@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"strconv"
+	"sync"
 	"time"
 
 	"go.bug.st/serial"
@@ -22,6 +24,7 @@ type TCPTransport struct {
 	Timeout time.Duration
 	conn    net.Conn
 	reader  *bufio.Reader
+	mu      sync.Mutex // 保護連線狀態的並發存取
 }
 
 func NewTCPTransport(host string, port int) *TCPTransport {
@@ -33,7 +36,16 @@ func NewTCPTransport(host string, port int) *TCPTransport {
 }
 
 func (t *TCPTransport) Connect() error {
-	addr := fmt.Sprintf("%s:%d", t.Host, t.Port)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	// 若已有連線則先關閉
+	if t.conn != nil {
+		t.conn.Close()
+	}
+
+	// 使用 net.JoinHostPort 支援 IPv6
+	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
 	conn, err := net.DialTimeout("tcp", addr, t.Timeout)
 	if err != nil {
 		return err
@@ -44,6 +56,13 @@ func (t *TCPTransport) Connect() error {
 }
 
 func (t *TCPTransport) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.internalClose()
+}
+
+// internalClose 內部關閉（不加鎖，供已持鎖的方法呼叫）
+func (t *TCPTransport) internalClose() error {
 	if t.conn != nil {
 		err := t.conn.Close()
 		t.conn = nil
@@ -54,37 +73,34 @@ func (t *TCPTransport) Close() error {
 }
 
 func (t *TCPTransport) SendReceive(data []byte) ([]byte, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	if t.conn == nil {
 		return nil, ErrConnectionClosed
 	}
 
-	// Set Deadline
-	t.conn.SetDeadline(time.Now().Add(t.Timeout))
+	// 設定讀寫截止時間
+	if err := t.conn.SetDeadline(time.Now().Add(t.Timeout)); err != nil {
+		t.internalClose()
+		return nil, fmt.Errorf("set deadline failed: %w", err)
+	}
 
-	// Flush Buffer logic:
-	// We want to discard any pending bytes from previous (timeout/error) operations.
-	// Since bufio.Reader can buffer bytes, simply creating a new one isn't enough if data is in OS stack.
-	// The best way is to ensure we read everything before writing, but "everything" is undefined if silent.
-	// 
-	// Optimization: If we trust the request-response lock-step, buffer should be empty.
-	// If previous op timed out, we might be out of sync.
-	// Recommendation: On timeout, Close() the connection. The caller (Client) should detect ErrConnectionClosed and Reconnect.
-	// For this transport, if write/read fails, we close.
-	
-	// Write
-	_, err := t.conn.Write(data)
-	if err != nil {
-		t.Close() // Force close on error to reset state
+	// 寫入請求
+	// 注意：若上次操作逾時，緩衝區可能殘留資料
+	// 建議：錯誤時關閉連線，由呼叫方偵測 ErrConnectionClosed 並重連
+	if _, err := t.conn.Write(data); err != nil {
+		t.internalClose() // 錯誤時強制關閉以重置狀態
 		return nil, err
 	}
 
-	// Read until ETX
+	// 讀取直到 ETX
 	response, err := t.reader.ReadBytes(ETX)
 	if err != nil {
-		t.Close() // Force close on error (including timeout) to reset state
+		t.internalClose() // 錯誤時（包括逾時）強制關閉以重置狀態
 		return nil, err
 	}
-	
+
 	return response, nil
 }
 
