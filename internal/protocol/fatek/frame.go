@@ -1,6 +1,7 @@
 package fatek
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -14,32 +15,46 @@ func CalculateLRC(data []byte) string {
 	return fmt.Sprintf("%02X", sum)
 }
 
-// BuildFrame constructs the ASCII frame
-// Structure: STX + Station(2) + Command(2) + Body + LRC(2) + ETX
+// BuildFrame constructs the ASCII frame and returns a new byte slice.
+// Deprecated: Use BuildFrameToBuffer for better performance.
 func BuildFrame(station int, cmd string, body string) []byte {
-	// 1. Station to Hex String
-	stationStr := fmt.Sprintf("%02X", station)
+	buf := GetBuffer()
+	defer PutBuffer(buf)
 	
-	// 2. Content = Station + Cmd + Body
-	content := stationStr + cmd + body
+	BuildFrameToBuffer(buf, station, cmd, body)
 	
-	// 3. Prepare data for LRC (STX + Content)
-	// Note: We don't prepend STX to the string yet because LRC needs the byte value of STX
+	// We must copy the result because the buffer goes back to the pool
+	res := make([]byte, buf.Len())
+	copy(res, buf.Bytes())
+	return res
+}
+
+// BuildFrameToBuffer writes the ASCII frame directly into the provided buffer.
+// Structure: STX + Station(2) + Command(2) + Body + LRC(2) + ETX
+func BuildFrameToBuffer(buf *bytes.Buffer, station int, cmd string, body string) {
+	// 1. Write STX
+	buf.WriteByte(STX)
 	
-	lrcData := make([]byte, 0, 1+len(content))
-	lrcData = append(lrcData, STX)
-	lrcData = append(lrcData, []byte(content)...)
+	// 2. Write Station (2 chars)
+	// Optimization: fmt.Fprintf is slower than manual string manipulation, but safe.
+	// For max performance, we could implement specialized IntToHex writer.
+	fmt.Fprintf(buf, "%02X", station)
 	
-	// 4. Calculate LRC
-	lrc := CalculateLRC(lrcData)
+	// 3. Write Command
+	buf.WriteString(cmd)
 	
-	// 5. Final Frame: STX + Content + LRC + ETX
-	frame := make([]byte, 0, len(lrcData)+3)
-	frame = append(frame, lrcData...)
-	frame = append(frame, []byte(lrc)...)
-	frame = append(frame, ETX)
+	// 4. Write Body
+	buf.WriteString(body)
 	
-	return frame
+	// 5. Calculate LRC (Current content of buffer)
+	// buf.Bytes() returns the slice from STX to end of Body
+	lrc := CalculateLRC(buf.Bytes())
+	
+	// 6. Write LRC
+	buf.WriteString(lrc)
+	
+	// 7. Write ETX
+	buf.WriteByte(ETX)
 }
 
 // ParseResponse validates and extracts the body from a response frame

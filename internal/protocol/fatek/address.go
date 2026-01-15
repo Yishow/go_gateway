@@ -2,6 +2,7 @@ package fatek
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -10,7 +11,7 @@ type ComponentType struct {
 	Name      string
 	Width     int // 16 or 32 bits
 	IsDiscrete bool
-	FormatLen int // Length of the address string (e.g., 5 for X, 6 for R)
+	FormatLen int // Total length of the address string including Symbol (e.g., 5 for X, 6 for R)
 }
 
 var (
@@ -31,7 +32,6 @@ var (
 
 	// Registers (32-bit)
 	TypeDR = ComponentType{Name: SymbolDR, Width: 32, IsDiscrete: false, FormatLen: 7}
-	// Note: Fatek often uses D as 32-bit with specific commands, but explicit DR is safer for mixed reads.
 )
 
 func GetComponentType(symbol string) (ComponentType, error) {
@@ -62,9 +62,7 @@ func GetComponentType(symbol string) (ComponentType, error) {
 	case SymbolDR, "DD":
 		return TypeDR, nil
 	default:
-		// Defaulting DWM, etc. to 32-bit if needed, but keeping it strict for now
 		if strings.HasPrefix(upper, "D") {
-			// For DWM, DWS, etc., length is typically 7 (e.g. DWM0000)
 			return ComponentType{Name: upper, Width: 32, IsDiscrete: false, FormatLen: 7}, nil
 		}
 		return ComponentType{}, fmt.Errorf("unknown component type: %s", symbol)
@@ -72,7 +70,20 @@ func GetComponentType(symbol string) (ComponentType, error) {
 }
 
 // FormatAddress normalizes the address string (e.g., "X", 10 -> "X00010")
-func FormatAddress(comp ComponentType, addr int) string {
-	format := fmt.Sprintf("%%s%%0%dd", comp.FormatLen-len(comp.Name))
-	return fmt.Sprintf(format, comp.Name, addr)
+// It now includes bounds checking to prevent protocol frame corruption.
+func FormatAddress(comp ComponentType, addr int) (string, error) {
+	// Calculate available digits for the number part
+	// e.g., FormatLen(6) - Name("R", 1) = 5 digits. Max 99999.
+	numDigits := comp.FormatLen - len(comp.Name)
+	if numDigits <= 0 {
+		return "", fmt.Errorf("invalid format length for component %s", comp.Name)
+	}
+
+	maxVal := int(math.Pow10(numDigits)) - 1
+	if addr < 0 || addr > maxVal {
+		return "", fmt.Errorf("address %d out of range for component %s (max %d)", addr, comp.Name, maxVal)
+	}
+
+	format := fmt.Sprintf("%%s%%0%dd", numDigits)
+	return fmt.Sprintf(format, comp.Name, addr), nil
 }

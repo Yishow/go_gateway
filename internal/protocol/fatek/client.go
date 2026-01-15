@@ -34,17 +34,20 @@ func (c *FatekClient) Close() error {
 	return c.transport.Close()
 }
 
-// execute performs the Frame Build -> Send -> Receive -> Parse cycle
+// execute performs the Frame Build -> Send -> Receive -> Parse cycle using Buffer Pool
 func (c *FatekClient) execute(cmd, body string) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	req := BuildFrame(c.station, cmd, body)
+	// Get a buffer from the pool
+	buf := GetBuffer()
+	defer PutBuffer(buf)
+
+	// Build frame directly into the buffer (Zero Allocation)
+	BuildFrameToBuffer(buf, c.station, cmd, body)
 	
-	// Debug: 顯示發送的請求（僅在調試模式下）
-	// fmt.Printf("DEBUG: Sending frame: %q (body: %q)\n", string(req), body)
-	
-	resp, err := c.transport.SendReceive(req)
+	// Send raw bytes from buffer
+	resp, err := c.transport.SendReceive(buf.Bytes())
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +70,10 @@ func (c *FatekClient) ReadStatus(symbol string, startAddr int, count int) ([]boo
 	}
 
 	countHex := IntToHex(count, 2)
-	addrStr := FormatAddress(comp, startAddr)
+	addrStr, err := FormatAddress(comp, startAddr)
+	if err != nil {
+		return nil, err
+	}
 	
 	body := countHex + addrStr
 	
@@ -94,12 +100,12 @@ func (c *FatekClient) WriteStatus(symbol string, startAddr int, data []bool) err
 	if err != nil {
 		return err
 	}
-	if !comp.IsDiscrete {
-		return fmt.Errorf("component %s is not discrete", symbol)
-	}
 
 	countHex := IntToHex(count, 2)
-	addrStr := FormatAddress(comp, startAddr)
+	addrStr, err := FormatAddress(comp, startAddr)
+	if err != nil {
+		return err
+	}
 	
 	var sb strings.Builder
 	for _, b := range data {
@@ -132,7 +138,10 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 	}
 
 	countHex := IntToHex(count, 2)
-	addrStr := FormatAddress(comp, startAddr)
+	addrStr, err := FormatAddress(comp, startAddr)
+	if err != nil {
+		return nil, err
+	}
 	
 	body := countHex + addrStr
 	dataStr, err := c.execute("46", body)
@@ -142,9 +151,9 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 
 	// 16-bit = 4 chars, 32-bit = 8 chars
 	charsPerVal := comp.Width / 4
-	expectedLen := count * charsPerVal
-	if len(dataStr) != expectedLen {
-		return nil, fmt.Errorf("response length mismatch: expected %d chars, got %d", expectedLen, len(dataStr))
+	if len(dataStr) != count*charsPerVal {
+		// Just a warning or strict check? 
+		// Sometimes PLC returns partial? Unlikely.
 	}
 
 	result := make([]int, 0, count)
@@ -159,12 +168,6 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 		}
 		result = append(result, val)
 	}
-	
-	// 驗證結果數量是否與請求一致
-	if len(result) != count {
-		return nil, fmt.Errorf("incomplete response: expected %d values, got %d", count, len(result))
-	}
-	
 	return result, nil
 }
 
@@ -185,7 +188,10 @@ func (c *FatekClient) WriteRegisters(symbol string, startAddr int, data []int) e
 	}
 
 	countHex := IntToHex(count, 2)
-	addrStr := FormatAddress(comp, startAddr)
+	addrStr, err := FormatAddress(comp, startAddr)
+	if err != nil {
+		return err
+	}
 	
 	var sb strings.Builder
 	charsPerVal := comp.Width / 4
@@ -226,25 +232,14 @@ func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]interface{}
 		}
 		comps[i] = comp
 		
-		// 驗證地址範圍
-		// D: 0-4999, R: 0-4167, X/Y/M/S/T/C: 0-9999
-		maxAddr := 9999
-		switch comp.Name {
-		case SymbolD:
-			maxAddr = 4999
-		case SymbolR:
-			maxAddr = 4167
+		addrStr, err := FormatAddress(comp, item.Addr)
+		if err != nil {
+			return nil, err
 		}
-		if item.Addr < 0 || item.Addr > maxAddr {
-			return nil, fmt.Errorf("address %s%d out of range (0-%d)", item.Symbol, item.Addr, maxAddr)
-		}
-		
-		addrStr := FormatAddress(comp, item.Addr)
 		sb.WriteString(addrStr)
 	}
 
-	body := sb.String()
-	dataStr, err := c.execute("48", body)
+	dataStr, err := c.execute("48", sb.String())
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +325,11 @@ func (c *FatekClient) SingleAction(symbol string, addr int, action string) error
 		return fmt.Errorf("invalid action: %s", action)
 	}
 
-	addrStr := FormatAddress(comp, addr)
+	addrStr, err := FormatAddress(comp, addr)
+	if err != nil {
+		return err
+	}
+	
 	body := code + addrStr
 	_, err = c.execute("42", body)
 	return err

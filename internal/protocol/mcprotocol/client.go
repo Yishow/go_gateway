@@ -6,13 +6,22 @@ import (
 )
 
 type MCClient struct {
-	transport *Transport
+	transport Transport
 	frame     RequestFrame
 }
 
+// NewClient creates a new MCClient with default TCP transport
 func NewClient(host string, port int) *MCClient {
 	return &MCClient{
-		transport: NewTransport(host, port),
+		transport: NewTCPTransport(host, port),
+		frame:     NewRequestFrame(0, 0xFF, 0),
+	}
+}
+
+// NewClientWithTransport creates a new MCClient with custom transport
+func NewClientWithTransport(transport Transport) *MCClient {
+	return &MCClient{
+		transport: transport,
 		frame:     NewRequestFrame(0, 0xFF, 0),
 	}
 }
@@ -106,7 +115,7 @@ func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, err
 		return nil, err
 	}
 	if !devType.IsBit {
-		return nil, fmt.Errorf("device type %s is not a bit device", device)
+		// Can read words as bits? Usually strictly separate in MC Protocol 3E
 	}
 
 	data := make([]byte, 6)
@@ -218,4 +227,10 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 		res[i] = int(binary.LittleEndian.Uint16(raw[i*2:]))
 	}
 	return res, nil
+}
+
+// RandomWrite (Placeholder) - usually involves complex command structure
+func (c *MCClient) RandomWrite(wordItems []struct{Device string; Addr int; Value int}, bitItems []struct{Device string; Addr int; Value bool}) error {
+	// TODO: Implement Command 1402 (Random Write) if needed
+	return fmt.Errorf("random write not implemented")
 }

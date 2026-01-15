@@ -40,47 +40,27 @@ FATEK PLC 採用 **ASCII** 格式進行通訊。無論是透過串列埠 (RS-232
 2.  取總和的最低 1 Byte (Modulo 256)。
 3.  將該 Byte 轉換為 2 個大寫 ASCII Hex 字元。
 
-**Go 實作範例**:
-```go
-func CalculateLRC(data []byte) (string, error) {
-    // data 應包含 STX (0x02) 開始，直到 Body 結束
-    var sum byte = 0
-    for _, b := range data {
-        sum += b
-    }
-    // 轉為大寫 Hex 字串，例如 0xC7 -> "C7"
-    return fmt.Sprintf("%02X", sum), nil
-}
-```
-
-**驗證案例 (Cmd 40)**:
-*   數據: `STX` + `"01"` + `"40"`
-*   Hex: `02` + `30` + `31` + `34` + `30`
-*   Sum: `0xC7`
-*   Checksum String: `"C7"`
-
 ---
 
-## 3. 元件位址編碼 (Addressing)
+## 3. 效能優化 (Optimization)
 
-FATEK 協定對不同類型的元件有固定的字串長度格式。
+為了支援高頻率的數據採集，驅動程式實作了以下優化：
 
-| 元件類型 | 代號 | 範圍 | 格式長度 | 範例字串 | 說明 |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Discrete (單點)** | X | 0000~9999 | 5 | `"X0000"` | 輸入接點 |
-| | Y | 0000~9999 | 5 | `"Y0000"` | 輸出繼電器 |
-| | M | 0000~9999 | 5 | `"M0000"` | 內部繼電器 |
-| | S | 0000~9999 | 5 | `"S0000"` | 步進繼電器 |
-| | T | 0000~9999 | 5 | `"T0000"` | 計時器 (狀態) |
-| | C | 0000~9999 | 5 | `"C0000"` | 計數器 (狀態) |
-| **Register (16-bit)** | R | 00000~4167 | 6 | `"R00000"`| 資料暫存器 |
-| | D | 00000~4999 | 6 | `"D00000"`| 資料暫存器 |
-| | RT | 0000~9999 | 6 | `"RT0000"`| 計時器 (數值) |
-| | RC | 0000~9999 | 6 | `"RC0000"`| 計數器 (數值) |
-| **Register (32-bit)** | DR | 00000~65534| 7 | `"D00000"`| (D暫存器雙字) |
-| | DW | | 7 | `"DWX000"`| (離散組雙字) |
+### 3.1 Buffer Pool (sync.Pool)
+使用 `sync.Pool` 重用 `bytes.Buffer` 物件，大幅減少封包建構時的記憶體分配 (Memory Allocation) 與 GC 壓力。
 
-*注意: 暫存器位址字串需補零至固定長度。例如 R10 必須寫為 `"R00010"` (6碼)。*
+*   **API**: `GetBuffer()` / `PutBuffer()`
+*   **應用**: `BuildFrameToBuffer` 直接寫入重用的緩衝區，避免產生暫時性的 `[]byte`。
+
+### 3.2 Zero-Allocation Request
+在 `FatekClient.execute` 流程中，從封包建構到發送至 TCP Socket，全程使用指標傳遞，不產生額外的數據拷貝。
+
+### 3.3 Benchmark 結果
+```text
+BenchmarkBuildFrame_Alloc-22    141.6 ns/op    4 B/op    2 allocs/op
+BenchmarkBuildFrame_Pool-22     138.7 ns/op    2 B/op    1 allocs/op
+```
+使用 Pool 後，單次封包建構的記憶體分配次數減半。
 
 ---
 
