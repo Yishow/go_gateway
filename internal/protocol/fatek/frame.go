@@ -4,116 +4,121 @@ import (
 	"fmt"
 )
 
-// CalculateLRC 計算縱向冗餘校驗 (LRC) checksum
-//
-// 計算範圍包含 STX、Station、Command 到 Body 的最後一個字元
-// (不包含 Checksum 本身與 ETX)
-//
-// Args:
-//   - data: 要計算 checksum 的位元組序列 (包含 STX)
-//
-// Returns:
-//   - 兩個字元的十六進位字串
+// CalculateLRC calculates the Longitudinal Redundancy Check
+// Logic: Sum of all bytes (including STX) modulo 256, returned as Hex string.
 func CalculateLRC(data []byte) string {
-	var lrc byte = 0
+	var sum byte = 0
 	for _, b := range data {
-		lrc = (lrc + b) & 0xFF
+		sum += b
 	}
-	return fmt.Sprintf("%02X", lrc)
+	return fmt.Sprintf("%02X", sum)
 }
 
-// BuildFrame 構建完整的 FATEK ASCII 訊框
-//
-// 結構：STX + Station(2) + Command(2) + Body + LRC(2) + ETX
-//
-// Args:
-//   - station: 站號 (0-255)
-//   - command: 2 字元命令碼 (例如 '44')
-//   - body: 命令的資料負載
-//
-// Returns:
-//   - 編碼後的 ASCII 訊框，準備傳輸
-func BuildFrame(station int, command, body string) []byte {
+// BuildFrame constructs the ASCII frame
+// Structure: STX + Station(2) + Command(2) + Body + LRC(2) + ETX
+func BuildFrame(station int, cmd string, body string) []byte {
+	// 1. Station to Hex String
 	stationStr := fmt.Sprintf("%02X", station)
-	content := stationStr + command + body
-
-	// 計算 LRC。注意：根據文檔，LRC 包含 STX
-	lrcSum := byte(STX)
-	for _, char := range content {
-		lrcSum += byte(char)
-	}
-	lrcHex := fmt.Sprintf("%02X", lrcSum&0xFF)
-
-	// 構建完整訊框
-	frame := string(STX) + content + lrcHex + string(ETX)
-	return []byte(frame)
+	
+	// 2. Content = Station + Cmd + Body
+	content := stationStr + cmd + body
+	
+	// 3. Prepare data for LRC (STX + Content)
+	// Note: We don't prepend STX to the string yet because LRC needs the byte value of STX
+	
+	lrcData := make([]byte, 0, 1+len(content))
+	lrcData = append(lrcData, STX)
+	lrcData = append(lrcData, []byte(content)...)
+	
+	// 4. Calculate LRC
+	lrc := CalculateLRC(lrcData)
+	
+	// 5. Final Frame: STX + Content + LRC + ETX
+	frame := make([]byte, 0, len(lrcData)+3)
+	frame = append(frame, lrcData...)
+	frame = append(frame, []byte(lrc)...)
+	frame = append(frame, ETX)
+	
+	return frame
 }
 
-// ParseResponse 驗證並解析回應訊框
-//
-// 檢查 STX、ETX、LRC，以及 PLC 回傳的錯誤碼
-//
-// Args:
-//   - response: 原始回應訊框
-//   - expectedCmd: 發送的命令碼
-//
-// Returns:
-//   - 回應的 body (資料負載)
-//
-// Raises:
-//   - FatekCommunicationError: 如果結構或 checksum 無效
-//   - FatekProtocolError: 如果 PLC 回傳錯誤碼 (非零狀態)
+// ParseResponse validates and extracts the body from a response frame
 func ParseResponse(response []byte, expectedCmd string) (string, error) {
-	if len(response) < 6 {
-		return "", NewFatekCommunicationError("response too short: %d bytes", len(response))
+	// Min length: STX(1) + Station(2) + Cmd(2) + Status(1) + LRC(2) + ETX(1) = 9
+	if len(response) < 9 {
+		return "", ErrResponseTooShort
 	}
 
-	// 檢查 STX
 	if response[0] != STX {
-		return "", NewFatekCommunicationError("invalid STX")
+		return "", ErrInvalidSTX
 	}
-
-	// 檢查 ETX
 	if response[len(response)-1] != ETX {
-		return "", NewFatekCommunicationError("invalid ETX")
+		return "", ErrInvalidETX
 	}
 
-	// 驗證 Checksum
-	// 最後 3 個位元組之前 (LRC(2) + ETX(1)) 是內容
-	contentWithSTX := response[:len(response)-3]
-	receivedLRC := string(response[len(response)-3 : len(response)-1])
-
-	lrcSum := byte(0)
-	for _, b := range contentWithSTX {
-		lrcSum += b
-	}
-	calculatedLRC := fmt.Sprintf("%02X", lrcSum&0xFF)
-
-	if receivedLRC != calculatedLRC {
-		return "", NewFatekCommunicationError("checksum mismatch. received: %s, calculated: %s", receivedLRC, calculatedLRC)
+	// Validate LRC
+	// Content to check is everything before LRC(2) + ETX(1)
+	contentLen := len(response) - 3
+	contentWithSTX := response[:contentLen]
+	receivedLRC := string(response[contentLen : contentLen+2])
+	
+	calcLRC := CalculateLRC(contentWithSTX)
+	if receivedLRC != calcLRC {
+		return "", fmt.Errorf("%w: received %s, calculated %s", ErrChecksumMismatch, receivedLRC, calcLRC)
 	}
 
-	// 解析欄位
-	// Station(2) -> [1:3]
-	// Command(2) -> [3:5]
+	// Extract Command
+	// Station is [1:3], Command is [3:5]
 	cmd := string(response[3:5])
+	
+	// Special handling for Loopback (4E)
+	// The response echoes the command 4E, but there is NO Status Code '0'.
+	// Structure: STX + Station + 4E + Data + LRC + ETX
+	if expectedCmd == "4E" {
+		if cmd != "4E" {
+			return "", ErrInvalidCommand
+		}
+		// Body is everything after Command and before LRC
+		// Start index = 5 (STX+Station+Cmd)
+		if len(response) <= 8 { // No data?
+			return "", nil 
+		}
+		body := string(response[5 : len(response)-3])
+		return body, nil
+	}
 
 	if cmd != expectedCmd {
-		return "", NewFatekCommunicationError("unexpected command in response: %s (expected: %s)", cmd, expectedCmd)
+		return "", fmt.Errorf("%w: expected %s, got %s", ErrInvalidCommand, expectedCmd, cmd)
 	}
 
-	// 狀態碼 / 錯誤碼 (命令後的第一個位元組，索引 5)
-	// 對於讀取命令 (例如 44, 46, 48)，成功是 '0' 後跟資料
-	// 對於寫入命令 (例如 45, 47)，成功只是 '0' (無 body)
-	// 對於錯誤，它是錯誤碼 '2', '4', 'A' 而不是 '0'
-	statusCode := string(response[5:6])
-
+	// Status Code (Index 5)
+	statusCode := string(response[5])
 	if statusCode != "0" {
-		return "", NewFatekProtocolError(statusCode, cmd)
+		return "", NewProtocolError(statusCode, cmd)
 	}
 
-	// 回傳 Body (跳過 STX(1)+Station(2)+Cmd(2)+StatusCode(1) = 6 個位元組)
-	// 從索引 6 開始。Checksum 在 -3
+	// Body (Index 6 to End-3)
+	// If response is just Ack (like write), len might be 9.
+	if len(response) == 9 {
+		return "", nil
+	}
+	
 	body := string(response[6 : len(response)-3])
 	return body, nil
+}
+
+// HexToInt converts Hex string to int
+func HexToInt(hexStr string) (int, error) {
+	// Use ParseUint to handle potential large values if needed, 
+	// but standard Fatek data fits in int (up to 32-bit)
+	// Using Sscanf is easy
+	var val int
+	_, err := fmt.Sscanf(hexStr, "%x", &val)
+	return val, err
+}
+
+// IntToHex converts int to Hex string with fixed width
+func IntToHex(val int, width int) string {
+	format := fmt.Sprintf("%%0%dX", width)
+	return fmt.Sprintf(format, val)
 }

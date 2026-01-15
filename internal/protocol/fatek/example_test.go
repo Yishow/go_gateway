@@ -7,8 +7,8 @@ import (
 	"go-gateway/internal/protocol/fatek"
 )
 
-// ExampleClient_TCP 展示如何使用 TCP 客戶端
-func ExampleClient_TCP() {
+// ExampleTCPClient 展示如何使用 TCP 客戶端
+func ExampleTCPClient() {
 	// 建立 TCP 客戶端
 	client := fatek.CreateTCPClient("192.168.1.5", 500, 1, 2*time.Second)
 
@@ -37,9 +37,11 @@ func ExampleClient_TCP() {
 	fmt.Printf("D0-D9 值: %v\n", registers)
 }
 
-// ExampleClient_Serial 展示如何使用串列埠客戶端
-func ExampleClient_Serial() {
+// ExampleSerialClient 展示如何使用串列埠客戶端
+// 注意：目前 SerialTransport 尚未完整實作，此範例僅供參考
+func ExampleSerialClient() {
 	// 建立串列埠客戶端
+	// 注意：CreateSerialClient 目前返回 nil，因為 SerialTransport 尚未實作
 	client := fatek.CreateSerialClient(
 		"COM3",        // 埠號
 		1,             // 站號
@@ -49,6 +51,11 @@ func ExampleClient_Serial() {
 		"E",           // 同位檢查
 		1*time.Second, // 逾時
 	)
+
+	if client == nil {
+		fmt.Println("SerialTransport 尚未實作")
+		return
+	}
 
 	// 連線
 	err := client.Connect()
