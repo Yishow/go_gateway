@@ -27,6 +27,7 @@ var (
 	TypeD  = ComponentType{Name: SymbolD, Width: 16, IsDiscrete: false, FormatLen: 6}
 	TypeRT = ComponentType{Name: SymbolRT, Width: 16, IsDiscrete: false, FormatLen: 6} // Timer Value
 	TypeRC = ComponentType{Name: SymbolRC, Width: 16, IsDiscrete: false, FormatLen: 6} // Counter Value
+	TypeF  = ComponentType{Name: "F", Width: 16, IsDiscrete: false, FormatLen: 6}      // File Register
 
 	// Registers (32-bit)
 	TypeDR = ComponentType{Name: SymbolDR, Width: 32, IsDiscrete: false, FormatLen: 7}
@@ -56,11 +57,14 @@ func GetComponentType(symbol string) (ComponentType, error) {
 		return TypeRT, nil
 	case SymbolRC:
 		return TypeRC, nil
+	case "F":
+		return TypeF, nil
 	case SymbolDR, "DD":
 		return TypeDR, nil
 	default:
 		// Defaulting DWM, etc. to 32-bit if needed, but keeping it strict for now
 		if strings.HasPrefix(upper, "D") {
+			// For DWM, DWS, etc., length is typically 7 (e.g. DWM0000)
 			return ComponentType{Name: upper, Width: 32, IsDiscrete: false, FormatLen: 7}, nil
 		}
 		return ComponentType{}, fmt.Errorf("unknown component type: %s", symbol)

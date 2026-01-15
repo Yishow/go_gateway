@@ -20,7 +20,7 @@ type TCPTransport struct {
 	Port    int
 	Timeout time.Duration
 	conn    net.Conn
-	reader  *bufio.Reader // 持久化的讀取器，避免緩衝區數據丟失
+	reader  *bufio.Reader
 }
 
 func NewTCPTransport(host string, port int) *TCPTransport {
@@ -38,7 +38,7 @@ func (t *TCPTransport) Connect() error {
 		return err
 	}
 	t.conn = conn
-	t.reader = bufio.NewReader(conn) // 建立持久化的讀取器
+	t.reader = bufio.NewReader(conn)
 	return nil
 }
 
@@ -60,21 +60,27 @@ func (t *TCPTransport) SendReceive(data []byte) ([]byte, error) {
 	// Set Deadline
 	t.conn.SetDeadline(time.Now().Add(t.Timeout))
 
+	// Flush Buffer logic:
+	// We want to discard any pending bytes from previous (timeout/error) operations.
+	// Since bufio.Reader can buffer bytes, simply creating a new one isn't enough if data is in OS stack.
+	// The best way is to ensure we read everything before writing, but "everything" is undefined if silent.
+	// 
+	// Optimization: If we trust the request-response lock-step, buffer should be empty.
+	// If previous op timed out, we might be out of sync.
+	// Recommendation: On timeout, Close() the connection. The caller (Client) should detect ErrConnectionClosed and Reconnect.
+	// For this transport, if write/read fails, we close.
+	
 	// Write
 	_, err := t.conn.Write(data)
 	if err != nil {
+		t.Close() // Force close on error to reset state
 		return nil, err
 	}
 
 	// Read until ETX
-	// 使用持久化的 bufio.Reader 以避免每次創建新讀取器導致的緩衝區數據丟失
-	if t.reader == nil {
-		// 如果讀取器不存在（不應該發生，但為了安全）
-		t.reader = bufio.NewReader(t.conn)
-	}
-	
 	response, err := t.reader.ReadBytes(ETX)
 	if err != nil {
+		t.Close() // Force close on error (including timeout) to reset state
 		return nil, err
 	}
 	

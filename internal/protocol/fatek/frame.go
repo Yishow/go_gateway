@@ -1,6 +1,7 @@
 package fatek
 
 import (
+	"encoding/hex"
 	"fmt"
 )
 
@@ -44,8 +45,16 @@ func BuildFrame(station int, cmd string, body string) []byte {
 
 // ParseResponse validates and extracts the body from a response frame
 func ParseResponse(response []byte, expectedCmd string) (string, error) {
-	// Min length: STX(1) + Station(2) + Cmd(2) + Status(1) + LRC(2) + ETX(1) = 9
-	if len(response) < 9 {
+	// Min length check
+	// Normal: STX(1) + Station(2) + Cmd(2) + Status(1) + LRC(2) + ETX(1) = 9
+	// Loopback(4E): STX(1) + Station(2) + Cmd(2) + LRC(2) + ETX(1) = 8 (Empty body)
+	
+	minLen := 9
+	if expectedCmd == "4E" {
+		minLen = 8
+	}
+
+	if len(response) < minLen {
 		return "", ErrResponseTooShort
 	}
 
