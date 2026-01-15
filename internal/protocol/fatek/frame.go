@@ -1,7 +1,6 @@
 package fatek
 
 import (
-	"encoding/hex"
 	"fmt"
 )
 

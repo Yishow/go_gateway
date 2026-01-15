@@ -91,6 +91,9 @@ func (c *FatekClient) WriteStatus(symbol string, startAddr int, data []bool) err
 	if err != nil {
 		return err
 	}
+	if !comp.IsDiscrete {
+		return fmt.Errorf("component %s is not discrete", symbol)
+	}
 
 	countHex := IntToHex(count, 2)
 	addrStr := FormatAddress(comp, startAddr)
@@ -136,9 +139,9 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 
 	// 16-bit = 4 chars, 32-bit = 8 chars
 	charsPerVal := comp.Width / 4
-	if len(dataStr) != count*charsPerVal {
-		// Just a warning or strict check? 
-		// Sometimes PLC returns partial? Unlikely.
+	expectedLen := count * charsPerVal
+	if len(dataStr) != expectedLen {
+		return nil, fmt.Errorf("response length mismatch: expected %d chars, got %d", expectedLen, len(dataStr))
 	}
 
 	result := make([]int, 0, count)
@@ -153,6 +156,12 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 		}
 		result = append(result, val)
 	}
+	
+	// 驗證結果數量是否與請求一致
+	if len(result) != count {
+		return nil, fmt.Errorf("incomplete response: expected %d values, got %d", count, len(result))
+	}
+	
 	return result, nil
 }
 
