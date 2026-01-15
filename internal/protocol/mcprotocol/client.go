@@ -18,7 +18,20 @@ func NewClient(host string, port int) *MCClient {
 	}
 }
 
-// NewClientWithTransport creates a new MCClient with custom transport
+// NewClientWithTransport 使用自訂傳輸層建立新的 MC 客戶端
+//
+// 此函數允許使用自訂的傳輸實作（例如測試用的 Mock Transport）。
+// 對於一般使用，建議使用 NewClient 函數。
+//
+// Args:
+//   - transport: 實作 Transport 介面的傳輸層實例
+//
+// Returns:
+//   - 配置好的 MC 客戶端實例
+//
+// Example:
+//   transport := NewTCPTransport("192.168.1.10", 5000)
+//   client := NewClientWithTransport(transport)
 func NewClientWithTransport(transport Transport) *MCClient {
 	return &MCClient{
 		transport: transport,
@@ -36,9 +49,22 @@ func (c *MCClient) Close() error {
 
 // BatchReadWord reads 16-bit words
 func (c *MCClient) BatchReadWord(device string, addr int, count int) ([]int, error) {
+	// 輸入驗證
+	if addr < 0 || addr > 0xFFFFFF {
+		return nil, fmt.Errorf("address out of range: %d (valid: 0-16777215)", addr)
+	}
+	if count < 1 || count > 125 {
+		return nil, fmt.Errorf("count out of range: %d (valid: 1-125 for word devices)", count)
+	}
+
 	devType, err := GetDeviceType(device)
 	if err != nil {
 		return nil, err
+	}
+
+	// 驗證設備類型為字組設備
+	if devType.IsBit {
+		return nil, fmt.Errorf("device type %s is a bit device, use BatchReadBit instead", device)
 	}
 
 	// Prepare Data: Head(3) + Code(1) + Count(2)
@@ -59,7 +85,10 @@ func (c *MCClient) BatchReadWord(device string, addr int, count int) ([]int, err
 	// Check EndCode (First 2 bytes)
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
-		return nil, &MCError{Code: int(endCode), Msg: "PLC returned error code"}
+		return nil, &MCError{
+			Code: int(endCode),
+			Msg:  fmt.Sprintf("PLC returned error code 0x%04X for device %s at address %d (count: %d)", endCode, device, addr, count),
+		}
 	}
 
 	// Data follows EndCode
@@ -77,10 +106,23 @@ func (c *MCClient) BatchReadWord(device string, addr int, count int) ([]int, err
 
 // BatchWriteWord writes 16-bit words
 func (c *MCClient) BatchWriteWord(device string, addr int, values []int) error {
+	// 輸入驗證
+	if addr < 0 || addr > 0xFFFFFF {
+		return fmt.Errorf("address out of range: %d (valid: 0-16777215)", addr)
+	}
 	count := len(values)
+	if count < 1 || count > 123 {
+		return fmt.Errorf("count out of range: %d (valid: 1-123 for word write)", count)
+	}
+
 	devType, err := GetDeviceType(device)
 	if err != nil {
 		return err
+	}
+
+	// 驗證設備類型為字組設備
+	if devType.IsBit {
+		return fmt.Errorf("device type %s is a bit device, use BatchWriteBit instead", device)
 	}
 
 	// Data: Head(3) + Code(1) + Count(2) + Values(2*N)
@@ -103,19 +145,32 @@ func (c *MCClient) BatchWriteWord(device string, addr int, values []int) error {
 
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
-		return &MCError{Code: int(endCode), Msg: "PLC returned error code"}
+		return &MCError{
+			Code: int(endCode),
+			Msg:  fmt.Sprintf("PLC returned error code 0x%04X for device %s at address %d (count: %d)", endCode, device, addr, count),
+		}
 	}
 	return nil
 }
 
 // BatchReadBit reads bits
 func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, error) {
+	// 輸入驗證
+	if addr < 0 || addr > 0xFFFFFF {
+		return nil, fmt.Errorf("address out of range: %d (valid: 0-16777215)", addr)
+	}
+	if count < 1 || count > 2000 {
+		return nil, fmt.Errorf("count out of range: %d (valid: 1-2000 for bit devices)", count)
+	}
+
 	devType, err := GetDeviceType(device)
 	if err != nil {
 		return nil, err
 	}
+
+	// 驗證設備類型為位元設備（MC Protocol 3E 嚴格區分位元和字組設備）
 	if !devType.IsBit {
-		// Can read words as bits? Usually strictly separate in MC Protocol 3E
+		return nil, fmt.Errorf("device type %s is not a bit device, use BatchReadWord instead", device)
 	}
 
 	data := make([]byte, 6)
@@ -133,7 +188,10 @@ func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, err
 
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
-		return nil, &MCError{Code: int(endCode), Msg: "PLC returned error code"}
+		return nil, &MCError{
+			Code: int(endCode),
+			Msg:  fmt.Sprintf("PLC returned error code 0x%04X for device %s at address %d (count: %d)", endCode, device, addr, count),
+		}
 	}
 
 	raw := resp[2:]
@@ -147,10 +205,23 @@ func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, err
 
 // BatchWriteBit writes bits
 func (c *MCClient) BatchWriteBit(device string, addr int, values []bool) error {
+	// 輸入驗證
+	if addr < 0 || addr > 0xFFFFFF {
+		return fmt.Errorf("address out of range: %d (valid: 0-16777215)", addr)
+	}
 	count := len(values)
+	if count < 1 || count > 1968 {
+		return fmt.Errorf("count out of range: %d (valid: 1-1968 for bit write)", count)
+	}
+
 	devType, err := GetDeviceType(device)
 	if err != nil {
 		return err
+	}
+
+	// 驗證設備類型為位元設備
+	if !devType.IsBit {
+		return fmt.Errorf("device type %s is not a bit device, use BatchWriteWord instead", device)
 	}
 
 	bitData := PackBits(values)
@@ -172,15 +243,32 @@ func (c *MCClient) BatchWriteBit(device string, addr int, values []bool) error {
 
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
-		return &MCError{Code: int(endCode), Msg: "PLC returned error code"}
+		return &MCError{
+			Code: int(endCode),
+			Msg:  fmt.Sprintf("PLC returned error code 0x%04X for device %s at address %d (count: %d)", endCode, device, addr, count),
+		}
 	}
 	return nil
 }
 
-// RandomReadItem
+// RandomReadItem 定義隨機讀取項目
 type RandomReadItem struct {
 	Device string
 	Addr   int
+}
+
+// RandomWriteItem 定義隨機寫入字組項目
+type RandomWriteItem struct {
+	Device string
+	Addr   int
+	Value  int // 16-bit word value
+}
+
+// RandomWriteBitItem 定義隨機寫入位元項目
+type RandomWriteBitItem struct {
+	Device string
+	Addr   int
+	Value  bool // bit value
 }
 
 // RandomRead reads mixed words
@@ -214,12 +302,15 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 
 	endCode := binary.LittleEndian.Uint16(resp[0:])
 	if endCode != 0 {
-		return nil, &MCError{Code: int(endCode), Msg: "PLC returned error code"}
+		return nil, &MCError{
+			Code: int(endCode),
+			Msg:  fmt.Sprintf("PLC returned error code 0x%04X for random read (count: %d)", endCode, count),
+		}
 	}
 
 	raw := resp[2:]
 	if len(raw) != count*2 {
-		return nil, fmt.Errorf("response length mismatch")
+		return nil, fmt.Errorf("response length mismatch: expected %d bytes, got %d bytes for %d items", count*2, len(raw), count)
 	}
 
 	res := make([]int, count)
@@ -229,8 +320,20 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 	return res, nil
 }
 
-// RandomWrite (Placeholder) - usually involves complex command structure
-func (c *MCClient) RandomWrite(wordItems []struct{Device string; Addr int; Value int}, bitItems []struct{Device string; Addr int; Value bool}) error {
-	// TODO: Implement Command 1402 (Random Write) if needed
-	return fmt.Errorf("random write not implemented")
+// RandomWrite 隨機寫入多個字組和位元設備
+//
+// 注意：此功能需要 Command 0x1402，目前未實作。
+// 參考: MC Protocol 3E Binary Frame Specification
+//
+// Args:
+//   - wordItems: 要寫入的字組設備列表
+//   - bitItems: 要寫入的位元設備列表
+//
+// Returns:
+//   - 錯誤（目前總是返回未實作錯誤）
+func (c *MCClient) RandomWrite(wordItems []RandomWriteItem, bitItems []RandomWriteBitItem) error {
+	// TODO: Implement Command 0x1402 (Random Write)
+	// 參考: MC Protocol 3E Binary Frame Specification
+	// 需要構建複雜的請求結構，包含字組和位元設備的混合寫入
+	return fmt.Errorf("random write not implemented: requires Command 0x1402")
 }
