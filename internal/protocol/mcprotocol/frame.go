@@ -62,16 +62,20 @@ func (f RequestFrame) BuildPacket(cmd, subCmd uint16, data []byte) []byte {
 // ParseResponseHeader parses the response header and checks for errors
 // Response: Sub(2)+Net(1)+PC(1)+IO(2)+Station(1)+Len(2)+EndCode(2)+Data...
 // Returns: data (after EndCode), error
+// Note: 回應標頭使用原始位元組序列 [0xD0, 0x00]，不是 Little Endian 格式
 func ParseResponseHeader(header []byte) (int, error) {
 	if len(header) < 9 {
 		return 0, fmt.Errorf("response too short")
 	}
 	
-	subHeader := binary.LittleEndian.Uint16(header[0:])
-	if subHeader != ResSubHeader {
-		return 0, fmt.Errorf("invalid response subheader: 0x%04X", subHeader)
+	// 檢查 Subheader: 應該是 [0xD0, 0x00]
+	// Python 代碼直接比較: header_res[:2] != b'\xD0\x00'
+	if header[0] != 0xD0 || header[1] != 0x00 {
+		received := uint16(header[0])<<8 | uint16(header[1])
+		return 0, fmt.Errorf("invalid response subheader: 0x%04X (expected 0xD000)", received)
 	}
 	
+	// 數據長度使用 Little Endian
 	dataLen := binary.LittleEndian.Uint16(header[7:])
 	return int(dataLen), nil
 }

@@ -1,11 +1,14 @@
 package mcprotocol
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"go.bug.st/serial"
 )
 
 // Transport defines the interface for MC Protocol communication
@@ -133,5 +136,158 @@ func (t *TCPTransport) internalClose() {
 	if t.conn != nil {
 		t.conn.Close()
 		t.conn = nil
+	}
+}
+
+// SerialTransport MC Protocol 串列埠傳輸實作
+type SerialTransport struct {
+	Port     string
+	BaudRate int
+	DataBits int
+	Parity   serial.Parity
+	StopBits serial.StopBits
+	Timeout  time.Duration
+	port     serial.Port
+	reader   *bufio.Reader
+	mu       sync.Mutex
+}
+
+// NewSerialTransport 建立新的串列埠傳輸實例
+func NewSerialTransport(port string, baudRate, dataBits, stopBits int, parity string, timeout time.Duration) *SerialTransport {
+	if baudRate == 0 {
+		baudRate = 9600
+	}
+	if dataBits == 0 {
+		dataBits = 7
+	}
+	if timeout == 0 {
+		timeout = 2 * time.Second
+	}
+
+	var p serial.Parity
+	switch parity {
+	case "N", "n":
+		p = serial.NoParity
+	case "E", "e":
+		p = serial.EvenParity
+	case "O", "o":
+		p = serial.OddParity
+	default:
+		p = serial.EvenParity
+	}
+
+	var sb serial.StopBits
+	switch stopBits {
+	case 1:
+		sb = serial.OneStopBit
+	case 2:
+		sb = serial.TwoStopBits
+	default:
+		sb = serial.TwoStopBits
+	}
+
+	return &SerialTransport{
+		Port:     port,
+		BaudRate: baudRate,
+		DataBits: dataBits,
+		Parity:   p,
+		StopBits: sb,
+		Timeout:  timeout,
+	}
+}
+
+func (s *SerialTransport) Connect() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.port != nil {
+		s.port.Close()
+	}
+
+	mode := &serial.Mode{
+		BaudRate: s.BaudRate,
+		DataBits: s.DataBits,
+		Parity:   s.Parity,
+		StopBits: s.StopBits,
+	}
+
+	port, err := serial.Open(s.Port, mode)
+	if err != nil {
+		return fmt.Errorf("串列埠開啟失敗: %w", err)
+	}
+
+	s.port = port
+	s.reader = bufio.NewReader(port)
+	return nil
+}
+
+func (s *SerialTransport) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.port != nil {
+		err := s.port.Close()
+		s.port = nil
+		s.reader = nil
+		return err
+	}
+	return nil
+}
+
+func (s *SerialTransport) SendReceive(req []byte) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.port == nil {
+		return nil, fmt.Errorf("連線已關閉")
+	}
+
+	s.port.SetReadTimeout(s.Timeout)
+
+	// 寫入請求
+	if _, err := s.port.Write(req); err != nil {
+		s.internalClose()
+		return nil, fmt.Errorf("串列埠寫入失敗: %w", err)
+	}
+
+	// 等待一段時間（根據波特率計算）
+	charTime := time.Duration(10000000/s.BaudRate) * time.Microsecond
+	time.Sleep(charTime * 35 / 10) // 3.5 字符時間
+
+	// 讀取回應標頭 (9 bytes)
+	header := make([]byte, 9)
+	if _, err := io.ReadFull(s.reader, header); err != nil {
+		s.internalClose()
+		return nil, fmt.Errorf("串列埠讀取標頭失敗: %w", err)
+	}
+
+	// 解析長度
+	dataLen, err := ParseResponseHeader(header)
+	if err != nil {
+		s.internalClose()
+		return nil, err
+	}
+
+	// 安全檢查
+	if dataLen > 32*1024 {
+		s.internalClose()
+		return nil, fmt.Errorf("回應資料過大: %d bytes (限制: %d)", dataLen, 32*1024)
+	}
+
+	// 讀取資料本體 (EndCode + Data)
+	body := make([]byte, dataLen)
+	if _, err := io.ReadFull(s.reader, body); err != nil {
+		s.internalClose()
+		return nil, fmt.Errorf("串列埠讀取資料失敗: %w", err)
+	}
+
+	return body, nil
+}
+
+func (s *SerialTransport) internalClose() {
+	if s.port != nil {
+		s.port.Close()
+		s.port = nil
+		s.reader = nil
 	}
 }
