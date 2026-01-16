@@ -21,11 +21,11 @@ type Transport interface {
 
 // TCPTransport Modbus TCP 傳輸實作
 type TCPTransport struct {
-	Host         string
-	Port         int
-	Timeout      time.Duration
-	conn         net.Conn
-	mu           sync.Mutex
+	Host          string
+	Port          int
+	Timeout       time.Duration
+	conn          net.Conn
+	mu            sync.Mutex
 	transactionID uint16
 }
 
@@ -35,9 +35,9 @@ func NewTCPTransport(host string, port int) *TCPTransport {
 		port = TCPDefaultPort
 	}
 	return &TCPTransport{
-		Host:         host,
-		Port:         port,
-		Timeout:      2 * time.Second,
+		Host:          host,
+		Port:          port,
+		Timeout:       2 * time.Second,
 		transactionID: 0,
 	}
 }
@@ -139,11 +139,11 @@ func (t *TCPTransport) GetNextTransactionID() uint16 {
 
 // UDPTransport Modbus UDP 傳輸實作
 type UDPTransport struct {
-	Host         string
-	Port         int
-	Timeout      time.Duration
-	conn         *net.UDPConn
-	mu           sync.Mutex
+	Host          string
+	Port          int
+	Timeout       time.Duration
+	conn          *net.UDPConn
+	mu            sync.Mutex
 	transactionID uint16
 }
 
@@ -153,9 +153,9 @@ func NewUDPTransport(host string, port int) *UDPTransport {
 		port = UDPDefaultPort
 	}
 	return &UDPTransport{
-		Host:         host,
-		Port:         port,
-		Timeout:      2 * time.Second,
+		Host:          host,
+		Port:          port,
+		Timeout:       2 * time.Second,
 		transactionID: 0,
 	}
 }
@@ -379,7 +379,7 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 			return nil, fmt.Errorf("RTU 讀取 ByteCount 失敗: %w", err)
 		}
 		expectedLength = 2 + 1 + int(byteCount[0]) + 2 // Header + ByteCount + Data + CRC
-		
+
 		// 讀取數據和 CRC
 		dataAndCRC := make([]byte, int(byteCount[0])+2)
 		if _, err := io.ReadFull(r.reader, dataAndCRC); err != nil {

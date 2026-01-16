@@ -4,9 +4,9 @@ import "fmt"
 
 // Command Codes (3E Binary)
 const (
-	CmdBatchRead  = 0x0401
-	CmdBatchWrite = 0x1401
-	CmdRandomRead = 0x0403
+	CmdBatchRead   = 0x0401
+	CmdBatchWrite  = 0x1401
+	CmdRandomRead  = 0x0403
 	CmdRandomWrite = 0x1402 // Not implemented in MVP but good to have
 )
 

@@ -246,7 +246,7 @@ func (c *MCClient) BatchWriteBit(device string, addr int, values []bool) error {
 	}
 
 	bitData := PackBits(values)
-	
+
 	// Data: Head(3) + Code(1) + Count(2) + BitData...
 	data := make([]byte, 6+len(bitData))
 	data[0] = byte(addr & 0xFF)
@@ -302,17 +302,17 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 	count := len(items)
 	// Request: Count(1) + DoubleCount(1) + [Code(1)+Head(3)]...
 	// Note: DoubleCount is usually 0 for 3E frame word access command 0403
-	
+
 	data := make([]byte, 2+count*4)
 	data[0] = byte(count)
 	data[1] = 0 // Double word access points
-	
+
 	for i, item := range items {
 		devType, err := GetDeviceType(item.Device)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		offset := 2 + i*4
 		data[offset] = devType.Code
 		data[offset+1] = byte(item.Addr & 0xFF)

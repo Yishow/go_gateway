@@ -19,9 +19,9 @@ func (m *MockTransport) SendReceive(data []byte) ([]byte, error) {
 func TestBuildFrameToBuffer(t *testing.T) {
 	buf := GetBuffer()
 	defer PutBuffer(buf)
-	
+
 	BuildFrameToBuffer(buf, 1, "44", "TEST")
-	
+
 	if buf.Len() == 0 {
 		t.Error("Buffer should not be empty")
 	}
@@ -72,7 +72,7 @@ func BenchmarkBuildFrame_Pool(b *testing.B) {
 func BenchmarkClient_Execute(b *testing.B) {
 	transport := &MockTransport{}
 	client := NewClient(transport, 1)
-	
+
 	// Pre-calculate args
 	cmd := "44"
 	body := "0A00000"

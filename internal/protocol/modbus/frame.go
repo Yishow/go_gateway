@@ -8,16 +8,16 @@ import (
 // MBAPHeader Modbus TCP/UDP MBAP 標頭
 type MBAPHeader struct {
 	TransactionID uint16 // 交易 ID
-	ProtocolID   uint16 // 協議 ID (0x0000 for Modbus)
-	Length       uint16 // 後續數據長度 (Unit ID + PDU)
-	UnitID       byte   // 單元 ID (站號)
+	ProtocolID    uint16 // 協議 ID (0x0000 for Modbus)
+	Length        uint16 // 後續數據長度 (Unit ID + PDU)
+	UnitID        byte   // 單元 ID (站號)
 }
 
 // BuildMBAPHeader 構建 MBAP 標頭
 func BuildMBAPHeader(transactionID uint16, unitID byte, pduLength int) []byte {
 	header := make([]byte, MBAPHeaderLength)
 	binary.BigEndian.PutUint16(header[0:], transactionID)
-	binary.BigEndian.PutUint16(header[2:], 0x0000) // Protocol ID
+	binary.BigEndian.PutUint16(header[2:], 0x0000)              // Protocol ID
 	binary.BigEndian.PutUint16(header[4:], uint16(pduLength+1)) // Length = PDU + Unit ID
 	header[6] = unitID
 	return header
@@ -59,7 +59,7 @@ func ParsePDU(data []byte) (functionCode byte, pduData []byte, err error) {
 	}
 
 	functionCode = data[0]
-	
+
 	// 檢查是否為異常回應
 	if functionCode&FuncExceptionOffset != 0 {
 		if len(data) < 2 {
@@ -125,10 +125,10 @@ func BuildRTUFrame(address byte, functionCode byte, data []byte) []byte {
 	frame := make([]byte, 1+len(pdu)+2)
 	frame[0] = address
 	copy(frame[1:], pdu)
-	
+
 	crc := CalculateCRC16(frame[:1+len(pdu)])
 	binary.LittleEndian.PutUint16(frame[1+len(pdu):], crc)
-	
+
 	return frame
 }
 
@@ -140,7 +140,7 @@ func ParseRTUFrame(data []byte) (address byte, functionCode byte, pduData []byte
 
 	address = data[0]
 	pdu := data[1 : len(data)-2]
-	
+
 	// 驗證 CRC
 	receivedCRC := binary.LittleEndian.Uint16(data[len(data)-2:])
 	calculatedCRC := CalculateCRC16(data[:len(data)-2])
@@ -207,19 +207,19 @@ func BuildWriteSingleRegisterRequest(address uint16, value uint16) []byte {
 func BuildWriteMultipleCoilsRequest(startAddress uint16, values []bool) []byte {
 	quantity := uint16(len(values))
 	byteCount := (len(values) + 7) / 8
-	
+
 	data := make([]byte, 5+byteCount)
 	binary.BigEndian.PutUint16(data[0:], startAddress)
 	binary.BigEndian.PutUint16(data[2:], quantity)
 	data[4] = byte(byteCount)
-	
+
 	// 打包位元值
 	for i, val := range values {
 		if val {
 			data[5+i/8] |= 1 << (i % 8)
 		}
 	}
-	
+
 	return data
 }
 
@@ -228,16 +228,16 @@ func BuildWriteMultipleCoilsRequest(startAddress uint16, values []bool) []byte {
 func BuildWriteMultipleRegistersRequest(startAddress uint16, values []uint16) []byte {
 	quantity := uint16(len(values))
 	byteCount := len(values) * 2
-	
+
 	data := make([]byte, 5+byteCount)
 	binary.BigEndian.PutUint16(data[0:], startAddress)
 	binary.BigEndian.PutUint16(data[2:], quantity)
 	data[4] = byte(byteCount)
-	
+
 	for i, val := range values {
 		binary.BigEndian.PutUint16(data[5+i*2:], val)
 	}
-	
+
 	return data
 }
 
@@ -247,7 +247,7 @@ func ParseWriteResponse(data []byte, isMultiple bool) (address uint16, valueOrQu
 	if len(data) < 4 {
 		return 0, 0, ErrResponseTooShort
 	}
-	
+
 	address = binary.BigEndian.Uint16(data[0:])
 	valueOrQuantity = binary.BigEndian.Uint16(data[2:])
 	return address, valueOrQuantity, nil

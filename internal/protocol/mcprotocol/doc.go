@@ -14,9 +14,8 @@ Usage:
 
 	// Read D100-D104
 	data, err := client.BatchReadWord("D", 100, 5)
-	
+
 	// Write M0-M3
 	err = client.BatchWriteBit("M", 0, []bool{true, false, true, false})
-
 */
 package mcprotocol

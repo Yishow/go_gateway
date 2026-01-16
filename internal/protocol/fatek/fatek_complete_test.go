@@ -29,27 +29,27 @@ func (m *MockFatekTransport) Close() error {
 
 func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 	m.sentData = append(m.sentData, data)
-	
+
 	// 檢查是否有預設錯誤
 	if err, ok := m.errors[string(data)]; ok {
 		return nil, err
 	}
-	
+
 	// 檢查是否有預設回應
 	if resp, ok := m.responses[string(data)]; ok {
 		return resp, nil
 	}
-	
+
 	// 預設回應：根據命令生成
 	if len(data) < 9 {
 		return nil, ErrResponseTooShort
 	}
-	
+
 	// 解析命令
 	cmd := string(data[3:5])
-	
+
 	var response []byte
-	
+
 	switch cmd {
 	case "44": // ReadStatus
 		// STX + Station + Cmd + Status(1) + Data(N) + LRC(2) + ETX
@@ -57,7 +57,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		response[0] = STX
 		copy(response[1:3], data[1:3]) // Station
 		copy(response[3:5], data[3:5]) // Cmd
-		response[5] = '0' // Status
+		response[5] = '0'              // Status
 		// 10 個 '0' (false)
 		for i := 0; i < 10; i++ {
 			response[6+i] = '0'
@@ -65,7 +65,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:16])
 		copy(response[16:18], []byte(lrc))
 		response[18] = ETX
-		
+
 	case "45": // WriteStatus
 		// STX + Station + Cmd + Status(1) + LRC(2) + ETX
 		response = make([]byte, 9)
@@ -76,7 +76,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:6])
 		copy(response[6:8], []byte(lrc))
 		response[8] = ETX
-		
+
 	case "46": // ReadRegisters
 		// STX + Station + Cmd + Status(1) + Data(4*N) + LRC(2) + ETX
 		count := 10
@@ -93,7 +93,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:46])
 		copy(response[46:48], []byte(lrc))
 		response[48] = ETX
-		
+
 	case "47": // WriteRegisters
 		// STX + Station + Cmd + Status(1) + LRC(2) + ETX
 		response = make([]byte, 9)
@@ -104,7 +104,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:6])
 		copy(response[6:8], []byte(lrc))
 		response[8] = ETX
-		
+
 	case "48": // ReadRandom
 		// STX + Station + Cmd + Status(1) + Data(Variable) + LRC(2) + ETX
 		response = make([]byte, 9+8) // 假設 2 個項目，每個 4 字符
@@ -116,7 +116,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:14])
 		copy(response[14:16], []byte(lrc))
 		response[16] = ETX
-		
+
 	case "4E": // LoopbackTest
 		// STX + Station + Cmd + Data + LRC(2) + ETX
 		bodyLen := len(data) - 8 // 減去 STX + Station + Cmd + LRC + ETX
@@ -128,7 +128,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:5+bodyLen])
 		copy(response[5+bodyLen:5+bodyLen+2], []byte(lrc))
 		response[5+bodyLen+2] = ETX
-		
+
 	case "41": // Run/Stop
 		// STX + Station + Cmd + Status(1) + LRC(2) + ETX
 		response = make([]byte, 9)
@@ -139,7 +139,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:6])
 		copy(response[6:8], []byte(lrc))
 		response[8] = ETX
-		
+
 	case "42": // SingleAction
 		// STX + Station + Cmd + Status(1) + LRC(2) + ETX
 		response = make([]byte, 9)
@@ -150,11 +150,11 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		lrc := CalculateLRC(response[:6])
 		copy(response[6:8], []byte(lrc))
 		response[8] = ETX
-		
+
 	default:
 		return nil, ErrInvalidCommand
 	}
-	
+
 	return response, nil
 }
 
@@ -170,7 +170,7 @@ func (m *MockFatekTransport) SetError(key string, err error) {
 func TestCalculateLRC(t *testing.T) {
 	data := []byte{STX, '0', '1', '4', '4', 'T', 'E', 'S', 'T'}
 	lrc := CalculateLRC(data)
-	
+
 	if len(lrc) != 2 {
 		t.Errorf("Expected LRC length 2, got %d", len(lrc))
 	}
@@ -178,7 +178,7 @@ func TestCalculateLRC(t *testing.T) {
 
 func TestBuildFrame(t *testing.T) {
 	frame := BuildFrame(1, "44", "TEST")
-	
+
 	if len(frame) < 9 {
 		t.Error("Frame too short")
 	}
@@ -193,13 +193,13 @@ func TestBuildFrame(t *testing.T) {
 func TestBuildFrameToBuffer_Complete(t *testing.T) {
 	buf := GetBuffer()
 	defer PutBuffer(buf)
-	
+
 	BuildFrameToBuffer(buf, 1, "44", "TEST")
-	
+
 	if buf.Len() < 9 {
 		t.Error("Frame too short")
 	}
-	
+
 	data := buf.Bytes()
 	if data[0] != STX {
 		t.Error("Frame should start with STX")
@@ -220,7 +220,7 @@ func TestParseResponse(t *testing.T) {
 	lrc := CalculateLRC(response[:16])
 	copy(response[16:18], []byte(lrc))
 	response[18] = ETX
-	
+
 	body, err := ParseResponse(response, "44")
 	if err != nil {
 		t.Fatalf("ParseResponse failed: %v", err)
@@ -228,14 +228,14 @@ func TestParseResponse(t *testing.T) {
 	if len(body) != 10 {
 		t.Errorf("Expected body length 10, got %d", len(body))
 	}
-	
+
 	// 測試無效 STX
 	response[0] = 0xFF
 	_, err = ParseResponse(response, "44")
 	if err != ErrInvalidSTX {
 		t.Errorf("Expected ErrInvalidSTX, got %v", err)
 	}
-	
+
 	// 測試無效 ETX
 	response[0] = STX
 	response[len(response)-1] = 0xFF
@@ -243,13 +243,13 @@ func TestParseResponse(t *testing.T) {
 	if err != ErrInvalidETX {
 		t.Errorf("Expected ErrInvalidETX, got %v", err)
 	}
-	
+
 	// 測試過短的回應
 	_, err = ParseResponse([]byte{STX, '0', '1'}, "44")
 	if err != ErrResponseTooShort {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
-	
+
 	// 測試錯誤狀態
 	errorResponse := []byte{STX, '0', '1', '4', '4', '1', 'F', 'F', 0x03} // Status '1' = Error
 	_, err = ParseResponse(errorResponse, "44")
@@ -270,7 +270,7 @@ func TestGetComponentType(t *testing.T) {
 	if !comp.IsDiscrete {
 		t.Error("Component X should be discrete")
 	}
-	
+
 	comp, err = GetComponentType("D")
 	if err != nil {
 		t.Fatalf("GetComponentType failed: %v", err)
@@ -278,7 +278,7 @@ func TestGetComponentType(t *testing.T) {
 	if comp.IsDiscrete {
 		t.Error("Component D should not be discrete")
 	}
-	
+
 	_, err = GetComponentType("UNKNOWN")
 	if err == nil {
 		t.Error("Expected error for unknown component")
@@ -294,13 +294,13 @@ func TestFormatAddress(t *testing.T) {
 	if addr != "D00123" {
 		t.Errorf("Expected address D00123, got %s", addr)
 	}
-	
+
 	// 測試超出範圍
 	_, err = FormatAddress(comp, 100000)
 	if err == nil {
 		t.Error("Expected error for address out of range")
 	}
-	
+
 	// 測試負數
 	_, err = FormatAddress(comp, -1)
 	if err == nil {
@@ -312,14 +312,14 @@ func TestFormatAddress(t *testing.T) {
 func TestNewClient(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	if client == nil {
 		t.Fatal("NewClient returned nil")
 	}
 	if client.station != 1 {
 		t.Errorf("Expected station 1, got %d", client.station)
 	}
-	
+
 	// 測試預設站號
 	client2 := NewClient(transport, 0)
 	if client2.station != DefaultStation {
@@ -330,7 +330,7 @@ func TestNewClient(t *testing.T) {
 func TestClient_ReadStatus(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	status, err := client.ReadStatus("X", 0, 10)
 	if err != nil {
 		t.Fatalf("ReadStatus failed: %v", err)
@@ -338,13 +338,13 @@ func TestClient_ReadStatus(t *testing.T) {
 	if len(status) != 10 {
 		t.Errorf("Expected 10 status values, got %d", len(status))
 	}
-	
+
 	// 測試無效組件
 	_, err = client.ReadStatus("D", 0, 10)
 	if err == nil {
 		t.Error("Expected error for non-discrete component")
 	}
-	
+
 	// 測試數量過大
 	_, err = client.ReadStatus("X", 0, 256)
 	if err == nil {
@@ -355,7 +355,7 @@ func TestClient_ReadStatus(t *testing.T) {
 func TestClient_WriteStatus(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	values := []bool{true, false, true, false}
 	err := client.WriteStatus("X", 0, values)
 	if err != nil {
@@ -366,7 +366,7 @@ func TestClient_WriteStatus(t *testing.T) {
 func TestClient_ReadRegisters(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	registers, err := client.ReadRegisters("D", 0, 10)
 	if err != nil {
 		t.Fatalf("ReadRegisters failed: %v", err)
@@ -379,7 +379,7 @@ func TestClient_ReadRegisters(t *testing.T) {
 func TestClient_WriteRegisters(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	values := []int{100, 200, 300}
 	err := client.WriteRegisters("D", 0, values)
 	if err != nil {
@@ -390,12 +390,12 @@ func TestClient_WriteRegisters(t *testing.T) {
 func TestClient_ReadRandom(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	items := []RandomReadItem{
 		{Symbol: "D", Addr: 0},
 		{Symbol: "D", Addr: 10},
 	}
-	
+
 	results, err := client.ReadRandom(items)
 	if err != nil {
 		t.Fatalf("ReadRandom failed: %v", err)
@@ -403,7 +403,7 @@ func TestClient_ReadRandom(t *testing.T) {
 	if len(results) != 2 {
 		t.Errorf("Expected 2 results, got %d", len(results))
 	}
-	
+
 	// 測試數量過大
 	items65 := make([]RandomReadItem, 65)
 	for i := range items65 {
@@ -418,7 +418,7 @@ func TestClient_ReadRandom(t *testing.T) {
 func TestClient_LoopbackTest(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	ok, err := client.LoopbackTest("TEST")
 	if err != nil {
 		t.Fatalf("LoopbackTest failed: %v", err)
@@ -431,7 +431,7 @@ func TestClient_LoopbackTest(t *testing.T) {
 func TestClient_Run(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	err := client.Run()
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
@@ -441,7 +441,7 @@ func TestClient_Run(t *testing.T) {
 func TestClient_Stop(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	err := client.Stop()
 	if err != nil {
 		t.Fatalf("Stop failed: %v", err)
@@ -451,18 +451,18 @@ func TestClient_Stop(t *testing.T) {
 func TestClient_SingleAction(t *testing.T) {
 	transport := NewMockFatekTransport()
 	client := NewClient(transport, 1)
-	
+
 	err := client.SingleAction("X", 0, "SET")
 	if err != nil {
 		t.Fatalf("SingleAction failed: %v", err)
 	}
-	
+
 	// 測試無效動作
 	err = client.SingleAction("X", 0, "INVALID")
 	if err == nil {
 		t.Error("Expected error for invalid action")
 	}
-	
+
 	// 測試非離散組件
 	err = client.SingleAction("D", 0, "SET")
 	if err == nil {
@@ -491,7 +491,7 @@ func TestIntToHex(t *testing.T) {
 	if hex != "00FF" {
 		t.Errorf("Expected 00FF, got %s", hex)
 	}
-	
+
 	hex = IntToHex(10, 2)
 	if hex != "0A" {
 		t.Errorf("Expected 0A, got %s", hex)
@@ -506,7 +506,7 @@ func TestHexToInt(t *testing.T) {
 	if val != 255 {
 		t.Errorf("Expected 255, got %d", val)
 	}
-	
+
 	_, err = HexToInt("INVALID")
 	if err == nil {
 		t.Error("Expected error for invalid hex")
@@ -517,10 +517,10 @@ func TestHexToInt(t *testing.T) {
 func TestBufferPool(t *testing.T) {
 	buf1 := GetBuffer()
 	PutBuffer(buf1)
-	
+
 	buf2 := GetBuffer()
 	PutBuffer(buf2)
-	
+
 	// 驗證池可以重用緩衝區
 	if buf1 != buf2 {
 		// 這不是錯誤，只是說明池可能沒有重用（取決於實現）
@@ -533,7 +533,7 @@ func TestErrors(t *testing.T) {
 	if ErrConnectionClosed.Error() == "" {
 		t.Error("Error message should not be empty")
 	}
-	
+
 	if ErrResponseTooShort.Error() == "" {
 		t.Error("Error message should not be empty")
 	}

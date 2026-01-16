@@ -26,6 +26,5 @@ Usage:
 		log.Fatal(err)
 	}
 	fmt.Printf("D0-D9: %v\n", data)
-
 */
 package fatek

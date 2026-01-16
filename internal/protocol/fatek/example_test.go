@@ -10,8 +10,8 @@ import (
 func ExampleFatekClient() {
 	// 1. 建立傳輸層 (TCP)
 
-transport := fatek.NewTCPTransport("192.168.1.5", 500)
-	
+	transport := fatek.NewTCPTransport("192.168.1.5", 500)
+
 	// 2. 建立客戶端 (站號 1)
 	client := fatek.NewClient(transport, 1)
 

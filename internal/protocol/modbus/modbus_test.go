@@ -41,34 +41,34 @@ func (m *MockTransport) GetNextTransactionID() uint16 {
 
 func (m *MockTransport) SendReceive(data []byte) ([]byte, error) {
 	m.sentData = append(m.sentData, data)
-	
+
 	// 檢查是否有預設錯誤
 	if err, ok := m.errors[string(data)]; ok {
 		return nil, err
 	}
-	
+
 	// 檢查是否有預設回應
 	if resp, ok := m.responses[string(data)]; ok {
 		return resp, nil
 	}
-	
+
 	// 預設回應：根據功能碼生成
 	if len(data) < 8 {
 		return nil, ErrInvalidFrame
 	}
-	
+
 	functionCode := data[7]
 	var response []byte
-	
+
 	switch functionCode {
 	case FuncReadCoils, FuncReadDiscreteInputs:
 		// 讀取線圈回應: MBAP(7) + Function(1) + ByteCount(1) + Data(N) + CRC(2 for RTU)
 		response = make([]byte, 7+1+1+1+2) // MBAP + Func + ByteCount + 1 byte data + CRC
-		copy(response[:7], data[:7])        // MBAP header
+		copy(response[:7], data[:7])       // MBAP header
 		response[7] = functionCode
-		response[8] = 1 // ByteCount
+		response[8] = 1    // ByteCount
 		response[9] = 0x01 // Data (1 coil ON)
-		
+
 	case FuncReadHoldingRegisters, FuncReadInputRegisters:
 		// 讀取暫存器回應: MBAP(7) + Function(1) + ByteCount(1) + Data(2*N)
 		response = make([]byte, 7+1+1+2)
@@ -76,39 +76,39 @@ func (m *MockTransport) SendReceive(data []byte) ([]byte, error) {
 		response[7] = functionCode
 		response[8] = 2 // ByteCount
 		binary.BigEndian.PutUint16(response[9:], 12345)
-		
+
 	case FuncWriteSingleCoil:
 		// 寫入線圈回應: MBAP(7) + Function(1) + Address(2) + Value(2)
 		response = make([]byte, 7+1+2+2)
 		copy(response[:7], data[:7])
 		response[7] = functionCode
 		copy(response[8:], data[8:12])
-		
+
 	case FuncWriteSingleRegister:
 		// 寫入暫存器回應: MBAP(7) + Function(1) + Address(2) + Value(2)
 		response = make([]byte, 7+1+2+2)
 		copy(response[:7], data[:7])
 		response[7] = functionCode
 		copy(response[8:], data[8:12])
-		
+
 	case FuncWriteMultipleCoils:
 		// 寫入多個線圈回應: MBAP(7) + Function(1) + Address(2) + Quantity(2)
 		response = make([]byte, 7+1+2+2)
 		copy(response[:7], data[:7])
 		response[7] = functionCode
 		copy(response[8:], data[8:12])
-		
+
 	case FuncWriteMultipleRegisters:
 		// 寫入多個暫存器回應: MBAP(7) + Function(1) + Address(2) + Quantity(2)
 		response = make([]byte, 7+1+2+2)
 		copy(response[:7], data[:7])
 		response[7] = functionCode
 		copy(response[8:], data[8:12])
-		
+
 	default:
 		return nil, ErrInvalidFunctionCode
 	}
-	
+
 	return response, nil
 }
 
@@ -126,12 +126,12 @@ func TestBuildMBAPHeader(t *testing.T) {
 	if len(header) != MBAPHeaderLength {
 		t.Errorf("Expected header length %d, got %d", MBAPHeaderLength, len(header))
 	}
-	
+
 	parsed, err := ParseMBAPHeader(header)
 	if err != nil {
 		t.Fatalf("Failed to parse MBAP header: %v", err)
 	}
-	
+
 	if parsed.TransactionID != 0x1234 {
 		t.Errorf("Expected transaction ID 0x1234, got 0x%04X", parsed.TransactionID)
 	}
@@ -146,7 +146,7 @@ func TestParseMBAPHeader_Invalid(t *testing.T) {
 	if err != ErrResponseTooShort {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
-	
+
 	// 測試無效的協議 ID
 	header := BuildMBAPHeader(0x1234, 1, 10)
 	header[2] = 0xFF // 修改協議 ID
@@ -159,7 +159,7 @@ func TestParseMBAPHeader_Invalid(t *testing.T) {
 func TestBuildPDU(t *testing.T) {
 	data := []byte{0x01, 0x02, 0x03}
 	pdu := BuildPDU(0x03, data)
-	
+
 	if len(pdu) != 4 {
 		t.Errorf("Expected PDU length 4, got %d", len(pdu))
 	}
@@ -181,14 +181,14 @@ func TestParsePDU(t *testing.T) {
 	if len(data) != 2 {
 		t.Errorf("Expected data length 2, got %d", len(data))
 	}
-	
+
 	// 異常回應
 	exceptionPDU := []byte{0x83, 0x02} // Function 0x03 + 0x80, Exception 0x02
 	_, _, err = ParsePDU(exceptionPDU)
 	if err == nil {
 		t.Error("Expected error for exception response")
 	}
-	
+
 	// 過短的數據
 	_, _, err = ParsePDU([]byte{})
 	if err != ErrResponseTooShort {
@@ -199,11 +199,11 @@ func TestParsePDU(t *testing.T) {
 func TestBuildTCPFrame(t *testing.T) {
 	data := []byte{0x00, 0x0A, 0x00, 0x0A}
 	frame := BuildTCPFrame(0x1234, 1, 0x03, data)
-	
+
 	if len(frame) != MBAPHeaderLength+1+len(data) {
 		t.Errorf("Expected frame length %d, got %d", MBAPHeaderLength+1+len(data), len(frame))
 	}
-	
+
 	transID, unitID, funcCode, pduData, err := ParseTCPFrame(frame)
 	if err != nil {
 		t.Fatalf("Failed to parse TCP frame: %v", err)
@@ -225,11 +225,11 @@ func TestBuildTCPFrame(t *testing.T) {
 func TestBuildRTUFrame(t *testing.T) {
 	data := []byte{0x00, 0x0A, 0x00, 0x0A}
 	frame := BuildRTUFrame(1, 0x03, data)
-	
+
 	if len(frame) < 4 {
 		t.Error("RTU frame too short")
 	}
-	
+
 	addr, funcCode, pduData, err := ParseRTUFrame(frame)
 	if err != nil {
 		t.Fatalf("Failed to parse RTU frame: %v", err)
@@ -248,12 +248,12 @@ func TestBuildRTUFrame(t *testing.T) {
 func TestCRC16(t *testing.T) {
 	data := []byte{0x01, 0x03, 0x00, 0x00, 0x00, 0x0A}
 	crc := CalculateCRC16(data)
-	
+
 	// 驗證 CRC 計算
 	if crc == 0 {
 		t.Error("CRC should not be zero")
 	}
-	
+
 	// 驗證 CRC 計算正確性（通過重新計算並比較）
 	frame := append(data, byte(crc&0xFF), byte(crc>>8))
 	calculatedCRC := CalculateCRC16(frame[:len(frame)-2])
@@ -267,14 +267,14 @@ func TestCRC16(t *testing.T) {
 func TestNewClient(t *testing.T) {
 	transport := NewMockTransport()
 	client := NewClient(transport, 1)
-	
+
 	if client == nil {
 		t.Fatal("NewClient returned nil")
 	}
 	if client.unitID != 1 {
 		t.Errorf("Expected unit ID 1, got %d", client.unitID)
 	}
-	
+
 	// 測試預設 unit ID
 	client2 := NewClient(transport, 0)
 	if client2.unitID != DefaultUnitID {
@@ -290,7 +290,7 @@ func TestClient_ReadCoils(t *testing.T) {
 	if len(requestData) != 4 {
 		t.Errorf("Expected request data length 4, got %d", len(requestData))
 	}
-	
+
 	// 測試回應解析
 	responseData := []byte{10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A}
 	coilData, err := ParseReadResponse(responseData)
@@ -300,15 +300,15 @@ func TestClient_ReadCoils(t *testing.T) {
 	if len(coilData) != 10 {
 		t.Errorf("Expected coil data length 10, got %d", len(coilData))
 	}
-	
+
 	// 測試位元解包
 	coils := UnpackBits(coilData, 10)
 	if len(coils) != 10 {
 		t.Errorf("Expected 10 coils, got %d", len(coils))
 	}
-	
+
 	// 測試完成 - 核心邏輯已測試
-	
+
 	// 測試無效數量（直接測試驗證邏輯）
 	// 這些測試已經在 frame 構建測試中覆蓋
 }
@@ -338,7 +338,7 @@ func TestBuildWriteSingleCoilRequest(t *testing.T) {
 	if value != 0xFF00 {
 		t.Errorf("Expected value 0xFF00, got 0x%04X", value)
 	}
-	
+
 	data = BuildWriteSingleCoilRequest(0x1234, false)
 	value = binary.BigEndian.Uint16(data[2:])
 	if value != 0x0000 {
@@ -405,7 +405,7 @@ func TestParseWriteResponse(t *testing.T) {
 	if val != 0x5678 {
 		t.Errorf("Expected value 0x5678, got 0x%04X", val)
 	}
-	
+
 	// 測試過短的數據
 	_, _, err = ParseWriteResponse([]byte{0x12}, false)
 	if err != ErrResponseTooShort {
@@ -463,7 +463,7 @@ func TestCommunicationError(t *testing.T) {
 func TestUnpackBits(t *testing.T) {
 	data := []byte{0x01, 0x03} // 0000 0001, 0000 0011
 	bits := UnpackBits(data, 16)
-	
+
 	if len(bits) != 16 {
 		t.Errorf("Expected 16 bits, got %d", len(bits))
 	}
@@ -479,12 +479,12 @@ func TestUnpackBits(t *testing.T) {
 func TestPackBits(t *testing.T) {
 	bits := []bool{true, false, true, false, true, false, true, false}
 	data := PackBits(bits)
-	
+
 	// 8 個位元應該打包成 1 個位元組
 	if len(data) != 1 {
 		t.Errorf("Expected 1 byte, got %d", len(data))
 	}
-	
+
 	// 驗證解包後一致
 	unpacked := UnpackBits(data, len(bits))
 	for i := range bits {
@@ -492,7 +492,7 @@ func TestPackBits(t *testing.T) {
 			t.Errorf("Bit %d mismatch: expected %v, got %v", i, bits[i], unpacked[i])
 		}
 	}
-	
+
 	// 測試更多位元
 	bits16 := make([]bool, 16)
 	bits16[0] = true

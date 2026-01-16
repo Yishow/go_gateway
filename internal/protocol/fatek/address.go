@@ -8,10 +8,10 @@ import (
 
 // ComponentType defines the properties of a PLC component
 type ComponentType struct {
-	Name      string
-	Width     int // 16 or 32 bits
+	Name       string
+	Width      int // 16 or 32 bits
 	IsDiscrete bool
-	FormatLen int // Total length of the address string including Symbol (e.g., 5 for X, 6 for R)
+	FormatLen  int // Total length of the address string including Symbol (e.g., 5 for X, 6 for R)
 }
 
 var (

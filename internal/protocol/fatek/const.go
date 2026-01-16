@@ -33,8 +33,8 @@ const (
 
 // Errors
 var (
-	ErrInvalidSTX      = errors.New("invalid STX")
-	ErrInvalidETX      = errors.New("invalid ETX")
+	ErrInvalidSTX       = errors.New("invalid STX")
+	ErrInvalidETX       = errors.New("invalid ETX")
 	ErrChecksumMismatch = errors.New("checksum mismatch")
 	ErrResponseTooShort = errors.New("response too short")
 	ErrInvalidCommand   = errors.New("unexpected command in response")

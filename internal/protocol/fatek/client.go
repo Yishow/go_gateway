@@ -45,7 +45,7 @@ func (c *FatekClient) execute(cmd, body string) (string, error) {
 
 	// Build frame directly into the buffer (Zero Allocation)
 	BuildFrameToBuffer(buf, c.station, cmd, body)
-	
+
 	// Send raw bytes from buffer
 	resp, err := c.transport.SendReceive(buf.Bytes())
 	if err != nil {
@@ -74,9 +74,9 @@ func (c *FatekClient) ReadStatus(symbol string, startAddr int, count int) ([]boo
 	if err != nil {
 		return nil, err
 	}
-	
+
 	body := countHex + addrStr
-	
+
 	dataStr, err := c.execute("44", body)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (c *FatekClient) WriteStatus(symbol string, startAddr int, data []bool) err
 	if err != nil {
 		return err
 	}
-	
+
 	var sb strings.Builder
 	for _, b := range data {
 		if b {
@@ -115,7 +115,7 @@ func (c *FatekClient) WriteStatus(symbol string, startAddr int, data []bool) err
 			sb.WriteByte('0')
 		}
 	}
-	
+
 	body := countHex + addrStr + sb.String()
 	_, err = c.execute("45", body)
 	return err
@@ -142,7 +142,7 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 	if err != nil {
 		return nil, err
 	}
-	
+
 	body := countHex + addrStr
 	dataStr, err := c.execute("46", body)
 	if err != nil {
@@ -194,17 +194,17 @@ func (c *FatekClient) WriteRegisters(symbol string, startAddr int, data []int) e
 	if err != nil {
 		return err
 	}
-	
+
 	var sb strings.Builder
 	charsPerVal := comp.Width / 4
-	
+
 	for _, val := range data {
 		// Use uint64 to safely handle masking without overflow on 32-bit int
 		mask := (uint64(1) << uint64(comp.Width)) - 1
 		maskedVal := uint64(val) & mask
 		sb.WriteString(IntToHex(int(maskedVal), charsPerVal))
 	}
-	
+
 	body := countHex + addrStr + sb.String()
 	_, err = c.execute("47", body)
 	return err
@@ -233,7 +233,7 @@ func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]interface{}
 			return nil, err
 		}
 		comps[i] = comp
-		
+
 		addrStr, err := FormatAddress(comp, item.Addr)
 		if err != nil {
 			return nil, err
@@ -249,11 +249,11 @@ func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]interface{}
 	// Parse mixed response
 	results := make(map[string]interface{})
 	ptr := 0
-	
+
 	for i, item := range items {
 		comp := comps[i]
 		key := fmt.Sprintf("%s%d", item.Symbol, item.Addr)
-		
+
 		if comp.IsDiscrete {
 			// 1 char
 			if ptr+1 > len(dataStr) {
@@ -331,7 +331,7 @@ func (c *FatekClient) SingleAction(symbol string, addr int, action string) error
 	if err != nil {
 		return err
 	}
-	
+
 	body := code + addrStr
 	_, err = c.execute("42", body)
 	return err
