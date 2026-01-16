@@ -115,9 +115,29 @@ export function useDebugAPI() {
     }
   }
 
+  const clear = async (connectionId: string | null) => {
+    try {
+      const params = connectionId ? { connection_id: connectionId } : {}
+      await api.delete('/debug/clear', { params })
+      // 刷新數據
+      await refresh()
+    } catch (error) {
+      console.error('Failed to clear debug data:', error)
+      // 如果後端不支持，則前端清空
+      if (connectionId) {
+        setPackets(prev => prev.filter(p => p.connection_id !== connectionId))
+        setLogs(prev => prev.filter(l => l.details?.connection_id !== connectionId))
+      } else {
+        setPackets([])
+        setLogs([])
+      }
+    }
+  }
+
   return {
     packets,
     logs,
     refresh,
+    clear,
   }
 }

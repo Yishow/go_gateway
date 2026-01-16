@@ -19,6 +19,8 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
   const { currentProfile, updateProfile } = useProfiles()
   const eventSourceRef = useRef<EventSource | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reconnectAttemptsRef = useRef(0)
 
   const isModbus = protocol.includes('modbus')
   const isFatek = protocol.includes('fatek')
@@ -161,8 +163,75 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
     }
 
     eventSource.onerror = (error) => {
-      console.error('SSE error:', error)
-      // SSE 會自動重連，不需要手動處理
+      console.error('SSE error:', error, 'readyState:', eventSource.readyState)
+      
+      // EventSource 狀態：
+      // 0 = CONNECTING
+      // 1 = OPEN
+      // 2 = CLOSED
+      
+      if (eventSource.readyState === EventSource.CLOSED) {
+        reconnectAttemptsRef.current++
+        const maxAttempts = 5
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 10000) // 指數退避，最多10秒
+        
+        if (reconnectAttemptsRef.current <= maxAttempts && connectionId) {
+          console.warn(`SSE 連接已關閉，${delay/1000}秒後嘗試重連 (${reconnectAttemptsRef.current}/${maxAttempts})...`)
+          
+          // 清除之前的重連定時器
+          if (reconnectTimerRef.current) {
+            clearTimeout(reconnectTimerRef.current)
+          }
+          
+          reconnectTimerRef.current = setTimeout(() => {
+            if (connectionId && !eventSourceRef.current) {
+              console.log('重新建立 SSE 連接...')
+              // 重新創建連接（通過重新執行 useEffect）
+              // 這裡我們手動觸發重連
+              const newEventSource = new EventSource(sseUrl)
+              eventSourceRef.current = newEventSource
+              
+              newEventSource.onopen = () => {
+                console.log('SSE 重連成功')
+                reconnectAttemptsRef.current = 0
+              }
+              
+              newEventSource.addEventListener('connected', (event: any) => {
+                console.log('SSE 重連確認:', JSON.parse(event.data))
+              })
+              
+              newEventSource.addEventListener('ping', () => {
+                // 心跳消息
+              })
+              
+              newEventSource.onmessage = (event) => {
+                try {
+                  const msg = JSON.parse(event.data)
+                  if (msg.type === 'monitor_update' && msg.connection_id === connectionId) {
+                    setMonitorData((prev) => {
+                      const newEntry = {
+                        ...msg,
+                        chartTime: new Date(msg.timestamp).toLocaleTimeString(),
+                        timestamp: msg.timestamp,
+                        data: msg.data || {},
+                      }
+                      return [newEntry, ...prev].slice(0, 100)
+                    })
+                  }
+                } catch (error) {
+                  console.error('解析監控數據失敗:', error)
+                }
+              }
+              
+              newEventSource.onerror = (err) => {
+                console.error('SSE 重連後錯誤:', err)
+              }
+            }
+          }, delay)
+        } else {
+          console.error('SSE 重連失敗，已達到最大重試次數')
+        }
+      }
     }
 
     return () => {
@@ -170,6 +239,10 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
+      }
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = null
       }
     }
   }, [connectionId])

@@ -50,9 +50,9 @@ func main() {
 	server = &http.Server{
 		Addr:         serverAddr,
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  0, // SSE 連接需要無讀取超時
+		WriteTimeout: 0, // SSE 連接需要無寫入超時
+		IdleTimeout:  120 * time.Second, // 空閒超時設為 120 秒
 	}
 
 	// 建立關閉通道

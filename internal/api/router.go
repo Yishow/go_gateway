@@ -72,6 +72,7 @@ func NewRouter() *gin.Engine {
 		{
 			debugGroup.GET("/packets", debugHandler.GetPackets)
 			debugGroup.GET("/logs", debugHandler.GetLogs)
+			debugGroup.DELETE("/clear", debugHandler.ClearData)
 			debugGroup.POST("/send-raw", debugHandler.SendRaw)
 			debugGroup.GET("/analyze/:packetId", debugHandler.AnalyzePacket)
 		}

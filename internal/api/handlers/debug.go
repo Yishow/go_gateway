@@ -108,9 +108,22 @@ func (h *DebugHandler) GetPackets(c *gin.Context) {
 	if l := c.Query("limit"); l != "" {
 		// TODO: 解析 limit 參數
 	}
+	connectionID := c.Query("connection_id")
 
 	h.mu.RLock()
 	packets := h.packets
+	
+	// 按連接 ID 過濾
+	if connectionID != "" {
+		filtered := make([]PacketRecord, 0)
+		for _, p := range packets {
+			if p.ConnectionID == connectionID {
+				filtered = append(filtered, p)
+			}
+		}
+		packets = filtered
+	}
+	
 	if len(packets) > limit {
 		packets = packets[len(packets)-limit:]
 	}
@@ -125,15 +138,67 @@ func (h *DebugHandler) GetLogs(c *gin.Context) {
 	if l := c.Query("limit"); l != "" {
 		// TODO: 解析 limit 參數
 	}
+	connectionID := c.Query("connection_id")
 
 	h.mu.RLock()
 	logs := h.logs
+	
+	// 按連接 ID 過濾
+	if connectionID != "" {
+		filtered := make([]LogRecord, 0)
+		for _, l := range logs {
+			if details, ok := l.Details.(map[string]interface{}); ok {
+				if cid, ok := details["connection_id"].(string); ok && cid == connectionID {
+					filtered = append(filtered, l)
+				}
+			}
+		}
+		logs = filtered
+	}
+	
 	if len(logs) > limit {
 		logs = logs[len(logs)-limit:]
 	}
 	h.mu.RUnlock()
 
 	c.JSON(http.StatusOK, gin.H{"logs": logs})
+}
+
+// ClearData 清空數據
+func (h *DebugHandler) ClearData(c *gin.Context) {
+	connectionID := c.Query("connection_id")
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if connectionID != "" {
+		// 只清空指定連接的數據
+		filteredPackets := make([]PacketRecord, 0)
+		for _, p := range h.packets {
+			if p.ConnectionID != connectionID {
+				filteredPackets = append(filteredPackets, p)
+			}
+		}
+		h.packets = filteredPackets
+
+		filteredLogs := make([]LogRecord, 0)
+		for _, l := range h.logs {
+			if details, ok := l.Details.(map[string]interface{}); ok {
+				if cid, ok := details["connection_id"].(string); ok && cid != connectionID {
+					filteredLogs = append(filteredLogs, l)
+				}
+			} else {
+				filteredLogs = append(filteredLogs, l)
+			}
+		}
+		h.logs = filteredLogs
+	} else {
+		// 清空所有數據
+		h.packets = make([]PacketRecord, 0, 1000)
+		h.logs = make([]LogRecord, 0, 1000)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "cleared"})
 }
 
 // SendRawRequest 發送原始數據包請求

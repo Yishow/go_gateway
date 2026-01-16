@@ -57,8 +57,12 @@ func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 
 	// 監聽客戶端斷線
 	ctx := c.Request.Context()
-	ticker := time.NewTicker(30 * time.Second) // 每 30 秒發送一次心跳
+	ticker := time.NewTicker(10 * time.Second) // 每 10 秒發送一次心跳（更頻繁的心跳避免超時）
 	defer ticker.Stop()
+
+	// 發送初始心跳（立即發送一次，確保連接活躍）
+	c.SSEvent("ping", gin.H{"timestamp": time.Now().Format(time.RFC3339Nano)})
+	c.Writer.Flush()
 
 	for {
 		select {
@@ -75,8 +79,11 @@ func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 
 		case <-ticker.C:
 			// 發送心跳保持連接
+			// 使用 SSEvent 確保格式正確
 			c.SSEvent("ping", gin.H{"timestamp": time.Now().Format(time.RFC3339Nano)})
-			c.Writer.Flush()
+			c.Writer.Flush() // Flush 確保數據立即發送
+			// 調試日誌（可選，避免日誌過多）
+			// log.Printf("SSE 心跳已發送: %s", connectionID)
 
 		case data, ok := <-clientChan:
 			if !ok {
