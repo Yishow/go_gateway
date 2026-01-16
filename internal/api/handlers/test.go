@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -15,8 +17,10 @@ import (
 
 // TestHandler 處理協議測試相關的 API 請求
 type TestHandler struct {
-	connections map[string]*ConnectionState
-	mu          sync.RWMutex
+	connections    map[string]*ConnectionState
+	activeMonitors map[string]chan struct{}
+	wsHandler      *WebSocketHandler
+	mu             sync.RWMutex
 }
 
 // ConnectionState 連線狀態
@@ -30,9 +34,11 @@ type ConnectionState struct {
 }
 
 // NewTestHandler 建立新的測試處理器
-func NewTestHandler() *TestHandler {
+func NewTestHandler(wsHandler *WebSocketHandler) *TestHandler {
 	return &TestHandler{
-		connections: make(map[string]*ConnectionState),
+		connections:    make(map[string]*ConnectionState),
+		activeMonitors: make(map[string]chan struct{}),
+		wsHandler:      wsHandler,
 	}
 }
 
@@ -58,7 +64,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 
 	// 嘗試連線
 	if err := h.connectClient(client, req.Protocol); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to connect: %v", err)})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
 		return
 	}
 
@@ -91,6 +97,12 @@ func (h *TestHandler) Disconnect(c *gin.Context) {
 	}
 
 	h.mu.Lock()
+	// 先停止該連線的監控任務（如果有的話）
+	if stopChan, ok := h.activeMonitors[connID]; ok {
+		close(stopChan)
+		delete(h.activeMonitors, connID)
+	}
+
 	state, exists := h.connections[connID]
 	if !exists {
 		h.mu.Unlock()
@@ -100,7 +112,6 @@ func (h *TestHandler) Disconnect(c *gin.Context) {
 
 	// 關閉連線
 	if err := h.closeClient(state.Client, state.Protocol); err != nil {
-		// Log error but continue to remove connection
 		fmt.Printf("Error closing connection %s: %v\n", connID, err)
 	}
 
@@ -160,13 +171,13 @@ func (h *TestHandler) Read(c *gin.Context) {
 
 	result, err := h.executeRead(state.Client, state.Protocol, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"values": result,
-		"count":  len(resultToString(result)), // Helper to count items
+		"count":  len(resultToString(result)),
 	})
 }
 
@@ -198,23 +209,215 @@ func (h *TestHandler) Write(c *gin.Context) {
 	}
 
 	if err := h.executeWrite(state.Client, state.Protocol, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
+// BatchOperation 定義批量操作中的單個項目
+type BatchOperation struct {
+	Type         string      `json:"type" binding:"required"` // "read" or "write"
+	ReadRequest  *ReadRequest `json:"read_request,omitempty"`
+	WriteRequest *WriteRequest `json:"write_request,omitempty"`
+}
+
 // BatchRequest 批量測試請求
 type BatchRequest struct {
-	ConnectionID string   `json:"connection_id" binding:"required"`
-	Operations   []string `json:"operations" binding:"required"`
+	ConnectionID string           `json:"connection_id" binding:"required"`
+	Operations   []BatchOperation `json:"operations" binding:"required"`
+}
+
+// BatchResult 批量測試結果
+type BatchResult struct {
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data,omitempty"`
+	Error   string      `json:"error,omitempty"`
 }
 
 // Batch 執行批量測試
 func (h *TestHandler) Batch(c *gin.Context) {
-	// 暫時僅保留框架，具體實作需定義更複雜的結構
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	var req BatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.mu.RLock()
+	state, exists := h.connections[req.ConnectionID]
+	h.mu.RUnlock()
+
+	if !exists || !state.Connected {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found or not connected"})
+		return
+	}
+
+	results := make([]BatchResult, len(req.Operations))
+
+	for i, op := range req.Operations {
+		var err error
+		var data interface{}
+
+		switch op.Type {
+		case "read":
+			if op.ReadRequest == nil {
+				err = fmt.Errorf("missing read_request")
+			} else {
+				// Override ConnectionID to match the batch request context
+				op.ReadRequest.ConnectionID = req.ConnectionID
+				data, err = h.executeRead(state.Client, state.Protocol, *op.ReadRequest)
+			}
+		case "write":
+			if op.WriteRequest == nil {
+				err = fmt.Errorf("missing write_request")
+			} else {
+				op.WriteRequest.ConnectionID = req.ConnectionID
+				err = h.executeWrite(state.Client, state.Protocol, *op.WriteRequest)
+			}
+		default:
+			err = fmt.Errorf("unknown operation type: %s", op.Type)
+		}
+
+		if err != nil {
+			results[i] = BatchResult{
+				Success: false,
+				Error:   categorizeError(err).Error(),
+			}
+		} else {
+			results[i] = BatchResult{
+				Success: true,
+				Data:    data,
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"results": results})
+}
+
+// MonitorRequest 監控請求
+type MonitorRequest struct {
+	ConnectionID string        `json:"connection_id" binding:"required"`
+	Items        []ReadRequest `json:"items" binding:"required"`
+	Interval     int           `json:"interval"` // 毫秒
+}
+
+// StartMonitor 啟動監控模式
+func (h *TestHandler) StartMonitor(c *gin.Context) {
+	var req MonitorRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Interval < 100 {
+		req.Interval = 100 // 最小 100ms
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// 檢查連線
+	state, exists := h.connections[req.ConnectionID]
+	if !exists || !state.Connected {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found or not connected"})
+		return
+	}
+
+	// 如果已經有監控任務，先停止
+	if stopChan, ok := h.activeMonitors[req.ConnectionID]; ok {
+		close(stopChan)
+		delete(h.activeMonitors, req.ConnectionID)
+	}
+
+	// 啟動新的監控任務
+	stopChan := make(chan struct{})
+	h.activeMonitors[req.ConnectionID] = stopChan
+
+	go h.runMonitorLoop(req.ConnectionID, state, req.Items, req.Interval, stopChan)
+
+	c.JSON(http.StatusOK, gin.H{"status": "monitoring_started"})
+}
+
+func (h *TestHandler) runMonitorLoop(connID string, state *ConnectionState, items []ReadRequest, interval int, stopChan chan struct{}) {
+	ticker := time.NewTicker(time.Duration(interval) * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stopChan:
+			return
+		case <-ticker.C:
+			// 執行讀取
+			results := make(map[string]interface{})
+			for i, item := range items {
+				res, err := h.executeRead(state.Client, state.Protocol, item)
+				key := fmt.Sprintf("item_%d", i) // 或者使用地址/符號作為 key
+				if err != nil {
+					results[key] = map[string]string{"error": categorizeError(err).Error()}
+				} else {
+					results[key] = res
+				}
+			}
+
+			// 推送數據
+			msg := map[string]interface{}{
+				"type":          "monitor_update",
+				"connection_id": connID,
+				"timestamp":     time.Now().Format(time.RFC3339Nano),
+				"data":          results,
+			}
+			h.wsHandler.Broadcast(msg)
+		}
+	}
+}
+
+// StopMonitor 停止監控模式
+func (h *TestHandler) StopMonitor(c *gin.Context) {
+	var req struct {
+		ConnectionID string `json:"connection_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.mu.Lock()
+	if stopChan, ok := h.activeMonitors[req.ConnectionID]; ok {
+		close(stopChan)
+		delete(h.activeMonitors, req.ConnectionID)
+		h.mu.Unlock()
+		c.JSON(http.StatusOK, gin.H{"status": "monitoring_stopped"})
+	} else {
+		h.mu.Unlock()
+		c.JSON(http.StatusNotFound, gin.H{"error": "no active monitor for this connection"})
+	}
+}
+
+// categorizeError 將底層錯誤轉換為更易讀的錯誤訊息
+func categorizeError(err error) error {
+	if err == nil {
+		return nil
+	}
+	
+	// 處理 net.Error (Timeout, Connection refused)
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		if netErr.Timeout() {
+			return fmt.Errorf("TIMEOUT: %v", err)
+		}
+		return fmt.Errorf("NETWORK_ERROR: %v", err)
+	}
+
+	// 檢查常見的錯誤字串 (因為部分庫可能返回普通 error)
+	s := err.Error()
+	if s == "EOF" {
+		return fmt.Errorf("CONNECTION_CLOSED: Remote host closed connection")
+	}
+	// TODO: 可以根據具體協議庫的錯誤類型進行更細緻的分類
+	// 例如: CRC Checksum Error, Illegal Function, etc.
+
+	return err
 }
 
 // ExecuteScript 執行測試腳本
@@ -234,16 +437,6 @@ func (h *TestHandler) SaveScript(c *gin.Context) {
 
 // DeleteScript 刪除測試腳本
 func (h *TestHandler) DeleteScript(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
-}
-
-// StartMonitor 啟動監控模式
-func (h *TestHandler) StartMonitor(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
-}
-
-// StopMonitor 停止監控模式
-func (h *TestHandler) StopMonitor(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
 }
 

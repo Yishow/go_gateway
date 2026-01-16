@@ -2,14 +2,16 @@
 # Go Gateway 一鍵啟動腳本
 # ============================================
 # 功能：
-#   1. 執行 golangci-lint 靜態分析
-#   2. 構建所有可執行文件
-#   3. 啟動服務（可選）
-#   4. 代碼質量檢查
-#   5. 執行單元測試（可選）
+#   1. 一鍵啟動專案（構建 + 啟動服務）
+#   2. 執行 golangci-lint 靜態分析
+#   3. 構建所有可執行文件
+#   4. 啟動服務（可選）
+#   5. 代碼質量檢查
+#   6. 執行單元測試（可選）
 # ============================================
 # 使用範例：
-#   .\start.ps1                    # 完整流程
+#   .\start.ps1                    # 顯示主選單
+#   .\start.ps1 -QuickStart        # 一鍵啟動專案（第一項）
 #   .\start.ps1 -Start             # 構建後啟動服務
 #   .\start.ps1 -Start -Target fatek_test  # 啟動指定服務
 #   .\start.ps1 -SkipTest          # 跳過測試
@@ -17,8 +19,9 @@
 # ============================================
 
 param(
-    [switch]$SkipLint,           # 跳過 lint 檢查
-    [switch]$SkipTest,           # 跳過測試
+    [switch]$QuickStart,          # 一鍵啟動專案（構建 + 啟動）
+    [switch]$SkipLint,            # 跳過 lint 檢查
+    [switch]$SkipTest,            # 跳過測試
     [switch]$SkipBuild,           # 跳過構建
     [switch]$SkipQuality,         # 跳過代碼質量檢查
     [switch]$Start,               # 構建後啟動服務
@@ -67,10 +70,192 @@ function Test-Command {
     return $?
 }
 
-# 標題
-Write-ColorOutput "`n============================================" "Cyan"
-Write-ColorOutput "   Go Gateway 一鍵啟動腳本" "Cyan"
-Write-ColorOutput "============================================`n" "Cyan"
+# 顯示主選單
+function Show-MainMenu {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   Go Gateway 一鍵啟動腳本" "Cyan"
+    Write-ColorOutput "============================================" "Cyan"
+    Write-ColorOutput ""
+    Write-ColorOutput "請選擇要執行的操作：" "Yellow"
+    Write-ColorOutput "  [1] 一鍵啟動專案（構建 + 啟動服務）" "Cyan"
+    Write-ColorOutput "  [2] 完整流程（Lint + 構建 + 測試）" "Cyan"
+    Write-ColorOutput "  [3] 僅構建可執行文件" "Cyan"
+    Write-ColorOutput "  [4] 僅啟動服務" "Cyan"
+    Write-ColorOutput "  [5] 執行測試" "Cyan"
+    Write-ColorOutput "  [0] 退出" "Cyan"
+    Write-ColorOutput ""
+}
+
+# 一鍵啟動專案（構建 + 啟動）
+function Start-QuickStart {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   一鍵啟動專案" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    
+    # 1. 構建可執行文件
+    Write-ColorOutput "[1/2] 構建可執行文件..." "Yellow"
+    
+    $buildTargets = @(
+        @{Name="fatek_test"; Path="./cmd/fatek_test"},
+        @{Name="test_all"; Path="./cmd/test_all"},
+        @{Name="test-ui"; Path="./cmd/test_ui"}
+    )
+    
+    $buildDir = "bin"
+    if (-not (Test-Path $buildDir)) {
+        New-Item -ItemType Directory -Path $buildDir | Out-Null
+    }
+    
+    $buildSuccess = $true
+    foreach ($target in $buildTargets) {
+        Write-Info "構建 $($target.Name)..."
+        try {
+            $outputPath = Join-Path $buildDir "$($target.Name).exe"
+            go build -o $outputPath $target.Path
+            if ($LASTEXITCODE -eq 0) {
+                Write-Success "$($target.Name) 構建成功: $outputPath"
+            } else {
+                Write-Error "$($target.Name) 構建失敗"
+                $buildSuccess = $false
+                $script:ExitCode = 1
+            }
+        } catch {
+            Write-Error "構建 $($target.Name) 時發生錯誤: $_"
+            $buildSuccess = $false
+            $script:ExitCode = 1
+        }
+    }
+    
+    if (-not $buildSuccess) {
+        Write-Error "構建失敗，無法啟動服務"
+        return
+    }
+    
+    # 2. 啟動服務
+    Write-ColorOutput "`n[2/2] 啟動服務..." "Yellow"
+    
+    $availableTargets = @("fatek_test", "test_all", "test-ui")
+    
+    Write-Info "可用的服務："
+    for ($i = 0; $i -lt $availableTargets.Length; $i++) {
+        Write-ColorOutput "  [$($i + 1)] $($availableTargets[$i])" "Cyan"
+    }
+    Write-Info ""
+    
+    $targetToStart = $Target
+    if ([string]::IsNullOrWhiteSpace($targetToStart)) {
+        $selection = Read-Host "請選擇要啟動的服務 (1-$($availableTargets.Length))"
+        
+        if ([string]::IsNullOrWhiteSpace($selection)) {
+            Write-Info "未選擇服務，退出"
+            return
+        }
+        
+        $selectedIndex = [int]$selection - 1
+        if ($selectedIndex -ge 0 -and $selectedIndex -lt $availableTargets.Length) {
+            $targetToStart = $availableTargets[$selectedIndex]
+        } else {
+            Write-Error "無效的選擇"
+            return
+        }
+    }
+    
+    # 啟動選定的服務
+    $exePath = Join-Path "bin" "$targetToStart.exe"
+    
+    if (-not (Test-Path $exePath)) {
+        Write-Error "找不到可執行文件: $exePath"
+        Write-Info "請先執行構建步驟"
+        $script:ExitCode = 1
+        return
+    }
+    
+    Write-Info "正在啟動 $targetToStart..."
+    Write-Info "按 Ctrl+C 可停止服務"
+    Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
+    
+    try {
+        # 啟動服務（前台運行）
+        & $exePath
+        $serviceExitCode = $LASTEXITCODE
+        
+        Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
+        
+        if ($serviceExitCode -eq 0) {
+            Write-Success "服務正常退出"
+        } else {
+            Write-Warning "服務退出，退出碼: $serviceExitCode"
+        }
+    } catch {
+        Write-Error "啟動服務失敗: $_"
+        $script:ExitCode = 1
+    }
+}
+
+# 如果指定了 QuickStart，直接執行一鍵啟動
+if ($QuickStart) {
+    Start-QuickStart
+    exit $script:ExitCode
+}
+
+# 如果沒有提供任何參數，顯示主選單
+$hasAnyParam = $SkipLint -or $SkipTest -or $SkipBuild -or $SkipQuality -or $Start -or $Coverage -or $Verbose -or (-not [string]::IsNullOrWhiteSpace($Target))
+if (-not $hasAnyParam) {
+    Show-MainMenu
+    $menuSelection = Read-Host "請輸入選項 (0-5)"
+    
+    switch ($menuSelection) {
+        "1" {
+            Start-QuickStart
+            exit $script:ExitCode
+        }
+        "2" {
+            # 完整流程，繼續執行後續步驟
+            Write-ColorOutput "`n============================================" "Cyan"
+            Write-ColorOutput "   執行完整流程" "Cyan"
+            Write-ColorOutput "============================================`n" "Cyan"
+        }
+        "3" {
+            $SkipLint = $true
+            $SkipTest = $true
+            $SkipQuality = $true
+            Write-ColorOutput "`n============================================" "Cyan"
+            Write-ColorOutput "   僅構建可執行文件" "Cyan"
+            Write-ColorOutput "============================================`n" "Cyan"
+        }
+        "4" {
+            $SkipLint = $true
+            $SkipTest = $true
+            $SkipBuild = $true
+            $SkipQuality = $true
+            $Start = $true
+            Write-ColorOutput "`n============================================" "Cyan"
+            Write-ColorOutput "   僅啟動服務" "Cyan"
+            Write-ColorOutput "============================================`n" "Cyan"
+        }
+        "5" {
+            $SkipLint = $true
+            $SkipBuild = $true
+            $SkipQuality = $true
+            Write-ColorOutput "`n============================================" "Cyan"
+            Write-ColorOutput "   執行測試" "Cyan"
+            Write-ColorOutput "============================================`n" "Cyan"
+        }
+        "0" {
+            Write-Info "退出"
+            exit 0
+        }
+        default {
+            Write-Error "無效的選項"
+            exit 1
+        }
+    }
+} else {
+    # 有參數時顯示標題
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   Go Gateway 一鍵啟動腳本" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+}
 
 # 1. 檢查 golangci-lint
 Write-Info "檢查工具依賴..."

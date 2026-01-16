@@ -48,3 +48,30 @@ export interface ConnectionState {
 export interface ConnectionListResponse {
   connections: ConnectionState[];
 }
+
+export interface BatchOperation {
+  type: 'read' | 'write';
+  read_request?: ReadRequest;
+  write_request?: WriteRequest;
+}
+
+export interface BatchRequest {
+  connection_id: string;
+  operations: BatchOperation[];
+}
+
+export interface BatchResultItem {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export interface BatchResponse {
+  results: BatchResultItem[];
+}
+
+export interface MonitorRequest {
+  connection_id: string;
+  items: ReadRequest[];
+  interval: number;
+}

@@ -67,12 +67,28 @@ export function useTestAPI() {
     })
   }
 
+  const batch = async (req: import('../types/api').BatchRequest): Promise<import('../types/api').BatchResponse> => {
+    const response = await api.post<import('../types/api').BatchResponse>('/test/batch', req)
+    return response.data
+  }
+
+  const startMonitor = async (req: import('../types/api').MonitorRequest): Promise<void> => {
+    await api.post('/test/monitor/start', req)
+  }
+
+  const stopMonitor = async (connectionId: string): Promise<void> => {
+    await api.post('/test/monitor/stop', { connection_id: connectionId })
+  }
+
   return {
     connect,
     disconnect,
     getStatus,
     read,
     write,
+    batch,
+    startMonitor,
+    stopMonitor,
   }
 }
 

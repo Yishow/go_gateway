@@ -25,8 +25,13 @@ func NewRouter() *gin.Engine {
 	// API 路由群組
 	apiV1 := router.Group("/api/v1")
 	{
+		// WebSocket 端點
+		wsHandler := handlers.NewWebSocketHandler()
+		apiV1.GET("/ws", wsHandler.HandleWebSocket)
+		apiV1.GET("/test/monitor/stream", wsHandler.HandleMonitorStream)
+
 		// 共用的 TestHandler 實例
-		testHandler := handlers.NewTestHandler()
+		testHandler := handlers.NewTestHandler(wsHandler)
 
 		// 測試相關 API
 		testGroup := apiV1.Group("/test")
@@ -82,11 +87,6 @@ func NewRouter() *gin.Engine {
 			connectionGroup.GET("", connectionHandler.List)
 			connectionGroup.GET("/:id", connectionHandler.Get)
 		}
-
-		// WebSocket 端點
-		wsHandler := handlers.NewWebSocketHandler()
-		apiV1.GET("/ws", wsHandler.HandleWebSocket)
-		apiV1.GET("/test/monitor/stream", wsHandler.HandleMonitorStream)
 	}
 
 	return router
