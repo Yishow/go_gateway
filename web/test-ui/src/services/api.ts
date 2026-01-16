@@ -47,6 +47,7 @@ export function useTestAPI() {
       address: number
       count: number
       symbol?: string
+      device?: string
     }
   ): Promise<ReadResponse> => {
     const response = await api.post<ReadResponse>('/test/read', {

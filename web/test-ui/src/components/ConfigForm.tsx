@@ -10,6 +10,43 @@ interface ConfigFormProps {
   onConnectionChange: (id: string | null) => void
 }
 
+/**
+ * 輸入群組組件（移到組件外部以避免重新創建）
+ */
+const InputGroup = ({ label, children }: { label: string, children: React.ReactNode }) => (
+  <div className="flex flex-col space-y-1.5">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    {children}
+  </div>
+)
+
+/**
+ * 樣式化輸入框組件（移到組件外部以避免重新創建）
+ */
+const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+  <input
+    {...props}
+    className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+  />
+)
+
+/**
+ * 樣式化選擇框組件（移到組件外部以避免重新創建）
+ */
+const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+  <div className="relative">
+    <select
+      {...props}
+      className="w-full px-4 py-2 appearance-none border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
+    />
+    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </div>
+)
+
 export default function ConfigForm({
   protocol,
   mode,
@@ -24,10 +61,28 @@ export default function ConfigForm({
   const isTCP = mode === 'tcp' || mode === 'udp'
   const isSerial = mode === 'serial'
 
+  /**
+   * 處理配置變更
+   */
   const handleConfigChange = (key: string, value: any) => {
     onConfigChange({ ...config, [key]: value })
   }
 
+  /**
+   * 處理數字輸入框變更（保持字符串格式，避免失去焦點）
+   * 使用受控組件模式，確保輸入框不會失去焦點
+   */
+  const handleNumberChange = (key: string, value: string) => {
+    // 允許空值或純數字字符串
+    if (value === '' || /^\d+$/.test(value)) {
+      // 空值時設置為 undefined，數字時轉換為整數
+      handleConfigChange(key, value === '' ? undefined : parseInt(value, 10))
+    }
+  }
+
+  /**
+   * 處理連線
+   */
   const handleConnect = async () => {
     if (!config.host && isTCP) {
       alert('請輸入主機位址')
@@ -53,6 +108,9 @@ export default function ConfigForm({
     }
   }
 
+  /**
+   * 處理斷線
+   */
   const handleDisconnect = async () => {
     if (!connectionId) return
 
@@ -66,34 +124,6 @@ export default function ConfigForm({
       setLoading(false)
     }
   }
-
-  const InputGroup = ({ label, children }: { label: string, children: React.ReactNode }) => (
-    <div className="flex flex-col space-y-1.5">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
-      {children}
-    </div>
-  )
-
-  const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
-    <input
-      {...props}
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-    />
-  )
-
-  const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-    <div className="relative">
-      <select
-        {...props}
-        className="w-full px-4 py-2 appearance-none border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
-      />
-      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-    </div>
-  )
 
   return (
     <div className="space-y-6">
@@ -116,9 +146,10 @@ export default function ConfigForm({
               <div className="col-span-2 sm:col-span-1">
                 <InputGroup label="連接埠 (Port)">
                   <StyledInput
-                    type="number"
-                    value={config.port || ''}
-                    onChange={(e) => handleConfigChange('port', parseInt(e.target.value))}
+                    type="text"
+                    inputMode="numeric"
+                    value={config.port !== undefined ? String(config.port) : ''}
+                    onChange={(e) => handleNumberChange('port', e.target.value)}
                     placeholder={protocol.includes('modbus') ? '502' : protocol.includes('fatek') ? '500' : '5000'}
                   />
                 </InputGroup>
@@ -129,11 +160,12 @@ export default function ConfigForm({
               <div className="col-span-2">
                  <InputGroup label={protocol.includes('modbus') ? "單元 ID (Unit ID)" : "站號 (Station)"}>
                   <StyledInput
-                    type="number"
-                    value={config.unitID || config.station || ''}
+                    type="text"
+                    inputMode="numeric"
+                    value={config.unitID !== undefined ? String(config.unitID) : config.station !== undefined ? String(config.station) : ''}
                     onChange={(e) => {
                       const key = protocol.includes('modbus') ? 'unitID' : 'station'
-                      handleConfigChange(key, parseInt(e.target.value))
+                      handleNumberChange(key, e.target.value)
                     }}
                     placeholder="1"
                   />
@@ -207,11 +239,12 @@ export default function ConfigForm({
               <div className="col-span-2 pt-2">
                  <InputGroup label={protocol.includes('modbus') ? "單元 ID (Unit ID)" : "站號 (Station)"}>
                   <StyledInput
-                    type="number"
-                    value={config.unitID || config.station || ''}
+                    type="text"
+                    inputMode="numeric"
+                    value={config.unitID !== undefined ? String(config.unitID) : config.station !== undefined ? String(config.station) : ''}
                     onChange={(e) => {
                       const key = protocol.includes('modbus') ? 'unitID' : 'station'
-                      handleConfigChange(key, parseInt(e.target.value))
+                      handleNumberChange(key, e.target.value)
                     }}
                     placeholder="1"
                   />

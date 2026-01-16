@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
+	"unsafe"
 
 	"github.com/getlantern/systray"
 )
@@ -29,6 +31,8 @@ func SetupTray(serverAddr string) {
 	mOpenBrowser := systray.AddMenuItem("打開瀏覽器", "在瀏覽器中打開應用程式")
 	mOpenBrowser.SetIcon(getIconData())
 	systray.AddSeparator()
+	mMinimizeWindow := systray.AddMenuItem("最小化窗口", "最小化控制台窗口到托盤")
+	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("退出", "退出應用程式")
 
 	// 在背景執行選單事件處理
@@ -37,6 +41,8 @@ func SetupTray(serverAddr string) {
 			select {
 			case <-mOpenBrowser.ClickedCh:
 				openBrowser(serverAddr)
+			case <-mMinimizeWindow.ClickedCh:
+				minimizeConsoleWindow()
 			case <-mQuit.ClickedCh:
 				log.Println("收到退出請求，正在關閉應用程式...")
 				systray.Quit()
@@ -94,6 +100,117 @@ func buildURL(serverAddr string) string {
 
 	// 如果地址包含主機名，添加 http:// 前綴
 	return "http://" + addr
+}
+
+// minimizeConsoleWindow 最小化控制台窗口
+// 使用 Windows API 來最小化當前控制台窗口
+func minimizeConsoleWindow() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	// 使用 Windows API 來最小化窗口
+	// 獲取控制台窗口句柄
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	getConsoleWindow := kernel32.NewProc("GetConsoleWindow")
+	user32 := syscall.NewLazyDLL("user32.dll")
+	showWindow := user32.NewProc("ShowWindow")
+
+	// 獲取控制台窗口句柄
+	ret, _, _ := getConsoleWindow.Call()
+	if ret == 0 {
+		log.Println("無法獲取控制台窗口句柄")
+		return
+	}
+	hwnd := syscall.Handle(ret)
+
+	// SW_MINIMIZE = 6
+	const SW_MINIMIZE = 6
+	showWindow.Call(uintptr(hwnd), SW_MINIMIZE)
+	log.Println("控制台窗口已最小化")
+}
+
+// consoleCtrlHandler 控制台控制處理器
+// 當用戶嘗試關閉控制台窗口時被調用
+func consoleCtrlHandler(ctrlType uint32) uintptr {
+	// CTRL_CLOSE_EVENT = 2 (當用戶點擊 X 按鈕時)
+	const CTRL_CLOSE_EVENT = 2
+
+	if ctrlType == CTRL_CLOSE_EVENT {
+		// 顯示確認對話框
+		if showMinimizeDialog() {
+			// 用戶選擇最小化
+			minimizeConsoleWindow()
+			// 返回 1 表示已處理，阻止關閉
+			return 1
+		}
+		// 用戶選擇關閉，返回 0 允許關閉
+		return 0
+	}
+
+	// 其他事件（如 CTRL+C），允許默認處理
+	return 0
+}
+
+// setConsoleCtrlHandler 設置控制台控制處理器
+// 攔截控制台關閉事件
+func setConsoleCtrlHandler() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	setConsoleCtrlHandler := kernel32.NewProc("SetConsoleCtrlHandler")
+
+	// 創建處理器函數
+	handler := syscall.NewCallback(consoleCtrlHandler)
+
+	// 設置處理器（Add = true）
+	ret, _, _ := setConsoleCtrlHandler.Call(handler, 1)
+	if ret == 0 {
+		log.Printf("設置控制台控制處理器失敗")
+	} else {
+		log.Println("控制台關閉處理器已設置")
+	}
+}
+
+// showMinimizeDialog 顯示最小化確認對話框
+// 當用戶嘗試關閉控制台窗口時，詢問是否要最小化
+func showMinimizeDialog() bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+
+	// 使用 Windows API 顯示消息框
+	user32 := syscall.NewLazyDLL("user32.dll")
+	messageBox := user32.NewProc("MessageBoxW")
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	getConsoleWindow := kernel32.NewProc("GetConsoleWindow")
+
+	// 獲取控制台窗口句柄
+	ret, _, _ := getConsoleWindow.Call()
+	if ret == 0 {
+		return false
+	}
+	hwnd := syscall.Handle(ret)
+
+	// MB_YESNO | MB_ICONQUESTION = 0x00000004 | 0x00000020 = 0x00000024
+	// MB_YESNO = 4, MB_ICONQUESTION = 32
+	const MB_YESNO = 4
+	const MB_ICONQUESTION = 32
+	const IDYES = 6
+
+	title := syscall.StringToUTF16Ptr("確認")
+	message := syscall.StringToUTF16Ptr("是否要最小化到系統托盤？\n\n選擇「是」將最小化窗口，選擇「否」將關閉應用程式。")
+
+	ret, _, _ = messageBox.Call(
+		uintptr(hwnd),
+		uintptr(unsafe.Pointer(message)),
+		uintptr(unsafe.Pointer(title)),
+		MB_YESNO|MB_ICONQUESTION,
+	)
+
+	return ret == IDYES
 }
 
 // getIconData 返回系統托盤圖示的位元組資料

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -63,6 +64,11 @@ func main() {
 	// 處理系統信號（Ctrl+C 等）
 	go handleSignals()
 
+	// Windows 平台：設置控制台窗口關閉處理
+	if runtime.GOOS == "windows" {
+		setupConsoleCloseHandler()
+	}
+
 	// 啟動系統托盤（阻塞主線程）
 	// systray.Run 必須在主線程中執行
 	systray.Run(onReady, onExit)
@@ -73,7 +79,13 @@ func startServer() {
 	fullURL := "http://localhost" + serverAddr
 	log.Printf("🚀 測試工具伺服器啟動於 %s", fullURL)
 	log.Printf("📝 開啟瀏覽器訪問 %s 開始使用", fullURL)
-	log.Printf("💡 應用程式已最小化到系統托盤，點擊托盤圖示可打開瀏覽器")
+	log.Printf("💡 應用程式運行在系統托盤，點擊托盤圖示可打開瀏覽器")
+
+	// 等待一小段時間確保伺服器已啟動，然後自動打開瀏覽器
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		openBrowser(serverAddr)
+	}()
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("伺服器啟動失敗: %v", err)
@@ -116,4 +128,15 @@ func shutdownServer() {
 	} else {
 		log.Println("伺服器已優雅關閉")
 	}
+}
+
+// setupConsoleCloseHandler 設置 Windows 控制台窗口關閉處理
+// 當用戶點擊控制台窗口的 X 按鈕時，詢問是否要最小化到托盤
+func setupConsoleCloseHandler() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	// 設置控制台控制處理器來攔截關閉事件
+	setConsoleCtrlHandler()
 }

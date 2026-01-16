@@ -22,7 +22,9 @@
 # ============================================
 # 使用範例：
 #   .\start.ps1                    # 顯示主選單
-#   .\start.ps1 -QuickStart        # 一鍵啟動專案（第一項）
+#   .\start.ps1 -DevMode           # 開發模式（使用 go run，無需編譯 exe）
+#   .\start.ps1 -AirMode           # 熱重載模式（使用 Air，自動檢測變更並重啟）
+#   .\start.ps1 -QuickStart        # 一鍵啟動專案（構建 + 啟動）
 #   .\start.ps1 -Start             # 構建後啟動服務
 #   .\start.ps1 -Start -Target fatek_test  # 啟動指定服務
 #   .\start.ps1 -SkipTest          # 跳過測試
@@ -32,6 +34,8 @@
 # ============================================
 
 param(
+    [switch]$DevMode,             # 開發模式（使用 go run，無需編譯 exe）
+    [switch]$AirMode,             # 熱重載模式（使用 Air，自動檢測變更並重啟）
     [switch]$QuickStart,          # 一鍵啟動專案（構建 + 啟動）
     [switch]$SkipLint,            # 跳過 lint 檢查
     [switch]$SkipTest,            # 跳過測試
@@ -235,13 +239,182 @@ function Show-MainMenu {
     Write-ColorOutput "============================================" "Cyan"
     Write-ColorOutput ""
     Write-ColorOutput "請選擇要執行的操作：" "Yellow"
-    Write-ColorOutput "  [1] 一鍵啟動專案（構建 + 啟動服務）" "Cyan"
-    Write-ColorOutput "  [2] 完整流程（Lint + 構建 + 測試）" "Cyan"
-    Write-ColorOutput "  [3] 僅構建可執行文件" "Cyan"
-    Write-ColorOutput "  [4] 僅啟動服務" "Cyan"
-    Write-ColorOutput "  [5] 執行測試" "Cyan"
+    Write-ColorOutput "  [1] 🚀 開發模式（go run，無需編譯 exe）" "Green"
+    Write-ColorOutput "  [2] 🔥 熱重載模式（Air，自動檢測變更並重啟）" "Magenta"
+    Write-ColorOutput "  [3] 一鍵啟動專案（構建 + 啟動服務）" "Cyan"
+    Write-ColorOutput "  [4] 完整流程（Lint + 構建 + 測試）" "Cyan"
+    Write-ColorOutput "  [5] 僅構建可執行文件" "Cyan"
+    Write-ColorOutput "  [6] 僅啟動服務" "Cyan"
+    Write-ColorOutput "  [7] 執行測試" "Cyan"
     Write-ColorOutput "  [0] 退出" "Cyan"
     Write-ColorOutput ""
+}
+
+# 熱重載模式（使用 Air，自動檢測變更並重啟）
+function Start-AirMode {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   🔥 熱重載模式（Air）" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    Write-Info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新編譯運行"
+    Write-Info "💡 此模式使用 Air 工具，自動檢測程式碼變更並重啟"
+    Write-ColorOutput ""
+    
+    # 檢查 Air 是否安裝
+    if (-not (Test-Command "air")) {
+        Write-Warning "Air 工具未安裝，正在嘗試安裝..."
+        try {
+            go install github.com/cosmtrek/air@latest
+            if (-not (Test-Command "air")) {
+                Write-Error "無法安裝 Air，請手動安裝："
+                Write-Info "  go install github.com/cosmtrek/air@latest"
+                Write-Info "  或訪問: https://github.com/cosmtrek/air"
+                Write-Info ""
+                Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
+                return
+            } else {
+                Write-Success "Air 安裝成功"
+            }
+        } catch {
+            Write-Error "安裝 Air 失敗: $_"
+            Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
+            return
+        }
+    }
+    
+    # 處理 test-ui 的前端建置
+    Write-Info "📦 檢查前端檔案..."
+    $staticPath = "cmd\test_ui\static"
+    $distPath = "web\test-ui\dist"
+    
+    if (-not (Test-Path $staticPath) -or -not (Test-Path "$staticPath\index.html")) {
+        Write-Warning "前端檔案不存在，正在建置前端..."
+        
+        # 檢查 node_modules
+        $nodeModulesPath = "web\test-ui\node_modules"
+        if (-not (Test-Path $nodeModulesPath)) {
+            Write-Info "📥 安裝前端依賴..."
+            Set-Location web/test-ui
+            npm install
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "前端依賴安裝失敗"
+                Set-Location ../..
+                return
+            }
+            Set-Location ../..
+        }
+        
+        # 建置前端
+        Write-Info "🔨 建置前端..."
+        Set-Location web/test-ui
+        npm run build
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "前端建置失敗"
+            Set-Location ../..
+            return
+        }
+        Set-Location ../..
+        
+        # 複製前端檔案
+        if (Test-Path $staticPath) {
+            Remove-Item -Recurse -Force $staticPath
+        }
+        Copy-Item -Recurse $distPath $staticPath
+        Write-Success "前端建置完成"
+    } else {
+        Write-Success "前端檔案已存在，跳過建置"
+    }
+    
+    # 檢查 .air.toml 是否存在
+    if (-not (Test-Path ".air.toml")) {
+        Write-Warning ".air.toml 配置檔案不存在，Air 將使用預設配置"
+    }
+    
+    # 運行 Air
+    Write-ColorOutput ""
+    Write-Info "▶️  啟動 Air 熱重載..."
+    Write-Info "💡 修改程式碼後，Air 會自動檢測並重新編譯運行"
+    Write-ColorOutput ""
+    
+    try {
+        air
+    } catch {
+        Write-Error "啟動 Air 失敗: $_"
+    }
+}
+
+# 開發模式（使用 go run，無需編譯 exe）
+function Start-DevMode {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   🚀 開發模式（無需編譯 exe）" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    Write-Info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後需要手動重新運行"
+    Write-Info "💡 此模式使用 go run，無需編譯 exe，適合快速開發迭代"
+    Write-ColorOutput ""
+    
+    # 檢查應用程式路徑
+    $appPath = "cmd/test_ui"
+    if (-not (Test-Path $appPath)) {
+        Write-Error "找不到應用程式: $appPath"
+        return
+    }
+    
+    # 處理 test-ui 的前端建置
+    Write-Info "📦 檢查前端檔案..."
+    $staticPath = "cmd\test_ui\static"
+    $distPath = "web\test-ui\dist"
+    
+    if (-not (Test-Path $staticPath) -or -not (Test-Path "$staticPath\index.html")) {
+        Write-Warning "前端檔案不存在，正在建置前端..."
+        
+        # 檢查 node_modules
+        $nodeModulesPath = "web\test-ui\node_modules"
+        if (-not (Test-Path $nodeModulesPath)) {
+            Write-Info "📥 安裝前端依賴..."
+            Set-Location web/test-ui
+            npm install
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "前端依賴安裝失敗"
+                Set-Location ../..
+                return
+            }
+            Set-Location ../..
+        }
+        
+        # 建置前端
+        Write-Info "🔨 建置前端..."
+        Set-Location web/test-ui
+        npm run build
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "前端建置失敗"
+            Set-Location ../..
+            return
+        }
+        Set-Location ../..
+        
+        # 複製前端檔案
+        if (Test-Path $staticPath) {
+            Remove-Item -Recurse -Force $staticPath
+        }
+        Copy-Item -Recurse $distPath $staticPath
+        Write-Success "前端建置完成"
+    } else {
+        Write-Success "前端檔案已存在，跳過建置"
+    }
+    
+    # 運行應用程式
+    Write-ColorOutput ""
+    Write-Info "▶️  啟動應用程式（使用 go run）..."
+    Write-Info "💡 修改程式碼後，請按 Ctrl+C 停止並重新運行此選項"
+    Write-ColorOutput ""
+    
+    Set-Location $appPath
+    try {
+        go run .
+    } catch {
+        Write-Error "啟動應用程式失敗: $_"
+    } finally {
+        Set-Location ../..
+    }
 }
 
 # 一鍵啟動專案（構建 + 啟動）
@@ -273,9 +446,9 @@ function Start-QuickStart {
         Write-Info "構建 $($target.Name)..."
         try {
             $outputPath = Join-Path $buildDir "$($target.Name).exe"
-            # 使用 Windows GUI 標誌以隱藏 console window 並正確顯示系統托盤圖示
+            # gateway (test-ui) 不使用 -H=windowsgui 以顯示控制台窗口，讓用戶可以點擊 X 按鈕
             # -s: 移除符號表，-w: 移除 DWARF 除錯資訊，-trimpath: 移除檔案路徑資訊
-            go build -ldflags "-H=windowsgui -s -w" -trimpath -o $outputPath $target.Path
+            go build -ldflags "-s -w" -trimpath -o $outputPath $target.Path
             if ($LASTEXITCODE -eq 0) {
                 Write-Success "$($target.Name) 構建成功: $outputPath"
             } else {
@@ -373,6 +546,18 @@ function Start-QuickStart {
     }
 }
 
+# 如果指定了 DevMode，直接執行開發模式
+if ($DevMode) {
+    Start-DevMode
+    exit $script:ExitCode
+}
+
+# 如果指定了 AirMode，直接執行熱重載模式
+if ($AirMode) {
+    Start-AirMode
+    exit $script:ExitCode
+}
+
 # 如果指定了 QuickStart，直接執行一鍵啟動
 if ($QuickStart) {
     Start-QuickStart
@@ -383,20 +568,28 @@ if ($QuickStart) {
 $hasAnyParam = $SkipLint -or $SkipTest -or $SkipBuild -or $SkipQuality -or $Start -or $Coverage -or $Verbose -or (-not [string]::IsNullOrWhiteSpace($Target))
 if (-not $hasAnyParam) {
     Show-MainMenu
-    $menuSelection = Read-Host "請輸入選項 (0-5)"
+    $menuSelection = Read-Host "請輸入選項 (0-7)"
     
     switch ($menuSelection) {
         "1" {
-            Start-QuickStart
+            Start-DevMode
             exit $script:ExitCode
         }
         "2" {
+            Start-AirMode
+            exit $script:ExitCode
+        }
+        "3" {
+            Start-QuickStart
+            exit $script:ExitCode
+        }
+        "4" {
             # 完整流程，繼續執行後續步驟
             Write-ColorOutput "`n============================================" "Cyan"
             Write-ColorOutput "   執行完整流程" "Cyan"
             Write-ColorOutput "============================================`n" "Cyan"
         }
-        "3" {
+        "5" {
             $SkipLint = $true
             $SkipTest = $true
             $SkipQuality = $true
@@ -404,7 +597,7 @@ if (-not $hasAnyParam) {
             Write-ColorOutput "   僅構建可執行文件" "Cyan"
             Write-ColorOutput "============================================`n" "Cyan"
         }
-        "4" {
+        "6" {
             $SkipLint = $true
             $SkipTest = $true
             $SkipBuild = $true
@@ -414,7 +607,7 @@ if (-not $hasAnyParam) {
             Write-ColorOutput "   僅啟動服務" "Cyan"
             Write-ColorOutput "============================================`n" "Cyan"
         }
-        "5" {
+        "7" {
             $SkipLint = $true
             $SkipBuild = $true
             $SkipQuality = $true
@@ -514,9 +707,9 @@ if (-not $SkipBuild) {
         Write-Info "構建 $($target.Name)..."
         try {
             $outputPath = Join-Path $buildDir "$($target.Name).exe"
-            # 使用 Windows GUI 標誌以隱藏 console window 並正確顯示系統托盤圖示
+            # gateway (test-ui) 不使用 -H=windowsgui 以顯示控制台窗口，讓用戶可以點擊 X 按鈕
             # -s: 移除符號表，-w: 移除 DWARF 除錯資訊，-trimpath: 移除檔案路徑資訊
-            go build -ldflags "-H=windowsgui -s -w" -trimpath -o $outputPath $target.Path
+            go build -ldflags "-s -w" -trimpath -o $outputPath $target.Path
             if ($LASTEXITCODE -eq 0) {
                 Write-Success "$($target.Name) 構建成功: $outputPath"
             } else {
