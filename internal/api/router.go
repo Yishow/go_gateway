@@ -41,10 +41,14 @@ func NewRouter() *gin.Engine {
 
 		// SSE 端點（用於監控數據流）
 		sseHandler := handlers.NewSSEHandler()
+
+		// Debug 處理器
+		debugHandler := handlers.NewDebugHandler()
+
 		apiV1.GET("/test/monitor/stream", sseHandler.HandleMonitorStream)
 
 		// 共用的 TestHandler 實例
-		testHandler := handlers.NewTestHandler(wsHandler, sseHandler)
+		testHandler := handlers.NewTestHandler(wsHandler, sseHandler, debugHandler)
 
 		// 測試相關 API
 		testGroup := apiV1.Group("/test")
@@ -63,10 +67,9 @@ func NewRouter() *gin.Engine {
 			testGroup.POST("/monitor/stop", testHandler.StopMonitor)
 		}
 
-		// Debug 相關 API
+		// Debug 相關 API（使用共用的 debugHandler）
 		debugGroup := apiV1.Group("/debug")
 		{
-			debugHandler := handlers.NewDebugHandler()
 			debugGroup.GET("/packets", debugHandler.GetPackets)
 			debugGroup.GET("/logs", debugHandler.GetLogs)
 			debugGroup.POST("/send-raw", debugHandler.SendRaw)

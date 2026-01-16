@@ -21,6 +21,7 @@ type TestHandler struct {
 	activeMonitors map[string]chan struct{}
 	wsHandler      *WebSocketHandler // 保留用於其他用途
 	sseHandler     *SSEHandler       // SSE 處理器
+	debugHandler   *DebugHandler     // Debug 處理器
 	mu             sync.RWMutex
 }
 
@@ -35,12 +36,13 @@ type ConnectionState struct {
 }
 
 // NewTestHandler 建立新的測試處理器
-func NewTestHandler(wsHandler *WebSocketHandler, sseHandler *SSEHandler) *TestHandler {
+func NewTestHandler(wsHandler *WebSocketHandler, sseHandler *SSEHandler, debugHandler *DebugHandler) *TestHandler {
 	return &TestHandler{
 		connections:    make(map[string]*ConnectionState),
 		activeMonitors: make(map[string]chan struct{}),
 		wsHandler:      wsHandler,
 		sseHandler:     sseHandler,
+		debugHandler:   debugHandler,
 	}
 }
 
@@ -80,7 +82,11 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	}
 
 	fmt.Printf("[DEBUG] 開始創建客戶端: Protocol=%s\n", req.Protocol)
-	client, err := h.createClient(req.Protocol, req.Config)
+	
+	// 先生成 connectionID，這樣可以在創建客戶端時就記錄數據包
+	connID := generateConnectionID()
+	
+	client, err := h.createClientWithDebug(req.Protocol, req.Config, connID)
 	if err != nil {
 		fmt.Printf("[ERROR] 創建客戶端失敗: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("創建客戶端失敗: %v", err)})
@@ -99,7 +105,6 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	}
 	fmt.Printf("[DEBUG] 連線成功\n")
 
-	connID := generateConnectionID()
 	state := &ConnectionState{
 		ID:        connID,
 		Protocol:  req.Protocol,
@@ -112,6 +117,15 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	h.mu.Lock()
 	h.connections[connID] = state
 	h.mu.Unlock()
+
+	// 記錄連線日誌
+	if h.debugHandler != nil {
+		h.debugHandler.RecordLog("info", fmt.Sprintf("連線建立: %s (%s)", connID, req.Protocol), map[string]interface{}{
+			"connection_id": connID,
+			"protocol":      req.Protocol,
+			"config":        req.Config,
+		})
+	}
 
 	fmt.Printf("[DEBUG] 連線建立完成: ConnectionID=%s\n", connID)
 	c.JSON(http.StatusOK, gin.H{
@@ -186,6 +200,14 @@ type ReadRequest struct {
 
 // Read 執行讀取操作
 func (h *TestHandler) Read(c *gin.Context) {
+	// 添加 panic 恢復
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[PANIC] Read 操作發生 panic: %v\n", r)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("內部錯誤: %v", r)})
+		}
+	}()
+
 	var req ReadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -203,13 +225,39 @@ func (h *TestHandler) Read(c *gin.Context) {
 
 	result, err := h.executeRead(state.Client, state.Protocol, req)
 	if err != nil {
+		// 記錄錯誤日誌
+		if h.debugHandler != nil {
+			h.debugHandler.RecordLog("error", fmt.Sprintf("讀取失敗: %s", err.Error()), map[string]interface{}{
+				"connection_id": req.ConnectionID,
+				"operation":     req.Operation,
+				"address":       req.Address,
+				"count":         req.Count,
+			})
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
 		return
 	}
 
+	// 計算結果數量（安全處理）
+	count := 0
+	if result != nil {
+		count = len(resultToString(result))
+	}
+
+	// 記錄成功日誌
+	if h.debugHandler != nil {
+		h.debugHandler.RecordLog("info", fmt.Sprintf("讀取成功: %s (地址: %d, 數量: %d)", req.Operation, req.Address, req.Count), map[string]interface{}{
+			"connection_id": req.ConnectionID,
+			"operation":     req.Operation,
+			"address":       req.Address,
+			"count":         req.Count,
+			"result_count":  count,
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"values": result,
-		"count":  len(resultToString(result)),
+		"count":  count,
 	})
 }
 
@@ -241,8 +289,25 @@ func (h *TestHandler) Write(c *gin.Context) {
 	}
 
 	if err := h.executeWrite(state.Client, state.Protocol, req); err != nil {
+		// 記錄錯誤日誌
+		if h.debugHandler != nil {
+			h.debugHandler.RecordLog("error", fmt.Sprintf("寫入失敗: %s", err.Error()), map[string]interface{}{
+				"connection_id": req.ConnectionID,
+				"operation":     req.Operation,
+				"address":       req.Address,
+			})
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
 		return
+	}
+
+	// 記錄成功日誌
+	if h.debugHandler != nil {
+		h.debugHandler.RecordLog("info", fmt.Sprintf("寫入成功: %s (地址: %d)", req.Operation, req.Address), map[string]interface{}{
+			"connection_id": req.ConnectionID,
+			"operation":     req.Operation,
+			"address":       req.Address,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
@@ -474,6 +539,143 @@ func (h *TestHandler) DeleteScript(c *gin.Context) {
 
 // --- Helper Functions ---
 
+// createClientWithDebug 創建帶有數據包記錄功能的客戶端
+func (h *TestHandler) createClientWithDebug(protocol string, config map[string]interface{}, connectionID string) (interface{}, error) {
+	// Helper to safe cast config values
+	getString := func(key string, def string) string {
+		if v, ok := config[key].(string); ok {
+			return v
+		}
+		return def
+	}
+	getInt := func(key string, def int) int {
+		if v, ok := config[key].(float64); ok {
+			return int(v)
+		}
+		if v, ok := config[key].(int); ok {
+			return v
+		}
+		return def
+	}
+	getDuration := func(key string, def time.Duration) time.Duration {
+		if v, ok := config[key].(float64); ok {
+			return time.Duration(v) * time.Millisecond
+		}
+		return def
+	}
+
+	switch protocol {
+	case "modbus_tcp":
+		host := getString("host", "localhost")
+		port := getInt("port", 502)
+		unitID := byte(getInt("unitID", 1))
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		transport := modbus.NewTCPTransport(host, port)
+		if timeout > 0 {
+			transport.Timeout = timeout
+		}
+		// 包裝 Transport 以記錄數據包（如果 debugHandler 存在）
+		if h.debugHandler != nil {
+			wrappedTransport := NewWrappedTransport(transport, connectionID, protocol, h.debugHandler)
+			return modbus.NewClient(wrappedTransport, unitID), nil
+		}
+		return modbus.NewClient(transport, unitID), nil
+	
+	case "modbus_udp":
+		host := getString("host", "localhost")
+		port := getInt("port", 502)
+		unitID := byte(getInt("unitID", 1))
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		transport := modbus.NewUDPTransport(host, port)
+		if timeout > 0 {
+			transport.Timeout = timeout
+		}
+		if h.debugHandler != nil {
+			wrappedTransport := NewWrappedTransport(transport, connectionID, protocol, h.debugHandler)
+			return modbus.NewClient(wrappedTransport, unitID), nil
+		}
+		return modbus.NewClient(transport, unitID), nil
+	
+	case "modbus_rtu":
+		port := getString("port", "COM1")
+		baudRate := getInt("baudRate", 9600)
+		dataBits := getInt("dataBits", 8)
+		stopBits := getInt("stopBits", 1)
+		parity := getString("parity", "N")
+		unitID := byte(getInt("unitID", 1))
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		transport := modbus.NewRTUTransport(port, baudRate, dataBits, stopBits, parity, timeout)
+		if h.debugHandler != nil {
+			wrappedTransport := NewWrappedTransport(transport, connectionID, protocol, h.debugHandler)
+			return modbus.NewClient(wrappedTransport, unitID), nil
+		}
+		return modbus.NewClient(transport, unitID), nil
+
+	case "fatek_tcp":
+		host := getString("host", "localhost")
+		port := getInt("port", 500)
+		station := getInt("station", 1)
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		transport := fatek.NewTCPTransport(host, port)
+		if timeout > 0 {
+			transport.Timeout = timeout
+		}
+		if h.debugHandler != nil {
+			wrappedTransport := NewWrappedTransport(transport, connectionID, protocol, h.debugHandler)
+			return fatek.NewClient(wrappedTransport, station), nil
+		}
+		return fatek.NewClient(transport, station), nil
+	
+	case "fatek_serial":
+		port := getString("port", "COM1")
+		baudRate := getInt("baudRate", 9600)
+		dataBits := getInt("dataBits", 7)
+		stopBits := getInt("stopBits", 1)
+		parity := getString("parity", "E")
+		station := getInt("station", 1)
+		timeout := getDuration("timeout", 1000*time.Millisecond)
+		transport := fatek.NewSerialTransport(port, baudRate, dataBits, stopBits, parity, timeout)
+		if h.debugHandler != nil {
+			wrappedTransport := NewWrappedTransport(transport, connectionID, protocol, h.debugHandler)
+			return fatek.NewClient(wrappedTransport, station), nil
+		}
+		return fatek.NewClient(transport, station), nil
+	
+	case "mc_tcp", "mcprotocol_tcp":
+		host := getString("host", "localhost")
+		port := getInt("port", 6000)
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		transport := mcprotocol.NewTCPTransport(host, port)
+		if timeout > 0 {
+			transport.Timeout = timeout
+		}
+		if h.debugHandler != nil {
+			wrappedTransport := NewWrappedTransport(transport, connectionID, protocol, h.debugHandler)
+			return mcprotocol.NewClientWithTransport(wrappedTransport), nil
+		}
+		return mcprotocol.NewClientWithTransport(transport), nil
+	
+	case "mcprotocol_serial":
+		port := getString("port", "COM1")
+		baudRate := getInt("baudRate", 9600)
+		dataBits := getInt("dataBits", 7)
+		stopBits := getInt("stopBits", 2)
+		parity := getString("parity", "E")
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		transport := mcprotocol.NewSerialTransport(port, baudRate, dataBits, stopBits, parity, timeout)
+		if h.debugHandler != nil {
+			wrappedTransport := NewWrappedTransport(transport, connectionID, protocol, h.debugHandler)
+			return mcprotocol.NewClientWithTransport(wrappedTransport), nil
+		}
+		return mcprotocol.NewClientWithTransport(transport), nil
+
+	default:
+		return nil, fmt.Errorf("不支援的協議: %s", protocol)
+	}
+}
+
+// createClient 保留原方法以向後兼容（如果其他地方有調用）
+// 如果沒有 debugHandler，使用原始的工廠方法創建客戶端
 func (h *TestHandler) createClient(protocol string, config map[string]interface{}) (interface{}, error) {
 	// Helper to safe cast config values
 	getString := func(key string, def string) string {
@@ -735,14 +937,33 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 	}
 }
 
+// resultToString 將結果轉換為字符串數組（用於計算長度）
 func resultToString(v interface{}) []string {
-	// Simple helper for counting only
-	// Implementation dependent on usage, currently just len
-	if arr, ok := v.([]interface{}); ok {
+	if v == nil {
+		return []string{}
+	}
+
+	// 處理各種類型的數組
+	switch arr := v.(type) {
+	case []bool:
 		res := make([]string, len(arr))
 		return res
+	case []uint16:
+		res := make([]string, len(arr))
+		return res
+	case []int:
+		res := make([]string, len(arr))
+		return res
+	case []interface{}:
+		res := make([]string, len(arr))
+		return res
+	case []string:
+		return arr
+	default:
+		// 嘗試使用反射獲取長度
+		// 如果無法確定，返回空數組
+		return []string{}
 	}
-	return []string{}
 }
 
 

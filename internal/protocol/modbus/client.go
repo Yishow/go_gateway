@@ -44,12 +44,18 @@ func (c *ModbusClient) sendTCPRequest(functionCode byte, data []byte) ([]byte, e
 	defer c.mu.Unlock()
 
 	var transactionID uint16
-	if tcpTransport, ok := c.transport.(*TCPTransport); ok {
-		transactionID = tcpTransport.GetNextTransactionID()
-	} else if udpTransport, ok := c.transport.(*UDPTransport); ok {
-		transactionID = udpTransport.GetNextTransactionID()
+	// 嘗試通過接口調用（支持 WrappedTransport）
+	if transportWithID, ok := c.transport.(interface{ GetNextTransactionID() uint16 }); ok {
+		transactionID = transportWithID.GetNextTransactionID()
 	} else {
-		return nil, fmt.Errorf("不支援的傳輸類型")
+		// 向後兼容：嘗試類型斷言
+		if tcpTransport, ok := c.transport.(*TCPTransport); ok {
+			transactionID = tcpTransport.GetNextTransactionID()
+		} else if udpTransport, ok := c.transport.(*UDPTransport); ok {
+			transactionID = udpTransport.GetNextTransactionID()
+		} else {
+			return nil, fmt.Errorf("不支援的傳輸類型")
+		}
 	}
 
 	// 構建 TCP/UDP 封包
@@ -116,13 +122,24 @@ func (c *ModbusClient) sendRTURequest(functionCode byte, data []byte) ([]byte, e
 
 // sendRequest 根據傳輸類型選擇適當的發送方法
 func (c *ModbusClient) sendRequest(functionCode byte, data []byte) ([]byte, error) {
-	switch c.transport.(type) {
-	case *TCPTransport, *UDPTransport:
+	// 檢查是否支持 GetNextTransactionID（TCP/UDP）或直接是 RTU
+	_, hasTransactionID := c.transport.(interface{ GetNextTransactionID() uint16 })
+	_, isRTU := c.transport.(*RTUTransport)
+	
+	if hasTransactionID {
 		return c.sendTCPRequest(functionCode, data)
-	case *RTUTransport:
+	} else if isRTU {
 		return c.sendRTURequest(functionCode, data)
-	default:
-		return nil, fmt.Errorf("不支援的傳輸類型")
+	} else {
+		// 嘗試通過類型斷言判斷（向後兼容）
+		switch c.transport.(type) {
+		case *TCPTransport, *UDPTransport:
+			return c.sendTCPRequest(functionCode, data)
+		case *RTUTransport:
+			return c.sendRTURequest(functionCode, data)
+		default:
+			return nil, fmt.Errorf("不支援的傳輸類型")
+		}
 	}
 }
 

@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,6 +44,62 @@ func NewDebugHandler() *DebugHandler {
 		packets: make([]PacketRecord, 0, 1000),
 		logs:    make([]LogRecord, 0, 1000),
 	}
+}
+
+// RecordPacket 記錄數據包
+func (h *DebugHandler) RecordPacket(connectionID, protocol, direction string, data []byte) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// 限制數據包數量，保留最近 1000 條
+	if len(h.packets) >= 1000 {
+		h.packets = h.packets[1:]
+	}
+
+	packet := PacketRecord{
+		ID:          fmt.Sprintf("pkt_%d_%s", time.Now().UnixNano(), connectionID),
+		Timestamp:   time.Now(),
+		Direction:   direction,
+		Protocol:    protocol,
+		RawData:     data,
+		HexData:     bytesToHex(data),
+		ConnectionID: connectionID,
+	}
+
+	h.packets = append(h.packets, packet)
+}
+
+// RecordLog 記錄日誌
+func (h *DebugHandler) RecordLog(level, message string, details interface{}) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// 限制日誌數量，保留最近 1000 條
+	if len(h.logs) >= 1000 {
+		h.logs = h.logs[1:]
+	}
+
+	log := LogRecord{
+		ID:        fmt.Sprintf("log_%d", time.Now().UnixNano()),
+		Timestamp: time.Now(),
+		Level:     level,
+		Message:   message,
+		Details:   details,
+	}
+
+	h.logs = append(h.logs, log)
+}
+
+// bytesToHex 將字節數組轉換為十六進制字符串
+func bytesToHex(data []byte) string {
+	if len(data) == 0 {
+		return ""
+	}
+	hexStr := ""
+	for _, b := range data {
+		hexStr += fmt.Sprintf("%02X ", b)
+	}
+	return strings.TrimSpace(hexStr)
 }
 
 // GetPackets 取得數據包記錄
