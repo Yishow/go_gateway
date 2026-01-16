@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"go-gateway/internal/api"
+	"go-gateway/internal/config"
 	"go-gateway/internal/web"
 )
 
@@ -18,6 +19,13 @@ import (
 var staticFiles embed.FS
 
 func main() {
+	// 載入配置（從 .env 文件或環境變數）
+	cfg, err := config.Load()
+	if err != nil {
+		log.Printf("警告: 載入配置失敗，使用預設值: %v", err)
+		cfg = config.Get()
+	}
+
 	// 設定日誌
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -28,13 +36,9 @@ func main() {
 	web.SetupStaticFiles(router, staticFiles)
 
 	// 設定伺服器
-	port := ":8080"
-	if p := os.Getenv("PORT"); p != "" {
-		port = ":" + p
-	}
-
+	serverAddr := cfg.GetServerAddr()
 	server := &http.Server{
-		Addr:         port,
+		Addr:         serverAddr,
 		Handler:      router,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -43,8 +47,8 @@ func main() {
 
 	// 啟動伺服器
 	go func() {
-		log.Printf("🚀 測試工具伺服器啟動於 http://localhost%s", port)
-		log.Printf("📝 開啟瀏覽器訪問 http://localhost%s 開始使用", port)
+		log.Printf("🚀 測試工具伺服器啟動於 http://localhost%s", serverAddr)
+		log.Printf("📝 開啟瀏覽器訪問 http://localhost%s 開始使用", serverAddr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("伺服器啟動失敗: %v", err)
 		}

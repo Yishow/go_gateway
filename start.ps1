@@ -2,18 +2,23 @@
 # Go Gateway 一鍵啟動腳本
 # ============================================
 # 功能：
-#   1. 一鍵啟動專案（構建 + 啟動服務）
+#   1. 一鍵啟動專案（構建 + 啟動後端 API 服務）
 #   2. 執行 golangci-lint 靜態分析
-#   3. 構建所有可執行文件
+#   3. 構建後端 API 服務
 #   4. 啟動服務（可選）
 #   5. 代碼質量檢查
 #   6. 執行單元測試（可選）
 # ============================================
+# 架構說明：
+#   - 統一後端 API 服務：所有功能通過 REST API 提供
+#   - 前端通過 HTTP 調用 API，無需命令列工具
+#   - 單一可執行文件：gateway.exe（後端服務）
+# ============================================
 # bin 目錄說明：
 #   - 存放編譯後的可執行文件（.exe）
-#   - 統一管理所有構建產物，便於部署和執行
+#   - 統一管理構建產物，便於部署和執行
 #   - 避免可執行文件散落在源碼目錄中，保持項目結構整潔
-#   - 構建的檔案：fatek_test.exe, test_all.exe, test-ui.exe
+#   - 構建的檔案：gateway.exe（後端 API 服務）
 # ============================================
 # 使用範例：
 #   .\start.ps1                    # 顯示主選單
@@ -31,7 +36,7 @@ param(
     [switch]$SkipBuild,           # 跳過構建
     [switch]$SkipQuality,         # 跳過代碼質量檢查
     [switch]$Start,               # 構建後啟動服務
-    [string]$Target = "",         # 指定要啟動的服務名稱（fatek_test, test_all, test-ui）
+    [string]$Target = "",         # 已廢棄：統一為 gateway 服務
     [switch]$Coverage,            # 顯示詳細覆蓋率
     [switch]$Verbose              # 詳細輸出
 )
@@ -101,15 +106,15 @@ function Start-QuickStart {
     # 1. 構建可執行文件
     Write-ColorOutput "[1/2] 構建可執行文件..." "Yellow"
     
+    # 統一構建單一後端 API 服務
+    # 所有功能都通過 REST API 提供，前端通過 HTTP 調用
     $buildTargets = @(
-        @{Name="fatek_test"; Path="./cmd/fatek_test"},
-        @{Name="test_all"; Path="./cmd/test_all"},
-        @{Name="test-ui"; Path="./cmd/test_ui"}
+        @{Name="gateway"; Path="./cmd/test_ui"}
     )
     
     # bin 目錄用途：
     # - 存放編譯後的可執行文件（.exe）
-    # - 統一管理所有構建產物，便於部署和執行
+    # - 統一管理構建產物，便於部署和執行
     # - 避免可執行文件散落在源碼目錄中，保持項目結構整潔
     $buildDir = "bin"
     if (-not (Test-Path $buildDir)) {
@@ -141,49 +146,13 @@ function Start-QuickStart {
         return
     }
     
-    # 2. 啟動服務
-    Write-ColorOutput "`n[2/2] 啟動服務..." "Yellow"
+    # 2. 啟動後端 API 服務
+    Write-ColorOutput "`n[2/2] 啟動後端 API 服務..." "Yellow"
     
-    $availableTargets = @("fatek_test", "test_all", "test-ui")
+    # 統一為單一後端服務
+    $targetToStart = "gateway"
     
-    Write-Info "可用的服務："
-    for ($i = 0; $i -lt $availableTargets.Length; $i++) {
-        Write-ColorOutput "  [$($i + 1)] $($availableTargets[$i])" "Cyan"
-    }
-    Write-Info ""
-    
-    $targetToStart = $Target
-    if ([string]::IsNullOrWhiteSpace($targetToStart)) {
-        $selection = Read-Host "請選擇要啟動的服務 (1-$($availableTargets.Length))"
-        
-        if ([string]::IsNullOrWhiteSpace($selection)) {
-            Write-Info "未選擇服務，退出"
-            return
-        }
-        
-        # 驗證輸入是否為有效數字
-        $selectedIndex = 0
-        if (-not [int]::TryParse($selection, [ref]$selectedIndex)) {
-            Write-Error "無效的輸入，請輸入數字"
-            return
-        }
-        
-        $selectedIndex = $selectedIndex - 1
-        if ($selectedIndex -ge 0 -and $selectedIndex -lt $availableTargets.Length) {
-            $targetToStart = $availableTargets[$selectedIndex]
-        } else {
-            Write-Error "無效的選擇，請輸入 1 到 $($availableTargets.Length) 之間的數字"
-            return
-        }
-    }
-    
-    # 確保 $targetToStart 是字符串類型
-    if ($targetToStart -isnot [string]) {
-        Write-Error "服務名稱類型錯誤: $($targetToStart.GetType().Name)"
-        return
-    }
-    
-    # 啟動選定的服務
+    # 啟動服務
     $exePath = Join-Path "bin" "$targetToStart.exe"
     
     if (-not (Test-Path $exePath)) {
@@ -341,10 +310,10 @@ if (-not $SkipBuild) {
     $currentStep++
     Write-ColorOutput "`n[$currentStep/$totalSteps] 構建可執行文件..." "Yellow"
     
+    # 統一構建單一後端 API 服務
+    # 所有功能都通過 REST API 提供，前端通過 HTTP 調用
     $buildTargets = @(
-        @{Name="fatek_test"; Path="./cmd/fatek_test"},
-        @{Name="test_all"; Path="./cmd/test_all"},
-        @{Name="test-ui"; Path="./cmd/test_ui"}
+        @{Name="gateway"; Path="./cmd/test_ui"}
     )
     
     $buildDir = "bin"
@@ -375,49 +344,11 @@ if ($Start) {
     $currentStep++
     Write-ColorOutput "`n[$currentStep/$totalSteps] 啟動服務..." "Yellow"
     
-    $availableTargets = @("fatek_test", "test_all", "test-ui")
-    $targetToStart = $Target
-    
-    # 如果未指定目標，顯示選擇選單
-    if ([string]::IsNullOrWhiteSpace($targetToStart)) {
-        Write-Info "可用的服務："
-        for ($i = 0; $i -lt $availableTargets.Length; $i++) {
-            Write-ColorOutput "  [$($i + 1)] $($availableTargets[$i])" "Cyan"
-        }
-        Write-Info ""
-        $selection = Read-Host "請選擇要啟動的服務 (1-$($availableTargets.Length)) 或按 Enter 跳過"
-        
-        if ([string]::IsNullOrWhiteSpace($selection)) {
-            Write-Info "跳過啟動服務"
-        } else {
-            # 驗證輸入是否為有效數字
-            $selectedIndex = 0
-            if (-not [int]::TryParse($selection, [ref]$selectedIndex)) {
-                Write-Error "無效的輸入，請輸入數字，跳過啟動"
-                $targetToStart = ""
-            } else {
-                $selectedIndex = $selectedIndex - 1
-                if ($selectedIndex -ge 0 -and $selectedIndex -lt $availableTargets.Length) {
-                    $targetToStart = $availableTargets[$selectedIndex]
-                } else {
-                    Write-Error "無效的選擇，請輸入 1 到 $($availableTargets.Length) 之間的數字，跳過啟動"
-                    $targetToStart = ""
-                }
-            }
-        }
-    }
-    
-    # 啟動選定的服務
-    if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
-        # 確保 $targetToStart 是字符串類型
-        if ($targetToStart -isnot [string]) {
-            Write-Error "服務名稱類型錯誤: $($targetToStart.GetType().Name)，跳過啟動"
-            $targetToStart = ""
-        }
-    }
+    # 統一為單一後端 API 服務
+    $targetToStart = "gateway"
+    $exePath = Join-Path "bin" "$targetToStart.exe"
     
     if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
-        $exePath = Join-Path "bin" "$targetToStart.exe"
         
         if (-not (Test-Path $exePath)) {
             Write-Error "找不到可執行文件: $exePath"
