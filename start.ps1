@@ -52,6 +52,20 @@ param(
 $ErrorActionPreference = "Stop"
 $script:ExitCode = 0
 
+# ============================================
+# 常數定義
+# ============================================
+# 保存腳本啟動時的根目錄（專案根目錄）
+$script:ROOT_DIR = Get-Location
+
+$script:APP_NAME = "gateway"
+$script:APP_PATH = "cmd/test_ui"
+$script:BUILD_DIR = "bin"
+$script:FRONTEND_DIR = "web/test-ui"
+$script:STATIC_DIR = "cmd/test_ui/static"
+$script:DIST_DIR = "web/test-ui/dist"
+$script:NODE_MODULES_DIR = "web/test-ui/node_modules"
+
 # 從環境變數讀取端口配置（如果未指定）
 if ($Port -eq 8080) {
     $envPort = [System.Environment]::GetEnvironmentVariable("PORT")
@@ -91,11 +105,332 @@ function Write-Warning {
     Write-ColorOutput "⚠️  $Message" "Yellow"
 }
 
+# ============================================
+# 工具函數
+# ============================================
+
 # 檢查命令是否存在
 function Test-Command {
     param([string]$Command)
     $null = Get-Command $Command -ErrorAction SilentlyContinue
     return $?
+}
+
+# 啟動前端開發伺服器
+function Start-FrontendDevServer {
+    [CmdletBinding()]
+    param()
+    
+    Write-Info "🎨 檢查前端開發環境..."
+    
+    # 檢查前端目錄
+    if (-not (Test-Path $script:FRONTEND_DIR)) {
+        Write-Error "找不到前端目錄: $script:FRONTEND_DIR"
+        return $null
+    }
+    
+    # 檢查 package.json
+    $packageJsonPath = Join-Path $script:FRONTEND_DIR "package.json"
+    if (-not (Test-Path $packageJsonPath)) {
+        Write-Error "找不到 package.json: $packageJsonPath"
+        return $null
+    }
+    
+    # 檢查 node_modules
+    if (-not (Test-Path $script:NODE_MODULES_DIR)) {
+        Write-Warning "前端依賴未安裝，正在安裝..."
+        $originalLocation = Get-Location
+        try {
+            Push-Location $script:FRONTEND_DIR
+            npm install
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "前端依賴安裝失敗"
+                return $null
+            }
+            Write-Success "前端依賴安裝完成"
+        } catch {
+            Write-Error "安裝前端依賴時發生錯誤: $_"
+            return $null
+        } finally {
+            Pop-Location
+            Set-Location $originalLocation
+        }
+    }
+    
+    # 啟動前端開發伺服器
+    Write-Info "🚀 啟動前端開發伺服器..."
+    $originalLocation = Get-Location
+    
+    try {
+        Push-Location $script:FRONTEND_DIR
+        
+        # 使用 Start-Process 在背景啟動前端伺服器
+        # 使用 cmd.exe 來正確處理 npm 命令，避免 PowerShell 的問題
+        $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm run dev" -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
+        
+        if ($frontendProcess) {
+            Write-Success "前端開發伺服器已啟動（PID: $($frontendProcess.Id)）"
+            Write-Info "💡 前端開發伺服器通常運行在 http://localhost:5173"
+            Write-Info "💡 前端修改會自動熱重載"
+            
+            # 等待一小段時間確認伺服器啟動
+            Start-Sleep -Milliseconds 1000
+            
+            # 檢查進程是否仍在運行
+            if (-not (Get-Process -Id $frontendProcess.Id -ErrorAction SilentlyContinue)) {
+                Write-Warning "前端開發伺服器可能啟動失敗"
+                return $null
+            }
+            
+            return $frontendProcess
+        } else {
+            Write-Error "無法啟動前端開發伺服器"
+            return $null
+        }
+    } catch {
+        Write-Error "啟動前端開發伺服器時發生錯誤: $_"
+        return $null
+    } finally {
+        Pop-Location
+        Set-Location $originalLocation
+    }
+}
+
+# 停止前端開發伺服器
+function Stop-FrontendDevServer {
+    [CmdletBinding()]
+    param(
+        [System.Diagnostics.Process]$Process
+    )
+    
+    if ($Process -and -not $Process.HasExited) {
+        Write-Info "正在停止前端開發伺服器（PID: $($Process.Id)）..."
+        try {
+            $Process.Kill()
+            $Process.WaitForExit(3000)
+            Write-Success "前端開發伺服器已停止"
+        } catch {
+            Write-Warning "停止前端開發伺服器時發生錯誤: $_"
+        }
+    }
+}
+
+# 建置前端（如果需要）
+function Build-Frontend {
+    [CmdletBinding()]
+    param(
+        [switch]$Force  # 強制重新建置
+    )
+    
+    Write-Info "📦 檢查前端檔案..."
+    
+    # 檢查前端檔案是否已存在
+    $staticExists = (Test-Path $script:STATIC_DIR) -and (Test-Path "$script:STATIC_DIR\index.html")
+    
+    if ($staticExists -and -not $Force) {
+        # 檢查前端原始碼是否有修改
+        $needsRebuild = $false
+        
+        # 獲取前端原始碼目錄的最新修改時間
+        $frontendSrcPath = Join-Path $script:FRONTEND_DIR "src"
+        $packageJsonPath = Join-Path $script:FRONTEND_DIR "package.json"
+        
+        if (Test-Path $frontendSrcPath) {
+            $srcFiles = Get-ChildItem -Path $frontendSrcPath -Recurse -File -ErrorAction SilentlyContinue
+            if ($srcFiles) {
+                $srcLastWrite = ($srcFiles | Measure-Object -Property LastWriteTime -Maximum).Maximum
+            } else {
+                $srcLastWrite = $null
+            }
+        } else {
+            $srcLastWrite = $null
+        }
+        
+        # 獲取 package.json 的修改時間（依賴變更）
+        if (Test-Path $packageJsonPath) {
+            $packageJsonTime = (Get-Item $packageJsonPath).LastWriteTime
+            if ($srcLastWrite -and $packageJsonTime -gt $srcLastWrite) {
+                $srcLastWrite = $packageJsonTime
+            } elseif (-not $srcLastWrite) {
+                $srcLastWrite = $packageJsonTime
+            }
+        }
+        
+        # 獲取建置產物的最新修改時間
+        $staticFiles = Get-ChildItem -Path $script:STATIC_DIR -Recurse -File -ErrorAction SilentlyContinue
+        if ($staticFiles) {
+            $staticLastWrite = ($staticFiles | Measure-Object -Property LastWriteTime -Maximum).Maximum
+        } else {
+            $staticLastWrite = $null
+        }
+        
+        # 如果原始碼比建置產物新，需要重新建置
+        if ($srcLastWrite -and $staticLastWrite -and $srcLastWrite -gt $staticLastWrite) {
+            $needsRebuild = $true
+            Write-Info "檢測到前端原始碼有修改（原始碼: $($srcLastWrite.ToString('yyyy-MM-dd HH:mm:ss')), 建置產物: $($staticLastWrite.ToString('yyyy-MM-dd HH:mm:ss'))）"
+        } elseif (-not $staticLastWrite) {
+            # 如果建置產物目錄存在但沒有檔案，也需要重新建置
+            $needsRebuild = $true
+            Write-Info "建置產物目錄存在但沒有檔案，需要重新建置"
+        }
+        
+        if (-not $needsRebuild) {
+            Write-Success "前端檔案已存在且為最新，跳過建置"
+            return $true
+        } else {
+            Write-Warning "前端原始碼有修改，需要重新建置..."
+        }
+    } else {
+        if ($Force) {
+            Write-Warning "強制重新建置前端..."
+        } else {
+            Write-Warning "前端檔案不存在，正在建置前端..."
+        }
+    }
+    
+    # 確保在專案根目錄
+    $originalLocation = Get-Location
+    
+    try {
+        # 檢查並安裝依賴
+        if (-not (Test-Path $script:NODE_MODULES_DIR)) {
+            Write-Info "📥 安裝前端依賴..."
+            Push-Location $script:FRONTEND_DIR
+            try {
+                npm install
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Error "前端依賴安裝失敗"
+                    return $false
+                }
+            } finally {
+                Pop-Location
+            }
+        }
+        
+        # 建置前端
+        Write-Info "🔨 建置前端..."
+        Push-Location $script:FRONTEND_DIR
+        try {
+            npm run build
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "前端建置失敗"
+                return $false
+            }
+        } finally {
+            Pop-Location
+        }
+        
+        # 複製前端檔案
+        if (Test-Path $script:STATIC_DIR) {
+            Remove-Item -Recurse -Force $script:STATIC_DIR
+        }
+        Copy-Item -Recurse $script:DIST_DIR $script:STATIC_DIR
+        Write-Success "前端建置完成"
+        return $true
+    } catch {
+        Write-Error "建置前端時發生錯誤: $_"
+        return $false
+    } finally {
+        Set-Location $originalLocation
+    }
+}
+
+# 構建 Go 應用程式
+function Build-Application {
+    [CmdletBinding()]
+    param(
+        [string]$OutputPath,
+        [string]$SourcePath
+    )
+    
+    Write-Info "構建應用程式: $SourcePath -> $OutputPath"
+    
+    try {
+        # 確保輸出目錄存在
+        $outputDir = Split-Path -Parent $OutputPath
+        if (-not (Test-Path $outputDir)) {
+            New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+        }
+        
+        # 構建參數：-s 移除符號表，-w 移除 DWARF 除錯資訊，-trimpath 移除檔案路徑資訊
+        go build -ldflags "-s -w" -trimpath -o $OutputPath $SourcePath
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "構建成功: $OutputPath"
+            return $true
+        } else {
+            Write-Error "構建失敗"
+            return $false
+        }
+    } catch {
+        Write-Error "構建時發生錯誤: $_"
+        return $false
+    }
+}
+
+# 啟動應用程式（GUI 或 CLI）
+function Start-Application {
+    [CmdletBinding()]
+    param(
+        [string]$ExePath,
+        [int]$Port = 8080,
+        [switch]$IsGUI
+    )
+    
+    if (-not (Test-Path $ExePath)) {
+        Write-Error "找不到可執行文件: $ExePath"
+        return $false
+    }
+    
+    Write-Info "正在啟動應用程式..."
+    Write-Info "服務將監聽端口: $Port"
+    
+    if ($IsGUI) {
+        Write-Info "這是一個 GUI 應用程式，將在背景運行並顯示在系統托盤"
+        Write-Info "💡 請查看系統通知區（右下角）的圖示"
+        Write-Info "💡 右鍵點擊圖示可以打開瀏覽器或退出應用程式"
+        
+        try {
+            $process = Start-Process -FilePath $ExePath -PassThru -WindowStyle Hidden
+            Write-Success "應用程式已啟動（PID: $($process.Id)）"
+            Write-Info "應用程式正在背景運行，請查看系統托盤圖示"
+            
+            # 等待一小段時間確認應用程式啟動
+            Start-Sleep -Milliseconds 500
+            
+            # 檢查進程是否仍在運行
+            if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
+                Write-Warning "應用程式可能啟動失敗，請檢查日誌或錯誤訊息"
+                return $false
+            } else {
+                Write-Success "應用程式運行中，可以關閉此視窗"
+                return $true
+            }
+        } catch {
+            Write-Error "啟動應用程式失敗: $_"
+            return $false
+        }
+    } else {
+        Write-Info "按 Ctrl+C 可停止服務"
+        Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
+        
+        try {
+            & $ExePath
+            $serviceExitCode = $LASTEXITCODE
+            
+            Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
+            
+            if ($serviceExitCode -eq 0) {
+                Write-Success "服務正常退出"
+            } else {
+                Write-Warning "服務退出，退出碼: $serviceExitCode"
+            }
+            return $true
+        } catch {
+            Write-Error "啟動服務失敗: $_"
+            return $false
+        }
+    }
 }
 
 # 檢查端口是否被佔用
@@ -250,6 +585,10 @@ function Show-MainMenu {
     Write-ColorOutput ""
 }
 
+# ============================================
+# 開發模式函數
+# ============================================
+
 # 熱重載模式（使用 Air，自動檢測變更並重啟）
 function Start-AirMode {
     Write-ColorOutput "`n============================================" "Cyan"
@@ -257,17 +596,19 @@ function Start-AirMode {
     Write-ColorOutput "============================================`n" "Cyan"
     Write-Info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新編譯運行"
     Write-Info "💡 此模式使用 Air 工具，自動檢測程式碼變更並重啟"
+    Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
     
     # 檢查 Air 是否安裝
     if (-not (Test-Command "air")) {
         Write-Warning "Air 工具未安裝，正在嘗試安裝..."
         try {
-            go install github.com/cosmtrek/air@latest
+            # Air 專案已遷移到新倉庫: github.com/air-verse/air
+            go install github.com/air-verse/air@latest
             if (-not (Test-Command "air")) {
                 Write-Error "無法安裝 Air，請手動安裝："
-                Write-Info "  go install github.com/cosmtrek/air@latest"
-                Write-Info "  或訪問: https://github.com/cosmtrek/air"
+                Write-Info "  go install github.com/air-verse/air@latest"
+                Write-Info "  或訪問: https://github.com/air-verse/air"
                 Write-Info ""
                 Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
                 return
@@ -281,64 +622,38 @@ function Start-AirMode {
         }
     }
     
-    # 處理 test-ui 的前端建置
-    Write-Info "📦 檢查前端檔案..."
-    $staticPath = "cmd\test_ui\static"
-    $distPath = "web\test-ui\dist"
-    
-    if (-not (Test-Path $staticPath) -or -not (Test-Path "$staticPath\index.html")) {
-        Write-Warning "前端檔案不存在，正在建置前端..."
-        
-        # 檢查 node_modules
-        $nodeModulesPath = "web\test-ui\node_modules"
-        if (-not (Test-Path $nodeModulesPath)) {
-            Write-Info "📥 安裝前端依賴..."
-            Set-Location web/test-ui
-            npm install
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "前端依賴安裝失敗"
-                Set-Location ../..
-                return
-            }
-            Set-Location ../..
-        }
-        
-        # 建置前端
-        Write-Info "🔨 建置前端..."
-        Set-Location web/test-ui
-        npm run build
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "前端建置失敗"
-            Set-Location ../..
-            return
-        }
-        Set-Location ../..
-        
-        # 複製前端檔案
-        if (Test-Path $staticPath) {
-            Remove-Item -Recurse -Force $staticPath
-        }
-        Copy-Item -Recurse $distPath $staticPath
-        Write-Success "前端建置完成"
-    } else {
-        Write-Success "前端檔案已存在，跳過建置"
+    # 啟動前端開發伺服器
+    $frontendProcess = Start-FrontendDevServer
+    if (-not $frontendProcess) {
+        Write-Warning "前端開發伺服器啟動失敗，繼續啟動後端服務..."
     }
+    
+    Write-ColorOutput ""
     
     # 檢查 .air.toml 是否存在
     if (-not (Test-Path ".air.toml")) {
         Write-Warning ".air.toml 配置檔案不存在，Air 將使用預設配置"
     }
     
-    # 運行 Air
-    Write-ColorOutput ""
+    # 運行 Air（Air 會在專案根目錄運行）
     Write-Info "▶️  啟動 Air 熱重載..."
     Write-Info "💡 修改程式碼後，Air 會自動檢測並重新編譯運行"
     Write-ColorOutput ""
     
     try {
+        # 確保在專案根目錄運行 Air
+        Set-Location $script:ROOT_DIR
         air
     } catch {
         Write-Error "啟動 Air 失敗: $_"
+    } finally {
+        # 確保回到專案根目錄
+        Set-Location $script:ROOT_DIR
+        
+        # 停止前端開發伺服器
+        if ($frontendProcess) {
+            Stop-FrontendDevServer -Process $frontendProcess
+        }
     }
 }
 
@@ -349,71 +664,42 @@ function Start-DevMode {
     Write-ColorOutput "============================================`n" "Cyan"
     Write-Info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後需要手動重新運行"
     Write-Info "💡 此模式使用 go run，無需編譯 exe，適合快速開發迭代"
+    Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
     
     # 檢查應用程式路徑
-    $appPath = "cmd/test_ui"
-    if (-not (Test-Path $appPath)) {
-        Write-Error "找不到應用程式: $appPath"
+    if (-not (Test-Path $script:APP_PATH)) {
+        Write-Error "找不到應用程式: $script:APP_PATH"
         return
     }
     
-    # 處理 test-ui 的前端建置
-    Write-Info "📦 檢查前端檔案..."
-    $staticPath = "cmd\test_ui\static"
-    $distPath = "web\test-ui\dist"
-    
-    if (-not (Test-Path $staticPath) -or -not (Test-Path "$staticPath\index.html")) {
-        Write-Warning "前端檔案不存在，正在建置前端..."
-        
-        # 檢查 node_modules
-        $nodeModulesPath = "web\test-ui\node_modules"
-        if (-not (Test-Path $nodeModulesPath)) {
-            Write-Info "📥 安裝前端依賴..."
-            Set-Location web/test-ui
-            npm install
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "前端依賴安裝失敗"
-                Set-Location ../..
-                return
-            }
-            Set-Location ../..
-        }
-        
-        # 建置前端
-        Write-Info "🔨 建置前端..."
-        Set-Location web/test-ui
-        npm run build
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "前端建置失敗"
-            Set-Location ../..
-            return
-        }
-        Set-Location ../..
-        
-        # 複製前端檔案
-        if (Test-Path $staticPath) {
-            Remove-Item -Recurse -Force $staticPath
-        }
-        Copy-Item -Recurse $distPath $staticPath
-        Write-Success "前端建置完成"
-    } else {
-        Write-Success "前端檔案已存在，跳過建置"
+    # 啟動前端開發伺服器
+    $frontendProcess = Start-FrontendDevServer
+    if (-not $frontendProcess) {
+        Write-Warning "前端開發伺服器啟動失敗，繼續啟動後端服務..."
     }
     
-    # 運行應用程式
     Write-ColorOutput ""
-    Write-Info "▶️  啟動應用程式（使用 go run）..."
+    
+    # 運行應用程式
+    Write-Info "▶️  啟動後端應用程式（使用 go run）..."
     Write-Info "💡 修改程式碼後，請按 Ctrl+C 停止並重新運行此選項"
     Write-ColorOutput ""
     
-    Set-Location $appPath
     try {
+        Push-Location $script:APP_PATH
         go run .
     } catch {
         Write-Error "啟動應用程式失敗: $_"
     } finally {
-        Set-Location ../..
+        # 確保回到專案根目錄
+        Pop-Location
+        Set-Location $script:ROOT_DIR
+        
+        # 停止前端開發伺服器
+        if ($frontendProcess) {
+            Stop-FrontendDevServer -Process $frontendProcess
+        }
     }
 }
 
@@ -426,44 +712,10 @@ function Start-QuickStart {
     # 1. 構建可執行文件
     Write-ColorOutput "[1/2] 構建可執行文件..." "Yellow"
     
-    # 統一構建單一後端 API 服務
-    # 所有功能都通過 REST API 提供，前端通過 HTTP 調用
-    $buildTargets = @(
-        @{Name="gateway"; Path="./cmd/test_ui"}
-    )
+    $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+    $sourcePath = "./$script:APP_PATH"
     
-    # bin 目錄用途：
-    # - 存放編譯後的可執行文件（.exe）
-    # - 統一管理構建產物，便於部署和執行
-    # - 避免可執行文件散落在源碼目錄中，保持項目結構整潔
-    $buildDir = "bin"
-    if (-not (Test-Path $buildDir)) {
-        New-Item -ItemType Directory -Path $buildDir | Out-Null
-    }
-    
-    $buildSuccess = $true
-    foreach ($target in $buildTargets) {
-        Write-Info "構建 $($target.Name)..."
-        try {
-            $outputPath = Join-Path $buildDir "$($target.Name).exe"
-            # gateway (test-ui) 不使用 -H=windowsgui 以顯示控制台窗口，讓用戶可以點擊 X 按鈕
-            # -s: 移除符號表，-w: 移除 DWARF 除錯資訊，-trimpath: 移除檔案路徑資訊
-            go build -ldflags "-s -w" -trimpath -o $outputPath $target.Path
-            if ($LASTEXITCODE -eq 0) {
-                Write-Success "$($target.Name) 構建成功: $outputPath"
-            } else {
-                Write-Error "$($target.Name) 構建失敗"
-                $buildSuccess = $false
-                $script:ExitCode = 1
-            }
-        } catch {
-            Write-Error "構建 $($target.Name) 時發生錯誤: $_"
-            $buildSuccess = $false
-            $script:ExitCode = 1
-        }
-    }
-    
-    if (-not $buildSuccess) {
+    if (-not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
         Write-Error "構建失敗，無法啟動服務"
         return
     }
@@ -479,70 +731,10 @@ function Start-QuickStart {
         return
     }
     
-    # 統一為單一後端服務
-    $targetToStart = "gateway"
-    
-    # 啟動服務
-    $exePath = Join-Path "bin" "$targetToStart.exe"
-    
-    if (-not (Test-Path $exePath)) {
-        Write-Error "找不到可執行文件: $exePath"
-        Write-Info "請先執行構建步驟"
+    # 啟動服務（GUI 應用）
+    $isGUIApp = $true  # gateway/test-ui 是 GUI 應用
+    if (-not (Start-Application -ExePath $outputPath -Port $Port -IsGUI:$isGUIApp)) {
         $script:ExitCode = 1
-        return
-    }
-    
-    Write-Info "正在啟動 $targetToStart..."
-    Write-Info "服務將監聽端口: $Port"
-    
-    # 檢查是否為 GUI 應用（使用 windowsgui 標誌編譯的應用）
-    $isGUIApp = $exePath -like "*gateway.exe" -or $exePath -like "*test-ui.exe"
-    
-    if ($isGUIApp) {
-        Write-Info "這是一個 GUI 應用程式，將在背景運行並顯示在系統托盤"
-        Write-Info "💡 請查看系統通知區（右下角）的圖示"
-        Write-Info "💡 右鍵點擊圖示可以打開瀏覽器或退出應用程式"
-        
-        try {
-            # GUI 應用在背景啟動，不等待輸出
-            $process = Start-Process -FilePath $exePath -PassThru -WindowStyle Hidden
-            Write-Success "應用程式已啟動（PID: $($process.Id)）"
-            Write-Info "應用程式正在背景運行，請查看系統托盤圖示"
-            
-            # 等待一小段時間確認應用程式啟動
-            Start-Sleep -Milliseconds 500
-            
-            # 檢查進程是否仍在運行
-            if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
-                Write-Warning "應用程式可能啟動失敗，請檢查日誌或錯誤訊息"
-                $script:ExitCode = 1
-            } else {
-                Write-Success "應用程式運行中，可以關閉此視窗"
-            }
-        } catch {
-            Write-Error "啟動應用程式失敗: $_"
-            $script:ExitCode = 1
-        }
-    } else {
-        Write-Info "按 Ctrl+C 可停止服務"
-        Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
-        
-        try {
-            # 啟動服務（前台運行）
-            & $exePath
-            $serviceExitCode = $LASTEXITCODE
-            
-            Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
-            
-            if ($serviceExitCode -eq 0) {
-                Write-Success "服務正常退出"
-            } else {
-                Write-Warning "服務退出，退出碼: $serviceExitCode"
-            }
-        } catch {
-            Write-Error "啟動服務失敗: $_"
-            $script:ExitCode = 1
-        }
     }
 }
 
@@ -692,34 +884,11 @@ if (-not $SkipBuild) {
     $currentStep++
     Write-ColorOutput "`n[$currentStep/$totalSteps] 構建可執行文件..." "Yellow"
     
-    # 統一構建單一後端 API 服務
-    # 所有功能都通過 REST API 提供，前端通過 HTTP 調用
-    $buildTargets = @(
-        @{Name="gateway"; Path="./cmd/test_ui"}
-    )
+    $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+    $sourcePath = "./$script:APP_PATH"
     
-    $buildDir = "bin"
-    if (-not (Test-Path $buildDir)) {
-        New-Item -ItemType Directory -Path $buildDir | Out-Null
-    }
-    
-    foreach ($target in $buildTargets) {
-        Write-Info "構建 $($target.Name)..."
-        try {
-            $outputPath = Join-Path $buildDir "$($target.Name).exe"
-            # gateway (test-ui) 不使用 -H=windowsgui 以顯示控制台窗口，讓用戶可以點擊 X 按鈕
-            # -s: 移除符號表，-w: 移除 DWARF 除錯資訊，-trimpath: 移除檔案路徑資訊
-            go build -ldflags "-s -w" -trimpath -o $outputPath $target.Path
-            if ($LASTEXITCODE -eq 0) {
-                Write-Success "$($target.Name) 構建成功: $outputPath"
-            } else {
-                Write-Error "$($target.Name) 構建失敗"
-                $script:ExitCode = 1
-            }
-        } catch {
-            Write-Error "構建 $($target.Name) 時發生錯誤: $_"
-            $script:ExitCode = 1
-        }
+    if (-not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
+        $script:ExitCode = 1
     }
 }
 
@@ -734,70 +903,11 @@ if ($Start) {
         Write-Error "端口 $Port 清理失敗，無法啟動服務"
         $script:ExitCode = 1
     } else {
-        # 統一為單一後端 API 服務
-        $targetToStart = "gateway"
-        $exePath = Join-Path "bin" "$targetToStart.exe"
+        $exePath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+        $isGUIApp = $true  # gateway/test-ui 是 GUI 應用
         
-        if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
-            
-            if (-not (Test-Path $exePath)) {
-                Write-Error "找不到可執行文件: $exePath"
-                Write-Info "請先執行構建步驟"
-                $script:ExitCode = 1
-            } else {
-                Write-Info "正在啟動 $targetToStart..."
-                Write-Info "服務將監聽端口: $Port"
-                
-                # 檢查是否為 GUI 應用（使用 windowsgui 標誌編譯的應用）
-                $isGUIApp = $exePath -like "*gateway.exe" -or $exePath -like "*test-ui.exe"
-                
-                if ($isGUIApp) {
-                    Write-Info "這是一個 GUI 應用程式，將在背景運行並顯示在系統托盤"
-                    Write-Info "💡 請查看系統通知區（右下角）的圖示"
-                    Write-Info "💡 右鍵點擊圖示可以打開瀏覽器或退出應用程式"
-                    
-                    try {
-                        # GUI 應用在背景啟動，不等待輸出
-                        $process = Start-Process -FilePath $exePath -PassThru -WindowStyle Hidden
-                        Write-Success "應用程式已啟動（PID: $($process.Id)）"
-                        Write-Info "應用程式正在背景運行，請查看系統托盤圖示"
-                        
-                        # 等待一小段時間確認應用程式啟動
-                        Start-Sleep -Milliseconds 500
-                        
-                        # 檢查進程是否仍在運行
-                        if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
-                            Write-Warning "應用程式可能啟動失敗，請檢查日誌或錯誤訊息"
-                            $script:ExitCode = 1
-                        } else {
-                            Write-Success "應用程式運行中，可以關閉此視窗"
-                        }
-                    } catch {
-                        Write-Error "啟動應用程式失敗: $_"
-                        $script:ExitCode = 1
-                    }
-                } else {
-                    Write-Info "按 Ctrl+C 可停止服務"
-                    Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
-                    
-                    try {
-                        # 啟動服務（前台運行）
-                        & $exePath
-                        $serviceExitCode = $LASTEXITCODE
-                        
-                        Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
-                        
-                        if ($serviceExitCode -eq 0) {
-                            Write-Success "服務正常退出"
-                        } else {
-                            Write-Warning "服務退出，退出碼: $serviceExitCode"
-                        }
-                    } catch {
-                        Write-Error "啟動服務失敗: $_"
-                        $script:ExitCode = 1
-                    }
-                }
-            }
+        if (-not (Start-Application -ExePath $exePath -Port $Port -IsGUI:$isGUIApp)) {
+            $script:ExitCode = 1
         }
     }
 }

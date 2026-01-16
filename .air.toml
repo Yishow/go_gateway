@@ -1,7 +1,8 @@
 # Air 熱重載配置
-# 安裝: go install github.com/cosmtrek/air@latest
+# 安裝: go install github.com/air-verse/air@latest
 # 使用: air
 # 說明: 自動檢測程式碼變更並重新編譯運行，適合快速開發迭代
+# 注意: Air 專案已遷移到新倉庫 github.com/air-verse/air
 
 root = "."
 testdata_dir = "testdata"

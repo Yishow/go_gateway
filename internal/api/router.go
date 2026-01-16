@@ -27,7 +27,7 @@ func NewRouter() *gin.Engine {
 	router := gin.New()
 
 	// 中間件
-	router.Use(gin.Logger())
+	router.Use(customLoggerMiddleware()) // 使用自定義日誌中間件，過濾頻繁的 debug API 請求
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware(cfg))
 
@@ -99,6 +99,21 @@ func NewRouter() *gin.Engine {
 	}
 
 	return router
+}
+
+// customLoggerMiddleware 自定義日誌中間件，過濾頻繁的 debug API 輪詢請求
+func customLoggerMiddleware() gin.HandlerFunc {
+	// 配置 Logger，跳過頻繁輪詢的 API 路徑
+	// 這些是前端定期輪詢的 API，不需要每次都記錄日誌
+	skipPaths := []string{
+		"/api/v1/debug/packets",
+		"/api/v1/debug/logs",
+		"/api/v1/test/status", // 狀態檢查也可能頻繁輪詢
+	}
+
+	return gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: skipPaths,
+	})
 }
 
 // corsMiddleware 處理 CORS 跨域請求
