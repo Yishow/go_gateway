@@ -3,17 +3,28 @@
 # ============================================
 # 功能：
 #   1. 執行 golangci-lint 靜態分析
-#   2. 執行單元測試
-#   3. 檢查測試覆蓋率
-#   4. 構建所有可執行文件
+#   2. 構建所有可執行文件
+#   3. 啟動服務（可選）
+#   4. 代碼質量檢查
+#   5. 執行單元測試（可選）
+# ============================================
+# 使用範例：
+#   .\start.ps1                    # 完整流程
+#   .\start.ps1 -Start             # 構建後啟動服務
+#   .\start.ps1 -Start -Target fatek_test  # 啟動指定服務
+#   .\start.ps1 -SkipTest          # 跳過測試
+#   .\start.ps1 -SkipBuild -Start  # 僅啟動（不構建）
 # ============================================
 
 param(
-    [switch]$SkipLint,      # 跳過 lint 檢查
-    [switch]$SkipTest,      # 跳過測試
-    [switch]$SkipBuild,     # 跳過構建
-    [switch]$Coverage,      # 顯示詳細覆蓋率
-    [switch]$Verbose        # 詳細輸出
+    [switch]$SkipLint,           # 跳過 lint 檢查
+    [switch]$SkipTest,           # 跳過測試
+    [switch]$SkipBuild,           # 跳過構建
+    [switch]$SkipQuality,         # 跳過代碼質量檢查
+    [switch]$Start,               # 構建後啟動服務
+    [string]$Target = "",         # 指定要啟動的服務名稱（fatek_test, test_all, test-ui）
+    [switch]$Coverage,            # 顯示詳細覆蓋率
+    [switch]$Verbose              # 詳細輸出
 )
 
 $ErrorActionPreference = "Stop"
@@ -84,9 +95,20 @@ if (-not $SkipLint) {
     }
 }
 
+# 計算總步驟數（實際會執行的步驟）
+# 步驟順序：1. lint, 2. build, 3. start(可選), 4. quality(可選), 5. test(可選)
+$totalSteps = 0
+if (-not $SkipLint) { $totalSteps++ }
+if (-not $SkipBuild) { $totalSteps++ }
+if ($Start) { $totalSteps++ }
+if (-not $SkipQuality) { $totalSteps++ }
+if (-not $SkipTest) { $totalSteps++ }
+$currentStep = 0
+
 # 2. 執行 golangci-lint 靜態分析
 if (-not $SkipLint) {
-    Write-ColorOutput "`n[1/4] 執行 golangci-lint 靜態分析..." "Yellow"
+    $currentStep++
+    Write-ColorOutput "`n[$currentStep/$totalSteps] 執行 golangci-lint 靜態分析..." "Yellow"
     Write-Info "這可能需要一些時間，請稍候..."
     
     try {
@@ -104,13 +126,148 @@ if (-not $SkipLint) {
         Write-Error "執行 golangci-lint 失敗: $_"
         $script:ExitCode = 1
     }
-} else {
-    Write-Info "[1/4] 跳過 golangci-lint 檢查"
 }
 
-# 3. 執行單元測試
+# 3. 構建可執行文件
+if (-not $SkipBuild) {
+    $currentStep++
+    Write-ColorOutput "`n[$currentStep/$totalSteps] 構建可執行文件..." "Yellow"
+    
+    $buildTargets = @(
+        @{Name="fatek_test"; Path="./cmd/fatek_test"},
+        @{Name="test_all"; Path="./cmd/test_all"},
+        @{Name="test-ui"; Path="./cmd/test_ui"}
+    )
+    
+    $buildDir = "bin"
+    if (-not (Test-Path $buildDir)) {
+        New-Item -ItemType Directory -Path $buildDir | Out-Null
+    }
+    
+    foreach ($target in $buildTargets) {
+        Write-Info "構建 $($target.Name)..."
+        try {
+            $outputPath = Join-Path $buildDir "$($target.Name).exe"
+            go build -o $outputPath $target.Path
+            if ($LASTEXITCODE -eq 0) {
+                Write-Success "$($target.Name) 構建成功: $outputPath"
+            } else {
+                Write-Error "$($target.Name) 構建失敗"
+                $script:ExitCode = 1
+            }
+        } catch {
+            Write-Error "構建 $($target.Name) 時發生錯誤: $_"
+            $script:ExitCode = 1
+        }
+    }
+}
+
+# 4. 啟動服務（可選）
+if ($Start) {
+    $currentStep++
+    Write-ColorOutput "`n[$currentStep/$totalSteps] 啟動服務..." "Yellow"
+    
+    $availableTargets = @("fatek_test", "test_all", "test-ui")
+    $targetToStart = $Target
+    
+    # 如果未指定目標，顯示選擇選單
+    if ([string]::IsNullOrWhiteSpace($targetToStart)) {
+        Write-Info "可用的服務："
+        for ($i = 0; $i -lt $availableTargets.Length; $i++) {
+            Write-ColorOutput "  [$($i + 1)] $($availableTargets[$i])" "Cyan"
+        }
+        Write-Info ""
+        $selection = Read-Host "請選擇要啟動的服務 (1-$($availableTargets.Length)) 或按 Enter 跳過"
+        
+        if ([string]::IsNullOrWhiteSpace($selection)) {
+            Write-Info "跳過啟動服務"
+        } else {
+            $selectedIndex = [int]$selection - 1
+            if ($selectedIndex -ge 0 -and $selectedIndex -lt $availableTargets.Length) {
+                $targetToStart = $availableTargets[$selectedIndex]
+            } else {
+                Write-Error "無效的選擇，跳過啟動"
+                $targetToStart = ""
+            }
+        }
+    }
+    
+    # 啟動選定的服務
+    if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
+        $exePath = Join-Path "bin" "$targetToStart.exe"
+        
+        if (-not (Test-Path $exePath)) {
+            Write-Error "找不到可執行文件: $exePath"
+            Write-Info "請先執行構建步驟"
+            $script:ExitCode = 1
+        } else {
+            Write-Info "正在啟動 $targetToStart..."
+            Write-Info "按 Ctrl+C 可停止服務"
+            Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
+            
+            try {
+                # 啟動服務（前台運行）
+                & $exePath
+                $serviceExitCode = $LASTEXITCODE
+                
+                Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
+                
+                if ($serviceExitCode -eq 0) {
+                    Write-Success "服務正常退出"
+                } else {
+                    Write-Warning "服務退出，退出碼: $serviceExitCode"
+                }
+            } catch {
+                Write-Error "啟動服務失敗: $_"
+                $script:ExitCode = 1
+            }
+        }
+    }
+}
+
+# 5. 代碼質量檢查
+if (-not $SkipQuality) {
+    $currentStep++
+    Write-ColorOutput "`n[$currentStep/$totalSteps] 代碼質量檢查..." "Yellow"
+
+    # 檢查是否有未使用的導入
+    Write-Info "檢查未使用的導入..."
+    try {
+        $unusedOutput = go run golang.org/x/tools/cmd/deadcode@latest ./... 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "未發現未使用的代碼"
+        } else {
+            Write-Warning "發現未使用的代碼（這不是錯誤）"
+            if ($Verbose) {
+                Write-Host $unusedOutput
+            }
+        }
+    } catch {
+        Write-Info "跳過未使用代碼檢查（需要安裝 golang.org/x/tools/cmd/deadcode）"
+    }
+
+    # 檢查代碼格式
+    Write-Info "檢查代碼格式..."
+    try {
+        $fmtOutput = go fmt ./... 2>&1
+        if ($fmtOutput) {
+            Write-Warning "代碼格式已自動修正"
+            if ($Verbose) {
+                Write-Host $fmtOutput
+            }
+        } else {
+            Write-Success "代碼格式正確"
+        }
+    } catch {
+        Write-Error "檢查代碼格式失敗: $_"
+        $script:ExitCode = 1
+    }
+}
+
+# 6. 執行單元測試（移到最後）
 if (-not $SkipTest) {
-    Write-ColorOutput "`n[2/4] 執行單元測試..." "Yellow"
+    $currentStep++
+    Write-ColorOutput "`n[$currentStep/$totalSteps] 執行單元測試..." "Yellow"
     
     try {
         if ($Coverage) {
@@ -153,78 +310,6 @@ if (-not $SkipTest) {
         Write-Error "執行測試失敗: $_"
         $script:ExitCode = 1
     }
-} else {
-    Write-Info "[2/4] 跳過單元測試"
-}
-
-# 4. 構建可執行文件
-if (-not $SkipBuild) {
-    Write-ColorOutput "`n[3/4] 構建可執行文件..." "Yellow"
-    
-    $buildTargets = @(
-        @{Name="fatek_test"; Path="./cmd/fatek_test"},
-        @{Name="test_all"; Path="./cmd/test_all"}
-    )
-    
-    $buildDir = "bin"
-    if (-not (Test-Path $buildDir)) {
-        New-Item -ItemType Directory -Path $buildDir | Out-Null
-    }
-    
-    foreach ($target in $buildTargets) {
-        Write-Info "構建 $($target.Name)..."
-        try {
-            $outputPath = Join-Path $buildDir "$($target.Name).exe"
-            go build -o $outputPath $target.Path
-            if ($LASTEXITCODE -eq 0) {
-                Write-Success "$($target.Name) 構建成功: $outputPath"
-            } else {
-                Write-Error "$($target.Name) 構建失敗"
-                $script:ExitCode = 1
-            }
-        } catch {
-            Write-Error "構建 $($target.Name) 時發生錯誤: $_"
-            $script:ExitCode = 1
-        }
-    }
-} else {
-    Write-Info "[3/4] 跳過構建"
-}
-
-# 5. 代碼質量檢查
-Write-ColorOutput "`n[4/4] 代碼質量檢查..." "Yellow"
-
-# 檢查是否有未使用的導入
-Write-Info "檢查未使用的導入..."
-try {
-    $unusedOutput = go run golang.org/x/tools/cmd/deadcode@latest ./... 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Success "未發現未使用的代碼"
-    } else {
-        Write-Warning "發現未使用的代碼（這不是錯誤）"
-        if ($Verbose) {
-            Write-Host $unusedOutput
-        }
-    }
-} catch {
-    Write-Info "跳過未使用代碼檢查（需要安裝 golang.org/x/tools/cmd/deadcode）"
-}
-
-# 檢查代碼格式
-Write-Info "檢查代碼格式..."
-try {
-    $fmtOutput = go fmt ./... 2>&1
-    if ($fmtOutput) {
-        Write-Warning "代碼格式已自動修正"
-        if ($Verbose) {
-            Write-Host $fmtOutput
-        }
-    } else {
-        Write-Success "代碼格式正確"
-    }
-} catch {
-    Write-Error "檢查代碼格式失敗: $_"
-    $script:ExitCode = 1
 }
 
 # 總結

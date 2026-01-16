@@ -1,5 +1,10 @@
 import axios from 'axios'
 import { useState } from 'react'
+import type { 
+  ConnectResponse, 
+  ReadResponse, 
+  ConnectionState
+} from '../types/api'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -10,22 +15,22 @@ const api = axios.create({
 
 // 測試 API
 export function useTestAPI() {
-  const connect = async (protocol: string, config: Record<string, any>) => {
-    const response = await api.post('/test/connect', {
+  const connect = async (protocol: string, config: Record<string, any>): Promise<ConnectResponse> => {
+    const response = await api.post<ConnectResponse>('/test/connect', {
       protocol,
       config,
     })
     return response.data
   }
 
-  const disconnect = async (connectionId: string) => {
+  const disconnect = async (connectionId: string): Promise<void> => {
     await api.post('/test/disconnect', null, {
       params: { connection_id: connectionId },
     })
   }
 
-  const getStatus = async (connectionId: string) => {
-    const response = await api.get('/test/status', {
+  const getStatus = async (connectionId: string): Promise<ConnectionState> => {
+    const response = await api.get<ConnectionState>('/test/status', {
       params: { connection_id: connectionId },
     })
     return response.data
@@ -39,8 +44,8 @@ export function useTestAPI() {
       count: number
       symbol?: string
     }
-  ) => {
-    const response = await api.post('/test/read', {
+  ): Promise<ReadResponse> => {
+    const response = await api.post<ReadResponse>('/test/read', {
       connection_id: connectionId,
       ...params,
     })
@@ -55,12 +60,11 @@ export function useTestAPI() {
       values: any[]
       symbol?: string
     }
-  ) => {
-    const response = await api.post('/test/write', {
+  ): Promise<void> => {
+    await api.post('/test/write', {
       connection_id: connectionId,
       ...params,
     })
-    return response.data
   }
 
   return {

@@ -25,10 +25,12 @@ func NewRouter() *gin.Engine {
 	// API 路由群組
 	apiV1 := router.Group("/api/v1")
 	{
+		// 共用的 TestHandler 實例
+		testHandler := handlers.NewTestHandler()
+
 		// 測試相關 API
 		testGroup := apiV1.Group("/test")
 		{
-			testHandler := handlers.NewTestHandler()
 			testGroup.POST("/connect", testHandler.Connect)
 			testGroup.POST("/disconnect", testHandler.Disconnect)
 			testGroup.GET("/status", testHandler.GetStatus)
@@ -75,7 +77,8 @@ func NewRouter() *gin.Engine {
 		// 連線池 API
 		connectionGroup := apiV1.Group("/connections")
 		{
-			connectionHandler := handlers.NewConnectionHandler()
+			// 使用共用的 testHandler
+			connectionHandler := handlers.NewConnectionHandler(testHandler)
 			connectionGroup.GET("", connectionHandler.List)
 			connectionGroup.GET("/:id", connectionHandler.Get)
 		}

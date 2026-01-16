@@ -28,7 +28,21 @@ func NewWebSocketHandler() *WebSocketHandler {
 	}
 }
 
-// HandleWebSocket 處理 WebSocket 連線
+// Broadcast 向所有連線的客戶端廣播訊息
+func (h *WebSocketHandler) Broadcast(message interface{}) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for conn := range h.clients {
+		if err := conn.WriteJSON(message); err != nil {
+			log.Printf("廣播訊息失敗, 移除連線: %v", err)
+			conn.Close()
+			delete(h.clients, conn)
+		}
+	}
+}
+
+// HandleWebSocket 處理一般 WebSocket 連線 (Echo)
 func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -37,28 +51,16 @@ func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	h.mu.Lock()
-	h.clients[conn] = true
-	h.mu.Unlock()
-
-	// 處理訊息
+	// 這裡僅作簡單 Echo 測試，不加入廣播池
 	for {
-		_, message, err := conn.ReadMessage()
+		mt, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("讀取 WebSocket 訊息失敗: %v", err)
 			break
 		}
-
-		// 回傳訊息
-		if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			log.Printf("寫入 WebSocket 訊息失敗: %v", err)
+		if err := conn.WriteMessage(mt, message); err != nil {
 			break
 		}
 	}
-
-	h.mu.Lock()
-	delete(h.clients, conn)
-	h.mu.Unlock()
 }
 
 // HandleMonitorStream 處理監控數據流
@@ -68,19 +70,23 @@ func (h *WebSocketHandler) HandleMonitorStream(c *gin.Context) {
 		log.Printf("WebSocket 升級失敗: %v", err)
 		return
 	}
-	defer conn.Close()
+	// 不在此處 defer conn.Close()，由連線斷開或錯誤時處理
 
-	// TODO: 實作監控數據流推送
+	h.mu.Lock()
+	h.clients[conn] = true
+	h.mu.Unlock()
+
+	// 保持連線開啟，監聽關閉事件
+	// 對於監控流，我們主要從伺服器推送數據，客戶端不需要發送太多數據
+	// 但我們需要讀取以偵測斷線
 	for {
-		// 發送監控數據
-		data := map[string]interface{}{
-			"timestamp": "2024-01-01T00:00:00Z",
-			"values":    []interface{}{},
-		}
-
-		if err := conn.WriteJSON(data); err != nil {
-			log.Printf("發送監控數據失敗: %v", err)
+		if _, _, err := conn.ReadMessage(); err != nil {
 			break
 		}
 	}
+
+	h.mu.Lock()
+	delete(h.clients, conn)
+	h.mu.Unlock()
+	conn.Close()
 }

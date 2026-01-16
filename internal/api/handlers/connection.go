@@ -12,21 +12,35 @@ type ConnectionHandler struct {
 }
 
 // NewConnectionHandler 建立新的連線處理器
-func NewConnectionHandler() *ConnectionHandler {
+func NewConnectionHandler(testHandler *TestHandler) *ConnectionHandler {
 	return &ConnectionHandler{
-		testHandler: NewTestHandler(),
+		testHandler: testHandler,
 	}
 }
 
 // List 取得連線池狀態列表
 func (h *ConnectionHandler) List(c *gin.Context) {
-	// TODO: 從 TestHandler 取得連線列表
-	c.JSON(http.StatusOK, gin.H{"connections": []interface{}{}})
+	h.testHandler.mu.RLock()
+	defer h.testHandler.mu.RUnlock()
+
+	connections := make([]*ConnectionState, 0, len(h.testHandler.connections))
+	for _, conn := range h.testHandler.connections {
+		connections = append(connections, conn)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"connections": connections})
 }
 
 // Get 取得特定連線詳情
 func (h *ConnectionHandler) Get(c *gin.Context) {
 	id := c.Param("id")
-	// TODO: 從 TestHandler 取得連線詳情
-	c.JSON(http.StatusOK, gin.H{"id": id, "status": "not implemented"})
+	
+	h.testHandler.mu.RLock()
+	defer h.testHandler.mu.RUnlock()
+
+	if conn, exists := h.testHandler.connections[id]; exists {
+		c.JSON(http.StatusOK, conn)
+	} else {
+		c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+	}
 }
