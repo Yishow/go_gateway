@@ -1,8 +1,3 @@
-import { motion } from 'framer-motion' // We don't have framer-motion installed, so we'll use standard CSS transitions or Tailwind classes.
-// Actually, let's stick to pure Tailwind for now to avoid dependency errors unless I install it. 
-// The user didn't ask to install new packages, but ui-ux-pro-max implies high quality.
-// I'll use Tailwind's transition classes which I added in config.
-
 interface ProtocolSelectorProps {
   selectedProtocol: string
   onProtocolChange: (protocol: string) => void
@@ -31,7 +26,6 @@ const ProtocolIcons = {
 export default function ProtocolSelector({
   selectedProtocol,
   onProtocolChange,
-  connectionMode,
   onConnectionModeChange,
 }: ProtocolSelectorProps) {
   const protocols = [
