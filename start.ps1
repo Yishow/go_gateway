@@ -274,7 +274,8 @@ function Start-QuickStart {
         try {
             $outputPath = Join-Path $buildDir "$($target.Name).exe"
             # 使用 Windows GUI 標誌以隱藏 console window 並正確顯示系統托盤圖示
-            go build -ldflags "-H=windowsgui" -o $outputPath $target.Path
+            # -s: 移除符號表，-w: 移除 DWARF 除錯資訊，-trimpath: 移除檔案路徑資訊
+            go build -ldflags "-H=windowsgui -s -w" -trimpath -o $outputPath $target.Path
             if ($LASTEXITCODE -eq 0) {
                 Write-Success "$($target.Name) 構建成功: $outputPath"
             } else {
@@ -320,24 +321,55 @@ function Start-QuickStart {
     
     Write-Info "正在啟動 $targetToStart..."
     Write-Info "服務將監聽端口: $Port"
-    Write-Info "按 Ctrl+C 可停止服務"
-    Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
     
-    try {
-        # 啟動服務（前台運行）
-        & $exePath
-        $serviceExitCode = $LASTEXITCODE
+    # 檢查是否為 GUI 應用（使用 windowsgui 標誌編譯的應用）
+    $isGUIApp = $exePath -like "*gateway.exe" -or $exePath -like "*test-ui.exe"
+    
+    if ($isGUIApp) {
+        Write-Info "這是一個 GUI 應用程式，將在背景運行並顯示在系統托盤"
+        Write-Info "💡 請查看系統通知區（右下角）的圖示"
+        Write-Info "💡 右鍵點擊圖示可以打開瀏覽器或退出應用程式"
         
-        Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
-        
-        if ($serviceExitCode -eq 0) {
-            Write-Success "服務正常退出"
-        } else {
-            Write-Warning "服務退出，退出碼: $serviceExitCode"
+        try {
+            # GUI 應用在背景啟動，不等待輸出
+            $process = Start-Process -FilePath $exePath -PassThru -WindowStyle Hidden
+            Write-Success "應用程式已啟動（PID: $($process.Id)）"
+            Write-Info "應用程式正在背景運行，請查看系統托盤圖示"
+            
+            # 等待一小段時間確認應用程式啟動
+            Start-Sleep -Milliseconds 500
+            
+            # 檢查進程是否仍在運行
+            if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
+                Write-Warning "應用程式可能啟動失敗，請檢查日誌或錯誤訊息"
+                $script:ExitCode = 1
+            } else {
+                Write-Success "應用程式運行中，可以關閉此視窗"
+            }
+        } catch {
+            Write-Error "啟動應用程式失敗: $_"
+            $script:ExitCode = 1
         }
-    } catch {
-        Write-Error "啟動服務失敗: $_"
-        $script:ExitCode = 1
+    } else {
+        Write-Info "按 Ctrl+C 可停止服務"
+        Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
+        
+        try {
+            # 啟動服務（前台運行）
+            & $exePath
+            $serviceExitCode = $LASTEXITCODE
+            
+            Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
+            
+            if ($serviceExitCode -eq 0) {
+                Write-Success "服務正常退出"
+            } else {
+                Write-Warning "服務退出，退出碼: $serviceExitCode"
+            }
+        } catch {
+            Write-Error "啟動服務失敗: $_"
+            $script:ExitCode = 1
+        }
     }
 }
 
@@ -483,7 +515,8 @@ if (-not $SkipBuild) {
         try {
             $outputPath = Join-Path $buildDir "$($target.Name).exe"
             # 使用 Windows GUI 標誌以隱藏 console window 並正確顯示系統托盤圖示
-            go build -ldflags "-H=windowsgui" -o $outputPath $target.Path
+            # -s: 移除符號表，-w: 移除 DWARF 除錯資訊，-trimpath: 移除檔案路徑資訊
+            go build -ldflags "-H=windowsgui -s -w" -trimpath -o $outputPath $target.Path
             if ($LASTEXITCODE -eq 0) {
                 Write-Success "$($target.Name) 構建成功: $outputPath"
             } else {
@@ -521,24 +554,55 @@ if ($Start) {
             } else {
                 Write-Info "正在啟動 $targetToStart..."
                 Write-Info "服務將監聽端口: $Port"
-                Write-Info "按 Ctrl+C 可停止服務"
-                Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
                 
-                try {
-                    # 啟動服務（前台運行）
-                    & $exePath
-                    $serviceExitCode = $LASTEXITCODE
+                # 檢查是否為 GUI 應用（使用 windowsgui 標誌編譯的應用）
+                $isGUIApp = $exePath -like "*gateway.exe" -or $exePath -like "*test-ui.exe"
+                
+                if ($isGUIApp) {
+                    Write-Info "這是一個 GUI 應用程式，將在背景運行並顯示在系統托盤"
+                    Write-Info "💡 請查看系統通知區（右下角）的圖示"
+                    Write-Info "💡 右鍵點擊圖示可以打開瀏覽器或退出應用程式"
                     
-                    Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
-                    
-                    if ($serviceExitCode -eq 0) {
-                        Write-Success "服務正常退出"
-                    } else {
-                        Write-Warning "服務退出，退出碼: $serviceExitCode"
+                    try {
+                        # GUI 應用在背景啟動，不等待輸出
+                        $process = Start-Process -FilePath $exePath -PassThru -WindowStyle Hidden
+                        Write-Success "應用程式已啟動（PID: $($process.Id)）"
+                        Write-Info "應用程式正在背景運行，請查看系統托盤圖示"
+                        
+                        # 等待一小段時間確認應用程式啟動
+                        Start-Sleep -Milliseconds 500
+                        
+                        # 檢查進程是否仍在運行
+                        if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
+                            Write-Warning "應用程式可能啟動失敗，請檢查日誌或錯誤訊息"
+                            $script:ExitCode = 1
+                        } else {
+                            Write-Success "應用程式運行中，可以關閉此視窗"
+                        }
+                    } catch {
+                        Write-Error "啟動應用程式失敗: $_"
+                        $script:ExitCode = 1
                     }
-                } catch {
-                    Write-Error "啟動服務失敗: $_"
-                    $script:ExitCode = 1
+                } else {
+                    Write-Info "按 Ctrl+C 可停止服務"
+                    Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
+                    
+                    try {
+                        # 啟動服務（前台運行）
+                        & $exePath
+                        $serviceExitCode = $LASTEXITCODE
+                        
+                        Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
+                        
+                        if ($serviceExitCode -eq 0) {
+                            Write-Success "服務正常退出"
+                        } else {
+                            Write-Warning "服務退出，退出碼: $serviceExitCode"
+                        }
+                    } catch {
+                        Write-Error "啟動服務失敗: $_"
+                        $script:ExitCode = 1
+                    }
                 }
             }
         }
