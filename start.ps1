@@ -273,7 +273,8 @@ function Start-QuickStart {
         Write-Info "構建 $($target.Name)..."
         try {
             $outputPath = Join-Path $buildDir "$($target.Name).exe"
-            go build -o $outputPath $target.Path
+            # 使用 Windows GUI 標誌以隱藏 console window 並正確顯示系統托盤圖示
+            go build -ldflags "-H=windowsgui" -o $outputPath $target.Path
             if ($LASTEXITCODE -eq 0) {
                 Write-Success "$($target.Name) 構建成功: $outputPath"
             } else {
@@ -481,7 +482,8 @@ if (-not $SkipBuild) {
         Write-Info "構建 $($target.Name)..."
         try {
             $outputPath = Join-Path $buildDir "$($target.Name).exe"
-            go build -o $outputPath $target.Path
+            # 使用 Windows GUI 標誌以隱藏 console window 並正確顯示系統托盤圖示
+            go build -ldflags "-H=windowsgui" -o $outputPath $target.Path
             if ($LASTEXITCODE -eq 0) {
                 Write-Success "$($target.Name) 構建成功: $outputPath"
             } else {

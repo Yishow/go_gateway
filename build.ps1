@@ -11,6 +11,6 @@ if (Test-Path cmd/test_ui/static) {
 Copy-Item -Recurse web/test-ui/dist cmd/test_ui/static
 
 Write-Host "建置後端..." -ForegroundColor Green
-go build -o bin/test-ui.exe ./cmd/test_ui
+go build -ldflags "-H=windowsgui" -o bin/test-ui.exe ./cmd/test_ui
 
 Write-Host "建置完成！" -ForegroundColor Green
