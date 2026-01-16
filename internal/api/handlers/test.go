@@ -19,7 +19,8 @@ import (
 type TestHandler struct {
 	connections    map[string]*ConnectionState
 	activeMonitors map[string]chan struct{}
-	wsHandler      *WebSocketHandler
+	wsHandler      *WebSocketHandler // 保留用於其他用途
+	sseHandler     *SSEHandler       // SSE 處理器
 	mu             sync.RWMutex
 }
 
@@ -34,11 +35,12 @@ type ConnectionState struct {
 }
 
 // NewTestHandler 建立新的測試處理器
-func NewTestHandler(wsHandler *WebSocketHandler) *TestHandler {
+func NewTestHandler(wsHandler *WebSocketHandler, sseHandler *SSEHandler) *TestHandler {
 	return &TestHandler{
 		connections:    make(map[string]*ConnectionState),
 		activeMonitors: make(map[string]chan struct{}),
 		wsHandler:      wsHandler,
+		sseHandler:     sseHandler,
 	}
 }
 
@@ -50,23 +52,52 @@ type ConnectRequest struct {
 
 // Connect 建立連線
 func (h *TestHandler) Connect(c *gin.Context) {
+	// 添加調試日誌
+	fmt.Printf("[DEBUG] Connect 請求收到: Method=%s, Path=%s\n", c.Request.Method, c.Request.URL.Path)
+	fmt.Printf("[DEBUG] Request Headers: %+v\n", c.Request.Header)
+	
 	var req ConnectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		fmt.Printf("[ERROR] JSON 綁定失敗: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("請求格式錯誤: %v", err)})
 		return
 	}
 
+	fmt.Printf("[DEBUG] 收到連線請求: Protocol=%s, Config=%+v\n", req.Protocol, req.Config)
+
+	// 驗證協議名稱
+	if req.Protocol == "" {
+		fmt.Printf("[ERROR] 協議名稱為空\n")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "協議名稱不能為空"})
+		return
+	}
+
+	// 驗證配置
+	if req.Config == nil {
+		fmt.Printf("[ERROR] 配置為空\n")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "配置不能為空"})
+		return
+	}
+
+	fmt.Printf("[DEBUG] 開始創建客戶端: Protocol=%s\n", req.Protocol)
 	client, err := h.createClient(req.Protocol, req.Config)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("failed to create client: %v", err)})
+		fmt.Printf("[ERROR] 創建客戶端失敗: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("創建客戶端失敗: %v", err)})
 		return
 	}
+	fmt.Printf("[DEBUG] 客戶端創建成功\n")
 
 	// 嘗試連線
+	fmt.Printf("[DEBUG] 開始嘗試連線...\n")
 	if err := h.connectClient(client, req.Protocol); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
+		// 使用更友好的錯誤訊息
+		errMsg := categorizeError(err).Error()
+		fmt.Printf("[ERROR] 連線失敗: %v\n", errMsg)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
 		return
 	}
+	fmt.Printf("[DEBUG] 連線成功\n")
 
 	connID := generateConnectionID()
 	state := &ConnectionState{
@@ -82,6 +113,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	h.connections[connID] = state
 	h.mu.Unlock()
 
+	fmt.Printf("[DEBUG] 連線建立完成: ConnectionID=%s\n", connID)
 	c.JSON(http.StatusOK, gin.H{
 		"connection_id": connID,
 		"status":        "connected",
@@ -360,14 +392,14 @@ func (h *TestHandler) runMonitorLoop(connID string, state *ConnectionState, item
 				}
 			}
 
-			// 推送數據
+			// 推送數據（使用 SSE）
 			msg := map[string]interface{}{
 				"type":          "monitor_update",
 				"connection_id": connID,
 				"timestamp":     time.Now().Format(time.RFC3339Nano),
 				"data":          results,
 			}
-			h.wsHandler.Broadcast(msg)
+			h.sseHandler.Broadcast(connID, msg)
 		}
 	}
 }
@@ -474,6 +506,13 @@ func (h *TestHandler) createClient(protocol string, config map[string]interface{
 		timeout := getDuration("timeout", 2000*time.Millisecond)
 		return modbus.CreateTCPClient(host, port, unitID, timeout), nil
 	
+	case "modbus_udp":
+		host := getString("host", "localhost")
+		port := getInt("port", 502)
+		unitID := byte(getInt("unitID", 1))
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		return modbus.CreateUDPClient(host, port, unitID, timeout), nil
+	
 	case "modbus_rtu":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)
@@ -490,7 +529,7 @@ func (h *TestHandler) createClient(protocol string, config map[string]interface{
 		station := getInt("station", 1)
 		timeout := getDuration("timeout", 2000*time.Millisecond)
 		return fatek.CreateTCPClient(host, port, station, timeout), nil
-
+	
 	case "fatek_serial":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)
@@ -501,11 +540,20 @@ func (h *TestHandler) createClient(protocol string, config map[string]interface{
 		timeout := getDuration("timeout", 1000*time.Millisecond)
 		return fatek.CreateSerialClient(port, station, baudRate, dataBits, stopBits, parity, timeout), nil
 	
-	case "mc_tcp":
+	case "mc_tcp", "mcprotocol_tcp":
 		host := getString("host", "localhost")
 		port := getInt("port", 6000)
 		timeout := getDuration("timeout", 2000*time.Millisecond)
 		return mcprotocol.CreateTCPClient(host, port, timeout), nil
+	
+	case "mcprotocol_serial":
+		port := getString("port", "COM1")
+		baudRate := getInt("baudRate", 9600)
+		dataBits := getInt("dataBits", 7)
+		stopBits := getInt("stopBits", 2)
+		parity := getString("parity", "E")
+		timeout := getDuration("timeout", 2000*time.Millisecond)
+		return mcprotocol.CreateSerialClient(port, baudRate, dataBits, stopBits, parity, timeout), nil
 
 	default:
 		return nil, fmt.Errorf("unsupported protocol: %s", protocol)

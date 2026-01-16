@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,13 +35,16 @@ func NewRouter() *gin.Engine {
 	// API 路由群組（使用配置中的路徑）
 	apiV1 := router.Group(cfg.API.BasePath)
 	{
-		// WebSocket 端點
+		// WebSocket 端點（保留用於其他用途）
 		wsHandler := handlers.NewWebSocketHandler()
 		apiV1.GET("/ws", wsHandler.HandleWebSocket)
-		apiV1.GET("/test/monitor/stream", wsHandler.HandleMonitorStream)
+
+		// SSE 端點（用於監控數據流）
+		sseHandler := handlers.NewSSEHandler()
+		apiV1.GET("/test/monitor/stream", sseHandler.HandleMonitorStream)
 
 		// 共用的 TestHandler 實例
-		testHandler := handlers.NewTestHandler(wsHandler)
+		testHandler := handlers.NewTestHandler(wsHandler, sseHandler)
 
 		// 測試相關 API
 		testGroup := apiV1.Group("/test")
@@ -113,6 +117,19 @@ func customLoggerMiddleware() gin.HandlerFunc {
 
 	return gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: skipPaths,
+		// 確保所有請求都被記錄（包括 /test/connect）
+		Formatter: func(param gin.LogFormatterParams) string {
+			return fmt.Sprintf("[%s] %s %s %s %d %s \"%s\" %s\n",
+				param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+				param.ClientIP,
+				param.Method,
+				param.Path,
+				param.StatusCode,
+				param.Latency,
+				param.Request.UserAgent(),
+				param.ErrorMessage,
+			)
+		},
 	})
 }
 

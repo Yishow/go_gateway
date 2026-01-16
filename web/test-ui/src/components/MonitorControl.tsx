@@ -1,91 +1,352 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTestAPI } from '../services/api'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import type { ReadRequest } from '../types/api'
+import { useProfiles } from '../hooks/useProfiles'
+import type { MonitorItem } from '../types/profile'
 
 interface MonitorControlProps {
   connectionId: string | null
+  protocol: string
 }
 
-export default function MonitorControl({ connectionId }: MonitorControlProps) {
+export default function MonitorControl({ connectionId, protocol }: MonitorControlProps) {
   const [monitoring, setMonitoring] = useState(false)
   const [interval, setInterval] = useState<number>(1000)
+  const [monitorItems, setMonitorItems] = useState<MonitorItem[]>([])
   const [monitorData, setMonitorData] = useState<any[]>([])
   const { startMonitor, stopMonitor } = useTestAPI()
-  const socketRef = useRef<WebSocket | null>(null)
+  const { currentProfile, updateProfile } = useProfiles()
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const isModbus = protocol.includes('modbus')
+  const isFatek = protocol.includes('fatek')
+  const isMCProtocol = protocol.includes('mcprotocol')
+
+  /**
+   * 獲取可用的操作選項
+   */
+  const getOperations = () => {
+    if (isModbus) {
+      return [
+        { value: 'read_coils', label: '讀取線圈 (Coils)' },
+        { value: 'read_discrete_inputs', label: '讀取離散輸入 (Discrete Inputs)' },
+        { value: 'read_holding_registers', label: '讀取保持暫存器 (Holding Registers)' },
+        { value: 'read_input_registers', label: '讀取輸入暫存器 (Input Registers)' },
+      ]
+    }
+    if (isFatek) {
+      return [
+        { value: 'read_registers', label: '讀取暫存器' },
+        { value: 'read_status', label: '讀取狀態' },
+      ]
+    }
+    if (isMCProtocol) {
+      return [
+        { value: 'batch_read_word', label: '批量讀取字組' },
+        { value: 'batch_read_bit', label: '批量讀取位元' },
+      ]
+    }
+    return []
+  }
+
+  /**
+   * 從 Profile 載入監控配置
+   */
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host
-    const wsUrl = `${protocol}//${host}/api/v1/test/monitor/stream`
-    
-    const socket = new WebSocket(wsUrl)
-    socketRef.current = socket
+    if (currentProfile?.monitorConfig) {
+      setMonitorItems(currentProfile.monitorConfig.items || [])
+      setInterval(currentProfile.monitorConfig.interval || 1000)
+    }
+  }, [currentProfile?.id]) // 只在 profile ID 變更時載入
 
-    socket.onmessage = (event) => {
-      const msg = JSON.parse(event.data)
-      if (msg.type === 'monitor_update' && msg.connection_id === connectionId) {
-        setMonitorData((prev) => {
-          // Flatten data for chart: { time: '...', value: 123 }
-          // Assuming the first key in data is the value we want to plot for now
-          // In a real app, we'd map multiple lines
-          const dataPoints = msg.data
-          const firstKey = Object.keys(dataPoints)[0]
-          const numericValue = typeof dataPoints[firstKey] === 'number' ? dataPoints[firstKey] : null
-          
-          const newEntry = {
-            ...msg,
-            chartTime: new Date(msg.timestamp).toLocaleTimeString(),
-            val: numericValue,
-            ...dataPoints // spread other data for flexible access
-          }
-          return [newEntry, ...prev].slice(0, 50) 
+  /**
+   * 保存監控配置到 Profile（使用防抖）
+   */
+  useEffect(() => {
+    if (currentProfile && monitorItems.length > 0) {
+      // 清除之前的定時器
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+      }
+      // 設置新的定時器（防抖：1秒後保存）
+      saveTimerRef.current = setTimeout(() => {
+        updateProfile(currentProfile.id, {
+          monitorConfig: {
+            items: monitorItems,
+            interval: interval,
+          },
         })
+      }, 1000)
+    }
+    
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+      }
+    }
+  }, [monitorItems, interval, currentProfile?.id, updateProfile])
+
+  /**
+   * SSE (Server-Sent Events) 連接處理
+   */
+  useEffect(() => {
+    if (!connectionId) {
+      // 斷線時清空數據並關閉連接
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+      setMonitorData([])
+      return
+    }
+
+    const host = window.location.host
+    const sseUrl = `${window.location.protocol}//${host}/api/v1/test/monitor/stream?connection_id=${connectionId}`
+    
+    console.log('建立 SSE 連接:', sseUrl)
+    const eventSource = new EventSource(sseUrl)
+    eventSourceRef.current = eventSource
+
+    eventSource.onopen = () => {
+      console.log('SSE 連接已建立')
+    }
+
+    // 監聽連接確認消息
+    eventSource.addEventListener('connected', (event: any) => {
+      console.log('SSE 連接確認:', JSON.parse(event.data))
+    })
+
+    // 監聽心跳消息
+    eventSource.addEventListener('ping', (event: any) => {
+      // 心跳消息，不需要處理
+    })
+
+    // 監聽默認消息（監控數據）
+    eventSource.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data)
+        console.log('收到 SSE 消息:', msg) // 調試用
+        
+        // 檢查消息類型
+        if (msg.type === 'monitor_update') {
+          console.log('收到監控更新消息，connection_id 匹配檢查:', {
+            msgConnectionId: msg.connection_id,
+            currentConnectionId: connectionId,
+            match: msg.connection_id === connectionId
+          })
+          
+          if (msg.connection_id === connectionId) {
+            console.log('✓ 收到監控數據:', msg) // 調試用
+            setMonitorData((prev) => {
+              const newEntry = {
+                ...msg,
+                chartTime: new Date(msg.timestamp).toLocaleTimeString(),
+                timestamp: msg.timestamp,
+                data: msg.data || {}, // 保存原始數據
+              }
+              console.log('處理後的數據條目，當前數據條數:', prev.length + 1, newEntry) // 調試用
+              return [newEntry, ...prev].slice(0, 100) // 保留最近 100 條記錄
+            })
+          } else {
+            console.warn('✗ connection_id 不匹配，忽略消息')
+          }
+        } else {
+          console.log('收到其他類型的消息:', msg.type)
+        }
+      } catch (error) {
+        console.error('解析監控數據失敗:', error, event.data)
       }
     }
 
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error)
+      // SSE 會自動重連，不需要手動處理
+    }
+
     return () => {
-      socket.close()
+      console.log('清理 SSE 連接')
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
     }
   }, [connectionId])
 
+  /**
+   * 添加監控項目
+   */
+  const handleAddItem = () => {
+    const operations = getOperations()
+    if (operations.length === 0) return
+
+    const newItem: MonitorItem = {
+      id: Date.now().toString(),
+      operation: operations[0].value,
+      address: 0,
+      count: 1,
+      label: `監控項目 ${monitorItems.length + 1}`,
+      ...(isFatek && { symbol: 'D' }),
+      ...(isMCProtocol && { device: 'D' }),
+    }
+    setMonitorItems([...monitorItems, newItem])
+  }
+
+  /**
+   * 刪除監控項目
+   */
+  const handleRemoveItem = (id: string) => {
+    setMonitorItems(monitorItems.filter(item => item.id !== id))
+  }
+
+  /**
+   * 更新監控項目
+   */
+  const handleUpdateItem = (id: string, updates: Partial<MonitorItem>) => {
+    setMonitorItems(monitorItems.map(item => 
+      item.id === id ? { ...item, ...updates } : item
+    ))
+  }
+
+  /**
+   * 啟動監控
+   */
   const handleStart = async () => {
     if (!connectionId) {
       alert('請先建立連線')
       return
     }
+
+    if (monitorItems.length === 0) {
+      alert('請至少添加一個監控項目')
+      return
+    }
+
+    // 確保 SSE 連接已建立
+    if (!eventSourceRef.current || eventSourceRef.current.readyState !== EventSource.OPEN) {
+      console.warn('SSE 未連接，等待連接建立...')
+      // 等待一下讓 SSE 連接建立
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      if (!eventSourceRef.current || eventSourceRef.current.readyState !== EventSource.OPEN) {
+        console.warn('SSE 連接狀態:', eventSourceRef.current?.readyState)
+        // SSE 會自動重連，繼續執行
+      }
+    }
     
     try {
+      // 轉換為 ReadRequest 格式
+      const items: ReadRequest[] = monitorItems.map(item => ({
+        connection_id: connectionId,
+        operation: item.operation,
+        address: item.address,
+        count: item.count,
+        ...(item.symbol && { symbol: item.symbol }),
+        ...(item.device && { device: item.device }),
+      }))
+
+      console.log('啟動監控，發送請求:', {
+        connection_id: connectionId,
+        interval: interval,
+        items: items,
+      })
+
       await startMonitor({
         connection_id: connectionId,
         interval: interval,
-        items: [
-          {
-            connection_id: connectionId,
-            operation: 'read_holding_registers',
-            address: 0,
-            count: 1
-          }
-        ]
+        items: items,
       })
+      
+      console.log('監控啟動成功')
       setMonitoring(true)
-      setMonitorData([])
+      setMonitorData([]) // 清空舊數據
     } catch (error: any) {
-      alert('啟動監控失敗: ' + error.message)
+      console.error('啟動監控失敗:', error)
+      alert('啟動監控失敗: ' + (error.message || error))
     }
   }
 
+  /**
+   * 停止監控
+   */
   const handleStop = async () => {
     if (!connectionId) return
     try {
       await stopMonitor(connectionId)
       setMonitoring(false)
     } catch (error: any) {
-      alert('停止監控失敗: ' + error.message)
+      alert('停止監控失敗: ' + (error.message || error))
     }
   }
 
-  // Reverse data for chart (oldest to newest)
-  const chartData = [...monitorData].reverse()
+  /**
+   * 準備圖表數據
+   * 後端返回的數據結構：{ "item_0": { values: [...], count: ... }, "item_1": {...} }
+   */
+  const prepareChartData = () => {
+    if (monitorData.length === 0 || monitorItems.length === 0) {
+      console.log('圖表數據為空:', { monitorDataLength: monitorData.length, monitorItemsLength: monitorItems.length })
+      return []
+    }
+
+    // 反轉數據（從舊到新）
+    const reversed = [...monitorData].reverse()
+    
+    // 為每個監控項目創建數據點
+    const chartData = reversed.map(entry => {
+      const dataPoint: any = {
+        time: entry.chartTime || new Date(entry.timestamp).toLocaleTimeString(),
+      }
+      
+      // 為每個監控項目添加數據
+      monitorItems.forEach((item, index) => {
+        // 後端使用 item_0, item_1 等作為鍵名
+        const backendKey = `item_${index}`
+        const itemData = entry.data?.[backendKey]
+        
+        let value: number | null = null
+        
+        if (itemData) {
+          // 處理錯誤情況
+          if (itemData.error) {
+            value = null // 錯誤時不顯示數據
+            console.warn(`監控項目 ${index} 讀取錯誤:`, itemData.error)
+          } else if (itemData.values && Array.isArray(itemData.values)) {
+            // 如果有 values 數組，取第一個值（或平均值）
+            if (itemData.values.length > 0) {
+              const firstValue = itemData.values[0]
+              // 確保是數字
+              value = typeof firstValue === 'number' ? firstValue : 
+                     typeof firstValue === 'string' ? parseFloat(firstValue) || null : null
+            }
+          } else if (typeof itemData === 'number') {
+            // 直接是數字
+            value = itemData
+          } else if (typeof itemData === 'string') {
+            // 字符串，嘗試轉換
+            value = parseFloat(itemData) || null
+          } else if (Array.isArray(itemData)) {
+            // 直接是數組
+            value = itemData.length > 0 ? (typeof itemData[0] === 'number' ? itemData[0] : parseFloat(itemData[0]) || null) : null
+          }
+        } else {
+          console.warn(`監控項目 ${index} 沒有數據，鍵名: ${backendKey}`, entry.data)
+        }
+        
+        // 使用 item.id 作為數據鍵名（用於圖表）
+        dataPoint[`item_${item.id}`] = value
+      })
+      
+      return dataPoint
+    })
+    
+    console.log('準備的圖表數據:', chartData.slice(0, 3)) // 只顯示前3條
+    return chartData
+  }
+
+  const chartData = prepareChartData()
+  const operations = getOperations()
 
   return (
     <div className="space-y-6">
@@ -95,21 +356,23 @@ export default function MonitorControl({ connectionId }: MonitorControlProps) {
           即時監控
         </h2>
         <div className="flex items-center gap-3">
-           <div className="relative">
+          <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">間隔(ms)</span>
-             <input
+            <input
               type="number"
               value={interval}
-              onChange={(e) => setInterval(parseInt(e.target.value) || 1000)}
+              onChange={(e) => setInterval(Math.max(100, parseInt(e.target.value) || 1000))}
               disabled={monitoring}
-              className="pl-16 pr-3 py-2 w-32 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all disabled:bg-gray-100"
+              min={100}
+              step={100}
+              className="pl-16 pr-3 py-2 w-32 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
-           </div>
-           
-           {!monitoring ? (
+          </div>
+          
+          {!monitoring ? (
             <button
               onClick={handleStart}
-              disabled={!connectionId}
+              disabled={!connectionId || monitorItems.length === 0}
               className="bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold shadow-lg shadow-purple-500/30 hover:bg-purple-700 hover:shadow-purple-500/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               啟動監控
@@ -126,68 +389,266 @@ export default function MonitorControl({ connectionId }: MonitorControlProps) {
         </div>
       </div>
 
-      {monitoring && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
-          {/* Chart Area */}
-          <div className="lg:col-span-2 bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-inner h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="chartTime" 
-                  tick={{fontSize: 10}} 
-                  interval="preserveStartEnd"
-                  stroke="#9ca3af"
-                />
-                <YAxis stroke="#9ca3af" tick={{fontSize: 10}} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="val" 
-                  stroke="#8b5cf6" 
-                  strokeWidth={2} 
-                  dot={false} 
-                  activeDot={{ r: 6 }} 
-                  animationDuration={300}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+      {/* 監控項目配置區域 */}
+      {!monitoring && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">監控項目配置</h3>
+            <button
+              onClick={handleAddItem}
+              disabled={!connectionId}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              添加項目
+            </button>
           </div>
 
-          {/* Data Log Area */}
-          <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 flex flex-col h-[300px] overflow-hidden">
-             <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase">
-               數據日誌 ({monitorData.length})
-             </div>
-             <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin">
-                {monitorData.map((entry, idx) => (
+          {monitorItems.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-gray-400 text-sm">
+              尚未添加監控項目，點擊「添加項目」開始配置
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {monitorItems.map((item, index) => (
+                <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        項目 {index + 1}
+                      </span>
+                      {item.label && (
+                        <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* 操作類型 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">操作類型</label>
+                      <select
+                        value={item.operation}
+                        onChange={(e) => handleUpdateItem(item.id, { operation: e.target.value })}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      >
+                        {operations.map(op => (
+                          <option key={op.value} value={op.value}>{op.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 地址 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">地址</label>
+                      <input
+                        type="number"
+                        value={item.address}
+                        onChange={(e) => handleUpdateItem(item.id, { address: parseInt(e.target.value) || 0 })}
+                        min={0}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      />
+                    </div>
+
+                    {/* 數量 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">數量</label>
+                      <input
+                        type="number"
+                        value={item.count}
+                        onChange={(e) => handleUpdateItem(item.id, { count: Math.max(1, parseInt(e.target.value) || 1) })}
+                        min={1}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      />
+                    </div>
+
+                    {/* Fatek Symbol 或 MC Device */}
+                    {isFatek && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">符號 (Symbol)</label>
+                        <input
+                          type="text"
+                          value={item.symbol || 'D'}
+                          onChange={(e) => handleUpdateItem(item.id, { symbol: e.target.value })}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {isMCProtocol && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">設備 (Device)</label>
+                        <input
+                          type="text"
+                          value={item.device || 'D'}
+                          onChange={(e) => handleUpdateItem(item.id, { device: e.target.value })}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                      </div>
+                    )}
+
+                    {/* 標籤（如果有額外空間） */}
+                    {(!isFatek && !isMCProtocol) && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">標籤</label>
+                        <input
+                          type="text"
+                          value={item.label || ''}
+                          onChange={(e) => handleUpdateItem(item.id, { label: e.target.value })}
+                          placeholder={`項目 ${index + 1}`}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 監控運行時的顯示區域 */}
+      {monitoring && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+          {/* 圖表區域 */}
+          <div className="lg:col-span-2 bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-inner h-[400px]">
+            {chartData.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-gray-400">
+                <div className="text-center">
+                  <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                  </svg>
+                  <p className="text-sm">等待數據...</p>
+                  <p className="text-xs mt-2 text-gray-300">
+                    已接收 {monitorData.length} 條數據，配置 {monitorItems.length} 個監控項目
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="time" 
+                    tick={{fontSize: 10}} 
+                    interval="preserveStartEnd"
+                    stroke="#9ca3af"
+                  />
+                  <YAxis stroke="#9ca3af" tick={{fontSize: 10}} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
+                  />
+                  <Legend />
+                  {monitorItems.map((item, index) => {
+                    const colors = ['#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444']
+                    const color = colors[index % colors.length]
+                    return (
+                      <Line 
+                        key={item.id}
+                        type="monotone" 
+                        dataKey={`item_${item.id}`}
+                        name={item.label || `項目 ${index + 1}`}
+                        stroke={color}
+                        strokeWidth={2} 
+                        dot={false} 
+                        activeDot={{ r: 6 }}
+                        animationDuration={300}
+                        connectNulls={false}
+                      />
+                    )
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* 數據日誌區域 */}
+          <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 flex flex-col h-[400px] overflow-hidden">
+            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase flex items-center justify-between">
+              <span>數據日誌 ({monitorData.length})</span>
+              <button
+                onClick={() => setMonitorData([])}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                清除
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin">
+              {monitorData.length === 0 ? (
+                <div className="text-center text-gray-400 text-xs py-8">
+                  等待數據...
+                </div>
+              ) : (
+                monitorData.map((entry, idx) => (
                   <div key={idx} className="text-xs p-2 rounded border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white">
                     <div className="flex justify-between text-gray-400 mb-1">
                       <span>#{idx + 1}</span>
                       <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
                     </div>
-                    <div className="font-mono text-gray-700 break-all">
-                      {Object.entries(entry.data).map(([key, val]: [string, any]) => (
-                        <span key={key} className="block">
-                          <span className="text-purple-600 font-semibold">{key}:</span> {String(val)}
-                        </span>
-                      ))}
+                    <div className="font-mono text-gray-700 break-all space-y-1">
+                      {Object.entries(entry.data || {}).map(([key, val]: [string, any]) => {
+                        // 格式化顯示數據
+                        let displayValue = ''
+                        if (val && typeof val === 'object') {
+                          if (val.error) {
+                            displayValue = `錯誤: ${val.error}`
+                          } else if (val.values && Array.isArray(val.values)) {
+                            displayValue = `[${val.values.join(', ')}] (count: ${val.count || val.values.length})`
+                          } else {
+                            displayValue = JSON.stringify(val)
+                          }
+                        } else {
+                          displayValue = String(val)
+                        }
+                        
+                        // 找到對應的監控項目標籤
+                        const itemIndex = parseInt(key.replace('item_', ''))
+                        const item = monitorItems[itemIndex]
+                        const label = item ? (item.label || `項目 ${itemIndex + 1}`) : key
+                        
+                        return (
+                          <div key={key} className="flex items-start gap-2">
+                            <span className="text-purple-600 font-semibold flex-shrink-0">{label}:</span>
+                            <span className="break-all">{displayValue}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
-                ))}
-             </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
       
-      {!monitoring && (
+      {/* 未啟動監控時的提示 */}
+      {!monitoring && monitorItems.length > 0 && (
         <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400">
-           <svg className="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
-          <p>準備就緒，點擊啟動監控以開始</p>
+          <p className="text-sm">已配置 {monitorItems.length} 個監控項目，點擊「啟動監控」開始</p>
+        </div>
+      )}
+
+      {!monitoring && monitorItems.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400">
+          <svg className="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+          </svg>
+          <p className="text-sm">準備就緒，請先添加監控項目</p>
         </div>
       )}
     </div>
