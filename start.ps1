@@ -9,6 +9,12 @@
 #   5. 代碼質量檢查
 #   6. 執行單元測試（可選）
 # ============================================
+# bin 目錄說明：
+#   - 存放編譯後的可執行文件（.exe）
+#   - 統一管理所有構建產物，便於部署和執行
+#   - 避免可執行文件散落在源碼目錄中，保持項目結構整潔
+#   - 構建的檔案：fatek_test.exe, test_all.exe, test-ui.exe
+# ============================================
 # 使用範例：
 #   .\start.ps1                    # 顯示主選單
 #   .\start.ps1 -QuickStart        # 一鍵啟動專案（第一項）
@@ -101,6 +107,10 @@ function Start-QuickStart {
         @{Name="test-ui"; Path="./cmd/test_ui"}
     )
     
+    # bin 目錄用途：
+    # - 存放編譯後的可執行文件（.exe）
+    # - 統一管理所有構建產物，便於部署和執行
+    # - 避免可執行文件散落在源碼目錄中，保持項目結構整潔
     $buildDir = "bin"
     if (-not (Test-Path $buildDir)) {
         New-Item -ItemType Directory -Path $buildDir | Out-Null
@@ -151,13 +161,26 @@ function Start-QuickStart {
             return
         }
         
-        $selectedIndex = [int]$selection - 1
+        # 驗證輸入是否為有效數字
+        $selectedIndex = 0
+        if (-not [int]::TryParse($selection, [ref]$selectedIndex)) {
+            Write-Error "無效的輸入，請輸入數字"
+            return
+        }
+        
+        $selectedIndex = $selectedIndex - 1
         if ($selectedIndex -ge 0 -and $selectedIndex -lt $availableTargets.Length) {
             $targetToStart = $availableTargets[$selectedIndex]
         } else {
-            Write-Error "無效的選擇"
+            Write-Error "無效的選擇，請輸入 1 到 $($availableTargets.Length) 之間的數字"
             return
         }
+    }
+    
+    # 確保 $targetToStart 是字符串類型
+    if ($targetToStart -isnot [string]) {
+        Write-Error "服務名稱類型錯誤: $($targetToStart.GetType().Name)"
+        return
     }
     
     # 啟動選定的服務
@@ -367,17 +390,32 @@ if ($Start) {
         if ([string]::IsNullOrWhiteSpace($selection)) {
             Write-Info "跳過啟動服務"
         } else {
-            $selectedIndex = [int]$selection - 1
-            if ($selectedIndex -ge 0 -and $selectedIndex -lt $availableTargets.Length) {
-                $targetToStart = $availableTargets[$selectedIndex]
-            } else {
-                Write-Error "無效的選擇，跳過啟動"
+            # 驗證輸入是否為有效數字
+            $selectedIndex = 0
+            if (-not [int]::TryParse($selection, [ref]$selectedIndex)) {
+                Write-Error "無效的輸入，請輸入數字，跳過啟動"
                 $targetToStart = ""
+            } else {
+                $selectedIndex = $selectedIndex - 1
+                if ($selectedIndex -ge 0 -and $selectedIndex -lt $availableTargets.Length) {
+                    $targetToStart = $availableTargets[$selectedIndex]
+                } else {
+                    Write-Error "無效的選擇，請輸入 1 到 $($availableTargets.Length) 之間的數字，跳過啟動"
+                    $targetToStart = ""
+                }
             }
         }
     }
     
     # 啟動選定的服務
+    if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
+        # 確保 $targetToStart 是字符串類型
+        if ($targetToStart -isnot [string]) {
+            Write-Error "服務名稱類型錯誤: $($targetToStart.GetType().Name)，跳過啟動"
+            $targetToStart = ""
+        }
+    }
+    
     if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
         $exePath = Join-Path "bin" "$targetToStart.exe"
         
