@@ -2,9 +2,9 @@ package web
 
 import (
 	"embed"
+	"io"
 	"io/fs"
 	"log"
-	"mime"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -23,87 +23,80 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 	// 從 cmd/test_ui/main.go 來看，路徑是 static
 	fsys, err := fs.Sub(staticFiles, "static")
 	if err != nil {
-		// 如果找不到 dist 目錄，可能是開發模式，使用空處理
-		router.NoRoute(func(c *gin.Context) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "前端檔案未找到，請先執行 npm run build",
-			})
-		})
+		log.Printf("❌ 無法載入 static 目錄: %v", err)
 		return
 	}
 
 	// 取得 assets 子目錄的檔案系統
 	assetsFS, err := fs.Sub(fsys, "assets")
 	if err != nil {
-		// 如果找不到 assets 目錄，可能是構建配置問題
-		router.NoRoute(func(c *gin.Context) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "前端資源檔案未找到",
-			})
-		})
+		log.Printf("❌ 無法載入 assets 目錄: %v", err)
 		return
 	}
 
-	// 靜態檔案服務處理函數
+	// 手動處理靜態資源請求，確保 MIME type 正確
 	serveAsset := func(c *gin.Context) {
-		// 取得請求的檔案路徑
-		// Gin 的 *filepath 參數會包含前導斜線，例如 "/index-CFH3XUSf.css"
-		filePath := strings.TrimPrefix(c.Param("filepath"), "/")
-		if filePath == "" {
+		path := c.Param("filepath")
+		// 移除前導斜線
+		path = strings.TrimPrefix(path, "/")
+		
+		if path == "" {
 			c.Status(http.StatusNotFound)
 			return
 		}
 
-		// 開啟檔案
-		file, err := assetsFS.Open(filePath)
+		// 嘗試開啟檔案
+		file, err := assetsFS.Open(path)
 		if err != nil {
+			log.Printf("⚠️ 找不到靜態檔案: %s", path)
 			c.Status(http.StatusNotFound)
 			return
 		}
 		defer file.Close()
 
-		// 取得檔案資訊
 		stat, err := file.Stat()
 		if err != nil {
+			log.Printf("❌ 無法讀取檔案狀態: %s", path)
 			c.Status(http.StatusInternalServerError)
 			return
 		}
 
-		// 如果是目錄，回傳 404
-		if stat.IsDir() {
-			c.Status(http.StatusNotFound)
-			return
-		}
-
-		// 根據副檔名設定 MIME type
-		ext := filepath.Ext(filePath)
-		contentType := mime.TypeByExtension(ext)
+		// 強制設定 Content-Type，不依賴系統偵測
+		ext := strings.ToLower(filepath.Ext(path))
+		var contentType string
 		
-		// 確保 CSS 和 JS 檔案有正確的 MIME type 和 charset
-		if strings.HasSuffix(filePath, ".css") {
+		switch ext {
+		case ".css":
 			contentType = "text/css; charset=utf-8"
-		} else if strings.HasSuffix(filePath, ".js") || strings.HasSuffix(filePath, ".mjs") {
+		case ".js", ".mjs":
 			contentType = "application/javascript; charset=utf-8"
-		} else if contentType == "" {
-			// 如果無法從副檔名判斷，使用預設值
+		case ".svg":
+			contentType = "image/svg+xml"
+		case ".json":
+			contentType = "application/json"
+		case ".png":
+			contentType = "image/png"
+		case ".jpg", ".jpeg":
+			contentType = "image/jpeg"
+		default:
+			// 其他檔案類型回退到自動偵測
 			contentType = "application/octet-stream"
-		} else if !strings.Contains(contentType, "charset") && (strings.HasPrefix(contentType, "text/") || strings.HasPrefix(contentType, "application/javascript")) {
-			// 為文字類型的檔案添加 charset
-			contentType += "; charset=utf-8"
 		}
 
-		// 設定 Cache-Control 標頭（可選）
+		c.Header("Content-Type", contentType)
+		// 設定快取 (1年)
 		c.Header("Cache-Control", "public, max-age=31536000")
-
-		// 回傳檔案內容
-		c.DataFromReader(http.StatusOK, stat.Size(), contentType, file, nil)
+		
+		log.Printf("📦 Serving Asset: %s (%s)", path, contentType)
+		
+		http.ServeContent(c.Writer, c.Request, path, stat.ModTime(), file.(io.ReadSeeker))
 	}
 
-	// 註冊 GET 和 HEAD 方法（瀏覽器可能會先發送 HEAD 請求）
+	// 註冊 /assets 路由
 	router.GET("/assets/*filepath", serveAsset)
 	router.HEAD("/assets/*filepath", serveAsset)
 
-	// 處理根目錄的靜態資源（如 vite.svg）
+	// 處理根目錄的 vite.svg
 	router.GET("/vite.svg", func(c *gin.Context) {
 		file, err := fsys.Open("vite.svg")
 		if err != nil {
@@ -111,27 +104,20 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 			return
 		}
 		defer file.Close()
-
-		stat, err := file.Stat()
-		if err != nil {
-			c.Status(http.StatusInternalServerError)
-			return
-		}
-
-		c.DataFromReader(http.StatusOK, stat.Size(), "image/svg+xml", file, nil)
+		stat, _ := file.Stat()
+		c.Header("Content-Type", "image/svg+xml")
+		http.ServeContent(c.Writer, c.Request, "vite.svg", stat.ModTime(), file.(io.ReadSeeker))
 	})
 
-	// SPA 路由處理：所有非 API 路徑都回傳 index.html
+	// SPA 路由處理：所有非 API 且非資源的路徑都回傳 index.html
 	router.NoRoute(func(c *gin.Context) {
-		// 如果是 API 路徑，回傳 404
+		// API 路徑不處理
 		if strings.HasPrefix(c.Request.URL.Path, "/api") {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "API endpoint not found",
-			})
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
 			return
 		}
 
-		// 如果是靜態資源路徑，回傳 404
+		// Assets 路徑如果不匹配上面的 handler，則 404 (避免回傳 index.html 給 css)
 		if strings.HasPrefix(c.Request.URL.Path, "/assets") {
 			c.Status(http.StatusNotFound)
 			return
@@ -140,22 +126,13 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		// 讀取 index.html
 		indexFile, err := fsys.Open("index.html")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "無法載入前端頁面",
-			})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法載入 index.html"})
 			return
 		}
 		defer indexFile.Close()
 
-		// 讀取檔案內容
-		stat, err := indexFile.Stat()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "無法讀取前端檔案",
-			})
-			return
-		}
-
-		c.DataFromReader(http.StatusOK, stat.Size(), "text/html", indexFile, nil)
+		stat, _ := indexFile.Stat()
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile.(io.ReadSeeker))
 	})
 }

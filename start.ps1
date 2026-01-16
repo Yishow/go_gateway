@@ -27,6 +27,8 @@
 #   .\start.ps1 -Start -Target fatek_test  # 啟動指定服務
 #   .\start.ps1 -SkipTest          # 跳過測試
 #   .\start.ps1 -SkipBuild -Start  # 僅啟動（不構建）
+#   .\start.ps1 -QuickStart -AutoKillPort  # 自動清理端口並啟動
+#   .\start.ps1 -Start -Port 8080 -AutoKillPort  # 指定端口並自動清理
 # ============================================
 
 param(
@@ -38,11 +40,22 @@ param(
     [switch]$Start,               # 構建後啟動服務
     [string]$Target = "",         # 已廢棄：統一為 gateway 服務
     [switch]$Coverage,            # 顯示詳細覆蓋率
-    [switch]$Verbose              # 詳細輸出
+    [switch]$Verbose,             # 詳細輸出
+    [int]$Port = 8080,            # 服務端口（預設 8080）
+    [switch]$AutoKillPort          # 自動清理佔用端口的進程（不詢問）
 )
 
 $ErrorActionPreference = "Stop"
 $script:ExitCode = 0
+
+# 從環境變數讀取端口配置（如果未指定）
+if ($Port -eq 8080) {
+    $envPort = [System.Environment]::GetEnvironmentVariable("PORT")
+    if ($envPort -and $envPort -match '^\d+$') {
+        $Port = [int]$envPort
+        Write-Info "從環境變數讀取端口配置: $Port"
+    }
+}
 
 # 顏色輸出函數
 function Write-ColorOutput {
@@ -79,6 +92,140 @@ function Test-Command {
     param([string]$Command)
     $null = Get-Command $Command -ErrorAction SilentlyContinue
     return $?
+}
+
+# 檢查端口是否被佔用
+function Test-PortInUse {
+    param([int]$Port)
+    
+    try {
+        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+        return $null -ne $connection
+    } catch {
+        # 如果 Get-NetTCPConnection 不可用，使用 netstat
+        $netstatOutput = netstat -ano | Select-String ":$Port\s"
+        return $null -ne $netstatOutput
+    }
+}
+
+# 取得佔用指定端口的進程資訊
+function Get-ProcessByPort {
+    param([int]$Port)
+    
+    try {
+        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+        if ($connection) {
+            $processId = $connection.OwningProcess | Select-Object -First 1
+            if ($processId) {
+                return Get-Process -Id $processId -ErrorAction SilentlyContinue
+            }
+        }
+    } catch {
+        # 回退到使用 netstat
+        $netstatLine = netstat -ano | Select-String ":$Port\s" | Select-Object -First 1
+        if ($netstatLine) {
+            $parts = $netstatLine -split '\s+'
+            $processId = $parts[-1]
+            if ($processId -match '^\d+$') {
+                return Get-Process -Id ([int]$processId) -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    return $null
+}
+
+# 終止佔用指定端口的進程
+function Stop-ProcessByPort {
+    param(
+        [int]$Port,
+        [switch]$Force
+    )
+    
+    $process = Get-ProcessByPort -Port $Port
+    if ($process) {
+        Write-Warning "發現端口 $Port 被進程佔用：$($process.ProcessName) (PID: $($process.Id))"
+        
+        try {
+            if ($Force) {
+                Stop-Process -Id $process.Id -Force -ErrorAction Stop
+                Write-Success "已強制終止進程 $($process.ProcessName) (PID: $($process.Id))"
+            } else {
+                Stop-Process -Id $process.Id -ErrorAction Stop
+                Write-Success "已終止進程 $($process.ProcessName) (PID: $($process.Id))"
+            }
+            
+            # 等待進程完全終止
+            Start-Sleep -Milliseconds 500
+            
+            # 驗證端口是否已釋放
+            if (Test-PortInUse -Port $Port) {
+                Write-Warning "端口 $Port 仍被佔用，嘗試強制終止..."
+                $process = Get-ProcessByPort -Port $Port
+                if ($process) {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Start-Sleep -Milliseconds 500
+                }
+            }
+            
+            return $true
+        } catch {
+            Write-Error "無法終止進程 $($process.ProcessName) (PID: $($process.Id)): $_"
+            return $false
+        }
+    } else {
+        Write-Info "端口 $Port 未被佔用"
+        return $true
+    }
+}
+
+# 清理端口並準備啟動服務
+function Clear-PortForService {
+    param(
+        [int]$Port = 8080,
+        [switch]$AutoKill
+    )
+    
+    if (Test-PortInUse -Port $Port) {
+        Write-Info "檢測到端口 $Port 被佔用，正在清理..."
+        
+        if ($AutoKill) {
+            $result = Stop-ProcessByPort -Port $Port -Force
+            if (-not $result) {
+                Write-Error "無法清理端口 $Port，請手動處理"
+                return $false
+            }
+        } else {
+            $process = Get-ProcessByPort -Port $Port
+            if ($process) {
+                Write-Warning "端口 $Port 被進程佔用：$($process.ProcessName) (PID: $($process.Id))"
+                Write-Info "是否要終止該進程？(Y/N)"
+                $response = Read-Host
+                
+                if ($response -eq "Y" -or $response -eq "y") {
+                    $result = Stop-ProcessByPort -Port $Port -Force
+                    if (-not $result) {
+                        Write-Error "無法清理端口 $Port"
+                        return $false
+                    }
+                } else {
+                    Write-Warning "跳過端口清理，服務可能無法啟動"
+                    return $false
+                }
+            }
+        }
+        
+        # 再次檢查端口是否已釋放
+        if (Test-PortInUse -Port $Port) {
+            Write-Error "端口 $Port 清理失敗，仍被佔用"
+            return $false
+        }
+        
+        Write-Success "端口 $Port 已清理完成"
+    } else {
+        Write-Info "端口 $Port 可用"
+    }
+    
+    return $true
 }
 
 # 顯示主選單
@@ -149,6 +296,14 @@ function Start-QuickStart {
     # 2. 啟動後端 API 服務
     Write-ColorOutput "`n[2/2] 啟動後端 API 服務..." "Yellow"
     
+    # 檢查並清理端口
+    Write-Info "檢查端口 $Port 狀態..."
+    if (-not (Clear-PortForService -Port $Port -AutoKill:$AutoKillPort)) {
+        Write-Error "端口 $Port 清理失敗，無法啟動服務"
+        $script:ExitCode = 1
+        return
+    }
+    
     # 統一為單一後端服務
     $targetToStart = "gateway"
     
@@ -163,6 +318,7 @@ function Start-QuickStart {
     }
     
     Write-Info "正在啟動 $targetToStart..."
+    Write-Info "服務將監聽端口: $Port"
     Write-Info "按 Ctrl+C 可停止服務"
     Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
     
@@ -344,36 +500,44 @@ if ($Start) {
     $currentStep++
     Write-ColorOutput "`n[$currentStep/$totalSteps] 啟動服務..." "Yellow"
     
-    # 統一為單一後端 API 服務
-    $targetToStart = "gateway"
-    $exePath = Join-Path "bin" "$targetToStart.exe"
-    
-    if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
+    # 檢查並清理端口
+    Write-Info "檢查端口 $Port 狀態..."
+    if (-not (Clear-PortForService -Port $Port -AutoKill:$AutoKillPort)) {
+        Write-Error "端口 $Port 清理失敗，無法啟動服務"
+        $script:ExitCode = 1
+    } else {
+        # 統一為單一後端 API 服務
+        $targetToStart = "gateway"
+        $exePath = Join-Path "bin" "$targetToStart.exe"
         
-        if (-not (Test-Path $exePath)) {
-            Write-Error "找不到可執行文件: $exePath"
-            Write-Info "請先執行構建步驟"
-            $script:ExitCode = 1
-        } else {
-            Write-Info "正在啟動 $targetToStart..."
-            Write-Info "按 Ctrl+C 可停止服務"
-            Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
+        if (-not [string]::IsNullOrWhiteSpace($targetToStart)) {
             
-            try {
-                # 啟動服務（前台運行）
-                & $exePath
-                $serviceExitCode = $LASTEXITCODE
-                
-                Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
-                
-                if ($serviceExitCode -eq 0) {
-                    Write-Success "服務正常退出"
-                } else {
-                    Write-Warning "服務退出，退出碼: $serviceExitCode"
-                }
-            } catch {
-                Write-Error "啟動服務失敗: $_"
+            if (-not (Test-Path $exePath)) {
+                Write-Error "找不到可執行文件: $exePath"
+                Write-Info "請先執行構建步驟"
                 $script:ExitCode = 1
+            } else {
+                Write-Info "正在啟動 $targetToStart..."
+                Write-Info "服務將監聽端口: $Port"
+                Write-Info "按 Ctrl+C 可停止服務"
+                Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
+                
+                try {
+                    # 啟動服務（前台運行）
+                    & $exePath
+                    $serviceExitCode = $LASTEXITCODE
+                    
+                    Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
+                    
+                    if ($serviceExitCode -eq 0) {
+                        Write-Success "服務正常退出"
+                    } else {
+                        Write-Warning "服務退出，退出碼: $serviceExitCode"
+                    }
+                } catch {
+                    Write-Error "啟動服務失敗: $_"
+                    $script:ExitCode = 1
+                }
             }
         }
     }
