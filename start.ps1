@@ -26,11 +26,17 @@
 #   .\start.ps1 -AirMode           # 熱重載模式（使用 Air，自動檢測變更並重啟）
 #   .\start.ps1 -QuickStart        # 一鍵啟動專案（構建 + 啟動）
 #   .\start.ps1 -Start             # 構建後啟動服務
-#   .\start.ps1 -Start -Target fatek_test  # 啟動指定服務
 #   .\start.ps1 -SkipTest          # 跳過測試
 #   .\start.ps1 -SkipBuild -Start  # 僅啟動（不構建）
 #   .\start.ps1 -QuickStart -AutoKillPort  # 自動清理端口並啟動
 #   .\start.ps1 -Start -Port 8080 -AutoKillPort  # 指定端口並自動清理
+#
+# 新增功能：
+#   .\start.ps1 -CheckEnv          # 檢查開發環境（Go、Node.js 等）
+#   .\start.ps1 -HealthCheck       # 健康檢查（檢查服務是否運行）
+#   .\start.ps1 -ListProcesses    # 列出運行中的服務進程
+#   .\start.ps1 -StopAll           # 停止所有運行中的服務
+#   .\start.ps1 -Diagnose          # 快速診斷常見問題
 # ============================================
 
 param(
@@ -46,7 +52,12 @@ param(
     [switch]$Coverage,            # 顯示詳細覆蓋率
     [switch]$Verbose,             # 詳細輸出
     [int]$Port = 8080,            # 服務端口（預設 8080）
-    [switch]$AutoKillPort          # 自動清理佔用端口的進程（不詢問）
+    [switch]$AutoKillPort,        # 自動清理佔用端口的進程（不詢問）
+    [switch]$CheckEnv,            # 檢查開發環境
+    [switch]$HealthCheck,         # 健康檢查（檢查服務是否運行）
+    [switch]$ListProcesses,       # 列出運行中的服務進程
+    [switch]$StopAll,             # 停止所有運行中的服務
+    [switch]$Diagnose             # 快速診斷常見問題
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,6 +76,8 @@ $script:FRONTEND_DIR = "web/test-ui"
 $script:STATIC_DIR = "cmd/test_ui/static"
 $script:DIST_DIR = "web/test-ui/dist"
 $script:NODE_MODULES_DIR = "web/test-ui/node_modules"
+$script:LOG_DIR = "logs"
+$script:LOG_FILE = Join-Path $script:LOG_DIR "start-$(Get-Date -Format 'yyyyMMdd').log"
 
 # 從環境變數讀取端口配置（如果未指定）
 if ($Port -eq 8080) {
@@ -109,11 +122,338 @@ function Write-Warning {
 # 工具函數
 # ============================================
 
+# 初始化日誌目錄
+function Initialize-LogDirectory {
+    if (-not (Test-Path $script:LOG_DIR)) {
+        New-Item -ItemType Directory -Path $script:LOG_DIR -Force | Out-Null
+    }
+}
+
+# 記錄日誌
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    
+    Initialize-LogDirectory
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "[$timestamp] [$Level] $Message"
+    Add-Content -Path $script:LOG_FILE -Value $logMessage -ErrorAction SilentlyContinue
+    
+    if ($Verbose) {
+        Write-Host $logMessage
+    }
+}
+
 # 檢查命令是否存在
 function Test-Command {
     param([string]$Command)
     $null = Get-Command $Command -ErrorAction SilentlyContinue
     return $?
+}
+
+# 獲取命令版本
+function Get-CommandVersion {
+    param([string]$Command)
+    
+    try {
+        $version = & $Command --version 2>&1 | Select-Object -First 1
+        return $version
+    } catch {
+        return "未知"
+    }
+}
+
+# 檢查開發環境
+function Test-DevelopmentEnvironment {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   環境檢查" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    
+    $allOk = $true
+    
+    # 檢查 Go
+    Write-Info "檢查 Go 環境..."
+    if (Test-Command "go") {
+        $goVersion = Get-CommandVersion "go"
+        Write-Success "Go: $goVersion"
+        Write-Log "Go 環境檢查通過: $goVersion"
+    } else {
+        Write-Error "Go 未安裝或不在 PATH 中"
+        Write-Info "請訪問: https://golang.org/dl/"
+        $allOk = $false
+        Write-Log "Go 環境檢查失敗" "ERROR"
+    }
+    
+    # 檢查 Node.js
+    Write-Info "檢查 Node.js 環境..."
+    if (Test-Command "node") {
+        $nodeVersion = Get-CommandVersion "node"
+        Write-Success "Node.js: $nodeVersion"
+        Write-Log "Node.js 環境檢查通過: $nodeVersion"
+    } else {
+        Write-Warning "Node.js 未安裝或不在 PATH 中"
+        Write-Info "前端功能可能無法使用"
+        Write-Log "Node.js 環境檢查失敗" "WARN"
+    }
+    
+    # 檢查 npm
+    Write-Info "檢查 npm 環境..."
+    if (Test-Command "npm") {
+        $npmVersion = Get-CommandVersion "npm"
+        Write-Success "npm: $npmVersion"
+        Write-Log "npm 環境檢查通過: $npmVersion"
+    } else {
+        Write-Warning "npm 未安裝或不在 PATH 中"
+        Write-Info "前端功能可能無法使用"
+        Write-Log "npm 環境檢查失敗" "WARN"
+    }
+    
+    # 檢查 golangci-lint
+    Write-Info "檢查 golangci-lint..."
+    if (Test-Command "golangci-lint") {
+        $lintVersion = Get-CommandVersion "golangci-lint"
+        Write-Success "golangci-lint: $lintVersion"
+        Write-Log "golangci-lint 檢查通過: $lintVersion"
+    } else {
+        Write-Warning "golangci-lint 未安裝"
+        Write-Info "可以使用: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+        Write-Log "golangci-lint 未安裝" "WARN"
+    }
+    
+    # 檢查 Air
+    Write-Info "檢查 Air..."
+    if (Test-Command "air") {
+        $airVersion = Get-CommandVersion "air"
+        Write-Success "Air: $airVersion"
+        Write-Log "Air 檢查通過: $airVersion"
+    } else {
+        Write-Warning "Air 未安裝"
+        Write-Info "可以使用: go install github.com/air-verse/air@latest"
+        Write-Log "Air 未安裝" "WARN"
+    }
+    
+    # 檢查專案結構
+    Write-Info "檢查專案結構..."
+    $requiredDirs = @($script:APP_PATH, $script:FRONTEND_DIR, "internal", "go.mod")
+    foreach ($dir in $requiredDirs) {
+        if (Test-Path $dir) {
+            Write-Success "✓ $dir"
+        } else {
+            Write-Error "✗ $dir 不存在"
+            $allOk = $false
+        }
+    }
+    
+    Write-ColorOutput ""
+    if ($allOk) {
+        Write-Success "環境檢查完成，所有必需項目正常"
+    } else {
+        Write-Warning "環境檢查完成，發現一些問題（見上方）"
+    }
+    
+    return $allOk
+}
+
+# 健康檢查（檢查服務是否運行）
+function Test-ServiceHealth {
+    param([int]$Port = 8080)
+    
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   健康檢查" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    
+    # 檢查端口是否被佔用
+    if (Test-PortInUse -Port $Port) {
+        Write-Info "檢查端口 $Port 狀態..."
+        $process = Get-ProcessByPort -Port $Port
+        if ($process) {
+            Write-Success "端口 $Port 被進程佔用: $($process.ProcessName) (PID: $($process.Id))"
+            
+            # 嘗試連接 HTTP 服務
+            try {
+                $response = Invoke-WebRequest -Uri "http://localhost:$Port/api/v1/test/status" -TimeoutSec 2 -ErrorAction Stop
+                if ($response.StatusCode -eq 200) {
+                    Write-Success "✅ 服務健康檢查通過！"
+                    Write-Info "服務正常運行在 http://localhost:$Port"
+                    return $true
+                }
+            } catch {
+                Write-Warning "服務端口被佔用，但無法連接 HTTP 服務"
+                Write-Info "可能不是 Go Gateway 服務，或服務未正常啟動"
+            }
+        }
+    } else {
+        Write-Warning "端口 $Port 未被佔用，服務未運行"
+    }
+    
+    return $false
+}
+
+# 列出運行中的服務進程
+function Get-RunningServices {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   運行中的服務" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    
+    $found = $false
+    
+    # 檢查 gateway.exe
+    $gatewayProcesses = Get-Process -Name "gateway" -ErrorAction SilentlyContinue
+    if ($gatewayProcesses) {
+        $found = $true
+        Write-Info "Gateway 服務:"
+        foreach ($proc in $gatewayProcesses) {
+            Write-ColorOutput "  PID: $($proc.Id) | 記憶體: $([math]::Round($proc.WS / 1MB, 2)) MB | 啟動時間: $($proc.StartTime)" "Cyan"
+        }
+    }
+    
+    # 檢查 test-ui.exe
+    $testUiProcesses = Get-Process -Name "test-ui" -ErrorAction SilentlyContinue
+    if ($testUiProcesses) {
+        $found = $true
+        Write-Info "Test-UI 服務:"
+        foreach ($proc in $testUiProcesses) {
+            Write-ColorOutput "  PID: $($proc.Id) | 記憶體: $([math]::Round($proc.WS / 1MB, 2)) MB | 啟動時間: $($proc.StartTime)" "Cyan"
+        }
+    }
+    
+    # 檢查端口佔用
+    Write-Info "端口佔用情況:"
+    for ($p = 8080; $p -le 8090; $p++) {
+        if (Test-PortInUse -Port $p) {
+            $proc = Get-ProcessByPort -Port $p
+            if ($proc) {
+                $found = $true
+                Write-ColorOutput "  端口 $p : $($proc.ProcessName) (PID: $($proc.Id))" "Cyan"
+            }
+        }
+    }
+    
+    if (-not $found) {
+        Write-Info "未發現運行中的服務"
+    }
+}
+
+# 停止所有運行中的服務
+function Stop-AllServices {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   停止所有服務" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    
+    $stopped = 0
+    
+    # 停止 gateway.exe
+    $gatewayProcesses = Get-Process -Name "gateway" -ErrorAction SilentlyContinue
+    if ($gatewayProcesses) {
+        foreach ($proc in $gatewayProcesses) {
+            try {
+                Stop-Process -Id $proc.Id -Force
+                Write-Success "已停止 Gateway 服務 (PID: $($proc.Id))"
+                $stopped++
+            } catch {
+                Write-Warning "無法停止進程 $($proc.Id): $_"
+            }
+        }
+    }
+    
+    # 停止 test-ui.exe
+    $testUiProcesses = Get-Process -Name "test-ui" -ErrorAction SilentlyContinue
+    if ($testUiProcesses) {
+        foreach ($proc in $testUiProcesses) {
+            try {
+                Stop-Process -Id $proc.Id -Force
+                Write-Success "已停止 Test-UI 服務 (PID: $($proc.Id))"
+                $stopped++
+            } catch {
+                Write-Warning "無法停止進程 $($proc.Id): $_"
+            }
+        }
+    }
+    
+    # 清理端口
+    for ($p = 8080; $p -le 8090; $p++) {
+        if (Test-PortInUse -Port $p) {
+            $proc = Get-ProcessByPort -Port $p
+            if ($proc -and ($proc.ProcessName -eq "gateway" -or $proc.ProcessName -eq "test-ui")) {
+                try {
+                    Stop-ProcessByPort -Port $p -Force
+                    $stopped++
+                } catch {
+                    # 忽略錯誤
+                }
+            }
+        }
+    }
+    
+    if ($stopped -eq 0) {
+        Write-Info "未發現需要停止的服務"
+    } else {
+        Write-Success "已停止 $stopped 個服務/進程"
+    }
+}
+
+# 快速診斷
+function Start-Diagnose {
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   快速診斷" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    
+    $issues = @()
+    
+    # 檢查環境
+    Write-Info "1. 檢查開發環境..."
+    if (-not (Test-Command "go")) {
+        $issues += "Go 未安裝"
+    }
+    if (-not (Test-Command "node")) {
+        $issues += "Node.js 未安裝（前端功能可能無法使用）"
+    }
+    
+    # 檢查專案結構
+    Write-Info "2. 檢查專案結構..."
+    if (-not (Test-Path "go.mod")) {
+        $issues += "go.mod 不存在，可能不是 Go 專案根目錄"
+    }
+    if (-not (Test-Path $script:APP_PATH)) {
+        $issues += "應用程式目錄不存在: $script:APP_PATH"
+    }
+    
+    # 檢查端口
+    Write-Info "3. 檢查端口狀態..."
+    if (Test-PortInUse -Port $Port) {
+        $proc = Get-ProcessByPort -Port $Port
+        if ($proc) {
+            if ($proc.ProcessName -ne "gateway" -and $proc.ProcessName -ne "test-ui") {
+                $issues += "端口 $Port 被其他程序佔用: $($proc.ProcessName)"
+            }
+        }
+    }
+    
+    # 檢查前端
+    Write-Info "4. 檢查前端..."
+    if (-not (Test-Path $script:NODE_MODULES_DIR)) {
+        $issues += "前端依賴未安裝，需要執行: cd web/test-ui && npm install"
+    }
+    
+    # 檢查構建產物
+    Write-Info "5. 檢查構建產物..."
+    $exePath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+    if (-not (Test-Path $exePath)) {
+        Write-Info "  構建產物不存在（這是正常的，如果尚未構建）"
+    }
+    
+    # 輸出診斷結果
+    Write-ColorOutput ""
+    if ($issues.Count -eq 0) {
+        Write-Success "✅ 診斷完成，未發現問題"
+    } else {
+        Write-Warning "發現 $($issues.Count) 個潛在問題："
+        foreach ($issue in $issues) {
+            Write-ColorOutput "  ⚠️  $issue" "Yellow"
+        }
+    }
 }
 
 # 啟動前端開發伺服器
@@ -581,6 +921,13 @@ function Show-MainMenu {
     Write-ColorOutput "  [5] 僅構建可執行文件" "Cyan"
     Write-ColorOutput "  [6] 僅啟動服務" "Cyan"
     Write-ColorOutput "  [7] 執行測試" "Cyan"
+    Write-ColorOutput ""
+    Write-ColorOutput "  [8] 🔍 環境檢查" "Yellow"
+    Write-ColorOutput "  [9] ❤️  健康檢查" "Yellow"
+    Write-ColorOutput "  [A] 📋 列出運行中的服務" "Yellow"
+    Write-ColorOutput "  [B] 🛑 停止所有服務" "Yellow"
+    Write-ColorOutput "  [C] 🔧 快速診斷" "Yellow"
+    Write-ColorOutput ""
     Write-ColorOutput "  [0] 退出" "Cyan"
     Write-ColorOutput ""
 }
@@ -594,10 +941,14 @@ function Start-AirMode {
     Write-ColorOutput "`n============================================" "Cyan"
     Write-ColorOutput "   🔥 熱重載模式（Air）" "Cyan"
     Write-ColorOutput "============================================`n" "Cyan"
-    Write-Info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新編譯運行"
+    Write-Info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新運行"
     Write-Info "💡 此模式使用 Air 工具，自動檢測程式碼變更並重啟"
+    Write-Info "💡 使用 go run，無需編譯 exe，與開發模式一致"
     Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
+    
+    # 詢問是否開啟瀏覽器
+    Request-OpenBrowser | Out-Null
     
     # 檢查 Air 是否安裝
     if (-not (Test-Command "air")) {
@@ -637,12 +988,14 @@ function Start-AirMode {
     
     # 運行 Air（Air 會在專案根目錄運行）
     Write-Info "▶️  啟動 Air 熱重載..."
-    Write-Info "💡 修改程式碼後，Air 會自動檢測並重新編譯運行"
+    Write-Info "💡 修改程式碼後，Air 會自動檢測並使用 go run 重新運行"
+    Write-Info "💡 注意: 如果看到 'CMD will not recognize' 警告，可忽略（Air 在 Windows 上的已知提示）"
     Write-ColorOutput ""
     
     try {
         # 確保在專案根目錄運行 Air
         Set-Location $script:ROOT_DIR
+        # 將環境變數傳遞給 Air（Air 會傳遞給子進程）
         air
     } catch {
         Write-Error "啟動 Air 失敗: $_"
@@ -654,6 +1007,26 @@ function Start-AirMode {
         if ($frontendProcess) {
             Stop-FrontendDevServer -Process $frontendProcess
         }
+        
+        # 清理環境變數
+        Remove-Item Env:\AUTO_OPEN_BROWSER -ErrorAction SilentlyContinue
+    }
+}
+
+# 詢問是否自動開啟瀏覽器
+function Request-OpenBrowser {
+    Write-ColorOutput ""
+    Write-Info "是否要在啟動後自動開啟瀏覽器？"
+    $response = Read-Host "請輸入 (Y/N，預設為 N)"
+    
+    if ($response -eq "Y" -or $response -eq "y") {
+        $env:AUTO_OPEN_BROWSER = "true"
+        Write-Info "將自動開啟瀏覽器"
+        return $true
+    } else {
+        $env:AUTO_OPEN_BROWSER = "false"
+        Write-Info "不會自動開啟瀏覽器，請手動點擊系統托盤圖示打開"
+        return $false
     }
 }
 
@@ -666,6 +1039,9 @@ function Start-DevMode {
     Write-Info "💡 此模式使用 go run，無需編譯 exe，適合快速開發迭代"
     Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
+    
+    # 詢問是否開啟瀏覽器
+    Request-OpenBrowser | Out-Null
     
     # 檢查應用程式路徑
     if (-not (Test-Path $script:APP_PATH)) {
@@ -700,6 +1076,9 @@ function Start-DevMode {
         if ($frontendProcess) {
             Stop-FrontendDevServer -Process $frontendProcess
         }
+        
+        # 清理環境變數
+        Remove-Item Env:\AUTO_OPEN_BROWSER -ErrorAction SilentlyContinue
     }
 }
 
@@ -738,6 +1117,32 @@ function Start-QuickStart {
     }
 }
 
+# 處理特殊功能參數
+if ($CheckEnv) {
+    Test-DevelopmentEnvironment
+    exit $script:ExitCode
+}
+
+if ($HealthCheck) {
+    Test-ServiceHealth -Port $Port
+    exit $script:ExitCode
+}
+
+if ($ListProcesses) {
+    Get-RunningServices
+    exit $script:ExitCode
+}
+
+if ($StopAll) {
+    Stop-AllServices
+    exit $script:ExitCode
+}
+
+if ($Diagnose) {
+    Start-Diagnose
+    exit $script:ExitCode
+}
+
 # 如果指定了 DevMode，直接執行開發模式
 if ($DevMode) {
     Start-DevMode
@@ -760,7 +1165,7 @@ if ($QuickStart) {
 $hasAnyParam = $SkipLint -or $SkipTest -or $SkipBuild -or $SkipQuality -or $Start -or $Coverage -or $Verbose -or (-not [string]::IsNullOrWhiteSpace($Target))
 if (-not $hasAnyParam) {
     Show-MainMenu
-    $menuSelection = Read-Host "請輸入選項 (0-7)"
+    $menuSelection = Read-Host "請輸入選項 (0-7, 8-9, A-C)"
     
     switch ($menuSelection) {
         "1" {
@@ -806,6 +1211,38 @@ if (-not $hasAnyParam) {
             Write-ColorOutput "`n============================================" "Cyan"
             Write-ColorOutput "   執行測試" "Cyan"
             Write-ColorOutput "============================================`n" "Cyan"
+        }
+        "8" {
+            Test-DevelopmentEnvironment
+            exit $script:ExitCode
+        }
+        "9" {
+            Test-ServiceHealth -Port $Port
+            exit $script:ExitCode
+        }
+        "A" {
+            Get-RunningServices
+            exit $script:ExitCode
+        }
+        "a" {
+            Get-RunningServices
+            exit $script:ExitCode
+        }
+        "B" {
+            Stop-AllServices
+            exit $script:ExitCode
+        }
+        "b" {
+            Stop-AllServices
+            exit $script:ExitCode
+        }
+        "C" {
+            Start-Diagnose
+            exit $script:ExitCode
+        }
+        "c" {
+            Start-Diagnose
+            exit $script:ExitCode
         }
         "0" {
             Write-Info "退出"

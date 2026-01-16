@@ -81,11 +81,19 @@ func startServer() {
 	log.Printf("📝 開啟瀏覽器訪問 %s 開始使用", fullURL)
 	log.Printf("💡 應用程式運行在系統托盤，點擊托盤圖示可打開瀏覽器")
 
-	// 等待一小段時間確保伺服器已啟動，然後自動打開瀏覽器
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		openBrowser(serverAddr)
-	}()
+	// 檢查是否自動開啟瀏覽器（預設為 false）
+	autoOpenBrowser := os.Getenv("AUTO_OPEN_BROWSER")
+	shouldOpen := autoOpenBrowser == "true" || autoOpenBrowser == "1"
+
+	if shouldOpen {
+		// 等待一小段時間確保伺服器已啟動，然後自動打開瀏覽器
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			openBrowser(serverAddr)
+		}()
+	} else {
+		log.Printf("💡 瀏覽器不會自動開啟，請點擊系統托盤圖示打開瀏覽器")
+	}
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("伺服器啟動失敗: %v", err)
