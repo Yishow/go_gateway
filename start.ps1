@@ -198,16 +198,16 @@ function Test-DevelopmentEnvironment {
         Write-Log "Node.js 環境檢查失敗" "WARN"
     }
     
-    # 檢查 npm
-    Write-Info "檢查 npm 環境..."
-    if (Test-Command "npm") {
-        $npmVersion = Get-CommandVersion "npm"
-        Write-Success "npm: $npmVersion"
-        Write-Log "npm 環境檢查通過: $npmVersion"
+    # 檢查 pnpm
+    Write-Info "檢查 pnpm 環境..."
+    if (Test-Command "pnpm") {
+        $pnpmVersion = Get-CommandVersion "pnpm"
+        Write-Success "pnpm: $pnpmVersion"
+        Write-Log "pnpm 環境檢查通過: $pnpmVersion"
     } else {
-        Write-Warning "npm 未安裝或不在 PATH 中"
+        Write-Warning "pnpm 未安裝或不在 PATH 中"
         Write-Info "前端功能可能無法使用"
-        Write-Log "npm 環境檢查失敗" "WARN"
+        Write-Log "pnpm 環境檢查失敗" "WARN"
     }
     
     # 檢查 golangci-lint
@@ -434,7 +434,7 @@ function Start-Diagnose {
     # 檢查前端
     Write-Info "4. 檢查前端..."
     if (-not (Test-Path $script:NODE_MODULES_DIR)) {
-        $issues += "前端依賴未安裝，需要執行: cd web/test-ui && npm install"
+        $issues += "前端依賴未安裝，需要執行: cd web/test-ui && pnpm install"
     }
     
     # 檢查構建產物
@@ -482,7 +482,7 @@ function Start-FrontendDevServer {
         $originalLocation = Get-Location
         try {
             Push-Location $script:FRONTEND_DIR
-            npm install
+            pnpm install
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "前端依賴安裝失敗"
                 return $null
@@ -505,8 +505,8 @@ function Start-FrontendDevServer {
         Push-Location $script:FRONTEND_DIR
         
         # 使用 Start-Process 在背景啟動前端伺服器
-        # 使用 cmd.exe 來正確處理 npm 命令，避免 PowerShell 的問題
-        $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "npm run dev" -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
+        # 使用 cmd.exe 來正確處理 pnpm 命令，避免 PowerShell 的問題
+        $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "pnpm run dev" -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
         
         if ($frontendProcess) {
             Write-Success "前端開發伺服器已啟動（PID: $($frontendProcess.Id)）"
@@ -637,7 +637,7 @@ function Build-Frontend {
             Write-Info "📥 安裝前端依賴..."
             Push-Location $script:FRONTEND_DIR
             try {
-                npm install
+                pnpm install
                 if ($LASTEXITCODE -ne 0) {
                     Write-Error "前端依賴安裝失敗"
                     return $false
@@ -651,7 +651,7 @@ function Build-Frontend {
         Write-Info "🔨 建置前端..."
         Push-Location $script:FRONTEND_DIR
         try {
-            npm run build
+            pnpm run build
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "前端建置失敗"
                 return $false

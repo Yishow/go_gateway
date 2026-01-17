@@ -112,9 +112,6 @@ export default function DeviceScanner({
   const isModbus = protocol.includes('modbus')
   const isFatek = protocol.includes('fatek')
   const isMCProtocol = protocol.includes('mcprotocol') || protocol.includes('mc_')
-  const isModbusRTU = protocol.includes('modbus') && (protocol.includes('rtu') || protocol.includes('serial'))
-  const isModbusTCP = protocol.includes('modbus') && protocol.includes('tcp')
-  const isModbusUDP = protocol.includes('modbus') && protocol.includes('udp')
 
   /**
    * 根據協議獲取預設操作類型
@@ -302,7 +299,7 @@ export default function DeviceScanner({
       if (tempConnectionId) {
         try {
           await disconnect(tempConnectionId)
-        } catch (e) {
+        } catch (_e) {
           // 忽略斷線錯誤
         }
       }
@@ -321,7 +318,7 @@ export default function DeviceScanner({
       if (tempConnectionId) {
         try {
           await disconnect(tempConnectionId)
-        } catch (e) {
+        } catch (_e) {
           // 忽略斷線錯誤
         }
       }
@@ -369,7 +366,7 @@ export default function DeviceScanner({
       if (tempConnectionId) {
         try {
           await disconnect(tempConnectionId)
-        } catch (e) {
+        } catch (_e) {
           // 忽略斷線錯誤
         }
       }
@@ -388,7 +385,7 @@ export default function DeviceScanner({
       if (tempConnectionId) {
         try {
           await disconnect(tempConnectionId)
-        } catch (e) {
+        } catch (_e) {
           // 忽略斷線錯誤
         }
       }
@@ -436,7 +433,7 @@ export default function DeviceScanner({
       if (tempConnectionId) {
         try {
           await disconnect(tempConnectionId)
-        } catch (e) {
+        } catch (_e) {
           // 忽略斷線錯誤
         }
       }
@@ -454,7 +451,7 @@ export default function DeviceScanner({
       if (tempConnectionId) {
         try {
           await disconnect(tempConnectionId)
-        } catch (e) {
+        } catch (_e) {
           // 忽略斷線錯誤
         }
       }
@@ -533,7 +530,6 @@ export default function DeviceScanner({
     scanStartTimeRef.current = Date.now()
     
     const results: ScanResult[] = []
-    let successCount = 0
     const responseTimes: number[] = []
 
     try {
@@ -562,9 +558,6 @@ export default function DeviceScanner({
             const result = await scanMCProtocolIP(ip)
             results.push(result)
             
-            if (result.success) {
-              successCount++
-            }
             if (result.responseTime) {
               responseTimes.push(result.responseTime)
             }
@@ -610,9 +603,6 @@ export default function DeviceScanner({
             
             results.push(result)
             
-            if (result.success) {
-              successCount++
-            }
             if (result.responseTime) {
               responseTimes.push(result.responseTime)
             }

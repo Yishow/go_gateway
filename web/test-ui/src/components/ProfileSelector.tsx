@@ -33,7 +33,7 @@ export default function ProfileSelector({
     switchProfile,
     updateCurrentProfileConfig,
   } = useProfiles();
-  const { showError, showWarning } = useToast();
+  const { showError } = useToast();
 
   const [isAdding, setIsAdding] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
@@ -88,7 +88,7 @@ export default function ProfileSelector({
   /**
    * 處理刪除 Profile
    */
-  const handleDeleteProfile = (profileId: string, profileName: string) => {
+  const handleDeleteProfile = (profileId: string) => {
     // 檢查是否至少保留一個 Profile
     if (profiles.length <= 1) {
       showError('至少需要保留一個 Profile');
@@ -313,7 +313,7 @@ export default function ProfileSelector({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteProfile(profile.id, profile.name);
+                          handleDeleteProfile(profile.id);
                         }}
                         className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                         title="刪除"

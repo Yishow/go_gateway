@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
+import type { ReactElement } from 'react'
 import { useDebugAPI } from '../services/api'
 import { useToast } from '../contexts/ToastContext'
+import { normalizeRawDataFromPacket } from '../utils/modbus'
 
 interface DebugPanelProps {
   connectionId: string | null
@@ -8,6 +10,25 @@ interface DebugPanelProps {
 
 type DisplayMode = 'hex' | 'ascii' | 'parsed'
 type FilterDirection = 'all' | 'request' | 'response'
+
+/**
+ * 資料部分類型
+ */
+type DataPartType = 'address' | 'quantity' | 'byteCount' | 'data' | 'value'
+
+/**
+ * Modbus TCP 標頭部分類型
+ */
+type ModbusHeaderPartType = 'transactionId' | 'protocolId' | 'length' | 'unitId'
+
+/**
+ * 資料部分介面
+ */
+interface DataPart {
+  start: number
+  end: number
+  type: DataPartType
+}
 
 export default function DebugPanel({ connectionId }: DebugPanelProps) {
   const [activeTab, setActiveTab] = useState<'packets' | 'logs'>('packets')
@@ -97,8 +118,418 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
     return { txCount, rxCount, errorLogs, total: connPackets.length }
   }, [packets, logs, connectionId])
 
-  // 格式化數據包顯示
-  const formatPacketData = (packet: any) => {
+  /**
+   * 解析 Modbus 資料結構並返回各部分範圍
+   * @param functionCode 功能碼
+   * @param isTx 是否為發送
+   * @param dataStart 資料起始索引
+   * @param dataEnd 資料結束索引
+   */
+  const parseModbusDataStructure = (
+    _rawData: number[],
+    functionCode: number,
+    isTx: boolean,
+    dataStart: number,
+    dataEnd: number
+  ): DataPart[] => {
+    const parts: DataPart[] = []
+    let currentIndex = dataStart
+
+    if (isTx) {
+      // TX (請求) 資料結構
+      switch (functionCode) {
+        case 0x01: // Read Coils
+        case 0x02: // Read Discrete Inputs
+        case 0x03: // Read Holding Registers
+        case 0x04: // Read Input Registers
+          // Starting Address(2) + Quantity(2)
+          if (currentIndex + 4 <= dataEnd) {
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'address' })
+            currentIndex += 2
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'quantity' })
+            currentIndex += 2
+          }
+          // 處理可能的額外資料
+          if (currentIndex < dataEnd) {
+            parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+          }
+          break
+
+        case 0x05: // Write Single Coil
+        case 0x06: // Write Single Register
+          // Address(2) + Value(2)
+          if (currentIndex + 4 <= dataEnd) {
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'address' })
+            currentIndex += 2
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'value' })
+            currentIndex += 2
+          }
+          // 處理可能的額外資料
+          if (currentIndex < dataEnd) {
+            parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+          }
+          break
+
+        case 0x0F: // Write Multiple Coils
+        case 0x10: // Write Multiple Registers
+          // Starting Address(2) + Quantity(2) + Byte Count(1) + Values(N)
+          if (currentIndex + 5 <= dataEnd) {
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'address' })
+            currentIndex += 2
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'quantity' })
+            currentIndex += 2
+            parts.push({ start: currentIndex, end: currentIndex, type: 'byteCount' })
+            currentIndex += 1
+            // 確保所有剩餘資料都被標記
+            if (currentIndex < dataEnd) {
+              parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+            }
+          } else {
+            // 如果資料不足，至少標記現有的
+            if (currentIndex < dataEnd) {
+              parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+            }
+          }
+          break
+
+        default:
+          // 未知功能碼，將所有資料標記為 data
+          if (currentIndex < dataEnd) {
+            parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+          }
+          break
+      }
+    } else {
+      // RX (回應) 資料結構
+      switch (functionCode) {
+        case 0x01: // Read Coils
+        case 0x02: // Read Discrete Inputs
+        case 0x03: // Read Holding Registers
+        case 0x04: // Read Input Registers
+          // Byte Count(1) + Data(N)
+          if (currentIndex < dataEnd) {
+            parts.push({ start: currentIndex, end: currentIndex, type: 'byteCount' })
+            currentIndex += 1
+            // 確保所有剩餘資料都被標記為 data
+            if (currentIndex < dataEnd) {
+              parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+            }
+          }
+          break
+
+        case 0x05: // Write Single Coil
+        case 0x06: // Write Single Register
+          // Address(2) + Value(2) - 回應與請求相同
+          if (currentIndex + 4 <= dataEnd) {
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'address' })
+            currentIndex += 2
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'value' })
+            currentIndex += 2
+          }
+          // 處理可能的額外資料
+          if (currentIndex < dataEnd) {
+            parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+          }
+          break
+
+        case 0x0F: // Write Multiple Coils
+        case 0x10: // Write Multiple Registers
+          // Starting Address(2) + Quantity(2)
+          if (currentIndex + 4 <= dataEnd) {
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'address' })
+            currentIndex += 2
+            parts.push({ start: currentIndex, end: currentIndex + 1, type: 'quantity' })
+            currentIndex += 2
+          }
+          // 處理可能的額外資料
+          if (currentIndex < dataEnd) {
+            parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+          }
+          break
+
+        default:
+          // 未知功能碼，將所有資料標記為 data
+          if (currentIndex < dataEnd) {
+            parts.push({ start: currentIndex, end: dataEnd - 1, type: 'data' })
+          }
+          break
+      }
+    }
+
+    return parts
+  }
+
+  /**
+   * 獲取資料部分的顏色
+   * @param type 資料類型
+   * @param isTx 是否為發送
+   */
+  const getDataPartColor = (type: DataPartType, isTx: boolean): string => {
+    if (isTx) {
+      // TX 顏色方案
+      switch (type) {
+        case 'address': return 'text-purple-400'
+        case 'quantity': return 'text-pink-400'
+        case 'byteCount': return 'text-indigo-400'
+        case 'value': return 'text-cyan-400'
+        case 'data': return 'text-cyan-400'
+        default: return 'text-cyan-400'
+      }
+    } else {
+      // RX 顏色方案
+      switch (type) {
+        case 'address': return 'text-orange-400'
+        case 'quantity': return 'text-amber-400'
+        case 'byteCount': return 'text-yellow-400'
+        case 'value': return 'text-yellow-400'
+        case 'data': return 'text-yellow-400'
+        default: return 'text-yellow-400'
+      }
+    }
+  }
+
+  /**
+   * 格式化 hex 數據並高亮 Modbus 指令與資料
+   * @param hexData hex 字符串
+   * @param rawData 原始字節數組
+   * @param direction 方向（request=TX, response=RX）
+   */
+  const formatHexWithModbusHighlight = (
+    hexData: string, 
+    rawData?: any, 
+    direction?: string
+  ): ReactElement => {
+    const dataArray = normalizeRawDataFromPacket(rawData, hexData)
+
+    if (dataArray.length === 0) {
+      return <span>{hexData}</span>
+    }
+
+    const isTx = direction === 'request'
+    
+    // 將 hex 字符串分割成字節對，處理多種分隔符
+    let hexBytes = hexData.split(/\s+/).filter(b => b.length > 0)
+    
+    // 如果分割後長度不一致，嘗試從 dataArray 生成 hex 字符串
+    if (hexBytes.length !== dataArray.length) {
+      hexBytes = dataArray.map((b: number) => {
+        const num = typeof b === 'number' ? b : parseInt(b, 10)
+        return num.toString(16).toUpperCase().padStart(2, '0')
+      })
+    }
+    
+    // 檢查是否為 Modbus TCP (至少 8 bytes: MBAP Header(7) + Function Code(1))
+    const isModbusTCP = dataArray.length >= 8 && 
+                       dataArray[2] === 0x00 && dataArray[3] === 0x00 // Protocol ID = 0x0000
+    
+    // 檢查是否為 Modbus RTU (至少 4 bytes: Address(1) + Function Code(1) + CRC(2))
+    const isModbusRTU = dataArray.length >= 4 && 
+                       !isModbusTCP // 不是 TCP 且長度足夠
+    
+    if (!isModbusTCP && !isModbusRTU) {
+      return <span>{hexData}</span>
+    }
+
+    // 定義指令部分和資料部分的範圍
+    let headerStart = 0
+    let headerEnd = 0
+    let functionCodeIndex = -1
+    let dataStart = 0
+    let dataEnd = dataArray.length  // 預設包含所有資料
+    let crcStart = -1
+    let crcEnd = -1
+
+    /**
+     * 取得 MBAP 標頭區段的顏色
+     * @param partType 標頭區段類型
+     * @param tx 是否為發送
+     */
+    const getMbapHeaderColor = (partType: ModbusHeaderPartType, tx: boolean): string => {
+      if (tx) {
+        switch (partType) {
+          case 'transactionId': return 'text-blue-300'
+          case 'protocolId': return 'text-blue-400'
+          case 'length': return 'text-blue-500'
+          case 'unitId': return 'text-blue-600'
+          default: return 'text-blue-400'
+        }
+      }
+      switch (partType) {
+        case 'transactionId': return 'text-green-300'
+        case 'protocolId': return 'text-green-400'
+        case 'length': return 'text-green-500'
+        case 'unitId': return 'text-green-600'
+        default: return 'text-green-400'
+      }
+    }
+
+    /**
+     * 建立 MBAP 標頭索引對應資訊
+     * @param tx 是否為發送
+     */
+    const buildMbapHeaderIndexMap = (tx: boolean): Map<number, { label: string; color: string }> => {
+      const headerMap = new Map<number, { label: string; color: string }>()
+      const headerParts: Array<{ start: number; end: number; type: ModbusHeaderPartType; label: string }> = [
+        { start: 0, end: 1, type: 'transactionId', label: 'Transaction ID' },
+        { start: 2, end: 3, type: 'protocolId', label: 'Protocol ID' },
+        { start: 4, end: 5, type: 'length', label: 'Length' },
+        { start: 6, end: 6, type: 'unitId', label: 'Unit ID' }
+      ]
+
+      headerParts.forEach(part => {
+        for (let i = part.start; i <= part.end; i++) {
+          headerMap.set(i, { label: part.label, color: getMbapHeaderColor(part.type, tx) })
+        }
+      })
+
+      return headerMap
+    }
+    
+    const mbapHeaderMap = isModbusTCP ? buildMbapHeaderIndexMap(isTx) : new Map<number, { label: string; color: string }>()
+
+    if (isModbusTCP) {
+      // Modbus TCP: MBAP Header (7 bytes) + Function Code(1) + Data(N)
+      headerStart = 0
+      headerEnd = 6  // MBAP Header (0-6)
+      functionCodeIndex = 7
+      dataStart = 8  // Function Code 之後開始是資料
+      dataEnd = dataArray.length  // 包含所有資料（確保 RX 完整顯示）
+    } else if (isModbusRTU) {
+      // Modbus RTU: Address(1) + Function Code(1) + Data(N) + CRC(2)
+      headerStart = 0
+      headerEnd = 0  // Address
+      functionCodeIndex = 1
+      dataStart = 2  // Function Code 之後開始是資料
+      // 確保至少有 CRC 的空間
+      if (dataArray.length >= 4) {
+        dataEnd = dataArray.length - 2  // 排除 CRC
+        crcStart = dataArray.length - 2
+        crcEnd = dataArray.length - 1
+      } else {
+        dataEnd = dataArray.length
+      }
+    }
+    
+    // 獲取功能碼（處理異常回應）
+    let functionCode = dataArray[functionCodeIndex]
+    const isException = functionCode >= 0x81 && functionCode <= 0x90
+    if (isException) {
+      functionCode = functionCode - 0x80  // 還原原始功能碼
+    }
+    
+    // 解析資料結構（只在有資料時解析）
+    const dataParts: DataPart[] = []
+    if (dataStart < dataEnd) {
+      const parsedParts = parseModbusDataStructure(dataArray, functionCode, isTx, dataStart, dataEnd)
+      dataParts.push(...parsedParts)
+    }
+    
+    // 指令部分顏色（Header + Function Code）
+    const commandColor = isTx ? 'text-blue-400' : 'text-green-400'
+    const functionCodeColor = isTx ? 'text-blue-500 font-bold' : 'text-green-500 font-bold'
+    
+    // 創建索引到資料類型的映射
+    const indexToType = new Map<number, DataPartType>()
+    dataParts.forEach(part => {
+      for (let i = part.start; i <= part.end && i < dataArray.length; i++) {
+        indexToType.set(i, part.type)
+      }
+    })
+    
+    // 確保所有資料部分都被標記（如果解析失敗，使用默認類型）
+    if (dataParts.length === 0 && dataStart < dataEnd) {
+      // 如果沒有解析出任何部分，將整個資料區域標記為 data
+      for (let i = dataStart; i < dataEnd; i++) {
+        if (!indexToType.has(i)) {
+          indexToType.set(i, 'data')
+        }
+      }
+    }
+    
+    return (
+      <span>
+        {hexBytes.map((byte, index) => {
+          // 確保索引在範圍內
+          if (index >= dataArray.length) {
+            return (
+              <span key={index} className="text-gray-400">
+                {byte}
+                {index < hexBytes.length - 1 && ' '}
+              </span>
+            )
+          }
+          
+          // 指令部分（Header - MBAP）
+          if (index >= headerStart && index <= headerEnd) {
+            const headerInfo = mbapHeaderMap.get(index)
+            return (
+              <span
+                key={index}
+                className={`${headerInfo?.color || commandColor} font-semibold`}
+                title={headerInfo?.label || 'Header'}
+              >
+                {byte}
+                {index < hexBytes.length - 1 && ' '}
+                {isModbusTCP && index === headerEnd && (
+                  <span className="ml-1 text-[10px] text-gray-500">MBAP(TID/PID/LEN/UID)</span>
+                )}
+              </span>
+            )
+          }
+          
+          // 功能碼
+          if (index === functionCodeIndex) {
+            return (
+              <span key={index} className={`${functionCodeColor}`}>
+                {byte}
+                {index < hexBytes.length - 1 && ' '}
+              </span>
+            )
+          }
+          
+          // CRC 部分（RTU）- 優先處理，避免被當作資料
+          if (crcStart >= 0 && index >= crcStart && index <= crcEnd) {
+            return (
+              <span key={index} className="text-gray-500" title="CRC">
+                {byte}
+                {index < hexBytes.length - 1 && ' '}
+                {index === crcEnd && (
+                  <span className="ml-1 text-[10px] text-gray-500">CRC</span>
+                )}
+              </span>
+            )
+          }
+          
+          // 資料部分（根據類型使用不同顏色）
+          if (index >= dataStart && index < dataEnd) {
+            const dataType = indexToType.get(index) || 'data'
+            const dataColor = getDataPartColor(dataType, isTx)
+            return (
+              <span key={index} className={dataColor}>
+                {byte}
+                {index < hexBytes.length - 1 && ' '}
+              </span>
+            )
+          }
+          
+          // 其他部分（確保所有資料都被顯示）
+          const dataColor = getDataPartColor('data', isTx)
+          return (
+            <span key={index} className={dataColor}>
+              {byte}
+              {index < hexBytes.length - 1 && ' '}
+            </span>
+          )
+        })}
+      </span>
+    )
+  }
+
+  /**
+   * 格式化數據包顯示
+   * 返回字符串或 React 元素
+   */
+  const formatPacketData = (packet: any): string | ReactElement => {
     switch (displayMode) {
       case 'ascii':
         return Array.from(packet.raw_data || [])
@@ -110,7 +541,8 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
       case 'parsed':
         return parseProtocol(packet)
       default:
-        return packet.hex_data
+        // 返回 JSX 元素以支持顏色高亮
+        return formatHexWithModbusHighlight(packet.hex_data, packet.raw_data, packet.direction)
     }
   }
 
@@ -261,8 +693,8 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
           {showClearConfirm ? (
             <div className="flex items-center gap-2 px-2 py-1">
               <button
-                onClick={() => {
-                  clear(connectionId)
+                onClick={async () => {
+                  await clear(connectionId)
                   setShowClearConfirm(false)
                   showInfo('數據已清空')
                 }}
@@ -390,7 +822,10 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-gray-300 break-all font-mono opacity-90 group-hover:opacity-100">
-                      {formatPacketData(packet)}
+                      {(() => {
+                        const formatted = formatPacketData(packet)
+                        return typeof formatted === 'string' ? formatted : formatted
+                      })()}
                     </div>
                     {selectedPacket === packet.id && (
                       <div className="mt-1 pt-1 border-t border-gray-700 dark:border-gray-800 text-xs text-gray-400">

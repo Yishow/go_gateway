@@ -48,6 +48,8 @@ export function useTestAPI() {
       count: number
       symbol?: string
       device?: string
+      unit_id?: number
+      station?: number
     }
   ): Promise<ReadResponse> => {
     const response = await api.post<ReadResponse>('/test/read', {
@@ -64,6 +66,8 @@ export function useTestAPI() {
       address: number
       values: any[]
       symbol?: string
+      unit_id?: number
+      station?: number
     }
   ): Promise<void> => {
     await api.post('/test/write', {
@@ -118,15 +122,42 @@ export function useDebugAPI() {
   const clear = async (connectionId: string | null) => {
     try {
       const params = connectionId ? { connection_id: connectionId } : {}
-      await api.delete('/debug/clear', { params })
-      // 刷新數據
-      await refresh()
+      const beforePacketsCount = packets.length
+      const beforeLogsCount = logs.length
+      
+      const response = await api.delete('/debug/clear', { params })
+      console.log('Clear response:', response.data)
+      
+      // 立即更新本地狀態，不調用 refresh()，讓自動刷新機制自然處理
+      // 這樣可以避免在清空後立即重新載入數據
+      if (connectionId) {
+        setPackets(prev => {
+          const filtered = prev.filter(p => p.connection_id !== connectionId)
+          console.log(`Cleared packets for connection ${connectionId}: ${prev.length} -> ${filtered.length}`)
+          return filtered
+        })
+        setLogs(prev => {
+          const filtered = prev.filter(l => {
+            const details = l.details as { connection_id?: string } | undefined
+            return details?.connection_id !== connectionId
+          })
+          console.log(`Cleared logs for connection ${connectionId}: ${prev.length} -> ${filtered.length}`)
+          return filtered
+        })
+      } else {
+        console.log(`Cleared all: packets ${beforePacketsCount} -> 0, logs ${beforeLogsCount} -> 0`)
+        setPackets([])
+        setLogs([])
+      }
     } catch (error) {
       console.error('Failed to clear debug data:', error)
       // 如果後端不支持，則前端清空
       if (connectionId) {
         setPackets(prev => prev.filter(p => p.connection_id !== connectionId))
-        setLogs(prev => prev.filter(l => l.details?.connection_id !== connectionId))
+        setLogs(prev => prev.filter(l => {
+          const details = l.details as { connection_id?: string } | undefined
+          return details?.connection_id !== connectionId
+        }))
       } else {
         setPackets([])
         setLogs([])

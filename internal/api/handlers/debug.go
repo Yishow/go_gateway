@@ -171,9 +171,13 @@ func (h *DebugHandler) ClearData(c *gin.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	beforePacketsCount := len(h.packets)
+	beforeLogsCount := len(h.logs)
+
 	if connectionID != "" {
 		// 只清空指定連接的數據
-		filteredPackets := make([]PacketRecord, 0)
+		// 使用預分配容量以提高性能
+		filteredPackets := make([]PacketRecord, 0, len(h.packets))
 		for _, p := range h.packets {
 			if p.ConnectionID != connectionID {
 				filteredPackets = append(filteredPackets, p)
@@ -181,7 +185,7 @@ func (h *DebugHandler) ClearData(c *gin.Context) {
 		}
 		h.packets = filteredPackets
 
-		filteredLogs := make([]LogRecord, 0)
+		filteredLogs := make([]LogRecord, 0, len(h.logs))
 		for _, l := range h.logs {
 			if details, ok := l.Details.(map[string]interface{}); ok {
 				if cid, ok := details["connection_id"].(string); ok && cid != connectionID {
@@ -198,7 +202,16 @@ func (h *DebugHandler) ClearData(c *gin.Context) {
 		h.logs = make([]LogRecord, 0, 1000)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "cleared"})
+	afterPacketsCount := len(h.packets)
+	afterLogsCount := len(h.logs)
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "cleared",
+		"cleared_packets": beforePacketsCount - afterPacketsCount,
+		"cleared_logs": beforeLogsCount - afterLogsCount,
+		"remaining_packets": afterPacketsCount,
+		"remaining_logs": afterLogsCount,
+	})
 }
 
 // SendRawRequest 發送原始數據包請求

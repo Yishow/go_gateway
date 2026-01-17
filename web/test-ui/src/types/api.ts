@@ -21,6 +21,8 @@ export interface ReadRequest {
   count: number;
   symbol?: string; // Fatek
   device?: string; // MC
+  unit_id?: number; // Modbus (可選，覆蓋連線配置的站號)
+  station?: number; // Fatek (可選，覆蓋連線配置的站號)
 }
 
 export interface ReadResponse {
@@ -35,6 +37,8 @@ export interface WriteRequest {
   values: any[];
   symbol?: string; // Fatek
   device?: string; // MC
+  unit_id?: number; // Modbus (可選，覆蓋連線配置的站號)
+  station?: number; // Fatek (可選，覆蓋連線配置的站號)
 }
 
 export interface ConnectionState {

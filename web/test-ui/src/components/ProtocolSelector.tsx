@@ -43,9 +43,9 @@ export default function ProtocolSelector({
     
     // Map internal variant names to UI labels and values
     return p.variants.map(v => {
-      let value = `${protocolId}_${v}`
-      let label = v.toUpperCase()
-      let modeValue = v === 'rtu' || v === 'serial' ? 'serial' : v // 'tcp', 'udp'
+      const value = `${protocolId}_${v}`
+      const label = v.toUpperCase()
+      const modeValue = v === 'rtu' || v === 'serial' ? 'serial' : v // 'tcp', 'udp'
 
       return { fullValue: value, mode: modeValue, label }
     })

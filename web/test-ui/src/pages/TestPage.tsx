@@ -9,7 +9,7 @@ import MinimizedCardsBar from '../components/MinimizedCardsBar'
 import CardMinimizeButton from '../components/CardMinimizeButton'
 import DeviceScanner from '../components/DeviceScanner'
 import { useProfiles } from '../hooks/useProfiles'
-import { useCardMinimize, type CardType, type MinimizedCardInfo } from '../hooks/useCardMinimize'
+import { useCardMinimize, type MinimizedCardInfo } from '../hooks/useCardMinimize'
 import type { Profile, ConnectionModeConfigs } from '../types/profile'
 
 export default function TestPage() {

@@ -63,7 +63,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       setMonitorItems(currentProfile.monitorConfig.items || [])
       setInterval(currentProfile.monitorConfig.interval || 1000)
     }
-  }, [currentProfile?.id]) // 只在 profile ID 變更時載入
+  }, [currentProfile]) // 當 profile 變更時載入
 
   /**
    * 保存監控配置到 Profile（使用防抖）
@@ -90,7 +90,8 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         clearTimeout(saveTimerRef.current)
       }
     }
-  }, [monitorItems, interval, currentProfile?.id, updateProfile])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monitorItems, interval, currentProfile, updateProfile])
 
   /**
    * SSE (Server-Sent Events) 連接處理
@@ -247,6 +248,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         reconnectTimerRef.current = null
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionId])
 
   /**

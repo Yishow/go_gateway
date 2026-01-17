@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTestAPI } from '../services/api'
 import type { BatchOperation } from '../types/api'
 import { useToast } from '../contexts/ToastContext'
@@ -28,6 +28,8 @@ export default function TestOperations({
   const [symbol, setSymbol] = useState<string>('D')
   const [device, setDevice] = useState<string>('D')
   const [values, setValues] = useState<string>('')
+  const [unitId, setUnitId] = useState<string>('') // Modbus 站號
+  const [station, setStation] = useState<string>('') // Fatek 站號
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   
@@ -41,10 +43,12 @@ export default function TestOperations({
   const pollingIntervalRef = useRef<number | null>(null)
   
   const { read, write, batch } = useTestAPI()
+  const { showError, showWarning } = useToast()
 
-  const isModbus = protocol.includes('modbus')
-  const isFatek = protocol.includes('fatek')
-  const isMCProtocol = protocol.includes('mcprotocol')
+  // 使用 useMemo 穩定這些值，避免不必要的重新渲染
+  const isModbus = useMemo(() => protocol.includes('modbus'), [protocol])
+  const isFatek = useMemo(() => protocol.includes('fatek'), [protocol])
+  const isMCProtocol = useMemo(() => protocol.includes('mcprotocol'), [protocol])
 
   const isReadOp = operation.startsWith('read') || operation.includes('read')
 
@@ -89,12 +93,27 @@ export default function TestOperations({
     setLoading(true)
     try {
       if (isReadOp) {
-        const data = await read(connectionId, {
+        const readParams: any = {
           operation,
           address,
           count,
           symbol: isFatek ? symbol : undefined,
-        })
+          device: isMCProtocol ? device : undefined,
+        }
+        // 添加站號參數
+        if (isModbus && unitId) {
+          const unitIdNum = parseInt(unitId)
+          if (!isNaN(unitIdNum)) {
+            readParams.unit_id = unitIdNum
+          }
+        }
+        if (isFatek && station) {
+          const stationNum = parseInt(station)
+          if (!isNaN(stationNum)) {
+            readParams.station = stationNum
+          }
+        }
+        const data = await read(connectionId, readParams)
         setResult(data)
       } else {
         const valuesArray = values.split(',').map((v) => {
@@ -104,12 +123,26 @@ export default function TestOperations({
           const num = Number(trimmed)
           return isNaN(num) ? trimmed : num
         })
-        await write(connectionId, {
+        const writeParams: any = {
           operation,
           address,
           values: valuesArray,
           symbol: isFatek ? symbol : undefined,
-        })
+        }
+        // 添加站號參數
+        if (isModbus && unitId) {
+          const unitIdNum = parseInt(unitId)
+          if (!isNaN(unitIdNum)) {
+            writeParams.unit_id = unitIdNum
+          }
+        }
+        if (isFatek && station) {
+          const stationNum = parseInt(station)
+          if (!isNaN(stationNum)) {
+            writeParams.station = stationNum
+          }
+        }
+        await write(connectionId, writeParams)
         setResult({ status: 'success', message: '寫入成功' })
       }
     } catch (error: any) {
@@ -129,6 +162,8 @@ export default function TestOperations({
         count,
         symbol: isFatek ? symbol : undefined,
         device: isMCProtocol ? device : undefined,
+        unit_id: isModbus && unitId ? parseInt(unitId) || undefined : undefined,
+        station: isFatek && station ? parseInt(station) || undefined : undefined,
       } : undefined,
       write_request: !isReadOp ? {
         connection_id: connectionId!,
@@ -137,6 +172,8 @@ export default function TestOperations({
         values: values.split(',').map(v => v.trim()),
         symbol: isFatek ? symbol : undefined,
         device: isMCProtocol ? device : undefined,
+        unit_id: isModbus && unitId ? parseInt(unitId) || undefined : undefined,
+        station: isFatek && station ? parseInt(station) || undefined : undefined,
       } : undefined
     }
     setBatchQueue([...batchQueue, newOp])
@@ -166,13 +203,27 @@ export default function TestOperations({
     if (!connectionId) return
 
     try {
-      const data = await read(connectionId, {
+      const readParams: any = {
         operation,
         address,
         count,
         symbol: isFatek ? symbol : undefined,
         device: isMCProtocol ? device : undefined,
-      })
+      }
+      // 添加站號參數
+      if (isModbus && unitId) {
+        const unitIdNum = parseInt(unitId)
+        if (!isNaN(unitIdNum)) {
+          readParams.unit_id = unitIdNum
+        }
+      }
+      if (isFatek && station) {
+        const stationNum = parseInt(station)
+        if (!isNaN(stationNum)) {
+          readParams.station = stationNum
+        }
+      }
+      const data = await read(connectionId, readParams)
       
       const newRecord: PollingRecord = {
         timestamp: new Date().toLocaleTimeString('zh-TW', { 
@@ -208,7 +259,7 @@ export default function TestOperations({
         return updated.slice(0, 100)
       })
     }
-  }, [connectionId, operation, address, count, symbol, device, isFatek, isMCProtocol, read])
+  }, [connectionId, operation, address, count, symbol, device, unitId, station, isFatek, isMCProtocol, isModbus, read])
 
   /**
    * 啟動輪詢
@@ -263,7 +314,7 @@ export default function TestOperations({
         clearInterval(pollingIntervalRef.current)
       }
     }
-  }, [polling, pollingInterval, executePollingRead])
+  }, [polling, pollingInterval, executePollingRead, connectionId])
 
   /**
    * 切換 tab 時停止輪詢
@@ -371,6 +422,32 @@ export default function TestOperations({
                 value={device}
                 onChange={(e) => setDevice(e.target.value)}
                 placeholder="D, M, X, Y"
+              />
+            </InputField>
+          )}
+
+          {isModbus && (
+            <InputField label="站號 (Unit ID)">
+              <StyledInput
+                type="number"
+                value={unitId}
+                onChange={(e) => setUnitId(e.target.value)}
+                placeholder="留空使用連線配置"
+                min={1}
+                max={255}
+              />
+            </InputField>
+          )}
+
+          {isFatek && (
+            <InputField label="站號 (Station)">
+              <StyledInput
+                type="number"
+                value={station}
+                onChange={(e) => setStation(e.target.value)}
+                placeholder="留空使用連線配置"
+                min={1}
+                max={255}
               />
             </InputField>
           )}
