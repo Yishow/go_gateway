@@ -29,5 +29,9 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    // Force CSS rebuild
+    css: {
+      devSourcemap: true,
+    }
   }
 })

@@ -423,14 +423,14 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b pb-4">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+      <div className="flex items-center justify-between border-b dark:border-gray-700 pb-4">
+        <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
           <span className="w-1.5 h-6 bg-purple-500 rounded-full"></span>
           即時監控
         </h2>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">間隔(ms)</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-xs">間隔(ms)</span>
             <input
               type="number"
               value={interval}
@@ -438,7 +438,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
               disabled={monitoring}
               min={100}
               step={100}
-              className="pl-16 pr-3 py-2 w-32 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="pl-16 pr-3 py-2 w-32 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-white transition-all disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -466,11 +466,11 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       {!monitoring && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">監控項目配置</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">監控項目配置</h3>
             <button
               onClick={handleAddItem}
               disabled={!connectionId}
-              className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -480,25 +480,25 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
           </div>
 
           {monitorItems.length === 0 ? (
-            <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-gray-400 text-sm">
+            <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-sm">
               尚未添加監控項目，點擊「添加項目」開始配置
             </div>
           ) : (
             <div className="space-y-3">
               {monitorItems.map((item, index) => (
-                <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+                <div key={item.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
                         項目 {index + 1}
                       </span>
                       {item.label && (
-                        <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.label}</span>
                       )}
                     </div>
                     <button
                       onClick={() => handleRemoveItem(item.id)}
-                      className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -509,11 +509,11 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     {/* 操作類型 */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">操作類型</label>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">操作類型</label>
                       <select
                         value={item.operation}
                         onChange={(e) => handleUpdateItem(item.id, { operation: e.target.value })}
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white dark:focus:bg-gray-700 transition-all"
                       >
                         {operations.map(op => (
                           <option key={op.value} value={op.value}>{op.label}</option>
@@ -523,49 +523,49 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
 
                     {/* 地址 */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">地址</label>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">地址</label>
                       <input
                         type="number"
                         value={item.address}
                         onChange={(e) => handleUpdateItem(item.id, { address: parseInt(e.target.value) || 0 })}
                         min={0}
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white dark:focus:bg-gray-700 transition-all"
                       />
                     </div>
 
                     {/* 數量 */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">數量</label>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">數量</label>
                       <input
                         type="number"
                         value={item.count}
                         onChange={(e) => handleUpdateItem(item.id, { count: Math.max(1, parseInt(e.target.value) || 1) })}
                         min={1}
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
+                        className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white dark:focus:bg-gray-700 transition-all"
                       />
                     </div>
 
                     {/* Fatek Symbol 或 MC Device */}
                     {isFatek && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">符號 (Symbol)</label>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">符號 (Symbol)</label>
                         <input
                           type="text"
                           value={item.symbol || 'D'}
                           onChange={(e) => handleUpdateItem(item.id, { symbol: e.target.value })}
-                          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white dark:focus:bg-gray-700 transition-all"
                         />
                       </div>
                     )}
 
                     {isMCProtocol && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">設備 (Device)</label>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">設備 (Device)</label>
                         <input
                           type="text"
                           value={item.device || 'D'}
                           onChange={(e) => handleUpdateItem(item.id, { device: e.target.value })}
-                          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white dark:focus:bg-gray-700 transition-all"
                         />
                       </div>
                     )}
@@ -573,13 +573,13 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                     {/* 標籤（如果有額外空間） */}
                     {(!isFatek && !isMCProtocol) && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">標籤</label>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">標籤</label>
                         <input
                           type="text"
                           value={item.label || ''}
                           onChange={(e) => handleUpdateItem(item.id, { label: e.target.value })}
                           placeholder={`項目 ${index + 1}`}
-                          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
+                          className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white dark:focus:bg-gray-700 transition-all"
                         />
                       </div>
                     )}
@@ -595,15 +595,15 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       {monitoring && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
           {/* 圖表區域 */}
-          <div className="lg:col-span-2 bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-inner h-[400px]">
+          <div className="lg:col-span-2 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-inner h-[400px]">
             {chartData.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500">
                 <div className="text-center">
                   <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
                   </svg>
                   <p className="text-sm">等待數據...</p>
-                  <p className="text-xs mt-2 text-gray-300">
+                  <p className="text-xs mt-2 text-gray-300 dark:text-gray-600">
                     已接收 {monitorData.length} 條數據，配置 {monitorItems.length} 個監控項目
                   </p>
                 </div>
@@ -611,14 +611,14 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                   <XAxis 
                     dataKey="time" 
-                    tick={{fontSize: 10}} 
+                    tick={{fontSize: 10, fill: '#9ca3af'}} 
                     interval="preserveStartEnd"
                     stroke="#9ca3af"
                   />
-                  <YAxis stroke="#9ca3af" tick={{fontSize: 10}} />
+                  <YAxis stroke="#9ca3af" tick={{fontSize: 10, fill: '#9ca3af'}} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                   />
@@ -647,29 +647,29 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
           </div>
 
           {/* 數據日誌區域 */}
-          <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 flex flex-col h-[400px] overflow-hidden">
-            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase flex items-center justify-between">
+          <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col h-[400px] overflow-hidden transition-colors">
+            <div className="bg-gray-50 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase flex items-center justify-between">
               <span>數據日誌 ({monitorData.length})</span>
               <button
                 onClick={() => setMonitorData([])}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
               >
                 清除
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin">
               {monitorData.length === 0 ? (
-                <div className="text-center text-gray-400 text-xs py-8">
+                <div className="text-center text-gray-400 dark:text-gray-500 text-xs py-8">
                   等待數據...
                 </div>
               ) : (
                 monitorData.map((entry, idx) => (
-                  <div key={idx} className="text-xs p-2 rounded border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white">
-                    <div className="flex justify-between text-gray-400 mb-1">
+                  <div key={idx} className="text-xs p-2 rounded border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                    <div className="flex justify-between text-gray-400 dark:text-gray-500 mb-1">
                       <span>#{idx + 1}</span>
                       <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
                     </div>
-                    <div className="font-mono text-gray-700 break-all space-y-1">
+                    <div className="font-mono break-all space-y-1">
                       {Object.entries(entry.data || {}).map(([key, val]: [string, any]) => {
                         // 格式化顯示數據
                         let displayValue = ''
@@ -692,7 +692,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                         
                         return (
                           <div key={key} className="flex items-start gap-2">
-                            <span className="text-purple-600 font-semibold flex-shrink-0">{label}:</span>
+                            <span className="text-purple-600 dark:text-purple-400 font-semibold flex-shrink-0">{label}:</span>
                             <span className="break-all">{displayValue}</span>
                           </div>
                         )
@@ -708,7 +708,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       
       {/* 未啟動監控時的提示 */}
       {!monitoring && monitorItems.length > 0 && (
-        <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500">
           <svg className="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
@@ -717,7 +717,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       )}
 
       {!monitoring && monitorItems.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500">
           <svg className="w-12 h-12 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>

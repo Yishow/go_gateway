@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Profile } from '../types/profile';
+import type { Profile, ConnectionModeConfigs } from '../types/profile';
 import { PROFILE_STORAGE_KEY, DEFAULT_PROFILE_NAME } from '../types/profile';
 
 /**
@@ -11,22 +11,74 @@ export function useProfiles() {
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
 
   /**
+   * 保存 Profiles 到 localStorage
+   */
+  const saveProfiles = useCallback((profilesToSave: Profile[]) => {
+    try {
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profilesToSave));
+    } catch (error) {
+      console.error('保存 Profiles 失敗:', error);
+    }
+  }, []);
+
+  /**
+   * 遷移舊格式的 Profile 到新格式（向後兼容）
+   * 如果 config 是舊格式（Record<string, any>），轉換為新格式（ConnectionModeConfigs）
+   */
+  const migrateProfileIfNeeded = useCallback((profile: any): Profile => {
+    // 檢查是否為舊格式（config 不是 ConnectionModeConfigs 格式）
+    if (profile.config && typeof profile.config === 'object') {
+      const configKeys = Object.keys(profile.config);
+      // 如果 config 有 tcp/udp/serial/rtu 鍵，則已經是 new format
+      const isNewFormat = ['tcp', 'udp', 'serial', 'rtu'].some(key => configKeys.includes(key));
+      
+      if (!isNewFormat && configKeys.length > 0) {
+        // 這是舊格式，需要遷移
+        const oldConfig = profile.config;
+        const connectionMode = profile.connectionMode || 'tcp';
+        const newConfig: ConnectionModeConfigs = {
+          [connectionMode]: oldConfig,
+        };
+        return {
+          ...profile,
+          config: newConfig,
+        };
+      }
+    }
+    // 如果 config 為空或已經是 new format，直接返回
+    if (!profile.config || Object.keys(profile.config).length === 0) {
+      return {
+        ...profile,
+        config: {},
+      };
+    }
+    return profile as Profile;
+  }, []);
+
+  /**
    * 從 localStorage 載入 Profiles
    */
   const loadProfiles = useCallback(() => {
     try {
       const stored = localStorage.getItem(PROFILE_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as Profile[];
-        setProfiles(parsed);
+        const parsed = JSON.parse(stored) as any[];
+        // 遷移舊格式的 Profile（向後兼容）
+        const migratedProfiles = parsed.map(p => migrateProfileIfNeeded(p));
+        setProfiles(migratedProfiles);
         
         // 如果有當前選中的 profile，確保它存在
         const currentId = localStorage.getItem(`${PROFILE_STORAGE_KEY}_current`);
-        if (currentId && parsed.find(p => p.id === currentId)) {
+        if (currentId && migratedProfiles.find(p => p.id === currentId)) {
           setCurrentProfileId(currentId);
-        } else if (parsed.length > 0) {
+        } else if (migratedProfiles.length > 0) {
           // 如果當前 profile 不存在，選擇第一個
-          setCurrentProfileId(parsed[0].id);
+          setCurrentProfileId(migratedProfiles[0].id);
+        }
+        
+        // 如果有遷移，保存遷移後的資料
+        if (JSON.stringify(migratedProfiles) !== JSON.stringify(parsed)) {
+          saveProfiles(migratedProfiles);
         }
       } else {
         // 如果沒有存儲的 profiles，創建一個預設的
@@ -58,18 +110,7 @@ export function useProfiles() {
       setProfiles([defaultProfile]);
       setCurrentProfileId(defaultProfile.id);
     }
-  }, []);
-
-  /**
-   * 保存 Profiles 到 localStorage
-   */
-  const saveProfiles = useCallback((profilesToSave: Profile[]) => {
-    try {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profilesToSave));
-    } catch (error) {
-      console.error('保存 Profiles 失敗:', error);
-    }
-  }, []);
+  }, [migrateProfileIfNeeded, saveProfiles]);
 
   /**
    * 初始化載入
@@ -95,7 +136,7 @@ export function useProfiles() {
       name,
       protocol: 'modbus_tcp',
       connectionMode: 'tcp',
-      config: {},
+      config: {} as ConnectionModeConfigs,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -168,6 +209,7 @@ export function useProfiles() {
 
   /**
    * 更新當前 Profile 的配置
+   * 按連線模式分開儲存配置
    */
   const updateCurrentProfileConfig = useCallback((
     protocol: string,
@@ -176,12 +218,24 @@ export function useProfiles() {
   ): void => {
     if (!currentProfileId) return;
     
+    const currentProfile = profiles.find(p => p.id === currentProfileId);
+    if (!currentProfile) return;
+    
+    // 獲取現有的配置，按模式分開儲存
+    const existingConfig: ConnectionModeConfigs = currentProfile.config || {};
+    
+    // 更新當前模式的配置
+    const updatedConfig: ConnectionModeConfigs = {
+      ...existingConfig,
+      [connectionMode]: config,
+    };
+    
     updateProfile(currentProfileId, {
       protocol,
       connectionMode,
-      config,
+      config: updatedConfig,
     });
-  }, [currentProfileId, updateProfile]);
+  }, [currentProfileId, profiles, updateProfile]);
 
   return {
     profiles,

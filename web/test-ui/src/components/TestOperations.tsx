@@ -293,7 +293,7 @@ export default function TestOperations({
 
   const InputField = ({ label, children }: { label: string, children: React.ReactNode }) => (
     <div className="space-y-1">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
       {children}
     </div>
   )
@@ -301,31 +301,31 @@ export default function TestOperations({
   const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
     <input
       {...props}
-      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
     />
   )
 
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="flex bg-gray-100 p-1 rounded-lg">
+      <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
         <button
-          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'single' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'single' ? 'bg-white dark:bg-gray-600 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           onClick={() => setActiveTab('single')}
         >
           單次操作
         </button>
         <button
-          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'batch' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'batch' ? 'bg-white dark:bg-gray-600 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           onClick={() => setActiveTab('batch')}
         >
-          批量操作 {batchQueue.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full text-xs">{batchQueue.length}</span>}
+          批量操作 {batchQueue.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-xs">{batchQueue.length}</span>}
         </button>
         <button
-          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'polling' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'polling' ? 'bg-white dark:bg-gray-600 text-blue-700 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
           onClick={() => setActiveTab('polling')}
         >
-          輪詢模式 {polling && <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-xs animate-pulse">運行中</span>}
+          輪詢模式 {polling && <span className="ml-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs animate-pulse">運行中</span>}
         </button>
       </div>
 
@@ -335,7 +335,7 @@ export default function TestOperations({
              <select
               value={operation}
               onChange={(e) => setOperation(e.target.value)}
-              className="w-full px-4 py-2 appearance-none border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="w-full px-4 py-2 appearance-none border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             >
               {getOperations().map((op) => (
                 <option key={op.value} value={op.value}>
@@ -343,7 +343,7 @@ export default function TestOperations({
                 </option>
               ))}
             </select>
-             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500 dark:text-gray-400">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -422,7 +422,7 @@ export default function TestOperations({
             <button
               onClick={addToBatch}
               disabled={!connectionId}
-              className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 rounded-xl font-medium hover:bg-gray-50 active:scale-[0.98] transition-all disabled:opacity-50"
+              className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-[0.98] transition-all disabled:opacity-50"
             >
               加入清單
             </button>
@@ -435,7 +435,7 @@ export default function TestOperations({
             </button>
             <button
               onClick={() => setBatchQueue([])}
-              className="px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+              className="px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
               title="清除清單"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -476,7 +476,7 @@ export default function TestOperations({
               <button
                 onClick={handleClearPollingRecords}
                 disabled={pollingRecords.length === 0}
-                className="px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 title="清除記錄"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -485,7 +485,7 @@ export default function TestOperations({
               </button>
             </div>
             {!isReadOp && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-400">
                 <span className="font-medium">提示：</span>輪詢功能僅支援讀取操作，請選擇讀取類型的操作。
               </div>
             )}
@@ -494,15 +494,15 @@ export default function TestOperations({
       </div>
 
       {activeTab === 'batch' && batchQueue.length > 0 && (
-        <div className="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300 animate-fade-in">
-          <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">待執行項目</h4>
+        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 animate-fade-in">
+          <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">待執行項目</h4>
           <ul className="text-sm space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
             {batchQueue.map((op, idx) => (
-              <li key={idx} className="flex items-center gap-2 text-gray-600 bg-white p-2 rounded border border-gray-100 shadow-sm">
+              <li key={idx} className="flex items-center gap-2 text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700 shadow-sm">
                 <span className={`w-2 h-2 rounded-full ${op.type === 'read' ? 'bg-blue-500' : 'bg-amber-500'}`}></span>
-                <span className="font-mono text-xs text-gray-400">{idx + 1}.</span>
+                <span className="font-mono text-xs text-gray-400 dark:text-gray-500">{idx + 1}.</span>
                 <span className="font-medium">{op.type === 'read' ? op.read_request?.operation : op.write_request?.operation}</span>
-                <span className="text-gray-400 text-xs ml-auto">@ {op.type === 'read' ? op.read_request?.address : op.write_request?.address}</span>
+                <span className="text-gray-400 dark:text-gray-500 text-xs ml-auto">@ {op.type === 'read' ? op.read_request?.address : op.write_request?.address}</span>
               </li>
             ))}
           </ul>
@@ -510,12 +510,12 @@ export default function TestOperations({
       )}
 
       {activeTab === 'polling' && pollingRecords.length > 0 && (
-        <div className="bg-gray-50 p-4 rounded-xl border border-dashed border-gray-300 animate-fade-in">
+        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 animate-fade-in">
           <div className="flex justify-between items-center mb-3">
-            <h4 className="text-xs font-bold text-gray-500 uppercase">輪詢記錄 ({pollingRecords.length})</h4>
+            <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">輪詢記錄 ({pollingRecords.length})</h4>
             <button
               onClick={handleClearPollingRecords}
-              className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium"
             >
               清除
             </button>
@@ -524,29 +524,29 @@ export default function TestOperations({
             {pollingRecords.map((record, idx) => (
               <div
                 key={idx}
-                className={`bg-white p-3 rounded-lg border shadow-sm ${
-                  record.error ? 'border-red-200 bg-red-50' : 'border-gray-100'
+                className={`bg-white dark:bg-gray-800 p-3 rounded-lg border shadow-sm ${
+                  record.error ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20' : 'border-gray-100 dark:border-gray-700'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-gray-500">{record.timestamp}</span>
+                  <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{record.timestamp}</span>
                   {record.error ? (
-                    <span className="text-xs text-red-600 font-medium">錯誤</span>
+                    <span className="text-xs text-red-600 dark:text-red-400 font-medium">錯誤</span>
                   ) : (
-                    <span className="text-xs text-green-600 font-medium">成功</span>
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">成功</span>
                   )}
                 </div>
                 {record.error ? (
-                  <div className="text-sm text-red-700 font-mono">{record.error}</div>
+                  <div className="text-sm text-red-700 dark:text-red-300 font-mono">{record.error}</div>
                 ) : (
-                  <div className="text-xs font-mono text-gray-700 overflow-x-auto">
+                  <div className="text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto">
                     <div className="space-y-1">
                       {Array.isArray(record.data?.values) ? (
                         <div className="flex flex-wrap gap-1">
                           {record.data.values.map((val: any, i: number) => (
                             <span
                               key={i}
-                              className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+                              className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs"
                             >
                               [{i}]: {String(val)}
                             </span>
@@ -567,11 +567,11 @@ export default function TestOperations({
       {result && (
         <div className="mt-6 animate-slide-up">
           <div className="flex justify-between items-center mb-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">執行結果</label>
-            <button onClick={() => setResult(null)} className="text-xs text-blue-500 hover:text-blue-700 font-medium">清除</button>
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">執行結果</label>
+            <button onClick={() => setResult(null)} className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">清除</button>
           </div>
           <div className="relative group">
-            <div className="absolute inset-0 bg-gray-900 rounded-lg shadow-inner"></div>
+            <div className="absolute inset-0 bg-gray-900 dark:bg-gray-950 rounded-lg shadow-inner"></div>
             <div className="relative p-4 rounded-lg overflow-hidden">
                <pre className="text-xs font-mono text-green-400 overflow-auto max-h-64 scrollbar-thin">
                 {JSON.stringify(result, null, 2)}

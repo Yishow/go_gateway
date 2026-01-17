@@ -50,7 +50,7 @@ export default function CardMinimizeButton({
         p-1.5
         flex items-center justify-center
         transition-all duration-200
-        hover:bg-gray-100/80 rounded
+        hover:bg-gray-100/80 dark:hover:bg-gray-700/80 rounded
         active:scale-95
         group
         pointer-events-auto
@@ -59,9 +59,9 @@ export default function CardMinimizeButton({
     >
       {/* 3 個漂亮的點 */}
       <div className="flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 group-hover:bg-gray-600 transition-colors"></span>
-        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 group-hover:bg-gray-600 transition-colors"></span>
-        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 group-hover:bg-gray-600 transition-colors"></span>
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500 group-hover:bg-gray-600 dark:group-hover:bg-gray-300 transition-colors"></span>
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500 group-hover:bg-gray-600 dark:group-hover:bg-gray-300 transition-colors"></span>
+        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-gray-500 group-hover:bg-gray-600 dark:group-hover:bg-gray-300 transition-colors"></span>
       </div>
     </button>
   )

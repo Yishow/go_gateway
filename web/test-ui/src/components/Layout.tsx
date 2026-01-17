@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { ThemeToggle } from './ThemeToggle'
 
 // Simple Icons
 const Icons = {
@@ -29,7 +30,7 @@ export default function Layout({ children }: LayoutProps) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 flex overflow-hidden">
+    <div className="min-h-screen flex overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -41,18 +42,19 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <aside 
         className={`
-          fixed top-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-200 ease-in-out
+          fixed top-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-200 ease-in-out border-r dark:border-gray-700
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           h-screen
         `}
       >
         <div className="h-full flex flex-col overflow-hidden">
           {/* Logo */}
-          <div className="h-16 flex-shrink-0 flex items-center px-6 border-b">
+          <div className="h-16 flex-shrink-0 flex items-center justify-between px-6 border-b dark:border-gray-700">
             <h1 className="text-xl font-bold text-blue-600 flex items-center gap-2">
               <span className="p-1 bg-blue-100 rounded-lg">🚀</span>
               協議測試工具
             </h1>
+            <ThemeToggle />
           </div>
 
           {/* Navigation */}
@@ -67,8 +69,8 @@ export default function Layout({ children }: LayoutProps) {
                   className={`
                     flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
                     ${isActive 
-                      ? 'bg-blue-50 text-blue-700 shadow-sm' 
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/20 dark:text-blue-400' 
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200'
                     }
                   `}
                 >
@@ -80,8 +82,8 @@ export default function Layout({ children }: LayoutProps) {
           </nav>
 
           {/* User / Footer (Optional) */}
-          <div className="flex-shrink-0 p-4 border-t">
-            <div className="flex items-center gap-3 px-4 py-2 text-sm text-gray-500">
+          <div className="flex-shrink-0 p-4 border-t dark:border-gray-700">
+            <div className="flex items-center gap-3 px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
               <div className="w-2 h-2 rounded-full bg-green-500"></div>
               <span>系統正常運行</span>
             </div>
@@ -92,15 +94,15 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:ml-64">
         {/* Mobile Header */}
-        <header className="lg:hidden bg-white shadow-sm border-b h-16 flex items-center justify-between px-4 flex-shrink-0">
+        <header className="lg:hidden bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700 h-16 flex items-center justify-between px-4 flex-shrink-0">
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none"
+            className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none"
           >
             <Icons.Menu />
           </button>
-          <span className="font-semibold text-gray-900">協議測試工具</span>
-          <div className="w-10"></div> {/* Spacer for center alignment */}
+          <span className="font-semibold text-gray-900 dark:text-white">協議測試工具</span>
+          <ThemeToggle />
         </header>
 
         {/* Page Content */}

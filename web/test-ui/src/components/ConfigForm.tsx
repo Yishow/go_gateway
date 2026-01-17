@@ -16,7 +16,7 @@ interface ConfigFormProps {
  */
 const InputGroup = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex flex-col space-y-1.5">
-    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
     {children}
   </div>
 );
@@ -27,7 +27,7 @@ const InputGroup = ({ label, children }: { label: string; children: React.ReactN
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+    className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
   />
 );
 
@@ -38,9 +38,9 @@ const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <div className="relative">
     <select
       {...props}
-      className="w-full px-4 py-2 appearance-none border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      className="w-full px-4 py-2 appearance-none border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 focus:bg-white dark:focus:bg-gray-800 transition-all duration-200 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed"
     />
-    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500 dark:text-gray-400">
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
       </svg>
@@ -154,7 +154,7 @@ export default function ConfigForm({
         {/* TCP/UDP 配置 */}
         {isTCP && (
           <div className="space-y-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b pb-2">網路設定</h3>
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b dark:border-gray-700 pb-2">網路設定</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 sm:col-span-1">
                 <InputGroup label="主機位址 (IP)">
@@ -207,7 +207,7 @@ export default function ConfigForm({
         {/* Serial 配置 */}
         {isSerial && (
           <div className="space-y-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider border-b pb-2">串列埠設定</h3>
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b dark:border-gray-700 pb-2">串列埠設定</h3>
             <div className="col-span-2">
               <InputGroup label="串列埠名稱 (COM/TTY)">
                 <StyledInput
@@ -316,7 +316,7 @@ export default function ConfigForm({
           </button>
         ) : (
           <div className="space-y-3 animate-fade-in">
-            <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg border border-green-200 dark:border-green-800">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
               <span className="text-sm font-medium">已連線 ID: {connectionId.slice(0, 8)}...</span>
             </div>
@@ -324,7 +324,7 @@ export default function ConfigForm({
               <button
                 onClick={handleDisconnect}
                 disabled={loading}
-                className="bg-white text-red-600 border border-red-200 px-4 py-3 rounded-xl font-semibold hover:bg-red-50 hover:border-red-300 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-4 py-3 rounded-xl font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "斷線中..." : "斷開連線"}
               </button>
@@ -332,7 +332,7 @@ export default function ConfigForm({
                 <button
                   onClick={onMinimize}
                   disabled={loading}
-                  className="bg-white text-gray-600 border border-gray-200 px-4 py-3 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />

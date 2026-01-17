@@ -145,13 +145,13 @@ export default function ProfileSelector({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           配置 Profile
         </label>
         {!isAdding && (
           <button
             onClick={() => setIsAdding(true)}
-            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1.5"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -163,7 +163,7 @@ export default function ProfileSelector({
 
       {/* 新增 Profile 輸入框 */}
       {isAdding && (
-        <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200 animate-fade-in">
+        <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 animate-fade-in">
           <input
             type="text"
             value={newProfileName}
@@ -177,7 +177,7 @@ export default function ProfileSelector({
               }
             }}
             placeholder="輸入 Profile 名稱..."
-            className="flex-1 px-3 py-1.5 text-sm bg-white border border-blue-300 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            className="flex-1 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-blue-300 dark:border-blue-700 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-all"
             autoFocus
           />
           <button
@@ -191,7 +191,7 @@ export default function ProfileSelector({
               setIsAdding(false);
               setNewProfileName('');
             }}
-            className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             取消
           </button>
@@ -201,7 +201,7 @@ export default function ProfileSelector({
       {/* Profile 列表 */}
       <div className="space-y-2">
         {profiles.length === 0 ? (
-          <div className="p-3 text-sm text-gray-500 text-center">
+          <div className="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">
             載入中...
           </div>
         ) : (
@@ -215,8 +215,8 @@ export default function ProfileSelector({
               className={`
                 flex items-center gap-2 p-3 rounded-lg border transition-all
                 ${isCurrent
-                  ? 'bg-blue-50 border-blue-300 shadow-sm'
-                  : 'bg-white border-gray-200 hover:border-gray-300'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 shadow-sm'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                 }
               `}
             >
@@ -225,12 +225,12 @@ export default function ProfileSelector({
                 onClick={() => handleSwitchProfile(profile.id)}
                 className={`
                   flex-1 text-left flex items-center gap-2
-                  ${isCurrent ? 'text-blue-700 font-medium' : 'text-gray-700'}
+                  ${isCurrent ? 'text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-300'}
                 `}
               >
                 <div className={`
                   w-2 h-2 rounded-full
-                  ${isCurrent ? 'bg-blue-600' : 'bg-gray-300'}
+                  ${isCurrent ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}
                 `} />
                 {isEditing ? (
                   <input
@@ -245,7 +245,7 @@ export default function ProfileSelector({
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="flex-1 px-2 py-1 text-sm bg-white border border-blue-300 rounded hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                    className="flex-1 px-2 py-1 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-blue-300 dark:border-blue-700 rounded hover:bg-blue-50 dark:hover:bg-blue-900/10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-all"
                     autoFocus
                   />
                 ) : (
@@ -261,7 +261,7 @@ export default function ProfileSelector({
                       e.stopPropagation();
                       handleStartEdit(profile);
                     }}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                    className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     title="重新命名"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -274,7 +274,7 @@ export default function ProfileSelector({
                         e.stopPropagation();
                         handleDeleteProfile(profile.id, profile.name);
                       }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                      className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                       title="刪除"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -293,7 +293,7 @@ export default function ProfileSelector({
                       e.stopPropagation();
                       handleSaveEdit(profile.id);
                     }}
-                    className="p-1.5 text-green-600 hover:text-green-700 transition-colors"
+                    className="p-1.5 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors"
                     title="儲存"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -305,7 +305,7 @@ export default function ProfileSelector({
                       e.stopPropagation();
                       handleCancelEdit();
                     }}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     title="取消"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

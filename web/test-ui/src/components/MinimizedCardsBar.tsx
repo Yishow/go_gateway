@@ -4,10 +4,36 @@ import { useCardMinimize, type CardType, type MinimizedCardInfo } from '../hooks
  * Card 類型對應的顏色配置
  */
 const cardColors: Record<CardType, { bg: string; border: string; text: string; dot: string }> = {
-  config: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
-  operations: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500' },
-  monitor: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', dot: 'bg-purple-500' },
-  debug: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', dot: 'bg-green-500' },
+  config: { 
+    bg: 'bg-blue-50 dark:bg-blue-900/20', 
+    border: 'border-blue-200 dark:border-blue-800', 
+    text: 'text-blue-700 dark:text-blue-400', 
+    dot: 'bg-blue-500' 
+  },
+  operations: { 
+    bg: 'bg-amber-50 dark:bg-amber-900/20', 
+    border: 'border-amber-200 dark:border-amber-800', 
+    text: 'text-amber-700 dark:text-amber-400', 
+    dot: 'bg-amber-500' 
+  },
+  monitor: { 
+    bg: 'bg-purple-50 dark:bg-purple-900/20', 
+    border: 'border-purple-200 dark:border-purple-800', 
+    text: 'text-purple-700 dark:text-purple-400', 
+    dot: 'bg-purple-500' 
+  },
+  debug: { 
+    bg: 'bg-green-50 dark:bg-green-900/20', 
+    border: 'border-green-200 dark:border-green-800', 
+    text: 'text-green-700 dark:text-green-400', 
+    dot: 'bg-green-500' 
+  },
+  scanner: { 
+    bg: 'bg-indigo-50 dark:bg-indigo-900/20', 
+    border: 'border-indigo-200 dark:border-indigo-800', 
+    text: 'text-indigo-700 dark:text-indigo-400', 
+    dot: 'bg-indigo-500' 
+  },
 }
 
 /**
@@ -15,9 +41,9 @@ const cardColors: Record<CardType, { bg: string; border: string; text: string; d
  */
 const statusColors: Record<string, string> = {
   connected: 'bg-green-500',
-  disconnected: 'bg-gray-400',
+  disconnected: 'bg-gray-400 dark:bg-gray-500',
   monitoring: 'bg-purple-500',
-  idle: 'bg-gray-300',
+  idle: 'bg-gray-300 dark:bg-gray-600',
 }
 
 /**
@@ -42,10 +68,10 @@ export default function MinimizedCardsBar() {
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-      <div className="bg-white shadow-lg border border-gray-200 rounded-xl p-3 flex items-center gap-2 max-w-4xl overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex items-center gap-2 max-w-4xl overflow-x-auto">
         {minimizedCards.map((cardInfo) => {
           const colors = cardColors[cardInfo.type]
-          const statusColor = cardInfo.status ? statusColors[cardInfo.status] : 'bg-gray-300'
+          const statusColor = cardInfo.status ? statusColors[cardInfo.status] : 'bg-gray-300 dark:bg-gray-600'
 
           return (
             <button

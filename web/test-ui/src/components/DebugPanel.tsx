@@ -162,16 +162,16 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
   }
 
   return (
-    <div className="flex flex-col h-[500px] bg-gray-900 rounded-xl shadow-xl border border-gray-700 overflow-hidden font-mono text-xs">
+    <div className="flex flex-col h-[500px] bg-gray-900 dark:bg-gray-950 rounded-xl shadow-xl border border-gray-700 dark:border-gray-800 overflow-hidden font-mono text-xs transition-colors">
       {/* Header / Tabs */}
-      <div className="flex items-center justify-between px-2 py-1 bg-gray-800 border-b border-gray-700">
+      <div className="flex items-center justify-between px-2 py-1 bg-gray-800 dark:bg-gray-900 border-b border-gray-700 dark:border-gray-800">
         <div className="flex space-x-1">
           <button
             onClick={() => setActiveTab('packets')}
             className={`px-3 py-1.5 rounded-t-md transition-colors ${
               activeTab === 'packets'
-                ? 'bg-gray-700 text-blue-400 font-bold'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                ? 'bg-gray-700 dark:bg-gray-800 text-blue-400 font-bold'
+                : 'text-gray-400 dark:text-gray-500 hover:text-gray-200 dark:hover:text-gray-300 hover:bg-gray-700/50 dark:hover:bg-gray-800/50'
             }`}
           >
             Packet Stream ({filteredPackets.length})
@@ -185,8 +185,8 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
             onClick={() => setActiveTab('logs')}
             className={`px-3 py-1.5 rounded-t-md transition-colors ${
               activeTab === 'logs'
-                ? 'bg-gray-700 text-amber-400 font-bold'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                ? 'bg-gray-700 dark:bg-gray-800 text-amber-400 font-bold'
+                : 'text-gray-400 dark:text-gray-500 hover:text-gray-200 dark:hover:text-gray-300 hover:bg-gray-700/50 dark:hover:bg-gray-800/50'
             }`}
           >
             System Logs ({filteredLogs.length})
@@ -200,8 +200,8 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
           {/* 過濾按鈕 */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-2 py-1 rounded hover:bg-gray-700 transition-colors ${
-              showFilters ? 'bg-gray-700 text-blue-400' : ''
+            className={`px-2 py-1 rounded hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+              showFilters ? 'bg-gray-700 dark:bg-gray-800 text-blue-400' : ''
             }`}
             title="Toggle Filters"
           >
@@ -212,11 +212,11 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
 
           {/* 顯示模式切換（僅數據包） */}
           {activeTab === 'packets' && (
-            <div className="flex items-center space-x-1 bg-gray-700 rounded px-1">
+            <div className="flex items-center space-x-1 bg-gray-700 dark:bg-gray-800 rounded px-1">
               <button
                 onClick={() => setDisplayMode('hex')}
                 className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                  displayMode === 'hex' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'
+                  displayMode === 'hex' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600 dark:hover:bg-gray-700'
                 }`}
                 title="Hexadecimal"
               >
@@ -225,7 +225,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
               <button
                 onClick={() => setDisplayMode('ascii')}
                 className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                  displayMode === 'ascii' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'
+                  displayMode === 'ascii' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600 dark:hover:bg-gray-700'
                 }`}
                 title="ASCII"
               >
@@ -234,7 +234,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
               <button
                 onClick={() => setDisplayMode('parsed')}
                 className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                  displayMode === 'parsed' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600'
+                  displayMode === 'parsed' ? 'bg-blue-600 text-white' : 'hover:bg-gray-600 dark:hover:bg-gray-700'
                 }`}
                 title="Parsed"
               >
@@ -246,7 +246,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
           {/* 導出按鈕 */}
           <button
             onClick={exportData}
-            className="px-2 py-1 rounded hover:bg-gray-700 transition-colors"
+            className="px-2 py-1 rounded hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors"
             title="Export Data"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -261,7 +261,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
                 clear(connectionId)
               }
             }}
-            className="px-2 py-1 rounded hover:bg-gray-700 hover:text-red-400 transition-colors"
+            className="px-2 py-1 rounded hover:bg-gray-700 dark:hover:bg-gray-800 hover:text-red-400 transition-colors"
             title="Clear Data"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -275,7 +275,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
               type="checkbox" 
               checked={autoScroll} 
               onChange={(e) => setAutoScroll(e.target.checked)}
-              className="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-0 w-3 h-3"
+              className="rounded border-gray-600 dark:border-gray-700 bg-gray-700 dark:bg-gray-800 text-blue-500 focus:ring-0 w-3 h-3"
             />
             <span className="text-xs">Auto</span>
           </label>
@@ -284,7 +284,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
 
       {/* 過濾器面板 */}
       {showFilters && (
-        <div className="px-2 py-1.5 bg-gray-800/50 border-b border-gray-700 flex items-center gap-2 flex-wrap">
+        <div className="px-2 py-1.5 bg-gray-800/50 dark:bg-gray-900/50 border-b border-gray-700 dark:border-gray-800 flex items-center gap-2 flex-wrap">
           {/* 方向過濾 */}
           {activeTab === 'packets' && (
             <div className="flex items-center space-x-1">
@@ -292,7 +292,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
               <select
                 value={filterDirection}
                 onChange={(e) => setFilterDirection(e.target.value as FilterDirection)}
-                className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                className="bg-gray-700 dark:bg-gray-800 text-gray-300 dark:text-gray-200 text-xs px-2 py-0.5 rounded border border-gray-600 dark:border-gray-700 focus:outline-none focus:border-blue-500"
               >
                 <option value="all">全部</option>
                 <option value="request">TX (發送)</option>
@@ -311,7 +311,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索..."
-              className="bg-gray-700 text-gray-300 text-xs px-2 py-0.5 rounded border border-gray-600 focus:outline-none focus:border-blue-500 flex-1"
+              className="bg-gray-700 dark:bg-gray-800 text-gray-300 dark:text-gray-200 text-xs px-2 py-0.5 rounded border border-gray-600 dark:border-gray-700 focus:outline-none focus:border-blue-500 flex-1"
             />
             {searchQuery && (
               <button
@@ -330,7 +330,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
       {/* Content Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-auto p-2 space-y-1 bg-gray-900 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
+        className="flex-1 overflow-auto p-2 space-y-1 bg-gray-900 dark:bg-gray-950 scrollbar-thin scrollbar-thumb-gray-700 dark:scrollbar-thumb-gray-800 scrollbar-track-transparent"
       >
         {activeTab === 'packets' && (
           <>
@@ -344,8 +344,8 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
                 <div
                   key={packet.id}
                   onClick={() => setSelectedPacket(selectedPacket === packet.id ? null : packet.id)}
-                  className={`group flex gap-3 p-1.5 hover:bg-gray-800 rounded border transition-all cursor-pointer ${
-                    selectedPacket === packet.id ? 'bg-gray-800 border-blue-500' : 'border-transparent hover:border-gray-700'
+                  className={`group flex gap-3 p-1.5 hover:bg-gray-800 dark:hover:bg-gray-900 rounded border transition-all cursor-pointer ${
+                    selectedPacket === packet.id ? 'bg-gray-800 dark:bg-gray-900 border-blue-500' : 'border-transparent hover:border-gray-700 dark:hover:border-gray-800'
                   }`}
                 >
                   <span className="text-gray-500 w-20 shrink-0">
@@ -373,7 +373,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
                       {formatPacketData(packet)}
                     </div>
                     {selectedPacket === packet.id && (
-                      <div className="mt-1 pt-1 border-t border-gray-700 text-xs text-gray-400">
+                      <div className="mt-1 pt-1 border-t border-gray-700 dark:border-gray-800 text-xs text-gray-400">
                         <div>Protocol: {packet.protocol || 'N/A'}</div>
                         <div>Length: {packet.raw_data?.length || 0} bytes</div>
                         <div>Connection: {packet.connection_id}</div>
@@ -411,7 +411,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
                       ? 'border-red-500 bg-red-900/10 text-red-200'
                       : log.level === 'warn'
                       ? 'border-yellow-500 bg-yellow-900/10 text-yellow-200'
-                      : 'border-blue-500 bg-gray-800/30 text-gray-300'
+                      : 'border-blue-500 bg-gray-800/30 dark:bg-gray-900/30 text-gray-300'
                   }`}
                 >
                   <span className="text-gray-500 w-20 shrink-0">

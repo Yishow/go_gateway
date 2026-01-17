@@ -57,7 +57,7 @@ export default function ProtocolSelector({
     <div className="space-y-6">
       {/* 1. Protocol Family Selection */}
       <div>
-        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 block">
+        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 block">
           選擇通訊協定
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -79,12 +79,12 @@ export default function ProtocolSelector({
                 className={`
                   relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ease-in-out
                   ${isActive 
-                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-blue-200 hover:bg-gray-50'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm dark:border-blue-400' 
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-blue-200 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }
                 `}
               >
-                <div className={`mb-3 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
+                <div className={`mb-3 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>
                   <p.icon />
                 </div>
                 <span className="font-semibold">{p.label}</span>
@@ -96,26 +96,33 @@ export default function ProtocolSelector({
 
       {/* 2. Connection Mode Selection (Segmented Control) */}
       <div className="animate-slide-up">
-        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 block">
+        <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 block">
           連線模式
         </label>
-        <div className="flex bg-gray-100 p-1 rounded-lg inline-flex">
+        <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg inline-flex">
           {currentVariants.map((variant) => {
             const isSelected = selectedProtocol === variant.fullValue
             return (
               <button
                 key={variant.fullValue}
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault()
+                  // 只調用 onProtocolChange，因為協議字符串已經包含了模式信息
+                  // handleProtocolChange 會自動提取並更新模式
                   onProtocolChange(variant.fullValue)
+                  // 同時更新連線模式，確保狀態同步
                   onConnectionModeChange(variant.mode)
                 }}
                 className={`
-                  px-6 py-2 rounded-md text-sm font-medium transition-all duration-200
+                  px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer
+                  active:scale-95
                   ${isSelected 
-                    ? 'bg-white text-blue-700 shadow-sm' 
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white dark:bg-gray-600 text-blue-700 dark:text-blue-300 shadow-sm font-semibold ring-2 ring-blue-200 dark:ring-blue-500/30' 
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600/50'
                   }
                 `}
+                aria-pressed={isSelected}
+                type="button"
               >
                 {variant.label}
               </button>

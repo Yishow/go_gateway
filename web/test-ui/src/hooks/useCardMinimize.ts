@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react'
 /**
  * Card 類型定義
  */
-export type CardType = 'config' | 'operations' | 'monitor' | 'debug'
+export type CardType = 'config' | 'operations' | 'monitor' | 'debug' | 'scanner'
 
 /**
  * 最小化 Card 的資訊介面

@@ -12,6 +12,21 @@ export interface MonitorItem {
 }
 
 /**
+ * 連線模式配置
+ * 按不同連線模式分開儲存配置參數
+ */
+export interface ConnectionModeConfigs {
+  /** TCP 連線配置 */
+  tcp?: Record<string, any>;
+  /** UDP 連線配置 */
+  udp?: Record<string, any>;
+  /** Serial/RTU 連線配置 */
+  serial?: Record<string, any>;
+  /** RTU 連線配置 (與 serial 共用，但保留獨立欄位以支援未來擴展) */
+  rtu?: Record<string, any>;
+}
+
+/**
  * Profile 配置介面
  * 包含完整的連線配置資訊
  */
@@ -24,8 +39,8 @@ export interface Profile {
   protocol: string;
   /** 連線模式 (tcp, udp, serial) */
   connectionMode: string;
-  /** 連線配置參數 */
-  config: Record<string, any>;
+  /** 連線配置參數 - 按連線模式分開儲存 */
+  config: ConnectionModeConfigs;
   /** 監控配置 */
   monitorConfig?: {
     items: MonitorItem[];
