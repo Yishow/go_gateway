@@ -151,7 +151,7 @@ export default function TestPage() {
   }, [connectionMode, config])
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-24">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-40">
       {/* 最小化 Card Bar */}
       <MinimizedCardsBar />
       {/* 頂部：協議選擇器和 Profile 選擇器 */}
@@ -292,7 +292,7 @@ export default function TestPage() {
         {/* 右側：Debug 面板 (佔 5/12) - 獨立顯示以獲得更好的寬度 */}
         {!isMinimized('debug') && (
           <div className="xl:col-span-5 flex flex-col gap-6 sticky top-6">
-            <div className="relative bg-white shadow-sm border border-gray-100 rounded-2xl p-6">
+            <div className="relative">
               {/* 最小化按鈕 */}
               <CardMinimizeButton
                 cardType="debug"
