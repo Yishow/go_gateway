@@ -92,7 +92,7 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:ml-64">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:ml-64 bg-gray-100 dark:bg-gray-900 min-h-screen">
         {/* Mobile Header */}
         <header className="lg:hidden bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700 h-16 flex items-center justify-between px-4 flex-shrink-0 relative z-30">
           <button
@@ -106,7 +106,7 @@ export default function Layout({ children }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 lg:pb-32 h-screen">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 lg:pb-32 bg-gray-100 dark:bg-gray-900 min-h-full">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

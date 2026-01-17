@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTestAPI } from '../services/api'
 import type { BatchOperation } from '../types/api'
+import { useToast } from '../contexts/ToastContext'
 
 interface TestOperationsProps {
   protocol: string
@@ -81,7 +82,7 @@ export default function TestOperations({
 
   const handleExecute = async () => {
     if (!connectionId) {
-      alert('請先建立連線')
+      showError('請先建立連線')
       return
     }
 
@@ -214,12 +215,12 @@ export default function TestOperations({
    */
   const handleStartPolling = () => {
     if (!connectionId) {
-      alert('請先建立連線')
+      showError('請先建立連線')
       return
     }
 
     if (!isReadOp) {
-      alert('輪詢功能僅支援讀取操作')
+      showWarning('輪詢功能僅支援讀取操作')
       return
     }
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTestAPI } from "../services/api";
+import { useToast } from "../contexts/ToastContext";
 
 interface ConfigFormProps {
   protocol: string;
@@ -59,6 +60,7 @@ export default function ConfigForm({
 }: ConfigFormProps) {
   const [loading, setLoading] = useState(false);
   const { connect, disconnect } = useTestAPI();
+  const { showError, showWarning } = useToast();
 
   const isTCP = mode === "tcp" || mode === "udp";
   const isSerial = mode === "serial";
@@ -89,11 +91,11 @@ export default function ConfigForm({
     // 驗證 TCP/UDP 配置
     if (isTCP) {
       if (!config.host || config.host.trim() === "") {
-        alert("請輸入主機位址");
+        showError("請輸入主機位址");
         return;
       }
       if (!config.port || config.port <= 0) {
-        alert("請輸入有效的埠號");
+        showError("請輸入有效的埠號");
         return;
       }
     }
@@ -101,7 +103,7 @@ export default function ConfigForm({
     // 驗證 Serial 配置
     if (isSerial) {
       if (!config.port || config.port.trim() === "") {
-        alert("請輸入串列埠名稱");
+        showError("請輸入串列埠名稱");
         return;
       }
     }
@@ -112,7 +114,7 @@ export default function ConfigForm({
       if (result && result.connection_id) {
         onConnectionChange(result.connection_id);
       } else {
-        alert("連線成功，但未收到連線 ID");
+        showWarning("連線成功，但未收到連線 ID");
       }
     } catch (error: any) {
       // 提取錯誤訊息
@@ -124,7 +126,7 @@ export default function ConfigForm({
       } else if (typeof error === "string") {
         errorMessage = error;
       }
-      alert(`連線失敗: ${errorMessage}`);
+      showError(`連線失敗: ${errorMessage}`);
       console.error("連線錯誤詳情:", error);
     } finally {
       setLoading(false);
@@ -142,7 +144,7 @@ export default function ConfigForm({
       await disconnect(connectionId);
       onConnectionChange(null);
     } catch (error: any) {
-      alert(`斷線失敗: ${error.message}`);
+      showError(`斷線失敗: ${error.message}`);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useProfiles } from '../hooks/useProfiles';
 import type { Profile } from '../types/profile';
+import { useToast } from '../contexts/ToastContext';
 
 interface ProfileSelectorProps {
   /** 當前選中的通訊協定 */
@@ -32,11 +33,13 @@ export default function ProfileSelector({
     switchProfile,
     updateCurrentProfileConfig,
   } = useProfiles();
+  const { showError, showWarning } = useToast();
 
   const [isAdding, setIsAdding] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   /**
    * 處理 Profile 切換
@@ -60,13 +63,13 @@ export default function ProfileSelector({
    */
   const handleAddProfile = () => {
     if (!newProfileName.trim()) {
-      alert('請輸入 Profile 名稱');
+      showError('請輸入 Profile 名稱');
       return;
     }
 
     // 檢查名稱是否重複
     if (profiles.some(p => p.name === newProfileName.trim())) {
-      alert('Profile 名稱已存在');
+      showError('Profile 名稱已存在');
       return;
     }
 
@@ -86,16 +89,26 @@ export default function ProfileSelector({
    * 處理刪除 Profile
    */
   const handleDeleteProfile = (profileId: string, profileName: string) => {
-    if (!confirm(`確定要刪除 Profile "${profileName}" 嗎？`)) {
+    // 檢查是否至少保留一個 Profile
+    if (profiles.length <= 1) {
+      showError('至少需要保留一個 Profile');
       return;
     }
+    
+    setDeleteConfirmId(profileId);
+  };
 
+  /**
+   * 確認刪除 Profile
+   */
+  const confirmDeleteProfile = (profileId: string) => {
     // 先保存當前配置
     if (currentProfileId) {
       updateCurrentProfileConfig(currentProtocol, currentConnectionMode, currentConfig);
     }
 
     deleteProfile(profileId);
+    setDeleteConfirmId(null);
     
     // 如果刪除的是當前 profile，切換到新的當前 profile
     if (profileId === currentProfileId) {
@@ -119,13 +132,13 @@ export default function ProfileSelector({
    */
   const handleSaveEdit = (profileId: string) => {
     if (!editingName.trim()) {
-      alert('Profile 名稱不能為空');
+      showError('Profile 名稱不能為空');
       return;
     }
 
     // 檢查名稱是否重複（排除自己）
     if (profiles.some(p => p.id !== profileId && p.name === editingName.trim())) {
-      alert('Profile 名稱已存在');
+      showError('Profile 名稱已存在');
       return;
     }
 
@@ -269,18 +282,47 @@ export default function ProfileSelector({
                     </svg>
                   </button>
                   {profiles.length > 1 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteProfile(profile.id, profile.name);
-                      }}
-                      className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                      title="刪除"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    deleteConfirmId === profile.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmDeleteProfile(profile.id);
+                          }}
+                          className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                          title="確認刪除"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(null);
+                          }}
+                          className="p-1.5 text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors"
+                          title="取消"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProfile(profile.id, profile.name);
+                        }}
+                        className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        title="刪除"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )
                   )}
                 </div>
               )}

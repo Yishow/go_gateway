@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useDebugAPI } from '../services/api'
+import { useToast } from '../contexts/ToastContext'
 
 interface DebugPanelProps {
   connectionId: string | null
@@ -16,8 +17,10 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPacket, setSelectedPacket] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const { packets, logs, refresh, clear } = useDebugAPI()
+  const { showInfo } = useToast()
 
   useEffect(() => {
     if (connectionId) {
@@ -255,19 +258,36 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
           </button>
 
           {/* 清空按鈕 */}
-          <button
-            onClick={() => {
-              if (confirm('確定要清空當前數據嗎？')) {
-                clear(connectionId)
-              }
-            }}
-            className="px-2 py-1 rounded hover:bg-gray-700 dark:hover:bg-gray-800 hover:text-red-400 transition-colors"
-            title="Clear Data"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          {showClearConfirm ? (
+            <div className="flex items-center gap-2 px-2 py-1">
+              <button
+                onClick={() => {
+                  clear(connectionId)
+                  setShowClearConfirm(false)
+                  showInfo('數據已清空')
+                }}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+              >
+                確認
+              </button>
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="text-xs text-gray-400 hover:text-gray-300 transition-colors"
+              >
+                取消
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="px-2 py-1 rounded hover:bg-gray-700 dark:hover:bg-gray-800 hover:text-red-400 transition-colors"
+              title="Clear Data"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
 
           {/* Auto-scroll */}
           <label className="flex items-center space-x-1 cursor-pointer hover:text-gray-200">

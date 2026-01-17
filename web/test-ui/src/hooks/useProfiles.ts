@@ -174,13 +174,9 @@ export function useProfiles() {
 
   /**
    * 刪除 Profile
+   * 注意：調用者應該先檢查 profiles.length > 1
    */
   const deleteProfile = useCallback((id: string): void => {
-    if (profiles.length <= 1) {
-      alert('至少需要保留一個 Profile');
-      return;
-    }
-    
     const updated = profiles.filter(p => p.id !== id);
     setProfiles(updated);
     saveProfiles(updated);

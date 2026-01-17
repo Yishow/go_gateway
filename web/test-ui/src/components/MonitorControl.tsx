@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import type { ReadRequest } from '../types/api'
 import { useProfiles } from '../hooks/useProfiles'
 import type { MonitorItem } from '../types/profile'
+import { useToast } from '../contexts/ToastContext'
 
 interface MonitorControlProps {
   connectionId: string | null
@@ -17,6 +18,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
   const [monitorData, setMonitorData] = useState<any[]>([])
   const { startMonitor, stopMonitor } = useTestAPI()
   const { currentProfile, updateProfile } = useProfiles()
+  const { showError, showWarning } = useToast()
   const eventSourceRef = useRef<EventSource | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -287,12 +289,12 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
    */
   const handleStart = async () => {
     if (!connectionId) {
-      alert('請先建立連線')
+      showError('請先建立連線')
       return
     }
 
     if (monitorItems.length === 0) {
-      alert('請至少添加一個監控項目')
+      showWarning('請至少添加一個監控項目')
       return
     }
 
@@ -336,7 +338,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       setMonitorData([]) // 清空舊數據
     } catch (error: any) {
       console.error('啟動監控失敗:', error)
-      alert('啟動監控失敗: ' + (error.message || error))
+      showError('啟動監控失敗: ' + (error.message || error))
     }
   }
 
@@ -349,7 +351,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       await stopMonitor(connectionId)
       setMonitoring(false)
     } catch (error: any) {
-      alert('停止監控失敗: ' + (error.message || error))
+      showError('停止監控失敗: ' + (error.message || error))
     }
   }
 
