@@ -27,7 +27,7 @@ const InputGroup = ({ label, children }: { label: string; children: React.ReactN
 const StyledInput = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
   />
 );
 
@@ -38,7 +38,7 @@ const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <div className="relative">
     <select
       {...props}
-      className="w-full px-4 py-2 appearance-none border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
+      className="w-full px-4 py-2 appearance-none border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
     />
     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

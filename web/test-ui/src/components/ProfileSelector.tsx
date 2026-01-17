@@ -177,7 +177,7 @@ export default function ProfileSelector({
               }
             }}
             placeholder="輸入 Profile 名稱..."
-            className="flex-1 px-3 py-1.5 text-sm border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-1.5 text-sm bg-white border border-blue-300 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
             autoFocus
           />
           <button
@@ -245,7 +245,7 @@ export default function ProfileSelector({
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-2 py-1 text-sm bg-white border border-blue-300 rounded hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                     autoFocus
                   />
                 ) : (

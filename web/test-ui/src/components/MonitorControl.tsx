@@ -438,7 +438,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
               disabled={monitoring}
               min={100}
               step={100}
-              className="pl-16 pr-3 py-2 w-32 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="pl-16 pr-3 py-2 w-32 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -513,7 +513,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                       <select
                         value={item.operation}
                         onChange={(e) => handleUpdateItem(item.id, { operation: e.target.value })}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
                       >
                         {operations.map(op => (
                           <option key={op.value} value={op.value}>{op.label}</option>
@@ -529,7 +529,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                         value={item.address}
                         onChange={(e) => handleUpdateItem(item.id, { address: parseInt(e.target.value) || 0 })}
                         min={0}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
                       />
                     </div>
 
@@ -541,7 +541,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                         value={item.count}
                         onChange={(e) => handleUpdateItem(item.id, { count: Math.max(1, parseInt(e.target.value) || 1) })}
                         min={1}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
                       />
                     </div>
 
@@ -553,7 +553,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                           type="text"
                           value={item.symbol || 'D'}
                           onChange={(e) => handleUpdateItem(item.id, { symbol: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
                         />
                       </div>
                     )}
@@ -565,7 +565,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                           type="text"
                           value={item.device || 'D'}
                           onChange={(e) => handleUpdateItem(item.id, { device: e.target.value })}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
                         />
                       </div>
                     )}
@@ -579,7 +579,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                           value={item.label || ''}
                           onChange={(e) => handleUpdateItem(item.id, { label: e.target.value })}
                           placeholder={`項目 ${index + 1}`}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white transition-all"
                         />
                       </div>
                     )}

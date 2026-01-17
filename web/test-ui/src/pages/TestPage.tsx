@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import ProtocolSelector from '../components/ProtocolSelector'
 import ConfigForm from '../components/ConfigForm'
 import TestOperations from '../components/TestOperations'
 import DebugPanel from '../components/DebugPanel'
 import MonitorControl from '../components/MonitorControl'
 import ProfileSelector from '../components/ProfileSelector'
+import MinimizedCardsBar from '../components/MinimizedCardsBar'
+import CardMinimizeButton from '../components/CardMinimizeButton'
 import { useProfiles } from '../hooks/useProfiles'
+import { useCardMinimize } from '../hooks/useCardMinimize'
 import type { Profile } from '../types/profile'
 
 export default function TestPage() {
@@ -16,6 +19,7 @@ export default function TestPage() {
   const [isConfigMinimized, setIsConfigMinimized] = useState<boolean>(false)
   
   const { currentProfile, updateCurrentProfileConfig } = useProfiles()
+  const { isMinimized } = useCardMinimize()
   const isProfileLoadingRef = useRef(false)
   
   /**
@@ -136,8 +140,20 @@ export default function TestPage() {
     setIsConfigMinimized(true)
   }
 
+  /**
+   * 生成配置 card 的摘要資訊
+   */
+  const configSummary = useMemo(() => {
+    if (connectionMode === 'tcp' || connectionMode === 'udp') {
+      return `${config.host || '-'}:${config.port || '-'}`
+    }
+    return config.port || '-'
+  }, [connectionMode, config])
+
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-24">
+      {/* 最小化 Card Bar */}
+      <MinimizedCardsBar />
       {/* 頂部：協議選擇器和 Profile 選擇器 */}
       <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-6">
         <div className="space-y-6">
@@ -212,8 +228,15 @@ export default function TestPage() {
         {/* 左側：配置與操作 (佔 7/12) */}
         <div className={`xl:col-span-7 grid grid-cols-1 ${!isConfigMinimized ? 'lg:grid-cols-2' : ''} gap-6`}>
           {/* 配置表單 - 當縮小時隱藏 */}
-          {!isConfigMinimized && (
-            <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-6 h-fit animate-fade-in">
+          {!isConfigMinimized && !isMinimized('config') && (
+            <div className="relative bg-white shadow-sm border border-gray-100 rounded-2xl p-6 h-fit animate-fade-in">
+              {/* 最小化按鈕 */}
+              <CardMinimizeButton
+                cardType="config"
+                title="連線配置"
+                summary={configSummary}
+                status={connectionId ? 'connected' : 'disconnected'}
+              />
               <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
                 連線配置
@@ -231,28 +254,56 @@ export default function TestPage() {
           )}
 
           {/* 測試操作 */}
-          <div className={`bg-white shadow-sm border border-gray-100 rounded-2xl p-6 h-fit ${isConfigMinimized ? 'lg:col-span-1' : ''}`}>
-            <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <span className="w-1.5 h-6 bg-amber-500 rounded-full"></span>
-              測試操作
-            </h2>
-            <TestOperations
-              protocol={selectedProtocol}
-              connectionId={connectionId}
-            />
-          </div>
+          {!isMinimized('operations') && (
+            <div className={`relative bg-white shadow-sm border border-gray-100 rounded-2xl p-6 h-fit ${isConfigMinimized ? 'lg:col-span-1' : ''}`}>
+              {/* 最小化按鈕 */}
+              <CardMinimizeButton
+                cardType="operations"
+                title="測試操作"
+                summary={selectedProtocol}
+                status={connectionId ? 'connected' : 'disconnected'}
+              />
+              <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-amber-500 rounded-full"></span>
+                測試操作
+              </h2>
+              <TestOperations
+                protocol={selectedProtocol}
+                connectionId={connectionId}
+              />
+            </div>
+          )}
 
           {/* 監控模式 (放在操作下方) */}
-           <div className={`${!isConfigMinimized ? 'lg:col-span-2' : ''} bg-white shadow-sm border border-gray-100 rounded-2xl p-6`}>
-            <MonitorControl connectionId={connectionId} protocol={selectedProtocol} />
-          </div>
+          {!isMinimized('monitor') && (
+            <div className={`relative ${!isConfigMinimized ? 'lg:col-span-2' : ''} bg-white shadow-sm border border-gray-100 rounded-2xl p-6`}>
+              {/* 最小化按鈕 */}
+              <CardMinimizeButton
+                cardType="monitor"
+                title="即時監控"
+                summary={connectionId ? '已連線' : '未連線'}
+                status={connectionId ? 'monitoring' : 'idle'}
+              />
+              <MonitorControl connectionId={connectionId} protocol={selectedProtocol} />
+            </div>
+          )}
         </div>
 
         {/* 右側：Debug 面板 (佔 5/12) - 獨立顯示以獲得更好的寬度 */}
-        <div className="xl:col-span-5 flex flex-col gap-6 sticky top-6">
-           {/* 直接渲染 DebugPanel，不加額外 Wrapper */}
-           <DebugPanel connectionId={connectionId} />
-        </div>
+        {!isMinimized('debug') && (
+          <div className="xl:col-span-5 flex flex-col gap-6 sticky top-6">
+            <div className="relative bg-white shadow-sm border border-gray-100 rounded-2xl p-6">
+              {/* 最小化按鈕 */}
+              <CardMinimizeButton
+                cardType="debug"
+                title="調試面板"
+                summary={connectionId ? `連線: ${connectionId.slice(0, 8)}...` : '未連線'}
+                status={connectionId ? 'connected' : 'disconnected'}
+              />
+              <DebugPanel connectionId={connectionId} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
