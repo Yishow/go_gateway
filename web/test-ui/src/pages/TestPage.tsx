@@ -399,8 +399,7 @@ export default function TestPage() {
               </h2>
               <DeviceScanner
                 protocol={selectedProtocol}
-                connectionMode={connectionMode}
-                config={config}
+                connectionId={connectionId}
               />
             </div>
           )}

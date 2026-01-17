@@ -121,7 +121,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
     })
 
     // 監聽心跳消息
-    eventSource.addEventListener('ping', (event: any) => {
+    eventSource.addEventListener('ping', (_event: any) => {
       // 心跳消息，不需要處理
     })
 

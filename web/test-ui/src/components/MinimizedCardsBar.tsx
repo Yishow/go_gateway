@@ -1,4 +1,4 @@
-import { useCardMinimize, type CardType, type MinimizedCardInfo } from '../hooks/useCardMinimize'
+import { useCardMinimize, type CardType } from '../hooks/useCardMinimize'
 
 /**
  * Card 類型對應的顏色配置

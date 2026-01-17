@@ -99,7 +99,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
     switch (displayMode) {
       case 'ascii':
         return Array.from(packet.raw_data || [])
-          .map(b => {
+          .map((b: any) => {
             const char = String.fromCharCode(b)
             return char >= ' ' && char <= '~' ? char : '.'
           })

@@ -1,4 +1,4 @@
-import { useState, useCallback, ReactNode } from 'react'
+import { useState, useCallback, type ReactNode } from 'react'
 import { CardMinimizeContext, type CardMinimizeContextType, type CardType, type MinimizedCardInfo } from '../hooks/useCardMinimize'
 
 /**

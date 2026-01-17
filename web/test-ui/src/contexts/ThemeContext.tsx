@@ -11,11 +11,16 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage first
-    const savedTheme = localStorage.getItem('theme') as Theme
-    if (savedTheme) {
-      return savedTheme
+    try {
+      // Check localStorage first
+      const savedTheme = localStorage.getItem('theme')
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        return savedTheme
+      }
+    } catch (e) {
+      console.warn('[ThemeContext] Failed to access localStorage:', e)
     }
+    
     // Fallback to system preference
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark'
@@ -25,13 +30,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = window.document.documentElement
-    console.log('Theme changed to:', theme)
+    console.log('[ThemeContext] Theme effect triggered. Current theme:', theme)
+    
+    const oldClass = root.classList.contains('dark') ? 'dark' : 'light'
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
-    localStorage.setItem('theme', theme)
+    
+    console.log(`[ThemeContext] Updated HTML class from '${oldClass}' to '${theme}'`)
+    try {
+      localStorage.setItem('theme', theme)
+    } catch (e) {
+      console.warn('[ThemeContext] Failed to write localStorage:', e)
+    }
   }, [theme])
 
   const toggleTheme = () => {
+    console.log('[ThemeContext] toggleTheme called. Previous theme:', theme)
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
   }
 
