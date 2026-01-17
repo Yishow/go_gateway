@@ -400,6 +400,7 @@ export default function TestPage() {
               <DeviceScanner
                 protocol={selectedProtocol}
                 connectionId={connectionId}
+                baseConfig={config}
               />
             </div>
           )}
