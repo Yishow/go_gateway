@@ -8,6 +8,7 @@ import ProfileSelector from '../components/ProfileSelector'
 import MinimizedCardsBar from '../components/MinimizedCardsBar'
 import CardMinimizeButton from '../components/CardMinimizeButton'
 import DeviceScanner from '../components/DeviceScanner'
+import RTUPollingCard from '../components/RTUPollingCard'
 import { useProfiles } from '../hooks/useProfiles'
 import { useCardMinimize, type MinimizedCardInfo } from '../hooks/useCardMinimize'
 import type { Profile, ConnectionModeConfigs } from '../types/profile'
@@ -248,6 +249,12 @@ export default function TestPage() {
           status: connectionId ? 'monitoring' : 'idle',
         },
         {
+          type: 'rtu-polling',
+          title: 'RTU Polling',
+          summary: `${config.baudRate || 9600} baud`,
+          status: connectionId ? 'connected' : 'disconnected',
+        },
+        {
           type: 'debug',
           title: '調試面板',
           summary: connectionId && connectionId.length > 0 ? `連線: ${connectionId.slice(0, 8)}...` : '未連線',
@@ -458,6 +465,19 @@ export default function TestPage() {
                 status={connectionId ? 'monitoring' : 'idle'}
               />
               <MonitorControl connectionId={connectionId} protocol={selectedProtocol} />
+            </div>
+          )}
+
+          {/* RTU Polling Card */}
+          {!isMinimized('rtu-polling') && (
+            <div className={`relative ${!isConfigMinimized ? 'lg:col-span-2' : ''} transition-colors`}>
+              <RTUPollingCard
+                protocol={selectedProtocol}
+                connectionId={connectionId}
+                config={config}
+                onConfigChange={handleConfigChange}
+                onConnectionChange={setConnectionId}
+              />
             </div>
           )}
         </div>

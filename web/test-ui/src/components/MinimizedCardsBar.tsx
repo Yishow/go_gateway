@@ -35,6 +35,12 @@ const cardColors: Record<CardType, { bg: string; border: string; text: string; d
     text: 'text-indigo-700 dark:text-indigo-400', 
     dot: 'bg-indigo-500' 
   },
+  'rtu-polling': { 
+    bg: 'bg-purple-50 dark:bg-purple-900/20', 
+    border: 'border-purple-200 dark:border-purple-800', 
+    text: 'text-purple-700 dark:text-purple-400', 
+    dot: 'bg-purple-500' 
+  },
 }
 
 /**
