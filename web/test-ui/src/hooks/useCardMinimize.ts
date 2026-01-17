@@ -25,6 +25,7 @@ export interface MinimizedCardInfo {
 export interface CardMinimizeContextType {
   minimizedCards: Map<CardType, MinimizedCardInfo>
   minimizeCard: (cardInfo: MinimizedCardInfo) => void
+  minimizeCardsBatch: (cards: MinimizedCardInfo[]) => void
   restoreCard: (cardType: CardType) => void
   isMinimized: (cardType: CardType) => boolean
   getMinimizedCardInfo: (cardType: CardType) => MinimizedCardInfo | undefined

@@ -20,6 +20,19 @@ export function CardMinimizeProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /**
+   * 批量最小化多個 card（減少重新渲染次數）
+   */
+  const minimizeCardsBatch = useCallback((cards: MinimizedCardInfo[]) => {
+    setMinimizedCards(prev => {
+      const newMap = new Map(prev)
+      cards.forEach(cardInfo => {
+        newMap.set(cardInfo.type, cardInfo)
+      })
+      return newMap
+    })
+  }, [])
+
+  /**
    * 恢復一個 card
    */
   const restoreCard = useCallback((cardType: CardType) => {
@@ -54,6 +67,7 @@ export function CardMinimizeProvider({ children }: { children: ReactNode }) {
   const value: CardMinimizeContextType = {
     minimizedCards,
     minimizeCard,
+    minimizeCardsBatch,
     restoreCard,
     isMinimized,
     getMinimizedCardInfo,

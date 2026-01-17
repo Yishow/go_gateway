@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import ProtocolSelector from '../components/ProtocolSelector'
 import ConfigForm from '../components/ConfigForm'
 import TestOperations from '../components/TestOperations'
@@ -9,7 +9,7 @@ import MinimizedCardsBar from '../components/MinimizedCardsBar'
 import CardMinimizeButton from '../components/CardMinimizeButton'
 import DeviceScanner from '../components/DeviceScanner'
 import { useProfiles } from '../hooks/useProfiles'
-import { useCardMinimize } from '../hooks/useCardMinimize'
+import { useCardMinimize, type CardType, type MinimizedCardInfo } from '../hooks/useCardMinimize'
 import type { Profile, ConnectionModeConfigs } from '../types/profile'
 
 export default function TestPage() {
@@ -20,8 +20,9 @@ export default function TestPage() {
   const [isConfigMinimized, setIsConfigMinimized] = useState<boolean>(false)
   
   const { currentProfile, updateCurrentProfileConfig, updateProfile, profiles, currentProfileId } = useProfiles()
-  const { isMinimized } = useCardMinimize()
+  const { isMinimized, minimizeCardsBatch } = useCardMinimize()
   const isProfileLoadingRef = useRef(false)
+  const isInitializedRef = useRef(false)
   
   /**
    * 從 Profile 的配置中獲取當前模式的配置
@@ -218,6 +219,47 @@ export default function TestPage() {
     // 否則，這是一個獨立的模式變更（不應該發生，但為了安全起見保留）
     saveAndLoadConfig(selectedProtocol, mode)
   }
+
+  /**
+   * 頁面初始化時，將除連線配置外的所有卡片預設為最小化
+   * 使用 useLayoutEffect 在瀏覽器繪製前設置狀態，避免 UI 跳動
+   */
+  useLayoutEffect(() => {
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true
+      // 批量設置所有卡片為最小化狀態，一次性更新，減少重新渲染
+      const cardsToMinimize: MinimizedCardInfo[] = [
+        {
+          type: 'operations',
+          title: '測試操作',
+          summary: selectedProtocol,
+          status: connectionId ? 'connected' : 'disconnected',
+        },
+        {
+          type: 'scanner',
+          title: '設備掃描',
+          summary: selectedProtocol,
+          status: 'idle',
+        },
+        {
+          type: 'monitor',
+          title: '即時監控',
+          summary: connectionId ? '已連線' : '未連線',
+          status: connectionId ? 'monitoring' : 'idle',
+        },
+        {
+          type: 'debug',
+          title: '調試面板',
+          summary: connectionId && connectionId.length > 0 ? `連線: ${connectionId.slice(0, 8)}...` : '未連線',
+          status: connectionId ? 'connected' : 'disconnected',
+        },
+      ]
+      
+      // 一次性批量設置，只觸發一次重新渲染
+      minimizeCardsBatch(cardsToMinimize)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // 只在組件掛載時執行一次
 
   /**
    * 當連線狀態變更時，自動縮小或展開配置區塊

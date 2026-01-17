@@ -40,6 +40,7 @@ module.exports = {
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
         'slide-up': 'slideUp 0.4s ease-out',
+        'slide-up-centered': 'slideUpCentered 0.4s ease-out forwards',
         'shrink': 'shrink 0.5s ease-out forwards',
         'expand': 'expand 0.5s ease-out forwards',
       },
@@ -51,6 +52,10 @@ module.exports = {
         slideUp: {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        slideUpCentered: {
+          '0%': { transform: 'translate(-50%, 10px)', opacity: '0' },
+          '100%': { transform: 'translate(-50%, 0)', opacity: '1' },
         },
         shrink: {
           '0%': { transform: 'scale(1)', opacity: '1' },

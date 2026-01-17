@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useCardMinimize, type CardType } from '../hooks/useCardMinimize'
 
 /**
@@ -53,6 +54,17 @@ const statusColors: Record<string, string> = {
 export default function MinimizedCardsBar() {
   const { getAllMinimizedCards, restoreCard } = useCardMinimize()
   const minimizedCards = getAllMinimizedCards()
+  const [isVisible, setIsVisible] = useState(false)
+
+  // 在組件掛載後立即觸發顯示，確保定位正確
+  useEffect(() => {
+    if (minimizedCards.length > 0) {
+      // 使用微任務確保在當前渲染完成後再顯示
+      Promise.resolve().then(() => {
+        setIsVisible(true)
+      })
+    }
+  }, [minimizedCards.length])
 
   // 如果沒有最小化的 card，不顯示 bar
   if (minimizedCards.length === 0) {
@@ -67,8 +79,8 @@ export default function MinimizedCardsBar() {
   }
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-      <div className="bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex items-center gap-2 max-w-4xl overflow-x-auto">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <div className={`bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex items-center gap-2 max-w-4xl overflow-x-auto ${isVisible ? 'animate-slide-up' : 'opacity-0'}`}>
         {minimizedCards.map((cardInfo) => {
           const colors = cardColors[cardInfo.type]
           const statusColor = cardInfo.status ? statusColors[cardInfo.status] : 'bg-gray-300 dark:bg-gray-600'
