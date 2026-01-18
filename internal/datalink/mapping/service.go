@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -71,8 +72,13 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 		return nil, fmt.Errorf("序列化轉換管線失敗: %w", err)
 	}
 
+	id, err := common.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("建立映射 ID 失敗: %w", err)
+	}
+
 	mapping := &schema.Mapping{
-		ID:                generateUUID(),
+		ID:                id,
 		PointID:           req.PointID,
 		TagID:             req.TagID,
 		TransformPipeline: string(pipelineJSON),
@@ -663,10 +669,6 @@ func toBoolValue(v interface{}) bool {
 		return val == "true" || val == "1" || val == "on" || val == "yes"
 	}
 	return false
-}
-
-func generateUUID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
 func normalizeTransformSteps(steps []schema.TransformStep) []schema.TransformStep {

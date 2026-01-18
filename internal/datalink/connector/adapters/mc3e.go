@@ -134,7 +134,7 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 	} else {
 		// 字組設備
 		// 計算需要讀取的字組數量
-		wordCount := getWordCount(req.DataType)
+		wordCount := schema.RegisterCountForDataType(req.DataType)
 		if req.Count > 1 {
 			wordCount = count
 		}
@@ -199,9 +199,9 @@ func parseMC3EAddress(addressStr string) (device string, address int, err error)
 	// 支援的設備碼 (按長度排序以優先匹配較長的名稱)
 	devices := []string{
 		"ZR", "SD", "SW", "SB", "SM", // 特殊設備
-		"D", "W", "R", "B", "F",       // 字組設備
-		"M", "L", "S", "X", "Y",       // 位元設備
-		"T", "C", "ST", "CC", "TC",    // 計時器/計數器
+		"D", "W", "R", "B", "F", // 字組設備
+		"M", "L", "S", "X", "Y", // 位元設備
+		"T", "C", "ST", "CC", "TC", // 計時器/計數器
 	}
 
 	for _, d := range devices {
@@ -247,20 +247,6 @@ func isBitDevice(device string) bool {
 		"F": true, "SB": true, "SM": true,
 	}
 	return bitDevices[device]
-}
-
-// getWordCount 根據資料型別計算需要讀取的字組數量
-func getWordCount(dataType schema.DataType) int {
-	switch dataType {
-	case schema.DataTypeBool, schema.DataTypeInt16, schema.DataTypeUint16:
-		return 1
-	case schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeFloat32:
-		return 2
-	case schema.DataTypeInt64, schema.DataTypeUint64, schema.DataTypeFloat64:
-		return 4
-	default:
-		return 1
-	}
 }
 
 // convertMC3EValue 將 MC Protocol 字組值轉換為指定型別

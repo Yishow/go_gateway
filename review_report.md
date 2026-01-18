@@ -8,9 +8,9 @@ Review of the last 3 commits covering `datalink`, `scheduler`, and `connector` m
 - `50c056a` - `scheduler` & logic
 - `16fa813` - `connector` & `schema` setup
 
-## Critical Bugs
+## Critical Bugs (Reviewed)
 
-### 1. Scheduler Deadlock Risk (Blocking Channel)
+### 1. Scheduler Deadlock Risk (Blocking Channel) — **Confirmed**
 **File:** [internal/datalink/collector/scheduler.go](file:///c:/AIProject/go_gateway/internal/datalink/collector/scheduler.go)
 **Location:** Function [emitValue](file:///c:/AIProject/go_gateway/internal/datalink/collector/scheduler.go#448-461), Line 450
 **Issue:**
@@ -41,7 +41,7 @@ func (s *Scheduler) emitValue(cv CollectedValue) {
 }
 ```
 
-### 2. Incorrect Register Count for Multi-Word Types
+### 2. Incorrect Register Count for Multi-Word Types — **Confirmed**
 **File:** [internal/datalink/collector/scheduler.go](file:///c:/AIProject/go_gateway/internal/datalink/collector/scheduler.go) & [internal/datalink/connector/adapters/fatek.go](file:///c:/AIProject/go_gateway/internal/datalink/connector/adapters/fatek.go)
 **Location:** [scheduler.go](file:///c:/AIProject/go_gateway/internal/datalink/collector/scheduler.go) Line 411 (`Count: 1`)
 **Issue:**
@@ -68,7 +68,7 @@ func GetRegisterCount(dt schema.DataType) int {
 }
 ```
 
-### 3. Weak ID Generation
+### 3. Weak ID Generation — **Confirmed**
 **File:** [internal/datalink/mapping/service.go](file:///c:/AIProject/go_gateway/internal/datalink/mapping/service.go)
 **Location:** [generateUUID](file:///c:/AIProject/go_gateway/internal/datalink/mapping/service.go#576-579), Line 576
 **Issue:**
@@ -82,28 +82,19 @@ Using `UnixNano` as an ID is not safe for a "UUID". It will cause ID collisions 
 **Fix Recommendation:**
 Use `crypto/rand` or a standard library like `github.com/google/uuid` to generate proper UUIDs (v4).
 
-### 4. FATEK Endianness Logic
+### 4. FATEK Endianness Logic — **Not Confirmed**
 **File:** [internal/datalink/connector/adapters/fatek.go](file:///c:/AIProject/go_gateway/internal/datalink/connector/adapters/fatek.go)
 **Location:** [convertFatekValue](file:///c:/AIProject/go_gateway/internal/datalink/connector/adapters/fatek.go#255-291), Line 272
-**Issue:**
-```go
-return int32(values[0])<<16 | int32(values[1])
-```
-This assumes `values[0]` (Address N) is the High Word and `values[1]` (Address N+1) is the Low Word (Big-Endian Words).
-PLC memory mapping often puts the Lower Word at the lower address (N) and Higher Word at (N+1) (Little-Endian Words).
-If FATEK follows Little-Endian Words (Double Word = D0 + size 2 -> D0 is low, D1 is high), this logic is inverted.
+**Issue Review:**
+The FATEK protocol layer already tracks component widths and uses fixed-width hex parsing for 16/32-bit registers, but there is no in-repo specification for word order, and no tests assert the expected 32-bit register ordering. Without a protocol spec or test fixture, the endianness cannot be corrected safely.
 
 **Fix Recommendation:**
-Verify FATEK specification. If it is Little-Endian Words (commonly "CDAB" or "BADC" ordering depending on byte endianness too), swap the indices:
-```go
-// If Low Word First:
-return int32(values[1])<<16 | int32(values[0])
-```
+Add a protocol-level test fixture with known 32-bit values from a real FATEK PLC (or spec citation) before changing word order logic.
 
 ## Minor Issues
-1.  **Unsafe Type Assertions**: In [mapping/service.go](file:///c:/AIProject/go_gateway/internal/datalink/mapping/service.go), lines like `format, _ := params["format"].(string)` will result in empty strings if the key is missing or wrong type, bypassing logic silently.
-2.  **Hardcoded Configurations**: [SchedulerConfig](file:///c:/AIProject/go_gateway/internal/datalink/collector/scheduler.go#52-65) (Line 71) sets `MaxConcurrentPerDevice: 1`. While safe for Serial, TCP devices could support concurrency. (Not a bug, but a limitation).
-3.  **Error Handling**: [fatek.go](file:///c:/AIProject/go_gateway/internal/datalink/connector/adapters/fatek.go) Line 244 converts `addr` using `Atoi` but doesn't check if the resulting address is within valid range for that symbol.
+1.  **Unsafe Type Assertions**: In [mapping/service.go](file:///c:/AIProject/go_gateway/internal/datalink/mapping/service.go), lines like `format, _ := params["format"].(string)` will result in empty strings if the key is missing or wrong type, bypassing logic silently. Added conditional validation for `conditional` steps but other step params remain permissive by design.
+2.  **Hardcoded Configurations**: [SchedulerConfig](file:///c:/AIProject/go_gateway/internal/datalink/collector/scheduler.go#52-65) sets `MaxConcurrentPerDevice: 1`. While safe for Serial, TCP devices could support concurrency. (Not a bug, but a limitation).
+3.  **Error Handling**: [fatek.go](file:///c:/AIProject/go_gateway/internal/datalink/connector/adapters/fatek.go) uses `FormatAddress` which now enforces address range; adapter uses `parseFatekAddress` but does not validate range, so add validation if you see invalid address reports.
 
 ## Summary
-The codebase is structured well ("Clean Architecture"), but the `scheduler` contains a critical concurrency bug and a data integrity bug ([Count](file:///c:/AIProject/go_gateway/internal/datalink/storage/timeseries.go#384-390)) that must be fixed before deploying even a prototype.
+Confirmed critical issues were in scheduler buffering and register counts, plus UUID generation; these have been fixed in code. The endianness concern for FATEK remains open until a protocol-verified fixture exists.

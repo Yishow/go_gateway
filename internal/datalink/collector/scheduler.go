@@ -419,8 +419,9 @@ func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo) {
 		Address:  pt.Address,
 		Function: pt.Function,
 		DataType: pt.DataType,
-		Count:    1,
 	}
+
+	req.Count = schema.RegisterCountForDataType(pt.DataType)
 
 	var result connector.ReadResult
 	var err error
@@ -461,10 +462,13 @@ func (s *Scheduler) emitValue(cv CollectedValue) {
 	select {
 	case s.valueChan <- cv:
 	default:
-		// 緩衝區已滿，丟棄舊值
+		// 緩衝區已滿，嘗試丟棄舊值後再非阻塞寫入
 		select {
 		case <-s.valueChan:
-			s.valueChan <- cv
+		default:
+		}
+		select {
+		case s.valueChan <- cv:
 		default:
 		}
 	}
@@ -545,8 +549,8 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 					Address:  pt.Address,
 					Function: pt.Function,
 					DataType: pt.DataType,
-					Count:    1,
 				}
+				req.Count = schema.RegisterCountForDataType(pt.DataType)
 
 				result, readErr := conn.Read(ctx, req)
 				cv := CollectedValue{

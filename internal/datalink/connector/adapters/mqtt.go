@@ -2,10 +2,13 @@ package adapters
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -22,6 +25,7 @@ type MQTTConnector struct {
 	config    schema.ConnectionConfigMQTT
 	connected bool
 	mu        sync.RWMutex
+	client    mqtt.Client
 
 	// valueCache 快取最新接收到的值
 	valueCache map[string]cachedValue
@@ -78,36 +82,53 @@ func (c *MQTTConnector) Connect(ctx context.Context, configJSON string) error {
 		return fmt.Errorf("MQTT 訂閱主題不能為空")
 	}
 
+	if c.client != nil && c.client.IsConnected() {
+		c.client.Disconnect(250)
+	}
+
 	// 初始化停止通道
 	c.stopCh = make(chan struct{})
 
-	// TODO: 實際連線邏輯 (需要 paho.mqtt.golang)
-	// 以下為骨架程式碼，展示預期的連線流程
-	/*
-		opts := mqtt.NewClientOptions()
-		opts.AddBroker(c.config.BrokerURL)
-		opts.SetClientID(c.config.ClientID)
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker(c.config.BrokerURL)
+	opts.SetClientID(c.config.ClientID)
+	opts.SetCleanSession(true)
+	opts.SetAutoReconnect(true)
+	opts.SetConnectTimeout(10 * time.Second)
+	opts.SetKeepAlive(30 * time.Second)
+	opts.SetWriteTimeout(10 * time.Second)
+	opts.SetPingTimeout(10 * time.Second)
+	opts.SetDefaultPublishHandler(func(_ mqtt.Client, msg mqtt.Message) {
+		c.handleMessage(msg.Topic(), msg.Payload())
+	})
+	opts.SetOnConnectHandler(func(client mqtt.Client) {
+		c.onConnect(client)
+	})
+	opts.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
+		c.onDisconnect(err)
+	})
 
-		if c.config.Username != "" {
-			opts.SetUsername(c.config.Username)
-			opts.SetPassword(c.config.Password)
-		}
+	if c.config.Username != "" {
+		opts.SetUsername(c.config.Username)
+		opts.SetPassword(c.config.Password)
+	}
+	if c.config.UseTLS {
+		opts.SetTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12})
+	}
 
-		if c.config.UseTLS {
-			// 設定 TLS
-		}
+	client := mqtt.NewClient(opts)
+	token := client.Connect()
+	if !token.WaitTimeout(10 * time.Second) {
+		return fmt.Errorf("MQTT 連線逾時")
+	}
+	if err := token.Error(); err != nil {
+		return err
+	}
 
-		opts.SetDefaultPublishHandler(c.messageHandler)
-		opts.SetOnConnectHandler(c.onConnect)
-		opts.SetConnectionLostHandler(c.onDisconnect)
-
-		client := mqtt.NewClient(opts)
-		if token := client.Connect(); token.Wait() && token.Error() != nil {
-			return token.Error()
-		}
-
-		c.client = client
-	*/
+	c.client = client
+	if c.stopCh == nil {
+		c.stopCh = make(chan struct{})
+	}
 
 	c.connected = true
 	return nil
@@ -120,14 +141,13 @@ func (c *MQTTConnector) Close() error {
 
 	if c.stopCh != nil {
 		close(c.stopCh)
+		c.stopCh = nil
 	}
 
-	// TODO: 實際斷線邏輯
-	/*
-		if c.client != nil {
-			c.client.Disconnect(250)
-		}
-	*/
+	if c.client != nil {
+		c.client.Disconnect(250)
+		c.client = nil
+	}
 
 	c.connected = false
 	return nil
@@ -190,30 +210,33 @@ func (c *MQTTConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 
 // Write 寫入資料 (發布到 MQTT)
 func (c *MQTTConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if !c.IsConnected() {
+	c.mu.RLock()
+	client := c.client
+	connected := c.connected
+	qos := c.config.QoS
+	c.mu.RUnlock()
+
+	if !connected || client == nil || !client.IsConnected() {
 		return fmt.Errorf("未連線")
 	}
 
 	// 地址格式為主題名稱
 	topic := req.Address
 
-	// 將值序列化為 JSON
 	payload, err := json.Marshal(req.Value)
 	if err != nil {
 		return fmt.Errorf("序列化寫入值失敗: %w", err)
 	}
 
-	// TODO: 實際發布邏輯
-	/*
-		token := c.client.Publish(topic, c.config.QoS, false, payload)
-		token.Wait()
-		return token.Error()
-	*/
+	token := client.Publish(topic, qos, false, payload)
+	if !token.WaitTimeout(10 * time.Second) {
+		return fmt.Errorf("MQTT 發布逾時")
+	}
+	if err := token.Error(); err != nil {
+		return err
+	}
 
-	_ = topic
-	_ = payload
-
-	return fmt.Errorf("MQTT 發布功能尚未實作")
+	return nil
 }
 
 // =============================================================================
@@ -256,6 +279,28 @@ func (c *MQTTConnector) handleMessage(topic string, payload []byte) {
 			// 通道已滿，跳過
 		}
 	}
+}
+
+func (c *MQTTConnector) onConnect(client mqtt.Client) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.stopCh == nil {
+		return
+	}
+
+	for _, topic := range c.config.Topics {
+		token := client.Subscribe(topic, c.config.QoS, func(_ mqtt.Client, msg mqtt.Message) {
+			c.handleMessage(msg.Topic(), msg.Payload())
+		})
+		token.Wait()
+	}
+}
+
+func (c *MQTTConnector) onDisconnect(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.connected = false
 }
 
 // Subscribe 訂閱訊息 (用於即時處理)

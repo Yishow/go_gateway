@@ -127,7 +127,7 @@ func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest
 	}
 
 	// 計算需要讀取的暫存器數量
-	count := getRegisterCount(req.DataType)
+	count := schema.RegisterCountForDataType(req.DataType)
 	if req.Count > 0 {
 		count = req.Count
 	}
@@ -507,20 +507,6 @@ func parseModbusAddress(addressStr, function string) (uint16, string, error) {
 		function = "03" // 預設為保持暫存器
 	}
 	return uint16(addr), function, nil
-}
-
-// getRegisterCount 根據資料型別計算需要讀取的暫存器數量
-func getRegisterCount(dataType schema.DataType) int {
-	switch dataType {
-	case schema.DataTypeBool, schema.DataTypeInt16, schema.DataTypeUint16:
-		return 1
-	case schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeFloat32:
-		return 2
-	case schema.DataTypeInt64, schema.DataTypeUint64, schema.DataTypeFloat64:
-		return 4
-	default:
-		return 1
-	}
 }
 
 // convertModbusValue 將 Modbus 暫存器值轉換為指定型別

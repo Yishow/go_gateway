@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -144,8 +145,13 @@ func (s *Service) Create(ctx context.Context, req CreateTagRequest) (*schema.Tag
 		}
 	}
 
+	id, err := common.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("建立標籤 ID 失敗: %w", err)
+	}
+
 	tag := &schema.Tag{
-		ID:          generateUUID(),
+		ID:          id,
 		Key:         req.Key,
 		KeyLower:    NormalizeTagKey(req.Key),
 		DisplayName: req.DisplayName,
@@ -334,10 +340,6 @@ func isValidDataType(dataType schema.DataType) bool {
 }
 
 // generateUUID 產生 UUID
-func generateUUID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}
-
 // =============================================================================
 // 記憶體 Repository
 // =============================================================================

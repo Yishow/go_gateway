@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
@@ -101,8 +102,13 @@ func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*schema.
 		return nil, fmt.Errorf("序列化連線配置失敗: %w", err)
 	}
 
+	id, err := common.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("建立設備 ID 失敗: %w", err)
+	}
+
 	device := &schema.Device{
-		ID:               generateUUID(),
+		ID:               id,
 		Name:             req.Name,
 		Description:      req.Description,
 		Protocol:         req.Protocol,
@@ -359,11 +365,6 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 }
 
 // generateUUID 產生 UUID
-func generateUUID() string {
-	// 簡易 UUID 產生 (實際應使用 uuid 套件)
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}
-
 // =============================================================================
 // 連線配置輔助
 // =============================================================================

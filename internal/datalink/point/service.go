@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -112,8 +113,13 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 		return nil, fmt.Errorf("不支援的點位模式: %s", req.Mode)
 	}
 
+	id, err := common.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("建立點位 ID 失敗: %w", err)
+	}
+
 	point := &schema.Point{
-		ID:             generateUUID(),
+		ID:             id,
 		DeviceID:       req.DeviceID,
 		Name:           req.Name,
 		Description:    req.Description,
@@ -141,14 +147,14 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 
 // CreatePointRequest 建立點位請求
 type CreatePointRequest struct {
-	DeviceID       string          `json:"device_id"`
-	Name           string          `json:"name"`
-	Description    string          `json:"description,omitempty"`
-	Address        string          `json:"address"`
-	Function       string          `json:"function,omitempty"`
-	DataType       schema.DataType `json:"data_type"`
+	DeviceID       string           `json:"device_id"`
+	Name           string           `json:"name"`
+	Description    string           `json:"description,omitempty"`
+	Address        string           `json:"address"`
+	Function       string           `json:"function,omitempty"`
+	DataType       schema.DataType  `json:"data_type"`
 	Mode           schema.PointMode `json:"mode,omitempty"`
-	PollingGroupID *string         `json:"polling_group_id,omitempty"`
+	PollingGroupID *string          `json:"polling_group_id,omitempty"`
 }
 
 // Update 更新點位
@@ -197,14 +203,14 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 
 // UpdatePointRequest 更新點位請求
 type UpdatePointRequest struct {
-	Name           *string          `json:"name,omitempty"`
-	Description    *string          `json:"description,omitempty"`
-	Address        *string          `json:"address,omitempty"`
-	Function       *string          `json:"function,omitempty"`
-	DataType       *schema.DataType `json:"data_type,omitempty"`
+	Name           *string           `json:"name,omitempty"`
+	Description    *string           `json:"description,omitempty"`
+	Address        *string           `json:"address,omitempty"`
+	Function       *string           `json:"function,omitempty"`
+	DataType       *schema.DataType  `json:"data_type,omitempty"`
 	Mode           *schema.PointMode `json:"mode,omitempty"`
-	PollingGroupID *string          `json:"polling_group_id,omitempty"`
-	Enabled        *bool            `json:"enabled,omitempty"`
+	PollingGroupID *string           `json:"polling_group_id,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty"`
 }
 
 // Delete 刪除點位
@@ -252,8 +258,13 @@ func (s *Service) CreatePollingGroup(ctx context.Context, req CreatePollingGroup
 		return nil, fmt.Errorf("輪詢間隔不能小於 100ms")
 	}
 
+	id, err := common.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("建立輪詢群組 ID 失敗: %w", err)
+	}
+
 	group := &schema.PollingGroup{
-		ID:          generateUUID(),
+		ID:          id,
 		Name:        req.Name,
 		Description: req.Description,
 		IntervalMs:  req.IntervalMs,
@@ -418,10 +429,6 @@ func isValidDataType(dataType schema.DataType) bool {
 }
 
 // generateUUID 產生 UUID
-func generateUUID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
-}
-
 // =============================================================================
 // 點位詳細資訊
 // =============================================================================

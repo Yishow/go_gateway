@@ -250,6 +250,20 @@ const (
 	DataTypeString DataType = "string"
 )
 
+// RegisterCountForDataType returns word count for 16-bit word protocols (Modbus/FATEK).
+func RegisterCountForDataType(dataType DataType) int {
+	switch dataType {
+	case DataTypeBool, DataTypeInt16, DataTypeUint16:
+		return 1
+	case DataTypeInt32, DataTypeUint32, DataTypeFloat32:
+		return 2
+	case DataTypeInt64, DataTypeUint64, DataTypeFloat64:
+		return 4
+	default:
+		return 1
+	}
+}
+
 // Point 點位實體，代表設備上的可讀取/寫入位址
 type Point struct {
 	// ID 主鍵，UUID 格式
