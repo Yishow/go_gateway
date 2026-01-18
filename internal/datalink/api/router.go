@@ -6,6 +6,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
@@ -100,10 +101,12 @@ func (r *Router) registerRoutes() {
 	// 設備管理 API
 	r.mux.HandleFunc(prefix+"/devices", r.handleDevices)
 	r.mux.HandleFunc(prefix+"/devices/", r.handleDeviceByID)
+	r.mux.HandleFunc(prefix+"/devices/test-batch", r.handleDeviceBatchTest)
 
 	// 點位管理 API
 	r.mux.HandleFunc(prefix+"/points", r.handlePoints)
 	r.mux.HandleFunc(prefix+"/points/", r.handlePointByID)
+	r.mux.HandleFunc(prefix+"/points/poll", r.handlePointsBatchPoll)
 
 	// 輪詢群組 API
 	r.mux.HandleFunc(prefix+"/polling-groups", r.handlePollingGroups)
@@ -112,11 +115,14 @@ func (r *Router) registerRoutes() {
 	// 標籤管理 API
 	r.mux.HandleFunc(prefix+"/tags", r.handleTags)
 	r.mux.HandleFunc(prefix+"/tags/", r.handleTagByID)
+	r.mux.HandleFunc(prefix+"/tags/batch", r.handleTagsBatch)
+	r.mux.HandleFunc(prefix+"/tags/validate-key", r.handleTagsValidateKey)
 
 	// 映射管理 API
 	r.mux.HandleFunc(prefix+"/mappings", r.handleMappings)
 	r.mux.HandleFunc(prefix+"/mappings/", r.handleMappingByID)
 	r.mux.HandleFunc(prefix+"/mappings/preview", r.handleMappingPreview)
+	r.mux.HandleFunc(prefix+"/mappings/validate-pipeline", r.handleMappingValidatePipeline)
 
 	// 系統設定 API
 	r.mux.HandleFunc(prefix+"/settings", r.handleSettings)
@@ -210,6 +216,16 @@ func (r *Router) handleDeviceByID(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// handleDeviceBatchTest 批量測試設備連線
+func (r *Router) handleDeviceBatchTest(w http.ResponseWriter, req *http.Request) {
+	if req.Method == http.MethodPost {
+		r.deviceHandler.BatchTestConnections(w, req)
+		return
+	}
+
+	writeError(w, http.StatusMethodNotAllowed, "方法不允許")
+}
+
 // handlePoints 處理點位列表/建立
 func (r *Router) handlePoints(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
@@ -248,6 +264,16 @@ func (r *Router) handlePointByID(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// handlePointsBatchPoll 批量輪詢點位
+func (r *Router) handlePointsBatchPoll(w http.ResponseWriter, req *http.Request) {
+	if req.Method == http.MethodPost {
+		r.pointHandler.BatchPoll(w, req)
+		return
+	}
+
+	writeError(w, http.StatusMethodNotAllowed, "方法不允許")
+}
+
 // handlePollingGroups 處理輪詢群組列表/建立
 func (r *Router) handlePollingGroups(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
@@ -262,14 +288,37 @@ func (r *Router) handlePollingGroups(w http.ResponseWriter, req *http.Request) {
 
 // handlePollingGroupByID 處理單一輪詢群組操作
 func (r *Router) handlePollingGroupByID(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Path
-	id, _ := parseIDAndAction(path, r.config.PathPrefix+"/polling-groups/")
+	relativePath := strings.TrimPrefix(req.URL.Path, r.config.PathPrefix+"/polling-groups/")
+	relativePath = strings.Trim(relativePath, "/")
+	parts := strings.Split(relativePath, "/")
+
+	if len(parts) < 1 || parts[0] == "" {
+		writeError(w, http.StatusNotFound, "群組不存在")
+		return
+	}
+
+	groupID := parts[0]
+	if len(parts) >= 2 && parts[1] == "points" {
+		switch req.Method {
+		case http.MethodPost:
+			r.pointHandler.AssignToGroup(w, req, groupID)
+		case http.MethodDelete:
+			if len(parts) < 3 || parts[2] == "" {
+				writeError(w, http.StatusBadRequest, "缺少點位 ID")
+				return
+			}
+			r.pointHandler.RemoveFromGroup(w, req, parts[2])
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "方法不允許")
+		}
+		return
+	}
 
 	switch req.Method {
 	case http.MethodPut, http.MethodPatch:
-		r.pointHandler.UpdatePollingGroup(w, req, id)
+		r.pointHandler.UpdatePollingGroup(w, req, groupID)
 	case http.MethodDelete:
-		r.pointHandler.DeletePollingGroup(w, req, id)
+		r.pointHandler.DeletePollingGroup(w, req, groupID)
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 	}
@@ -319,6 +368,26 @@ func (r *Router) handleTagByID(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// handleTagsBatch 批量建立標籤
+func (r *Router) handleTagsBatch(w http.ResponseWriter, req *http.Request) {
+	if req.Method == http.MethodPost {
+		r.tagHandler.BatchCreate(w, req)
+		return
+	}
+
+	writeError(w, http.StatusMethodNotAllowed, "方法不允許")
+}
+
+// handleTagsValidateKey 驗證標籤鍵格式與唯一性
+func (r *Router) handleTagsValidateKey(w http.ResponseWriter, req *http.Request) {
+	if req.Method == http.MethodPost {
+		r.tagHandler.ValidateKey(w, req)
+		return
+	}
+
+	writeError(w, http.StatusMethodNotAllowed, "方法不允許")
+}
+
 // handleMappings 處理映射列表/建立
 func (r *Router) handleMappings(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
@@ -355,6 +424,16 @@ func (r *Router) handleMappingPreview(w http.ResponseWriter, req *http.Request) 
 	} else {
 		writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 	}
+}
+
+// handleMappingValidatePipeline 驗證轉換管線
+func (r *Router) handleMappingValidatePipeline(w http.ResponseWriter, req *http.Request) {
+	if req.Method == http.MethodPost {
+		r.mappingHandler.ValidatePipeline(w, req)
+		return
+	}
+
+	writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 }
 
 // handleSettings 處理系統設定

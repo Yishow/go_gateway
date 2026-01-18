@@ -88,3 +88,4 @@ config.local.yml
 *.bak
 *.backup
 *~
+.agent/skills/
