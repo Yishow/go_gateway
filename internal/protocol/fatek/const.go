@@ -27,8 +27,16 @@ const (
 	SymbolRT  = "RT"
 	SymbolRC  = "RC"
 	SymbolDR  = "DR" // 32-bit D
+	SymbolDD  = "DD" // 32-bit D (Double D)
+	SymbolDF  = "DF" // 32-bit D (File)
 	SymbolDW  = "DW" // 32-bit Discrete
 	SymbolDWM = "DWM"
+	SymbolWX  = "WX" // 16-bit access to discrete
+	SymbolWY  = "WY"
+	SymbolWM  = "WM"
+	SymbolWS  = "WS"
+	SymbolWT  = "WT"
+	SymbolWC  = "WC"
 )
 
 // Errors

@@ -4,7 +4,7 @@ Package fatek implements the FATEK FBs PLC ASCII Protocol.
 It supports both TCP and Serial (via io.ReadWriteCloser) transports.
 
 Key Features:
-  - Strong typing for components (X, Y, D, R, DR, etc.)
+	- Strong typing for components (X, Y, D, R, DR, DD, DF, WX/WY/WM/WS/WT/WC, etc.)
   - Automatic LRC calculation and verification
   - Support for continuous reading/writing (Cmd 44-47)
   - Support for mixed/random reading (Cmd 48) with 16/32-bit support

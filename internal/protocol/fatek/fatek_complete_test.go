@@ -279,6 +279,36 @@ func TestGetComponentType(t *testing.T) {
 		t.Error("Component D should not be discrete")
 	}
 
+	comp, err = GetComponentType("DD")
+	if err != nil {
+		t.Fatalf("GetComponentType failed: %v", err)
+	}
+	if comp.Name != "DD" {
+		t.Errorf("Expected component name DD, got %s", comp.Name)
+	}
+	if comp.Width != 32 {
+		t.Errorf("Expected DD width 32, got %d", comp.Width)
+	}
+
+	comp, err = GetComponentType("DF")
+	if err != nil {
+		t.Fatalf("GetComponentType failed: %v", err)
+	}
+	if comp.Name != "DF" {
+		t.Errorf("Expected component name DF, got %s", comp.Name)
+	}
+
+	comp, err = GetComponentType("WX")
+	if err != nil {
+		t.Fatalf("GetComponentType failed: %v", err)
+	}
+	if comp.Name != "WX" {
+		t.Errorf("Expected component name WX, got %s", comp.Name)
+	}
+	if comp.IsDiscrete {
+		t.Error("Component WX should be word access (not discrete)")
+	}
+
 	_, err = GetComponentType("UNKNOWN")
 	if err == nil {
 		t.Error("Expected error for unknown component")
@@ -293,6 +323,33 @@ func TestFormatAddress(t *testing.T) {
 	}
 	if addr != "D00123" {
 		t.Errorf("Expected address D00123, got %s", addr)
+	}
+
+	comp, _ = GetComponentType("DD")
+	addr, err = FormatAddress(comp, 123)
+	if err != nil {
+		t.Fatalf("FormatAddress failed: %v", err)
+	}
+	if addr != "DD00123" {
+		t.Errorf("Expected address DD00123, got %s", addr)
+	}
+
+	comp, _ = GetComponentType("DF")
+	addr, err = FormatAddress(comp, 9)
+	if err != nil {
+		t.Fatalf("FormatAddress failed: %v", err)
+	}
+	if addr != "DF00009" {
+		t.Errorf("Expected address DF00009, got %s", addr)
+	}
+
+	comp, _ = GetComponentType("WX")
+	addr, err = FormatAddress(comp, 12)
+	if err != nil {
+		t.Fatalf("FormatAddress failed: %v", err)
+	}
+	if addr != "WX00012" {
+		t.Errorf("Expected address WX00012, got %s", addr)
 	}
 
 	// 測試超出範圍

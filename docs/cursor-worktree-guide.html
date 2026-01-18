@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursor IDE 2.3 Git Worktree 完整教學指南</title>
+    <style>
+        /* ===== 基礎樣式 ===== */
+        :root {
+            --primary: #7c3aed;
+            --primary-light: #a78bfa;
+            --primary-dark: #5b21b6;
+            --secondary: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e1e2e;
+            --darker: #11111b;
+            --light: #cdd6f4;
+            --muted: #6c7086;
+            --surface: #313244;
+            --overlay: #45475a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            color: var(--light);
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+
+        /* ===== 導航欄 ===== */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(17, 17, 27, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            z-index: 1000;
+            border-bottom: 1px solid var(--overlay);
+        }
+
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-light);
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-light);
+        }
+
+        .version-badge {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        /* ===== 主要內容 ===== */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 6rem 2rem 4rem;
+        }
+
+        /* ===== Hero 區塊 ===== */
+        .hero {
+            text-align: center;
+            padding: 4rem 0;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: var(--muted);
+            margin-bottom: 2rem;
+        }
+
+        .hero-features {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: var(--surface);
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            border: 1px solid var(--overlay);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(124, 58, 237, 0.2);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .feature-icon.purple { background: rgba(124, 58, 237, 0.2); }
+        .feature-icon.cyan { background: rgba(6, 182, 212, 0.2); }
+        .feature-icon.green { background: rgba(16, 185, 129, 0.2); }
+        .feature-icon.orange { background: rgba(245, 158, 11, 0.2); }
+
+        /* ===== 章節樣式 ===== */
+        .section {
+            margin: 4rem 0;
+            scroll-margin-top: 100px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .section h2 {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* ===== 卡片樣式 ===== */
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--overlay);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--overlay);
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* ===== 流程圖樣式 ===== */
+        .flowchart {
+            background: var(--darker);
+            border-radius: 16px;
+            padding: 2rem;
+            overflow-x: auto;
+            margin: 2rem 0;
+        }
+
+        .flowchart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            min-width: 800px;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .flow-node {
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            text-align: center;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .flow-node.start {
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+        }
+
+        .flow-node.process {
+            background: var(--surface);
+            border: 2px solid var(--primary);
+        }
+
+        .flow-node.decision {
+            background: var(--surface);
+            border: 2px solid var(--warning);
+            transform: rotate(0deg);
+        }
+
+        .flow-node.end {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            color: white;
+        }
+
+        .flow-arrow {
+            color: var(--muted);
+            font-size: 1.5rem;
+        }
+
+        .flow-arrow.down {
+            transform: rotate(90deg);
+        }
+
+        /* ===== 步驟列表 ===== */
+        .steps {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .step {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            background: var(--surface);
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+            transition: transform 0.3s;
+        }
+
+        .step:hover {
+            transform: translateX(10px);
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary-light);
+        }
+
+        /* ===== 程式碼區塊 ===== */
+        .code-block {
+            background: var(--darker);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .code-header {
+            background: var(--overlay);
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-lang {
+            font-size: 0.875rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .code-copy {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .code-copy:hover {
+            background: var(--primary-dark);
+        }
+
+        .code-content {
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-content .comment { color: #6a9955; }
+        .code-content .keyword { color: #569cd6; }
+        .code-content .string { color: #ce9178; }
+        .code-content .variable { color: #9cdcfe; }
+        .code-content .command { color: #dcdcaa; }
+
+        /* ===== 圖示說明 ===== */
+        .diagram {
+            background: var(--darker);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .diagram-title {
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            color: var(--primary-light);
+        }
+
+        .worktree-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .main-repo {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            padding: 1.5rem 3rem;
+            border-radius: 16px;
+            text-align: center;
+            min-width: 400px;
+        }
+
+        .main-repo h4 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .main-repo p {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        .connector {
+            width: 4px;
+            height: 40px;
+            background: var(--muted);
+            position: relative;
+        }
+
+        .connector::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 10px solid var(--muted);
+        }
+
+        .worktrees-container {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .worktree-box {
+            background: var(--surface);
+            border: 2px solid var(--overlay);
+            border-radius: 12px;
+            padding: 1.5rem;
+            min-width: 200px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .worktree-box:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+        }
+
+        .worktree-box.active {
+            border-color: var(--success);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .worktree-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 1rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .worktree-box:nth-child(1) .worktree-icon { background: rgba(124, 58, 237, 0.2); }
+        .worktree-box:nth-child(2) .worktree-icon { background: rgba(6, 182, 212, 0.2); }
+        .worktree-box:nth-child(3) .worktree-icon { background: rgba(16, 185, 129, 0.2); }
+        .worktree-box:nth-child(4) .worktree-icon { background: rgba(245, 158, 11, 0.2); }
+
+        .worktree-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .worktree-branch {
+            font-size: 0.75rem;
+            color: var(--muted);
+            font-family: monospace;
+        }
+
+        .cursor-window {
+            margin-top: 0.75rem;
+            padding: 0.5rem;
+            background: var(--darker);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--secondary);
+        }
+
+        /* ===== 表格樣式 ===== */
+        .table-container {
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--overlay);
+        }
+
+        th {
+            background: var(--overlay);
+            font-weight: 600;
+            color: var(--primary-light);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        /* ===== 提示框 ===== */
+        .tip {
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .tip-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .tip.info {
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 4px solid var(--secondary);
+        }
+
+        .tip.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid var(--warning);
+        }
+
+        .tip.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid var(--success);
+        }
+
+        .tip.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--danger);
+        }
+
+        .tip h4 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 時間軸 ===== */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+            border-radius: 2px;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 1.5rem;
+            background: var(--surface);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            margin-left: 1rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -1.5rem;
+            top: 1.75rem;
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            border: 3px solid var(--darker);
+        }
+
+        .timeline-date {
+            font-size: 0.875rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--primary-light);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ===== 截圖模擬 ===== */
+        .screenshot {
+            background: var(--darker);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+            border: 1px solid var(--overlay);
+        }
+
+        .screenshot-header {
+            background: var(--surface);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .screenshot-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .screenshot-dot.red { background: #ff5f56; }
+        .screenshot-dot.yellow { background: #ffbd2e; }
+        .screenshot-dot.green { background: #27c93f; }
+
+        .screenshot-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+
+        .screenshot-content {
+            padding: 1.5rem;
+            min-height: 200px;
+        }
+
+        .cursor-ui {
+            display: grid;
+            grid-template-columns: 250px 1fr 300px;
+            gap: 1rem;
+            min-height: 400px;
+        }
+
+        .cursor-sidebar {
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .cursor-sidebar h5 {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .sidebar-item:hover {
+            background: var(--overlay);
+        }
+
+        .sidebar-item.active {
+            background: rgba(124, 58, 237, 0.2);
+            border-left: 3px solid var(--primary);
+        }
+
+        .cursor-editor {
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .editor-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--overlay);
+            padding-bottom: 0.5rem;
+        }
+
+        .editor-tab {
+            padding: 0.5rem 1rem;
+            border-radius: 6px 6px 0 0;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .editor-tab.active {
+            background: var(--overlay);
+            color: var(--primary-light);
+        }
+
+        .cursor-chat {
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--overlay);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .chat-message.user {
+            background: var(--primary);
+            margin-left: 2rem;
+        }
+
+        .chat-message.ai {
+            background: var(--overlay);
+            margin-right: 2rem;
+        }
+
+        /* ===== 按鈕樣式 ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--light);
+            border: 1px solid var(--overlay);
+        }
+
+        .btn-secondary:hover {
+            background: var(--overlay);
+        }
+
+        /* ===== 網格佈局 ===== */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: repeat(2, 1fr); }
+            .cursor-ui { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 2.5rem; }
+            .nav-links { display: none; }
+        }
+
+        /* ===== 動畫 ===== */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* ===== 頁腳 ===== */
+        .footer {
+            background: var(--darker);
+            border-top: 1px solid var(--overlay);
+            padding: 3rem 2rem;
+            margin-top: 4rem;
+            text-align: center;
+        }
+
+        .footer p {
+            color: var(--muted);
+            font-size: 0.875rem;
+        }
+
+        /* ===== 目錄 ===== */
+        .toc {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 200px;
+            border: 1px solid var(--overlay);
+            z-index: 100;
+        }
+
+        .toc h4 {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .toc-list {
+            list-style: none;
+        }
+
+        .toc-list li {
+            margin-bottom: 0.5rem;
+        }
+
+        .toc-list a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+
+        .toc-list a:hover,
+        .toc-list a.active {
+            color: var(--primary-light);
+        }
+
+        @media (max-width: 1400px) {
+            .toc { display: none; }
+        }
+
+        /* ===== 進度條 ===== */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            z-index: 1001;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <!-- 進度條 -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- 導航欄 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <span>Cursor Worktree 指南</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#intro">簡介</a></li>
+                <li><a href="#setup">設置</a></li>
+                <li><a href="#workflow">工作流程</a></li>
+                <li><a href="#multiagent">多代理</a></li>
+                <li><a href="#tips">最佳實踐</a></li>
+            </ul>
+            <div class="version-badge">Cursor 2.3</div>
+        </div>
+    </nav>
+
+    <!-- 目錄 -->
+    <div class="toc">
+        <h4>目錄</h4>
+        <ul class="toc-list">
+            <li><a href="#intro">什麼是 Worktree</a></li>
+            <li><a href="#version">版本資訊</a></li>
+            <li><a href="#setup">環境設置</a></li>
+            <li><a href="#workflow">工作流程</a></li>
+            <li><a href="#multiagent">多代理模式</a></li>
+            <li><a href="#commands">命令速查</a></li>
+            <li><a href="#tips">最佳實踐</a></li>
+            <li><a href="#faq">常見問題</a></li>
+        </ul>
+    </div>
+
+    <main class="main-content">
+        <!-- Hero 區塊 -->
+        <section class="hero">
+            <h1>🚀 Cursor IDE 2.3<br>Git Worktree 完整教學</h1>
+            <p class="hero-subtitle">掌握多任務並行開發，提升 10 倍工作效率</p>
+            
+            <div class="hero-features">
+                <div class="feature-card">
+                    <div class="feature-icon purple">🔀</div>
+                    <div>
+                        <strong>並行開發</strong>
+                        <p style="font-size: 0.875rem; color: var(--muted);">同時處理多個功能</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon cyan">🤖</div>
+                    <div>
+                        <strong>多代理支援</strong>
+                        <p style="font-size: 0.875rem; color: var(--muted);">最多 8 個 AI 代理</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon green">🔒</div>
+                    <div>
+                        <strong>隔離環境</strong>
+                        <p style="font-size: 0.875rem; color: var(--muted);">避免檔案衝突</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon orange">⚡</div>
+                    <div>
+                        <strong>快速切換</strong>
+                        <p style="font-size: 0.875rem; color: var(--muted);">無需 checkout</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 什麼是 Worktree -->
+        <section class="section" id="intro">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <h2>什麼是 Git Worktree？</h2>
+            </div>
+
+            <div class="card">
+                <p style="font-size: 1.125rem; margin-bottom: 1.5rem;">
+                    <strong>Git Worktree</strong> 允許你在同一個 Git 倉庫中，同時檢出多個分支到不同的目錄。
+                    每個 worktree 都有自己獨立的工作目錄和暫存區，但共享同一個 <code>.git</code> 資料庫。
+                </p>
+
+                <div class="diagram">
+                    <div class="diagram-title">📊 Worktree 架構示意圖</div>
+                    <div class="worktree-diagram">
+                        <div class="main-repo">
+                            <h4>🏠 主專案 (Main Repository)</h4>
+                            <p>C:\AIProject\go_gateway</p>
+                            <p style="margin-top: 0.5rem; font-size: 0.75rem;">包含完整的 .git 目錄</p>
+                        </div>
+                        
+                        <div class="connector"></div>
+                        
+                        <div style="text-align: center; color: var(--muted); font-size: 0.875rem;">
+                            共享 Git 歷史記錄 & 物件資料庫
+                        </div>
+                        
+                        <div class="connector"></div>
+                        
+                        <div class="worktrees-container">
+                            <div class="worktree-box active">
+                                <div class="worktree-icon">🔧</div>
+                                <div class="worktree-name">Worktree 1</div>
+                                <div class="worktree-branch">feature/scanner</div>
+                                <div class="cursor-window">Cursor 視窗 1</div>
+                            </div>
+                            <div class="worktree-box">
+                                <div class="worktree-icon">📊</div>
+                                <div class="worktree-name">Worktree 2</div>
+                                <div class="worktree-branch">feature/monitor</div>
+                                <div class="cursor-window">Cursor 視窗 2</div>
+                            </div>
+                            <div class="worktree-box">
+                                <div class="worktree-icon">🐛</div>
+                                <div class="worktree-name">Worktree 3</div>
+                                <div class="worktree-branch">bugfix/timeout</div>
+                                <div class="cursor-window">Cursor 視窗 3</div>
+                            </div>
+                            <div class="worktree-box">
+                                <div class="worktree-icon">🔐</div>
+                                <div class="worktree-name">Worktree 4</div>
+                                <div class="worktree-branch">feature/auth</div>
+                                <div class="cursor-window">Cursor 視窗 4</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip info">
+                    <div class="tip-icon">💡</div>
+                    <div>
+                        <h4>為什麼在 Cursor 中使用 Worktree？</h4>
+                        <p>Cursor 2.0+ 使用 worktree 來支援<strong>多代理並行開發</strong>。每個 AI 代理在獨立的 worktree 中工作，避免檔案衝突，讓你可以同時執行多個任務。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 版本資訊 -->
+        <section class="section" id="version">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <h2>Cursor 版本資訊</h2>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(124, 58, 237, 0.2);">📋</div>
+                    <h3>版本更新時間軸</h3>
+                </div>
+
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-date">2025 年 12 月 22 日</div>
+                        <div class="timeline-title">Cursor 2.3 - 穩定性更新</div>
+                        <ul style="margin-left: 1.5rem; color: var(--muted);">
+                            <li>改進 worktree 支援</li>
+                            <li>擴展程序進程隔離</li>
+                            <li>佈局自訂功能</li>
+                            <li>改進檢查點回滾</li>
+                        </ul>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">2025 年 12 月 10 日</div>
+                        <div class="timeline-title">Cursor 2.2 - 功能更新</div>
+                        <ul style="margin-left: 1.5rem; color: var(--muted);">
+                            <li>Plan Mode 增強（Mermaid 圖表）</li>
+                            <li>Debug Mode 新增</li>
+                            <li>多代理評判功能</li>
+                            <li>瀏覽器佈局編輯器</li>
+                        </ul>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">2025 年 10 月 29 日</div>
+                        <div class="timeline-title">Cursor 2.0 - 重大更新</div>
+                        <ul style="margin-left: 1.5rem; color: var(--muted);">
+                            <li>🎉 多代理功能（最多 8 個）</li>
+                            <li>🎉 Git Worktree 支援</li>
+                            <li>沙盒終端機</li>
+                            <li>Composer 模型</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="tip warning" style="margin-top: 2rem;">
+                    <div class="tip-icon">⚠️</div>
+                    <div>
+                        <h4>已知問題（2.3 版本）</h4>
+                        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li>Worktree 偵測問題：當 <code>.git</code> 是指標檔案時可能無法識別</li>
+                            <li>沙盒模式下每個檔案都需要寫入權限確認</li>
+                            <li>啟動時可能載入其他 worktree 的未儲存檔案</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 環境設置 -->
+        <section class="section" id="setup">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <h2>環境設置</h2>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(16, 185, 129, 0.2);">⚙️</div>
+                    <h3>Step 1: 確認 Cursor 版本</h3>
+                </div>
+
+                <p>首先確認你的 Cursor 版本是 2.0 或更高版本：</p>
+
+                <div class="screenshot">
+                    <div class="screenshot-header">
+                        <div class="screenshot-dot red"></div>
+                        <div class="screenshot-dot yellow"></div>
+                        <div class="screenshot-dot green"></div>
+                        <div class="screenshot-title">Cursor IDE - 檢查版本</div>
+                    </div>
+                    <div class="screenshot-content" style="text-align: center; padding: 3rem;">
+                        <p style="color: var(--muted); margin-bottom: 1rem;">Help → About Cursor</p>
+                        <div style="background: var(--surface); display: inline-block; padding: 2rem 3rem; border-radius: 12px;">
+                            <div style="font-size: 3rem; margin-bottom: 0.5rem;">⚡</div>
+                            <div style="font-size: 1.5rem; font-weight: 700;">Cursor</div>
+                            <div style="color: var(--primary-light); font-size: 1.25rem;">Version 2.3.x</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(6, 182, 212, 0.2);">📁</div>
+                    <h3>Step 2: 規劃 Worktree 目錄結構</h3>
+                </div>
+
+                <p>建議的目錄結構：</p>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">目錄結構</span>
+                    </div>
+                    <div class="code-content">
+<span class="comment"># 主專案位置</span>
+C:\AIProject\go_gateway\              <span class="comment"># ← 主專案（包含 .git 目錄）</span>
+
+<span class="comment"># Worktree 存放位置（建議）</span>
+C:\Users\{用戶名}\.cursor\worktrees\
+    └── go_gateway\
+        ├── scanner\                   <span class="comment"># ← Worktree 1</span>
+        ├── monitor\                   <span class="comment"># ← Worktree 2</span>
+        ├── bugfix\                    <span class="comment"># ← Worktree 3</span>
+        └── auth\                      <span class="comment"># ← Worktree 4</span>
+                    </div>
+                </div>
+
+                <div class="tip success">
+                    <div class="tip-icon">✅</div>
+                    <div>
+                        <h4>為什麼使用這個結構？</h4>
+                        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li>Worktree 與主專案分離，避免混淆</li>
+                            <li>統一的存放位置，方便管理</li>
+                            <li>Cursor 專用目錄，不影響其他工具</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(245, 158, 11, 0.2);">🔧</div>
+                    <h3>Step 3: 創建 Worktree</h3>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">PowerShell / Terminal</span>
+                        <button class="code-copy" onclick="copyCode(this)">複製</button>
+                    </div>
+                    <div class="code-content">
+<span class="comment"># 1. 進入主專案目錄</span>
+<span class="command">cd</span> C:\AIProject\go_gateway
+
+<span class="comment"># 2. 確保 main 分支是最新的</span>
+<span class="command">git</span> checkout main
+<span class="command">git</span> pull origin main
+
+<span class="comment"># 3. 創建 worktree（同時創建新分支）</span>
+<span class="command">git</span> worktree add <span class="string">~/.cursor/worktrees/go_gateway/scanner</span> -b <span class="variable">feature/device-scanner</span>
+
+<span class="comment"># 4. 查看所有 worktree</span>
+<span class="command">git</span> worktree list
+                    </div>
+                </div>
+
+                <div class="tip danger">
+                    <div class="tip-icon">❌</div>
+                    <div>
+                        <h4>避免使用 Detached HEAD！</h4>
+                        <p>錯誤示範：<code>git worktree add &lt;path&gt;</code>（沒有指定分支）</p>
+                        <p>這會導致 commit 可能丟失，且 Cursor 可能無法正確識別 Git 狀態。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 工作流程 -->
+        <section class="section" id="workflow">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <h2>完整工作流程</h2>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(124, 58, 237, 0.2);">📊</div>
+                    <h3>工作流程圖</h3>
+                </div>
+
+                <div class="flowchart">
+                    <div class="flowchart-container">
+                        <div class="flow-row">
+                            <div class="flow-node start">🚀 開始任務</div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node process">
+                                <strong>Step 1</strong><br>
+                                git worktree add -b &lt;branch&gt;
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node process">
+                                <strong>Step 2</strong><br>
+                                在 Cursor 開啟 Worktree
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node process">
+                                <strong>Step 3</strong><br>
+                                開發 & Commit
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node decision">
+                                <strong>開發完成？</strong>
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓ 是</div>
+                        <div class="flow-row">
+                            <div class="flow-node process">
+                                <strong>Step 4</strong><br>
+                                Push & 創建 PR
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node process">
+                                <strong>Step 5</strong><br>
+                                合併到 main
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node process">
+                                <strong>Step 6</strong><br>
+                                關閉 Cursor 視窗
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node process">
+                                <strong>Step 7</strong><br>
+                                git worktree remove
+                            </div>
+                        </div>
+                        <div class="flow-arrow down">↓</div>
+                        <div class="flow-row">
+                            <div class="flow-node end">✅ 完成</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(6, 182, 212, 0.2);">🖥️</div>
+                    <h3>在 Cursor 中開啟 Worktree</h3>
+                </div>
+
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>開啟新的 Cursor 視窗</h4>
+                            <p>使用快捷鍵 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>N</kbd> 開啟新視窗</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>開啟 Worktree 資料夾</h4>
+                            <p>File → Open Folder → 選擇 worktree 路徑</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>確認 Git 狀態</h4>
+                            <p>檢查左下角的分支名稱是否正確顯示</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="screenshot" style="margin-top: 2rem;">
+                    <div class="screenshot-header">
+                        <div class="screenshot-dot red"></div>
+                        <div class="screenshot-dot yellow"></div>
+                        <div class="screenshot-dot green"></div>
+                        <div class="screenshot-title">Cursor IDE - Worktree 視窗</div>
+                    </div>
+                    <div class="screenshot-content">
+                        <div class="cursor-ui">
+                            <div class="cursor-sidebar">
+                                <h5>Explorer</h5>
+                                <div class="sidebar-item active">
+                                    <span>📁</span>
+                                    <span>scanner</span>
+                                </div>
+                                <div class="sidebar-item" style="padding-left: 2rem;">
+                                    <span>📄</span>
+                                    <span>DeviceScanner.tsx</span>
+                                </div>
+                                <div class="sidebar-item" style="padding-left: 2rem;">
+                                    <span>📄</span>
+                                    <span>ScanResult.tsx</span>
+                                </div>
+                                <h5 style="margin-top: 1.5rem;">Source Control</h5>
+                                <div class="sidebar-item">
+                                    <span>🔀</span>
+                                    <span style="color: var(--success);">feature/device-scanner</span>
+                                </div>
+                            </div>
+                            <div class="cursor-editor">
+                                <div class="editor-tabs">
+                                    <div class="editor-tab active">DeviceScanner.tsx</div>
+                                    <div class="editor-tab">ScanResult.tsx</div>
+                                </div>
+                                <div style="font-family: monospace; font-size: 0.875rem; color: var(--muted);">
+                                    <div><span style="color: #569cd6;">export default function</span> <span style="color: #dcdcaa;">DeviceScanner</span>() {</div>
+                                    <div style="padding-left: 1rem;"><span style="color: #569cd6;">const</span> [scanning, setScanning] = <span style="color: #dcdcaa;">useState</span>(<span style="color: #569cd6;">false</span>)</div>
+                                    <div style="padding-left: 1rem;"><span style="color: #6a9955;">// 掃描邏輯...</span></div>
+                                    <div>}</div>
+                                </div>
+                            </div>
+                            <div class="cursor-chat">
+                                <div class="chat-header">
+                                    <span>🤖</span>
+                                    <span>AI Assistant</span>
+                                </div>
+                                <div class="chat-messages">
+                                    <div class="chat-message user">
+                                        幫我實現設備掃描功能
+                                    </div>
+                                    <div class="chat-message ai">
+                                        好的，我來幫你實現設備掃描組件。首先我們需要...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip info" style="margin-top: 1.5rem;">
+                    <div class="tip-icon">💡</div>
+                    <div>
+                        <h4>每個 Worktree 使用獨立的 Cursor 視窗</h4>
+                        <p>這樣 AI 助手的上下文會是獨立的，不會混淆不同任務的代碼。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(16, 185, 129, 0.2);">🔄</div>
+                    <h3>合併與清理</h3>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">PowerShell / Terminal</span>
+                        <button class="code-copy" onclick="copyCode(this)">複製</button>
+                    </div>
+                    <div class="code-content">
+<span class="comment"># 1. Push 分支到遠端</span>
+<span class="command">git</span> push -u origin feature/device-scanner
+
+<span class="comment"># 2. 創建 Pull Request（使用 GitHub CLI）</span>
+<span class="command">gh</span> pr create --title <span class="string">"feat: 新增設備掃描功能"</span> --body <span class="string">"## 變更內容\n- 新增掃描組件"</span>
+
+<span class="comment"># 3. 合併後，回到主專案目錄</span>
+<span class="command">cd</span> C:\AIProject\go_gateway
+
+<span class="comment"># 4. 移除 worktree</span>
+<span class="command">git</span> worktree remove ~/.cursor/worktrees/go_gateway/scanner
+
+<span class="comment"># 5. 清理無效的 worktree 引用</span>
+<span class="command">git</span> worktree prune
+
+<span class="comment"># 6. 刪除本地分支（可選）</span>
+<span class="command">git</span> branch -d feature/device-scanner
+                    </div>
+                </div>
+
+                <div class="tip warning">
+                    <div class="tip-icon">⚠️</div>
+                    <div>
+                        <h4>重要：先關閉 Cursor 視窗，再移除 Worktree</h4>
+                        <p>如果 Cursor 還在使用該目錄，可能會導致檔案鎖定錯誤。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 多代理模式 -->
+        <section class="section" id="multiagent">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <h2>多代理模式（Multi-Agent）</h2>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(124, 58, 237, 0.2);">🤖</div>
+                    <h3>Cursor 2.0+ 多代理功能</h3>
+                </div>
+
+                <p style="margin-bottom: 1.5rem;">
+                    Cursor 2.0 引入了<strong>多代理功能</strong>，允許最多 <strong>8 個 AI 代理</strong>同時工作。
+                    每個代理在獨立的 worktree 中運行，避免檔案衝突。
+                </p>
+
+                <div class="diagram">
+                    <div class="diagram-title">🤖 多代理並行工作示意圖</div>
+                    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 2rem;">
+                        <div style="background: var(--surface); padding: 1.5rem; border-radius: 12px; text-align: center; min-width: 150px;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🤖</div>
+                            <div style="font-weight: 600;">Agent 1</div>
+                            <div style="font-size: 0.75rem; color: var(--muted);">前端開發</div>
+                            <div style="font-size: 0.75rem; color: var(--primary-light); margin-top: 0.5rem;">worktree/frontend</div>
+                        </div>
+                        <div style="background: var(--surface); padding: 1.5rem; border-radius: 12px; text-align: center; min-width: 150px;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🤖</div>
+                            <div style="font-weight: 600;">Agent 2</div>
+                            <div style="font-size: 0.75rem; color: var(--muted);">後端 API</div>
+                            <div style="font-size: 0.75rem; color: var(--secondary); margin-top: 0.5rem;">worktree/backend</div>
+                        </div>
+                        <div style="background: var(--surface); padding: 1.5rem; border-radius: 12px; text-align: center; min-width: 150px;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🤖</div>
+                            <div style="font-weight: 600;">Agent 3</div>
+                            <div style="font-size: 0.75rem; color: var(--muted);">測試撰寫</div>
+                            <div style="font-size: 0.75rem; color: var(--success); margin-top: 0.5rem;">worktree/tests</div>
+                        </div>
+                        <div style="background: var(--surface); padding: 1.5rem; border-radius: 12px; text-align: center; min-width: 150px;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🤖</div>
+                            <div style="font-weight: 600;">Agent 4</div>
+                            <div style="font-size: 0.75rem; color: var(--muted);">文檔更新</div>
+                            <div style="font-size: 0.75rem; color: var(--warning); margin-top: 0.5rem;">worktree/docs</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-top: 2rem;">
+                    <div class="tip success">
+                        <div class="tip-icon">✅</div>
+                        <div>
+                            <h4>多代理優點</h4>
+                            <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                                <li>並行處理多個任務</li>
+                                <li>每個代理專注單一職責</li>
+                                <li>自動隔離避免衝突</li>
+                                <li>可比較不同方案</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="tip warning">
+                        <div class="tip-icon">⚠️</div>
+                        <div>
+                            <h4>注意事項</h4>
+                            <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                                <li>沙盒模式可能需要頻繁確認權限</li>
+                                <li>代理可能「脫離」worktree</li>
+                                <li>需要仔細審查合併結果</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(6, 182, 212, 0.2);">⚙️</div>
+                    <h3>設定多代理模式</h3>
+                </div>
+
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>開啟代理面板</h4>
+                            <p>在 Cursor 側邊欄找到 <strong>Agents</strong> 標籤</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>創建代理群組</h4>
+                            <p>點擊 <strong>+</strong> 創建新的多代理任務，輸入任務描述</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>選擇代理數量</h4>
+                            <p>選擇 2-8 個代理，可為每個代理指定角色（如：效能優化、安全性）</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>啟動並監控</h4>
+                            <p>Cursor 會自動為每個代理創建 worktree，完成後可比較結果</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip info" style="margin-top: 1.5rem;">
+                    <div class="tip-icon">💡</div>
+                    <div>
+                        <h4>關閉沙盒模式（如需要）</h4>
+                        <p>如果頻繁的權限確認很煩人，可以在設定中：</p>
+                        <p><code>Agent → Auto-Run Mode → Run Everything</code>（注意：這會降低安全性）</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 命令速查 -->
+        <section class="section" id="commands">
+            <div class="section-header">
+                <div class="section-number">6</div>
+                <h2>命令速查表</h2>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>命令</th>
+                                <th>說明</th>
+                                <th>範例</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>git worktree add &lt;path&gt; -b &lt;branch&gt;</code></td>
+                                <td>創建新分支的 worktree</td>
+                                <td><code>git worktree add ~/wt/scanner -b feature/scanner</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>git worktree add &lt;path&gt; &lt;branch&gt;</code></td>
+                                <td>使用現有分支創建 worktree</td>
+                                <td><code>git worktree add ~/wt/hotfix hotfix/bug</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>git worktree list</code></td>
+                                <td>列出所有 worktree</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td><code>git worktree remove &lt;path&gt;</code></td>
+                                <td>移除 worktree</td>
+                                <td><code>git worktree remove ~/wt/scanner</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>git worktree remove &lt;path&gt; --force</code></td>
+                                <td>強制移除 worktree</td>
+                                <td><code>git worktree remove ~/wt/scanner --force</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>git worktree prune</code></td>
+                                <td>清理無效的 worktree 引用</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td><code>cursor &lt;path&gt;</code></td>
+                                <td>在 Cursor 中開啟資料夾</td>
+                                <td><code>cursor ~/wt/scanner</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 最佳實踐 -->
+        <section class="section" id="tips">
+            <div class="section-header">
+                <div class="section-number">7</div>
+                <h2>最佳實踐</h2>
+            </div>
+
+            <div class="grid-2">
+                <div class="card" style="border-left: 4px solid var(--success);">
+                    <h3 style="color: var(--success); margin-bottom: 1rem;">✅ 應該做的事</h3>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>使用有意義的分支名稱</li>
+                        <li>每個 worktree 專注一個功能</li>
+                        <li>定期從 main 同步更新</li>
+                        <li>小步提交，清楚的 commit message</li>
+                        <li>先關閉 Cursor 再刪除 worktree</li>
+                        <li>使用 PR 進行代碼審查</li>
+                        <li>定期清理已合併的 worktree</li>
+                    </ul>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--danger);">
+                    <h3 style="color: var(--danger); margin-bottom: 1rem;">❌ 不應該做的事</h3>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>使用 detached HEAD 模式</li>
+                        <li>在主專案直接編輯 worktree 檔案</li>
+                        <li>同時 checkout 同一個分支</li>
+                        <li>忘記 push 就刪除 worktree</li>
+                        <li>長時間不同步 main</li>
+                        <li>在 worktree 中執行 git init</li>
+                        <li>刪除 .git 指標檔案</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 1.5rem;">
+                <div class="card-header">
+                    <div class="card-icon" style="background: rgba(124, 58, 237, 0.2);">📝</div>
+                    <h3>分支命名規範</h3>
+                </div>
+                <div class="grid-4">
+                    <div style="text-align: center; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🚀</div>
+                        <code>feature/</code>
+                        <p style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">新功能</p>
+                    </div>
+                    <div style="text-align: center; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🐛</div>
+                        <code>bugfix/</code>
+                        <p style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">Bug 修復</p>
+                    </div>
+                    <div style="text-align: center; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🔥</div>
+                        <code>hotfix/</code>
+                        <p style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">緊急修復</p>
+                    </div>
+                    <div style="text-align: center; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">♻️</div>
+                        <code>refactor/</code>
+                        <p style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">重構</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 常見問題 -->
+        <section class="section" id="faq">
+            <div class="section-header">
+                <div class="section-number">8</div>
+                <h2>常見問題 FAQ</h2>
+            </div>
+
+            <div class="card">
+                <details style="margin-bottom: 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        Q: Cursor 顯示「No Git repository」怎麼辦？
+                    </summary>
+                    <div style="padding: 1rem; background: var(--surface); border-radius: 0 0 8px 8px; margin-top: -0.5rem;">
+                        <p>這是 Cursor 2.x 的已知問題。當 worktree 的 <code>.git</code> 是指標檔案而非目錄時，可能無法識別。</p>
+                        <p style="margin-top: 0.5rem;"><strong>解決方案：</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>使用終端機執行 Git 命令</li>
+                            <li>等待 Cursor 更新修復此問題</li>
+                            <li>嘗試重新開啟資料夾</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <details style="margin-bottom: 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        Q: 如何解決 detached HEAD 狀態？
+                    </summary>
+                    <div style="padding: 1rem; background: var(--surface); border-radius: 0 0 8px 8px; margin-top: -0.5rem;">
+                        <div class="code-block" style="margin: 0;">
+                            <div class="code-content">
+<span class="comment"># 在 worktree 目錄中</span>
+<span class="command">cd</span> ~/.cursor/worktrees/go_gateway/scanner
+
+<span class="comment"># 創建並切換到新分支</span>
+<span class="command">git</span> checkout -b feature/device-scanner
+
+<span class="comment"># 或切換到現有分支</span>
+<span class="command">git</span> checkout feature/device-scanner
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <details style="margin-bottom: 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        Q: 移除 worktree 時出現錯誤怎麼辦？
+                    </summary>
+                    <div style="padding: 1rem; background: var(--surface); border-radius: 0 0 8px 8px; margin-top: -0.5rem;">
+                        <ol style="margin-left: 1.5rem;">
+                            <li>確保已關閉所有使用該目錄的 Cursor 視窗</li>
+                            <li>使用 <code>--force</code> 強制移除</li>
+                            <li>執行 <code>git worktree prune</code> 清理</li>
+                        </ol>
+                    </div>
+                </details>
+
+                <details style="margin-bottom: 1rem;">
+                    <summary style="cursor: pointer; font-weight: 600; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        Q: 如何在 worktree 之間共享 node_modules？
+                    </summary>
+                    <div style="padding: 1rem; background: var(--surface); border-radius: 0 0 8px 8px; margin-top: -0.5rem;">
+                        <p><strong>推薦方案：使用 pnpm</strong></p>
+                        <p>pnpm 使用全局 store，自動共享依賴，節省磁碟空間。</p>
+                        <div class="code-block" style="margin: 1rem 0 0;">
+                            <div class="code-content">
+<span class="comment"># 安裝 pnpm</span>
+<span class="command">npm</span> install -g pnpm
+
+<span class="comment"># 在每個 worktree 中使用 pnpm</span>
+<span class="command">pnpm</span> install
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <details>
+                    <summary style="cursor: pointer; font-weight: 600; padding: 1rem; background: var(--darker); border-radius: 8px;">
+                        Q: 多代理模式下如何避免權限確認彈窗？
+                    </summary>
+                    <div style="padding: 1rem; background: var(--surface); border-radius: 0 0 8px 8px; margin-top: -0.5rem;">
+                        <p>在 Cursor 設定中：</p>
+                        <p><code>Settings → Agent → Auto-Run Mode → Run Everything</code></p>
+                        <div class="tip warning" style="margin-top: 1rem;">
+                            <div class="tip-icon">⚠️</div>
+                            <div>
+                                <p>注意：這會降低安全性，代理可以直接修改檔案而不需要確認。</p>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </section>
+    </main>
+
+    <!-- 頁腳 -->
+    <footer class="footer">
+        <p>📚 Cursor IDE Git Worktree 完整教學指南</p>
+        <p style="margin-top: 0.5rem;">最後更新：2026 年 1 月 | Cursor 版本：2.3.x</p>
+        <div style="margin-top: 1.5rem;">
+            <a href="#" class="btn btn-primary" style="margin-right: 1rem;">
+                <span>⬆️</span> 回到頂部
+            </a>
+            <a href="WORKTREE_WORKFLOW.md" class="btn btn-secondary">
+                <span>📄</span> Markdown 版本
+            </a>
+        </div>
+    </footer>
+
+    <script>
+        // 複製代碼功能
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block');
+            const code = codeBlock.querySelector('.code-content').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.innerText;
+                button.innerText = '已複製！';
+                button.style.background = '#10b981';
+                setTimeout(() => {
+                    button.innerText = originalText;
+                    button.style.background = '';
+                }, 2000);
+            });
+        }
+
+        // 進度條
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progressBar').style.width = scrolled + '%';
+        });
+
+        // 目錄高亮
+        const sections = document.querySelectorAll('.section');
+        const tocLinks = document.querySelectorAll('.toc-list a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // 平滑滾動
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // 動畫觸發
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-in');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.card, .step, .worktree-box').forEach(el => {
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>

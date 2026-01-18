@@ -15,6 +15,7 @@
 ### 首次使用
 
 1. **複製環境變數範例文件**
+
    ```powershell
    Copy-Item .env.sample .env
    ```
@@ -56,6 +57,10 @@
 
 ## 功能詳解
 
+### API 文件
+
+- 測試 API（/api/v1/test）與範例請參考 [docs/API_TEST.md](docs/API_TEST.md)
+
 ### 1. golangci-lint 靜態分析
 
 自動檢查並安裝 `golangci-lint`（如果未安裝），然後執行：
@@ -65,6 +70,7 @@ golangci-lint run ./...
 ```
 
 **檢查內容包括：**
+
 - 錯誤處理（errcheck）
 - 代碼簡化建議（gosimple）
 - 可疑代碼結構（govet）
@@ -89,6 +95,7 @@ go test -cover ./internal/protocol/...
 **覆蓋率目標：** 85%+
 
 **當前覆蓋率：**
+
 - Fatek: ~62%
 - MC Protocol: ~57%
 - Modbus: ~48%
@@ -145,6 +152,7 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 ### 測試失敗
 
 檢查測試輸出，確保：
+
 1. 所有依賴已安裝（`go mod download`）
 2. 測試環境正確配置
 3. 沒有硬體依賴的測試被跳過（RTU 測試需要實際串列埠）
@@ -152,6 +160,7 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 ### 構建失敗
 
 檢查：
+
 1. Go 版本是否符合要求
 2. 所有依賴是否正確
 3. 是否有編譯錯誤

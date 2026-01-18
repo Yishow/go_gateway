@@ -313,6 +313,10 @@ func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 			return nil, err
 		}
 
+		if devType.IsBit {
+			return nil, fmt.Errorf("device type %s is a bit device, RandomRead supports word devices only", item.Device)
+		}
+
 		offset := 2 + i*4
 		data[offset] = devType.Code
 		data[offset+1] = byte(item.Addr & 0xFF)

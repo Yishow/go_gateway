@@ -30,8 +30,18 @@ var (
 	TypeRC = ComponentType{Name: SymbolRC, Width: 16, IsDiscrete: false, FormatLen: 6} // Counter Value
 	TypeF  = ComponentType{Name: "F", Width: 16, IsDiscrete: false, FormatLen: 6}      // File Register
 
+	// 16-bit access to discrete (word access)
+	TypeWX = ComponentType{Name: SymbolWX, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWY = ComponentType{Name: SymbolWY, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWM = ComponentType{Name: SymbolWM, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWS = ComponentType{Name: SymbolWS, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWT = ComponentType{Name: SymbolWT, Width: 16, IsDiscrete: false, FormatLen: 6}
+	TypeWC = ComponentType{Name: SymbolWC, Width: 16, IsDiscrete: false, FormatLen: 6}
+
 	// Registers (32-bit)
 	TypeDR = ComponentType{Name: SymbolDR, Width: 32, IsDiscrete: false, FormatLen: 7}
+	TypeDD = ComponentType{Name: SymbolDD, Width: 32, IsDiscrete: false, FormatLen: 7}
+	TypeDF = ComponentType{Name: SymbolDF, Width: 32, IsDiscrete: false, FormatLen: 7}
 )
 
 func GetComponentType(symbol string) (ComponentType, error) {
@@ -59,10 +69,29 @@ func GetComponentType(symbol string) (ComponentType, error) {
 		return TypeRC, nil
 	case "F":
 		return TypeF, nil
-	case SymbolDR, "DD":
+	case SymbolWX:
+		return TypeWX, nil
+	case SymbolWY:
+		return TypeWY, nil
+	case SymbolWM:
+		return TypeWM, nil
+	case SymbolWS:
+		return TypeWS, nil
+	case SymbolWT:
+		return TypeWT, nil
+	case SymbolWC:
+		return TypeWC, nil
+	case SymbolDR:
 		return TypeDR, nil
+	case SymbolDD:
+		return TypeDD, nil
+	case SymbolDF:
+		return TypeDF, nil
 	default:
-		if strings.HasPrefix(upper, "D") {
+		if strings.HasPrefix(upper, "DW") && len(upper) >= 3 {
+			return ComponentType{Name: upper, Width: 32, IsDiscrete: false, FormatLen: 7}, nil
+		}
+		if strings.HasPrefix(upper, "D") && len(upper) >= 2 {
 			return ComponentType{Name: upper, Width: 32, IsDiscrete: false, FormatLen: 7}, nil
 		}
 		return ComponentType{}, fmt.Errorf("unknown component type: %s", symbol)

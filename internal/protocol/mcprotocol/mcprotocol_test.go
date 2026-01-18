@@ -237,6 +237,12 @@ func TestClient_BatchReadWord(t *testing.T) {
 		t.Errorf("Expected 10 values, got %d", len(values))
 	}
 
+	// 測試小寫設備名稱
+	_, err = client.BatchReadWord("d", 0, 10)
+	if err != nil {
+		t.Errorf("Expected lowercase device name to work, got error: %v", err)
+	}
+
 	// 測試無效地址
 	_, err = client.BatchReadWord("D", -1, 10)
 	if err == nil {
@@ -355,6 +361,13 @@ func TestClient_RandomRead(t *testing.T) {
 		t.Errorf("Expected 3 values, got %d", len(values))
 	}
 
+	// 測試位元設備
+	items[0].Device = "M"
+	_, err = client.RandomRead(items)
+	if err == nil {
+		t.Error("Expected error for bit device in RandomRead")
+	}
+
 	// 測試未知設備
 	items[0].Device = "UNKNOWN"
 	_, err = client.RandomRead(items)
@@ -403,6 +416,14 @@ func TestGetDeviceType(t *testing.T) {
 	}
 	if devType.IsBit {
 		t.Error("Device D should not be a bit device")
+	}
+
+	devType, err = GetDeviceType("d")
+	if err != nil {
+		t.Fatalf("GetDeviceType failed: %v", err)
+	}
+	if devType.Name != "D" {
+		t.Errorf("Expected device name D, got %s", devType.Name)
 	}
 
 	devType, err = GetDeviceType("M")

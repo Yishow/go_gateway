@@ -1,8 +1,8 @@
 /*
 Package mcprotocol implements the Mitsubishi MELSEC Communication Protocol (MC Protocol) 3E Frame (Binary).
 
-Supported Devices: D, W, R, M, X, Y, etc.
-Supported Commands: Batch Read/Write (Word/Bit), Random Read.
+Supported Devices: D, W, R, M, X, Y, etc. (device names are case-insensitive)
+Supported Commands: Batch Read/Write (Word/Bit), Random Read (word devices only).
 
 Usage:
 

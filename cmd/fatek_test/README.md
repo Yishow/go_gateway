@@ -30,7 +30,7 @@ fatek_test.exe -mode=tcp -host="192.168.1.5" -action=read -symbol=X -addr=0 -cou
 fatek_test.exe -mode=tcp -host="192.168.1.5" -port=502 -action=read -symbol=X -addr=0 -count=10
 ```
 
-#### 讀取暫存器 (R, D, RT, RC, F, DR)
+#### 讀取暫存器 (R, D, RT, RC, F, DR, DD, DF, WX, WY, WM, WS, WT, WC)
 
 ```bash
 # 使用預設埠號 500（Windows PowerShell 需用引號）
@@ -129,7 +129,7 @@ fatek_test.exe -mode=serial -serial=COM3 -action=random -random="X:0,D:0,R:10"
 
 #### 讀取操作參數
 
-- `-symbol`: 組件符號（X, Y, M, S, T, C, R, D, RT, RC, F, DR 等）
+- `-symbol`: 組件符號（X, Y, M, S, T, C, R, D, RT, RC, F, DR, DD, DF, WX, WY, WM, WS, WT, WC 等）
 - `-addr`: 起始位址
 - `-count`: 讀取數量
 

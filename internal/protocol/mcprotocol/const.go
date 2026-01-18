@@ -1,6 +1,9 @@
 package mcprotocol
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Command Codes (3E Binary)
 const (
@@ -56,7 +59,8 @@ var deviceMap = map[string]DeviceType{
 }
 
 func GetDeviceType(name string) (DeviceType, error) {
-	if d, ok := deviceMap[name]; ok {
+	upper := strings.ToUpper(name)
+	if d, ok := deviceMap[upper]; ok {
 		return d, nil
 	}
 	return DeviceType{}, fmt.Errorf("unknown device type: %s", name)
