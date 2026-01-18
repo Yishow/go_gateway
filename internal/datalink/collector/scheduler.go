@@ -217,6 +217,8 @@ func (s *Scheduler) AddPollingGroup(group *schema.PollingGroup) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.ensureDeviceLocks()
+
 	// 如果已在運行，啟動新群組的 Ticker
 	if s.running && group.Enabled {
 		s.startGroupTicker(group)
@@ -247,6 +249,8 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 	if s.running {
 		return fmt.Errorf("排程器已在運行")
 	}
+
+	s.ensureDeviceLocks()
 
 	s.running = true
 	s.stopCh = make(chan struct{})
@@ -371,7 +375,14 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 	s.mu.RUnlock()
 
 	if !exists || !cfgExists {
-		return
+		s.mu.Lock()
+		s.ensureDeviceLock(deviceID)
+		lock = s.deviceLocks[deviceID]
+		deviceCfg, cfgExists = s.deviceConfigs[deviceID]
+		s.mu.Unlock()
+		if !cfgExists {
+			return
+		}
 	}
 
 	// 鎖定設備確保串列存取
@@ -498,7 +509,14 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 			s.mu.RUnlock()
 
 			if !exists || !cfgExists {
-				return
+				s.mu.Lock()
+				s.ensureDeviceLock(devID)
+				lock = s.deviceLocks[devID]
+				deviceCfg, cfgExists = s.deviceConfigs[devID]
+				s.mu.Unlock()
+				if !cfgExists {
+					return
+				}
 			}
 
 			lock.Lock()
@@ -554,4 +572,18 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 
 	wg.Wait()
 	return results
+}
+
+func (s *Scheduler) ensureDeviceLocks() {
+	for id := range s.deviceConfigs {
+		if _, exists := s.deviceLocks[id]; !exists {
+			s.deviceLocks[id] = &sync.Mutex{}
+		}
+	}
+}
+
+func (s *Scheduler) ensureDeviceLock(deviceID string) {
+	if _, exists := s.deviceLocks[deviceID]; !exists {
+		s.deviceLocks[deviceID] = &sync.Mutex{}
+	}
 }

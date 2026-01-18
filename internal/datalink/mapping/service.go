@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -173,6 +174,9 @@ func ValidateTransformPipeline(steps []schema.TransformStep) error {
 	}
 
 	for i, step := range steps {
+		if step.Order < 0 {
+			return fmt.Errorf("步驟 %d: order 不能為負數", i+1)
+		}
 		if !validTypes[step.Type] {
 			return fmt.Errorf("步驟 %d: 不支援的轉換類型 '%s'", i+1, step.Type)
 		}
@@ -189,6 +193,19 @@ func ValidateTransformPipeline(steps []schema.TransformStep) error {
 		case schema.TransformFormula:
 			if step.Params == nil {
 				return fmt.Errorf("步驟 %d: formula 需要參數", i+1)
+			}
+		case schema.TransformConditional:
+			if step.Params == nil {
+				return fmt.Errorf("步驟 %d: conditional 需要參數", i+1)
+			}
+			if _, exists := step.Params["true_value"]; !exists {
+				return fmt.Errorf("步驟 %d: conditional 缺少 true_value", i+1)
+			}
+			if _, exists := step.Params["false_value"]; !exists {
+				return fmt.Errorf("步驟 %d: conditional 缺少 false_value", i+1)
+			}
+			if _, _, err := parseConditionalParams(step.Params); err != nil {
+				return fmt.Errorf("步驟 %d: conditional 參數無效: %w", i+1, err)
 			}
 		}
 	}
@@ -231,7 +248,8 @@ func ExecutePipeline(raw interface{}, pipelineJSON string) (*TransformContext, e
 		return ctx, ctx.Error
 	}
 
-	for i, step := range steps {
+	orderedSteps := normalizeTransformSteps(steps)
+	for i, step := range orderedSteps {
 		result := StepResult{
 			StepIndex: i,
 			StepType:  string(step.Type),
@@ -417,8 +435,10 @@ func executeConditional(input interface{}, params map[string]interface{}) (inter
 
 	v, _ := toFloat64Value(input)
 
-	operator, _ := params["operator"].(string)
-	threshold, _ := params["threshold"].(float64)
+	operator, threshold, err := parseConditionalParams(params)
+	if err != nil {
+		return input, err
+	}
 	trueValue := params["true_value"]
 	falseValue := params["false_value"]
 
@@ -448,6 +468,78 @@ func evaluateCondition(value float64, operator string, threshold float64) bool {
 	default:
 		return false
 	}
+}
+
+func parseConditionalParams(params map[string]interface{}) (string, float64, error) {
+	if params == nil {
+		return "", 0, fmt.Errorf("缺少參數")
+	}
+
+	if condition, ok := params["condition"].(string); ok && strings.TrimSpace(condition) != "" {
+		return parseConditionString(condition)
+	}
+
+	operator, _ := params["operator"].(string)
+	operator = normalizeOperator(strings.TrimSpace(operator))
+	if operator == "" {
+		return "", 0, fmt.Errorf("缺少 operator 或 condition")
+	}
+
+	threshold, ok := toFloat64Value(params["threshold"])
+	if !ok {
+		return "", 0, fmt.Errorf("無效的 threshold")
+	}
+
+	return operator, threshold, nil
+}
+
+func normalizeOperator(operator string) string {
+	switch operator {
+	case "eq":
+		return "=="
+	case "ne":
+		return "!="
+	case "gt":
+		return ">"
+	case "gte":
+		return ">="
+	case "lt":
+		return "<"
+	case "lte":
+		return "<="
+	default:
+		return operator
+	}
+}
+
+func parseConditionString(condition string) (string, float64, error) {
+	cond := strings.TrimSpace(condition)
+	if strings.HasPrefix(cond, "value") {
+		cond = strings.TrimSpace(strings.TrimPrefix(cond, "value"))
+	}
+	if strings.HasPrefix(cond, "x") {
+		cond = strings.TrimSpace(strings.TrimPrefix(cond, "x"))
+	}
+
+	operators := []string{"==", "!=", ">=", "<=", ">", "<"}
+	for _, op := range operators {
+		idx := strings.Index(cond, op)
+		if idx < 0 {
+			continue
+		}
+		left := strings.TrimSpace(cond[:idx])
+		right := strings.TrimSpace(cond[idx+len(op):])
+		if left != "" && left != "value" && left != "x" {
+			return "", 0, fmt.Errorf("無法解析 condition: %s", condition)
+		}
+		threshold, ok := toFloat64Value(right)
+		if !ok {
+			return "", 0, fmt.Errorf("無法解析門檻值: %s", right)
+		}
+		return op, threshold, nil
+	}
+
+	return "", 0, fmt.Errorf("無法解析 condition: %s", condition)
 }
 
 // executeFormula 公式轉換
@@ -575,6 +667,30 @@ func toBoolValue(v interface{}) bool {
 
 func generateUUID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
+}
+
+func normalizeTransformSteps(steps []schema.TransformStep) []schema.TransformStep {
+	if len(steps) == 0 {
+		return steps
+	}
+
+	needsOrdering := false
+	for _, step := range steps {
+		if step.Order != 0 {
+			needsOrdering = true
+			break
+		}
+	}
+	if !needsOrdering {
+		return steps
+	}
+
+	ordered := make([]schema.TransformStep, len(steps))
+	copy(ordered, steps)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return ordered[i].Order < ordered[j].Order
+	})
+	return ordered
 }
 
 // =============================================================================
