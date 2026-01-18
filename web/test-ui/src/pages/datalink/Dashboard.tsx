@@ -1,96 +1,114 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
-  const navigate = useNavigate();
+  const stats = [
+    { label: 'Total Devices', value: '12', unit: 'active', color: 'blue' },
+    { label: 'Data Points', value: '1,240', unit: 'monitored', color: 'emerald' },
+    { label: 'Throughput', value: '450', unit: 'ops/sec', color: 'purple' },
+    { label: 'Errors', value: '0', unit: 'last 24h', color: 'red' },
+  ];
 
-  const cards = [
-    {
-      title: 'Devices',
-      description: 'Manage industrial devices and PLCs',
+  const features = [
+    { 
+      title: 'Device Manager', 
+      desc: 'Connect Modbus, FATEK, and MQTT devices.',
       path: '/datalink/devices',
-      color: 'bg-blue-600',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 01-2 2v4a2 2 0 012 2h14a2 2 0 012-2v-4a2 2 0 01-2-2m-2-4h.01M17 16h.01" />
+        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
         </svg>
       ),
+      gradient: 'from-blue-500 to-cyan-500'
     },
-    {
-      title: 'Points',
-      description: 'Configure data points and polling',
-      path: '/datalink/points',
-      color: 'bg-indigo-600',
-      icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
-    },
-    {
-      title: 'Tags',
-      description: 'Define global tag dictionary',
+    { 
+      title: 'Tag Dictionary', 
+      desc: 'Manage standard tags and metadata.',
       path: '/datalink/tags',
-      color: 'bg-emerald-600',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
         </svg>
       ),
+      gradient: 'from-purple-500 to-pink-500'
     },
-    {
-      title: 'Mappings',
-      description: 'Design data transformation pipelines',
+    { 
+      title: 'Data Mapping', 
+      desc: 'Transform and route data pipelines.',
       path: '/datalink/mappings',
-      color: 'bg-purple-600',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
         </svg>
       ),
+      gradient: 'from-emerald-500 to-teal-500'
+    },
+     { 
+      title: 'System Settings', 
+      desc: 'Configure storage and performance.',
+      path: '/datalink/settings',
+      icon: (
+        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      gradient: 'from-orange-500 to-amber-500'
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-100">Overview</h2>
-      </div>
-
+    <div className="space-y-8">
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card) => (
-          <div
-            key={card.path}
-            onClick={() => navigate(card.path)}
-            className="group relative bg-slate-800 rounded-xl p-6 cursor-pointer border border-slate-700 hover:border-blue-500/50 transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/10"
-          >
-            <div className={`inline-flex items-center justify-center p-3 rounded-lg ${card.color} text-white mb-4`}>
-              {card.icon}
+        {stats.map((stat) => (
+          <div key={stat.label} className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+            <p className="text-sm text-slate-400 font-medium">{stat.label}</p>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-3xl font-bold text-slate-100">{stat.value}</span>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full bg-${stat.color}-500/10 text-${stat.color}-400 border border-${stat.color}-500/20`}>
+                {stat.unit}
+              </span>
             </div>
-            <h3 className="text-lg font-semibold text-slate-100 mb-2 group-hover:text-blue-400 transition-colors">
-              {card.title}
-            </h3>
-            <p className="text-sm text-slate-400">
-              {card.description}
-            </p>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 bg-slate-800 rounded-xl border border-slate-700 p-6">
-        <h3 className="text-lg font-semibold text-slate-100 mb-4">System Status</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-800">
-            <div className="text-sm text-slate-400 mb-1">Active Connections</div>
-            <div className="text-2xl font-bold text-emerald-400">0</div>
-          </div>
-          <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-800">
-            <div className="text-sm text-slate-400 mb-1">Points Polled / Sec</div>
-            <div className="text-2xl font-bold text-blue-400">0</div>
-          </div>
-          <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-800">
-            <div className="text-sm text-slate-400 mb-1">Pipeline Errors</div>
-            <div className="text-2xl font-bold text-slate-400">0</div>
-          </div>
+      {/* Feature Cards */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-100 mb-6 flex items-center gap-2">
+            <span>Quick Access</span>
+            <div className="h-px bg-slate-800 flex-1 ml-4"></div>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+          {features.map((feature) => (
+            <Link
+              key={feature.title}
+              to={feature.path}
+              className="group relative bg-slate-800 p-6 rounded-2xl border border-slate-700 hover:border-slate-600 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/5 overflow-hidden"
+            >
+              {/* Background Glow */}
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 blur-3xl transition-opacity duration-500 -translate-y-1/2 translate-x-1/2`}></div>
+
+              <div className="flex items-start space-x-6 relative z-10">
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300`}>
+                   {feature.icon}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-2 text-slate-400 leading-relaxed">
+                    {feature.desc}
+                  </p>
+                </div>
+                <div className="text-slate-600 group-hover:text-blue-400 transition-colors transform group-hover:translate-x-1 duration-300">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
