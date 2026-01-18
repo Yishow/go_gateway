@@ -56,44 +56,44 @@
 
 ### 2.1 資料庫工廠
 
-- [ ] 2.1.1 建立 `internal/datalink/db.go`（連接管理）
-- [ ] 2.1.2 實現 Repository 工廠模式
+- [x] 2.1.1 建立 `internal/datalink/db.go`（連接管理）
+- [x] 2.1.2 實現 Repository 工廠模式
 - [ ] 2.1.3 整合現有 migrations 至啟動流程
 
 ### 2.2 Device SQL Repository
 
-- [ ] 2.2.1 建立 `internal/datalink/device/sql_repo.go`
-- [ ] 2.2.2 實現 CRUD 操作（SQLite + Postgres 相容）
+- [x] 2.2.1 建立 `internal/datalink/device/sql_repo.go`
+- [x] 2.2.2 實現 CRUD 操作（SQLite + Postgres 相容）
 - [ ] 2.2.3 撰寫單元測試
 
 ### 2.3 Point SQL Repository
 
-- [ ] 2.3.1 建立 `internal/datalink/point/sql_repo.go`
-- [ ] 2.3.2 實現 CRUD 操作
+- [x] 2.3.1 建立 `internal/datalink/point/sql_repo.go`
+- [x] 2.3.2 實現 CRUD 操作
 - [ ] 2.3.3 撰寫單元測試
 
 ### 2.4 Tag SQL Repository
 
-- [ ] 2.4.1 建立 `internal/datalink/tag/sql_repo.go`
-- [ ] 2.4.2 實現 CRUD 操作
+- [x] 2.4.1 建立 `internal/datalink/tag/sql_repo.go`
+- [x] 2.4.2 實現 CRUD 操作
 - [ ] 2.4.3 撰寫單元測試
 
 ### 2.5 Mapping SQL Repository
 
-- [ ] 2.5.1 建立 `internal/datalink/mapping/sql_repo.go`
-- [ ] 2.5.2 實現 CRUD 操作
+- [x] 2.5.1 建立 `internal/datalink/mapping/sql_repo.go`
+- [x] 2.5.2 實現 CRUD 操作
 - [ ] 2.5.3 撰寫單元測試
 
 ### 2.6 Polling Group SQL Repository
 
-- [ ] 2.6.1 建立 `internal/datalink/pollinggroup/sql_repo.go`
-- [ ] 2.6.2 實現 CRUD 操作
+- [x] 2.6.1 建立 `internal/datalink/pollinggroup/sql_repo.go`
+- [x] 2.6.2 實現 CRUD 操作
 - [ ] 2.6.3 撰寫單元測試
 
 ### 2.7 Settings SQL Repository
 
-- [ ] 2.7.1 建立 `internal/datalink/settings/sql_repo.go`
-- [ ] 2.7.2 實現 CRUD 操作
+- [x] 2.7.1 建立 `internal/datalink/settings/sql_repo.go`
+- [x] 2.7.2 實現 CRUD 操作
 - [ ] 2.7.3 撰寫單元測試
 
 ## 3. SSE 即時預覽
@@ -143,7 +143,7 @@
 
 ### 5.1 後端測試
 
-- [ ] 5.1.1 執行現有 Datalink API 測試
+- [x] 5.1.1 執行現有 Datalink API 測試
 - [ ] 5.1.2 新增 Polling Groups API 測試
 - [ ] 5.1.3 新增 Protocols API 測試
 - [ ] 5.1.4 新增 Health API 測試

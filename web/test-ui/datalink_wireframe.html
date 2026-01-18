@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Structure Wireframe - Mapping Wizard</title>
+    <!-- 
+      File: web/test-ui/src/pages/datalink/MappingWizardPage.tsx
+      Context: Mapping Wizard Structure
+    -->
+    <style>
+      /* Global Reset & X-Ray Style */
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: monospace;
+        padding: 20px;
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      /* 核心佈局線條 - X-Ray Mode */
+      div,
+      header,
+      main,
+      nav,
+      section,
+      article,
+      aside,
+      footer {
+        border: 1px dashed #999;
+        padding: 10px;
+        margin: 5px;
+        min-height: 30px; /* 確保空區塊可見 */
+      }
+
+      /* Layout Utilities */
+      .mapping-wizard {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .wizard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .wizard-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      /* Step Indicator */
+      .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .step-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+      }
+
+      .step-connector {
+        flex: 1;
+        height: 2px;
+        border-top: 1px dashed #999; /* Connector simulated */
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        margin: 0 10px;
+        min-height: 0;
+      }
+
+      /* Body Layout */
+      .wizard-body {
+        display: flex;
+        gap: 20px;
+      }
+
+      .wizard-content {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .wizard-sidebar {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Step Content Specifics */
+      .step-header {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .step-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      /* Device List Grid Simulation */
+      .device-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+      }
+
+      .device-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* Navigation */
+      .wizard-navigation {
+        display: flex;
+        justify-content: space-between;
+        margin-top: auto;
+      }
+
+      /* Buttons & Inputs Placeholders */
+      button,
+      input {
+        border: 1px solid #333;
+        background: none;
+        padding: 5px 10px;
+        font-family: inherit;
+      }
+
+      .image-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eee;
+        border: 1px dotted #666;
+        height: 50px;
+        width: 50px;
+      }
+
+      /* Comment helpers */
+      .note {
+        color: #666;
+        font-size: 0.8em;
+        font-style: italic;
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Main Container -->
+    <div class="mapping-wizard">
+      <!-- Header Section -->
+      <header class="wizard-header">
+        <div>[標題：建立新映射]</div>
+        <nav class="wizard-actions">
+          <button>[按鈕：載入草稿]</button>
+          <button>[按鈕：儲存草稿]</button>
+          <button>[按鈕：取消]</button>
+        </nav>
+      </header>
+
+      <!-- Navigation / Steps -->
+      <nav class="step-indicator">
+        <!-- Step 1: Active -->
+        <div class="step-item">
+          <div class="image-placeholder">[1]</div>
+          <span>設備選擇</span>
+        </div>
+        <div class="step-connector"></div>
+
+        <!-- Step 2: Inactive -->
+        <div class="step-item">
+          <div class="image-placeholder">[2]</div>
+          <span>點位配置</span>
+        </div>
+        <div class="step-connector"></div>
+
+        <!-- Repeated steps representation -->
+        <div class="step-item">
+          <div class="image-placeholder">[3]</div>
+          <span>標籤選擇</span>
+        </div>
+        <div class="step-connector"></div>
+
+        <!-- ... -->
+        <div class="step-item">
+          <div class="image-placeholder">[6]</div>
+          <span>完成</span>
+        </div>
+      </nav>
+
+      <!-- Main Body -->
+      <div class="wizard-body">
+        <!-- Main Content Area -->
+        <main class="wizard-content">
+          <!-- Step Header -->
+          <header class="step-header">
+            <div class="image-placeholder">[ICON]</div>
+            <div>
+              <h3>[步驟標題：設備選擇]</h3>
+              <div>[描述：選擇或新增設備]</div>
+            </div>
+          </header>
+
+          <!-- Dynamic Step Content: Device Selection Example -->
+          <section class="step-content">
+            <!-- Search Bar -->
+            <div class="step-search">
+              <input type="text" placeholder="[輸入框：搜尋設備...]" />
+            </div>
+
+            <!-- List/Grid of Devices -->
+            <div class="device-list">
+              <!-- Device Card 1 -->
+              <article class="device-card">
+                <div class="image-placeholder">[Dev]</div>
+                <div>
+                  <h4>[Device Name A]</h4>
+                  <div>[Protocol: Modbus]</div>
+                </div>
+                <div>[Status: Online]</div>
+              </article>
+
+              <!-- Device Card 2 -->
+              <article class="device-card">
+                <div class="image-placeholder">[Dev]</div>
+                <div>
+                  <h4>[Device Name B]</h4>
+                  <div>[Protocol: MQTT]</div>
+                </div>
+                <div>[Status: Offline]</div>
+              </article>
+
+              <!-- More items comment -->
+              <!-- ... 更多設備卡片 ... -->
+            </div>
+          </section>
+
+          <!-- Wizard Navigation Footer -->
+          <footer class="wizard-navigation">
+            <button disabled>[按鈕：上一步]</button>
+            <button>[按鈕：下一步]</button>
+          </footer>
+        </main>
+
+        <!-- Sidebar -->
+        <aside class="wizard-sidebar">
+          <section class="live-preview-panel">
+            <h3>[Live Preview Panel]</h3>
+            <div>[狀態：等待配置...]</div>
+            <div class="preview-content">
+              <!-- Preview placeholders -->
+              <div>[資料預覽區塊]</div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>
