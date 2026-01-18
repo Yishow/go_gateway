@@ -6,16 +6,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"go-gateway/internal/api"
 	"go-gateway/internal/config"
 	"go-gateway/internal/web"
-
-	"github.com/getlantern/systray"
 )
 
 //go:embed static
@@ -58,20 +58,14 @@ func main() {
 	// 建立關閉通道
 	shutdownCh = make(chan struct{})
 
-	// 在背景啟動伺服器
+	// 啟動伺服器
 	go startServer()
 
 	// 處理系統信號（Ctrl+C 等）
 	go handleSignals()
 
-	// Windows 平台：設置控制台窗口關閉處理
-	if runtime.GOOS == "windows" {
-		setupConsoleCloseHandler()
-	}
-
-	// 啟動系統托盤（阻塞主線程）
-	// systray.Run 必須在主線程中執行
-	systray.Run(onReady, onExit)
+	// 阻塞主線程，等待信號
+	select {}
 }
 
 // startServer 在背景啟動 HTTP 伺服器
@@ -79,7 +73,6 @@ func startServer() {
 	fullURL := "http://localhost" + serverAddr
 	log.Printf("🚀 測試工具伺服器啟動於 %s", fullURL)
 	log.Printf("📝 開啟瀏覽器訪問 %s 開始使用", fullURL)
-	log.Printf("💡 應用程式運行在系統托盤，點擊托盤圖示可打開瀏覽器")
 
 	// 檢查是否自動開啟瀏覽器（預設為 false）
 	autoOpenBrowser := os.Getenv("AUTO_OPEN_BROWSER")
@@ -91,8 +84,6 @@ func startServer() {
 			time.Sleep(500 * time.Millisecond)
 			openBrowser(serverAddr)
 		}()
-	} else {
-		log.Printf("💡 瀏覽器不會自動開啟，請點擊系統托盤圖示打開瀏覽器")
 	}
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -108,18 +99,7 @@ func handleSignals() {
 
 	log.Println("收到系統信號，正在關閉伺服器...")
 	shutdownServer()
-	systray.Quit()
-}
-
-// onReady 系統托盤準備就緒時的回調函數
-func onReady() {
-	SetupTray(serverAddr)
-}
-
-// onExit 系統托盤退出時的回調函數
-func onExit() {
-	log.Println("系統托盤退出，正在關閉伺服器...")
-	shutdownServer()
+	os.Exit(0)
 }
 
 // shutdownServer 優雅關閉伺服器
@@ -138,13 +118,52 @@ func shutdownServer() {
 	}
 }
 
-// setupConsoleCloseHandler 設置 Windows 控制台窗口關閉處理
-// 當用戶點擊控制台窗口的 X 按鈕時，詢問是否要最小化到托盤
-func setupConsoleCloseHandler() {
-	if runtime.GOOS != "windows" {
-		return
+// openBrowser 在預設瀏覽器中打開指定 URL
+//
+// Args:
+//   - serverAddr: 伺服器地址（格式如 ":8080" 或 "localhost:8080"）
+func openBrowser(serverAddr string) {
+	// 構建完整的 URL
+	url := buildURL(serverAddr)
+	log.Printf("正在打開瀏覽器: %s", url)
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default: // linux
+		cmd = exec.Command("xdg-open", url)
 	}
 
-	// 設置控制台控制處理器來攔截關閉事件
-	setConsoleCtrlHandler()
+	if err := cmd.Start(); err != nil {
+		log.Printf("無法打開瀏覽器: %v", err)
+	}
+}
+
+// buildURL 構建完整的 HTTP URL
+//
+// Args:
+//   - serverAddr: 伺服器地址（格式如 ":8080" 或 "localhost:8080"）
+//
+// Returns:
+//   - string: 完整的 URL，例如 "http://localhost:8080"
+func buildURL(serverAddr string) string {
+	// 檢查是否已經包含協議
+	if strings.HasPrefix(serverAddr, "http://") || strings.HasPrefix(serverAddr, "https://") {
+		return serverAddr
+	}
+
+	// 移除前導的冒號（如果有的話）
+	addr := strings.TrimPrefix(serverAddr, ":")
+
+	// 如果地址不包含主機名（只有端口號），添加 localhost
+	if !strings.Contains(addr, ":") {
+		// 只有端口號
+		return "http://localhost:" + addr
+	}
+
+	// 如果地址包含主機名，添加 http:// 前綴
+	return "http://" + addr
 }
