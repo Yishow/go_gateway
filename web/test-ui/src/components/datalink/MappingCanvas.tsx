@@ -302,7 +302,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
                                   return (
                                       <div className="text-xs text-slate-400 mt-1 space-y-1">
                                           <div>Key: <span className="text-slate-200">{t.key}</span></div>
-                                          <div>Name: <span className="text-slate-200">{t.name}</span></div>
+                                          <div>Name: <span className="text-slate-200">{t.display_name}</span></div>
                                           <div>Type: <span className="text-slate-200">{t.data_type}</span></div>
                                       </div>
                                   );

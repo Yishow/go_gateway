@@ -381,28 +381,28 @@ func executeScale(input interface{}, params map[string]interface{}) (interface{}
 	}
 
 	multiplier := 1.0
-	if m, ok := params["multiplier"].(float64); ok {
+	if m, ok := toFloat64Value(params["multiplier"]); ok {
 		multiplier = m
-	} else if m, ok := params["scale"].(float64); ok {
+	} else if m, ok := toFloat64Value(params["scale"]); ok {
 		multiplier = m
 	}
 
 	divisor := 1.0
-	if d, ok := params["divisor"].(float64); ok && d != 0 {
+	if d, ok := toFloat64Value(params["divisor"]); ok && d != 0 {
 		divisor = d
 	}
 
 	offset := 0.0
-	if o, ok := params["offset"].(float64); ok {
+	if o, ok := toFloat64Value(params["offset"]); ok {
 		offset = o
 	}
 
 	result := (v*multiplier)/divisor + offset
 
-	if minVal, ok := params["min"].(float64); ok && result < minVal {
+	if minVal, ok := toFloat64Value(params["min"]); ok && result < minVal {
 		result = minVal
 	}
-	if maxVal, ok := params["max"].(float64); ok && result > maxVal {
+	if maxVal, ok := toFloat64Value(params["max"]); ok && result > maxVal {
 		result = maxVal
 	}
 
@@ -636,6 +636,10 @@ func toFloat64Value(v interface{}) (float64, bool) {
 		return 0, true
 	case string:
 		if f, err := strconv.ParseFloat(val, 64); err == nil {
+			return f, true
+		}
+	case json.Number:
+		if f, err := val.Float64(); err == nil {
 			return f, true
 		}
 	}

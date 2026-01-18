@@ -50,7 +50,7 @@ export default function PollingOperationCard({
   onUpdate,
   onDelete,
   connectionId,
-  protocol,
+  protocol: _protocol,
   isModbus,
   isFatek,
   isMCProtocol,

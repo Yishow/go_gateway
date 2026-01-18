@@ -211,6 +211,33 @@ export const pollingGroupAPI = {
 // 標籤 API
 // =============================================================================
 
+type RawTag = Omit<Tag, 'labels'> & {
+  labels: Record<string, string> | string | null;
+};
+
+const normalizeTagLabels = (labels: RawTag['labels']): Record<string, string> | null => {
+  if (!labels) {
+    return null;
+  }
+  if (typeof labels === 'string') {
+    try {
+      const parsed = JSON.parse(labels);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, string>;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  return labels;
+};
+
+const normalizeTag = (tag: RawTag): Tag => ({
+  ...tag,
+  labels: normalizeTagLabels(tag.labels),
+});
+
 export const tagAPI = {
   /** 列出標籤 */
   async list(params?: {
@@ -220,26 +247,26 @@ export const tagAPI = {
     limit?: number;
     offset?: number;
   }): Promise<Tag[]> {
-    const res = await api.get<APIResponse<Tag[]>>('/tags', { params });
-    return res.data.data ?? [];
+    const res = await api.get<APIResponse<RawTag[]>>('/tags', { params });
+    return (res.data.data ?? []).map(normalizeTag);
   },
 
   /** 取得標籤 */
   async get(id: string): Promise<Tag> {
-    const res = await api.get<APIResponse<Tag>>(`/tags/${id}`);
-    return res.data.data!;
+    const res = await api.get<APIResponse<RawTag>>(`/tags/${id}`);
+    return normalizeTag(res.data.data!);
   },
 
   /** 建立標籤 */
   async create(data: CreateTagRequest): Promise<Tag> {
-    const res = await api.post<APIResponse<Tag>>('/tags', data);
-    return res.data.data!;
+    const res = await api.post<APIResponse<RawTag>>('/tags', data);
+    return normalizeTag(res.data.data!);
   },
 
   /** 更新標籤 */
   async update(id: string, data: UpdateTagRequest): Promise<Tag> {
-    const res = await api.put<APIResponse<Tag>>(`/tags/${id}`, data);
-    return res.data.data!;
+    const res = await api.put<APIResponse<RawTag>>(`/tags/${id}`, data);
+    return normalizeTag(res.data.data!);
   },
 
   /** 刪除標籤 */
@@ -249,14 +276,14 @@ export const tagAPI = {
 
   /** 啟用標籤 */
   async activate(id: string): Promise<Tag> {
-    const res = await api.post<APIResponse<Tag>>(`/tags/${id}/activate`);
-    return res.data.data!;
+    const res = await api.post<APIResponse<RawTag>>(`/tags/${id}/activate`);
+    return normalizeTag(res.data.data!);
   },
 
   /** 退役標籤 */
   async retire(id: string): Promise<Tag> {
-    const res = await api.post<APIResponse<Tag>>(`/tags/${id}/retire`);
-    return res.data.data!;
+    const res = await api.post<APIResponse<RawTag>>(`/tags/${id}/retire`);
+    return normalizeTag(res.data.data!);
   },
 
   /** 批量建立 */

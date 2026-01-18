@@ -35,7 +35,7 @@ export default function SettingsForm({ settings, onSubmit }: SettingsFormProps) 
           </label>
           <select
             value={writePrecision}
-            onChange={(e) => setWritePrecision(e.target.value)}
+            onChange={(e) => setWritePrecision(e.target.value as SystemSettings['write_precision'])}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
           >
             <option value="second">Seconds</option>
@@ -52,7 +52,7 @@ export default function SettingsForm({ settings, onSubmit }: SettingsFormProps) 
           </label>
           <select
             value={partitionInterval}
-            onChange={(e) => setPartitionInterval(e.target.value)}
+            onChange={(e) => setPartitionInterval(e.target.value as SystemSettings['partition_interval'])}
              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
           >
             <option value="daily">Daily</option>

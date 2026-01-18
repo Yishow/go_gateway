@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -27,12 +28,15 @@ func NewDeviceHandler() *DeviceHandler {
 	// Pre-seed some data for demo if empty
 	list, _ := svc.List(context.Background(), device.ListFilter{})
 	if len(list) == 0 {
-		svc.Create(context.Background(), device.CreateDeviceRequest{
+		_, err := svc.Create(context.Background(), device.CreateDeviceRequest{
 			Name:             "Demo Modbus Device",
 			Description:      "A simulated Modbus TCP device",
 			Protocol:         "modbus_tcp",
-			ConnectionConfig: map[string]interface{}{"host": "localhost", "port": 502},
+			ConnectionConfig: map[string]interface{}{"host": "localhost", "port": 502, "slave_id": 1},
 		})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to seed device: %v", err))
+		}
 	}
 
 	return &DeviceHandler{svc: svc}

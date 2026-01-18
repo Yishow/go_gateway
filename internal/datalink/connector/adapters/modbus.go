@@ -202,7 +202,7 @@ func (c *ModbusTCPConnector) Write(ctx context.Context, req connector.WriteReque
 	}
 
 	switch function {
-	case "coil", "05", "FC05":
+	case "coil", "05", "FC05", "01", "FC01":
 		// 寫入單個線圈
 		value, ok := req.Value.(bool)
 		if !ok {
@@ -210,7 +210,7 @@ func (c *ModbusTCPConnector) Write(ctx context.Context, req connector.WriteReque
 		}
 		return c.client.WriteSingleCoil(address, value)
 
-	case "holding", "06", "FC06", "":
+	case "holding", "06", "FC06", "", "03", "FC03":
 		// 寫入單個保持暫存器
 		value, err := toUint16(req.Value)
 		if err != nil {
