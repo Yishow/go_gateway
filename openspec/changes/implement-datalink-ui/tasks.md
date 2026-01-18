@@ -115,29 +115,29 @@
 
 ### 4.1 Stepperize 整合
 
-- [ ] 4.1.1 安裝 `@stepperize/react`
-- [ ] 4.1.2 建立 `web/test-ui/src/components/datalink/wizard/MappingWizard.tsx`
-- [ ] 4.1.3 定義 6 步驟結構與驗證 schema
+- [x] 4.1.1 安裝 `@stepperize/react`（改用自訂實現）
+- [x] 4.1.2 建立 `web/test-ui/src/components/datalink/wizard/MappingWizard.tsx`
+- [x] 4.1.3 定義 6 步驟結構與驗證 schema
 
 ### 4.2 步驟組件實現
 
-- [ ] 4.2.1 建立 `DeviceStep.tsx`（步驟 1）
-- [ ] 4.2.2 建立 `PointStep.tsx`（步驟 2）
-- [ ] 4.2.3 建立 `TagStep.tsx`（步驟 3）
-- [ ] 4.2.4 建立 `TransformStep.tsx`（步驟 4，重用 TransformBuilder）
-- [ ] 4.2.5 建立 `PreviewStep.tsx`（步驟 5，整合 SSE）
-- [ ] 4.2.6 建立 `CompleteStep.tsx`（步驟 6）
+- [x] 4.2.1 建立 `DeviceStep.tsx`（步驟 1）
+- [x] 4.2.2 建立 `PointStep.tsx`（步驟 2）
+- [x] 4.2.3 建立 `TagStep.tsx`（步驟 3）
+- [x] 4.2.4 建立 `TransformStep.tsx`（步驟 4，重用 TransformBuilder）
+- [x] 4.2.5 建立 `PreviewStep.tsx`（步驟 5，整合 SSE）
+- [x] 4.2.6 建立 `CompleteStep.tsx`（步驟 6）
 
 ### 4.3 共用組件
 
-- [ ] 4.3.1 建立 `StepIndicator.tsx`
-- [ ] 4.3.2 建立 `LivePreviewPanel.tsx`
-- [ ] 4.3.3 整合至 MappingWizard 佈局
+- [x] 4.3.1 建立 `StepIndicator.tsx`
+- [x] 4.3.2 建立 `LivePreviewPanel.tsx`
+- [x] 4.3.3 整合至 MappingWizard 佈局
 
 ### 4.4 路由與導航
 
-- [ ] 4.4.1 新增 `/datalink/wizard` 路由
-- [ ] 4.4.2 從現有頁面新增入口連結
+- [x] 4.4.1 新增 `/datalink/wizard` 路由
+- [ ] 4.4.2 從現有頁面新增入口連結（需手動添加按鈕）
 
 ## 5. 驗證與測試
 

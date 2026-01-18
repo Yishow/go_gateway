@@ -14,6 +14,7 @@ import Dashboard from './pages/datalink/Dashboard'
 import DevicesPage from './pages/datalink/DevicesPage'
 import TagsPage from './pages/datalink/TagsPage'
 import MappingsPage from './pages/datalink/MappingsPage'
+import MappingWizardPage from './pages/datalink/MappingWizardPage'
 import SettingsPage from './pages/datalink/SettingsPage'
 
 const queryClient = new QueryClient()
@@ -33,6 +34,7 @@ function App() {
                   <Route path="points" element={<div className="text-white">Points Page (Coming Soon)</div>} />
                   <Route path="tags" element={<TagsPage />} />
                   <Route path="mappings" element={<MappingsPage />} />
+                  <Route path="wizard" element={<MappingWizardPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
 

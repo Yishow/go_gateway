@@ -1,0 +1,317 @@
+/* 共用步驟樣式 */
+
+.step-loading,
+.step-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.step-warning {
+  color: #facc15;
+}
+
+.step-error {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+  color: #fca5a5;
+  font-size: 14px;
+}
+
+.step-search {
+  margin-bottom: 16px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.search-input::placeholder {
+  color: #6b7280;
+}
+
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Device List */
+.device-list,
+.point-list,
+.tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.device-card,
+.point-card,
+.tag-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.device-card:hover,
+.point-card:hover,
+.tag-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.device-card.selected,
+.point-card.selected,
+.tag-card.selected {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+}
+
+.device-icon,
+.point-icon,
+.tag-icon {
+  font-size: 24px;
+}
+
+.device-info,
+.point-info,
+.tag-info {
+  flex: 1;
+}
+
+.device-info h4,
+.point-info h4,
+.tag-info h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.device-info p,
+.point-info p,
+.tag-info p {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.device-status,
+.tag-status {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-active {
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+}
+
+.status-draft {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+.status-disabled,
+.status-retired {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+.selected-check {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #3b82f6;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Transform Step */
+.step-transform {
+  min-height: 300px;
+}
+
+.step-info-box {
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.step-info-box p {
+  margin: 0;
+  font-size: 14px;
+  color: #93c5fd;
+}
+
+/* Preview Step */
+.preview-summary,
+.complete-summary {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.preview-summary h4,
+.complete-summary h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.preview-summary dl,
+.complete-summary dl {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.preview-summary dt,
+.complete-summary dt {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.preview-summary dd,
+.complete-summary dd {
+  margin: 0;
+  font-size: 13px;
+  color: #e0e0e0;
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.preview-panel-wrapper {
+  margin: 20px 0;
+}
+
+.confirm-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn-confirm {
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-confirm:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+}
+
+.confirmed-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 8px;
+  color: #4ade80;
+  font-weight: 500;
+}
+
+/* Complete Step */
+.step-complete {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.step-complete.success {
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 12px;
+}
+
+.complete-icon,
+.success-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.step-complete h3 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.step-complete p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.btn-activate {
+  margin-top: 24px;
+  padding: 16px 48px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-activate:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+}
+
+.btn-activate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
