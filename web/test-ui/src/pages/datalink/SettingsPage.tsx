@@ -37,39 +37,47 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) {
-    return (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-slate-400">Loading settings...</p>
-        </div>
-    );
-  }
-
-  if (error) {
-    return (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400">
-          Error: {error}
-        </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-100">System Settings</h2>
-        <p className="text-slate-400">Configure global data collection parameters</p>
+    <div className="space-y-8 max-w-5xl">
+      {/* Header with Glow */}
+      <div className="flex justify-between items-center relative z-0">
+          <div className="absolute -left-10 -top-10 w-32 h-32 bg-orange-600/20 blur-3xl pointer-events-none"></div>
+          <div>
+            <h2 className="text-3xl font-bold text-slate-100 tracking-tight">System Settings</h2>
+            <p className="text-slate-400 mt-1">Configure global parameters for data collection and storage</p>
+          </div>
       </div>
 
-      {saveSuccess && (
-         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-emerald-400">
-             Settings saved successfully!
-         </div>
-      )}
+      {loading ? (
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 animate-pulse space-y-6">
+            <div className="h-6 bg-slate-700 rounded w-1/4"></div>
+            <div className="space-y-4">
+                <div className="h-10 bg-slate-700 rounded w-full"></div>
+                <div className="h-10 bg-slate-700 rounded w-full"></div>
+            </div>
+            <div className="h-10 bg-slate-700 rounded w-32 ml-auto"></div>
+        </div>
+      ) : error ? (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-red-400 flex items-center space-x-3">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+           <span>{error}</span>
+        </div>
+      ) : settings && (
+        <div className="relative">
+             {saveSuccess && (
+                <div className="absolute -top-16 right-0 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg px-4 py-3 shadow-lg flex items-center space-x-2 animate-fade-in-down">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Settings saved successfully!</span>
+                </div>
+             )}
 
-      {settings && (
-        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-            <SettingsForm settings={settings} onSubmit={handleUpdate} />
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8 shadow-sm">
+                <SettingsForm settings={settings} onSubmit={handleUpdate} />
+            </div>
         </div>
       )}
     </div>

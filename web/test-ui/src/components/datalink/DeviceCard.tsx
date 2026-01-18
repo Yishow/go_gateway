@@ -32,7 +32,7 @@ export default function DeviceCard({
       : 'bg-slate-400';
 
   return (
-    <div className="group bg-slate-800 rounded-xl border border-slate-700 p-5 hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-1 relative overflow-hidden">
+    <div className={`group bg-slate-800 rounded-xl border p-5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-1 relative overflow-hidden ${statusColor} hover:border-blue-500/50`}>
       {/* Status Line Top */}
       <div className={`absolute top-0 left-0 w-full h-1 ${isOnline ? 'bg-emerald-500' : 'bg-transparent'}`}></div>
 

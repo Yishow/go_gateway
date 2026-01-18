@@ -1,31 +1,46 @@
 # Project Context
 
 ## Purpose
-[Describe your project's purpose and goals]
+
+`go-gateway` is a cross-platform (Windows/Linux/ARM) industrial data collector designed to bridge OT (Operation Technology) and IT systems. It collects data from PLCs via various protocols (Modbus, FATEK, MC Protocol) and syncs it to databases or MQTT brokers using a configurable ETL engine (Datalink).
 
 ## Tech Stack
-- [List your primary technologies]
-- [e.g., TypeScript, React, Node.js]
+
+- **Language**: Go 1.22+
+- **Core Libraries**:
+  - `github.com/gin-gonic/gin` (HTTP/API)
+  - `github.com/spf13/viper` (Configuration)
+  - `github.com/spf13/cobra` (CLI)
+  - `go.uber.org/zap` (Logging)
+  - `modernc.org/sqlite`, `gorm.io/gorm` (Database)
+  - `github.com/eclipse/paho.mqtt.golang` (MQTT)
 
 ## Project Conventions
 
 ### Code Style
-[Describe your code style preferences, formatting rules, and naming conventions]
+
+- Standard Go formatting (`gofmt`).
+- Error handling: explicit error returns, wrapping with context.
+- Configuration: YAML-based, loaded via Viper.
 
 ### Architecture Patterns
-[Document your architectural decisions and patterns]
+
+- **Hexagonal Architecture**: Core logic (Datalink, Task) decoupled from adapters (Protocol, Database).
+- **Single Binary**: All components (Backend, Web UI, CLI) packaged into one executable.
 
 ### Testing Strategy
-[Explain your testing approach and requirements]
 
-### Git Workflow
-[Describe your branching strategy and commit conventions]
+- Unit tests for core logic (Datalink, Protocol parsers).
+- Integration tests for Database and Protocol adapters.
 
 ## Domain Context
-[Add domain-specific knowledge that AI assistants need to understand]
+
+- **Tags**: Data points on a device (e.g., "D100").
+- **Datalink**: The mapping rule from Source (Device Tag) to Target (Database Column).
+- **Driver**: Implementation of a specific communication protocol.
 
 ## Important Constraints
-[List any technical, business, or regulatory constraints]
 
-## External Dependencies
-[Document key external services, APIs, or systems]
+- **Performance**: High concurrency for polling multiple devices.
+- **Reliability**: Auto-reconnection and buffering are critical.
+- **Environment**: Must run on low-resource hardware (Raspberry Pi) and Windows Servers.

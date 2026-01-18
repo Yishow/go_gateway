@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useToast } from '../contexts/ToastContext'
+
 import CardMinimizeButton from './CardMinimizeButton'
 import { useCardMinimize } from '../hooks/useCardMinimize'
 import PollingOperationCard, { type PollingOperation } from './PollingOperationCard'
@@ -20,8 +20,6 @@ export default function RTUPollingCard({
   protocol,
   connectionId,
   config,
-  onConfigChange,
-  onConnectionChange,
 }: RTUPollingCardProps) {
   const [operations, setOperations] = useState<PollingOperation[]>([])
   const [nextId, setNextId] = useState<number>(1)
