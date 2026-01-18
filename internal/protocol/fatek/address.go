@@ -31,12 +31,13 @@ var (
 	TypeF  = ComponentType{Name: "F", Width: 16, IsDiscrete: false, FormatLen: 6}      // File Register
 
 	// 16-bit access to discrete (word access)
-	TypeWX = ComponentType{Name: SymbolWX, Width: 16, IsDiscrete: false, FormatLen: 6}
-	TypeWY = ComponentType{Name: SymbolWY, Width: 16, IsDiscrete: false, FormatLen: 6}
-	TypeWM = ComponentType{Name: SymbolWM, Width: 16, IsDiscrete: false, FormatLen: 6}
-	TypeWS = ComponentType{Name: SymbolWS, Width: 16, IsDiscrete: false, FormatLen: 6}
-	TypeWT = ComponentType{Name: SymbolWT, Width: 16, IsDiscrete: false, FormatLen: 6}
-	TypeWC = ComponentType{Name: SymbolWC, Width: 16, IsDiscrete: false, FormatLen: 6}
+	// Use FormatLen=7 so word-access discrete symbols (e.g., WX) use 5-digit numbering like WX00012
+	TypeWX = ComponentType{Name: SymbolWX, Width: 16, IsDiscrete: false, FormatLen: 7}
+	TypeWY = ComponentType{Name: SymbolWY, Width: 16, IsDiscrete: false, FormatLen: 7}
+	TypeWM = ComponentType{Name: SymbolWM, Width: 16, IsDiscrete: false, FormatLen: 7}
+	TypeWS = ComponentType{Name: SymbolWS, Width: 16, IsDiscrete: false, FormatLen: 7}
+	TypeWT = ComponentType{Name: SymbolWT, Width: 16, IsDiscrete: false, FormatLen: 7}
+	TypeWC = ComponentType{Name: SymbolWC, Width: 16, IsDiscrete: false, FormatLen: 7}
 
 	// Registers (32-bit)
 	TypeDR = ComponentType{Name: SymbolDR, Width: 32, IsDiscrete: false, FormatLen: 7}

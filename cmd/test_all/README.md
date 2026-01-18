@@ -87,3 +87,11 @@ go run ./cmd/test_all
 
 - **MC Protocol**：`device` 名稱大小寫不敏感（例如 `d` 等同 `D`）。
 - **Fatek**：支援的 `symbol` 擴充包含 `DR/DD/DF` 與 `WX/WY/WM/WS/WT/WC`。
+
+### Fatek 使用限制
+
+- Read Status（Cmd 44）: 最大 `count` = **255**。
+- Read/Write Registers（Cmd 46/47）: 16-bit 最多 **64** 個，32-bit 最多 **32** 個。
+- Random Read（Cmd 48）: 最多 **64** 項。
+
+請確認測試參數在上述限制內以避免 PLC 返回錯誤。

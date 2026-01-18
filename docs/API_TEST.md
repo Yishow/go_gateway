@@ -59,7 +59,15 @@
 ### 補充限制
 
 - **MC Protocol**：`device` 名稱大小寫不敏感（例如 `d` 等同 `D`）。
-- **Fatek**：`symbol` 支援 `DR/DD/DF` 與 `WX/WY/WM/WS/WT/WC` 等擴充符號。
+- **Fatek**：`symbol` 支援 `DR/DD/DF` 與 `WX/WY/WM/WS/WT/WC` 等擴充符號（**不區分大小寫**）。
+
+### Fatek 操作限制
+
+- Read Status（Cmd 44）: 最大 `count` = **255**。
+- Read/Write Registers（Cmd 46/47）: 16-bit 最多 **64** 個，32-bit 最多 **32** 個。
+- Random Read（Cmd 48）: 最多 **64** 項。
+
+請在呼叫 API 時確保 `symbol`、`addr` 與 `count` 在上述範圍內，否則會收到錯誤回應。
 
 ## API 端點
 

@@ -146,6 +146,32 @@ fatek_test.exe -mode=serial -serial=COM3 -action=random -random="X:0,D:0,R:10"
 - `-random`: 讀取項目列表，格式為 `SYMBOL1:ADDR1,SYMBOL2:ADDR2`
   - 例如：`"X:0,D:0,R:10"`
 
+### 符號與使用限制說明 🔧
+
+- 符號 **不區分大小寫**（例如 `d` 等同 `D`）。
+- 新增支援符號說明：
+  - `DD`, `DF`：32-bit 類型（Double/檔案暫存器）。
+  - `WX`, `WY`, `WM`, `WS`, `WT`, `WC`：16-bit（以 word 方式存取離散位元）。
+- 常見限制：
+  - 讀取離散狀態（Cmd 44）最大 `count` = **255**。
+  - 讀取/寫入暫存器（Cmd 46/47）對 16-bit 最多 **64** 個；對 32-bit 最多 **32** 個。
+  - 隨機讀取（Cmd 48）最大項目數 **64**。
+- 若符號或位址超出範圍，命令會回傳錯誤並帶有說明（請檢查回應錯誤碼或日誌）。
+
+### 額外範例
+
+- 讀取 32-bit `DD`（兩個 32-bit 值）
+
+```bash
+fatek_test.exe -mode=tcp -host="192.168.1.5" -action=read -symbol=DD -addr=0 -count=2
+```
+
+- 以 16-bit word 方式讀取離散 `WX`（5 個 word）
+
+```bash
+fatek_test.exe -mode=tcp -host="192.168.1.5" -action=read -symbol=WX -addr=0 -count=5
+```
+
 ## 範例輸出
 
 ### 讀取操作
