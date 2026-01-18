@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"go-gateway/internal/datalink/mapping"
@@ -131,3 +132,63 @@ func (h *MappingHandler) Preview(c *gin.Context) {
 	
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": res})
 }
+
+// ValidatePipelineRequest 驗證管線請求
+type ValidatePipelineRequest struct {
+	Pipeline []schema.TransformStep `json:"pipeline"`
+}
+
+// ValidatePipelineResponse 驗證管線回應
+type ValidatePipelineResponse struct {
+	Valid bool   `json:"valid"`
+	Error string `json:"error,omitempty"`
+}
+
+// ValidatePipeline 驗證轉換管線
+// POST /datalink/mappings/validate-pipeline
+func (h *MappingHandler) ValidatePipeline(c *gin.Context) {
+	var req ValidatePipelineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	resp := ValidatePipelineResponse{Valid: true}
+
+	// 驗證管線格式
+	if len(req.Pipeline) == 0 {
+		// 空管線是有效的（pass-through）
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+		return
+	}
+
+	// 檢查每個步驟的類型是否有效
+	validTypes := map[schema.TransformType]bool{
+		schema.TransformDecode:      true,
+		schema.TransformCast:        true,
+		schema.TransformScale:       true,
+		schema.TransformLookup:      true,
+		schema.TransformConditional: true,
+		schema.TransformFormula:     true,
+	}
+
+	for i, step := range req.Pipeline {
+		if !validTypes[step.Type] {
+			resp.Valid = false
+			resp.Error = fmt.Sprintf("步驟 %d: 不支援的轉換類型 '%s'", i+1, step.Type)
+			break
+		}
+
+		// 驗證 Scale 類型必須有 multiplier 參數
+		if step.Type == schema.TransformScale {
+			if step.Params == nil {
+				resp.Valid = false
+				resp.Error = fmt.Sprintf("步驟 %d: scale 類型缺少 params", i+1)
+				break
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+

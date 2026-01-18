@@ -109,6 +109,22 @@ func NewRouter() *gin.Engine {
 		// Datalink API Group
 		datalinkGroup := apiV1.Group("/datalink")
 		{
+			// Health
+			healthHandler := handlers.NewDatalinkHealthHandler()
+			datalinkGroup.GET("/health", healthHandler.Check)
+
+			// Protocols
+			protocolHandler := handlers.NewProtocolHandler()
+			datalinkGroup.GET("/protocols", protocolHandler.List)
+
+			// Polling Groups
+			pollingGroupHandler := handlers.NewPollingGroupHandler()
+			datalinkGroup.GET("/polling-groups", pollingGroupHandler.List)
+			datalinkGroup.POST("/polling-groups", pollingGroupHandler.Create)
+			datalinkGroup.GET("/polling-groups/:id", pollingGroupHandler.Get)
+			datalinkGroup.PUT("/polling-groups/:id", pollingGroupHandler.Update)
+			datalinkGroup.DELETE("/polling-groups/:id", pollingGroupHandler.Delete)
+
 			// Devices
 			deviceHandler := handlers.NewDeviceHandler()
 			datalinkGroup.GET("/devices", deviceHandler.List)
@@ -117,8 +133,9 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.PUT("/devices/:id", deviceHandler.Update)
 			datalinkGroup.DELETE("/devices/:id", deviceHandler.Delete)
 			datalinkGroup.POST("/devices/:id/test", deviceHandler.TestConnection)
-			datalinkGroup.POST("/devices/:id/activate", deviceHandler.Activate) // If implemented
-			datalinkGroup.POST("/devices/:id/disable", deviceHandler.Disable)   // If implemented
+			datalinkGroup.POST("/devices/:id/activate", deviceHandler.Activate)
+			datalinkGroup.POST("/devices/:id/disable", deviceHandler.Disable)
+			datalinkGroup.POST("/devices/test-batch", deviceHandler.TestConnectionBatch)
 
 			// Points
 			pointHandler := handlers.NewPointHandler()
@@ -127,7 +144,9 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.GET("/points/:id", pointHandler.Get)
 			datalinkGroup.PUT("/points/:id", pointHandler.Update)
 			datalinkGroup.DELETE("/points/:id", pointHandler.Delete)
-			
+			datalinkGroup.POST("/points/:id/poll", pointHandler.Poll)
+			datalinkGroup.POST("/points/poll", pointHandler.PollBatch)
+
 			// Tags
 			tagHandler := handlers.NewTagHandler()
 			datalinkGroup.GET("/tags", tagHandler.List)
@@ -135,6 +154,10 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.GET("/tags/:id", tagHandler.Get)
 			datalinkGroup.PUT("/tags/:id", tagHandler.Update)
 			datalinkGroup.DELETE("/tags/:id", tagHandler.Delete)
+			datalinkGroup.POST("/tags/:id/activate", tagHandler.Activate)
+			datalinkGroup.POST("/tags/:id/retire", tagHandler.Retire)
+			datalinkGroup.POST("/tags/batch", tagHandler.BatchCreate)
+			datalinkGroup.POST("/tags/validate-key", tagHandler.ValidateKey)
 
 			// Mappings
 			mappingHandler := handlers.NewMappingHandler()
@@ -143,13 +166,17 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.GET("/mappings/:id", mappingHandler.Get)
 			datalinkGroup.PUT("/mappings/:id", mappingHandler.Update)
 			datalinkGroup.DELETE("/mappings/:id", mappingHandler.Delete)
-            datalinkGroup.POST("/mappings/preview", mappingHandler.Preview)
+			datalinkGroup.POST("/mappings/preview", mappingHandler.Preview)
+			datalinkGroup.POST("/mappings/validate-pipeline", mappingHandler.ValidatePipeline)
 
 			// Settings
 			settingsHandler := handlers.NewSettingsHandler()
-			datalinkGroup.GET("/settings", settingsHandler.Get)
+			datalinkGroup.GET("/settings", settingsHandler.List)
 			datalinkGroup.PUT("/settings/:key", settingsHandler.Update)
-            datalinkGroup.GET("/settings_list", settingsHandler.List) // If distinct list method exists
+
+			// SSE Preview Stream
+			ssePreviewHandler := handlers.NewDatalinkSSEHandler()
+			datalinkGroup.GET("/preview/stream", ssePreviewHandler.PreviewStream)
 		}
 	}
 

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"go-gateway/internal/datalink/point"
 
@@ -83,3 +84,85 @@ func (h *PointHandler) Delete(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
+
+// PollResult 輪詢結果
+type PollResult struct {
+	PointID   string      `json:"point_id"`
+	Value     interface{} `json:"value"`
+	Timestamp string      `json:"timestamp"`
+	Quality   int         `json:"quality"`
+	Error     string      `json:"error,omitempty"`
+}
+
+// Poll 單點輪詢
+// POST /datalink/points/:id/poll
+func (h *PointHandler) Poll(c *gin.Context) {
+	id := c.Param("id")
+
+	// 取得點位資訊
+	pt, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Point not found"}})
+		return
+	}
+
+	// TODO: 實際呼叫協議連接器讀取值
+	// 這裡返回模擬結果
+	result := PollResult{
+		PointID:   pt.ID,
+		Value:     nil,
+		Timestamp: time.Now().Format(time.RFC3339),
+		Quality:   192, // Good quality
+		Error:     "Poll not implemented - requires protocol connector integration",
+	}
+
+	if pt.LastValue != nil {
+		result.Value = *pt.LastValue
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+// PollBatchRequest 批量輪詢請求
+type PollBatchRequest struct {
+	PointIDs []string `json:"point_ids"`
+}
+
+// PollBatch 批量輪詢
+// POST /datalink/points/poll
+func (h *PointHandler) PollBatch(c *gin.Context) {
+	var req PollBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	results := make([]PollResult, 0, len(req.PointIDs))
+
+	for _, id := range req.PointIDs {
+		pt, err := h.svc.GetByID(c.Request.Context(), id)
+		if err != nil {
+			results = append(results, PollResult{
+				PointID: id,
+				Error:   "Point not found",
+			})
+			continue
+		}
+
+		result := PollResult{
+			PointID:   pt.ID,
+			Timestamp: time.Now().Format(time.RFC3339),
+			Quality:   192,
+			Error:     "Poll not implemented",
+		}
+
+		if pt.LastValue != nil {
+			result.Value = *pt.LastValue
+		}
+
+		results = append(results, result)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
+}
+

@@ -2,55 +2,55 @@
 
 ### 1.1 新增 Polling Groups 模組
 
-- [ ] 1.1.1 建立 `internal/datalink/pollinggroup/service.go`
-- [ ] 1.1.2 建立 `internal/datalink/pollinggroup/repository.go`（介面定義）
-- [ ] 1.1.3 建立 `internal/datalink/pollinggroup/memory_repo.go`
-- [ ] 1.1.4 建立 `internal/api/handlers/polling_group_handler.go`
-- [ ] 1.1.5 在 `router.go` 註冊路由
+- [x] 1.1.1 建立 `internal/datalink/pollinggroup/service.go`
+- [x] 1.1.2 建立 `internal/datalink/pollinggroup/repository.go`（介面定義）
+- [x] 1.1.3 建立 `internal/datalink/pollinggroup/memory_repo.go`
+- [x] 1.1.4 建立 `internal/api/handlers/polling_group_handler.go`
+- [x] 1.1.5 在 `router.go` 註冊路由
 
 ### 1.2 新增 Protocols API
 
-- [ ] 1.2.1 建立 `internal/api/handlers/protocol_handler.go`
-- [ ] 1.2.2 實現協議列表與 JSON Schema 返回
-- [ ] 1.2.3 在 `router.go` 註冊路由
+- [x] 1.2.1 建立 `internal/api/handlers/protocol_handler.go`
+- [x] 1.2.2 實現協議列表與 JSON Schema 返回
+- [x] 1.2.3 在 `router.go` 註冊路由
 
 ### 1.3 新增 Health API
 
-- [ ] 1.3.1 建立 `internal/api/handlers/health_handler.go`
-- [ ] 1.3.2 在 `router.go` 註冊路由
+- [x] 1.3.1 建立 `internal/api/handlers/datalink_health_handler.go`
+- [x] 1.3.2 在 `router.go` 註冊路由
 
 ### 1.4 擴展 Tag Handler
 
-- [ ] 1.4.1 實現 `POST /tags/:id/activate`
-- [ ] 1.4.2 實現 `POST /tags/:id/retire`
-- [ ] 1.4.3 實現 `POST /tags/batch`
-- [ ] 1.4.4 實現 `POST /tags/validate-key`
-- [ ] 1.4.5 更新 `router.go` 註冊新路由
+- [x] 1.4.1 實現 `POST /tags/:id/activate`
+- [x] 1.4.2 實現 `POST /tags/:id/retire`
+- [x] 1.4.3 實現 `POST /tags/batch`
+- [x] 1.4.4 實現 `POST /tags/validate-key`
+- [x] 1.4.5 更新 `router.go` 註冊新路由
 
 ### 1.5 擴展 Device Handler
 
-- [ ] 1.5.1 實現 `POST /devices/test-batch`
-- [ ] 1.5.2 修復 `Activate` 方法（目前空殼）
-- [ ] 1.5.3 修復 `Disable` 方法（目前空殼）
-- [ ] 1.5.4 更新 `router.go` 註冊新路由
+- [x] 1.5.1 實現 `POST /devices/test-batch`
+- [x] 1.5.2 修復 `Activate` 方法（目前空殼）
+- [x] 1.5.3 修復 `Disable` 方法（目前空殼）
+- [x] 1.5.4 更新 `router.go` 註冊新路由
 
 ### 1.6 擴展 Point Handler
 
-- [ ] 1.6.1 實現 `POST /points/:id/poll`
-- [ ] 1.6.2 實現 `POST /points/poll`（批量）
-- [ ] 1.6.3 更新 `router.go` 註冊新路由
+- [x] 1.6.1 實現 `POST /points/:id/poll`
+- [x] 1.6.2 實現 `POST /points/poll`（批量）
+- [x] 1.6.3 更新 `router.go` 註冊新路由
 
 ### 1.7 擴展 Mapping Handler
 
-- [ ] 1.7.1 實現 `POST /mappings/validate-pipeline`
-- [ ] 1.7.2 更新 `router.go` 註冊新路由
+- [x] 1.7.1 實現 `POST /mappings/validate-pipeline`
+- [x] 1.7.2 更新 `router.go` 註冊新路由
 
 ### 1.8 重構 Settings Handler
 
-- [ ] 1.8.1 建立 `internal/datalink/settings/service.go`
-- [ ] 1.8.2 建立 `internal/datalink/settings/repository.go`
-- [ ] 1.8.3 重構 `settings_handler.go` 連接 Service
-- [ ] 1.8.4 移除硬編碼 Mock
+- [x] 1.8.1 建立 `internal/datalink/settings/service.go`
+- [x] 1.8.2 建立 `internal/datalink/settings/repository.go`（整合於 service.go）
+- [x] 1.8.3 重構 `settings_handler.go` 連接 Service
+- [x] 1.8.4 移除硬編碼 Mock
 
 ## 2. 儲存層持久化
 
@@ -100,16 +100,16 @@
 
 ### 3.1 後端 SSE 端點
 
-- [ ] 3.1.1 建立 `internal/api/handlers/datalink_sse.go`
-- [ ] 3.1.2 實現 `GET /datalink/preview/stream`
-- [ ] 3.1.3 整合 Mapping Preview 邏輯
-- [ ] 3.1.4 在 `router.go` 註冊路由
+- [x] 3.1.1 建立 `internal/api/handlers/datalink_sse_handler.go`
+- [x] 3.1.2 實現 `GET /datalink/preview/stream`
+- [x] 3.1.3 整合 Mapping Preview 邏輯
+- [x] 3.1.4 在 `router.go` 註冊路由
 
 ### 3.2 前端 SSE 客戶端
 
-- [ ] 3.2.1 建立 `web/test-ui/src/hooks/usePreviewStream.ts`
-- [ ] 3.2.2 實現 SSE 連接與自動重連
-- [ ] 3.2.3 整合至 LivePreviewPanel 組件
+- [x] 3.2.1 建立 `web/test-ui/src/hooks/usePreviewStream.ts`
+- [x] 3.2.2 實現 SSE 連接與自動重連
+- [x] 3.2.3 整合至 LivePreviewPanel 組件
 
 ## 4. 導引式工作流程 UI
 
