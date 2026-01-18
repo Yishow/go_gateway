@@ -7,7 +7,7 @@ interface SettingsFormProps {
 }
 
 export default function SettingsForm({ settings, onSubmit }: SettingsFormProps) {
-  const [writePrecision, setWritePrecision] = useState(settings.write_timestamp_precision);
+  const [writePrecision, setWritePrecision] = useState(settings.write_precision);
   const [partitionInterval, setPartitionInterval] = useState(settings.partition_interval);
   const [batchSize, setBatchSize] = useState(settings.batch_size);
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function SettingsForm({ settings, onSubmit }: SettingsFormProps) 
     setLoading(true);
     try {
       await onSubmit({
-        write_timestamp_precision: writePrecision,
+        write_precision: writePrecision,
         partition_interval: partitionInterval,
         batch_size: Number(batchSize),
       });
@@ -38,10 +38,8 @@ export default function SettingsForm({ settings, onSubmit }: SettingsFormProps) 
             onChange={(e) => setWritePrecision(e.target.value)}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
           >
-            <option value="s">Seconds (s)</option>
-            <option value="ms">Milliseconds (ms)</option>
-            <option value="us">Microseconds (us)</option>
-            <option value="ns">Nanoseconds (ns)</option>
+            <option value="second">Seconds</option>
+            <option value="millisecond">Milliseconds</option>
           </select>
           <p className="mt-1 text-xs text-slate-500">
             Precision of timestamps stored in the database.

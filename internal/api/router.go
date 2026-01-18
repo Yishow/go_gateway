@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
+
+	"github.com/gin-gonic/gin"
 )
 
 // NewRouter 建立並配置 Gin 路由器
@@ -103,6 +104,52 @@ func NewRouter() *gin.Engine {
 			connectionHandler := handlers.NewConnectionHandler(testHandler)
 			connectionGroup.GET("", connectionHandler.List)
 			connectionGroup.GET("/:id", connectionHandler.Get)
+		}
+
+		// Datalink API Group
+		datalinkGroup := apiV1.Group("/datalink")
+		{
+			// Devices
+			deviceHandler := handlers.NewDeviceHandler()
+			datalinkGroup.GET("/devices", deviceHandler.List)
+			datalinkGroup.POST("/devices", deviceHandler.Create)
+			datalinkGroup.GET("/devices/:id", deviceHandler.Get)
+			datalinkGroup.PUT("/devices/:id", deviceHandler.Update)
+			datalinkGroup.DELETE("/devices/:id", deviceHandler.Delete)
+			datalinkGroup.POST("/devices/:id/test", deviceHandler.TestConnection)
+			datalinkGroup.POST("/devices/:id/activate", deviceHandler.Activate) // If implemented
+			datalinkGroup.POST("/devices/:id/disable", deviceHandler.Disable)   // If implemented
+
+			// Points
+			pointHandler := handlers.NewPointHandler()
+			datalinkGroup.GET("/points", pointHandler.List)
+			datalinkGroup.POST("/points", pointHandler.Create)
+			datalinkGroup.GET("/points/:id", pointHandler.Get)
+			datalinkGroup.PUT("/points/:id", pointHandler.Update)
+			datalinkGroup.DELETE("/points/:id", pointHandler.Delete)
+			
+			// Tags
+			tagHandler := handlers.NewTagHandler()
+			datalinkGroup.GET("/tags", tagHandler.List)
+			datalinkGroup.POST("/tags", tagHandler.Create)
+			datalinkGroup.GET("/tags/:id", tagHandler.Get)
+			datalinkGroup.PUT("/tags/:id", tagHandler.Update)
+			datalinkGroup.DELETE("/tags/:id", tagHandler.Delete)
+
+			// Mappings
+			mappingHandler := handlers.NewMappingHandler()
+			datalinkGroup.GET("/mappings", mappingHandler.List)
+			datalinkGroup.POST("/mappings", mappingHandler.Create)
+			datalinkGroup.GET("/mappings/:id", mappingHandler.Get)
+			datalinkGroup.PUT("/mappings/:id", mappingHandler.Update)
+			datalinkGroup.DELETE("/mappings/:id", mappingHandler.Delete)
+            datalinkGroup.POST("/mappings/preview", mappingHandler.Preview)
+
+			// Settings
+			settingsHandler := handlers.NewSettingsHandler()
+			datalinkGroup.GET("/settings", settingsHandler.Get)
+			datalinkGroup.PUT("/settings/:key", settingsHandler.Update)
+            datalinkGroup.GET("/settings_list", settingsHandler.List) // If distinct list method exists
 		}
 	}
 

@@ -16,23 +16,18 @@ export default function DeviceCard({
   onToggleStatus,
 }: DeviceCardProps) {
   const isOnline = device.status === 'active';
-  const isError = device.status === 'error';
   
   // Status Color Logic
   const statusColor = isOnline 
     ? 'bg-emerald-500 text-emerald-400 border-emerald-500/20' 
-    : isError 
-      ? 'bg-red-500 text-red-400 border-red-500/20' 
-      : 'bg-slate-600 text-slate-400 border-slate-600/20';
+    : 'bg-slate-600 text-slate-400 border-slate-600/20';
       
   const statusDot = isOnline
     ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
-    : isError
-      ? 'bg-red-400'
-      : 'bg-slate-400';
+    : 'bg-slate-400';
 
-  return (
-    <div className={`group bg-slate-800 rounded-xl border p-5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-1 relative overflow-hidden ${statusColor} hover:border-blue-500/50`}>
+   return (
+     <div className="group bg-slate-800 rounded-xl border p-5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5 hover:-translate-y-1 relative overflow-hidden border-slate-700/50 hover:border-blue-500/50">
       {/* Status Line Top */}
       <div className={`absolute top-0 left-0 w-full h-1 ${isOnline ? 'bg-emerald-500' : 'bg-transparent'}`}></div>
 
@@ -42,14 +37,17 @@ export default function DeviceCard({
               {isOnline && <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75"></div>}
            </div>
            <div>
-               <h3 className="text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors truncate max-w-[180px]">
-                 {device.name}
-               </h3>
-               <div className="flex items-center space-x-2 text-xs text-slate-500 mt-0.5">
-                   <span className="uppercase font-mono tracking-wide">{device.protocol}</span>
-                   <span>•</span>
-                   <span className="font-mono">{device.id.substring(0, 8)}</span>
-               </div>
+                <h3 className="text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors truncate max-w-[180px]">
+                  {device.name}
+                </h3>
+                <div className="flex items-center space-x-2 text-xs text-slate-500 mt-0.5">
+                    <span className="uppercase font-mono tracking-wide">{device.protocol}</span>
+                    <span>•</span>
+                    <span className="font-mono">{device.id.substring(0, 8)}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusColor}`}>
+                      {device.status}
+                    </span>
+                </div>
            </div>
         </div>
         
@@ -84,13 +82,13 @@ export default function DeviceCard({
       <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
              <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Retry</div>
-             <div className="text-sm font-mono text-slate-300">{device.retry_count} / {device.retry_delay_ms}ms</div>
+              <div className="text-sm font-mono text-slate-300">Configured</div>
           </div>
           <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
              <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Last seen</div>
-             <div className="text-sm font-mono text-slate-300">
-                {device.updated_at ? new Date(device.updated_at).toLocaleTimeString() : '-'}
-             </div>
+              <div className="text-sm font-mono text-slate-300">
+                 {device.last_test_at ? new Date(device.last_test_at).toLocaleTimeString() : '-'}
+              </div>
           </div>
       </div>
 

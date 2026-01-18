@@ -91,6 +91,15 @@ export const deviceAPI = {
     return res.data.data!;
   },
 
+  /** 批量測試連線 */
+  async batchTestConnections(deviceIds: string[]): Promise<ConnectionTestResult[]> {
+    const res = await api.post<APIResponse<ConnectionTestResult[]>>(
+      '/devices/test-batch',
+      { device_ids: deviceIds }
+    );
+    return res.data.data ?? [];
+  },
+
   /** 啟用設備 */
   async activate(id: string): Promise<Device> {
     const res = await api.post<APIResponse<Device>>(`/devices/${id}/activate`);
@@ -343,16 +352,20 @@ export const settingsAPI = {
     
     // Default values
     const settings: SystemSettings = {
-      write_timestamp_precision: 's',
+      write_precision: 'second',
       partition_interval: 'monthly',
       batch_size: 1000,
     };
 
     // Map items to settings
     items.forEach(item => {
-      if (item.key === 'write_timestamp_precision') settings.write_timestamp_precision = String(item.value);
-      if (item.key === 'partition_interval') settings.partition_interval = String(item.value);
+      if (item.key === 'write_precision') settings.write_precision = String(item.value) as SystemSettings['write_precision'];
+      if (item.key === 'partition_interval') {
+        settings.partition_interval = String(item.value) as SystemSettings['partition_interval'];
+      }
       if (item.key === 'batch_size') settings.batch_size = Number(item.value);
+      if (item.key === 'default_retry_count') settings.default_retry_count = Number(item.value);
+      if (item.key === 'default_retry_delay') settings.default_retry_delay = Number(item.value);
     });
 
     return settings;
@@ -362,14 +375,20 @@ export const settingsAPI = {
   async update(data: UpdateSystemSettingsRequest): Promise<SystemSettings> {
     const updates: Promise<any>[] = [];
 
-    if (data.write_timestamp_precision) {
-      updates.push(this.updateKey('write_timestamp_precision', data.write_timestamp_precision));
+    if (data.write_precision) {
+      updates.push(this.updateKey('write_precision', data.write_precision));
     }
     if (data.partition_interval) {
       updates.push(this.updateKey('partition_interval', data.partition_interval));
     }
     if (data.batch_size) {
       updates.push(this.updateKey('batch_size', data.batch_size));
+    }
+    if (data.default_retry_count !== undefined) {
+      updates.push(this.updateKey('default_retry_count', data.default_retry_count));
+    }
+    if (data.default_retry_delay !== undefined) {
+      updates.push(this.updateKey('default_retry_delay', data.default_retry_delay));
     }
 
     await Promise.all(updates);

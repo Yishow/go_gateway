@@ -43,7 +43,7 @@ export default function TagTable({
             <tr key={tag.id} className="hover:bg-slate-700/30 transition-colors group">
               <td className="px-6 py-4">
                 <div className="font-mono font-medium text-slate-200">{tag.key}</div>
-                <div className="text-xs text-slate-500 mt-0.5">{tag.name}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{tag.display_name}</div>
               </td>
               <td className="px-6 py-4">
                  <span className="px-2 py-1 rounded bg-slate-700/50 font-mono text-xs border border-slate-600/50 text-slate-300">
@@ -55,7 +55,7 @@ export default function TagTable({
               </td>
               <td className="px-6 py-4">
                  <div className="flex flex-wrap gap-1">
-                    {Object.entries((tag.labels as any) || {}).map(([Key, Value]) => (
+                    {Object.entries(tag.labels || {}).map(([Key, Value]) => (
                         <span key={Key} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                             {Key}:{String(Value)}
                         </span>

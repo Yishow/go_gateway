@@ -14,11 +14,11 @@ export type ProtocolType =
   | "modbus_rtu"
   | "modbus_udp"
   | "fatek_fbs"
-  | "mc3e"
+  | "mc_3e"
   | "mqtt";
 
 /** 設備狀態 */
-export type DeviceStatus = "draft" | "active" | "disabled" | "error";
+export type DeviceStatus = "draft" | "active" | "disabled";
 
 /** 資料類型 */
 export type DataType =
@@ -61,11 +61,11 @@ export interface Device {
   name: string;
   description: string;
   protocol: ProtocolType;
-  connection_config: string;
   status: DeviceStatus;
-  last_error: string;
-  retry_count: number;
-  retry_delay_ms: number;
+  connection_config: string;
+  last_test_at: string | null;
+  last_test_success: boolean | null;
+  last_test_error: string;
   created_at: string;
   updated_at: string;
 }
@@ -76,8 +76,6 @@ export interface CreateDeviceRequest {
   description?: string;
   protocol: ProtocolType;
   connection_config: Record<string, unknown>;
-  retry_count?: number;
-  retry_delay_ms?: number;
 }
 
 /** 更新設備請求 */
@@ -85,8 +83,6 @@ export interface UpdateDeviceRequest {
   name?: string;
   description?: string;
   connection_config?: Record<string, unknown>;
-  retry_count?: number;
-  retry_delay_ms?: number;
 }
 
 /** 連線測試結果 */
@@ -182,11 +178,11 @@ export interface UpdatePollingGroupRequest {
 export interface Tag {
   id: string;
   key: string;
-  name: string;
+  display_name: string;
   description: string;
   data_type: DataType;
   unit: string;
-  labels: string;
+  labels: Record<string, string> | null;
   status: TagStatus;
   created_at: string;
   updated_at: string;
@@ -195,7 +191,7 @@ export interface Tag {
 /** 建立標籤請求 */
 export interface CreateTagRequest {
   key: string;
-  name: string;
+  display_name?: string;
   description?: string;
   data_type: DataType;
   unit?: string;
@@ -204,7 +200,7 @@ export interface CreateTagRequest {
 
 /** 更新標籤請求 */
 export interface UpdateTagRequest {
-  name?: string;
+  display_name?: string;
   description?: string;
   unit?: string;
   labels?: Record<string, string>;
@@ -278,16 +274,20 @@ export interface MappingPreviewResponse {
 
 /** 系統設定 (聚合視圖) */
 export interface SystemSettings {
-  write_timestamp_precision: string;
-  partition_interval: string;
+  write_precision: TimePrecision;
+  partition_interval: PartitionInterval;
   batch_size: number;
+  default_retry_count?: number;
+  default_retry_delay?: number;
 }
 
 /** 更新系統設定請求 */
 export interface UpdateSystemSettingsRequest {
-  write_timestamp_precision?: string;
-  partition_interval?: string;
+  write_precision?: TimePrecision;
+  partition_interval?: PartitionInterval;
   batch_size?: number;
+  default_retry_count?: number;
+  default_retry_delay?: number;
 }
 
 /** 設定項目 (原始 API 回應) */

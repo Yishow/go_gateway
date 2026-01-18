@@ -12,7 +12,7 @@ const DATA_TYPES: DataType[] = ['bool', 'int16', 'int32', 'int64', 'uint16', 'ui
 
 export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
   const [key, setKey] = useState(tag?.key || '');
-  const [name, setName] = useState(tag?.name || '');
+  const [name, setName] = useState(tag?.display_name || '');
   const [description, setDescription] = useState(tag?.description || '');
   const [dataType, setDataType] = useState<DataType>(tag?.data_type || 'float64');
   const [unit, setUnit] = useState(tag?.unit || '');
@@ -23,7 +23,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
 
   // Labels (Simple key-value pairs for now)
   const [labelsInput, setLabelsInput] = useState(
-    tag?.labels ? Object.entries(tag.labels).map(([k,v]) => `${k}=${v}`).join('\n') : ''
+    tag?.labels ? Object.entries(tag.labels).map(([k, v]) => `${k}=${v}`).join('\n') : ''
   );
 
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
     try {
       if (tag) {
         await onSubmit({
-          name,
+          display_name: name,
           description,
           unit,
           labels,
@@ -78,7 +78,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
         
         await onSubmit({
           key,
-          name,
+          display_name: name,
           description,
           data_type: dataType,
           unit,
@@ -128,7 +128,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-300">Name</label>
+          <label className="block text-sm font-medium text-slate-300">Display Name</label>
           <input
             type="text"
             value={name}

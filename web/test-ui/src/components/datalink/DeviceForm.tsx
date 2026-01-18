@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Device, CreateDeviceRequest, UpdateDeviceRequest, ProtocolType } from '../../types/datalink';
-import { protocolAPI } from '../../services/datalink';
+import { protocolAPI, settingsAPI } from '../../services/datalink';
 
 interface DeviceFormProps {
   device?: Device;
@@ -12,8 +12,8 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
   const [name, setName] = useState(device?.name || '');
   const [description, setDescription] = useState(device?.description || '');
   const [protocol, setProtocol] = useState<ProtocolType>(device?.protocol || 'modbus_tcp');
-  const [retryCount, setRetryCount] = useState(device?.retry_count || 3);
-  const [retryDelay, setRetryDelay] = useState(device?.retry_delay_ms || 1000);
+  const [retryCount, setRetryCount] = useState(3);
+  const [retryDelay, setRetryDelay] = useState(1000);
   
   // Dynamic Configuration
   const [config, setConfig] = useState<Record<string, any>>(
@@ -25,9 +25,9 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
   const [protocols, setProtocols] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     fetchProtocols();
+    fetchSettings();
   }, []);
 
   const fetchProtocols = async () => {
@@ -39,6 +39,21 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const settings = await settingsAPI.get();
+      if (settings.default_retry_count !== undefined) {
+        setRetryCount(settings.default_retry_count);
+      }
+      if (settings.default_retry_delay !== undefined) {
+        setRetryDelay(settings.default_retry_delay);
+      }
+    } catch (err) {
+      console.error('Failed to load settings', err);
+    }
+  };
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -49,8 +64,6 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         await onSubmit({
           name,
           description,
-          retry_count: Number(retryCount),
-          retry_delay_ms: Number(retryDelay),
           connection_config: config,
         } as UpdateDeviceRequest);
       } else {
@@ -58,8 +71,6 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
           name,
           description,
           protocol,
-          retry_count: Number(retryCount),
-          retry_delay_ms: Number(retryDelay),
           connection_config: config,
         } as CreateDeviceRequest);
       }
@@ -110,14 +121,14 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
           </>
         );
       case 'modbus_rtu':
-          return (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Port</label>
+           return (
+             <>
+               <div>
+                <label className="block text-sm font-medium text-slate-300">Serial Port</label>
                 <input
                   type="text"
-                  value={config.port || ''}
-                  onChange={e => setConfig({...config, port: e.target.value})}
+                  value={config.serial_port || ''}
+                  onChange={e => setConfig({...config, serial_port: e.target.value})}
                   placeholder="COM1 or /dev/ttyUSB0"
                   className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                   required
@@ -156,13 +167,13 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                  <div>
                   <label className="block text-sm font-medium text-slate-300">Parity</label>
                   <select
-                     value={config.parity || 'N'}
+                     value={config.parity || 'none'}
                      onChange={e => setConfig({...config, parity: e.target.value})}
                      className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                   >
-                      <option value="N">None</option>
-                      <option value="E">Even</option>
-                      <option value="O">Odd</option>
+                      <option value="none">None</option>
+                      <option value="even">Even</option>
+                      <option value="odd">Odd</option>
                   </select>
                 </div>
               <div>
@@ -212,6 +223,139 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   required
                 />
               </div>
+          </>
+        );
+      case 'fatek_fbs':
+        return (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Mode</label>
+              <select
+                value={config.mode || 'tcp'}
+                onChange={e => setConfig({...config, mode: e.target.value})}
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="tcp">TCP</option>
+                <option value="serial">Serial</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Station No</label>
+              <input
+                type="number"
+                value={config.station_no || 1}
+                onChange={e => setConfig({...config, station_no: Number(e.target.value)})}
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+            {config.mode !== 'serial' ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300">Host</label>
+                  <input
+                    type="text"
+                    value={config.host || ''}
+                    onChange={e => setConfig({...config, host: e.target.value})}
+                    placeholder="192.168.1.100"
+                    className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300">Port</label>
+                  <input
+                    type="number"
+                    value={config.port || 500}
+                    onChange={e => setConfig({...config, port: Number(e.target.value)})}
+                    className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300">Serial Port</label>
+                  <input
+                    type="text"
+                    value={config.serial_port || ''}
+                    onChange={e => setConfig({...config, serial_port: e.target.value})}
+                    placeholder="COM1 or /dev/ttyUSB0"
+                    className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300">Baud Rate</label>
+                  <input
+                    type="number"
+                    value={config.baud_rate || 9600}
+                    onChange={e => setConfig({...config, baud_rate: Number(e.target.value)})}
+                    className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </>
+            )}
+          </>
+        );
+      case 'mc_3e':
+        return (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Host</label>
+              <input
+                type="text"
+                value={config.host || ''}
+                onChange={e => setConfig({...config, host: e.target.value})}
+                placeholder="192.168.1.100"
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Port</label>
+              <input
+                type="number"
+                value={config.port || 5000}
+                onChange={e => setConfig({...config, port: Number(e.target.value)})}
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Network No</label>
+              <input
+                type="number"
+                value={config.network_no || 0}
+                onChange={e => setConfig({...config, network_no: Number(e.target.value)})}
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">PC No</label>
+              <input
+                type="number"
+                value={config.pc_no || 255}
+                onChange={e => setConfig({...config, pc_no: Number(e.target.value)})}
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">I/O No</label>
+              <input
+                type="number"
+                value={config.io_no || 1023}
+                onChange={e => setConfig({...config, io_no: Number(e.target.value)})}
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Station No</label>
+              <input
+                type="number"
+                value={config.station_no || 0}
+                onChange={e => setConfig({...config, station_no: Number(e.target.value)})}
+                className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+            </div>
           </>
         );
       
@@ -302,8 +446,9 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                             <input
                                 type="number"
                                 value={retryCount}
-                                onChange={e => setRetryCount(Number(e.target.value))}
                                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                                disabled
+                                readOnly
                             />
                         </div>
                          <div>
@@ -311,11 +456,15 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                             <input
                                 type="number"
                                 value={retryDelay}
-                                onChange={e => setRetryDelay(Number(e.target.value))}
                                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                                disabled
+                                readOnly
                             />
                         </div>
                      </div>
+                     <p className="mt-2 text-xs text-slate-500">
+                        Retry values are managed by system settings.
+                     </p>
                 </div>
 
           </div>
