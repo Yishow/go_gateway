@@ -55,8 +55,11 @@ func (c *ModbusTCPConnector) Connect(ctx context.Context, configJSON string) err
 	c.transport = modbus.NewTCPTransport(
 		c.config.Host,
 		c.config.Port,
-		time.Duration(c.config.Timeout)*time.Second,
 	)
+	// 設定 Timeout (如果 Transport 支援)
+	if tcp, ok := c.transport.(*modbus.TCPTransport); ok {
+		tcp.Timeout = time.Duration(c.config.Timeout) * time.Second
+	}
 
 	// 建立客戶端
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
@@ -383,8 +386,11 @@ func (c *ModbusUDPConnector) Connect(ctx context.Context, configJSON string) err
 	c.transport = modbus.NewUDPTransport(
 		c.config.Host,
 		c.config.Port,
-		time.Duration(c.config.Timeout)*time.Second,
 	)
+	// 設定 Timeout
+	if udp, ok := c.transport.(*modbus.UDPTransport); ok {
+		udp.Timeout = time.Duration(c.config.Timeout) * time.Second
+	}
 
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
 

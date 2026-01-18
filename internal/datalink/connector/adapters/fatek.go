@@ -48,11 +48,9 @@ func (c *FatekConnector) Connect(ctx context.Context, configJSON string) error {
 		if c.config.Port == 0 {
 			c.config.Port = 500
 		}
-		c.transport = fatek.NewTCPTransport(
-			c.config.Host,
-			c.config.Port,
-			time.Duration(c.config.Timeout)*time.Second,
-		)
+		transport := fatek.NewTCPTransport(c.config.Host, c.config.Port)
+		transport.Timeout = time.Duration(c.config.Timeout) * time.Second
+		c.transport = transport
 	case "serial":
 		if c.config.BaudRate == 0 {
 			c.config.BaudRate = 9600
@@ -60,6 +58,9 @@ func (c *FatekConnector) Connect(ctx context.Context, configJSON string) error {
 		c.transport = fatek.NewSerialTransport(
 			c.config.SerialPort,
 			c.config.BaudRate,
+			7,      // DataBits (FATEK 預設 7)
+			1,      // StopBits
+			"even", // Parity (FATEK 預設 Even)
 			time.Duration(c.config.Timeout)*time.Second,
 		)
 	default:
