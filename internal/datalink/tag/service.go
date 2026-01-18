@@ -5,6 +5,7 @@ package tag
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -135,6 +136,14 @@ func (s *Service) Create(ctx context.Context, req CreateTagRequest) (*schema.Tag
 		return nil, fmt.Errorf("不支援的資料型別: %s", req.DataType)
 	}
 
+	// 序列化 Labels
+	labelsJSON := "{}"
+	if req.Labels != nil {
+		if data, err := json.Marshal(req.Labels); err == nil {
+			labelsJSON = string(data)
+		}
+	}
+
 	tag := &schema.Tag{
 		ID:          generateUUID(),
 		Key:         req.Key,
@@ -144,7 +153,7 @@ func (s *Service) Create(ctx context.Context, req CreateTagRequest) (*schema.Tag
 		Unit:        req.Unit,
 		DataType:    req.DataType,
 		Status:      schema.TagStatusDraft,
-		Labels:      req.Labels,
+		Labels:      labelsJSON,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -199,7 +208,9 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateTagRequest) (
 		tag.DataType = *req.DataType
 	}
 	if req.Labels != nil {
-		tag.Labels = req.Labels
+		if data, err := json.Marshal(req.Labels); err == nil {
+			tag.Labels = string(data)
+		}
 	}
 
 	tag.UpdatedAt = time.Now()
@@ -443,9 +454,14 @@ func (r *MemoryRepository) List(ctx context.Context, filter ListFilter) ([]*sche
 			continue
 		}
 		if len(filter.Labels) > 0 {
+			// 解析標籤 Labels JSON
+			var tagLabels map[string]string
+			if err := json.Unmarshal([]byte(tag.Labels), &tagLabels); err != nil {
+				continue
+			}
 			match := true
 			for k, v := range filter.Labels {
-				if tag.Labels[k] != v {
+				if tagLabels[k] != v {
 					match = false
 					break
 				}
