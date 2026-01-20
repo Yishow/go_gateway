@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -185,6 +186,7 @@ func (r *SQLRepository) Count(ctx context.Context) (int64, error) {
 func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 	var tag schema.Tag
 	var displayName, unit, description sql.NullString
+	var createdAt, updatedAt string
 
 	err := row.Scan(
 		&tag.ID,
@@ -194,8 +196,8 @@ func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 		&unit,
 		&description,
 		&tag.Status,
-		&tag.CreatedAt,
-		&tag.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -215,6 +217,17 @@ func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 		tag.Description = description.String
 	}
 
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	tag.CreatedAt = parsedCreatedAt
+	tag.UpdatedAt = parsedUpdatedAt
+
 	return &tag, nil
 }
 
@@ -222,6 +235,7 @@ func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 	var tag schema.Tag
 	var displayName, unit, description sql.NullString
+	var createdAt, updatedAt string
 
 	err := rows.Scan(
 		&tag.ID,
@@ -231,8 +245,8 @@ func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 		&unit,
 		&description,
 		&tag.Status,
-		&tag.CreatedAt,
-		&tag.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err != nil {
@@ -248,6 +262,17 @@ func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 	if description.Valid {
 		tag.Description = description.String
 	}
+
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	tag.CreatedAt = parsedCreatedAt
+	tag.UpdatedAt = parsedUpdatedAt
 
 	return &tag, nil
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -26,6 +27,14 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 
 // Create 建立輪詢群組
 func (r *SQLRepository) Create(ctx context.Context, group *schema.PollingGroup) error {
+	if group.ID == "" {
+		id, err := common.NewUUID()
+		if err != nil {
+			return fmt.Errorf("建立輪詢群組 ID 失敗: %w", err)
+		}
+		group.ID = id
+	}
+
 	query := `
 		INSERT INTO polling_groups (id, name, description, interval_ms, priority, enabled, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -156,6 +165,7 @@ func (r *SQLRepository) Clear(ctx context.Context) error {
 func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 	var group schema.PollingGroup
 	var description sql.NullString
+	var createdAt, updatedAt string
 
 	err := row.Scan(
 		&group.ID,
@@ -164,8 +174,8 @@ func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 		&group.IntervalMs,
 		&group.Priority,
 		&group.Enabled,
-		&group.CreatedAt,
-		&group.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -179,6 +189,17 @@ func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 		group.Description = description.String
 	}
 
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	group.CreatedAt = parsedCreatedAt
+	group.UpdatedAt = parsedUpdatedAt
+
 	return &group, nil
 }
 
@@ -186,6 +207,7 @@ func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 func (r *SQLRepository) scanGroupFromRows(rows *sql.Rows) (*schema.PollingGroup, error) {
 	var group schema.PollingGroup
 	var description sql.NullString
+	var createdAt, updatedAt string
 
 	err := rows.Scan(
 		&group.ID,
@@ -194,8 +216,8 @@ func (r *SQLRepository) scanGroupFromRows(rows *sql.Rows) (*schema.PollingGroup,
 		&group.IntervalMs,
 		&group.Priority,
 		&group.Enabled,
-		&group.CreatedAt,
-		&group.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err != nil {
@@ -205,6 +227,17 @@ func (r *SQLRepository) scanGroupFromRows(rows *sql.Rows) (*schema.PollingGroup,
 	if description.Valid {
 		group.Description = description.String
 	}
+
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	group.CreatedAt = parsedCreatedAt
+	group.UpdatedAt = parsedUpdatedAt
 
 	return &group, nil
 }

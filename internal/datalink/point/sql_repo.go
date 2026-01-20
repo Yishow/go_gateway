@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -26,6 +27,14 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 
 // Create 建立點位
 func (r *SQLRepository) Create(ctx context.Context, point *schema.Point) error {
+	if point.ID == "" {
+		id, err := common.NewUUID()
+		if err != nil {
+			return fmt.Errorf("建立點位 ID 失敗: %w", err)
+		}
+		point.ID = id
+	}
+
 	query := `
 		INSERT INTO points (id, device_id, name, description, address, function, data_type, mode, polling_group_id, enabled, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -58,7 +67,7 @@ func (r *SQLRepository) Update(ctx context.Context, point *schema.Point) error {
 	query := `
 		UPDATE points 
 		SET name = ?, description = ?, address = ?, function = ?, data_type = ?, mode = ?, 
-		    polling_group_id = ?, enabled = ?, updated_at = ?
+		    polling_group_id = ?, last_read_at = ?, last_value = ?, last_error = ?, enabled = ?, updated_at = ?
 		WHERE id = ?
 	`
 
@@ -70,6 +79,9 @@ func (r *SQLRepository) Update(ctx context.Context, point *schema.Point) error {
 		point.DataType,
 		point.Mode,
 		point.PollingGroupID,
+		point.LastReadAt,
+		point.LastValue,
+		point.LastError,
 		point.Enabled,
 		time.Now(),
 		point.ID,
@@ -195,7 +207,8 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 	var point schema.Point
 	var description, function, lastValue, lastError sql.NullString
 	var pollingGroupID sql.NullString
-	var lastReadAt sql.NullTime
+	var lastReadAt sql.NullString
+	var createdAt, updatedAt string
 
 	err := row.Scan(
 		&point.ID,
@@ -211,8 +224,8 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 		&lastValue,
 		&lastError,
 		&point.Enabled,
-		&point.CreatedAt,
-		&point.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -232,14 +245,33 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 		point.PollingGroupID = &pollingGroupID.String
 	}
 	if lastReadAt.Valid {
-		point.LastReadAt = &lastReadAt.Time
+		parsed, err := common.ParseTimeString(lastReadAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("解析最後讀取時間失敗: %w", err)
+		}
+		point.LastReadAt = &parsed
 	}
 	if lastValue.Valid {
 		point.LastValue = &lastValue.String
+	} else {
+		point.LastValue = nil
 	}
 	if lastError.Valid {
 		point.LastError = lastError.String
+	} else {
+		point.LastError = ""
 	}
+
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	point.CreatedAt = parsedCreatedAt
+	point.UpdatedAt = parsedUpdatedAt
 
 	return &point, nil
 }
@@ -249,7 +281,8 @@ func (r *SQLRepository) scanPointFromRows(rows *sql.Rows) (*schema.Point, error)
 	var point schema.Point
 	var description, function, lastValue, lastError sql.NullString
 	var pollingGroupID sql.NullString
-	var lastReadAt sql.NullTime
+	var lastReadAt sql.NullString
+	var createdAt, updatedAt string
 
 	err := rows.Scan(
 		&point.ID,
@@ -265,8 +298,8 @@ func (r *SQLRepository) scanPointFromRows(rows *sql.Rows) (*schema.Point, error)
 		&lastValue,
 		&lastError,
 		&point.Enabled,
-		&point.CreatedAt,
-		&point.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err != nil {
@@ -283,14 +316,33 @@ func (r *SQLRepository) scanPointFromRows(rows *sql.Rows) (*schema.Point, error)
 		point.PollingGroupID = &pollingGroupID.String
 	}
 	if lastReadAt.Valid {
-		point.LastReadAt = &lastReadAt.Time
+		parsed, err := common.ParseTimeString(lastReadAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("解析最後讀取時間失敗: %w", err)
+		}
+		point.LastReadAt = &parsed
 	}
 	if lastValue.Valid {
 		point.LastValue = &lastValue.String
+	} else {
+		point.LastValue = nil
 	}
 	if lastError.Valid {
 		point.LastError = lastError.String
+	} else {
+		point.LastError = ""
 	}
+
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	point.CreatedAt = parsedCreatedAt
+	point.UpdatedAt = parsedUpdatedAt
 
 	return &point, nil
 }

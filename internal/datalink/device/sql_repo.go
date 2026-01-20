@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -26,6 +27,14 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 
 // Create 建立設備
 func (r *SQLRepository) Create(ctx context.Context, device *schema.Device) error {
+	if device.ID == "" {
+		id, err := common.NewUUID()
+		if err != nil {
+			return fmt.Errorf("建立設備 ID 失敗: %w", err)
+		}
+		device.ID = id
+	}
+
 	query := `
 		INSERT INTO devices (id, name, description, protocol, status, connection_config, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -54,7 +63,7 @@ func (r *SQLRepository) Update(ctx context.Context, device *schema.Device) error
 	query := `
 		UPDATE devices 
 		SET name = ?, description = ?, protocol = ?, status = ?, 
-		    connection_config = ?, updated_at = ?
+		    connection_config = ?, last_test_at = ?, last_test_success = ?, last_test_error = ?, updated_at = ?
 		WHERE id = ?
 	`
 
@@ -64,6 +73,9 @@ func (r *SQLRepository) Update(ctx context.Context, device *schema.Device) error
 		device.Protocol,
 		device.Status,
 		device.ConnectionConfig,
+		device.LastTestAt,
+		device.LastTestSuccess,
+		device.LastTestError,
 		time.Now(),
 		device.ID,
 	)
@@ -129,7 +141,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		args = append(args, *filter.Status)
 	}
 
-	query += ` ORDER BY created_at DESC`
+	query += ` ORDER BY created_at DESC, id DESC`
 
 	if filter.Limit > 0 {
 		query += fmt.Sprintf(` LIMIT %d`, filter.Limit)
@@ -169,12 +181,55 @@ func (r *SQLRepository) Count(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+// UpdateTestResult 更新連線測試結果
+func (r *SQLRepository) UpdateTestResult(ctx context.Context, id string, success bool, errMsg string) error {
+	query := `
+		UPDATE devices
+		SET last_test_at = ?, last_test_success = ?, last_test_error = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	result, err := r.db.ExecContext(ctx, query, time.Now(), success, errMsg, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("更新設備測試結果失敗: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("設備不存在: %s", id)
+	}
+
+	return nil
+}
+
+// UpdateStatus 更新設備狀態
+func (r *SQLRepository) UpdateStatus(ctx context.Context, id string, status schema.DeviceStatus) error {
+	query := `
+		UPDATE devices
+		SET status = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	result, err := r.db.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("更新設備狀態失敗: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("設備不存在: %s", id)
+	}
+
+	return nil
+}
+
 // scanDevice 從單一行掃描設備
 func (r *SQLRepository) scanDevice(row *sql.Row) (*schema.Device, error) {
 	var device schema.Device
 	var description, connectionConfig, lastTestError sql.NullString
-	var lastTestAt sql.NullTime
+	var lastTestAt sql.NullString
 	var lastTestSuccess sql.NullBool
+	var createdAt, updatedAt string
 
 	err := row.Scan(
 		&device.ID,
@@ -186,8 +241,8 @@ func (r *SQLRepository) scanDevice(row *sql.Row) (*schema.Device, error) {
 		&lastTestAt,
 		&lastTestSuccess,
 		&lastTestError,
-		&device.CreatedAt,
-		&device.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -204,7 +259,11 @@ func (r *SQLRepository) scanDevice(row *sql.Row) (*schema.Device, error) {
 		device.ConnectionConfig = connectionConfig.String
 	}
 	if lastTestAt.Valid {
-		device.LastTestAt = &lastTestAt.Time
+		parsed, err := common.ParseTimeString(lastTestAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("解析測試時間失敗: %w", err)
+		}
+		device.LastTestAt = &parsed
 	}
 	if lastTestSuccess.Valid {
 		device.LastTestSuccess = &lastTestSuccess.Bool
@@ -213,6 +272,17 @@ func (r *SQLRepository) scanDevice(row *sql.Row) (*schema.Device, error) {
 		device.LastTestError = lastTestError.String
 	}
 
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	device.CreatedAt = parsedCreatedAt
+	device.UpdatedAt = parsedUpdatedAt
+
 	return &device, nil
 }
 
@@ -220,8 +290,9 @@ func (r *SQLRepository) scanDevice(row *sql.Row) (*schema.Device, error) {
 func (r *SQLRepository) scanDeviceFromRows(rows *sql.Rows) (*schema.Device, error) {
 	var device schema.Device
 	var description, connectionConfig, lastTestError sql.NullString
-	var lastTestAt sql.NullTime
+	var lastTestAt sql.NullString
 	var lastTestSuccess sql.NullBool
+	var createdAt, updatedAt string
 
 	err := rows.Scan(
 		&device.ID,
@@ -233,8 +304,8 @@ func (r *SQLRepository) scanDeviceFromRows(rows *sql.Rows) (*schema.Device, erro
 		&lastTestAt,
 		&lastTestSuccess,
 		&lastTestError,
-		&device.CreatedAt,
-		&device.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err != nil {
@@ -248,7 +319,11 @@ func (r *SQLRepository) scanDeviceFromRows(rows *sql.Rows) (*schema.Device, erro
 		device.ConnectionConfig = connectionConfig.String
 	}
 	if lastTestAt.Valid {
-		device.LastTestAt = &lastTestAt.Time
+		parsed, err := common.ParseTimeString(lastTestAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("解析測試時間失敗: %w", err)
+		}
+		device.LastTestAt = &parsed
 	}
 	if lastTestSuccess.Valid {
 		device.LastTestSuccess = &lastTestSuccess.Bool
@@ -256,6 +331,17 @@ func (r *SQLRepository) scanDeviceFromRows(rows *sql.Rows) (*schema.Device, erro
 	if lastTestError.Valid {
 		device.LastTestError = lastTestError.String
 	}
+
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	device.CreatedAt = parsedCreatedAt
+	device.UpdatedAt = parsedUpdatedAt
 
 	return &device, nil
 }

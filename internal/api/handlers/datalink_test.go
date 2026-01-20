@@ -126,7 +126,9 @@ func TestMappingHandler_Create(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
-func TestMappingHandler_Preview(t *testing.T) {
+// TestMappingHandler_Preview 已移至 mapping_handler_extended_test.go
+// 此函數已重命名以避免重複宣告
+func TestMappingHandler_Preview_Legacy(t *testing.T) {
 	r := setupMappingRouter()
 
 	previewReq := map[string]interface{}{

@@ -135,30 +135,33 @@ func (h *DeviceHandler) TestConnection(c *gin.Context) {
 
 func (h *DeviceHandler) Activate(c *gin.Context) {
 	id := c.Param("id")
-	dev, err := h.svc.GetByID(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(404, gin.H{"error": "not found"})
+	if err := h.svc.Activate(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
 		return
 	}
 
-	// Quick hack: update status using Update method
-	// Real implementation would have State Machine logic
-	dev, _ = h.svc.Update(c.Request.Context(), id, device.UpdateDeviceRequest{
-		// We need a way to specific status updates in the service, assuming service handles it or we add a method
-	})
-
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
-}
-
-func (h *DeviceHandler) Disable(c *gin.Context) {
-	id := c.Param("id")
 	dev, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
 		return
 	}
 
-	// TODO: 實現真正的狀態更新邏輯
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
+}
+
+func (h *DeviceHandler) Disable(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.svc.Disable(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
+		return
+	}
+
+	dev, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
 }
 
@@ -182,6 +185,7 @@ func (h *DeviceHandler) TestConnectionBatch(c *gin.Context) {
 		result, err := h.svc.TestConnectionWithResult(c.Request.Context(), id)
 		if err != nil {
 			results = append(results, device.TestConnectionResult{
+				LatencyMs: 0,
 				Success:   false,
 				Error:     err.Error(),
 				Timestamp: time.Now(),

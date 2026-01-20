@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"go-gateway/internal/datalink/common"
 )
 
 // =============================================================================
@@ -27,7 +29,7 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, error) {
 	query := `
 		SELECT key, value, description, updated_at
-		FROM settings WHERE key = ?
+		FROM system_settings WHERE key = ?
 	`
 
 	row := r.db.QueryRowContext(ctx, query, key)
@@ -35,8 +37,9 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, erro
 	var item SettingItem
 	var valueJSON string
 	var description sql.NullString
+	var updatedAt sql.NullString
 
-	err := row.Scan(&item.Key, &valueJSON, &description, &item.UpdatedAt)
+	err := row.Scan(&item.Key, &valueJSON, &description, &updatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("設定不存在: %s", key)
 	}
@@ -53,6 +56,14 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, erro
 		item.Description = description.String
 	}
 
+	if updatedAt.Valid {
+		parsedUpdatedAt, err := common.ParseTimeString(updatedAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+		}
+		item.UpdatedAt = parsedUpdatedAt
+	}
+
 	return &item, nil
 }
 
@@ -66,7 +77,7 @@ func (r *SQLRepository) Set(ctx context.Context, key string, value interface{}) 
 
 	// 使用 UPSERT 語法
 	query := `
-		INSERT INTO settings (key, value, updated_at)
+		INSERT INTO system_settings (key, value, updated_at)
 		VALUES (?, ?, ?)
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
 	`
@@ -83,7 +94,7 @@ func (r *SQLRepository) Set(ctx context.Context, key string, value interface{}) 
 func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
 	query := `
 		SELECT key, value, description, updated_at
-		FROM settings
+		FROM system_settings
 		ORDER BY key ASC
 	`
 
@@ -98,8 +109,9 @@ func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
 		var item SettingItem
 		var valueJSON string
 		var description sql.NullString
+		var updatedAt sql.NullString
 
-		err := rows.Scan(&item.Key, &valueJSON, &description, &item.UpdatedAt)
+		err := rows.Scan(&item.Key, &valueJSON, &description, &updatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("掃描設定失敗: %w", err)
 		}
@@ -113,6 +125,14 @@ func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
 			item.Description = description.String
 		}
 
+		if updatedAt.Valid {
+			parsedUpdatedAt, err := common.ParseTimeString(updatedAt.String)
+			if err != nil {
+				return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+			}
+			item.UpdatedAt = parsedUpdatedAt
+		}
+
 		items = append(items, &item)
 	}
 
@@ -121,7 +141,7 @@ func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
 
 // Delete 刪除設定
 func (r *SQLRepository) Delete(ctx context.Context, key string) error {
-	query := `DELETE FROM settings WHERE key = ?`
+	query := `DELETE FROM system_settings WHERE key = ?`
 
 	result, err := r.db.ExecContext(ctx, query, key)
 	if err != nil {

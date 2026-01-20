@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -26,6 +27,14 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 
 // Create 建立映射
 func (r *SQLRepository) Create(ctx context.Context, mapping *schema.Mapping) error {
+	if mapping.ID == "" {
+		id, err := common.NewUUID()
+		if err != nil {
+			return fmt.Errorf("建立映射 ID 失敗: %w", err)
+		}
+		mapping.ID = id
+	}
+
 	query := `
 		INSERT INTO mappings (id, point_id, tag_id, transform_pipeline, enabled, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -180,6 +189,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 // scanMapping 從單一行掃描映射
 func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 	var mapping schema.Mapping
+	var createdAt, updatedAt string
 
 	err := row.Scan(
 		&mapping.ID,
@@ -187,8 +197,8 @@ func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 		&mapping.TagID,
 		&mapping.TransformPipeline,
 		&mapping.Enabled,
-		&mapping.CreatedAt,
-		&mapping.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -197,6 +207,17 @@ func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 	if err != nil {
 		return nil, fmt.Errorf("掃描映射失敗: %w", err)
 	}
+
+	parsedCreatedAt, err := common.ParseTimeString(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+	}
+	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+	}
+	mapping.CreatedAt = parsedCreatedAt
+	mapping.UpdatedAt = parsedUpdatedAt
 
 	return &mapping, nil
 }
@@ -207,6 +228,7 @@ func (r *SQLRepository) scanMappings(rows *sql.Rows) ([]*schema.Mapping, error) 
 
 	for rows.Next() {
 		var mapping schema.Mapping
+		var createdAt, updatedAt string
 
 		err := rows.Scan(
 			&mapping.ID,
@@ -214,13 +236,24 @@ func (r *SQLRepository) scanMappings(rows *sql.Rows) ([]*schema.Mapping, error) 
 			&mapping.TagID,
 			&mapping.TransformPipeline,
 			&mapping.Enabled,
-			&mapping.CreatedAt,
-			&mapping.UpdatedAt,
+			&createdAt,
+			&updatedAt,
 		)
 
 		if err != nil {
 			return nil, fmt.Errorf("掃描映射失敗: %w", err)
 		}
+
+		parsedCreatedAt, err := common.ParseTimeString(createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("解析建立時間失敗: %w", err)
+		}
+		parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("解析更新時間失敗: %w", err)
+		}
+		mapping.CreatedAt = parsedCreatedAt
+		mapping.UpdatedAt = parsedUpdatedAt
 
 		mappings = append(mappings, &mapping)
 	}
