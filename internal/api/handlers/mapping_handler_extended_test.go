@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,10 @@ import (
 func setupMappingRouterWithExtended() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
-	h := NewMappingHandler()
+
+	repo := mapping.NewMemoryRepository()
+	svc := mapping.NewService(repo)
+	h := NewMappingHandler(svc)
 
 	// 基礎端點
 	r.GET("/datalink/mappings", h.List)

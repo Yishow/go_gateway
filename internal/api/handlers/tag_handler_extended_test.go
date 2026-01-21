@@ -12,17 +12,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	_ "go-gateway/internal/datalink/connector/adapters"
+	"go-gateway/internal/datalink/device"
 )
 
 /**
- * setupTagRouter 建立測試用的 Tag Router（包含擴展端點）
+ * setupTagRouterWithExtended 建立測試用的 Tag Router（包含擴展端點）
  * @param t 測試實例
  * @returns *gin.Engine 測試路由器
  */
 func setupTagRouterWithExtended() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
-	h := NewTagHandler()
+
+	// Setup Device Handler (for test data creation)
+	devRepo := device.NewMemoryRepository()
+	devSvc := device.NewService(devRepo, nil)
+	devHandler := NewDeviceHandler(devSvc)
+	r.POST("/datalink/devices", devHandler.Create)
+
+	// Setup Tag Handler
+	repo := tag.NewMemoryRepository()
+	svc := tag.NewService(repo)
+	h := NewTagHandler(svc)
 
 	// 基礎端點
 	r.GET("/datalink/tags", h.List)

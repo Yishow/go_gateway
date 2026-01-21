@@ -13,6 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	_ "go-gateway/internal/datalink/connector/adapters"
 )
 
 /**
@@ -24,11 +26,16 @@ func setupPointRouterWithExtended() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
 	
-	// 建立設備 handler 來創建測試數據（暫時不使用，但保留以備將來需要）
-	_ = NewDeviceHandler()
+	// Setup Device Handler (for test data creation)
+	devRepo := device.NewMemoryRepository()
+	devSvc := device.NewService(devRepo, nil)
+	devHandler := NewDeviceHandler(devSvc)
+	r.POST("/datalink/devices", devHandler.Create)
 
-	// 基礎端點
-	h := NewPointHandler()
+	// Setup Point Handler
+	repo := point.NewMemoryRepository()
+	svc := point.NewService(repo, nil)
+	h := NewPointHandler(svc)
 	r.GET("/datalink/points", h.List)
 	r.POST("/datalink/points", h.Create)
 

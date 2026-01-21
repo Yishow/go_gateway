@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 
 	"go-gateway/internal/datalink/tag"
@@ -13,27 +12,11 @@ type TagHandler struct {
 	svc *tag.Service
 }
 
-func NewTagHandler() *TagHandler {
-	repo := tag.NewMemoryRepository()
-	svc := tag.NewService(repo)
-
-	// Seed some tags
-	list, _ := svc.List(context.Background(), tag.ListFilter{})
-	if len(list) == 0 {
-		svc.Create(context.Background(), tag.CreateTagRequest{
-			Key:         "temp_c",
-			DisplayName: "Temperature (Celsius)",
-			DataType:    "float64",
-			Unit:        "°C",
-		})
-		svc.Create(context.Background(), tag.CreateTagRequest{
-			Key:         "pressure_bar",
-			DisplayName: "Pressure (Bar)",
-			DataType:    "float64",
-			Unit:        "bar",
-		})
-	}
-
+func NewTagHandler(svc *tag.Service) *TagHandler {
+	// Seed some tags if empty (optional logic moved here or kept in main, for now keeping to match logic)
+	// But usually seeding belongs to main or a separate seeding func.
+	// We will duplicate seeding logic check if we want to keep behavior, or remove it.
+	// For Refactoring: keep it simple. Remove seeding from Handler.
 	return &TagHandler{svc: svc}
 }
 
@@ -130,7 +113,7 @@ func (h *TagHandler) Retire(c *gin.Context) {
 
 // BatchCreateRequest 批量建立請求
 type BatchCreateRequest struct {
-	Tags []tag.CreateTagRequest `json:"tags"`
+	Tags *[]tag.CreateTagRequest `json:"tags"`
 }
 
 // BatchCreateResponse 批量建立回應
@@ -154,12 +137,18 @@ func (h *TagHandler) BatchCreate(c *gin.Context) {
 		return
 	}
 
+	// 驗證必填欄位（tags 欄位必須存在，即使是空陣列）
+	if req.Tags == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "tags field is required"}})
+		return
+	}
+
 	resp := BatchCreateResponse{
 		Created: make([]string, 0),
 		Errors:  make([]BatchCreateError, 0),
 	}
 
-	for _, tagReq := range req.Tags {
+	for _, tagReq := range *req.Tags {
 		t, err := h.svc.Create(c.Request.Context(), tagReq)
 		if err != nil {
 			resp.Errors = append(resp.Errors, BatchCreateError{
@@ -193,6 +182,12 @@ func (h *TagHandler) ValidateKey(c *gin.Context) {
 	var req ValidateKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	// 驗證必填欄位（key 欄位必須存在且非空）
+	if req.Key == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "key field is required"}})
 		return
 	}
 

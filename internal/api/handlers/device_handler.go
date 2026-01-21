@@ -1,9 +1,8 @@
 package handlers
 
 import (
-	"context"
-	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go-gateway/internal/datalink/device"
@@ -16,29 +15,7 @@ type DeviceHandler struct {
 	svc *device.Service
 }
 
-func NewDeviceHandler() *DeviceHandler {
-	// In a real app, you'd inject the service. For now we use the memory repo default.
-	// We need to ensure the service is initialized properly in main or here.
-	// For simplicity in this prototype, we'll create a new service instance with memory repo.
-
-	repo := device.NewMemoryRepository()
-	// Pass nil for connection manager, service will use default singleton
-	svc := device.NewService(repo, nil)
-
-	// Pre-seed some data for demo if empty
-	list, _ := svc.List(context.Background(), device.ListFilter{})
-	if len(list) == 0 {
-		_, err := svc.Create(context.Background(), device.CreateDeviceRequest{
-			Name:             "Demo Modbus Device",
-			Description:      "A simulated Modbus TCP device",
-			Protocol:         "modbus_tcp",
-			ConnectionConfig: map[string]interface{}{"host": "localhost", "port": 502, "slave_id": 1},
-		})
-		if err != nil {
-			panic(fmt.Sprintf("Failed to seed device: %v", err))
-		}
-	}
-
+func NewDeviceHandler(svc *device.Service) *DeviceHandler {
 	return &DeviceHandler{svc: svc}
 }
 
@@ -136,7 +113,12 @@ func (h *DeviceHandler) TestConnection(c *gin.Context) {
 func (h *DeviceHandler) Activate(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Activate(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
+		// 區分錯誤類型
+		if strings.Contains(err.Error(), "不存在") || strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		}
 		return
 	}
 
@@ -167,7 +149,7 @@ func (h *DeviceHandler) Disable(c *gin.Context) {
 
 // TestConnectionBatchRequest 批量測試連線請求
 type TestConnectionBatchRequest struct {
-	DeviceIDs []string `json:"device_ids"`
+	DeviceIDs *[]string `json:"device_ids"`
 }
 
 // TestConnectionBatch 批量測試連線
@@ -179,9 +161,15 @@ func (h *DeviceHandler) TestConnectionBatch(c *gin.Context) {
 		return
 	}
 
-	results := make([]device.TestConnectionResult, 0, len(req.DeviceIDs))
+	// 驗證必填欄位（device_ids 欄位必須存在，即使是空陣列）
+	if req.DeviceIDs == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "device_ids field is required"}})
+		return
+	}
 
-	for _, id := range req.DeviceIDs {
+	results := make([]device.TestConnectionResult, 0, len(*req.DeviceIDs))
+
+	for _, id := range *req.DeviceIDs {
 		result, err := h.svc.TestConnectionWithResult(c.Request.Context(), id)
 		if err != nil {
 			results = append(results, device.TestConnectionResult{

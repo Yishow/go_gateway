@@ -15,12 +15,9 @@ type PollingGroupHandler struct {
 }
 
 // NewPollingGroupHandler 建立新的輪詢群組 Handler
-func NewPollingGroupHandler() *PollingGroupHandler {
-	repo := pollinggroup.NewMemoryRepository()
-	// 預設資料
-	_ = repo.Seed()
-	svc := pollinggroup.NewService(repo)
-
+func NewPollingGroupHandler(svc *pollinggroup.Service) *PollingGroupHandler {
+	// Seed 預設資料 logic removed or moved to main/service seed method if needed.
+	// For now we just inject.
 	return &PollingGroupHandler{svc: svc}
 }
 
@@ -61,6 +58,15 @@ func (h *PollingGroupHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   gin.H{"message": err.Error()},
+		})
+		return
+	}
+
+	// 驗證必填欄位
+	if req.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   gin.H{"message": "name field is required"},
 		})
 		return
 	}

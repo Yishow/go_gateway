@@ -13,10 +13,7 @@ type PointHandler struct {
 	svc *point.Service
 }
 
-func NewPointHandler() *PointHandler {
-	repo := point.NewMemoryRepository()
-    // TODO: Pass actual group repo
-	svc := point.NewService(repo, nil) 
+func NewPointHandler(svc *point.Service) *PointHandler {
 	return &PointHandler{svc: svc}
 }
 
@@ -125,7 +122,7 @@ func (h *PointHandler) Poll(c *gin.Context) {
 
 // PollBatchRequest 批量輪詢請求
 type PollBatchRequest struct {
-	PointIDs []string `json:"point_ids"`
+	PointIDs *[]string `json:"point_ids"`
 }
 
 // PollBatch 批量輪詢
@@ -137,9 +134,15 @@ func (h *PointHandler) PollBatch(c *gin.Context) {
 		return
 	}
 
-	results := make([]PollResult, 0, len(req.PointIDs))
+	// 驗證必填欄位（point_ids 欄位必須存在，即使是空陣列）
+	if req.PointIDs == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "point_ids field is required"}})
+		return
+	}
 
-	for _, id := range req.PointIDs {
+	results := make([]PollResult, 0, len(*req.PointIDs))
+
+	for _, id := range *req.PointIDs {
 		pt, err := h.svc.GetByID(c.Request.Context(), id)
 		if err != nil {
 			results = append(results, PollResult{

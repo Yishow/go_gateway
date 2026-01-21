@@ -15,9 +15,7 @@ type MappingHandler struct {
 	svc *mapping.Service
 }
 
-func NewMappingHandler() *MappingHandler {
-	repo := mapping.NewMemoryRepository()
-	svc := mapping.NewService(repo)
+func NewMappingHandler(svc *mapping.Service) *MappingHandler {
 	return &MappingHandler{svc: svc}
 }
 
@@ -94,7 +92,7 @@ func (h *MappingHandler) Delete(c *gin.Context) {
 
 type MappingPreviewRequest struct {
     RawValue interface{} `json:"raw_value"`
-    TransformPipeline []schema.TransformStep `json:"transform_pipeline"`
+    TransformPipeline *[]schema.TransformStep `json:"transform_pipeline"`
 }
 
 type MappingPreviewResponse struct {
@@ -111,8 +109,14 @@ func (h *MappingHandler) Preview(c *gin.Context) {
 		return
 	}
 
+	// 驗證必填欄位（transform_pipeline 欄位必須存在）
+	if req.TransformPipeline == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "transform_pipeline field is required"}})
+		return
+	}
+
     // Serialize pipeline to JSON string for ExecutePipeline
-    pipelineJSON, err := json.Marshal(req.TransformPipeline)
+    pipelineJSON, err := json.Marshal(*req.TransformPipeline)
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "Invalid pipeline format"}})
         return
@@ -135,13 +139,13 @@ func (h *MappingHandler) Preview(c *gin.Context) {
 
 // ValidatePipelineRequest 驗證管線請求
 type ValidatePipelineRequest struct {
-	Pipeline []schema.TransformStep `json:"pipeline"`
+	Pipeline *[]schema.TransformStep `json:"pipeline"`
 }
 
 // ValidatePipelineResponse 驗證管線回應
 type ValidatePipelineResponse struct {
 	Valid bool   `json:"valid"`
-	Error string `json:"error,omitempty"`
+	Error string `json:"error"`
 }
 
 // ValidatePipeline 驗證轉換管線
@@ -153,10 +157,16 @@ func (h *MappingHandler) ValidatePipeline(c *gin.Context) {
 		return
 	}
 
-	resp := ValidatePipelineResponse{Valid: true}
+	// 驗證必填欄位（pipeline 欄位必須存在，即使是空陣列）
+	if req.Pipeline == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "pipeline field is required"}})
+		return
+	}
+
+	resp := ValidatePipelineResponse{Valid: true, Error: ""}
 
 	// 驗證管線格式
-	if len(req.Pipeline) == 0 {
+	if len(*req.Pipeline) == 0 {
 		// 空管線是有效的（pass-through）
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 		return
@@ -172,7 +182,7 @@ func (h *MappingHandler) ValidatePipeline(c *gin.Context) {
 		schema.TransformFormula:     true,
 	}
 
-	for i, step := range req.Pipeline {
+	for i, step := range *req.Pipeline {
 		if !validTypes[step.Type] {
 			resp.Valid = false
 			resp.Error = fmt.Sprintf("步驟 %d: 不支援的轉換類型 '%s'", i+1, step.Type)

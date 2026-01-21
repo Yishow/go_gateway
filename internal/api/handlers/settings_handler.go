@@ -14,9 +14,7 @@ type SettingsHandler struct {
 }
 
 // NewSettingsHandler 建立新的設定 Handler
-func NewSettingsHandler() *SettingsHandler {
-	repo := settings.NewMemoryRepository()
-	svc := settings.NewService(repo)
+func NewSettingsHandler(svc *settings.Service) *SettingsHandler {
 	return &SettingsHandler{svc: svc}
 }
 

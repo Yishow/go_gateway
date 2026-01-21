@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"log"
 	"net/http"
@@ -13,8 +14,18 @@ import (
 	"syscall"
 	"time"
 
+	_ "modernc.org/sqlite"
+
 	"go-gateway/internal/api"
 	"go-gateway/internal/config"
+	"go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/connector"
+	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/mapping"
+	"go-gateway/internal/datalink/point"
+	"go-gateway/internal/datalink/pollinggroup"
+	"go-gateway/internal/datalink/settings"
+	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/web"
 )
 
@@ -39,8 +50,82 @@ func main() {
 	// 設定日誌
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	// =========================================================================
+	// Database Setup (SQLite)
+	// =========================================================================
+	dbPath := "datalink.db" // Default to local file
+	log.Printf("資料庫路徑: %s", dbPath)
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		log.Fatalf("無法開啟資料庫: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatalf("無法連接資料庫: %v", err)
+	}
+
+	// 此處啟用 WAL journal_mode 等優化可選
+
+	// =========================================================================
+	// Migrations
+	// =========================================================================
+	// =========================================================================
+	// Migrations
+	// =========================================================================
+	migrator := datalink.NewMigrator() // Remove db arg
+	if err := migrator.Migrate(db); err != nil { // Add db arg
+		log.Fatalf("資料庫遷移失敗: %v", err)
+	}
+
+	// =========================================================================
+	// Connector Manager
+	// =========================================================================
+	connMgr := connector.GetConnectionManager()
+	defer connMgr.CloseAll()
+	log.Println("ConnectionManager 已初始化")
+
+	// =========================================================================
+	// Repository & Service Wiring
+	// =========================================================================
+
+	// Device
+	devRepo := device.NewSQLRepository(db)
+	devSvc := device.NewService(devRepo, connMgr)
+
+	// Point
+	pointRepo := point.NewSQLRepository(db)
+	pointSvc := point.NewService(pointRepo, nil) // PollingGroupRepository 暫為 nil
+
+	// Tag
+	tagRepo := tag.NewSQLRepository(db)
+	tagSvc := tag.NewService(tagRepo)
+
+	// Mapping
+	mappingRepo := mapping.NewSQLRepository(db)
+	mappingSvc := mapping.NewService(mappingRepo)
+
+	// PollingGroup
+	pgRepo := pollinggroup.NewSQLRepository(db)
+	pgSvc := pollinggroup.NewService(pgRepo)
+
+	// Settings
+	settingsRepo := settings.NewSQLRepository(db)
+	settingsSvc := settings.NewService(settingsRepo)
+
+	// Container
+	datalinkServices := &api.DatalinkServices{
+		Device:       devSvc,
+		Point:        pointSvc,
+		Tag:          tagSvc,
+		Mapping:      mappingSvc,
+		PollingGroup: pgSvc,
+		Settings:     settingsSvc,
+	}
+
 	// 建立 API 路由器
-	router := api.NewRouter()
+	router := api.NewRouter(datalinkServices)
 
 	// 設定靜態檔案服務（使用 embed）
 	web.SetupStaticFiles(router, staticFiles)

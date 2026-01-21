@@ -270,9 +270,9 @@ func TestSQLRepository_GetByID_NotFound(t *testing.T) {
 }
 
 /**
- * TestSQLRepository_GetByDeviceID 測試根據設備 ID 取得點位列表
+ * TestSQLRepository_ListByDevice 測試根據設備 ID 取得點位列表
  */
-func TestSQLRepository_GetByDeviceID(t *testing.T) {
+func TestSQLRepository_ListByDevice(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
@@ -292,7 +292,7 @@ func TestSQLRepository_GetByDeviceID(t *testing.T) {
 	}
 
 	// 根據設備 ID 取得點位
-	points, err := repo.GetByDeviceID(ctx, deviceID)
+	points, err := repo.ListByDevice(ctx, deviceID)
 	assert.NoError(t, err)
 	assert.Len(t, points, 3)
 

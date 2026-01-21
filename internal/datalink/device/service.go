@@ -252,6 +252,11 @@ func (s *Service) Disable(ctx context.Context, id string) error {
 
 // TestConnection 測試設備連線
 func (s *Service) TestConnection(ctx context.Context, id string) error {
+	// 檢查 ConnectionManager 是否已設定
+	if s.connMgr == nil {
+		return fmt.Errorf("連線管理器未初始化，無法測試連線")
+	}
+
 	device, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("取得設備失敗: %w", err)

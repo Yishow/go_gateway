@@ -1,4 +1,3 @@
-// Package device 提供設備管理功能的 SQL Repository 實現。
 package device
 
 import (
@@ -7,341 +6,264 @@ import (
 	"fmt"
 	"time"
 
-	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
-// =============================================================================
-// SQL Repository 實現
-// =============================================================================
-
-// SQLRepository SQL 設備儲存庫
+// SQLRepository implements the Repository interface using SQL
 type SQLRepository struct {
 	db *sql.DB
 }
 
-// NewSQLRepository 建立新的 SQL 儲存庫
+// NewSQLRepository creates a new SQL repository
 func NewSQLRepository(db *sql.DB) *SQLRepository {
 	return &SQLRepository{db: db}
 }
 
-// Create 建立設備
-func (r *SQLRepository) Create(ctx context.Context, device *schema.Device) error {
-	if device.ID == "" {
-		id, err := common.NewUUID()
-		if err != nil {
-			return fmt.Errorf("建立設備 ID 失敗: %w", err)
-		}
-		device.ID = id
-	}
-
+func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 	query := `
-		INSERT INTO devices (id, name, description, protocol, status, connection_config, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO devices (
+			id, name, description, protocol, status, connection_config, 
+			last_test_at, last_test_success, last_test_error, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-
 	_, err := r.db.ExecContext(ctx, query,
-		device.ID,
-		device.Name,
-		device.Description,
-		device.Protocol,
-		device.Status,
-		device.ConnectionConfig,
-		device.CreatedAt,
-		device.UpdatedAt,
+		dev.ID,
+		dev.Name,
+		dev.Description,
+		dev.Protocol,
+		dev.Status,
+		dev.ConnectionConfig,
+		dev.LastTestAt,
+		dev.LastTestSuccess,
+		dev.LastTestError,
+		dev.CreatedAt,
+		dev.UpdatedAt,
 	)
-
 	if err != nil {
-		return fmt.Errorf("建立設備失敗: %w", err)
+		return fmt.Errorf("failed to create device: %w", err)
 	}
-
 	return nil
 }
 
-// Update 更新設備
-func (r *SQLRepository) Update(ctx context.Context, device *schema.Device) error {
-	query := `
-		UPDATE devices 
-		SET name = ?, description = ?, protocol = ?, status = ?, 
-		    connection_config = ?, last_test_at = ?, last_test_success = ?, last_test_error = ?, updated_at = ?
-		WHERE id = ?
-	`
-
-	result, err := r.db.ExecContext(ctx, query,
-		device.Name,
-		device.Description,
-		device.Protocol,
-		device.Status,
-		device.ConnectionConfig,
-		device.LastTestAt,
-		device.LastTestSuccess,
-		device.LastTestError,
-		time.Now(),
-		device.ID,
-	)
-
-	if err != nil {
-		return fmt.Errorf("更新設備失敗: %w", err)
-	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("設備不存在: %s", device.ID)
-	}
-
-	return nil
-}
-
-// Delete 刪除設備
-func (r *SQLRepository) Delete(ctx context.Context, id string) error {
-	query := `DELETE FROM devices WHERE id = ?`
-
-	result, err := r.db.ExecContext(ctx, query, id)
-	if err != nil {
-		return fmt.Errorf("刪除設備失敗: %w", err)
-	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("設備不存在: %s", id)
-	}
-
-	return nil
-}
-
-// GetByID 根據 ID 取得設備
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device, error) {
 	query := `
-		SELECT id, name, description, protocol, status, connection_config, 
-		       last_test_at, last_test_success, last_test_error, created_at, updated_at
+		SELECT id, name, description, protocol, status, connection_config,
+			   last_test_at, last_test_success, last_test_error, created_at, updated_at
 		FROM devices WHERE id = ?
 	`
-
 	row := r.db.QueryRowContext(ctx, query, id)
-	return r.scanDevice(row)
+
+	var dev schema.Device
+	var lastTestAt sql.NullString
+	var lastTestSuccess sql.NullBool
+	var lastTestError sql.NullString
+	var createdAtStr, updatedAtStr string
+
+	err := row.Scan(
+		&dev.ID,
+		&dev.Name,
+		&dev.Description,
+		&dev.Protocol,
+		&dev.Status,
+		&dev.ConnectionConfig,
+		&lastTestAt,
+		&lastTestSuccess,
+		&lastTestError,
+		&createdAtStr,
+		&updatedAtStr,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("device not found: %w", err)
+		}
+		return nil, fmt.Errorf("failed to get device: %w", err)
+	}
+
+	dev.CreatedAt = parseTime(createdAtStr)
+	dev.UpdatedAt = parseTime(updatedAtStr)
+
+	if lastTestAt.Valid {
+		t := parseTime(lastTestAt.String)
+		dev.LastTestAt = &t
+	}
+	if lastTestSuccess.Valid {
+		dev.LastTestSuccess = &lastTestSuccess.Bool
+	}
+	if lastTestError.Valid {
+		dev.LastTestError = lastTestError.String
+	}
+
+	return &dev, nil
 }
 
-// List 列出設備
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.Device, error) {
 	query := `
 		SELECT id, name, description, protocol, status, connection_config,
-		       last_test_at, last_test_success, last_test_error, created_at, updated_at
-		FROM devices
-		WHERE 1=1
+			   last_test_at, last_test_success, last_test_error, created_at, updated_at
+		FROM devices WHERE 1=1
 	`
-	args := []interface{}{}
+	var args []interface{}
 
 	if filter.Protocol != nil {
-		query += ` AND protocol = ?`
+		query += " AND protocol = ?"
 		args = append(args, *filter.Protocol)
 	}
-
 	if filter.Status != nil {
-		query += ` AND status = ?`
+		query += " AND status = ?"
 		args = append(args, *filter.Status)
 	}
 
-	query += ` ORDER BY created_at DESC, id DESC`
+	// Always order by name or created_at for consistency
+	query += " ORDER BY name ASC"
 
 	if filter.Limit > 0 {
-		query += fmt.Sprintf(` LIMIT %d`, filter.Limit)
+		query += " LIMIT ?"
+		args = append(args, filter.Limit)
 	}
 	if filter.Offset > 0 {
-		query += fmt.Sprintf(` OFFSET %d`, filter.Offset)
+		query += " OFFSET ?"
+		args = append(args, filter.Offset)
 	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("查詢設備失敗: %w", err)
+		return nil, fmt.Errorf("failed to list devices: %w", err)
 	}
 	defer rows.Close()
 
-	devices := make([]*schema.Device, 0)
+	var devices []*schema.Device
 	for rows.Next() {
-		device, err := r.scanDeviceFromRows(rows)
+		var dev schema.Device
+		var lastTestAt sql.NullString
+		var lastTestSuccess sql.NullBool
+		var lastTestError sql.NullString
+		var createdAtStr, updatedAtStr string
+
+		err := rows.Scan(
+			&dev.ID,
+			&dev.Name,
+			&dev.Description,
+			&dev.Protocol,
+			&dev.Status,
+			&dev.ConnectionConfig,
+			&lastTestAt,
+			&lastTestSuccess,
+			&lastTestError,
+			&createdAtStr,
+			&updatedAtStr,
+		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan device: %w", err)
 		}
-		devices = append(devices, device)
+
+		dev.CreatedAt = parseTime(createdAtStr)
+		dev.UpdatedAt = parseTime(updatedAtStr)
+
+		if lastTestAt.Valid {
+			t := parseTime(lastTestAt.String)
+			dev.LastTestAt = &t
+		}
+		if lastTestSuccess.Valid {
+			dev.LastTestSuccess = &lastTestSuccess.Bool
+		}
+		if lastTestError.Valid {
+			dev.LastTestError = lastTestError.String
+		}
+
+		devices = append(devices, &dev)
 	}
 
 	return devices, nil
 }
 
-// Count 計算設備數量
-func (r *SQLRepository) Count(ctx context.Context) (int64, error) {
-	query := `SELECT COUNT(*) FROM devices`
-
-	var count int64
-	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+func (r *SQLRepository) Update(ctx context.Context, dev *schema.Device) error {
+	query := `
+		UPDATE devices 
+		SET name=?, description=?, protocol=?, status=?, connection_config=?, updated_at=?
+		WHERE id=?
+	`
+	
+	_, err := r.db.ExecContext(ctx, query,
+		dev.Name,
+		dev.Description,
+		dev.Protocol,
+		dev.Status,
+		dev.ConnectionConfig,
+		time.Now(), // Update updated_at
+		dev.ID,
+	)
 	if err != nil {
-		return 0, fmt.Errorf("計算設備數量失敗: %w", err)
+		return fmt.Errorf("failed to update device: %w", err)
 	}
-
-	return count, nil
+	return nil
 }
 
-// UpdateTestResult 更新連線測試結果
+func (r *SQLRepository) Delete(ctx context.Context, id string) error {
+	query := `DELETE FROM devices WHERE id = ?`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete device: %w", err)
+	}
+	
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("device not found (delete failed)")
+	}
+	
+	return nil
+}
+
 func (r *SQLRepository) UpdateTestResult(ctx context.Context, id string, success bool, errMsg string) error {
 	query := `
 		UPDATE devices
-		SET last_test_at = ?, last_test_success = ?, last_test_error = ?, updated_at = ?
-		WHERE id = ?
+		SET last_test_at=?, last_test_success=?, last_test_error=?, updated_at=?
+		WHERE id=?
 	`
-
-	result, err := r.db.ExecContext(ctx, query, time.Now(), success, errMsg, time.Now(), id)
+	_, err := r.db.ExecContext(ctx, query,
+		time.Now(),
+		success,
+		errMsg,
+		time.Now(),
+		id,
+	)
 	if err != nil {
-		return fmt.Errorf("更新設備測試結果失敗: %w", err)
+		return fmt.Errorf("failed to update test result: %w", err)
 	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("設備不存在: %s", id)
-	}
-
 	return nil
 }
 
-// UpdateStatus 更新設備狀態
 func (r *SQLRepository) UpdateStatus(ctx context.Context, id string, status schema.DeviceStatus) error {
 	query := `
 		UPDATE devices
-		SET status = ?, updated_at = ?
-		WHERE id = ?
+		SET status=?, updated_at=?
+		WHERE id=?
 	`
-
-	result, err := r.db.ExecContext(ctx, query, status, time.Now(), id)
+	_, err := r.db.ExecContext(ctx, query,
+		status,
+		time.Now(),
+		id,
+	)
 	if err != nil {
-		return fmt.Errorf("更新設備狀態失敗: %w", err)
+		return fmt.Errorf("failed to update status: %w", err)
 	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("設備不存在: %s", id)
-	}
-
 	return nil
 }
 
-// scanDevice 從單一行掃描設備
-func (r *SQLRepository) scanDevice(row *sql.Row) (*schema.Device, error) {
-	var device schema.Device
-	var description, connectionConfig, lastTestError sql.NullString
-	var lastTestAt sql.NullString
-	var lastTestSuccess sql.NullBool
-	var createdAt, updatedAt string
-
-	err := row.Scan(
-		&device.ID,
-		&device.Name,
-		&description,
-		&device.Protocol,
-		&device.Status,
-		&connectionConfig,
-		&lastTestAt,
-		&lastTestSuccess,
-		&lastTestError,
-		&createdAt,
-		&updatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("設備不存在")
+// parseTime tries to parse sqlite time strings
+func parseTime(s string) time.Time {
+	// Try standard SQL format first
+	t, err := time.Parse("2006-01-02 15:04:05", s)
+	if err == nil {
+		return t // Assuming UTC or local based on context. Hsl likely assumes local.
 	}
-	if err != nil {
-		return nil, fmt.Errorf("掃描設備失敗: %w", err)
+	// Try RFC3339
+	t, err = time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t
 	}
-
-	if description.Valid {
-		device.Description = description.String
-	}
-	if connectionConfig.Valid {
-		device.ConnectionConfig = connectionConfig.String
-	}
-	if lastTestAt.Valid {
-		parsed, err := common.ParseTimeString(lastTestAt.String)
-		if err != nil {
-			return nil, fmt.Errorf("解析測試時間失敗: %w", err)
-		}
-		device.LastTestAt = &parsed
-	}
-	if lastTestSuccess.Valid {
-		device.LastTestSuccess = &lastTestSuccess.Bool
-	}
-	if lastTestError.Valid {
-		device.LastTestError = lastTestError.String
-	}
-
-	parsedCreatedAt, err := common.ParseTimeString(createdAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
-	}
-	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
-	}
-	device.CreatedAt = parsedCreatedAt
-	device.UpdatedAt = parsedUpdatedAt
-
-	return &device, nil
-}
-
-// scanDeviceFromRows 從多行結果掃描設備
-func (r *SQLRepository) scanDeviceFromRows(rows *sql.Rows) (*schema.Device, error) {
-	var device schema.Device
-	var description, connectionConfig, lastTestError sql.NullString
-	var lastTestAt sql.NullString
-	var lastTestSuccess sql.NullBool
-	var createdAt, updatedAt string
-
-	err := rows.Scan(
-		&device.ID,
-		&device.Name,
-		&description,
-		&device.Protocol,
-		&device.Status,
-		&connectionConfig,
-		&lastTestAt,
-		&lastTestSuccess,
-		&lastTestError,
-		&createdAt,
-		&updatedAt,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("掃描設備失敗: %w", err)
-	}
-
-	if description.Valid {
-		device.Description = description.String
-	}
-	if connectionConfig.Valid {
-		device.ConnectionConfig = connectionConfig.String
-	}
-	if lastTestAt.Valid {
-		parsed, err := common.ParseTimeString(lastTestAt.String)
-		if err != nil {
-			return nil, fmt.Errorf("解析測試時間失敗: %w", err)
-		}
-		device.LastTestAt = &parsed
-	}
-	if lastTestSuccess.Valid {
-		device.LastTestSuccess = &lastTestSuccess.Bool
-	}
-	if lastTestError.Valid {
-		device.LastTestError = lastTestError.String
-	}
-
-	parsedCreatedAt, err := common.ParseTimeString(createdAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析建立時間失敗: %w", err)
-	}
-	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析更新時間失敗: %w", err)
-	}
-	device.CreatedAt = parsedCreatedAt
-	device.UpdatedAt = parsedUpdatedAt
-
-	return &device, nil
+	// If empty string or unparseable, return zero time
+	return time.Time{}
 }

@@ -276,3 +276,36 @@ func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 
 	return &tag, nil
 }
+// ExistsByKey 檢查 Key 是否存在
+func (r *SQLRepository) ExistsByKey(ctx context.Context, key string) (bool, error) {
+	query := `SELECT COUNT(*) FROM tags WHERE key_lower = ?`
+	
+	var count int
+	err := r.db.QueryRowContext(ctx, query, strings.ToLower(key)).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("檢查標籤是否存在失敗: %w", err)
+	}
+	
+	return count > 0, nil
+}
+
+// UpdateStatus 更新標籤狀態
+func (r *SQLRepository) UpdateStatus(ctx context.Context, id string, status schema.TagStatus) error {
+	query := `
+		UPDATE tags 
+		SET status = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	result, err := r.db.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("更新標籤狀態失敗: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("標籤不存在: %s", id)
+	}
+
+	return nil
+}

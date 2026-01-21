@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters"
 	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 
@@ -26,7 +28,24 @@ func TestRegistry(t *testing.T) {
 func setupDeviceRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
-	h := NewDeviceHandler() // This uses MemoryRepo and seeds default data
+
+	// 使用記憶體儲存庫建立服務
+	repo := device.NewMemoryRepository()
+	svc := device.NewService(repo, nil) // ConnectorManager 為 nil (測試用)
+
+	// 建立測試用的預設設備
+	ctx := context.Background()
+	svc.Create(ctx, device.CreateDeviceRequest{
+		Name:     "Demo Modbus Device",
+		Protocol: schema.ProtocolModbusTCP,
+		ConnectionConfig: map[string]interface{}{
+			"host":     "127.0.0.1",
+			"port":     502,
+			"slave_id": 1,
+		},
+	})
+
+	h := NewDeviceHandler(svc)
 	r.GET("/devices", h.List)
 	r.POST("/devices", h.Create)
 	r.GET("/devices/:id", h.Get)
@@ -36,7 +55,25 @@ func setupDeviceRouter() *gin.Engine {
 func setupTagRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
-	h := NewTagHandler()
+
+	// 使用記憶體儲存庫建立服務
+	repo := tag.NewMemoryRepository()
+	svc := tag.NewService(repo)
+
+	// 建立測試用的預設標籤
+	ctx := context.Background()
+	svc.Create(ctx, tag.CreateTagRequest{
+		Key:         "demo_tag_1",
+		DisplayName: "Demo Tag 1",
+		DataType:    schema.DataTypeInt16,
+	})
+	svc.Create(ctx, tag.CreateTagRequest{
+		Key:         "demo_tag_2",
+		DisplayName: "Demo Tag 2",
+		DataType:    schema.DataTypeFloat32,
+	})
+
+	h := NewTagHandler(svc)
 	r.GET("/tags", h.List)
 	r.POST("/tags", h.Create)
 	return r
@@ -96,7 +133,12 @@ func TestDeviceHandler_Create(t *testing.T) {
 func setupMappingRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
-	h := NewMappingHandler()
+
+	// 使用記憶體儲存庫建立服務
+	repo := mapping.NewMemoryRepository()
+	svc := mapping.NewService(repo)
+
+	h := NewMappingHandler(svc)
 	r.POST("/mappings", h.Create)
 	r.POST("/mappings/preview", h.Preview)
 	return r

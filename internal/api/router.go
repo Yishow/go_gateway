@@ -6,15 +6,34 @@ import (
 
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
+	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/mapping"
+	"go-gateway/internal/datalink/point"
+	"go-gateway/internal/datalink/pollinggroup"
+	"go-gateway/internal/datalink/settings"
+	"go-gateway/internal/datalink/tag"
 
 	"github.com/gin-gonic/gin"
 )
 
+// DatalinkServices 包含所有 Datalink 相關服務
+type DatalinkServices struct {
+	Device       *device.Service
+	Point        *point.Service
+	Tag          *tag.Service
+	Mapping      *mapping.Service
+	PollingGroup *pollinggroup.Service
+	Settings     *settings.Service
+}
+
 // NewRouter 建立並配置 Gin 路由器
+//
+// Args:
+//   - datalinkServices: Datalink 服務容器
 //
 // Returns:
 //   - 配置好的 Gin Engine 實例
-func NewRouter() *gin.Engine {
+func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 	cfg := config.Get()
 
 	// 設定 Gin 模式：根據配置決定是否使用 debug 模式
@@ -118,7 +137,7 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.GET("/protocols", protocolHandler.List)
 
 			// Polling Groups
-			pollingGroupHandler := handlers.NewPollingGroupHandler()
+			pollingGroupHandler := handlers.NewPollingGroupHandler(datalinkServices.PollingGroup)
 			datalinkGroup.GET("/polling-groups", pollingGroupHandler.List)
 			datalinkGroup.POST("/polling-groups", pollingGroupHandler.Create)
 			datalinkGroup.GET("/polling-groups/:id", pollingGroupHandler.Get)
@@ -126,7 +145,7 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.DELETE("/polling-groups/:id", pollingGroupHandler.Delete)
 
 			// Devices
-			deviceHandler := handlers.NewDeviceHandler()
+			deviceHandler := handlers.NewDeviceHandler(datalinkServices.Device)
 			datalinkGroup.GET("/devices", deviceHandler.List)
 			datalinkGroup.POST("/devices", deviceHandler.Create)
 			datalinkGroup.GET("/devices/:id", deviceHandler.Get)
@@ -138,7 +157,7 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.POST("/devices/test-batch", deviceHandler.TestConnectionBatch)
 
 			// Points
-			pointHandler := handlers.NewPointHandler()
+			pointHandler := handlers.NewPointHandler(datalinkServices.Point)
 			datalinkGroup.GET("/points", pointHandler.List)
 			datalinkGroup.POST("/points", pointHandler.Create)
 			datalinkGroup.GET("/points/:id", pointHandler.Get)
@@ -148,7 +167,7 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.POST("/points/poll", pointHandler.PollBatch)
 
 			// Tags
-			tagHandler := handlers.NewTagHandler()
+			tagHandler := handlers.NewTagHandler(datalinkServices.Tag)
 			datalinkGroup.GET("/tags", tagHandler.List)
 			datalinkGroup.POST("/tags", tagHandler.Create)
 			datalinkGroup.GET("/tags/:id", tagHandler.Get)
@@ -160,7 +179,7 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.POST("/tags/validate-key", tagHandler.ValidateKey)
 
 			// Mappings
-			mappingHandler := handlers.NewMappingHandler()
+			mappingHandler := handlers.NewMappingHandler(datalinkServices.Mapping)
 			datalinkGroup.GET("/mappings", mappingHandler.List)
 			datalinkGroup.POST("/mappings", mappingHandler.Create)
 			datalinkGroup.GET("/mappings/:id", mappingHandler.Get)
@@ -170,7 +189,7 @@ func NewRouter() *gin.Engine {
 			datalinkGroup.POST("/mappings/validate-pipeline", mappingHandler.ValidatePipeline)
 
 			// Settings
-			settingsHandler := handlers.NewSettingsHandler()
+			settingsHandler := handlers.NewSettingsHandler(datalinkServices.Settings)
 			datalinkGroup.GET("/settings", settingsHandler.List)
 			datalinkGroup.PUT("/settings/:key", settingsHandler.Update)
 
