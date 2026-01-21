@@ -1,0 +1,24 @@
+# 網頁說明文件製作實作任務
+
+- [x] 升級腳本以支援 TOC 遞迴抓取
+- [x] 實作內容合併至單一 Markdown 檔案
+- [x] 按「功能分類」重新規劃輸出邏輯 (多主文件)
+- [x] 執行分類擷取任務 (Profinet, Modbus, etc.)
+- [x] 生成各分類的索引與導覽文件
+- [x] 產出最終分類版 Walkthrough
+- [x] 深度解譯：設備讀取全流程技術細節 (從設定到完成)
+- [x] 分析 API 文件對 go_gateway 專案的價值
+- [x] 建立 hsllogic 共通套件
+  - [x] 建立 `bytetransform.go` (字節序換算核心)
+  - [x] 建立 `address_parser.go` (工業地址解析標準化)
+  - [x] 建立 `operate_result.go` (統一結果封裝)
+  - [x] 建立 `data_types.go` (數據型別與轉換工具)
+  - [x] 建立 `packet_logger.go` (報文軌跡日誌)
+- [ ] 強化 mc3e 適配器：整合 hsllogic
+- [ ] 強化 modbus 適配器：整合 hsllogic (DataFormat)
+- [ ] 強化 fatek 適配器：整合 hsllogic
+- [ ] 強化 mqtt 適配器：整合 OperateResult 封裝
+- [ ] **新增** Siemens S7 適配器：完整實作讀寫功能
+- [ ] **新增** WebSocket 設備連接器：可從遠端訂閱數據
+- [ ] 強化日誌紀錄：整合 HSL 風格的報文軌跡日誌
+- [ ] 繪製通訊流程 Mermaid 時序圖

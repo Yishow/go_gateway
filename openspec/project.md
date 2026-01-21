@@ -32,6 +32,7 @@
 
 - Unit tests for core logic (Datalink, Protocol parsers).
 - Integration tests for Database and Protocol adapters.
+- **TDD Mandate**: For high-complexity logic (e.g., Algorithms, State Machines, Concurrency Control), the **Red-Green-Refactor** TDD workflow is MANDATORY in `tasks.md`.
 
 ## Domain Context
 

@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
-	"strconv"
-	"strings"
 	"time"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/protocol/mcprotocol"
+	"go-gateway/lib/hsllogic"
 )
 
 // =============================================================================
@@ -20,9 +18,10 @@ import (
 
 // MC3EConnector Mitsubishi MC Protocol 3E Frame 連接器適配器
 type MC3EConnector struct {
-	client    *mcprotocol.MCClient
-	config    schema.ConnectionConfigMC3E
-	connected bool
+	client        *mcprotocol.MCClient
+	config        schema.ConnectionConfigMC3E
+	connected     bool
+	dataConverter *hsllogic.DataConverter // hsllogic 數據轉換器
 }
 
 // NewMC3EConnector 建立新的 MC 3E 連接器
@@ -44,6 +43,13 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 	if c.config.Timeout == 0 {
 		c.config.Timeout = 5
 	}
+
+	// 初始化 hsllogic 數據轉換器 (三菱使用 CDAB 格式：低位 word 在前)
+	dataFormat := hsllogic.DataFormatCDAB
+	if c.config.DataFormat != "" {
+		dataFormat = hsllogic.DataFormat(c.config.DataFormat)
+	}
+	c.dataConverter = hsllogic.NewDataConverter(dataFormat)
 
 	// 建立客戶端
 	c.client = mcprotocol.NewClient(c.config.Host, c.config.Port)
@@ -102,8 +108,8 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 		Quality:   schema.QualityGood,
 	}
 
-	// 解析地址 (格式: "D100", "M0", "X0", "Y0", "R100", "W100", etc.)
-	device, address, err := parseMC3EAddress(req.Address)
+	// 使用 hsllogic 解析地址 (格式: "D100", "M0", "X0", "Y0", "R100", "W100", etc.)
+	parsedAddr, err := hsllogic.ParseAddress(hsllogic.ProtocolMitsubishi, req.Address)
 	if err != nil {
 		result.Quality = schema.QualityBad
 		result.Error = err.Error()
@@ -116,9 +122,9 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 	}
 
 	// 根據設備類型選擇讀取方式
-	if isBitDevice(device) {
+	if parsedAddr.IsBitDevice {
 		// 位元設備
-		values, err := c.client.BatchReadBit(device, address, count)
+		values, err := c.client.BatchReadBit(parsedAddr.DeviceType, parsedAddr.Offset, count)
 		if err != nil {
 			result.Quality = schema.QualityBad
 			result.Error = err.Error()
@@ -133,20 +139,29 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 		}
 	} else {
 		// 字組設備
-		// 計算需要讀取的字組數量
-		wordCount := schema.RegisterCountForDataType(req.DataType)
-		if req.Count > 1 {
-			wordCount = count
-		}
+		// 使用 hsllogic 計算需要讀取的暫存器數量 = count * 每個值需要的暫存器數
+		regPerValue := hsllogic.RegisterCountForDataType(hsllogic.DataType(req.DataType))
+		wordCount := count * regPerValue
 
-		values, err := c.client.BatchReadWord(device, address, wordCount)
+		values, err := c.client.BatchReadWord(parsedAddr.DeviceType, parsedAddr.Offset, wordCount)
 		if err != nil {
 			result.Quality = schema.QualityBad
 			result.Error = err.Error()
 			return result, err
 		}
 		result.RawBytes = intSliceToBytes(values)
-		result.Value = convertMC3EValue(values, req.DataType)
+
+		// 使用 hsllogic 數據轉換器進行類型轉換
+		registers := make([]uint16, len(values))
+		for i, v := range values {
+			registers[i] = uint16(v)
+		}
+
+		if count == 1 {
+			result.Value = c.dataConverter.RegistersToValue(registers, hsllogic.DataType(req.DataType))
+		} else {
+			result.Value = c.dataConverter.RegistersToValues(registers, hsllogic.DataType(req.DataType), count)
+		}
 	}
 
 	return result, nil
@@ -158,19 +173,19 @@ func (c *MC3EConnector) Write(ctx context.Context, req connector.WriteRequest) e
 		return fmt.Errorf("未連線")
 	}
 
-	// 解析地址
-	device, address, err := parseMC3EAddress(req.Address)
+	// 使用 hsllogic 解析地址
+	parsedAddr, err := hsllogic.ParseAddress(hsllogic.ProtocolMitsubishi, req.Address)
 	if err != nil {
 		return err
 	}
 
-	if isBitDevice(device) {
+	if parsedAddr.IsBitDevice {
 		// 位元設備寫入
 		switch v := req.Value.(type) {
 		case bool:
-			return c.client.BatchWriteBit(device, address, []bool{v})
+			return c.client.BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, []bool{v})
 		case []bool:
-			return c.client.BatchWriteBit(device, address, v)
+			return c.client.BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, v)
 		default:
 			return fmt.Errorf("位元設備需要布林值")
 		}
@@ -180,127 +195,11 @@ func (c *MC3EConnector) Write(ctx context.Context, req connector.WriteRequest) e
 		if err != nil {
 			return err
 		}
-		return c.client.BatchWriteWord(device, address, values)
+		return c.client.BatchWriteWord(parsedAddr.DeviceType, parsedAddr.Offset, values)
 	}
 }
 
-// =============================================================================
-// 輔助函數
-// =============================================================================
-
-// parseMC3EAddress 解析 MC Protocol 地址字串
-// 格式: "D100", "M0", "X0", "Y0", "R100", "W100", etc.
-func parseMC3EAddress(addressStr string) (device string, address int, err error) {
-	addressStr = strings.TrimSpace(strings.ToUpper(addressStr))
-	if len(addressStr) < 2 {
-		return "", 0, fmt.Errorf("無效的 MC 地址: %s", addressStr)
-	}
-
-	// 支援的設備碼 (按長度排序以優先匹配較長的名稱)
-	devices := []string{
-		"ZR", "SD", "SW", "SB", "SM", // 特殊設備
-		"D", "W", "R", "B", "F", // 字組設備
-		"M", "L", "S", "X", "Y", // 位元設備
-		"T", "C", "ST", "CC", "TC", // 計時器/計數器
-	}
-
-	for _, d := range devices {
-		if strings.HasPrefix(addressStr, d) {
-			addrPart := addressStr[len(d):]
-			// 處理十六進位地址 (X, Y 設備通常使用八進位)
-			var addr int
-			var parseErr error
-			if d == "X" || d == "Y" {
-				// 八進位解析
-				addr64, err := strconv.ParseInt(addrPart, 8, 32)
-				if err != nil {
-					// 嘗試十進位
-					addr64, err = strconv.ParseInt(addrPart, 10, 32)
-					if err != nil {
-						return "", 0, fmt.Errorf("無效的 MC 地址數字: %s", addrPart)
-					}
-				}
-				addr = int(addr64)
-			} else {
-				addr, parseErr = strconv.Atoi(addrPart)
-				if parseErr != nil {
-					// 嘗試十六進位
-					addr64, err := strconv.ParseInt(addrPart, 16, 32)
-					if err != nil {
-						return "", 0, fmt.Errorf("無效的 MC 地址數字: %s", addrPart)
-					}
-					addr = int(addr64)
-				}
-			}
-			return d, addr, nil
-		}
-	}
-
-	return "", 0, fmt.Errorf("無法識別的 MC 設備碼: %s", addressStr)
-}
-
-// isBitDevice 判斷是否為位元設備
-func isBitDevice(device string) bool {
-	bitDevices := map[string]bool{
-		"M": true, "L": true, "S": true,
-		"X": true, "Y": true, "B": true,
-		"F": true, "SB": true, "SM": true,
-	}
-	return bitDevices[device]
-}
-
-// convertMC3EValue 將 MC Protocol 字組值轉換為指定型別
-func convertMC3EValue(values []int, dataType schema.DataType) interface{} {
-	if len(values) == 0 {
-		return nil
-	}
-
-	switch dataType {
-	case schema.DataTypeBool:
-		return values[0] != 0
-	case schema.DataTypeInt16:
-		return int16(values[0])
-	case schema.DataTypeUint16:
-		return uint16(values[0])
-	case schema.DataTypeInt32:
-		if len(values) >= 2 {
-			// 三菱為 Little Endian (低位在前)
-			return int32(uint32(values[1])<<16 | uint32(values[0])&0xFFFF)
-		}
-		return int32(values[0])
-	case schema.DataTypeUint32:
-		if len(values) >= 2 {
-			return uint32(values[1])<<16 | uint32(values[0])&0xFFFF
-		}
-		return uint32(values[0])
-	case schema.DataTypeFloat32:
-		if len(values) >= 2 {
-			bits := uint32(values[1])<<16 | uint32(values[0])&0xFFFF
-			return math.Float32frombits(bits)
-		}
-		return float32(values[0])
-	case schema.DataTypeInt64:
-		if len(values) >= 4 {
-			val := uint64(values[3])<<48 | uint64(values[2])<<32 |
-				uint64(values[1])<<16 | uint64(values[0])&0xFFFF
-			return int64(val)
-		}
-	case schema.DataTypeUint64:
-		if len(values) >= 4 {
-			return uint64(values[3])<<48 | uint64(values[2])<<32 |
-				uint64(values[1])<<16 | uint64(values[0])&0xFFFF
-		}
-	case schema.DataTypeFloat64:
-		if len(values) >= 4 {
-			bits := uint64(values[3])<<48 | uint64(values[2])<<32 |
-				uint64(values[1])<<16 | uint64(values[0])&0xFFFF
-			return math.Float64frombits(bits)
-		}
-	}
-
-	// 預設返回第一個值
-	return values[0]
-}
+// 注意: intSliceToBytes 和 toIntSlice 已定義於 fatek.go
 
 // =============================================================================
 // 註冊連接器

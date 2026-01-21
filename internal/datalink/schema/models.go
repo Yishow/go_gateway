@@ -190,6 +190,8 @@ type ConnectionConfigMC3E struct {
 	StationNo byte `json:"station_no"`
 	// Timeout 通訊逾時秒數
 	Timeout int `json:"timeout"`
+	// DataFormat 字節序格式 (ABCD, BADC, CDAB, DCBA)，預設為 CDAB (三菱標準)
+	DataFormat string `json:"data_format,omitempty"`
 }
 
 // ConnectionConfigMQTT MQTT 接收連線配置

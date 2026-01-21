@@ -88,3 +88,5 @@ config.local.yml
 *.bak
 *.backup
 *~
+
+.claude\settings.json
