@@ -419,8 +419,9 @@ func TestPollingGroupHandler_Update_EnableDisable(t *testing.T) {
 
 	// 停用群組
 	enabledFalse := false
+	nameStr := "測試群組"
 	updateReq := pollinggroup.UpdateRequest{
-		Name:    "測試群組",
+		Name:    &nameStr,
 		Enabled: &enabledFalse,
 	}
 

@@ -19,10 +19,11 @@ import (
 
 // FatekConnector FATEK FBs 協議連接器適配器
 type FatekConnector struct {
-	client    *fatek.FatekClient
-	transport fatek.Transport
-	config    schema.ConnectionConfigFatekFBs
-	connected bool
+	client         *fatek.FatekClient
+	transport      fatek.Transport
+	config         schema.ConnectionConfigFatekFBs
+	connected      bool
+	persistentMode bool // 長連接模式標誌
 }
 
 // NewFatekConnector 建立新的 FATEK 連接器
@@ -70,12 +71,19 @@ func (c *FatekConnector) Connect(ctx context.Context, configJSON string) error {
 	// 建立客戶端
 	c.client = fatek.NewClient(c.transport, int(c.config.StationNo))
 
-	// 連線
-	if err := c.client.Connect(); err != nil {
-		return fmt.Errorf("FATEK 連線失敗: %w", err)
+	// 預設使用長連接模式
+	if !c.persistentMode {
+		c.persistentMode = true
 	}
 
-	c.connected = true
+	// 連線（僅在長連接模式下立即連線）
+	if c.persistentMode {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("FATEK 連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
 	return nil
 }
 
@@ -100,9 +108,11 @@ func (c *FatekConnector) ProtocolType() schema.ProtocolType {
 
 // TestConnection 測試連線
 func (c *FatekConnector) TestConnection(ctx context.Context) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	defer c.afterOperation()
 
 	// 使用 Loopback Test (Cmd 4E) 測試連線
 	ok, err := c.client.LoopbackTest("TEST")
@@ -117,13 +127,15 @@ func (c *FatekConnector) TestConnection(ctx context.Context) error {
 
 // Read 讀取資料
 func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	if !c.connected {
+	if err := c.ensureConnection(); err != nil {
 		return connector.ReadResult{
 			Quality:   schema.QualityBad,
 			Timestamp: time.Now(),
-			Error:     "未連線",
-		}, fmt.Errorf("未連線")
+			Error:     err.Error(),
+		}, err
 	}
+
+	defer c.afterOperation()
 
 	result := connector.ReadResult{
 		Timestamp: time.Now(),
@@ -183,9 +195,11 @@ func (c *FatekConnector) Read(ctx context.Context, req connector.ReadRequest) (c
 
 // Write 寫入資料
 func (c *FatekConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	defer c.afterOperation()
 
 	// 解析地址
 	symbol, address, err := parseFatekAddress(req.Address)
@@ -216,6 +230,73 @@ func (c *FatekConnector) Write(ctx context.Context, req connector.WriteRequest) 
 			return err
 		}
 		return c.client.WriteRegisters(symbol, address, values)
+	}
+}
+
+// =============================================================================
+// PersistentConnection 介面實作（長連接支援）
+// =============================================================================
+
+// SetPersistentConnection 設定是否使用長連接模式
+func (c *FatekConnector) SetPersistentConnection(enabled bool) {
+	c.persistentMode = enabled
+}
+
+// IsPersistentMode 檢查當前是否為長連接模式
+func (c *FatekConnector) IsPersistentMode() bool {
+	return c.persistentMode
+}
+
+// Disconnect 顯式斷線
+func (c *FatekConnector) Disconnect() error {
+	return c.Close()
+}
+
+// Reconnect 重新連線
+func (c *FatekConnector) Reconnect(ctx context.Context) error {
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
+	}
+
+	c.client.Close()
+
+	if err := c.client.Connect(); err != nil {
+		c.connected = false
+		return fmt.Errorf("重新連線失敗: %w", err)
+	}
+
+	c.connected = true
+	return nil
+}
+
+// ensureConnection 確保連線已建立（用於短連接模式）
+func (c *FatekConnector) ensureConnection() error {
+	if c.persistentMode {
+		if !c.connected {
+			return fmt.Errorf("未連線")
+		}
+		return nil
+	}
+
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化")
+	}
+
+	if !c.connected {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
+	return nil
+}
+
+// afterOperation 操作後處理（用於短連接模式）
+func (c *FatekConnector) afterOperation() {
+	if !c.persistentMode && c.connected {
+		c.client.Close()
+		c.connected = false
 	}
 }
 

@@ -41,12 +41,23 @@ type PacketLog struct {
 	DeviceID string `json:"device_id"`
 	// RawData 原始位元組資料
 	RawData []byte `json:"raw_data"`
-	// HexString 十六進位字串表示
+	// HexString 十六進位字串表示（延遲生成）
 	HexString string `json:"hex_string"`
 	// Description 描述說明
 	Description string `json:"description,omitempty"`
 	// Duration 通訊耗時 (僅用於接收報文)
 	Duration time.Duration `json:"duration,omitempty"`
+	// hexCached 標記 HexString 是否已快取
+	hexCached bool
+}
+
+// GetHexString 取得十六進位字串（延遲生成）
+func (p *PacketLog) GetHexString() string {
+	if !p.hexCached {
+		p.HexString = formatHexBytes(p.RawData)
+		p.hexCached = true
+	}
+	return p.HexString
 }
 
 // String 取得報文日誌的字串表示
@@ -58,7 +69,7 @@ func (p *PacketLog) String() string {
 	if p.DeviceID != "" {
 		sb.WriteString(fmt.Sprintf("[%s] ", p.DeviceID))
 	}
-	sb.WriteString(p.HexString)
+	sb.WriteString(p.GetHexString())
 	if p.Description != "" {
 		sb.WriteString(fmt.Sprintf(" ; %s", p.Description))
 	}
@@ -105,6 +116,37 @@ var DefaultPacketLoggerOptions = PacketLoggerOptions{
 	ConsoleWriter: os.Stdout,
 	BufferSize:    1000,
 	FlushInterval: 5 * time.Second,
+}
+
+// =============================================================================
+// PacketLog 物件池
+// =============================================================================
+
+// packetLogPool PacketLog 物件池，用於減少 GC 壓力
+var packetLogPool = sync.Pool{
+	New: func() interface{} {
+		return &PacketLog{}
+	},
+}
+
+// acquirePacketLog 從物件池取得 PacketLog
+func acquirePacketLog() *PacketLog {
+	return packetLogPool.Get().(*PacketLog)
+}
+
+// releasePacketLog 歸還 PacketLog 至物件池
+func releasePacketLog(log *PacketLog) {
+	// 重置敏感欄位，避免資料洩漏
+	log.Timestamp = time.Time{}
+	log.Direction = ""
+	log.Protocol = ""
+	log.DeviceID = ""
+	log.RawData = nil
+	log.HexString = ""
+	log.Description = ""
+	log.Duration = 0
+	log.hexCached = false
+	packetLogPool.Put(log)
 }
 
 // =============================================================================
@@ -219,16 +261,16 @@ func (pl *PacketLogger) log(
 		return
 	}
 
-	entry := &PacketLog{
-		Timestamp:   time.Now(),
-		Direction:   direction,
-		Protocol:    protocol,
-		DeviceID:    deviceID,
-		RawData:     data,
-		HexString:   formatHexBytes(data),
-		Description: desc,
-		Duration:    duration,
-	}
+	// 從物件池取得 PacketLog
+	entry := acquirePacketLog()
+	entry.Timestamp = time.Now()
+	entry.Direction = direction
+	entry.Protocol = protocol
+	entry.DeviceID = deviceID
+	entry.RawData = data
+	// HexString 延遲生成，僅在實際需要時（String() 被調用時）才格式化
+	entry.Description = desc
+	entry.Duration = duration
 
 	// 控制台輸出
 	if pl.options.LogToConsole && pl.options.ConsoleWriter != nil {
@@ -247,6 +289,9 @@ func (pl *PacketLogger) log(
 			default:
 			}
 		}
+	} else {
+		// 如果不寫入檔案，立即歸還物件至池
+		releasePacketLog(entry)
 	}
 }
 
@@ -276,6 +321,9 @@ func (pl *PacketLogger) writeLoop() {
 
 // writeEntry 寫入單筆條目
 func (pl *PacketLogger) writeEntry(entry *PacketLog) {
+	// 確保在函數結束時歸還物件至池
+	defer releasePacketLog(entry)
+
 	pl.mu.Lock()
 	defer pl.mu.Unlock()
 

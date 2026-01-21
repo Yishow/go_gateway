@@ -22,10 +22,11 @@ import (
 
 // ModbusTCPConnector Modbus TCP 協議連接器適配器
 type ModbusTCPConnector struct {
-	client    *modbus.ModbusClient
-	transport modbus.Transport
-	config    schema.ConnectionConfigModbusTCP
-	connected bool
+	client         *modbus.ModbusClient
+	transport      modbus.Transport
+	config         schema.ConnectionConfigModbusTCP
+	connected      bool
+	persistentMode bool // 長連接模式標誌
 }
 
 // NewModbusTCPConnector 建立新的 Modbus TCP 連接器
@@ -64,12 +65,19 @@ func (c *ModbusTCPConnector) Connect(ctx context.Context, configJSON string) err
 	// 建立客戶端
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
 
-	// 連線
-	if err := c.client.Connect(); err != nil {
-		return fmt.Errorf("Modbus TCP 連線失敗: %w", err)
+	// 預設使用長連接模式
+	if !c.persistentMode {
+		c.persistentMode = true
 	}
 
-	c.connected = true
+	// 連線（僅在長連接模式下立即連線）
+	if c.persistentMode {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("Modbus TCP 連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
 	return nil
 }
 
@@ -94,9 +102,13 @@ func (c *ModbusTCPConnector) ProtocolType() schema.ProtocolType {
 
 // TestConnection 測試連線
 func (c *ModbusTCPConnector) TestConnection(ctx context.Context) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	// 確保連線
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	// 短連接模式：測試完成後自動斷線
+	defer c.afterOperation()
 
 	// 嘗試讀取一個保持暫存器來測試連線
 	_, err := c.client.ReadHoldingRegisters(0, 1)
@@ -105,13 +117,17 @@ func (c *ModbusTCPConnector) TestConnection(ctx context.Context) error {
 
 // Read 讀取資料
 func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	if !c.connected {
+	// 確保連線（短連接模式下會自動重連）
+	if err := c.ensureConnection(); err != nil {
 		return connector.ReadResult{
 			Quality:   schema.QualityBad,
 			Timestamp: time.Now(),
-			Error:     "未連線",
-		}, fmt.Errorf("未連線")
+			Error:     err.Error(),
+		}, err
 	}
+
+	// 短連接模式：操作完成後自動斷線
+	defer c.afterOperation()
 
 	result := connector.ReadResult{
 		Timestamp: time.Now(),
@@ -191,9 +207,13 @@ func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest
 
 // Write 寫入資料
 func (c *ModbusTCPConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	// 確保連線（短連接模式下會自動重連）
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	// 短連接模式：操作完成後自動斷線
+	defer c.afterOperation()
 
 	// 解析地址
 	address, function, err := parseModbusAddress(req.Address, req.Function)
@@ -240,15 +260,116 @@ func (c *ModbusTCPConnector) Write(ctx context.Context, req connector.WriteReque
 }
 
 // =============================================================================
+// PersistentConnection 介面實作（長連接支援）
+// =============================================================================
+
+/**
+ * SetPersistentConnection 設定是否使用長連接模式
+ * @param enabled true 啟用長連接，false 使用短連接
+ *
+ * 長連接模式：連線保持開啟，多次操作重用同一連線
+ * 短連接模式：每次操作後自動斷線，下次操作重新連線
+ */
+func (c *ModbusTCPConnector) SetPersistentConnection(enabled bool) {
+	c.persistentMode = enabled
+}
+
+/**
+ * IsPersistentMode 檢查當前是否為長連接模式
+ * @returns bool 是否為長連接模式
+ */
+func (c *ModbusTCPConnector) IsPersistentMode() bool {
+	return c.persistentMode
+}
+
+/**
+ * Disconnect 顯式斷線
+ * @returns error 斷線錯誤
+ *
+ * 在長連接模式下，此方法可用於手動關閉連線
+ * 在短連接模式下，此方法等同於 Close()
+ */
+func (c *ModbusTCPConnector) Disconnect() error {
+	return c.Close()
+}
+
+/**
+ * Reconnect 重新連線
+ * @param ctx 上下文
+ * @returns error 重新連線錯誤
+ *
+ * 用於斷線後的自動恢復
+ */
+func (c *ModbusTCPConnector) Reconnect(ctx context.Context) error {
+	// 檢查 client 是否已初始化
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
+	}
+
+	// 先關閉現有連線
+	c.client.Close()
+
+	// 重新連線
+	if err := c.client.Connect(); err != nil {
+		c.connected = false
+		return fmt.Errorf("重新連線失敗: %w", err)
+	}
+
+	c.connected = true
+	return nil
+}
+
+/**
+ * ensureConnection 確保連線已建立（用於短連接模式）
+ * @returns error 連線錯誤
+ */
+func (c *ModbusTCPConnector) ensureConnection() error {
+	if c.persistentMode {
+		// 長連接模式：檢查連線是否有效
+		if !c.connected {
+			return fmt.Errorf("未連線")
+		}
+		return nil
+	}
+
+	// 短連接模式：每次操作前重新連線
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化")
+	}
+
+	// 檢查是否需要重新連線
+	if !c.connected {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
+	return nil
+}
+
+/**
+ * afterOperation 操作後處理（用於短連接模式）
+ */
+func (c *ModbusTCPConnector) afterOperation() {
+	if !c.persistentMode && c.connected {
+		// 短連接模式：操作完成後斷線
+		c.client.Close()
+		c.connected = false
+	}
+}
+
+// =============================================================================
 // Modbus RTU 連接器
 // =============================================================================
 
 // ModbusRTUConnector Modbus RTU 協議連接器適配器
 type ModbusRTUConnector struct {
-	client    *modbus.ModbusClient
-	transport modbus.Transport
-	config    schema.ConnectionConfigModbusRTU
-	connected bool
+	client         *modbus.ModbusClient
+	transport      modbus.Transport
+	config         schema.ConnectionConfigModbusRTU
+	connected      bool
+	persistentMode bool // 長連接模式標誌
 }
 
 // NewModbusRTUConnector 建立新的 Modbus RTU 連接器
@@ -294,11 +415,19 @@ func (c *ModbusRTUConnector) Connect(ctx context.Context, configJSON string) err
 
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
 
-	if err := c.client.Connect(); err != nil {
-		return fmt.Errorf("Modbus RTU 連線失敗: %w", err)
+	// 預設使用長連接模式
+	if !c.persistentMode {
+		c.persistentMode = true
 	}
 
-	c.connected = true
+	// 連線（僅在長連接模式下立即連線）
+	if c.persistentMode {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("Modbus RTU 連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
 	return nil
 }
 
@@ -332,9 +461,13 @@ func (c *ModbusRTUConnector) TestConnection(ctx context.Context) error {
 
 // Read 讀取資料 (委託給 TCP 版本的邏輯，因為 Modbus Client 已經抽象化)
 func (c *ModbusRTUConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	if !c.connected {
-		return connector.ReadResult{Quality: schema.QualityBad, Timestamp: time.Now(), Error: "未連線"}, fmt.Errorf("未連線")
+	// 確保連線
+	if err := c.ensureConnection(); err != nil {
+		return connector.ReadResult{Quality: schema.QualityBad, Timestamp: time.Now(), Error: err.Error()}, err
 	}
+
+	// 短連接模式：操作完成後自動斷線
+	defer c.afterOperation()
 
 	// 複用 TCP 版本的讀取邏輯
 	tcpConn := &ModbusTCPConnector{client: c.client, connected: c.connected}
@@ -343,11 +476,83 @@ func (c *ModbusRTUConnector) Read(ctx context.Context, req connector.ReadRequest
 
 // Write 寫入資料
 func (c *ModbusRTUConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	// 確保連線
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	// 短連接模式：操作完成後自動斷線
+	defer c.afterOperation()
+
 	tcpConn := &ModbusTCPConnector{client: c.client, connected: c.connected}
 	return tcpConn.Write(ctx, req)
+}
+
+// =============================================================================
+// ModbusRTU PersistentConnection 介面實作
+// =============================================================================
+
+// SetPersistentConnection 設定是否使用長連接模式
+func (c *ModbusRTUConnector) SetPersistentConnection(enabled bool) {
+	c.persistentMode = enabled
+}
+
+// IsPersistentMode 檢查當前是否為長連接模式
+func (c *ModbusRTUConnector) IsPersistentMode() bool {
+	return c.persistentMode
+}
+
+// Disconnect 顯式斷線
+func (c *ModbusRTUConnector) Disconnect() error {
+	return c.Close()
+}
+
+// Reconnect 重新連線
+func (c *ModbusRTUConnector) Reconnect(ctx context.Context) error {
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
+	}
+
+	c.client.Close()
+
+	if err := c.client.Connect(); err != nil {
+		c.connected = false
+		return fmt.Errorf("重新連線失敗: %w", err)
+	}
+
+	c.connected = true
+	return nil
+}
+
+// ensureConnection 確保連線已建立（用於短連接模式）
+func (c *ModbusRTUConnector) ensureConnection() error {
+	if c.persistentMode {
+		if !c.connected {
+			return fmt.Errorf("未連線")
+		}
+		return nil
+	}
+
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化")
+	}
+
+	if !c.connected {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
+	return nil
+}
+
+// afterOperation 操作後處理（用於短連接模式）
+func (c *ModbusRTUConnector) afterOperation() {
+	if !c.persistentMode && c.connected {
+		c.client.Close()
+		c.connected = false
+	}
 }
 
 // =============================================================================
@@ -356,10 +561,11 @@ func (c *ModbusRTUConnector) Write(ctx context.Context, req connector.WriteReque
 
 // ModbusUDPConnector Modbus UDP 協議連接器適配器
 type ModbusUDPConnector struct {
-	client    *modbus.ModbusClient
-	transport modbus.Transport
-	config    schema.ConnectionConfigModbusUDP
-	connected bool
+	client         *modbus.ModbusClient
+	transport      modbus.Transport
+	config         schema.ConnectionConfigModbusUDP
+	connected      bool
+	persistentMode bool // 長連接模式標誌
 }
 
 // NewModbusUDPConnector 建立新的 Modbus UDP 連接器
@@ -394,11 +600,19 @@ func (c *ModbusUDPConnector) Connect(ctx context.Context, configJSON string) err
 
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
 
-	if err := c.client.Connect(); err != nil {
-		return fmt.Errorf("Modbus UDP 連線失敗: %w", err)
+	// 預設使用長連接模式
+	if !c.persistentMode {
+		c.persistentMode = true
 	}
 
-	c.connected = true
+	// 連線（僅在長連接模式下立即連線）
+	if c.persistentMode {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("Modbus UDP 連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
 	return nil
 }
 
@@ -432,20 +646,97 @@ func (c *ModbusUDPConnector) TestConnection(ctx context.Context) error {
 
 // Read 讀取資料
 func (c *ModbusUDPConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	if !c.connected {
-		return connector.ReadResult{Quality: schema.QualityBad, Timestamp: time.Now(), Error: "未連線"}, fmt.Errorf("未連線")
+	// 確保連線
+	if err := c.ensureConnection(); err != nil {
+		return connector.ReadResult{Quality: schema.QualityBad, Timestamp: time.Now(), Error: err.Error()}, err
 	}
+
+	// 短連接模式：操作完成後自動斷線
+	defer c.afterOperation()
+
 	tcpConn := &ModbusTCPConnector{client: c.client, connected: c.connected}
 	return tcpConn.Read(ctx, req)
 }
 
 // Write 寫入資料
 func (c *ModbusUDPConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	// 確保連線
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	// 短連接模式：操作完成後自動斷線
+	defer c.afterOperation()
+
 	tcpConn := &ModbusTCPConnector{client: c.client, connected: c.connected}
 	return tcpConn.Write(ctx, req)
+}
+
+// =============================================================================
+// ModbusUDP PersistentConnection 介面實作
+// =============================================================================
+
+// SetPersistentConnection 設定是否使用長連接模式
+func (c *ModbusUDPConnector) SetPersistentConnection(enabled bool) {
+	c.persistentMode = enabled
+}
+
+// IsPersistentMode 檢查當前是否為長連接模式
+func (c *ModbusUDPConnector) IsPersistentMode() bool {
+	return c.persistentMode
+}
+
+// Disconnect 顯式斷線
+func (c *ModbusUDPConnector) Disconnect() error {
+	return c.Close()
+}
+
+// Reconnect 重新連線
+func (c *ModbusUDPConnector) Reconnect(ctx context.Context) error {
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
+	}
+
+	c.client.Close()
+
+	if err := c.client.Connect(); err != nil {
+		c.connected = false
+		return fmt.Errorf("重新連線失敗: %w", err)
+	}
+
+	c.connected = true
+	return nil
+}
+
+// ensureConnection 確保連線已建立（用於短連接模式）
+func (c *ModbusUDPConnector) ensureConnection() error {
+	if c.persistentMode {
+		if !c.connected {
+			return fmt.Errorf("未連線")
+		}
+		return nil
+	}
+
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化")
+	}
+
+	if !c.connected {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
+	return nil
+}
+
+// afterOperation 操作後處理（用於短連接模式）
+func (c *ModbusUDPConnector) afterOperation() {
+	if !c.persistentMode && c.connected {
+		c.client.Close()
+		c.connected = false
+	}
 }
 
 // =============================================================================

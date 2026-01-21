@@ -123,6 +123,50 @@ type BatchReader interface {
 }
 
 // =============================================================================
+// 長連接支援
+// =============================================================================
+
+/**
+ * PersistentConnection 長連接支援介面
+ *
+ * 參考 HslCommunication 的 NetworkDoubleBase 雙模式設計，
+ * 協議連接器可實作此介面以支援長連接模式。
+ *
+ * 長連接模式優勢：
+ *   - 減少 TCP 握手開銷（高頻輪詢時顯著）
+ *   - 降低網路延遲
+ *   - 減少設備負擔
+ *
+ * 短連接模式優勢：
+ *   - 不佔用設備連線資源
+ *   - 適合低頻率存取
+ *   - 更簡單的錯誤恢復
+ *
+ * 使用範例：
+ *   if pc, ok := conn.(connector.PersistentConnection); ok {
+ *       pc.SetPersistentConnection(true)  // 啟用長連接模式
+ *       defer pc.Disconnect()              // 顯式斷線
+ *   }
+ */
+type PersistentConnection interface {
+	Protocol
+
+	// SetPersistentConnection 設定是否使用長連接模式
+	// enabled: true 啟用長連接，false 使用短連接（每次操作後斷線）
+	SetPersistentConnection(enabled bool)
+
+	// IsPersistentMode 檢查當前是否為長連接模式
+	IsPersistentMode() bool
+
+	// Disconnect 顯式斷線（僅在長連接模式下有意義）
+	// 短連接模式下此方法等同於 Close()
+	Disconnect() error
+
+	// Reconnect 重新連線（用於斷線恢復）
+	Reconnect(ctx context.Context) error
+}
+
+// =============================================================================
 // 連線配置解析器
 // =============================================================================
 

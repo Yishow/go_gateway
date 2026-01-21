@@ -18,10 +18,11 @@ import (
 
 // MC3EConnector Mitsubishi MC Protocol 3E Frame 連接器適配器
 type MC3EConnector struct {
-	client        *mcprotocol.MCClient
-	config        schema.ConnectionConfigMC3E
-	connected     bool
-	dataConverter *hsllogic.DataConverter // hsllogic 數據轉換器
+	client         *mcprotocol.MCClient
+	config         schema.ConnectionConfigMC3E
+	connected      bool
+	dataConverter  *hsllogic.DataConverter // hsllogic 數據轉換器
+	persistentMode bool                    // 長連接模式標誌
 }
 
 // NewMC3EConnector 建立新的 MC 3E 連接器
@@ -54,12 +55,19 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 	// 建立客戶端
 	c.client = mcprotocol.NewClient(c.config.Host, c.config.Port)
 
-	// 連線
-	if err := c.client.Connect(); err != nil {
-		return fmt.Errorf("MC 3E 連線失敗: %w", err)
+	// 預設使用長連接模式
+	if !c.persistentMode {
+		c.persistentMode = true
 	}
 
-	c.connected = true
+	// 連線（僅在長連接模式下立即連線）
+	if c.persistentMode {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("MC 3E 連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
 	return nil
 }
 
@@ -84,9 +92,11 @@ func (c *MC3EConnector) ProtocolType() schema.ProtocolType {
 
 // TestConnection 測試連線
 func (c *MC3EConnector) TestConnection(ctx context.Context) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	defer c.afterOperation()
 
 	// 嘗試讀取 D0 來測試連線
 	_, err := c.client.BatchReadWord("D", 0, 1)
@@ -95,13 +105,15 @@ func (c *MC3EConnector) TestConnection(ctx context.Context) error {
 
 // Read 讀取資料
 func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (connector.ReadResult, error) {
-	if !c.connected {
+	if err := c.ensureConnection(); err != nil {
 		return connector.ReadResult{
 			Quality:   schema.QualityBad,
 			Timestamp: time.Now(),
-			Error:     "未連線",
-		}, fmt.Errorf("未連線")
+			Error:     err.Error(),
+		}, err
 	}
+
+	defer c.afterOperation()
 
 	result := connector.ReadResult{
 		Timestamp: time.Now(),
@@ -169,9 +181,11 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 
 // Write 寫入資料
 func (c *MC3EConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if !c.connected {
-		return fmt.Errorf("未連線")
+	if err := c.ensureConnection(); err != nil {
+		return err
 	}
+
+	defer c.afterOperation()
 
 	// 使用 hsllogic 解析地址
 	parsedAddr, err := hsllogic.ParseAddress(hsllogic.ProtocolMitsubishi, req.Address)
@@ -196,6 +210,73 @@ func (c *MC3EConnector) Write(ctx context.Context, req connector.WriteRequest) e
 			return err
 		}
 		return c.client.BatchWriteWord(parsedAddr.DeviceType, parsedAddr.Offset, values)
+	}
+}
+
+// =============================================================================
+// PersistentConnection 介面實作（長連接支援）
+// =============================================================================
+
+// SetPersistentConnection 設定是否使用長連接模式
+func (c *MC3EConnector) SetPersistentConnection(enabled bool) {
+	c.persistentMode = enabled
+}
+
+// IsPersistentMode 檢查當前是否為長連接模式
+func (c *MC3EConnector) IsPersistentMode() bool {
+	return c.persistentMode
+}
+
+// Disconnect 顯式斷線
+func (c *MC3EConnector) Disconnect() error {
+	return c.Close()
+}
+
+// Reconnect 重新連線
+func (c *MC3EConnector) Reconnect(ctx context.Context) error {
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化，請先呼叫 Connect")
+	}
+
+	c.client.Close()
+
+	if err := c.client.Connect(); err != nil {
+		c.connected = false
+		return fmt.Errorf("重新連線失敗: %w", err)
+	}
+
+	c.connected = true
+	return nil
+}
+
+// ensureConnection 確保連線已建立（用於短連接模式）
+func (c *MC3EConnector) ensureConnection() error {
+	if c.persistentMode {
+		if !c.connected {
+			return fmt.Errorf("未連線")
+		}
+		return nil
+	}
+
+	if c.client == nil {
+		return fmt.Errorf("客戶端未初始化")
+	}
+
+	if !c.connected {
+		if err := c.client.Connect(); err != nil {
+			return fmt.Errorf("連線失敗: %w", err)
+		}
+		c.connected = true
+	}
+
+	return nil
+}
+
+// afterOperation 操作後處理（用於短連接模式）
+func (c *MC3EConnector) afterOperation() {
+	if !c.persistentMode && c.connected {
+		c.client.Close()
+		c.connected = false
 	}
 }
 

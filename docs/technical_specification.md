@@ -90,6 +90,8 @@
 | `devices.yaml`  | **設備定義**：定義 PLC 連線參數 (IP, Port, Station ID)。                    |
 | `datalink.yaml` | **數據映射**：定義如何將採集到的 Tag 寫入資料庫表。                         |
 
+詳細的長連接機制說明，請參考 [長連接技術文件](technical/persistent-connection.md)。
+
 ### 3.1 系統主配置 (`gateway.yaml`)
 
 ```yaml

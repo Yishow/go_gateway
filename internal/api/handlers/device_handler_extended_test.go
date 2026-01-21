@@ -411,7 +411,7 @@ func TestDeviceHandler_TestConnectionBatch_LargeList(t *testing.T) {
 	body, _ := json.Marshal(batchReq)
 	req, _ := http.NewRequest("POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
-	w = httptest.NewRecorder()
+	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
