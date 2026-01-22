@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import * as React from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -9,24 +10,27 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      // Check localStorage first
-      const savedTheme = localStorage.getItem('theme')
-      if (savedTheme === 'light' || savedTheme === 'dark') {
-        return savedTheme
-      }
-    } catch (e) {
-      console.warn('[ThemeContext] Failed to access localStorage:', e)
+/**
+ * Get initial theme safely
+ */
+function getInitialTheme(): Theme {
+  try {
+    const savedTheme = typeof window !== 'undefined' ? localStorage.getItem('theme') : null
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme
     }
     
-    // Fallback to system preference
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark'
     }
-    return 'light'
-  })
+  } catch (e) {
+    console.warn('[ThemeContext] Failed to determine initial theme:', e)
+  }
+  return 'light'
+}
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
   useEffect(() => {
     const root = window.document.documentElement

@@ -20,12 +20,19 @@ export default defineConfig(({ mode }) => {
      */
     resolve: {
       dedupe: ['react', 'react-dom'],
+      alias: {
+        'react': 'react',
+        'react-dom': 'react-dom',
+      },
     },
     build: {
       outDir: 'dist',
       emptyOutDir: true,
     },
     server: {
+      fs: {
+        allow: ['..'],
+      },
       // 從環境變數讀取端口，預設 5173
       port: devPort,
       proxy: {

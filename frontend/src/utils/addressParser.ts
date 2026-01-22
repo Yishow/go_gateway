@@ -1,5 +1,5 @@
 
-import { ProtocolType } from '../types/datalink';
+import type { ProtocolType } from '../types/datalink';
 
 export interface ParsedAddress {
   protocol: ProtocolType;
