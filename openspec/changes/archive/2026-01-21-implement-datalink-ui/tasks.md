@@ -58,43 +58,43 @@
 
 - [x] 2.1.1 建立 `internal/datalink/db.go`（連接管理）
 - [x] 2.1.2 實現 Repository 工廠模式
-- [ ] 2.1.3 整合現有 migrations 至啟動流程
+- [x] 2.1.3 整合現有 migrations 至啟動流程
 
 ### 2.2 Device SQL Repository
 
 - [x] 2.2.1 建立 `internal/datalink/device/sql_repo.go`
 - [x] 2.2.2 實現 CRUD 操作（SQLite + Postgres 相容）
-- [ ] 2.2.3 撰寫單元測試
+- [x] 2.2.3 撰寫單元測試
 
 ### 2.3 Point SQL Repository
 
 - [x] 2.3.1 建立 `internal/datalink/point/sql_repo.go`
 - [x] 2.3.2 實現 CRUD 操作
-- [ ] 2.3.3 撰寫單元測試
+- [x] 2.3.3 撰寫單元測試
 
 ### 2.4 Tag SQL Repository
 
 - [x] 2.4.1 建立 `internal/datalink/tag/sql_repo.go`
 - [x] 2.4.2 實現 CRUD 操作
-- [ ] 2.4.3 撰寫單元測試
+- [x] 2.4.3 撰寫單元測試
 
 ### 2.5 Mapping SQL Repository
 
 - [x] 2.5.1 建立 `internal/datalink/mapping/sql_repo.go`
 - [x] 2.5.2 實現 CRUD 操作
-- [ ] 2.5.3 撰寫單元測試
+- [x] 2.5.3 撰寫單元測試
 
 ### 2.6 Polling Group SQL Repository
 
 - [x] 2.6.1 建立 `internal/datalink/pollinggroup/sql_repo.go`
 - [x] 2.6.2 實現 CRUD 操作
-- [ ] 2.6.3 撰寫單元測試
+- [x] 2.6.3 撰寫單元測試
 
 ### 2.7 Settings SQL Repository
 
 - [x] 2.7.1 建立 `internal/datalink/settings/sql_repo.go`
 - [x] 2.7.2 實現 CRUD 操作
-- [ ] 2.7.3 撰寫單元測試
+- [x] 2.7.3 撰寫單元測試
 
 ## 3. SSE 即時預覽
 
@@ -143,19 +143,21 @@
 
 ### 5.1 後端測試
 
+### 5.1 後端測試
+
 - [x] 5.1.1 執行現有 Datalink API 測試
-- [ ] 5.1.2 新增 Polling Groups API 測試
-- [ ] 5.1.3 新增 Protocols API 測試
-- [ ] 5.1.4 新增 Health API 測試
-- [ ] 5.1.5 新增擴展 API 測試
+- [x] 5.1.2 新增 Polling Groups API 測試
+- [x] 5.1.3 新增 Protocols API 測試
+- [x] 5.1.4 新增 Health API 測試
+- [x] 5.1.5 新增擴展 API 測試
 
 ### 5.2 整合測試
 
-- [ ] 5.2.1 SQLite Repository 整合測試
-- [ ] 5.2.2 Postgres Repository 整合測試（如有環境）
+- [x] 5.2.1 SQLite Repository 整合測試
+- [x] 5.2.2 Postgres Repository 整合測試（如有環境）
 
 ### 5.3 前端驗證
 
-- [ ] 5.3.1 手動驗證 Wizard 完整流程
-- [ ] 5.3.2 驗證 SSE 即時預覽功能
-- [ ] 5.3.3 驗證草稿儲存與恢復
+- [x] 5.3.1 手動驗證 Wizard 完整流程
+- [x] 5.3.2 驗證 SSE 即時預覽功能
+- [x] 5.3.3 驗證草稿儲存與恢復
