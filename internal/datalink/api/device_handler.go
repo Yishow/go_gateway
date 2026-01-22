@@ -175,6 +175,20 @@ func (h *DeviceHandler) Disable(w http.ResponseWriter, r *http.Request, id strin
 	writeJSON(w, http.StatusOK, dev)
 }
 
+// CheckReadiness 檢查設備就緒狀態
+// POST /devices/{id}/readiness
+func (h *DeviceHandler) CheckReadiness(w http.ResponseWriter, r *http.Request, id string) {
+	ctx := r.Context()
+
+	result, err := h.svc.CheckReadiness(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
 // =============================================================================
 // 協議資訊
 // =============================================================================

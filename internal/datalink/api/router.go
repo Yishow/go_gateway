@@ -202,6 +202,12 @@ func (r *Router) handleDeviceByID(w http.ResponseWriter, req *http.Request) {
 		} else {
 			writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 		}
+	case action == "readiness":
+		if req.Method == http.MethodPost {
+			r.deviceHandler.CheckReadiness(w, req, id)
+		} else {
+			writeError(w, http.StatusMethodNotAllowed, "方法不允許")
+		}
 	default:
 		switch req.Method {
 		case http.MethodGet:

@@ -111,7 +111,16 @@ export function useDeleteDeviceMutation() {
 }
 
 /**
- * 測試 Device 連線
+ * Check Device Readiness
+ */
+export function useCheckReadinessMutation() {
+  return useMutation({
+    mutationFn: (id: string) => deviceAPI.checkReadiness(id),
+  });
+}
+
+/**
+ * Test Connection (Legacy/Simple)
  */
 export function useTestConnectionMutation() {
   return useMutation({

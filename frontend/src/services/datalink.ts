@@ -118,6 +118,12 @@ export const deviceAPI = {
     return res.data.data ?? [];
   },
 
+  /** 檢查設備就緒狀態 */
+  async checkReadiness(id: string): Promise<any> { // Replace any with precise type if available
+    const res = await api.post<APIResponse<any>>(`/devices/${id}/readiness`);
+    return res.data.data!;
+  },
+
   /** 啟用設備 */
   async activate(id: string): Promise<Device> {
     const res = await api.post<APIResponse<Device>>(`/devices/${id}/activate`);

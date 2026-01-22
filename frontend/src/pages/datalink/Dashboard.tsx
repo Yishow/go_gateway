@@ -13,6 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import DeviceStatusWidget from "../../components/datalink/DeviceStatusWidget";
 
 // --- Icons (Simple SVG Components) ---
 
@@ -424,44 +425,25 @@ export default function Dashboard() {
               unit="ops/sec"
               icon={ActivityIcon}
               color="blue"
-              trend={{ value: "系統運作中", isPositive: true, label: "即時" }}
+              trend={{ value: "System", isPositive: true, label: "Live" }}
             />
             <StatsCard
               title={t("dashboard.totalDevices")}
               value={stats.total_devices}
               unit={`/ ${stats.active_devices} ${t("dashboard.active")}`}
-              icon={ServerIcon}
-              color="indigo"
-              trend={{
-                value: `${((stats.active_devices / (stats.total_devices || 1)) * 100).toFixed(0)}%`,
-                isPositive: true,
-                label: "運行率",
-              }}
-            />
-            <StatsCard
-              title={t("dashboard.dataPoints")}
-              value={formatNumber(stats.total_points)}
-              icon={DatabaseIcon}
-              color="emerald"
-              trend={{
-                value: `${stats.enabled_points}`,
-                isPositive: true,
-                label: "監控中",
-              }}
-            />
-            <StatsCard
-              title={t("dashboard.errors")}
-              value={stats.errors_last_24h}
-              icon={AlertCircleIcon}
-              color={stats.errors_last_24h > 0 ? "red" : "green"}
-              trend={{
-                value: "24H",
-                isPositive: stats.errors_last_24h === 0,
-                label: "錯誤統計",
-              }}
-            />
-          </>
-        )}
+          }}
+        />
+        <StatsCard
+          title="System Status"
+          value="Healthy"
+          icon={DatabaseIcon}
+          color="green"
+        />
+      </div>
+      
+      {/* Device Status Widget */}
+      <div className="mb-6">
+          <DeviceStatusWidget />
       </div>
 
       {/* Main Content Grid (Chart + Devices) */}

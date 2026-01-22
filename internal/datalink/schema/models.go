@@ -103,11 +103,38 @@ type Device struct {
 	// LastTestError 最後連線測試錯誤訊息
 	LastTestError string `json:"last_test_error,omitempty" db:"last_test_error"`
 
+	// LastCollectedAt 最後資料收集時間 (新增欄位)
+	LastCollectedAt *time.Time `json:"last_collected_at,omitempty" db:"last_collected_at"`
+
+	// CollectionCount 總收集次數 (新增欄位)
+	CollectionCount int64 `json:"collection_count" db:"collection_count"`
+
+	// ErrorCount 總錯誤次數 (新增欄位)
+	ErrorCount int64 `json:"error_count" db:"error_count"`
+
+	// ReadinessStatus 設備就緒狀態 (新增欄位)
+	// JSON 儲存: {"status": "ready|warning|error", "details": [...], "missing_steps": [...]}
+	ReadinessStatus string `json:"readiness_status,omitempty" db:"readiness_status"`
+
 	// CreatedAt 建立時間
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 
 	// UpdatedAt 更新時間
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ReadinessCheck 單項檢查結果
+type ReadinessCheck struct {
+	Name    string `json:"name"`
+	Pass    bool   `json:"pass"`
+	Message string `json:"message"`
+}
+
+// DeviceReadiness 設備就緒狀態詳情
+type DeviceReadiness struct {
+	DeviceID string           `json:"device_id"`
+	Status   string           `json:"status"` // ready, warning, error
+	Checks   []ReadinessCheck `json:"checks"`
 }
 
 // =============================================================================

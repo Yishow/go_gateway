@@ -12,18 +12,12 @@ import Layout from './components/Layout'
 import DatalinkLayout from './layouts/DatalinkLayout'
 import Dashboard from './pages/datalink/Dashboard'
 import DevicesPage from './pages/datalink/DevicesPage'
+import DeviceOnboardingPage from './pages/datalink/DeviceOnboardingPage'
 import TagsPage from './pages/datalink/TagsPage'
 import MappingsPage from './pages/datalink/MappingsPage'
 import MappingWizardPage from './pages/datalink/MappingWizardPage'
 import SettingsPage from './pages/datalink/SettingsPage'
-
-/**
- * Points 頁面佔位組件（使用翻譯）
- */
-function PointsPage() {
-  const { t } = useTranslation();
-  return <div className="text-white">{t('points.comingSoon')}</div>;
-}
+import PointsPage from './pages/datalink/PointsPage'
 
 /**
  * 主應用程式組件
@@ -44,6 +38,7 @@ function AppRoutes() {
       <Route path="/datalink" element={<DatalinkLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="devices" element={<DevicesPage />} />
+        <Route path="devices/new" element={<DeviceOnboardingPage />} />
         <Route path="points" element={<PointsPage />} />
         <Route path="tags" element={<TagsPage />} />
         <Route path="mappings" element={<MappingsPage />} />

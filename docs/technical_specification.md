@@ -216,6 +216,10 @@ mappings:
 - **GET /api/v1/devices/{id}/test**
   - 功能：測試指定設備連線。
 
+- **POST /api/v1/devices/{id}/readiness**
+  - 功能：檢查設備就緒狀態 (Readiness Check)。
+  - 回應：返回詳細檢查報告 (Checks) 與總體狀態 (ready/warning/error)。
+
 ### 5.2 即時數據
 
 - **GET /api/v1/data/live?device={id}**

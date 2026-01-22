@@ -10,8 +10,14 @@ export * from './keys';
 // Device Hooks
 export * from './useDevices';
 
+// Point Hooks
+export * from './usePoints';
+
 // Tag Hooks
 export * from './useTags';
 
 // Mapping Hooks
 export * from './useMappings';
+
+// Polling Group Hooks
+export * from './usePollingGroups';
