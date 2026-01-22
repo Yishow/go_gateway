@@ -110,6 +110,63 @@ func (h *PointHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, pt)
 }
 
+// BatchCreateRequest 批量建立點位請求
+type BatchCreateRequest struct {
+	DeviceID       string          `json:"device_id"`
+	PollingGroupID string          `json:"polling_group_id"`
+	DataType       schema.DataType `json:"data_type"`
+	Enabled        bool            `json:"enabled"`
+	Points         []struct {
+		Name    string `json:"name"`
+		Address string `json:"address"`
+	} `json:"points"`
+}
+
+// BatchCreate 批量建立點位
+// POST /points/batch
+func (h *PointHandler) BatchCreate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req BatchCreateRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "無效的請求格式: "+err.Error())
+		return
+	}
+
+	var createdPoints []*schema.Point
+	for _, p := range req.Points {
+		pt, err := h.svc.Create(ctx, point.CreatePointRequest{
+			DeviceID:       req.DeviceID,
+			PollingGroupID: &req.PollingGroupID,
+			DataType:       req.DataType,
+			Name:           p.Name,
+			Address:        p.Address,
+			Enabled:        req.Enabled,
+		})
+		if err != nil {
+			// 如果其中一個失敗，這裏目前採用簡單處理：返回已建立的部分與錯誤
+			// 未來可以考慮改為 Transaction
+			writeError(w, http.StatusUnprocessableEntity, "部分建立失敗: "+err.Error())
+			return
+		}
+		
+		// 加入排程
+		if h.scheduler != nil && pt.Enabled {
+			h.scheduler.AddPoint(pt)
+		}
+		
+		createdPoints = append(createdPoints, pt)
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
+			"created_count": len(createdPoints),
+			"points":        createdPoints,
+		},
+	})
+}
+
 // Update 更新點位
 // PUT/PATCH /points/{id}
 func (h *PointHandler) Update(w http.ResponseWriter, r *http.Request, id string) {

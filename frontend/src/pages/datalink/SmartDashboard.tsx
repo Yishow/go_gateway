@@ -1,24 +1,36 @@
-
 import { useState } from 'react';
-import type { Device } from '../../../types/datalink';
+import type { Device, Point } from '../../../types/datalink';
 import { DeviceTreeNav } from '../../components/datalink/DeviceTreeNav';
 import { MemoryGrid } from '../../components/datalink/MemoryGrid';
 import { QuickActions } from '../../components/datalink/QuickActions';
 import { SlidePanel } from '../../components/datalink/SlidePanel';
+import { BatchPointCreator } from '../../components/datalink/BatchPointCreator';
+import { PointDetailPanel } from '../../components/datalink/PointDetailPanel';
 
 export default function SmartDashboard() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
+  const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [panelType, setPanelType] = useState<'batch' | 'detail' | null>(null);
   
   // Mocks
-  const devices: any[] = [ // Keep any for quick mock to avoid full typed object
+  const devices: any[] = [
     { id: '1', name: 'PLC-001', protocol: 'modbus_tcp', status: 'active' },
     { id: '2', name: 'FAT-002', protocol: 'fatek_fbs', status: 'draft' }
   ];
   
   const selectedDevice = devices.find(d => d.id === selectedDeviceId) || null;
+
+  const handleCellClick = (addr: string, point?: Point) => {
+    if (point) {
+      setSelectedPoint(point);
+      setPanelType('detail');
+    } else {
+      setSelectedAddresses([addr]);
+      setPanelType('batch');
+    }
+  };
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-900 border-t border-slate-700">
@@ -50,13 +62,10 @@ export default function SmartDashboard() {
                protocol={selectedDevice.protocol as any}
                centerAddress={selectedDevice.protocol.startsWith('modbus') ? '40001' : 'D0'}
                range={200}
-               existingPoints={[]}
+               existingPoints={[]} // TODO: Fetch points
                selectedAddresses={selectedAddresses}
                onSelect={setSelectedAddresses}
-               onCellClick={(addr) => {
-                 setSelectedAddresses([addr]);
-                 setIsPanelOpen(true);
-               }}
+               onCellClick={handleCellClick}
              />
           </div>
         ) : (
@@ -66,14 +75,11 @@ export default function SmartDashboard() {
         )}
       </div>
       
-      {/* Right: Quick Actions (Collapsible logic or always visible on detailed view?) */}
-      {/* The requirement says 3-column. But quick actions might be hidden if screen small or just floating? */}
-      {/* Let's put it as a sidebar on the right */}
       <div className="w-72 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-4">
         <QuickActions
           device={selectedDevice}
           selectedCount={selectedAddresses.length}
-          onBatchCreate={() => setIsPanelOpen(true)}
+          onBatchCreate={() => setPanelType('batch')}
           onQuickMapping={() => {}}
           onTestConnection={() => {}}
         />
@@ -81,11 +87,32 @@ export default function SmartDashboard() {
       
       {/* Slide Panel Overlay */}
       <SlidePanel
-        isOpen={isPanelOpen}
-        title="配置點位"
-        onClose={() => setIsPanelOpen(false)}
+        isOpen={panelType !== null}
+        title={panelType === 'batch' ? '批量建立點位' : '點位詳情'}
+        onClose={() => setPanelType(null)}
       >
-        <div>Panel Content Form</div>
+        {panelType === 'batch' && selectedDevice && (
+          <BatchPointCreator
+            deviceId={selectedDevice.id}
+            protocol={selectedDevice.protocol as any}
+            preselectedAddresses={selectedAddresses}
+            pollingGroups={[]} // TODO: Fetch polling groups
+            onCreated={() => {
+               setPanelType(null);
+               setSelectedAddresses([]);
+            }}
+            onCancel={() => setPanelType(null)}
+          />
+        )}
+        
+        {panelType === 'detail' && selectedPoint && (
+          <PointDetailPanel
+            point={selectedPoint}
+            onUpdate={() => setPanelType(null)}
+            onDelete={() => setPanelType(null)}
+            onClose={() => setPanelType(null)}
+          />
+        )}
       </SlidePanel>
     </div>
   );

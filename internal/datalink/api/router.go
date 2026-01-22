@@ -107,6 +107,8 @@ func (r *Router) registerRoutes() {
 	r.mux.HandleFunc(prefix+"/points", r.handlePoints)
 	r.mux.HandleFunc(prefix+"/points/", r.handlePointByID)
 	r.mux.HandleFunc(prefix+"/points/poll", r.handlePointsBatchPoll)
+	r.mux.HandleFunc(prefix+"/points/batch", r.handlePointsBatch)
+	r.mux.HandleFunc(prefix+"/points/batch", r.handlePointsBatch)
 
 	// 輪詢群組 API
 	r.mux.HandleFunc(prefix+"/polling-groups", r.handlePollingGroups)
@@ -274,6 +276,16 @@ func (r *Router) handlePointByID(w http.ResponseWriter, req *http.Request) {
 func (r *Router) handlePointsBatchPoll(w http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodPost {
 		r.pointHandler.BatchPoll(w, req)
+		return
+	}
+
+	writeError(w, http.StatusMethodNotAllowed, "方法不允許")
+}
+
+// handlePointsBatch 處理批量點位建立
+func (r *Router) handlePointsBatch(w http.ResponseWriter, req *http.Request) {
+	if req.Method == http.MethodPost {
+		r.pointHandler.BatchCreate(w, req)
 		return
 	}
 
