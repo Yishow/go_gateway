@@ -987,10 +987,15 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 		}
 		res := make([]uint16, len(arr))
 		for i, val := range arr {
-			if f, ok := val.(float64); ok {
-				res[i] = uint16(f)
-			} else {
-				return nil, fmt.Errorf("invalid value type at index %d", i)
+			switch v := val.(type) {
+			case float64:
+				res[i] = uint16(v)
+			case int:
+				res[i] = uint16(v)
+			case int64:
+				res[i] = uint16(v)
+			default:
+				return nil, fmt.Errorf("invalid value type at index %d: expected number, got %T", i, val)
 			}
 		}
 		return res, nil
@@ -1003,10 +1008,15 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 		}
 		res := make([]int, len(arr))
 		for i, val := range arr {
-			if f, ok := val.(float64); ok {
-				res[i] = int(f)
-			} else {
-				return nil, fmt.Errorf("invalid value type at index %d", i)
+			switch v := val.(type) {
+			case float64:
+				res[i] = int(v)
+			case int:
+				res[i] = v
+			case int64:
+				res[i] = int(v)
+			default:
+				return nil, fmt.Errorf("invalid value type at index %d: expected number, got %T", i, val)
 			}
 		}
 		return res, nil
@@ -1032,13 +1042,39 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 	case *modbus.ModbusClient:
 		switch req.Operation {
 		case "write_single_coil":
-			val, ok := req.Values.(bool)
-			if !ok { return fmt.Errorf("value must be bool") }
+			// 支援數組或單個值：如果是數組，取第一個元素
+			var val bool
+			if arr, ok := req.Values.([]interface{}); ok && len(arr) > 0 {
+				if b, ok := arr[0].(bool); ok {
+					val = b
+				} else {
+					return fmt.Errorf("value must be bool, got %T", arr[0])
+				}
+			} else if b, ok := req.Values.(bool); ok {
+				val = b
+			} else {
+				return fmt.Errorf("value must be bool or array of bool")
+			}
 			return c.WriteSingleCoil(req.Address, val)
 		case "write_single_register":
-			val, ok := req.Values.(float64)
-			if !ok { return fmt.Errorf("value must be number") }
-			return c.WriteSingleRegister(req.Address, uint16(val))
+			// 支援數組或單個值：如果是數組，取第一個元素
+			var val uint16
+			if arr, ok := req.Values.([]interface{}); ok && len(arr) > 0 {
+				if f, ok := arr[0].(float64); ok {
+					val = uint16(f)
+				} else if i, ok := arr[0].(int); ok {
+					val = uint16(i)
+				} else {
+					return fmt.Errorf("value must be number, got %T", arr[0])
+				}
+			} else if f, ok := req.Values.(float64); ok {
+				val = uint16(f)
+			} else if i, ok := req.Values.(int); ok {
+				val = uint16(i)
+			} else {
+				return fmt.Errorf("value must be number or array of number")
+			}
+			return c.WriteSingleRegister(req.Address, val)
 		case "write_multiple_coils":
 			vals, err := toBoolSlice(req.Values)
 			if err != nil { return err }

@@ -155,9 +155,6 @@ export default function RTUPollingCard({
     return null
   }
 
-  // 檢查是否為 RTU/Serial 協議
-  const isRTUProtocol = protocol.includes('_rtu') || protocol.includes('_serial')
-
   return (
     <div className="relative bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-xl p-4 transition-colors">
       {/* 最小化按鈕 */}
@@ -173,27 +170,8 @@ export default function RTUPollingCard({
         RTU Polling
       </h2>
 
-      {/* 協議不匹配提示 */}
-      {!isRTUProtocol && (
-        <div className="mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">
-                需要 RTU/Serial 協議
-              </h3>
-              <p className="text-sm text-amber-700 dark:text-amber-400">
-                此功能僅在 RTU 或 Serial 連線模式下可用。請切換到 RTU/Serial 協議以使用此功能。
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 新增操作按鈕 - 外層 */}
-      <div className={`mb-2.5 flex justify-end ${!isRTUProtocol ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className="mb-2.5 flex justify-end">
         <button
           onClick={handleAddOperation}
           className="bg-purple-600 text-white px-3 py-1 rounded-md font-semibold shadow-md shadow-purple-500/30 hover:bg-purple-700 hover:shadow-purple-500/40 active:scale-[0.98] transition-all flex items-center gap-1.5 text-xs flex-shrink-0"
@@ -205,7 +183,7 @@ export default function RTUPollingCard({
         </button>
       </div>
 
-      <div className={`space-y-2.5 ${!isRTUProtocol ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className="space-y-2.5">
 
         {/* Polling 操作列表 */}
         <div className="space-y-2.5">

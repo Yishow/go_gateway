@@ -17,7 +17,7 @@ tmp_dir = "tmp"
   cmd = "cmd /c go run ./cmd/test_ui"
   delay = 1000
   # 只監控必要的目錄，排除其他 cmd 子目錄和不需要的目錄
-  exclude_dir = ["assets", "tmp", "vendor", "testdata", "bin", "web", "node_modules", ".git", "docs", "lib", "cmd/fatek_test", "cmd/gateway", "cmd/test_all", "conductor"]
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", "bin", "frontend", "node_modules", ".git", "docs", "lib", "cmd/fatek_test", "cmd/gateway", "cmd/test_all", "conductor"]
   exclude_file = []
   exclude_regex = ["_test.go"]
   exclude_unchanged = false

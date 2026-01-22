@@ -2,8 +2,8 @@
 
 # 建置前端
 build-frontend:
-	cd web/test-ui && npm install
-	cd web/test-ui && npm run build
+	cd frontend && npm install
+	cd frontend && npm run build
 
 # 建置後端（包含前端）
 build-backend: build-frontend
@@ -14,8 +14,8 @@ build: build-backend
 
 # 清理建置檔案
 clean:
-	rm -rf web/test-ui/dist
-	rm -rf web/test-ui/node_modules
+	rm -rf frontend/dist
+	rm -rf frontend/node_modules
 	rm -f bin/test-ui.exe
 
 # 執行測試工具

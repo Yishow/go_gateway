@@ -72,10 +72,10 @@ $script:ROOT_DIR = Get-Location
 $script:APP_NAME = "gateway"
 $script:APP_PATH = "cmd/test_ui"
 $script:BUILD_DIR = "bin"
-$script:FRONTEND_DIR = "web/test-ui"
+$script:FRONTEND_DIR = "frontend"
 $script:STATIC_DIR = "cmd/test_ui/static"
-$script:DIST_DIR = "web/test-ui/dist"
-$script:NODE_MODULES_DIR = "web/test-ui/node_modules"
+$script:DIST_DIR = "frontend/dist"
+$script:NODE_MODULES_DIR = "frontend/node_modules"
 $script:LOG_DIR = "logs"
 $script:LOG_FILE = Join-Path $script:LOG_DIR "start-$(Get-Date -Format 'yyyyMMdd').log"
 
@@ -434,7 +434,7 @@ function Start-Diagnose {
     # 檢查前端
     Write-Info "4. 檢查前端..."
     if (-not (Test-Path $script:NODE_MODULES_DIR)) {
-        $issues += "前端依賴未安裝，需要執行: cd web/test-ui && pnpm install"
+        $issues += "前端依賴未安裝，需要執行: cd frontend && pnpm install"
     }
     
     # 檢查構建產物

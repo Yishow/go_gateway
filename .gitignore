@@ -56,6 +56,18 @@ $RECYCLE.BIN/
 .Spotlight-V100
 .Trashes
 
+# Frontend build output and dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.vitest/
+
+# Legacy frontend directory (if still exists)
+web/test-ui/node_modules/
+web/test-ui/dist/
+web/test-ui/.vite/
+web/test-ui/.vitest/
+
 # Project specific
 fatek_test.exe
 .temp/
@@ -90,3 +102,4 @@ config.local.yml
 *~
 
 .claude\settings.json
+datalink.db
