@@ -73,7 +73,12 @@
     "parityOdd": "奇數",
     "modeTcp": "TCP",
     "modeSerial": "序列",
-    "failedToSave": "儲存設備失敗"
+    "failedToSave": "儲存設備失敗",
+    "status": {
+      "draft": "草稿",
+      "active": "啟用",
+      "disabled": "停用"
+    }
   },
   "tag": {
     "title": "標籤",

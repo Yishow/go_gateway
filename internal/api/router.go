@@ -132,6 +132,15 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			healthHandler := handlers.NewDatalinkHealthHandler()
 			datalinkGroup.GET("/health", healthHandler.Check)
 
+			// Dashboard
+			dashboardHandler := handlers.NewDashboardHandler(
+				datalinkServices.Device,
+				datalinkServices.Point,
+				datalinkServices.Tag,
+			)
+			datalinkGroup.GET("/dashboard/stats", dashboardHandler.GetStats)
+			datalinkGroup.GET("/dashboard/device-statuses", dashboardHandler.GetDeviceStatuses)
+
 			// Protocols
 			protocolHandler := handlers.NewProtocolHandler()
 			datalinkGroup.GET("/protocols", protocolHandler.List)

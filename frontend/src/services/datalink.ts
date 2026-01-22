@@ -474,3 +474,47 @@ export const healthAPI = {
     return res.data.data!;
   },
 };
+
+// =============================================================================
+// 儀表板 API
+// =============================================================================
+
+/** 儀表板統計數據 */
+export interface DashboardStats {
+  total_devices: number;
+  active_devices: number;
+  disabled_devices: number;
+  error_devices: number;
+  total_points: number;
+  enabled_points: number;
+  total_tags: number;
+  active_tags: number;
+  retired_tags: number;
+  errors_last_24h: number;
+  estimated_throughput: number;
+}
+
+/** 設備狀態資訊 */
+export interface DeviceStatus {
+  id: string;
+  name: string;
+  protocol: string;
+  status: string;
+  last_test_at?: string;
+  last_success?: boolean;
+  last_error?: string;
+}
+
+export const dashboardAPI = {
+  /** 取得儀表板統計數據 */
+  async getStats(): Promise<DashboardStats> {
+    const res = await api.get<APIResponse<DashboardStats>>('/dashboard/stats');
+    return res.data.data!;
+  },
+
+  /** 取得設備狀態列表 */
+  async getDeviceStatuses(): Promise<DeviceStatus[]> {
+    const res = await api.get<APIResponse<DeviceStatus[]>>('/dashboard/device-statuses');
+    return res.data.data ?? [];
+  },
+};

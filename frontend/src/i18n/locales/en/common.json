@@ -73,7 +73,12 @@
     "parityOdd": "Odd",
     "modeTcp": "TCP",
     "modeSerial": "Serial",
-    "failedToSave": "Failed to save device"
+    "failedToSave": "Failed to save device",
+    "status": {
+      "draft": "Draft",
+      "active": "Active",
+      "disabled": "Disabled"
+    }
   },
   "tag": {
     "title": "Tag",
