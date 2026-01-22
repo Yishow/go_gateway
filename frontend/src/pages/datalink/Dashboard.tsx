@@ -417,7 +417,7 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats && (
+        {stats ? (
           <>
             <StatsCard
               title={t("dashboard.throughput")}
@@ -431,14 +431,41 @@ export default function Dashboard() {
               title={t("dashboard.totalDevices")}
               value={stats.total_devices}
               unit={`/ ${stats.active_devices} ${t("dashboard.active")}`}
-          }}
-        />
-        <StatsCard
-          title="System Status"
-          value="Healthy"
-          icon={DatabaseIcon}
-          color="green"
-        />
+              icon={ServerIcon}
+              color="indigo"
+              trend={{
+                value: `${stats.total_devices > 0 ? ((stats.active_devices / stats.total_devices) * 100).toFixed(0) : 0}%`,
+                isPositive: true,
+                label: "Uptime",
+              }}
+            />
+            <StatsCard
+              title={t("dashboard.dataPoints")}
+              value={formatNumber(stats.total_points)}
+              unit={`/ ${stats.enabled_points} Enabled`}
+              icon={DatabaseIcon}
+              color="emerald"
+            />
+            <StatsCard
+              title={t("dashboard.errors")}
+              value={stats.errors_last_24h}
+              icon={AlertCircleIcon}
+              color={stats.errors_last_24h > 0 ? "red" : "green"}
+              trend={{
+                value: "24H",
+                isPositive: stats.errors_last_24h === 0,
+                label: "Errors",
+              }}
+            />
+          </>
+        ) : (
+           <>
+              <StatsCard title="Loading..." value="-" icon={ActivityIcon} color="slate" />
+              <StatsCard title="Loading..." value="-" icon={ServerIcon} color="slate" />
+              <StatsCard title="Loading..." value="-" icon={DatabaseIcon} color="slate" />
+              <StatsCard title="Loading..." value="-" icon={AlertCircleIcon} color="slate" />
+           </>
+        )}
       </div>
       
       {/* Device Status Widget */}

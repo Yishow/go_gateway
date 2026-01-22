@@ -19,6 +19,7 @@
     "dashboard": "Dashboard",
     "devices": "Devices",
     "points": "Points",
+    "pollingGroups": "Polling Groups",
     "tags": "Tags",
     "mappings": "Mappings",
     "mappingWizard": "Mapping Wizard",

@@ -19,6 +19,7 @@
     "dashboard": "儀表板",
     "devices": "設備",
     "points": "資料點",
+    "pollingGroups": "輪詢群組",
     "tags": "標籤",
     "mappings": "對應",
     "mappingWizard": "對應精靈",

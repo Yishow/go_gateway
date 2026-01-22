@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import type { Point, CreatePointRequest, UpdatePointRequest, DataType } from '../../types/datalink';
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
@@ -15,6 +16,7 @@ const DATA_TYPES: DataType[] = ['bool', 'int16', 'int32', 'int64', 'uint16', 'ui
 
 export default function PointForm({ point, onSubmit, onCancel }: PointFormProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   
   // Queries
   const { data: devices = [] } = useDevicesQuery();
@@ -139,7 +141,21 @@ export default function PointForm({ point, onSubmit, onCancel }: PointFormProps)
                 <option key={g.id} value={g.id}>{g.name} ({g.interval_ms}ms)</option>
             ))}
           </select>
-           {pollingGroups.length === 0 && <p className="text-xs text-yellow-500 mt-1">No polling groups available.</p>}
+          {pollingGroups.length === 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-yellow-500 mb-2">No polling groups available.</p>
+              <button
+                type="button"
+                onClick={() => navigate('/datalink/polling-groups')}
+                className="text-xs text-blue-400 hover:text-blue-300 underline flex items-center space-x-1"
+              >
+                <span>Create polling group</span>
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

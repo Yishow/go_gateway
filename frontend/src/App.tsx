@@ -18,6 +18,7 @@ import MappingsPage from './pages/datalink/MappingsPage'
 import MappingWizardPage from './pages/datalink/MappingWizardPage'
 import SettingsPage from './pages/datalink/SettingsPage'
 import PointsPage from './pages/datalink/PointsPage'
+import PollingGroupsPage from './pages/datalink/PollingGroupsPage'
 
 /**
  * 主應用程式組件
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="devices" element={<DevicesPage />} />
         <Route path="devices/new" element={<DeviceOnboardingPage />} />
         <Route path="points" element={<PointsPage />} />
+        <Route path="polling-groups" element={<PollingGroupsPage />} />
         <Route path="tags" element={<TagsPage />} />
         <Route path="mappings" element={<MappingsPage />} />
         <Route path="wizard" element={<MappingWizardPage />} />
