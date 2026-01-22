@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Tag, CreateTagRequest, UpdateTagRequest, DataType } from '../../types/datalink';
 import { tagAPI } from '../../services/datalink';
 
@@ -11,6 +12,7 @@ interface TagFormProps {
 const DATA_TYPES: DataType[] = ['bool', 'int16', 'int32', 'int64', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'string'];
 
 export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
+  const { t } = useTranslation();
   const [key, setKey] = useState(tag?.key || '');
   const [name, setName] = useState(tag?.display_name || '');
   const [description, setDescription] = useState(tag?.description || '');
@@ -102,7 +104,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
 
       {/* Key (Read-only on edit) */}
       <div>
-        <label className="block text-sm font-medium text-slate-300">Tag Key</label>
+        <label className="block text-sm font-medium text-slate-300">{t('tag.key')}</label>
         <div className="relative">
             <input
                 type="text"
@@ -154,7 +156,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
       </div>
 
       <div>
-          <label className="block text-sm font-medium text-slate-300">Description</label>
+          <label className="block text-sm font-medium text-slate-300">{t('device.description')}</label>
           <input
             type="text"
             value={description}
@@ -171,7 +173,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
             value={unit}
             onChange={e => setUnit(e.target.value)}
             className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-            placeholder="e.g. °C, kW, rpm"
+            placeholder={t('tag.unitPlaceholder')}
           />
         </div>
       </div>
@@ -183,7 +185,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
             onChange={e => setLabelsInput(e.target.value)}
             rows={3}
              className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 font-mono text-sm focus:outline-none focus:border-blue-500"
-             placeholder="area=production&#10;type=sensor"
+             placeholder={t('tag.labelsPlaceholder')}
           />
       </div>
 
@@ -201,7 +203,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={loading || !!keyError}
         >
-          {loading ? 'Saving...' : 'Save Tag'}
+          {loading ? t('common.saving') : t('tag.saveTag')}
         </button>
       </div>
     </form>

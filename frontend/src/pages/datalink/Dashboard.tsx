@@ -1,9 +1,13 @@
+import { useTranslation } from 'react-i18next';
+
 export default function Dashboard() {
+  const { t } = useTranslation();
+  
   const stats = [
-    { label: 'Total Devices', value: '12', unit: 'active', color: 'blue' },
-    { label: 'Data Points', value: '1,240', unit: 'monitored', color: 'emerald' },
-    { label: 'Throughput', value: '450', unit: 'ops/sec', color: 'purple' },
-    { label: 'Errors', value: '0', unit: 'last 24h', color: 'red' },
+    { label: t('dashboard.totalDevices'), value: '12', unit: t('dashboard.active'), color: 'blue' },
+    { label: t('dashboard.dataPoints'), value: '1,240', unit: t('dashboard.monitored'), color: 'emerald' },
+    { label: t('dashboard.throughput'), value: '450', unit: t('dashboard.opsPerSec'), color: 'purple' },
+    { label: t('dashboard.errors'), value: '0', unit: t('dashboard.last24h'), color: 'red' },
   ];
 
   return (

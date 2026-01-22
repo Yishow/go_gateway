@@ -1,0 +1,125 @@
+{
+  "common": {
+    "cancel": "取消",
+    "save": "儲存",
+    "delete": "刪除",
+    "edit": "編輯",
+    "create": "建立",
+    "update": "更新",
+    "confirm": "確認",
+    "close": "關閉",
+    "loading": "載入中...",
+    "saving": "儲存中...",
+    "error": "錯誤",
+    "success": "成功",
+    "warning": "警告",
+    "info": "資訊"
+  },
+  "nav": {
+    "dashboard": "儀表板",
+    "devices": "設備",
+    "points": "資料點",
+    "tags": "標籤",
+    "mappings": "對應",
+    "mappingWizard": "對應精靈",
+    "settings": "設定",
+    "protocolTestTool": "通訊協定測試工具"
+  },
+  "dashboard": {
+    "title": "儀表板",
+    "totalDevices": "總設備數",
+    "dataPoints": "資料點",
+    "throughput": "吞吐量",
+    "errors": "錯誤",
+    "active": "啟用",
+    "monitored": "監控中",
+    "opsPerSec": "操作/秒",
+    "last24h": "過去24小時"
+  },
+  "device": {
+    "title": "設備",
+    "name": "名稱",
+    "description": "描述",
+    "protocol": "通訊協定",
+    "connectionSettings": "連線設定",
+    "advanced": "進階",
+    "retryCount": "重試次數",
+    "retryDelay": "重試延遲 (毫秒)",
+    "retryValuesManaged": "重試值由系統設定管理。",
+    "saveDevice": "儲存設備",
+    "createDevice": "建立設備",
+    "editDevice": "編輯設備",
+    "deleteDevice": "刪除設備",
+    "host": "主機",
+    "port": "埠號",
+    "slaveId": "從站 ID",
+    "serialPort": "序列埠",
+    "baudRate": "鮑率",
+    "dataBits": "資料位元",
+    "stopBits": "停止位元",
+    "parity": "同位檢查",
+    "mode": "模式",
+    "stationNo": "站號",
+    "networkNo": "網路號",
+    "pcNo": "PC 號",
+    "ioNo": "I/O 號",
+    "configJson": "設定 (JSON)",
+    "namePlaceholder": "例如：生產線 PLC 01",
+    "descriptionPlaceholder": "選填設備描述",
+    "hostPlaceholder": "192.168.1.100",
+    "serialPortPlaceholder": "COM1 或 /dev/ttyUSB0",
+    "parityNone": "無",
+    "parityEven": "偶數",
+    "parityOdd": "奇數",
+    "modeTcp": "TCP",
+    "modeSerial": "序列",
+    "failedToSave": "儲存設備失敗"
+  },
+  "tag": {
+    "title": "標籤",
+    "name": "名稱",
+    "key": "鍵值",
+    "unit": "單位",
+    "labels": "標籤 (key=value，每行一個)",
+    "labelsPlaceholder": "area=production\ntype=sensor",
+    "unitPlaceholder": "例如：°C, kW, rpm",
+    "saveTag": "儲存標籤",
+    "createTag": "建立標籤",
+    "editTag": "編輯標籤",
+    "deleteTag": "刪除標籤"
+  },
+  "mapping": {
+    "title": "對應",
+    "createMapping": "建立對應",
+    "editMapping": "編輯對應",
+    "deleteMapping": "刪除對應"
+  },
+  "settings": {
+    "title": "設定",
+    "systemSettings": "系統設定"
+  },
+  "protocol": {
+    "selectProtocol": "選擇通訊協定",
+    "connectionMode": "連線模式"
+  },
+  "scanner": {
+    "startScan": "開始掃描",
+    "stopScan": "停止掃描",
+    "clearResults": "清除結果"
+  },
+  "test": {
+    "singleOperation": "單次操作",
+    "batchOperation": "批量操作",
+    "pollingMode": "輪詢模式",
+    "running": "運行中"
+  },
+  "points": {
+    "title": "資料點",
+    "comingSoon": "資料點頁面 (即將推出)"
+  },
+  "system": {
+    "admin": "管理員",
+    "systemAdmin": "系統管理員",
+    "version": "v1.2.0-beta"
+  }
+}

@@ -13,6 +13,14 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     base: '/',
+    /**
+     * 強制所有依賴使用同一個 React 實例
+     * 解決 react-i18next "Cannot read properties of null (reading 'useMemo')" 錯誤
+     * 此錯誤發生於依賴包使用不同的 React 實例時
+     */
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
     build: {
       outDir: 'dist',
       emptyOutDir: true,

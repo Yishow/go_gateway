@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
+import i18n from './i18n/config' // 導入 i18n 實例
 import App from './App.tsx'
 import './index.css'
 
@@ -19,11 +20,28 @@ observer.observe(document.documentElement, {
   attributeFilter: ['class']
 })
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>,
-)
+/**
+ * 等待 i18n 初始化完成後再渲染 React 應用
+ * 
+ * 根據 react-i18next 最佳實踐：
+ * - i18n.init() 是異步的，必須等待完成後才能使用 I18nextProvider
+ * - 確保 initReactI18next 已正確綁定 React hooks
+ * - 避免 "Cannot read properties of null (reading 'useMemo')" 錯誤
+ */
+const renderApp = () => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </React.StrictMode>,
+  )
+}
+
+// 等待 i18n 初始化完成
+if (i18n.isInitialized) {
+  renderApp()
+} else {
+  i18n.on('initialized', renderApp)
+}
 

@@ -114,14 +114,21 @@ func (c *FatekConnector) TestConnection(ctx context.Context) error {
 
 	defer c.afterOperation()
 
-	// 使用 Loopback Test (Cmd 4E) 測試連線
-	ok, err := c.client.LoopbackTest("TEST")
+	// 改用讀取一個暫存器來測試連線（例如讀取 D0）
+	// 原因：某些 FATEK PLC 型號不支援 Loopback Test (Cmd 4E)
+	// 讀取指令 (Cmd 46) 是所有 FATEK PLC 都支援的標準指令
+	// 注意：如果 D0 不存在，可以改用 R0 或其他暫存器
+	_, err := c.client.ReadRegisters("D", 0, 1)
 	if err != nil {
-		return err
+		// 如果讀取 D0 失敗，嘗試讀取 R0（系統暫存器，通常總是存在）
+		_, err2 := c.client.ReadRegisters("R", 0, 1)
+		if err2 != nil {
+			return fmt.Errorf("連線測試失敗 (嘗試讀取 D0 和 R0 都失敗): D0錯誤=%w, R0錯誤=%w", err, err2)
+		}
+		// R0 讀取成功，連線正常
+		return nil
 	}
-	if !ok {
-		return fmt.Errorf("Loopback 測試失敗")
-	}
+	
 	return nil
 }
 

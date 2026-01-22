@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Device, CreateDeviceRequest, UpdateDeviceRequest, ProtocolType } from '../../types/datalink';
 import { protocolAPI, settingsAPI } from '../../services/datalink';
 
@@ -55,6 +56,7 @@ function getDefaultConfigForProtocol(proto: ProtocolType): Record<string, any> {
 }
 
 export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(device?.name || '');
   const [description, setDescription] = useState(device?.description || '');
   const [protocol, setProtocol] = useState<ProtocolType>(device?.protocol || 'modbus_tcp');
@@ -151,7 +153,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
       const errorMessage = err?.response?.data?.error?.message 
         || err?.response?.data?.message 
         || err?.message 
-        || 'Failed to save device';
+        || t('device.failedToSave');
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -165,7 +167,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Host</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
               <input
                 type="text"
                 value={config.host ?? ''}
@@ -176,7 +178,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Port</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
               <input
                 type="number"
                 value={config.port ?? 502}
@@ -192,7 +194,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Slave ID</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
               <input
                 type="number"
                 value={config.slave_id ?? 1}
@@ -212,7 +214,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
            return (
              <>
                <div>
-                <label className="block text-sm font-medium text-slate-300">Serial Port</label>
+                <label className="block text-sm font-medium text-slate-300">{t('device.serialPort')}</label>
                 <input
                   type="text"
                   value={config.serial_port ?? ''}
@@ -223,7 +225,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300">Baud Rate</label>
+                <label className="block text-sm font-medium text-slate-300">{t('device.baudRate')}</label>
                 <input
                   type="number"
                   value={config.baud_rate ?? 9600}
@@ -236,7 +238,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 />
               </div>
                <div>
-                  <label className="block text-sm font-medium text-slate-300">Data Bits</label>
+                  <label className="block text-sm font-medium text-slate-300">{t('device.dataBits')}</label>
                   <input
                     type="number"
                     value={config.data_bits ?? 8}
@@ -262,19 +264,19 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   />
                 </div>
                  <div>
-                  <label className="block text-sm font-medium text-slate-300">Parity</label>
+                  <label className="block text-sm font-medium text-slate-300">{t('device.parity')}</label>
                   <select
                      value={config.parity || 'none'}
                      onChange={e => setConfig({...config, parity: e.target.value})}
                      className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                   >
-                      <option value="none">None</option>
-                      <option value="even">Even</option>
-                      <option value="odd">Odd</option>
+                      <option value="none">{t('device.parityNone')}</option>
+                      <option value="even">{t('device.parityEven')}</option>
+                      <option value="odd">{t('device.parityOdd')}</option>
                   </select>
                 </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300">Slave ID</label>
+                <label className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
                 <input
                   type="number"
                   value={config.slave_id ?? 1}
@@ -295,7 +297,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
          return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Host</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
               <input
                 type="text"
                 value={config.host ?? ''}
@@ -306,7 +308,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Port</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
               <input
                 type="number"
                 value={config.port ?? 502}
@@ -321,7 +323,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
              <div>
-                <label className="block text-sm font-medium text-slate-300">Slave ID</label>
+                <label className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
                 <input
                   type="number"
                   value={config.slave_id ?? 1}
@@ -341,18 +343,18 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Mode</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.mode')}</label>
               <select
                 value={config.mode || 'tcp'}
                 onChange={e => setConfig({...config, mode: e.target.value})}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
               >
-                <option value="tcp">TCP</option>
-                <option value="serial">Serial</option>
+                <option value="tcp">{t('device.modeTcp')}</option>
+                <option value="serial">{t('device.modeSerial')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Station No</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.stationNo')}</label>
               <input
                 type="number"
                 value={config.station_no ?? 1}
@@ -369,7 +371,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
             {config.mode !== 'serial' ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">Host</label>
+                  <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
                   <input
                     type="text"
                     value={config.host ?? ''}
@@ -380,7 +382,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">Port</label>
+                  <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
                   <input
                     type="number"
                     value={config.port ?? 500}
@@ -398,18 +400,18 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">Serial Port</label>
+                  <label className="block text-sm font-medium text-slate-300">{t('device.serialPort')}</label>
                   <input
                     type="text"
                     value={config.serial_port ?? ''}
                     onChange={e => setConfig({...config, serial_port: e.target.value})}
-                    placeholder="COM1 or /dev/ttyUSB0"
+                    placeholder={t('device.serialPortPlaceholder')}
                     className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">Baud Rate</label>
+                  <label className="block text-sm font-medium text-slate-300">{t('device.baudRate')}</label>
                   <input
                     type="number"
                     value={config.baud_rate ?? 9600}
@@ -429,7 +431,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Host</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
               <input
                 type="text"
                 value={config.host ?? ''}
@@ -440,7 +442,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Port</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
               <input
                 type="number"
                 value={config.port ?? 5000}
@@ -468,7 +470,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">PC No</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.pcNo')}</label>
               <input
                 type="number"
                 value={config.pc_no ?? 255}
@@ -495,7 +497,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Station No</label>
+              <label className="block text-sm font-medium text-slate-300">{t('device.stationNo')}</label>
               <input
                 type="number"
                 value={config.station_no ?? 0}
@@ -516,7 +518,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         // Generic JSON editor fallback
         return (
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-300">Config (JSON)</label>
+            <label className="block text-sm font-medium text-slate-300">{t('device.configJson')}</label>
             <textarea
               value={JSON.stringify(config, null, 2)}
               onChange={e => {
@@ -545,7 +547,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
       {/* Basic Info */}
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-300">Name</label>
+          <label className="block text-sm font-medium text-slate-300">{t('device.name')}</label>
           <input
             type="text"
             value={name}
@@ -556,23 +558,23 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
           />
         </div>
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-300">Description</label>
+          <label className="block text-sm font-medium text-slate-300">{t('device.description')}</label>
           <input
             type="text"
             value={description}
             onChange={e => setDescription(e.target.value)}
             className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-            placeholder="Optional device description"
+            placeholder={t('device.descriptionPlaceholder')}
           />
         </div>
       </div>
 
       <div className="border-t border-slate-700 pt-4">
-          <h4 className="text-sm font-semibold text-slate-400 mb-3">Connection Settings</h4>
+          <h4 className="text-sm font-semibold text-slate-400 mb-3">{t('device.connectionSettings')}</h4>
           <div className="grid grid-cols-2 gap-4">
                {!device && (
                    <div className="col-span-2">
-                    <label className="block text-sm font-medium text-slate-300">Protocol</label>
+                    <label className="block text-sm font-medium text-slate-300">{t('device.protocol')}</label>
                     <select
                         value={protocol}
                         onChange={e => {
@@ -596,7 +598,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                     <h4 className="text-sm font-semibold text-slate-400 mb-3">Advanced</h4>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-300">Retry Count</label>
+                            <label className="block text-sm font-medium text-slate-300">{t('device.retryCount')}</label>
                             <input
                                 type="number"
                                 value={retryCount}
@@ -617,7 +619,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                         </div>
                      </div>
                      <p className="mt-2 text-xs text-slate-500">
-                        Retry values are managed by system settings.
+                        {t('device.retryValuesManaged')}
                      </p>
                 </div>
 
@@ -638,7 +640,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={loading}
         >
-          {loading ? 'Saving...' : 'Save Device'}
+          {loading ? t('common.saving') : t('device.saveDevice')}
         </button>
       </div>
     </form>
