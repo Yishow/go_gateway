@@ -8,6 +8,7 @@ import TagStep from './steps/TagStep';
 import TransformStep from './steps/TransformStep';
 import PreviewStep from './steps/PreviewStep';
 import CompleteStep from './steps/CompleteStep';
+import { useToast } from '../../../contexts/ToastContext';
 import type { TransformStep as TransformStepType } from '../../../types/datalink';
 
 /**
@@ -76,6 +77,7 @@ export const MappingWizard: React.FC<MappingWizardProps> = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<WizardFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { showSuccess, showError, showInfo } = useToast();
 
   /**
    * 更新表單資料
@@ -175,8 +177,8 @@ export const MappingWizard: React.FC<MappingWizardProps> = ({
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem('mapping-wizard-draft', JSON.stringify(draft));
-    alert('草稿已儲存');
-  }, [formData, currentStep]);
+    showSuccess('草稿已儲存');
+  }, [formData, currentStep, showSuccess]);
 
   /**
    * 載入草稿
@@ -188,14 +190,14 @@ export const MappingWizard: React.FC<MappingWizardProps> = ({
         const draft = JSON.parse(draftJson);
         setFormData(draft.formData);
         setCurrentStep(draft.currentStep);
-        alert(`已載入草稿 (儲存於 ${new Date(draft.savedAt).toLocaleString()})`);
+        showInfo(`已載入草稿 (儲存於 ${new Date(draft.savedAt).toLocaleString()})`);
       } catch {
-        alert('載入草稿失敗');
+        showError('載入草稿失敗');
       }
     } else {
-      alert('沒有找到草稿');
+      showInfo('沒有找到草稿');
     }
-  }, []);
+  }, [showInfo, showError]);
 
   /**
    * 渲染當前步驟內容

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { deviceAPI, pointAPI, tagAPI, mappingAPI } from '../../services/datalink';
 import type { Device, Point, Tag, TransformStep, Mapping } from '../../types/datalink';
 import TransformBuilder from './TransformBuilder';
+import { useToast } from '../../contexts/ToastContext';
 
 interface MappingCanvasProps {
   initialMapping?: Mapping | null;
@@ -14,6 +15,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
   const [devices, setDevices] = useState<Device[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const { showError, showWarning } = useToast();
 
   // Selection State
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -84,7 +86,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
 
     } catch (err) {
       console.error("Failed to load data", err);
-      alert("Failed to load form data");
+      showError("載入表單資料失敗");
     } finally {
       setLoading(false);
     }
@@ -101,7 +103,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
 
   const handleSave = async () => {
     if (!selectedPointId || !selectedTagId) {
-        alert("Please select both a Source Point and a Destination Tag");
+        showWarning("請選擇來源點位和目標標籤");
         return;
     }
 
@@ -129,7 +131,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
            });
            setPreviewResult(res);
        } catch(err: any) {
-           alert(`Preview failed: ${err.message}`);
+           showError(`預覽失敗: ${err.message}`);
        }
   };
 

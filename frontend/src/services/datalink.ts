@@ -44,6 +44,24 @@ const api = axios.create({
   },
 });
 
+// 添加響應攔截器以統一處理錯誤
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // 提取錯誤訊息
+    if (error.response?.data?.error?.message) {
+      error.message = error.response.data.error.message;
+    } else if (error.response?.data?.message) {
+      error.message = error.response.data.message;
+    } else if (error.message) {
+      // 保留原始錯誤訊息
+    } else {
+      error.message = 'Request failed with status code ' + (error.response?.status || 'unknown');
+    }
+    return Promise.reject(error);
+  }
+);
+
 // =============================================================================
 // 設備 API
 // =============================================================================

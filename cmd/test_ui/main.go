@@ -20,6 +20,7 @@ import (
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
+	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -85,6 +86,13 @@ func main() {
 	connMgr := connector.GetConnectionManager()
 	defer connMgr.CloseAll()
 	log.Println("ConnectionManager 已初始化")
+	
+	// 輸出已註冊的協議列表
+	registeredProtocols := connector.ListProtocols()
+	log.Printf("已註冊的協議: %v", registeredProtocols)
+	if len(registeredProtocols) == 0 {
+		log.Println("警告: 沒有協議被註冊！請檢查適配器包的導入。")
+	}
 
 	// =========================================================================
 	// Repository & Service Wiring

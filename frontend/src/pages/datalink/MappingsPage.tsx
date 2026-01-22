@@ -8,6 +8,8 @@ import { Link } from 'react-router-dom';
 import type { Mapping, CreateMappingRequest, UpdateMappingRequest } from '../../types/datalink';
 import MappingCard from '../../components/datalink/MappingCard';
 import MappingCanvas from '../../components/datalink/MappingCanvas';
+import ConfirmDialog from '../../components/datalink/ConfirmDialog';
+import { useToast } from '../../contexts/ToastContext';
 import {
   useMappingsQuery,
   useCreateMappingMutation,
@@ -19,6 +21,7 @@ import {
 export default function MappingsPage() {
   // 使用 Query Hook 取得資料
   const { data: mappings = [], isLoading, error } = useMappingsQuery();
+  const { showSuccess, showError } = useToast();
 
   // Mutation Hooks
   const createMutation = useCreateMappingMutation();
@@ -29,30 +32,82 @@ export default function MappingsPage() {
   // Modal 狀態
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingMapping, setEditingMapping] = useState<Mapping | null>(null);
+  
+  // 確認對話框狀態
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'warning' | 'default';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  /**
+   * 顯示確認對話框
+   */
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    variant: 'danger' | 'warning' | 'default' = 'default'
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+    });
+  };
+
+  /**
+   * 關閉確認對話框
+   */
+  const closeConfirm = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
 
   /**
    * 刪除映射
    */
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this mapping?')) return;
-
-    try {
-      await deleteMutation.mutateAsync(id);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      alert(`Failed to delete mapping: ${message}`);
-    }
+  const handleDelete = (id: string) => {
+    showConfirm(
+      '刪除映射',
+      '確定要刪除此映射嗎？此操作無法復原。',
+      async () => {
+        try {
+          await deleteMutation.mutateAsync(id);
+          showSuccess('映射已成功刪除');
+          closeConfirm();
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          showError(`刪除映射失敗: ${message}`);
+          closeConfirm();
+        }
+      },
+      'danger'
+    );
   };
 
   /**
    * 切換映射狀態（樂觀更新）
    */
   const handleToggleStatus = (id: string, enabled: boolean) => {
+    const action = enabled ? '啟用' : '停用';
+    
     toggleStatusMutation.mutate(
       { id, enabled },
       {
+        onSuccess: () => {
+          showSuccess(`映射已成功${action}`);
+        },
         onError: (err) => {
-          alert(`Failed to update status: ${err.message}`);
+          showError(`${action}映射失敗: ${err.message}`);
         },
       }
     );
@@ -84,13 +139,15 @@ export default function MappingsPage() {
           id: editingMapping.id,
           data: data as UpdateMappingRequest,
         });
+        showSuccess('映射已成功更新');
       } else {
         await createMutation.mutateAsync(data as CreateMappingRequest);
+        showSuccess('映射已成功建立');
       }
       setIsEditorOpen(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      alert(`Failed to save mapping: ${message}`);
+      showError(`儲存映射失敗: ${message}`);
     }
   };
 
@@ -169,6 +226,16 @@ export default function MappingsPage() {
           ))}
         </div>
       )}
+
+      {/* 確認對話框 */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant || 'default'}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
 
       {/* Editor Modal - Full Screen Overlay */}
       {isEditorOpen && (

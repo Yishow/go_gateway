@@ -26,6 +26,39 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 			last_test_at, last_test_success, last_test_error, created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
+	
+	// 處理可選欄位：將 nil 指針轉換為適當的 SQL 值
+	var lastTestAt interface{}
+	if dev.LastTestAt != nil {
+		// SQLite 使用 TEXT 存儲時間，格式為 "2006-01-02 15:04:05"
+		lastTestAt = dev.LastTestAt.Format("2006-01-02 15:04:05")
+	} else {
+		lastTestAt = nil
+	}
+	
+	var lastTestSuccess interface{}
+	if dev.LastTestSuccess != nil {
+		// SQLite 使用 INTEGER 存儲布林值 (0 或 1)
+		if *dev.LastTestSuccess {
+			lastTestSuccess = 1
+		} else {
+			lastTestSuccess = 0
+		}
+	} else {
+		lastTestSuccess = nil
+	}
+	
+	var lastTestError interface{}
+	if dev.LastTestError != "" {
+		lastTestError = dev.LastTestError
+	} else {
+		lastTestError = nil
+	}
+	
+	// 格式化時間為 SQLite 格式
+	createdAtStr := dev.CreatedAt.Format("2006-01-02 15:04:05")
+	updatedAtStr := dev.UpdatedAt.Format("2006-01-02 15:04:05")
+	
 	_, err := r.db.ExecContext(ctx, query,
 		dev.ID,
 		dev.Name,
@@ -33,11 +66,11 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 		dev.Protocol,
 		dev.Status,
 		dev.ConnectionConfig,
-		dev.LastTestAt,
-		dev.LastTestSuccess,
-		dev.LastTestError,
-		dev.CreatedAt,
-		dev.UpdatedAt,
+		lastTestAt,
+		lastTestSuccess,
+		lastTestError,
+		createdAtStr,
+		updatedAtStr,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create device: %w", err)

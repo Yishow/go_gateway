@@ -7,6 +7,8 @@ import { useState, useMemo } from 'react';
 import type { Tag, CreateTagRequest, UpdateTagRequest } from '../../types/datalink';
 import TagTable from '../../components/datalink/TagTable';
 import TagForm from '../../components/datalink/TagForm';
+import ConfirmDialog from '../../components/datalink/ConfirmDialog';
+import { useToast } from '../../contexts/ToastContext';
 import {
   useTagsQuery,
   useCreateTagMutation,
@@ -20,6 +22,7 @@ export default function TagsPage() {
   // 篩選狀態（本地 UI 狀態）
   const [searchKey, setSearchKey] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const { showSuccess, showError } = useToast();
 
   // 建立篩選參數物件（useMemo 避免不必要的重新查詢）
   const filters = useMemo(
@@ -43,19 +46,66 @@ export default function TagsPage() {
   // Modal 狀態
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  
+  // 確認對話框狀態
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'warning' | 'default';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  /**
+   * 顯示確認對話框
+   */
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    variant: 'danger' | 'warning' | 'default' = 'default'
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+    });
+  };
+
+  /**
+   * 關閉確認對話框
+   */
+  const closeConfirm = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
 
   /**
    * 刪除標籤
    */
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this tag?')) return;
-
-    try {
-      await deleteMutation.mutateAsync(id);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      alert(`Failed to delete tag: ${message}`);
-    }
+  const handleDelete = (id: string) => {
+    showConfirm(
+      '刪除標籤',
+      '確定要刪除此標籤嗎？此操作無法復原。',
+      async () => {
+        try {
+          await deleteMutation.mutateAsync(id);
+          showSuccess('標籤已成功刪除');
+          closeConfirm();
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          showError(`刪除標籤失敗: ${message}`);
+          closeConfirm();
+        }
+      },
+      'danger'
+    );
   };
 
   /**
@@ -63,8 +113,11 @@ export default function TagsPage() {
    */
   const handleActivate = (id: string) => {
     activateMutation.mutate(id, {
+      onSuccess: () => {
+        showSuccess('標籤已成功啟用');
+      },
       onError: (err) => {
-        alert(`Failed to activate tag: ${err.message}`);
+        showError(`啟用標籤失敗: ${err.message}`);
       },
     });
   };
@@ -73,13 +126,23 @@ export default function TagsPage() {
    * 退役標籤（樂觀更新）
    */
   const handleRetire = (id: string) => {
-    if (!window.confirm('Are you sure you want to retire this tag? Retired tags cannot be used in new mappings.')) return;
-
-    retireMutation.mutate(id, {
-      onError: (err) => {
-        alert(`Failed to retire tag: ${err.message}`);
+    showConfirm(
+      '退役標籤',
+      '確定要退役此標籤嗎？退役的標籤無法用於新的映射。',
+      () => {
+        retireMutation.mutate(id, {
+          onSuccess: () => {
+            showSuccess('標籤已成功退役');
+            closeConfirm();
+          },
+          onError: (err) => {
+            showError(`退役標籤失敗: ${err.message}`);
+            closeConfirm();
+          },
+        });
       },
-    });
+      'warning'
+    );
   };
 
   /**
@@ -108,8 +171,10 @@ export default function TagsPage() {
           id: editingTag.id,
           data: data as UpdateTagRequest,
         });
+        showSuccess('標籤已成功更新');
       } else {
         await createMutation.mutateAsync(data as CreateTagRequest);
+        showSuccess('標籤已成功建立');
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -209,6 +274,16 @@ export default function TagsPage() {
           />
         </div>
       )}
+
+      {/* 確認對話框 */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant || 'default'}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
 
       {/* Modal */}
       {isModalOpen && (

@@ -8,6 +8,8 @@ import { useState } from 'react';
 import type { Device, CreateDeviceRequest, UpdateDeviceRequest } from '../../types/datalink';
 import DeviceCard from '../../components/datalink/DeviceCard';
 import DeviceForm from '../../components/datalink/DeviceForm';
+import ConfirmDialog from '../../components/datalink/ConfirmDialog';
+import { useToast } from '../../contexts/ToastContext';
 import {
   useDevicesQuery,
   useCreateDeviceMutation,
@@ -20,6 +22,7 @@ import {
 export default function DevicesPage() {
   // 使用 Query Hook 取代 useState + useEffect
   const { data: devices = [], isLoading, error } = useDevicesQuery();
+  const { showSuccess, showError, showInfo } = useToast();
 
   // Mutation Hooks
   const createMutation = useCreateDeviceMutation();
@@ -31,30 +34,83 @@ export default function DevicesPage() {
   // Modal 狀態（本地 UI 狀態，不需 Query 管理）
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  
+  // 確認對話框狀態
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'warning' | 'default';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  /**
+   * 顯示確認對話框
+   */
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    variant: 'danger' | 'warning' | 'default' = 'default'
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      variant,
+    });
+  };
+
+  /**
+   * 關閉確認對話框
+   */
+  const closeConfirm = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
 
   /**
    * 刪除設備
    */
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this device?')) return;
-
-    try {
-      await deleteMutation.mutateAsync(id);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      alert(`Failed to delete device: ${message}`);
-    }
+  const handleDelete = (id: string) => {
+    showConfirm(
+      '刪除設備',
+      '確定要刪除此設備嗎？此操作無法復原。',
+      async () => {
+        try {
+          await deleteMutation.mutateAsync(id);
+          showSuccess('設備已成功刪除');
+          closeConfirm();
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          showError(`刪除設備失敗: ${message}`);
+          closeConfirm();
+        }
+      },
+      'danger'
+    );
   };
 
   /**
    * 切換設備狀態（使用樂觀更新）
    */
   const handleToggleStatus = (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+    const action = newStatus === 'active' ? '啟用' : '停用';
+    
     toggleStatusMutation.mutate(
       { id, currentStatus },
       {
+        onSuccess: () => {
+          showSuccess(`設備已成功${action}`);
+        },
         onError: (err) => {
-          alert(`Failed to update status: ${err.message}`);
+          showError(`${action}設備失敗: ${err.message}`);
         },
       }
     );
@@ -65,15 +121,16 @@ export default function DevicesPage() {
    */
   const handleTestConnection = async (id: string) => {
     try {
+      showInfo('正在測試連線...');
       const result = await testConnectionMutation.mutateAsync(id);
       if (result.success) {
-        alert(`Connection Successful! Latency: ${result.latency_ms}ms`);
+        showSuccess(`連線成功！延遲: ${result.latency_ms}ms`);
       } else {
-        alert(`Connection Failed: ${result.error}`);
+        showError(`連線失敗: ${result.error}`);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      alert(`Test failed: ${message}`);
+      showError(`測試失敗: ${message}`);
     }
   };
 
@@ -103,8 +160,10 @@ export default function DevicesPage() {
           id: editingDevice.id,
           data: data as UpdateDeviceRequest,
         });
+        showSuccess('設備已成功更新');
       } else {
         await createMutation.mutateAsync(data as CreateDeviceRequest);
+        showSuccess('設備已成功建立');
       }
       setIsModalOpen(false);
     } catch (err) {
@@ -185,6 +244,16 @@ export default function DevicesPage() {
           ))}
         </div>
       )}
+
+      {/* 確認對話框 */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant || 'default'}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
 
       {/* Modal */}
       {isModalOpen && (

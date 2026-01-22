@@ -55,7 +55,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
     switch (toast.type) {
       case 'success':
         return (
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20">
             <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
             </svg>
@@ -63,7 +63,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         )
       case 'error':
         return (
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500/20">
             <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -71,7 +71,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         )
       case 'warning':
         return (
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/20">
             <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -79,7 +79,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         )
       case 'info':
         return (
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20">
             <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -92,26 +92,26 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
     switch (toast.type) {
       case 'success':
         return {
-          container: 'bg-white dark:bg-gray-800 border-green-200 dark:border-green-700/50 text-gray-900 dark:text-gray-100 shadow-xl shadow-green-500/10',
-          text: 'text-gray-900 dark:text-gray-100',
+          container: 'bg-slate-800 border-green-500/50 text-slate-100 shadow-xl shadow-green-500/20',
+          text: 'text-slate-100',
           progress: 'bg-green-500'
         }
       case 'error':
         return {
-          container: 'bg-white dark:bg-gray-800 border-red-200 dark:border-red-700/50 text-gray-900 dark:text-gray-100 shadow-xl shadow-red-500/10',
-          text: 'text-gray-900 dark:text-gray-100',
+          container: 'bg-slate-800 border-red-500/50 text-slate-100 shadow-xl shadow-red-500/20',
+          text: 'text-slate-100',
           progress: 'bg-red-500'
         }
       case 'warning':
         return {
-          container: 'bg-white dark:bg-gray-800 border-amber-200 dark:border-amber-700/50 text-gray-900 dark:text-gray-100 shadow-xl shadow-amber-500/10',
-          text: 'text-gray-900 dark:text-gray-100',
+          container: 'bg-slate-800 border-amber-500/50 text-slate-100 shadow-xl shadow-amber-500/20',
+          text: 'text-slate-100',
           progress: 'bg-amber-500'
         }
       case 'info':
         return {
-          container: 'bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-700/50 text-gray-900 dark:text-gray-100 shadow-xl shadow-blue-500/10',
-          text: 'text-gray-900 dark:text-gray-100',
+          container: 'bg-slate-800 border-blue-500/50 text-slate-100 shadow-xl shadow-blue-500/20',
+          text: 'text-slate-100',
           progress: 'bg-blue-500'
         }
     }
@@ -128,7 +128,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
     >
       {/* 進度條 */}
       {toast.duration !== 0 && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700 rounded-t-xl overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-slate-700 rounded-t-xl overflow-hidden">
           <div
             className={`h-full ${styles.progress} transition-all duration-50 ease-linear`}
             style={{ width: `${progress}%` }}
@@ -151,7 +151,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
       {/* 關閉按鈕 */}
       <button
         onClick={() => onClose(toast.id)}
-        className="flex-shrink-0 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+        className="flex-shrink-0 text-slate-400 hover:text-slate-200 transition-colors p-1 rounded hover:bg-slate-700"
         aria-label="關閉通知"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

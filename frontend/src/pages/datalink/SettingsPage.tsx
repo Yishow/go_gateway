@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { settingsAPI } from '../../services/datalink';
 import type { SystemSettings, UpdateSystemSettingsRequest } from '../../types/datalink';
 import SettingsForm from '../../components/datalink/SettingsForm';
+import { useToast } from '../../contexts/ToastContext';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     fetchSettings();
@@ -30,10 +31,9 @@ export default function SettingsPage() {
     try {
       const updated = await settingsAPI.update(data);
       setSettings(updated);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000); // Reset success message
+      showSuccess('設定已成功儲存');
     } catch (err: any) {
-      alert(`Failed to update settings: ${err.message}`);
+      showError(`儲存設定失敗: ${err.message}`);
     }
   };
 
@@ -66,15 +66,6 @@ export default function SettingsPage() {
         </div>
       ) : settings && (
         <div className="relative">
-             {saveSuccess && (
-                <div className="absolute -top-16 right-0 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg px-4 py-3 shadow-lg flex items-center space-x-2 animate-fade-in-down">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Settings saved successfully!</span>
-                </div>
-             )}
-
             <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8 shadow-sm">
                 <SettingsForm settings={settings} onSubmit={handleUpdate} />
             </div>

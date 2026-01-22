@@ -8,6 +8,52 @@ interface DeviceFormProps {
   onCancel: () => void;
 }
 
+/**
+ * 根據協議類型獲取默認配置值
+ * 必須在組件外部定義，以便在 useState 初始化時使用
+ */
+function getDefaultConfigForProtocol(proto: ProtocolType): Record<string, any> {
+  switch (proto) {
+    case 'modbus_tcp':
+      return {
+        port: 502,
+        slave_id: 1,
+        timeout: 5,
+      };
+    case 'modbus_rtu':
+      return {
+        baud_rate: 9600,
+        data_bits: 8,
+        stop_bits: 1,
+        parity: 'none',
+        slave_id: 1,
+        timeout: 5,
+      };
+    case 'modbus_udp':
+      return {
+        port: 502,
+        slave_id: 1,
+        timeout: 5,
+      };
+    case 'fatek_fbs':
+      return {
+        mode: 'tcp',
+        station_no: 1,
+        port: 500,
+      };
+    case 'mc_3e':
+      return {
+        port: 5000,
+        network_no: 0,
+        pc_no: 255,
+        io_no: 1023,
+        station_no: 0,
+      };
+    default:
+      return {};
+  }
+}
+
 export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormProps) {
   const [name, setName] = useState(device?.name || '');
   const [description, setDescription] = useState(device?.description || '');
@@ -16,11 +62,16 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
   const [retryDelay, setRetryDelay] = useState(1000);
   
   // Dynamic Configuration
-  const [config, setConfig] = useState<Record<string, any>>(
-    device?.connection_config 
-    ? (typeof device.connection_config === 'string' ? JSON.parse(device.connection_config) : device.connection_config)
-    : {}
-  );
+  const [config, setConfig] = useState<Record<string, any>>(() => {
+    if (device?.connection_config) {
+      return typeof device.connection_config === 'string' 
+        ? JSON.parse(device.connection_config) 
+        : device.connection_config;
+    }
+    // 新建設備時，根據協議設置默認值
+    const initialProtocol = device?.protocol || 'modbus_tcp';
+    return getDefaultConfigForProtocol(initialProtocol);
+  });
 
   const [protocols, setProtocols] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,28 +105,54 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
   };
 
 
+  /**
+   * 合併配置，確保必填欄位有默認值
+   * 先設置默認值，然後用用戶輸入的值覆蓋（只要不是 undefined）
+   */
+  const prepareConfig = (): Record<string, any> => {
+    const defaultConfig = getDefaultConfigForProtocol(protocol);
+    const finalConfig: Record<string, any> = { ...defaultConfig };
+    
+    // 用用戶輸入的值覆蓋默認值（跳過 undefined，但保留 0、false、空字串等）
+    for (const [key, value] of Object.entries(config)) {
+      if (value !== undefined) {
+        finalConfig[key] = value;
+      }
+    }
+    
+    return finalConfig;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
+      // 準備配置，確保必填欄位有值
+      const finalConfig = prepareConfig();
+      
       if (device) {
         await onSubmit({
           name,
           description,
-          connection_config: config,
+          connection_config: finalConfig,
         } as UpdateDeviceRequest);
       } else {
         await onSubmit({
           name,
           description,
           protocol,
-          connection_config: config,
+          connection_config: finalConfig,
         } as CreateDeviceRequest);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to save device');
+      // 提取錯誤訊息
+      const errorMessage = err?.response?.data?.error?.message 
+        || err?.response?.data?.message 
+        || err?.message 
+        || 'Failed to save device';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -91,7 +168,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               <label className="block text-sm font-medium text-slate-300">Host</label>
               <input
                 type="text"
-                value={config.host || ''}
+                value={config.host ?? ''}
                 onChange={e => setConfig({...config, host: e.target.value})}
                 placeholder="192.168.1.100"
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
@@ -102,20 +179,31 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               <label className="block text-sm font-medium text-slate-300">Port</label>
               <input
                 type="number"
-                value={config.port || 502}
-                onChange={e => setConfig({...config, port: Number(e.target.value)})}
+                value={config.port ?? 502}
+                onChange={e => {
+                  const value = e.target.value;
+                  // 空值時設置為 undefined，否則轉換為數字
+                  setConfig({...config, port: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                 required
+                min={1}
+                max={65535}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300">Slave ID</label>
               <input
                 type="number"
-                value={config.slave_id || 1}
-                onChange={e => setConfig({...config, slave_id: Number(e.target.value)})}
+                value={config.slave_id ?? 1}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, slave_id: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                 required
+                min={1}
+                max={247}
               />
             </div>
           </>
@@ -127,7 +215,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 <label className="block text-sm font-medium text-slate-300">Serial Port</label>
                 <input
                   type="text"
-                  value={config.serial_port || ''}
+                  value={config.serial_port ?? ''}
                   onChange={e => setConfig({...config, serial_port: e.target.value})}
                   placeholder="COM1 or /dev/ttyUSB0"
                   className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
@@ -138,8 +226,11 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 <label className="block text-sm font-medium text-slate-300">Baud Rate</label>
                 <input
                   type="number"
-                  value={config.baud_rate || 9600}
-                  onChange={e => setConfig({...config, baud_rate: Number(e.target.value)})}
+                  value={config.baud_rate ?? 9600}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setConfig({...config, baud_rate: value === '' ? undefined : Number(value)});
+                  }}
                   className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                   required
                 />
@@ -148,8 +239,11 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   <label className="block text-sm font-medium text-slate-300">Data Bits</label>
                   <input
                     type="number"
-                    value={config.data_bits || 8}
-                    onChange={e => setConfig({...config, data_bits: Number(e.target.value)})}
+                    value={config.data_bits ?? 8}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setConfig({...config, data_bits: value === '' ? undefined : Number(value)});
+                    }}
                     className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                     required
                   />
@@ -158,8 +252,11 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   <label className="block text-sm font-medium text-slate-300">Stop Bits</label>
                   <input
                     type="number"
-                    value={config.stop_bits || 1}
-                    onChange={e => setConfig({...config, stop_bits: Number(e.target.value)})}
+                    value={config.stop_bits ?? 1}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setConfig({...config, stop_bits: value === '' ? undefined : Number(value)});
+                    }}
                     className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                     required
                   />
@@ -180,10 +277,15 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 <label className="block text-sm font-medium text-slate-300">Slave ID</label>
                 <input
                   type="number"
-                  value={config.slave_id || 1}
-                  onChange={e => setConfig({...config, slave_id: Number(e.target.value)})}
+                  value={config.slave_id ?? 1}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setConfig({...config, slave_id: value === '' ? undefined : Number(value)});
+                  }}
                   className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                   required
+                  min={1}
+                  max={247}
                 />
               </div>
             </>
@@ -196,7 +298,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               <label className="block text-sm font-medium text-slate-300">Host</label>
               <input
                 type="text"
-                value={config.host || ''}
+                value={config.host ?? ''}
                 onChange={e => setConfig({...config, host: e.target.value})}
                 placeholder="192.168.1.100"
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
@@ -207,20 +309,30 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               <label className="block text-sm font-medium text-slate-300">Port</label>
               <input
                 type="number"
-                value={config.port || 502}
-                onChange={e => setConfig({...config, port: Number(e.target.value)})}
+                value={config.port ?? 502}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, port: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                 required
+                min={1}
+                max={65535}
               />
             </div>
              <div>
                 <label className="block text-sm font-medium text-slate-300">Slave ID</label>
                 <input
                   type="number"
-                  value={config.slave_id || 1}
-                  onChange={e => setConfig({...config, slave_id: Number(e.target.value)})}
+                  value={config.slave_id ?? 1}
+                  onChange={e => {
+                    const value = e.target.value;
+                    setConfig({...config, slave_id: value === '' ? undefined : Number(value)});
+                  }}
                   className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                   required
+                  min={1}
+                  max={247}
                 />
               </div>
           </>
@@ -243,10 +355,15 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               <label className="block text-sm font-medium text-slate-300">Station No</label>
               <input
                 type="number"
-                value={config.station_no || 1}
-                onChange={e => setConfig({...config, station_no: Number(e.target.value)})}
+                value={config.station_no ?? 1}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, station_no: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                 required
+                min={0}
+                max={255}
               />
             </div>
             {config.mode !== 'serial' ? (
@@ -255,19 +372,26 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   <label className="block text-sm font-medium text-slate-300">Host</label>
                   <input
                     type="text"
-                    value={config.host || ''}
+                    value={config.host ?? ''}
                     onChange={e => setConfig({...config, host: e.target.value})}
                     placeholder="192.168.1.100"
                     className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300">Port</label>
                   <input
                     type="number"
-                    value={config.port || 500}
-                    onChange={e => setConfig({...config, port: Number(e.target.value)})}
+                    value={config.port ?? 500}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setConfig({...config, port: value === '' ? undefined : Number(value)});
+                    }}
                     className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                    required
+                    min={1}
+                    max={65535}
                   />
                 </div>
               </>
@@ -277,19 +401,24 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   <label className="block text-sm font-medium text-slate-300">Serial Port</label>
                   <input
                     type="text"
-                    value={config.serial_port || ''}
+                    value={config.serial_port ?? ''}
                     onChange={e => setConfig({...config, serial_port: e.target.value})}
                     placeholder="COM1 or /dev/ttyUSB0"
                     className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300">Baud Rate</label>
                   <input
                     type="number"
-                    value={config.baud_rate || 9600}
-                    onChange={e => setConfig({...config, baud_rate: Number(e.target.value)})}
+                    value={config.baud_rate ?? 9600}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setConfig({...config, baud_rate: value === '' ? undefined : Number(value)});
+                    }}
                     className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                    required
                   />
                 </div>
               </>
@@ -303,7 +432,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               <label className="block text-sm font-medium text-slate-300">Host</label>
               <input
                 type="text"
-                value={config.host || ''}
+                value={config.host ?? ''}
                 onChange={e => setConfig({...config, host: e.target.value})}
                 placeholder="192.168.1.100"
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
@@ -314,46 +443,69 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               <label className="block text-sm font-medium text-slate-300">Port</label>
               <input
                 type="number"
-                value={config.port || 5000}
-                onChange={e => setConfig({...config, port: Number(e.target.value)})}
+                value={config.port ?? 5000}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, port: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                 required
+                min={1}
+                max={65535}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300">Network No</label>
               <input
                 type="number"
-                value={config.network_no || 0}
-                onChange={e => setConfig({...config, network_no: Number(e.target.value)})}
+                value={config.network_no ?? 0}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, network_no: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                min={0}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300">PC No</label>
               <input
                 type="number"
-                value={config.pc_no || 255}
-                onChange={e => setConfig({...config, pc_no: Number(e.target.value)})}
+                value={config.pc_no ?? 255}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, pc_no: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                min={0}
+                max={255}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300">I/O No</label>
               <input
                 type="number"
-                value={config.io_no || 1023}
-                onChange={e => setConfig({...config, io_no: Number(e.target.value)})}
+                value={config.io_no ?? 1023}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, io_no: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                min={0}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300">Station No</label>
               <input
                 type="number"
-                value={config.station_no || 0}
-                onChange={e => setConfig({...config, station_no: Number(e.target.value)})}
+                value={config.station_no ?? 0}
+                onChange={e => {
+                  const value = e.target.value;
+                  setConfig({...config, station_no: value === '' ? undefined : Number(value)});
+                }}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                min={0}
+                max={255}
               />
             </div>
           </>
@@ -424,8 +576,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                     <select
                         value={protocol}
                         onChange={e => {
-                            setProtocol(e.target.value as ProtocolType);
-                            setConfig({}); // Reset config on protocol change
+                            const newProtocol = e.target.value as ProtocolType;
+                            setProtocol(newProtocol);
+                            // 重置配置並設置默認值
+                            setConfig(getDefaultConfigForProtocol(newProtocol));
                         }}
                         className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
                     >
