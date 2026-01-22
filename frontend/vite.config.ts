@@ -40,6 +40,11 @@ export default defineConfig(({ mode }) => {
     // Force CSS rebuild
     css: {
       devSourcemap: true,
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/setupTests.ts',
     }
   }
 })

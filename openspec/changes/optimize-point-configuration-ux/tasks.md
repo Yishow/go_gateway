@@ -10,148 +10,148 @@
 
 ### 1.0 UI 一致性與設計系統統一
 
-- [ ] **建立設計 Token**
-  - [ ] 建立 `frontend/src/styles/tokens.ts`
-  - [ ] 定義顏色、間距、圓角、陰影、動畫 Token
-  - [ ] 更新 `tailwind.config.js` 引用 Token
+- [x] **建立設計 Token**
+  - [x] 建立 `frontend/src/styles/tokens.ts`
+  - [x] 定義顏色、間距、圓角、陰影、動畫 Token
+  - [x] 更新 `tailwind.config.js` 引用 Token
 
-- [ ] **TestPage UI 一致性**
-  - [ ] 審查 TestPage 樣式與 Datalink 頁面差異
-  - [ ] 統一背景色、卡片樣式、按鈕樣式
-  - [ ] 確保圖標風格一致（Lucide Icons）
+- [x] **TestPage UI 一致性**
+  - [x] 審查 TestPage 樣式與 Datalink 頁面差異
+  - [x] 統一背景色、卡片樣式、按鈕樣式
+  - [x] 確保圖標風格一致（Lucide Icons）
 
 ### 1.1 設備樹拖曳排序（TDD）
 
-- [ ] **安裝依賴**
-  - [ ] `npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities`
+- [x] **安裝依賴**
+  - [x] `npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities`
 
-- [ ] **RED**: 撰寫拖曳排序測試
-  - [ ] 測試拖曳開始/結束事件
-  - [ ] 測試順序更新
-  - [ ] 測試鍵盤無障礙支援
-  - [ ] 執行測試確認失敗（RED）
+- [x] **RED**: 撰寫拖曳排序測試
+  - [x] 測試拖曳開始/結束事件
+  - [x] 測試順序更新
+  - [x] 測試鍵盤無障礙支援
+  - [x] 執行測試確認失敗（RED）
 
-- [ ] **GREEN**: 實作拖曳排序
-  - [ ] 更新 `DeviceTreeNav.tsx` 整合 dnd-kit
-  - [ ] 實作 `SortableDeviceItem` 組件
-  - [ ] 後端新增 `PATCH /devices/reorder` API
-  - [ ] 執行測試確認通過（GREEN）
+- [x] **GREEN**: 實作拖曳排序
+  - [x] 更新 `DeviceTreeNav.tsx` 整合 dnd-kit
+  - [x] 實作 `SortableDeviceItem` 組件
+  - [x] 後端新增 `PATCH /devices/reorder` API
+  - [x] 執行測試確認通過（GREEN）
 
-- [ ] **REFACTOR**: 優化拖曳體驗
-  - [ ] 調整拖曳視覺反饋
-  - [ ] 確保測試仍通過
+- [x] **REFACTOR**: 優化拖曳體驗
+  - [x] 調整拖曳視覺反饋
+  - [x] 確保測試仍通過
 
 ### 1.2 設計系統與 Token
 
 ### 1.2 位址解析器（TDD）
 
-- [ ] **RED**: 撰寫 AddressParser 單元測試
-  - [ ] 測試 Modbus 位址解析 (`40001` → `{area: 'HR', start: 1}`)
-  - [ ] 測試 FATEK 位址解析 (`D0100` → `{area: 'D', start: 100}`)
-  - [ ] 測試 MC3E 位址解析 (`D100` → `{area: 'D', start: 100}`)
-  - [ ] 測試位址範圍展開 (`expand('D100', 10)` → 10 個位址)
-  - [ ] 測試位址驗證 (`validate('D100')` → `{valid: true}`)
-  - [ ] 執行測試確認失敗（RED）
+- [x] **RED**: 撰寫 AddressParser 單元測試
+  - [x] 測試 Modbus 位址解析 (`40001` → `{area: 'HR', start: 1}`)
+  - [x] 測試 FATEK 位址解析 (`D0100` → `{area: 'D', start: 100}`)
+  - [x] 測試 MC3E 位址解析 (`D100` → `{area: 'D', start: 100}`)
+  - [x] 測試位址範圍展開 (`expand('D100', 10)` → 10 個位址)
+  - [x] 測試位址驗證 (`validate('D100')` → `{valid: true}`)
+  - [x] 執行測試確認失敗（RED）
 
-- [ ] **GREEN**: 實作 AddressParser
-  - [ ] 建立 `frontend/src/utils/addressParser.ts`
-  - [ ] 實作各協議解析邏輯
-  - [ ] 執行測試確認通過（GREEN）
+- [x] **GREEN**: 實作 AddressParser
+  - [x] 建立 `frontend/src/utils/addressParser.ts`
+  - [x] 實作各協議解析邏輯
+  - [x] 執行測試確認通過（GREEN）
 
-- [ ] **REFACTOR**: 優化程式碼
-  - [ ] 確保測試仍通過
+- [x] **REFACTOR**: 優化程式碼
+  - [x] 確保測試仍通過
 
 ### 1.3 設備樹狀導覽（TDD）
 
-- [ ] **RED**: 撰寫 DeviceTreeNav 組件測試
-  - [ ] 測試設備列表渲染
-  - [ ] 測試展開/收合子項目
-  - [ ] 測試選中狀態
-  - [ ] 測試收合模式
-  - [ ] 執行測試確認失敗（RED）
+- [x] **RED**: 撰寫 DeviceTreeNav 組件測試
+  - [x] 測試設備列表渲染
+  - [x] 測試展開/收合子項目
+  - [x] 測試選中狀態
+  - [x] 測試收合模式
+  - [x] 執行測試確認失敗（RED）
 
-- [ ] **GREEN**: 實作 DeviceTreeNav
-  - [ ] 建立 `frontend/src/components/datalink/DeviceTreeNav.tsx`
-  - [ ] 實作樹狀結構渲染
-  - [ ] 實作展開/收合邏輯
-  - [ ] 執行測試確認通過（GREEN）
+- [x] **GREEN**: 實作 DeviceTreeNav
+  - [x] 建立 `frontend/src/components/datalink/DeviceTreeNav.tsx`
+  - [x] 實作樹狀結構渲染
+  - [x] 實作展開/收合邏輯
+  - [x] 執行測試確認通過（GREEN）
 
-- [ ] **REFACTOR**: 優化組件結構
-  - [ ] 提取 TreeNode 子組件
-  - [ ] 確保測試仍通過
+- [x] **REFACTOR**: 優化組件結構
+  - [x] 提取 TreeNode 子組件
+  - [x] 確保測試仍通過
 
 ### 1.4 記憶體格子視覺化（TDD）
 
-- [ ] **RED**: 撰寫 MemoryGrid 組件測試
-  - [ ] 測試格子數量渲染（100 個）
-  - [ ] 測試已使用/可用狀態顯示
-  - [ ] 測試單擊選取
-  - [ ] 測試 Shift+Click 範圍選取
-  - [ ] 測試 Tooltip 顯示
-  - [ ] 執行測試確認失敗（RED）
+- [x] **RED**: 撰寫 MemoryGrid 組件測試
+  - [x] 測試格子數量渲染（100 個）
+  - [x] 測試已使用/可用狀態顯示
+  - [x] 測試單擊選取
+  - [x] 測試 Shift+Click 範圍選取
+  - [x] 測試 Tooltip 顯示
+  - [x] 執行測試確認失敗（RED）
 
-- [ ] **GREEN**: 實作 MemoryGrid
-  - [ ] 建立 `frontend/src/components/datalink/MemoryGrid.tsx`
-  - [ ] 實作格子渲染
-  - [ ] 實作選取邏輯
-  - [ ] 實作 Tooltip
-  - [ ] 執行測試確認通過（GREEN）
+- [x] **GREEN**: 實作 MemoryGrid
+  - [x] 建立 `frontend/src/components/datalink/MemoryGrid.tsx`
+  - [x] 實作格子渲染
+  - [x] 實作選取邏輯
+  - [x] 實作 Tooltip
+  - [x] 執行測試確認通過（GREEN）
 
-- [ ] **REFACTOR**: 優化效能
-  - [ ] 使用 React.memo 避免不必要的重渲染
-  - [ ] 確保測試仍通過
+- [x] **REFACTOR**: 優化效能
+  - [x] 使用 React.memo 避免不必要的重渲染
+  - [x] 確保測試仍通過
 
 ### 1.5 快速操作面板（TDD）
 
-- [ ] **RED**: 撰寫 QuickActions 組件測試
-  - [ ] 測試按鈕渲染
-  - [ ] 測試點擊事件
-  - [ ] 測試禁用狀態（無選中設備）
-  - [ ] 測試即時狀態顯示
-  - [ ] 執行測試確認失敗（RED）
+- [x] **RED**: 撰寫 QuickActions 組件測試
+  - [x] 測試按鈕渲染
+  - [x] 測試點擊事件
+  - [x] 測試禁用狀態（無選中設備）
+  - [x] 測試即時狀態顯示
+  - [x] 執行測試確認失敗（RED）
 
-- [ ] **GREEN**: 實作 QuickActions
-  - [ ] 建立 `frontend/src/components/datalink/QuickActions.tsx`
-  - [ ] 整合 Lucide Icons
-  - [ ] 執行測試確認通過（GREEN）
+- [x] **GREEN**: 實作 QuickActions
+  - [x] 建立 `frontend/src/components/datalink/QuickActions.tsx`
+  - [x] 整合 Lucide Icons
+  - [x] 執行測試確認通過（GREEN）
 
-- [ ] **REFACTOR**: 優化視覺效果
-  - [ ] 確保測試仍通過
+- [x] **REFACTOR**: 優化視覺效果
+  - [x] 確保測試仍通過
 
 ### 1.6 側邊滑出面板（TDD）
 
-- [ ] **RED**: 撰寫 SlidePanel 組件測試
-  - [ ] 測試開啟/關閉動畫
-  - [ ] 測試背景遮罩
-  - [ ] 測試 ESC 鍵關閉
-  - [ ] 測試內容渲染
-  - [ ] 執行測試確認失敗（RED）
+- [x] **RED**: 撰寫 SlidePanel 組件測試
+  - [x] 測試開啟/關閉動畫
+  - [x] 測試背景遮罩
+  - [x] 測試 ESC 鍵關閉
+  - [x] 測試內容渲染
+  - [x] 執行測試確認失敗（RED）
 
-- [ ] **GREEN**: 實作 SlidePanel
-  - [ ] 建立 `frontend/src/components/datalink/SlidePanel.tsx`
-  - [ ] 實作滑動動畫
-  - [ ] 實作鍵盤事件
-  - [ ] 執行測試確認通過（GREEN）
+- [x] **GREEN**: 實作 SlidePanel
+  - [x] 建立 `frontend/src/components/datalink/SlidePanel.tsx`
+  - [x] 實作滑動動畫
+  - [x] 實作鍵盤事件
+  - [x] 執行測試確認通過（GREEN）
 
-- [ ] **REFACTOR**: 優化動畫效能
-  - [ ] 使用 CSS transform
-  - [ ] 確保測試仍通過
+- [x] **REFACTOR**: 優化動畫效能
+  - [x] 使用 CSS transform
+  - [x] 確保測試仍通過
 
 ### 1.7 SmartDashboard 主頁面
 
-- [ ] **組合各組件**
-  - [ ] 建立 `frontend/src/pages/datalink/SmartDashboard.tsx`
-  - [ ] 實作三欄佈局
-  - [ ] 整合 DeviceTreeNav
-  - [ ] 整合 MemoryGrid
-  - [ ] 整合 QuickActions
-  - [ ] 整合 SlidePanel
-  - [ ] 建立 SmartDashboardContext
+- [x] **組合各組件**
+  - [x] 建立 `frontend/src/pages/datalink/SmartDashboard.tsx`
+  - [x] 實作三欄佈局
+  - [x] 整合 DeviceTreeNav
+  - [x] 整合 MemoryGrid
+  - [x] 整合 QuickActions
+  - [x] 整合 SlidePanel
+  - [x] 建立 SmartDashboardContext
 
-- [ ] **路由配置**
-  - [ ] 更新 `App.tsx` 路由
-  - [ ] SmartDashboard 設為預設首頁
-  - [ ] 保留舊頁面（過渡期）
+- [x] **路由配置**
+  - [x] 更新 `App.tsx` 路由
+  - [x] SmartDashboard 設為預設首頁
+  - [x] 保留舊頁面（過渡期）
 
 ---
 

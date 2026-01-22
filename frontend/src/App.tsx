@@ -10,6 +10,7 @@ import ComparePage from './pages/ComparePage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import Layout from './components/Layout'
 import DatalinkLayout from './layouts/DatalinkLayout'
+import SmartDashboard from './pages/datalink/SmartDashboard'
 import Dashboard from './pages/datalink/Dashboard'
 import DevicesPage from './pages/datalink/DevicesPage'
 import DeviceOnboardingPage from './pages/datalink/DeviceOnboardingPage'
@@ -37,7 +38,8 @@ function AppRoutes() {
 
       {/* Datalink Routes - New Main UI */}
       <Route path="/datalink" element={<DatalinkLayout />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<SmartDashboard />} />
+        <Route path="dashboard-legacy" element={<Dashboard />} />
         <Route path="devices" element={<DevicesPage />} />
         <Route path="devices/new" element={<DeviceOnboardingPage />} />
         <Route path="points" element={<PointsPage />} />
