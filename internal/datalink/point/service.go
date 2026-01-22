@@ -145,6 +145,64 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 	return point, nil
 }
 
+// BatchCreatePointsRequest 批次建立點位請求
+type BatchCreatePointsRequest struct {
+	DeviceID       string               `json:"device_id"`
+	PollingGroupID string               `json:"polling_group_id"`
+	DataType       schema.DataType      `json:"data_type"`
+	Enabled        bool                 `json:"enabled"`
+	Points         []BatchPointItem     `json:"points"`
+}
+
+// BatchPointItem 批次建立的單點資訊
+type BatchPointItem struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
+// BatchCreateResult 批次建立結果
+type BatchCreateResult struct {
+	CreatedCount int             `json:"created_count"`
+	Points       []*schema.Point `json:"points"`
+	Errors       []string        `json:"errors,omitempty"`
+}
+
+// BatchCreate 批次建立新點位
+func (s *Service) BatchCreate(ctx context.Context, req BatchCreatePointsRequest) (*BatchCreateResult, error) {
+	result := &BatchCreateResult{
+		Points: make([]*schema.Point, 0),
+		Errors: make([]string, 0),
+	}
+
+	for _, item := range req.Points {
+		// 建構單點建立請求
+		createReq := CreatePointRequest{
+			DeviceID:       req.DeviceID,
+			Name:           item.Name,
+			Address:        item.Address,
+			DataType:       req.DataType,
+			Mode:           schema.PointModeReadOnly, // 預設唯讀
+			PollingGroupID: nil,
+		}
+		
+		if req.PollingGroupID != "" {
+			groupID := req.PollingGroupID
+			createReq.PollingGroupID = &groupID
+		}
+
+		point, err := s.Create(ctx, createReq)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("點位 %s (%s) 建立失敗: %s", item.Name, item.Address, err.Error()))
+			continue
+		}
+
+		result.Points = append(result.Points, point)
+		result.CreatedCount++
+	}
+
+	return result, nil
+}
+
 // CreatePointRequest 建立點位請求
 type CreatePointRequest struct {
 	DeviceID       string           `json:"device_id"`

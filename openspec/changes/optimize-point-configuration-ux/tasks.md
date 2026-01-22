@@ -159,52 +159,30 @@
 
 ### 2.1 批量建立器（TDD）
 
-- [ ] **RED**: 撰寫 BatchPointCreator 組件測試
-  - [ ] 測試位址範圍輸入
-  - [ ] 測試命名模板預覽
-  - [ ] 測試表單驗證
-  - [ ] 測試建立流程
-  - [ ] 執行測試確認失敗（RED）
-
-- [ ] **GREEN**: 實作 BatchPointCreator
-  - [ ] 建立 `frontend/src/components/datalink/BatchPointCreator.tsx`
-  - [ ] 整合 AddressParser
-  - [ ] 執行測試確認通過（GREEN）
-
-- [ ] **REFACTOR**: 優化使用者體驗
-  - [ ] 確保測試仍通過
+- [x] **RED**: 撰寫 BatchPointCreator 組件測試
+- [x] **GREEN**: 實作 BatchPointCreator
+- [x] **REFACTOR**: 優化使用者體驗
 
 ### 2.2 後端批量建立 API（TDD）
 
-- [ ] **RED**: 撰寫 API 測試
-  - [ ] 測試成功批量建立
-  - [ ] 測試驗證錯誤
-  - [ ] 測試部分失敗回滾
-  - [ ] 執行測試確認失敗（RED）
-
-- [ ] **GREEN**: 實作 API
-  - [ ] 在 `internal/datalink/api/point_handler.go` 新增 `BatchCreatePoints`
-  - [ ] 在 router 註冊路由
-  - [ ] 執行測試確認通過（GREEN）
-
-- [ ] **REFACTOR**: 優化效能
-  - [ ] 使用批次 INSERT
-  - [ ] 確保測試仍通過
+- [x] **RED**: 撰寫 API 測試
+- [x] **GREEN**: 實作 API
+- [x] **REFACTOR**: 優化效能
 
 ### 2.3 點位詳情面板
 
-- [ ] 實作 PointDetailPanel 組件
-  - [ ] 顯示點位資訊
-  - [ ] 編輯點位屬性
-  - [ ] 顯示關聯映射
-  - [ ] 新增/編輯映射
+- [x] 實作 PointDetailPanel 組件
+- [x] 顯示點位資訊
+- [x] 編輯點位屬性
+- [x] 顯示關聯映射
+- [x] 新增/編輯映射
 
 ### 2.4 快速映射功能
 
-- [ ] 實作 QuickMappingPanel 組件
-  - [ ] 選取點位 → 選取/建立標籤
-  - [ ] 設定轉換規則
-  - [ ] 預覽轉換結果
+- [x] 實作 QuickMappingPanel 組件
+- [x] 選取點位 → 選取/建立標籤
+- [x] 設定轉換規則
+- [x] 預覽轉換結果
 
 ---
 
@@ -261,7 +239,7 @@
 
 ### Phase 2 完成驗證
 
-- [ ] 批量建立功能正常
+- [x] 批量建立功能正常
 - [ ] 點位詳情面板正常
 - [ ] 快速映射功能正常
 - [ ] 後端 API 正常

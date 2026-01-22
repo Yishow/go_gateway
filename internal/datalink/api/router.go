@@ -104,11 +104,10 @@ func (r *Router) registerRoutes() {
 	r.mux.HandleFunc(prefix+"/devices/test-batch", r.handleDeviceBatchTest)
 
 	// 點位管理 API
-	r.mux.HandleFunc(prefix+"/points", r.handlePoints)
-	r.mux.HandleFunc(prefix+"/points/", r.handlePointByID)
 	r.mux.HandleFunc(prefix+"/points/poll", r.handlePointsBatchPoll)
 	r.mux.HandleFunc(prefix+"/points/batch", r.handlePointsBatch)
-	r.mux.HandleFunc(prefix+"/points/batch", r.handlePointsBatch)
+	r.mux.HandleFunc(prefix+"/points", r.handlePoints)
+	r.mux.HandleFunc(prefix+"/points/", r.handlePointByID)
 
 	// 輪詢群組 API
 	r.mux.HandleFunc(prefix+"/polling-groups", r.handlePollingGroups)

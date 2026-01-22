@@ -35,7 +35,8 @@ export function SlidePanel({
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
-  // Prevent background scrolling when open
+  /* 
+  // 移除此段落以避免背景滾動條消失導致的頁面抖動 (跳動)
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -46,6 +47,7 @@ export function SlidePanel({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+  */
 
   if (!isOpen) return null;
 
@@ -59,7 +61,7 @@ export function SlidePanel({
     <div className="fixed inset-0 z-50 flex justify-end" data-testid="slide-panel">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/20 backdrop-blur-[2px] transition-opacity duration-300"
         onClick={onClose}
       />
       

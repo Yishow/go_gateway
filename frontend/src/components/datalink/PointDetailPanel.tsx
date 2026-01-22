@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Point, DataType } from '../../types/datalink';
+import { useToast } from '../../contexts/ToastContext';
 
 export interface PointDetailPanelProps {
   point: Point;
@@ -19,6 +20,8 @@ export function PointDetailPanel({
   const [dataType, setDataType] = useState<DataType>(point.data_type);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { showSuccess, showError } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -27,17 +30,21 @@ export function PointDetailPanel({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          device_id: point.device_id,
           name,
           description,
           data_type: dataType,
-          mode
+          polling_group_id: point.polling_group_id || null
         })
       });
-      if (!response.ok) throw new Error('更新失敗');
-      const updated = await response.json();
-      onUpdate(updated);
+      
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || '更新失敗');
+      
+      showSuccess('點位更新成功');
+      onUpdate(result.data); // 注意後端 Helpers 會將資料包裝在 .data 中
     } catch (err) {
-      alert(err instanceof Error ? err.message : '未知錯誤');
+      showError(err instanceof Error ? err.message : '未知錯誤');
     } finally {
       setIsSubmitting(false);
     }

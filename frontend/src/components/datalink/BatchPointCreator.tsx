@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import type { ProtocolType, DataType } from '../../types/datalink';
 import { addressParser } from '../../utils/addressParser';
+import { useToast } from '../../contexts/ToastContext';
 
 export interface BatchPointCreatorProps {
   deviceId: string;
@@ -51,6 +52,8 @@ export function BatchPointCreator({
     });
   }, [template, preselectedAddresses, protocol]);
 
+  const { showSuccess, showError } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (previewPoints.length === 0) return;
@@ -71,13 +74,14 @@ export function BatchPointCreator({
         body: JSON.stringify(payload)
       });
       
-      if (!response.ok) throw new Error('批量建立失敗');
-      
       const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || '批量建立失敗');
+      
+      showSuccess(`成功建立 ${result.data?.created_count || previewPoints.length} 個點位`);
       onCreated(result.data?.points || []);
     } catch (err) {
       console.error(err);
-      alert('建立失敗: ' + (err instanceof Error ? err.message : '未知錯誤'));
+      showError('建立失敗: ' + (err instanceof Error ? err.message : '未知錯誤'));
     } finally {
       setIsSubmitting(false);
     }

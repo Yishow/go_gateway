@@ -19,25 +19,77 @@ describe('MemoryGrid', () => {
     expect(screen.getByTestId('memory-grid')).toBeInTheDocument();
   });
 
-  // Tests expected to fail until implemented
-  it('should render grid cells', () => {
-    // We expect it to render cells based on range (default 100 potentially)
-    render(<MemoryGrid {...defaultProps} range={10} />);
-    // This assumes implementation will use data-testid="grid-cell"
-    const cells = screen.queryAllByTestId('grid-cell');
-    expect(cells.length).toBeGreaterThan(0);
+  it('should handle single selection on click', () => {
+    const onSelect = vi.fn();
+    render(<MemoryGrid {...defaultProps} range={10} onSelect={onSelect} />);
+    
+    // Click header
+    const cells = screen.getAllByTestId('grid-cell');
+    fireEvent.click(cells[0]);
+    
+    // Should select just that one
+    expect(onSelect).toHaveBeenCalledWith(expect.arrayContaining(['40001']));
+    expect(onSelect.mock.calls[0][0]).toHaveLength(1);
   });
-  
-  it('should handle cell click', () => {
+
+  it('should handle multi-selection with Ctrl click', () => {
+    const onSelect = vi.fn();
+    // Start with one selected
+    render(<MemoryGrid 
+      {...defaultProps} 
+      range={10} 
+      onSelect={onSelect} 
+      selectedAddresses={['40001']} 
+    />);
+    
+    const cells = screen.getAllByTestId('grid-cell');
+    
+    // Ctrl+Click second cell
+    fireEvent.click(cells[1], { ctrlKey: true });
+    
+    // Should keep 40001 and add 40002
+    const lastCall = onSelect.mock.calls[onSelect.mock.calls.length - 1];
+    expect(lastCall[0]).toContain('40001');
+    expect(lastCall[0]).toContain('40002');
+    expect(lastCall[0]).toHaveLength(2);
+  });
+
+  it('should handle range selection with Shift click', () => {
+    const onSelect = vi.fn();
+    // Start with 40001 selected
+    render(<MemoryGrid 
+      {...defaultProps} 
+      range={10} 
+      onSelect={onSelect} 
+      selectedAddresses={['40001']} 
+    />);
+    
+    const cells = screen.getAllByTestId('grid-cell');
+    
+    // Shift+Click 40004 (index 3)
+    // Should select 40001, 40002, 40003, 40004
+    fireEvent.click(cells[3], { shiftKey: true });
+    
+    const lastCall = onSelect.mock.calls[onSelect.mock.calls.length - 1];
+    expect(lastCall[0]).toHaveLength(4);
+    expect(lastCall[0]).toContain('40001');
+    expect(lastCall[0]).toContain('40004');
+  });
+
+  it('should call onCellClick with point info', () => {
     const onCellClick = vi.fn();
-    render(<MemoryGrid {...defaultProps} range={10} onCellClick={onCellClick} />);
-    const cell = screen.queryAllByTestId('grid-cell')[0];
-    if (cell) {
-        fireEvent.click(cell);
-        expect(onCellClick).toHaveBeenCalled();
-    } else {
-        // Fail if no cells
-        expect(true).toBe(false); 
-    }
+    const point = { id: '1', name: 'P1', address: '40001', device_id: 'd1' } as any;
+    
+    render(<MemoryGrid 
+      {...defaultProps} 
+      range={10} 
+      existingPoints={[point]}
+      onCellClick={onCellClick} 
+    />);
+    
+    const cells = screen.getAllByTestId('grid-cell');
+    fireEvent.click(cells[0]);
+    
+    expect(onCellClick).toHaveBeenCalledWith('40001', point);
   });
 });

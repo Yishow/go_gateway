@@ -57,6 +57,24 @@ func (h *PointHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": p})
 }
 
+// BatchCreate 批次建立點位
+// POST /datalink/points/batch
+func (h *PointHandler) BatchCreate(c *gin.Context) {
+	var req point.BatchCreatePointsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	result, err := h.svc.BatchCreate(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
 func (h *PointHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req point.UpdatePointRequest

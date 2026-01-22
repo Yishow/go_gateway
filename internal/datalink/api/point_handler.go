@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"go-gateway/internal/datalink/collector"
@@ -144,9 +145,8 @@ func (h *PointHandler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			Enabled:        req.Enabled,
 		})
 		if err != nil {
-			// 如果其中一個失敗，這裏目前採用簡單處理：返回已建立的部分與錯誤
-			// 未來可以考慮改為 Transaction
-			writeError(w, http.StatusUnprocessableEntity, "部分建立失敗: "+err.Error())
+			errorMessage := fmt.Sprintf("點位 '%s' (%s) 建立失敗: %s", p.Name, p.Address, err.Error())
+			writeError(w, http.StatusUnprocessableEntity, errorMessage)
 			return
 		}
 		

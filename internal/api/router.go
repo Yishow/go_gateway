@@ -169,6 +169,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			pointHandler := handlers.NewPointHandler(datalinkServices.Point)
 			datalinkGroup.GET("/points", pointHandler.List)
 			datalinkGroup.POST("/points", pointHandler.Create)
+			datalinkGroup.POST("/points/batch", pointHandler.BatchCreate)
 			datalinkGroup.GET("/points/:id", pointHandler.Get)
 			datalinkGroup.PUT("/points/:id", pointHandler.Update)
 			datalinkGroup.DELETE("/points/:id", pointHandler.Delete)
