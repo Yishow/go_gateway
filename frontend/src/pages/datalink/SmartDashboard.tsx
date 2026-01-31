@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import type { Point } from '../../types/datalink';
 import { DeviceTreeNav } from '../../components/datalink/DeviceTreeNav';
 import { MemoryGrid } from '../../components/datalink/MemoryGrid';
@@ -9,14 +9,15 @@ import { PointDetailPanel } from '../../components/datalink/PointDetailPanel';
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 import { usePointsQuery } from '../../hooks/datalink/usePoints';
-import { Search, Bell, Settings, Box, Cpu, Sparkles } from 'lucide-react';
+import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard } from 'lucide-react';
 
 export default function SmartDashboard() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
-  const [panelType, setPanelType] = useState<'batch' | 'detail' | null>(null);
+  const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
   
   // Data Fetching
   const { data: devices = [] } = useDevicesQuery();
@@ -26,6 +27,29 @@ export default function SmartDashboard() {
   const selectedDevice = useMemo(() => 
     devices.find(d => d.id === selectedDeviceId) || null
   , [devices, selectedDeviceId]);
+
+  // Keyboard shortcut handlers
+  const handleBatchCreate = useCallback(() => {
+    if (selectedDeviceId) {
+      setPanelType('batch');
+    }
+  }, [selectedDeviceId]);
+
+  const handleClosePanel = useCallback(() => {
+    setPanelType(null);
+    setSelectedPoint(null);
+  }, []);
+
+  const handleToggleSidebar = useCallback(() => {
+    setIsTreeCollapsed(prev => !prev);
+  }, []);
+
+  // Register keyboard shortcuts
+  const shortcuts = useSmartDashboardShortcuts({
+    onBatchCreate: handleBatchCreate,
+    onClosePanel: handleClosePanel,
+    onToggleSidebar: handleToggleSidebar,
+  });
 
   const handleCellClick = (_addr: string, point?: Point) => {
     if (point) {
@@ -184,6 +208,17 @@ export default function SmartDashboard() {
               onQuickMapping={() => {}}
               onTestConnection={() => {}}
             />
+            {/* Keyboard Shortcuts Button */}
+            <div className="p-4 border-t border-white/5">
+              <button
+                onClick={() => setPanelType('shortcuts')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors"
+              >
+                <Keyboard className="w-4 h-4" />
+                <span>鍵盤快捷鍵</span>
+                <span className="ml-auto text-[10px] font-mono opacity-60">?</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -191,7 +226,7 @@ export default function SmartDashboard() {
       {/* Slide Panel Overlay */}
       <SlidePanel
         isOpen={panelType !== null}
-        title={panelType === 'batch' ? '批量建立點位' : '點位詳情'}
+        title={panelType === 'batch' ? '批量建立點位' : panelType === 'shortcuts' ? '鍵盤快捷鍵' : '點位詳情'}
         onClose={() => setPanelType(null)}
       >
         {panelType === 'batch' && selectedDevice && (
@@ -215,6 +250,27 @@ export default function SmartDashboard() {
             onDelete={() => setPanelType(null)}
             onClose={() => setPanelType(null)}
           />
+        )}
+
+        {panelType === 'shortcuts' && (
+          <div className="space-y-4 p-4">
+            <p className="text-sm text-slate-400 mb-4">
+              使用以下快捷鍵提升操作效率
+            </p>
+            <div className="space-y-3">
+              {shortcuts.map((shortcut, index) => (
+                <div key={index} className="flex items-center justify-between py-2 px-3 bg-slate-800/50 rounded-lg">
+                  <span className="text-sm text-slate-300">{shortcut.description}</span>
+                  <kbd className="px-2 py-1 text-xs font-mono bg-slate-700 rounded border border-slate-600 text-slate-300">
+                    {shortcut.ctrl && 'Ctrl+'}
+                    {shortcut.alt && 'Alt+'}
+                    {shortcut.shift && 'Shift+'}
+                    {shortcut.key}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </SlidePanel>
     </div>

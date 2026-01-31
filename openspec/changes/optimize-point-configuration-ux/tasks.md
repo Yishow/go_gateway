@@ -207,10 +207,12 @@
 
 ### 3.3 進階功能
 
-- [ ] 鍵盤快捷鍵
-  - [ ] `Ctrl+B` 批量建立
-  - [ ] `Ctrl+M` 快速映射
-  - [ ] `Escape` 關閉面板
+- [x] 鍵盤快捷鍵 ✅
+  - [x] `Ctrl+B` 批量建立
+  - [x] `Ctrl+[` 切換側邊欄
+  - [x] `Escape` 關閉面板
+  - [x] 鍵盤快捷鍵面板
+  - [x] 9 個測試案例
 - [ ] 匯入/匯出功能
   - [ ] CSV 匯入點位
   - [ ] JSON 匯出設定
@@ -224,7 +226,7 @@
 
 ### 每個 Phase 完成前
 
-- [x] 所有測試通過 (`npm test`) ✅ 23 tests passed
+- [x] 所有測試通過 (`npm test`) ✅ 32 tests passed
 - [x] TypeScript 無錯誤 (`npm run typecheck`) ✅
 - [x] ESLint 無警告 (`npm run lint`) ✅ (warnings only, no errors)
 - [x] 專案可建置 (`npm run build`) ✅
@@ -244,10 +246,10 @@
 - [x] 快速映射功能正常
 - [x] 後端 API 正常
 
-### Phase 3 完成驗證 (進行中)
+### Phase 3 完成驗證
 
+- [x] 鍵盤快捷鍵正常 ✅
 - [ ] 舊頁面已移除
-- [ ] 無功能迴歸
 - [ ] 鍵盤快捷鍵正常
 - [ ] 匯入/匯出正常
 
