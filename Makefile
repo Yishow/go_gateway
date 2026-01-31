@@ -1,4 +1,4 @@
-.PHONY: build-frontend build-backend build clean test-ui
+.PHONY: build-frontend build-backend build clean test-ui gen-docs
 
 # 建置前端
 build-frontend:
@@ -21,3 +21,7 @@ clean:
 # 執行測試工具
 test-ui: build
 	./bin/test-ui.exe
+
+# 產生 Swagger API 文檔
+gen-docs:
+	swag init -g cmd/test_ui/main.go -o docs/swagger

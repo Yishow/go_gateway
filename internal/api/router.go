@@ -14,6 +14,8 @@ import (
 	"go-gateway/internal/datalink/tag"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // DatalinkServices 包含所有 Datalink 相關服務
@@ -208,6 +210,9 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.GET("/preview/stream", ssePreviewHandler.PreviewStream)
 		}
 	}
+
+	// Swagger API 文檔
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return router
 }

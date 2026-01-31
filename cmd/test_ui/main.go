@@ -1,5 +1,11 @@
 package main
 
+// @title Go Gateway API
+// @version 1.0
+// @description 工業數據採集閘道系統 API 文檔
+// @host localhost:8080
+// @BasePath /api
+
 import (
 	"context"
 	"database/sql"
