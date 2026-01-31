@@ -188,3 +188,15 @@ func (c *Config) GetServerAddr() string {
 	}
 	return port
 }
+
+// LoadFromFile 從指定文件載入配置
+// 支援 .env 格式的配置文件
+func LoadFromFile(path string) (*Config, error) {
+	// 載入指定的 .env 文件
+	if err := godotenv.Load(path); err != nil {
+		return nil, fmt.Errorf("無法載入配置文件 %s: %w", path, err)
+	}
+
+	// 使用 Load 函數載入配置（會讀取剛載入的環境變數）
+	return Load()
+}

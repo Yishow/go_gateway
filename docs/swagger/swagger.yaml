@@ -1,0 +1,40 @@
+basePath: /api
+definitions:
+  handlers.HealthStatus:
+    properties:
+      service:
+        example: datalink
+        type: string
+      status:
+        example: healthy
+        type: string
+      timestamp:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: 工業數據採集閘道系統 API 文檔
+  title: Go Gateway API
+  version: "1.0"
+paths:
+  /datalink/health:
+    get:
+      consumes:
+      - application/json
+      description: 檢查 Datalink 服務的健康狀態
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 健康狀態
+          schema:
+            $ref: '#/definitions/handlers.HealthStatus'
+      summary: 健康檢查
+      tags:
+      - datalink
+swagger: "2.0"

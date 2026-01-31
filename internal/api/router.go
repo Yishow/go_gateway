@@ -13,6 +13,8 @@ import (
 	"go-gateway/internal/datalink/settings"
 	"go-gateway/internal/datalink/tag"
 
+	_ "go-gateway/docs/swagger" // Swagger docs
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
