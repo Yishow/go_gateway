@@ -1,7 +1,6 @@
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { DeviceTreeNav } from '../DeviceTreeNav';
-import { DndContext } from '@dnd-kit/core';
 import { describe, it, expect, vi } from 'vitest';
 
 describe('DeviceTreeNav', () => {

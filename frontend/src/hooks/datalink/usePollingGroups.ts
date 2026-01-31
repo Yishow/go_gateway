@@ -8,7 +8,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pollingGroupAPI } from '../../services/datalink';
 import { pollingGroupKeys } from './keys';
 import type {
-  PollingGroup,
   CreatePollingGroupRequest,
   UpdatePollingGroupRequest,
 } from '../../types/datalink';

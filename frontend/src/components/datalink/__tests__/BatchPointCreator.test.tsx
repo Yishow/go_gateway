@@ -1,7 +1,12 @@
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { BatchPointCreator } from '../BatchPointCreator';
 import { describe, it, expect, vi } from 'vitest';
+import { ToastProvider } from '../../../contexts/ToastContext';
+
+const renderWithProviders = (ui: React.ReactElement) => {
+  return render(<ToastProvider>{ui}</ToastProvider>);
+};
 
 describe('BatchPointCreator', () => {
   const defaultProps = {
@@ -14,12 +19,12 @@ describe('BatchPointCreator', () => {
   };
 
   it('should render form with preselected addresses', () => {
-    render(<BatchPointCreator {...defaultProps} />);
+    renderWithProviders(<BatchPointCreator {...defaultProps} />);
     expect(screen.getByTestId('batch-point-creator')).toBeInTheDocument();
   });
 
   it('should show preview of generated points', async () => {
-    render(<BatchPointCreator {...defaultProps} />);
+    renderWithProviders(<BatchPointCreator {...defaultProps} />);
     
     // We expect input for template and quantity
     // Template: Pump_{index}

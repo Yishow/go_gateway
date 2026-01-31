@@ -1,5 +1,5 @@
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { QuickActions } from '../QuickActions';
 import { describe, it, expect, vi } from 'vitest';
 import type { Device } from '../../../types/datalink';

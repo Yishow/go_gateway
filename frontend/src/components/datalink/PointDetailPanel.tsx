@@ -6,14 +6,14 @@ export interface PointDetailPanelProps {
   point: Point;
   onUpdate: (updatedPoint: Point) => void;
   onDelete: (id: string) => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 export function PointDetailPanel({
   point,
   onUpdate,
   onDelete,
-  onClose // Keep it here but utilize it if needed, or remove if truly unused
+  onClose: _onClose
 }: PointDetailPanelProps) {
   const [name, setName] = useState(point.name);
   const [description, setDescription] = useState(point.description || '');

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StepIndicator from './StepIndicator';
 import DeviceIdentityStep from './device-steps/DeviceIdentityStep';

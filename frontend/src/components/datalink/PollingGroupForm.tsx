@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import type {
   PollingGroup,
   CreatePollingGroupRequest,
@@ -22,7 +21,6 @@ export default function PollingGroupForm({
   onSubmit,
   onCancel,
 }: PollingGroupFormProps) {
-  const { t } = useTranslation();
 
   // Form State
   const [name, setName] = useState(pollingGroup?.name || '');

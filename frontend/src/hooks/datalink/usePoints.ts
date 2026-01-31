@@ -8,7 +8,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pointAPI } from '../../services/datalink';
 import { pointKeys } from './keys';
 import type {
-  Point,
   CreatePointRequest,
   UpdatePointRequest,
 } from '../../types/datalink';
@@ -114,7 +113,7 @@ export function usePollPointMutation() {
 
   return useMutation({
     mutationFn: (id: string) => pointAPI.pollNow(id),
-    onSuccess: (data, id) => {
+    onSuccess: (_data, id) => {
         // Optionally update the point cache if the result contains the latest value
         // For now, we just invalidate details to force a refresh if needed
         queryClient.invalidateQueries({ queryKey: pointKeys.detail(id) });

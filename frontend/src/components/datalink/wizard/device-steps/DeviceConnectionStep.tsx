@@ -1,4 +1,3 @@
-import React, { useEffect } from 'react';
 import { type ProtocolType } from '../../../../types/datalink';
 
 interface DeviceConnectionStepProps {

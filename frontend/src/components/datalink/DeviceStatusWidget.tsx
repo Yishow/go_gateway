@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useDevicesQuery } from '../../hooks/datalink';
 import { Link } from 'react-router-dom';
 

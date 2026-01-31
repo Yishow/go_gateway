@@ -1,5 +1,5 @@
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { SlidePanel } from '../SlidePanel';
 import { describe, it, expect, vi } from 'vitest';
 
@@ -20,7 +20,7 @@ describe('SlidePanel', () => {
   it('should not render when closed (or be hidden)', () => {
     // If we implement mounting/unmounting or CSS hiding
     // For now assuming CSS transform or conditional render
-    const { container } = render(<SlidePanel {...defaultProps} isOpen={false} />);
+    render(<SlidePanel {...defaultProps} isOpen={false} />);
     expect(screen.queryByTestId('slide-panel')).not.toBeInTheDocument();
   });
 });

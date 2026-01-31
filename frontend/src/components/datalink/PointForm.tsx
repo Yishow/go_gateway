@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import type { Point, CreatePointRequest, UpdatePointRequest, DataType } from '../../types/datalink';
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
@@ -15,7 +14,6 @@ interface PointFormProps {
 const DATA_TYPES: DataType[] = ['bool', 'int16', 'int32', 'int64', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'string'];
 
 export default function PointForm({ point, onSubmit, onCancel }: PointFormProps) {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   
   // Queries

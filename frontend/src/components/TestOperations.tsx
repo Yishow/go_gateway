@@ -40,7 +40,7 @@ export default function TestOperations({
   const [polling, setPolling] = useState<boolean>(false)
   const [pollingInterval, setPollingInterval] = useState<number>(1000)
   const [pollingRecords, setPollingRecords] = useState<PollingRecord[]>([])
-  const pollingIntervalRef = useRef<number | null>(null)
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   
   const { read, write, batch } = useTestAPI()
   const { showError, showWarning } = useToast()

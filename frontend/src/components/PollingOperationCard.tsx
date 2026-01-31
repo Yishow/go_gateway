@@ -58,7 +58,7 @@ export default function PollingOperationCard({
   isReadOperation,
 }: PollingOperationCardProps) {
   const [records, setRecords] = useState<PollingRecord[]>([])
-  const intervalRef = useRef<number | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const operationRef = useRef(operation)
   
   const { read, write } = useTestAPI()

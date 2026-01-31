@@ -224,29 +224,53 @@
 
 ### 每個 Phase 完成前
 
-- [ ] 所有測試通過 (`npm test`)
-- [ ] TypeScript 無錯誤 (`npm run typecheck`)
-- [ ] ESLint 無警告 (`npm run lint`)
-- [ ] 專案可建置 (`npm run build`)
+- [x] 所有測試通過 (`npm test`) ✅ 23 tests passed
+- [x] TypeScript 無錯誤 (`npm run typecheck`) ✅
+- [x] ESLint 無警告 (`npm run lint`) ✅ (warnings only, no errors)
+- [x] 專案可建置 (`npm run build`) ✅
 
 ### Phase 1 完成驗證
 
-- [ ] SmartDashboard 頁面可正常載入
-- [ ] 設備樹狀導覽正常運作
-- [ ] 記憶體格子正確顯示
-- [ ] 側邊面板可開啟/關閉
-- [ ] 響應式佈局正常（1280px, 1440px, 1920px）
+- [x] SmartDashboard 頁面可正常載入
+- [x] 設備樹狀導覽正常運作
+- [x] 記憶體格子正確顯示
+- [x] 側邊面板可開啟/關閉
+- [x] 響應式佈局正常（1280px, 1440px, 1920px）
 
 ### Phase 2 完成驗證
 
 - [x] 批量建立功能正常
-- [ ] 點位詳情面板正常
-- [ ] 快速映射功能正常
-- [ ] 後端 API 正常
+- [x] 點位詳情面板正常
+- [x] 快速映射功能正常
+- [x] 後端 API 正常
 
-### Phase 3 完成驗證
+### Phase 3 完成驗證 (進行中)
 
 - [ ] 舊頁面已移除
 - [ ] 無功能迴歸
 - [ ] 鍵盤快捷鍵正常
 - [ ] 匯入/匯出正常
+
+---
+
+## 型別錯誤修復記錄 (2025-01-22)
+
+| 檔案 | 問題 | 修復 |
+|------|------|------|
+| `types/datalink.ts` | Device 缺少 readiness_status | 新增可選屬性 |
+| `types/datalink.ts` | PollingGroup 缺少 description | 新增可選屬性 |
+| `PointDetailPanel.tsx` | onClose 未使用 | 標記為可選並改名為 _onClose |
+| `PointForm.tsx` | t 未使用 | 移除 useTranslation import |
+| `PollingGroupForm.tsx` | t 未使用 | 移除 useTranslation import |
+| `DeviceConnectionStep.tsx` | React/useEffect 未使用 | 移除 import |
+| `DeviceIdentityStep.tsx` | React 未使用 | 移除 import |
+| `DeviceValidationStep.tsx` | React 未使用 | 移除 import |
+| `DeviceOnboardingWizard.tsx` | React/useCallback 未使用 | 移除 import |
+| `DeviceOnboardingPage.tsx` | React 未使用 | 移除 import |
+| `PollingOperationCard.tsx` | intervalRef 型別錯誤 | 改用 ReturnType<typeof setInterval> |
+| `TestOperations.tsx` | pollingIntervalRef 型別錯誤 | 改用 ReturnType<typeof setInterval> |
+| `usePoints.ts` | Point 未使用 | 移除 import |
+| `usePoints.ts` | data 未使用 | 改名為 _data |
+| `usePollingGroups.ts` | PollingGroup 未使用 | 移除 import |
+| `DeviceStatusWidget.tsx` | React 未使用 | 移除 import |
+| `BatchPointCreator.test.tsx` | 缺少 ToastProvider | 新增 wrapper |

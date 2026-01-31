@@ -66,6 +66,7 @@ export interface Device {
   last_test_at: string | null;
   last_test_success: boolean | null;
   last_test_error: string;
+  readiness_status?: "ready" | "not_ready" | "error";
   created_at: string;
   updated_at: string;
 }
@@ -147,6 +148,7 @@ export interface UpdatePointRequest {
 export interface PollingGroup {
   id: string;
   name: string;
+  description?: string;
   interval_ms: number;
   priority: number;
   enabled: boolean;
