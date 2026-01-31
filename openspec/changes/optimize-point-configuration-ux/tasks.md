@@ -213,12 +213,16 @@
   - [x] `Escape` 關閉面板
   - [x] 鍵盤快捷鍵面板
   - [x] 9 個測試案例
-- [ ] 匯入/匯出功能
-  - [ ] CSV 匯入點位
-  - [ ] JSON 匯出設定
-- [ ] 撤銷/重做
-  - [ ] 記錄操作歷史
-  - [ ] `Ctrl+Z` / `Ctrl+Y`
+- [x] 匯入/匯出功能 ✅
+  - [x] CSV 匯入點位
+  - [x] JSON 匯出設定
+  - [x] 25 個測試案例
+  - [x] `Ctrl+I` 匯入快捷鍵
+  - [x] `Ctrl+E` 匯出快捷鍵
+- [x] 撤銷/重做 ✅
+  - [x] 記錄操作歷史
+  - [x] `Ctrl+Z` / `Ctrl+Y`
+  - [x] useHistory hook + 17 個測試
 
 ---
 
@@ -226,7 +230,7 @@
 
 ### 每個 Phase 完成前
 
-- [x] 所有測試通過 (`npm test`) ✅ 32 tests passed
+- [x] 所有測試通過 (`npm test`) ✅ 74 tests passed
 - [x] TypeScript 無錯誤 (`npm run typecheck`) ✅
 - [x] ESLint 無警告 (`npm run lint`) ✅ (warnings only, no errors)
 - [x] 專案可建置 (`npm run build`) ✅

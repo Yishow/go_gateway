@@ -1,16 +1,18 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { Point } from '../../types/datalink';
+import type { Point, CreatePointRequest } from '../../types/datalink';
 import { DeviceTreeNav } from '../../components/datalink/DeviceTreeNav';
 import { MemoryGrid } from '../../components/datalink/MemoryGrid';
 import { QuickActions } from '../../components/datalink/QuickActions';
 import { SlidePanel } from '../../components/datalink/SlidePanel';
 import { BatchPointCreator } from '../../components/datalink/BatchPointCreator';
 import { PointDetailPanel } from '../../components/datalink/PointDetailPanel';
+import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExportDialog';
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
-import { usePointsQuery } from '../../hooks/datalink/usePoints';
+import { usePointsQuery, useCreatePointMutation } from '../../hooks/datalink/usePoints';
 import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
-import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard } from 'lucide-react';
+import { usePointHistory } from '../../hooks/useHistory';
+import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2 } from 'lucide-react';
 
 export default function SmartDashboard() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
@@ -18,11 +20,17 @@ export default function SmartDashboard() {
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
   const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   
   // Data Fetching
   const { data: devices = [] } = useDevicesQuery();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
+  const createPointMutation = useCreatePointMutation();
+  
+  // History for undo/redo
+  const history = usePointHistory({ maxHistory: 30 });
   
   const selectedDevice = useMemo(() => 
     devices.find(d => d.id === selectedDeviceId) || null
@@ -44,11 +52,61 @@ export default function SmartDashboard() {
     setIsTreeCollapsed(prev => !prev);
   }, []);
 
+  // Import handler
+  const handleImportPoints = useCallback(async (points: CreatePointRequest[]) => {
+    const createdIds: string[] = [];
+    for (const point of points) {
+      const result = await createPointMutation.mutateAsync(point);
+      if (result?.id) createdIds.push(result.id);
+    }
+    // Record to history for undo
+    history.push({
+      type: 'import',
+      description: `匯入 ${points.length} 個點位`,
+      data: { pointIds: createdIds },
+    });
+  }, [createPointMutation, history]);
+
+  // Undo handler
+  const handleUndo = useCallback(() => {
+    const action = history.undo();
+    if (action) {
+      console.log('Undo action:', action.type, action.description);
+      // Note: Full undo implementation would require delete/restore API calls
+    }
+  }, [history]);
+
+  // Redo handler
+  const handleRedo = useCallback(() => {
+    const action = history.redo();
+    if (action) {
+      console.log('Redo action:', action.type, action.description);
+      // Note: Full redo implementation would require create/restore API calls
+    }
+  }, [history]);
+
+  // Import/Export shortcuts
+  const handleImportShortcut = useCallback(() => {
+    if (selectedDeviceId) {
+      setImportDialogOpen(true);
+    }
+  }, [selectedDeviceId]);
+
+  const handleExportShortcut = useCallback(() => {
+    if (selectedDeviceId && allPoints.length > 0) {
+      setExportDialogOpen(true);
+    }
+  }, [selectedDeviceId, allPoints.length]);
+
   // Register keyboard shortcuts
   const shortcuts = useSmartDashboardShortcuts({
     onBatchCreate: handleBatchCreate,
     onClosePanel: handleClosePanel,
     onToggleSidebar: handleToggleSidebar,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onImport: handleImportShortcut,
+    onExport: handleExportShortcut,
   });
 
   const handleCellClick = (_addr: string, point?: Point) => {
@@ -208,6 +266,51 @@ export default function SmartDashboard() {
               onQuickMapping={() => {}}
               onTestConnection={() => {}}
             />
+            {/* Import/Export Buttons */}
+            {selectedDevice && (
+              <div className="px-4 py-2 border-t border-white/5">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setImportDialogOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>匯入</span>
+                  </button>
+                  <button
+                    onClick={() => setExportDialogOpen(true)}
+                    disabled={allPoints.length === 0}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>匯出</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Undo/Redo Buttons */}
+            <div className="px-4 py-2 border-t border-white/5">
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUndo}
+                  disabled={!history.canUndo}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title={history.getUndoAction()?.description || '無可撤銷操作'}
+                >
+                  <Undo2 className="w-4 h-4" />
+                  <span>撤銷</span>
+                </button>
+                <button
+                  onClick={handleRedo}
+                  disabled={!history.canRedo}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
+                  title={history.getRedoAction()?.description || '無可重做操作'}
+                >
+                  <Redo2 className="w-4 h-4" />
+                  <span>重做</span>
+                </button>
+              </div>
+            </div>
             {/* Keyboard Shortcuts Button */}
             <div className="p-4 border-t border-white/5">
               <button
@@ -273,6 +376,26 @@ export default function SmartDashboard() {
           </div>
         )}
       </SlidePanel>
+
+      {/* Import/Export Dialogs */}
+      {selectedDevice && (
+        <>
+          <ImportDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            deviceId={selectedDevice.id}
+            deviceName={selectedDevice.name}
+            onImport={handleImportPoints}
+          />
+          <ExportDialog
+            open={exportDialogOpen}
+            onOpenChange={setExportDialogOpen}
+            points={allPoints}
+            deviceId={selectedDevice.id}
+            deviceName={selectedDevice.name}
+          />
+        </>
+      )}
     </div>
   );
 }

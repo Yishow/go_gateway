@@ -69,6 +69,10 @@ export function useSmartDashboardShortcuts(handlers: {
   onClosePanel?: () => void;
   onToggleSidebar?: () => void;
   onSearch?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onImport?: () => void;
+  onExport?: () => void;
 }) {
   const shortcuts: KeyboardShortcut[] = [];
 
@@ -113,6 +117,42 @@ export function useSmartDashboardShortcuts(handlers: {
       ctrl: true,
       description: '搜尋',
       action: handlers.onSearch,
+    });
+  }
+
+  if (handlers.onUndo) {
+    shortcuts.push({
+      key: 'z',
+      ctrl: true,
+      description: '撤銷',
+      action: handlers.onUndo,
+    });
+  }
+
+  if (handlers.onRedo) {
+    shortcuts.push({
+      key: 'y',
+      ctrl: true,
+      description: '重做',
+      action: handlers.onRedo,
+    });
+  }
+
+  if (handlers.onImport) {
+    shortcuts.push({
+      key: 'i',
+      ctrl: true,
+      description: '匯入點位',
+      action: handlers.onImport,
+    });
+  }
+
+  if (handlers.onExport) {
+    shortcuts.push({
+      key: 'e',
+      ctrl: true,
+      description: '匯出點位',
+      action: handlers.onExport,
     });
   }
 
