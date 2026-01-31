@@ -1,6 +1,7 @@
 // Package collector 提供資料收集排程器功能。
 //
-// 本套件實作輪詢群組調度、設備並發控制、重試/退避策略等功能。
+// 本套件實作輪詢群組調度、設備並發控制、重試/退避策略、
+// 以及熔斷器機制等功能。
 package collector
 
 import (
@@ -9,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
@@ -61,6 +63,9 @@ type SchedulerConfig struct {
 
 	// ValueBufferSize 值緩衝區大小
 	ValueBufferSize int
+
+	// BreakerConfig 熔斷器配置
+	BreakerConfig health.BreakerConfig
 }
 
 // DefaultSchedulerConfig 預設排程器配置
@@ -70,6 +75,7 @@ func DefaultSchedulerConfig() SchedulerConfig {
 		DefaultRetryDelay:      1 * time.Second,
 		MaxConcurrentPerDevice: 1, // 串列存取避免協議衝突
 		ValueBufferSize:        1000,
+		BreakerConfig:          health.DefaultBreakerConfig(),
 	}
 }
 
@@ -96,6 +102,9 @@ type Scheduler struct {
 
 	// 設備鎖 (確保同一設備串列存取)
 	deviceLocks map[string]*sync.Mutex
+
+	// 設備熔斷器
+	deviceBreakers map[string]*health.CircuitBreaker
 
 	// 狀態
 	running bool
@@ -137,14 +146,15 @@ func NewScheduler(config SchedulerConfig, connMgr *connector.ConnectionManager) 
 	}
 
 	return &Scheduler{
-		config:        config,
-		connMgr:       connMgr,
-		groupTickers:  make(map[string]*groupTicker),
-		valueChan:     make(chan CollectedValue, config.ValueBufferSize),
-		deviceConfigs: make(map[string]deviceConfig),
-		pointInfos:    make(map[string]pointInfo),
-		deviceLocks:   make(map[string]*sync.Mutex),
-		stopCh:        make(chan struct{}),
+		config:         config,
+		connMgr:        connMgr,
+		groupTickers:   make(map[string]*groupTicker),
+		valueChan:      make(chan CollectedValue, config.ValueBufferSize),
+		deviceConfigs:  make(map[string]deviceConfig),
+		pointInfos:     make(map[string]pointInfo),
+		deviceLocks:    make(map[string]*sync.Mutex),
+		deviceBreakers: make(map[string]*health.CircuitBreaker),
+		stopCh:         make(chan struct{}),
 	}
 }
 
@@ -167,6 +177,11 @@ func (s *Scheduler) AddDevice(device *schema.Device) {
 	if _, exists := s.deviceLocks[device.ID]; !exists {
 		s.deviceLocks[device.ID] = &sync.Mutex{}
 	}
+
+	// 建立設備熔斷器
+	if _, exists := s.deviceBreakers[device.ID]; !exists {
+		s.deviceBreakers[device.ID] = health.NewCircuitBreaker(s.config.BreakerConfig)
+	}
 }
 
 // RemoveDevice 移除設備配置
@@ -175,6 +190,7 @@ func (s *Scheduler) RemoveDevice(deviceID string) {
 	defer s.mu.Unlock()
 
 	delete(s.deviceConfigs, deviceID)
+	delete(s.deviceBreakers, deviceID)
 
 	// 移除相關點位
 	for id, info := range s.pointInfos {
@@ -368,10 +384,11 @@ func (s *Scheduler) pollGroup(groupID string) {
 
 // pollDevicePoints 輪詢設備的點位
 func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
-	// 取得設備鎖
+	// 取得設備鎖與熔斷器
 	s.mu.RLock()
 	lock, exists := s.deviceLocks[deviceID]
 	deviceCfg, cfgExists := s.deviceConfigs[deviceID]
+	breaker := s.deviceBreakers[deviceID]
 	s.mu.RUnlock()
 
 	if !exists || !cfgExists {
@@ -379,10 +396,30 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 		s.ensureDeviceLock(deviceID)
 		lock = s.deviceLocks[deviceID]
 		deviceCfg, cfgExists = s.deviceConfigs[deviceID]
+		if s.deviceBreakers[deviceID] == nil {
+			s.deviceBreakers[deviceID] = health.NewCircuitBreaker(s.config.BreakerConfig)
+		}
+		breaker = s.deviceBreakers[deviceID]
 		s.mu.Unlock()
 		if !cfgExists {
 			return
 		}
+	}
+
+	// 檢查熔斷器是否允許請求
+	if breaker != nil && !breaker.AllowRequest() {
+		// 熔斷中，跳過採集並產生熔斷錯誤
+		now := time.Now()
+		for _, pt := range points {
+			s.emitValue(CollectedValue{
+				PointID:   pt.ID,
+				DeviceID:  deviceID,
+				Timestamp: now,
+				Quality:   schema.QualityBad,
+				Error:     fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
+			})
+		}
+		return
 	}
 
 	// 鎖定設備確保串列存取
@@ -393,7 +430,12 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 	ctx := context.Background()
 	conn, err := s.connMgr.GetOrCreate(ctx, deviceID, deviceCfg.Protocol, deviceCfg.Config)
 	if err != nil {
-		// 連線失敗，為所有點位產生錯誤結果
+		// 連線失敗，報告給熔斷器
+		if breaker != nil {
+			breaker.ReportResult(err)
+		}
+
+		// 為所有點位產生錯誤結果
 		now := time.Now()
 		for _, pt := range points {
 			s.emitValue(CollectedValue{
@@ -407,14 +449,19 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 		return
 	}
 
-	// 逐一讀取點位
+	// 逐一讀取點位，並報告結果給熔斷器
 	for _, pt := range points {
-		s.pollPoint(conn, pt)
+		err := s.pollPoint(conn, pt, breaker)
+
+		// 報告結果給熔斷器
+		if breaker != nil {
+			breaker.ReportResult(err)
+		}
 	}
 }
 
-// pollPoint 輪詢單一點位
-func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo) {
+// pollPoint 輪詢單一點位，返回錯誤用於熔斷器報告
+func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo, breaker *health.CircuitBreaker) error {
 	req := connector.ReadRequest{
 		Address:  pt.Address,
 		Function: pt.Function,
@@ -426,10 +473,15 @@ func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo) {
 	var result connector.ReadResult
 	var err error
 
-	// 重試邏輯
+	// 重試邏輯 (指數退避)
 	for attempt := 0; attempt <= s.config.DefaultRetryCount; attempt++ {
 		if attempt > 0 {
-			time.Sleep(s.config.DefaultRetryDelay)
+			// 指數退避: delay * 2^attempt
+			backoff := s.config.DefaultRetryDelay * time.Duration(1<<uint(attempt))
+			if backoff > 30*time.Second {
+				backoff = 30 * time.Second // 最大 30 秒
+			}
+			time.Sleep(backoff)
 		}
 
 		result, err = conn.Read(context.Background(), req)
@@ -455,6 +507,7 @@ func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo) {
 	}
 
 	s.emitValue(cv)
+	return err
 }
 
 // emitValue 發送收集到的值
@@ -590,4 +643,58 @@ func (s *Scheduler) ensureDeviceLock(deviceID string) {
 	if _, exists := s.deviceLocks[deviceID]; !exists {
 		s.deviceLocks[deviceID] = &sync.Mutex{}
 	}
+}
+
+// =============================================================================
+// 熔斷器相關方法
+// =============================================================================
+
+// GetDeviceBreakerState 取得設備熔斷器狀態
+func (s *Scheduler) GetDeviceBreakerState(deviceID string) (health.State, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	breaker, exists := s.deviceBreakers[deviceID]
+	if !exists {
+		return "", false
+	}
+	return breaker.State(), true
+}
+
+// GetDeviceBreakerStats 取得設備熔斷器統計
+func (s *Scheduler) GetDeviceBreakerStats(deviceID string) (health.BreakerStats, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	breaker, exists := s.deviceBreakers[deviceID]
+	if !exists {
+		return health.BreakerStats{}, false
+	}
+	return breaker.GetStats(), true
+}
+
+// GetAllDeviceBreakerStates 取得所有設備熔斷器狀態
+func (s *Scheduler) GetAllDeviceBreakerStates() map[string]health.State {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	states := make(map[string]health.State)
+	for id, breaker := range s.deviceBreakers {
+		states[id] = breaker.State()
+	}
+	return states
+}
+
+// ResetDeviceBreaker 重置設備熔斷器
+func (s *Scheduler) ResetDeviceBreaker(deviceID string) bool {
+	s.mu.RLock()
+	breaker, exists := s.deviceBreakers[deviceID]
+	s.mu.RUnlock()
+
+	if !exists {
+		return false
+	}
+
+	breaker.Reset()
+	return true
 }

@@ -142,7 +142,6 @@ func (h *PointHandler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 			DataType:       req.DataType,
 			Name:           p.Name,
 			Address:        p.Address,
-			Enabled:        req.Enabled,
 		})
 		if err != nil {
 			errorMessage := fmt.Sprintf("點位 '%s' (%s) 建立失敗: %s", p.Name, p.Address, err.Error())
