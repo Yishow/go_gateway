@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useHistory, usePointHistory } from '../useHistory';
+import { useHistory, usePointHistory, type HistoryAction } from '../useHistory';
 
 describe('useHistory', () => {
   it('should initialize with empty state', () => {
@@ -36,13 +36,13 @@ describe('useHistory', () => {
       result.current.push({ type: 'create', description: 'Action 1', data: 'data-1' });
     });
 
-    let undoneAction: ReturnType<typeof result.current.undo>;
+    let undoneAction: HistoryAction<string> | null = null;
     act(() => {
       undoneAction = result.current.undo();
     });
 
     expect(undoneAction).not.toBeNull();
-    expect(undoneAction?.data).toBe('data-1');
+    expect((undoneAction as any)?.data).toBe('data-1');
     expect(result.current.currentIndex).toBe(-1);
     expect(result.current.canUndo).toBe(false);
     expect(result.current.canRedo).toBe(true);
@@ -59,13 +59,13 @@ describe('useHistory', () => {
       result.current.undo();
     });
 
-    let redoneAction: ReturnType<typeof result.current.redo>;
+    let redoneAction: HistoryAction<string> | null = null;
     act(() => {
       redoneAction = result.current.redo();
     });
 
     expect(redoneAction).not.toBeNull();
-    expect(redoneAction?.data).toBe('data-1');
+    expect((redoneAction as any)?.data).toBe('data-1');
     expect(result.current.currentIndex).toBe(0);
     expect(result.current.canUndo).toBe(true);
     expect(result.current.canRedo).toBe(false);
@@ -74,7 +74,7 @@ describe('useHistory', () => {
   it('should return null when undo with no history', () => {
     const { result } = renderHook(() => useHistory());
 
-    let undoneAction: ReturnType<typeof result.current.undo>;
+    let undoneAction: HistoryAction<unknown> | null = null;
     act(() => {
       undoneAction = result.current.undo();
     });
@@ -89,7 +89,7 @@ describe('useHistory', () => {
       result.current.push({ type: 'create', description: 'Action', data: 'data' });
     });
 
-    let redoneAction: ReturnType<typeof result.current.redo>;
+    let redoneAction: HistoryAction<string> | null = null;
     act(() => {
       redoneAction = result.current.redo();
     });
