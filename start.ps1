@@ -37,6 +37,7 @@
 #   .\start.ps1 -ListProcesses    # 列出運行中的服務進程
 #   .\start.ps1 -StopAll           # 停止所有運行中的服務
 #   .\start.ps1 -Diagnose          # 快速診斷常見問題
+#   .\start.ps1 -BuildSingle       # 編譯為單一執行檔（內嵌前端資源）
 # ============================================
 
 param(
@@ -57,7 +58,8 @@ param(
     [switch]$HealthCheck,         # 健康檢查（檢查服務是否運行）
     [switch]$ListProcesses,       # 列出運行中的服務進程
     [switch]$StopAll,             # 停止所有運行中的服務
-    [switch]$Diagnose             # 快速診斷常見問題
+    [switch]$Diagnose,            # 快速診斷常見問題
+    [switch]$BuildSingle          # 編譯為單一執行檔（內嵌前端資源）
 )
 
 $ErrorActionPreference = "Stop"
@@ -160,7 +162,8 @@ function Get-CommandVersion {
     try {
         $version = & $Command --version 2>&1 | Select-Object -First 1
         return $version
-    } catch {
+    }
+    catch {
         return "未知"
     }
 }
@@ -179,7 +182,8 @@ function Test-DevelopmentEnvironment {
         $goVersion = Get-CommandVersion "go"
         Write-Success "Go: $goVersion"
         Write-Log "Go 環境檢查通過: $goVersion"
-    } else {
+    }
+    else {
         Write-Error "Go 未安裝或不在 PATH 中"
         Write-Info "請訪問: https://golang.org/dl/"
         $allOk = $false
@@ -192,7 +196,8 @@ function Test-DevelopmentEnvironment {
         $nodeVersion = Get-CommandVersion "node"
         Write-Success "Node.js: $nodeVersion"
         Write-Log "Node.js 環境檢查通過: $nodeVersion"
-    } else {
+    }
+    else {
         Write-Warning "Node.js 未安裝或不在 PATH 中"
         Write-Info "前端功能可能無法使用"
         Write-Log "Node.js 環境檢查失敗" "WARN"
@@ -204,7 +209,8 @@ function Test-DevelopmentEnvironment {
         $pnpmVersion = Get-CommandVersion "pnpm"
         Write-Success "pnpm: $pnpmVersion"
         Write-Log "pnpm 環境檢查通過: $pnpmVersion"
-    } else {
+    }
+    else {
         Write-Warning "pnpm 未安裝或不在 PATH 中"
         Write-Info "前端功能可能無法使用"
         Write-Log "pnpm 環境檢查失敗" "WARN"
@@ -216,7 +222,8 @@ function Test-DevelopmentEnvironment {
         $lintVersion = Get-CommandVersion "golangci-lint"
         Write-Success "golangci-lint: $lintVersion"
         Write-Log "golangci-lint 檢查通過: $lintVersion"
-    } else {
+    }
+    else {
         Write-Warning "golangci-lint 未安裝"
         Write-Info "可以使用: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
         Write-Log "golangci-lint 未安裝" "WARN"
@@ -228,7 +235,8 @@ function Test-DevelopmentEnvironment {
         $airVersion = Get-CommandVersion "air"
         Write-Success "Air: $airVersion"
         Write-Log "Air 檢查通過: $airVersion"
-    } else {
+    }
+    else {
         Write-Warning "Air 未安裝"
         Write-Info "可以使用: go install github.com/air-verse/air@latest"
         Write-Log "Air 未安裝" "WARN"
@@ -240,7 +248,8 @@ function Test-DevelopmentEnvironment {
     foreach ($dir in $requiredDirs) {
         if (Test-Path $dir) {
             Write-Success "✓ $dir"
-        } else {
+        }
+        else {
             Write-Error "✗ $dir 不存在"
             $allOk = $false
         }
@@ -249,7 +258,8 @@ function Test-DevelopmentEnvironment {
     Write-ColorOutput ""
     if ($allOk) {
         Write-Success "環境檢查完成，所有必需項目正常"
-    } else {
+    }
+    else {
         Write-Warning "環境檢查完成，發現一些問題（見上方）"
     }
     
@@ -279,12 +289,14 @@ function Test-ServiceHealth {
                     Write-Info "服務正常運行在 http://localhost:$Port"
                     return $true
                 }
-            } catch {
+            }
+            catch {
                 Write-Warning "服務端口被佔用，但無法連接 HTTP 服務"
                 Write-Info "可能不是 Go Gateway 服務，或服務未正常啟動"
             }
         }
-    } else {
+    }
+    else {
         Write-Warning "端口 $Port 未被佔用，服務未運行"
     }
     
@@ -352,7 +364,8 @@ function Stop-AllServices {
                 Stop-Process -Id $proc.Id -Force
                 Write-Success "已停止 Gateway 服務 (PID: $($proc.Id))"
                 $stopped++
-            } catch {
+            }
+            catch {
                 Write-Warning "無法停止進程 $($proc.Id): $_"
             }
         }
@@ -366,7 +379,8 @@ function Stop-AllServices {
                 Stop-Process -Id $proc.Id -Force
                 Write-Success "已停止 Test-UI 服務 (PID: $($proc.Id))"
                 $stopped++
-            } catch {
+            }
+            catch {
                 Write-Warning "無法停止進程 $($proc.Id): $_"
             }
         }
@@ -380,7 +394,8 @@ function Stop-AllServices {
                 try {
                     Stop-ProcessByPort -Port $p -Force
                     $stopped++
-                } catch {
+                }
+                catch {
                     # 忽略錯誤
                 }
             }
@@ -389,7 +404,8 @@ function Stop-AllServices {
     
     if ($stopped -eq 0) {
         Write-Info "未發現需要停止的服務"
-    } else {
+    }
+    else {
         Write-Success "已停止 $stopped 個服務/進程"
     }
 }
@@ -448,7 +464,8 @@ function Start-Diagnose {
     Write-ColorOutput ""
     if ($issues.Count -eq 0) {
         Write-Success "✅ 診斷完成，未發現問題"
-    } else {
+    }
+    else {
         Write-Warning "發現 $($issues.Count) 個潛在問題："
         foreach ($issue in $issues) {
             Write-ColorOutput "  ⚠️  $issue" "Yellow"
@@ -488,10 +505,12 @@ function Start-FrontendDevServer {
                 return $null
             }
             Write-Success "前端依賴安裝完成"
-        } catch {
+        }
+        catch {
             Write-Error "安裝前端依賴時發生錯誤: $_"
             return $null
-        } finally {
+        }
+        finally {
             Pop-Location
             Set-Location $originalLocation
         }
@@ -523,14 +542,17 @@ function Start-FrontendDevServer {
             }
             
             return $frontendProcess
-        } else {
+        }
+        else {
             Write-Error "無法啟動前端開發伺服器"
             return $null
         }
-    } catch {
+    }
+    catch {
         Write-Error "啟動前端開發伺服器時發生錯誤: $_"
         return $null
-    } finally {
+    }
+    finally {
         Pop-Location
         Set-Location $originalLocation
     }
@@ -549,7 +571,8 @@ function Stop-FrontendDevServer {
             $Process.Kill()
             $Process.WaitForExit(3000)
             Write-Success "前端開發伺服器已停止"
-        } catch {
+        }
+        catch {
             Write-Warning "停止前端開發伺服器時發生錯誤: $_"
         }
     }
@@ -579,10 +602,12 @@ function Build-Frontend {
             $srcFiles = Get-ChildItem -Path $frontendSrcPath -Recurse -File -ErrorAction SilentlyContinue
             if ($srcFiles) {
                 $srcLastWrite = ($srcFiles | Measure-Object -Property LastWriteTime -Maximum).Maximum
-            } else {
+            }
+            else {
                 $srcLastWrite = $null
             }
-        } else {
+        }
+        else {
             $srcLastWrite = $null
         }
         
@@ -591,7 +616,8 @@ function Build-Frontend {
             $packageJsonTime = (Get-Item $packageJsonPath).LastWriteTime
             if ($srcLastWrite -and $packageJsonTime -gt $srcLastWrite) {
                 $srcLastWrite = $packageJsonTime
-            } elseif (-not $srcLastWrite) {
+            }
+            elseif (-not $srcLastWrite) {
                 $srcLastWrite = $packageJsonTime
             }
         }
@@ -600,7 +626,8 @@ function Build-Frontend {
         $staticFiles = Get-ChildItem -Path $script:STATIC_DIR -Recurse -File -ErrorAction SilentlyContinue
         if ($staticFiles) {
             $staticLastWrite = ($staticFiles | Measure-Object -Property LastWriteTime -Maximum).Maximum
-        } else {
+        }
+        else {
             $staticLastWrite = $null
         }
         
@@ -608,7 +635,8 @@ function Build-Frontend {
         if ($srcLastWrite -and $staticLastWrite -and $srcLastWrite -gt $staticLastWrite) {
             $needsRebuild = $true
             Write-Info "檢測到前端原始碼有修改（原始碼: $($srcLastWrite.ToString('yyyy-MM-dd HH:mm:ss')), 建置產物: $($staticLastWrite.ToString('yyyy-MM-dd HH:mm:ss'))）"
-        } elseif (-not $staticLastWrite) {
+        }
+        elseif (-not $staticLastWrite) {
             # 如果建置產物目錄存在但沒有檔案，也需要重新建置
             $needsRebuild = $true
             Write-Info "建置產物目錄存在但沒有檔案，需要重新建置"
@@ -617,13 +645,16 @@ function Build-Frontend {
         if (-not $needsRebuild) {
             Write-Success "前端檔案已存在且為最新，跳過建置"
             return $true
-        } else {
+        }
+        else {
             Write-Warning "前端原始碼有修改，需要重新建置..."
         }
-    } else {
+    }
+    else {
         if ($Force) {
             Write-Warning "強制重新建置前端..."
-        } else {
+        }
+        else {
             Write-Warning "前端檔案不存在，正在建置前端..."
         }
     }
@@ -642,7 +673,8 @@ function Build-Frontend {
                     Write-Error "前端依賴安裝失敗"
                     return $false
                 }
-            } finally {
+            }
+            finally {
                 Pop-Location
             }
         }
@@ -656,7 +688,8 @@ function Build-Frontend {
                 Write-Error "前端建置失敗"
                 return $false
             }
-        } finally {
+        }
+        finally {
             Pop-Location
         }
         
@@ -667,10 +700,12 @@ function Build-Frontend {
         Copy-Item -Recurse $script:DIST_DIR $script:STATIC_DIR
         Write-Success "前端建置完成"
         return $true
-    } catch {
+    }
+    catch {
         Write-Error "建置前端時發生錯誤: $_"
         return $false
-    } finally {
+    }
+    finally {
         Set-Location $originalLocation
     }
 }
@@ -698,11 +733,110 @@ function Build-Application {
         if ($LASTEXITCODE -eq 0) {
             Write-Success "構建成功: $OutputPath"
             return $true
-        } else {
+        }
+        else {
             Write-Error "構建失敗"
             return $false
         }
-    } catch {
+    }
+    catch {
+        Write-Error "構建時發生錯誤: $_"
+        return $false
+    }
+}
+
+# 構建單一執行檔（內嵌前端資源）
+function Build-SingleBinary {
+    [CmdletBinding()]
+    param(
+        [string]$OutputPath,
+        [string]$SourcePath
+    )
+    
+    Write-ColorOutput "`n============================================" "Cyan"
+    Write-ColorOutput "   📦 編譯單一執行檔（內嵌前端資源）" "Cyan"
+    Write-ColorOutput "============================================`n" "Cyan"
+    
+    # 1. 建置前端（強制重新建置）
+    Write-Info "🔨 步驟 1/3: 建置前端..."
+    if (-not (Build-Frontend -Force)) {
+        Write-Error "前端建置失敗，無法繼續"
+        return $false
+    }
+    Write-Success "前端建置完成"
+    
+    # 2. 檢查前端檔案是否存在
+    Write-Info "🔍 步驟 2/3: 檢查前端檔案..."
+    if (-not (Test-Path $script:STATIC_DIR)) {
+        Write-Error "前端檔案不存在: $script:STATIC_DIR"
+        return $false
+    }
+    $indexFile = Join-Path $script:STATIC_DIR "index.html"
+    if (-not (Test-Path $indexFile)) {
+        Write-Error "前端入口檔案不存在: $indexFile"
+        return $false
+    }
+    Write-Success "前端檔案檢查通過"
+    
+    # 3. 構建單一執行檔
+    Write-Info "🏗️  步驟 3/3: 編譯 Go 應用程式（內嵌前端資源）..."
+    Write-Info "構建應用程式: $SourcePath -> $OutputPath"
+    Write-Info "💡 使用 Go embed 指令,將前端資源打包進執行檔"
+    Write-Info "💡 這可能需要一些時間,請耐心等待..."
+    
+    try {
+        # 確保輸出目錄存在
+        $outputDir = Split-Path -Parent $OutputPath
+        if (-not (Test-Path $outputDir)) {
+            New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+        }
+        
+        # 構建參數：
+        # -tags embed: 啟用 embed 構建標籤（Go 的條件編譯）
+        # -ldflags "-s -w": 移除符號表和除錯資訊,減小檔案大小
+        # -trimpath: 移除檔案路徑資訊
+        Write-Info "執行: go build -tags embed -ldflags `"-s -w`" -trimpath -o $OutputPath $SourcePath"
+        go build -tags embed -ldflags "-s -w" -trimpath -o $OutputPath $SourcePath
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "✅ 構建成功: $OutputPath"
+            
+            # 顯示檔案大小
+            if (Test-Path $OutputPath) {
+                $fileInfo = Get-Item $OutputPath
+                $fileSizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
+                Write-Info "📊 執行檔大小: $fileSizeMB MB"
+                
+                # 提供使用建議
+                Write-ColorOutput "" "White"
+                Write-Success "🎉 單一執行檔編譯完成！"
+                Write-Info "💡 此執行檔包含:"
+                Write-Info "   • 完整的後端 API 服務"
+                Write-Info "   • 內嵌的前端資源（HTML/CSS/JS）"
+                Write-Info "   • 無需額外檔案即可運行"
+                Write-Info ""
+                Write-Info "🚀 使用方式:"
+                Write-Info "   1. 直接執行: $OutputPath"
+                Write-Info "   2. 或使用快捷指令: .\\start.ps1 -SkipBuild -Start"
+                Write-Info ""
+                Write-Info "📦 部署建議:"
+                Write-Info "   • 可將此單一執行檔複製到任何 Windows 機器上運行"
+                Write-Info "   • 無需安裝 Go、Node.js 或其他依賴"
+                Write-Info "   • 適合快速部署和分發"
+            }
+            return $true
+        }
+        else {
+            Write-Error "❌ 構建失敗"
+            Write-Info ""
+            Write-Info "💡 常見問題排除:"
+            Write-Info "   1. 確認 Go 程式碼中有使用 //go:embed 指令"
+            Write-Info "   2. 確認前端檔案已正確建置到 $script:STATIC_DIR"
+            Write-Info "   3. 確認 Go 版本 >= 1.16（embed 功能需求）"
+            return $false
+        }
+    }
+    catch {
         Write-Error "構建時發生錯誤: $_"
         return $false
     }
@@ -742,15 +876,18 @@ function Start-Application {
             if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
                 Write-Warning "應用程式可能啟動失敗，請檢查日誌或錯誤訊息"
                 return $false
-            } else {
+            }
+            else {
                 Write-Success "應用程式運行中，可以關閉此視窗"
                 return $true
             }
-        } catch {
+        }
+        catch {
             Write-Error "啟動應用程式失敗: $_"
             return $false
         }
-    } else {
+    }
+    else {
         Write-Info "按 Ctrl+C 可停止服務"
         Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
         
@@ -762,11 +899,13 @@ function Start-Application {
             
             if ($serviceExitCode -eq 0) {
                 Write-Success "服務正常退出"
-            } else {
+            }
+            else {
                 Write-Warning "服務退出，退出碼: $serviceExitCode"
             }
             return $true
-        } catch {
+        }
+        catch {
             Write-Error "啟動服務失敗: $_"
             return $false
         }
@@ -780,7 +919,8 @@ function Test-PortInUse {
     try {
         $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
         return $null -ne $connection
-    } catch {
+    }
+    catch {
         # 如果 Get-NetTCPConnection 不可用，使用 netstat
         $netstatOutput = netstat -ano | Select-String ":$Port\s"
         return $null -ne $netstatOutput
@@ -799,7 +939,8 @@ function Get-ProcessByPort {
                 return Get-Process -Id $processId -ErrorAction SilentlyContinue
             }
         }
-    } catch {
+    }
+    catch {
         # 回退到使用 netstat
         $netstatLine = netstat -ano | Select-String ":$Port\s" | Select-Object -First 1
         if ($netstatLine) {
@@ -828,7 +969,8 @@ function Stop-ProcessByPort {
             if ($Force) {
                 Stop-Process -Id $process.Id -Force -ErrorAction Stop
                 Write-Success "已強制終止進程 $($process.ProcessName) (PID: $($process.Id))"
-            } else {
+            }
+            else {
                 Stop-Process -Id $process.Id -ErrorAction Stop
                 Write-Success "已終止進程 $($process.ProcessName) (PID: $($process.Id))"
             }
@@ -847,11 +989,13 @@ function Stop-ProcessByPort {
             }
             
             return $true
-        } catch {
+        }
+        catch {
             Write-Error "無法終止進程 $($process.ProcessName) (PID: $($process.Id)): $_"
             return $false
         }
-    } else {
+    }
+    else {
         Write-Info "端口 $Port 未被佔用"
         return $true
     }
@@ -873,7 +1017,8 @@ function Clear-PortForService {
                 Write-Error "無法清理端口 $Port，請手動處理"
                 return $false
             }
-        } else {
+        }
+        else {
             $process = Get-ProcessByPort -Port $Port
             if ($process) {
                 Write-Warning "端口 $Port 被進程佔用：$($process.ProcessName) (PID: $($process.Id))"
@@ -886,7 +1031,8 @@ function Clear-PortForService {
                         Write-Error "無法清理端口 $Port"
                         return $false
                     }
-                } else {
+                }
+                else {
                     Write-Warning "跳過端口清理，服務可能無法啟動"
                     return $false
                 }
@@ -900,7 +1046,8 @@ function Clear-PortForService {
         }
         
         Write-Success "端口 $Port 已清理完成"
-    } else {
+    }
+    else {
         Write-Info "端口 $Port 可用"
     }
     
@@ -921,6 +1068,7 @@ function Show-MainMenu {
     Write-ColorOutput "  [5] 僅構建可執行文件" "Cyan"
     Write-ColorOutput "  [6] 僅啟動服務" "Cyan"
     Write-ColorOutput "  [7] 執行測試" "Cyan"
+    Write-ColorOutput "  [D] 📦 編譯單一執行檔（內嵌前端資源）" "Green"
     Write-ColorOutput ""
     Write-ColorOutput "  [8] 🔍 環境檢查" "Yellow"
     Write-ColorOutput "  [9] ❤️  健康檢查" "Yellow"
@@ -963,10 +1111,12 @@ function Start-AirMode {
                 Write-Info ""
                 Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
                 return
-            } else {
+            }
+            else {
                 Write-Success "Air 安裝成功"
             }
-        } catch {
+        }
+        catch {
             Write-Error "安裝 Air 失敗: $_"
             Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
             return
@@ -997,9 +1147,11 @@ function Start-AirMode {
         Set-Location $script:ROOT_DIR
         # 將環境變數傳遞給 Air（Air 會傳遞給子進程）
         air
-    } catch {
+    }
+    catch {
         Write-Error "啟動 Air 失敗: $_"
-    } finally {
+    }
+    finally {
         # 確保回到專案根目錄
         Set-Location $script:ROOT_DIR
         
@@ -1023,7 +1175,8 @@ function Request-OpenBrowser {
         $env:AUTO_OPEN_BROWSER = "true"
         Write-Info "將自動開啟瀏覽器"
         return $true
-    } else {
+    }
+    else {
         $env:AUTO_OPEN_BROWSER = "false"
         Write-Info "不會自動開啟瀏覽器，請手動點擊系統托盤圖示打開"
         return $false
@@ -1065,9 +1218,11 @@ function Start-DevMode {
     try {
         Push-Location $script:APP_PATH
         go run .
-    } catch {
+    }
+    catch {
         Write-Error "啟動應用程式失敗: $_"
-    } finally {
+    }
+    finally {
         # 確保回到專案根目錄
         Pop-Location
         Set-Location $script:ROOT_DIR
@@ -1143,6 +1298,21 @@ if ($Diagnose) {
     exit $script:ExitCode
 }
 
+# 如果指定了 BuildSingle，編譯單一執行檔
+if ($BuildSingle) {
+    $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+    $sourcePath = "./$script:APP_PATH"
+    
+    if (Build-SingleBinary -OutputPath $outputPath -SourcePath $sourcePath) {
+        Write-Success "單一執行檔編譯完成"
+    }
+    else {
+        Write-Error "單一執行檔編譯失敗"
+        $script:ExitCode = 1
+    }
+    exit $script:ExitCode
+}
+
 # 如果指定了 DevMode，直接執行開發模式
 if ($DevMode) {
     Start-DevMode
@@ -1165,7 +1335,7 @@ if ($QuickStart) {
 $hasAnyParam = $SkipLint -or $SkipTest -or $SkipBuild -or $SkipQuality -or $Start -or $Coverage -or $Verbose -or (-not [string]::IsNullOrWhiteSpace($Target))
 if (-not $hasAnyParam) {
     Show-MainMenu
-    $menuSelection = Read-Host "請輸入選項 (0-7, 8-9, A-C)"
+    $menuSelection = Read-Host "請輸入選項 (0-9, A-D)"
     
     switch ($menuSelection) {
         "1" {
@@ -1244,6 +1414,32 @@ if (-not $hasAnyParam) {
             Start-Diagnose
             exit $script:ExitCode
         }
+        "D" {
+            $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+            $sourcePath = "./$script:APP_PATH"
+            
+            if (Build-SingleBinary -OutputPath $outputPath -SourcePath $sourcePath) {
+                Write-Success "單一執行檔編譯完成"
+            }
+            else {
+                Write-Error "單一執行檔編譯失敗"
+                $script:ExitCode = 1
+            }
+            exit $script:ExitCode
+        }
+        "d" {
+            $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+            $sourcePath = "./$script:APP_PATH"
+            
+            if (Build-SingleBinary -OutputPath $outputPath -SourcePath $sourcePath) {
+                Write-Success "單一執行檔編譯完成"
+            }
+            else {
+                Write-Error "單一執行檔編譯失敗"
+                $script:ExitCode = 1
+            }
+            exit $script:ExitCode
+        }
         "0" {
             Write-Info "退出"
             exit 0
@@ -1253,7 +1449,8 @@ if (-not $hasAnyParam) {
             exit 1
         }
     }
-} else {
+}
+else {
     # 有參數時顯示標題
     Write-ColorOutput "`n============================================" "Cyan"
     Write-ColorOutput "   Go Gateway 一鍵啟動腳本" "Cyan"
@@ -1273,10 +1470,12 @@ if (-not $SkipLint) {
                 Write-Info "  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
                 Write-Info "  或訪問: https://golangci-lint.run/usage/install/"
                 $SkipLint = $true
-            } else {
+            }
+            else {
                 Write-Success "golangci-lint 安裝成功"
             }
-        } catch {
+        }
+        catch {
             Write-Error "安裝 golangci-lint 失敗: $_"
             $SkipLint = $true
         }
@@ -1305,12 +1504,14 @@ if (-not $SkipLint) {
         
         if ($lintExitCode -eq 0) {
             Write-Success "golangci-lint 檢查通過，未發現問題"
-        } else {
+        }
+        else {
             Write-Error "golangci-lint 發現問題："
             Write-Host $lintOutput
             $script:ExitCode = 1
         }
-    } catch {
+    }
+    catch {
         Write-Error "執行 golangci-lint 失敗: $_"
         $script:ExitCode = 1
     }
@@ -1339,7 +1540,8 @@ if ($Start) {
     if (-not (Clear-PortForService -Port $Port -AutoKill:$AutoKillPort)) {
         Write-Error "端口 $Port 清理失敗，無法啟動服務"
         $script:ExitCode = 1
-    } else {
+    }
+    else {
         $exePath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
         $isGUIApp = $true  # gateway/test-ui 是 GUI 應用
         
@@ -1360,13 +1562,15 @@ if (-not $SkipQuality) {
         $unusedOutput = go run golang.org/x/tools/cmd/deadcode@latest ./... 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Success "未發現未使用的代碼"
-        } else {
+        }
+        else {
             Write-Warning "發現未使用的代碼（這不是錯誤）"
             if ($Verbose) {
                 Write-Host $unusedOutput
             }
         }
-    } catch {
+    }
+    catch {
         Write-Info "跳過未使用代碼檢查（需要安裝 golang.org/x/tools/cmd/deadcode）"
     }
 
@@ -1379,10 +1583,12 @@ if (-not $SkipQuality) {
             if ($Verbose) {
                 Write-Host $fmtOutput
             }
-        } else {
+        }
+        else {
             Write-Success "代碼格式正確"
         }
-    } catch {
+    }
+    catch {
         Write-Error "檢查代碼格式失敗: $_"
         $script:ExitCode = 1
     }
@@ -1412,7 +1618,8 @@ if (-not $SkipTest) {
                     Write-Success "覆蓋率報告已生成: coverage.html"
                 }
             }
-        } else {
+        }
+        else {
             $testOutput = go test -cover ./internal/protocol/... 2>&1
             Write-Host $testOutput
             
@@ -1426,11 +1633,13 @@ if (-not $SkipTest) {
         
         if ($LASTEXITCODE -eq 0) {
             Write-Success "所有測試通過"
-        } else {
+        }
+        else {
             Write-Error "部分測試失敗"
             $script:ExitCode = 1
         }
-    } catch {
+    }
+    catch {
         Write-Error "執行測試失敗: $_"
         $script:ExitCode = 1
     }
@@ -1441,7 +1650,8 @@ Write-ColorOutput "`n============================================" "Cyan"
 if ($script:ExitCode -eq 0) {
     Write-Success "所有檢查完成！"
     Write-ColorOutput "============================================`n" "Cyan"
-} else {
+}
+else {
     Write-Error "檢查完成，但發現問題，請查看上方錯誤信息"
     Write-ColorOutput "============================================`n" "Cyan"
 }
