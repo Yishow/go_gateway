@@ -16,8 +16,9 @@
 # ============================================
 # bin 目錄說明：
 #   - 存放編譯後的可執行文件（.exe）
-#   - 統一管理構建產物，便於部署和執行
-#   - 避免可執行文件散落在源碼目錄中，保持項目結構整潔
+#   - 統一管理構建產物、暫存檔案、日誌，便於部署和執行
+#   - 避免各類產出散落在源碼目錄中，保持項目結構整潔
+#   - 子目錄：bin/tmp（Air 暫存）、bin/logs（日誌）
 #   - 構建的檔案：gateway.exe（後端 API 服務）
 # ============================================
 # 使用範例：
@@ -78,7 +79,8 @@ $script:FRONTEND_DIR = "frontend"
 $script:STATIC_DIR = "cmd/test_ui/static"
 $script:DIST_DIR = "frontend/dist"
 $script:NODE_MODULES_DIR = "frontend/node_modules"
-$script:LOG_DIR = "logs"
+$script:LOG_DIR = "bin/logs"
+$script:TMP_DIR = "bin/tmp"
 $script:LOG_FILE = Join-Path $script:LOG_DIR "start-$(Get-Date -Format 'yyyyMMdd').log"
 
 # 從環境變數讀取端口配置（如果未指定）
@@ -1602,7 +1604,7 @@ if (-not $SkipTest) {
     try {
         if ($Coverage) {
             Write-Info "生成詳細覆蓋率報告..."
-            $testOutput = go test -v -coverprofile=coverage.out -covermode=atomic ./internal/protocol/... 2>&1
+            $testOutput = go test -v -coverprofile=bin/coverage.out -covermode=atomic ./internal/protocol/... 2>&1
             Write-Host $testOutput
             
             # 顯示覆蓋率摘要
@@ -1611,11 +1613,11 @@ if (-not $SkipTest) {
             Write-Host $coverageSummary
             
             # 生成 HTML 報告
-            if (Test-Path "coverage.out") {
-                Write-Info "生成 HTML 覆蓋率報告: coverage.html"
-                go tool cover -html=coverage.out -o coverage.html
+            if (Test-Path "bin/coverage.out") {
+                Write-Info "生成 HTML 覆蓋率報告: bin/coverage.html"
+                go tool cover -html=bin/coverage.out -o bin/coverage.html
                 if ($?) {
-                    Write-Success "覆蓋率報告已生成: coverage.html"
+                    Write-Success "覆蓋率報告已生成: bin/coverage.html"
                 }
             }
         }

@@ -16,7 +16,7 @@ build: build-backend
 clean:
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
-	rm -f bin/test-ui.exe
+	rm -rf bin/
 
 # 執行測試工具
 test-ui: build

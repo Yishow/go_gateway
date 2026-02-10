@@ -40,7 +40,6 @@ out/
 
 # Log files
 *.log
-logs/
 
 # Temporary files
 *.tmp
@@ -84,9 +83,6 @@ __debug_bin
 coverage.html
 coverage.xml
 coverage.txt
-
-# Air (live reload tool) tmp directory
-tmp/
 
 # Delve (debugger) output
 __debug_bin
