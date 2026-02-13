@@ -28,8 +28,8 @@
 - [x] 4.2 Support creating or selecting existing global tags in context.
 - [x] 4.3 Enable global tag metadata edit in-place with impact summary.
 - [ ] 4.4 Add tests for global tag edit propagation behavior.
-- [ ] 4.5 Add affected-mappings summary and second-confirmation flow for global edits.
-- [ ] 4.6 Add before/after field-level diff preview before global tag save.
+- [x] 4.5 Add affected-mappings summary and second-confirmation flow for global edits.
+- [x] 4.6 Add before/after field-level diff preview before global tag save.
 
 ## 5. Commit Workflow (Tag -> DB)
 - [ ] 5.1 Introduce commit queue view for pending allocations.

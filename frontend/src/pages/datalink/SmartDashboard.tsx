@@ -95,6 +95,11 @@ export default function SmartDashboard() {
   const [tagEditUnit, setTagEditUnit] = useState('');
   const [tagEditDescription, setTagEditDescription] = useState('');
   const [tagEditMessage, setTagEditMessage] = useState('');
+  const [pendingTagEdit, setPendingTagEdit] = useState<{
+    display_name: string;
+    unit: string;
+    description: string;
+  } | null>(null);
   const legacyRoute = searchParams.get('legacy');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
@@ -405,6 +410,7 @@ export default function SmartDashboard() {
     setTagEditUnit(linkedTag?.unit || '');
     setTagEditDescription(linkedTag?.description || '');
     setTagEditMessage('');
+    setPendingTagEdit(null);
   }, [linkedTag?.description, linkedTag?.display_name, linkedTag?.id, linkedTag?.unit]);
 
   const handleLinkTagToSelectedAddress = useCallback(async () => {
@@ -521,15 +527,39 @@ export default function SmartDashboard() {
       return;
     }
 
+    const nextEdit = {
+      display_name: tagEditDisplayName.trim(),
+      unit: tagEditUnit.trim(),
+      description: tagEditDescription.trim(),
+    };
+    const noChange =
+      nextEdit.display_name === (linkedTag.display_name || '') &&
+      nextEdit.unit === (linkedTag.unit || '') &&
+      nextEdit.description === (linkedTag.description || '');
+    if (noChange) {
+      setTagEditMessage('沒有變更，無需儲存。');
+      return;
+    }
+
+    setPendingTagEdit(nextEdit);
+    setTagEditMessage(`請確認差異後再儲存，預估影響 ${linkedTagAffectedMappingsCount} 個映射。`);
+  }, [
+    linkedTag,
+    linkedTagAffectedMappingsCount,
+    tagEditDescription,
+    tagEditDisplayName,
+    tagEditUnit,
+  ]);
+
+  const handleConfirmTagEdit = useCallback(async () => {
+    if (!linkedTag?.id || !pendingTagEdit) return;
+
     try {
       await updateTagMutation.mutateAsync({
         id: linkedTag.id,
-        data: {
-          display_name: tagEditDisplayName.trim(),
-          unit: tagEditUnit.trim(),
-          description: tagEditDescription.trim(),
-        },
+        data: pendingTagEdit,
       });
+      setPendingTagEdit(null);
       setTagEditMessage(`已更新全域 Tag，影響 ${linkedTagAffectedMappingsCount} 個映射。`);
     } catch (error) {
       const message = error instanceof Error ? error.message : '更新 Tag 失敗';
@@ -538,9 +568,7 @@ export default function SmartDashboard() {
   }, [
     linkedTag?.id,
     linkedTagAffectedMappingsCount,
-    tagEditDescription,
-    tagEditDisplayName,
-    tagEditUnit,
+    pendingTagEdit,
     updateTagMutation,
   ]);
 
@@ -1364,6 +1392,44 @@ export default function SmartDashboard() {
                 >
                   儲存全域 Tag 變更
                 </button>
+                {pendingTagEdit && linkedTag && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 space-y-2">
+                    <p className="text-[11px] text-amber-100">
+                      變更預覽（第二次確認）: 將影響 {linkedTagAffectedMappingsCount} 個映射
+                    </p>
+                    <div className="space-y-1 text-[11px] text-slate-200">
+                      <p>
+                        display_name: <span className="text-slate-400">{linkedTag.display_name || '-'}</span> →{' '}
+                        <span className="text-amber-100">{pendingTagEdit.display_name || '-'}</span>
+                      </p>
+                      <p>
+                        unit: <span className="text-slate-400">{linkedTag.unit || '-'}</span> →{' '}
+                        <span className="text-amber-100">{pendingTagEdit.unit || '-'}</span>
+                      </p>
+                      <p>
+                        description: <span className="text-slate-400">{linkedTag.description || '-'}</span> →{' '}
+                        <span className="text-amber-100">{pendingTagEdit.description || '-'}</span>
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleConfirmTagEdit}
+                        disabled={updateTagMutation.isPending}
+                        className="rounded-md border border-amber-400/40 bg-amber-500/20 px-2 py-1.5 text-[11px] font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-50"
+                      >
+                        確認寫入
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingTagEdit(null)}
+                        className="rounded-md border border-slate-700 bg-slate-800/70 px-2 py-1.5 text-[11px] text-slate-200 hover:bg-slate-700"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {tagEditMessage && (
                   <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
                     {tagEditMessage}
