@@ -256,13 +256,19 @@ function Write-RuntimeLogLine {
         $path = $Matches.path
         $status = [int]$Matches.status
         $latency = $Matches.latency
+        $tsRaw = $Matches.ts
+        $timePart = if ($tsRaw -match "(?<hh>\d{2}:\d{2}:\d{2})$") { $Matches.hh } else { "--:--:--" }
         $category = if ($method -eq "GET" -and $status -eq 200 -and $path -match "^/api/v1/datalink/(devices|polling-groups|points|mappings|tags|modbus-share/status)$") { "dashboard-refresh" } else { $null }
         if ($category -and -not $Verbose) {
             if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
             $script:LogNoiseCounters[$category]++
             return
         }
-        $formatted = ("[HTTP] {0,-6} {1,-44} {2,3} {3,8}" -f $method, $path, $status, $latency)
+        $methodCol = Format-FixedColumn -Text $method -Width 6
+        $pathCol = Format-FixedColumn -Text $path -Width 46
+        $statusCol = ("{0,3}" -f $status)
+        $latencyCol = ("{0,9}" -f $latency)
+        $formatted = "[HTTP] $timePart  $methodCol $pathCol $statusCol $latencyCol"
         $color = if ($status -ge 500) { "Red" } elseif ($status -ge 400) { "Yellow" } else { "DarkGray" }
         Write-ColorOutput $formatted $color
         return
@@ -304,6 +310,18 @@ function Write-RuntimeLogLine {
     } else {
         Write-ColorOutput $Line "DarkGray"
     }
+}
+
+function Format-FixedColumn {
+    param(
+        [string]$Text,
+        [int]$Width
+    )
+    if ($null -eq $Text) { $Text = "" }
+    if ($Text.Length -gt $Width) {
+        return ($Text.Substring(0, [Math]::Max(0, $Width - 1)) + "…")
+    }
+    return $Text.PadRight($Width)
 }
 
 function Show-LogNoiseSummary {
