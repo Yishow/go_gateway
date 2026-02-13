@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
  * 語言設定會自動儲存到 localStorage
  */
 export default function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
 
   const languages = [
     { code: 'en', label: 'English' },
@@ -21,13 +21,15 @@ export default function LanguageSwitcher() {
     i18n.changeLanguage(langCode);
   };
 
+  const currentLanguage = i18n.language === 'zh' ? 'zh-TW' : i18n.language.startsWith('en') ? 'en' : i18n.language;
+
   return (
     <div className="relative">
       <select
-        value={i18n.language}
+        value={currentLanguage}
         onChange={(e) => handleLanguageChange(e.target.value)}
-        className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer appearance-none pr-8"
-        aria-label="Language selector"
+        className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer appearance-none pr-8"
+        aria-label={t('layout.languageSelector')}
       >
         {languages.map((lang) => (
           <option key={lang.code} value={lang.code}>

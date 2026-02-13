@@ -107,21 +107,17 @@ export default function PointsPage() {
   };
 
   const handleSubmit = async (data: CreatePointRequest | UpdatePointRequest) => {
-    try {
-      if (editingPoint) {
-        await updateMutation.mutateAsync({
-          id: editingPoint.id,
-          data: data as UpdatePointRequest,
-        });
-        showSuccess('Point updated successfully');
-      } else {
-        await createMutation.mutateAsync(data as CreatePointRequest);
-        showSuccess('Point created successfully');
-      }
-      setIsModalOpen(false);
-    } catch (err) {
-      throw err;
+    if (editingPoint) {
+      await updateMutation.mutateAsync({
+        id: editingPoint.id,
+        data: data as UpdatePointRequest,
+      });
+      showSuccess('Point updated successfully');
+    } else {
+      await createMutation.mutateAsync(data as CreatePointRequest);
+      showSuccess('Point created successfully');
     }
+    setIsModalOpen(false);
   };
 
   return (

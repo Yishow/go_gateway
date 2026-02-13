@@ -61,7 +61,7 @@ export function ImportDialog({
       const content = await readFile(selectedFile);
       const result = parseCSV(content, deviceId);
       setParseResult(result);
-    } catch (err) {
+    } catch {
       setError('讀取檔案失敗');
       setParseResult(null);
     }

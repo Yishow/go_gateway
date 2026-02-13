@@ -127,5 +127,35 @@
     "admin": "管理員",
     "systemAdmin": "系統管理員",
     "version": "v1.2.0-beta"
+  },
+  "layout": {
+    "openSidebar": "開啟側邊欄",
+    "closeSidebar": "關閉側邊欄",
+    "notifications": "通知",
+    "languageSelector": "語言選擇器"
+  },
+  "smartDashboard": {
+    "productSubtitle": "工業資料採集平台",
+    "searchLabel": "搜尋點位與標籤",
+    "searchPlaceholder": "搜尋來源資料、記憶體位址或標籤...",
+    "notifications": "開啟通知",
+    "preferences": "開啟儀表板設定",
+    "profileMenu": "開啟個人選單",
+    "active": "運作中",
+    "cycleTime": "輪詢週期",
+    "welcomeTitle": "歡迎使用智慧儀表板",
+    "welcomeDescription": "先選擇設備，再將來源資料可視化到記憶體格，映射到標籤，最後準備寫入資料庫。",
+    "welcomeHint": "請從左側選擇設備開始建立資料流程。",
+    "import": "匯入",
+    "export": "匯出",
+    "undo": "撤銷",
+    "redo": "重做",
+    "noUndo": "無可撤銷操作",
+    "noRedo": "無可重做操作",
+    "shortcuts": "鍵盤快捷鍵",
+    "shortcutsHint": "使用以下快捷鍵提升映射效率",
+    "batchCreate": "批量建立點位",
+    "pointDetail": "點位詳情",
+    "importedPoints": "已匯入 {{count}} 個點位"
   }
 }

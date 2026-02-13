@@ -82,34 +82,46 @@ const SortableDeviceItem = ({ device, isSelected, onSelect, isCollapsed }: Sorta
     <div
       ref={setNodeRef}
       style={style}
-      className={`
-        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors mb-1
-        ${isSelected 
-          ? 'bg-slate-700 text-white border-l-2 border-blue-500' 
-          : 'text-slate-300 hover:bg-slate-700/50 hover:text-slate-100 border-l-2 border-transparent'}
-        ${isDragging ? 'ring-2 ring-blue-500 bg-blue-500/20' : ''}
-      `}
-      onClick={onSelect}
+      className={`group mb-1 ${isDragging ? 'ring-2 ring-blue-500 bg-blue-500/20 rounded-lg' : ''}`}
     >
-      {/* Drag Handle */}
-      <div {...attributes} {...listeners} className="opacity-0 group-hover:opacity-100 transition-opacity p-1">
-        <Icons.DragHandle />
-      </div>
-
-      {/* Basic Icon */}
-      <Icons.Device />
-
-      {/* Label */}
-      {!isCollapsed && (
-        <span className="text-sm font-medium truncate flex-1">
-          {device.name}
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`
+          w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900
+          ${isSelected 
+            ? 'bg-slate-700 text-white border-l-2 border-blue-500' 
+            : 'text-slate-300 hover:bg-slate-700/50 hover:text-slate-100 border-l-2 border-transparent'}
+        `}
+        aria-label={`Select device ${device.name}`}
+        aria-pressed={isSelected}
+      >
+        {/* Drag Handle */}
+        <span
+          {...attributes}
+          {...listeners}
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-grab active:cursor-grabbing"
+          aria-label={`Reorder device ${device.name}`}
+        >
+          <Icons.DragHandle />
         </span>
-      )}
-      
-      {/* Status Dot */}
-      {!isCollapsed && device.status === 'active' && (
-        <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm ml-auto"></span>
-      )}
+
+        {/* Basic Icon */}
+        <Icons.Device />
+
+        {/* Label */}
+        {!isCollapsed && (
+          <span className="text-sm font-medium truncate flex-1">
+            {device.name}
+          </span>
+        )}
+        
+        {/* Status Dot */}
+        {!isCollapsed && device.status === 'active' && (
+          <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm ml-auto"></span>
+        )}
+      </button>
     </div>
   );
 };
@@ -153,7 +165,9 @@ export function DeviceTreeNav({
       <div className="h-14 flex items-center justify-between px-4 border-b border-slate-700">
         {!isCollapsed && <span className="text-slate-100 font-semibold tracking-wide">DEVICES</span>}
         <button 
+          type="button"
           onClick={onToggleCollapse}
+          aria-label={isCollapsed ? 'Expand device tree' : 'Collapse device tree'}
           className="p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-colors"
         >
           {isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}

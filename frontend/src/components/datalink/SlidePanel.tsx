@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 // Simple close icon
@@ -24,30 +24,52 @@ export function SlidePanel({
   children,
   width = 'md',
 }: SlidePanelProps) {
-  // Handle ESC key
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+
   useEffect(() => {
+    if (!isOpen) return;
+
+    previousActiveElementRef.current = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
         onClose();
+        return;
+      }
+
+      if (e.key !== 'Tab' || !panelRef.current) return;
+
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [isOpen, onClose]);
 
-  /* 
-  // 移除此段落以避免背景滾動條消失導致的頁面抖動 (跳動)
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    window.addEventListener('keydown', handleEsc);
     return () => {
+      window.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = '';
+      previousActiveElementRef.current?.focus();
     };
-  }, [isOpen]);
-  */
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -63,23 +85,31 @@ export function SlidePanel({
       <div 
         className="fixed inset-0 bg-black/20 backdrop-blur-[2px] transition-opacity duration-300"
         onClick={onClose}
+        aria-hidden="true"
       />
       
       {/* Panel */}
       <div 
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className={`
           relative h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl 
           transform transition-transform duration-300 ease-out flex flex-col
+          max-w-[90vw]
           ${widthClass}
         `}
       >
         {/* Header */}
         <div className="h-14 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+          <h2 id={titleId} className="text-lg font-semibold text-slate-800 dark:text-slate-100">
             {title}
           </h2>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
+            aria-label="Close panel"
             className="p-2 -mr-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <CloseIcon />

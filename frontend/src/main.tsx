@@ -6,20 +6,6 @@ import './i18n/config' // 確保初始化副作用已執行
 import App from './App.tsx'
 import './index.css'
 
-// Debug: Monitor HTML class changes
-const observer = new MutationObserver((mutations) => {
-  mutations.forEach((mutation) => {
-    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-      console.log('[DOM Monitor] HTML class changed to:', document.documentElement.className)
-    }
-  })
-})
-
-observer.observe(document.documentElement, {
-  attributes: true,
-  attributeFilter: ['class']
-})
-
 /**
  * 等待 i18n 初始化完成後再渲染 React 應用
  * 
@@ -37,4 +23,3 @@ root.render(
     </QueryClientProvider>
   </React.StrictMode>,
 )
-

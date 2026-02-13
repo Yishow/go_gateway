@@ -154,21 +154,17 @@ export default function DevicesPage() {
    * 提交表單（新增或更新）
    */
   const handleSubmit = async (data: CreateDeviceRequest | UpdateDeviceRequest) => {
-    try {
-      if (editingDevice) {
-        await updateMutation.mutateAsync({
-          id: editingDevice.id,
-          data: data as UpdateDeviceRequest,
-        });
-        showSuccess('設備已成功更新');
-      } else {
-        await createMutation.mutateAsync(data as CreateDeviceRequest);
-        showSuccess('設備已成功建立');
-      }
-      setIsModalOpen(false);
-    } catch (err) {
-      throw err; // Form will handle error display
+    if (editingDevice) {
+      await updateMutation.mutateAsync({
+        id: editingDevice.id,
+        data: data as UpdateDeviceRequest,
+      });
+      showSuccess('設備已成功更新');
+    } else {
+      await createMutation.mutateAsync(data as CreateDeviceRequest);
+      showSuccess('設備已成功建立');
     }
+    setIsModalOpen(false);
   };
 
   return (
@@ -213,9 +209,11 @@ export default function DevicesPage() {
           <span>{error instanceof Error ? error.message : 'Failed to fetch devices'}</span>
         </div>
       ) : devices.length === 0 ? (
-        <div
-          className="text-center py-20 bg-slate-800/30 rounded-2xl border-2 border-slate-700/50 border-dashed group hover:border-blue-500/30 transition-colors cursor-pointer"
+        <button
+          type="button"
+          className="w-full text-center py-20 bg-slate-800/30 rounded-2xl border-2 border-slate-700/50 border-dashed group hover:border-blue-500/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           onClick={handleCreate}
+          aria-label="Create first device"
         >
           <div className="w-16 h-16 bg-slate-700/50 rounded-full mx-auto flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
             <svg className="w-8 h-8 text-slate-500 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,10 +224,10 @@ export default function DevicesPage() {
           <p className="text-slate-500 max-w-sm mx-auto mb-6">
             Get started by adding your first industrial device protocol connection.
           </p>
-          <button className="text-blue-400 hover:text-blue-300 font-medium hover:underline">
+          <span className="text-blue-400 hover:text-blue-300 font-medium hover:underline">
             Create your first device &rarr;
-          </button>
-        </div>
+          </span>
+        </button>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {devices.map(device => (

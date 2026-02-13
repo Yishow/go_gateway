@@ -524,7 +524,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               onChange={e => {
                   try {
                       setConfig(JSON.parse(e.target.value));
-                  } catch (er) {
+                  } catch {
                       // ignore parse error while typing
                   }
               }}

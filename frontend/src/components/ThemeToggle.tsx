@@ -5,10 +5,7 @@ export function ThemeToggle() {
 
   return (
     <button
-      onClick={() => {
-        console.log('[ThemeToggle] Button clicked')
-        toggleTheme()
-      }}
+      onClick={toggleTheme}
       className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 transition-colors relative z-50"
       aria-label="Toggle theme"
     >

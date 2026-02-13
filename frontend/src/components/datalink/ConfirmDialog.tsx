@@ -1,3 +1,5 @@
+import { useEffect, useId, useRef } from 'react';
+
 /**
  * ConfirmDialog - 確認對話框組件
  * 
@@ -33,6 +35,54 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
+  const messageId = useId();
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    previousActiveElementRef.current = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+    cancelButtonRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = '';
+      previousActiveElementRef.current?.focus();
+    };
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
 
   const variantStyles = {
@@ -47,19 +97,32 @@ export default function ConfirmDialog({
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onCancel}
+        aria-hidden="true"
       />
 
       {/* 對話框 */}
-      <div className="relative bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl ring-1 ring-white/10 w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        className="relative bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl ring-1 ring-white/10 w-full max-w-md p-6 animate-in fade-in zoom-in duration-200"
+      >
         {/* 標題 */}
-        <h3 className="text-xl font-bold text-slate-100 mb-3">{title}</h3>
+        <h3 id={titleId} className="text-xl font-bold text-slate-100 mb-3">
+          {title}
+        </h3>
 
         {/* 訊息 */}
-        <p className="text-slate-300 mb-6 leading-relaxed">{message}</p>
+        <p id={messageId} className="text-slate-300 mb-6 leading-relaxed">
+          {message}
+        </p>
 
         {/* 按鈕組 */}
         <div className="flex justify-end gap-3">
           <button
+            ref={cancelButtonRef}
             onClick={onCancel}
             className="px-4 py-2 text-slate-300 hover:text-white transition-colors font-medium"
           >

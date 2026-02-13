@@ -114,7 +114,7 @@ export class AddressParser {
         result.push(this.format(parsed.area, currentNumber, protocol, parsed.raw));
       }
       return result;
-    } catch (e) {
+    } catch {
       return [];
     }
   }

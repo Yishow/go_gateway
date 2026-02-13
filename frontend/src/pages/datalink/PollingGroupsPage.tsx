@@ -129,21 +129,17 @@ export default function PollingGroupsPage() {
   const handleSubmit = async (
     data: CreatePollingGroupRequest | UpdatePollingGroupRequest
   ) => {
-    try {
-      if (editingGroup) {
-        await updateMutation.mutateAsync({
-          id: editingGroup.id,
-          data: data as UpdatePollingGroupRequest,
-        });
-        showSuccess('輪詢群組已成功更新');
-      } else {
-        await createMutation.mutateAsync(data as CreatePollingGroupRequest);
-        showSuccess('輪詢群組已成功建立');
-      }
-      setIsModalOpen(false);
-    } catch (err) {
-      throw err; // Form will handle error display
+    if (editingGroup) {
+      await updateMutation.mutateAsync({
+        id: editingGroup.id,
+        data: data as UpdatePollingGroupRequest,
+      });
+      showSuccess('輪詢群組已成功更新');
+    } else {
+      await createMutation.mutateAsync(data as CreatePollingGroupRequest);
+      showSuccess('輪詢群組已成功建立');
     }
+    setIsModalOpen(false);
   };
 
   return (

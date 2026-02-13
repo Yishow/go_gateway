@@ -33,11 +33,13 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
 
         return (
           <React.Fragment key={step.id}>
-            <div
+            <button
+              type="button"
               className={`step-item ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isClickable ? 'clickable' : ''}`}
-              onClick={() => isClickable && onStepClick?.(index)}
-              role={isClickable ? 'button' : undefined}
-              tabIndex={isClickable ? 0 : undefined}
+              onClick={() => onStepClick?.(index)}
+              disabled={!isClickable}
+              aria-current={isCurrent ? 'step' : undefined}
+              aria-label={`步驟 ${index + 1}：${step.title}`}
             >
               <div className="step-circle">
                 {isCompleted ? (
@@ -49,7 +51,7 @@ export const StepIndicator: React.FC<StepIndicatorProps> = ({
               <div className="step-label">
                 <span className="step-title">{step.title}</span>
               </div>
-            </div>
+            </button>
             
             {index < steps.length - 1 && (
               <div className={`step-connector ${isCompleted ? 'completed' : ''}`} />

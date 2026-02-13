@@ -127,5 +127,35 @@
     "admin": "Admin",
     "systemAdmin": "System Admin",
     "version": "v1.2.0-beta"
+  },
+  "layout": {
+    "openSidebar": "Open sidebar",
+    "closeSidebar": "Close sidebar",
+    "notifications": "Notifications",
+    "languageSelector": "Language selector"
+  },
+  "smartDashboard": {
+    "productSubtitle": "Industrial Data Collector",
+    "searchLabel": "Search points and tags",
+    "searchPlaceholder": "Search source data, memory addresses or tags...",
+    "notifications": "Open notifications",
+    "preferences": "Open dashboard settings",
+    "profileMenu": "Open profile menu",
+    "active": "Active",
+    "cycleTime": "Cycle Time",
+    "welcomeTitle": "Welcome to Smart Dashboard",
+    "welcomeDescription": "Select a device to visualize source data in the memory grid, map it to tags, and prepare data for persistence.",
+    "welcomeHint": "Pick a device from the left panel to start linking data flow.",
+    "import": "Import",
+    "export": "Export",
+    "undo": "Undo",
+    "redo": "Redo",
+    "noUndo": "No actions to undo",
+    "noRedo": "No actions to redo",
+    "shortcuts": "Keyboard Shortcuts",
+    "shortcutsHint": "Use these shortcuts to speed up mapping tasks",
+    "batchCreate": "Batch Create Points",
+    "pointDetail": "Point Detail",
+    "importedPoints": "Imported {{count}} points"
   }
 }

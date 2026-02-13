@@ -32,7 +32,7 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
       setResult(res);
       const isPass = res.status === 'ready' || res.status === 'warning';
       onValidationComplete(isPass);
-    } catch (err) {
+    } catch {
       // Create a pseudo-result for error display
       setResult({
         device_id: deviceId,

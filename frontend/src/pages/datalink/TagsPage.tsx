@@ -165,21 +165,17 @@ export default function TagsPage() {
    * 提交表單
    */
   const handleSubmit = async (data: CreateTagRequest | UpdateTagRequest) => {
-    try {
-      if (editingTag) {
-        await updateMutation.mutateAsync({
-          id: editingTag.id,
-          data: data as UpdateTagRequest,
-        });
-        showSuccess('標籤已成功更新');
-      } else {
-        await createMutation.mutateAsync(data as CreateTagRequest);
-        showSuccess('標籤已成功建立');
-      }
-      setIsModalOpen(false);
-    } catch (err) {
-      throw err;
+    if (editingTag) {
+      await updateMutation.mutateAsync({
+        id: editingTag.id,
+        data: data as UpdateTagRequest,
+      });
+      showSuccess('標籤已成功更新');
+    } else {
+      await createMutation.mutateAsync(data as CreateTagRequest);
+      showSuccess('標籤已成功建立');
     }
+    setIsModalOpen(false);
   };
 
   return (
