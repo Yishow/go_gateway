@@ -6,6 +6,7 @@
 
 ### 核心產品頁（現行）
 - `src/pages/datalink/SmartDashboard.tsx`
+- `src/pages/datalink/SmartDashboardPage.tsx`（SmartDashboard 實作）
 - `src/pages/datalink/LocalModbusWorkbenchPage.tsx`
 
 ### 相容/過渡路由（Legacy Redirect）
