@@ -14,6 +14,7 @@ export default function LocalModbusWorkbenchPage() {
   const [mappings, setMappings] = useState<ModbusShareMapping[]>([]);
   const [selectedTagId, setSelectedTagId] = useState('');
   const [registerInput, setRegisterInput] = useState('0');
+  const [serverPortInput, setServerPortInput] = useState('5020');
   const [testTagId, setTestTagId] = useState('');
   const [testValue, setTestValue] = useState('0');
   const [message, setMessage] = useState('');
@@ -53,6 +54,44 @@ export default function LocalModbusWorkbenchPage() {
 
   useEffect(() => {
     void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (status?.port && Number.isInteger(status.port) && status.port > 0) {
+      setServerPortInput(String(status.port));
+    }
+  }, [status?.port]);
+
+  const handleStartServer = useCallback(async () => {
+    const port = Number(serverPortInput);
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+      setMessage('Port 必須為 1~65535 的整數');
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      await modbusShareAPI.start(port);
+      await loadData();
+      setMessage(`Server 已啟動並綁定 127.0.0.1:${port}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '啟動 server 失敗');
+    } finally {
+      setIsBusy(false);
+    }
+  }, [loadData, serverPortInput]);
+
+  const handleStopServer = useCallback(async () => {
+    setIsBusy(true);
+    try {
+      await modbusShareAPI.stop();
+      await loadData();
+      setMessage('Server 已停止');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '停止 server 失敗');
+    } finally {
+      setIsBusy(false);
+    }
   }, [loadData]);
 
   const handleUpsert = useCallback(async () => {
@@ -193,6 +232,28 @@ export default function LocalModbusWorkbenchPage() {
 
       <section className="mt-3 rounded-2xl border border-white/10 bg-slate-900/70 p-3">
         <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={serverPortInput}
+            onChange={(event) => setServerPortInput(event.target.value)}
+            placeholder="Server Port"
+            className="min-h-11 w-32 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="button"
+            disabled={isBusy || !!status?.enabled}
+            onClick={() => void handleStartServer()}
+            className="min-h-11 rounded-lg border border-emerald-400/30 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Start Server
+          </button>
+          <button
+            type="button"
+            disabled={isBusy || !status?.enabled}
+            onClick={() => void handleStopServer()}
+            className="min-h-11 rounded-lg border border-rose-400/30 bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Stop Server
+          </button>
           <button
             type="button"
             onClick={() => void loadData()}
@@ -279,8 +340,8 @@ export default function LocalModbusWorkbenchPage() {
           <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/70 p-3">
             <p className="text-xs text-slate-400">Preflight</p>
             <div className="mt-1 flex flex-wrap gap-3 text-xs">
-              <span className={status?.enabled ? 'text-emerald-300' : 'text-rose-300'}>
-                Bind: {status?.enabled ? 'PASS' : 'FAIL'}
+              <span className={status?.bind_state === 'pass' ? 'text-emerald-300' : 'text-rose-300'}>
+                Bind: {(status?.bind_state ?? 'fail').toUpperCase()}
               </span>
               <span className={conflicts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}>
                 Conflict: {conflicts.length > 0 ? `FAIL (${conflicts.length})` : 'PASS'}

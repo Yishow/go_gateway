@@ -537,6 +537,18 @@ export const modbusShareAPI = {
     return res.data.data!;
   },
 
+  async start(port?: number): Promise<ModbusShareStatus> {
+    const res = await api.post<APIResponse<ModbusShareStatus>>('/modbus-share/start', {
+      port: typeof port === 'number' ? port : undefined,
+    });
+    return res.data.data!;
+  },
+
+  async stop(): Promise<ModbusShareStatus> {
+    const res = await api.post<APIResponse<ModbusShareStatus>>('/modbus-share/stop', {});
+    return res.data.data!;
+  },
+
   async listMappings(): Promise<ModbusShareMapping[]> {
     const res = await api.get<APIResponse<ModbusShareMapping[]>>('/modbus-share/mappings');
     return res.data.data ?? [];

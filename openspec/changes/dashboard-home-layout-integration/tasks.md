@@ -35,7 +35,7 @@
 ## 5. Local Modbus 5020 Dedicated Workbench
 
 - [x] 5.1 新增 `/datalink/local-modbus` 獨立頁（完整功能頁）
-- [ ] 5.2 實作本機 `5020` server lifecycle（status/start/stop/bind 狀態）
+- [x] 5.2 實作本機 `5020` server lifecycle（status/start/stop/bind 狀態）
 - [x] 5.3 實作本機 memory grid 映射編輯、批次操作、import/export
 - [x] 5.4 實作 `5020` 目標位址衝突掃描與阻擋機制
 - [x] 5.5 實作 test write/read 與 sync-from-mappings
@@ -47,5 +47,5 @@
 - [ ] 6.2 新增/調整 `SmartDashboard` 互動測試（context bar、drawer、切換流程）
 - [ ] 6.3 新增/調整異常流程測試（offline、switch failure、unsaved changes、read-only）
 - [ ] 6.4 增加 E2E 主線：切換成功、切換失敗、未儲存攔截、read-only
-- [ ] 6.5 新增 `local-modbus` 獨立頁流程測試與衝突測試
-- [ ] 6.6 執行 `cd frontend; npm run test` 與 `cd frontend; npm run lint`，附上結果
+- [x] 6.5 新增 `local-modbus` 獨立頁流程測試與衝突測試
+- [x] 6.6 執行 `cd frontend; npm run test` 與 `cd frontend; npm run lint`，附上結果

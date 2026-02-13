@@ -36,6 +36,10 @@ type WriteTagValueRequest struct {
 	Value interface{} `json:"value" binding:"required"`
 }
 
+type StartModbusShareRequest struct {
+	Port int `json:"port"`
+}
+
 type SyncSummary struct {
 	Updated int      `json:"updated"`
 	Skipped int      `json:"skipped"`
@@ -48,6 +52,39 @@ func (h *ModbusShareHandler) Status(c *gin.Context) {
 
 func (h *ModbusShareHandler) ListMappings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": h.svc.ListMappings()})
+}
+
+func (h *ModbusShareHandler) Start(c *gin.Context) {
+	var req StartModbusShareRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	port := req.Port
+	if port == 0 {
+		port = 5020
+	}
+
+	if err := h.svc.Start(port); err != nil {
+		code := http.StatusUnprocessableEntity
+		msg := strings.ToLower(err.Error())
+		if strings.Contains(msg, "already in use") || strings.Contains(msg, "already running") || strings.Contains(msg, "運行中") {
+			code = http.StatusConflict
+		}
+		c.JSON(code, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": h.svc.Status()})
+}
+
+func (h *ModbusShareHandler) Stop(c *gin.Context) {
+	if err := h.svc.Stop(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": h.svc.Status()})
 }
 
 func (h *ModbusShareHandler) UpsertMapping(c *gin.Context) {

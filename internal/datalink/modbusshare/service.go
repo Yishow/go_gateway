@@ -29,6 +29,7 @@ type Status struct {
 	Enabled      bool   `json:"enabled"`
 	Port         int    `json:"port"`
 	Address      string `json:"address"`
+	BindState    string `json:"bind_state"`
 	MappingCount int    `json:"mapping_count"`
 }
 
@@ -89,11 +90,16 @@ func (s *Service) Status() Status {
 	if enabled {
 		addr = s.server.Address()
 	}
+	bindState := "fail"
+	if enabled && addr != "" {
+		bindState = "pass"
+	}
 
 	return Status{
 		Enabled:      enabled,
 		Port:         port,
 		Address:      addr,
+		BindState:    bindState,
 		MappingCount: len(s.mappings),
 	}
 }

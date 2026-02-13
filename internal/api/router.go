@@ -221,6 +221,8 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					datalinkServices.Mapping,
 				)
 				datalinkGroup.GET("/modbus-share/status", modbusShareHandler.Status)
+				datalinkGroup.POST("/modbus-share/start", modbusShareHandler.Start)
+				datalinkGroup.POST("/modbus-share/stop", modbusShareHandler.Stop)
 				datalinkGroup.GET("/modbus-share/mappings", modbusShareHandler.ListMappings)
 				datalinkGroup.PUT("/modbus-share/mappings/:tagId", modbusShareHandler.UpsertMapping)
 				datalinkGroup.DELETE("/modbus-share/mappings/:tagId", modbusShareHandler.DeleteMapping)

@@ -110,6 +110,16 @@ func TestService_Status_AfterStartAndStop(t *testing.T) {
 	if err := svc.Stop(); err != nil {
 		t.Fatalf("stop server failed: %v", err)
 	}
+	st = svc.Status()
+	if st.Enabled {
+		t.Fatal("expected disabled status after stop")
+	}
+	if st.Port != 0 {
+		t.Fatalf("expected port 0 after stop, got %d", st.Port)
+	}
+	if st.BindState != "fail" {
+		t.Fatalf("expected bind_state fail after stop, got %s", st.BindState)
+	}
 }
 
 func TestService_Start_PortConflict_ReturnsActionableError(t *testing.T) {

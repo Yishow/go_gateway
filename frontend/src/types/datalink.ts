@@ -342,6 +342,7 @@ export interface ModbusShareStatus {
   enabled: boolean;
   port: number;
   address: string;
+  bind_state: 'pass' | 'fail';
   mapping_count: number;
 }
 

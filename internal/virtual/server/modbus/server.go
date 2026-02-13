@@ -90,6 +90,7 @@ func (s *Server) Stop() error {
 	s.running = false
 	close(s.done)
 	s.listener.Close()
+	s.port = 0
 	s.mu.Unlock()
 
 	s.wg.Wait()
@@ -100,6 +101,9 @@ func (s *Server) Stop() error {
 func (s *Server) Port() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if !s.running {
+		return 0
+	}
 	return s.port
 }
 
