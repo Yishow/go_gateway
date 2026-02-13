@@ -47,20 +47,14 @@ function AppRoutes() {
       </Route>
 
       {/* Legacy Test UI Routes */}
-      <Route
-        path="*"
-        element={
-          <Layout>
-            <Routes>
-              <Route path="/test" element={<TestPage />} />
-              <Route path="/templates" element={<TemplatesPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/compare" element={<ComparePage />} />
-              <Route path="/analyzer" element={<AnalyzerPage />} />
-            </Routes>
-          </Layout>
-        }
-      />
+      <Route path="/test" element={<Layout><TestPage /></Layout>} />
+      <Route path="/templates" element={<Layout><TemplatesPage /></Layout>} />
+      <Route path="/history" element={<Layout><HistoryPage /></Layout>} />
+      <Route path="/compare" element={<Layout><ComparePage /></Layout>} />
+      <Route path="/analyzer" element={<Layout><AnalyzerPage /></Layout>} />
+
+      {/* Unknown routes fallback */}
+      <Route path="*" element={<Navigate to="/datalink" replace />} />
     </Routes>
   );
 }

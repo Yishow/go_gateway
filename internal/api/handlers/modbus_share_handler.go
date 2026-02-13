@@ -135,13 +135,12 @@ func parsePointLastValue(raw string) interface{} {
 		return raw
 	}
 
-	var decoded interface{}
-	if err := json.Unmarshal([]byte(trimmed), &decoded); err == nil {
-		return decoded
-	}
-
+	// Prefer scalar parsing first to avoid JSON number -> float64 precision loss.
 	if i, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
 		return i
+	}
+	if u, err := strconv.ParseUint(trimmed, 10, 64); err == nil {
+		return u
 	}
 	if f, err := strconv.ParseFloat(trimmed, 64); err == nil {
 		return f
@@ -151,6 +150,11 @@ func parsePointLastValue(raw string) interface{} {
 	}
 	if strings.EqualFold(trimmed, "false") {
 		return false
+	}
+
+	var decoded interface{}
+	if err := json.Unmarshal([]byte(trimmed), &decoded); err == nil {
+		return decoded
 	}
 	return raw
 }
