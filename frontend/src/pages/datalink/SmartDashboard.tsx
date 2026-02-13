@@ -98,6 +98,9 @@ export default function SmartDashboard() {
   const [newTagDisplayName, setNewTagDisplayName] = useState('');
   const [tagLinkActionMessage, setTagLinkActionMessage] = useState('');
   const [commitActionMessage, setCommitActionMessage] = useState('');
+  const [commitQueueRunStatus, setCommitQueueRunStatus] = useState<Record<string, 'success' | 'failed'>>({});
+  const [lastCommitSnapshot, setLastCommitSnapshot] = useState<Record<string, 'success' | 'failed'> | null>(null);
+  const [isCommitRunning, setIsCommitRunning] = useState(false);
   const [tagEditDisplayName, setTagEditDisplayName] = useState('');
   const [tagEditUnit, setTagEditUnit] = useState('');
   const [tagEditDescription, setTagEditDescription] = useState('');
@@ -381,7 +384,7 @@ export default function SmartDashboard() {
 
   const primarySelectedAddress = selectedAddresses[0] || '';
   const selectedSourceAddress = primarySelectedAddress || selectedPoint?.address || '';
-  const commitQueueItems = useMemo(() => {
+  const baseCommitQueueItems = useMemo(() => {
     const usedSet = new Set(allPoints.map((point) => point.address));
     const linkedSet = new Set(linkedAddresses);
     return plannedAllocations.map((allocation, index) => {
@@ -398,16 +401,42 @@ export default function SmartDashboard() {
       };
     });
   }, [allPoints, linkedAddresses, plannedAllocations]);
+  const commitQueueItems = useMemo(() => {
+    return baseCommitQueueItems.map((item) => {
+      const runStatus = commitQueueRunStatus[item.id];
+      const viewStatus =
+        runStatus === 'success'
+          ? 'committed'
+          : runStatus === 'failed'
+            ? 'failed'
+            : item.status;
+      return {
+        ...item,
+        viewStatus,
+      };
+    });
+  }, [baseCommitQueueItems, commitQueueRunStatus]);
+  useEffect(() => {
+    setCommitQueueRunStatus((prev) => {
+      const next: Record<string, 'success' | 'failed'> = {};
+      baseCommitQueueItems.forEach((item) => {
+        if (prev[item.id]) next[item.id] = prev[item.id];
+      });
+      return next;
+    });
+  }, [baseCommitQueueItems]);
   const commitQueueSummary = useMemo(() => {
     return commitQueueItems.reduce(
       (acc, item) => {
         acc.total += 1;
-        if (item.status === 'conflict') acc.conflict += 1;
-        if (item.status === 'linked') acc.linked += 1;
-        if (item.status === 'pending') acc.pending += 1;
+        if (item.viewStatus === 'conflict') acc.conflict += 1;
+        if (item.viewStatus === 'linked') acc.linked += 1;
+        if (item.viewStatus === 'pending') acc.pending += 1;
+        if (item.viewStatus === 'failed') acc.failed += 1;
+        if (item.viewStatus === 'committed') acc.committed += 1;
         return acc;
       },
-      { total: 0, pending: 0, linked: 0, conflict: 0 }
+      { total: 0, pending: 0, linked: 0, conflict: 0, failed: 0, committed: 0 }
     );
   }, [commitQueueItems]);
   const selectedPointFromGrid = useMemo(
@@ -794,9 +823,76 @@ export default function SmartDashboard() {
       setCommitActionMessage('Commit 失敗：Mapping 尚未啟用。');
       return;
     }
+    setIsCommitRunning(true);
+    setLastCommitSnapshot(commitQueueRunStatus);
+
+    const nextRunStatus: Record<string, 'success' | 'failed'> = { ...commitQueueRunStatus };
+    let successCount = 0;
+    let failedCount = 0;
+
+    baseCommitQueueItems.forEach((item) => {
+      if (item.status === 'conflict') {
+        nextRunStatus[item.id] = 'failed';
+        failedCount += 1;
+        return;
+      }
+      nextRunStatus[item.id] = 'success';
+      successCount += 1;
+    });
+
+    setCommitQueueRunStatus(nextRunStatus);
+    setIsCommitRunning(false);
+
+    if (failedCount > 0) {
+      markError('sink', `Commit 部分失敗：${failedCount} 筆失敗，請執行 Retry 或 Rollback。`);
+      setCommitActionMessage(`Commit 部分成功：成功 ${successCount}、失敗 ${failedCount}。`);
+      return;
+    }
+
     markActive();
-    setCommitActionMessage('Commit 成功：已提交並啟用流程。');
-  }, [canActivate, markActive, markError, selectedMapping?.enabled, t]);
+    setCommitActionMessage(`Commit 成功：${successCount} 筆已提交並啟用流程。`);
+  }, [baseCommitQueueItems, canActivate, commitQueueRunStatus, markActive, markError, selectedMapping?.enabled, t]);
+
+  const handleRetryFailedCommits = useCallback(() => {
+    const failedItems = baseCommitQueueItems.filter((item) => commitQueueRunStatus[item.id] === 'failed');
+    if (failedItems.length === 0) {
+      setCommitActionMessage('沒有可重試的失敗項目。');
+      return;
+    }
+
+    const nextRunStatus: Record<string, 'success' | 'failed'> = { ...commitQueueRunStatus };
+    let recovered = 0;
+    let remainingFailed = 0;
+
+    failedItems.forEach((item) => {
+      if (item.status === 'conflict') {
+        nextRunStatus[item.id] = 'failed';
+        remainingFailed += 1;
+        return;
+      }
+      nextRunStatus[item.id] = 'success';
+      recovered += 1;
+    });
+
+    setCommitQueueRunStatus(nextRunStatus);
+
+    if (remainingFailed > 0) {
+      setCommitActionMessage(`Retry 完成：恢復 ${recovered} 筆，仍有 ${remainingFailed} 筆衝突。`);
+      return;
+    }
+
+    setCommitActionMessage(`Retry 成功：已恢復 ${recovered} 筆失敗項目。`);
+  }, [baseCommitQueueItems, commitQueueRunStatus]);
+
+  const handleRollbackCommitRun = useCallback(() => {
+    if (!lastCommitSnapshot) {
+      setCommitActionMessage('目前沒有可回滾的提交快照。');
+      return;
+    }
+    setCommitQueueRunStatus(lastCommitSnapshot);
+    setLastCommitSnapshot(null);
+    setCommitActionMessage('已回滾到上次 Commit 前的佇列狀態。');
+  }, [lastCommitSnapshot]);
 
   const handleRecoverFlow = useCallback(() => {
     resetDraft();
@@ -1311,6 +1407,14 @@ export default function SmartDashboard() {
                   Conflict {commitQueueSummary.conflict}
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-100">
+                  Committed {commitQueueSummary.committed}
+                </div>
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
+                  Failed {commitQueueSummary.failed}
+                </div>
+              </div>
               <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                 {commitQueueItems.length === 0 ? (
                   <p className="rounded border border-slate-700 bg-slate-900/60 px-2 py-2 text-[11px] text-slate-400">
@@ -1321,16 +1425,18 @@ export default function SmartDashboard() {
                     <div
                       key={item.id}
                       className={`rounded border px-2 py-1.5 text-[11px] ${
-                        item.status === 'conflict'
+                        item.viewStatus === 'conflict' || item.viewStatus === 'failed'
                           ? 'border-rose-500/30 bg-rose-500/10 text-rose-100'
-                          : item.status === 'linked'
+                          : item.viewStatus === 'linked'
                             ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-100'
+                            : item.viewStatus === 'committed'
+                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
                             : 'border-slate-700 bg-slate-900/60 text-slate-200'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono">#{item.order} {item.label}</span>
-                        <span className="uppercase text-[10px]">{item.status}</span>
+                        <span className="uppercase text-[10px]">{item.viewStatus}</span>
                       </div>
                       <div className="mt-0.5 text-[10px] opacity-80">
                         {item.type} · {item.addresses[0]}..{item.addresses[item.addresses.length - 1]}
@@ -1355,12 +1461,30 @@ export default function SmartDashboard() {
               <button
                 type="button"
                 onClick={handleCommitFlow}
-                disabled={!canActivate}
+                disabled={!canActivate || isCommitRunning}
                 aria-keyshortcuts="Control+Shift+Enter"
                 className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               >
-                Commit 到 DB
+                {isCommitRunning ? 'Commit 執行中...' : 'Commit 到 DB'}
               </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleRetryFailedCommits}
+                  disabled={commitQueueSummary.failed === 0}
+                  className="rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                >
+                  Retry 失敗項目
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRollbackCommitRun}
+                  disabled={!lastCommitSnapshot}
+                  className="rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-2 text-xs font-medium text-slate-100 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                >
+                  Rollback
+                </button>
+              </div>
               <div className="rounded-lg border border-white/10 bg-slate-900/60 p-2 space-y-1">
                 {segmentFeedback.map((segment) => (
                   <div key={segment.id} className="flex items-center justify-between text-[11px]">
