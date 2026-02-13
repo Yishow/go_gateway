@@ -5,108 +5,78 @@ TBD - created by archiving change optimize-point-configuration-ux. Update Purpos
 ## Requirements
 ### Requirement: 三欄式佈局 (REQ-DASH-001)
 
-The Smart Dashboard SHALL use a single-screen Pipeline Studio layout with three persistent regions: source planning rail (left), memory grid workspace (center), and tag/commit rail (right).
+The Smart Dashboard SHALL use a single-screen Pipeline Studio layout with persistent operator regions, with top controls integrated inside the dashboard container.
 
 #### Scenario: 頁面載入
 - **Given** 使用者開啟 SmartDashboard 頁面
 - **When** 頁面完成載入
-- **Then** 應顯示 Pipeline Studio 三區佈局
-- **And** 左側顯示來源規劃與模板
-- **And** 中間顯示記憶體格與占用狀態
+- **Then** 應顯示 dashboard-first 單頁佈局
+- **And** 上方顯示整合控制列（分頁導覽 + 設備 context）
+- **And** 主區顯示記憶體格工作區與來源規劃
 - **And** 右側顯示 Tag 編輯與 DB 提交面板
 
 #### Scenario: 響應式收合
 - **Given** 視窗寬度小於 1280px
 - **When** 頁面調整佈局
-- **Then** 三區功能仍可在單頁完成
+- **Then** 整合控制列可由水平改為上下堆疊
+- **And** 三區核心功能仍可在單頁完成
 - **And** 不得出現影響主流程的水平捲軸
 
 ### Requirement: 設備樹狀導覽 (REQ-DASH-002)
 
-The UI SHALL provide a tree navigation that displays device hierarchy and SHALL support expand/collapse of child items.
+The UI SHALL provide device hierarchy navigation via on-demand drawer and SHALL support expand/collapse of child items.
 
 #### Scenario: 設備列表顯示
-
 - **Given** 系統有 3 個設備
-- **When** 樹狀導覽載入
+- **When** 使用者開啟切換設備 drawer
 - **Then** 應顯示 3 個設備節點
 - **And** 每個節點顯示設備名稱與圖標
-- **And** 啟用設備顯示綠色指示點
+- **And** 啟用設備顯示狀態指示
 
 #### Scenario: 展開設備子項目
-
 - **Given** 設備 "PLC-001" 有 5 個點位和 3 個映射
-- **When** 使用者點擊展開圖標
+- **When** 使用者在 drawer 中點擊展開圖標
 - **Then** 應顯示 "Points (5)" 子節點
 - **And** 應顯示 "Mappings (3)" 子節點
 
 #### Scenario: 選中設備
-
-- **Given** 使用者點擊設備節點
-- **When** 選中事件觸發
-- **Then** 該節點應顯示選中樣式
+- **Given** 使用者在 drawer 內點擊設備節點
+- **When** 選中事件觸發並確認切換
+- **Then** context bar 應更新設備資訊
 - **And** 中間區域應載入該設備的記憶體格子
 
-#### Scenario: 拖曳排序設備
-
-- **Given** 使用者拖曳設備節點 "PLC-002"
-- **When** 放置到 "PLC-001" 上方
-- **Then** 設備順序應更新為 PLC-002, PLC-001, PLC-003
-- **And** 應呼叫 `PATCH /api/v1/datalink/devices/reorder`
-- **And** 順序應持久化到資料庫
-
-#### Scenario: 拖曳視覺反饋
-
-- **Given** 使用者開始拖曳設備節點
-- **When** 拖曳進行中
-- **Then** 被拖曳節點應顯示半透明效果
-- **And** 目標位置應顯示藍色插入線
-- **And** 拖曳手柄圖標應可見
-
----
+#### Scenario: 非切換時不常駐設備欄
+- **Given** 使用者已完成設備選擇
+- **When** 使用者執行日常規劃與提交操作
+- **Then** 設備樹不應以常駐左欄佔用主版面
+- **And** 僅在使用者主動切換設備時展開
 
 ### Requirement: 記憶體格子視覺化 (REQ-DASH-003)
 
-The center area SHALL display a memory grid that visualizes typed occupancy based on selected source data type and count.
+The center area SHALL display a memory grid with compact height constraints and correct typed occupancy spans.
 
-Typed span policy:
+Typed span policy (authoritative):
 - bool/int16/uint16: 1 cell per source
 - int32/uint32/float32: 2 adjacent cells per source
 - int64/uint64/float64: 4 adjacent cells per source
 
-#### Scenario: int 類型占格
-- **Given** 使用者選擇 int16 類型且來源數量為 5
-- **When** 產生配置預覽
-- **Then** 記憶體格應標示 5 格規劃占用
+#### Scenario: Compact grid height in dashboard
+- **Given** 使用者位於 `/datalink` dashboard
+- **When** 中央 Memory Grid 渲染
+- **Then** Grid 區塊高度應低於現行版本基線
+- **And** 上下文與右側操作區資訊在常見桌面解析度可同屏看到更多內容
 
-#### Scenario: float 類型占格
-- **Given** 使用者選擇 float32 類型且來源數量為 10
-- **When** 產生配置預覽
-- **Then** 記憶體格應標示 20 格占用
-- **And** 視覺上顯示為 10 組雙格配對
+#### Scenario: float32 span correctness
+- **Given** 使用者設定 `float32` 且來源數量為 10
+- **When** 系統產生規劃占格
+- **Then** 應產生 20 格占用
+- **And** 每個來源以 2 格連續群組顯示
 
-#### Scenario: 衝突占用提示
-- **Given** 規劃占用與既有點位或已綁定區段衝突
-- **When** 使用者嘗試提交
-- **Then** 衝突格應以明確狀態標示
-- **And** 提供修正建議與跳轉定位
-
-#### Scenario: 自動配置連續區段
-- **Given** 使用者設定來源類型與數量
-- **When** 使用者啟用自動配置
-- **Then** 系統應尋找最近可用連續區段進行配置
-- **And** 若無可用區段則回報不可配置原因
-
-#### Scenario: 多格型別群組視覺
-- **Given** 使用者配置 float32 或 int32 類型來源
-- **When** 記憶體格渲染
-- **Then** 每個來源的雙格群組應以明確群組邊框顯示
-- **And** 群組內應標示順序索引
-
-#### Scenario: 只看衝突格
-- **Given** 畫面存在多個衝突占格
-- **When** 使用者切換「只看衝突格」過濾器
-- **Then** 記憶體格應僅顯示衝突項目與必要上下文
+#### Scenario: int64 span correctness
+- **Given** 使用者設定 `int64` 且來源數量為 5
+- **When** 系統產生規劃占格
+- **Then** 應產生 20 格占用
+- **And** 每個來源以 4 格連續群組顯示
 
 ### Requirement: 快速操作面板 (REQ-DASH-004)
 
@@ -220,4 +190,28 @@ The dashboard SHALL enforce animation readability checks to ensure motion does n
 - **When** UI 驗證執行
 - **Then** 該動畫應被標記為不合格
 - **And** 需調整後方可通過交付檢核
+
+### Requirement: Top control alignment and adaptive behavior
+The dashboard SHALL align search and top control groups on a consistent grid at desktop breakpoints.
+
+#### Scenario: Desktop alignment consistency
+- **WHEN** the dashboard is rendered at desktop width
+- **THEN** search, navigation tabs, and device context controls align to the same grid rhythm
+- **AND** visual jumps between top control rows are minimized
+
+### Requirement: Empty-state guided entry
+The dashboard SHALL provide a guided empty state when no device is selected.
+
+#### Scenario: No selected device guidance
+- **WHEN** the operator opens dashboard without selected device
+- **THEN** the workspace shows empty-state guidance
+- **AND** provides only two primary actions: select existing device or create new device
+
+### Requirement: Quick actions prioritize by device state
+The dashboard SHALL dynamically prioritize quick actions based on selected device state.
+
+#### Scenario: Offline prioritization
+- **WHEN** selected device is offline
+- **THEN** reconnect/test actions are prioritized above commit actions
+- **AND** unavailable actions are clearly disabled with reasons
 

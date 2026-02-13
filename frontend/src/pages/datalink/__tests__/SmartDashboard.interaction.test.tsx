@@ -28,6 +28,7 @@ const { mockDevicesState, mockDatalinkState, mockMutations, mockModbusShareAPI }
     tags: [] as unknown[],
   },
   mockMutations: {
+    deleteDevice: { mutateAsync: vi.fn(), isPending: false },
     createPoint: { mutateAsync: vi.fn(), isPending: false },
     validatePipeline: { mutateAsync: vi.fn(), isPending: false },
     createMapping: { mutateAsync: vi.fn(), isPending: false },
@@ -60,6 +61,7 @@ vi.mock('../../../services/datalink', () => ({
 
 vi.mock('../../../hooks/datalink/useDevices', () => ({
   useDevicesQuery: () => ({ data: mockDevicesState.devices }),
+  useDeleteDeviceMutation: () => mockMutations.deleteDevice,
   useToggleDeviceStatusMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined) }),
   useUpdateDeviceMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined) }),
   useTestConnectionMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue({ success: true, latency_ms: 12 }) }),

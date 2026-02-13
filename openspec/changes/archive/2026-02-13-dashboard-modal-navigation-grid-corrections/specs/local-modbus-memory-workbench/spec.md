@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: Local Modbus workbench route
+### Requirement: Dedicated local Modbus memory workbench page
 
 The system SHALL provide explicit and discoverable links from dashboard to `/datalink/local-modbus`.
 

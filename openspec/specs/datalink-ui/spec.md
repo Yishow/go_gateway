@@ -197,17 +197,17 @@ The system SHALL display readiness status indicators in the device list and devi
 
 ### Requirement: Sidebar navigation improvements
 
-The system SHALL provide sidebar navigation aligned to the one-screen operator workflow.
+The system SHALL migrate legacy sidebar-aligned feature routes into dashboard modal workflows, except the independent `/test` page.
 
-#### Scenario: Pipeline Studio as primary entry
-- **WHEN** a user views the sidebar
-- **THEN** the primary operation entry is the Pipeline Studio dashboard (`/datalink`)
-- **AND** mapping operations are completed inside this entry
-
-#### Scenario: Legacy mapping pages decommissioned
-- **WHEN** a user accesses `/datalink/points`, `/datalink/mappings`, or `/datalink/wizard`
+#### Scenario: Sidebar feature routes open modal workflows
+- **WHEN** a user accesses legacy feature paths (`/datalink/devices`, `/datalink/settings`, `/datalink/points`, `/datalink/mappings`, `/datalink/wizard`)
 - **THEN** the system redirects to `/datalink`
-- **AND** shows a migration notice that the workflow has moved to Pipeline Studio
+- **AND** opens the corresponding dashboard modal context
+
+#### Scenario: Test page remains independent
+- **WHEN** a user accesses `/test`
+- **THEN** the system keeps `/test` as an independent page
+- **AND** does not convert it into dashboard modal flow
 
 ### Requirement: Flow-first workspace visualization
 

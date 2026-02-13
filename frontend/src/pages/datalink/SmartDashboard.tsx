@@ -19,6 +19,7 @@ import DeviceForm from '../../components/datalink/DeviceForm';
 import DeviceOnboardingWizard from '../../components/datalink/wizard/DeviceOnboardingWizard';
 import {
   useDevicesQuery,
+  useDeleteDeviceMutation,
   useToggleDeviceStatusMutation,
   useUpdateDeviceMutation,
   useTestConnectionMutation,
@@ -190,11 +191,14 @@ export default function SmartDashboard() {
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
   const [testingDeviceId, setTestingDeviceId] = useState<string | null>(null);
+  const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
+  const [deleteConfirmDevice, setDeleteConfirmDevice] = useState<Device | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
   const guideStageTimeoutRef = useRef<number | null>(null);
 
   const { data: devices = [] } = useDevicesQuery();
+  const deleteDeviceMutation = useDeleteDeviceMutation();
   const toggleDeviceStatusMutation = useToggleDeviceStatusMutation();
   const updateDeviceMutation = useUpdateDeviceMutation();
   const testConnectionMutation = useTestConnectionMutation();
@@ -1092,32 +1096,74 @@ export default function SmartDashboard() {
     next.set('modal', 'devices');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
-  const handleActivateDeviceDirect = useCallback(
-    async (deviceId: string) => {
+  const handleToggleDeviceStatusDirect = useCallback(
+    async (deviceId: string, closeModalOnSuccess = false) => {
       const target = devices.find((device) => device.id === deviceId);
       if (!target) return;
+      const willActivate = target.status !== 'active';
       setActivatingDeviceId(deviceId);
       try {
         await toggleDeviceStatusMutation.mutateAsync({
           id: deviceId,
           currentStatus: target.status,
         });
-        showSuccess(`已啟用設備「${target.name}」`);
-        setSelectedDeviceId(deviceId);
-        const next = new URLSearchParams(searchParams);
-        if (next.get('modal') === 'devices') {
-          next.delete('modal');
-          setSearchParams(next, { replace: true });
+        showSuccess(`已${willActivate ? '啟用' : '停用'}設備「${target.name}」`);
+        if (willActivate) {
+          setSelectedDeviceId(deviceId);
+        } else if (selectedDeviceId === deviceId) {
+          setSelectedAddresses([]);
+        }
+        if (closeModalOnSuccess) {
+          const next = new URLSearchParams(searchParams);
+          if (next.get('modal') === 'devices') {
+            next.delete('modal');
+            setSearchParams(next, { replace: true });
+          }
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : '啟用失敗';
-        showError(`設備啟用失敗：${message}`);
+        const message = error instanceof Error ? error.message : `${willActivate ? '啟用' : '停用'}失敗`;
+        showError(`設備${willActivate ? '啟用' : '停用'}失敗：${message}`);
       } finally {
         setActivatingDeviceId(null);
       }
     },
-    [devices, searchParams, setSearchParams, showError, showSuccess, toggleDeviceStatusMutation]
+    [devices, searchParams, selectedDeviceId, setSearchParams, showError, showSuccess, toggleDeviceStatusMutation]
   );
+  const requestDeleteDevice = useCallback(
+    (deviceId: string) => {
+      const target = devices.find((device) => device.id === deviceId) || null;
+      setDeleteConfirmDevice(target);
+    },
+    [devices]
+  );
+  const handleConfirmDeleteDevice = useCallback(async () => {
+    if (!deleteConfirmDevice) return;
+    setDeletingDeviceId(deleteConfirmDevice.id);
+    try {
+      await deleteDeviceMutation.mutateAsync(deleteConfirmDevice.id);
+      showSuccess(`已刪除設備「${deleteConfirmDevice.name}」`);
+      if (selectedDeviceId === deleteConfirmDevice.id) {
+        setSelectedDeviceId(null);
+        setSelectedAddresses([]);
+      }
+      if (editingDeviceInModal?.id === deleteConfirmDevice.id) {
+        setEditingDeviceInModal(null);
+      }
+      setDeleteConfirmDevice(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '刪除設備失敗';
+      showError(`刪除設備失敗：${message}`);
+    } finally {
+      setDeletingDeviceId(null);
+    }
+  }, [
+    deleteConfirmDevice,
+    deleteDeviceMutation,
+    editingDeviceInModal,
+    selectedDeviceId,
+    showError,
+    showSuccess,
+  ]);
   const handleCreateDevice = useCallback(() => {
     setIsCreateDeviceModalOpen(true);
     setActiveTab('devices');
@@ -2644,16 +2690,33 @@ export default function SmartDashboard() {
                             >
                               {testingDeviceId === device.id ? '測試中...' : '測試連線'}
                             </button>
-                            {device.status === 'draft' && (
+                            {device.status === 'draft' ? (
                               <button
                                 type="button"
-                                onClick={() => void handleActivateDeviceDirect(device.id)}
+                                onClick={() => void handleToggleDeviceStatusDirect(device.id, true)}
                                 disabled={activatingDeviceId === device.id}
                                 className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                               >
                                 {activatingDeviceId === device.id ? '啟用中...' : '啟用並切換'}
                               </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => void handleToggleDeviceStatusDirect(device.id)}
+                                disabled={activatingDeviceId === device.id}
+                                className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                              >
+                                {activatingDeviceId === device.id ? '處理中...' : device.status === 'active' ? '停用' : '啟用'}
+                              </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => requestDeleteDevice(device.id)}
+                              disabled={deletingDeviceId === device.id}
+                              className="min-h-9 rounded-md border border-rose-400/40 bg-rose-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                            >
+                              {deletingDeviceId === device.id ? '刪除中...' : '刪除'}
+                            </button>
                             <button
                               type="button"
                               onClick={() => requestDeviceSwitch(device.id)}
@@ -2708,15 +2771,25 @@ export default function SmartDashboard() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleActivateDeviceDirect(editingDeviceInModal.id)}
-                          disabled={activatingDeviceId === editingDeviceInModal.id || editingDeviceInModal.status === 'active'}
+                          onClick={() => void handleToggleDeviceStatusDirect(editingDeviceInModal.id)}
+                          disabled={activatingDeviceId === editingDeviceInModal.id}
                           className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {editingDeviceInModal.status === 'active'
-                            ? '已啟用'
-                            : activatingDeviceId === editingDeviceInModal.id
-                              ? '啟用中...'
+                          {activatingDeviceId === editingDeviceInModal.id
+                            ? '處理中...'
+                            : editingDeviceInModal.status === 'active'
+                              ? '停用設備'
                               : '啟用設備'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => requestDeleteDevice(editingDeviceInModal.id)}
+                          disabled={deletingDeviceId === editingDeviceInModal.id}
+                          className="min-h-9 rounded-md border border-rose-400/40 bg-rose-500/20 px-3 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingDeviceId === editingDeviceInModal.id
+                            ? '刪除中...'
+                            : '刪除設備'}
                         </button>
                       </div>
                       <div className="max-h-[52vh] overflow-auto rounded-xl border border-white/10 bg-slate-900/70 p-3">
@@ -2815,6 +2888,37 @@ export default function SmartDashboard() {
                 className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
               >
                 取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirmDevice && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-rose-400/30 bg-slate-900 p-4 shadow-2xl">
+            <h3 className="text-sm font-semibold text-rose-100">刪除設備確認</h3>
+            <p className="mt-2 text-xs text-slate-300">
+              確定要刪除設備「{deleteConfirmDevice.name}」嗎？此操作無法復原。
+            </p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              若存在關聯點位與映射，刪除前請先確認依賴關係。
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmDevice(null)}
+                disabled={deletingDeviceId === deleteConfirmDevice.id}
+                className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDeleteDevice()}
+                disabled={deletingDeviceId === deleteConfirmDevice.id}
+                className="min-h-11 rounded-lg border border-rose-400/40 bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingDeviceId === deleteConfirmDevice.id ? '刪除中...' : '確認刪除'}
               </button>
             </div>
           </div>

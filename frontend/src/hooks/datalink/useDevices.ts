@@ -6,7 +6,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { deviceAPI } from '../../services/datalink';
-import { deviceKeys } from './keys';
+import { deviceKeys, mappingKeys, pointKeys } from './keys';
 import type {
   Device,
   CreateDeviceRequest,
@@ -106,6 +106,8 @@ export function useDeleteDeviceMutation() {
     mutationFn: (id: string) => deviceAPI.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: mappingKeys.lists() });
     },
   });
 }
