@@ -5,6 +5,7 @@ describe('commitAudit', () => {
   it('builds audit payload with summary and trace link', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-02-13T10:30:00.000Z'));
+    vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
 
     const payload = buildCommitAuditPayload({
       queueItems: [
@@ -32,6 +33,7 @@ describe('commitAudit', () => {
     });
 
     expect(payload.createdAt).toBe('2026-02-13T10:30:00.000Z');
+    expect(payload.traceId).toMatch(/^trace-[a-z0-9]+-4fzzzx$/);
     expect(payload.traceLink).toBe('#commit-audit-trace');
     expect(payload.summary).toEqual({
       total: 2,
@@ -50,6 +52,7 @@ describe('commitAudit', () => {
       viewStatus: 'failed',
     });
 
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 });

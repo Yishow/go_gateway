@@ -18,6 +18,7 @@ export interface CommitAuditQueueItem extends CommitImpactSummaryItem {
 export interface CommitAuditPayload {
   action: 'commit';
   createdAt: string;
+  traceId: string;
   traceLink: '#commit-audit-trace';
   summary: {
     total: number;
@@ -38,6 +39,12 @@ export interface CommitAuditPayload {
   chunks: CommitAuditChunkResult[];
 }
 
+export function createCommitTraceId(timestamp: string): string {
+  const epoch = new Date(timestamp).getTime().toString(36);
+  const random = Math.random().toString(36).slice(2, 8);
+  return `trace-${epoch}-${random}`;
+}
+
 export function buildCommitAuditPayload(input: {
   queueItems: CommitAuditQueueItem[];
   chunkResults: CommitAuditChunkResult[];
@@ -47,11 +54,14 @@ export function buildCommitAuditPayload(input: {
     conflicts: number;
   };
 }): CommitAuditPayload {
+  const createdAt = new Date().toISOString();
+  const traceId = createCommitTraceId(createdAt);
   const committed = input.queueItems.filter((item) => item.viewStatus === 'committed').length;
   const failed = input.queueItems.filter((item) => item.viewStatus === 'failed').length;
   return {
     action: 'commit',
-    createdAt: new Date().toISOString(),
+    createdAt,
+    traceId,
     traceLink: '#commit-audit-trace',
     summary: {
       total: input.queueItems.length,

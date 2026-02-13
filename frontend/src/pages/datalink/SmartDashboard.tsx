@@ -1588,7 +1588,7 @@ export default function SmartDashboard() {
                   href={commitAuditPayload.traceLink}
                   className="inline-flex text-[11px] text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
                 >
-                  查看稽核追蹤
+                  查看稽核追蹤（{commitAuditPayload.traceId}）
                 </a>
               )}
               {commitChunkResults.length > 0 && (
@@ -1610,7 +1610,7 @@ export default function SmartDashboard() {
                 <div id="commit-audit-trace" className="rounded-lg border border-cyan-500/20 bg-slate-900/70 p-2 space-y-1">
                   <p className="text-[11px] font-semibold text-cyan-200">Audit Payload</p>
                   <p className="text-[10px] text-slate-300">
-                    {commitAuditPayload.createdAt} · new {commitAuditPayload.summary.newPoints} · tag{' '}
+                    {commitAuditPayload.traceId} · {commitAuditPayload.createdAt} · new {commitAuditPayload.summary.newPoints} · tag{' '}
                     {commitAuditPayload.summary.globalTagUpdates} · conflict {commitAuditPayload.summary.conflicts}
                   </p>
                   <pre className="max-h-28 overflow-auto rounded bg-slate-950/70 p-2 text-[10px] text-slate-300">
