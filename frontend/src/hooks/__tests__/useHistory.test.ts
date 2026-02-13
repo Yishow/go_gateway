@@ -261,7 +261,10 @@ describe('usePointHistory', () => {
       });
     });
 
-    const undone = result.current.undo();
+    let undone: ReturnType<typeof result.current.undo> = null;
+    act(() => {
+      undone = result.current.undo();
+    });
     expect(undone?.data.previousData).toEqual({ name: 'D100', address: 'D100', enabled: true });
   });
 });
