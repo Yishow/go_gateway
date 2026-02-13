@@ -73,6 +73,12 @@ export default function SmartDashboard() {
     [devices, selectedDeviceId]
   );
 
+  useEffect(() => {
+    setSelectedAddresses([]);
+    setSelectedPoint(null);
+    setPanelType((prev) => (prev === 'detail' ? null : prev));
+  }, [selectedDeviceId]);
+
   const handleBatchCreate = useCallback(() => {
     if (selectedDeviceId) setPanelType('batch');
   }, [selectedDeviceId]);

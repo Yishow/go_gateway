@@ -371,7 +371,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         
         let value: number | null = null
         
-        if (itemData) {
+        if (itemData !== null && itemData !== undefined) {
           // 處理錯誤情況
           if (typeof itemData === 'object' && itemData !== null && 'error' in itemData) {
             value = null // 錯誤時不顯示數據
