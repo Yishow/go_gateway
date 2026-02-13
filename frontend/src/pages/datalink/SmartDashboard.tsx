@@ -97,6 +97,7 @@ export default function SmartDashboard() {
   const [newTagKey, setNewTagKey] = useState('');
   const [newTagDisplayName, setNewTagDisplayName] = useState('');
   const [tagLinkActionMessage, setTagLinkActionMessage] = useState('');
+  const [commitActionMessage, setCommitActionMessage] = useState('');
   const [tagEditDisplayName, setTagEditDisplayName] = useState('');
   const [tagEditUnit, setTagEditUnit] = useState('');
   const [tagEditDescription, setTagEditDescription] = useState('');
@@ -436,6 +437,40 @@ export default function SmartDashboard() {
     }
   }, [selectedMapping?.transform_pipeline]);
 
+  const segmentFeedback = useMemo(() => {
+    const sourceOk = Boolean(selectedDeviceId && selectedSourceAddress);
+    const gridOk = planAddresses.length > 0 && planConflictCount === 0;
+    const tagOk = Boolean(selectedMapping && linkedTag);
+    const sinkOk = canActivate;
+
+    return [
+      {
+        id: 'source',
+        label: 'Source',
+        ok: sourceOk,
+        message: sourceOk ? '來源已選定' : '請先選取來源設備與格位',
+      },
+      {
+        id: 'grid',
+        label: 'Grid',
+        ok: gridOk,
+        message: gridOk ? '格位驗證通過' : `仍有衝突 ${planConflictCount} 格或尚未規劃`,
+      },
+      {
+        id: 'tag',
+        label: 'Tag',
+        ok: tagOk,
+        message: tagOk ? `已連結 Tag ${linkedTag?.key}` : '請先完成 Tag 連結',
+      },
+      {
+        id: 'sink',
+        label: 'Sink',
+        ok: sinkOk,
+        message: sinkOk ? '可提交到 DB' : '需先完成 Validate',
+      },
+    ] as const;
+  }, [canActivate, linkedTag?.key, planAddresses.length, planConflictCount, selectedDeviceId, selectedMapping, selectedSourceAddress]);
+
   useEffect(() => {
     setSelectedTagIdForLink(selectedMapping?.tag_id || '');
   }, [selectedMapping?.tag_id]);
@@ -723,10 +758,12 @@ export default function SmartDashboard() {
   const handleValidateFlow = useCallback(async () => {
     if (!canValidate) {
       markError('source', t('smartDashboard.flowErrors.missingSource'));
+      setCommitActionMessage('Validate 失敗：來源段尚未完成。');
       return;
     }
     if (!selectedMapping) {
       markError('tag', t('smartDashboard.flowErrors.missingMapping'));
+      setCommitActionMessage('Validate 失敗：Tag 段尚未完成。');
       return;
     }
     try {
@@ -734,25 +771,31 @@ export default function SmartDashboard() {
       const result = await validatePipelineMutation.mutateAsync(pipeline);
       if (result.valid) {
         markValidated();
+        setCommitActionMessage('Validate 通過：可執行 Commit。');
         return;
       }
       markError('grid', result.error || t('smartDashboard.flowErrors.validationFailed'));
+      setCommitActionMessage(`Validate 失敗：${result.error || 'Grid 驗證未通過'}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('smartDashboard.flowErrors.validationFailed');
       markError('grid', message);
+      setCommitActionMessage(`Validate 失敗：${message}`);
     }
   }, [canValidate, markError, markValidated, parsePipeline, selectedMapping, t, validatePipelineMutation]);
 
-  const handleActivateFlow = useCallback(() => {
+  const handleCommitFlow = useCallback(() => {
     if (!canActivate) {
       markError('sink', t('smartDashboard.flowErrors.notValidated'));
+      setCommitActionMessage('Commit 失敗：請先完成 Validate。');
       return;
     }
     if (!selectedMapping?.enabled) {
       markError('sink', t('smartDashboard.flowErrors.mappingDisabled'));
+      setCommitActionMessage('Commit 失敗：Mapping 尚未啟用。');
       return;
     }
     markActive();
+    setCommitActionMessage('Commit 成功：已提交並啟用流程。');
   }, [canActivate, markActive, markError, selectedMapping?.enabled, t]);
 
   const handleRecoverFlow = useCallback(() => {
@@ -773,7 +816,7 @@ export default function SmartDashboard() {
     onRedo: handleRedo,
     onSearch: handleSearchShortcut,
     onValidateFlow: handleValidateFlow,
-    onActivateFlow: handleActivateFlow,
+    onActivateFlow: handleCommitFlow,
     onRecoverFlow: hasError ? handleRecoverFlow : undefined,
     onImport: handleImportShortcut,
     onExport: handleExportShortcut,
@@ -1311,13 +1354,28 @@ export default function SmartDashboard() {
               </button>
               <button
                 type="button"
-                onClick={handleActivateFlow}
+                onClick={handleCommitFlow}
                 disabled={!canActivate}
                 aria-keyshortcuts="Control+Shift+Enter"
                 className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               >
-                {t('smartDashboard.activateFlow')}
+                Commit 到 DB
               </button>
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-2 space-y-1">
+                {segmentFeedback.map((segment) => (
+                  <div key={segment.id} className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-300">{segment.label}</span>
+                    <span className={segment.ok ? 'text-emerald-300' : 'text-amber-300'}>
+                      {segment.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {commitActionMessage && (
+                <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
+                  {commitActionMessage}
+                </p>
+              )}
               {hasError && (
                 <button
                   type="button"

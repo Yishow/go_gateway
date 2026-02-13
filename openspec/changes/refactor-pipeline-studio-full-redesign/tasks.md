@@ -33,7 +33,7 @@
 
 ## 5. Commit Workflow (Tag -> DB)
 - [x] 5.1 Introduce commit queue view for pending allocations.
-- [ ] 5.2 Add `validate` and `commit` actions with segment-level feedback.
+- [x] 5.2 Add `validate` and `commit` actions with segment-level feedback.
 - [ ] 5.3 Add rollback/retry UX for partial failure.
 - [ ] 5.4 Add integration tests for validate/commit/error-recovery lifecycle.
 - [ ] 5.5 Execute commit in chunks with per-chunk result visibility.
