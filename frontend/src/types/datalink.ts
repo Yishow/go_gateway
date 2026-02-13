@@ -332,3 +332,21 @@ export interface PollResult {
   quality: number;
   error: string;
 }
+
+// =============================================================================
+// Local Modbus Share
+// =============================================================================
+
+export interface ModbusShareStatus {
+  enabled: boolean;
+  port: number;
+  address: string;
+  mapping_count: number;
+}
+
+export interface ModbusShareMapping {
+  tag_id: string;
+  register: number;
+  data_type: DataType;
+  updated_at: string;
+}

@@ -18,6 +18,8 @@ import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
 import { addressParser } from '../../utils/addressParser';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
+import { modbusShareAPI } from '../../services/datalink';
+import type { ModbusShareStatus } from '../../types/datalink';
 
 const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
 
@@ -84,6 +86,9 @@ export default function SmartDashboard() {
       return [];
     }
   });
+  const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
+  const [modbusRegister, setModbusRegister] = useState('0');
+  const [modbusActionMessage, setModbusActionMessage] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
 
@@ -160,6 +165,20 @@ export default function SmartDashboard() {
     if (!selectedDevice) return;
     setPlanStartAddress(selectedDevice.protocol.startsWith('modbus') ? '40001' : 'D0');
   }, [selectedDevice]);
+
+  const loadModbusStatus = useCallback(async () => {
+    try {
+      const status = await modbusShareAPI.status();
+      setModbusStatus(status);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '讀取 Modbus 分享狀態失敗';
+      setModbusActionMessage(message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadModbusStatus();
+  }, [loadModbusStatus]);
 
   const handleBatchCreate = useCallback(() => {
     if (selectedDeviceId) setPanelType('batch');
@@ -298,6 +317,44 @@ export default function SmartDashboard() {
       return [];
     }
   }, [selectedMapping?.transform_pipeline]);
+
+  const handleBindTagToModbus = useCallback(async () => {
+    if (!linkedTag?.id) {
+      setModbusActionMessage('請先選取已連結 Tag 的點位');
+      return;
+    }
+    const register = Number(modbusRegister);
+    if (!Number.isInteger(register) || register < 0 || register > 65535) {
+      setModbusActionMessage('Register 必須為 0-65535 的整數');
+      return;
+    }
+    try {
+      await modbusShareAPI.upsertMapping(linkedTag.id, register);
+      await loadModbusStatus();
+      setModbusActionMessage(`已綁定 ${linkedTag.key} -> HR${register}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '綁定失敗';
+      setModbusActionMessage(message);
+    }
+  }, [linkedTag?.id, linkedTag?.key, loadModbusStatus, modbusRegister]);
+
+  const handlePushCurrentValueToModbus = useCallback(async () => {
+    if (!linkedTag?.id) {
+      setModbusActionMessage('請先選取已連結 Tag 的點位');
+      return;
+    }
+    if (selectedPoint?.last_value === undefined || selectedPoint?.last_value === null) {
+      setModbusActionMessage('目前點位沒有可推送的值');
+      return;
+    }
+    try {
+      await modbusShareAPI.writeTagValue(linkedTag.id, selectedPoint.last_value);
+      setModbusActionMessage(`已推送當前值到 Tag ${linkedTag.key} 的 Modbus 映射`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '推送失敗';
+      setModbusActionMessage(message);
+    }
+  }, [linkedTag?.id, linkedTag?.key, selectedPoint?.last_value]);
 
   useEffect(() => {
     setSource(selectedDeviceId || '', selectedSourceAddress, selectedPoint?.id || '');
@@ -823,6 +880,52 @@ export default function SmartDashboard() {
                 >
                   {t('smartDashboard.recoverFlow')}
                 </button>
+              )}
+            </div>
+            <div className="p-4 border-t border-white/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-wide text-slate-200">Local Modbus Share</p>
+                <button
+                  type="button"
+                  onClick={loadModbusStatus}
+                  className="rounded border border-slate-700 px-2 py-1 text-[10px] text-slate-300 hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  Refresh
+                </button>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3 text-[11px] text-slate-300">
+                <p>狀態: {modbusStatus?.enabled ? 'Running' : 'Stopped'}</p>
+                <p>Address: {modbusStatus?.address || '-'} (Port 5020)</p>
+                <p>Mappings: {modbusStatus?.mapping_count ?? 0}</p>
+              </div>
+              <label className="block text-[11px] text-slate-300">
+                Register (Holding)
+                <input
+                  value={modbusRegister}
+                  onChange={(e) => setModbusRegister(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={handleBindTagToModbus}
+                  className="w-full rounded-lg border border-indigo-500/40 bg-indigo-500/20 px-3 py-2 text-xs font-medium text-indigo-100 hover:bg-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                  綁定目前 Tag 到 Register
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePushCurrentValueToModbus}
+                  className="w-full rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                >
+                  推送目前值到 Modbus
+                </button>
+              </div>
+              {modbusActionMessage && (
+                <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
+                  {modbusActionMessage}
+                </p>
               )}
             </div>
           </div>

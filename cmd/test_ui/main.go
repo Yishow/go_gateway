@@ -29,6 +29,7 @@ import (
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
 	"go-gateway/internal/datalink/settings"
@@ -81,7 +82,7 @@ func main() {
 	// =========================================================================
 	// Migrations
 	// =========================================================================
-	migrator := datalink.NewMigrator() // Remove db arg
+	migrator := datalink.NewMigrator()           // Remove db arg
 	if err := migrator.Migrate(db); err != nil { // Add db arg
 		log.Fatalf("資料庫遷移失敗: %v", err)
 	}
@@ -92,7 +93,7 @@ func main() {
 	connMgr := connector.GetConnectionManager()
 	defer connMgr.CloseAll()
 	log.Println("ConnectionManager 已初始化")
-	
+
 	// 輸出已註冊的協議列表
 	registeredProtocols := connector.ListProtocols()
 	log.Printf("已註冊的協議: %v", registeredProtocols)
@@ -120,6 +121,19 @@ func main() {
 	mappingRepo := mapping.NewSQLRepository(db)
 	mappingSvc := mapping.NewService(mappingRepo)
 
+	// Local Modbus Share (Tag -> Virtual Modbus Memory Grid)
+	modbusShareSvc := modbusshare.NewService(tagSvc, 65536)
+	if err := modbusShareSvc.Start(5020); err != nil {
+		log.Printf("本機 Modbus 分享服務啟動失敗 (port 5020): %v", err)
+	} else {
+		log.Printf("本機 Modbus 分享服務已啟動: %s", modbusShareSvc.Status().Address)
+	}
+	defer func() {
+		if err := modbusShareSvc.Stop(); err != nil {
+			log.Printf("關閉本機 Modbus 分享服務失敗: %v", err)
+		}
+	}()
+
 	// PollingGroup
 	pgRepo := pollinggroup.NewSQLRepository(db)
 	pgSvc := pollinggroup.NewService(pgRepo)
@@ -136,6 +150,7 @@ func main() {
 		Mapping:      mappingSvc,
 		PollingGroup: pgSvc,
 		Settings:     settingsSvc,
+		ModbusShare:  modbusShareSvc,
 	}
 
 	// 建立 API 路由器
@@ -149,8 +164,8 @@ func main() {
 	server = &http.Server{
 		Addr:         serverAddr,
 		Handler:      router,
-		ReadTimeout:  0, // SSE 連接需要無讀取超時
-		WriteTimeout: 0, // SSE 連接需要無寫入超時
+		ReadTimeout:  0,                 // SSE 連接需要無讀取超時
+		WriteTimeout: 0,                 // SSE 連接需要無寫入超時
 		IdleTimeout:  120 * time.Second, // 空閒超時設為 120 秒
 	}
 

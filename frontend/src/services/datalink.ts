@@ -30,6 +30,8 @@ import type {
   SettingItem,
   APIResponse,
   PollResult,
+  ModbusShareStatus,
+  ModbusShareMapping,
 } from '../types/datalink';
 
 // API 基礎路徑
@@ -522,5 +524,34 @@ export const dashboardAPI = {
   async getDeviceStatuses(): Promise<DeviceStatus[]> {
     const res = await api.get<APIResponse<DeviceStatus[]>>('/dashboard/device-statuses');
     return res.data.data ?? [];
+  },
+};
+
+// =============================================================================
+// Local Modbus Share API
+// =============================================================================
+
+export const modbusShareAPI = {
+  async status(): Promise<ModbusShareStatus> {
+    const res = await api.get<APIResponse<ModbusShareStatus>>('/modbus-share/status');
+    return res.data.data!;
+  },
+
+  async listMappings(): Promise<ModbusShareMapping[]> {
+    const res = await api.get<APIResponse<ModbusShareMapping[]>>('/modbus-share/mappings');
+    return res.data.data ?? [];
+  },
+
+  async upsertMapping(tagId: string, register: number): Promise<ModbusShareMapping> {
+    const res = await api.put<APIResponse<ModbusShareMapping>>(`/modbus-share/mappings/${tagId}`, { register });
+    return res.data.data!;
+  },
+
+  async deleteMapping(tagId: string): Promise<void> {
+    await api.delete(`/modbus-share/mappings/${tagId}`);
+  },
+
+  async writeTagValue(tagId: string, value: unknown): Promise<void> {
+    await api.post('/modbus-share/write-tag-value', { tag_id: tagId, value });
   },
 };

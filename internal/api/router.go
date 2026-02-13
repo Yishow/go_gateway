@@ -8,6 +8,7 @@ import (
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
 	"go-gateway/internal/datalink/settings"
@@ -28,6 +29,7 @@ type DatalinkServices struct {
 	Mapping      *mapping.Service
 	PollingGroup *pollinggroup.Service
 	Settings     *settings.Service
+	ModbusShare  *modbusshare.Service
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -210,6 +212,16 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			// SSE Preview Stream
 			ssePreviewHandler := handlers.NewDatalinkSSEHandler()
 			datalinkGroup.GET("/preview/stream", ssePreviewHandler.PreviewStream)
+
+			// Local Modbus Share
+			if datalinkServices.ModbusShare != nil {
+				modbusShareHandler := handlers.NewModbusShareHandler(datalinkServices.ModbusShare)
+				datalinkGroup.GET("/modbus-share/status", modbusShareHandler.Status)
+				datalinkGroup.GET("/modbus-share/mappings", modbusShareHandler.ListMappings)
+				datalinkGroup.PUT("/modbus-share/mappings/:tagId", modbusShareHandler.UpsertMapping)
+				datalinkGroup.DELETE("/modbus-share/mappings/:tagId", modbusShareHandler.DeleteMapping)
+				datalinkGroup.POST("/modbus-share/write-tag-value", modbusShareHandler.WriteTagValue)
+			}
 		}
 	}
 
@@ -253,7 +265,7 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 		// 設定允許的來源
 		origin := c.Request.Header.Get("Origin")
 		allowOrigin := "*"
-		
+
 		// 如果配置了特定的來源列表，檢查是否匹配
 		if len(cfg.CORS.AllowOrigins) > 0 && cfg.CORS.AllowOrigins[0] != "*" {
 			allowOrigin = ""
@@ -264,7 +276,7 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 				}
 			}
 		}
-		
+
 		if allowOrigin != "" {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		}
