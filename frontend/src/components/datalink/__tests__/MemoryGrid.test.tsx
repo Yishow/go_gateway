@@ -2,8 +2,26 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryGrid } from '../MemoryGrid';
 import { describe, it, expect, vi } from 'vitest';
+import type { Point } from '../../../types/datalink';
 
 describe('MemoryGrid', () => {
+  const createPoint = (address: string, name = 'P1'): Point => ({
+    id: `point-${address}`,
+    device_id: 'd1',
+    name,
+    description: '',
+    data_type: 'int16',
+    address,
+    enabled: true,
+    polling_group_id: 'pg-1',
+    last_value: null,
+    last_read_at: '',
+    last_error: '',
+    error_count: 0,
+    created_at: '',
+    updated_at: '',
+  });
+
   const defaultProps = {
     deviceId: 'dev1',
     protocol: 'modbus_tcp' as const,
@@ -78,7 +96,7 @@ describe('MemoryGrid', () => {
 
   it('should call onCellClick with point info', () => {
     const onCellClick = vi.fn();
-    const point = { id: '1', name: 'P1', address: '40001', device_id: 'd1' } as any;
+    const point = createPoint('40001');
     
     render(<MemoryGrid 
       {...defaultProps} 
@@ -151,7 +169,7 @@ describe('MemoryGrid', () => {
   });
 
   it('should classify conflict severity as hard when planned overlaps used point', () => {
-    const point = { id: '1', name: 'P1', address: '40001', device_id: 'd1' } as any;
+    const point = createPoint('40001');
     const plannedAllocations = [
       {
         id: 'plan-1',
@@ -227,7 +245,7 @@ describe('MemoryGrid', () => {
   });
 
   it('should keep neighbor context when conflicts-only filter is enabled', () => {
-    const point = { id: '1', name: 'P1', address: '40002', device_id: 'd1' } as any;
+    const point = createPoint('40002');
     const plannedAllocations = [
       {
         id: 'plan-1',

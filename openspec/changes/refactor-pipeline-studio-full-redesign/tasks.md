@@ -19,9 +19,9 @@
 - [x] 3.3 Show occupancy states (`available`, `planned`, `used`, `conflict`, `linked`).
 - [x] 3.4 Add tests for occupancy math and edge collision handling.
 - [x] 3.5 Add hard/soft conflict severity rendering and behavior.
-- [ ] 3.6 Add auto-allocation strategy for nearest valid contiguous span.
+- [x] 3.6 Add auto-allocation strategy for nearest valid contiguous span.
 - [x] 3.7 Add grouped-border and in-group index markers for multi-cell types.
-- [ ] 3.8 Add conflict-only filter mode in grid controls.
+- [x] 3.8 Add conflict-only filter mode in grid controls.
 
 ## 4. Tag Linkage and Global Editing
 - [ ] 4.1 Build inline tag linkage panel bound to selected grid allocation.

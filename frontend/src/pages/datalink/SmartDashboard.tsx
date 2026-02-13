@@ -24,6 +24,7 @@ import {
   upgradeTemplates,
 } from '../../features/datalink/sourceTemplateStorage';
 import { buildBatchNamePreview } from '../../features/datalink/batchNaming';
+import { findNearestValidContiguousSpan } from '../../features/datalink/allocationStrategy';
 import { getSpanByDataType } from '../../features/datalink/typedOccupancy';
 import { addressParser } from '../../utils/addressParser';
 import { useSearchParams } from 'react-router-dom';
@@ -72,6 +73,7 @@ export default function SmartDashboard() {
   const [planCount, setPlanCount] = useState(5);
   const [batchNamePrefix, setBatchNamePrefix] = useState('SRC');
   const [planStartAddress, setPlanStartAddress] = useState('40001');
+  const [allocationMessage, setAllocationMessage] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [showConflictsOnly, setShowConflictsOnly] = useState(false);
   const [guideStage, setGuideStage] = useState<'idle' | 'grid'>('idle');
@@ -154,6 +156,12 @@ export default function SmartDashboard() {
       .map((mapping) => pointAddressById.get(mapping.point_id))
       .filter((address): address is string => Boolean(address));
   }, [allPoints, mappings]);
+  const blockedAddresses = useMemo(() => {
+    const blocked = new Set<string>();
+    allPoints.forEach((point) => blocked.add(point.address));
+    linkedAddresses.forEach((address) => blocked.add(address));
+    return blocked;
+  }, [allPoints, linkedAddresses]);
   const namePreview = useMemo(
     () => buildBatchNamePreview(batchNamePrefix, planCount, allPoints.map((point) => point.name)),
     [allPoints, batchNamePrefix, planCount]
@@ -300,19 +308,26 @@ export default function SmartDashboard() {
 
   const handleAutoAllocate = useCallback(() => {
     if (!selectedDevice || !planStartAddress || totalPlannedCells <= 0) return;
-    const used = new Set(allPoints.map((point) => point.address));
-    const candidates = addressParser.expand(planStartAddress, 800, selectedDevice.protocol);
-
-    const nextStart = candidates.find((candidateStart) => {
-      const span = addressParser.expand(candidateStart, totalPlannedCells, selectedDevice.protocol);
-      if (span.length !== totalPlannedCells) return false;
-      return span.every((address) => !used.has(address));
+    const result = findNearestValidContiguousSpan({
+      startAddress: planStartAddress,
+      spanSize: totalPlannedCells,
+      protocol: selectedDevice.protocol,
+      blockedAddresses,
     });
 
-    if (nextStart) {
-      setPlanStartAddress(nextStart);
+    if (result.startAddress) {
+      setPlanStartAddress(result.startAddress);
+      setAllocationMessage(`已自動配置到 ${result.startAddress}`);
+      return;
     }
-  }, [allPoints, planStartAddress, selectedDevice, totalPlannedCells]);
+
+    if (result.reason === 'invalid_start') {
+      setAllocationMessage('起始位址格式無效，請先修正後再試一次。');
+      return;
+    }
+
+    setAllocationMessage('在目前範圍內找不到可用連續區段，請調整起始位址或降低來源數量。');
+  }, [blockedAddresses, planStartAddress, selectedDevice, totalPlannedCells]);
 
   const handleApplyPlan = useCallback(() => {
     if (!planAddresses.length) return;
@@ -823,6 +838,9 @@ export default function SmartDashboard() {
                     )}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-slate-400">衝突格數: {planConflictCount}</span>
+                      {allocationMessage && (
+                        <span className="text-xs text-sky-200">{allocationMessage}</span>
+                      )}
                       {sourceTemplates.slice(0, 6).map((template) => (
                         <div
                           key={template.id}
