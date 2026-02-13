@@ -36,6 +36,10 @@ export function QuickActions({
   onQuickMapping,
   onTestConnection
 }: QuickActionsProps) {
+  const isPrimaryOpsReady = device?.status === 'active';
+  const prioritizedActions = isPrimaryOpsReady
+    ? ['batch', 'mapping', 'test'] as const
+    : ['test', 'batch', 'mapping'] as const;
   
   if (!device) {
     return (
@@ -50,33 +54,45 @@ export function QuickActions({
       {/* 快速操作（設備狀態已合併至 SmartDashboard 標題列） */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4">
         <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-4">快速操作</h3>
-        
-        <button
-          onClick={onBatchCreate}
-          disabled={selectedCount === 0}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium shadow-sm"
-        >
-          <Icons.Plus />
-          批量建立點位
-          {selectedCount > 0 && <span className="bg-blue-500 px-2 py-0.5 rounded-full text-xs">{selectedCount}</span>}
-        </button>
-
-        <button
-          onClick={onQuickMapping}
-          disabled={selectedCount === 0}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium"
-        >
-          <Icons.Link />
-          快速映射標籤
-        </button>
-
-        <button
-          onClick={onTestConnection}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium"
-        >
-          <Icons.Zap />
-          測試連線
-        </button>
+        {prioritizedActions.map((action) => {
+          if (action === 'batch') {
+            return (
+              <button
+                key={action}
+                onClick={onBatchCreate}
+                disabled={selectedCount === 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium shadow-sm"
+              >
+                <Icons.Plus />
+                批量建立點位
+                {selectedCount > 0 && <span className="bg-blue-500 px-2 py-0.5 rounded-full text-xs">{selectedCount}</span>}
+              </button>
+            );
+          }
+          if (action === 'mapping') {
+            return (
+              <button
+                key={action}
+                onClick={onQuickMapping}
+                disabled={selectedCount === 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium"
+              >
+                <Icons.Link />
+                快速映射標籤
+              </button>
+            );
+          }
+          return (
+            <button
+              key={action}
+              onClick={onTestConnection}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium"
+            >
+              <Icons.Zap />
+              測試連線
+            </button>
+          );
+        })}
       </div>
     </div>
   );

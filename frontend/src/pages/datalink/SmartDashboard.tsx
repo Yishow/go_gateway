@@ -64,13 +64,15 @@ import {
 import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/datalink/typedOccupancy';
 import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
 import { modbusShareAPI } from '../../services/datalink';
 import type { ModbusShareStatus } from '../../types/datalink';
 
 const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
 const COMMIT_CHUNK_SIZE = 8;
+const DASHBOARD_TABS = ['overview', 'devices', 'settings'] as const;
+type DashboardTab = (typeof DASHBOARD_TABS)[number];
 
 const STATUS_STYLE: Record<FlowStatus, string> = {
   draft: 'bg-slate-700/70 text-slate-200 border-slate-600',
@@ -99,6 +101,7 @@ interface SourceTemplate {
 
 export default function SmartDashboard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
@@ -145,6 +148,8 @@ export default function SmartDashboard() {
   } | null>(null);
   const legacyRoute = searchParams.get('legacy');
   const rawSectionIntent = searchParams.get('section');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [lastSwitchedAt, setLastSwitchedAt] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
   const guideStageTimeoutRef = useRef<number | null>(null);
@@ -197,6 +202,33 @@ export default function SmartDashboard() {
     if (sectionIntent === 'settings') return t('nav.settings');
     return '';
   }, [sectionIntent, t]);
+  const selectedDeviceState = useMemo<'active' | 'offline' | 'readonly'>(() => {
+    if (!selectedDevice) return 'offline';
+    if (selectedDevice.status === 'active') return 'active';
+    if (selectedDevice.status === 'disabled') return 'readonly';
+    return 'offline';
+  }, [selectedDevice]);
+  const selectedDeviceStateView = useMemo(() => {
+    if (selectedDeviceState === 'active') {
+      return {
+        label: t('smartDashboard.connected'),
+        className: 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300',
+        dotClass: 'bg-emerald-400',
+      };
+    }
+    if (selectedDeviceState === 'readonly') {
+      return {
+        label: 'Read-only',
+        className: 'bg-amber-500/10 border border-amber-500/30 text-amber-300',
+        dotClass: 'bg-amber-400',
+      };
+    }
+    return {
+      label: t('smartDashboard.disconnected'),
+      className: 'bg-rose-500/10 border border-rose-500/30 text-rose-300',
+      dotClass: 'bg-rose-400',
+    };
+  }, [selectedDeviceState, t]);
 
   const cellSpan = getSpanByDataType(planDataType);
   const typedPlanValidation = useMemo(
@@ -815,6 +847,26 @@ export default function SmartDashboard() {
     next.delete('section');
     setSearchParams(next, { replace: true });
   }, [searchParams, sectionIntent, setSearchParams]);
+  const handleSelectTab = useCallback((tab: DashboardTab) => {
+    setActiveTab(tab);
+  }, []);
+  const handleChooseDevice = useCallback(() => {
+    setIsTreeCollapsed(false);
+    setActiveTab('devices');
+  }, []);
+  const handleCreateDevice = useCallback(() => {
+    navigate('/datalink/devices/new');
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!sectionIntent) return;
+    setActiveTab(sectionIntent);
+  }, [sectionIntent]);
+
+  useEffect(() => {
+    if (!selectedDeviceId) return;
+    setLastSwitchedAt(new Date().toISOString());
+  }, [selectedDeviceId]);
 
   useEffect(() => {
     setSource(selectedDeviceId || '', selectedSourceAddress, selectedPoint?.id || '');
@@ -1193,6 +1245,90 @@ export default function SmartDashboard() {
           </div>
         </section>
       )}
+      <section className="mx-3 mt-3 sm:mx-4 grid grid-cols-1 xl:grid-cols-[1fr_460px] gap-3 items-stretch">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-2 sm:p-3">
+          <div className="flex flex-wrap gap-2">
+            {DASHBOARD_TABS.map((tab) => {
+              const isActive = activeTab === tab;
+              const label =
+                tab === 'overview'
+                  ? t('nav.dashboard')
+                  : tab === 'devices'
+                    ? t('nav.devices')
+                    : t('nav.settings');
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => handleSelectTab(tab)}
+                  className={`min-h-11 cursor-pointer rounded-full px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    isActive
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-3 py-3 sm:px-4">
+          {selectedDevice ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-white truncate max-w-[180px] sm:max-w-none">
+                    {selectedDevice.name}
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${selectedDeviceStateView.className}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${selectedDeviceStateView.dotClass}`} aria-hidden />
+                    {selectedDeviceStateView.label}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
+                  <span className="font-mono">ID: {selectedDevice.id.slice(0, 8)}</span>
+                  <span>•</span>
+                  <span>{selectedDevice.protocol}</span>
+                </div>
+                <div className="mt-1 text-[11px] text-slate-400">
+                  最近切換: {lastSwitchedAt ? new Date(lastSwitchedAt).toLocaleTimeString() : '-'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleChooseDevice}
+                className="min-h-11 cursor-pointer rounded-lg border border-blue-400/30 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                切換設備
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">尚未選擇設備</p>
+                <p className="text-xs text-slate-400 mt-1">請先選擇設備或建立設備後再進行流程規劃。</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleChooseDevice}
+                  className="min-h-11 cursor-pointer rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  選擇設備
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateDevice}
+                  className="min-h-11 cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  新增設備
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[auto_1fr_300px] gap-4 min-h-0">
         <div className={`${isTreeCollapsed ? 'xl:w-20' : 'xl:w-[260px]'} min-h-[280px] xl:min-h-0 transition-all duration-300`}>
@@ -1527,7 +1663,22 @@ export default function SmartDashboard() {
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">{t('smartDashboard.welcomeTitle')}</h3>
                   <p className="text-slate-300 max-w-md mb-6 leading-relaxed">{t('smartDashboard.welcomeDescription')}</p>
-                  <p className="text-blue-300 opacity-80">{t('smartDashboard.welcomeHint')}</p>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleChooseDevice}
+                      className="min-h-11 cursor-pointer rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      選擇設備
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateDevice}
+                      className="min-h-11 cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      新增設備
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
