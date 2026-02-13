@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTestAPI } from '../services/api'
-import type { BatchOperation } from '../types/api'
+import type { BatchOperation, BatchResponse, ReadResponse } from '../types/api'
 import { useToast } from '../contexts/ToastContext'
 
 interface TestOperationsProps {
@@ -13,7 +13,7 @@ interface TestOperationsProps {
  */
 interface PollingRecord {
   timestamp: string
-  data: any
+  data: ReadResponse | null
   error?: string
 }
 
@@ -30,7 +30,9 @@ export default function TestOperations({
   const [values, setValues] = useState<string>('')
   const [unitId, setUnitId] = useState<string>('') // Modbus 站號
   const [station, setStation] = useState<string>('') // Fatek 站號
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<
+    ReadResponse | BatchResponse | { status?: string; message?: string; error?: string } | null
+  >(null)
   const [loading, setLoading] = useState(false)
   
   // Batch state
@@ -93,7 +95,15 @@ export default function TestOperations({
     setLoading(true)
     try {
       if (isReadOp) {
-        const readParams: any = {
+        const readParams: {
+          operation: string
+          address: number
+          count: number
+          symbol?: string
+          device?: string
+          unit_id?: number
+          station?: number
+        } = {
           operation,
           address,
           count,
@@ -123,7 +133,14 @@ export default function TestOperations({
           const num = Number(trimmed)
           return isNaN(num) ? trimmed : num
         })
-        const writeParams: any = {
+        const writeParams: {
+          operation: string
+          address: number
+          values: Array<string | number | boolean>
+          symbol?: string
+          unit_id?: number
+          station?: number
+        } = {
           operation,
           address,
           values: valuesArray,
@@ -145,8 +162,12 @@ export default function TestOperations({
         await write(connectionId, writeParams)
         setResult({ status: 'success', message: '寫入成功' })
       }
-    } catch (error: any) {
-      setResult({ error: error.message })
+    } catch (error: unknown) {
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message ?? 'Unknown error')
+          : 'Unknown error'
+      setResult({ error: message })
     } finally {
       setLoading(false)
     }
@@ -188,8 +209,12 @@ export default function TestOperations({
         operations: batchQueue
       })
       setResult(res)
-    } catch (error: any) {
-      setResult({ error: error.message })
+    } catch (error: unknown) {
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message ?? 'Unknown error')
+          : 'Unknown error'
+      setResult({ error: message })
     } finally {
       setLoading(false)
     }
@@ -203,7 +228,15 @@ export default function TestOperations({
     if (!connectionId) return
 
     try {
-      const readParams: any = {
+      const readParams: {
+        operation: string
+        address: number
+        count: number
+        symbol?: string
+        device?: string
+        unit_id?: number
+        station?: number
+      } = {
         operation,
         address,
         count,
@@ -241,7 +274,11 @@ export default function TestOperations({
         // 最多保留 100 筆記錄
         return updated.slice(0, 100)
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message ?? 'Unknown error')
+          : 'Unknown error'
       const newRecord: PollingRecord = {
         timestamp: new Date().toLocaleTimeString('zh-TW', { 
           hour12: false,
@@ -251,7 +288,7 @@ export default function TestOperations({
           fractionalSecondDigits: 3
         }),
         data: null,
-        error: error.message,
+        error: message,
       }
       
       setPollingRecords(prev => {
@@ -619,9 +656,9 @@ export default function TestOperations({
                 ) : (
                   <div className="text-xs font-mono text-gray-700 dark:text-gray-300 overflow-x-auto">
                     <div className="space-y-1">
-                      {Array.isArray(record.data?.values) ? (
+                      {Array.isArray((record.data as { values?: unknown[] } | null)?.values) ? (
                         <div className="flex flex-wrap gap-1">
-                          {record.data.values.map((val: any, i: number) => (
+                          {(record.data as { values: unknown[] }).values.map((val: unknown, i: number) => (
                             <span
                               key={i}
                               className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs"
