@@ -1009,6 +1009,13 @@ export default function SmartDashboard() {
     const section = activeTab;
     navigate(`/datalink/local-modbus?section=${section}`);
   }, [activeTab, navigate]);
+  const openDeviceSetupPage = useCallback(
+    (deviceId?: string | null) => {
+      const suffix = deviceId ? `?focus=device&deviceId=${encodeURIComponent(deviceId)}` : '';
+      navigate(`/datalink/devices-legacy${suffix}`);
+    },
+    [navigate]
+  );
   const handleSelectTab = useCallback(
     (tab: DashboardTab) => {
       setActiveTab(tab);
@@ -1532,6 +1539,15 @@ export default function SmartDashboard() {
                   className="min-h-11 rounded-lg border border-amber-300/40 bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                 >
                   {activatingDeviceId === activationTargetDeviceId ? '啟用中...' : '直接啟用'}
+                </button>
+              )}
+              {activationTargetDeviceId && (
+                <button
+                  type="button"
+                  onClick={() => openDeviceSetupPage(activationTargetDeviceId)}
+                  className="min-h-11 rounded-lg border border-slate-300/30 bg-slate-700/60 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                >
+                  前往設定頁
                 </button>
               )}
               {pendingSwitchDeviceId && (
@@ -2605,14 +2621,23 @@ export default function SmartDashboard() {
                           <p className="text-[11px] text-slate-400">上次測試: {device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-'}</p>
                           <div className="flex items-center gap-2">
                             {device.status === 'draft' && (
-                              <button
-                                type="button"
-                                onClick={() => void handleActivateDeviceDirect(device.id)}
-                                disabled={activatingDeviceId === device.id}
-                                className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                              >
-                                {activatingDeviceId === device.id ? '啟用中...' : '啟用並切換'}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openDeviceSetupPage(device.id)}
+                                  className="min-h-9 rounded-md border border-slate-400/30 bg-slate-700/60 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                                >
+                                  設定與測試
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleActivateDeviceDirect(device.id)}
+                                  disabled={activatingDeviceId === device.id}
+                                  className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                >
+                                  {activatingDeviceId === device.id ? '啟用中...' : '啟用並切換'}
+                                </button>
+                              </>
                             )}
                             <button
                               type="button"

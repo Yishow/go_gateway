@@ -186,6 +186,7 @@ function renderDashboard(entry = '/datalink') {
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/datalink" element={<SmartDashboard />} />
+        <Route path="/datalink/devices-legacy" element={<div>devices-legacy-page</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -397,5 +398,13 @@ describe('SmartDashboard interactions', () => {
     const draftCard = await screen.findByText('Device Draft');
     const card = draftCard.closest('article') as HTMLElement;
     expect(within(card).getByRole('button', { name: '啟用並切換' })).toBeInTheDocument();
+  });
+
+  it('navigates to devices legacy page from setup action', async () => {
+    renderDashboard('/datalink?modal=devices');
+    const draftCard = await screen.findByText('Device Draft');
+    const card = draftCard.closest('article') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: '設定與測試' }));
+    expect(await screen.findByText('devices-legacy-page')).toBeInTheDocument();
   });
 });

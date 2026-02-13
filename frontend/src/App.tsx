@@ -10,6 +10,7 @@ import AnalyzerPage from './pages/AnalyzerPage'
 import Layout from './components/Layout'
 import SmartDashboard from './pages/datalink/SmartDashboard'
 import Dashboard from './pages/datalink/Dashboard'
+import DevicesPage from './pages/datalink/DevicesPage'
 import { buildDashboardModalRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
 import LocalModbusWorkbenchPage from './pages/datalink/LocalModbusWorkbenchPage'
 
@@ -31,6 +32,7 @@ function AppRoutes() {
       {/* Datalink Routes - Dashboard First */}
       <Route path="/datalink" element={<SmartDashboard />} />
       <Route path="/datalink/dashboard-legacy" element={<Dashboard />} />
+      <Route path="/datalink/devices-legacy" element={<DevicesPage />} />
       <Route path="/datalink/devices" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
       <Route path="/datalink/devices/new" element={<Navigate to="/datalink?modal=devices&section=devices&createDevice=1" replace />} />
       <Route path="/datalink/points" element={<Navigate to={buildLegacyMigrationRedirect('points')} replace />} />
