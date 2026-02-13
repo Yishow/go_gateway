@@ -19,6 +19,7 @@ import SmartDashboardSidebarTools from './smart-dashboard/SmartDashboardSidebarT
 import SmartDashboardCommitPanel from './smart-dashboard/SmartDashboardCommitPanel';
 import SmartDashboardTagAndModbusPanel from './smart-dashboard/SmartDashboardTagAndModbusPanel';
 import { useSmartDashboardTagLinking } from './smart-dashboard/useSmartDashboardTagLinking';
+import { useSmartDashboardModbusActions } from './smart-dashboard/useSmartDashboardModbusActions';
 import SmartDashboardWorkflowModal from './smart-dashboard/SmartDashboardWorkflowModal';
 import SmartDashboardOverlays from './smart-dashboard/SmartDashboardOverlays';
 import SmartDashboardPanels from './smart-dashboard/SmartDashboardPanels';
@@ -88,8 +89,6 @@ import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/da
 import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { modbusShareAPI } from '../../services/datalink';
-import type { ModbusShareStatus } from '../../types/datalink';
 
 const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
 const COMMIT_CHUNK_SIZE = 8;
@@ -157,8 +156,6 @@ export default function SmartDashboard() {
   const [guideStage, setGuideStage] = useState<'idle' | 'grid' | 'commit'>('idle');
   const [reducedMotion, setReducedMotion] = useState(false);
   const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => loadSourceTemplates());
-  const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
-  const [modbusRegister, setModbusRegister] = useState('0');
   const [commitActionMessage, setCommitActionMessage] = useState('');
   const [commitQueueRunStatus, setCommitQueueRunStatus] = useState<Record<string, 'success' | 'failed'>>({});
   const [lastCommitSnapshot, setLastCommitSnapshot] = useState<Record<string, 'success' | 'failed'> | null>(null);
@@ -432,20 +429,6 @@ export default function SmartDashboard() {
     if (!selectedDevice) return;
     setPlanStartAddress(selectedDevice.protocol.startsWith('modbus') ? '40001' : 'D0');
   }, [selectedDevice]);
-
-  const loadModbusStatus = useCallback(async () => {
-    try {
-      const status = await modbusShareAPI.status();
-      setModbusStatus(status);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '讀取 Modbus 分享狀態失敗';
-      showError(message);
-    }
-  }, [showError]);
-
-  useEffect(() => {
-    loadModbusStatus();
-  }, [loadModbusStatus]);
 
   const handleBatchCreate = useCallback(() => {
     if (selectedDeviceId) setPanelType('batch');
@@ -778,6 +761,21 @@ export default function SmartDashboard() {
     updateMapping: updateMappingMutation.mutateAsync,
     updateTag: updateTagMutation.mutateAsync,
   });
+  const {
+    modbusStatus,
+    modbusRegister,
+    setModbusRegister,
+    loadModbusStatus,
+    handleBindTagToModbus,
+    handlePushCurrentValueToModbus,
+    handleSyncModbusFromMappings,
+  } = useSmartDashboardModbusActions({
+    linkedTag: linkedTag || undefined,
+    selectedPoint,
+    showError,
+    showInfo,
+    showSuccess,
+  });
   const commitImpactSummary = useMemo(
     () => summarizeCommitImpact(commitQueueItems, Boolean(pendingTagEdit)),
     [commitQueueItems, pendingTagEdit]
@@ -820,56 +818,6 @@ export default function SmartDashboard() {
       },
     ] as const;
   }, [canActivate, linkedTag, planAddresses.length, planConflictCount, selectedDeviceId, selectedMapping, selectedSourceAddress]);
-
-  const handleBindTagToModbus = useCallback(async () => {
-    if (!linkedTag?.id) {
-      showError('請先選取已連結 Tag 的點位');
-      return;
-    }
-    const register = Number(modbusRegister);
-    if (!Number.isInteger(register) || register < 0 || register > 65535) {
-      showError('Register 必須為 0-65535 的整數');
-      return;
-    }
-    try {
-      await modbusShareAPI.upsertMapping(linkedTag.id, register);
-      await loadModbusStatus();
-      showSuccess(`已綁定 ${linkedTag.key} -> HR${register}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '綁定失敗';
-      showError(message);
-    }
-  }, [linkedTag?.id, linkedTag?.key, loadModbusStatus, modbusRegister, showError, showSuccess]);
-
-  const handlePushCurrentValueToModbus = useCallback(async () => {
-    if (!linkedTag?.id) {
-      showError('請先選取已連結 Tag 的點位');
-      return;
-    }
-    if (selectedPoint?.last_value === undefined || selectedPoint?.last_value === null) {
-      showError('目前點位沒有可推送的值');
-      return;
-    }
-    try {
-      await modbusShareAPI.writeTagValue(linkedTag.id, selectedPoint.last_value);
-      showSuccess(`已推送當前值到 Tag ${linkedTag.key} 的 Modbus 映射`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '推送失敗';
-      showError(message);
-    }
-  }, [linkedTag?.id, linkedTag?.key, selectedPoint?.last_value, showError, showSuccess]);
-
-  const handleSyncModbusFromMappings = useCallback(async () => {
-    try {
-      const result = await modbusShareAPI.sync();
-      await loadModbusStatus();
-      const errorHint = result.errors.length > 0 ? `, errors=${result.errors.length}` : '';
-      showInfo(`同步完成: updated=${result.updated}, skipped=${result.skipped}${errorHint}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '同步失敗';
-      showError(message);
-    }
-  }, [loadModbusStatus, showError, showInfo]);
 
   const dismissLegacyNotice = useCallback(() => {
     if (!isLegacyDecommissionRoute(legacyRoute)) return;
