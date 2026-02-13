@@ -11,12 +11,10 @@ import type {
 } from '../../types/datalink';
 import { MemoryGrid, type PlannedAllocation } from '../../components/datalink/MemoryGrid';
 import { QuickActions } from '../../components/datalink/QuickActions';
-import { SlidePanel } from '../../components/datalink/SlidePanel';
-import { BatchPointCreator } from '../../components/datalink/BatchPointCreator';
-import { PointDetailPanel } from '../../components/datalink/PointDetailPanel';
 import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExportDialog';
 import SmartDashboardWorkflowModal from './smart-dashboard/SmartDashboardWorkflowModal';
 import SmartDashboardOverlays from './smart-dashboard/SmartDashboardOverlays';
+import SmartDashboardPanels from './smart-dashboard/SmartDashboardPanels';
 import {
   useDevicesQuery,
   useDeleteDeviceMutation,
@@ -2650,59 +2648,20 @@ export default function SmartDashboard() {
         justCreatedDeviceId={justCreatedDeviceId}
         confirmSwitchToCreatedDevice={confirmSwitchToCreatedDevice}
       />
-      <SlidePanel
-        isOpen={panelType !== null}
-        title={
-          panelType === 'batch'
-            ? t('smartDashboard.batchCreate')
-            : panelType === 'shortcuts'
-              ? t('smartDashboard.shortcuts')
-              : t('smartDashboard.pointDetail')
-        }
-        onClose={() => setPanelType(null)}
-      >
-        {panelType === 'batch' && selectedDevice && (
-          <BatchPointCreator
-            deviceId={selectedDevice.id}
-            protocol={selectedDevice.protocol}
-            preselectedAddresses={selectedAddresses}
-            pollingGroups={pollingGroups}
-            onCreated={() => {
-              setPanelType(null);
-              setSelectedAddresses([]);
-            }}
-            onCancel={() => setPanelType(null)}
-          />
-        )}
-
-        {panelType === 'detail' && selectedPoint && (
-          <PointDetailPanel
-            point={selectedPoint}
-            onUpdate={() => setPanelType(null)}
-            onDelete={() => setPanelType(null)}
-            onClose={() => setPanelType(null)}
-          />
-        )}
-
-        {panelType === 'shortcuts' && (
-          <div className="space-y-4 p-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('smartDashboard.shortcutsHint')}</p>
-            <div className="space-y-3">
-              {shortcuts.map((shortcut, index) => (
-                <div key={index} className="flex items-center justify-between py-2 px-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
-                  <span className="text-sm text-slate-700 dark:text-slate-300">{shortcut.description}</span>
-                  <kbd className="px-2 py-1 text-xs font-mono bg-slate-200 dark:bg-slate-700 rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
-                    {shortcut.ctrl && 'Ctrl+'}
-                    {shortcut.alt && 'Alt+'}
-                    {shortcut.shift && 'Shift+'}
-                    {shortcut.key}
-                  </kbd>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </SlidePanel>
+      <SmartDashboardPanels
+        panelType={panelType}
+        setPanelType={setPanelType}
+        selectedDevice={selectedDevice}
+        selectedPoint={selectedPoint}
+        selectedAddresses={selectedAddresses}
+        setSelectedAddresses={setSelectedAddresses}
+        pollingGroups={pollingGroups}
+        shortcuts={shortcuts}
+        batchCreateTitle={t('smartDashboard.batchCreate')}
+        shortcutsTitle={t('smartDashboard.shortcuts')}
+        pointDetailTitle={t('smartDashboard.pointDetail')}
+        shortcutsHint={t('smartDashboard.shortcutsHint')}
+      />
 
       {selectedDevice && (
         <>
@@ -2725,4 +2684,5 @@ export default function SmartDashboard() {
     </div>
   );
 }
+
 
