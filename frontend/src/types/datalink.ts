@@ -240,6 +240,7 @@ export interface CreateMappingRequest {
 
 /** 更新映射請求 */
 export interface UpdateMappingRequest {
+  tag_id?: string;
   enabled?: boolean;
   transform_pipeline?: TransformStep[];
 }

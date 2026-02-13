@@ -24,8 +24,8 @@
 - [x] 3.8 Add conflict-only filter mode in grid controls.
 
 ## 4. Tag Linkage and Global Editing
-- [ ] 4.1 Build inline tag linkage panel bound to selected grid allocation.
-- [ ] 4.2 Support creating or selecting existing global tags in context.
+- [x] 4.1 Build inline tag linkage panel bound to selected grid allocation.
+- [x] 4.2 Support creating or selecting existing global tags in context.
 - [ ] 4.3 Enable global tag metadata edit in-place with impact summary.
 - [ ] 4.4 Add tests for global tag edit propagation behavior.
 - [ ] 4.5 Add affected-mappings summary and second-confirmation flow for global edits.

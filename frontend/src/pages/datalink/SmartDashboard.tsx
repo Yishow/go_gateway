@@ -11,8 +11,13 @@ import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExpo
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 import { usePointsQuery, useCreatePointMutation } from '../../hooks/datalink/usePoints';
-import { useMappingsQuery, useValidatePipelineMutation } from '../../hooks/datalink/useMappings';
-import { useTagsQuery } from '../../hooks/datalink/useTags';
+import {
+  useMappingsQuery,
+  useValidatePipelineMutation,
+  useCreateMappingMutation,
+  useUpdateMappingMutation,
+} from '../../hooks/datalink/useMappings';
+import { useTagsQuery, useCreateTagMutation } from '../../hooks/datalink/useTags';
 import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
@@ -81,6 +86,11 @@ export default function SmartDashboard() {
   const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
   const [modbusRegister, setModbusRegister] = useState('0');
   const [modbusActionMessage, setModbusActionMessage] = useState('');
+  const [tagLinkMode, setTagLinkMode] = useState<'existing' | 'create'>('existing');
+  const [selectedTagIdForLink, setSelectedTagIdForLink] = useState('');
+  const [newTagKey, setNewTagKey] = useState('');
+  const [newTagDisplayName, setNewTagDisplayName] = useState('');
+  const [tagLinkActionMessage, setTagLinkActionMessage] = useState('');
   const legacyRoute = searchParams.get('legacy');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
@@ -90,6 +100,9 @@ export default function SmartDashboard() {
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
   const { data: mappings = [] } = useMappingsQuery();
   const { data: tags = [] } = useTagsQuery();
+  const createTagMutation = useCreateTagMutation();
+  const createMappingMutation = useCreateMappingMutation();
+  const updateMappingMutation = useUpdateMappingMutation();
   const createPointMutation = useCreatePointMutation();
   const history = usePointHistory({ maxHistory: 30 });
   const flow = useFlowLifecycle();
@@ -351,9 +364,14 @@ export default function SmartDashboard() {
 
   const primarySelectedAddress = selectedAddresses[0] || '';
   const selectedSourceAddress = primarySelectedAddress || selectedPoint?.address || '';
+  const selectedPointFromGrid = useMemo(
+    () => allPoints.find((point) => point.address === selectedSourceAddress) || null,
+    [allPoints, selectedSourceAddress]
+  );
+  const activePointForLink = selectedPoint ?? selectedPointFromGrid;
   const selectedMapping = useMemo(
-    () => mappings.find((mapping) => selectedPoint && mapping.point_id === selectedPoint.id) || null,
-    [mappings, selectedPoint]
+    () => mappings.find((mapping) => activePointForLink && mapping.point_id === activePointForLink.id) || null,
+    [activePointForLink, mappings]
   );
   const linkedTag = useMemo(
     () => tags.find((tag) => tag.id === selectedMapping?.tag_id) || null,
@@ -368,6 +386,118 @@ export default function SmartDashboard() {
       return [];
     }
   }, [selectedMapping?.transform_pipeline]);
+
+  useEffect(() => {
+    setSelectedTagIdForLink(selectedMapping?.tag_id || '');
+  }, [selectedMapping?.tag_id]);
+
+  const handleLinkTagToSelectedAddress = useCallback(async () => {
+    if (!activePointForLink) {
+      setTagLinkActionMessage('請先選取已建立點位的格位，再進行 Tag 連結。');
+      return;
+    }
+
+    const targetTagId = selectedTagIdForLink.trim();
+    if (!targetTagId) {
+      setTagLinkActionMessage('請先選擇要連結的既有 Tag。');
+      return;
+    }
+
+    try {
+      if (selectedMapping) {
+        await updateMappingMutation.mutateAsync({
+          id: selectedMapping.id,
+          data: {
+            tag_id: targetTagId,
+            enabled: true,
+            transform_pipeline: parsePipeline(),
+          },
+        });
+        setTagLinkActionMessage(`已更新 ${activePointForLink.address} 的 Tag 連結。`);
+        return;
+      }
+
+      await createMappingMutation.mutateAsync({
+        point_id: activePointForLink.id,
+        tag_id: targetTagId,
+        enabled: true,
+      });
+      setTagLinkActionMessage(`已建立 ${activePointForLink.address} 的 Tag 連結。`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '連結失敗';
+      setTagLinkActionMessage(message);
+    }
+  }, [
+    activePointForLink,
+    createMappingMutation,
+    parsePipeline,
+    selectedMapping,
+    selectedTagIdForLink,
+    updateMappingMutation,
+  ]);
+
+  const handleCreateTagAndLink = useCallback(async () => {
+    if (!activePointForLink) {
+      setTagLinkActionMessage('請先選取已建立點位的格位，再建立 Tag。');
+      return;
+    }
+
+    const normalizedKey = newTagKey.trim();
+    if (!normalizedKey) {
+      setTagLinkActionMessage('Tag Key 不可為空。');
+      return;
+    }
+
+    const existing = tags.find((tag) => tag.key.toLowerCase() === normalizedKey.toLowerCase());
+    if (existing) {
+      setTagLinkActionMessage(`Tag Key ${normalizedKey} 已存在，請改用既有 Tag 模式。`);
+      return;
+    }
+
+    try {
+      const createdTag = await createTagMutation.mutateAsync({
+        key: normalizedKey,
+        display_name: newTagDisplayName.trim() || normalizedKey,
+        data_type: activePointForLink.data_type,
+      });
+
+      if (selectedMapping) {
+        await updateMappingMutation.mutateAsync({
+          id: selectedMapping.id,
+          data: {
+            tag_id: createdTag.id,
+            enabled: true,
+            transform_pipeline: parsePipeline(),
+          },
+        });
+      } else {
+        await createMappingMutation.mutateAsync({
+          point_id: activePointForLink.id,
+          tag_id: createdTag.id,
+          enabled: true,
+        });
+      }
+
+      setSelectedTagIdForLink(createdTag.id);
+      setTagLinkActionMessage(`已建立 Tag ${createdTag.key} 並完成連結。`);
+      setNewTagKey('');
+      setNewTagDisplayName('');
+      setTagLinkMode('existing');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '建立 Tag 失敗';
+      setTagLinkActionMessage(message);
+    }
+  }, [
+    activePointForLink,
+    createMappingMutation,
+    createTagMutation,
+    newTagDisplayName,
+    newTagKey,
+    parsePipeline,
+    selectedMapping,
+    tags,
+    updateMappingMutation,
+  ]);
 
   const handleBindTagToModbus = useCallback(async () => {
     if (!linkedTag?.id) {
@@ -1048,6 +1178,104 @@ export default function SmartDashboard() {
                 >
                   {t('smartDashboard.recoverFlow')}
                 </button>
+              )}
+            </div>
+            <div className="p-4 border-t border-white/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-wide text-slate-200">Tag Linkage</p>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {selectedSourceAddress || '-'}
+                </span>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3 text-[11px] text-slate-300 space-y-2">
+                <p>選取格位: {selectedSourceAddress || '尚未選取'}</p>
+                <p>點位: {activePointForLink?.name || '尚未建立點位'}</p>
+                <p>目前 Tag: {linkedTag?.key || '未連結'}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTagLinkMode('existing')}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    tagLinkMode === 'existing'
+                      ? 'border-blue-500/40 bg-blue-500/20 text-blue-100'
+                      : 'border-slate-700 bg-slate-800/70 text-slate-300'
+                  }`}
+                >
+                  選擇既有 Tag
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTagLinkMode('create')}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    tagLinkMode === 'create'
+                      ? 'border-indigo-500/40 bg-indigo-500/20 text-indigo-100'
+                      : 'border-slate-700 bg-slate-800/70 text-slate-300'
+                  }`}
+                >
+                  新建 Tag
+                </button>
+              </div>
+              {tagLinkMode === 'existing' ? (
+                <div className="space-y-2">
+                  <label className="block text-[11px] text-slate-300">
+                    已有 Tag
+                    <select
+                      value={selectedTagIdForLink}
+                      onChange={(e) => setSelectedTagIdForLink(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">請選擇 Tag</option>
+                      {tags.map((tag) => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.key} ({tag.data_type})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleLinkTagToSelectedAddress}
+                    disabled={!activePointForLink || !selectedTagIdForLink || updateMappingMutation.isPending || createMappingMutation.isPending}
+                    className="w-full rounded-lg border border-blue-500/40 bg-blue-500/20 px-3 py-2 text-xs font-medium text-blue-100 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    套用 Tag 連結
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="block text-[11px] text-slate-300">
+                    Tag Key
+                    <input
+                      value={newTagKey}
+                      onChange={(e) => setNewTagKey(e.target.value)}
+                      placeholder="例如: line_a_temp"
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </label>
+                  <label className="block text-[11px] text-slate-300">
+                    Display Name
+                    <input
+                      value={newTagDisplayName}
+                      onChange={(e) => setNewTagDisplayName(e.target.value)}
+                      placeholder="例如: Line A Temperature"
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleCreateTagAndLink}
+                    disabled={!activePointForLink || !newTagKey.trim() || createTagMutation.isPending || createMappingMutation.isPending || updateMappingMutation.isPending}
+                    className="w-full rounded-lg border border-indigo-500/40 bg-indigo-500/20 px-3 py-2 text-xs font-medium text-indigo-100 hover:bg-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  >
+                    建立並連結 Tag
+                  </button>
+                </div>
+              )}
+              {tagLinkActionMessage && (
+                <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
+                  {tagLinkActionMessage}
+                </p>
               )}
             </div>
             <div className="p-4 border-t border-white/5 space-y-3">
