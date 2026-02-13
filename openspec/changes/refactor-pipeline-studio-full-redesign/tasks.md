@@ -11,7 +11,7 @@
 - [ ] 2.4 Add tests for planner-to-template persistence.
 - [x] 2.5 Add template version and last-used timestamp handling.
 - [x] 2.6 Add stale-template warning and upgrade prompt.
-- [ ] 2.7 Add batch naming preview with duplicate/conflict detection.
+- [x] 2.7 Add batch naming preview with duplicate/conflict detection.
 
 ## 3. Memory Grid Typed Occupancy
 - [ ] 3.1 Implement span calculation by type (1/2/4 cells).

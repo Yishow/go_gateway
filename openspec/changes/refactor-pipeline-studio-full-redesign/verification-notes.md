@@ -40,3 +40,12 @@
 - Regression tests:
   - `frontend/src/features/datalink/__tests__/sourceTemplateStorage.test.ts`
   - Covers legacy template normalization (missing version/lastUsedAt) and upgrade behavior.
+
+### 2.7 Batch naming preview and conflict detection
+- Added batch naming preview utility:
+  - `frontend/src/features/datalink/batchNaming.ts`
+- Added planner UI for prefix input and preview chips with conflict highlighting:
+  - `frontend/src/pages/datalink/SmartDashboard.tsx`
+- Regression tests:
+  - `frontend/src/features/datalink/__tests__/batchNaming.test.ts`
+  - Covers sequence generation, case-insensitive conflicts, and blank-prefix fallback.

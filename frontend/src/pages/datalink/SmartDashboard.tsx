@@ -23,6 +23,7 @@ import {
   saveSourceTemplates,
   upgradeTemplates,
 } from '../../features/datalink/sourceTemplateStorage';
+import { buildBatchNamePreview } from '../../features/datalink/batchNaming';
 import { addressParser } from '../../utils/addressParser';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
@@ -81,6 +82,7 @@ export default function SmartDashboard() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [planDataType, setPlanDataType] = useState<DataType>('int16');
   const [planCount, setPlanCount] = useState(5);
+  const [batchNamePrefix, setBatchNamePrefix] = useState('SRC');
   const [planStartAddress, setPlanStartAddress] = useState('40001');
   const [templateName, setTemplateName] = useState('');
   const [showConflictsOnly, setShowConflictsOnly] = useState(false);
@@ -158,6 +160,14 @@ export default function SmartDashboard() {
     const occupiedSet = new Set(allPoints.map((point) => point.address));
     return planAddresses.filter((address) => occupiedSet.has(address)).length;
   }, [allPoints, planAddresses]);
+  const namePreview = useMemo(
+    () => buildBatchNamePreview(batchNamePrefix, planCount, allPoints.map((point) => point.name)),
+    [allPoints, batchNamePrefix, planCount]
+  );
+  const nameConflictCount = useMemo(
+    () => namePreview.filter((item) => item.conflict).length,
+    [namePreview]
+  );
 
   const staleTemplateCount = useMemo(
     () => sourceTemplates.filter((template) => isTemplateStale(template)).length,
@@ -769,6 +779,36 @@ export default function SmartDashboard() {
                           <Filter className="h-4 w-4" />
                           只看衝突
                         </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 rounded-lg border border-white/10 bg-slate-800/40 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <label className="text-xs text-slate-300">
+                          批次命名前綴
+                          <input
+                            value={batchNamePrefix}
+                            onChange={(e) => setBatchNamePrefix(e.target.value.toUpperCase())}
+                            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="例如: LINEA"
+                          />
+                        </label>
+                        <div className="text-xs text-slate-400">
+                          預覽 {namePreview.length} 筆，名稱衝突 {nameConflictCount} 筆
+                        </div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+                        {namePreview.slice(0, 12).map((item) => (
+                          <div
+                            key={item.sequence}
+                            className={`rounded-md border px-2 py-1 text-[11px] font-mono ${
+                              item.conflict
+                                ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                                : 'border-slate-700 bg-slate-900/70 text-slate-200'
+                            }`}
+                          >
+                            {item.name}
+                          </div>
+                        ))}
                       </div>
                     </div>
                     {staleTemplateCount > 0 && (
