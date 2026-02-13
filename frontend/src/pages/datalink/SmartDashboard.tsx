@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Point, CreatePointRequest, ProtocolType } from '../../types/datalink';
 import { DeviceTreeNav } from '../../components/datalink/DeviceTreeNav';
@@ -43,6 +43,7 @@ export default function SmartDashboard() {
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: devices = [] } = useDevicesQuery();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
@@ -124,15 +125,9 @@ export default function SmartDashboard() {
     if (selectedDeviceId && allPoints.length > 0) setExportDialogOpen(true);
   }, [selectedDeviceId, allPoints.length]);
 
-  const shortcuts = useSmartDashboardShortcuts({
-    onBatchCreate: handleBatchCreate,
-    onClosePanel: handleClosePanel,
-    onToggleSidebar: handleToggleSidebar,
-    onUndo: handleUndo,
-    onRedo: handleRedo,
-    onImport: handleImportShortcut,
-    onExport: handleExportShortcut,
-  });
+  const handleSearchShortcut = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
 
   const handleCellClick = (_addr: string, point?: Point) => {
     if (point) {
@@ -271,6 +266,20 @@ export default function SmartDashboard() {
     });
   }, [resetDraft, setDiagnostics]);
 
+  const shortcuts = useSmartDashboardShortcuts({
+    onBatchCreate: handleBatchCreate,
+    onClosePanel: handleClosePanel,
+    onToggleSidebar: handleToggleSidebar,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onSearch: handleSearchShortcut,
+    onValidateFlow: handleValidateFlow,
+    onActivateFlow: handleActivateFlow,
+    onRecoverFlow: hasError ? handleRecoverFlow : undefined,
+    onImport: handleImportShortcut,
+    onExport: handleExportShortcut,
+  });
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-11rem)] bg-gradient-to-br from-[#0B0F19] via-[#111827] to-[#0F172A] text-slate-100 font-sans rounded-2xl overflow-hidden selection:bg-blue-500/30">
       <header className="px-4 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/5">
@@ -295,6 +304,7 @@ export default function SmartDashboard() {
           <div className="absolute inset-0 bg-blue-500/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity rounded-full" />
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
           <input
+            ref={searchInputRef}
             id="dashboard-search"
             type="text"
             placeholder={t('smartDashboard.searchPlaceholder')}
@@ -463,7 +473,8 @@ export default function SmartDashboard() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setImportDialogOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    aria-keyshortcuts="Control+I"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   >
                     <Upload className="w-4 h-4" />
                     <span>{t('smartDashboard.import')}</span>
@@ -471,7 +482,8 @@ export default function SmartDashboard() {
                   <button
                     onClick={() => setExportDialogOpen(true)}
                     disabled={allPoints.length === 0}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    aria-keyshortcuts="Control+E"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   >
                     <Download className="w-4 h-4" />
                     <span>{t('smartDashboard.export')}</span>
@@ -484,7 +496,8 @@ export default function SmartDashboard() {
                 <button
                   onClick={handleUndo}
                   disabled={!history.canUndo}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  aria-keyshortcuts="Control+Z"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   title={history.getUndoAction()?.description || t('smartDashboard.noUndo')}
                 >
                   <Undo2 className="w-4 h-4" />
@@ -493,7 +506,8 @@ export default function SmartDashboard() {
                 <button
                   onClick={handleRedo}
                   disabled={!history.canRedo}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  aria-keyshortcuts="Control+Y"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   title={history.getRedoAction()?.description || t('smartDashboard.noRedo')}
                 >
                   <Redo2 className="w-4 h-4" />
@@ -504,7 +518,7 @@ export default function SmartDashboard() {
             <div className="p-4 border-t border-white/5">
               <button
                 onClick={() => setPanelType('shortcuts')}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               >
                 <Keyboard className="w-4 h-4" />
                 <span>{t('smartDashboard.shortcuts')}</span>
@@ -516,7 +530,8 @@ export default function SmartDashboard() {
                 type="button"
                 onClick={handleValidateFlow}
                 disabled={!canValidate || validatePipelineMutation.isPending}
-                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/20 text-blue-200 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                aria-keyshortcuts="Control+Enter"
+                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/20 text-blue-100 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               >
                 {validatePipelineMutation.isPending
                   ? t('smartDashboard.validating')
@@ -526,7 +541,8 @@ export default function SmartDashboard() {
                 type="button"
                 onClick={handleActivateFlow}
                 disabled={!canActivate}
-                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                aria-keyshortcuts="Control+Shift+Enter"
+                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
               >
                 {t('smartDashboard.activateFlow')}
               </button>
@@ -534,7 +550,8 @@ export default function SmartDashboard() {
                 <button
                   type="button"
                   onClick={handleRecoverFlow}
-                  className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  aria-keyshortcuts="Alt+R"
+                  className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                 >
                   {t('smartDashboard.recoverFlow')}
                 </button>

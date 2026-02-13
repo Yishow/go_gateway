@@ -14,10 +14,10 @@
 - [x] 3.3 Surface segment-level diagnostics (source/transform/sink)
 
 ## 4. Interaction & Accessibility
-- [ ] 4.1 Ensure complete keyboard navigation for all core actions
+- [x] 4.1 Ensure complete keyboard navigation for all core actions
 - [x] 4.2 Ensure icon-only controls have accessible labels
 - [x] 4.3 Ensure dialog/panel focus trap and focus restore behavior is consistent
-- [ ] 4.4 Ensure visible focus states and contrast pass baseline checks
+- [x] 4.4 Ensure visible focus states and contrast pass baseline checks
 
 ## 5. Validation Workflow
 - [x] 5.1 Add explicit validate transition from draft to validated
@@ -26,6 +26,6 @@
 
 ## 6. Verification
 - [x] 6.1 Add/adjust component tests for flow-first interactions
-- [ ] 6.2 Add/adjust integration tests for mapping + preview + activation flow
+- [x] 6.2 Add/adjust integration tests for mapping + preview + activation flow
 - [x] 6.3 Run lint/typecheck/tests and record results
-- [ ] 6.4 Conduct manual UX verification for operator scenarios
+- [x] 6.4 Conduct manual UX verification for operator scenarios

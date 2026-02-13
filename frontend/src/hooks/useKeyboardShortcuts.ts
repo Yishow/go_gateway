@@ -69,6 +69,9 @@ export function useSmartDashboardShortcuts(handlers: {
   onClosePanel?: () => void;
   onToggleSidebar?: () => void;
   onSearch?: () => void;
+  onValidateFlow?: () => void;
+  onActivateFlow?: () => void;
+  onRecoverFlow?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
   onImport?: () => void;
@@ -117,6 +120,34 @@ export function useSmartDashboardShortcuts(handlers: {
       ctrl: true,
       description: '搜尋',
       action: handlers.onSearch,
+    });
+  }
+
+  if (handlers.onValidateFlow) {
+    shortcuts.push({
+      key: 'Enter',
+      ctrl: true,
+      description: '驗證流程',
+      action: handlers.onValidateFlow,
+    });
+  }
+
+  if (handlers.onActivateFlow) {
+    shortcuts.push({
+      key: 'Enter',
+      ctrl: true,
+      shift: true,
+      description: '啟用流程',
+      action: handlers.onActivateFlow,
+    });
+  }
+
+  if (handlers.onRecoverFlow) {
+    shortcuts.push({
+      key: 'r',
+      alt: true,
+      description: '流程復原',
+      action: handlers.onRecoverFlow,
     });
   }
 
