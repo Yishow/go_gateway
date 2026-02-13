@@ -16,6 +16,7 @@ import { useTagsQuery } from '../../hooks/datalink/useTags';
 import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
+import { loadSourceTemplates, saveSourceTemplates } from '../../features/datalink/sourceTemplateStorage';
 import { addressParser } from '../../utils/addressParser';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
@@ -37,8 +38,6 @@ const RESET_SEGMENT_DIAGNOSTIC = {
   timestamp: '-',
   error: '',
 };
-
-const SOURCE_TEMPLATE_STORAGE_KEY = 'pipeline-studio-source-templates-v1';
 
 const SPAN_BY_TYPE: Record<DataType, number> = {
   bool: 1,
@@ -78,16 +77,7 @@ export default function SmartDashboard() {
   const [templateName, setTemplateName] = useState('');
   const [showConflictsOnly, setShowConflictsOnly] = useState(false);
   const [guideStage, setGuideStage] = useState<'idle' | 'grid'>('idle');
-  const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => {
-    try {
-      const raw = localStorage.getItem(SOURCE_TEMPLATE_STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => loadSourceTemplates());
   const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
   const [modbusRegister, setModbusRegister] = useState('0');
   const [modbusActionMessage, setModbusActionMessage] = useState('');
@@ -168,7 +158,7 @@ export default function SmartDashboard() {
   }, [selectedDeviceId]);
 
   useEffect(() => {
-    localStorage.setItem(SOURCE_TEMPLATE_STORAGE_KEY, JSON.stringify(sourceTemplates));
+    saveSourceTemplates(sourceTemplates);
   }, [sourceTemplates]);
 
   useEffect(() => {

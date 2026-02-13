@@ -67,8 +67,8 @@
 
 ## 9. Verification and Release Gate
 - [x] 9.1 Run `npm run lint`, `npm run typecheck`, `npm test`.
-- [ ] 9.2 Run manual scenario checks for type-count occupancy examples.
+- [x] 9.2 Run manual scenario checks for type-count occupancy examples.
 - [ ] 9.3 Record UX acceptance notes for source template reuse and global tag edits.
-- [ ] 9.4 Verify autosave/restore behavior under abrupt page reload.
+- [x] 9.4 Verify autosave/restore behavior under abrupt page reload.
 - [ ] 9.5 Verify phased rollout with initial type subset (`int16`, `int32`, `float32`).
-- [ ] 9.6 Verify Modbus server behavior on port `5020` using an external Modbus client.
+- [x] 9.6 Verify Modbus server behavior on port `5020` using an external Modbus client.
