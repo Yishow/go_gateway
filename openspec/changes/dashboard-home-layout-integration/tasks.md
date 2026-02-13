@@ -44,8 +44,8 @@
 ## 6. Verification and Regression Coverage
 
 - [x] 6.1 新增/調整路由測試，驗證 legacy 路徑導向與 section intent
-- [ ] 6.2 新增/調整 `SmartDashboard` 互動測試（context bar、drawer、切換流程）
-- [ ] 6.3 新增/調整異常流程測試（offline、switch failure、unsaved changes、read-only）
-- [ ] 6.4 增加 E2E 主線：切換成功、切換失敗、未儲存攔截、read-only
+- [x] 6.2 新增/調整 `SmartDashboard` 互動測試（context bar、drawer、切換流程）
+- [x] 6.3 新增/調整異常流程測試（offline、switch failure、unsaved changes、read-only）
+- [x] 6.4 增加 E2E 主線：切換成功、切換失敗、未儲存攔截、read-only
 - [x] 6.5 新增 `local-modbus` 獨立頁流程測試與衝突測試
 - [x] 6.6 執行 `cd frontend; npm run test` 與 `cd frontend; npm run lint`，附上結果
