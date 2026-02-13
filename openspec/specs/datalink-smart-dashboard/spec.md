@@ -1,20 +1,11 @@
-# Spec: Datalink Smart Dashboard UI
+# datalink-smart-dashboard Specification
 
-> **Version**: 1.0  
-> **Status**: Draft  
-> **Related**: `device-registry`, `datalink-api`
+## Purpose
+TBD - created by archiving change optimize-point-configuration-ux. Update Purpose after archive.
+## Requirements
+### Requirement: 三欄式佈局 (REQ-DASH-001)
 
-## Overview
-
-智慧 Dashboard 是資料點配置的一站式工作台，採用類 IDE 三欄佈局，將設備管理、點位配置、標籤映射整合於單一頁面。
-
----
-
-## ADDED Requirements
-
-### REQ-DASH-001: 三欄式佈局
-
-Dashboard 頁面應採用三欄式佈局：設備樹狀導覽（左）、動態內容區（中）、快速操作面板（右）。
+The Smart Dashboard SHALL use a three-column layout: device tree (left), dynamic content (center), and quick actions panel (right).
 
 #### Scenario: 頁面載入
 
@@ -34,9 +25,9 @@ Dashboard 頁面應採用三欄式佈局：設備樹狀導覽（左）、動態�
 
 ---
 
-### REQ-DASH-002: 設備樹狀導覽
+### Requirement: 設備樹狀導覽 (REQ-DASH-002)
 
-樹狀導覽應顯示設備層級結構，支援展開/收合子項目。
+The UI SHALL provide a tree navigation that displays device hierarchy and SHALL support expand/collapse of child items.
 
 #### Scenario: 設備列表顯示
 
@@ -78,9 +69,9 @@ Dashboard 頁面應採用三欄式佈局：設備樹狀導覽（左）、動態�
 
 ---
 
-### REQ-DASH-003: 記憶體格子視覺化
+### Requirement: 記憶體格子視覺化 (REQ-DASH-003)
 
-中間區域應顯示記憶體格子，視覺化 PLC 暫存器使用狀況。
+The center area SHALL display a memory grid that visualizes PLC register usage.
 
 #### Scenario: 格子渲染
 
@@ -114,9 +105,9 @@ Dashboard 頁面應採用三欄式佈局：設備樹狀導覽（左）、動態�
 
 ---
 
-### REQ-DASH-004: 快速操作面板
+### Requirement: 快速操作面板 (REQ-DASH-004)
 
-右側面板應提供常用操作按鈕與即時狀態監控。
+The right panel SHALL provide quick action buttons and real-time status display.
 
 #### Scenario: 批量建立按鈕
 
@@ -134,9 +125,9 @@ Dashboard 頁面應採用三欄式佈局：設備樹狀導覽（左）、動態�
 
 ---
 
-### REQ-DASH-005: 側邊滑出面板
+### Requirement: 側邊滑出面板 (REQ-DASH-005)
 
-點選格子或操作按鈕時，應從右側滑出詳細設定面板。
+The UI SHALL provide a slide-out panel from the right when the user selects a cell or action button.
 
 #### Scenario: 開啟面板
 
@@ -154,9 +145,9 @@ Dashboard 頁面應採用三欄式佈局：設備樹狀導覽（左）、動態�
 
 ---
 
-### REQ-DASH-006: 批量點位建立
+### Requirement: 批量點位建立 (REQ-DASH-006)
 
-批量建立器應支援一次建立多個連續位址的點位。
+The batch creator SHALL support creating multiple points for consecutive addresses in one operation.
 
 #### Scenario: 命名模板
 
@@ -175,56 +166,3 @@ Dashboard 頁面應採用三欄式佈局：設備樹狀導覽（左）、動態�
 
 ---
 
-## ADDED API Requirements
-
-### REQ-API-BATCH-001: 批量建立點位 API
-
-#### Scenario: 成功批量建立
-
-- **Given** 請求包含有效的 device_id 和 points 陣列
-- **When** POST `/api/v1/datalink/points/batch`
-- **Then** 應返回 201 Created
-- **And** 回應包含 created_count 和 points 陣列
-
-#### Scenario: 部分失敗回滾
-
-- **Given** 請求包含 10 個點位，第 5 個位址衝突
-- **When** POST `/api/v1/datalink/points/batch`
-- **Then** 應返回 400 Bad Request
-- **And** 已建立的 4 個點位應回滾
-- **And** 回應包含錯誤詳情
-
----
-
-### REQ-API-REORDER-001: 設備排序 API
-
-#### Scenario: 成功重新排序
-
-- **Given** 請求包含有效的 device_ids 陣列
-- **When** PATCH `/api/v1/datalink/devices/reorder`
-- **Then** 應返回 200 OK
-- **And** 設備順序應按照 device_ids 陣列更新
-
----
-
-## ADDED UI Consistency Requirements
-
-### REQ-UI-001: 全系統設計 Token 統一
-
-所有頁面（包含 TestPage）應使用統一的設計 Token。
-
-#### Scenario: 背景色一致性
-
-- **Given** 使用者開啟 SmartDashboard 頁面
-- **When** 切換到 TestPage
-- **Then** 背景色應相同（#0F172A）
-- **And** 卡片樣式應一致
-- **And** 按鈕樣式應一致
-
-#### Scenario: 圖標一致性
-
-- **Given** 所有頁面
-- **When** 顯示圖標
-- **Then** 應使用 Lucide Icons
-- **And** 圖標大小應統一（20x20 或 24x24）
-- **And** 不應使用 Emoji 作為圖標

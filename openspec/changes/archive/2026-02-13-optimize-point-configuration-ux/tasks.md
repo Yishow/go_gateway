@@ -190,20 +190,20 @@
 
 ### 3.1 舊頁面遷移
 
-- [ ] 移除 PointsPage（功能已整合）
-- [ ] 移除 MappingsPage（功能已整合）
-- [ ] 移除 MappingWizardPage（功能已整合）
-- [ ] 移除 DeviceOnboardingPage（功能已整合）
-- [ ] 更新導航結構
+- [x] 移除 PointsPage（功能已整合）
+- [x] 移除 MappingsPage（功能已整合）
+- [x] 移除 MappingWizardPage（功能已整合）
+- [x] 移除 DeviceOnboardingPage（功能已整合）
+- [x] 更新導航結構
 
 ### 3.2 響應式優化
 
-- [ ] 平板佈局（1024px - 1280px）
-  - [ ] 隱藏 QuickActions，改為浮動按鈕
-  - [ ] TreeNav 預設收合
-- [ ] 大螢幕優化（1920px+）
-  - [ ] 加大格子尺寸
-  - [ ] 顯示更多資訊
+- [x] 平板佈局（1024px - 1280px）
+  - [x] 隱藏 QuickActions，改為浮動按鈕
+  - [x] TreeNav 預設收合
+- [x] 大螢幕優化（1920px+）
+  - [x] 加大格子尺寸
+  - [x] 顯示更多資訊
 
 ### 3.3 進階功能
 
@@ -253,9 +253,9 @@
 ### Phase 3 完成驗證
 
 - [x] 鍵盤快捷鍵正常 ✅
-- [ ] 舊頁面已移除
-- [ ] 鍵盤快捷鍵正常
-- [ ] 匯入/匯出正常
+- [x] 舊頁面已移除
+- [x] 鍵盤快捷鍵正常
+- [x] 匯入/匯出正常
 
 ---
 

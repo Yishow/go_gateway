@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Point, CreatePointRequest, ProtocolType } from '../../types/datalink';
+import type { Point, CreatePointRequest, ProtocolType, DataType } from '../../types/datalink';
 import { DeviceTreeNav } from '../../components/datalink/DeviceTreeNav';
-import { MemoryGrid } from '../../components/datalink/MemoryGrid';
+import { MemoryGrid, type PlannedAllocation } from '../../components/datalink/MemoryGrid';
 import { QuickActions } from '../../components/datalink/QuickActions';
 import { SlidePanel } from '../../components/datalink/SlidePanel';
 import { BatchPointCreator } from '../../components/datalink/BatchPointCreator';
@@ -16,7 +16,8 @@ import { useTagsQuery } from '../../hooks/datalink/useTags';
 import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
-import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2 } from 'lucide-react';
+import { addressParser } from '../../utils/addressParser';
+import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
 
 const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
 
@@ -34,6 +35,30 @@ const RESET_SEGMENT_DIAGNOSTIC = {
   error: '',
 };
 
+const SOURCE_TEMPLATE_STORAGE_KEY = 'pipeline-studio-source-templates-v1';
+
+const SPAN_BY_TYPE: Record<DataType, number> = {
+  bool: 1,
+  int16: 1,
+  uint16: 1,
+  int32: 2,
+  uint32: 2,
+  float32: 2,
+  int64: 4,
+  uint64: 4,
+  float64: 4,
+  string: 1,
+};
+
+interface SourceTemplate {
+  id: string;
+  name: string;
+  dataType: DataType;
+  count: number;
+  startAddress: string;
+  updatedAt: string;
+}
+
 export default function SmartDashboard() {
   const { t } = useTranslation();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
@@ -43,7 +68,24 @@ export default function SmartDashboard() {
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [planDataType, setPlanDataType] = useState<DataType>('int16');
+  const [planCount, setPlanCount] = useState(5);
+  const [planStartAddress, setPlanStartAddress] = useState('40001');
+  const [templateName, setTemplateName] = useState('');
+  const [showConflictsOnly, setShowConflictsOnly] = useState(false);
+  const [guideStage, setGuideStage] = useState<'idle' | 'grid'>('idle');
+  const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => {
+    try {
+      const raw = localStorage.getItem(SOURCE_TEMPLATE_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const gridSectionRef = useRef<HTMLElement | null>(null);
 
   const { data: devices = [] } = useDevicesQuery();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
@@ -74,11 +116,50 @@ export default function SmartDashboard() {
     [devices, selectedDeviceId]
   );
 
+  const cellSpan = SPAN_BY_TYPE[planDataType];
+  const totalPlannedCells = planCount * cellSpan;
+
+  const plannedAllocations = useMemo<PlannedAllocation[]>(() => {
+    if (!selectedDevice || !planStartAddress || planCount <= 0) return [];
+    const expanded = addressParser.expand(planStartAddress, totalPlannedCells, selectedDevice.protocol);
+    if (expanded.length < totalPlannedCells) return [];
+
+    return Array.from({ length: planCount }).map((_, index) => {
+      const start = index * cellSpan;
+      const addresses = expanded.slice(start, start + cellSpan);
+      return {
+        id: `plan-${index}`,
+        dataType: planDataType,
+        addresses,
+        label: `S${index + 1}`,
+      };
+    });
+  }, [cellSpan, planCount, planDataType, planStartAddress, selectedDevice, totalPlannedCells]);
+
+  const planAddresses = useMemo(
+    () => plannedAllocations.flatMap((allocation) => allocation.addresses),
+    [plannedAllocations]
+  );
+
+  const planConflictCount = useMemo(() => {
+    const occupiedSet = new Set(allPoints.map((point) => point.address));
+    return planAddresses.filter((address) => occupiedSet.has(address)).length;
+  }, [allPoints, planAddresses]);
+
   useEffect(() => {
     setSelectedAddresses([]);
     setSelectedPoint(null);
     setPanelType((prev) => (prev === 'detail' ? null : prev));
   }, [selectedDeviceId]);
+
+  useEffect(() => {
+    localStorage.setItem(SOURCE_TEMPLATE_STORAGE_KEY, JSON.stringify(sourceTemplates));
+  }, [sourceTemplates]);
+
+  useEffect(() => {
+    if (!selectedDevice) return;
+    setPlanStartAddress(selectedDevice.protocol.startsWith('modbus') ? '40001' : 'D0');
+  }, [selectedDevice]);
 
   const handleBatchCreate = useCallback(() => {
     if (selectedDeviceId) setPanelType('batch');
@@ -128,6 +209,63 @@ export default function SmartDashboard() {
   const handleSearchShortcut = useCallback(() => {
     searchInputRef.current?.focus();
   }, []);
+
+  const handleSaveTemplate = useCallback(() => {
+    const normalized = templateName.trim();
+    if (!normalized || !selectedDevice) return;
+
+    const next: SourceTemplate = {
+      id: normalized.toLowerCase().replace(/\s+/g, '-'),
+      name: normalized,
+      dataType: planDataType,
+      count: planCount,
+      startAddress: planStartAddress,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setSourceTemplates((prev) => {
+      const existingIndex = prev.findIndex((item) => item.id === next.id);
+      if (existingIndex === -1) return [next, ...prev].slice(0, 20);
+      const copied = [...prev];
+      copied[existingIndex] = next;
+      return copied;
+    });
+    setTemplateName('');
+  }, [planCount, planDataType, planStartAddress, selectedDevice, templateName]);
+
+  const handleLoadTemplate = useCallback((template: SourceTemplate) => {
+    setPlanDataType(template.dataType);
+    setPlanCount(template.count);
+    setPlanStartAddress(template.startAddress);
+  }, []);
+
+  const handleDeleteTemplate = useCallback((templateId: string) => {
+    setSourceTemplates((prev) => prev.filter((item) => item.id !== templateId));
+  }, []);
+
+  const handleAutoAllocate = useCallback(() => {
+    if (!selectedDevice || !planStartAddress || totalPlannedCells <= 0) return;
+    const used = new Set(allPoints.map((point) => point.address));
+    const candidates = addressParser.expand(planStartAddress, 800, selectedDevice.protocol);
+
+    const nextStart = candidates.find((candidateStart) => {
+      const span = addressParser.expand(candidateStart, totalPlannedCells, selectedDevice.protocol);
+      if (span.length !== totalPlannedCells) return false;
+      return span.every((address) => !used.has(address));
+    });
+
+    if (nextStart) {
+      setPlanStartAddress(nextStart);
+    }
+  }, [allPoints, planStartAddress, selectedDevice, totalPlannedCells]);
+
+  const handleApplyPlan = useCallback(() => {
+    if (!planAddresses.length) return;
+    setSelectedAddresses(planAddresses);
+    setGuideStage('grid');
+    gridSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => setGuideStage('idle'), 1200);
+  }, [planAddresses]);
 
   const handleCellClick = (_addr: string, point?: Point) => {
     if (point) {
@@ -389,6 +527,127 @@ export default function SmartDashboard() {
                 </div>
 
                 <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-thin scrollbar-thumb-slate-700/50 scrollbar-track-transparent">
+                  <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-100">Source Planner</h3>
+                      <span className="text-xs text-slate-400">
+                        {planDataType} x {planCount} = {totalPlannedCells} cells
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_auto_auto] gap-3">
+                      <label className="text-xs text-slate-300">
+                        Data Type
+                        <select
+                          value={planDataType}
+                          onChange={(e) => setPlanDataType(e.target.value as DataType)}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="int16">int16 (1 cell)</option>
+                          <option value="int32">int32 (2 cells)</option>
+                          <option value="float32">float32 (2 cells)</option>
+                          <option value="float64">float64 (4 cells)</option>
+                        </select>
+                      </label>
+                      <label className="text-xs text-slate-300">
+                        Source Count
+                        <input
+                          type="number"
+                          min={1}
+                          max={200}
+                          value={planCount}
+                          onChange={(e) => setPlanCount(Math.max(1, Number(e.target.value) || 1))}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </label>
+                      <label className="text-xs text-slate-300">
+                        Start Address
+                        <input
+                          value={planStartAddress}
+                          onChange={(e) => setPlanStartAddress(e.target.value.toUpperCase())}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </label>
+                      <div className="flex items-end gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAutoAllocate}
+                          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-2 text-xs font-medium text-sky-100 hover:bg-sky-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                        >
+                          <WandSparkles className="h-4 w-4" />
+                          Auto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleApplyPlan}
+                          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                        >
+                          套用到 Grid
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 xl:grid-cols-[1fr_auto] gap-3">
+                      <label className="text-xs text-slate-300">
+                        儲存模板
+                        <div className="mt-1 flex gap-2">
+                          <input
+                            value={templateName}
+                            onChange={(e) => setTemplateName(e.target.value)}
+                            placeholder="例如: line-a-float32-10"
+                            className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSaveTemplate}
+                            disabled={!templateName.trim()}
+                            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/20 px-3 py-2 text-xs font-medium text-indigo-100 hover:bg-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          >
+                            <Save className="h-4 w-4" />
+                            儲存
+                          </button>
+                        </div>
+                      </label>
+                      <div className="flex items-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowConflictsOnly((prev) => !prev)}
+                          className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+                            showConflictsOnly
+                              ? 'border-amber-500/40 bg-amber-500/20 text-amber-100'
+                              : 'border-slate-700 bg-slate-800/70 text-slate-200'
+                          }`}
+                        >
+                          <Filter className="h-4 w-4" />
+                          只看衝突
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-slate-400">衝突格數: {planConflictCount}</span>
+                      {sourceTemplates.slice(0, 6).map((template) => (
+                        <div
+                          key={template.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-slate-800/60 pl-2 pr-1 py-1 text-[11px] text-slate-200"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleLoadTemplate(template)}
+                            className="inline-flex items-center gap-1 cursor-pointer hover:text-white"
+                          >
+                            <FolderOpen className="h-3.5 w-3.5" />
+                            {template.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTemplate(template.id)}
+                            className="rounded-full px-1 text-slate-400 hover:bg-slate-700 hover:text-white"
+                            aria-label={`Delete template ${template.name}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                   <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/50 p-4">
                     <div className="mb-3 flex items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold text-slate-100">{t('smartDashboard.flowTitle')}</h3>
@@ -431,16 +690,25 @@ export default function SmartDashboard() {
                       })}
                     </div>
                   </section>
-                  <MemoryGrid
-                    deviceId={selectedDevice.id}
-                    protocol={selectedDevice.protocol}
-                    centerAddress={getGridCenterAddress(selectedDevice.protocol)}
-                    range={300}
-                    existingPoints={allPoints}
-                    selectedAddresses={selectedAddresses}
-                    onSelect={setSelectedAddresses}
-                    onCellClick={handleCellClick}
-                  />
+                  <section
+                    ref={gridSectionRef}
+                    className={`rounded-2xl border border-white/10 bg-slate-900/50 transition-all duration-300 ${
+                      guideStage === 'grid' ? 'ring-2 ring-sky-500/70 ring-offset-2 ring-offset-slate-900 motion-safe:animate-pulse' : ''
+                    }`}
+                  >
+                    <MemoryGrid
+                      deviceId={selectedDevice.id}
+                      protocol={selectedDevice.protocol}
+                      centerAddress={planStartAddress || getGridCenterAddress(selectedDevice.protocol)}
+                      range={300}
+                      existingPoints={allPoints}
+                      selectedAddresses={selectedAddresses}
+                      plannedAllocations={plannedAllocations}
+                      showConflictsOnly={showConflictsOnly}
+                      onSelect={setSelectedAddresses}
+                      onCellClick={handleCellClick}
+                    />
+                  </section>
                 </div>
               </>
             ) : (

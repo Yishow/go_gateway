@@ -6,38 +6,24 @@ TBD - created by archiving change add-device-data-pipeline. Update Purpose after
 ## Requirements
 ### Requirement: Guided workflow
 
-The UI SHALL provide a guided workflow from device setup to mapping activation using a 6-step Wizard with the following stages:
+The UI SHALL provide a guided workflow that keeps a persistent visual context of the complete data flow: **Source Device Data → Memory Grid Address → Tag Mapping → Database Write Target**.
 
-1. **Device Selection**: Select existing device or create new
-2. **Point Configuration**: Configure address and data type
-3. **Tag Selection**: Select target tag or create new
-4. **Transform Configuration**: Build transform pipeline
-5. **Preview Confirmation**: Verify raw → transformed values via SSE
-6. **Activation**: Save and activate mapping
+The workflow SHALL ensure:
 
-The workflow SHALL support:
+1. Operators can always identify the currently selected source device and address.
+2. Mapping and transform steps are editable without losing source context.
+3. Validation and activation states are visible in the same workspace.
+4. Failures are localized to a specific flow segment.
 
-- Progress persistence (draft save)
-- Step validation before proceeding
-- Back navigation to any completed step
-- Side panel with live preview
+#### Scenario: End-to-end guided configuration in one workspace
+- **WHEN** an operator selects a source address and configures mapping/tag/write options
+- **THEN** the UI keeps source, mapping, and write target context visible
+- **AND** the operator does not need to switch pages to complete activation
 
-#### Scenario: Complete workflow
-
-- WHEN a user completes all 6 steps
-- THEN the mapping is activated and data starts flowing
-
-#### Scenario: Save draft and resume
-
-- WHEN a user saves a draft at any step
-- THEN the user can resume from the same step later
-
-#### Scenario: Step validation failure
-
-- WHEN a user attempts to proceed with invalid data
-- THEN the UI displays validation errors and blocks progression
-
----
+#### Scenario: Segment-localized error handling
+- **WHEN** validation fails in transform or write stage
+- **THEN** the UI marks the failed segment
+- **AND** provides actionable retry or edit guidance for that segment
 
 ### Requirement: Drag-drop mapping canvas
 
@@ -266,4 +252,36 @@ The system SHALL provide a dedicated Points management page with full CRUD funct
 
 - **WHEN** a user selects multiple points
 - **THEN** the page provides batch operations (enable/disable, assign to polling group, delete)
+
+### Requirement: Flow-first workspace visualization
+
+The UI SHALL provide a flow-first workspace with four explicit sections:
+- Source (device/protocol/connection health)
+- Memory Grid (address selection and occupancy)
+- Tag Linkage (point-to-tag mapping)
+- Write Target (storage status and write readiness)
+
+#### Scenario: Persistent flow visualization
+- **WHEN** the operator changes selected devices or addresses
+- **THEN** the workspace updates all four sections cohesively
+- **AND** preserves a consistent flow reading order
+
+#### Scenario: Memory-to-tag linkage visibility
+- **WHEN** an address is linked to a tag
+- **THEN** the UI shows the linkage immediately in both grid context and tag context
+- **AND** displays current linkage status (draft/validated/active/error)
+
+### Requirement: Accessible and responsive operator workspace
+
+The UI SHALL remain fully operable by keyboard and avoid horizontal overflow at supported desktop breakpoints.
+
+#### Scenario: Keyboard-only operation
+- **WHEN** an operator uses keyboard-only navigation
+- **THEN** the operator can complete address selection, mapping, validation, and activation
+- **AND** all interactive controls have visible focus state
+
+#### Scenario: Desktop responsive stability
+- **WHEN** viewport width is 1024px or above
+- **THEN** the workspace shows all core flow functions without horizontal scrolling
+- **AND** critical actions remain visible without hidden overflow traps
 
