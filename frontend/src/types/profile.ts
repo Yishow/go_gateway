@@ -17,13 +17,13 @@ export interface MonitorItem {
  */
 export interface ConnectionModeConfigs {
   /** TCP 連線配置 */
-  tcp?: Record<string, any>;
+  tcp?: Record<string, unknown>;
   /** UDP 連線配置 */
-  udp?: Record<string, any>;
+  udp?: Record<string, unknown>;
   /** Serial/RTU 連線配置 */
-  serial?: Record<string, any>;
+  serial?: Record<string, unknown>;
   /** RTU 連線配置 (與 serial 共用，但保留獨立欄位以支援未來擴展) */
-  rtu?: Record<string, any>;
+  rtu?: Record<string, unknown>;
 }
 
 /**

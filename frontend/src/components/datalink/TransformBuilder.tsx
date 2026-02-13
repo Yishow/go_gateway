@@ -6,6 +6,8 @@ interface TransformBuilderProps {
   onChange: (steps: TransformStep[]) => void;
 }
 
+type TransformParams = Record<string, unknown>;
+
 const TRANSFORM_TYPES: { type: TransformType; label: string; desc: string }[] = [
   { type: 'decode', label: 'Decode', desc: 'Binary decode (Endianness, etc.)' },
   { type: 'cast', label: 'Cast', desc: 'Type conversion (int to float, etc.)' },
@@ -34,12 +36,12 @@ export default function TransformBuilder({ steps, onChange }: TransformBuilderPr
     if (activeStepIndex === index) setActiveStepIndex(null);
   };
 
-  const updateStepParams = (index: number, params: Record<string, any>) => {
+  const updateStepParams = (index: number, params: TransformParams) => {
     const newSteps = steps.map((s, i) => (i === index ? { ...s, params: { ...s.params, ...params } } : s));
     onChange(newSteps);
   };
 
-  const getDefaultParams = (type: TransformType): Record<string, any> => {
+  const getDefaultParams = (type: TransformType): TransformParams => {
     switch (type) {
       case 'scale': return { factor: 1, offset: 0 };
       case 'formula': return { expression: 'x' };
@@ -115,7 +117,11 @@ export default function TransformBuilder({ steps, onChange }: TransformBuilderPr
   );
 }
 
-function renderStepConfig(type: TransformType, params: any, onChange: (p: any) => void) {
+function renderStepConfig(type: TransformType, params: TransformParams, onChange: (p: TransformParams) => void) {
+    const numericFactor = typeof params.factor === 'number' ? params.factor : 1
+    const numericOffset = typeof params.offset === 'number' ? params.offset : 0
+    const expression = typeof params.expression === 'string' ? params.expression : 'x'
+    const targetType = typeof params.target_type === 'string' ? params.target_type : 'float'
     switch (type) {
         case 'scale':
             return (
@@ -124,7 +130,7 @@ function renderStepConfig(type: TransformType, params: any, onChange: (p: any) =
                         <label className="text-xs text-slate-400 block mb-1">Factor (Mult)</label>
                         <input 
                             type="number" 
-                            value={params.factor} 
+                            value={numericFactor} 
                             onChange={e => onChange({ ...params, factor: parseFloat(e.target.value) })}
                             className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200"
                         />
@@ -133,7 +139,7 @@ function renderStepConfig(type: TransformType, params: any, onChange: (p: any) =
                         <label className="text-xs text-slate-400 block mb-1">Offset (Add)</label>
                         <input 
                             type="number" 
-                            value={params.offset} 
+                            value={numericOffset} 
                             onChange={e => onChange({ ...params, offset: parseFloat(e.target.value) })}
                             className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200"
                         />
@@ -146,7 +152,7 @@ function renderStepConfig(type: TransformType, params: any, onChange: (p: any) =
                      <label className="text-xs text-slate-400 block mb-1">Expression (use 'x' as input)</label>
                      <input 
                         type="text" 
-                        value={params.expression} 
+                        value={expression} 
                         onChange={e => onChange({ ...params, expression: e.target.value })}
                         className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200 font-mono"
                         placeholder="x * 10 + 5"
@@ -158,7 +164,7 @@ function renderStepConfig(type: TransformType, params: any, onChange: (p: any) =
                 <div>
                      <label className="text-xs text-slate-400 block mb-1">Target Type</label>
                      <select 
-                        value={params.target_type} 
+                        value={targetType} 
                         onChange={e => onChange({ ...params, target_type: e.target.value })}
                         className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200"
                     >

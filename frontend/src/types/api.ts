@@ -1,4 +1,4 @@
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   data?: T;
   error?: string;
   status?: string;
@@ -6,7 +6,7 @@ export interface APIResponse<T = any> {
 
 export interface ConnectRequest {
   protocol: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 export interface ConnectResponse {
@@ -26,7 +26,7 @@ export interface ReadRequest {
 }
 
 export interface ReadResponse {
-  values: any[];
+  values: unknown[];
   count: number;
 }
 
@@ -34,7 +34,7 @@ export interface WriteRequest {
   connection_id: string;
   operation: string;
   address: number;
-  values: any[];
+  values: unknown[];
   symbol?: string; // Fatek
   device?: string; // MC
   unit_id?: number; // Modbus (可選，覆蓋連線配置的站號)
@@ -44,7 +44,7 @@ export interface WriteRequest {
 export interface ConnectionState {
   id: string;
   protocol: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   connected: boolean;
   created_at: string;
 }
@@ -66,7 +66,7 @@ export interface BatchRequest {
 
 export interface BatchResultItem {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 

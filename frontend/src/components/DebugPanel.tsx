@@ -30,6 +30,13 @@ interface DataPart {
   type: DataPartType
 }
 
+interface PacketLike {
+  raw_data?: unknown
+  hex_data: string
+  direction?: string
+  protocol?: string
+}
+
 export default function DebugPanel({ connectionId }: DebugPanelProps) {
   const [activeTab, setActiveTab] = useState<'packets' | 'logs'>('packets')
   const [autoScroll, setAutoScroll] = useState(true)
@@ -296,7 +303,7 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
    */
   const formatHexWithModbusHighlight = (
     hexData: string, 
-    rawData?: any, 
+    rawData?: unknown, 
     direction?: string
   ): ReactElement => {
     const dataArray = normalizeRawDataFromPacket(rawData, hexData)
@@ -529,28 +536,29 @@ export default function DebugPanel({ connectionId }: DebugPanelProps) {
    * 格式化數據包顯示
    * 返回字符串或 React 元素
    */
-  const formatPacketData = (packet: any): string | ReactElement => {
+  const formatPacketData = (packet: PacketLike): string | ReactElement => {
+    const typedPacket = packet as PacketLike
     switch (displayMode) {
       case 'ascii':
-        return Array.from(packet.raw_data || [])
-          .map((b: any) => {
-            const char = String.fromCharCode(b)
+        return normalizeRawDataFromPacket(typedPacket.raw_data, typedPacket.hex_data)
+          .map((b: number) => {
+            const char = String.fromCharCode(Number(b))
             return char >= ' ' && char <= '~' ? char : '.'
           })
           .join('')
       case 'parsed':
-        return parseProtocol(packet)
+        return parseProtocol(typedPacket)
       default:
         // 返回 JSX 元素以支持顏色高亮
-        return formatHexWithModbusHighlight(packet.hex_data, packet.raw_data, packet.direction)
+        return formatHexWithModbusHighlight(typedPacket.hex_data, typedPacket.raw_data, typedPacket.direction)
     }
   }
 
   // 簡單的協議解析
-  const parseProtocol = (packet: any): string => {
-    if (!packet.raw_data || packet.raw_data.length === 0) return packet.hex_data
-    
-    const data = packet.raw_data
+  const parseProtocol = (packet: PacketLike): string => {
+    const data = normalizeRawDataFromPacket(packet.raw_data, packet.hex_data)
+    if (data.length === 0) return packet.hex_data
+
     const protocol = packet.protocol || ''
 
     if (protocol.includes('modbus')) {

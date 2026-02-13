@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { logger } from "../utils/logger";
 
 /**
  * SSE 預覽事件類型
@@ -169,7 +170,7 @@ export function usePreviewStream(
           setError(data.error);
         }
       } catch (err) {
-        console.error("Failed to parse SSE event:", err);
+        logger.error("Failed to parse SSE event:", err);
       }
     };
 

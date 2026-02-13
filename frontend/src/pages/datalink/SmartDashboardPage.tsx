@@ -9,12 +9,14 @@ import type {
   ProtocolType,
   DataType,
 } from '../../types/datalink';
-import { MemoryGrid, type PlannedAllocation } from '../../components/datalink/MemoryGrid';
-import { QuickActions } from '../../components/datalink/QuickActions';
+import type { PlannedAllocation } from '../../components/datalink/MemoryGrid';
 import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExportDialog';
 import SmartDashboardHeader from './smart-dashboard/SmartDashboardHeader';
 import SmartDashboardIntentNotices from './smart-dashboard/SmartDashboardIntentNotices';
 import SmartDashboardControlBar from './smart-dashboard/SmartDashboardControlBar';
+import SmartDashboardWorkspace from './smart-dashboard/SmartDashboardWorkspace';
+import SmartDashboardSidebarTools from './smart-dashboard/SmartDashboardSidebarTools';
+import SmartDashboardCommitPanel from './smart-dashboard/SmartDashboardCommitPanel';
 import SmartDashboardWorkflowModal from './smart-dashboard/SmartDashboardWorkflowModal';
 import SmartDashboardOverlays from './smart-dashboard/SmartDashboardOverlays';
 import SmartDashboardPanels from './smart-dashboard/SmartDashboardPanels';
@@ -87,7 +89,6 @@ import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/da
 import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
 import { modbusShareAPI } from '../../services/datalink';
 import type { ModbusShareStatus } from '../../types/datalink';
 
@@ -1567,572 +1568,104 @@ export default function SmartDashboard() {
         cycleTimeLabel={t('smartDashboard.cycleTime')}
       />
       <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 min-h-0">
-        <div className="min-w-0 flex flex-col">
-          <div className="flex-1 bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col relative min-h-[420px]">
-            {selectedDevice ? (
-              <>
-                <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-thin scrollbar-thumb-slate-700/50 scrollbar-track-transparent">
-                  <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-slate-100">Source Planner</h3>
-                      <span className="text-xs text-slate-400">
-                        {planDataType} x {planCount} = {totalPlannedCells} cells
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_auto_auto] gap-3">
-                      <label className="text-xs text-slate-300 order-1 xl:order-1">
-                        Start Address
-                        <input
-                          value={planStartAddress}
-                          onChange={(e) => setPlanStartAddress(e.target.value.toUpperCase())}
-                          placeholder="例如: 40001"
-                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </label>
-                      <label className="text-xs text-slate-300 order-2 xl:order-2">
-                        Source Count
-                        <input
-                          type="number"
-                          min={1}
-                          max={200}
-                          value={planCount}
-                          onChange={(e) => {
-                            const raw = Number(e.target.value);
-                            const bounded = Number.isFinite(raw) ? Math.min(200, Math.max(1, Math.floor(raw))) : 1;
-                            setPlanCount(bounded);
-                          }}
-                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </label>
-                      <label className="text-xs text-slate-300 order-3 xl:order-3">
-                        Data Type
-                        <select
-                          value={planDataType}
-                          onChange={(e) => setPlanDataType(e.target.value as DataType)}
-                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="int16">int16 (1 cell)</option>
-                          <option value="int32">int32 (2 cells)</option>
-                          <option value="float32">float32 (2 cells)</option>
-                          <option value="int64">int64 (4 cells)</option>
-                          <option value="float64">float64 (4 cells)</option>
-                        </select>
-                      </label>
-                      <div className="flex items-end gap-2 order-4 xl:order-4">
-                        <button
-                          type="button"
-                          onClick={handleAutoAllocate}
-                          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-2 text-xs font-medium text-sky-100 hover:bg-sky-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-                        >
-                          <WandSparkles className="h-4 w-4" />
-                          Auto
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleApplyPlan}
-                          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                        >
-                          套用到 Grid
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 xl:grid-cols-[1fr_auto] gap-3">
-                      <label className="text-xs text-slate-300">
-                        儲存模板
-                        <div className="mt-1 flex gap-2">
-                          <input
-                            value={templateName}
-                            onChange={(e) => setTemplateName(e.target.value)}
-                            placeholder="例如: line-a-float32-10"
-                            className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleSaveTemplate}
-                            disabled={!templateName.trim()}
-                            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/20 px-3 py-2 text-xs font-medium text-indigo-100 hover:bg-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                          >
-                            <Save className="h-4 w-4" />
-                            儲存
-                          </button>
-                        </div>
-                      </label>
-                      <div className="flex items-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowConflictsOnly((prev) => !prev)}
-                          className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
-                            showConflictsOnly
-                              ? 'border-amber-500/40 bg-amber-500/20 text-amber-100'
-                              : 'border-slate-700 bg-slate-800/70 text-slate-200'
-                          }`}
-                        >
-                          <Filter className="h-4 w-4" />
-                          只看衝突
-                        </button>
-                      </div>
-                    </div>
-                    <div className="mt-3 rounded-lg border border-white/10 bg-slate-800/40 p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <label className="text-xs text-slate-300">
-                          批次命名前綴
-                          <input
-                            value={batchNamePrefix}
-                            onChange={(e) => setBatchNamePrefix(normalizeNamingPrefix(e.target.value))}
-                            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="例如: LINEA"
-                          />
-                        </label>
-                        <div className="text-xs text-slate-400">
-                          預覽 {namePreview.length} 筆，名稱衝突 {nameConflictCount} 筆
-                        </div>
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
-                        {namePreview.slice(0, 12).map((item) => (
-                          <div
-                            key={item.sequence}
-                            className={`rounded-md border px-2 py-1 text-[11px] font-mono ${
-                              item.conflict
-                                ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
-                                : 'border-slate-700 bg-slate-900/70 text-slate-200'
-                            }`}
-                          >
-                            {item.name}
-                          </div>
-                        ))}
-                      </div>
-                      <p className="mt-2 text-[11px] text-slate-500">
-                        命名規則: 僅允許英數、底線、連字號；系統會自動轉大寫並附加三位流水號。
-                      </p>
-                    </div>
-                    {staleTemplateCount > 0 && (
-                      <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p>
-                            偵測到 {staleTemplateCount} 個舊版模板，建議升級到 v{SOURCE_TEMPLATE_SCHEMA_VERSION} 以確保流程一致性。
-                          </p>
-                          <button
-                            type="button"
-                            onClick={handleUpgradeTemplates}
-                            className="rounded-md border border-amber-400/40 bg-amber-500/20 px-2 py-1 text-[11px] font-semibold hover:bg-amber-500/30"
-                          >
-                            升級模板
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-slate-400">衝突格數: {planConflictCount}</span>
-                      {!typedPlanValidation.valid && (
-                        <span className="text-xs text-rose-300">來源數量需介於 1 到 200，且型別占格規則必須有效。</span>
-                      )}
-                      {allocationMessage && (
-                        <span className="text-xs text-sky-200">{allocationMessage}</span>
-                      )}
-                      {sourceTemplates.slice(0, 6).map((template) => (
-                        <div
-                          key={template.id}
-                          className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-slate-800/60 pl-2 pr-1 py-1 text-[11px] text-slate-200"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleLoadTemplate(template)}
-                            className="inline-flex items-center gap-1 cursor-pointer hover:text-white"
-                          >
-                            <FolderOpen className="h-3.5 w-3.5" />
-                            {template.name}
-                          </button>
-                          <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300">
-                            v{template.version}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            {new Date(template.lastUsedAt).toLocaleDateString()}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteTemplate(template.id)}
-                            className="rounded-full px-1 text-slate-400 hover:bg-slate-700 hover:text-white"
-                            aria-label={`Delete template ${template.name}`}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                  <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-slate-100">{t('smartDashboard.flowTitle')}</h3>
-                      <span className={`text-xs px-2 py-1 rounded-lg border ${STATUS_STYLE[flowState.status]}`}>
-                        {t(`smartDashboard.flowStatus.${flowState.status}`)}
-                      </span>
-                    </div>
-                    {hasError && (
-                      <p className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                        {t('smartDashboard.flowErrorHint')}
-                      </p>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                      {FLOW_SEGMENTS.map((segment) => {
-                        const diag = flowState.diagnostics[segment];
-                        return (
-                          <article key={segment} className="rounded-xl border border-white/10 bg-slate-800/40 p-3">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs uppercase tracking-wider text-slate-400">
-                                {t(`smartDashboard.flowSegments.${segment}.title`)}
-                              </p>
-                              <span
-                                className={`h-2 w-2 rounded-full ${
-                                  diag.quality === 'good'
-                                    ? 'bg-emerald-400'
-                                    : diag.quality === 'warning'
-                                      ? 'bg-yellow-400'
-                                      : diag.quality === 'bad'
-                                        ? 'bg-red-400'
-                                        : 'bg-slate-500'
-                                }`}
-                              />
-                            </div>
-                            <p className="mt-1 text-xs text-slate-500">{t(`smartDashboard.flowSegments.${segment}.subtitle`)}</p>
-                            <p className="mt-2 text-sm text-slate-100 font-mono truncate">{diag.latestValue}</p>
-                            <p className="mt-1 text-[11px] text-slate-400 truncate">{diag.timestamp}</p>
-                            {diag.error && <p className="mt-1 text-[11px] text-red-300 truncate">{diag.error}</p>}
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </section>
-                  <section
-                    ref={gridSectionRef}
-                    tabIndex={-1}
-                    className={`rounded-2xl border border-white/10 bg-slate-900/50 transition-all ${resolveIntentMotionClass(guideStage, reducedMotion)}`}
-                    style={{ transitionDuration: `${MOTION_TOKENS.stageHandoffMs}ms` }}
-                  >
-                    <div className="border-b border-white/10 px-4 py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <h3 className="text-sm font-semibold text-slate-100">Dashboard Memory Grid</h3>
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            bind_state / mapping_count / conflict_count（預檢一致）
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={goToLocalModbusWorkbench}
-                          className="min-h-9 rounded-lg border border-blue-500/40 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                        >
-                          完整工作台
-                        </button>
-                      </div>
-                      <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-3">
-                        <div className="rounded-lg border border-white/10 bg-slate-800/60 px-3 py-2 text-slate-300">
-                          bind_state:
-                          <span className={`ml-1 font-semibold ${modbusStatus?.bind_state === 'pass' ? 'text-emerald-300' : 'text-rose-300'}`}>
-                            {(modbusStatus?.bind_state ?? 'fail').toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="rounded-lg border border-white/10 bg-slate-800/60 px-3 py-2 text-slate-300">
-                          mapping_count:
-                          <span className="ml-1 font-semibold text-slate-100">{modbusStatus?.mapping_count ?? 0}</span>
-                        </div>
-                        <div className="rounded-lg border border-white/10 bg-slate-800/60 px-3 py-2 text-slate-300">
-                          conflict_count:
-                          <span className={`ml-1 font-semibold ${planConflictCount > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
-                            {planConflictCount}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="max-h-[340px] overflow-auto md:max-h-[360px] lg:max-h-[320px]">
-                      <MemoryGrid
-                        deviceId={selectedDevice.id}
-                        protocol={selectedDevice.protocol}
-                        centerAddress={planStartAddress || getGridCenterAddress(selectedDevice.protocol)}
-                        range={220}
-                        existingPoints={allPoints}
-                        linkedAddresses={linkedAddresses}
-                        selectedAddresses={selectedAddresses}
-                        plannedAllocations={plannedAllocations}
-                        showConflictsOnly={showConflictsOnly}
-                        onSelect={setSelectedAddresses}
-                        onCellClick={handleCellClick}
-                      />
-                    </div>
-                  </section>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-6 sm:p-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-500/5 to-transparent opacity-50" />
-                <div className="relative z-10 flex flex-col items-center text-center">
-                  <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-6 sm:mb-8 border border-white/5 shadow-[0_0_50px_rgba(59,130,246,0.2)]">
-                    <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-blue-400" />
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">{t('smartDashboard.welcomeTitle')}</h3>
-                  <p className="text-slate-300 max-w-md mb-6 leading-relaxed">{t('smartDashboard.welcomeDescription')}</p>
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleChooseDevice}
-                      className="min-h-11 cursor-pointer rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    >
-                      選擇設備
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCreateDevice}
-                      className="min-h-11 cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    >
-                      新增設備
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
+        <SmartDashboardWorkspace
+          selectedDevice={selectedDevice}
+          planDataType={planDataType}
+          setPlanDataType={setPlanDataType}
+          planCount={planCount}
+          setPlanCount={setPlanCount}
+          totalPlannedCells={totalPlannedCells}
+          planStartAddress={planStartAddress}
+          setPlanStartAddress={setPlanStartAddress}
+          handleAutoAllocate={handleAutoAllocate}
+          handleApplyPlan={handleApplyPlan}
+          templateName={templateName}
+          setTemplateName={setTemplateName}
+          handleSaveTemplate={handleSaveTemplate}
+          showConflictsOnly={showConflictsOnly}
+          setShowConflictsOnly={setShowConflictsOnly}
+          batchNamePrefix={batchNamePrefix}
+          setBatchNamePrefix={setBatchNamePrefix}
+          normalizeNamingPrefix={normalizeNamingPrefix}
+          namePreview={namePreview}
+          nameConflictCount={nameConflictCount}
+          staleTemplateCount={staleTemplateCount}
+          sourceTemplateSchemaVersion={SOURCE_TEMPLATE_SCHEMA_VERSION}
+          handleUpgradeTemplates={handleUpgradeTemplates}
+          planConflictCount={planConflictCount}
+          typedPlanValidation={typedPlanValidation}
+          allocationMessage={allocationMessage}
+          sourceTemplates={sourceTemplates}
+          handleLoadTemplate={handleLoadTemplate}
+          handleDeleteTemplate={handleDeleteTemplate}
+          flowSegments={FLOW_SEGMENTS}
+          flowState={flowState}
+          statusStyle={STATUS_STYLE}
+          hasError={hasError}
+          t={t}
+          gridSectionRef={gridSectionRef}
+          resolveIntentMotionClass={resolveIntentMotionClass}
+          guideStage={guideStage}
+          reducedMotion={reducedMotion}
+          motionTokens={MOTION_TOKENS}
+          goToLocalModbusWorkbench={goToLocalModbusWorkbench}
+          modbusStatus={modbusStatus}
+          allPoints={allPoints}
+          linkedAddresses={linkedAddresses}
+          selectedAddresses={selectedAddresses}
+          plannedAllocations={plannedAllocations}
+          setSelectedAddresses={setSelectedAddresses}
+          handleCellClick={handleCellClick}
+          getGridCenterAddress={getGridCenterAddress}
+          handleChooseDevice={handleChooseDevice}
+          handleCreateDevice={handleCreateDevice}
+        />
         <div className="min-h-[300px] xl:min-h-0">
           <div
             className={`h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl transition-all ${resolveIntentMotionClass(guideStage === 'commit' ? 'commit' : 'idle', reducedMotion)}`}
             style={{ transitionDuration: `${MOTION_TOKENS.commitFeedbackMs}ms` }}
           >
-            <QuickActions
-              device={selectedDevice}
-              selectedCount={selectedAddresses.length}
+            <SmartDashboardSidebarTools
+              selectedDevice={selectedDevice}
+              selectedAddressesCount={selectedAddresses.length}
               onBatchCreate={() => setPanelType('batch')}
-              onQuickMapping={() => {}}
-              onTestConnection={() => {}}
               onOpenWorkbench={goToLocalModbusWorkbench}
+              onOpenImport={() => setImportDialogOpen(true)}
+              onOpenExport={() => setExportDialogOpen(true)}
+              canExport={allPoints.length > 0}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              canUndo={history.canUndo}
+              canRedo={history.canRedo}
+              undoDescription={history.getUndoAction()?.description || t('smartDashboard.noUndo')}
+              redoDescription={history.getRedoAction()?.description || t('smartDashboard.noRedo')}
+              onOpenShortcuts={() => setPanelType('shortcuts')}
+              t={t}
             />
-            {selectedDevice && (
-              <div className="px-4 py-2 border-t border-white/5">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setImportDialogOpen(true)}
-                    aria-keyshortcuts="Control+I"
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                  >
-                    <Upload className="w-4 h-4" />
-                    <span>{t('smartDashboard.import')}</span>
-                  </button>
-                  <button
-                    onClick={() => setExportDialogOpen(true)}
-                    disabled={allPoints.length === 0}
-                    aria-keyshortcuts="Control+E"
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>{t('smartDashboard.export')}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-            <div className="px-4 py-2 border-t border-white/5">
-              <div className="flex gap-2">
-                <button
-                  onClick={handleUndo}
-                  disabled={!history.canUndo}
-                  aria-keyshortcuts="Control+Z"
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                  title={history.getUndoAction()?.description || t('smartDashboard.noUndo')}
-                >
-                  <Undo2 className="w-4 h-4" />
-                  <span>{t('smartDashboard.undo')}</span>
-                </button>
-                <button
-                  onClick={handleRedo}
-                  disabled={!history.canRedo}
-                  aria-keyshortcuts="Control+Y"
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                  title={history.getRedoAction()?.description || t('smartDashboard.noRedo')}
-                >
-                  <Redo2 className="w-4 h-4" />
-                  <span>{t('smartDashboard.redo')}</span>
-                </button>
-              </div>
-            </div>
-            <div className="p-4 border-t border-white/5">
-              <button
-                onClick={() => setPanelType('shortcuts')}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-              >
-                <Keyboard className="w-4 h-4" />
-                <span>{t('smartDashboard.shortcuts')}</span>
-                <span className="ml-auto text-[10px] font-mono opacity-60">?</span>
-              </button>
-            </div>
-            <div className="p-4 border-t border-white/5 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold tracking-wide text-slate-200">Commit Queue</p>
-                <span className="text-[10px] text-slate-400">Total {commitQueueSummary.total}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-[10px]">
-                <div className="rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-slate-200">
-                  Pending {commitQueueSummary.pending}
-                </div>
-                <div className="rounded border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-indigo-100">
-                  Linked {commitQueueSummary.linked}
-                </div>
-                <div className="rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-100">
-                  Conflict {commitQueueSummary.conflict}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
-                <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-100">
-                  Committed {commitQueueSummary.committed}
-                </div>
-                <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
-                  Failed {commitQueueSummary.failed}
-                </div>
-              </div>
-              <div className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-2 text-[10px] text-cyan-100 space-y-1">
-                <p className="font-semibold tracking-wide">Commit Impact</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>New Points {commitImpactSummary.newPoints}</div>
-                  <div>Global Tag Updates {commitImpactSummary.globalTagUpdates}</div>
-                  <div>Conflicts {commitImpactSummary.conflicts}</div>
-                </div>
-                <p className="text-[10px] text-cyan-50/90">
-                  Polling Load Δ +{preCommitLoadEstimate.deltaReadsPerSec}/s ({preCommitLoadEstimate.baselineReadsPerSec}
-                  /s → {preCommitLoadEstimate.projectedReadsPerSec}/s, 假設週期 {preCommitLoadEstimate.assumedIntervalMs}ms)
-                </p>
-                <p className={`text-[10px] ${motionQAGate.pass ? 'text-emerald-200' : 'text-rose-200'}`}>
-                  Motion QA Gate: {motionQAGate.pass ? 'PASS' : 'FAIL'} ({motionQAGate.checklist.filter((item) => item.pass).length}/
-                  {motionQAGate.checklist.length})
-                </p>
-              </div>
-              <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
-                {commitQueueItems.length === 0 ? (
-                  <p className="rounded border border-slate-700 bg-slate-900/60 px-2 py-2 text-[11px] text-slate-400">
-                    尚無待提交規劃
-                  </p>
-                ) : (
-                  commitQueueItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`rounded border px-2 py-1.5 text-[11px] ${
-                        item.viewStatus === 'conflict' || item.viewStatus === 'failed'
-                          ? 'border-rose-500/30 bg-rose-500/10 text-rose-100'
-                          : item.viewStatus === 'linked'
-                            ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-100'
-                            : item.viewStatus === 'committed'
-                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-                            : 'border-slate-700 bg-slate-900/60 text-slate-200'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono">#{item.order} {item.label}</span>
-                        <span className="uppercase text-[10px]">{item.viewStatus}</span>
-                      </div>
-                      <div className="mt-0.5 text-[10px] opacity-80">
-                        {item.type} · {item.addresses[0]}..{item.addresses[item.addresses.length - 1]}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-            <div className="p-4 border-t border-white/5 space-y-2">
-              <button
-                type="button"
-                onClick={handleValidateFlow}
-                disabled={!canValidate || validatePipelineMutation.isPending}
-                aria-keyshortcuts="Control+Enter"
-                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/20 text-blue-100 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-              >
-                {validatePipelineMutation.isPending
-                  ? t('smartDashboard.validating')
-                  : t('smartDashboard.validateFlow')}
-              </button>
-              <button
-                type="button"
-                onClick={handleCommitFlow}
-                disabled={!canActivate || isCommitRunning}
-                aria-keyshortcuts="Control+Shift+Enter"
-                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-              >
-                {isCommitRunning ? 'Commit 執行中...' : 'Commit 到 DB'}
-              </button>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={handleRetryFailedCommits}
-                  disabled={failedChunkRetryQueue.length === 0}
-                  className="rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                >
-                  Retry 失敗 Chunk
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRollbackCommitRun}
-                  disabled={!lastCommitSnapshot}
-                  className="rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-2 text-xs font-medium text-slate-100 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-                >
-                  Rollback
-                </button>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-2 space-y-1">
-                {segmentFeedback.map((segment) => (
-                  <div key={segment.id} className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-300">{segment.label}</span>
-                    <span className={segment.ok ? 'text-emerald-300' : 'text-amber-300'}>
-                      {segment.message}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {commitActionMessage && (
-                <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
-                  {commitActionMessage}
-                </p>
-              )}
-              {commitAuditPayload && (
-                <a
-                  href={commitAuditPayload.traceLink}
-                  className="inline-flex text-[11px] text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
-                >
-                  查看稽核追蹤（{commitAuditPayload.traceId}）
-                </a>
-              )}
-              {commitChunkResults.length > 0 && (
-                <div className="rounded-lg border border-white/10 bg-slate-900/60 p-2 space-y-1">
-                  <p className="text-[11px] font-semibold text-slate-200">Chunk 結果</p>
-                  {commitChunkResults.map((chunkResult) => (
-                    <div key={chunkResult.chunk} className="flex items-center justify-between text-[10px]">
-                      <span className="text-slate-300">
-                        Chunk {chunkResult.chunk}/{chunkResult.totalChunks}
-                      </span>
-                      <span className={chunkResult.status === 'success' ? 'text-emerald-300' : 'text-amber-300'}>
-                        success {chunkResult.success} / failed {chunkResult.failed}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {commitAuditPayload && (
-                <div id="commit-audit-trace" className="rounded-lg border border-cyan-500/20 bg-slate-900/70 p-2 space-y-1">
-                  <p className="text-[11px] font-semibold text-cyan-200">Audit Payload</p>
-                  <p className="text-[10px] text-slate-300">
-                    {commitAuditPayload.traceId} · {commitAuditPayload.createdAt} · new {commitAuditPayload.summary.newPoints} · tag{' '}
-                    {commitAuditPayload.summary.globalTagUpdates} · conflict {commitAuditPayload.summary.conflicts}
-                  </p>
-                  <pre className="max-h-28 overflow-auto rounded bg-slate-950/70 p-2 text-[10px] text-slate-300">
-                    {JSON.stringify(commitAuditPayload, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {hasError && (
-                <button
-                  type="button"
-                  onClick={handleRecoverFlow}
-                  aria-keyshortcuts="Alt+R"
-                  className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                >
-                  {t('smartDashboard.recoverFlow')}
-                </button>
-              )}
-            </div>
+            <SmartDashboardCommitPanel
+              commitQueueSummary={commitQueueSummary}
+              commitImpactSummary={commitImpactSummary}
+              preCommitLoadEstimate={preCommitLoadEstimate}
+              motionQAGate={motionQAGate}
+              commitQueueItems={commitQueueItems}
+              onValidateFlow={handleValidateFlow}
+              canValidate={canValidate}
+              validating={validatePipelineMutation.isPending}
+              onCommitFlow={handleCommitFlow}
+              canCommit={canActivate}
+              isCommitRunning={isCommitRunning}
+              onRetryFailed={handleRetryFailedCommits}
+              hasFailedChunk={failedChunkRetryQueue.length > 0}
+              onRollback={handleRollbackCommitRun}
+              canRollback={Boolean(lastCommitSnapshot)}
+              segmentFeedback={segmentFeedback}
+              commitActionMessage={commitActionMessage}
+              commitAuditPayload={commitAuditPayload}
+              commitChunkResults={commitChunkResults}
+              hasError={hasError}
+              onRecoverFlow={handleRecoverFlow}
+              t={t}
+            />
             <div className="p-4 border-t border-white/5 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold tracking-wide text-slate-200">Tag Linkage</p>
@@ -2460,6 +1993,9 @@ export default function SmartDashboard() {
     </div>
   );
 }
+
+
+
 
 
 

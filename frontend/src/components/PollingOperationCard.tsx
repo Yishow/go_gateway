@@ -25,7 +25,7 @@ export interface PollingOperation {
  */
 export interface PollingRecord {
   timestamp: string
-  data: any
+  data: { values?: unknown[]; status?: string; message?: string } | null
   error?: string
 }
 
@@ -76,7 +76,15 @@ export default function PollingOperationCard({
     if (!connectionId) return
 
     try {
-      const readParams: any = {
+      const readParams: {
+        operation: string
+        address: number
+        count: number
+        symbol?: string
+        device?: string
+        unit_id?: number
+        station?: number
+      } = {
         operation: operationRef.current.operation,
         address: operationRef.current.address,
         count: operationRef.current.count,
@@ -115,7 +123,11 @@ export default function PollingOperationCard({
         const updated = [newRecord, ...prev]
         return updated.slice(0, 100)
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message ?? 'Unknown error')
+          : 'Unknown error'
       const newRecord: PollingRecord = {
         timestamp: new Date().toLocaleTimeString('zh-TW', { 
           hour12: false,
@@ -125,7 +137,7 @@ export default function PollingOperationCard({
           fractionalSecondDigits: 3
         }),
         data: null,
-        error: error.message,
+        error: message,
       }
       
       setRecords(prev => {
@@ -154,7 +166,15 @@ export default function PollingOperationCard({
         return isNaN(num) ? trimmed : num
       })
 
-      const writeParams: any = {
+      const writeParams: {
+        operation: string
+        address: number
+        values: Array<string | number | boolean>
+        symbol?: string
+        device?: string
+        unit_id?: number
+        station?: number
+      } = {
         operation: operationRef.current.operation,
         address: operationRef.current.address,
         values: valuesArray,
@@ -193,7 +213,11 @@ export default function PollingOperationCard({
         const updated = [newRecord, ...prev]
         return updated.slice(0, 100)
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message ?? 'Unknown error')
+          : 'Unknown error'
       const newRecord: PollingRecord = {
         timestamp: new Date().toLocaleTimeString('zh-TW', { 
           hour12: false,
@@ -203,7 +227,7 @@ export default function PollingOperationCard({
           fractionalSecondDigits: 3
         }),
         data: null,
-        error: error.message,
+        error: message,
       }
       
       setRecords(prev => {
@@ -465,7 +489,7 @@ export default function PollingOperationCard({
                   {records[0].data.message}
                   {Array.isArray(records[0].data.values) && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {records[0].data.values.map((val: any, i: number) => (
+                      {records[0].data.values.map((val: unknown, i: number) => (
                         <span
                           key={i}
                           className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded text-xs"
@@ -478,7 +502,7 @@ export default function PollingOperationCard({
                 </div>
               ) : Array.isArray(records[0].data?.values) ? (
                 <div className="flex flex-wrap gap-1">
-                  {records[0].data.values.map((val: any, i: number) => (
+                  {records[0].data.values.map((val: unknown, i: number) => (
                     <span
                       key={i}
                       className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs"

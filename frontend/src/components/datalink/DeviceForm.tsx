@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, CreateDeviceRequest, UpdateDeviceRequest, ProtocolType } from '../../types/datalink';
+import type { Device, CreateDeviceRequest, UpdateDeviceRequest, ProtocolType, ProtocolInfo } from '../../types/datalink';
 import { protocolAPI, settingsAPI } from '../../services/datalink';
+import { logger } from '../../utils/logger';
+
+type DeviceConfig = Record<string, string | number | undefined>;
 
 interface DeviceFormProps {
   device?: Device;
@@ -13,7 +16,7 @@ interface DeviceFormProps {
  * 根據協議類型獲取默認配置值
  * 必須在組件外部定義，以便在 useState 初始化時使用
  */
-function getDefaultConfigForProtocol(proto: ProtocolType): Record<string, any> {
+function getDefaultConfigForProtocol(proto: ProtocolType): DeviceConfig {
   switch (proto) {
     case 'modbus_tcp':
       return {
@@ -66,10 +69,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
   const [retryDelay, setRetryDelay] = useState(1000);
   
   // Dynamic Configuration
-  const [config, setConfig] = useState<Record<string, any>>(() => {
+  const [config, setConfig] = useState<DeviceConfig>(() => {
     if (device?.connection_config) {
       return typeof device.connection_config === 'string' 
-        ? JSON.parse(device.connection_config) 
+        ? (JSON.parse(device.connection_config) as DeviceConfig)
         : device.connection_config;
     }
     // 新建設備時，根據協議設置默認值
@@ -77,7 +80,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
     return getDefaultConfigForProtocol(initialProtocol);
   });
 
-  const [protocols, setProtocols] = useState<any[]>([]);
+  const [protocols, setProtocols] = useState<ProtocolInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -90,7 +93,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
       const list = await protocolAPI.list();
       setProtocols(list);
     } catch (err) {
-      console.error('Failed to load protocols', err);
+      logger.error('Failed to load protocols', err);
     }
   };
 
@@ -104,7 +107,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         setRetryDelay(settings.default_retry_delay);
       }
     } catch (err) {
-      console.error('Failed to load settings', err);
+      logger.error('Failed to load settings', err);
     }
   };
 
@@ -113,9 +116,9 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
    * 合併配置，確保必填欄位有默認值
    * 先設置默認值，然後用用戶輸入的值覆蓋（只要不是 undefined）
    */
-  const prepareConfig = (): Record<string, any> => {
+  const prepareConfig = (): DeviceConfig => {
     const defaultConfig = getDefaultConfigForProtocol(protocol);
-    const finalConfig: Record<string, any> = { ...defaultConfig };
+    const finalConfig: DeviceConfig = { ...defaultConfig };
     
     // 用用戶輸入的值覆蓋默認值（跳過 undefined，但保留 0、false、空字串等）
     for (const [key, value] of Object.entries(config)) {
@@ -150,11 +153,15 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
           connection_config: finalConfig,
         } as CreateDeviceRequest);
       }
-    } catch (err: any) {
-      // 提取錯誤訊息
-      const errorMessage = err?.response?.data?.error?.message 
-        || err?.response?.data?.message 
-        || err?.message 
+    } catch (err: unknown) {
+      const maybeError = err as {
+        response?: { data?: { error?: { message?: string }; message?: string } };
+        message?: string;
+      };
+      const errorMessage =
+        maybeError.response?.data?.error?.message
+        || maybeError.response?.data?.message
+        || maybeError.message
         || t('device.failedToSave');
       setError(errorMessage);
     } finally {

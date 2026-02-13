@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { deviceAPI } from '../../../../services/datalink';
 import type { Device } from '../../../../types/datalink';
+import { logger } from '../../../../utils/logger';
 import './Steps.css';
 
 /**
@@ -37,7 +38,7 @@ export const DeviceStep: React.FC<DeviceStepProps> = ({
       const data = await deviceAPI.list();
       setDevices(data);
     } catch (err) {
-      console.error('Failed to load devices:', err);
+      logger.error('Failed to load devices:', err);
     } finally {
       setLoading(false);
     }

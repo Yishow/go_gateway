@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useTestAPI } from "../services/api";
 import { useToast } from "../contexts/ToastContext";
+import { logger } from '../utils/logger';
+
+type ConnectionConfig = Record<string, string | number | string[] | undefined>;
 
 interface ConfigFormProps {
   protocol: string;
   mode: string;
-  config: Record<string, any>;
-  onConfigChange: (config: Record<string, any>) => void;
+  config: ConnectionConfig;
+  onConfigChange: (config: ConnectionConfig) => void;
   connectionId: string | null;
   onConnectionChange: (id: string | null) => void;
   onMinimize?: () => void;
@@ -68,7 +71,7 @@ export default function ConfigForm({
   /**
    * 處理配置變更
    */
-  const handleConfigChange = (key: string, value: any) => {
+  const handleConfigChange = (key: string, value: string | number | string[] | undefined) => {
     onConfigChange({ ...config, [key]: value });
   };
 
@@ -90,11 +93,13 @@ export default function ConfigForm({
   const handleConnect = async () => {
     // 驗證 TCP/UDP 配置
     if (isTCP) {
-      if (!config.host || config.host.trim() === "") {
+      const host = typeof config.host === "string" ? config.host : "";
+      const port = typeof config.port === "number" ? config.port : Number(config.port);
+      if (!host.trim()) {
         showError("請輸入主機位址");
         return;
       }
-      if (!config.port || config.port <= 0) {
+      if (!port || Number.isNaN(port) || port <= 0) {
         showError("請輸入有效的埠號");
         return;
       }
@@ -102,7 +107,8 @@ export default function ConfigForm({
 
     // 驗證 Serial 配置
     if (isSerial) {
-      if (!config.port || config.port.trim() === "") {
+      const serialPort = typeof config.port === "string" ? config.port : "";
+      if (!serialPort.trim()) {
         showError("請輸入串列埠名稱");
         return;
       }
@@ -116,18 +122,24 @@ export default function ConfigForm({
       } else {
         showWarning("連線成功，但未收到連線 ID");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 提取錯誤訊息
       let errorMessage = "連線失敗";
-      if (error.response && error.response.data && error.response.data.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (typeof error === "object" && error !== null) {
+        const maybeError = error as {
+          response?: { data?: { error?: string } };
+          message?: string;
+        };
+        if (maybeError.response?.data?.error) {
+          errorMessage = maybeError.response.data.error;
+        } else if (maybeError.message) {
+          errorMessage = maybeError.message;
+        }
       } else if (typeof error === "string") {
         errorMessage = error;
       }
       showError(`連線失敗: ${errorMessage}`);
-      console.error("連線錯誤詳情:", error);
+      logger.error("連線錯誤詳情:", error);
     } finally {
       setLoading(false);
     }
@@ -143,8 +155,12 @@ export default function ConfigForm({
     try {
       await disconnect(connectionId);
       onConnectionChange(null);
-    } catch (error: any) {
-      showError(`斷線失敗: ${error.message}`);
+    } catch (error: unknown) {
+      const message =
+        typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message?: string }).message ?? "斷線失敗")
+          : "斷線失敗";
+      showError(`斷線失敗: ${message}`);
     } finally {
       setLoading(false);
     }

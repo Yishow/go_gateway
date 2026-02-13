@@ -35,7 +35,11 @@ export const normalizeRawDataFromPacket = (rawData: unknown, hexData: string): n
     try {
       const decoded: string = typeof atob === 'function'
         ? atob(rawData)
-        : ((globalThis as any).Buffer?.from(rawData, 'base64')?.toString('binary') ?? '')
+        : (
+            globalThis as {
+              Buffer?: { from: (data: string, encoding: string) => { toString: (encoding: string) => string } };
+            }
+          ).Buffer?.from(rawData, 'base64')?.toString('binary') ?? ''
       const bytes = Array.from(decoded, (char: string) => char.charCodeAt(0))
       if (bytes.length > 0) {
         return bytes

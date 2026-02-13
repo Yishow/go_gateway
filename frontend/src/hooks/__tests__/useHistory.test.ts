@@ -42,7 +42,7 @@ describe('useHistory', () => {
     });
 
     expect(undoneAction).not.toBeNull();
-    expect((undoneAction as any)?.data).toBe('data-1');
+    expect((undoneAction as HistoryAction<string> | null)?.data).toBe('data-1');
     expect(result.current.currentIndex).toBe(-1);
     expect(result.current.canUndo).toBe(false);
     expect(result.current.canRedo).toBe(true);
@@ -65,7 +65,7 @@ describe('useHistory', () => {
     });
 
     expect(redoneAction).not.toBeNull();
-    expect((redoneAction as any)?.data).toBe('data-1');
+    expect((redoneAction as HistoryAction<string> | null)?.data).toBe('data-1');
     expect(result.current.currentIndex).toBe(0);
     expect(result.current.canUndo).toBe(true);
     expect(result.current.canRedo).toBe(false);

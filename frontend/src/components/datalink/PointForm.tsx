@@ -92,8 +92,12 @@ export default function PointForm({ point, onSubmit, onCancel }: PointFormProps)
           enabled,
         } as CreatePointRequest);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save point');
+    } catch (err: unknown) {
+      const message =
+        typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message?: string }).message ?? 'Failed to save point')
+          : 'Failed to save point';
+      setError(message);
     } finally {
       setLoading(false);
     }

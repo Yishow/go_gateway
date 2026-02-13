@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import enTranslations from './locales/en/common.json';
 import zhTWTranslations from './locales/zh-TW/common.json';
+import { logger } from '../utils/logger';
 
 /**
  * i18n 國際化配置
@@ -48,7 +49,7 @@ i18n
     },
   })
   .catch((err) => {
-    console.error('i18n initialization failed:', err);
+    logger.error('i18n initialization failed:', err);
   });
 
 export default i18n;

@@ -7,8 +7,8 @@ import PollingOperationCard, { type PollingOperation } from './PollingOperationC
 interface RTUPollingCardProps {
   protocol: string
   connectionId: string | null
-  config: Record<string, any>
-  onConfigChange?: (config: Record<string, any>) => void
+  config: Record<string, string | number | string[] | undefined>
+  onConfigChange?: (config: Record<string, string | number | string[] | undefined>) => void
   onConnectionChange?: (id: string | null) => void
 }
 
@@ -21,6 +21,8 @@ export default function RTUPollingCard({
   connectionId,
   config,
 }: RTUPollingCardProps) {
+  const baudRate =
+    typeof config.baudRate === 'number' ? config.baudRate : Number(config.baudRate ?? 9600)
   const [operations, setOperations] = useState<PollingOperation[]>([])
   const [nextId, setNextId] = useState<number>(1)
   
@@ -89,7 +91,7 @@ export default function RTUPollingCard({
       count: 10,
       values: '',
       interval: 1000,
-      baudRate: config.baudRate || 9600, // 使用配置中的波特率作為默認值
+      baudRate: Number.isNaN(baudRate) ? 9600 : baudRate, // 使用配置中的波特率作為默認值
       enabled: false,
     }
     
@@ -142,7 +144,7 @@ export default function RTUPollingCard({
           count: 10,
           values: '',
           interval: 1000,
-          baudRate: config.baudRate || 9600,
+          baudRate: Number.isNaN(baudRate) ? 9600 : baudRate,
           enabled: false,
         }
         setOperations([defaultOperation])

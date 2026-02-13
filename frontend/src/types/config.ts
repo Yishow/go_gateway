@@ -37,4 +37,4 @@ export type ProtocolConfig =
   | FatekSerialConfig 
   | MCTCPConfig 
   | MCSerialConfig
-  | Record<string, any>;
+  | Record<string, unknown>;

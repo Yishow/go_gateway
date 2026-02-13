@@ -9,7 +9,7 @@ interface ProfileSelectorProps {
   /** 當前選中的連線模式 */
   currentConnectionMode: string;
   /** 當前配置 */
-  currentConfig: Record<string, any>;
+  currentConfig: Record<string, unknown>;
   /** 當 Profile 切換時的回調 */
   onProfileChange: (profile: Profile) => void;
 }

@@ -6,6 +6,7 @@ import { useProfiles } from '../hooks/useProfiles'
 import type { MonitorItem } from '../types/profile'
 import { useToast } from '../contexts/ToastContext'
 import { toNumericValue } from './monitoring/valueParser'
+import { logger } from '../utils/logger';
 
 interface MonitorControlProps {
   connectionId: string | null
@@ -125,7 +126,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
     eventSource.addEventListener('connected', () => {})
 
     // 監聽心跳消息
-    eventSource.addEventListener('ping', (_event: any) => {
+    eventSource.addEventListener('ping', (_event: Event) => {
       // 心跳消息，不需要處理
     })
 
@@ -146,16 +147,16 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
               return [newEntry, ...prev].slice(0, 100) // 保留最近 100 條記錄
             })
           } else {
-            console.warn('✗ connection_id 不匹配，忽略消息')
+            logger.warn('✗ connection_id 不匹配，忽略消息')
           }
         }
       } catch (error) {
-        console.error('解析監控數據失敗:', error, event.data)
+        logger.error('解析監控數據失敗:', error, event.data)
       }
     }
 
     eventSource.onerror = (error) => {
-      console.error('SSE error:', error, 'readyState:', eventSource.readyState)
+      logger.error('SSE error:', error, 'readyState:', eventSource.readyState)
       
       // EventSource 狀態：
       // 0 = CONNECTING
@@ -168,7 +169,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 10000) // 指數退避，最多10秒
         
         if (reconnectAttemptsRef.current <= maxAttempts && connectionId) {
-          console.warn(`SSE 連接已關閉，${delay/1000}秒後嘗試重連 (${reconnectAttemptsRef.current}/${maxAttempts})...`)
+          logger.warn(`SSE 連接已關閉，${delay/1000}秒後嘗試重連 (${reconnectAttemptsRef.current}/${maxAttempts})...`)
           
           // 清除之前的重連定時器
           if (reconnectTimerRef.current) {
@@ -207,17 +208,17 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                     })
                   }
                 } catch (error) {
-                  console.error('解析監控數據失敗:', error)
+                  logger.error('解析監控數據失敗:', error)
                 }
               }
               
               newEventSource.onerror = (err) => {
-                console.error('SSE 重連後錯誤:', err)
+                logger.error('SSE 重連後錯誤:', err)
               }
             }
           }, delay)
         } else {
-          console.error('SSE 重連失敗，已達到最大重試次數')
+          logger.error('SSE 重連失敗，已達到最大重試次數')
         }
       }
     }
@@ -285,12 +286,12 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
 
     // 確保 SSE 連接已建立
     if (!eventSourceRef.current || eventSourceRef.current.readyState !== EventSource.OPEN) {
-      console.warn('SSE 未連接，等待連接建立...')
+      logger.warn('SSE 未連接，等待連接建立...')
       // 等待一下讓 SSE 連接建立
       await new Promise(resolve => setTimeout(resolve, 500))
       
       if (!eventSourceRef.current || eventSourceRef.current.readyState !== EventSource.OPEN) {
-        console.warn('SSE 連接狀態:', eventSourceRef.current?.readyState)
+        logger.warn('SSE 連接狀態:', eventSourceRef.current?.readyState)
         // SSE 會自動重連，繼續執行
       }
     }
@@ -314,9 +315,13 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
 
       setMonitoring(true)
       setMonitorData([]) // 清空舊數據
-    } catch (error: any) {
-      console.error('啟動監控失敗:', error)
-      showError('啟動監控失敗: ' + (error.message || error))
+    } catch (error: unknown) {
+      logger.error('啟動監控失敗:', error)
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message ?? '未知錯誤')
+          : String(error)
+      showError('啟動監控失敗: ' + message)
     }
   }
 
@@ -328,8 +333,12 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
     try {
       await stopMonitor(connectionId)
       setMonitoring(false)
-    } catch (error: any) {
-      showError('停止監控失敗: ' + (error.message || error))
+    } catch (error: unknown) {
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message?: string }).message ?? '未知錯誤')
+          : String(error)
+      showError('停止監控失敗: ' + message)
     }
   }
 
@@ -345,7 +354,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
     
     // 為每個監控項目創建數據點
     const chartData = reversed.map(entry => {
-      const dataPoint: any = {
+      const dataPoint: Record<string, number | null | string> = {
         time: entry.chartTime || new Date(entry.timestamp).toLocaleTimeString(),
       }
       
@@ -646,14 +655,15 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
                       <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
                     </div>
                     <div className="font-mono break-all space-y-1">
-                      {Object.entries(entry.data || {}).map(([key, val]: [string, any]) => {
+                      {Object.entries(entry.data || {}).map(([key, val]) => {
                         // 格式化顯示數據
                         let displayValue = ''
                         if (val && typeof val === 'object') {
-                          if (val.error) {
-                            displayValue = `錯誤: ${val.error}`
-                          } else if (val.values && Array.isArray(val.values)) {
-                            displayValue = `[${val.values.join(', ')}] (count: ${val.count || val.values.length})`
+                          const monitorValue = val as { error?: string; values?: unknown[]; count?: number }
+                          if (monitorValue.error) {
+                            displayValue = `錯誤: ${monitorValue.error}`
+                          } else if (monitorValue.values && Array.isArray(monitorValue.values)) {
+                            displayValue = `[${monitorValue.values.join(', ')}] (count: ${monitorValue.count || monitorValue.values.length})`
                           } else {
                             displayValue = JSON.stringify(val)
                           }

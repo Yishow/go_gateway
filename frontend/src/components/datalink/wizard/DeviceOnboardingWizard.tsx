@@ -18,7 +18,7 @@ interface WizardFormData {
   name: string;
   description: string;
   protocol: ProtocolType | '';
-  config: Record<string, any>;
+  config: Record<string, string | number | string[] | undefined>;
 }
 
 const INITIAL_DATA: WizardFormData = {
@@ -104,8 +104,12 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
            setDeviceId(newDevice.id);
         }
         setCurrentStep(prev => prev + 1);
-      } catch (err: any) {
-        showError(err.message || 'Failed to save device');
+      } catch (err: unknown) {
+        const message =
+          typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message?: string }).message ?? 'Failed to save device')
+            : 'Failed to save device';
+        showError(message);
         return;
       }
     } else if (currentStep === 2) {
@@ -125,8 +129,12 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
               } else {
                 navigate('/datalink/devices');
               }
-          } catch(err: any) {
-              showError("Failed to activate device: " + err.message);
+          } catch(err: unknown) {
+              const message =
+                typeof err === 'object' && err !== null && 'message' in err
+                  ? String((err as { message?: string }).message ?? 'Unknown error')
+                  : 'Unknown error';
+              showError("Failed to activate device: " + message);
           }
       }
     } else {

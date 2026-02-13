@@ -38,6 +38,16 @@ import type {
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 const DATALINK_BASE = `${API_BASE}/datalink`;
 
+interface DeviceReadinessResult {
+  device_id: string;
+  status: 'ready' | 'warning' | 'error';
+  checks: Array<{
+    name: string;
+    pass: boolean;
+    message: string;
+  }>;
+}
+
 // 建立 axios 實例
 const api = axios.create({
   baseURL: DATALINK_BASE,
@@ -121,8 +131,8 @@ export const deviceAPI = {
   },
 
   /** 檢查設備就緒狀態 */
-  async checkReadiness(id: string): Promise<any> { // Replace any with precise type if available
-    const res = await api.post<APIResponse<any>>(`/devices/${id}/readiness`);
+  async checkReadiness(id: string): Promise<DeviceReadinessResult> {
+    const res = await api.post<APIResponse<DeviceReadinessResult>>(`/devices/${id}/readiness`);
     return res.data.data!;
   },
 
@@ -426,7 +436,7 @@ export const settingsAPI = {
 
   /** 更新設定 (聚合) */
   async update(data: UpdateSystemSettingsRequest): Promise<SystemSettings> {
-    const updates: Promise<any>[] = [];
+    const updates: Array<Promise<SettingItem>> = [];
 
     if (data.write_precision) {
       updates.push(this.updateKey('write_precision', data.write_precision));

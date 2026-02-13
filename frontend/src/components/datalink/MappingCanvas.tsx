@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { deviceAPI, pointAPI, tagAPI, mappingAPI } from '../../services/datalink';
-import type { Device, Point, Tag, TransformStep, Mapping } from '../../types/datalink';
+import type {
+  Device,
+  Point,
+  Tag,
+  TransformStep,
+  Mapping,
+  MappingPreviewResponse,
+  CreateMappingRequest,
+  UpdateMappingRequest,
+} from '../../types/datalink';
 import TransformBuilder from './TransformBuilder';
 import { useToast } from '../../contexts/ToastContext';
+import { logger } from '../../utils/logger';
 
 interface MappingCanvasProps {
   initialMapping?: Mapping | null;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: CreateMappingRequest | UpdateMappingRequest) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -29,14 +39,14 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
   // UI State
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [previewResult, setPreviewResult] = useState<any>(null);
+  const [previewResult, setPreviewResult] = useState<MappingPreviewResponse | null>(null);
 
   const loadPoints = useCallback(async (deviceId: string) => {
     try {
       const data = await pointAPI.list({ device_id: deviceId });
       setPoints(data);
     } catch (err) {
-      console.error("Failed to load points", err);
+      logger.error("Failed to load points", err);
     }
   }, []);
 
@@ -57,7 +67,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
       }
 
     } catch (err) {
-      console.error("Failed to load data", err);
+      logger.error("Failed to load data", err);
       showError("載入表單資料失敗");
     } finally {
       setLoading(false);
@@ -94,7 +104,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
             ? JSON.parse(initialMapping.transform_pipeline) 
             : initialMapping.transform_pipeline || [];
       } catch (e) {
-        console.error("Failed to parse pipeline", e);
+        logger.error("Failed to parse pipeline", e);
       }
       setSteps(loadedSteps);
       setIsEnabled(initialMapping.enabled);
@@ -116,7 +126,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
         enabled: isEnabled,
       });
     } catch (error) {
-       console.error(error);
+       logger.error(error);
     } finally {
       setSaving(false);
     }
@@ -130,9 +140,13 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
                transform_pipeline: steps
            });
            setPreviewResult(res);
-       } catch(err: any) {
-           showError(`預覽失敗: ${err.message}`);
-       }
+        } catch(err: unknown) {
+            const message =
+              typeof err === 'object' && err !== null && 'message' in err
+                ? String((err as { message?: string }).message ?? '未知錯誤')
+                : '未知錯誤';
+            showError(`預覽失敗: ${message}`);
+        }
   };
 
   if (loading) return <div className="p-8 text-center text-slate-400">Loading editor resources...</div>;
@@ -251,11 +265,11 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
                           <div className="bg-slate-900 rounded p-2 text-xs font-mono space-y-1">
                               <div className="flex justify-between">
                                   <span className="text-slate-500">Input:</span>
-                                  <span className="text-slate-200">{String(previewResult.original_value)}</span>
+                                  <span className="text-slate-200">{String(previewResult.raw_value)}</span>
                               </div>
                                <div className="flex justify-between">
                                   <span className="text-slate-500">Output:</span>
-                                  <span className="text-emerald-400">{String(previewResult.processed_value)}</span>
+                                  <span className="text-emerald-400">{String(previewResult.final_value)}</span>
                               </div>
                               {previewResult.error && (
                                   <div className="text-red-400 mt-1 pt-1 border-t border-slate-800">

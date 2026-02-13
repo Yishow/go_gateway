@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTestAPI } from '../services/api'
+import { logger } from '../utils/logger';
 
 interface DeviceScannerProps {
   protocol: string
   connectionId: string | null
-  baseConfig?: Record<string, any> // 基礎連線配置，用於站號掃描時創建臨時連線
+  baseConfig?: Record<string, unknown> // 基礎連線配置，用於站號掃描時創建臨時連線
 }
 
 /**
@@ -13,7 +14,7 @@ interface DeviceScannerProps {
 interface ScanResult {
   stationOrIp: number | string // 站號或 IP 地址
   success: boolean
-  data?: any
+  data?: unknown
   error?: string
   responseTime?: number // 響應時間（毫秒）
   testAddress?: number // 測試位置（站號掃描時）
@@ -103,7 +104,7 @@ export default function DeviceScanner({
   const { read, connect: connectAPI, disconnect } = useTestAPI()
   
   // 包裝 connect 函數以處理錯誤
-  const connect = useCallback(async (protocol: string, config: Record<string, any>) => {
+  const connect = useCallback(async (protocol: string, config: Record<string, unknown>) => {
     return await connectAPI(protocol, config)
   }, [connectAPI])
   const scanAbortRef = useRef<boolean>(false)
@@ -286,7 +287,12 @@ export default function DeviceScanner({
       tempConnectionId = connectResult.connection_id
       
       // 執行讀取
-      const readParams: any = {
+      const readParams: {
+        operation: string
+        address: number
+        count: number
+        unit_id?: number
+      } = {
         operation,
         address: testAddr,
         count: 1,
@@ -311,7 +317,7 @@ export default function DeviceScanner({
         responseTime,
         testAddress: testAddr,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime
       
       // 確保斷開連線
@@ -326,7 +332,7 @@ export default function DeviceScanner({
       return {
         stationOrIp: station,
         success: false,
-        error: error.message || '讀取失敗',
+        error: getErrorMessage(error, '讀取失敗'),
         responseTime,
         testAddress: testAddr,
       }
@@ -352,7 +358,13 @@ export default function DeviceScanner({
       tempConnectionId = connectResult.connection_id
       
       // 執行讀取
-      const readParams: any = {
+      const readParams: {
+        operation: string
+        address: number
+        count: number
+        symbol: string
+        station?: number
+      } = {
         operation,
         address: testAddr,
         count: 1,
@@ -378,7 +390,7 @@ export default function DeviceScanner({
         responseTime,
         testAddress: testAddr,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime
       
       // 確保斷開連線
@@ -393,7 +405,7 @@ export default function DeviceScanner({
       return {
         stationOrIp: station,
         success: false,
-        error: error.message || '讀取失敗',
+        error: getErrorMessage(error, '讀取失敗'),
         responseTime,
         testAddress: testAddr,
       }
@@ -419,7 +431,12 @@ export default function DeviceScanner({
       tempConnectionId = connectResult.connection_id
       
       // 嘗試輕量級讀取測試
-      const readParams: any = {
+      const readParams: {
+        operation: string
+        address: number
+        count: number
+        device: string
+      } = {
         operation: 'batch_read_word',
         address: 0,
         count: 1,
@@ -444,7 +461,7 @@ export default function DeviceScanner({
         data: result,
         responseTime,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime
       
       // 確保斷開連線
@@ -459,7 +476,7 @@ export default function DeviceScanner({
       return {
         stationOrIp: ip,
         success: false,
-        error: error.message || '連線失敗',
+        error: getErrorMessage(error, '連線失敗'),
         responseTime,
       }
     }
@@ -639,9 +656,9 @@ export default function DeviceScanner({
         startTime: scanStartTimeRef.current,
       })
       
-    } catch (error: any) {
-      console.error('掃描錯誤:', error)
-      setValidationErrors({ scan: error.message || '掃描過程中發生錯誤' })
+    } catch (error: unknown) {
+      logger.error('掃描錯誤:', error)
+      setValidationErrors({ scan: getErrorMessage(error, '掃描過程中發生錯誤') })
     } finally {
       setScanning(false)
       setCurrentScanning('')
@@ -734,6 +751,14 @@ export default function DeviceScanner({
       return maxStation - startStation + 1
     }
   }, [isMCProtocol, ipNetwork, startStation, maxStation, parseCIDR])
+
+  const formatResultData = (data: unknown): string => {
+    if (typeof data === 'object' && data !== null && 'values' in data) {
+      const values = (data as { values?: unknown }).values
+      return JSON.stringify(values ?? data).slice(0, 50)
+    }
+    return JSON.stringify(data).slice(0, 50)
+  }
 
   return (
     <div className="space-y-6">
@@ -1133,9 +1158,9 @@ export default function DeviceScanner({
                     {result.error && (
                       <div className="text-xs text-red-600 dark:text-red-400 mt-1">{result.error}</div>
                     )}
-                    {result.success && result.data && (
+                    {result.success && result.data !== undefined && (
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        數據: {JSON.stringify(result.data.values || result.data).slice(0, 50)}
+                        數據: {formatResultData(result.data)}
                       </div>
                     )}
                     {result.responseTime && (
@@ -1182,3 +1207,9 @@ export default function DeviceScanner({
     </div>
   )
 }
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+      return String((error as { message?: string }).message ?? fallback)
+    }
+    return fallback
+  }

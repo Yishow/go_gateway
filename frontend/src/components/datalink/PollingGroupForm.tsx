@@ -70,8 +70,12 @@ export default function PollingGroupForm({
           enabled,
         } as CreatePollingGroupRequest);
       }
-    } catch (err: any) {
-      setError(err.message || '儲存失敗');
+    } catch (err: unknown) {
+      const message =
+        typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message?: string }).message ?? '儲存失敗')
+          : '儲存失敗';
+      setError(message);
     } finally {
       setLoading(false);
     }

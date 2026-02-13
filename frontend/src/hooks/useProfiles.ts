@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Profile, ConnectionModeConfigs } from '../types/profile';
 import { PROFILE_STORAGE_KEY, DEFAULT_PROFILE_NAME } from '../types/profile';
+import { logger } from '../utils/logger';
+
+type LegacyProfile = Omit<Profile, 'config'> & {
+  config?: ConnectionModeConfigs | Record<string, unknown>;
+};
 
 /**
  * Profile 管理 Hook
@@ -17,7 +22,7 @@ export function useProfiles() {
     try {
       localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profilesToSave));
     } catch (error) {
-      console.error('保存 Profiles 失敗:', error);
+      logger.error('保存 Profiles 失敗:', error);
     }
   }, []);
 
@@ -25,7 +30,7 @@ export function useProfiles() {
    * 遷移舊格式的 Profile 到新格式（向後兼容）
    * 如果 config 是舊格式（Record<string, any>），轉換為新格式（ConnectionModeConfigs）
    */
-  const migrateProfileIfNeeded = useCallback((profile: any): Profile => {
+  const migrateProfileIfNeeded = useCallback((profile: LegacyProfile): Profile => {
     // 檢查是否為舊格式（config 不是 ConnectionModeConfigs 格式）
     if (profile.config && typeof profile.config === 'object') {
       const configKeys = Object.keys(profile.config);
@@ -34,7 +39,7 @@ export function useProfiles() {
       
       if (!isNewFormat && configKeys.length > 0) {
         // 這是舊格式，需要遷移
-        const oldConfig = profile.config;
+        const oldConfig = profile.config as Record<string, unknown>;
         const connectionMode = profile.connectionMode || 'tcp';
         const newConfig: ConnectionModeConfigs = {
           [connectionMode]: oldConfig,
@@ -62,7 +67,7 @@ export function useProfiles() {
     try {
       const stored = localStorage.getItem(PROFILE_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as any[];
+        const parsed = JSON.parse(stored) as LegacyProfile[];
         // 遷移舊格式的 Profile（向後兼容）
         const migratedProfiles = parsed.map(p => migrateProfileIfNeeded(p));
         setProfiles(migratedProfiles);
@@ -96,7 +101,7 @@ export function useProfiles() {
         saveProfiles([defaultProfile]);
       }
     } catch (error) {
-      console.error('載入 Profiles 失敗:', error);
+      logger.error('載入 Profiles 失敗:', error);
       // 發生錯誤時創建預設 profile
       const defaultProfile: Profile = {
         id: `profile_${Date.now()}`,
@@ -210,7 +215,7 @@ export function useProfiles() {
   const updateCurrentProfileConfig = useCallback((
     protocol: string,
     connectionMode: string,
-    config: Record<string, any>
+    config: Record<string, unknown>
   ): void => {
     if (!currentProfileId) return;
     

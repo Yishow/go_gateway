@@ -3,13 +3,14 @@ import { useState, useMemo } from 'react';
 import type { ProtocolType, DataType } from '../../types/datalink';
 import { addressParser } from '../../utils/addressParser';
 import { useToast } from '../../contexts/ToastContext';
+import { logger } from '../../utils/logger';
 
 export interface BatchPointCreatorProps {
   deviceId: string;
   protocol: ProtocolType;
   preselectedAddresses?: string[];
   pollingGroups: { id: string, name: string }[];
-  onCreated: (points: any[]) => void;
+  onCreated: (points: unknown[]) => void;
   onCancel: () => void;
 }
 
@@ -80,7 +81,7 @@ export function BatchPointCreator({
       showSuccess(`成功建立 ${result.data?.created_count || previewPoints.length} 個點位`);
       onCreated(result.data?.points || []);
     } catch (err) {
-      console.error(err);
+      logger.error(err);
       showError('建立失敗: ' + (err instanceof Error ? err.message : '未知錯誤'));
     } finally {
       setIsSubmitting(false);

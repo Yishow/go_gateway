@@ -2,15 +2,15 @@ import { type ProtocolType } from '../../../../types/datalink';
 
 interface DeviceConnectionStepProps {
   protocol: ProtocolType;
-  config: Record<string, any>;
-  onChange: (config: Record<string, any>) => void;
+  config: Record<string, string | number | string[] | undefined>;
+  onChange: (config: Record<string, string | number | string[] | undefined>) => void;
   error?: string;
 }
 
 export default function DeviceConnectionStep({ protocol, config, onChange, error }: DeviceConnectionStepProps) {
   const fieldId = (name: string) => `wizard-connection-${protocol}-${name}`;
 
-  const handleChange = (key: string, value: any) => {
+  const handleChange = (key: string, value: string | number | string[] | undefined) => {
       onChange({ ...config, [key]: value });
   };
 
@@ -318,8 +318,8 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                                 id={fieldId('use-tls')}
                                 type="checkbox"
                                 name="use_tls"
-                                checked={config.use_tls || false}
-                                onChange={e => handleChange('use_tls', e.target.checked)}
+                                checked={config.use_tls === 'true'}
+                                onChange={e => handleChange('use_tls', e.target.checked ? 'true' : 'false')}
                             />
                             <span className="text-slate-300">Enable TLS/SSL</span>
                         </label>

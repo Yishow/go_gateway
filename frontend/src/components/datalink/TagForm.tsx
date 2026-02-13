@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Tag, CreateTagRequest, UpdateTagRequest, DataType } from '../../types/datalink';
 import { tagAPI } from '../../services/datalink';
+import { logger } from '../../utils/logger';
 
 interface TagFormProps {
   tag?: Tag;
@@ -46,7 +47,7 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
                     setKeyError(null);
                 }
             } catch (err) {
-                console.error('Validation failed', err);
+                logger.error('Validation failed', err);
             } finally {
                 setIsValidating(false);
             }
@@ -87,8 +88,12 @@ export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
           labels,
         } as CreateTagRequest);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save tag');
+    } catch (err: unknown) {
+      const message =
+        typeof err === 'object' && err !== null && 'message' in err
+          ? String((err as { message?: string }).message ?? 'Failed to save tag')
+          : 'Failed to save tag';
+      setError(message);
     } finally {
       setLoading(false);
     }

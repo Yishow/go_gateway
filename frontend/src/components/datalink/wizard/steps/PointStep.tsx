@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { pointAPI } from '../../../../services/datalink';
 import type { Point } from '../../../../types/datalink';
+import { logger } from '../../../../utils/logger';
 import './Steps.css';
 
 /**
@@ -35,7 +36,7 @@ export const PointStep: React.FC<PointStepProps> = ({
       const data = await pointAPI.list({ device_id: deviceId });
       setPoints(data);
     } catch (err) {
-      console.error('Failed to load points:', err);
+      logger.error('Failed to load points:', err);
     } finally {
       setLoading(false);
     }

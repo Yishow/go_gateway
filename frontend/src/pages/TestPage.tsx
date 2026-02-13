@@ -13,10 +13,12 @@ import { useProfiles } from '../hooks/useProfiles'
 import { useCardMinimize, type MinimizedCardInfo } from '../hooks/useCardMinimize'
 import type { Profile, ConnectionModeConfigs } from '../types/profile'
 
+type PageConfig = Record<string, string | number | string[] | undefined>
+
 export default function TestPage() {
   const [selectedProtocol, setSelectedProtocol] = useState<string>('modbus_tcp')
   const [connectionMode, setConnectionMode] = useState<string>('tcp')
-  const [config, setConfig] = useState<Record<string, any>>({})
+  const [config, setConfig] = useState<PageConfig>({})
   const [connectionId, setConnectionId] = useState<string | null>(null)
   const [isConfigMinimized, setIsConfigMinimized] = useState<boolean>(false)
   
@@ -29,13 +31,13 @@ export default function TestPage() {
    * 從 Profile 的配置中獲取當前模式的配置
    * 確保不同模式的配置完全獨立，不會互相影響
    */
-  const getConfigForMode = (profileConfig: ConnectionModeConfigs, mode: string): Record<string, any> => {
+  const getConfigForMode = (profileConfig: ConnectionModeConfigs, mode: string): PageConfig => {
     if (!profileConfig || typeof profileConfig !== 'object') {
       return {}
     }
     // 如果是舊格式（直接是 Record<string, any>），返回它
     if (!('tcp' in profileConfig || 'udp' in profileConfig || 'serial' in profileConfig || 'rtu' in profileConfig)) {
-      return profileConfig as any
+      return profileConfig as PageConfig
     }
     // 新格式：從對應的模式中獲取配置
     // 確保只返回該模式的配置，如果沒有則返回完全空白的物件
@@ -44,7 +46,7 @@ export default function TestPage() {
       return {}
     }
     // 返回深拷貝，避免引用問題
-    return { ...modeConfig }
+    return { ...(modeConfig as PageConfig) }
   }
 
   /**
@@ -127,7 +129,7 @@ export default function TestPage() {
   /**
    * 處理配置變更
    */
-  const handleConfigChange = (newConfig: Record<string, any>) => {
+  const handleConfigChange = (newConfig: PageConfig) => {
     setConfig(newConfig)
   }
 
@@ -303,9 +305,9 @@ export default function TestPage() {
    */
   const configSummary = useMemo(() => {
     if (connectionMode === 'tcp' || connectionMode === 'udp') {
-      return `${config.host || '-'}:${config.port || '-'}`
+      return `${String(config.host ?? '-')}:${String(config.port ?? '-')}`
     }
-    return config.port || '-'
+    return String(config.port ?? '-')
   }, [connectionMode, config])
 
   return (
@@ -353,17 +355,17 @@ export default function TestPage() {
                     <>
                       <div className="flex justify-between">
                         <span className="text-gray-500 dark:text-gray-400">主機:</span>
-                        <span className="font-mono">{config.host || '-'}</span>
+                        <span className="font-mono">{String(config.host ?? '-')}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500 dark:text-gray-400">埠號:</span>
-                        <span className="font-mono">{config.port || '-'}</span>
+                        <span className="font-mono">{String(config.port ?? '-')}</span>
                       </div>
                     </>
                   ) : (
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">串列埠:</span>
-                      <span className="font-mono">{config.port || '-'}</span>
+                      <span className="font-mono">{String(config.port ?? '-')}</span>
                     </div>
                   )}
                   {connectionId && (

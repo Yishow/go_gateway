@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { tagAPI } from '../../../../services/datalink';
 import type { Tag } from '../../../../types/datalink';
+import { logger } from '../../../../utils/logger';
 import './Steps.css';
 
 /**
@@ -37,7 +38,7 @@ export const TagStep: React.FC<TagStepProps> = ({
       const data = await tagAPI.list();
       setTags(data);
     } catch (err) {
-      console.error('Failed to load tags:', err);
+      logger.error('Failed to load tags:', err);
     } finally {
       setLoading(false);
     }

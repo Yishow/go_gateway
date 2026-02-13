@@ -2,12 +2,37 @@
 import { render, screen } from '@testing-library/react';
 import { DeviceTreeNav } from '../DeviceTreeNav';
 import { describe, it, expect, vi } from 'vitest';
+import type { Device } from '../../../types/datalink';
 
 describe('DeviceTreeNav', () => {
   const mockDevices = [
-    { id: '1', name: 'PLC-001', type: 'plc' },
-    { id: '2', name: 'PLC-002', type: 'plc' },
-  ] as any[];
+    {
+      id: '1',
+      name: 'PLC-001',
+      description: '',
+      protocol: 'modbus_tcp',
+      status: 'active',
+      connection_config: '{}',
+      last_test_at: null,
+      last_test_success: null,
+      last_test_error: '',
+      created_at: '',
+      updated_at: '',
+    },
+    {
+      id: '2',
+      name: 'PLC-002',
+      description: '',
+      protocol: 'modbus_tcp',
+      status: 'active',
+      connection_config: '{}',
+      last_test_at: null,
+      last_test_success: null,
+      last_test_error: '',
+      created_at: '',
+      updated_at: '',
+    },
+  ] as Device[];
 
   it('should render device list', () => {
     // Basic render test

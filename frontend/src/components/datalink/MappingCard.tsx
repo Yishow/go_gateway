@@ -7,6 +7,10 @@ interface MappingCardProps {
   onToggleStatus: (id: string, enabled: boolean) => void;
 }
 
+interface MappingStep {
+  type?: string;
+}
+
 export default function MappingCard({
   mapping,
   onEdit,
@@ -99,7 +103,7 @@ export default function MappingCard({
          <div className="text-[10px] uppercase font-bold text-slate-500 mb-2 tracking-wider">Pipeline</div>
          <div className="flex flex-wrap gap-2">
              {Array.isArray(pipeline) && pipeline.length > 0 ? (
-                 pipeline.map((step: any, idx: number) => (
+                 pipeline.map((step: MappingStep, idx: number) => (
                      <span key={idx} className="px-2 py-1 bg-violet-500/10 text-violet-300 text-[10px] font-medium rounded border border-violet-500/20 flex items-center">
                          {step.type}
                      </span>

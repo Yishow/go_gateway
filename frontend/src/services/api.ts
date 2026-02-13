@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useState } from 'react'
+import { logger } from '../utils/logger';
 import type { 
   ConnectResponse, 
   ReadResponse, 
@@ -17,9 +18,32 @@ const api = axios.create({
   },
 })
 
+interface DebugPacket {
+  id: string
+  connection_id?: string
+  direction: 'request' | 'response' | string
+  protocol?: string
+  hex_data: string
+  raw_data?: number[]
+  timestamp: string
+  [key: string]: unknown
+}
+
+interface DebugLog {
+  id: string
+  timestamp: string
+  level: string
+  message: string
+  details?: {
+    connection_id?: string
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
 // 測試 API
 export function useTestAPI() {
-  const connect = async (protocol: string, config: Record<string, any>): Promise<ConnectResponse> => {
+  const connect = async (protocol: string, config: Record<string, unknown>): Promise<ConnectResponse> => {
     const response = await api.post<ConnectResponse>('/test/connect', {
       protocol,
       config,
@@ -64,7 +88,7 @@ export function useTestAPI() {
     params: {
       operation: string
       address: number
-      values: any[]
+      values: Array<string | number | boolean>
       symbol?: string
       unit_id?: number
       station?: number
@@ -103,19 +127,19 @@ export function useTestAPI() {
 
 // Debug API Hook
 export function useDebugAPI() {
-  const [packets, setPackets] = useState<any[]>([])
-  const [logs, setLogs] = useState<any[]>([])
+  const [packets, setPackets] = useState<DebugPacket[]>([])
+  const [logs, setLogs] = useState<DebugLog[]>([])
 
   const refresh = async () => {
     try {
       const [packetsRes, logsRes] = await Promise.all([
-        api.get('/debug/packets'),
-        api.get('/debug/logs'),
+        api.get<{ packets?: DebugPacket[] }>('/debug/packets'),
+        api.get<{ logs?: DebugLog[] }>('/debug/logs'),
       ])
       setPackets(packetsRes.data.packets || [])
       setLogs(logsRes.data.logs || [])
     } catch (error) {
-      console.error('Failed to refresh debug data:', error)
+      logger.error('Failed to refresh debug data:', error)
     }
   }
 
@@ -126,14 +150,14 @@ export function useDebugAPI() {
       const beforeLogsCount = logs.length
       
       const response = await api.delete('/debug/clear', { params })
-      console.log('Clear response:', response.data)
+      logger.log('Clear response:', response.data)
       
       // 立即更新本地狀態，不調用 refresh()，讓自動刷新機制自然處理
       // 這樣可以避免在清空後立即重新載入數據
       if (connectionId) {
         setPackets(prev => {
           const filtered = prev.filter(p => p.connection_id !== connectionId)
-          console.log(`Cleared packets for connection ${connectionId}: ${prev.length} -> ${filtered.length}`)
+          logger.log(`Cleared packets for connection ${connectionId}: ${prev.length} -> ${filtered.length}`)
           return filtered
         })
         setLogs(prev => {
@@ -141,16 +165,16 @@ export function useDebugAPI() {
             const details = l.details as { connection_id?: string } | undefined
             return details?.connection_id !== connectionId
           })
-          console.log(`Cleared logs for connection ${connectionId}: ${prev.length} -> ${filtered.length}`)
+          logger.log(`Cleared logs for connection ${connectionId}: ${prev.length} -> ${filtered.length}`)
           return filtered
         })
       } else {
-        console.log(`Cleared all: packets ${beforePacketsCount} -> 0, logs ${beforeLogsCount} -> 0`)
+        logger.log(`Cleared all: packets ${beforePacketsCount} -> 0, logs ${beforeLogsCount} -> 0`)
         setPackets([])
         setLogs([])
       }
     } catch (error) {
-      console.error('Failed to clear debug data:', error)
+      logger.error('Failed to clear debug data:', error)
       // 如果後端不支持，則前端清空
       if (connectionId) {
         setPackets(prev => prev.filter(p => p.connection_id !== connectionId))
