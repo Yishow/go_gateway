@@ -1,14 +1,28 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Point, CreatePointRequest, ProtocolType, DataType } from '../../types/datalink';
+import type {
+  Device,
+  Point,
+  CreatePointRequest,
+  CreateDeviceRequest,
+  UpdateDeviceRequest,
+  ProtocolType,
+  DataType,
+} from '../../types/datalink';
 import { MemoryGrid, type PlannedAllocation } from '../../components/datalink/MemoryGrid';
 import { QuickActions } from '../../components/datalink/QuickActions';
 import { SlidePanel } from '../../components/datalink/SlidePanel';
 import { BatchPointCreator } from '../../components/datalink/BatchPointCreator';
 import { PointDetailPanel } from '../../components/datalink/PointDetailPanel';
 import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExportDialog';
+import DeviceForm from '../../components/datalink/DeviceForm';
 import DeviceOnboardingWizard from '../../components/datalink/wizard/DeviceOnboardingWizard';
-import { useDevicesQuery, useToggleDeviceStatusMutation } from '../../hooks/datalink/useDevices';
+import {
+  useDevicesQuery,
+  useToggleDeviceStatusMutation,
+  useUpdateDeviceMutation,
+  useTestConnectionMutation,
+} from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 import { usePointsQuery, useCreatePointMutation } from '../../hooks/datalink/usePoints';
 import {
@@ -176,12 +190,18 @@ export default function SmartDashboard() {
   const [lastSwitchedAt, setLastSwitchedAt] = useState<string | null>(null);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
+  const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
+  const [deviceSetupMessage, setDeviceSetupMessage] = useState('');
+  const [deviceSetupMessageTone, setDeviceSetupMessageTone] = useState<'info' | 'success' | 'error'>('info');
+  const [testingDeviceId, setTestingDeviceId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
   const guideStageTimeoutRef = useRef<number | null>(null);
 
   const { data: devices = [] } = useDevicesQuery();
   const toggleDeviceStatusMutation = useToggleDeviceStatusMutation();
+  const updateDeviceMutation = useUpdateDeviceMutation();
+  const testConnectionMutation = useTestConnectionMutation();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
   const { data: mappings = [] } = useMappingsQuery();
@@ -1009,12 +1029,56 @@ export default function SmartDashboard() {
     const section = activeTab;
     navigate(`/datalink/local-modbus?section=${section}`);
   }, [activeTab, navigate]);
-  const openDeviceSetupPage = useCallback(
+  const openDeviceSetupModal = useCallback(
     (deviceId?: string | null) => {
-      const suffix = deviceId ? `?focus=device&deviceId=${encodeURIComponent(deviceId)}` : '';
-      navigate(`/datalink/devices-legacy${suffix}`);
+      if (!deviceId) return;
+      const target = devices.find((device) => device.id === deviceId) || null;
+      if (!target) return;
+      setEditingDeviceInModal(target);
+      setDeviceSetupMessage('');
+      setDeviceSetupMessageTone('info');
+      setActiveTab('devices');
+      const next = new URLSearchParams(searchParams);
+      next.set('modal', 'devices');
+      setSearchParams(next, { replace: true });
     },
-    [navigate]
+    [devices, searchParams, setSearchParams]
+  );
+  const handleSubmitDeviceSetup = useCallback(
+    async (data: CreateDeviceRequest | UpdateDeviceRequest) => {
+      if (!editingDeviceInModal) return;
+      await updateDeviceMutation.mutateAsync({
+        id: editingDeviceInModal.id,
+        data: data as UpdateDeviceRequest,
+      });
+      setDeviceSetupMessage(`已更新設備「${editingDeviceInModal.name}」設定`);
+      setDeviceSetupMessageTone('success');
+    },
+    [editingDeviceInModal, updateDeviceMutation]
+  );
+  const handleTestDeviceConnection = useCallback(
+    async (deviceId: string) => {
+      setTestingDeviceId(deviceId);
+      setDeviceSetupMessage('');
+      setDeviceSetupMessageTone('info');
+      try {
+        const result = await testConnectionMutation.mutateAsync(deviceId);
+        if (result.success) {
+          setDeviceSetupMessage(`連線成功，延遲 ${result.latency_ms} ms`);
+          setDeviceSetupMessageTone('success');
+          return;
+        }
+        setDeviceSetupMessage(`連線失敗：${result.error || '未知錯誤'}`);
+        setDeviceSetupMessageTone('error');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '測試連線失敗';
+        setDeviceSetupMessage(`連線失敗：${message}`);
+        setDeviceSetupMessageTone('error');
+      } finally {
+        setTestingDeviceId(null);
+      }
+    },
+    [testConnectionMutation]
   );
   const handleSelectTab = useCallback(
     (tab: DashboardTab) => {
@@ -1091,11 +1155,27 @@ export default function SmartDashboard() {
     if (modalIntent === 'wizard') setIsCreateDeviceModalOpen(true);
   }, [modalIntent]);
   useEffect(() => {
+    if (modalIntent !== 'devices') {
+      setEditingDeviceInModal(null);
+      setDeviceSetupMessage('');
+      setDeviceSetupMessageTone('info');
+    }
+  }, [modalIntent]);
+  useEffect(() => {
     if (createDeviceIntent === '1') {
       setActiveTab('devices');
       setIsCreateDeviceModalOpen(true);
     }
   }, [createDeviceIntent]);
+  useEffect(() => {
+    if (!editingDeviceInModal) return;
+    const refreshed = devices.find((device) => device.id === editingDeviceInModal.id);
+    if (!refreshed) {
+      setEditingDeviceInModal(null);
+      return;
+    }
+    setEditingDeviceInModal(refreshed);
+  }, [devices, editingDeviceInModal]);
 
   useEffect(() => {
     if (!selectedDeviceId) return;
@@ -1544,10 +1624,10 @@ export default function SmartDashboard() {
               {activationTargetDeviceId && (
                 <button
                   type="button"
-                  onClick={() => openDeviceSetupPage(activationTargetDeviceId)}
+                  onClick={() => openDeviceSetupModal(activationTargetDeviceId)}
                   className="min-h-11 rounded-lg border border-slate-300/30 bg-slate-700/60 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                 >
-                  前往設定頁
+                  開啟設備設定
                 </button>
               )}
               {pendingSwitchDeviceId && (
@@ -2566,7 +2646,7 @@ export default function SmartDashboard() {
               </button>
             </div>
             {modalIntent === 'devices' ? (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                 <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <input
@@ -2617,27 +2697,33 @@ export default function SmartDashboard() {
                             {device.status}
                           </span>
                         </div>
-                        <div className="mt-2 flex items-center justify-between">
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-[11px] text-slate-400">上次測試: {device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-'}</p>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openDeviceSetupModal(device.id)}
+                              className="min-h-9 rounded-md border border-slate-400/30 bg-slate-700/60 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                            >
+                              設定
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleTestDeviceConnection(device.id)}
+                              disabled={testingDeviceId === device.id}
+                              className="min-h-9 rounded-md border border-cyan-400/40 bg-cyan-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+                            >
+                              {testingDeviceId === device.id ? '測試中...' : '測試連線'}
+                            </button>
                             {device.status === 'draft' && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => openDeviceSetupPage(device.id)}
-                                  className="min-h-9 rounded-md border border-slate-400/30 bg-slate-700/60 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-                                >
-                                  設定與測試
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void handleActivateDeviceDirect(device.id)}
-                                  disabled={activatingDeviceId === device.id}
-                                  className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                                >
-                                  {activatingDeviceId === device.id ? '啟用中...' : '啟用並切換'}
-                                </button>
-                              </>
+                              <button
+                                type="button"
+                                onClick={() => void handleActivateDeviceDirect(device.id)}
+                                disabled={activatingDeviceId === device.id}
+                                className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                              >
+                                {activatingDeviceId === device.id ? '啟用中...' : '啟用並切換'}
+                              </button>
                             )}
                             <button
                               type="button"
@@ -2661,6 +2747,75 @@ export default function SmartDashboard() {
                       </div>
                     )}
                   </div>
+                </section>
+                <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Device Setup</p>
+                      <h4 className="text-sm font-semibold text-slate-100">
+                        {editingDeviceInModal ? `設定：${editingDeviceInModal.name}` : '請先選擇設備'}
+                      </h4>
+                    </div>
+                    {editingDeviceInModal && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingDeviceInModal(null)}
+                        className="min-h-9 rounded-md border border-slate-700 px-2.5 py-1.5 text-[11px] text-slate-200 hover:bg-slate-800"
+                      >
+                        關閉設定
+                      </button>
+                    )}
+                  </div>
+                  {editingDeviceInModal ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleTestDeviceConnection(editingDeviceInModal.id)}
+                          disabled={testingDeviceId === editingDeviceInModal.id}
+                          className="min-h-9 rounded-md border border-cyan-400/40 bg-cyan-500/20 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {testingDeviceId === editingDeviceInModal.id ? '測試中...' : '測試連線'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleActivateDeviceDirect(editingDeviceInModal.id)}
+                          disabled={activatingDeviceId === editingDeviceInModal.id || editingDeviceInModal.status === 'active'}
+                          className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {editingDeviceInModal.status === 'active'
+                            ? '已啟用'
+                            : activatingDeviceId === editingDeviceInModal.id
+                              ? '啟用中...'
+                              : '啟用設備'}
+                        </button>
+                      </div>
+                      <div className="max-h-[52vh] overflow-auto rounded-xl border border-white/10 bg-slate-900/70 p-3">
+                        <DeviceForm
+                          device={editingDeviceInModal}
+                          onSubmit={handleSubmitDeviceSetup}
+                          onCancel={() => setEditingDeviceInModal(null)}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-xl border border-dashed border-slate-600 bg-slate-900/60 p-4 text-xs text-slate-400">
+                      從左側設備卡片點擊「設定」，即可在此直接編輯來源協議、連線參數、重試策略並測試連線，不再跳轉到獨立設定頁。
+                    </div>
+                  )}
+                  {deviceSetupMessage && (
+                    <p
+                      className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+                        deviceSetupMessageTone === 'success'
+                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
+                          : deviceSetupMessageTone === 'error'
+                            ? 'border-rose-500/30 bg-rose-500/10 text-rose-100'
+                            : 'border-slate-600 bg-slate-800/70 text-slate-200'
+                      }`}
+                    >
+                      {deviceSetupMessage}
+                    </p>
+                  )}
                 </section>
               </div>
             ) : (
