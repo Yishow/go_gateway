@@ -51,6 +51,7 @@ import { modbusShareAPI } from '../../services/datalink';
 import type { ModbusShareStatus } from '../../types/datalink';
 
 const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
+const COMMIT_CHUNK_SIZE = 8;
 
 const STATUS_STYLE: Record<FlowStatus, string> = {
   draft: 'bg-slate-700/70 text-slate-200 border-slate-600',
@@ -108,6 +109,9 @@ export default function SmartDashboard() {
   const [commitQueueRunStatus, setCommitQueueRunStatus] = useState<Record<string, 'success' | 'failed'>>({});
   const [lastCommitSnapshot, setLastCommitSnapshot] = useState<Record<string, 'success' | 'failed'> | null>(null);
   const [isCommitRunning, setIsCommitRunning] = useState(false);
+  const [commitChunkResults, setCommitChunkResults] = useState<
+    Array<{ chunk: number; totalChunks: number; success: number; failed: number; status: 'success' | 'failed' }>
+  >([]);
   const [tagEditDisplayName, setTagEditDisplayName] = useState('');
   const [tagEditUnit, setTagEditUnit] = useState('');
   const [tagEditDescription, setTagEditDescription] = useState('');
@@ -836,20 +840,49 @@ export default function SmartDashboard() {
     }
     setIsCommitRunning(true);
     setLastCommitSnapshot(commitQueueRunStatus);
+    setCommitChunkResults([]);
 
-    const result = executeCommitLifecycle(baseCommitQueueItems, commitQueueRunStatus);
+    const chunks = Array.from(
+      { length: Math.ceil(baseCommitQueueItems.length / COMMIT_CHUNK_SIZE) },
+      (_, index) => baseCommitQueueItems.slice(index * COMMIT_CHUNK_SIZE, (index + 1) * COMMIT_CHUNK_SIZE)
+    );
+    let rollingStatus = { ...commitQueueRunStatus };
+    const nextChunkResults: Array<{
+      chunk: number;
+      totalChunks: number;
+      success: number;
+      failed: number;
+      status: 'success' | 'failed';
+    }> = [];
+    let successCount = 0;
+    let failedCount = 0;
 
-    setCommitQueueRunStatus(result.nextStatus);
+    chunks.forEach((chunkItems, index) => {
+      const chunkResult = executeCommitLifecycle(chunkItems, rollingStatus);
+      rollingStatus = chunkResult.nextStatus;
+      successCount += chunkResult.successCount;
+      failedCount += chunkResult.failedCount;
+      nextChunkResults.push({
+        chunk: index + 1,
+        totalChunks: chunks.length,
+        success: chunkResult.successCount,
+        failed: chunkResult.failedCount,
+        status: chunkResult.failedCount > 0 ? 'failed' : 'success',
+      });
+    });
+
+    setCommitQueueRunStatus(rollingStatus);
+    setCommitChunkResults(nextChunkResults);
     setIsCommitRunning(false);
 
-    if (result.failedCount > 0) {
-      markError('sink', `Commit 部分失敗：${result.failedCount} 筆失敗，請執行 Retry 或 Rollback。`);
-      setCommitActionMessage(`Commit 部分成功：成功 ${result.successCount}、失敗 ${result.failedCount}。`);
+    if (failedCount > 0) {
+      markError('sink', `Commit 部分失敗：${failedCount} 筆失敗，請執行 Retry 或 Rollback。`);
+      setCommitActionMessage(`Commit 部分成功：成功 ${successCount}、失敗 ${failedCount}。`);
       return;
     }
 
     markActive();
-    setCommitActionMessage(`Commit 成功：${result.successCount} 筆已提交並啟用流程。`);
+    setCommitActionMessage(`Commit 成功：${successCount} 筆已提交並啟用流程。`);
   }, [baseCommitQueueItems, canActivate, commitQueueRunStatus, markActive, markError, selectedMapping?.enabled, t]);
 
   const handleRetryFailedCommits = useCallback(() => {
@@ -1486,6 +1519,21 @@ export default function SmartDashboard() {
                 <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
                   {commitActionMessage}
                 </p>
+              )}
+              {commitChunkResults.length > 0 && (
+                <div className="rounded-lg border border-white/10 bg-slate-900/60 p-2 space-y-1">
+                  <p className="text-[11px] font-semibold text-slate-200">Chunk 結果</p>
+                  {commitChunkResults.map((chunkResult) => (
+                    <div key={chunkResult.chunk} className="flex items-center justify-between text-[10px]">
+                      <span className="text-slate-300">
+                        Chunk {chunkResult.chunk}/{chunkResult.totalChunks}
+                      </span>
+                      <span className={chunkResult.status === 'success' ? 'text-emerald-300' : 'text-amber-300'}>
+                        success {chunkResult.success} / failed {chunkResult.failed}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
               {hasError && (
                 <button
