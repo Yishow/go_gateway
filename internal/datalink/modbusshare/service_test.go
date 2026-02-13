@@ -2,10 +2,14 @@ package modbusshare
 
 import (
 	"context"
+	"net"
+	"strings"
 	"testing"
+	"time"
 
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
+	"go-gateway/internal/protocol/modbus"
 )
 
 func setupTagSvc(t *testing.T) *tag.Service {
@@ -105,5 +109,76 @@ func TestService_Status_AfterStartAndStop(t *testing.T) {
 
 	if err := svc.Stop(); err != nil {
 		t.Fatalf("stop server failed: %v", err)
+	}
+}
+
+func TestService_Start_PortConflict_ReturnsActionableError(t *testing.T) {
+	tagSvc := setupTagSvc(t)
+	svc := NewService(tagSvc, 4096)
+
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("listen failed: %v", err)
+	}
+	defer ln.Close()
+
+	port := ln.Addr().(*net.TCPAddr).Port
+	err = svc.Start(port)
+	if err == nil {
+		t.Fatal("expected port conflict error")
+	}
+	msg := strings.ToLower(err.Error())
+	if !strings.Contains(msg, "already in use") {
+		t.Fatalf("expected actionable conflict message, got: %v", err)
+	}
+}
+
+func TestService_ModbusClientRead_MirroredValues(t *testing.T) {
+	ctx := context.Background()
+	tagSvc := setupTagSvc(t)
+	svc := NewService(tagSvc, 8192)
+
+	floatTag, err := tagSvc.GetByKey(ctx, "test.temp.float32")
+	if err != nil {
+		t.Fatalf("get float tag failed: %v", err)
+	}
+
+	if _, err := svc.UpsertMapping(ctx, floatTag.ID, 120); err != nil {
+		t.Fatalf("upsert mapping failed: %v", err)
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve random port failed: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+
+	if err := svc.Start(port); err != nil {
+		t.Fatalf("start server failed: %v", err)
+	}
+	defer svc.Stop()
+
+	if err := svc.WriteTagValue(ctx, floatTag.ID, 12.5); err != nil {
+		t.Fatalf("write mirrored value failed: %v", err)
+	}
+
+	transport := modbus.NewTCPTransport("127.0.0.1", port)
+	transport.Timeout = 3 * time.Second
+	client := modbus.NewClient(transport, 1)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("modbus client connect failed: %v", err)
+	}
+	defer client.Close()
+
+	registers, err := client.ReadHoldingRegisters(120, 2)
+	if err != nil {
+		t.Fatalf("read holding registers failed: %v", err)
+	}
+	if len(registers) != 2 {
+		t.Fatalf("expected 2 registers, got %d", len(registers))
+	}
+	if registers[0] != 16712 || registers[1] != 0 {
+		t.Fatalf("unexpected mirrored registers: %#v", registers)
 	}
 }

@@ -53,12 +53,12 @@
 - [ ] 6.6 Add animation readability checklist and QA gate for visual clarity.
 
 ## 7. Local Modbus Sharing Mode
-- [ ] 7.1 Add optional sink target `local_modbus_server`.
-- [ ] 7.2 Implement tag-to-virtual-register mapping configuration UI.
-- [ ] 7.3 Mirror committed tag values to local virtual Modbus memory grid.
-- [ ] 7.4 Start local Modbus TCP server on port `5020`.
-- [ ] 7.5 Add bind preflight check and actionable port-conflict error handling.
-- [ ] 7.6 Add integration tests for external read verification against mirrored values.
+- [x] 7.1 Add optional sink target `local_modbus_server`.
+- [x] 7.2 Implement tag-to-virtual-register mapping configuration UI.
+- [x] 7.3 Mirror committed tag values to local virtual Modbus memory grid.
+- [x] 7.4 Start local Modbus TCP server on port `5020`.
+- [x] 7.5 Add bind preflight check and actionable port-conflict error handling.
+- [x] 7.6 Add integration tests for external read verification against mirrored values.
 
 ## 8. Route and Navigation Decommission
 - [ ] 8.1 Remove deprecated nav entries and route entry points.

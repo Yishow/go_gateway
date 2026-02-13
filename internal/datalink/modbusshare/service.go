@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,7 +61,16 @@ func (s *Service) Start(port int) error {
 	if port <= 0 {
 		return fmt.Errorf("invalid port: %d", port)
 	}
-	return s.server.Start(port)
+	if err := preflightPortAvailable(port); err != nil {
+		return err
+	}
+	if err := s.server.Start(port); err != nil {
+		if isAddressInUseError(err) {
+			return fmt.Errorf("port %d is already in use, please release the port or change service port: %w", port, err)
+		}
+		return fmt.Errorf("start modbus share server failed on port %d: %w", port, err)
+	}
+	return nil
 }
 
 // Stop stops the local Modbus server.
@@ -388,4 +399,24 @@ func (s *Service) ReadHoldingWords(startRegister uint16, quantity uint16) ([]uin
 		out[i] = binary.BigEndian.Uint16(buf[i*2:])
 	}
 	return out, nil
+}
+
+func preflightPortAvailable(port int) error {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		if isAddressInUseError(err) {
+			return fmt.Errorf("port %d is already in use, please stop the conflicting process or choose another port", port)
+		}
+		return fmt.Errorf("cannot bind port %d: %w", port, err)
+	}
+	return ln.Close()
+}
+
+func isAddressInUseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "address already in use") ||
+		strings.Contains(msg, "only one usage of each socket address")
 }
