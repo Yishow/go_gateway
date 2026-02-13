@@ -117,7 +117,14 @@ export function MemoryGrid({
 
   const visibleCells = useMemo(() => {
     if (!showConflictsOnly) return cells;
-    return cells.filter((cell) => cell.status === 'conflict');
+    const visibleIndexSet = new Set<number>();
+    cells.forEach((cell, index) => {
+      if (cell.status !== 'conflict') return;
+      visibleIndexSet.add(index);
+      if (index > 0) visibleIndexSet.add(index - 1);
+      if (index < cells.length - 1) visibleIndexSet.add(index + 1);
+    });
+    return cells.filter((_, index) => visibleIndexSet.has(index));
   }, [cells, showConflictsOnly]);
 
   const handleCellClick = (cell: GridCellStart, e: React.MouseEvent) => {
@@ -158,14 +165,16 @@ export function MemoryGrid({
       className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 select-none"
     >
       {visibleCells.map(cell => (
-        <div
+        <button
+          type="button"
           key={cell.address}
           data-testid="grid-cell"
           data-status={cell.status}
           data-conflict-severity={cell.conflictSeverity}
           onClick={(e) => handleCellClick(cell, e)}
+          aria-label={`Address ${cell.address}, status ${cell.status}`}
           className={`
-            relative aspect-[4/3] border flex flex-col items-center justify-center cursor-pointer transition-colors duration-200
+            relative aspect-[4/3] border flex flex-col items-center justify-center cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
             ${cell.status === 'used' 
               ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/30 dark:border-green-500/50 dark:text-green-300' 
               : cell.status === 'linked'
@@ -214,7 +223,7 @@ export function MemoryGrid({
               {cell.conflictSeverity === 'hard' ? '硬衝突' : '軟衝突'}
             </div>
           )}
-        </div>
+        </button>
       ))}
       
       {visibleCells.length === 0 && (

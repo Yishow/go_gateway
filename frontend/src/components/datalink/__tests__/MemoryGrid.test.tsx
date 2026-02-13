@@ -225,4 +225,38 @@ describe('MemoryGrid', () => {
     expect(screen.queryByText('40004')).not.toBeInTheDocument();
     expect(screen.getByText('EDGE 1/2')).toBeInTheDocument();
   });
+
+  it('should keep neighbor context when conflicts-only filter is enabled', () => {
+    const point = { id: '1', name: 'P1', address: '40002', device_id: 'd1' } as any;
+    const plannedAllocations = [
+      {
+        id: 'plan-1',
+        dataType: 'int16' as const,
+        addresses: ['40002'],
+        label: 'S1',
+      },
+    ];
+
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={5}
+        existingPoints={[point]}
+        plannedAllocations={plannedAllocations}
+        showConflictsOnly
+      />
+    );
+
+    expect(screen.getByText('40001')).toBeInTheDocument();
+    expect(screen.getByText('40002')).toBeInTheDocument();
+    expect(screen.getByText('40003')).toBeInTheDocument();
+    expect(screen.queryByText('40004')).not.toBeInTheDocument();
+  });
+
+  it('should render cells as keyboard-focusable buttons', () => {
+    render(<MemoryGrid {...defaultProps} range={2} />);
+    const cells = screen.getAllByTestId('grid-cell');
+    expect(cells[0].tagName).toBe('BUTTON');
+    expect(cells[0]).toHaveAttribute('aria-label', expect.stringContaining('Address 40001'));
+  });
 });
