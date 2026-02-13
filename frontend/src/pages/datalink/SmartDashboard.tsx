@@ -54,6 +54,7 @@ import {
 } from '../../features/datalink/tagEditImpact';
 import { buildGlobalTagGuardrail } from '../../features/datalink/globalTagGuardrails';
 import { isLegacyDecommissionRoute } from '../../features/datalink/legacyRoutes';
+import { estimatePollingLoadDelta } from '../../features/datalink/pollingLoadEstimate';
 import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/datalink/typedOccupancy';
 import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
@@ -462,6 +463,10 @@ export default function SmartDashboard() {
   const commitImpactSummary = useMemo(
     () => summarizeCommitImpact(commitQueueItems, Boolean(pendingTagEdit)),
     [commitQueueItems, pendingTagEdit]
+  );
+  const preCommitLoadEstimate = useMemo(
+    () => estimatePollingLoadDelta(allPoints, pollingGroups, commitImpactSummary.newPoints),
+    [allPoints, commitImpactSummary.newPoints, pollingGroups]
   );
   const selectedPointFromGrid = useMemo(
     () => allPoints.find((point) => point.address === selectedSourceAddress) || null,
@@ -1536,6 +1541,10 @@ export default function SmartDashboard() {
                   <div>Global Tag Updates {commitImpactSummary.globalTagUpdates}</div>
                   <div>Conflicts {commitImpactSummary.conflicts}</div>
                 </div>
+                <p className="text-[10px] text-cyan-50/90">
+                  Polling Load Δ +{preCommitLoadEstimate.deltaReadsPerSec}/s ({preCommitLoadEstimate.baselineReadsPerSec}
+                  /s → {preCommitLoadEstimate.projectedReadsPerSec}/s, 假設週期 {preCommitLoadEstimate.assumedIntervalMs}ms)
+                </p>
               </div>
               <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                 {commitQueueItems.length === 0 ? (

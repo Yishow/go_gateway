@@ -42,7 +42,7 @@
 - [x] 5.8 Add audit logging payload and UI trace link.
 - [x] 5.9 Add commit batch trace id creation and display.
 - [x] 5.10 Add two-stage validation flow (structural then executable).
-- [ ] 5.11 Add pre-commit polling load delta estimate.
+- [x] 5.11 Add pre-commit polling load delta estimate.
 
 ## 6. Motion-Guided Interaction
 - [ ] 6.1 Define motion tokens and transition rules (150-300ms).
