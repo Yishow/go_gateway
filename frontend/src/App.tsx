@@ -8,15 +8,12 @@ import HistoryPage from './pages/HistoryPage'
 import ComparePage from './pages/ComparePage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import Layout from './components/Layout'
-import DatalinkLayout from './layouts/DatalinkLayout'
 import SmartDashboard from './pages/datalink/SmartDashboard'
 import Dashboard from './pages/datalink/Dashboard'
-import DevicesPage from './pages/datalink/DevicesPage'
 import DeviceOnboardingPage from './pages/datalink/DeviceOnboardingPage'
 import TagsPage from './pages/datalink/TagsPage'
-import SettingsPage from './pages/datalink/SettingsPage'
 import PollingGroupsPage from './pages/datalink/PollingGroupsPage'
-import { buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
+import { buildDashboardSectionRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
 
 /**
  * 主應用程式組件
@@ -33,19 +30,17 @@ function AppRoutes() {
       {/* 首頁重定向到 datalink */}
       <Route path="/" element={<Navigate to="/datalink" replace />} />
 
-      {/* Datalink Routes - New Main UI */}
-      <Route path="/datalink" element={<DatalinkLayout />}>
-        <Route index element={<SmartDashboard />} />
-        <Route path="dashboard-legacy" element={<Dashboard />} />
-        <Route path="devices" element={<DevicesPage />} />
-        <Route path="devices/new" element={<DeviceOnboardingPage />} />
-        <Route path="points" element={<Navigate to={buildLegacyMigrationRedirect('points')} replace />} />
-        <Route path="polling-groups" element={<PollingGroupsPage />} />
-        <Route path="tags" element={<TagsPage />} />
-        <Route path="mappings" element={<Navigate to={buildLegacyMigrationRedirect('mappings')} replace />} />
-        <Route path="wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
-        <Route path="settings" element={<SettingsPage />} />
-      </Route>
+      {/* Datalink Routes - Dashboard First */}
+      <Route path="/datalink" element={<SmartDashboard />} />
+      <Route path="/datalink/dashboard-legacy" element={<Dashboard />} />
+      <Route path="/datalink/devices" element={<Navigate to={buildDashboardSectionRedirect('devices')} replace />} />
+      <Route path="/datalink/devices/new" element={<DeviceOnboardingPage />} />
+      <Route path="/datalink/points" element={<Navigate to={buildLegacyMigrationRedirect('points')} replace />} />
+      <Route path="/datalink/polling-groups" element={<PollingGroupsPage />} />
+      <Route path="/datalink/tags" element={<TagsPage />} />
+      <Route path="/datalink/mappings" element={<Navigate to={buildLegacyMigrationRedirect('mappings')} replace />} />
+      <Route path="/datalink/wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
+      <Route path="/datalink/settings" element={<Navigate to={buildDashboardSectionRedirect('settings')} replace />} />
 
       {/* Legacy Test UI Routes */}
       <Route path="/test" element={<Layout><TestPage /></Layout>} />
