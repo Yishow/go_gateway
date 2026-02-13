@@ -14,10 +14,7 @@ import Dashboard from './pages/datalink/Dashboard'
 import DevicesPage from './pages/datalink/DevicesPage'
 import DeviceOnboardingPage from './pages/datalink/DeviceOnboardingPage'
 import TagsPage from './pages/datalink/TagsPage'
-import MappingsPage from './pages/datalink/MappingsPage'
-import MappingWizardPage from './pages/datalink/MappingWizardPage'
 import SettingsPage from './pages/datalink/SettingsPage'
-import PointsPage from './pages/datalink/PointsPage'
 import PollingGroupsPage from './pages/datalink/PollingGroupsPage'
 
 /**
@@ -41,11 +38,11 @@ function AppRoutes() {
         <Route path="dashboard-legacy" element={<Dashboard />} />
         <Route path="devices" element={<DevicesPage />} />
         <Route path="devices/new" element={<DeviceOnboardingPage />} />
-        <Route path="points" element={<PointsPage />} />
+        <Route path="points" element={<Navigate to="/datalink?legacy=points" replace />} />
         <Route path="polling-groups" element={<PollingGroupsPage />} />
         <Route path="tags" element={<TagsPage />} />
-        <Route path="mappings" element={<MappingsPage />} />
-        <Route path="wizard" element={<MappingWizardPage />} />
+        <Route path="mappings" element={<Navigate to="/datalink?legacy=mappings" replace />} />
+        <Route path="wizard" element={<Navigate to="/datalink?legacy=wizard" replace />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

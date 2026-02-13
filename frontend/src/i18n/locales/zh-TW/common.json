@@ -193,6 +193,11 @@
         "title": "Write Target",
         "subtitle": "資料寫入"
       }
+    },
+    "legacyMigration": {
+      "title": "舊頁面已整併",
+      "description": "你剛剛進入的「{{route}}」已整合到 Pipeline Studio 單頁流程。",
+      "dismiss": "了解"
     }
   }
 }

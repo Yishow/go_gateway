@@ -61,9 +61,9 @@
 - [x] 7.6 Add integration tests for external read verification against mirrored values.
 
 ## 8. Route and Navigation Decommission
-- [ ] 8.1 Remove deprecated nav entries and route entry points.
-- [ ] 8.2 Redirect deprecated routes to Pipeline Studio with migration notice.
-- [ ] 8.3 Update docs and help text to the one-screen workflow.
+- [x] 8.1 Remove deprecated nav entries and route entry points.
+- [x] 8.2 Redirect deprecated routes to Pipeline Studio with migration notice.
+- [x] 8.3 Update docs and help text to the one-screen workflow.
 
 ## 9. Verification and Release Gate
 - [ ] 9.1 Run `npm run lint`, `npm run typecheck`, `npm test`.

@@ -17,6 +17,7 @@ import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
 import { addressParser } from '../../utils/addressParser';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
 import { modbusShareAPI } from '../../services/datalink';
 import type { ModbusShareStatus } from '../../types/datalink';
@@ -63,6 +64,7 @@ interface SourceTemplate {
 
 export default function SmartDashboard() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
@@ -89,6 +91,7 @@ export default function SmartDashboard() {
   const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
   const [modbusRegister, setModbusRegister] = useState('0');
   const [modbusActionMessage, setModbusActionMessage] = useState('');
+  const legacyRoute = searchParams.get('legacy');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
 
@@ -120,6 +123,13 @@ export default function SmartDashboard() {
     () => devices.find((d) => d.id === selectedDeviceId) || null,
     [devices, selectedDeviceId]
   );
+
+  const legacyRouteLabel = useMemo(() => {
+    if (legacyRoute === 'points') return t('nav.points');
+    if (legacyRoute === 'mappings') return t('nav.mappings');
+    if (legacyRoute === 'wizard') return t('nav.mappingWizard');
+    return '';
+  }, [legacyRoute, t]);
 
   const cellSpan = SPAN_BY_TYPE[planDataType];
   const totalPlannedCells = planCount * cellSpan;
@@ -368,6 +378,13 @@ export default function SmartDashboard() {
     }
   }, [loadModbusStatus]);
 
+  const dismissLegacyNotice = useCallback(() => {
+    if (!legacyRoute) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('legacy');
+    setSearchParams(next, { replace: true });
+  }, [legacyRoute, searchParams, setSearchParams]);
+
   useEffect(() => {
     setSource(selectedDeviceId || '', selectedSourceAddress, selectedPoint?.id || '');
   }, [selectedDeviceId, selectedPoint?.id, selectedSourceAddress, setSource]);
@@ -545,6 +562,24 @@ export default function SmartDashboard() {
           </button>
         </div>
       </header>
+
+      {legacyRoute && legacyRouteLabel && (
+        <section className="mx-3 mt-3 sm:mx-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-3 text-amber-100 shadow-lg shadow-amber-900/10 transition-all duration-300">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-amber-200/80">{t('smartDashboard.legacyMigration.title')}</p>
+              <p className="text-sm">{t('smartDashboard.legacyMigration.description', { route: legacyRouteLabel })}</p>
+            </div>
+            <button
+              type="button"
+              onClick={dismissLegacyNotice}
+              className="rounded-lg border border-amber-300/40 bg-amber-500/20 px-3 py-1.5 text-xs font-medium hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              {t('smartDashboard.legacyMigration.dismiss')}
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[auto_1fr_300px] gap-4 min-h-0">
         <div className={`${isTreeCollapsed ? 'xl:w-20' : 'xl:w-[260px]'} min-h-[280px] xl:min-h-0 transition-all duration-300`}>

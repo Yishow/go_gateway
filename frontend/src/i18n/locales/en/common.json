@@ -193,6 +193,11 @@
         "title": "Write Target",
         "subtitle": "Data persistence"
       }
+    },
+    "legacyMigration": {
+      "title": "Legacy pages consolidated",
+      "description": "The \"{{route}}\" page has been merged into the Pipeline Studio single-screen workflow.",
+      "dismiss": "Got it"
     }
   }
 }
