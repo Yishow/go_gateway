@@ -8,6 +8,7 @@ import { SlidePanel } from '../../components/datalink/SlidePanel';
 import { BatchPointCreator } from '../../components/datalink/BatchPointCreator';
 import { PointDetailPanel } from '../../components/datalink/PointDetailPanel';
 import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExportDialog';
+import DeviceOnboardingWizard from '../../components/datalink/wizard/DeviceOnboardingWizard';
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 import { usePointsQuery, useCreatePointMutation } from '../../hooks/datalink/usePoints';
@@ -64,7 +65,7 @@ import {
 import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/datalink/typedOccupancy';
 import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
 import { modbusShareAPI } from '../../services/datalink';
 import type { ModbusShareStatus } from '../../types/datalink';
@@ -101,7 +102,6 @@ interface SourceTemplate {
 
 export default function SmartDashboard() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
@@ -153,8 +153,11 @@ export default function SmartDashboard() {
   } | null>(null);
   const legacyRoute = searchParams.get('legacy');
   const rawSectionIntent = searchParams.get('section');
+  const createDeviceIntent = searchParams.get('createDevice');
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [lastSwitchedAt, setLastSwitchedAt] = useState<string | null>(null);
+  const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
+  const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
   const guideStageTimeoutRef = useRef<number | null>(null);
@@ -906,13 +909,29 @@ export default function SmartDashboard() {
     setActiveTab('devices');
   }, []);
   const handleCreateDevice = useCallback(() => {
-    navigate('/datalink/devices/new');
-  }, [navigate]);
+    setIsCreateDeviceModalOpen(true);
+    setActiveTab('devices');
+    setJustCreatedDeviceId(null);
+  }, []);
+  const closeCreateDeviceModal = useCallback(() => {
+    setIsCreateDeviceModalOpen(false);
+    if (createDeviceIntent === '1') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('createDevice');
+      setSearchParams(next, { replace: true });
+    }
+  }, [createDeviceIntent, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!sectionIntent) return;
     setActiveTab(sectionIntent);
   }, [sectionIntent]);
+  useEffect(() => {
+    if (createDeviceIntent === '1') {
+      setActiveTab('devices');
+      setIsCreateDeviceModalOpen(true);
+    }
+  }, [createDeviceIntent]);
 
   useEffect(() => {
     if (!selectedDeviceId) return;
@@ -923,6 +942,15 @@ export default function SmartDashboard() {
       setIsDeviceDrawerOpen(true);
     }
   }, [devices.length, selectedDeviceId]);
+  const confirmSwitchToCreatedDevice = useCallback(
+    (switchNow: boolean) => {
+      if (switchNow && justCreatedDeviceId) {
+        void applyDeviceSwitch(justCreatedDeviceId);
+      }
+      setJustCreatedDeviceId(null);
+    },
+    [applyDeviceSwitch, justCreatedDeviceId]
+  );
 
   useEffect(() => {
     setSource(selectedDeviceId || '', selectedSourceAddress, selectedPoint?.id || '');
@@ -2192,13 +2220,21 @@ export default function SmartDashboard() {
             <div className="p-4 border-t border-white/5 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold tracking-wide text-slate-200">Local Modbus Share</p>
-                <button
-                  type="button"
-                  onClick={loadModbusStatus}
-                  className="rounded border border-slate-700 px-2 py-1 text-[10px] text-slate-300 hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/datalink/local-modbus"
+                    className="rounded border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-[10px] text-blue-200 hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    完整工作台
+                  </a>
+                  <button
+                    type="button"
+                    onClick={loadModbusStatus}
+                    className="rounded border border-slate-700 px-2 py-1 text-[10px] text-slate-300 hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
               <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3 text-[11px] text-slate-300">
                 <p>狀態: {modbusStatus?.enabled ? 'Running' : 'Stopped'}</p>
@@ -2317,6 +2353,56 @@ export default function SmartDashboard() {
                 className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
               >
                 取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isCreateDeviceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-slate-900/95 p-4 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-100">設備建立流程</h3>
+              <button
+                type="button"
+                onClick={closeCreateDeviceModal}
+                className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+              >
+                關閉
+              </button>
+            </div>
+            <DeviceOnboardingWizard
+              embedded
+              onClose={closeCreateDeviceModal}
+              onActivated={(deviceId) => {
+                closeCreateDeviceModal();
+                setJustCreatedDeviceId(deviceId);
+              }}
+            />
+          </div>
+        </div>
+      )}
+      {justCreatedDeviceId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-blue-400/30 bg-slate-900 p-4 shadow-2xl">
+            <h3 className="text-sm font-semibold text-blue-100">設備建立完成</h3>
+            <p className="mt-2 text-xs text-slate-300">
+              是否立即切換到新設備以繼續設定流程？
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => confirmSwitchToCreatedDevice(false)}
+                className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+              >
+                稍後切換
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmSwitchToCreatedDevice(true)}
+                className="min-h-11 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500"
+              >
+                立即切換
               </button>
             </div>
           </div>

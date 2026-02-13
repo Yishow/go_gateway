@@ -10,10 +10,10 @@ import AnalyzerPage from './pages/AnalyzerPage'
 import Layout from './components/Layout'
 import SmartDashboard from './pages/datalink/SmartDashboard'
 import Dashboard from './pages/datalink/Dashboard'
-import DeviceOnboardingPage from './pages/datalink/DeviceOnboardingPage'
 import TagsPage from './pages/datalink/TagsPage'
 import PollingGroupsPage from './pages/datalink/PollingGroupsPage'
 import { buildDashboardSectionRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
+import LocalModbusWorkbenchPage from './pages/datalink/LocalModbusWorkbenchPage'
 
 /**
  * 主應用程式組件
@@ -34,13 +34,14 @@ function AppRoutes() {
       <Route path="/datalink" element={<SmartDashboard />} />
       <Route path="/datalink/dashboard-legacy" element={<Dashboard />} />
       <Route path="/datalink/devices" element={<Navigate to={buildDashboardSectionRedirect('devices')} replace />} />
-      <Route path="/datalink/devices/new" element={<DeviceOnboardingPage />} />
+      <Route path="/datalink/devices/new" element={<Navigate to="/datalink?section=devices&createDevice=1" replace />} />
       <Route path="/datalink/points" element={<Navigate to={buildLegacyMigrationRedirect('points')} replace />} />
       <Route path="/datalink/polling-groups" element={<PollingGroupsPage />} />
       <Route path="/datalink/tags" element={<TagsPage />} />
       <Route path="/datalink/mappings" element={<Navigate to={buildLegacyMigrationRedirect('mappings')} replace />} />
       <Route path="/datalink/wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
       <Route path="/datalink/settings" element={<Navigate to={buildDashboardSectionRedirect('settings')} replace />} />
+      <Route path="/datalink/local-modbus" element={<LocalModbusWorkbenchPage />} />
 
       {/* Legacy Test UI Routes */}
       <Route path="/test" element={<Layout><TestPage /></Layout>} />

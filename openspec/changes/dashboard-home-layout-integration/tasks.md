@@ -28,18 +28,18 @@
 
 ## 4. Device Modal Flow (Dashboard-first)
 
-- [ ] 4.1 將 `/datalink/devices/new` 轉為 dashboard 內 modal 流程（非獨立頁）
-- [ ] 4.2 新增設備 modal stepper（identity -> connection -> validation）
-- [ ] 4.3 建立成功後提供「立即切換到新設備」
+- [x] 4.1 將 `/datalink/devices/new` 轉為 dashboard 內 modal 流程（非獨立頁）
+- [x] 4.2 新增設備 modal stepper（identity -> connection -> validation）
+- [x] 4.3 建立成功後提供「立即切換到新設備」
 
 ## 5. Local Modbus 5020 Dedicated Workbench
 
-- [ ] 5.1 新增 `/datalink/local-modbus` 獨立頁（完整功能頁）
+- [x] 5.1 新增 `/datalink/local-modbus` 獨立頁（完整功能頁）
 - [ ] 5.2 實作本機 `5020` server lifecycle（status/start/stop/bind 狀態）
-- [ ] 5.3 實作本機 memory grid 映射編輯、批次操作、import/export
-- [ ] 5.4 實作 `5020` 目標位址衝突掃描與阻擋機制
-- [ ] 5.5 實作 test write/read 與 sync-from-mappings
-- [ ] 5.6 在規則上明確區分「設備來源隔離」與「本機 `5020` 目標衝突」
+- [x] 5.3 實作本機 memory grid 映射編輯、批次操作、import/export
+- [x] 5.4 實作 `5020` 目標位址衝突掃描與阻擋機制
+- [x] 5.5 實作 test write/read 與 sync-from-mappings
+- [x] 5.6 在規則上明確區分「設備來源隔離」與「本機 `5020` 目標衝突」
 
 ## 6. Verification and Regression Coverage
 

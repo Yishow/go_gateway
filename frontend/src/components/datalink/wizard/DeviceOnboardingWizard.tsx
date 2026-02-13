@@ -35,7 +35,13 @@ const STEPS = [
   { id: 'complete', title: 'Complete', description: 'Ready to Run', icon: '✅' },
 ];
 
-export default function DeviceOnboardingWizard() {
+interface DeviceOnboardingWizardProps {
+  embedded?: boolean;
+  onClose?: () => void;
+  onActivated?: (deviceId: string) => void;
+}
+
+export default function DeviceOnboardingWizard({ embedded = false, onClose, onActivated }: DeviceOnboardingWizardProps = {}) {
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
@@ -114,7 +120,11 @@ export default function DeviceOnboardingWizard() {
           try {
               await toggleStatusMutation.mutateAsync({ id: deviceId, currentStatus: 'draft' }); // activating
               showSuccess("Device activated successfully!");
-              navigate('/datalink/devices');
+              if (embedded) {
+                onActivated?.(deviceId);
+              } else {
+                navigate('/datalink/devices');
+              }
           } catch(err: any) {
               showError("Failed to activate device: " + err.message);
           }
@@ -199,7 +209,13 @@ export default function DeviceOnboardingWizard() {
         <div className="flex justify-between pt-8 border-t border-slate-700 mt-8">
           <button
              onClick={() => {
-                 if (currentStep === 0) navigate('/datalink/devices');
+                 if (currentStep === 0) {
+                   if (embedded) {
+                     onClose?.();
+                   } else {
+                     navigate('/datalink/devices');
+                   }
+                 }
                  else handleBack();
              }}
              className="px-6 py-2.5 text-slate-300 hover:text-white transition-colors font-medium"
