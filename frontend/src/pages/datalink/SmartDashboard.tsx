@@ -241,6 +241,27 @@ export default function SmartDashboard() {
     if (modalIntent === 'tags') return t('nav.tags');
     return modalIntent;
   }, [modalIntent, t]);
+  const modalQuickLinks = useMemo(
+    () =>
+      DASHBOARD_MODAL_ORDER.map((item) => ({
+        key: item,
+        label:
+          item === 'polling-groups'
+            ? t('nav.pollingGroups')
+            : item === 'wizard'
+              ? t('nav.mappingWizard')
+              : item === 'mappings'
+                ? t('nav.mappings')
+                : item === 'points'
+                  ? t('nav.points')
+                  : item === 'devices'
+                    ? t('nav.devices')
+                    : item === 'settings'
+                      ? t('nav.settings')
+                      : t('nav.tags'),
+      })),
+    [t]
+  );
   const selectedDeviceState = useMemo<'active' | 'offline' | 'readonly'>(() => {
     if (!selectedDevice) return 'offline';
     if (selectedDevice.status === 'active') return 'active';
@@ -950,9 +971,22 @@ export default function SmartDashboard() {
     const section = activeTab;
     navigate(`/datalink/local-modbus?section=${section}`);
   }, [activeTab, navigate]);
-  const handleSelectTab = useCallback((tab: DashboardTab) => {
-    setActiveTab(tab);
-  }, []);
+  const handleSelectTab = useCallback(
+    (tab: DashboardTab) => {
+      setActiveTab(tab);
+      if (tab === 'overview') {
+        if (modalIntent) closeWorkflowModal();
+        return;
+      }
+      if (tab === 'devices') {
+        setIsDeviceDrawerOpen(true);
+        openWorkflowModal('devices');
+        return;
+      }
+      openWorkflowModal('settings');
+    },
+    [closeWorkflowModal, modalIntent, openWorkflowModal]
+  );
   const handleChooseDevice = useCallback(() => {
     setIsDeviceDrawerOpen(true);
     setActiveTab('devices');
@@ -1515,30 +1549,18 @@ export default function SmartDashboard() {
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {DASHBOARD_MODAL_ORDER.map((item) => (
+                    {modalQuickLinks.map((item) => (
                       <button
-                        key={item}
+                        key={item.key}
                         type="button"
-                        onClick={() => openWorkflowModal(item)}
+                        onClick={() => openWorkflowModal(item.key)}
                         className={`min-h-8 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                          modalIntent === item
+                          modalIntent === item.key
                             ? 'border-indigo-400/60 bg-indigo-500/30 text-indigo-100'
                             : 'border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
                         }`}
                       >
-                        {item === 'polling-groups'
-                          ? t('nav.pollingGroups')
-                          : item === 'wizard'
-                            ? t('nav.mappingWizard')
-                            : item === 'mappings'
-                              ? t('nav.mappings')
-                              : item === 'points'
-                                ? t('nav.points')
-                                : item === 'devices'
-                                  ? t('nav.devices')
-                                  : item === 'settings'
-                                    ? t('nav.settings')
-                                    : t('nav.tags')}
+                        {item.label}
                       </button>
                     ))}
                   </div>
@@ -1593,6 +1615,25 @@ export default function SmartDashboard() {
                   </div>
                 </>
               )}
+              <div className="w-full border-t border-white/10 pt-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 text-[10px] uppercase tracking-wider text-slate-500">原頁面入口</span>
+                  {modalQuickLinks.map((item) => (
+                    <button
+                      key={`global-${item.key}`}
+                      type="button"
+                      onClick={() => openWorkflowModal(item.key)}
+                      className={`min-h-8 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                        modalIntent === item.key
+                          ? 'border-indigo-400/60 bg-indigo-500/30 text-indigo-100'
+                          : 'border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
