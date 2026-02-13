@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { pointAPI } from '../../../../services/datalink';
 import type { Point } from '../../../../types/datalink';
 import './Steps.css';
@@ -29,13 +29,7 @@ export const PointStep: React.FC<PointStepProps> = ({
   const [points, setPoints] = useState<Point[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (deviceId) {
-      loadPoints();
-    }
-  }, [deviceId]);
-
-  const loadPoints = async () => {
+  const loadPoints = useCallback(async () => {
     try {
       setLoading(true);
       const data = await pointAPI.list({ device_id: deviceId });
@@ -45,7 +39,13 @@ export const PointStep: React.FC<PointStepProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [deviceId]);
+
+  useEffect(() => {
+    if (deviceId) {
+      loadPoints();
+    }
+  }, [deviceId, loadPoints]);
 
   if (!deviceId) {
     return <div className="step-warning">請先選擇設備</div>;

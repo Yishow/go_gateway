@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { deviceAPI, pointAPI, tagAPI, mappingAPI } from '../../services/datalink';
 import type { Device, Point, Tag, TransformStep, Mapping } from '../../types/datalink';
 import TransformBuilder from './TransformBuilder';
@@ -31,9 +31,42 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
   const [saving, setSaving] = useState(false);
   const [previewResult, setPreviewResult] = useState<any>(null);
 
+  const loadPoints = useCallback(async (deviceId: string) => {
+    try {
+      const data = await pointAPI.list({ device_id: deviceId });
+      setPoints(data);
+    } catch (err) {
+      console.error("Failed to load points", err);
+    }
+  }, []);
+
+  const loadInitialData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [devicesData, tagsData] = await Promise.all([
+        deviceAPI.list(),
+        tagAPI.list({ status: 'active' }) // Only show active tags
+      ]);
+      setDevices(devicesData);
+      setTags(tagsData);
+
+      // If editing, we need to find the device of the current point to populate the point list
+      if (initialMapping) {
+          const point = await pointAPI.get(initialMapping.point_id);
+          setSelectedDeviceId(point.device_id); // This triggers loadPoints
+      }
+
+    } catch (err) {
+      console.error("Failed to load data", err);
+      showError("載入表單資料失敗");
+    } finally {
+      setLoading(false);
+    }
+  }, [initialMapping, showError]);
+
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [loadInitialData]);
 
   // When device changes, fetch points
   useEffect(() => {
@@ -42,7 +75,7 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
     } else {
       setPoints([]);
     }
-  }, [selectedDeviceId]);
+  }, [selectedDeviceId, loadPoints]);
 
   // Load initial mapping data if editing
   useEffect(() => {
@@ -67,39 +100,6 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
       setIsEnabled(initialMapping.enabled);
     }
   }, [initialMapping, devices, tags]); // Dependencies might need tuning in real scenario
-
-  const loadInitialData = async () => {
-    setLoading(true);
-    try {
-      const [devicesData, tagsData] = await Promise.all([
-        deviceAPI.list(),
-        tagAPI.list({ status: 'active' }) // Only show active tags
-      ]);
-      setDevices(devicesData);
-      setTags(tagsData);
-
-      // If editing, we need to find the device of the current point to populate the point list
-      if (initialMapping) {
-          const point = await pointAPI.get(initialMapping.point_id);
-          setSelectedDeviceId(point.device_id); // This triggers loadPoints
-      }
-
-    } catch (err) {
-      console.error("Failed to load data", err);
-      showError("載入表單資料失敗");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPoints = async (deviceId: string) => {
-    try {
-      const data = await pointAPI.list({ device_id: deviceId });
-      setPoints(data);
-    } catch (err) {
-      console.error("Failed to load points", err);
-    }
-  };
 
   const handleSave = async () => {
     if (!selectedPointId || !selectedTagId) {

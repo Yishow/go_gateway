@@ -70,7 +70,7 @@ export default function TestPage() {
         isProfileLoadingRef.current = false
       }, 100)
     }
-  }, [currentProfile?.id]) // 只在 profile ID 變更時觸發
+  }, [currentProfile]) // 只在 profile 變更時觸發
 
   /**
    * 處理 Profile 切換
@@ -122,7 +122,7 @@ export default function TestPage() {
         clearTimeout(saveTimerRef.current)
       }
     }
-  }, [selectedProtocol, connectionMode, config, currentProfile?.id, updateCurrentProfileConfig])
+  }, [selectedProtocol, connectionMode, config, currentProfile, updateCurrentProfileConfig])
 
   /**
    * 處理配置變更

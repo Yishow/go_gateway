@@ -97,7 +97,6 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         clearTimeout(saveTimerRef.current)
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monitorItems, interval, currentProfile, updateProfile])
 
   /**
@@ -233,7 +232,6 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         reconnectTimerRef.current = null
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionId])
 
   /**

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useCheckReadinessMutation } from '../../../../hooks/datalink/useDevices';
 
 interface DeviceValidationStepProps {
@@ -20,13 +20,7 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
   const checkMutation = useCheckReadinessMutation();
   const [result, setResult] = useState<ReadinessResult | null>(null);
 
-  useEffect(() => {
-    if (deviceId && !result) {
-      runCheck();
-    }
-  }, [deviceId]);
-
-  const runCheck = async () => {
+  const runCheck = useCallback(async () => {
     try {
       const res = await checkMutation.mutateAsync(deviceId);
       setResult(res);
@@ -41,7 +35,13 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
       });
       onValidationComplete(false);
     }
-  };
+  }, [checkMutation, deviceId, onValidationComplete]);
+
+  useEffect(() => {
+    if (deviceId && !result) {
+      runCheck();
+    }
+  }, [deviceId, result, runCheck]);
 
   if (checkMutation.isPending) {
     return (
