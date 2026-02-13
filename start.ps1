@@ -66,6 +66,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $script:ExitCode = 0
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 # ============================================
 # 常數定義
@@ -238,6 +240,7 @@ $script:LogNoiseCounters = @{}
 function Get-LogNoiseCategory {
     param([string]$Line)
     if ($Line -match "CMD will not recognize non \.exe file for execution") { return "air-warning" }
+    if ($Line -match "^watching\b|^building\.\.\.|^!exclude\b|^\s*/ /\\|^/_/--\\|^v\d+\.\d+\.\d+") { return "air-watcher" }
     if ($Line -match "/api/v1/datalink/modbus-share/status") { return "status-polling" }
     if ($Line -match "\] ::1 GET /api/v1/datalink/(devices|polling-groups|points|mappings|tags)\b") { return "dashboard-refresh" }
     if ($Line -match "資料庫路徑|Executing SQLite migration|ConnectionManager 已初始化|已註冊的協議") { return "startup-detail" }
@@ -273,9 +276,15 @@ function Write-RuntimeLogLine {
             $script:LogNoiseCounters[$category]++
             return
         }
-        $formatted = ("[BOOT] {0}" -f $msg)
-        $color = if ($msg -match "啟動於|本機 Modbus 分享服務已啟動") { "Green" } else { "DarkGray" }
-        Write-ColorOutput $formatted $color
+        if ($msg -match "127\.0\.0\.1:5020") {
+            Write-ColorOutput "[BOOT] Local Modbus share started on 127.0.0.1:5020" "Green"
+        } elseif ($msg -match "localhost:8080") {
+            Write-ColorOutput "[BOOT] Server started at http://localhost:8080" "Green"
+        } elseif ($msg -match "資料庫路徑") {
+            Write-ColorOutput "[BOOT] Database initialized" "DarkGray"
+        } elseif ($Verbose) {
+            Write-ColorOutput ("[BOOT] {0}" -f $msg) "DarkGray"
+        }
         return
     }
 
