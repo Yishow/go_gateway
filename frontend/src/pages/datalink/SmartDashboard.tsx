@@ -126,6 +126,7 @@ export default function SmartDashboard() {
   const [switchErrorMessage, setSwitchErrorMessage] = useState('');
   const [showSwitchErrorDetails, setShowSwitchErrorDetails] = useState(false);
   const [pendingSwitchDeviceId, setPendingSwitchDeviceId] = useState<string | null>(null);
+  const [activationTargetDeviceId, setActivationTargetDeviceId] = useState<string | null>(null);
   const [showSwitchConfirmDialog, setShowSwitchConfirmDialog] = useState(false);
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -442,9 +443,11 @@ export default function SmartDashboard() {
       try {
         const target = devices.find((device) => device.id === nextDeviceId);
         if (target && target.status !== 'active' && target.status !== 'disabled') {
+          setActivationTargetDeviceId(target.id);
           throw new Error(`設備 ${target.name} 目前不可切換，請先完成啟用流程。`);
         }
         setSelectedDeviceId(nextDeviceId);
+        setActivationTargetDeviceId(null);
         const next = new URLSearchParams(searchParams);
         if (next.get('modal') === 'devices') {
           next.delete('modal');
@@ -1025,6 +1028,19 @@ export default function SmartDashboard() {
     next.set('modal', 'devices');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
+  const handleGoActivateDevice = useCallback(
+    (deviceId: string) => {
+      setActivationTargetDeviceId(deviceId);
+      const next = new URLSearchParams(searchParams);
+      next.set('modal', 'settings');
+      next.set('section', 'settings');
+      setSearchParams(next, { replace: true });
+      setActiveTab('settings');
+      setSwitchErrorMessage('');
+      setShowSwitchErrorDetails(false);
+    },
+    [searchParams, setSearchParams]
+  );
   const handleCreateDevice = useCallback(() => {
     setIsCreateDeviceModalOpen(true);
     setActiveTab('devices');
@@ -1490,6 +1506,15 @@ export default function SmartDashboard() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {activationTargetDeviceId && (
+                <button
+                  type="button"
+                  onClick={() => handleGoActivateDevice(activationTargetDeviceId)}
+                  className="min-h-11 rounded-lg border border-amber-300/40 bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                >
+                  去啟用
+                </button>
+              )}
               {pendingSwitchDeviceId && (
                 <button
                   type="button"
@@ -2559,18 +2584,29 @@ export default function SmartDashboard() {
                         </div>
                         <div className="mt-2 flex items-center justify-between">
                           <p className="text-[11px] text-slate-400">上次測試: {device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-'}</p>
-                          <button
-                            type="button"
-                            onClick={() => requestDeviceSwitch(device.id)}
-                            disabled={isSwitchingDevice || selectedDeviceId === device.id}
-                            className="min-h-9 rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                          >
-                            {isSwitchingDevice
-                              ? '切換中...'
-                              : selectedDeviceId === device.id
-                                ? '目前設備'
-                                : '切換'}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {device.status === 'draft' && (
+                              <button
+                                type="button"
+                                onClick={() => handleGoActivateDevice(device.id)}
+                                className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                              >
+                                去啟用
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => requestDeviceSwitch(device.id)}
+                              disabled={isSwitchingDevice || selectedDeviceId === device.id}
+                              className="min-h-9 rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            >
+                              {isSwitchingDevice
+                                ? '切換中...'
+                                : selectedDeviceId === device.id
+                                  ? '目前設備'
+                                  : '切換'}
+                            </button>
+                          </div>
                         </div>
                       </article>
                     ))}
