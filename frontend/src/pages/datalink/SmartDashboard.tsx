@@ -177,7 +177,6 @@ export default function SmartDashboard() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
   const guideStageTimeoutRef = useRef<number | null>(null);
-  const deviceModalAutoPromptedRef = useRef(false);
 
   const { data: devices = [] } = useDevicesQuery();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
@@ -1046,7 +1045,6 @@ export default function SmartDashboard() {
   }, [sectionIntent]);
   useEffect(() => {
     if (!modalIntent) return;
-    if (modalIntent === 'devices') deviceModalAutoPromptedRef.current = true;
     if (modalIntent === 'devices') setActiveTab('devices');
     if (modalIntent === 'settings') setActiveTab('settings');
     if (modalIntent === 'wizard') setIsCreateDeviceModalOpen(true);
@@ -1063,16 +1061,9 @@ export default function SmartDashboard() {
     setLastSwitchedAt(new Date().toISOString());
   }, [selectedDeviceId]);
   useEffect(() => {
-    if (!selectedDeviceId && devices.length > 0) {
-      if (deviceModalAutoPromptedRef.current) return;
-      const next = new URLSearchParams(searchParams);
-      if (next.get('modal') !== 'devices') {
-        deviceModalAutoPromptedRef.current = true;
-        next.set('modal', 'devices');
-        setSearchParams(next, { replace: true });
-      }
-    }
-  }, [devices.length, searchParams, selectedDeviceId, setSearchParams]);
+    if (selectedDeviceId || devices.length === 0) return;
+    setActiveTab('devices');
+  }, [devices.length, selectedDeviceId]);
   const confirmSwitchToCreatedDevice = useCallback(
     (switchNow: boolean) => {
       if (switchNow && justCreatedDeviceId) {
@@ -2571,9 +2562,14 @@ export default function SmartDashboard() {
                           <button
                             type="button"
                             onClick={() => requestDeviceSwitch(device.id)}
-                            className="min-h-9 rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            disabled={isSwitchingDevice || selectedDeviceId === device.id}
+                            className="min-h-9 rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                           >
-                            {selectedDeviceId === device.id ? '已選擇' : '切換'}
+                            {isSwitchingDevice
+                              ? '切換中...'
+                              : selectedDeviceId === device.id
+                                ? '目前設備'
+                                : '切換'}
                           </button>
                         </div>
                       </article>
@@ -2629,7 +2625,7 @@ export default function SmartDashboard() {
         </div>
       )}
       {showSwitchConfirmDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-4">
           <div className="w-full max-w-md rounded-2xl border border-amber-400/30 bg-slate-900 p-4 shadow-2xl">
             <h3 className="text-sm font-semibold text-amber-100">有未儲存變更</h3>
             <p className="mt-2 text-xs text-slate-300">
@@ -2673,8 +2669,8 @@ export default function SmartDashboard() {
         </div>
       )}
       {isCreateDeviceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-slate-900/95 p-4 shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-3 sm:p-4">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-slate-900/95 p-3 shadow-2xl sm:p-4">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-100">設備建立流程</h3>
               <button
@@ -2685,14 +2681,16 @@ export default function SmartDashboard() {
                 關閉
               </button>
             </div>
-            <DeviceOnboardingWizard
-              embedded
-              onClose={closeCreateDeviceModal}
-              onActivated={(deviceId) => {
-                closeCreateDeviceModal();
-                setJustCreatedDeviceId(deviceId);
-              }}
-            />
+            <div className="min-h-0 flex-1 overflow-auto">
+              <DeviceOnboardingWizard
+                embedded
+                onClose={closeCreateDeviceModal}
+                onActivated={(deviceId) => {
+                  closeCreateDeviceModal();
+                  setJustCreatedDeviceId(deviceId);
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

@@ -191,9 +191,15 @@ function renderDashboard(entry = '/datalink') {
 }
 
 async function switchDeviceFromModal(deviceName: string) {
+  const switchButtons = screen.queryAllByRole('button', { name: '切換設備' });
+  const chooseButtons = screen.queryAllByRole('button', { name: '選擇設備' });
+  const openButton = switchButtons[0] || chooseButtons[0];
+  if (openButton) {
+    fireEvent.click(openButton);
+  }
   const deviceTitle = await screen.findByText(deviceName);
   const card = deviceTitle.closest('article') as HTMLElement;
-  const switchButton = within(card).getByRole('button', { name: /切換|已選擇/ });
+  const switchButton = within(card).getByRole('button', { name: /切換|目前設備|已選擇/ });
   fireEvent.click(switchButton);
 }
 
