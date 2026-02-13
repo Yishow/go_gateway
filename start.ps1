@@ -237,6 +237,7 @@ $script:LogNoiseCounters = @{}
 
 function Get-LogNoiseCategory {
     param([string]$Line)
+    if ($Line -match "CMD will not recognize non \.exe file for execution") { return "air-warning" }
     if ($Line -match "/api/v1/datalink/modbus-share/status") { return "status-polling" }
     if ($Line -match "\] ::1 GET /api/v1/datalink/(devices|polling-groups|points|mappings|tags)\b") { return "dashboard-refresh" }
     if ($Line -match "資料庫路徑|Executing SQLite migration|ConnectionManager 已初始化|已註冊的協議") { return "startup-detail" }
@@ -246,12 +247,45 @@ function Get-LogNoiseCategory {
 function Write-RuntimeLogLine {
     param([string]$Line)
     if ([string]::IsNullOrWhiteSpace($Line)) { return }
+
+    if ($Line -match "^\[(?<ts>[^\]]+)\]\s+\S+\s+(?<method>GET|POST|PUT|DELETE|PATCH)\s+(?<path>\S+)\s+(?<status>\d{3})\s+(?<latency>\S+)") {
+        $method = $Matches.method
+        $path = $Matches.path
+        $status = [int]$Matches.status
+        $latency = $Matches.latency
+        $category = if ($method -eq "GET" -and $status -eq 200 -and $path -match "^/api/v1/datalink/(devices|polling-groups|points|mappings|tags|modbus-share/status)$") { "dashboard-refresh" } else { $null }
+        if ($category -and -not $Verbose) {
+            if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
+            $script:LogNoiseCounters[$category]++
+            return
+        }
+        $formatted = ("[HTTP] {0,-6} {1,-44} {2,3} {3,8}" -f $method, $path, $status, $latency)
+        $color = if ($status -ge 500) { "Red" } elseif ($status -ge 400) { "Yellow" } else { "DarkGray" }
+        Write-ColorOutput $formatted $color
+        return
+    }
+
+    if ($Line -match "^(?<ts>\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+[^:]+:\d+:\s+(?<msg>.+)$") {
+        $msg = $Matches.msg
+        $category = Get-LogNoiseCategory -Line $Line
+        if ($category -and -not $Verbose) {
+            if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
+            $script:LogNoiseCounters[$category]++
+            return
+        }
+        $formatted = ("[BOOT] {0}" -f $msg)
+        $color = if ($msg -match "啟動於|本機 Modbus 分享服務已啟動") { "Green" } else { "DarkGray" }
+        Write-ColorOutput $formatted $color
+        return
+    }
+
     $category = Get-LogNoiseCategory -Line $Line
     if ($category -and -not $Verbose) {
         if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
         $script:LogNoiseCounters[$category]++
         return
     }
+
     if ($Line -match "ERROR|Error|panic|FATAL|❌") {
         Write-ColorOutput $Line "Red"
     } elseif ($Line -match "WARN|Warning|⚠") {
@@ -1313,7 +1347,9 @@ function Start-AirMode {
         # 確保在專案根目錄運行 Air
         Set-Location $script:ROOT_DIR
         # 將環境變數傳遞給 Air（Air 會傳遞給子進程）
-        air
+        $script:LogNoiseCounters = @{}
+        air 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        Show-LogNoiseSummary
     }
     catch {
         Write-Error "啟動 Air 失敗: $_"
