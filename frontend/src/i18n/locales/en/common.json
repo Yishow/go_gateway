@@ -156,6 +156,43 @@
     "shortcutsHint": "Use these shortcuts to speed up mapping tasks",
     "batchCreate": "Batch Create Points",
     "pointDetail": "Point Detail",
-    "importedPoints": "Imported {{count}} points"
+    "importedPoints": "Imported {{count}} points",
+    "flowTitle": "Source Flow (Source → Memory Grid → Tag → DB)",
+    "flowErrorHint": "Flow has errors. Fix source or mapping settings before validating again.",
+    "validating": "Validating...",
+    "validateFlow": "Validate Flow (Draft → Validated)",
+    "activateFlow": "Activate Flow (Validated → Active)",
+    "recoverFlow": "Recover Flow (Error → Draft)",
+    "flowStatus": {
+      "draft": "Draft",
+      "validated": "Validated",
+      "active": "Active",
+      "error": "Error"
+    },
+    "flowErrors": {
+      "missingSource": "Select source device, address, and tag mapping first.",
+      "missingMapping": "Point-to-tag mapping has not been created.",
+      "validationFailed": "Pipeline validation failed.",
+      "notValidated": "Validation must be completed first.",
+      "mappingDisabled": "Mapping is disabled and cannot enter the write stage."
+    },
+    "flowSegments": {
+      "source": {
+        "title": "Source",
+        "subtitle": "Device source"
+      },
+      "grid": {
+        "title": "Memory Grid",
+        "subtitle": "Address selection"
+      },
+      "tag": {
+        "title": "Tag Linkage",
+        "subtitle": "Tag mapping"
+      },
+      "sink": {
+        "title": "Write Target",
+        "subtitle": "Data persistence"
+      }
+    }
   }
 }

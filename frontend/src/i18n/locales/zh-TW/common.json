@@ -156,6 +156,43 @@
     "shortcutsHint": "使用以下快捷鍵提升映射效率",
     "batchCreate": "批量建立點位",
     "pointDetail": "點位詳情",
-    "importedPoints": "已匯入 {{count}} 個點位"
+    "importedPoints": "已匯入 {{count}} 個點位",
+    "flowTitle": "來源資料流程（Source → Memory Grid → Tag → DB）",
+    "flowErrorHint": "流程有錯誤，請先修正來源/映射設定後再重新驗證。",
+    "validating": "驗證中...",
+    "validateFlow": "驗證流程（Draft → Validated）",
+    "activateFlow": "啟用流程（Validated → Active）",
+    "recoverFlow": "錯誤復原（Error → Draft）",
+    "flowStatus": {
+      "draft": "草稿",
+      "validated": "已驗證",
+      "active": "運作中",
+      "error": "錯誤"
+    },
+    "flowErrors": {
+      "missingSource": "請先選擇來源設備、位址與標籤映射",
+      "missingMapping": "尚未建立 point 與 tag 的映射",
+      "validationFailed": "映射管線驗證失敗",
+      "notValidated": "請先完成驗證",
+      "mappingDisabled": "映射尚未啟用，無法進入寫入階段"
+    },
+    "flowSegments": {
+      "source": {
+        "title": "Source",
+        "subtitle": "設備來源"
+      },
+      "grid": {
+        "title": "Memory Grid",
+        "subtitle": "位址選取"
+      },
+      "tag": {
+        "title": "Tag Linkage",
+        "subtitle": "標籤映射"
+      },
+      "sink": {
+        "title": "Write Target",
+        "subtitle": "資料寫入"
+      }
+    }
   }
 }

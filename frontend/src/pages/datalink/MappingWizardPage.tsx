@@ -8,8 +8,7 @@ import { MappingWizard, type WizardFormData } from '../../components/datalink/wi
 export const MappingWizardPage: React.FC = () => {
   const navigate = useNavigate();
 
-  const handleComplete = (data: WizardFormData) => {
-    console.log('Wizard completed:', data);
+  const handleComplete = (_data: WizardFormData) => {
     // 導航回 Mappings 頁面
     navigate('/datalink/mappings');
   };

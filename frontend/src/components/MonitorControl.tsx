@@ -11,11 +11,30 @@ interface MonitorControlProps {
   protocol: string
 }
 
+interface MonitorStreamEntry {
+  timestamp: string
+  chartTime: string
+  data: Record<string, unknown>
+}
+
+const toNumericValue = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed.length === 0) return null
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
 export default function MonitorControl({ connectionId, protocol }: MonitorControlProps) {
   const [monitoring, setMonitoring] = useState(false)
   const [interval, setInterval] = useState<number>(1000)
   const [monitorItems, setMonitorItems] = useState<MonitorItem[]>([])
-  const [monitorData, setMonitorData] = useState<any[]>([])
+  const [monitorData, setMonitorData] = useState<MonitorStreamEntry[]>([])
   const { startMonitor, stopMonitor } = useTestAPI()
   const { currentProfile, updateProfile } = useProfiles()
   const { showError, showWarning } = useToast()
@@ -109,19 +128,14 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
 
     const host = window.location.host
     const sseUrl = `${window.location.protocol}//${host}/api/v1/test/monitor/stream?connection_id=${connectionId}`
-    
-    console.log('建立 SSE 連接:', sseUrl)
+
     const eventSource = new EventSource(sseUrl)
     eventSourceRef.current = eventSource
 
-    eventSource.onopen = () => {
-      console.log('SSE 連接已建立')
-    }
+    eventSource.onopen = () => {}
 
     // 監聽連接確認消息
-    eventSource.addEventListener('connected', (event: any) => {
-      console.log('SSE 連接確認:', JSON.parse(event.data))
-    })
+    eventSource.addEventListener('connected', () => {})
 
     // 監聽心跳消息
     eventSource.addEventListener('ping', (_event: any) => {
@@ -132,33 +146,21 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
     eventSource.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data)
-        console.log('收到 SSE 消息:', msg) // 調試用
-        
+
         // 檢查消息類型
         if (msg.type === 'monitor_update') {
-          console.log('收到監控更新消息，connection_id 匹配檢查:', {
-            msgConnectionId: msg.connection_id,
-            currentConnectionId: connectionId,
-            match: msg.connection_id === connectionId
-          })
-          
           if (msg.connection_id === connectionId) {
-            console.log('✓ 收到監控數據:', msg) // 調試用
             setMonitorData((prev) => {
               const newEntry = {
-                ...msg,
                 chartTime: new Date(msg.timestamp).toLocaleTimeString(),
                 timestamp: msg.timestamp,
                 data: msg.data || {}, // 保存原始數據
               }
-              console.log('處理後的數據條目，當前數據條數:', prev.length + 1, newEntry) // 調試用
               return [newEntry, ...prev].slice(0, 100) // 保留最近 100 條記錄
             })
           } else {
             console.warn('✗ connection_id 不匹配，忽略消息')
           }
-        } else {
-          console.log('收到其他類型的消息:', msg.type)
         }
       } catch (error) {
         console.error('解析監控數據失敗:', error, event.data)
@@ -188,20 +190,16 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
           
           reconnectTimerRef.current = setTimeout(() => {
             if (connectionId && !eventSourceRef.current) {
-              console.log('重新建立 SSE 連接...')
               // 重新創建連接（通過重新執行 useEffect）
               // 這裡我們手動觸發重連
               const newEventSource = new EventSource(sseUrl)
               eventSourceRef.current = newEventSource
               
               newEventSource.onopen = () => {
-                console.log('SSE 重連成功')
                 reconnectAttemptsRef.current = 0
               }
               
-              newEventSource.addEventListener('connected', (event: any) => {
-                console.log('SSE 重連確認:', JSON.parse(event.data))
-              })
+              newEventSource.addEventListener('connected', () => {})
               
               newEventSource.addEventListener('ping', () => {
                 // 心跳消息
@@ -238,7 +236,6 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
     }
 
     return () => {
-      console.log('清理 SSE 連接')
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
@@ -323,19 +320,12 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         ...(item.device && { device: item.device }),
       }))
 
-      console.log('啟動監控，發送請求:', {
-        connection_id: connectionId,
-        interval: interval,
-        items: items,
-      })
-
       await startMonitor({
         connection_id: connectionId,
         interval: interval,
         items: items,
       })
-      
-      console.log('監控啟動成功')
+
       setMonitoring(true)
       setMonitorData([]) // 清空舊數據
     } catch (error: any) {
@@ -362,10 +352,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
    * 後端返回的數據結構：{ "item_0": { values: [...], count: ... }, "item_1": {...} }
    */
   const prepareChartData = () => {
-    if (monitorData.length === 0 || monitorItems.length === 0) {
-      console.log('圖表數據為空:', { monitorDataLength: monitorData.length, monitorItemsLength: monitorItems.length })
-      return []
-    }
+    if (monitorData.length === 0 || monitorItems.length === 0) return []
 
     // 反轉數據（從舊到新）
     const reversed = [...monitorData].reverse()
@@ -386,29 +373,29 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
         
         if (itemData) {
           // 處理錯誤情況
-          if (itemData.error) {
+          if (typeof itemData === 'object' && itemData !== null && 'error' in itemData) {
             value = null // 錯誤時不顯示數據
-            console.warn(`監控項目 ${index} 讀取錯誤:`, itemData.error)
-          } else if (itemData.values && Array.isArray(itemData.values)) {
+          } else if (
+            typeof itemData === 'object' &&
+            itemData !== null &&
+            'values' in itemData &&
+            Array.isArray((itemData as { values?: unknown[] }).values)
+          ) {
             // 如果有 values 數組，取第一個值（或平均值）
-            if (itemData.values.length > 0) {
-              const firstValue = itemData.values[0]
-              // 確保是數字
-              value = typeof firstValue === 'number' ? firstValue : 
-                     typeof firstValue === 'string' ? parseFloat(firstValue) || null : null
+            const values = (itemData as { values: unknown[] }).values
+            if (values.length > 0) {
+              value = toNumericValue(values[0])
             }
           } else if (typeof itemData === 'number') {
             // 直接是數字
-            value = itemData
+            value = toNumericValue(itemData)
           } else if (typeof itemData === 'string') {
             // 字符串，嘗試轉換
-            value = parseFloat(itemData) || null
+            value = toNumericValue(itemData)
           } else if (Array.isArray(itemData)) {
             // 直接是數組
-            value = itemData.length > 0 ? (typeof itemData[0] === 'number' ? itemData[0] : parseFloat(itemData[0]) || null) : null
+            value = itemData.length > 0 ? toNumericValue(itemData[0]) : null
           }
-        } else {
-          console.warn(`監控項目 ${index} 沒有數據，鍵名: ${backendKey}`, entry.data)
         }
         
         // 使用 item.id 作為數據鍵名（用於圖表）
@@ -417,8 +404,7 @@ export default function MonitorControl({ connectionId, protocol }: MonitorContro
       
       return dataPoint
     })
-    
-    console.log('準備的圖表數據:', chartData.slice(0, 3)) // 只顯示前3條
+
     return chartData
   }
 

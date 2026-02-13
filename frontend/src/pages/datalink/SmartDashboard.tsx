@@ -18,18 +18,20 @@ import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2 } from 'lucide-react';
 
-const FLOW_SEGMENTS: Array<{ key: FlowSegment; title: string; subtitle: string }> = [
-  { key: 'source', title: 'Source', subtitle: '設備來源' },
-  { key: 'grid', title: 'Memory Grid', subtitle: '位址選取' },
-  { key: 'tag', title: 'Tag Linkage', subtitle: '標籤映射' },
-  { key: 'sink', title: 'Write Target', subtitle: '資料寫入' },
-];
+const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
 
 const STATUS_STYLE: Record<FlowStatus, string> = {
   draft: 'bg-slate-700/70 text-slate-200 border-slate-600',
   validated: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
   active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
   error: 'bg-red-500/20 text-red-300 border-red-500/40',
+};
+
+const RESET_SEGMENT_DIAGNOSTIC = {
+  latestValue: '-',
+  quality: 'unknown' as const,
+  timestamp: '-',
+  error: '',
 };
 
 export default function SmartDashboard() {
@@ -57,6 +59,7 @@ export default function SmartDashboard() {
     hasError,
     setSource,
     setTag,
+    setSink,
     setDiagnostics,
     markValidated,
     markActive,
@@ -138,6 +141,7 @@ export default function SmartDashboard() {
     protocol.startsWith('modbus') ? '40001' : 'D0';
 
   const primarySelectedAddress = selectedAddresses[0] || '';
+  const selectedSourceAddress = primarySelectedAddress || selectedPoint?.address || '';
   const selectedMapping = useMemo(
     () => mappings.find((mapping) => selectedPoint && mapping.point_id === selectedPoint.id) || null,
     [mappings, selectedPoint]
@@ -157,19 +161,23 @@ export default function SmartDashboard() {
   }, [selectedMapping?.transform_pipeline]);
 
   useEffect(() => {
-    setSource(selectedDeviceId || '', primarySelectedAddress, selectedPoint?.id || '');
-  }, [primarySelectedAddress, selectedDeviceId, selectedPoint?.id, setSource]);
+    setSource(selectedDeviceId || '', selectedSourceAddress, selectedPoint?.id || '');
+  }, [selectedDeviceId, selectedPoint?.id, selectedSourceAddress, setSource]);
 
   useEffect(() => {
     setTag(linkedTag?.id || '');
   }, [linkedTag?.id, setTag]);
 
   useEffect(() => {
+    setSink(selectedMapping ? 'timeseries' : '');
+  }, [selectedMapping, setSink]);
+
+  useEffect(() => {
     const sourceQuality = selectedPoint?.last_error ? 'bad' : selectedDevice ? 'good' : 'unknown';
     const sourceValue = selectedPoint?.last_value === undefined ? '-' : String(selectedPoint.last_value);
     const sourceTime = selectedPoint?.last_read_at || '-';
     const sourceError = selectedPoint?.last_error || '';
-    const gridQuality = primarySelectedAddress ? 'good' : 'unknown';
+    const gridQuality = selectedSourceAddress ? 'good' : 'unknown';
     const tagQuality = linkedTag ? (selectedMapping?.enabled ? 'good' : 'warning') : 'unknown';
     const sinkQuality = selectedPoint?.last_error ? 'bad' : selectedMapping?.enabled ? 'good' : 'unknown';
 
@@ -181,7 +189,7 @@ export default function SmartDashboard() {
         error: sourceError,
       },
       grid: {
-        latestValue: primarySelectedAddress || '-',
+        latestValue: selectedSourceAddress || '-',
         quality: gridQuality,
         timestamp: sourceTime,
         error: '',
@@ -193,17 +201,19 @@ export default function SmartDashboard() {
         error: '',
       },
       sink: {
-        latestValue: selectedPoint?.last_value === undefined ? '-' : String(selectedPoint.last_value),
+        latestValue: flowState.sinkTarget || '-',
         quality: sinkQuality,
-        timestamp: selectedPoint?.last_read_at || '-',
+        timestamp: selectedMapping?.updated_at || '-',
         error: selectedPoint?.last_error || '',
       },
     });
   }, [
+    flowState.sinkTarget,
     linkedTag,
-    primarySelectedAddress,
     selectedMapping?.enabled,
+    selectedMapping?.updated_at,
     selectedDevice,
+    selectedSourceAddress,
     selectedPoint?.last_error,
     selectedPoint?.last_read_at,
     selectedPoint?.last_value,
@@ -212,11 +222,11 @@ export default function SmartDashboard() {
 
   const handleValidateFlow = useCallback(async () => {
     if (!canValidate) {
-      markError('source', '請先選擇來源設備、位址與標籤映射');
+      markError('source', t('smartDashboard.flowErrors.missingSource'));
       return;
     }
     if (!selectedMapping) {
-      markError('tag', '尚未建立 point 與 tag 的映射');
+      markError('tag', t('smartDashboard.flowErrors.missingMapping'));
       return;
     }
     try {
@@ -226,32 +236,32 @@ export default function SmartDashboard() {
         markValidated();
         return;
       }
-      markError('grid', result.error || '映射管線驗證失敗');
+      markError('grid', result.error || t('smartDashboard.flowErrors.validationFailed'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : '映射驗證失敗';
+      const message = error instanceof Error ? error.message : t('smartDashboard.flowErrors.validationFailed');
       markError('grid', message);
     }
-  }, [canValidate, markError, markValidated, parsePipeline, selectedMapping, validatePipelineMutation]);
+  }, [canValidate, markError, markValidated, parsePipeline, selectedMapping, t, validatePipelineMutation]);
 
   const handleActivateFlow = useCallback(() => {
     if (!canActivate) {
-      markError('sink', '請先完成驗證');
+      markError('sink', t('smartDashboard.flowErrors.notValidated'));
       return;
     }
     if (!selectedMapping?.enabled) {
-      markError('sink', '映射尚未啟用，無法進入寫入階段');
+      markError('sink', t('smartDashboard.flowErrors.mappingDisabled'));
       return;
     }
     markActive();
-  }, [canActivate, markActive, markError, selectedMapping?.enabled]);
+  }, [canActivate, markActive, markError, selectedMapping?.enabled, t]);
 
   const handleRecoverFlow = useCallback(() => {
     resetDraft();
     setDiagnostics({
-      source: { error: '' },
-      grid: { error: '' },
-      tag: { error: '' },
-      sink: { error: '' },
+      source: { ...RESET_SEGMENT_DIAGNOSTIC },
+      grid: { ...RESET_SEGMENT_DIAGNOSTIC },
+      tag: { ...RESET_SEGMENT_DIAGNOSTIC },
+      sink: { ...RESET_SEGMENT_DIAGNOSTIC },
     });
   }, [resetDraft, setDiagnostics]);
 
@@ -365,18 +375,25 @@ export default function SmartDashboard() {
                 <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-thin scrollbar-thumb-slate-700/50 scrollbar-track-transparent">
                   <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/50 p-4">
                     <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-slate-100">Source → Memory Grid → Tag → DB</h3>
+                      <h3 className="text-sm font-semibold text-slate-100">{t('smartDashboard.flowTitle')}</h3>
                       <span className={`text-xs px-2 py-1 rounded-lg border ${STATUS_STYLE[flowState.status]}`}>
-                        {flowState.status.toUpperCase()}
+                        {t(`smartDashboard.flowStatus.${flowState.status}`)}
                       </span>
                     </div>
+                    {hasError && (
+                      <p className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                        {t('smartDashboard.flowErrorHint')}
+                      </p>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                       {FLOW_SEGMENTS.map((segment) => {
-                        const diag = flowState.diagnostics[segment.key];
+                        const diag = flowState.diagnostics[segment];
                         return (
-                          <article key={segment.key} className="rounded-xl border border-white/10 bg-slate-800/40 p-3">
+                          <article key={segment} className="rounded-xl border border-white/10 bg-slate-800/40 p-3">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs uppercase tracking-wider text-slate-400">{segment.title}</p>
+                              <p className="text-xs uppercase tracking-wider text-slate-400">
+                                {t(`smartDashboard.flowSegments.${segment}.title`)}
+                              </p>
                               <span
                                 className={`h-2 w-2 rounded-full ${
                                   diag.quality === 'good'
@@ -389,7 +406,7 @@ export default function SmartDashboard() {
                                 }`}
                               />
                             </div>
-                            <p className="mt-1 text-xs text-slate-500">{segment.subtitle}</p>
+                            <p className="mt-1 text-xs text-slate-500">{t(`smartDashboard.flowSegments.${segment}.subtitle`)}</p>
                             <p className="mt-2 text-sm text-slate-100 font-mono truncate">{diag.latestValue}</p>
                             <p className="mt-1 text-[11px] text-slate-400 truncate">{diag.timestamp}</p>
                             {diag.error && <p className="mt-1 text-[11px] text-red-300 truncate">{diag.error}</p>}
@@ -495,7 +512,9 @@ export default function SmartDashboard() {
                 disabled={!canValidate || validatePipelineMutation.isPending}
                 className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/20 text-blue-200 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                {validatePipelineMutation.isPending ? '驗證中...' : '驗證流程 (Draft → Validated)'}
+                {validatePipelineMutation.isPending
+                  ? t('smartDashboard.validating')
+                  : t('smartDashboard.validateFlow')}
               </button>
               <button
                 type="button"
@@ -503,7 +522,7 @@ export default function SmartDashboard() {
                 disabled={!canActivate}
                 className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
-                啟用流程 (Validated → Active)
+                {t('smartDashboard.activateFlow')}
               </button>
               {hasError && (
                 <button
@@ -511,7 +530,7 @@ export default function SmartDashboard() {
                   onClick={handleRecoverFlow}
                   className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                 >
-                  錯誤復原 (Error → Draft)
+                  {t('smartDashboard.recoverFlow')}
                 </button>
               )}
             </div>
