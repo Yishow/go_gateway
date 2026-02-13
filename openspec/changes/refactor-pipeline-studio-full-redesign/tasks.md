@@ -39,7 +39,7 @@
 - [x] 5.5 Execute commit in chunks with per-chunk result visibility.
 - [x] 5.6 Add deterministic retry queue for failed chunks only.
 - [x] 5.7 Add commit impact summary (new points, global tag updates, conflicts).
-- [ ] 5.8 Add audit logging payload and UI trace link.
+- [x] 5.8 Add audit logging payload and UI trace link.
 - [ ] 5.9 Add commit batch trace id creation and display.
 - [ ] 5.10 Add two-stage validation flow (structural then executable).
 - [ ] 5.11 Add pre-commit polling load delta estimate.

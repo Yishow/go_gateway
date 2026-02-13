@@ -39,6 +39,7 @@ import {
   type CommitQueueViewStatus,
   type QueueBaseStatus,
 } from '../../features/datalink/commitLifecycle';
+import { buildCommitAuditPayload, type CommitAuditPayload } from '../../features/datalink/commitAudit';
 import {
   buildGlobalTagEditDraft,
   getAffectedMappingCountForTag,
@@ -114,6 +115,7 @@ export default function SmartDashboard() {
   const [commitChunkResults, setCommitChunkResults] = useState<
     Array<{ chunk: number; totalChunks: number; success: number; failed: number; status: 'success' | 'failed' }>
   >([]);
+  const [commitAuditPayload, setCommitAuditPayload] = useState<CommitAuditPayload | null>(null);
   const [failedChunkRetryQueue, setFailedChunkRetryQueue] = useState<number[]>([]);
   const [tagEditDisplayName, setTagEditDisplayName] = useState('');
   const [tagEditUnit, setTagEditUnit] = useState('');
@@ -886,6 +888,27 @@ export default function SmartDashboard() {
         .filter((chunkResult) => chunkResult.status === 'failed')
         .map((chunkResult) => chunkResult.chunk - 1)
     );
+    const nextQueueItems = baseCommitQueueItems.map((item) => {
+      const runStatus = rollingStatus[item.id];
+      const viewStatus: CommitQueueViewStatus =
+        runStatus === 'success'
+          ? 'committed'
+          : runStatus === 'failed'
+            ? 'failed'
+            : item.status;
+      return {
+        ...item,
+        viewStatus,
+      };
+    });
+    const nextImpact = summarizeCommitImpact(nextQueueItems, Boolean(pendingTagEdit));
+    setCommitAuditPayload(
+      buildCommitAuditPayload({
+        queueItems: nextQueueItems,
+        chunkResults: nextChunkResults,
+        impact: nextImpact,
+      })
+    );
     setIsCommitRunning(false);
 
     if (failedCount > 0) {
@@ -896,7 +919,7 @@ export default function SmartDashboard() {
 
     markActive();
     setCommitActionMessage(`Commit 成功：${successCount} 筆已提交並啟用流程。`);
-  }, [baseCommitQueueItems, canActivate, commitQueueRunStatus, markActive, markError, selectedMapping?.enabled, t]);
+  }, [baseCommitQueueItems, canActivate, commitQueueRunStatus, markActive, markError, pendingTagEdit, selectedMapping?.enabled, t]);
 
   const handleRetryFailedCommits = useCallback(() => {
     if (failedChunkRetryQueue.length === 0) {
@@ -1560,6 +1583,14 @@ export default function SmartDashboard() {
                   {commitActionMessage}
                 </p>
               )}
+              {commitAuditPayload && (
+                <a
+                  href={commitAuditPayload.traceLink}
+                  className="inline-flex text-[11px] text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
+                >
+                  查看稽核追蹤
+                </a>
+              )}
               {commitChunkResults.length > 0 && (
                 <div className="rounded-lg border border-white/10 bg-slate-900/60 p-2 space-y-1">
                   <p className="text-[11px] font-semibold text-slate-200">Chunk 結果</p>
@@ -1573,6 +1604,18 @@ export default function SmartDashboard() {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+              {commitAuditPayload && (
+                <div id="commit-audit-trace" className="rounded-lg border border-cyan-500/20 bg-slate-900/70 p-2 space-y-1">
+                  <p className="text-[11px] font-semibold text-cyan-200">Audit Payload</p>
+                  <p className="text-[10px] text-slate-300">
+                    {commitAuditPayload.createdAt} · new {commitAuditPayload.summary.newPoints} · tag{' '}
+                    {commitAuditPayload.summary.globalTagUpdates} · conflict {commitAuditPayload.summary.conflicts}
+                  </p>
+                  <pre className="max-h-28 overflow-auto rounded bg-slate-950/70 p-2 text-[10px] text-slate-300">
+                    {JSON.stringify(commitAuditPayload, null, 2)}
+                  </pre>
                 </div>
               )}
               {hasError && (
