@@ -233,6 +233,45 @@ function Show-ExitHint {
     }
 }
 
+$script:LogNoiseCounters = @{}
+
+function Get-LogNoiseCategory {
+    param([string]$Line)
+    if ($Line -match "/api/v1/datalink/modbus-share/status") { return "status-polling" }
+    if ($Line -match "\] ::1 GET /api/v1/datalink/(devices|polling-groups|points|mappings|tags)\b") { return "dashboard-refresh" }
+    if ($Line -match "資料庫路徑|Executing SQLite migration|ConnectionManager 已初始化|已註冊的協議") { return "startup-detail" }
+    return $null
+}
+
+function Write-RuntimeLogLine {
+    param([string]$Line)
+    if ([string]::IsNullOrWhiteSpace($Line)) { return }
+    $category = Get-LogNoiseCategory -Line $Line
+    if ($category -and -not $Verbose) {
+        if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
+        $script:LogNoiseCounters[$category]++
+        return
+    }
+    if ($Line -match "ERROR|Error|panic|FATAL|❌") {
+        Write-ColorOutput $Line "Red"
+    } elseif ($Line -match "WARN|Warning|⚠") {
+        Write-ColorOutput $Line "Yellow"
+    } elseif ($Line -match "啟動於|localhost:8080|本機 Modbus 分享服務已啟動") {
+        Write-ColorOutput $Line "Green"
+    } else {
+        Write-ColorOutput $Line "DarkGray"
+    }
+}
+
+function Show-LogNoiseSummary {
+    if ($script:LogNoiseCounters.Count -eq 0 -or $Verbose) { return }
+    Write-Section "已隱藏雜訊日誌"
+    $script:LogNoiseCounters.GetEnumerator() | ForEach-Object {
+        Write-ColorOutput "- $($_.Key): $($_.Value) 行" "DarkYellow"
+    }
+    Write-Info "可加上 -Verbose 顯示全部原始日誌。"
+}
+
 # ============================================
 # 工具函數
 # ============================================
@@ -1018,10 +1057,12 @@ function Start-Application {
         Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
         
         try {
-            & $ExePath
-            $serviceExitCode = $LASTEXITCODE
+            $script:LogNoiseCounters = @{}
+            & $ExePath 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+            $serviceExitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
             
             Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
+            Show-LogNoiseSummary
             
             if ($serviceExitCode -eq 0) {
                 Write-Success "服務正常退出"
@@ -1343,7 +1384,9 @@ function Start-DevMode {
     
     try {
         Push-Location $script:APP_PATH
-        go run .
+        $script:LogNoiseCounters = @{}
+        go run . 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        Show-LogNoiseSummary
     }
     catch {
         Write-Error "啟動應用程式失敗: $_"
