@@ -6,22 +6,22 @@ TBD - created by archiving change add-device-data-pipeline. Update Purpose after
 ## Requirements
 ### Requirement: Guided workflow
 
-The UI SHALL provide a guided workflow that keeps a persistent visual context of the complete data flow: **Source Device Data → Memory Grid Address → Tag Mapping → Database Write Target**.
+The UI SHALL provide a guided workflow that keeps a persistent visual context of the complete data flow in one workspace: **Source Plan -> Memory Grid Allocation -> Tag Mapping -> Database Commit**.
 
 The workflow SHALL ensure:
 
-1. Operators can always identify the currently selected source device and address.
-2. Mapping and transform steps are editable without losing source context.
-3. Validation and activation states are visible in the same workspace.
+1. Operators can define source quantity and source data type before allocation.
+2. Mapping and tag operations remain visible without page switches.
+3. Validation and commit states are visible in the same workspace.
 4. Failures are localized to a specific flow segment.
 
 #### Scenario: End-to-end guided configuration in one workspace
-- **WHEN** an operator selects a source address and configures mapping/tag/write options
-- **THEN** the UI keeps source, mapping, and write target context visible
-- **AND** the operator does not need to switch pages to complete activation
+- **WHEN** an operator defines source type/count and completes allocation, tag, and commit actions
+- **THEN** the UI keeps source, grid, tag, and commit context visible together
+- **AND** the operator does not need to switch pages to complete DB commit
 
 #### Scenario: Segment-localized error handling
-- **WHEN** validation fails in transform or write stage
+- **WHEN** validation or commit fails
 - **THEN** the UI marks the failed segment
 - **AND** provides actionable retry or edit guidance for that segment
 
@@ -197,61 +197,17 @@ The system SHALL display readiness status indicators in the device list and devi
 
 ### Requirement: Sidebar navigation improvements
 
-The system SHALL provide improved sidebar navigation with all core features accessible.
+The system SHALL provide sidebar navigation aligned to the one-screen operator workflow.
 
-#### Scenario: Points navigation item
-
+#### Scenario: Pipeline Studio as primary entry
 - **WHEN** a user views the sidebar
-- **THEN** the sidebar displays a Points navigation item linking to `/datalink/points`
+- **THEN** the primary operation entry is the Pipeline Studio dashboard (`/datalink`)
+- **AND** mapping operations are completed inside this entry
 
-#### Scenario: Navigation order reflects workflow
-
-- **WHEN** a user views the sidebar
-- **THEN** navigation items are ordered to reflect the data pipeline workflow: Dashboard → Devices → Points → Tags → Mappings → Mapping Wizard → Settings
-
-#### Scenario: Visual grouping
-
-- **WHEN** a user views the sidebar
-- **THEN** related navigation items are visually grouped (e.g., data collection group, data processing group, system group)
-
-#### Scenario: Responsive sidebar
-
-- **WHEN** a user views the application on a mobile device
-- **THEN** the sidebar is displayed as a drawer that can be opened/closed with gestures
-
-### Requirement: Points management page
-
-The system SHALL provide a dedicated Points management page with full CRUD functionality.
-
-#### Scenario: Display points list
-
-- **WHEN** a user navigates to the Points page
-- **THEN** the page displays a list of all points with filtering and sorting capabilities
-
-#### Scenario: Filter points by device
-
-- **WHEN** a user filters points by device
-- **THEN** the page shows only points belonging to the selected device
-
-#### Scenario: Create point from Points page
-
-- **WHEN** a user creates a new point from the Points page
-- **THEN** the point is created and added to the list
-
-#### Scenario: Edit point
-
-- **WHEN** a user edits a point
-- **THEN** the point details are updated and reflected in the list
-
-#### Scenario: Delete point
-
-- **WHEN** a user deletes a point
-- **THEN** the point is removed from the list after confirmation
-
-#### Scenario: Batch operations
-
-- **WHEN** a user selects multiple points
-- **THEN** the page provides batch operations (enable/disable, assign to polling group, delete)
+#### Scenario: Legacy mapping pages decommissioned
+- **WHEN** a user accesses `/datalink/points`, `/datalink/mappings`, or `/datalink/wizard`
+- **THEN** the system redirects to `/datalink`
+- **AND** shows a migration notice that the workflow has moved to Pipeline Studio
 
 ### Requirement: Flow-first workspace visualization
 
@@ -284,4 +240,47 @@ The UI SHALL remain fully operable by keyboard and avoid horizontal overflow at 
 - **WHEN** viewport width is 1024px or above
 - **THEN** the workspace shows all core flow functions without horizontal scrolling
 - **AND** critical actions remain visible without hidden overflow traps
+
+### Requirement: Source template library
+
+The UI SHALL allow operators to save, load, update, and delete source planning templates.
+
+Each template SHALL store at least protocol context, source data type, source count, and naming defaults.
+
+#### Scenario: Save and reuse source template
+- **WHEN** an operator saves a source plan as a template
+- **THEN** the template is persisted
+- **AND** the operator can later load it to prefill planning controls
+
+#### Scenario: Edit existing source template
+- **WHEN** an operator updates a saved template
+- **THEN** the updated defaults are used in subsequent planning sessions
+
+### Requirement: Motion-guided operator flow
+
+The UI SHALL use motion cues to guide stage transitions between source planning, grid allocation, tag linkage, and DB commit.
+
+Animations MUST use short transitions (150-300ms) and MUST support reduced-motion preference.
+
+#### Scenario: Guided transition after source planning
+- **WHEN** an operator confirms source plan
+- **THEN** the grid allocation region receives a transition cue indicating next action
+
+#### Scenario: Reduced-motion mode
+- **WHEN** user preference is `prefers-reduced-motion`
+- **THEN** motion cues are replaced with static visual emphasis without animation
+
+### Requirement: Planning intelligence and safety checks
+
+The UI SHALL provide planning assistance and safety checks for one-screen operator execution.
+
+#### Scenario: Naming preview and duplicate detection
+- **WHEN** an operator defines batch naming rules
+- **THEN** the UI previews generated names
+- **AND** flags duplicates or naming conflicts before commit
+
+#### Scenario: Two-stage validation execution
+- **WHEN** an operator validates pending changes
+- **THEN** the UI runs structural validation first
+- **AND** runs executable validation only after structural validation succeeds
 
