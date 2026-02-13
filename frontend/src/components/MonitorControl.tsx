@@ -5,6 +5,7 @@ import type { ReadRequest } from '../types/api'
 import { useProfiles } from '../hooks/useProfiles'
 import type { MonitorItem } from '../types/profile'
 import { useToast } from '../contexts/ToastContext'
+import { toNumericValue } from './monitoring/valueParser'
 
 interface MonitorControlProps {
   connectionId: string | null
@@ -15,19 +16,6 @@ interface MonitorStreamEntry {
   timestamp: string
   chartTime: string
   data: Record<string, unknown>
-}
-
-const toNumericValue = (value: unknown): number | null => {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim()
-    if (trimmed.length === 0) return null
-    const parsed = Number(trimmed)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
 }
 
 export default function MonitorControl({ connectionId, protocol }: MonitorControlProps) {
