@@ -121,7 +121,8 @@ export default function SmartDashboard() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
-  const [isDeviceDrawerOpen, setIsDeviceDrawerOpen] = useState(false);
+  const [deviceSearchQuery, setDeviceSearchQuery] = useState('');
+  const [deviceStatusFilter, setDeviceStatusFilter] = useState<'all' | 'active' | 'disabled' | 'draft'>('all');
   const [isSwitchingDevice, setIsSwitchingDevice] = useState(false);
   const [switchErrorMessage, setSwitchErrorMessage] = useState('');
   const [showSwitchErrorDetails, setShowSwitchErrorDetails] = useState(false);
@@ -177,6 +178,7 @@ export default function SmartDashboard() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
   const guideStageTimeoutRef = useRef<number | null>(null);
+  const deviceModalAutoPromptedRef = useRef(false);
 
   const { data: devices = [] } = useDevicesQuery();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
@@ -209,6 +211,28 @@ export default function SmartDashboard() {
   const selectedDevice = useMemo(
     () => devices.find((d) => d.id === selectedDeviceId) || null,
     [devices, selectedDeviceId]
+  );
+  const filteredDevices = useMemo(() => {
+    const keyword = deviceSearchQuery.trim().toLowerCase();
+    return devices.filter((device) => {
+      const byStatus = deviceStatusFilter === 'all' || device.status === deviceStatusFilter;
+      if (!byStatus) return false;
+      if (!keyword) return true;
+      return (
+        device.name.toLowerCase().includes(keyword) ||
+        device.protocol.toLowerCase().includes(keyword) ||
+        device.id.toLowerCase().includes(keyword)
+      );
+    });
+  }, [deviceSearchQuery, deviceStatusFilter, devices]);
+  const deviceSummary = useMemo(
+    () => ({
+      total: devices.length,
+      active: devices.filter((device) => device.status === 'active').length,
+      disabled: devices.filter((device) => device.status === 'disabled').length,
+      draft: devices.filter((device) => device.status === 'draft').length,
+    }),
+    [devices]
   );
 
   const legacyRouteLabel = useMemo(() => {
@@ -423,7 +447,11 @@ export default function SmartDashboard() {
           throw new Error(`設備 ${target.name} 目前不可切換，請先完成啟用流程。`);
         }
         setSelectedDeviceId(nextDeviceId);
-        setIsDeviceDrawerOpen(false);
+        const next = new URLSearchParams(searchParams);
+        if (next.get('modal') === 'devices') {
+          next.delete('modal');
+          setSearchParams(next, { replace: true });
+        }
         setPendingSwitchDeviceId(null);
       } catch (error) {
         const message = error instanceof Error ? error.message : '切換設備失敗';
@@ -432,12 +460,16 @@ export default function SmartDashboard() {
         setIsSwitchingDevice(false);
       }
     },
-    [devices]
+    [devices, searchParams, setSearchParams]
   );
   const requestDeviceSwitch = useCallback(
     (nextDeviceId: string) => {
       if (nextDeviceId === selectedDeviceId) {
-        setIsDeviceDrawerOpen(false);
+        const next = new URLSearchParams(searchParams);
+        if (next.get('modal') === 'devices') {
+          next.delete('modal');
+          setSearchParams(next, { replace: true });
+        }
         return;
       }
       if (hasUnsavedChanges && selectedDeviceId) {
@@ -447,11 +479,14 @@ export default function SmartDashboard() {
       }
       void applyDeviceSwitch(nextDeviceId);
     },
-    [applyDeviceSwitch, hasUnsavedChanges, selectedDeviceId]
+    [applyDeviceSwitch, hasUnsavedChanges, searchParams, selectedDeviceId, setSearchParams]
   );
   const handleToggleSidebar = useCallback(() => {
-    setIsDeviceDrawerOpen((prev) => !prev);
-  }, []);
+    setActiveTab('devices');
+    const next = new URLSearchParams(searchParams);
+    next.set('modal', 'devices');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handleImportPoints = useCallback(
     async (points: CreatePointRequest[]) => {
@@ -979,7 +1014,6 @@ export default function SmartDashboard() {
         return;
       }
       if (tab === 'devices') {
-        setIsDeviceDrawerOpen(true);
         openWorkflowModal('devices');
         return;
       }
@@ -988,9 +1022,11 @@ export default function SmartDashboard() {
     [closeWorkflowModal, modalIntent, openWorkflowModal]
   );
   const handleChooseDevice = useCallback(() => {
-    setIsDeviceDrawerOpen(true);
     setActiveTab('devices');
-  }, []);
+    const next = new URLSearchParams(searchParams);
+    next.set('modal', 'devices');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const handleCreateDevice = useCallback(() => {
     setIsCreateDeviceModalOpen(true);
     setActiveTab('devices');
@@ -1011,6 +1047,7 @@ export default function SmartDashboard() {
   }, [sectionIntent]);
   useEffect(() => {
     if (!modalIntent) return;
+    if (modalIntent === 'devices') deviceModalAutoPromptedRef.current = true;
     if (modalIntent === 'devices') setActiveTab('devices');
     if (modalIntent === 'settings') setActiveTab('settings');
     if (modalIntent === 'wizard') setIsCreateDeviceModalOpen(true);
@@ -1028,9 +1065,15 @@ export default function SmartDashboard() {
   }, [selectedDeviceId]);
   useEffect(() => {
     if (!selectedDeviceId && devices.length > 0) {
-      setIsDeviceDrawerOpen(true);
+      if (deviceModalAutoPromptedRef.current) return;
+      const next = new URLSearchParams(searchParams);
+      if (next.get('modal') !== 'devices') {
+        deviceModalAutoPromptedRef.current = true;
+        next.set('modal', 'devices');
+        setSearchParams(next, { replace: true });
+      }
     }
-  }, [devices.length, selectedDeviceId]);
+  }, [devices.length, searchParams, selectedDeviceId, setSearchParams]);
   const confirmSwitchToCreatedDevice = useCallback(
     (switchNow: boolean) => {
       if (switchNow && justCreatedDeviceId) {
@@ -2458,7 +2501,7 @@ export default function SmartDashboard() {
 
       {modalIntent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/95 p-4 shadow-2xl">
+          <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900 to-slate-950 p-4 shadow-2xl">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wider text-indigo-200/80">Dashboard Modal</p>
@@ -2472,78 +2515,133 @@ export default function SmartDashboard() {
                 關閉
               </button>
             </div>
-            <div className="rounded-xl border border-white/10 bg-slate-800/50 p-3 text-sm text-slate-200">
-              <p>
-                {modalIntent === 'devices' && '設備管理已整合為側滑面板與建立流程。'}
-                {modalIntent === 'settings' && '系統設定以 Dashboard 內嵌設定模式開啟。'}
-                {modalIntent === 'points' && '點位流程已整合到 Source Planner + Batch 建立。'}
-                {modalIntent === 'mappings' && '映射流程已整合到 Flow + Tag Linkage 區。'}
-                {modalIntent === 'wizard' && '精靈流程以新增設備 modal 承載。'}
-                {modalIntent === 'polling-groups' && '輪詢群組管理透過設定與點位流程整合。'}
-                {modalIntent === 'tags' && 'Tag 管理與全域編輯整合在右側面板。'}
-              </p>
-            </div>
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (modalIntent === 'devices') handleChooseDevice();
-                  if (modalIntent === 'wizard') handleCreateDevice();
-                  if (modalIntent === 'points') setPanelType('batch');
-                  if (modalIntent === 'settings') setActiveTab('settings');
-                  if (modalIntent === 'mappings' || modalIntent === 'tags') setActiveTab('overview');
-                  closeWorkflowModal();
-                }}
-                className="min-h-11 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              >
-                開啟對應流程
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  goToLocalModbusWorkbench();
-                  closeWorkflowModal();
-                }}
-                className="min-h-11 rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
-              >
-                前往 Server Memory Grid
-              </button>
-            </div>
+            {modalIntent === 'devices' ? (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.5fr_1fr]">
+                <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      value={deviceSearchQuery}
+                      onChange={(e) => setDeviceSearchQuery(e.target.value)}
+                      placeholder="搜尋設備名稱 / protocol / ID"
+                      className="min-h-11 flex-1 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <select
+                      value={deviceStatusFilter}
+                      onChange={(e) => setDeviceStatusFilter(e.target.value as 'all' | 'active' | 'disabled' | 'draft')}
+                      className="min-h-11 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">全部狀態</option>
+                      <option value="active">active</option>
+                      <option value="disabled">disabled</option>
+                      <option value="draft">draft</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleCreateDevice}
+                      className="min-h-11 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      新增設備
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                    <div className="rounded-lg border border-white/10 bg-slate-800/60 p-2 text-xs text-slate-300">總數: <span className="font-semibold text-slate-100">{deviceSummary.total}</span></div>
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs text-emerald-200">active: <span className="font-semibold">{deviceSummary.active}</span></div>
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">disabled: <span className="font-semibold">{deviceSummary.disabled}</span></div>
+                    <div className="rounded-lg border border-slate-500/40 bg-slate-800/60 p-2 text-xs text-slate-300">draft: <span className="font-semibold text-slate-100">{deviceSummary.draft}</span></div>
+                  </div>
+                  <div className="mt-3 max-h-[380px] space-y-2 overflow-auto pr-1">
+                    {filteredDevices.map((device) => (
+                      <article key={device.id} className="rounded-xl border border-white/10 bg-slate-800/50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-100">{device.name}</p>
+                            <p className="mt-1 text-[11px] font-mono text-slate-400">{device.id.slice(0, 8)} · {device.protocol}</p>
+                          </div>
+                          <span className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase ${
+                            device.status === 'active'
+                              ? 'bg-emerald-500/20 text-emerald-200'
+                              : device.status === 'disabled'
+                                ? 'bg-amber-500/20 text-amber-200'
+                                : 'bg-slate-700/70 text-slate-300'
+                          }`}>
+                            {device.status}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <p className="text-[11px] text-slate-400">上次測試: {device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-'}</p>
+                          <button
+                            type="button"
+                            onClick={() => requestDeviceSwitch(device.id)}
+                            className="min-h-9 rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          >
+                            {selectedDeviceId === device.id ? '已選擇' : '切換'}
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                    {filteredDevices.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-slate-600 p-4 text-center text-xs text-slate-400">
+                        查無符合條件的設備
+                      </div>
+                    )}
+                  </div>
+                </section>
+                <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                  <h4 className="text-sm font-semibold text-slate-100">設備樹狀檢視</h4>
+                  <p className="mt-1 text-xs text-slate-400">可拖曳排序與快速切換，已整合進 modal。</p>
+                  <div className="mt-3 h-[420px] overflow-auto rounded-xl border border-white/10 bg-slate-900/70">
+                    <DeviceTreeNav
+                      devices={devices}
+                      selectedDeviceId={selectedDeviceId}
+                      onSelectDevice={requestDeviceSwitch}
+                      isCollapsed={false}
+                      onToggleCollapse={closeWorkflowModal}
+                      onReorder={() => {}}
+                    />
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-xl border border-white/10 bg-slate-800/50 p-3 text-sm text-slate-200">
+                  <p>
+                    {modalIntent === 'settings' && '系統設定以 Dashboard 內嵌設定模式開啟。'}
+                    {modalIntent === 'points' && '點位流程已整合到 Source Planner + Batch 建立。'}
+                    {modalIntent === 'mappings' && '映射流程已整合到 Flow + Tag Linkage 區。'}
+                    {modalIntent === 'wizard' && '精靈流程以新增設備 modal 承載。'}
+                    {modalIntent === 'polling-groups' && '輪詢群組管理透過設定與點位流程整合。'}
+                    {modalIntent === 'tags' && 'Tag 管理與全域編輯整合在右側面板。'}
+                  </p>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (modalIntent === 'wizard') handleCreateDevice();
+                      if (modalIntent === 'points') setPanelType('batch');
+                      if (modalIntent === 'settings') setActiveTab('settings');
+                      if (modalIntent === 'mappings' || modalIntent === 'tags') setActiveTab('overview');
+                      closeWorkflowModal();
+                    }}
+                    className="min-h-11 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    開啟對應流程
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      goToLocalModbusWorkbench();
+                      closeWorkflowModal();
+                    }}
+                    className="min-h-11 rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+                  >
+                    前往 Server Memory Grid
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      )}
-
-      {isDeviceDrawerOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="close-device-drawer"
-            onClick={() => setIsDeviceDrawerOpen(false)}
-            className="fixed inset-0 z-30 bg-slate-950/60"
-          />
-          <aside className="fixed inset-y-0 left-0 z-40 w-full max-w-sm border-r border-slate-700 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-100">切換設備</h3>
-              <button
-                type="button"
-                onClick={() => setIsDeviceDrawerOpen(false)}
-                className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
-              >
-                關閉
-              </button>
-            </div>
-            <div className="h-[calc(100vh-6rem)] overflow-auto rounded-2xl border border-white/10 bg-slate-900/60">
-              <DeviceTreeNav
-                devices={devices}
-                selectedDeviceId={selectedDeviceId}
-                onSelectDevice={requestDeviceSwitch}
-                isCollapsed={false}
-                onToggleCollapse={() => setIsDeviceDrawerOpen(false)}
-                onReorder={() => {}}
-              />
-            </div>
-          </aside>
-        </>
       )}
       {showSwitchConfirmDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
