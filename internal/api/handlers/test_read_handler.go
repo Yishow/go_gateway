@@ -68,6 +68,7 @@ func (h *TestHandler) Read(c *gin.Context) {
 		}
 		// 連線臨時客戶端
 		if err := h.connectClient(tempClient, state.Protocol); err != nil {
+			_ = h.closeClient(tempClient, state.Protocol)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("連線臨時客戶端失敗: %v", err)})
 			return
 		}
