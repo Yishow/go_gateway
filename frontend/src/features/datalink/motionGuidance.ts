@@ -15,7 +15,7 @@ export function resolveIntentMotionClass(stage: IntentStage, reducedMotion: bool
     : 'ring-2 ring-emerald-500/70 motion-safe:animate-pulse';
 }
 
-export function resolveScrollBehavior(reducedMotion: boolean): ScrollBehavior {
+export function resolveScrollBehavior(reducedMotion: boolean): 'auto' | 'smooth' {
   return reducedMotion ? 'auto' : 'smooth';
 }
 
