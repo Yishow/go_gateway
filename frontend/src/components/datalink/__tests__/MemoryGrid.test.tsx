@@ -135,4 +135,94 @@ describe('MemoryGrid', () => {
     const pairedMarkers = screen.getAllByText(/\/2$/);
     expect(pairedMarkers).toHaveLength(20);
   });
+
+  it('should render linked occupancy state', () => {
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={5}
+        linkedAddresses={['40001']}
+      />
+    );
+
+    const address = screen.getByText('40001');
+    const cell = address.closest('[data-testid="grid-cell"]');
+    expect(cell).toHaveAttribute('data-status', 'linked');
+  });
+
+  it('should classify conflict severity as hard when planned overlaps used point', () => {
+    const point = { id: '1', name: 'P1', address: '40001', device_id: 'd1' } as any;
+    const plannedAllocations = [
+      {
+        id: 'plan-1',
+        dataType: 'int16' as const,
+        addresses: ['40001'],
+        label: 'S1',
+      },
+    ];
+
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={5}
+        existingPoints={[point]}
+        plannedAllocations={plannedAllocations}
+      />
+    );
+
+    const address = screen.getByText('40001');
+    const cell = address.closest('[data-testid="grid-cell"]');
+    expect(cell).toHaveAttribute('data-status', 'conflict');
+    expect(cell).toHaveAttribute('data-conflict-severity', 'hard');
+    expect(screen.getByText('硬衝突')).toBeInTheDocument();
+  });
+
+  it('should classify conflict severity as soft when planned overlaps linked address', () => {
+    const plannedAllocations = [
+      {
+        id: 'plan-1',
+        dataType: 'int16' as const,
+        addresses: ['40001'],
+        label: 'S1',
+      },
+    ];
+
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={5}
+        linkedAddresses={['40001']}
+        plannedAllocations={plannedAllocations}
+      />
+    );
+
+    const address = screen.getByText('40001');
+    const cell = address.closest('[data-testid="grid-cell"]');
+    expect(cell).toHaveAttribute('data-status', 'conflict');
+    expect(cell).toHaveAttribute('data-conflict-severity', 'soft');
+    expect(screen.getByText('軟衝突')).toBeInTheDocument();
+  });
+
+  it('should handle edge collision when planned cells exceed visible range', () => {
+    const plannedAllocations = [
+      {
+        id: 'float-edge',
+        dataType: 'float32' as const,
+        addresses: ['40003', '40004'],
+        label: 'EDGE',
+      },
+    ];
+
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={3}
+        plannedAllocations={plannedAllocations}
+      />
+    );
+
+    expect(screen.getByText('40003')).toBeInTheDocument();
+    expect(screen.queryByText('40004')).not.toBeInTheDocument();
+    expect(screen.getByText('EDGE 1/2')).toBeInTheDocument();
+  });
 });

@@ -2,6 +2,8 @@
 import { useMemo } from 'react';
 import type { ProtocolType, Point, DataType } from '../../types/datalink';
 import { addressParser } from '../../utils/addressParser';
+import type { ConflictSeverity, OccupancyStatus } from '../../features/datalink/typedOccupancy';
+import { resolveConflictSeverity } from '../../features/datalink/typedOccupancy';
 
 export interface MemoryGridProps {
   deviceId: string;
@@ -15,6 +17,7 @@ export interface MemoryGridProps {
   onSelect: (addresses: string[]) => void;
   onCellClick: (address: string, point?: Point) => void;
   plannedAllocations?: PlannedAllocation[];
+  linkedAddresses?: string[];
   showConflictsOnly?: boolean;
 }
 
@@ -28,10 +31,13 @@ export interface PlannedAllocation {
 interface GridCellStart {
   address: string;
   point?: Point;
-  status: 'used' | 'available' | 'selected' | 'planned' | 'conflict';
+  status: OccupancyStatus;
+  conflictSeverity: ConflictSeverity;
   isSelected: boolean;
   plan?: PlannedAllocation;
   planCellIndex?: number;
+  isPlanGroupStart?: boolean;
+  isPlanGroupEnd?: boolean;
 }
 
 export function MemoryGrid({
@@ -44,51 +50,70 @@ export function MemoryGrid({
   onSelect,
   onCellClick,
   plannedAllocations = [],
+  linkedAddresses = [],
   showConflictsOnly = false,
 }: MemoryGridProps) {
   const plannedAddressMap = useMemo(() => {
-    const map = new Map<string, { plan: PlannedAllocation; index: number }>();
+    const map = new Map<
+      string,
+      {
+        plan: PlannedAllocation;
+        index: number;
+        isGroupStart: boolean;
+        isGroupEnd: boolean;
+      }
+    >();
     plannedAllocations.forEach((plan) => {
       plan.addresses.forEach((address, index) => {
-        map.set(address, { plan, index });
+        map.set(address, {
+          plan,
+          index,
+          isGroupStart: index === 0,
+          isGroupEnd: index === plan.addresses.length - 1,
+        });
       });
     });
     return map;
   }, [plannedAllocations]);
+  const linkedAddressSet = useMemo(() => new Set(linkedAddresses), [linkedAddresses]);
 
-  // Calculate cells
   const cells = useMemo(() => {
-    // Determine start address. 
-    // Ideally centerAddress should be in the middle, but for MVP let's start FROM centerAddress 
-    // or slightly before if possible. 
-    // addressParser.expand starts from given address.
-    // For now, let's treat "centerAddress" as "startAddress" for simplicity matching the spec "Start D100, show 100"
-    
-    // Safety check
     if (!centerAddress) return [];
 
     const addresses = addressParser.expand(centerAddress, range, protocol);
-    
+
     return addresses.map(addr => {
       const point = existingPoints.find(p => p.address === addr);
       const isSelected = selectedAddresses.includes(addr);
       const planned = plannedAddressMap.get(addr);
-      
+      const isLinked = linkedAddressSet.has(addr);
+
+      const conflictSeverity = planned
+        ? resolveConflictSeverity({
+            hasUsedPoint: Boolean(point),
+            hasLinkedAddress: isLinked,
+          })
+        : 'none';
+
       let status: GridCellStart['status'] = 'available';
       if (point) status = 'used';
-      if (planned) status = point ? 'conflict' : 'planned';
+      if (isLinked) status = 'linked';
+      if (planned) status = conflictSeverity === 'none' ? 'planned' : 'conflict';
       if (isSelected && status !== 'conflict') status = 'selected';
-      
+
       return {
         address: addr,
         point,
         status,
+        conflictSeverity,
         isSelected,
         plan: planned?.plan,
         planCellIndex: planned?.index,
+        isPlanGroupStart: planned?.isGroupStart,
+        isPlanGroupEnd: planned?.isGroupEnd,
       };
     });
-  }, [centerAddress, range, protocol, existingPoints, selectedAddresses, plannedAddressMap]);
+  }, [centerAddress, range, protocol, existingPoints, selectedAddresses, plannedAddressMap, linkedAddressSet]);
 
   const visibleCells = useMemo(() => {
     if (!showConflictsOnly) return cells;
@@ -96,57 +121,34 @@ export function MemoryGrid({
   }, [cells, showConflictsOnly]);
 
   const handleCellClick = (cell: GridCellStart, e: React.MouseEvent) => {
-    // Determine new selection
     let newSelection: string[] = [];
 
     if (e.ctrlKey || e.metaKey) {
-      // Toggle logic
       if (selectedAddresses.includes(cell.address)) {
         newSelection = selectedAddresses.filter(a => a !== cell.address);
       } else {
         newSelection = [...selectedAddresses, cell.address];
       }
     } else if (e.shiftKey && selectedAddresses.length > 0) {
-      // Range logic
-      // Ideally we need to find the index of the start and end address in the current grid
-      const lastSelected = selectedAddresses[selectedAddresses.length - 1]; // Naive 'last' based on array
-      // A better way is to find the index of the clicked cell and the index of the LAST clicked cell.
-      // But we typically track 'anchor' in state. For this stateless component, let's use the last item in selectedAddresses as anchor if possible,
-      // OR better, since we don't store order in parent likely, we find the range between MIN and MAX indices of "anchor" and "current".
-      // Let's assume the user wants range from explicit Last Selected -> Current.
-      
+      const lastSelected = selectedAddresses[selectedAddresses.length - 1];
       const allAddresses = cells.map(c => c.address);
       const currentIndex = allAddresses.indexOf(cell.address);
       const lastIndex = allAddresses.indexOf(lastSelected);
-      
+
       if (currentIndex !== -1 && lastIndex !== -1) {
         const start = Math.min(currentIndex, lastIndex);
         const end = Math.max(currentIndex, lastIndex);
         const range = allAddresses.slice(start, end + 1);
-        // Union with existing selection to be safe, or just replace? Usual PC behavior is replace selection with range relative to anchor.
-        // But for simplicity let's just ADD the range to existing (or Union). 
-        // Actually standard is: Shift-click extends selection from anchor.
-        // Let's go with: Union of current selection + new range.
         newSelection = Array.from(new Set([...selectedAddresses, ...range]));
       } else {
         newSelection = [cell.address];
       }
     } else {
-      // Single select
       newSelection = [cell.address];
     }
-    
-    // Call onSelect first
+
     onSelect(newSelection);
-    
-    // Then notify click.
-    // Important: SmartDashboard currently uses onCellClick to open panels.
-    // We should pass the modifier keys or let SmartDashboard handle it.
-    // But better: The parent can check if it wants to open panel.
-    // We will just pass the event as is or let the parent deal with it?
-    // The interface is `onCellClick: (address: string, point?: Point) => void;`
-    // We can't change signature easily without breaking other things? 
-    // Actually we can just call it for now, and fix SmartDashboard to ignore if not a point.
+
     onCellClick(cell.address, cell.point);
   };
 
@@ -159,11 +161,15 @@ export function MemoryGrid({
         <div
           key={cell.address}
           data-testid="grid-cell"
+          data-status={cell.status}
+          data-conflict-severity={cell.conflictSeverity}
           onClick={(e) => handleCellClick(cell, e)}
           className={`
-            relative aspect-[4/3] rounded-md border flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95
+            relative aspect-[4/3] border flex flex-col items-center justify-center cursor-pointer transition-colors duration-200
             ${cell.status === 'used' 
               ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/30 dark:border-green-500/50 dark:text-green-300' 
+              : cell.status === 'linked'
+                ? 'bg-violet-100 border-violet-500 text-violet-800 dark:bg-violet-900/25 dark:border-violet-500/60 dark:text-violet-200'
               : cell.status === 'planned'
                 ? 'bg-sky-100 border-sky-500 text-sky-800 dark:bg-sky-900/30 dark:border-sky-500 dark:text-sky-200'
                 : cell.status === 'conflict'
@@ -172,12 +178,15 @@ export function MemoryGrid({
                 ? 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-200'
                 : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500'
             }
-            ${cell.plan && cell.plan.addresses.length > 1 ? 'ring-1 ring-offset-1 ring-offset-transparent ring-sky-400/60' : ''}
+            ${!cell.plan || cell.plan.addresses.length <= 1 ? 'rounded-md' : ''}
+            ${cell.plan && cell.plan.addresses.length > 1 && cell.isPlanGroupStart ? 'rounded-l-md rounded-r-none border-l-2' : ''}
+            ${cell.plan && cell.plan.addresses.length > 1 && cell.isPlanGroupEnd ? 'rounded-r-md rounded-l-none border-r-2' : ''}
+            ${cell.plan && cell.plan.addresses.length > 1 && !cell.isPlanGroupStart && !cell.isPlanGroupEnd ? 'rounded-none border-y-2' : ''}
             ${cell.isSelected ? 'ring-2 ring-blue-400/70' : ''}
           `}
           title={
             cell.status === 'conflict'
-              ? `Conflict: ${cell.address} already used`
+              ? `Conflict (${cell.conflictSeverity}): ${cell.address}`
               : cell.point
                 ? `Point: ${cell.point.name}`
                 : `Address: ${cell.address}`
@@ -192,12 +201,17 @@ export function MemoryGrid({
               {cell.plan.addresses.length > 1 ? ` ${cell.planCellIndex! + 1}/${cell.plan.addresses.length}` : ''}
             </span>
           )}
+          {cell.plan && cell.plan.addresses.length > 1 && (
+            <span className="absolute top-1 left-1 rounded bg-sky-500/25 px-1 text-[9px] font-bold text-sky-100">
+              #{(cell.planCellIndex ?? 0) + 1}
+            </span>
+          )}
           {cell.point && (
             <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm" />
           )}
           {cell.status === 'conflict' && (
             <div className="absolute inset-x-1 bottom-1 rounded bg-rose-500/20 text-[9px] text-rose-700 dark:text-rose-200 text-center">
-              衝突
+              {cell.conflictSeverity === 'hard' ? '硬衝突' : '軟衝突'}
             </div>
           )}
         </div>

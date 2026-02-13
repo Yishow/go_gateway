@@ -14,13 +14,13 @@
 - [x] 2.7 Add batch naming preview with duplicate/conflict detection.
 
 ## 3. Memory Grid Typed Occupancy
-- [ ] 3.1 Implement span calculation by type (1/2/4 cells).
-- [ ] 3.2 Render grouped cells for multi-cell types (pair/quad visualization).
-- [ ] 3.3 Show occupancy states (`available`, `planned`, `used`, `conflict`, `linked`).
-- [ ] 3.4 Add tests for occupancy math and edge collision handling.
-- [ ] 3.5 Add hard/soft conflict severity rendering and behavior.
+- [x] 3.1 Implement span calculation by type (1/2/4 cells).
+- [x] 3.2 Render grouped cells for multi-cell types (pair/quad visualization).
+- [x] 3.3 Show occupancy states (`available`, `planned`, `used`, `conflict`, `linked`).
+- [x] 3.4 Add tests for occupancy math and edge collision handling.
+- [x] 3.5 Add hard/soft conflict severity rendering and behavior.
 - [ ] 3.6 Add auto-allocation strategy for nearest valid contiguous span.
-- [ ] 3.7 Add grouped-border and in-group index markers for multi-cell types.
+- [x] 3.7 Add grouped-border and in-group index markers for multi-cell types.
 - [ ] 3.8 Add conflict-only filter mode in grid controls.
 
 ## 4. Tag Linkage and Global Editing

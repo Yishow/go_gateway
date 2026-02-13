@@ -24,6 +24,7 @@ import {
   upgradeTemplates,
 } from '../../features/datalink/sourceTemplateStorage';
 import { buildBatchNamePreview } from '../../features/datalink/batchNaming';
+import { getSpanByDataType } from '../../features/datalink/typedOccupancy';
 import { addressParser } from '../../utils/addressParser';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
@@ -44,19 +45,6 @@ const RESET_SEGMENT_DIAGNOSTIC = {
   quality: 'unknown' as const,
   timestamp: '-',
   error: '',
-};
-
-const SPAN_BY_TYPE: Record<DataType, number> = {
-  bool: 1,
-  int16: 1,
-  uint16: 1,
-  int32: 2,
-  uint32: 2,
-  float32: 2,
-  int64: 4,
-  uint64: 4,
-  float64: 4,
-  string: 1,
 };
 
 interface SourceTemplate {
@@ -131,7 +119,7 @@ export default function SmartDashboard() {
     return '';
   }, [legacyRoute, t]);
 
-  const cellSpan = SPAN_BY_TYPE[planDataType];
+  const cellSpan = getSpanByDataType(planDataType);
   const totalPlannedCells = planCount * cellSpan;
 
   const plannedAllocations = useMemo<PlannedAllocation[]>(() => {
@@ -160,6 +148,12 @@ export default function SmartDashboard() {
     const occupiedSet = new Set(allPoints.map((point) => point.address));
     return planAddresses.filter((address) => occupiedSet.has(address)).length;
   }, [allPoints, planAddresses]);
+  const linkedAddresses = useMemo(() => {
+    const pointAddressById = new Map(allPoints.map((point) => [point.id, point.address]));
+    return mappings
+      .map((mapping) => pointAddressById.get(mapping.point_id))
+      .filter((address): address is string => Boolean(address));
+  }, [allPoints, mappings]);
   const namePreview = useMemo(
     () => buildBatchNamePreview(batchNamePrefix, planCount, allPoints.map((point) => point.name)),
     [allPoints, batchNamePrefix, planCount]
@@ -914,6 +908,7 @@ export default function SmartDashboard() {
                       centerAddress={planStartAddress || getGridCenterAddress(selectedDevice.protocol)}
                       range={300}
                       existingPoints={allPoints}
+                      linkedAddresses={linkedAddresses}
                       selectedAddresses={selectedAddresses}
                       plannedAllocations={plannedAllocations}
                       showConflictsOnly={showConflictsOnly}
