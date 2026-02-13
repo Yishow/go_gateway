@@ -18,6 +18,7 @@ import SmartDashboardWorkspace from './smart-dashboard/SmartDashboardWorkspace';
 import SmartDashboardSidebarTools from './smart-dashboard/SmartDashboardSidebarTools';
 import SmartDashboardCommitPanel from './smart-dashboard/SmartDashboardCommitPanel';
 import SmartDashboardTagAndModbusPanel from './smart-dashboard/SmartDashboardTagAndModbusPanel';
+import { useSmartDashboardTagLinking } from './smart-dashboard/useSmartDashboardTagLinking';
 import SmartDashboardWorkflowModal from './smart-dashboard/SmartDashboardWorkflowModal';
 import SmartDashboardOverlays from './smart-dashboard/SmartDashboardOverlays';
 import SmartDashboardPanels from './smart-dashboard/SmartDashboardPanels';
@@ -67,10 +68,7 @@ import {
 } from '../../features/datalink/commitLifecycle';
 import { buildCommitAuditPayload, type CommitAuditPayload } from '../../features/datalink/commitAudit';
 import {
-  buildGlobalTagEditDraft,
   getAffectedMappingCountForTag,
-  hasGlobalTagEditChanges,
-  toTagUpdateRequest,
 } from '../../features/datalink/tagEditImpact';
 import { buildGlobalTagGuardrail } from '../../features/datalink/globalTagGuardrails';
 import {
@@ -161,11 +159,6 @@ export default function SmartDashboard() {
   const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => loadSourceTemplates());
   const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
   const [modbusRegister, setModbusRegister] = useState('0');
-  const [tagLinkMode, setTagLinkMode] = useState<'existing' | 'create'>('existing');
-  const [selectedTagIdForLink, setSelectedTagIdForLink] = useState('');
-  const [newTagKey, setNewTagKey] = useState('');
-  const [newTagDisplayName, setNewTagDisplayName] = useState('');
-  const [tagLinkActionMessage, setTagLinkActionMessage] = useState('');
   const [commitActionMessage, setCommitActionMessage] = useState('');
   const [commitQueueRunStatus, setCommitQueueRunStatus] = useState<Record<string, 'success' | 'failed'>>({});
   const [lastCommitSnapshot, setLastCommitSnapshot] = useState<Record<string, 'success' | 'failed'> | null>(null);
@@ -175,15 +168,6 @@ export default function SmartDashboard() {
   >([]);
   const [commitAuditPayload, setCommitAuditPayload] = useState<CommitAuditPayload | null>(null);
   const [failedChunkRetryQueue, setFailedChunkRetryQueue] = useState<number[]>([]);
-  const [tagEditDisplayName, setTagEditDisplayName] = useState('');
-  const [tagEditUnit, setTagEditUnit] = useState('');
-  const [tagEditDescription, setTagEditDescription] = useState('');
-  const [tagEditMessage, setTagEditMessage] = useState('');
-  const [pendingTagEdit, setPendingTagEdit] = useState<{
-    display_name: string;
-    unit: string;
-    description: string;
-  } | null>(null);
   const legacyRoute = searchParams.get('legacy');
   const rawSectionIntent = searchParams.get('section');
   const rawModalIntent = searchParams.get('modal');
@@ -718,14 +702,6 @@ export default function SmartDashboard() {
       { total: 0, pending: 0, linked: 0, conflict: 0, failed: 0, committed: 0 }
     );
   }, [commitQueueItems]);
-  const commitImpactSummary = useMemo(
-    () => summarizeCommitImpact(commitQueueItems, Boolean(pendingTagEdit)),
-    [commitQueueItems, pendingTagEdit]
-  );
-  const preCommitLoadEstimate = useMemo(
-    () => estimatePollingLoadDelta(allPoints, pollingGroups, commitImpactSummary.newPoints),
-    [allPoints, commitImpactSummary.newPoints, pollingGroups]
-  );
   const motionQAGate = useMemo(
     () =>
       buildMotionReadabilityGate({
@@ -766,6 +742,50 @@ export default function SmartDashboard() {
       return [];
     }
   }, [selectedMapping?.transform_pipeline]);
+  const {
+    tagLinkMode,
+    setTagLinkMode,
+    selectedTagIdForLink,
+    setSelectedTagIdForLink,
+    newTagKey,
+    setNewTagKey,
+    newTagDisplayName,
+    setNewTagDisplayName,
+    tagLinkActionMessage,
+    tagEditDisplayName,
+    setTagEditDisplayName,
+    tagEditUnit,
+    setTagEditUnit,
+    tagEditDescription,
+    setTagEditDescription,
+    tagEditMessage,
+    pendingTagEdit,
+    handleLinkTagToSelectedAddress,
+    handleCreateTagAndLink,
+    handleSaveLinkedTagEdit,
+    handleConfirmTagEdit,
+    clearPendingTagEdit,
+  } = useSmartDashboardTagLinking({
+    activePointForLink,
+    selectedMapping: selectedMapping || undefined,
+    tags,
+    linkedTag: linkedTag || undefined,
+    linkedTagAffectedMappingsCount,
+    parsePipeline,
+    tagEditGuardrailWarning: tagEditGuardrail.warningMessage,
+    createTag: createTagMutation.mutateAsync,
+    createMapping: createMappingMutation.mutateAsync,
+    updateMapping: updateMappingMutation.mutateAsync,
+    updateTag: updateTagMutation.mutateAsync,
+  });
+  const commitImpactSummary = useMemo(
+    () => summarizeCommitImpact(commitQueueItems, Boolean(pendingTagEdit)),
+    [commitQueueItems, pendingTagEdit]
+  );
+  const preCommitLoadEstimate = useMemo(
+    () => estimatePollingLoadDelta(allPoints, pollingGroups, commitImpactSummary.newPoints),
+    [allPoints, commitImpactSummary.newPoints, pollingGroups]
+  );
 
   const segmentFeedback = useMemo(() => {
     const sourceOk = Boolean(selectedDeviceId && selectedSourceAddress);
@@ -800,173 +820,6 @@ export default function SmartDashboard() {
       },
     ] as const;
   }, [canActivate, linkedTag, planAddresses.length, planConflictCount, selectedDeviceId, selectedMapping, selectedSourceAddress]);
-
-  useEffect(() => {
-    setSelectedTagIdForLink(selectedMapping?.tag_id || '');
-  }, [selectedMapping?.tag_id]);
-
-  useEffect(() => {
-    setTagEditDisplayName(linkedTag?.display_name || '');
-    setTagEditUnit(linkedTag?.unit || '');
-    setTagEditDescription(linkedTag?.description || '');
-    setTagEditMessage('');
-    setPendingTagEdit(null);
-  }, [linkedTag?.description, linkedTag?.display_name, linkedTag?.id, linkedTag?.unit]);
-
-  const handleLinkTagToSelectedAddress = useCallback(async () => {
-    if (!activePointForLink) {
-      setTagLinkActionMessage('請先選取已建立點位的格位，再進行 Tag 連結。');
-      return;
-    }
-
-    const targetTagId = selectedTagIdForLink.trim();
-    if (!targetTagId) {
-      setTagLinkActionMessage('請先選擇要連結的既有 Tag。');
-      return;
-    }
-
-    try {
-      if (selectedMapping) {
-        await updateMappingMutation.mutateAsync({
-          id: selectedMapping.id,
-          data: {
-            tag_id: targetTagId,
-            enabled: true,
-            transform_pipeline: parsePipeline(),
-          },
-        });
-        setTagLinkActionMessage(`已更新 ${activePointForLink.address} 的 Tag 連結。`);
-        return;
-      }
-
-      await createMappingMutation.mutateAsync({
-        point_id: activePointForLink.id,
-        tag_id: targetTagId,
-        enabled: true,
-      });
-      setTagLinkActionMessage(`已建立 ${activePointForLink.address} 的 Tag 連結。`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '連結失敗';
-      setTagLinkActionMessage(message);
-    }
-  }, [
-    activePointForLink,
-    createMappingMutation,
-    parsePipeline,
-    selectedMapping,
-    selectedTagIdForLink,
-    updateMappingMutation,
-  ]);
-
-  const handleCreateTagAndLink = useCallback(async () => {
-    if (!activePointForLink) {
-      setTagLinkActionMessage('請先選取已建立點位的格位，再建立 Tag。');
-      return;
-    }
-
-    const normalizedKey = newTagKey.trim();
-    if (!normalizedKey) {
-      setTagLinkActionMessage('Tag Key 不可為空。');
-      return;
-    }
-
-    const existing = tags.find((tag) => tag.key.toLowerCase() === normalizedKey.toLowerCase());
-    if (existing) {
-      setTagLinkActionMessage(`Tag Key ${normalizedKey} 已存在，請改用既有 Tag 模式。`);
-      return;
-    }
-
-    try {
-      const createdTag = await createTagMutation.mutateAsync({
-        key: normalizedKey,
-        display_name: newTagDisplayName.trim() || normalizedKey,
-        data_type: activePointForLink.data_type,
-      });
-
-      if (selectedMapping) {
-        await updateMappingMutation.mutateAsync({
-          id: selectedMapping.id,
-          data: {
-            tag_id: createdTag.id,
-            enabled: true,
-            transform_pipeline: parsePipeline(),
-          },
-        });
-      } else {
-        await createMappingMutation.mutateAsync({
-          point_id: activePointForLink.id,
-          tag_id: createdTag.id,
-          enabled: true,
-        });
-      }
-
-      setSelectedTagIdForLink(createdTag.id);
-      setTagLinkActionMessage(`已建立 Tag ${createdTag.key} 並完成連結。`);
-      setNewTagKey('');
-      setNewTagDisplayName('');
-      setTagLinkMode('existing');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '建立 Tag 失敗';
-      setTagLinkActionMessage(message);
-    }
-  }, [
-    activePointForLink,
-    createMappingMutation,
-    createTagMutation,
-    newTagDisplayName,
-    newTagKey,
-    parsePipeline,
-    selectedMapping,
-    tags,
-    updateMappingMutation,
-  ]);
-
-  const handleSaveLinkedTagEdit = useCallback(async () => {
-    if (!linkedTag?.id) {
-      setTagEditMessage('目前沒有可編輯的已連結 Tag。');
-      return;
-    }
-
-    const nextEdit = buildGlobalTagEditDraft({
-      display_name: tagEditDisplayName,
-      unit: tagEditUnit,
-      description: tagEditDescription,
-    });
-    if (!hasGlobalTagEditChanges(linkedTag, nextEdit)) {
-      setTagEditMessage('沒有變更，無需儲存。');
-      return;
-    }
-
-    setPendingTagEdit(nextEdit);
-    setTagEditMessage(tagEditGuardrail.warningMessage);
-  }, [
-    linkedTag,
-    tagEditGuardrail.warningMessage,
-    tagEditDescription,
-    tagEditDisplayName,
-    tagEditUnit,
-  ]);
-
-  const handleConfirmTagEdit = useCallback(async () => {
-    if (!linkedTag?.id || !pendingTagEdit) return;
-
-    try {
-      await updateTagMutation.mutateAsync({
-        id: linkedTag.id,
-        data: toTagUpdateRequest(pendingTagEdit),
-      });
-      setPendingTagEdit(null);
-      setTagEditMessage(`已更新全域 Tag，影響 ${linkedTagAffectedMappingsCount} 個映射。`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '更新 Tag 失敗';
-      setTagEditMessage(message);
-    }
-  }, [
-    linkedTag?.id,
-    linkedTagAffectedMappingsCount,
-    pendingTagEdit,
-    updateTagMutation,
-  ]);
 
   const handleBindTagToModbus = useCallback(async () => {
     if (!linkedTag?.id) {
@@ -1697,7 +1550,7 @@ export default function SmartDashboard() {
               updateTagPending={updateTagMutation.isPending}
               pendingTagEdit={pendingTagEdit}
               handleConfirmTagEdit={handleConfirmTagEdit}
-              clearPendingTagEdit={() => setPendingTagEdit(null)}
+              clearPendingTagEdit={clearPendingTagEdit}
               tagEditMessage={tagEditMessage}
               goToLocalModbusWorkbench={goToLocalModbusWorkbench}
               loadModbusStatus={loadModbusStatus}
