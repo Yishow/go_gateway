@@ -1,8 +1,0 @@
-{
-  "track_id": "core_interfaces_20260116",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-01-16T03:18:00Z",
-  "updated_at": "2026-01-16T03:18:00Z",
-  "description": "建立核心通訊與資料庫介面，定義 Protocol 與 Database Driver 規範。"
-}
