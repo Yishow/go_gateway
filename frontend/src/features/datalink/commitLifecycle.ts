@@ -6,6 +6,28 @@ export interface CommitQueueLifecycleItem {
 }
 
 export type CommitRunStatusMap = Record<string, 'success' | 'failed'>;
+export type CommitQueueViewStatus = QueueBaseStatus | 'committed' | 'failed';
+
+export interface CommitImpactSummaryItem {
+  viewStatus: CommitQueueViewStatus;
+}
+
+export function summarizeCommitImpact(
+  items: CommitImpactSummaryItem[],
+  pendingGlobalTagEdit: boolean
+): {
+  newPoints: number;
+  globalTagUpdates: number;
+  conflicts: number;
+} {
+  const newPoints = items.filter((item) => item.viewStatus !== 'conflict' && item.viewStatus !== 'failed').length;
+  const conflicts = items.filter((item) => item.viewStatus === 'conflict' || item.viewStatus === 'failed').length;
+  return {
+    newPoints,
+    globalTagUpdates: pendingGlobalTagEdit ? 1 : 0,
+    conflicts,
+  };
+}
 
 export function canExecuteCommit(input: { canActivate: boolean; mappingEnabled: boolean }): {
   ok: boolean;

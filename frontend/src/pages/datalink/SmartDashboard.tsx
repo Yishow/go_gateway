@@ -35,6 +35,8 @@ import {
   executeCommitLifecycle,
   retryFailedLifecycle,
   rollbackCommitLifecycle,
+  summarizeCommitImpact,
+  type CommitQueueViewStatus,
   type QueueBaseStatus,
 } from '../../features/datalink/commitLifecycle';
 import {
@@ -416,7 +418,7 @@ export default function SmartDashboard() {
   const commitQueueItems = useMemo(() => {
     return baseCommitQueueItems.map((item) => {
       const runStatus = commitQueueRunStatus[item.id];
-      const viewStatus =
+      const viewStatus: CommitQueueViewStatus =
         runStatus === 'success'
           ? 'committed'
           : runStatus === 'failed'
@@ -451,6 +453,10 @@ export default function SmartDashboard() {
       { total: 0, pending: 0, linked: 0, conflict: 0, failed: 0, committed: 0 }
     );
   }, [commitQueueItems]);
+  const commitImpactSummary = useMemo(
+    () => summarizeCommitImpact(commitQueueItems, Boolean(pendingTagEdit)),
+    [commitQueueItems, pendingTagEdit]
+  );
   const selectedPointFromGrid = useMemo(
     () => allPoints.find((point) => point.address === selectedSourceAddress) || null,
     [allPoints, selectedSourceAddress]
@@ -1459,6 +1465,14 @@ export default function SmartDashboard() {
                 </div>
                 <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
                   Failed {commitQueueSummary.failed}
+                </div>
+              </div>
+              <div className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-2 text-[10px] text-cyan-100 space-y-1">
+                <p className="font-semibold tracking-wide">Commit Impact</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>New Points {commitImpactSummary.newPoints}</div>
+                  <div>Global Tag Updates {commitImpactSummary.globalTagUpdates}</div>
+                  <div>Conflicts {commitImpactSummary.conflicts}</div>
                 </div>
               </div>
               <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">

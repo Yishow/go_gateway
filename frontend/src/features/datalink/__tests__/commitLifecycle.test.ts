@@ -4,6 +4,7 @@ import {
   executeCommitLifecycle,
   retryFailedLifecycle,
   rollbackCommitLifecycle,
+  summarizeCommitImpact,
   type CommitQueueLifecycleItem,
 } from '../commitLifecycle';
 
@@ -60,5 +61,23 @@ describe('commitLifecycle', () => {
     const snapshot = { q1: 'success', q3: 'failed' } as const;
     expect(rollbackCommitLifecycle(snapshot)).toEqual(snapshot);
     expect(rollbackCommitLifecycle(null)).toBeNull();
+  });
+
+  it('summarizes commit impact for queue and pending global tag edit', () => {
+    const impact = summarizeCommitImpact(
+      [
+        { viewStatus: 'pending' },
+        { viewStatus: 'linked' },
+        { viewStatus: 'conflict' },
+        { viewStatus: 'failed' },
+      ],
+      true
+    );
+
+    expect(impact).toEqual({
+      newPoints: 2,
+      globalTagUpdates: 1,
+      conflicts: 2,
+    });
   });
 });
