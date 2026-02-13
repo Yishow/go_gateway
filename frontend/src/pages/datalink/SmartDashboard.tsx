@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
-import type { Point, CreatePointRequest } from '../../types/datalink';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { Point, CreatePointRequest, ProtocolType } from '../../types/datalink';
 import { DeviceTreeNav } from '../../components/datalink/DeviceTreeNav';
 import { MemoryGrid } from '../../components/datalink/MemoryGrid';
 import { QuickActions } from '../../components/datalink/QuickActions';
@@ -10,11 +11,29 @@ import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExpo
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 import { usePointsQuery, useCreatePointMutation } from '../../hooks/datalink/usePoints';
+import { useMappingsQuery, useValidatePipelineMutation } from '../../hooks/datalink/useMappings';
+import { useTagsQuery } from '../../hooks/datalink/useTags';
 import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePointHistory } from '../../hooks/useHistory';
+import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2 } from 'lucide-react';
 
+const FLOW_SEGMENTS: Array<{ key: FlowSegment; title: string; subtitle: string }> = [
+  { key: 'source', title: 'Source', subtitle: '設備來源' },
+  { key: 'grid', title: 'Memory Grid', subtitle: '位址選取' },
+  { key: 'tag', title: 'Tag Linkage', subtitle: '標籤映射' },
+  { key: 'sink', title: 'Write Target', subtitle: '資料寫入' },
+];
+
+const STATUS_STYLE: Record<FlowStatus, string> = {
+  draft: 'bg-slate-700/70 text-slate-200 border-slate-600',
+  validated: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+  active: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+  error: 'bg-red-500/20 text-red-300 border-red-500/40',
+};
+
 export default function SmartDashboard() {
+  const { t } = useTranslation();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
@@ -22,25 +41,37 @@ export default function SmartDashboard() {
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  
-  // Data Fetching
+
   const { data: devices = [] } = useDevicesQuery();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
+  const { data: mappings = [] } = useMappingsQuery();
+  const { data: tags = [] } = useTagsQuery();
   const createPointMutation = useCreatePointMutation();
-  
-  // History for undo/redo
   const history = usePointHistory({ maxHistory: 30 });
-  
-  const selectedDevice = useMemo(() => 
-    devices.find(d => d.id === selectedDeviceId) || null
-  , [devices, selectedDeviceId]);
+  const flow = useFlowLifecycle();
+  const {
+    state: flowState,
+    canValidate,
+    canActivate,
+    hasError,
+    setSource,
+    setTag,
+    setDiagnostics,
+    markValidated,
+    markActive,
+    markError,
+    resetDraft,
+  } = flow;
+  const validatePipelineMutation = useValidatePipelineMutation();
 
-  // Keyboard shortcut handlers
+  const selectedDevice = useMemo(
+    () => devices.find((d) => d.id === selectedDeviceId) || null,
+    [devices, selectedDeviceId]
+  );
+
   const handleBatchCreate = useCallback(() => {
-    if (selectedDeviceId) {
-      setPanelType('batch');
-    }
+    if (selectedDeviceId) setPanelType('batch');
   }, [selectedDeviceId]);
 
   const handleClosePanel = useCallback(() => {
@@ -49,56 +80,41 @@ export default function SmartDashboard() {
   }, []);
 
   const handleToggleSidebar = useCallback(() => {
-    setIsTreeCollapsed(prev => !prev);
+    setIsTreeCollapsed((prev) => !prev);
   }, []);
 
-  // Import handler
-  const handleImportPoints = useCallback(async (points: CreatePointRequest[]) => {
-    const createdIds: string[] = [];
-    for (const point of points) {
-      const result = await createPointMutation.mutateAsync(point);
-      if (result?.id) createdIds.push(result.id);
-    }
-    // Record to history for undo
-    history.push({
-      type: 'import',
-      description: `匯入 ${points.length} 個點位`,
-      data: { pointIds: createdIds },
-    });
-  }, [createPointMutation, history]);
+  const handleImportPoints = useCallback(
+    async (points: CreatePointRequest[]) => {
+      const createdIds: string[] = [];
+      for (const point of points) {
+        const result = await createPointMutation.mutateAsync(point);
+        if (result?.id) createdIds.push(result.id);
+      }
+      history.push({
+        type: 'import',
+        description: t('smartDashboard.importedPoints', { count: points.length }),
+        data: { pointIds: createdIds },
+      });
+    },
+    [createPointMutation, history, t]
+  );
 
-  // Undo handler
   const handleUndo = useCallback(() => {
-    const action = history.undo();
-    if (action) {
-      console.log('Undo action:', action.type, action.description);
-      // Note: Full undo implementation would require delete/restore API calls
-    }
+    history.undo();
   }, [history]);
 
-  // Redo handler
   const handleRedo = useCallback(() => {
-    const action = history.redo();
-    if (action) {
-      console.log('Redo action:', action.type, action.description);
-      // Note: Full redo implementation would require create/restore API calls
-    }
+    history.redo();
   }, [history]);
 
-  // Import/Export shortcuts
   const handleImportShortcut = useCallback(() => {
-    if (selectedDeviceId) {
-      setImportDialogOpen(true);
-    }
+    if (selectedDeviceId) setImportDialogOpen(true);
   }, [selectedDeviceId]);
 
   const handleExportShortcut = useCallback(() => {
-    if (selectedDeviceId && allPoints.length > 0) {
-      setExportDialogOpen(true);
-    }
+    if (selectedDeviceId && allPoints.length > 0) setExportDialogOpen(true);
   }, [selectedDeviceId, allPoints.length]);
 
-  // Register keyboard shortcuts
   const shortcuts = useSmartDashboardShortcuts({
     onBatchCreate: handleBatchCreate,
     onClosePanel: handleClosePanel,
@@ -113,120 +129,279 @@ export default function SmartDashboard() {
     if (point) {
       setSelectedPoint(point);
       setPanelType('detail');
-    } 
-    // If no point, we just let MemoryGrid handle selection. 
-    // Batch panels are opened via QuickActions now.
+      return;
+    }
+    setSelectedPoint(null);
   };
 
+  const getGridCenterAddress = (protocol: ProtocolType) =>
+    protocol.startsWith('modbus') ? '40001' : 'D0';
+
+  const primarySelectedAddress = selectedAddresses[0] || '';
+  const selectedMapping = useMemo(
+    () => mappings.find((mapping) => selectedPoint && mapping.point_id === selectedPoint.id) || null,
+    [mappings, selectedPoint]
+  );
+  const linkedTag = useMemo(
+    () => tags.find((tag) => tag.id === selectedMapping?.tag_id) || null,
+    [selectedMapping?.tag_id, tags]
+  );
+  const parsePipeline = useCallback(() => {
+    if (!selectedMapping?.transform_pipeline) return [];
+    try {
+      const parsed = JSON.parse(selectedMapping.transform_pipeline);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [selectedMapping?.transform_pipeline]);
+
+  useEffect(() => {
+    setSource(selectedDeviceId || '', primarySelectedAddress, selectedPoint?.id || '');
+  }, [primarySelectedAddress, selectedDeviceId, selectedPoint?.id, setSource]);
+
+  useEffect(() => {
+    setTag(linkedTag?.id || '');
+  }, [linkedTag?.id, setTag]);
+
+  useEffect(() => {
+    const sourceQuality = selectedPoint?.last_error ? 'bad' : selectedDevice ? 'good' : 'unknown';
+    const sourceValue = selectedPoint?.last_value === undefined ? '-' : String(selectedPoint.last_value);
+    const sourceTime = selectedPoint?.last_read_at || '-';
+    const sourceError = selectedPoint?.last_error || '';
+    const gridQuality = primarySelectedAddress ? 'good' : 'unknown';
+    const tagQuality = linkedTag ? (selectedMapping?.enabled ? 'good' : 'warning') : 'unknown';
+    const sinkQuality = selectedPoint?.last_error ? 'bad' : selectedMapping?.enabled ? 'good' : 'unknown';
+
+    setDiagnostics({
+      source: {
+        latestValue: sourceValue,
+        quality: sourceQuality,
+        timestamp: sourceTime,
+        error: sourceError,
+      },
+      grid: {
+        latestValue: primarySelectedAddress || '-',
+        quality: gridQuality,
+        timestamp: sourceTime,
+        error: '',
+      },
+      tag: {
+        latestValue: linkedTag ? `${linkedTag.key}` : '-',
+        quality: tagQuality,
+        timestamp: linkedTag?.updated_at || '-',
+        error: '',
+      },
+      sink: {
+        latestValue: selectedPoint?.last_value === undefined ? '-' : String(selectedPoint.last_value),
+        quality: sinkQuality,
+        timestamp: selectedPoint?.last_read_at || '-',
+        error: selectedPoint?.last_error || '',
+      },
+    });
+  }, [
+    linkedTag,
+    primarySelectedAddress,
+    selectedMapping?.enabled,
+    selectedDevice,
+    selectedPoint?.last_error,
+    selectedPoint?.last_read_at,
+    selectedPoint?.last_value,
+    setDiagnostics,
+  ]);
+
+  const handleValidateFlow = useCallback(async () => {
+    if (!canValidate) {
+      markError('source', '請先選擇來源設備、位址與標籤映射');
+      return;
+    }
+    if (!selectedMapping) {
+      markError('tag', '尚未建立 point 與 tag 的映射');
+      return;
+    }
+    try {
+      const pipeline = parsePipeline();
+      const result = await validatePipelineMutation.mutateAsync(pipeline);
+      if (result.valid) {
+        markValidated();
+        return;
+      }
+      markError('grid', result.error || '映射管線驗證失敗');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '映射驗證失敗';
+      markError('grid', message);
+    }
+  }, [canValidate, markError, markValidated, parsePipeline, selectedMapping, validatePipelineMutation]);
+
+  const handleActivateFlow = useCallback(() => {
+    if (!canActivate) {
+      markError('sink', '請先完成驗證');
+      return;
+    }
+    if (!selectedMapping?.enabled) {
+      markError('sink', '映射尚未啟用，無法進入寫入階段');
+      return;
+    }
+    markActive();
+  }, [canActivate, markActive, markError, selectedMapping?.enabled]);
+
+  const handleRecoverFlow = useCallback(() => {
+    resetDraft();
+    setDiagnostics({
+      source: { error: '' },
+      grid: { error: '' },
+      tag: { error: '' },
+      sink: { error: '' },
+    });
+  }, [resetDraft, setDiagnostics]);
+
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-[#0B0F19] via-[#111827] to-[#0F172A] text-slate-100 font-sans overflow-hidden selection:bg-blue-500/30">
-      
-      {/* 1. Modern Header (Glassmorphism) */}
-      <header className="h-16 px-6 flex items-center justify-between shrink-0 z-30">
-        <div className="flex items-center gap-3">
-           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30">
-             <Box className="w-6 h-6" />
-           </div>
-           <div>
-             <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-               GoGateway
-             </h1>
-             <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">Industrial Data Collector</p>
-           </div>
+    <div className="flex flex-col min-h-[calc(100vh-11rem)] bg-gradient-to-br from-[#0B0F19] via-[#111827] to-[#0F172A] text-slate-100 font-sans rounded-2xl overflow-hidden selection:bg-blue-500/30">
+      <header className="px-4 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/30">
+            <Box className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              GoGateway
+            </h1>
+            <p className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">
+              {t('smartDashboard.productSubtitle')}
+            </p>
+          </div>
         </div>
 
-        {/* Floating Search Bar */}
-        <div className="flex-1 max-w-lg mx-8 relative group">
+        <div className="order-3 w-full sm:order-2 sm:w-auto sm:flex-1 sm:max-w-lg sm:mx-4 relative group">
+          <label htmlFor="dashboard-search" className="sr-only">
+            {t('smartDashboard.searchLabel')}
+          </label>
           <div className="absolute inset-0 bg-blue-500/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity rounded-full" />
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
-          <input 
-            type="text" 
-            placeholder="Search anything..." 
+          <input
+            id="dashboard-search"
+            type="text"
+            placeholder={t('smartDashboard.searchPlaceholder')}
             className="w-full bg-slate-900/50 backdrop-blur-md border border-slate-700/50 rounded-full pl-11 pr-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all shadow-lg shadow-black/20"
           />
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-4">
+        <div className="order-2 sm:order-3 flex items-center gap-3">
           <div className="flex items-center gap-2 p-1 bg-slate-800/50 rounded-full border border-slate-700/50">
-            <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-all">
+            <button
+              type="button"
+              aria-label={t('smartDashboard.notifications')}
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
               <Bell className="w-5 h-5" />
             </button>
-            <button className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-all">
+            <button
+              type="button"
+              aria-label={t('smartDashboard.preferences')}
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
               <Settings className="w-5 h-5" />
             </button>
           </div>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-500/25 ring-2 ring-slate-900 cursor-pointer hover:ring-offset-2 hover:ring-offset-slate-900 transition-all">
+          <button
+            type="button"
+            aria-label={t('smartDashboard.profileMenu')}
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-500/25 ring-2 ring-slate-900 hover:ring-offset-2 hover:ring-offset-slate-900 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
             Y
-          </div>
+          </button>
         </div>
       </header>
 
-      {/* 2. Main Floating Layout */}
-      <div className="flex-1 flex overflow-hidden p-4 gap-4 pt-0">
-        
-        {/* Left: Floating Device Tree */}
-        <div 
-          className={`flex-shrink-0 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-            isTreeCollapsed ? 'w-20' : 'w-[260px]'
-          }`}
-        >
+      <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[auto_1fr_300px] gap-4 min-h-0">
+        <div className={`${isTreeCollapsed ? 'xl:w-20' : 'xl:w-[260px]'} min-h-[280px] xl:min-h-0 transition-all duration-300`}>
           <div className="h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative">
-            {/* Visual Flair */}
             <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
-            
-            <DeviceTreeNav 
+            <DeviceTreeNav
               devices={devices}
               selectedDeviceId={selectedDeviceId}
               onSelectDevice={setSelectedDeviceId}
               isCollapsed={isTreeCollapsed}
               onToggleCollapse={() => setIsTreeCollapsed(!isTreeCollapsed)}
-              onReorder={(newOrder) => console.log('Reorder', newOrder)}
+              onReorder={() => {}}
             />
           </div>
         </div>
-        
-        {/* Middle: Content Island */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex-1 bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col relative">
-            
+
+        <div className="min-w-0 flex flex-col">
+          <div className="flex-1 bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col relative min-h-[420px]">
             {selectedDevice ? (
               <>
-                {/* Context Header */}
-                <div className="h-16 px-8 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
-                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-emerald-500/30">
-                       <Cpu className="w-5 h-5 text-emerald-400" />
-                     </div>
-                     <div>
-                       <div className="flex items-center gap-2">
-                         <h2 className="text-lg font-bold text-white tracking-wide">{selectedDevice.name}</h2>
-                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                           Active
-                         </span>
-                       </div>
-                       <div className="flex items-center gap-2 text-xs text-slate-400">
-                         <span className="font-mono opacity-70">ID: {selectedDevice.id.slice(0, 8)}</span>
-                         <span>•</span>
-                         <span>{selectedDevice.protocol}</span>
-                       </div>
-                     </div>
-                   </div>
-                   
-                   <div className="flex gap-3">
-                     <div className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/5 flex flex-col items-end min-w-[100px]">
-                       <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Cycle Time</span>
-                       <span className="text-sm font-mono text-blue-400">100 ms</span>
-                     </div>
-                   </div>
+                <div className="min-h-16 px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-white/[0.02]">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-emerald-500/30">
+                      <Cpu className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-bold text-white tracking-wide truncate">{selectedDevice.name}</h2>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                          {t('smartDashboard.active')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span className="font-mono opacity-70">ID: {selectedDevice.id.slice(0, 8)}</span>
+                        <span>•</span>
+                        <span>{selectedDevice.protocol}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/5 flex flex-col items-end min-w-[110px]">
+                      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
+                        {t('smartDashboard.cycleTime')}
+                      </span>
+                      <span className="text-sm font-mono text-blue-400">100 ms</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Grid Canvas */}
-                <div className="flex-1 overflow-auto p-8 scrollbar-thin scrollbar-thumb-slate-700/50 scrollbar-track-transparent">
+                <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-thin scrollbar-thumb-slate-700/50 scrollbar-track-transparent">
+                  <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/50 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-100">Source → Memory Grid → Tag → DB</h3>
+                      <span className={`text-xs px-2 py-1 rounded-lg border ${STATUS_STYLE[flowState.status]}`}>
+                        {flowState.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                      {FLOW_SEGMENTS.map((segment) => {
+                        const diag = flowState.diagnostics[segment.key];
+                        return (
+                          <article key={segment.key} className="rounded-xl border border-white/10 bg-slate-800/40 p-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs uppercase tracking-wider text-slate-400">{segment.title}</p>
+                              <span
+                                className={`h-2 w-2 rounded-full ${
+                                  diag.quality === 'good'
+                                    ? 'bg-emerald-400'
+                                    : diag.quality === 'warning'
+                                      ? 'bg-yellow-400'
+                                      : diag.quality === 'bad'
+                                        ? 'bg-red-400'
+                                        : 'bg-slate-500'
+                                }`}
+                              />
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">{segment.subtitle}</p>
+                            <p className="mt-2 text-sm text-slate-100 font-mono truncate">{diag.latestValue}</p>
+                            <p className="mt-1 text-[11px] text-slate-400 truncate">{diag.timestamp}</p>
+                            {diag.error && <p className="mt-1 text-[11px] text-red-300 truncate">{diag.error}</p>}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
                   <MemoryGrid
                     deviceId={selectedDevice.id}
-                    protocol={selectedDevice.protocol as any}
-                    centerAddress={selectedDevice.protocol.startsWith('modbus') ? '40001' : 'D0'}
+                    protocol={selectedDevice.protocol}
+                    centerAddress={getGridCenterAddress(selectedDevice.protocol)}
                     range={300}
                     existingPoints={allPoints}
                     selectedAddresses={selectedAddresses}
@@ -236,28 +411,22 @@ export default function SmartDashboard() {
                 </div>
               </>
             ) : (
-              // Option B Empty State (Vibrant)
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-8 relative overflow-hidden">
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-6 sm:p-8 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-blue-500/5 to-transparent opacity-50" />
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-8 border border-white/5 shadow-[0_0_50px_rgba(59,130,246,0.2)]">
-                    <Sparkles className="w-12 h-12 text-blue-400" />
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-6 sm:mb-8 border border-white/5 shadow-[0_0_50px_rgba(59,130,246,0.2)]">
+                    <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-blue-400" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-3">Welcome to Smart Dashboard</h3>
-                  <p className="text-slate-400 text-center max-w-md mb-8 leading-relaxed text-lg">
-                    Experience the next generation of industrial data collection. Select a device to visualize memory & configure points.
-                  </p>
-                  <div className="animate-bounce text-blue-400 opacity-50">
-                    Which device would you like to configure?
-                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-3">{t('smartDashboard.welcomeTitle')}</h3>
+                  <p className="text-slate-300 max-w-md mb-6 leading-relaxed">{t('smartDashboard.welcomeDescription')}</p>
+                  <p className="text-blue-300 opacity-80">{t('smartDashboard.welcomeHint')}</p>
                 </div>
               </div>
             )}
           </div>
         </div>
-        
-        {/* Right: Floating Quick Actions */}
-        <div className="w-[300px] flex-shrink-0">
+
+        <div className="min-h-[300px] xl:min-h-0">
           <div className="h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
             <QuickActions
               device={selectedDevice}
@@ -266,86 +435,115 @@ export default function SmartDashboard() {
               onQuickMapping={() => {}}
               onTestConnection={() => {}}
             />
-            {/* Import/Export Buttons */}
             {selectedDevice && (
               <div className="px-4 py-2 border-t border-white/5">
                 <div className="flex gap-2">
                   <button
                     onClick={() => setImportDialogOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <Upload className="w-4 h-4" />
-                    <span>匯入</span>
+                    <span>{t('smartDashboard.import')}</span>
                   </button>
                   <button
                     onClick={() => setExportDialogOpen(true)}
                     disabled={allPoints.length === 0}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <Download className="w-4 h-4" />
-                    <span>匯出</span>
+                    <span>{t('smartDashboard.export')}</span>
                   </button>
                 </div>
               </div>
             )}
-            {/* Undo/Redo Buttons */}
             <div className="px-4 py-2 border-t border-white/5">
               <div className="flex gap-2">
                 <button
                   onClick={handleUndo}
                   disabled={!history.canUndo}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title={history.getUndoAction()?.description || '無可撤銷操作'}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  title={history.getUndoAction()?.description || t('smartDashboard.noUndo')}
                 >
                   <Undo2 className="w-4 h-4" />
-                  <span>撤銷</span>
+                  <span>{t('smartDashboard.undo')}</span>
                 </button>
                 <button
                   onClick={handleRedo}
                   disabled={!history.canRedo}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title={history.getRedoAction()?.description || '無可重做操作'}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors border border-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  title={history.getRedoAction()?.description || t('smartDashboard.noRedo')}
                 >
                   <Redo2 className="w-4 h-4" />
-                  <span>重做</span>
+                  <span>{t('smartDashboard.redo')}</span>
                 </button>
               </div>
             </div>
-            {/* Keyboard Shortcuts Button */}
             <div className="p-4 border-t border-white/5">
               <button
                 onClick={() => setPanelType('shortcuts')}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <Keyboard className="w-4 h-4" />
-                <span>鍵盤快捷鍵</span>
+                <span>{t('smartDashboard.shortcuts')}</span>
                 <span className="ml-auto text-[10px] font-mono opacity-60">?</span>
               </button>
+            </div>
+            <div className="p-4 border-t border-white/5 space-y-2">
+              <button
+                type="button"
+                onClick={handleValidateFlow}
+                disabled={!canValidate || validatePipelineMutation.isPending}
+                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-blue-500/40 bg-blue-500/20 text-blue-200 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                {validatePipelineMutation.isPending ? '驗證中...' : '驗證流程 (Draft → Validated)'}
+              </button>
+              <button
+                type="button"
+                onClick={handleActivateFlow}
+                disabled={!canActivate}
+                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-emerald-500/40 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              >
+                啟用流程 (Validated → Active)
+              </button>
+              {hasError && (
+                <button
+                  type="button"
+                  onClick={handleRecoverFlow}
+                  className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                >
+                  錯誤復原 (Error → Draft)
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Slide Panel Overlay */}
+
       <SlidePanel
         isOpen={panelType !== null}
-        title={panelType === 'batch' ? '批量建立點位' : panelType === 'shortcuts' ? '鍵盤快捷鍵' : '點位詳情'}
+        title={
+          panelType === 'batch'
+            ? t('smartDashboard.batchCreate')
+            : panelType === 'shortcuts'
+              ? t('smartDashboard.shortcuts')
+              : t('smartDashboard.pointDetail')
+        }
         onClose={() => setPanelType(null)}
       >
         {panelType === 'batch' && selectedDevice && (
           <BatchPointCreator
             deviceId={selectedDevice.id}
-            protocol={selectedDevice.protocol as any}
+            protocol={selectedDevice.protocol}
             preselectedAddresses={selectedAddresses}
             pollingGroups={pollingGroups}
             onCreated={() => {
-               setPanelType(null);
-               setSelectedAddresses([]);
+              setPanelType(null);
+              setSelectedAddresses([]);
             }}
             onCancel={() => setPanelType(null)}
           />
         )}
-        
+
         {panelType === 'detail' && selectedPoint && (
           <PointDetailPanel
             point={selectedPoint}
@@ -357,14 +555,12 @@ export default function SmartDashboard() {
 
         {panelType === 'shortcuts' && (
           <div className="space-y-4 p-4">
-            <p className="text-sm text-slate-400 mb-4">
-              使用以下快捷鍵提升操作效率
-            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('smartDashboard.shortcutsHint')}</p>
             <div className="space-y-3">
               {shortcuts.map((shortcut, index) => (
-                <div key={index} className="flex items-center justify-between py-2 px-3 bg-slate-800/50 rounded-lg">
-                  <span className="text-sm text-slate-300">{shortcut.description}</span>
-                  <kbd className="px-2 py-1 text-xs font-mono bg-slate-700 rounded border border-slate-600 text-slate-300">
+                <div key={index} className="flex items-center justify-between py-2 px-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{shortcut.description}</span>
+                  <kbd className="px-2 py-1 text-xs font-mono bg-slate-200 dark:bg-slate-700 rounded border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
                     {shortcut.ctrl && 'Ctrl+'}
                     {shortcut.alt && 'Alt+'}
                     {shortcut.shift && 'Shift+'}
@@ -377,7 +573,6 @@ export default function SmartDashboard() {
         )}
       </SlidePanel>
 
-      {/* Import/Export Dialogs */}
       {selectedDevice && (
         <>
           <ImportDialog
