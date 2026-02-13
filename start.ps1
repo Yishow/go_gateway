@@ -60,7 +60,8 @@ param(
     [switch]$ListProcesses,       # 列出運行中的服務進程
     [switch]$StopAll,             # 停止所有運行中的服務
     [switch]$Diagnose,            # 快速診斷常見問題
-    [switch]$BuildSingle          # 編譯為單一執行檔（內嵌前端資源）
+    [switch]$BuildSingle,         # 編譯為單一執行檔（內嵌前端資源）
+    [switch]$NoColor              # 關閉彩色輸出（CI/純文字終端）
 )
 
 $ErrorActionPreference = "Stop"
@@ -82,6 +83,12 @@ $script:NODE_MODULES_DIR = "frontend/node_modules"
 $script:LOG_DIR = "bin/logs"
 $script:TMP_DIR = "bin/tmp"
 $script:LOG_FILE = Join-Path $script:LOG_DIR "start-$(Get-Date -Format 'yyyyMMdd').log"
+$script:RunStartedAt = Get-Date
+$script:StepResults = @()
+$script:ErrorSummary = New-Object System.Collections.Generic.List[string]
+$script:SuccessSummary = New-Object System.Collections.Generic.List[string]
+$script:StepCounter = 0
+$script:TotalSteps = 0
 
 # 從環境變數讀取端口配置（如果未指定）
 if ($Port -eq 8080) {
@@ -92,13 +99,77 @@ if ($Port -eq 8080) {
     }
 }
 
-# 顏色輸出函數
+# 顏色輸出函數 / 顯示框架
 function Write-ColorOutput {
     param(
         [string]$Message,
         [string]$Color = "White"
     )
-    Write-Host $Message -ForegroundColor $Color
+    if ($NoColor) {
+        Write-Host $Message
+    } else {
+        Write-Host $Message -ForegroundColor $Color
+    }
+}
+
+function Write-Separator {
+    param([string]$Color = "DarkGray")
+    Write-ColorOutput ("-" * 56) $Color
+}
+
+function Write-Section {
+    param([string]$Title)
+    Write-Separator "DarkCyan"
+    Write-ColorOutput "== $Title ==" "Cyan"
+    Write-Separator "DarkCyan"
+}
+
+function Add-ErrorSummary {
+    param([string]$Message)
+    $script:ErrorSummary.Add($Message) | Out-Null
+}
+
+function Add-SuccessSummary {
+    param([string]$Message)
+    $script:SuccessSummary.Add($Message) | Out-Null
+}
+
+function Write-StepStart {
+    param(
+        [string]$Name
+    )
+    $script:StepCounter++
+    $percent = if ($script:TotalSteps -gt 0) { [math]::Round(($script:StepCounter / $script:TotalSteps) * 100) } else { 0 }
+    Write-Progress -Activity "Go Gateway 啟動流程" -Status "[$($script:StepCounter)/$($script:TotalSteps)] $Name" -PercentComplete $percent
+    Write-ColorOutput "`n[$($script:StepCounter)/$($script:TotalSteps)] $Name ..." "Yellow"
+    return [System.Diagnostics.Stopwatch]::StartNew()
+}
+
+function Write-StepEnd {
+    param(
+        [string]$Name,
+        [System.Diagnostics.Stopwatch]$Stopwatch,
+        [bool]$Success = $true,
+        [string]$Details = ""
+    )
+    $Stopwatch.Stop()
+    $elapsed = [math]::Round($Stopwatch.Elapsed.TotalMilliseconds)
+    $status = if ($Success) { "SUCCESS" } else { "FAILED" }
+    $icon = if ($Success) { "✓" } else { "✗" }
+    $script:StepResults += [PSCustomObject]@{
+        Step = $Name
+        Status = $status
+        ElapsedMs = $elapsed
+        Details = $Details
+    }
+    if ($Success) {
+        Write-Success "$icon $Name 完成 (${elapsed}ms)"
+        Add-SuccessSummary "$Name (${elapsed}ms)"
+    } else {
+        Write-Error "$icon $Name 失敗 (${elapsed}ms)"
+        $detailSuffix = if ($Details) { ": $Details" } else { "" }
+        Add-ErrorSummary "$Name 失敗$detailSuffix"
+    }
 }
 
 function Write-Success {
@@ -109,6 +180,7 @@ function Write-Success {
 function Write-Error {
     param([string]$Message)
     Write-ColorOutput "❌ $Message" "Red"
+    Add-ErrorSummary $Message
     $script:ExitCode = 1
 }
 
@@ -120,6 +192,45 @@ function Write-Info {
 function Write-Warning {
     param([string]$Message)
     Write-ColorOutput "⚠️  $Message" "Yellow"
+}
+
+function Show-Banner {
+    $title = "Go Gateway 啟動腳本"
+    $version = (git describe --always --dirty 2>$null)
+    if (-not $version) { $version = "local" }
+    Write-Section "啟動資訊"
+    Write-ColorOutput "🚀 $title" "Cyan"
+    Write-ColorOutput "Version : $version" "Gray"
+    Write-ColorOutput "Date    : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" "Gray"
+}
+
+function Show-EnvironmentSnapshot {
+    Write-Section "環境快照"
+    $goVer = if (Test-Command "go") { (& go version 2>$null) } else { "N/A" }
+    $nodeVer = if (Test-Command "node") { (& node --version 2>$null) } else { "N/A" }
+    $pnpmVer = if (Test-Command "pnpm") { (& pnpm --version 2>$null) } else { "N/A" }
+    Write-ColorOutput "OS      : $([System.Environment]::OSVersion.VersionString)" "DarkGray"
+    Write-ColorOutput "Go      : $goVer" "DarkGray"
+    Write-ColorOutput "Node    : $nodeVer" "DarkGray"
+    Write-ColorOutput "PNPM    : $pnpmVer" "DarkGray"
+}
+
+function Show-KeyPaths {
+    Write-Section "關鍵路徑"
+    Write-ColorOutput "Repo    : $script:ROOT_DIR" "DarkGray"
+    Write-ColorOutput "Build   : $(Join-Path $script:ROOT_DIR $script:BUILD_DIR)" "DarkGray"
+    Write-ColorOutput "Frontend: $(Join-Path $script:ROOT_DIR $script:FRONTEND_DIR)" "DarkGray"
+    Write-ColorOutput "Dist    : $(Join-Path $script:ROOT_DIR $script:DIST_DIR)" "DarkGray"
+}
+
+function Show-ExitHint {
+    param([int]$Code)
+    Write-Section "下一步建議"
+    switch ($Code) {
+        0 { Write-Info "可直接執行：.\start.ps1 -Start -SkipBuild" }
+        1 { Write-Warning "請先檢查上方失敗摘要，再執行：.\start.ps1 -Diagnose" }
+        default { Write-Warning "退出碼 $Code，建議先執行：.\start.ps1 -CheckEnv" }
+    }
 }
 
 # ============================================
@@ -162,8 +273,21 @@ function Get-CommandVersion {
     param([string]$Command)
     
     try {
-        $version = & $Command --version 2>&1 | Select-Object -First 1
-        return $version
+        if ($Command -eq "go") {
+            return (& go version 2>&1 | Select-Object -First 1)
+        }
+        if ($Command -eq "air") {
+            $airVersion = & air -v 2>&1 | Select-Object -First 1
+            if ($airVersion) { return $airVersion }
+        }
+        $candidates = @("--version", "version", "-v")
+        foreach ($arg in $candidates) {
+            $version = & $Command $arg 2>&1 | Select-Object -First 1
+            if ($version -and ($version -notmatch "flag provided|not defined|unknown option")) {
+                return $version
+            }
+        }
+        return "未知"
     }
     catch {
         return "未知"
@@ -1453,10 +1577,10 @@ if (-not $hasAnyParam) {
     }
 }
 else {
-    # 有參數時顯示標題
-    Write-ColorOutput "`n============================================" "Cyan"
-    Write-ColorOutput "   Go Gateway 一鍵啟動腳本" "Cyan"
-    Write-ColorOutput "============================================`n" "Cyan"
+    Show-Banner
+    Show-EnvironmentSnapshot
+    Show-KeyPaths
+    Write-Section "前置檢查"
 }
 
 # 1. 檢查 golangci-lint
@@ -1492,56 +1616,59 @@ if (-not $SkipBuild) { $totalSteps++ }
 if ($Start) { $totalSteps++ }
 if (-not $SkipQuality) { $totalSteps++ }
 if (-not $SkipTest) { $totalSteps++ }
-$currentStep = 0
+$script:TotalSteps = $totalSteps
+$script:StepCounter = 0
 
 # 2. 執行 golangci-lint 靜態分析
 if (-not $SkipLint) {
-    $currentStep++
-    Write-ColorOutput "`n[$currentStep/$totalSteps] 執行 golangci-lint 靜態分析..." "Yellow"
-    Write-Info "這可能需要一些時間，請稍候..."
+    $stepTimer = Write-StepStart "golangci-lint 靜態分析"
     
     try {
         $lintOutput = golangci-lint run ./... 2>&1
         $lintExitCode = $LASTEXITCODE
         
         if ($lintExitCode -eq 0) {
-            Write-Success "golangci-lint 檢查通過，未發現問題"
+            Write-StepEnd -Name "golangci-lint 靜態分析" -Stopwatch $stepTimer -Success $true
         }
         else {
             Write-Error "golangci-lint 發現問題："
-            Write-Host $lintOutput
+            if ($Verbose) { Write-Host $lintOutput }
             $script:ExitCode = 1
+            Write-StepEnd -Name "golangci-lint 靜態分析" -Stopwatch $stepTimer -Success $false -Details "lint 發現問題"
         }
     }
     catch {
         Write-Error "執行 golangci-lint 失敗: $_"
         $script:ExitCode = 1
+        Write-StepEnd -Name "golangci-lint 靜態分析" -Stopwatch $stepTimer -Success $false -Details "$_"
     }
 }
 
 # 3. 構建可執行文件
 if (-not $SkipBuild) {
-    $currentStep++
-    Write-ColorOutput "`n[$currentStep/$totalSteps] 構建可執行文件..." "Yellow"
+    $stepTimer = Write-StepStart "構建可執行文件"
     
     $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
     $sourcePath = "./$script:APP_PATH"
     
     if (-not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
         $script:ExitCode = 1
+        Write-StepEnd -Name "構建可執行文件" -Stopwatch $stepTimer -Success $false -Details "Build-Application 回傳失敗"
+    } else {
+        Write-StepEnd -Name "構建可執行文件" -Stopwatch $stepTimer -Success $true
     }
 }
 
 # 4. 啟動服務（可選）
 if ($Start) {
-    $currentStep++
-    Write-ColorOutput "`n[$currentStep/$totalSteps] 啟動服務..." "Yellow"
+    $stepTimer = Write-StepStart "啟動服務"
     
     # 檢查並清理端口
     Write-Info "檢查端口 $Port 狀態..."
     if (-not (Clear-PortForService -Port $Port -AutoKill:$AutoKillPort)) {
         Write-Error "端口 $Port 清理失敗，無法啟動服務"
         $script:ExitCode = 1
+        Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "端口清理失敗"
     }
     else {
         $exePath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
@@ -1549,14 +1676,17 @@ if ($Start) {
         
         if (-not (Start-Application -ExePath $exePath -Port $Port -IsGUI:$isGUIApp)) {
             $script:ExitCode = 1
+            Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "啟動應用失敗"
+        } else {
+            Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $true
         }
     }
 }
 
 # 5. 代碼質量檢查
 if (-not $SkipQuality) {
-    $currentStep++
-    Write-ColorOutput "`n[$currentStep/$totalSteps] 代碼質量檢查..." "Yellow"
+    $stepTimer = Write-StepStart "代碼質量檢查"
+    $qualityOk = $true
 
     # 檢查是否有未使用的導入
     Write-Info "檢查未使用的導入..."
@@ -1593,13 +1723,18 @@ if (-not $SkipQuality) {
     catch {
         Write-Error "檢查代碼格式失敗: $_"
         $script:ExitCode = 1
+        $qualityOk = $false
+    }
+    if ($qualityOk) {
+        Write-StepEnd -Name "代碼質量檢查" -Stopwatch $stepTimer -Success $true
+    } else {
+        Write-StepEnd -Name "代碼質量檢查" -Stopwatch $stepTimer -Success $false -Details "質量檢查過程有錯誤"
     }
 }
 
 # 6. 執行單元測試（移到最後）
 if (-not $SkipTest) {
-    $currentStep++
-    Write-ColorOutput "`n[$currentStep/$totalSteps] 執行單元測試..." "Yellow"
+    $stepTimer = Write-StepStart "執行單元測試"
     
     try {
         if ($Coverage) {
@@ -1634,28 +1769,42 @@ if (-not $SkipTest) {
         }
         
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "所有測試通過"
+            Write-StepEnd -Name "執行單元測試" -Stopwatch $stepTimer -Success $true
         }
         else {
             Write-Error "部分測試失敗"
             $script:ExitCode = 1
+            Write-StepEnd -Name "執行單元測試" -Stopwatch $stepTimer -Success $false -Details "測試未通過"
         }
     }
     catch {
         Write-Error "執行測試失敗: $_"
         $script:ExitCode = 1
+        Write-StepEnd -Name "執行單元測試" -Stopwatch $stepTimer -Success $false -Details "$_"
     }
 }
 
 # 總結
-Write-ColorOutput "`n============================================" "Cyan"
+Write-Section "執行摘要"
+if ($script:StepResults.Count -gt 0) {
+    $script:StepResults | Format-Table -AutoSize | Out-String | Write-Host
+}
+if ($script:ErrorSummary.Count -gt 0) {
+    Write-Section "失敗摘要"
+    $script:ErrorSummary | Select-Object -Unique | ForEach-Object { Write-ColorOutput "- $_" "Red" }
+}
+if ($script:SuccessSummary.Count -gt 0) {
+    Write-Section "成功摘要"
+    $script:SuccessSummary | Select-Object -Unique | ForEach-Object { Write-ColorOutput "- $_" "Green" }
+}
 if ($script:ExitCode -eq 0) {
     Write-Success "所有檢查完成！"
-    Write-ColorOutput "============================================`n" "Cyan"
+    $duration = [math]::Round(((Get-Date) - $script:RunStartedAt).TotalSeconds, 2)
+    Write-Info "總耗時: ${duration}s"
 }
 else {
     Write-Error "檢查完成，但發現問題，請查看上方錯誤信息"
-    Write-ColorOutput "============================================`n" "Cyan"
 }
+Show-ExitHint -Code $script:ExitCode
 
 exit $script:ExitCode
