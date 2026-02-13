@@ -17,7 +17,7 @@ import {
   useCreateMappingMutation,
   useUpdateMappingMutation,
 } from '../../hooks/datalink/useMappings';
-import { useTagsQuery, useCreateTagMutation } from '../../hooks/datalink/useTags';
+import { useTagsQuery, useCreateTagMutation, useUpdateTagMutation } from '../../hooks/datalink/useTags';
 import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
@@ -91,6 +91,10 @@ export default function SmartDashboard() {
   const [newTagKey, setNewTagKey] = useState('');
   const [newTagDisplayName, setNewTagDisplayName] = useState('');
   const [tagLinkActionMessage, setTagLinkActionMessage] = useState('');
+  const [tagEditDisplayName, setTagEditDisplayName] = useState('');
+  const [tagEditUnit, setTagEditUnit] = useState('');
+  const [tagEditDescription, setTagEditDescription] = useState('');
+  const [tagEditMessage, setTagEditMessage] = useState('');
   const legacyRoute = searchParams.get('legacy');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
@@ -101,6 +105,7 @@ export default function SmartDashboard() {
   const { data: mappings = [] } = useMappingsQuery();
   const { data: tags = [] } = useTagsQuery();
   const createTagMutation = useCreateTagMutation();
+  const updateTagMutation = useUpdateTagMutation();
   const createMappingMutation = useCreateMappingMutation();
   const updateMappingMutation = useUpdateMappingMutation();
   const createPointMutation = useCreatePointMutation();
@@ -377,6 +382,10 @@ export default function SmartDashboard() {
     () => tags.find((tag) => tag.id === selectedMapping?.tag_id) || null,
     [selectedMapping?.tag_id, tags]
   );
+  const linkedTagAffectedMappingsCount = useMemo(() => {
+    if (!linkedTag?.id) return 0;
+    return mappings.filter((mapping) => mapping.tag_id === linkedTag.id).length;
+  }, [linkedTag?.id, mappings]);
   const parsePipeline = useCallback(() => {
     if (!selectedMapping?.transform_pipeline) return [];
     try {
@@ -390,6 +399,13 @@ export default function SmartDashboard() {
   useEffect(() => {
     setSelectedTagIdForLink(selectedMapping?.tag_id || '');
   }, [selectedMapping?.tag_id]);
+
+  useEffect(() => {
+    setTagEditDisplayName(linkedTag?.display_name || '');
+    setTagEditUnit(linkedTag?.unit || '');
+    setTagEditDescription(linkedTag?.description || '');
+    setTagEditMessage('');
+  }, [linkedTag?.description, linkedTag?.display_name, linkedTag?.id, linkedTag?.unit]);
 
   const handleLinkTagToSelectedAddress = useCallback(async () => {
     if (!activePointForLink) {
@@ -497,6 +513,35 @@ export default function SmartDashboard() {
     selectedMapping,
     tags,
     updateMappingMutation,
+  ]);
+
+  const handleSaveLinkedTagEdit = useCallback(async () => {
+    if (!linkedTag?.id) {
+      setTagEditMessage('目前沒有可編輯的已連結 Tag。');
+      return;
+    }
+
+    try {
+      await updateTagMutation.mutateAsync({
+        id: linkedTag.id,
+        data: {
+          display_name: tagEditDisplayName.trim(),
+          unit: tagEditUnit.trim(),
+          description: tagEditDescription.trim(),
+        },
+      });
+      setTagEditMessage(`已更新全域 Tag，影響 ${linkedTagAffectedMappingsCount} 個映射。`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '更新 Tag 失敗';
+      setTagEditMessage(message);
+    }
+  }, [
+    linkedTag?.id,
+    linkedTagAffectedMappingsCount,
+    tagEditDescription,
+    tagEditDisplayName,
+    tagEditUnit,
+    updateTagMutation,
   ]);
 
   const handleBindTagToModbus = useCallback(async () => {
@@ -1277,6 +1322,54 @@ export default function SmartDashboard() {
                   {tagLinkActionMessage}
                 </p>
               )}
+              <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold tracking-wide text-slate-200">全域 Tag 內嵌編輯</p>
+                  <span className="text-[10px] text-slate-400">
+                    影響映射: {linkedTagAffectedMappingsCount}
+                  </span>
+                </div>
+                <label className="block text-[11px] text-slate-300">
+                  Display Name
+                  <input
+                    value={tagEditDisplayName}
+                    onChange={(e) => setTagEditDisplayName(e.target.value)}
+                    disabled={!linkedTag}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+                  />
+                </label>
+                <label className="block text-[11px] text-slate-300">
+                  Unit
+                  <input
+                    value={tagEditUnit}
+                    onChange={(e) => setTagEditUnit(e.target.value)}
+                    disabled={!linkedTag}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+                  />
+                </label>
+                <label className="block text-[11px] text-slate-300">
+                  Description
+                  <input
+                    value={tagEditDescription}
+                    onChange={(e) => setTagEditDescription(e.target.value)}
+                    disabled={!linkedTag}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleSaveLinkedTagEdit}
+                  disabled={!linkedTag || updateTagMutation.isPending}
+                  className="w-full rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                >
+                  儲存全域 Tag 變更
+                </button>
+                {tagEditMessage && (
+                  <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
+                    {tagEditMessage}
+                  </p>
+                )}
+              </div>
             </div>
             <div className="p-4 border-t border-white/5 space-y-3">
               <div className="flex items-center justify-between">
