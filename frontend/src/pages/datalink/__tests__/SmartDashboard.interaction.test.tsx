@@ -138,11 +138,19 @@ vi.mock('../../../components/datalink/DeviceTreeNav', () => ({
 }));
 
 vi.mock('../../../components/datalink/MemoryGrid', () => ({
-  MemoryGrid: ({ onSelect }: { onSelect: (addresses: string[]) => void }) => (
+  MemoryGrid: ({
+    onSelect,
+    plannedAllocations = [],
+  }: {
+    onSelect: (addresses: string[]) => void;
+    plannedAllocations?: Array<{ addresses: string[] }>;
+  }) => (
     <div data-testid="memory-grid-mock">
       <button type="button" onClick={() => onSelect(['40001'])}>
         mock-select-address
       </button>
+      <p data-testid="plan-count">{plannedAllocations.length}</p>
+      <p data-testid="plan-span">{plannedAllocations[0]?.addresses.length ?? 0}</p>
     </div>
   ),
 }));
@@ -348,5 +356,22 @@ describe('SmartDashboard interactions', () => {
     fireEvent.click(await screen.findByRole('button', { name: '切換-Device Draft' }));
     fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
     expect(await screen.findByText(/目前不可切換/)).toBeInTheDocument();
+  });
+
+  it('keeps typed occupancy contiguous rules for float32 and int64 plans', async () => {
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Active' }));
+    await waitFor(() => {
+      expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.change(screen.getByLabelText('Data Type'), { target: { value: 'float32' } });
+    expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
+    expect(screen.getByTestId('plan-span')).toHaveTextContent('2');
+
+    fireEvent.change(screen.getByLabelText('Data Type'), { target: { value: 'int64' } });
+    expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
+    expect(screen.getByTestId('plan-span')).toHaveTextContent('4');
   });
 });

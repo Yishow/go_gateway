@@ -23,17 +23,17 @@
 - [x] 4.1 修正 `float32` 佔 2 格連續規則（渲染 + 計算）
 - [x] 4.2 修正 `int64` 佔 4 格連續規則（渲染 + 計算）
 - [x] 4.3 補齊 typed occupancy 單元測試（含 pair/group 標示）
-- [ ] 4.4 補齊 SmartDashboard 互動測試驗證連續格視覺與提交前檢核
+- [x] 4.4 補齊 SmartDashboard 互動測試驗證連續格視覺與提交前檢核
 
 ## 5. Explicit Exclusions
 
-- [ ] 5.1 不實作原建議第 10（conflict deep-link query）
-- [ ] 5.2 不實作原建議第 15（recent write events）
-- [ ] 5.3 不實作原建議第 16（Top3 conflict registers）
-- [ ] 5.4 在設計文件與 PR 說明明確標註排除項目
+- [x] 5.1 不實作原建議第 10（conflict deep-link query）
+- [x] 5.2 不實作原建議第 15（recent write events）
+- [x] 5.3 不實作原建議第 16（Top3 conflict registers）
+- [x] 5.4 在設計文件與 PR 說明明確標註排除項目
 
 ## 6. Verification
 
-- [ ] 6.1 執行 `cd frontend; npm run test`
-- [ ] 6.2 執行 `cd frontend; npm run lint`
-- [ ] 6.3 補上 UI 截圖證據（dashboard + modal + local-modbus 導流）
+- [x] 6.1 執行 `cd frontend; npm run test`
+- [x] 6.2 執行 `cd frontend; npm run lint`
+- [x] 6.3 補上 UI 截圖證據（dashboard + modal + local-modbus 導流）
