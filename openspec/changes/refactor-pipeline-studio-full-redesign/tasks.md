@@ -1,14 +1,14 @@
 ## 1. Spec and Contract Lock
-- [ ] 1.1 Confirm source template schema and storage contract.
-- [ ] 1.2 Confirm typed occupancy span table and validation rules.
-- [ ] 1.3 Confirm global tag inline-edit guardrails (impact warning + confirmation).
-- [ ] 1.4 Confirm legacy page decommission scope (`points`, `mappings`, `wizard`).
+- [x] 1.1 Confirm source template schema and storage contract.
+- [x] 1.2 Confirm typed occupancy span table and validation rules.
+- [x] 1.3 Confirm global tag inline-edit guardrails (impact warning + confirmation).
+- [x] 1.4 Confirm legacy page decommission scope (`points`, `mappings`, `wizard`).
 
 ## 2. Source Planning and Templates
-- [ ] 2.1 Add source planner UI section (type, count, naming rules).
-- [ ] 2.2 Add template CRUD (save, load, update, delete).
-- [ ] 2.3 Wire template selection to planner defaults.
-- [ ] 2.4 Add tests for planner-to-template persistence.
+- [x] 2.1 Add source planner UI section (type, count, naming rules).
+- [x] 2.2 Add template CRUD (save, load, update, delete).
+- [x] 2.3 Wire template selection to planner defaults.
+- [x] 2.4 Add tests for planner-to-template persistence.
 - [x] 2.5 Add template version and last-used timestamp handling.
 - [x] 2.6 Add stale-template warning and upgrade prompt.
 - [x] 2.7 Add batch naming preview with duplicate/conflict detection.
@@ -41,7 +41,7 @@
 - [x] 5.7 Add commit impact summary (new points, global tag updates, conflicts).
 - [x] 5.8 Add audit logging payload and UI trace link.
 - [x] 5.9 Add commit batch trace id creation and display.
-- [ ] 5.10 Add two-stage validation flow (structural then executable).
+- [x] 5.10 Add two-stage validation flow (structural then executable).
 - [ ] 5.11 Add pre-commit polling load delta estimate.
 
 ## 6. Motion-Guided Interaction

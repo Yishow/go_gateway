@@ -49,3 +49,48 @@
 - Regression tests:
   - `frontend/src/features/datalink/__tests__/batchNaming.test.ts`
   - Covers sequence generation, case-insensitive conflicts, and blank-prefix fallback.
+
+### 1.1 Source template schema and storage contract
+- Contract helper:
+  - `frontend/src/features/datalink/sourcePlannerContract.ts`
+  - Locks template payload shape (`id`, `name`, `dataType`, `count`, `startAddress`, `updatedAt`, `lastUsedAt`, `version`) and storage-validity checks.
+- Regression tests:
+  - `frontend/src/features/datalink/__tests__/sourcePlannerContract.test.ts`
+  - `frontend/src/features/datalink/__tests__/sourceTemplateStorage.test.ts`
+
+### 1.2 Typed occupancy span table and validation rules
+- Span and validation rules:
+  - `frontend/src/features/datalink/typedOccupancy.ts`
+  - Added typed plan validation (`count` range + span validity) with explicit errors.
+- Regression tests:
+  - `frontend/src/features/datalink/__tests__/typedOccupancy.test.ts`
+
+### 1.3 Global tag inline-edit guardrails
+- Guardrail helper:
+  - `frontend/src/features/datalink/globalTagGuardrails.ts`
+  - Provides affected-mappings warning and second-confirmation requirement signal.
+- Integrated in UI:
+  - `frontend/src/pages/datalink/SmartDashboard.tsx`
+- Regression tests:
+  - `frontend/src/features/datalink/__tests__/globalTagGuardrails.test.ts`
+
+### 1.4 Legacy decommission scope lock
+- Scope lock helper:
+  - `frontend/src/features/datalink/legacyRoutes.ts`
+  - Fixed allowed legacy scope to `points`, `mappings`, `wizard`.
+- Route integration:
+  - `frontend/src/App.tsx` uses shared redirect builder to avoid scope drift.
+- Regression tests:
+  - `frontend/src/features/datalink/__tests__/legacyRoutes.test.ts`
+
+### 2.1 / 2.2 / 2.3 Source planner and template flow
+- Source Planner already in Pipeline Studio and now fully contract-driven:
+  - `frontend/src/pages/datalink/SmartDashboard.tsx`
+  - Added naming-rule hint, count clamping (`1..200`), normalized prefix, and template CRUD helper wiring.
+- Planner/template contract helpers:
+  - `frontend/src/features/datalink/sourcePlannerContract.ts`
+
+### 2.4 Planner-to-template persistence
+- Added planner-template persistence regression:
+  - `frontend/src/features/datalink/__tests__/sourcePlannerContract.test.ts`
+  - Covers planner draft -> template create/upsert -> localStorage save/load -> planner defaults restore.

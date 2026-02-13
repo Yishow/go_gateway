@@ -16,6 +16,7 @@ import DeviceOnboardingPage from './pages/datalink/DeviceOnboardingPage'
 import TagsPage from './pages/datalink/TagsPage'
 import SettingsPage from './pages/datalink/SettingsPage'
 import PollingGroupsPage from './pages/datalink/PollingGroupsPage'
+import { buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
 
 /**
  * 主應用程式組件
@@ -38,11 +39,11 @@ function AppRoutes() {
         <Route path="dashboard-legacy" element={<Dashboard />} />
         <Route path="devices" element={<DevicesPage />} />
         <Route path="devices/new" element={<DeviceOnboardingPage />} />
-        <Route path="points" element={<Navigate to="/datalink?legacy=points" replace />} />
+        <Route path="points" element={<Navigate to={buildLegacyMigrationRedirect('points')} replace />} />
         <Route path="polling-groups" element={<PollingGroupsPage />} />
         <Route path="tags" element={<TagsPage />} />
-        <Route path="mappings" element={<Navigate to="/datalink?legacy=mappings" replace />} />
-        <Route path="wizard" element={<Navigate to="/datalink?legacy=wizard" replace />} />
+        <Route path="mappings" element={<Navigate to={buildLegacyMigrationRedirect('mappings')} replace />} />
+        <Route path="wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

@@ -23,8 +23,31 @@ export const SPAN_BY_DATA_TYPE: Record<DataType, number> = {
   string: 1,
 };
 
+export interface TypedOccupancyValidationResult {
+  valid: boolean;
+  span: number;
+  totalCells: number;
+  errors: Array<'invalid_count' | 'invalid_span'>;
+}
+
 export function getSpanByDataType(dataType: DataType): number {
   return SPAN_BY_DATA_TYPE[dataType];
+}
+
+export function validateTypedOccupancyPlan(dataType: DataType, count: number): TypedOccupancyValidationResult {
+  const span = getSpanByDataType(dataType);
+  const errors: Array<'invalid_count' | 'invalid_span'> = [];
+
+  const normalizedCount = Number.isFinite(count) ? Math.floor(count) : 0;
+  if (normalizedCount <= 0 || normalizedCount > 200) errors.push('invalid_count');
+  if (![1, 2, 4].includes(span)) errors.push('invalid_span');
+
+  return {
+    valid: errors.length === 0,
+    span,
+    totalCells: Math.max(0, normalizedCount) * span,
+    errors,
+  };
 }
 
 export function resolveConflictSeverity(input: {

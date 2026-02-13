@@ -29,6 +29,12 @@ import {
   upgradeTemplates,
 } from '../../features/datalink/sourceTemplateStorage';
 import { buildBatchNamePreview } from '../../features/datalink/batchNaming';
+import {
+  applyTemplateToPlanner,
+  createTemplateFromPlanner,
+  normalizeNamingPrefix,
+  upsertTemplateRecord,
+} from '../../features/datalink/sourcePlannerContract';
 import { findNearestValidContiguousSpan } from '../../features/datalink/allocationStrategy';
 import {
   canExecuteCommit,
@@ -46,7 +52,10 @@ import {
   hasGlobalTagEditChanges,
   toTagUpdateRequest,
 } from '../../features/datalink/tagEditImpact';
-import { getSpanByDataType } from '../../features/datalink/typedOccupancy';
+import { buildGlobalTagGuardrail } from '../../features/datalink/globalTagGuardrails';
+import { isLegacyDecommissionRoute } from '../../features/datalink/legacyRoutes';
+import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/datalink/typedOccupancy';
+import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
@@ -171,7 +180,11 @@ export default function SmartDashboard() {
   }, [legacyRoute, t]);
 
   const cellSpan = getSpanByDataType(planDataType);
-  const totalPlannedCells = planCount * cellSpan;
+  const typedPlanValidation = useMemo(
+    () => validateTypedOccupancyPlan(planDataType, planCount),
+    [planCount, planDataType]
+  );
+  const totalPlannedCells = typedPlanValidation.totalCells;
 
   const plannedAllocations = useMemo<PlannedAllocation[]>(() => {
     if (!selectedDevice || !planStartAddress || planCount <= 0) return [];
@@ -305,34 +318,25 @@ export default function SmartDashboard() {
 
   const handleSaveTemplate = useCallback(() => {
     const normalized = templateName.trim();
-    if (!normalized || !selectedDevice) return;
-    const now = new Date().toISOString();
-
-    const next: SourceTemplate = {
-      id: normalized.toLowerCase().replace(/\s+/g, '-'),
-      name: normalized,
-      dataType: planDataType,
-      count: planCount,
-      startAddress: planStartAddress,
-      updatedAt: now,
-      lastUsedAt: now,
-      version: SOURCE_TEMPLATE_SCHEMA_VERSION,
-    };
-
-    setSourceTemplates((prev) => {
-      const existingIndex = prev.findIndex((item) => item.id === next.id);
-      if (existingIndex === -1) return [next, ...prev].slice(0, 20);
-      const copied = [...prev];
-      copied[existingIndex] = next;
-      return copied;
+    if (!normalized || !selectedDevice || !typedPlanValidation.valid) return;
+    const next = createTemplateFromPlanner({
+      templateName: normalized,
+      draft: {
+        dataType: planDataType,
+        count: planCount,
+        startAddress: planStartAddress,
+      },
     });
+
+    setSourceTemplates((prev) => upsertTemplateRecord(prev, next));
     setTemplateName('');
-  }, [planCount, planDataType, planStartAddress, selectedDevice, templateName]);
+  }, [planCount, planDataType, planStartAddress, selectedDevice, templateName, typedPlanValidation.valid]);
 
   const handleLoadTemplate = useCallback((template: SourceTemplate) => {
-    setPlanDataType(template.dataType);
-    setPlanCount(template.count);
-    setPlanStartAddress(template.startAddress);
+    const applied = applyTemplateToPlanner(template);
+    setPlanDataType(applied.dataType);
+    setPlanCount(applied.count);
+    setPlanStartAddress(applied.startAddress);
     const now = new Date().toISOString();
     setSourceTemplates((prev) =>
       prev.map((item) =>
@@ -476,6 +480,10 @@ export default function SmartDashboard() {
     if (!linkedTag?.id) return 0;
     return getAffectedMappingCountForTag(mappings, linkedTag.id);
   }, [linkedTag?.id, mappings]);
+  const tagEditGuardrail = useMemo(
+    () => buildGlobalTagGuardrail(linkedTagAffectedMappingsCount),
+    [linkedTagAffectedMappingsCount]
+  );
   const parsePipeline = useCallback(() => {
     if (!selectedMapping?.transform_pipeline) return [];
     try {
@@ -657,10 +665,10 @@ export default function SmartDashboard() {
     }
 
     setPendingTagEdit(nextEdit);
-    setTagEditMessage(`請確認差異後再儲存，預估影響 ${linkedTagAffectedMappingsCount} 個映射。`);
+    setTagEditMessage(tagEditGuardrail.warningMessage);
   }, [
     linkedTag,
-    linkedTagAffectedMappingsCount,
+    tagEditGuardrail.warningMessage,
     tagEditDescription,
     tagEditDisplayName,
     tagEditUnit,
@@ -738,7 +746,7 @@ export default function SmartDashboard() {
   }, [loadModbusStatus]);
 
   const dismissLegacyNotice = useCallback(() => {
-    if (!legacyRoute) return;
+    if (!isLegacyDecommissionRoute(legacyRoute)) return;
     const next = new URLSearchParams(searchParams);
     next.delete('legacy');
     setSearchParams(next, { replace: true });
@@ -805,32 +813,53 @@ export default function SmartDashboard() {
   ]);
 
   const handleValidateFlow = useCallback(async () => {
-    if (!canValidate) {
-      markError('source', t('smartDashboard.flowErrors.missingSource'));
-      setCommitActionMessage('Validate 失敗：來源段尚未完成。');
+    const structural = runStructuralValidation({
+      selectedDeviceId,
+      selectedSourceAddress,
+      planAddressesCount: planAddresses.length,
+      planConflictCount,
+      hasSelectedMapping: Boolean(selectedMapping),
+    });
+    if (!structural.ok) {
+      const structuralError = structural.error || '結構驗證未通過';
+      if (structuralError.includes('來源')) {
+        markError('source', t('smartDashboard.flowErrors.missingSource'));
+      } else if (structuralError.includes('Tag')) {
+        markError('tag', t('smartDashboard.flowErrors.missingMapping'));
+      } else {
+        markError('grid', structuralError);
+      }
+      setCommitActionMessage(`Validate 階段1（結構）失敗：${structuralError}`);
       return;
     }
-    if (!selectedMapping) {
-      markError('tag', t('smartDashboard.flowErrors.missingMapping'));
-      setCommitActionMessage('Validate 失敗：Tag 段尚未完成。');
-      return;
-    }
+    setCommitActionMessage('Validate 階段1（結構）通過，執行階段2（可執行）...');
     try {
       const pipeline = parsePipeline();
       const result = await validatePipelineMutation.mutateAsync(pipeline);
       if (result.valid) {
         markValidated();
-        setCommitActionMessage('Validate 通過：可執行 Commit。');
+        setCommitActionMessage('Validate 兩階段通過：可執行 Commit。');
         return;
       }
       markError('grid', result.error || t('smartDashboard.flowErrors.validationFailed'));
-      setCommitActionMessage(`Validate 失敗：${result.error || 'Grid 驗證未通過'}`);
+      setCommitActionMessage(`Validate 階段2（可執行）失敗：${result.error || 'Grid 驗證未通過'}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('smartDashboard.flowErrors.validationFailed');
       markError('grid', message);
-      setCommitActionMessage(`Validate 失敗：${message}`);
+      setCommitActionMessage(`Validate 階段2（可執行）失敗：${message}`);
     }
-  }, [canValidate, markError, markValidated, parsePipeline, selectedMapping, t, validatePipelineMutation]);
+  }, [
+    markError,
+    markValidated,
+    parsePipeline,
+    planAddresses.length,
+    planConflictCount,
+    selectedDeviceId,
+    selectedMapping,
+    selectedSourceAddress,
+    t,
+    validatePipelineMutation,
+  ]);
 
   const handleCommitFlow = useCallback(() => {
     const commitGate = canExecuteCommit({
@@ -1172,7 +1201,11 @@ export default function SmartDashboard() {
                           min={1}
                           max={200}
                           value={planCount}
-                          onChange={(e) => setPlanCount(Math.max(1, Number(e.target.value) || 1))}
+                          onChange={(e) => {
+                            const raw = Number(e.target.value);
+                            const bounded = Number.isFinite(raw) ? Math.min(200, Math.max(1, Math.floor(raw))) : 1;
+                            setPlanCount(bounded);
+                          }}
                           className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </label>
@@ -1244,7 +1277,7 @@ export default function SmartDashboard() {
                           批次命名前綴
                           <input
                             value={batchNamePrefix}
-                            onChange={(e) => setBatchNamePrefix(e.target.value.toUpperCase())}
+                            onChange={(e) => setBatchNamePrefix(normalizeNamingPrefix(e.target.value))}
                             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="例如: LINEA"
                           />
@@ -1267,6 +1300,9 @@ export default function SmartDashboard() {
                           </div>
                         ))}
                       </div>
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        命名規則: 僅允許英數、底線、連字號；系統會自動轉大寫並附加三位流水號。
+                      </p>
                     </div>
                     {staleTemplateCount > 0 && (
                       <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
@@ -1286,6 +1322,9 @@ export default function SmartDashboard() {
                     )}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-slate-400">衝突格數: {planConflictCount}</span>
+                      {!typedPlanValidation.valid && (
+                        <span className="text-xs text-rose-300">來源數量需介於 1 到 200，且型別占格規則必須有效。</span>
+                      )}
                       {allocationMessage && (
                         <span className="text-xs text-sky-200">{allocationMessage}</span>
                       )}
