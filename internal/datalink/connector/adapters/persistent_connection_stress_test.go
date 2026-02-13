@@ -142,7 +142,7 @@ func TestModbusTCPConnector_StressTest(t *testing.T) {
 				if !isPersistent { // 從 false -> true
 					// 在真實場景，使用者會呼叫 Connect 或 Reconnect
 					// 這裡我們簡單模擬
-					conn.connected = true
+					conn.setConnected(true)
 				}
 			}
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"go-gateway/internal/datalink/connector"
@@ -20,6 +21,7 @@ type ModbusRTUConnector struct {
 	client         *modbus.ModbusClient
 	transport      modbus.Transport
 	config         schema.ConnectionConfigModbusRTU
+	stateMu        sync.RWMutex
 	connected      bool
 	persistentMode bool // 長連接模式標誌
 }
@@ -68,16 +70,16 @@ func (c *ModbusRTUConnector) Connect(ctx context.Context, configJSON string) err
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
 
 	// 預設使用長連接模式
-	if !c.persistentMode {
-		c.persistentMode = true
+	if !c.IsPersistentMode() {
+		c.SetPersistentConnection(true)
 	}
 
 	// 連線（僅在長連接模式下立即連線）
-	if c.persistentMode {
+	if c.IsPersistentMode() {
 		if err := c.client.Connect(); err != nil {
 			return fmt.Errorf("Modbus RTU 連線失敗: %w", err)
 		}
-		c.connected = true
+		c.setConnected(true)
 	}
 
 	return nil
@@ -86,7 +88,7 @@ func (c *ModbusRTUConnector) Connect(ctx context.Context, configJSON string) err
 // Close 關閉連線
 func (c *ModbusRTUConnector) Close() error {
 	if c.client != nil {
-		c.connected = false
+		c.setConnected(false)
 		return c.client.Close()
 	}
 	return nil
@@ -94,7 +96,7 @@ func (c *ModbusRTUConnector) Close() error {
 
 // IsConnected 檢查連線狀態
 func (c *ModbusRTUConnector) IsConnected() bool {
-	return c.connected
+	return c.isConnected()
 }
 
 // ProtocolType 取得協議類型
@@ -104,7 +106,7 @@ func (c *ModbusRTUConnector) ProtocolType() schema.ProtocolType {
 
 // TestConnection 測試連線
 func (c *ModbusRTUConnector) TestConnection(ctx context.Context) error {
-	if !c.connected {
+	if !c.isConnected() {
 		return fmt.Errorf("未連線")
 	}
 	_, err := c.client.ReadHoldingRegisters(0, 1)
@@ -122,7 +124,7 @@ func (c *ModbusRTUConnector) Read(ctx context.Context, req connector.ReadRequest
 	defer c.afterOperation()
 
 	// 複用 TCP 版本的讀取邏輯
-	tcpConn := &ModbusTCPConnector{client: c.client, connected: c.connected}
+	tcpConn := &ModbusTCPConnector{client: c.client, connected: true, persistentMode: true}
 	return tcpConn.Read(ctx, req)
 }
 
@@ -136,7 +138,7 @@ func (c *ModbusRTUConnector) Write(ctx context.Context, req connector.WriteReque
 	// 短連接模式：操作完成後自動斷線
 	defer c.afterOperation()
 
-	tcpConn := &ModbusTCPConnector{client: c.client, connected: c.connected}
+	tcpConn := &ModbusTCPConnector{client: c.client, connected: true, persistentMode: true}
 	return tcpConn.Write(ctx, req)
 }
 
@@ -146,11 +148,15 @@ func (c *ModbusRTUConnector) Write(ctx context.Context, req connector.WriteReque
 
 // SetPersistentConnection 設定是否使用長連接模式
 func (c *ModbusRTUConnector) SetPersistentConnection(enabled bool) {
+	c.stateMu.Lock()
 	c.persistentMode = enabled
+	c.stateMu.Unlock()
 }
 
 // IsPersistentMode 檢查當前是否為長連接模式
 func (c *ModbusRTUConnector) IsPersistentMode() bool {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
 	return c.persistentMode
 }
 
@@ -168,18 +174,18 @@ func (c *ModbusRTUConnector) Reconnect(ctx context.Context) error {
 	c.client.Close()
 
 	if err := c.client.Connect(); err != nil {
-		c.connected = false
+		c.setConnected(false)
 		return fmt.Errorf("重新連線失敗: %w", err)
 	}
 
-	c.connected = true
+	c.setConnected(true)
 	return nil
 }
 
 // ensureConnection 確保連線已建立（用於短連接模式）
 func (c *ModbusRTUConnector) ensureConnection() error {
-	if c.persistentMode {
-		if !c.connected {
+	if c.IsPersistentMode() {
+		if !c.isConnected() {
 			return fmt.Errorf("未連線")
 		}
 		return nil
@@ -189,11 +195,11 @@ func (c *ModbusRTUConnector) ensureConnection() error {
 		return fmt.Errorf("客戶端未初始化")
 	}
 
-	if !c.connected {
+	if !c.isConnected() {
 		if err := c.client.Connect(); err != nil {
 			return fmt.Errorf("連線失敗: %w", err)
 		}
-		c.connected = true
+		c.setConnected(true)
 	}
 
 	return nil
@@ -201,8 +207,20 @@ func (c *ModbusRTUConnector) ensureConnection() error {
 
 // afterOperation 操作後處理（用於短連接模式）
 func (c *ModbusRTUConnector) afterOperation() {
-	if !c.persistentMode && c.connected {
+	if !c.IsPersistentMode() && c.isConnected() {
 		c.client.Close()
-		c.connected = false
+		c.setConnected(false)
 	}
+}
+
+func (c *ModbusRTUConnector) setConnected(connected bool) {
+	c.stateMu.Lock()
+	c.connected = connected
+	c.stateMu.Unlock()
+}
+
+func (c *ModbusRTUConnector) isConnected() bool {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
+	return c.connected
 }

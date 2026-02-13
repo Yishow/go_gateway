@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"go-gateway/internal/datalink/connector"
@@ -20,6 +21,7 @@ type ModbusTCPConnector struct {
 	client         *modbus.ModbusClient
 	transport      modbus.Transport
 	config         schema.ConnectionConfigModbusTCP
+	stateMu        sync.RWMutex
 	connected      bool
 	persistentMode bool // 長連接模式標誌
 }
@@ -61,16 +63,16 @@ func (c *ModbusTCPConnector) Connect(ctx context.Context, configJSON string) err
 	c.client = modbus.NewClient(c.transport, c.config.SlaveID)
 
 	// 預設使用長連接模式
-	if !c.persistentMode {
-		c.persistentMode = true
+	if !c.IsPersistentMode() {
+		c.SetPersistentConnection(true)
 	}
 
 	// 連線（僅在長連接模式下立即連線）
-	if c.persistentMode {
+	if c.IsPersistentMode() {
 		if err := c.client.Connect(); err != nil {
 			return fmt.Errorf("Modbus TCP 連線失敗: %w", err)
 		}
-		c.connected = true
+		c.setConnected(true)
 	}
 
 	return nil
@@ -79,7 +81,7 @@ func (c *ModbusTCPConnector) Connect(ctx context.Context, configJSON string) err
 // Close 關閉連線
 func (c *ModbusTCPConnector) Close() error {
 	if c.client != nil {
-		c.connected = false
+		c.setConnected(false)
 		return c.client.Close()
 	}
 	return nil
@@ -87,7 +89,7 @@ func (c *ModbusTCPConnector) Close() error {
 
 // IsConnected 檢查連線狀態
 func (c *ModbusTCPConnector) IsConnected() bool {
-	return c.connected
+	return c.isConnected()
 }
 
 // ProtocolType 取得協議類型
@@ -266,7 +268,9 @@ func (c *ModbusTCPConnector) Write(ctx context.Context, req connector.WriteReque
  * 短連接模式：每次操作後自動斷線，下次操作重新連線
  */
 func (c *ModbusTCPConnector) SetPersistentConnection(enabled bool) {
+	c.stateMu.Lock()
 	c.persistentMode = enabled
+	c.stateMu.Unlock()
 }
 
 /**
@@ -274,6 +278,8 @@ func (c *ModbusTCPConnector) SetPersistentConnection(enabled bool) {
  * @returns bool 是否為長連接模式
  */
 func (c *ModbusTCPConnector) IsPersistentMode() bool {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
 	return c.persistentMode
 }
 
@@ -306,11 +312,11 @@ func (c *ModbusTCPConnector) Reconnect(ctx context.Context) error {
 
 	// 重新連線
 	if err := c.client.Connect(); err != nil {
-		c.connected = false
+		c.setConnected(false)
 		return fmt.Errorf("重新連線失敗: %w", err)
 	}
 
-	c.connected = true
+	c.setConnected(true)
 	return nil
 }
 
@@ -319,9 +325,9 @@ func (c *ModbusTCPConnector) Reconnect(ctx context.Context) error {
  * @returns error 連線錯誤
  */
 func (c *ModbusTCPConnector) ensureConnection() error {
-	if c.persistentMode {
+	if c.IsPersistentMode() {
 		// 長連接模式：檢查連線是否有效
-		if !c.connected {
+		if !c.isConnected() {
 			return fmt.Errorf("未連線")
 		}
 		return nil
@@ -333,11 +339,11 @@ func (c *ModbusTCPConnector) ensureConnection() error {
 	}
 
 	// 檢查是否需要重新連線
-	if !c.connected {
+	if !c.isConnected() {
 		if err := c.client.Connect(); err != nil {
 			return fmt.Errorf("連線失敗: %w", err)
 		}
-		c.connected = true
+		c.setConnected(true)
 	}
 
 	return nil
@@ -347,9 +353,21 @@ func (c *ModbusTCPConnector) ensureConnection() error {
  * afterOperation 操作後處理（用於短連接模式）
  */
 func (c *ModbusTCPConnector) afterOperation() {
-	if !c.persistentMode && c.connected {
+	if !c.IsPersistentMode() && c.isConnected() {
 		// 短連接模式：操作完成後斷線
 		c.client.Close()
-		c.connected = false
+		c.setConnected(false)
 	}
+}
+
+func (c *ModbusTCPConnector) setConnected(connected bool) {
+	c.stateMu.Lock()
+	c.connected = connected
+	c.stateMu.Unlock()
+}
+
+func (c *ModbusTCPConnector) isConnected() bool {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
+	return c.connected
 }
