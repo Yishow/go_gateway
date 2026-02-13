@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   DASHBOARD_SECTION_INTENTS,
+  DASHBOARD_MODAL_INTENTS,
   LEGACY_DECOMMISSION_ROUTES,
+  buildDashboardModalRedirect,
   buildDashboardSectionRedirect,
   buildLegacyMigrationRedirect,
+  isDashboardModalIntent,
   isDashboardSectionIntent,
   isLegacyDecommissionRoute,
 } from '../legacyRoutes';
@@ -14,9 +17,9 @@ describe('legacyRoutes', () => {
   });
 
   it('builds redirect target for legacy route', () => {
-    expect(buildLegacyMigrationRedirect('points')).toBe('/datalink?legacy=points');
-    expect(buildLegacyMigrationRedirect('mappings')).toBe('/datalink?legacy=mappings');
-    expect(buildLegacyMigrationRedirect('wizard')).toBe('/datalink?legacy=wizard');
+    expect(buildLegacyMigrationRedirect('points')).toBe('/datalink?legacy=points&modal=points');
+    expect(buildLegacyMigrationRedirect('mappings')).toBe('/datalink?legacy=mappings&modal=mappings');
+    expect(buildLegacyMigrationRedirect('wizard')).toBe('/datalink?legacy=wizard&modal=wizard');
   });
 
   it('detects legacy route values strictly', () => {
@@ -41,5 +44,32 @@ describe('legacyRoutes', () => {
     expect(isDashboardSectionIntent('settings')).toBe(true);
     expect(isDashboardSectionIntent('points')).toBe(false);
     expect(isDashboardSectionIntent(null)).toBe(false);
+  });
+
+  it('locks dashboard modal intents to migrated sidebar features', () => {
+    expect(DASHBOARD_MODAL_INTENTS).toEqual([
+      'devices',
+      'settings',
+      'points',
+      'mappings',
+      'wizard',
+      'polling-groups',
+      'tags',
+    ]);
+  });
+
+  it('builds redirect target for dashboard modal intent', () => {
+    expect(buildDashboardModalRedirect('points')).toBe('/datalink?modal=points');
+    expect(buildDashboardModalRedirect('polling-groups')).toBe('/datalink?modal=polling-groups');
+    expect(buildDashboardModalRedirect('tags')).toBe('/datalink?modal=tags');
+  });
+
+  it('detects dashboard modal values strictly', () => {
+    expect(isDashboardModalIntent('devices')).toBe(true);
+    expect(isDashboardModalIntent('settings')).toBe(true);
+    expect(isDashboardModalIntent('points')).toBe(true);
+    expect(isDashboardModalIntent('wizard')).toBe(true);
+    expect(isDashboardModalIntent('test')).toBe(false);
+    expect(isDashboardModalIntent(null)).toBe(false);
   });
 });

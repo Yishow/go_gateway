@@ -25,11 +25,13 @@ describe('QuickActions', () => {
     onBatchCreate: vi.fn(),
     onQuickMapping: vi.fn(),
     onTestConnection: vi.fn(),
+    onOpenWorkbench: vi.fn(),
   };
 
   it('should render actions panel', () => {
     render(<QuickActions {...defaultProps} />);
     expect(screen.getByTestId('quick-actions')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Server Memory Grid/i })).toBeInTheDocument();
   });
 
   it('should disable batch create when no cells selected', () => {

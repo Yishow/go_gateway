@@ -9,6 +9,7 @@ describe('typedOccupancy', () => {
   it('returns expected span by data type', () => {
     expect(getSpanByDataType('int16')).toBe(1);
     expect(getSpanByDataType('float32')).toBe(2);
+    expect(getSpanByDataType('int64')).toBe(4);
     expect(getSpanByDataType('float64')).toBe(4);
   });
 
@@ -44,6 +45,13 @@ describe('typedOccupancy', () => {
     expect(valid.valid).toBe(true);
     expect(valid.totalCells).toBe(20);
     expect(valid.errors).toEqual([]);
+  });
+
+  it('validates int64 as 4 contiguous cells per source', () => {
+    const valid = validateTypedOccupancyPlan('int64', 5);
+    expect(valid.valid).toBe(true);
+    expect(valid.span).toBe(4);
+    expect(valid.totalCells).toBe(20);
   });
 
   it('rejects count out of supported range', () => {

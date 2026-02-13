@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { modbusShareAPI } from '../../services/datalink';
 import { useTagsQuery } from '../../hooks/datalink/useTags';
 import type { ModbusShareMapping, ModbusShareStatus } from '../../types/datalink';
@@ -9,6 +10,7 @@ type MappingConflict = {
 };
 
 export default function LocalModbusWorkbenchPage() {
+  const [searchParams] = useSearchParams();
   const { data: tags = [] } = useTagsQuery();
   const [status, setStatus] = useState<ModbusShareStatus | null>(null);
   const [mappings, setMappings] = useState<ModbusShareMapping[]>([]);
@@ -33,6 +35,8 @@ export default function LocalModbusWorkbenchPage() {
       .map(([register, list]) => ({ register, mappings: list }));
   }, [mappings]);
   const canWrite = status?.enabled && conflicts.length === 0;
+  const section = searchParams.get('section');
+  const returnTarget = section ? `/datalink?section=${section}` : '/datalink';
 
   const loadData = useCallback(async () => {
     setIsBusy(true);
@@ -207,8 +211,17 @@ export default function LocalModbusWorkbenchPage() {
   return (
     <div className="min-h-[calc(100vh-11rem)] rounded-2xl bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] p-4 text-slate-100 sm:p-6">
       <header className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 sm:px-5">
-        <h1 className="text-xl font-bold tracking-tight text-slate-100">Local Modbus 5020 - Server Memory Grid</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-xl font-bold tracking-tight text-slate-100">Local Modbus 5020 - Server Memory Grid</h1>
+          <Link
+            to={returnTarget}
+            className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            返回 Dashboard
+          </Link>
+        </div>
         <p className="mt-1 text-xs text-slate-400">設備來源隔離，僅本機 5020 目標空間做衝突治理。</p>
+        <p className="mt-1 text-[11px] text-slate-500">回跳區段: {section || 'overview'}</p>
       </header>
 
       <section className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalModbusWorkbenchPage from '../LocalModbusWorkbenchPage';
 
@@ -29,6 +30,13 @@ vi.mock('../../../hooks/datalink/useTags', () => ({
 }));
 
 describe('LocalModbusWorkbenchPage', () => {
+  const renderPage = (entry = '/datalink/local-modbus') =>
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <LocalModbusWorkbenchPage />
+      </MemoryRouter>
+    );
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockModbusShareAPI.status.mockResolvedValue({
@@ -57,7 +65,7 @@ describe('LocalModbusWorkbenchPage', () => {
   });
 
   it('starts local server with specified port', async () => {
-    render(<LocalModbusWorkbenchPage />);
+    renderPage();
 
     await screen.findByText('Stopped');
     const input = await screen.findByPlaceholderText('Server Port');
@@ -78,7 +86,7 @@ describe('LocalModbusWorkbenchPage', () => {
       mapping_count: 0,
     });
 
-    render(<LocalModbusWorkbenchPage />);
+    renderPage();
 
     const stopButton = await screen.findByRole('button', { name: 'Stop Server' });
     fireEvent.click(stopButton);
@@ -101,10 +109,17 @@ describe('LocalModbusWorkbenchPage', () => {
       { tag_id: 'tag-2', register: 12, data_type: 'float32', updated_at: new Date().toISOString() },
     ]);
 
-    render(<LocalModbusWorkbenchPage />);
+    renderPage();
 
     const syncButton = await screen.findByRole('button', { name: 'Sync from Mappings' });
     expect(syncButton).toBeDisabled();
     expect(mockModbusShareAPI.sync).not.toHaveBeenCalled();
+  });
+
+  it('provides dashboard return link and preserves section context', async () => {
+    renderPage('/datalink/local-modbus?section=settings');
+    const returnLink = await screen.findByRole('link', { name: '返回 Dashboard' });
+    expect(returnLink).toHaveAttribute('href', '/datalink?section=settings');
+    expect(screen.getByText('回跳區段: settings')).toBeInTheDocument();
   });
 });

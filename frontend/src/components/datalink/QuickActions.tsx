@@ -27,6 +27,7 @@ export interface QuickActionsProps {
   onBatchCreate: () => void;
   onQuickMapping: () => void;
   onTestConnection: () => void;
+  onOpenWorkbench: () => void;
 }
 
 export function QuickActions({
@@ -34,7 +35,8 @@ export function QuickActions({
   selectedCount,
   onBatchCreate,
   onQuickMapping,
-  onTestConnection
+  onTestConnection,
+  onOpenWorkbench,
 }: QuickActionsProps) {
   const isPrimaryOpsReady = device?.status === 'active';
   const prioritizedActions = isPrimaryOpsReady
@@ -93,6 +95,13 @@ export function QuickActions({
             </button>
           );
         })}
+        <button
+          onClick={onOpenWorkbench}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-100 rounded-lg transition-colors font-medium border border-cyan-400/40"
+        >
+          <Icons.Link />
+          Server Memory Grid
+        </button>
       </div>
     </div>
   );

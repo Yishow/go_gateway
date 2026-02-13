@@ -10,9 +10,7 @@ import AnalyzerPage from './pages/AnalyzerPage'
 import Layout from './components/Layout'
 import SmartDashboard from './pages/datalink/SmartDashboard'
 import Dashboard from './pages/datalink/Dashboard'
-import TagsPage from './pages/datalink/TagsPage'
-import PollingGroupsPage from './pages/datalink/PollingGroupsPage'
-import { buildDashboardSectionRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
+import { buildDashboardModalRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
 import LocalModbusWorkbenchPage from './pages/datalink/LocalModbusWorkbenchPage'
 
 /**
@@ -33,14 +31,14 @@ function AppRoutes() {
       {/* Datalink Routes - Dashboard First */}
       <Route path="/datalink" element={<SmartDashboard />} />
       <Route path="/datalink/dashboard-legacy" element={<Dashboard />} />
-      <Route path="/datalink/devices" element={<Navigate to={buildDashboardSectionRedirect('devices')} replace />} />
-      <Route path="/datalink/devices/new" element={<Navigate to="/datalink?section=devices&createDevice=1" replace />} />
+      <Route path="/datalink/devices" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
+      <Route path="/datalink/devices/new" element={<Navigate to="/datalink?modal=devices&section=devices&createDevice=1" replace />} />
       <Route path="/datalink/points" element={<Navigate to={buildLegacyMigrationRedirect('points')} replace />} />
-      <Route path="/datalink/polling-groups" element={<PollingGroupsPage />} />
-      <Route path="/datalink/tags" element={<TagsPage />} />
+      <Route path="/datalink/polling-groups" element={<Navigate to={buildDashboardModalRedirect('polling-groups')} replace />} />
+      <Route path="/datalink/tags" element={<Navigate to={buildDashboardModalRedirect('tags')} replace />} />
       <Route path="/datalink/mappings" element={<Navigate to={buildLegacyMigrationRedirect('mappings')} replace />} />
       <Route path="/datalink/wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
-      <Route path="/datalink/settings" element={<Navigate to={buildDashboardSectionRedirect('settings')} replace />} />
+      <Route path="/datalink/settings" element={<Navigate to="/datalink?modal=settings&section=settings" replace />} />
       <Route path="/datalink/local-modbus" element={<LocalModbusWorkbenchPage />} />
 
       {/* Legacy Test UI Routes */}

@@ -265,6 +265,17 @@ describe('SmartDashboard interactions', () => {
     });
   });
 
+  it('shows modal intent notice and can dismiss it', async () => {
+    renderDashboard('/datalink?modal=devices');
+
+    const modalNotice = await screen.findByText(/Dashboard modal 流程/);
+    expect(modalNotice).toBeInTheDocument();
+    fireEvent.click(within(modalNotice.closest('section') as HTMLElement).getByRole('button', { name: '關閉' }));
+    await waitFor(() => {
+      expect(screen.queryByText(/Dashboard modal 流程/)).not.toBeInTheDocument();
+    });
+  });
+
   it('switches device successfully and updates context bar', async () => {
     renderDashboard();
 

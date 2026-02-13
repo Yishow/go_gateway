@@ -154,6 +154,29 @@ describe('MemoryGrid', () => {
     expect(pairedMarkers).toHaveLength(20);
   });
 
+  it('should render int64 planned count as contiguous 4-cell groups', () => {
+    const plannedAllocations = Array.from({ length: 5 }).map((_, index) => {
+      const base = 40001 + index * 4;
+      return {
+        id: `i64-${index}`,
+        dataType: 'int64' as const,
+        addresses: [`${base}`, `${base + 1}`, `${base + 2}`, `${base + 3}`],
+        label: `I${index + 1}`,
+      };
+    });
+
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={30}
+        plannedAllocations={plannedAllocations}
+      />
+    );
+
+    const markers = screen.getAllByText(/\/4$/);
+    expect(markers).toHaveLength(20);
+  });
+
   it('should render linked occupancy state', () => {
     render(
       <MemoryGrid

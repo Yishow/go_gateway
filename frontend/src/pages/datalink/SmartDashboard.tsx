@@ -54,7 +54,12 @@ import {
   toTagUpdateRequest,
 } from '../../features/datalink/tagEditImpact';
 import { buildGlobalTagGuardrail } from '../../features/datalink/globalTagGuardrails';
-import { isDashboardSectionIntent, isLegacyDecommissionRoute } from '../../features/datalink/legacyRoutes';
+import {
+  isDashboardModalIntent,
+  isDashboardSectionIntent,
+  isLegacyDecommissionRoute,
+  type DashboardModalIntent,
+} from '../../features/datalink/legacyRoutes';
 import { estimatePollingLoadDelta } from '../../features/datalink/pollingLoadEstimate';
 import {
   MOTION_TOKENS,
@@ -65,8 +70,8 @@ import {
 import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/datalink/typedOccupancy';
 import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
-import { useSearchParams } from 'react-router-dom';
-import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, Bell, Settings, Box, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
 import { modbusShareAPI } from '../../services/datalink';
 import type { ModbusShareStatus } from '../../types/datalink';
 
@@ -74,6 +79,15 @@ const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
 const COMMIT_CHUNK_SIZE = 8;
 const DASHBOARD_TABS = ['overview', 'devices', 'settings'] as const;
 type DashboardTab = (typeof DASHBOARD_TABS)[number];
+const DASHBOARD_MODAL_ORDER: DashboardModalIntent[] = [
+  'devices',
+  'settings',
+  'points',
+  'mappings',
+  'wizard',
+  'polling-groups',
+  'tags',
+];
 
 const STATUS_STYLE: Record<FlowStatus, string> = {
   draft: 'bg-slate-700/70 text-slate-200 border-slate-600',
@@ -102,6 +116,7 @@ interface SourceTemplate {
 
 export default function SmartDashboard() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
@@ -118,7 +133,7 @@ export default function SmartDashboard() {
   const [planDataType, setPlanDataType] = useState<DataType>('int16');
   const [planCount, setPlanCount] = useState(5);
   const [batchNamePrefix, setBatchNamePrefix] = useState('SRC');
-  const [planStartAddress, setPlanStartAddress] = useState('40001');
+  const [planStartAddress, setPlanStartAddress] = useState('');
   const [allocationMessage, setAllocationMessage] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [showConflictsOnly, setShowConflictsOnly] = useState(false);
@@ -153,6 +168,7 @@ export default function SmartDashboard() {
   } | null>(null);
   const legacyRoute = searchParams.get('legacy');
   const rawSectionIntent = searchParams.get('section');
+  const rawModalIntent = searchParams.get('modal');
   const createDeviceIntent = searchParams.get('createDevice');
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [lastSwitchedAt, setLastSwitchedAt] = useState<string | null>(null);
@@ -205,11 +221,26 @@ export default function SmartDashboard() {
     () => (isDashboardSectionIntent(rawSectionIntent) ? rawSectionIntent : null),
     [rawSectionIntent]
   );
+  const modalIntent = useMemo(
+    () => (isDashboardModalIntent(rawModalIntent) ? rawModalIntent : null),
+    [rawModalIntent]
+  );
   const sectionIntentLabel = useMemo(() => {
     if (sectionIntent === 'devices') return t('nav.devices');
     if (sectionIntent === 'settings') return t('nav.settings');
     return '';
   }, [sectionIntent, t]);
+  const modalIntentLabel = useMemo(() => {
+    if (!modalIntent) return '';
+    if (modalIntent === 'devices') return t('nav.devices');
+    if (modalIntent === 'settings') return t('nav.settings');
+    if (modalIntent === 'points') return t('nav.points');
+    if (modalIntent === 'mappings') return t('nav.mappings');
+    if (modalIntent === 'wizard') return t('nav.mappingWizard');
+    if (modalIntent === 'polling-groups') return t('nav.pollingGroups');
+    if (modalIntent === 'tags') return t('nav.tags');
+    return modalIntent;
+  }, [modalIntent, t]);
   const selectedDeviceState = useMemo<'active' | 'offline' | 'readonly'>(() => {
     if (!selectedDevice) return 'offline';
     if (selectedDevice.status === 'active') return 'active';
@@ -670,7 +701,7 @@ export default function SmartDashboard() {
         message: sinkOk ? '可提交到 DB' : '需先完成 Validate',
       },
     ] as const;
-  }, [canActivate, linkedTag?.key, planAddresses.length, planConflictCount, selectedDeviceId, selectedMapping, selectedSourceAddress]);
+  }, [canActivate, linkedTag, planAddresses.length, planConflictCount, selectedDeviceId, selectedMapping, selectedSourceAddress]);
 
   useEffect(() => {
     setSelectedTagIdForLink(selectedMapping?.tag_id || '');
@@ -901,6 +932,24 @@ export default function SmartDashboard() {
     next.delete('section');
     setSearchParams(next, { replace: true });
   }, [searchParams, sectionIntent, setSearchParams]);
+  const closeWorkflowModal = useCallback(() => {
+    if (!modalIntent) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('modal');
+    setSearchParams(next, { replace: true });
+  }, [modalIntent, searchParams, setSearchParams]);
+  const openWorkflowModal = useCallback(
+    (nextModal: DashboardModalIntent) => {
+      const next = new URLSearchParams(searchParams);
+      next.set('modal', nextModal);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+  const goToLocalModbusWorkbench = useCallback(() => {
+    const section = activeTab;
+    navigate(`/datalink/local-modbus?section=${section}`);
+  }, [activeTab, navigate]);
   const handleSelectTab = useCallback((tab: DashboardTab) => {
     setActiveTab(tab);
   }, []);
@@ -926,6 +975,12 @@ export default function SmartDashboard() {
     if (!sectionIntent) return;
     setActiveTab(sectionIntent);
   }, [sectionIntent]);
+  useEffect(() => {
+    if (!modalIntent) return;
+    if (modalIntent === 'devices') setActiveTab('devices');
+    if (modalIntent === 'settings') setActiveTab('settings');
+    if (modalIntent === 'wizard') setIsCreateDeviceModalOpen(true);
+  }, [modalIntent]);
   useEffect(() => {
     if (createDeviceIntent === '1') {
       setActiveTab('devices');
@@ -1267,6 +1322,13 @@ export default function SmartDashboard() {
         </div>
 
         <div className="order-2 sm:order-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={goToLocalModbusWorkbench}
+            className="min-h-11 rounded-lg border border-cyan-400/40 bg-cyan-500/15 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          >
+            Server Memory Grid
+          </button>
           <div className="flex items-center gap-2 p-1 bg-slate-800/50 rounded-full border border-slate-700/50">
             <button
               type="button"
@@ -1329,6 +1391,25 @@ export default function SmartDashboard() {
           </div>
         </section>
       )}
+      {modalIntent && modalIntentLabel && (
+        <section className="mx-3 mt-3 sm:mx-4 rounded-2xl border border-indigo-300/30 bg-indigo-500/10 px-4 py-3 text-indigo-100 shadow-lg shadow-indigo-900/10 transition-all duration-300">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-indigo-200/80">modal redirect</p>
+              <p className="text-sm">
+                {modalIntentLabel} 已整合為 Dashboard modal 流程（/test 維持獨立頁）。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeWorkflowModal}
+              className="rounded-lg border border-indigo-300/40 bg-indigo-500/20 px-3 py-1.5 text-xs font-medium hover:bg-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            >
+              關閉
+            </button>
+          </div>
+        </section>
+      )}
       {switchErrorMessage && (
         <section className="mx-3 mt-3 sm:mx-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-rose-100">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1362,93 +1443,158 @@ export default function SmartDashboard() {
           </div>
         </section>
       )}
-      <section className="mx-3 mt-3 sm:mx-4 grid grid-cols-1 xl:grid-cols-[1fr_460px] gap-3 items-stretch">
-        <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-2 sm:p-3">
-          <div className="flex flex-wrap gap-2">
-            {DASHBOARD_TABS.map((tab) => {
-              const isActive = activeTab === tab;
-              const label =
-                tab === 'overview'
-                  ? t('nav.dashboard')
-                  : tab === 'devices'
-                    ? t('nav.devices')
-                    : t('nav.settings');
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => handleSelectTab(tab)}
-                  className={`min-h-11 cursor-pointer rounded-full px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                    isActive
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+      <section className="mx-3 mt-3 sm:mx-4">
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900/90 via-slate-800/70 to-slate-900/90 backdrop-blur-md shadow-xl shadow-black/20 overflow-hidden ring-1 ring-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3">
+            {/* 左：分頁導航 */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {DASHBOARD_TABS.map((tab) => {
+                const isActive = activeTab === tab;
+                const label =
+                  tab === 'overview'
+                    ? t('nav.dashboard')
+                    : tab === 'devices'
+                      ? t('nav.devices')
+                      : t('nav.settings');
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => handleSelectTab(tab)}
+                    className={`min-h-9 cursor-pointer rounded-lg px-3.5 py-2 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+                      isActive
+                        ? 'bg-blue-500/90 text-white shadow-lg shadow-blue-500/25'
+                        : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-transparent hover:border-white/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 右：設備資訊與操作 */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-x-5 sm:pl-4 sm:border-l border-white/10 min-w-0 flex-1 sm:flex-initial sm:min-w-0">
+              {selectedDevice ? (
+                <>
+                  <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+                    <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.07] border border-white/10 shrink-0">
+                      <Box className="w-4 h-4 text-slate-400" aria-hidden />
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-semibold text-white truncate max-w-[140px] sm:max-w-[220px]">
+                        {selectedDevice.name}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 ${selectedDeviceStateView.className}`}>
+                        <span className={`h-1 w-1 rounded-full ${selectedDeviceStateView.dotClass}`} aria-hidden />
+                        {selectedDeviceStateView.label}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                    <span className="text-slate-400 font-mono shrink-0">
+                      ID:{selectedDevice.id.slice(0, 8)} · {selectedDevice.protocol}
+                    </span>
+                    <span className="text-slate-500 shrink-0">·</span>
+                    <span className="text-slate-400 shrink-0">
+                      <span className="text-slate-500">{t('smartDashboard.lastSync')}</span>{' '}
+                      <span className="text-slate-200 font-mono">
+                        {selectedDevice.last_test_at
+                          ? new Date(selectedDevice.last_test_at).toLocaleTimeString()
+                          : '-'}
+                      </span>
+                    </span>
+                    <span className="text-slate-500 shrink-0">·</span>
+                    <span className="shrink-0">
+                      <span className="text-slate-500">{t('smartDashboard.cycleTime')}</span>{' '}
+                      <span className="font-mono text-blue-400">100 ms</span>
+                    </span>
+                    <span className="text-slate-500 shrink-0 hidden md:inline">·</span>
+                    <span className="text-slate-400 shrink-0 hidden md:inline">
+                      最近切換: <span className="text-slate-300">{lastSwitchedAt ? new Date(lastSwitchedAt).toLocaleTimeString() : '-'}</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {DASHBOARD_MODAL_ORDER.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => openWorkflowModal(item)}
+                        className={`min-h-8 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                          modalIntent === item
+                            ? 'border-indigo-400/60 bg-indigo-500/30 text-indigo-100'
+                            : 'border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
+                        }`}
+                      >
+                        {item === 'polling-groups'
+                          ? t('nav.pollingGroups')
+                          : item === 'wizard'
+                            ? t('nav.mappingWizard')
+                            : item === 'mappings'
+                              ? t('nav.mappings')
+                              : item === 'points'
+                                ? t('nav.points')
+                                : item === 'devices'
+                                  ? t('nav.devices')
+                                  : item === 'settings'
+                                    ? t('nav.settings')
+                                    : t('nav.tags')}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 shrink-0 ml-auto sm:ml-0">
+                    <button
+                      type="button"
+                      onClick={handleChooseDevice}
+                      disabled={isSwitchingDevice}
+                      className="min-h-9 cursor-pointer rounded-lg border border-blue-400/50 bg-blue-500/25 px-3 py-2 text-xs font-semibold text-blue-100 shadow-sm hover:bg-blue-500/35 hover:border-blue-400/60 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-all duration-200"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        切換設備
+                        {hasUnsavedChanges && <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" aria-hidden />}
+                        {isSwitchingDevice && <span className="text-[10px] text-blue-200">切換中...</span>}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateDevice}
+                      className="min-h-9 cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/25 hover:bg-blue-500 hover:shadow-blue-500/30 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      新增設備
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.07] border border-white/10 shrink-0">
+                      <Box className="w-4 h-4 text-slate-500" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">尚未選擇設備</p>
+                      <p className="text-[11px] text-slate-400">請先選擇或新增設備以開始規劃</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0 ml-auto sm:ml-0">
+                    <button
+                      type="button"
+                      onClick={handleChooseDevice}
+                      className="min-h-9 cursor-pointer rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:border-slate-500 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      選擇設備
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateDevice}
+                      className="min-h-9 cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-blue-500/25 hover:bg-blue-500 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      新增設備
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-slate-900/70 px-3 py-3 sm:px-4">
-          {selectedDevice ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-white truncate max-w-[180px] sm:max-w-none">
-                    {selectedDevice.name}
-                  </span>
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${selectedDeviceStateView.className}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${selectedDeviceStateView.dotClass}`} aria-hidden />
-                    {selectedDeviceStateView.label}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
-                  <span className="font-mono">ID: {selectedDevice.id.slice(0, 8)}</span>
-                  <span>•</span>
-                  <span>{selectedDevice.protocol}</span>
-                </div>
-                <div className="mt-1 text-[11px] text-slate-400">
-                  最近切換: {lastSwitchedAt ? new Date(lastSwitchedAt).toLocaleTimeString() : '-'}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleChooseDevice}
-                disabled={isSwitchingDevice}
-                className="min-h-11 cursor-pointer rounded-lg border border-blue-400/30 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/25 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              >
-                <span className="inline-flex items-center gap-2">
-                  切換設備
-                  {hasUnsavedChanges && <span className="h-2 w-2 rounded-full bg-rose-400" aria-hidden />}
-                  {isSwitchingDevice && <span className="text-[10px] text-blue-200">切換中...</span>}
-                </span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">尚未選擇設備</p>
-                <p className="text-xs text-slate-400 mt-1">請先選擇設備或建立設備後再進行流程規劃。</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleChooseDevice}
-                  className="min-h-11 cursor-pointer rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  選擇設備
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreateDevice}
-                  className="min-h-11 cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  新增設備
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
@@ -1457,60 +1603,6 @@ export default function SmartDashboard() {
           <div className="flex-1 bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col relative min-h-[420px]">
             {selectedDevice ? (
               <>
-                <div className="min-h-16 px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-white/[0.02]">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-emerald-500/30">
-                      <Cpu className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-lg font-bold text-white tracking-wide truncate">{selectedDevice.name}</h2>
-                        <span
-                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            selectedDevice.status === 'active'
-                              ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                              : 'bg-slate-500/20 border border-slate-500/30 text-slate-400'
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              selectedDevice.status === 'active' ? 'bg-emerald-400' : 'bg-slate-400'
-                            }`}
-                            aria-hidden
-                          />
-                          {selectedDevice.status === 'active'
-                            ? t('smartDashboard.connected')
-                            : t('smartDashboard.disconnected')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span className="font-mono opacity-70">ID: {selectedDevice.id.slice(0, 8)}</span>
-                        <span>•</span>
-                        <span>{selectedDevice.protocol}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/5 flex flex-col items-end min-w-[100px]">
-                      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                        {t('smartDashboard.lastSync')}
-                      </span>
-                      <span className="text-sm font-mono text-slate-200">
-                        {selectedDevice.last_test_at
-                          ? new Date(selectedDevice.last_test_at).toLocaleTimeString()
-                          : '-'}
-                      </span>
-                    </div>
-                    <div className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/5 flex flex-col items-end min-w-[110px]">
-                      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                        {t('smartDashboard.cycleTime')}
-                      </span>
-                      <span className="text-sm font-mono text-blue-400">100 ms</span>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-thin scrollbar-thumb-slate-700/50 scrollbar-track-transparent">
                   <section className="mb-6 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1520,20 +1612,16 @@ export default function SmartDashboard() {
                       </span>
                     </div>
                     <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_auto_auto] gap-3">
-                      <label className="text-xs text-slate-300">
-                        Data Type
-                        <select
-                          value={planDataType}
-                          onChange={(e) => setPlanDataType(e.target.value as DataType)}
-                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="int16">int16 (1 cell)</option>
-                          <option value="int32">int32 (2 cells)</option>
-                          <option value="float32">float32 (2 cells)</option>
-                          <option value="float64">float64 (4 cells)</option>
-                        </select>
+                      <label className="text-xs text-slate-300 order-1 xl:order-1">
+                        Start Address
+                        <input
+                          value={planStartAddress}
+                          onChange={(e) => setPlanStartAddress(e.target.value.toUpperCase())}
+                          placeholder="例如: 40001"
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                       </label>
-                      <label className="text-xs text-slate-300">
+                      <label className="text-xs text-slate-300 order-2 xl:order-2">
                         Source Count
                         <input
                           type="number"
@@ -1548,15 +1636,21 @@ export default function SmartDashboard() {
                           className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </label>
-                      <label className="text-xs text-slate-300">
-                        Start Address
-                        <input
-                          value={planStartAddress}
-                          onChange={(e) => setPlanStartAddress(e.target.value.toUpperCase())}
-                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                      <label className="text-xs text-slate-300 order-3 xl:order-3">
+                        Data Type
+                        <select
+                          value={planDataType}
+                          onChange={(e) => setPlanDataType(e.target.value as DataType)}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="int16">int16 (1 cell)</option>
+                          <option value="int32">int32 (2 cells)</option>
+                          <option value="float32">float32 (2 cells)</option>
+                          <option value="int64">int64 (4 cells)</option>
+                          <option value="float64">float64 (4 cells)</option>
+                        </select>
                       </label>
-                      <div className="flex items-end gap-2">
+                      <div className="flex items-end gap-2 order-4 xl:order-4">
                         <button
                           type="button"
                           onClick={handleAutoAllocate}
@@ -1746,19 +1840,56 @@ export default function SmartDashboard() {
                     className={`rounded-2xl border border-white/10 bg-slate-900/50 transition-all ${resolveIntentMotionClass(guideStage, reducedMotion)}`}
                     style={{ transitionDuration: `${MOTION_TOKENS.stageHandoffMs}ms` }}
                   >
-                    <MemoryGrid
-                      deviceId={selectedDevice.id}
-                      protocol={selectedDevice.protocol}
-                      centerAddress={planStartAddress || getGridCenterAddress(selectedDevice.protocol)}
-                      range={300}
-                      existingPoints={allPoints}
-                      linkedAddresses={linkedAddresses}
-                      selectedAddresses={selectedAddresses}
-                      plannedAllocations={plannedAllocations}
-                      showConflictsOnly={showConflictsOnly}
-                      onSelect={setSelectedAddresses}
-                      onCellClick={handleCellClick}
-                    />
+                    <div className="border-b border-white/10 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-100">Dashboard Memory Grid</h3>
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            bind_state / mapping_count / conflict_count（預檢一致）
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={goToLocalModbusWorkbench}
+                          className="min-h-9 rounded-lg border border-blue-500/40 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        >
+                          完整工作台
+                        </button>
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-3">
+                        <div className="rounded-lg border border-white/10 bg-slate-800/60 px-3 py-2 text-slate-300">
+                          bind_state:
+                          <span className={`ml-1 font-semibold ${modbusStatus?.bind_state === 'pass' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {(modbusStatus?.bind_state ?? 'fail').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="rounded-lg border border-white/10 bg-slate-800/60 px-3 py-2 text-slate-300">
+                          mapping_count:
+                          <span className="ml-1 font-semibold text-slate-100">{modbusStatus?.mapping_count ?? 0}</span>
+                        </div>
+                        <div className="rounded-lg border border-white/10 bg-slate-800/60 px-3 py-2 text-slate-300">
+                          conflict_count:
+                          <span className={`ml-1 font-semibold ${planConflictCount > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                            {planConflictCount}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="max-h-[340px] overflow-auto md:max-h-[360px] lg:max-h-[320px]">
+                      <MemoryGrid
+                        deviceId={selectedDevice.id}
+                        protocol={selectedDevice.protocol}
+                        centerAddress={planStartAddress || getGridCenterAddress(selectedDevice.protocol)}
+                        range={220}
+                        existingPoints={allPoints}
+                        linkedAddresses={linkedAddresses}
+                        selectedAddresses={selectedAddresses}
+                        plannedAllocations={plannedAllocations}
+                        showConflictsOnly={showConflictsOnly}
+                        onSelect={setSelectedAddresses}
+                        onCellClick={handleCellClick}
+                      />
+                    </div>
                   </section>
                 </div>
               </>
@@ -1804,6 +1935,7 @@ export default function SmartDashboard() {
               onBatchCreate={() => setPanelType('batch')}
               onQuickMapping={() => {}}
               onTestConnection={() => {}}
+              onOpenWorkbench={goToLocalModbusWorkbench}
             />
             {selectedDevice && (
               <div className="px-4 py-2 border-t border-white/5">
@@ -2221,12 +2353,13 @@ export default function SmartDashboard() {
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold tracking-wide text-slate-200">Local Modbus Share</p>
                 <div className="flex items-center gap-2">
-                  <a
-                    href="/datalink/local-modbus"
+                  <button
+                    type="button"
+                    onClick={goToLocalModbusWorkbench}
                     className="rounded border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-[10px] text-blue-200 hover:bg-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     完整工作台
-                  </a>
+                  </button>
                   <button
                     type="button"
                     onClick={loadModbusStatus}
@@ -2281,6 +2414,63 @@ export default function SmartDashboard() {
           </div>
         </div>
       </div>
+
+      {modalIntent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/95 p-4 shadow-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-indigo-200/80">Dashboard Modal</p>
+                <h3 className="text-base font-semibold text-slate-100">{modalIntentLabel}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeWorkflowModal}
+                className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+              >
+                關閉
+              </button>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-800/50 p-3 text-sm text-slate-200">
+              <p>
+                {modalIntent === 'devices' && '設備管理已整合為側滑面板與建立流程。'}
+                {modalIntent === 'settings' && '系統設定以 Dashboard 內嵌設定模式開啟。'}
+                {modalIntent === 'points' && '點位流程已整合到 Source Planner + Batch 建立。'}
+                {modalIntent === 'mappings' && '映射流程已整合到 Flow + Tag Linkage 區。'}
+                {modalIntent === 'wizard' && '精靈流程以新增設備 modal 承載。'}
+                {modalIntent === 'polling-groups' && '輪詢群組管理透過設定與點位流程整合。'}
+                {modalIntent === 'tags' && 'Tag 管理與全域編輯整合在右側面板。'}
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (modalIntent === 'devices') handleChooseDevice();
+                  if (modalIntent === 'wizard') handleCreateDevice();
+                  if (modalIntent === 'points') setPanelType('batch');
+                  if (modalIntent === 'settings') setActiveTab('settings');
+                  if (modalIntent === 'mappings' || modalIntent === 'tags') setActiveTab('overview');
+                  closeWorkflowModal();
+                }}
+                className="min-h-11 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                開啟對應流程
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  goToLocalModbusWorkbench();
+                  closeWorkflowModal();
+                }}
+                className="min-h-11 rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+              >
+                前往 Server Memory Grid
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isDeviceDrawerOpen && (
         <>
