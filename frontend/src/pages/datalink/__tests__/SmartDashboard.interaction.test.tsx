@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import SmartDashboard from '../SmartDashboard';
+import { ToastProvider } from '../../../contexts/ToastContext';
 
 const { mockDevicesState, mockDatalinkState, mockMutations, mockModbusShareAPI } = vi.hoisted(() => ({
   mockDevicesState: {
@@ -189,11 +190,13 @@ vi.mock('../../../components/datalink/DeviceForm', () => ({
 
 function renderDashboard(entry = '/datalink') {
   return render(
-    <MemoryRouter initialEntries={[entry]}>
-      <Routes>
-        <Route path="/datalink" element={<SmartDashboard />} />
-      </Routes>
-    </MemoryRouter>
+    <ToastProvider>
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/datalink" element={<SmartDashboard />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>
   );
 }
 
@@ -345,7 +348,7 @@ describe('SmartDashboard interactions', () => {
     expect(screen.getByText('Read-only')).toBeInTheDocument();
   });
 
-  it('shows switch failure path with details and retry controls for offline/draft device', async () => {
+  it('shows switch failure toast and opens in-modal setup for offline/draft device', async () => {
     renderDashboard();
 
     await switchDeviceFromModal('Device Active');
@@ -354,10 +357,7 @@ describe('SmartDashboard interactions', () => {
     fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
 
     expect(await screen.findByText(/目前不可切換/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '重試' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: '查看詳情' }));
-    expect(await screen.findByText(/若設備狀態為離線/)).toBeInTheDocument();
+    expect(await screen.findByText('設定：Device Draft')).toBeInTheDocument();
   });
 
   it('covers e2e-like mainline: success, unsaved intercept, read-only switch, then failure', async () => {
@@ -379,6 +379,7 @@ describe('SmartDashboard interactions', () => {
     await switchDeviceFromModal('Device Draft');
     fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
     expect(await screen.findByText(/目前不可切換/)).toBeInTheDocument();
+    expect(await screen.findByText('設定：Device Draft')).toBeInTheDocument();
   });
 
   it('keeps typed occupancy contiguous rules for float32 and int64 plans', async () => {

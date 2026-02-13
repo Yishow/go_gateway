@@ -25,6 +25,7 @@ import {
 } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 import { usePointsQuery, useCreatePointMutation } from '../../hooks/datalink/usePoints';
+import { useToast } from '../../contexts/ToastContext';
 import {
   useMappingsQuery,
   useValidatePipelineMutation,
@@ -129,6 +130,7 @@ interface SourceTemplate {
 
 export default function SmartDashboard() {
   const { t } = useTranslation();
+  const { showSuccess, showError, showInfo } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
@@ -137,10 +139,7 @@ export default function SmartDashboard() {
   const [deviceSearchQuery, setDeviceSearchQuery] = useState('');
   const [deviceStatusFilter, setDeviceStatusFilter] = useState<'all' | 'active' | 'disabled' | 'draft'>('all');
   const [isSwitchingDevice, setIsSwitchingDevice] = useState(false);
-  const [switchErrorMessage, setSwitchErrorMessage] = useState('');
-  const [showSwitchErrorDetails, setShowSwitchErrorDetails] = useState(false);
   const [pendingSwitchDeviceId, setPendingSwitchDeviceId] = useState<string | null>(null);
-  const [activationTargetDeviceId, setActivationTargetDeviceId] = useState<string | null>(null);
   const [activatingDeviceId, setActivatingDeviceId] = useState<string | null>(null);
   const [showSwitchConfirmDialog, setShowSwitchConfirmDialog] = useState(false);
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
@@ -158,7 +157,6 @@ export default function SmartDashboard() {
   const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => loadSourceTemplates());
   const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
   const [modbusRegister, setModbusRegister] = useState('0');
-  const [modbusActionMessage, setModbusActionMessage] = useState('');
   const [tagLinkMode, setTagLinkMode] = useState<'existing' | 'create'>('existing');
   const [selectedTagIdForLink, setSelectedTagIdForLink] = useState('');
   const [newTagKey, setNewTagKey] = useState('');
@@ -191,8 +189,6 @@ export default function SmartDashboard() {
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
-  const [deviceSetupMessage, setDeviceSetupMessage] = useState('');
-  const [deviceSetupMessageTone, setDeviceSetupMessageTone] = useState<'info' | 'success' | 'error'>('info');
   const [testingDeviceId, setTestingDeviceId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
@@ -439,9 +435,9 @@ export default function SmartDashboard() {
       setModbusStatus(status);
     } catch (error) {
       const message = error instanceof Error ? error.message : '讀取 Modbus 分享狀態失敗';
-      setModbusActionMessage(message);
+      showError(message);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadModbusStatus();
@@ -460,16 +456,19 @@ export default function SmartDashboard() {
     async (nextDeviceId: string) => {
       setIsSwitchingDevice(true);
       setPendingSwitchDeviceId(nextDeviceId);
-      setSwitchErrorMessage('');
-      setShowSwitchErrorDetails(false);
       try {
         const target = devices.find((device) => device.id === nextDeviceId);
         if (target && target.status !== 'active' && target.status !== 'disabled') {
-          setActivationTargetDeviceId(target.id);
-          throw new Error(`設備 ${target.name} 目前不可切換，請先完成啟用流程。`);
+          showError(`設備 ${target.name} 目前不可切換，請先完成啟用流程。`);
+          showInfo('若設備離線，請先測試連線並確認來源協議設定。');
+          setEditingDeviceInModal(target);
+          const next = new URLSearchParams(searchParams);
+          next.set('modal', 'devices');
+          setSearchParams(next, { replace: true });
+          setPendingSwitchDeviceId(null);
+          return;
         }
         setSelectedDeviceId(nextDeviceId);
-        setActivationTargetDeviceId(null);
         const next = new URLSearchParams(searchParams);
         if (next.get('modal') === 'devices') {
           next.delete('modal');
@@ -478,12 +477,12 @@ export default function SmartDashboard() {
         setPendingSwitchDeviceId(null);
       } catch (error) {
         const message = error instanceof Error ? error.message : '切換設備失敗';
-        setSwitchErrorMessage(message);
+        showError(message);
       } finally {
         setIsSwitchingDevice(false);
       }
     },
-    [devices, searchParams, setSearchParams]
+    [devices, searchParams, setSearchParams, showError, showInfo]
   );
   const requestDeviceSwitch = useCallback(
     (nextDeviceId: string) => {
@@ -951,53 +950,53 @@ export default function SmartDashboard() {
 
   const handleBindTagToModbus = useCallback(async () => {
     if (!linkedTag?.id) {
-      setModbusActionMessage('請先選取已連結 Tag 的點位');
+      showError('請先選取已連結 Tag 的點位');
       return;
     }
     const register = Number(modbusRegister);
     if (!Number.isInteger(register) || register < 0 || register > 65535) {
-      setModbusActionMessage('Register 必須為 0-65535 的整數');
+      showError('Register 必須為 0-65535 的整數');
       return;
     }
     try {
       await modbusShareAPI.upsertMapping(linkedTag.id, register);
       await loadModbusStatus();
-      setModbusActionMessage(`已綁定 ${linkedTag.key} -> HR${register}`);
+      showSuccess(`已綁定 ${linkedTag.key} -> HR${register}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : '綁定失敗';
-      setModbusActionMessage(message);
+      showError(message);
     }
-  }, [linkedTag?.id, linkedTag?.key, loadModbusStatus, modbusRegister]);
+  }, [linkedTag?.id, linkedTag?.key, loadModbusStatus, modbusRegister, showError, showSuccess]);
 
   const handlePushCurrentValueToModbus = useCallback(async () => {
     if (!linkedTag?.id) {
-      setModbusActionMessage('請先選取已連結 Tag 的點位');
+      showError('請先選取已連結 Tag 的點位');
       return;
     }
     if (selectedPoint?.last_value === undefined || selectedPoint?.last_value === null) {
-      setModbusActionMessage('目前點位沒有可推送的值');
+      showError('目前點位沒有可推送的值');
       return;
     }
     try {
       await modbusShareAPI.writeTagValue(linkedTag.id, selectedPoint.last_value);
-      setModbusActionMessage(`已推送當前值到 Tag ${linkedTag.key} 的 Modbus 映射`);
+      showSuccess(`已推送當前值到 Tag ${linkedTag.key} 的 Modbus 映射`);
     } catch (error) {
       const message = error instanceof Error ? error.message : '推送失敗';
-      setModbusActionMessage(message);
+      showError(message);
     }
-  }, [linkedTag?.id, linkedTag?.key, selectedPoint?.last_value]);
+  }, [linkedTag?.id, linkedTag?.key, selectedPoint?.last_value, showError, showSuccess]);
 
   const handleSyncModbusFromMappings = useCallback(async () => {
     try {
       const result = await modbusShareAPI.sync();
       await loadModbusStatus();
       const errorHint = result.errors.length > 0 ? `, errors=${result.errors.length}` : '';
-      setModbusActionMessage(`同步完成: updated=${result.updated}, skipped=${result.skipped}${errorHint}`);
+      showInfo(`同步完成: updated=${result.updated}, skipped=${result.skipped}${errorHint}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : '同步失敗';
-      setModbusActionMessage(message);
+      showError(message);
     }
-  }, [loadModbusStatus]);
+  }, [loadModbusStatus, showError, showInfo]);
 
   const dismissLegacyNotice = useCallback(() => {
     if (!isLegacyDecommissionRoute(legacyRoute)) return;
@@ -1035,8 +1034,6 @@ export default function SmartDashboard() {
       const target = devices.find((device) => device.id === deviceId) || null;
       if (!target) return;
       setEditingDeviceInModal(target);
-      setDeviceSetupMessage('');
-      setDeviceSetupMessageTone('info');
       setActiveTab('devices');
       const next = new URLSearchParams(searchParams);
       next.set('modal', 'devices');
@@ -1051,34 +1048,28 @@ export default function SmartDashboard() {
         id: editingDeviceInModal.id,
         data: data as UpdateDeviceRequest,
       });
-      setDeviceSetupMessage(`已更新設備「${editingDeviceInModal.name}」設定`);
-      setDeviceSetupMessageTone('success');
+      showSuccess(`已更新設備「${editingDeviceInModal.name}」設定`);
     },
-    [editingDeviceInModal, updateDeviceMutation]
+    [editingDeviceInModal, showSuccess, updateDeviceMutation]
   );
   const handleTestDeviceConnection = useCallback(
     async (deviceId: string) => {
       setTestingDeviceId(deviceId);
-      setDeviceSetupMessage('');
-      setDeviceSetupMessageTone('info');
       try {
         const result = await testConnectionMutation.mutateAsync(deviceId);
         if (result.success) {
-          setDeviceSetupMessage(`連線成功，延遲 ${result.latency_ms} ms`);
-          setDeviceSetupMessageTone('success');
+          showSuccess(`連線成功，延遲 ${result.latency_ms} ms`);
           return;
         }
-        setDeviceSetupMessage(`連線失敗：${result.error || '未知錯誤'}`);
-        setDeviceSetupMessageTone('error');
+        showError(`連線失敗：${result.error || '未知錯誤'}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : '測試連線失敗';
-        setDeviceSetupMessage(`連線失敗：${message}`);
-        setDeviceSetupMessageTone('error');
+        showError(`連線失敗：${message}`);
       } finally {
         setTestingDeviceId(null);
       }
     },
-    [testConnectionMutation]
+    [showError, showSuccess, testConnectionMutation]
   );
   const handleSelectTab = useCallback(
     (tab: DashboardTab) => {
@@ -1106,16 +1097,13 @@ export default function SmartDashboard() {
       const target = devices.find((device) => device.id === deviceId);
       if (!target) return;
       setActivatingDeviceId(deviceId);
-      setActivationTargetDeviceId(deviceId);
-      setSwitchErrorMessage('');
-      setShowSwitchErrorDetails(false);
       try {
         await toggleDeviceStatusMutation.mutateAsync({
           id: deviceId,
           currentStatus: target.status,
         });
+        showSuccess(`已啟用設備「${target.name}」`);
         setSelectedDeviceId(deviceId);
-        setActivationTargetDeviceId(null);
         const next = new URLSearchParams(searchParams);
         if (next.get('modal') === 'devices') {
           next.delete('modal');
@@ -1123,12 +1111,12 @@ export default function SmartDashboard() {
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : '啟用失敗';
-        setSwitchErrorMessage(`設備啟用失敗：${message}`);
+        showError(`設備啟用失敗：${message}`);
       } finally {
         setActivatingDeviceId(null);
       }
     },
-    [devices, searchParams, setSearchParams, toggleDeviceStatusMutation]
+    [devices, searchParams, setSearchParams, showError, showSuccess, toggleDeviceStatusMutation]
   );
   const handleCreateDevice = useCallback(() => {
     setIsCreateDeviceModalOpen(true);
@@ -1157,8 +1145,6 @@ export default function SmartDashboard() {
   useEffect(() => {
     if (modalIntent !== 'devices') {
       setEditingDeviceInModal(null);
-      setDeviceSetupMessage('');
-      setDeviceSetupMessageTone('info');
     }
   }, [modalIntent]);
   useEffect(() => {
@@ -1595,58 +1581,6 @@ export default function SmartDashboard() {
             >
               關閉
             </button>
-          </div>
-        </section>
-      )}
-      {switchErrorMessage && (
-        <section className="mx-3 mt-3 sm:mx-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-rose-100">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-rose-200/80">switch failed</p>
-              <p className="text-sm">{switchErrorMessage}</p>
-              {showSwitchErrorDetails && (
-                <p className="mt-1 text-xs text-rose-200/80">
-                  若設備狀態為離線，請先執行測試連線並確認來源協議設定。
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {activationTargetDeviceId && (
-                <button
-                  type="button"
-                  onClick={() => void handleActivateDeviceDirect(activationTargetDeviceId)}
-                  disabled={activatingDeviceId === activationTargetDeviceId}
-                  className="min-h-11 rounded-lg border border-amber-300/40 bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                >
-                  {activatingDeviceId === activationTargetDeviceId ? '啟用中...' : '直接啟用'}
-                </button>
-              )}
-              {activationTargetDeviceId && (
-                <button
-                  type="button"
-                  onClick={() => openDeviceSetupModal(activationTargetDeviceId)}
-                  className="min-h-11 rounded-lg border border-slate-300/30 bg-slate-700/60 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-                >
-                  開啟設備設定
-                </button>
-              )}
-              {pendingSwitchDeviceId && (
-                <button
-                  type="button"
-                  onClick={() => void applyDeviceSwitch(pendingSwitchDeviceId)}
-                  className="min-h-11 rounded-lg border border-rose-300/40 bg-rose-500/20 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
-                >
-                  重試
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowSwitchErrorDetails((prev) => !prev)}
-                className="min-h-11 rounded-lg border border-rose-300/40 bg-rose-500/20 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
-              >
-                {showSwitchErrorDetails ? '隱藏詳情' : '查看詳情'}
-              </button>
-            </div>
           </div>
         </section>
       )}
@@ -2619,11 +2553,6 @@ export default function SmartDashboard() {
                   同步全部啟用映射
                 </button>
               </div>
-              {modbusActionMessage && (
-                <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
-                  {modbusActionMessage}
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -2802,19 +2731,6 @@ export default function SmartDashboard() {
                     <div className="mt-3 rounded-xl border border-dashed border-slate-600 bg-slate-900/60 p-4 text-xs text-slate-400">
                       從左側設備卡片點擊「設定」，即可在此直接編輯來源協議、連線參數、重試策略並測試連線，不再跳轉到獨立設定頁。
                     </div>
-                  )}
-                  {deviceSetupMessage && (
-                    <p
-                      className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
-                        deviceSetupMessageTone === 'success'
-                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-                          : deviceSetupMessageTone === 'error'
-                            ? 'border-rose-500/30 bg-rose-500/10 text-rose-100'
-                            : 'border-slate-600 bg-slate-800/70 text-slate-200'
-                      }`}
-                    >
-                      {deviceSetupMessage}
-                    </p>
                   )}
                 </section>
               </div>
