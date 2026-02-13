@@ -43,7 +43,7 @@
 
 ## 6. Verification and Regression Coverage
 
-- [ ] 6.1 新增/調整路由測試，驗證 legacy 路徑導向與 section intent
+- [x] 6.1 新增/調整路由測試，驗證 legacy 路徑導向與 section intent
 - [ ] 6.2 新增/調整 `SmartDashboard` 互動測試（context bar、drawer、切換流程）
 - [ ] 6.3 新增/調整異常流程測試（offline、switch failure、unsaved changes、read-only）
 - [ ] 6.4 增加 E2E 主線：切換成功、切換失敗、未儲存攔截、read-only
