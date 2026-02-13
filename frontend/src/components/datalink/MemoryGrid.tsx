@@ -77,7 +77,7 @@ export function MemoryGrid({
       let status: GridCellStart['status'] = 'available';
       if (point) status = 'used';
       if (planned) status = point ? 'conflict' : 'planned';
-      if (isSelected) status = 'selected';
+      if (isSelected && status !== 'conflict') status = 'selected';
       
       return {
         address: addr,
@@ -173,6 +173,7 @@ export function MemoryGrid({
                 : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500'
             }
             ${cell.plan && cell.plan.addresses.length > 1 ? 'ring-1 ring-offset-1 ring-offset-transparent ring-sky-400/60' : ''}
+            ${cell.isSelected ? 'ring-2 ring-blue-400/70' : ''}
           `}
           title={
             cell.status === 'conflict'
