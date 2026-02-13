@@ -59,6 +59,7 @@ vi.mock('../../../services/datalink', () => ({
 
 vi.mock('../../../hooks/datalink/useDevices', () => ({
   useDevicesQuery: () => ({ data: mockDevicesState.devices }),
+  useToggleDeviceStatusMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined) }),
 }));
 
 vi.mock('../../../hooks/datalink/usePollingGroups', () => ({
@@ -199,7 +200,10 @@ async function switchDeviceFromModal(deviceName: string) {
   }
   const deviceTitle = await screen.findByText(deviceName);
   const card = deviceTitle.closest('article') as HTMLElement;
-  const switchButton = within(card).getByRole('button', { name: /切換|目前設備|已選擇/ });
+  const switchButton =
+    within(card).queryByRole('button', { name: '切換' }) ||
+    within(card).queryByRole('button', { name: '目前設備' }) ||
+    within(card).getByRole('button', { name: '已選擇' });
   fireEvent.click(switchButton);
 }
 
@@ -386,5 +390,12 @@ describe('SmartDashboard interactions', () => {
     fireEvent.change(screen.getByLabelText('Data Type'), { target: { value: 'int64' } });
     expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
     expect(screen.getByTestId('plan-span')).toHaveTextContent('4');
+  });
+
+  it('shows direct activation action for draft device in selector modal', async () => {
+    renderDashboard('/datalink?modal=devices');
+    const draftCard = await screen.findByText('Device Draft');
+    const card = draftCard.closest('article') as HTMLElement;
+    expect(within(card).getByRole('button', { name: '啟用並切換' })).toBeInTheDocument();
   });
 });

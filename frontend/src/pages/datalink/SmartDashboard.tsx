@@ -8,7 +8,7 @@ import { BatchPointCreator } from '../../components/datalink/BatchPointCreator';
 import { PointDetailPanel } from '../../components/datalink/PointDetailPanel';
 import { ImportDialog, ExportDialog } from '../../components/datalink/ImportExportDialog';
 import DeviceOnboardingWizard from '../../components/datalink/wizard/DeviceOnboardingWizard';
-import { useDevicesQuery } from '../../hooks/datalink/useDevices';
+import { useDevicesQuery, useToggleDeviceStatusMutation } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 import { usePointsQuery, useCreatePointMutation } from '../../hooks/datalink/usePoints';
 import {
@@ -127,6 +127,7 @@ export default function SmartDashboard() {
   const [showSwitchErrorDetails, setShowSwitchErrorDetails] = useState(false);
   const [pendingSwitchDeviceId, setPendingSwitchDeviceId] = useState<string | null>(null);
   const [activationTargetDeviceId, setActivationTargetDeviceId] = useState<string | null>(null);
+  const [activatingDeviceId, setActivatingDeviceId] = useState<string | null>(null);
   const [showSwitchConfirmDialog, setShowSwitchConfirmDialog] = useState(false);
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -180,6 +181,7 @@ export default function SmartDashboard() {
   const guideStageTimeoutRef = useRef<number | null>(null);
 
   const { data: devices = [] } = useDevicesQuery();
+  const toggleDeviceStatusMutation = useToggleDeviceStatusMutation();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
   const { data: mappings = [] } = useMappingsQuery();
@@ -1028,18 +1030,34 @@ export default function SmartDashboard() {
     next.set('modal', 'devices');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
-  const handleGoActivateDevice = useCallback(
-    (deviceId: string) => {
+  const handleActivateDeviceDirect = useCallback(
+    async (deviceId: string) => {
+      const target = devices.find((device) => device.id === deviceId);
+      if (!target) return;
+      setActivatingDeviceId(deviceId);
       setActivationTargetDeviceId(deviceId);
-      const next = new URLSearchParams(searchParams);
-      next.set('modal', 'settings');
-      next.set('section', 'settings');
-      setSearchParams(next, { replace: true });
-      setActiveTab('settings');
       setSwitchErrorMessage('');
       setShowSwitchErrorDetails(false);
+      try {
+        await toggleDeviceStatusMutation.mutateAsync({
+          id: deviceId,
+          currentStatus: target.status,
+        });
+        setSelectedDeviceId(deviceId);
+        setActivationTargetDeviceId(null);
+        const next = new URLSearchParams(searchParams);
+        if (next.get('modal') === 'devices') {
+          next.delete('modal');
+          setSearchParams(next, { replace: true });
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '啟用失敗';
+        setSwitchErrorMessage(`設備啟用失敗：${message}`);
+      } finally {
+        setActivatingDeviceId(null);
+      }
     },
-    [searchParams, setSearchParams]
+    [devices, searchParams, setSearchParams, toggleDeviceStatusMutation]
   );
   const handleCreateDevice = useCallback(() => {
     setIsCreateDeviceModalOpen(true);
@@ -1509,10 +1527,11 @@ export default function SmartDashboard() {
               {activationTargetDeviceId && (
                 <button
                   type="button"
-                  onClick={() => handleGoActivateDevice(activationTargetDeviceId)}
+                  onClick={() => void handleActivateDeviceDirect(activationTargetDeviceId)}
+                  disabled={activatingDeviceId === activationTargetDeviceId}
                   className="min-h-11 rounded-lg border border-amber-300/40 bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                 >
-                  去啟用
+                  {activatingDeviceId === activationTargetDeviceId ? '啟用中...' : '直接啟用'}
                 </button>
               )}
               {pendingSwitchDeviceId && (
@@ -2588,10 +2607,11 @@ export default function SmartDashboard() {
                             {device.status === 'draft' && (
                               <button
                                 type="button"
-                                onClick={() => handleGoActivateDevice(device.id)}
-                                className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                onClick={() => void handleActivateDeviceDirect(device.id)}
+                                disabled={activatingDeviceId === device.id}
+                                className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                               >
-                                去啟用
+                                {activatingDeviceId === device.id ? '啟用中...' : '啟用並切換'}
                               </button>
                             )}
                             <button
