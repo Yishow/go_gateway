@@ -92,4 +92,47 @@ describe('MemoryGrid', () => {
     
     expect(onCellClick).toHaveBeenCalledWith('40001', point);
   });
+
+  it('should match int16 count to exact planned cells', () => {
+    const plannedAllocations = Array.from({ length: 5 }).map((_, index) => ({
+      id: `int-${index}`,
+      dataType: 'int16' as const,
+      addresses: [`${40001 + index}`],
+      label: `INT${index + 1}`,
+    }));
+
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={30}
+        plannedAllocations={plannedAllocations}
+      />
+    );
+
+    const intLabels = screen.getAllByText(/^INT\d+$/);
+    expect(intLabels).toHaveLength(5);
+  });
+
+  it('should render float32 planned count as paired cells', () => {
+    const plannedAllocations = Array.from({ length: 10 }).map((_, index) => {
+      const base = 40001 + index * 2;
+      return {
+        id: `float-${index}`,
+        dataType: 'float32' as const,
+        addresses: [`${base}`, `${base + 1}`],
+        label: `F${index + 1}`,
+      };
+    });
+
+    render(
+      <MemoryGrid
+        {...defaultProps}
+        range={50}
+        plannedAllocations={plannedAllocations}
+      />
+    );
+
+    const pairedMarkers = screen.getAllByText(/\/2$/);
+    expect(pairedMarkers).toHaveLength(20);
+  });
 });
