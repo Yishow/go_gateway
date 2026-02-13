@@ -9,37 +9,66 @@
 - [ ] 2.2 Add template CRUD (save, load, update, delete).
 - [ ] 2.3 Wire template selection to planner defaults.
 - [ ] 2.4 Add tests for planner-to-template persistence.
+- [ ] 2.5 Add template version and last-used timestamp handling.
+- [ ] 2.6 Add stale-template warning and upgrade prompt.
+- [ ] 2.7 Add batch naming preview with duplicate/conflict detection.
 
 ## 3. Memory Grid Typed Occupancy
 - [ ] 3.1 Implement span calculation by type (1/2/4 cells).
 - [ ] 3.2 Render grouped cells for multi-cell types (pair/quad visualization).
 - [ ] 3.3 Show occupancy states (`available`, `planned`, `used`, `conflict`, `linked`).
 - [ ] 3.4 Add tests for occupancy math and edge collision handling.
+- [ ] 3.5 Add hard/soft conflict severity rendering and behavior.
+- [ ] 3.6 Add auto-allocation strategy for nearest valid contiguous span.
+- [ ] 3.7 Add grouped-border and in-group index markers for multi-cell types.
+- [ ] 3.8 Add conflict-only filter mode in grid controls.
 
 ## 4. Tag Linkage and Global Editing
 - [ ] 4.1 Build inline tag linkage panel bound to selected grid allocation.
 - [ ] 4.2 Support creating or selecting existing global tags in context.
 - [ ] 4.3 Enable global tag metadata edit in-place with impact summary.
 - [ ] 4.4 Add tests for global tag edit propagation behavior.
+- [ ] 4.5 Add affected-mappings summary and second-confirmation flow for global edits.
+- [ ] 4.6 Add before/after field-level diff preview before global tag save.
 
 ## 5. Commit Workflow (Tag -> DB)
 - [ ] 5.1 Introduce commit queue view for pending allocations.
 - [ ] 5.2 Add `validate` and `commit` actions with segment-level feedback.
 - [ ] 5.3 Add rollback/retry UX for partial failure.
 - [ ] 5.4 Add integration tests for validate/commit/error-recovery lifecycle.
+- [ ] 5.5 Execute commit in chunks with per-chunk result visibility.
+- [ ] 5.6 Add deterministic retry queue for failed chunks only.
+- [ ] 5.7 Add commit impact summary (new points, global tag updates, conflicts).
+- [ ] 5.8 Add audit logging payload and UI trace link.
+- [ ] 5.9 Add commit batch trace id creation and display.
+- [ ] 5.10 Add two-stage validation flow (structural then executable).
+- [ ] 5.11 Add pre-commit polling load delta estimate.
 
 ## 6. Motion-Guided Interaction
 - [ ] 6.1 Define motion tokens and transition rules (150-300ms).
 - [ ] 6.2 Add stage transitions and focus handoff animations.
 - [ ] 6.3 Add reduced-motion fallback and tests.
 - [ ] 6.4 Run accessibility checks for keyboard and focus visibility.
+- [ ] 6.5 Restrict animations to intent transitions; no decorative long animations.
+- [ ] 6.6 Add animation readability checklist and QA gate for visual clarity.
 
-## 7. Route and Navigation Decommission
-- [ ] 7.1 Remove deprecated nav entries and route entry points.
-- [ ] 7.2 Redirect deprecated routes to Pipeline Studio with migration notice.
-- [ ] 7.3 Update docs and help text to the one-screen workflow.
+## 7. Local Modbus Sharing Mode
+- [ ] 7.1 Add optional sink target `local_modbus_server`.
+- [ ] 7.2 Implement tag-to-virtual-register mapping configuration UI.
+- [ ] 7.3 Mirror committed tag values to local virtual Modbus memory grid.
+- [ ] 7.4 Start local Modbus TCP server on port `5020`.
+- [ ] 7.5 Add bind preflight check and actionable port-conflict error handling.
+- [ ] 7.6 Add integration tests for external read verification against mirrored values.
 
-## 8. Verification and Release Gate
-- [ ] 8.1 Run `npm run lint`, `npm run typecheck`, `npm test`.
-- [ ] 8.2 Run manual scenario checks for type-count occupancy examples.
-- [ ] 8.3 Record UX acceptance notes for source template reuse and global tag edits.
+## 8. Route and Navigation Decommission
+- [ ] 8.1 Remove deprecated nav entries and route entry points.
+- [ ] 8.2 Redirect deprecated routes to Pipeline Studio with migration notice.
+- [ ] 8.3 Update docs and help text to the one-screen workflow.
+
+## 9. Verification and Release Gate
+- [ ] 9.1 Run `npm run lint`, `npm run typecheck`, `npm test`.
+- [ ] 9.2 Run manual scenario checks for type-count occupancy examples.
+- [ ] 9.3 Record UX acceptance notes for source template reuse and global tag edits.
+- [ ] 9.4 Verify autosave/restore behavior under abrupt page reload.
+- [ ] 9.5 Verify phased rollout with initial type subset (`int16`, `int32`, `float32`).
+- [ ] 9.6 Verify Modbus server behavior on port `5020` using an external Modbus client.
