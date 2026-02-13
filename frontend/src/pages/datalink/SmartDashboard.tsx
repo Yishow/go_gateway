@@ -380,6 +380,35 @@ export default function SmartDashboard() {
 
   const primarySelectedAddress = selectedAddresses[0] || '';
   const selectedSourceAddress = primarySelectedAddress || selectedPoint?.address || '';
+  const commitQueueItems = useMemo(() => {
+    const usedSet = new Set(allPoints.map((point) => point.address));
+    const linkedSet = new Set(linkedAddresses);
+    return plannedAllocations.map((allocation, index) => {
+      const conflictCount = allocation.addresses.filter((address) => usedSet.has(address)).length;
+      const linkedCount = allocation.addresses.filter((address) => linkedSet.has(address)).length;
+      const status = conflictCount > 0 ? 'conflict' : linkedCount > 0 ? 'linked' : 'pending';
+      return {
+        id: allocation.id,
+        label: allocation.label,
+        type: allocation.dataType,
+        addresses: allocation.addresses,
+        status,
+        order: index + 1,
+      };
+    });
+  }, [allPoints, linkedAddresses, plannedAllocations]);
+  const commitQueueSummary = useMemo(() => {
+    return commitQueueItems.reduce(
+      (acc, item) => {
+        acc.total += 1;
+        if (item.status === 'conflict') acc.conflict += 1;
+        if (item.status === 'linked') acc.linked += 1;
+        if (item.status === 'pending') acc.pending += 1;
+        return acc;
+      },
+      { total: 0, pending: 0, linked: 0, conflict: 0 }
+    );
+  }, [commitQueueItems]);
   const selectedPointFromGrid = useMemo(
     () => allPoints.find((point) => point.address === selectedSourceAddress) || null,
     [allPoints, selectedSourceAddress]
@@ -1222,6 +1251,51 @@ export default function SmartDashboard() {
                 <span>{t('smartDashboard.shortcuts')}</span>
                 <span className="ml-auto text-[10px] font-mono opacity-60">?</span>
               </button>
+            </div>
+            <div className="p-4 border-t border-white/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-wide text-slate-200">Commit Queue</p>
+                <span className="text-[10px] text-slate-400">Total {commitQueueSummary.total}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-[10px]">
+                <div className="rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-slate-200">
+                  Pending {commitQueueSummary.pending}
+                </div>
+                <div className="rounded border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-indigo-100">
+                  Linked {commitQueueSummary.linked}
+                </div>
+                <div className="rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-100">
+                  Conflict {commitQueueSummary.conflict}
+                </div>
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                {commitQueueItems.length === 0 ? (
+                  <p className="rounded border border-slate-700 bg-slate-900/60 px-2 py-2 text-[11px] text-slate-400">
+                    尚無待提交規劃
+                  </p>
+                ) : (
+                  commitQueueItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`rounded border px-2 py-1.5 text-[11px] ${
+                        item.status === 'conflict'
+                          ? 'border-rose-500/30 bg-rose-500/10 text-rose-100'
+                          : item.status === 'linked'
+                            ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-100'
+                            : 'border-slate-700 bg-slate-900/60 text-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono">#{item.order} {item.label}</span>
+                        <span className="uppercase text-[10px]">{item.status}</span>
+                      </div>
+                      <div className="mt-0.5 text-[10px] opacity-80">
+                        {item.type} · {item.addresses[0]}..{item.addresses[item.addresses.length - 1]}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
             <div className="p-4 border-t border-white/5 space-y-2">
               <button

@@ -32,7 +32,7 @@
 - [x] 4.6 Add before/after field-level diff preview before global tag save.
 
 ## 5. Commit Workflow (Tag -> DB)
-- [ ] 5.1 Introduce commit queue view for pending allocations.
+- [x] 5.1 Introduce commit queue view for pending allocations.
 - [ ] 5.2 Add `validate` and `commit` actions with segment-level feedback.
 - [ ] 5.3 Add rollback/retry UX for partial failure.
 - [ ] 5.4 Add integration tests for validate/commit/error-recovery lifecycle.
