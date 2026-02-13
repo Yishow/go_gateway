@@ -190,6 +190,13 @@ function renderDashboard(entry = '/datalink') {
   );
 }
 
+async function switchDeviceFromModal(deviceName: string) {
+  const deviceTitle = await screen.findByText(deviceName);
+  const card = deviceTitle.closest('article') as HTMLElement;
+  const switchButton = within(card).getByRole('button', { name: /切換|已選擇/ });
+  fireEvent.click(switchButton);
+}
+
 describe('SmartDashboard interactions', () => {
   beforeAll(() => {
     Object.defineProperty(window, 'matchMedia', {
@@ -287,7 +294,7 @@ describe('SmartDashboard interactions', () => {
   it('switches device successfully and updates context bar', async () => {
     renderDashboard();
 
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Active' }));
+    await switchDeviceFromModal('Device Active');
 
     await waitFor(() => {
       expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
@@ -299,11 +306,11 @@ describe('SmartDashboard interactions', () => {
   it('guards unsaved changes and supports cancel then discard-switch to read-only', async () => {
     renderDashboard();
 
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Active' }));
+    await switchDeviceFromModal('Device Active');
     fireEvent.click(await screen.findByRole('button', { name: 'mock-select-address' }));
 
     fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Disabled' }));
+    await switchDeviceFromModal('Device Disabled');
 
     expect(await screen.findByText('有未儲存變更')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '取消' }));
@@ -313,7 +320,7 @@ describe('SmartDashboard interactions', () => {
     expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Disabled' }));
+    await switchDeviceFromModal('Device Disabled');
     fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
 
     await waitFor(() => {
@@ -325,9 +332,9 @@ describe('SmartDashboard interactions', () => {
   it('shows switch failure path with details and retry controls for offline/draft device', async () => {
     renderDashboard();
 
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Active' }));
+    await switchDeviceFromModal('Device Active');
     fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Draft' }));
+    await switchDeviceFromModal('Device Draft');
     fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
 
     expect(await screen.findByText(/目前不可切換/)).toBeInTheDocument();
@@ -340,20 +347,20 @@ describe('SmartDashboard interactions', () => {
   it('covers e2e-like mainline: success, unsaved intercept, read-only switch, then failure', async () => {
     renderDashboard();
 
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Active' }));
+    await switchDeviceFromModal('Device Active');
     await waitFor(() => {
       expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
     });
 
     fireEvent.click(await screen.findByRole('button', { name: 'mock-select-address' }));
     fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Disabled' }));
+    await switchDeviceFromModal('Device Disabled');
     expect(await screen.findByText('有未儲存變更')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '放棄並切換' }));
     expect(await screen.findByText('Read-only')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Draft' }));
+    await switchDeviceFromModal('Device Draft');
     fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
     expect(await screen.findByText(/目前不可切換/)).toBeInTheDocument();
   });
@@ -361,7 +368,7 @@ describe('SmartDashboard interactions', () => {
   it('keeps typed occupancy contiguous rules for float32 and int64 plans', async () => {
     renderDashboard();
 
-    fireEvent.click(await screen.findByRole('button', { name: '切換-Device Active' }));
+    await switchDeviceFromModal('Device Active');
     await waitFor(() => {
       expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
     });

@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Point, CreatePointRequest, ProtocolType, DataType } from '../../types/datalink';
-import { DeviceTreeNav } from '../../components/datalink/DeviceTreeNav';
 import { MemoryGrid, type PlannedAllocation } from '../../components/datalink/MemoryGrid';
 import { QuickActions } from '../../components/datalink/QuickActions';
 import { SlidePanel } from '../../components/datalink/SlidePanel';
@@ -2516,7 +2515,7 @@ export default function SmartDashboard() {
               </button>
             </div>
             {modalIntent === 'devices' ? (
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.5fr_1fr]">
+              <div className="grid grid-cols-1 gap-4">
                 <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <input
@@ -2584,20 +2583,6 @@ export default function SmartDashboard() {
                         查無符合條件的設備
                       </div>
                     )}
-                  </div>
-                </section>
-                <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
-                  <h4 className="text-sm font-semibold text-slate-100">設備樹狀檢視</h4>
-                  <p className="mt-1 text-xs text-slate-400">可拖曳排序與快速切換，已整合進 modal。</p>
-                  <div className="mt-3 h-[420px] overflow-auto rounded-xl border border-white/10 bg-slate-900/70">
-                    <DeviceTreeNav
-                      devices={devices}
-                      selectedDeviceId={selectedDeviceId}
-                      onSelectDevice={requestDeviceSwitch}
-                      isCollapsed={false}
-                      onToggleCollapse={closeWorkflowModal}
-                      onReorder={() => {}}
-                    />
                   </div>
                 </section>
               </div>
