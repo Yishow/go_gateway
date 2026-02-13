@@ -37,7 +37,7 @@
 - [x] 5.3 Add rollback/retry UX for partial failure.
 - [x] 5.4 Add integration tests for validate/commit/error-recovery lifecycle.
 - [x] 5.5 Execute commit in chunks with per-chunk result visibility.
-- [ ] 5.6 Add deterministic retry queue for failed chunks only.
+- [x] 5.6 Add deterministic retry queue for failed chunks only.
 - [ ] 5.7 Add commit impact summary (new points, global tag updates, conflicts).
 - [ ] 5.8 Add audit logging payload and UI trace link.
 - [ ] 5.9 Add commit batch trace id creation and display.

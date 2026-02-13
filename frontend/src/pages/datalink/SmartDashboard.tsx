@@ -112,6 +112,7 @@ export default function SmartDashboard() {
   const [commitChunkResults, setCommitChunkResults] = useState<
     Array<{ chunk: number; totalChunks: number; success: number; failed: number; status: 'success' | 'failed' }>
   >([]);
+  const [failedChunkRetryQueue, setFailedChunkRetryQueue] = useState<number[]>([]);
   const [tagEditDisplayName, setTagEditDisplayName] = useState('');
   const [tagEditUnit, setTagEditUnit] = useState('');
   const [tagEditDescription, setTagEditDescription] = useState('');
@@ -841,6 +842,7 @@ export default function SmartDashboard() {
     setIsCommitRunning(true);
     setLastCommitSnapshot(commitQueueRunStatus);
     setCommitChunkResults([]);
+    setFailedChunkRetryQueue([]);
 
     const chunks = Array.from(
       { length: Math.ceil(baseCommitQueueItems.length / COMMIT_CHUNK_SIZE) },
@@ -873,6 +875,11 @@ export default function SmartDashboard() {
 
     setCommitQueueRunStatus(rollingStatus);
     setCommitChunkResults(nextChunkResults);
+    setFailedChunkRetryQueue(
+      nextChunkResults
+        .filter((chunkResult) => chunkResult.status === 'failed')
+        .map((chunkResult) => chunkResult.chunk - 1)
+    );
     setIsCommitRunning(false);
 
     if (failedCount > 0) {
@@ -886,22 +893,40 @@ export default function SmartDashboard() {
   }, [baseCommitQueueItems, canActivate, commitQueueRunStatus, markActive, markError, selectedMapping?.enabled, t]);
 
   const handleRetryFailedCommits = useCallback(() => {
-    const failedItems = baseCommitQueueItems.filter((item) => commitQueueRunStatus[item.id] === 'failed');
-    if (failedItems.length === 0) {
+    if (failedChunkRetryQueue.length === 0) {
       setCommitActionMessage('沒有可重試的失敗項目。');
       return;
     }
 
-    const result = retryFailedLifecycle(baseCommitQueueItems, commitQueueRunStatus);
-    setCommitQueueRunStatus(result.nextStatus);
+    const chunks = Array.from(
+      { length: Math.ceil(baseCommitQueueItems.length / COMMIT_CHUNK_SIZE) },
+      (_, index) => baseCommitQueueItems.slice(index * COMMIT_CHUNK_SIZE, (index + 1) * COMMIT_CHUNK_SIZE)
+    );
 
-    if (result.remainingFailed > 0) {
-      setCommitActionMessage(`Retry 完成：恢復 ${result.recovered} 筆，仍有 ${result.remainingFailed} 筆衝突。`);
+    let rollingStatus = { ...commitQueueRunStatus };
+    let recovered = 0;
+    let remainingFailed = 0;
+    const nextFailedChunkQueue: number[] = [];
+
+    failedChunkRetryQueue.forEach((chunkIndex) => {
+      const chunkItems = chunks[chunkIndex] || [];
+      const chunkRetry = retryFailedLifecycle(chunkItems, rollingStatus);
+      rollingStatus = chunkRetry.nextStatus;
+      recovered += chunkRetry.recovered;
+      remainingFailed += chunkRetry.remainingFailed;
+      if (chunkRetry.remainingFailed > 0) nextFailedChunkQueue.push(chunkIndex);
+    });
+
+    setCommitQueueRunStatus(rollingStatus);
+    setFailedChunkRetryQueue(nextFailedChunkQueue);
+
+    if (remainingFailed > 0) {
+      setCommitActionMessage(`Retry 完成：恢復 ${recovered} 筆，仍有 ${remainingFailed} 筆衝突。`);
       return;
     }
 
-    setCommitActionMessage(`Retry 成功：已恢復 ${result.recovered} 筆失敗項目。`);
-  }, [baseCommitQueueItems, commitQueueRunStatus]);
+    setCommitActionMessage(`Retry 成功：已恢復 ${recovered} 筆失敗項目。`);
+  }, [baseCommitQueueItems, commitQueueRunStatus, failedChunkRetryQueue]);
 
   const handleRollbackCommitRun = useCallback(() => {
     const rolledBack = rollbackCommitLifecycle(lastCommitSnapshot);
@@ -910,6 +935,7 @@ export default function SmartDashboard() {
       return;
     }
     setCommitQueueRunStatus(rolledBack);
+    setFailedChunkRetryQueue([]);
     setLastCommitSnapshot(null);
     setCommitActionMessage('已回滾到上次 Commit 前的佇列狀態。');
   }, [lastCommitSnapshot]);
@@ -1491,10 +1517,10 @@ export default function SmartDashboard() {
                 <button
                   type="button"
                   onClick={handleRetryFailedCommits}
-                  disabled={commitQueueSummary.failed === 0}
+                  disabled={failedChunkRetryQueue.length === 0}
                   className="rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                 >
-                  Retry 失敗項目
+                  Retry 失敗 Chunk
                 </button>
                 <button
                   type="button"
