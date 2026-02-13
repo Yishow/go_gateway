@@ -27,7 +27,7 @@
 - [x] 4.1 Build inline tag linkage panel bound to selected grid allocation.
 - [x] 4.2 Support creating or selecting existing global tags in context.
 - [x] 4.3 Enable global tag metadata edit in-place with impact summary.
-- [ ] 4.4 Add tests for global tag edit propagation behavior.
+- [x] 4.4 Add tests for global tag edit propagation behavior.
 - [x] 4.5 Add affected-mappings summary and second-confirmation flow for global edits.
 - [x] 4.6 Add before/after field-level diff preview before global tag save.
 

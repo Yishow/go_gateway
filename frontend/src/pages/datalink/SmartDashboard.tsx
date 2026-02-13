@@ -30,6 +30,12 @@ import {
 } from '../../features/datalink/sourceTemplateStorage';
 import { buildBatchNamePreview } from '../../features/datalink/batchNaming';
 import { findNearestValidContiguousSpan } from '../../features/datalink/allocationStrategy';
+import {
+  buildGlobalTagEditDraft,
+  getAffectedMappingCountForTag,
+  hasGlobalTagEditChanges,
+  toTagUpdateRequest,
+} from '../../features/datalink/tagEditImpact';
 import { getSpanByDataType } from '../../features/datalink/typedOccupancy';
 import { addressParser } from '../../utils/addressParser';
 import { useSearchParams } from 'react-router-dom';
@@ -389,7 +395,7 @@ export default function SmartDashboard() {
   );
   const linkedTagAffectedMappingsCount = useMemo(() => {
     if (!linkedTag?.id) return 0;
-    return mappings.filter((mapping) => mapping.tag_id === linkedTag.id).length;
+    return getAffectedMappingCountForTag(mappings, linkedTag.id);
   }, [linkedTag?.id, mappings]);
   const parsePipeline = useCallback(() => {
     if (!selectedMapping?.transform_pipeline) return [];
@@ -527,16 +533,12 @@ export default function SmartDashboard() {
       return;
     }
 
-    const nextEdit = {
-      display_name: tagEditDisplayName.trim(),
-      unit: tagEditUnit.trim(),
-      description: tagEditDescription.trim(),
-    };
-    const noChange =
-      nextEdit.display_name === (linkedTag.display_name || '') &&
-      nextEdit.unit === (linkedTag.unit || '') &&
-      nextEdit.description === (linkedTag.description || '');
-    if (noChange) {
+    const nextEdit = buildGlobalTagEditDraft({
+      display_name: tagEditDisplayName,
+      unit: tagEditUnit,
+      description: tagEditDescription,
+    });
+    if (!hasGlobalTagEditChanges(linkedTag, nextEdit)) {
       setTagEditMessage('沒有變更，無需儲存。');
       return;
     }
@@ -557,7 +559,7 @@ export default function SmartDashboard() {
     try {
       await updateTagMutation.mutateAsync({
         id: linkedTag.id,
-        data: pendingTagEdit,
+        data: toTagUpdateRequest(pendingTagEdit),
       });
       setPendingTagEdit(null);
       setTagEditMessage(`已更新全域 Tag，影響 ${linkedTagAffectedMappingsCount} 個映射。`);
