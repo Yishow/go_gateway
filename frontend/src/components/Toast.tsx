@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 
 /**
  * Toast 通知類型
@@ -122,7 +122,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   return (
     <div
       className={`relative flex items-start gap-3 p-4 rounded-xl border-2 ${styles.container} backdrop-blur-sm`}
-      role="alert"
+      role={toast.type === 'error' ? 'alert' : 'status'}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -130,7 +130,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
       {toast.duration !== 0 && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-slate-700 rounded-t-xl overflow-hidden">
           <div
-            className={`h-full ${styles.progress} transition-all duration-50 ease-linear`}
+            className={`h-full ${styles.progress} transition-[width] duration-50 ease-linear motion-reduce:transition-none`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -177,14 +177,18 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
   if (toasts.length === 0) return null
 
   return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-3 w-full max-w-md px-4 pointer-events-none">
+    <div
+      className="fixed top-24 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-3 w-full max-w-md px-4 pointer-events-none"
+      aria-live="polite"
+      aria-atomic="false"
+    >
       {toasts.map((toast, index) => (
         <div
           key={toast.id}
-          className="pointer-events-auto w-full"
+          className="pointer-events-auto w-full animate-slide-in-down motion-reduce:animate-none"
           style={{
-            animation: `slide-in-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) ${index * 50}ms forwards`,
-          }}
+            '--toast-delay': `${index * 50}ms`,
+          } as CSSProperties}
         >
           <ToastItem toast={toast} onClose={onClose} />
         </div>

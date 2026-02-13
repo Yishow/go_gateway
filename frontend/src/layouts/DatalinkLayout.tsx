@@ -98,6 +98,12 @@ export default function DatalinkLayout() {
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[#0f172a]' : 'bg-slate-50'} lg:flex`}>
+      <a
+        href="#datalink-main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-blue-600 focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        {t('layout.skipToMainContent', { defaultValue: 'Skip to main content' })}
+      </a>
       {mobileSidebarOpen && (
         <button
           type="button"
@@ -168,7 +174,7 @@ export default function DatalinkLayout() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 lg:ml-0">
+      <main id="datalink-main-content" tabIndex={-1} className="min-w-0 flex-1 lg:ml-0">
         <header
           className={`
             sticky top-0 z-20 border-b px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-3

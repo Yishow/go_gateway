@@ -36,7 +36,7 @@
   border-radius: 8px;
   color: #fff;
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search-input:focus {
@@ -72,6 +72,11 @@
 .device-card,
 .point-card,
 .tag-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  appearance: none;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -80,7 +85,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .device-card:hover,
@@ -242,7 +247,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .btn-confirm:hover {
@@ -302,7 +307,7 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
 }
 
 .btn-activate:hover:not(:disabled) {
@@ -314,4 +319,21 @@
 .btn-activate:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-input,
+  .device-card,
+  .point-card,
+  .tag-card,
+  .btn-confirm,
+  .btn-activate {
+    transition: none;
+  }
+
+  .btn-confirm:hover,
+  .btn-activate:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
 }

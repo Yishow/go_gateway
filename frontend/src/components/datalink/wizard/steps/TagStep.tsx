@@ -73,10 +73,13 @@ export const TagStep: React.FC<TagStepProps> = ({
           </div>
         ) : (
           filteredTags.map((tag) => (
-            <div
+            <button
+              type="button"
               key={tag.id}
               className={`tag-card ${selectedTagId === tag.id ? 'selected' : ''}`}
               onClick={() => onSelect(tag.id)}
+              aria-pressed={selectedTagId === tag.id}
+              aria-label={`選擇標籤 ${tag.display_name || tag.key}`}
             >
               <div className="tag-icon">🏷️</div>
               <div className="tag-info">
@@ -89,7 +92,7 @@ export const TagStep: React.FC<TagStepProps> = ({
               {selectedTagId === tag.id && (
                 <div className="selected-check">✓</div>
               )}
-            </div>
+            </button>
           ))
         )}
       </div>

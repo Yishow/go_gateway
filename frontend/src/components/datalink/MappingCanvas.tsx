@@ -148,12 +148,19 @@ export default function MappingCanvas({ initialMapping, onSave, onCancel }: Mapp
              <p className="text-xs text-slate-500 mt-1">Connect Source Points to Destination Tags through transformation logic.</p>
          </div>
          <div className="flex items-center space-x-3">
-             <label className="flex items-center space-x-2 cursor-pointer">
-                 <div className={`w-10 h-5 rounded-full p-1 transition-colors ${isEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`} onClick={() => setIsEnabled(!isEnabled)}>
+             <div className="flex items-center space-x-2">
+                 <button
+                   type="button"
+                   role="switch"
+                   aria-checked={isEnabled}
+                   aria-label="切換映射啟用狀態"
+                   onClick={() => setIsEnabled(!isEnabled)}
+                   className={`w-10 h-5 rounded-full p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${isEnabled ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                 >
                      <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                 </div>
+                 </button>
                  <span className="text-sm font-medium text-slate-400">{isEnabled ? 'Active' : 'Paused'}</span>
-             </label>
+             </div>
          </div>
       </div>
 

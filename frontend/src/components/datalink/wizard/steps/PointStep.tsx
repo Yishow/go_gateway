@@ -66,10 +66,13 @@ export const PointStep: React.FC<PointStepProps> = ({
           </div>
         ) : (
           points.map((point) => (
-            <div
+            <button
+              type="button"
               key={point.id}
               className={`point-card ${selectedPointId === point.id ? 'selected' : ''}`}
               onClick={() => onSelect(point.id)}
+              aria-pressed={selectedPointId === point.id}
+              aria-label={`選擇點位 ${point.name}`}
             >
               <div className="point-icon">📍</div>
               <div className="point-info">
@@ -79,7 +82,7 @@ export const PointStep: React.FC<PointStepProps> = ({
               {selectedPointId === point.id && (
                 <div className="selected-check">✓</div>
               )}
-            </div>
+            </button>
           ))
         )}
       </div>

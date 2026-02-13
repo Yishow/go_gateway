@@ -57,6 +57,8 @@ function getDefaultConfigForProtocol(proto: ProtocolType): Record<string, any> {
 
 export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormProps) {
   const { t } = useTranslation();
+  const formIdPrefix = device?.id ? `device-form-${device.id}` : 'device-form-new';
+  const fieldId = (name: string) => `${formIdPrefix}-${name}`;
   const [name, setName] = useState(device?.name || '');
   const [description, setDescription] = useState(device?.description || '');
   const [protocol, setProtocol] = useState<ProtocolType>(device?.protocol || 'modbus_tcp');
@@ -167,8 +169,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
+              <label htmlFor={fieldId('modbus-tcp-host')} className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
               <input
+                id={fieldId('modbus-tcp-host')}
+                name="host"
                 type="text"
                 value={config.host ?? ''}
                 onChange={e => setConfig({...config, host: e.target.value})}
@@ -178,8 +182,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
+              <label htmlFor={fieldId('modbus-tcp-port')} className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
               <input
+                id={fieldId('modbus-tcp-port')}
+                name="port"
                 type="number"
                 value={config.port ?? 502}
                 onChange={e => {
@@ -194,8 +200,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
+              <label htmlFor={fieldId('modbus-tcp-slave-id')} className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
               <input
+                id={fieldId('modbus-tcp-slave-id')}
+                name="slave_id"
                 type="number"
                 value={config.slave_id ?? 1}
                 onChange={e => {
@@ -214,8 +222,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
            return (
              <>
                <div>
-                <label className="block text-sm font-medium text-slate-300">{t('device.serialPort')}</label>
+                <label htmlFor={fieldId('modbus-rtu-serial-port')} className="block text-sm font-medium text-slate-300">{t('device.serialPort')}</label>
                 <input
+                  id={fieldId('modbus-rtu-serial-port')}
+                  name="serial_port"
                   type="text"
                   value={config.serial_port ?? ''}
                   onChange={e => setConfig({...config, serial_port: e.target.value})}
@@ -225,8 +235,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300">{t('device.baudRate')}</label>
+                <label htmlFor={fieldId('modbus-rtu-baud-rate')} className="block text-sm font-medium text-slate-300">{t('device.baudRate')}</label>
                 <input
+                  id={fieldId('modbus-rtu-baud-rate')}
+                  name="baud_rate"
                   type="number"
                   value={config.baud_rate ?? 9600}
                   onChange={e => {
@@ -238,8 +250,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 />
               </div>
                <div>
-                  <label className="block text-sm font-medium text-slate-300">{t('device.dataBits')}</label>
+                  <label htmlFor={fieldId('modbus-rtu-data-bits')} className="block text-sm font-medium text-slate-300">{t('device.dataBits')}</label>
                   <input
+                    id={fieldId('modbus-rtu-data-bits')}
+                    name="data_bits"
                     type="number"
                     value={config.data_bits ?? 8}
                     onChange={e => {
@@ -251,8 +265,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   />
                 </div>
                  <div>
-                  <label className="block text-sm font-medium text-slate-300">Stop Bits</label>
+                  <label htmlFor={fieldId('modbus-rtu-stop-bits')} className="block text-sm font-medium text-slate-300">Stop Bits</label>
                   <input
+                    id={fieldId('modbus-rtu-stop-bits')}
+                    name="stop_bits"
                     type="number"
                     value={config.stop_bits ?? 1}
                     onChange={e => {
@@ -264,8 +280,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   />
                 </div>
                  <div>
-                  <label className="block text-sm font-medium text-slate-300">{t('device.parity')}</label>
+                  <label htmlFor={fieldId('modbus-rtu-parity')} className="block text-sm font-medium text-slate-300">{t('device.parity')}</label>
                   <select
+                     id={fieldId('modbus-rtu-parity')}
+                     name="parity"
                      value={config.parity || 'none'}
                      onChange={e => setConfig({...config, parity: e.target.value})}
                      className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
@@ -276,8 +294,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   </select>
                 </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
+                <label htmlFor={fieldId('modbus-rtu-slave-id')} className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
                 <input
+                  id={fieldId('modbus-rtu-slave-id')}
+                  name="slave_id"
                   type="number"
                   value={config.slave_id ?? 1}
                   onChange={e => {
@@ -297,8 +317,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
          return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
+              <label htmlFor={fieldId('modbus-udp-host')} className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
               <input
+                id={fieldId('modbus-udp-host')}
+                name="host"
                 type="text"
                 value={config.host ?? ''}
                 onChange={e => setConfig({...config, host: e.target.value})}
@@ -308,8 +330,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
+              <label htmlFor={fieldId('modbus-udp-port')} className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
               <input
+                id={fieldId('modbus-udp-port')}
+                name="port"
                 type="number"
                 value={config.port ?? 502}
                 onChange={e => {
@@ -323,8 +347,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
              <div>
-                <label className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
+                <label htmlFor={fieldId('modbus-udp-slave-id')} className="block text-sm font-medium text-slate-300">{t('device.slaveId')}</label>
                 <input
+                  id={fieldId('modbus-udp-slave-id')}
+                  name="slave_id"
                   type="number"
                   value={config.slave_id ?? 1}
                   onChange={e => {
@@ -343,8 +369,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.mode')}</label>
+              <label htmlFor={fieldId('fatek-mode')} className="block text-sm font-medium text-slate-300">{t('device.mode')}</label>
               <select
+                id={fieldId('fatek-mode')}
+                name="mode"
                 value={config.mode || 'tcp'}
                 onChange={e => setConfig({...config, mode: e.target.value})}
                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
@@ -354,8 +382,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.stationNo')}</label>
+              <label htmlFor={fieldId('fatek-station-no')} className="block text-sm font-medium text-slate-300">{t('device.stationNo')}</label>
               <input
+                id={fieldId('fatek-station-no')}
+                name="station_no"
                 type="number"
                 value={config.station_no ?? 1}
                 onChange={e => {
@@ -371,8 +401,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
             {config.mode !== 'serial' ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
+                  <label htmlFor={fieldId('fatek-host')} className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
                   <input
+                    id={fieldId('fatek-host')}
+                    name="host"
                     type="text"
                     value={config.host ?? ''}
                     onChange={e => setConfig({...config, host: e.target.value})}
@@ -382,8 +414,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
+                  <label htmlFor={fieldId('fatek-port')} className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
                   <input
+                    id={fieldId('fatek-port')}
+                    name="port"
                     type="number"
                     value={config.port ?? 500}
                     onChange={e => {
@@ -400,8 +434,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">{t('device.serialPort')}</label>
+                  <label htmlFor={fieldId('fatek-serial-port')} className="block text-sm font-medium text-slate-300">{t('device.serialPort')}</label>
                   <input
+                    id={fieldId('fatek-serial-port')}
+                    name="serial_port"
                     type="text"
                     value={config.serial_port ?? ''}
                     onChange={e => setConfig({...config, serial_port: e.target.value})}
@@ -411,8 +447,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300">{t('device.baudRate')}</label>
+                  <label htmlFor={fieldId('fatek-baud-rate')} className="block text-sm font-medium text-slate-300">{t('device.baudRate')}</label>
                   <input
+                    id={fieldId('fatek-baud-rate')}
+                    name="baud_rate"
                     type="number"
                     value={config.baud_rate ?? 9600}
                     onChange={e => {
@@ -431,8 +469,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
+              <label htmlFor={fieldId('mc3e-host')} className="block text-sm font-medium text-slate-300">{t('device.host')}</label>
               <input
+                id={fieldId('mc3e-host')}
+                name="host"
                 type="text"
                 value={config.host ?? ''}
                 onChange={e => setConfig({...config, host: e.target.value})}
@@ -442,8 +482,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
+              <label htmlFor={fieldId('mc3e-port')} className="block text-sm font-medium text-slate-300">{t('device.port')}</label>
               <input
+                id={fieldId('mc3e-port')}
+                name="port"
                 type="number"
                 value={config.port ?? 5000}
                 onChange={e => {
@@ -457,8 +499,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">Network No</label>
+              <label htmlFor={fieldId('mc3e-network-no')} className="block text-sm font-medium text-slate-300">Network No</label>
               <input
+                id={fieldId('mc3e-network-no')}
+                name="network_no"
                 type="number"
                 value={config.network_no ?? 0}
                 onChange={e => {
@@ -470,8 +514,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.pcNo')}</label>
+              <label htmlFor={fieldId('mc3e-pc-no')} className="block text-sm font-medium text-slate-300">{t('device.pcNo')}</label>
               <input
+                id={fieldId('mc3e-pc-no')}
+                name="pc_no"
                 type="number"
                 value={config.pc_no ?? 255}
                 onChange={e => {
@@ -484,8 +530,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">I/O No</label>
+              <label htmlFor={fieldId('mc3e-io-no')} className="block text-sm font-medium text-slate-300">I/O No</label>
               <input
+                id={fieldId('mc3e-io-no')}
+                name="io_no"
                 type="number"
                 value={config.io_no ?? 1023}
                 onChange={e => {
@@ -497,8 +545,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300">{t('device.stationNo')}</label>
+              <label htmlFor={fieldId('mc3e-station-no')} className="block text-sm font-medium text-slate-300">{t('device.stationNo')}</label>
               <input
+                id={fieldId('mc3e-station-no')}
+                name="station_no"
                 type="number"
                 value={config.station_no ?? 0}
                 onChange={e => {
@@ -518,8 +568,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         // Generic JSON editor fallback
         return (
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-300">{t('device.configJson')}</label>
+            <label htmlFor={fieldId('config-json')} className="block text-sm font-medium text-slate-300">{t('device.configJson')}</label>
             <textarea
+              id={fieldId('config-json')}
+              name="config_json"
               value={JSON.stringify(config, null, 2)}
               onChange={e => {
                   try {
@@ -547,8 +599,11 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
       {/* Basic Info */}
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-300">{t('device.name')}</label>
+          <label htmlFor={fieldId('device-name')} className="block text-sm font-medium text-slate-300">{t('device.name')}</label>
           <input
+            id={fieldId('device-name')}
+            name="name"
+            autoComplete="off"
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
@@ -558,8 +613,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
           />
         </div>
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-slate-300">{t('device.description')}</label>
+          <label htmlFor={fieldId('device-description')} className="block text-sm font-medium text-slate-300">{t('device.description')}</label>
           <input
+            id={fieldId('device-description')}
+            name="description"
             type="text"
             value={description}
             onChange={e => setDescription(e.target.value)}
@@ -574,8 +631,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
           <div className="grid grid-cols-2 gap-4">
                {!device && (
                    <div className="col-span-2">
-                    <label className="block text-sm font-medium text-slate-300">{t('device.protocol')}</label>
+                    <label htmlFor={fieldId('device-protocol')} className="block text-sm font-medium text-slate-300">{t('device.protocol')}</label>
                     <select
+                        id={fieldId('device-protocol')}
+                        name="protocol"
                         value={protocol}
                         onChange={e => {
                             const newProtocol = e.target.value as ProtocolType;
@@ -598,8 +657,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                     <h4 className="text-sm font-semibold text-slate-400 mb-3">Advanced</h4>
                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-300">{t('device.retryCount')}</label>
+                            <label htmlFor={fieldId('retry-count')} className="block text-sm font-medium text-slate-300">{t('device.retryCount')}</label>
                             <input
+                                id={fieldId('retry-count')}
+                                name="retry_count"
                                 type="number"
                                 value={retryCount}
                                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
@@ -608,8 +669,10 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                             />
                         </div>
                          <div>
-                            <label className="block text-sm font-medium text-slate-300">Retry Delay (ms)</label>
+                            <label htmlFor={fieldId('retry-delay')} className="block text-sm font-medium text-slate-300">Retry Delay (ms)</label>
                             <input
+                                id={fieldId('retry-delay')}
+                                name="retry_delay"
                                 type="number"
                                 value={retryDelay}
                                 className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"

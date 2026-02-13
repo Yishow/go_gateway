@@ -14,7 +14,7 @@
   align-items: center;
   gap: 8px;
   min-width: 80px;
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease;
   border: 0;
   background: transparent;
   padding: 0;
@@ -48,7 +48,7 @@
   justify-content: center;
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, background 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.2);
   color: #6b7280;
@@ -131,5 +131,16 @@
   
   .step-connector {
     min-width: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-item,
+  .step-circle {
+    transition: none;
+  }
+
+  .step-item.clickable:hover .step-circle {
+    transform: none;
   }
 }

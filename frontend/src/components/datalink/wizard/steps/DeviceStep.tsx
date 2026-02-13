@@ -72,10 +72,13 @@ export const DeviceStep: React.FC<DeviceStepProps> = ({
           </div>
         ) : (
           filteredDevices.map((device) => (
-            <div
+            <button
+              type="button"
               key={device.id}
               className={`device-card ${selectedDeviceId === device.id ? 'selected' : ''}`}
               onClick={() => onSelect(device.id)}
+              aria-pressed={selectedDeviceId === device.id}
+              aria-label={`選擇設備 ${device.name}`}
             >
               <div className="device-icon">📱</div>
               <div className="device-info">
@@ -88,7 +91,7 @@ export const DeviceStep: React.FC<DeviceStepProps> = ({
               {selectedDeviceId === device.id && (
                 <div className="selected-check">✓</div>
               )}
-            </div>
+            </button>
           ))
         )}
       </div>
