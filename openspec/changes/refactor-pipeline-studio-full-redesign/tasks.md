@@ -9,8 +9,8 @@
 - [ ] 2.2 Add template CRUD (save, load, update, delete).
 - [ ] 2.3 Wire template selection to planner defaults.
 - [ ] 2.4 Add tests for planner-to-template persistence.
-- [ ] 2.5 Add template version and last-used timestamp handling.
-- [ ] 2.6 Add stale-template warning and upgrade prompt.
+- [x] 2.5 Add template version and last-used timestamp handling.
+- [x] 2.6 Add stale-template warning and upgrade prompt.
 - [ ] 2.7 Add batch naming preview with duplicate/conflict detection.
 
 ## 3. Memory Grid Typed Occupancy

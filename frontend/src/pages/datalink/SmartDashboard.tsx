@@ -16,7 +16,13 @@ import { useTagsQuery } from '../../hooks/datalink/useTags';
 import { useSmartDashboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { usePointHistory } from '../../hooks/useHistory';
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from '../../features/flow/stateMachine';
-import { loadSourceTemplates, saveSourceTemplates } from '../../features/datalink/sourceTemplateStorage';
+import {
+  SOURCE_TEMPLATE_SCHEMA_VERSION,
+  isTemplateStale,
+  loadSourceTemplates,
+  saveSourceTemplates,
+  upgradeTemplates,
+} from '../../features/datalink/sourceTemplateStorage';
 import { addressParser } from '../../utils/addressParser';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Bell, Settings, Box, Cpu, Sparkles, Keyboard, Upload, Download, Undo2, Redo2, Save, FolderOpen, WandSparkles, Filter } from 'lucide-react';
@@ -59,6 +65,8 @@ interface SourceTemplate {
   count: number;
   startAddress: string;
   updatedAt: string;
+  lastUsedAt: string;
+  version: number;
 }
 
 export default function SmartDashboard() {
@@ -151,6 +159,11 @@ export default function SmartDashboard() {
     return planAddresses.filter((address) => occupiedSet.has(address)).length;
   }, [allPoints, planAddresses]);
 
+  const staleTemplateCount = useMemo(
+    () => sourceTemplates.filter((template) => isTemplateStale(template)).length,
+    [sourceTemplates]
+  );
+
   useEffect(() => {
     setSelectedAddresses([]);
     setSelectedPoint(null);
@@ -232,6 +245,7 @@ export default function SmartDashboard() {
   const handleSaveTemplate = useCallback(() => {
     const normalized = templateName.trim();
     if (!normalized || !selectedDevice) return;
+    const now = new Date().toISOString();
 
     const next: SourceTemplate = {
       id: normalized.toLowerCase().replace(/\s+/g, '-'),
@@ -239,7 +253,9 @@ export default function SmartDashboard() {
       dataType: planDataType,
       count: planCount,
       startAddress: planStartAddress,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
+      lastUsedAt: now,
+      version: SOURCE_TEMPLATE_SCHEMA_VERSION,
     };
 
     setSourceTemplates((prev) => {
@@ -256,6 +272,22 @@ export default function SmartDashboard() {
     setPlanDataType(template.dataType);
     setPlanCount(template.count);
     setPlanStartAddress(template.startAddress);
+    const now = new Date().toISOString();
+    setSourceTemplates((prev) =>
+      prev.map((item) =>
+        item.id === template.id
+          ? {
+              ...item,
+              lastUsedAt: now,
+              version: Math.max(item.version, SOURCE_TEMPLATE_SCHEMA_VERSION),
+            }
+          : item
+      )
+    );
+  }, []);
+
+  const handleUpgradeTemplates = useCallback(() => {
+    setSourceTemplates((prev) => upgradeTemplates(prev));
   }, []);
 
   const handleDeleteTemplate = useCallback((templateId: string) => {
@@ -598,8 +630,22 @@ export default function SmartDashboard() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-lg font-bold text-white tracking-wide truncate">{selectedDevice.name}</h2>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                          {t('smartDashboard.active')}
+                        <span
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            selectedDevice.status === 'active'
+                              ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                              : 'bg-slate-500/20 border border-slate-500/30 text-slate-400'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              selectedDevice.status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+                            }`}
+                            aria-hidden
+                          />
+                          {selectedDevice.status === 'active'
+                            ? t('smartDashboard.connected')
+                            : t('smartDashboard.disconnected')}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -610,7 +656,17 @@ export default function SmartDashboard() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/5 flex flex-col items-end min-w-[100px]">
+                      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
+                        {t('smartDashboard.lastSync')}
+                      </span>
+                      <span className="text-sm font-mono text-slate-200">
+                        {selectedDevice.last_test_at
+                          ? new Date(selectedDevice.last_test_at).toLocaleTimeString()
+                          : '-'}
+                      </span>
+                    </div>
                     <div className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/5 flex flex-col items-end min-w-[110px]">
                       <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
                         {t('smartDashboard.cycleTime')}
@@ -715,6 +771,22 @@ export default function SmartDashboard() {
                         </button>
                       </div>
                     </div>
+                    {staleTemplateCount > 0 && (
+                      <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p>
+                            偵測到 {staleTemplateCount} 個舊版模板，建議升級到 v{SOURCE_TEMPLATE_SCHEMA_VERSION} 以確保流程一致性。
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleUpgradeTemplates}
+                            className="rounded-md border border-amber-400/40 bg-amber-500/20 px-2 py-1 text-[11px] font-semibold hover:bg-amber-500/30"
+                          >
+                            升級模板
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-slate-400">衝突格數: {planConflictCount}</span>
                       {sourceTemplates.slice(0, 6).map((template) => (
@@ -730,6 +802,12 @@ export default function SmartDashboard() {
                             <FolderOpen className="h-3.5 w-3.5" />
                             {template.name}
                           </button>
+                          <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300">
+                            v{template.version}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(template.lastUsedAt).toLocaleDateString()}
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleDeleteTemplate(template.id)}

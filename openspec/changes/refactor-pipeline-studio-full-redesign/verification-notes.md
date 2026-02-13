@@ -31,3 +31,12 @@
 - Global tag inline-edit:
   - Current Pipeline Studio flow supports tag linkage and modbus mapping actions.
   - Dedicated global tag metadata impact-summary + second-confirmation acceptance flow still requires browser walkthrough and explicit UX sign-off.
+
+### 2.5 / 2.6 Template versioning and stale upgrade prompt
+- Added schema version and last-used timestamp fields in:
+  - `frontend/src/features/datalink/sourceTemplateStorage.ts`
+- Added stale detection and one-click template upgrade prompt in:
+  - `frontend/src/pages/datalink/SmartDashboard.tsx`
+- Regression tests:
+  - `frontend/src/features/datalink/__tests__/sourceTemplateStorage.test.ts`
+  - Covers legacy template normalization (missing version/lastUsedAt) and upgrade behavior.

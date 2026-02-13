@@ -14,11 +14,6 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
     </svg>
   ),
-  Activity: () => (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-    </svg>
-  ),
   Link: () => (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -50,40 +45,9 @@ export function QuickActions({
     );
   }
 
-  // Mock status for now
-  const isConnected = device.status === 'active';
-
   return (
     <div className="space-y-6" data-testid="quick-actions">
-      {/* Device Status Card */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-slate-800 dark:text-slate-100">設備狀態</h3>
-          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
-            isConnected 
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' 
-              : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}></span>
-            {isConnected ? '已連線' : '未連線'}
-          </div>
-        </div>
-        
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500 dark:text-slate-400">協議</span>
-            <span className="font-medium text-slate-700 dark:text-slate-200 font-mono">{device.protocol}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500 dark:text-slate-400">最後同步</span>
-            <span className="font-medium text-slate-700 dark:text-slate-200">
-                {device.last_test_at ? new Date(device.last_test_at).toLocaleTimeString() : '-'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Actions */}
+      {/* 快速操作（設備狀態已合併至 SmartDashboard 標題列） */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4">
         <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-4">快速操作</h3>
         
