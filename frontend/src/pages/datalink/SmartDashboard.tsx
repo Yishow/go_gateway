@@ -106,7 +106,12 @@ export default function SmartDashboard() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [selectedAddresses, setSelectedAddresses] = useState<string[]>([]);
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
-  const [isTreeCollapsed, setIsTreeCollapsed] = useState(false);
+  const [isDeviceDrawerOpen, setIsDeviceDrawerOpen] = useState(false);
+  const [isSwitchingDevice, setIsSwitchingDevice] = useState(false);
+  const [switchErrorMessage, setSwitchErrorMessage] = useState('');
+  const [showSwitchErrorDetails, setShowSwitchErrorDetails] = useState(false);
+  const [pendingSwitchDeviceId, setPendingSwitchDeviceId] = useState<string | null>(null);
+  const [showSwitchConfirmDialog, setShowSwitchConfirmDialog] = useState(false);
   const [panelType, setPanelType] = useState<'batch' | 'detail' | 'shortcuts' | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -288,6 +293,14 @@ export default function SmartDashboard() {
     () => sourceTemplates.filter((template) => isTemplateStale(template)).length,
     [sourceTemplates]
   );
+  const hasUnsavedChanges = useMemo(
+    () =>
+      selectedAddresses.length > 0 ||
+      planAddresses.length > 0 ||
+      panelType === 'batch' ||
+      panelType === 'detail',
+    [panelType, planAddresses.length, selectedAddresses.length]
+  );
 
   useEffect(() => {
     setSelectedAddresses([]);
@@ -343,8 +356,46 @@ export default function SmartDashboard() {
     setSelectedPoint(null);
   }, []);
 
+  const applyDeviceSwitch = useCallback(
+    async (nextDeviceId: string) => {
+      setIsSwitchingDevice(true);
+      setPendingSwitchDeviceId(nextDeviceId);
+      setSwitchErrorMessage('');
+      setShowSwitchErrorDetails(false);
+      try {
+        const target = devices.find((device) => device.id === nextDeviceId);
+        if (target && target.status !== 'active' && target.status !== 'disabled') {
+          throw new Error(`設備 ${target.name} 目前不可切換，請先完成啟用流程。`);
+        }
+        setSelectedDeviceId(nextDeviceId);
+        setIsDeviceDrawerOpen(false);
+        setPendingSwitchDeviceId(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '切換設備失敗';
+        setSwitchErrorMessage(message);
+      } finally {
+        setIsSwitchingDevice(false);
+      }
+    },
+    [devices]
+  );
+  const requestDeviceSwitch = useCallback(
+    (nextDeviceId: string) => {
+      if (nextDeviceId === selectedDeviceId) {
+        setIsDeviceDrawerOpen(false);
+        return;
+      }
+      if (hasUnsavedChanges && selectedDeviceId) {
+        setPendingSwitchDeviceId(nextDeviceId);
+        setShowSwitchConfirmDialog(true);
+        return;
+      }
+      void applyDeviceSwitch(nextDeviceId);
+    },
+    [applyDeviceSwitch, hasUnsavedChanges, selectedDeviceId]
+  );
   const handleToggleSidebar = useCallback(() => {
-    setIsTreeCollapsed((prev) => !prev);
+    setIsDeviceDrawerOpen((prev) => !prev);
   }, []);
 
   const handleImportPoints = useCallback(
@@ -851,7 +902,7 @@ export default function SmartDashboard() {
     setActiveTab(tab);
   }, []);
   const handleChooseDevice = useCallback(() => {
-    setIsTreeCollapsed(false);
+    setIsDeviceDrawerOpen(true);
     setActiveTab('devices');
   }, []);
   const handleCreateDevice = useCallback(() => {
@@ -867,6 +918,11 @@ export default function SmartDashboard() {
     if (!selectedDeviceId) return;
     setLastSwitchedAt(new Date().toISOString());
   }, [selectedDeviceId]);
+  useEffect(() => {
+    if (!selectedDeviceId && devices.length > 0) {
+      setIsDeviceDrawerOpen(true);
+    }
+  }, [devices.length, selectedDeviceId]);
 
   useEffect(() => {
     setSource(selectedDeviceId || '', selectedSourceAddress, selectedPoint?.id || '');
@@ -1245,6 +1301,39 @@ export default function SmartDashboard() {
           </div>
         </section>
       )}
+      {switchErrorMessage && (
+        <section className="mx-3 mt-3 sm:mx-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-rose-100">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-rose-200/80">switch failed</p>
+              <p className="text-sm">{switchErrorMessage}</p>
+              {showSwitchErrorDetails && (
+                <p className="mt-1 text-xs text-rose-200/80">
+                  若設備狀態為離線，請先執行測試連線並確認來源協議設定。
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {pendingSwitchDeviceId && (
+                <button
+                  type="button"
+                  onClick={() => void applyDeviceSwitch(pendingSwitchDeviceId)}
+                  className="min-h-11 rounded-lg border border-rose-300/40 bg-rose-500/20 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                >
+                  重試
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowSwitchErrorDetails((prev) => !prev)}
+                className="min-h-11 rounded-lg border border-rose-300/40 bg-rose-500/20 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+              >
+                {showSwitchErrorDetails ? '隱藏詳情' : '查看詳情'}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
       <section className="mx-3 mt-3 sm:mx-4 grid grid-cols-1 xl:grid-cols-[1fr_460px] gap-3 items-stretch">
         <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-2 sm:p-3">
           <div className="flex flex-wrap gap-2">
@@ -1298,9 +1387,14 @@ export default function SmartDashboard() {
               <button
                 type="button"
                 onClick={handleChooseDevice}
-                className="min-h-11 cursor-pointer rounded-lg border border-blue-400/30 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                disabled={isSwitchingDevice}
+                className="min-h-11 cursor-pointer rounded-lg border border-blue-400/30 bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/25 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                切換設備
+                <span className="inline-flex items-center gap-2">
+                  切換設備
+                  {hasUnsavedChanges && <span className="h-2 w-2 rounded-full bg-rose-400" aria-hidden />}
+                  {isSwitchingDevice && <span className="text-[10px] text-blue-200">切換中...</span>}
+                </span>
               </button>
             </div>
           ) : (
@@ -1330,21 +1424,7 @@ export default function SmartDashboard() {
         </div>
       </section>
 
-      <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[auto_1fr_300px] gap-4 min-h-0">
-        <div className={`${isTreeCollapsed ? 'xl:w-20' : 'xl:w-[260px]'} min-h-[280px] xl:min-h-0 transition-all duration-300`}>
-          <div className="h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative">
-            <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
-            <DeviceTreeNav
-              devices={devices}
-              selectedDeviceId={selectedDeviceId}
-              onSelectDevice={setSelectedDeviceId}
-              isCollapsed={isTreeCollapsed}
-              onToggleCollapse={() => setIsTreeCollapsed(!isTreeCollapsed)}
-              onReorder={() => {}}
-            />
-          </div>
-        </div>
-
+      <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 min-h-0">
         <div className="min-w-0 flex flex-col">
           <div className="flex-1 bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col relative min-h-[420px]">
             {selectedDevice ? (
@@ -2165,6 +2245,83 @@ export default function SmartDashboard() {
           </div>
         </div>
       </div>
+
+      {isDeviceDrawerOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="close-device-drawer"
+            onClick={() => setIsDeviceDrawerOpen(false)}
+            className="fixed inset-0 z-30 bg-slate-950/60"
+          />
+          <aside className="fixed inset-y-0 left-0 z-40 w-full max-w-sm border-r border-slate-700 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-100">切換設備</h3>
+              <button
+                type="button"
+                onClick={() => setIsDeviceDrawerOpen(false)}
+                className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+              >
+                關閉
+              </button>
+            </div>
+            <div className="h-[calc(100vh-6rem)] overflow-auto rounded-2xl border border-white/10 bg-slate-900/60">
+              <DeviceTreeNav
+                devices={devices}
+                selectedDeviceId={selectedDeviceId}
+                onSelectDevice={requestDeviceSwitch}
+                isCollapsed={false}
+                onToggleCollapse={() => setIsDeviceDrawerOpen(false)}
+                onReorder={() => {}}
+              />
+            </div>
+          </aside>
+        </>
+      )}
+      {showSwitchConfirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-amber-400/30 bg-slate-900 p-4 shadow-2xl">
+            <h3 className="text-sm font-semibold text-amber-100">有未儲存變更</h3>
+            <p className="mt-2 text-xs text-slate-300">
+              切換設備會影響目前規劃。請選擇要儲存後切換、放棄變更後切換，或取消。
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSwitchConfirmDialog(false);
+                  if (pendingSwitchDeviceId) void applyDeviceSwitch(pendingSwitchDeviceId);
+                }}
+                className="min-h-11 rounded-lg border border-blue-400/30 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30"
+              >
+                儲存後切換
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAddresses([]);
+                  setShowSwitchConfirmDialog(false);
+                  if (pendingSwitchDeviceId) void applyDeviceSwitch(pendingSwitchDeviceId);
+                }}
+                className="min-h-11 rounded-lg border border-amber-400/30 bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-500/30"
+              >
+                放棄並切換
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => {
+                  setPendingSwitchDeviceId(null);
+                  setShowSwitchConfirmDialog(false);
+                }}
+                className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <SlidePanel
         isOpen={panelType !== null}

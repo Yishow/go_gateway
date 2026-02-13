@@ -17,14 +17,14 @@
 
 ## 3. Device Switching Drawer and Guardrails
 
-- [ ] 3.1 將 `DeviceTreeNav` 改為 on-demand drawer 模式
-- [ ] 3.2 完成切換設備成功流程（更新 context + 重新載入 workspace 資料）
-- [ ] 3.3 完成異常流程：設備離線、切換失敗保留舊設備、權限不足 read-only
-- [ ] 3.4 完成未儲存變更確認彈窗（儲存後切換 / 放棄 / 取消）
-- [ ] 3.5 未儲存變更時在切換設備入口顯示紅點提示
-- [ ] 3.6 確認彈窗預設焦點為 `cancel`
-- [ ] 3.7 切換請求進行中鎖定切換按鈕並顯示 loading
-- [ ] 3.8 切換失敗 toast 提供 `重試` 與 `查看詳情`
+- [x] 3.1 將 `DeviceTreeNav` 改為 on-demand drawer 模式
+- [x] 3.2 完成切換設備成功流程（更新 context + 重新載入 workspace 資料）
+- [x] 3.3 完成異常流程：設備離線、切換失敗保留舊設備、權限不足 read-only
+- [x] 3.4 完成未儲存變更確認彈窗（儲存後切換 / 放棄 / 取消）
+- [x] 3.5 未儲存變更時在切換設備入口顯示紅點提示
+- [x] 3.6 確認彈窗預設焦點為 `cancel`
+- [x] 3.7 切換請求進行中鎖定切換按鈕並顯示 loading
+- [x] 3.8 切換失敗 toast 提供 `重試` 與 `查看詳情`
 
 ## 4. Device Modal Flow (Dashboard-first)
 
