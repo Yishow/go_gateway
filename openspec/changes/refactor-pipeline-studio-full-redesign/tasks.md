@@ -66,7 +66,7 @@
 - [x] 8.3 Update docs and help text to the one-screen workflow.
 
 ## 9. Verification and Release Gate
-- [ ] 9.1 Run `npm run lint`, `npm run typecheck`, `npm test`.
+- [x] 9.1 Run `npm run lint`, `npm run typecheck`, `npm test`.
 - [ ] 9.2 Run manual scenario checks for type-count occupancy examples.
 - [ ] 9.3 Record UX acceptance notes for source template reuse and global tag edits.
 - [ ] 9.4 Verify autosave/restore behavior under abrupt page reload.
