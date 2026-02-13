@@ -31,6 +31,13 @@ import {
 import { buildBatchNamePreview } from '../../features/datalink/batchNaming';
 import { findNearestValidContiguousSpan } from '../../features/datalink/allocationStrategy';
 import {
+  canExecuteCommit,
+  executeCommitLifecycle,
+  retryFailedLifecycle,
+  rollbackCommitLifecycle,
+  type QueueBaseStatus,
+} from '../../features/datalink/commitLifecycle';
+import {
   buildGlobalTagEditDraft,
   getAffectedMappingCountForTag,
   hasGlobalTagEditChanges,
@@ -390,7 +397,7 @@ export default function SmartDashboard() {
     return plannedAllocations.map((allocation, index) => {
       const conflictCount = allocation.addresses.filter((address) => usedSet.has(address)).length;
       const linkedCount = allocation.addresses.filter((address) => linkedSet.has(address)).length;
-      const status = conflictCount > 0 ? 'conflict' : linkedCount > 0 ? 'linked' : 'pending';
+      const status: QueueBaseStatus = conflictCount > 0 ? 'conflict' : linkedCount > 0 ? 'linked' : 'pending';
       return {
         id: allocation.id,
         label: allocation.label,
@@ -813,12 +820,16 @@ export default function SmartDashboard() {
   }, [canValidate, markError, markValidated, parsePipeline, selectedMapping, t, validatePipelineMutation]);
 
   const handleCommitFlow = useCallback(() => {
-    if (!canActivate) {
-      markError('sink', t('smartDashboard.flowErrors.notValidated'));
-      setCommitActionMessage('Commit 失敗：請先完成 Validate。');
-      return;
-    }
-    if (!selectedMapping?.enabled) {
+    const commitGate = canExecuteCommit({
+      canActivate,
+      mappingEnabled: Boolean(selectedMapping?.enabled),
+    });
+    if (!commitGate.ok) {
+      if (commitGate.reason === 'not_validated') {
+        markError('sink', t('smartDashboard.flowErrors.notValidated'));
+        setCommitActionMessage('Commit 失敗：請先完成 Validate。');
+        return;
+      }
       markError('sink', t('smartDashboard.flowErrors.mappingDisabled'));
       setCommitActionMessage('Commit 失敗：Mapping 尚未啟用。');
       return;
@@ -826,31 +837,19 @@ export default function SmartDashboard() {
     setIsCommitRunning(true);
     setLastCommitSnapshot(commitQueueRunStatus);
 
-    const nextRunStatus: Record<string, 'success' | 'failed'> = { ...commitQueueRunStatus };
-    let successCount = 0;
-    let failedCount = 0;
+    const result = executeCommitLifecycle(baseCommitQueueItems, commitQueueRunStatus);
 
-    baseCommitQueueItems.forEach((item) => {
-      if (item.status === 'conflict') {
-        nextRunStatus[item.id] = 'failed';
-        failedCount += 1;
-        return;
-      }
-      nextRunStatus[item.id] = 'success';
-      successCount += 1;
-    });
-
-    setCommitQueueRunStatus(nextRunStatus);
+    setCommitQueueRunStatus(result.nextStatus);
     setIsCommitRunning(false);
 
-    if (failedCount > 0) {
-      markError('sink', `Commit 部分失敗：${failedCount} 筆失敗，請執行 Retry 或 Rollback。`);
-      setCommitActionMessage(`Commit 部分成功：成功 ${successCount}、失敗 ${failedCount}。`);
+    if (result.failedCount > 0) {
+      markError('sink', `Commit 部分失敗：${result.failedCount} 筆失敗，請執行 Retry 或 Rollback。`);
+      setCommitActionMessage(`Commit 部分成功：成功 ${result.successCount}、失敗 ${result.failedCount}。`);
       return;
     }
 
     markActive();
-    setCommitActionMessage(`Commit 成功：${successCount} 筆已提交並啟用流程。`);
+    setCommitActionMessage(`Commit 成功：${result.successCount} 筆已提交並啟用流程。`);
   }, [baseCommitQueueItems, canActivate, commitQueueRunStatus, markActive, markError, selectedMapping?.enabled, t]);
 
   const handleRetryFailedCommits = useCallback(() => {
@@ -860,36 +859,24 @@ export default function SmartDashboard() {
       return;
     }
 
-    const nextRunStatus: Record<string, 'success' | 'failed'> = { ...commitQueueRunStatus };
-    let recovered = 0;
-    let remainingFailed = 0;
+    const result = retryFailedLifecycle(baseCommitQueueItems, commitQueueRunStatus);
+    setCommitQueueRunStatus(result.nextStatus);
 
-    failedItems.forEach((item) => {
-      if (item.status === 'conflict') {
-        nextRunStatus[item.id] = 'failed';
-        remainingFailed += 1;
-        return;
-      }
-      nextRunStatus[item.id] = 'success';
-      recovered += 1;
-    });
-
-    setCommitQueueRunStatus(nextRunStatus);
-
-    if (remainingFailed > 0) {
-      setCommitActionMessage(`Retry 完成：恢復 ${recovered} 筆，仍有 ${remainingFailed} 筆衝突。`);
+    if (result.remainingFailed > 0) {
+      setCommitActionMessage(`Retry 完成：恢復 ${result.recovered} 筆，仍有 ${result.remainingFailed} 筆衝突。`);
       return;
     }
 
-    setCommitActionMessage(`Retry 成功：已恢復 ${recovered} 筆失敗項目。`);
+    setCommitActionMessage(`Retry 成功：已恢復 ${result.recovered} 筆失敗項目。`);
   }, [baseCommitQueueItems, commitQueueRunStatus]);
 
   const handleRollbackCommitRun = useCallback(() => {
-    if (!lastCommitSnapshot) {
+    const rolledBack = rollbackCommitLifecycle(lastCommitSnapshot);
+    if (!rolledBack) {
       setCommitActionMessage('目前沒有可回滾的提交快照。');
       return;
     }
-    setCommitQueueRunStatus(lastCommitSnapshot);
+    setCommitQueueRunStatus(rolledBack);
     setLastCommitSnapshot(null);
     setCommitActionMessage('已回滾到上次 Commit 前的佇列狀態。');
   }, [lastCommitSnapshot]);
