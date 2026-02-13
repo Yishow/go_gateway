@@ -18,3 +18,16 @@
 - Verified by backend integration test:
   - `internal/datalink/modbusshare/service_test.go`
   - Scenario: start local Modbus share server, mirror tag value, read holding registers through TCP client (`internal/protocol/modbus`).
+
+### 9.5 Initial phased rollout subset
+- Verified in Pipeline Studio source planner UI:
+  - `frontend/src/pages/datalink/SmartDashboard.tsx`
+  - Current selectable source data types are limited to `int16`, `int32`, and `float32` for phased rollout.
+
+### 9.3 UX acceptance notes (current status)
+- Source template reuse:
+  - Save/load/delete flow is available in the Source Planner panel.
+  - Persistence across reload is covered by `sourceTemplateStorage` tests.
+- Global tag inline-edit:
+  - Current Pipeline Studio flow supports tag linkage and modbus mapping actions.
+  - Dedicated global tag metadata impact-summary + second-confirmation acceptance flow still requires browser walkthrough and explicit UX sign-off.
