@@ -356,6 +356,18 @@ export default function SmartDashboard() {
     }
   }, [linkedTag?.id, linkedTag?.key, selectedPoint?.last_value]);
 
+  const handleSyncModbusFromMappings = useCallback(async () => {
+    try {
+      const result = await modbusShareAPI.sync();
+      await loadModbusStatus();
+      const errorHint = result.errors.length > 0 ? `, errors=${result.errors.length}` : '';
+      setModbusActionMessage(`同步完成: updated=${result.updated}, skipped=${result.skipped}${errorHint}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '同步失敗';
+      setModbusActionMessage(message);
+    }
+  }, [loadModbusStatus]);
+
   useEffect(() => {
     setSource(selectedDeviceId || '', selectedSourceAddress, selectedPoint?.id || '');
   }, [selectedDeviceId, selectedPoint?.id, selectedSourceAddress, setSource]);
@@ -920,6 +932,13 @@ export default function SmartDashboard() {
                   className="w-full rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
                   推送目前值到 Modbus
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSyncModbusFromMappings}
+                  className="w-full rounded-lg border border-blue-500/40 bg-blue-500/20 px-3 py-2 text-xs font-medium text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  同步全部啟用映射
                 </button>
               </div>
               {modbusActionMessage && (

@@ -554,4 +554,9 @@ export const modbusShareAPI = {
   async writeTagValue(tagId: string, value: unknown): Promise<void> {
     await api.post('/modbus-share/write-tag-value', { tag_id: tagId, value });
   },
+
+  async sync(): Promise<{ updated: number; skipped: number; errors: string[] }> {
+    const res = await api.post<APIResponse<{ updated: number; skipped: number; errors: string[] }>>('/modbus-share/sync');
+    return res.data.data ?? { updated: 0, skipped: 0, errors: [] };
+  },
 };

@@ -131,6 +131,14 @@ func (s *Service) ListMappings() []TagMirrorMapping {
 	return out
 }
 
+// HasMapping checks whether a tag mirror mapping exists.
+func (s *Service) HasMapping(tagID string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.mappings[tagID]
+	return ok
+}
+
 // WriteTagValue writes tag value to mapped Modbus registers.
 func (s *Service) WriteTagValue(ctx context.Context, tagID string, value interface{}) error {
 	s.mu.RLock()

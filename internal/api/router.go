@@ -215,12 +215,17 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 
 			// Local Modbus Share
 			if datalinkServices.ModbusShare != nil {
-				modbusShareHandler := handlers.NewModbusShareHandler(datalinkServices.ModbusShare)
+				modbusShareHandler := handlers.NewModbusShareHandler(
+					datalinkServices.ModbusShare,
+					datalinkServices.Point,
+					datalinkServices.Mapping,
+				)
 				datalinkGroup.GET("/modbus-share/status", modbusShareHandler.Status)
 				datalinkGroup.GET("/modbus-share/mappings", modbusShareHandler.ListMappings)
 				datalinkGroup.PUT("/modbus-share/mappings/:tagId", modbusShareHandler.UpsertMapping)
 				datalinkGroup.DELETE("/modbus-share/mappings/:tagId", modbusShareHandler.DeleteMapping)
 				datalinkGroup.POST("/modbus-share/write-tag-value", modbusShareHandler.WriteTagValue)
+				datalinkGroup.POST("/modbus-share/sync", modbusShareHandler.SyncFromMappings)
 			}
 		}
 	}

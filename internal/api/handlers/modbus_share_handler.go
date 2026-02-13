@@ -1,19 +1,30 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
+	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/modbusshare"
+	"go-gateway/internal/datalink/point"
 
 	"github.com/gin-gonic/gin"
 )
 
 type ModbusShareHandler struct {
-	svc *modbusshare.Service
+	svc        *modbusshare.Service
+	pointSvc   *point.Service
+	mappingSvc *mapping.Service
 }
 
-func NewModbusShareHandler(svc *modbusshare.Service) *ModbusShareHandler {
-	return &ModbusShareHandler{svc: svc}
+func NewModbusShareHandler(svc *modbusshare.Service, pointSvc *point.Service, mappingSvc *mapping.Service) *ModbusShareHandler {
+	return &ModbusShareHandler{
+		svc:        svc,
+		pointSvc:   pointSvc,
+		mappingSvc: mappingSvc,
+	}
 }
 
 type UpsertMirrorMappingRequest struct {
@@ -23,6 +34,12 @@ type UpsertMirrorMappingRequest struct {
 type WriteTagValueRequest struct {
 	TagID string      `json:"tag_id" binding:"required"`
 	Value interface{} `json:"value" binding:"required"`
+}
+
+type SyncSummary struct {
+	Updated int      `json:"updated"`
+	Skipped int      `json:"skipped"`
+	Errors  []string `json:"errors"`
 }
 
 func (h *ModbusShareHandler) Status(c *gin.Context) {
@@ -67,4 +84,73 @@ func (h *ModbusShareHandler) WriteTagValue(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"written": true}})
+}
+
+// SyncFromMappings syncs latest point values to modbus mirror by enabled mappings.
+func (h *ModbusShareHandler) SyncFromMappings(c *gin.Context) {
+	if h.pointSvc == nil || h.mappingSvc == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "error": gin.H{"message": "sync dependencies unavailable"}})
+		return
+	}
+
+	enabled := true
+	mappings, err := h.mappingSvc.List(c.Request.Context(), mapping.ListFilter{Enabled: &enabled, Limit: 10000})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	summary := SyncSummary{Errors: make([]string, 0)}
+
+	for _, m := range mappings {
+		if !h.svc.HasMapping(m.TagID) {
+			summary.Skipped++
+			continue
+		}
+
+		pt, err := h.pointSvc.GetByID(c.Request.Context(), m.PointID)
+		if err != nil {
+			summary.Errors = append(summary.Errors, "point not found: "+m.PointID)
+			continue
+		}
+		if pt.LastValue == nil {
+			summary.Skipped++
+			continue
+		}
+
+		val := parsePointLastValue(*pt.LastValue)
+		if err := h.svc.WriteTagValue(c.Request.Context(), m.TagID, val); err != nil {
+			summary.Errors = append(summary.Errors, "tag "+m.TagID+": "+err.Error())
+			continue
+		}
+		summary.Updated++
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": summary})
+}
+
+func parsePointLastValue(raw string) interface{} {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return raw
+	}
+
+	var decoded interface{}
+	if err := json.Unmarshal([]byte(trimmed), &decoded); err == nil {
+		return decoded
+	}
+
+	if i, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
+		return i
+	}
+	if f, err := strconv.ParseFloat(trimmed, 64); err == nil {
+		return f
+	}
+	if strings.EqualFold(trimmed, "true") {
+		return true
+	}
+	if strings.EqualFold(trimmed, "false") {
+		return false
+	}
+	return raw
 }
