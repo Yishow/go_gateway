@@ -55,6 +55,12 @@ import {
 import { buildGlobalTagGuardrail } from '../../features/datalink/globalTagGuardrails';
 import { isLegacyDecommissionRoute } from '../../features/datalink/legacyRoutes';
 import { estimatePollingLoadDelta } from '../../features/datalink/pollingLoadEstimate';
+import {
+  MOTION_TOKENS,
+  buildMotionReadabilityGate,
+  resolveIntentMotionClass,
+  resolveScrollBehavior,
+} from '../../features/datalink/motionGuidance';
 import { getSpanByDataType, validateTypedOccupancyPlan } from '../../features/datalink/typedOccupancy';
 import { runStructuralValidation } from '../../features/datalink/validationFlow';
 import { addressParser } from '../../utils/addressParser';
@@ -108,7 +114,8 @@ export default function SmartDashboard() {
   const [allocationMessage, setAllocationMessage] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [showConflictsOnly, setShowConflictsOnly] = useState(false);
-  const [guideStage, setGuideStage] = useState<'idle' | 'grid'>('idle');
+  const [guideStage, setGuideStage] = useState<'idle' | 'grid' | 'commit'>('idle');
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => loadSourceTemplates());
   const [modbusStatus, setModbusStatus] = useState<ModbusShareStatus | null>(null);
   const [modbusRegister, setModbusRegister] = useState('0');
@@ -139,6 +146,7 @@ export default function SmartDashboard() {
   const legacyRoute = searchParams.get('legacy');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const gridSectionRef = useRef<HTMLElement | null>(null);
+  const guideStageTimeoutRef = useRef<number | null>(null);
 
   const { data: devices = [] } = useDevicesQuery();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
@@ -248,6 +256,22 @@ export default function SmartDashboard() {
   useEffect(() => {
     saveSourceTemplates(sourceTemplates);
   }, [sourceTemplates]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => setReducedMotion(mediaQuery.matches);
+    apply();
+    mediaQuery.addEventListener('change', apply);
+    return () => mediaQuery.removeEventListener('change', apply);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (guideStageTimeoutRef.current) {
+        window.clearTimeout(guideStageTimeoutRef.current);
+        guideStageTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedDevice) return;
@@ -383,13 +407,22 @@ export default function SmartDashboard() {
     setAllocationMessage('在目前範圍內找不到可用連續區段，請調整起始位址或降低來源數量。');
   }, [blockedAddresses, planStartAddress, selectedDevice, totalPlannedCells]);
 
+  const scheduleGuideStageReset = useCallback(() => {
+    if (guideStageTimeoutRef.current) window.clearTimeout(guideStageTimeoutRef.current);
+    guideStageTimeoutRef.current = window.setTimeout(() => {
+      setGuideStage('idle');
+      guideStageTimeoutRef.current = null;
+    }, 1200);
+  }, []);
+
   const handleApplyPlan = useCallback(() => {
     if (!planAddresses.length) return;
     setSelectedAddresses(planAddresses);
     setGuideStage('grid');
-    gridSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.setTimeout(() => setGuideStage('idle'), 1200);
-  }, [planAddresses]);
+    gridSectionRef.current?.scrollIntoView({ behavior: resolveScrollBehavior(reducedMotion), block: 'start' });
+    gridSectionRef.current?.focus();
+    scheduleGuideStageReset();
+  }, [planAddresses, reducedMotion, scheduleGuideStageReset]);
 
   const handleCellClick = (_addr: string, point?: Point) => {
     if (point) {
@@ -467,6 +500,16 @@ export default function SmartDashboard() {
   const preCommitLoadEstimate = useMemo(
     () => estimatePollingLoadDelta(allPoints, pollingGroups, commitImpactSummary.newPoints),
     [allPoints, commitImpactSummary.newPoints, pollingGroups]
+  );
+  const motionQAGate = useMemo(
+    () =>
+      buildMotionReadabilityGate({
+        stageHandoffMs: MOTION_TOKENS.stageHandoffMs,
+        commitFeedbackMs: MOTION_TOKENS.commitFeedbackMs,
+        hasReducedMotionFallback: true,
+        intentOnlyAnimations: true,
+      }),
+    []
   );
   const selectedPointFromGrid = useMemo(
     () => allPoints.find((point) => point.address === selectedSourceAddress) || null,
@@ -952,8 +995,20 @@ export default function SmartDashboard() {
     }
 
     markActive();
+    setGuideStage('commit');
+    scheduleGuideStageReset();
     setCommitActionMessage(`Commit 成功：${successCount} 筆已提交並啟用流程。`);
-  }, [baseCommitQueueItems, canActivate, commitQueueRunStatus, markActive, markError, pendingTagEdit, selectedMapping?.enabled, t]);
+  }, [
+    baseCommitQueueItems,
+    canActivate,
+    commitQueueRunStatus,
+    markActive,
+    markError,
+    pendingTagEdit,
+    scheduleGuideStageReset,
+    selectedMapping?.enabled,
+    t,
+  ]);
 
   const handleRetryFailedCommits = useCallback(() => {
     if (failedChunkRetryQueue.length === 0) {
@@ -1140,7 +1195,7 @@ export default function SmartDashboard() {
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              selectedDevice.status === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+                              selectedDevice.status === 'active' ? 'bg-emerald-400' : 'bg-slate-400'
                             }`}
                             aria-hidden
                           />
@@ -1408,9 +1463,9 @@ export default function SmartDashboard() {
                   </section>
                   <section
                     ref={gridSectionRef}
-                    className={`rounded-2xl border border-white/10 bg-slate-900/50 transition-all duration-300 ${
-                      guideStage === 'grid' ? 'ring-2 ring-sky-500/70 ring-offset-2 ring-offset-slate-900 motion-safe:animate-pulse' : ''
-                    }`}
+                    tabIndex={-1}
+                    className={`rounded-2xl border border-white/10 bg-slate-900/50 transition-all ${resolveIntentMotionClass(guideStage, reducedMotion)}`}
+                    style={{ transitionDuration: `${MOTION_TOKENS.stageHandoffMs}ms` }}
                   >
                     <MemoryGrid
                       deviceId={selectedDevice.id}
@@ -1445,7 +1500,10 @@ export default function SmartDashboard() {
         </div>
 
         <div className="min-h-[300px] xl:min-h-0">
-          <div className="h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+          <div
+            className={`h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl transition-all ${resolveIntentMotionClass(guideStage === 'commit' ? 'commit' : 'idle', reducedMotion)}`}
+            style={{ transitionDuration: `${MOTION_TOKENS.commitFeedbackMs}ms` }}
+          >
             <QuickActions
               device={selectedDevice}
               selectedCount={selectedAddresses.length}
@@ -1544,6 +1602,10 @@ export default function SmartDashboard() {
                 <p className="text-[10px] text-cyan-50/90">
                   Polling Load Δ +{preCommitLoadEstimate.deltaReadsPerSec}/s ({preCommitLoadEstimate.baselineReadsPerSec}
                   /s → {preCommitLoadEstimate.projectedReadsPerSec}/s, 假設週期 {preCommitLoadEstimate.assumedIntervalMs}ms)
+                </p>
+                <p className={`text-[10px] ${motionQAGate.pass ? 'text-emerald-200' : 'text-rose-200'}`}>
+                  Motion QA Gate: {motionQAGate.pass ? 'PASS' : 'FAIL'} ({motionQAGate.checklist.filter((item) => item.pass).length}/
+                  {motionQAGate.checklist.length})
                 </p>
               </div>
               <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">

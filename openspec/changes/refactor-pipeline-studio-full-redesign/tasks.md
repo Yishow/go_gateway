@@ -45,12 +45,12 @@
 - [x] 5.11 Add pre-commit polling load delta estimate.
 
 ## 6. Motion-Guided Interaction
-- [ ] 6.1 Define motion tokens and transition rules (150-300ms).
-- [ ] 6.2 Add stage transitions and focus handoff animations.
-- [ ] 6.3 Add reduced-motion fallback and tests.
-- [ ] 6.4 Run accessibility checks for keyboard and focus visibility.
-- [ ] 6.5 Restrict animations to intent transitions; no decorative long animations.
-- [ ] 6.6 Add animation readability checklist and QA gate for visual clarity.
+- [x] 6.1 Define motion tokens and transition rules (150-300ms).
+- [x] 6.2 Add stage transitions and focus handoff animations.
+- [x] 6.3 Add reduced-motion fallback and tests.
+- [x] 6.4 Run accessibility checks for keyboard and focus visibility.
+- [x] 6.5 Restrict animations to intent transitions; no decorative long animations.
+- [x] 6.6 Add animation readability checklist and QA gate for visual clarity.
 
 ## 7. Local Modbus Sharing Mode
 - [x] 7.1 Add optional sink target `local_modbus_server`.
