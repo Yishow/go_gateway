@@ -148,7 +148,10 @@ func (r *SQLRepository) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("刪除設定失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得刪除影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("設定不存在: %s", key)
 	}

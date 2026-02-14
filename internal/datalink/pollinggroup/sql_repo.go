@@ -4,6 +4,7 @@ package pollinggroup
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -80,7 +81,10 @@ func (r *SQLRepository) Update(ctx context.Context, group *schema.PollingGroup) 
 		return fmt.Errorf("更新輪詢群組失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得更新影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("輪詢群組不存在: %s", group.ID)
 	}
@@ -97,7 +101,10 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("刪除輪詢群組失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得刪除影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("輪詢群組不存在: %s", id)
 	}
@@ -178,7 +185,7 @@ func (r *SQLRepository) scanGroup(row *sql.Row) (*schema.PollingGroup, error) {
 		&updatedAt,
 	)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("輪詢群組不存在")
 	}
 	if err != nil {

@@ -3,6 +3,7 @@ package point
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -16,7 +17,7 @@ func (r *SQLRepository) BatchUpdateReadResult(ctx context.Context, results []Rea
 		return fmt.Errorf("開啟交易失敗: %w", err)
 	}
 	defer func() {
-		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
 			return
 		}
 	}()

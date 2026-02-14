@@ -2,6 +2,7 @@ package point
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"go-gateway/internal/datalink/common"
@@ -34,7 +35,7 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 		&updatedAt,
 	)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("點位不存在")
 	}
 	if err != nil {

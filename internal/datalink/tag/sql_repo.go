@@ -4,6 +4,7 @@ package tag
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -76,7 +77,10 @@ func (r *SQLRepository) Update(ctx context.Context, tag *schema.Tag) error {
 		return fmt.Errorf("更新標籤失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得更新影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("標籤不存在: %s", tag.ID)
 	}
@@ -93,7 +97,10 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("刪除標籤失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得刪除影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("標籤不存在: %s", id)
 	}
@@ -200,7 +207,7 @@ func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 		&updatedAt,
 	)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("標籤不存在")
 	}
 	if err != nil {
@@ -276,16 +283,17 @@ func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 
 	return &tag, nil
 }
+
 // ExistsByKey 檢查 Key 是否存在
 func (r *SQLRepository) ExistsByKey(ctx context.Context, key string) (bool, error) {
 	query := `SELECT COUNT(*) FROM tags WHERE key_lower = ?`
-	
+
 	var count int
 	err := r.db.QueryRowContext(ctx, query, strings.ToLower(key)).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("檢查標籤是否存在失敗: %w", err)
 	}
-	
+
 	return count > 0, nil
 }
 
@@ -302,7 +310,10 @@ func (r *SQLRepository) UpdateStatus(ctx context.Context, id string, status sche
 		return fmt.Errorf("更新標籤狀態失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得狀態更新影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("標籤不存在: %s", id)
 	}
