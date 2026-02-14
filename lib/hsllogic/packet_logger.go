@@ -102,6 +102,8 @@ func (pl *PacketLogger) Flush() {
 	defer pl.mu.Unlock()
 
 	if pl.currentFile != nil {
-		pl.currentFile.Sync()
+		if err := pl.currentFile.Sync(); err != nil {
+			return
+		}
 	}
 }

@@ -129,7 +129,11 @@ var packetLogPool = sync.Pool{
 
 // acquirePacketLog 從物件池取得 PacketLog
 func acquirePacketLog() *PacketLog {
-	return packetLogPool.Get().(*PacketLog)
+	log, ok := packetLogPool.Get().(*PacketLog)
+	if !ok {
+		return &PacketLog{}
+	}
+	return log
 }
 
 // releasePacketLog 歸還 PacketLog 至物件池

@@ -68,7 +68,12 @@ func (s *Server) Start(port int) error {
 	}
 
 	s.listener = listener
-	s.port = listener.Addr().(*net.TCPAddr).Port
+	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		_ = listener.Close()
+		return fmt.Errorf("監聽地址類型錯誤: %T", listener.Addr())
+	}
+	s.port = tcpAddr.Port
 	s.running = true
 	s.done = make(chan struct{})
 

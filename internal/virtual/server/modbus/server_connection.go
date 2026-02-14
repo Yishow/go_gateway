@@ -76,7 +76,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 		copy(fullResponse[7:], response)
 
 		// 發送完整回應
-		conn.Write(fullResponse)
+		if _, err := conn.Write(fullResponse); err != nil {
+			return
+		}
 	}
 }
 
