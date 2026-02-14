@@ -59,7 +59,12 @@ func parseConditionalParams(params map[string]interface{}) (string, float64, err
 		return parseConditionString(condition)
 	}
 
-	operator, _ := params["operator"].(string)
+	operator := ""
+	if rawOperator, exists := params["operator"]; exists {
+		if op, ok := rawOperator.(string); ok {
+			operator = op
+		}
+	}
 	operator = normalizeOperator(strings.TrimSpace(operator))
 	if operator == "" {
 		return "", 0, fmt.Errorf("缺少 operator 或 condition")
@@ -128,7 +133,12 @@ func executeFormula(input interface{}, params map[string]interface{}) (interface
 		return input, nil
 	}
 
-	expression, _ := params["expression"].(string)
+	expression := ""
+	if rawExpression, exists := params["expression"]; exists {
+		if expr, ok := rawExpression.(string); ok {
+			expression = expr
+		}
+	}
 	if expression == "" {
 		return input, nil
 	}

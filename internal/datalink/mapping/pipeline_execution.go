@@ -96,7 +96,12 @@ func executeDecode(input interface{}, params map[string]interface{}) (interface{
 		return input, nil
 	}
 
-	format, _ := params["format"].(string)
+	format := ""
+	if rawFormat, exists := params["format"]; exists {
+		if parsedFormat, ok := rawFormat.(string); ok {
+			format = parsedFormat
+		}
+	}
 	switch format {
 	case "swap16":
 		if v, ok := toUint16Value(input); ok {
@@ -117,9 +122,18 @@ func executeCast(input interface{}, params map[string]interface{}) (interface{},
 		return input, nil
 	}
 
-	toType, _ := params["to_type"].(string)
+	toType := ""
+	if rawToType, exists := params["to_type"]; exists {
+		if parsedToType, ok := rawToType.(string); ok {
+			toType = parsedToType
+		}
+	}
 	if toType == "" {
-		toType, _ = params["target_type"].(string)
+		if rawTargetType, exists := params["target_type"]; exists {
+			if parsedTargetType, ok := rawTargetType.(string); ok {
+				toType = parsedTargetType
+			}
+		}
 	}
 	targetType := schema.DataType(toType)
 
@@ -203,7 +217,12 @@ func executeLookup(input interface{}, params map[string]interface{}) (interface{
 		return input, nil
 	}
 
-	table, _ := params["table"].(map[string]interface{})
+	var table map[string]interface{}
+	if rawTable, exists := params["table"]; exists {
+		if parsedTable, ok := rawTable.(map[string]interface{}); ok {
+			table = parsedTable
+		}
+	}
 	if table == nil {
 		return input, nil
 	}

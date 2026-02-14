@@ -4,6 +4,7 @@ package mapping
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -76,7 +77,10 @@ func (r *SQLRepository) Update(ctx context.Context, mapping *schema.Mapping) err
 		return fmt.Errorf("更新映射失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得更新影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("映射不存在: %s", mapping.ID)
 	}
@@ -93,7 +97,10 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("刪除映射失敗: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("取得刪除影響列數失敗: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("映射不存在: %s", id)
 	}
@@ -201,7 +208,7 @@ func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 		&updatedAt,
 	)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("映射不存在")
 	}
 	if err != nil {

@@ -9,7 +9,10 @@ import (
 // randomString 產生隨機字串
 func randomString(length int) string {
 	bytes := make([]byte, length/2+1)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		fallback := []byte(time.Now().Format("20060102150405.000000000"))
+		copy(bytes, fallback)
+	}
 	return hex.EncodeToString(bytes)[:length]
 }
 

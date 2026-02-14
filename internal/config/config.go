@@ -65,10 +65,10 @@ type WebSocketConfig struct {
 
 // ConnectionPoolConfig 連接池配置
 type ConnectionPoolConfig struct {
-	MaxConnections  int
+	MaxConnections    int
 	ConnectionTimeout int
-	ReadTimeout     int
-	WriteTimeout    int
+	ReadTimeout       int
+	WriteTimeout      int
 }
 
 var globalConfig *Config
@@ -77,9 +77,37 @@ var globalConfig *Config
 // 優先順序：環境變數 > .env 文件 > 預設值
 func Load() (*Config, error) {
 	// 嘗試載入 .env 文件（如果存在）
-	_ = godotenv.Load()
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("載入 .env 失敗: %w", err)
+	}
 
-	cfg := &Config{
+	cfg := newConfigFromEnv()
+
+	// 設定 Gin 模式
+	ginMode := getEnv("GIN_MODE", "release")
+	os.Setenv("GIN_MODE", ginMode)
+
+	globalConfig = cfg
+	return cfg, nil
+}
+
+// Get 取得全域配置
+func Get() *Config {
+	if globalConfig == nil {
+		cfg, err := Load()
+		if err != nil {
+			cfg = newConfigFromEnv()
+			ginMode := getEnv("GIN_MODE", "release")
+			os.Setenv("GIN_MODE", ginMode)
+			globalConfig = cfg
+		}
+		return cfg
+	}
+	return globalConfig
+}
+
+func newConfigFromEnv() *Config {
+	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("PORT", "8080"),
 			Host: getEnv("HOST", ""),
@@ -108,23 +136,6 @@ func Load() (*Config, error) {
 		},
 		Debug: getEnvAsBool("DEBUG", false),
 	}
-
-	// 設定 Gin 模式
-	ginMode := getEnv("GIN_MODE", "release")
-	os.Setenv("GIN_MODE", ginMode)
-
-	globalConfig = cfg
-	return cfg, nil
-}
-
-// Get 取得全域配置
-func Get() *Config {
-	if globalConfig == nil {
-		// 如果未載入，使用預設配置
-		cfg, _ := Load()
-		return cfg
-	}
-	return globalConfig
 }
 
 // getEnv 取得環境變數，如果不存在則返回預設值
