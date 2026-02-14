@@ -68,3 +68,24 @@ func TestExtractValueFromPayload(t *testing.T) {
 		t.Fatalf("expected true, got %v", value)
 	}
 }
+
+func TestSplitPathSkipsEmptySegment(t *testing.T) {
+	parts := splitPath("a..b.c.")
+	if len(parts) != 3 {
+		t.Fatalf("expected 3 parts, got %d", len(parts))
+	}
+	if parts[0] != "a" || parts[1] != "b" || parts[2] != "c" {
+		t.Fatalf("unexpected parts: %#v", parts)
+	}
+}
+
+func TestConvertMQTTValueFallbackToString(t *testing.T) {
+	value := convertMQTTValue(map[string]interface{}{"k": "v"}, schema.DataTypeString)
+	strValue, ok := value.(string)
+	if !ok {
+		t.Fatalf("expected string, got %T", value)
+	}
+	if strValue == "" {
+		t.Fatal("expected non-empty string")
+	}
+}
