@@ -78,14 +78,17 @@ var globalConfig *Config
 func Load() (*Config, error) {
 	// 嘗試載入 .env 文件（如果存在）
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("載入 .env 失敗: %w", err)
+		// 與舊行為一致：.env 格式異常時退回系統環境變數。
+		_ = err
 	}
 
 	cfg := newConfigFromEnv()
 
 	// 設定 Gin 模式
 	ginMode := getEnv("GIN_MODE", "release")
-	os.Setenv("GIN_MODE", ginMode)
+	if err := os.Setenv("GIN_MODE", ginMode); err != nil {
+		return nil, fmt.Errorf("設定 GIN_MODE 失敗: %w", err)
+	}
 
 	globalConfig = cfg
 	return cfg, nil
@@ -97,8 +100,6 @@ func Get() *Config {
 		cfg, err := Load()
 		if err != nil {
 			cfg = newConfigFromEnv()
-			ginMode := getEnv("GIN_MODE", "release")
-			os.Setenv("GIN_MODE", ginMode)
 			globalConfig = cfg
 		}
 		return cfg
