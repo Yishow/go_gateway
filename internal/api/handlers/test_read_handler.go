@@ -1,10 +1,10 @@
 package handlers
 
 import (
-"fmt"
-"net/http"
+	"fmt"
+	"net/http"
 
-"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 // ReadRequest 讀取請求
@@ -13,8 +13,8 @@ type ReadRequest struct {
 	Operation    string `json:"operation" binding:"required"`
 	Address      uint16 `json:"address"` // For Modbus/MC
 	Count        uint16 `json:"count"`
-	Symbol       string `json:"symbol,omitempty"` // For Fatek/MC
-	Device       string `json:"device,omitempty"` // For MC
+	Symbol       string `json:"symbol,omitempty"`  // For Fatek/MC
+	Device       string `json:"device,omitempty"`  // For MC
 	UnitID       *byte  `json:"unit_id,omitempty"` // For Modbus (可選，覆蓋連線配置的站號)
 	Station      *int   `json:"station,omitempty"` // For Fatek (可選，覆蓋連線配置的站號)
 }
@@ -68,7 +68,9 @@ func (h *TestHandler) Read(c *gin.Context) {
 		}
 		// 連線臨時客戶端
 		if err := h.connectClient(tempClient, state.Protocol); err != nil {
-			_ = h.closeClient(tempClient, state.Protocol)
+			if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+				fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("連線臨時客戶端失敗: %v", err)})
 			return
 		}
@@ -76,10 +78,12 @@ func (h *TestHandler) Read(c *gin.Context) {
 	}
 
 	result, err := h.executeRead(clientToUse, state.Protocol, req)
-	
+
 	// 如果使用了臨時客戶端，關閉它
 	if tempClient != nil {
-		h.closeClient(tempClient, state.Protocol)
+		if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+			fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+		}
 	}
 	if err != nil {
 		// 記錄錯誤日誌

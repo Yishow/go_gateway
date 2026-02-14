@@ -1,10 +1,10 @@
 package handlers
 
 import (
-"fmt"
-"net/http"
+	"fmt"
+	"net/http"
 
-"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 // WriteRequest 寫入請求
@@ -13,8 +13,8 @@ type WriteRequest struct {
 	Operation    string      `json:"operation" binding:"required"`
 	Address      uint16      `json:"address"`
 	Values       interface{} `json:"values" binding:"required"`
-	Symbol       string      `json:"symbol,omitempty"` // For Fatek
-	Device       string      `json:"device,omitempty"` // For MC
+	Symbol       string      `json:"symbol,omitempty"`  // For Fatek
+	Device       string      `json:"device,omitempty"`  // For MC
 	UnitID       *byte       `json:"unit_id,omitempty"` // For Modbus (可選，覆蓋連線配置的站號)
 	Station      *int        `json:"station,omitempty"` // For Fatek (可選，覆蓋連線配置的站號)
 }
@@ -60,7 +60,9 @@ func (h *TestHandler) Write(c *gin.Context) {
 		}
 		// 連線臨時客戶端
 		if err := h.connectClient(tempClient, state.Protocol); err != nil {
-			_ = h.closeClient(tempClient, state.Protocol)
+			if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+				fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("連線臨時客戶端失敗: %v", err)})
 			return
 		}
@@ -70,7 +72,9 @@ func (h *TestHandler) Write(c *gin.Context) {
 	if err := h.executeWrite(clientToUse, state.Protocol, req); err != nil {
 		// 如果使用了臨時客戶端，關閉它
 		if tempClient != nil {
-			h.closeClient(tempClient, state.Protocol)
+			if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+				fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+			}
 		}
 		// 記錄錯誤日誌
 		if h.debugHandler != nil {
@@ -86,7 +90,9 @@ func (h *TestHandler) Write(c *gin.Context) {
 
 	// 如果使用了臨時客戶端，關閉它
 	if tempClient != nil {
-		h.closeClient(tempClient, state.Protocol)
+		if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+			fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+		}
 	}
 
 	// 記錄成功日誌
@@ -103,8 +109,8 @@ func (h *TestHandler) Write(c *gin.Context) {
 
 // BatchOperation 定義批量操作中的單個項目
 type BatchOperation struct {
-	Type         string      `json:"type" binding:"required"` // "read" or "write"
-	ReadRequest  *ReadRequest `json:"read_request,omitempty"`
+	Type         string        `json:"type" binding:"required"` // "read" or "write"
+	ReadRequest  *ReadRequest  `json:"read_request,omitempty"`
 	WriteRequest *WriteRequest `json:"write_request,omitempty"`
 }
 
@@ -174,7 +180,9 @@ func (h *TestHandler) Batch(c *gin.Context) {
 					} else {
 						// 連線臨時客戶端
 						if err = h.connectClient(tempClient, state.Protocol); err != nil {
-							_ = h.closeClient(tempClient, state.Protocol)
+							if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+								fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+							}
 							err = fmt.Errorf("連線臨時客戶端失敗: %v", err)
 						} else {
 							clientToUse = tempClient
@@ -186,7 +194,9 @@ func (h *TestHandler) Batch(c *gin.Context) {
 				}
 				// 如果使用了臨時客戶端，關閉它
 				if tempClient != nil {
-					h.closeClient(tempClient, state.Protocol)
+					if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+						fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+					}
 				}
 			}
 		case "write":
@@ -216,7 +226,9 @@ func (h *TestHandler) Batch(c *gin.Context) {
 					} else {
 						// 連線臨時客戶端
 						if err = h.connectClient(tempClient, state.Protocol); err != nil {
-							_ = h.closeClient(tempClient, state.Protocol)
+							if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+								fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+							}
 							err = fmt.Errorf("連線臨時客戶端失敗: %v", err)
 						} else {
 							clientToUse = tempClient
@@ -228,7 +240,9 @@ func (h *TestHandler) Batch(c *gin.Context) {
 				}
 				// 如果使用了臨時客戶端，關閉它
 				if tempClient != nil {
-					h.closeClient(tempClient, state.Protocol)
+					if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
+						fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
+					}
 				}
 			}
 		default:

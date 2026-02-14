@@ -91,7 +91,7 @@ func TestModbusTCPConnector_StressTest(t *testing.T) {
 					}
 
 					// 執行讀取
-					result, err := conn.Read(context.Background(), req)
+					result, err := conn.Read(ctx, req)
 
 					if err != nil {
 						// 錯誤處理
@@ -102,7 +102,7 @@ func TestModbusTCPConnector_StressTest(t *testing.T) {
 
 						// 如果是長連接模式且未連線，嘗試重連 (模擬調用者行為)
 						if conn.IsPersistentMode() && !conn.IsConnected() {
-							_ = conn.Reconnect(context.Background())
+							_ = conn.Reconnect(ctx)
 						}
 					} else {
 						// 驗證數值正確性
