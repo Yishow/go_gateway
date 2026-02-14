@@ -75,6 +75,7 @@ func (u *UDPTransport) SendReceive(data []byte) ([]byte, error) {
 	}
 
 	if err := u.conn.SetDeadline(time.Now().Add(u.Timeout)); err != nil {
+		u.internalClose()
 		return nil, fmt.Errorf("UDP 設定逾時失敗: %w", err)
 	}
 
@@ -101,4 +102,14 @@ func (u *UDPTransport) GetNextTransactionID() uint16 {
 		u.transactionID = 1
 	}
 	return u.transactionID
+}
+
+func (u *UDPTransport) internalClose() {
+	if u.conn != nil {
+		if err := u.conn.Close(); err != nil {
+			u.conn = nil
+			return
+		}
+		u.conn = nil
+	}
 }
