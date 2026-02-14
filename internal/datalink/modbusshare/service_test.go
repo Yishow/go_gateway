@@ -2,6 +2,7 @@ package modbusshare
 
 import (
 	"context"
+	"math"
 	"net"
 	"strings"
 	"testing"
@@ -213,5 +214,36 @@ func TestService_RemoveMappingAndHasMapping(t *testing.T) {
 	svc.RemoveMapping(floatTag.ID)
 	if svc.HasMapping(floatTag.ID) {
 		t.Fatal("expected mapping to be removed")
+	}
+}
+
+func TestToUint64_NegativeSignedValue_ReturnsError(t *testing.T) {
+	if _, err := toUint64(int(-1)); err == nil {
+		t.Fatal("expected error for negative signed value")
+	}
+}
+
+func TestToInt64_Uint64Overflow_ReturnsError(t *testing.T) {
+	if _, err := toInt64(uint64(math.MaxUint64)); err == nil {
+		t.Fatal("expected overflow error for uint64 to int64 conversion")
+	}
+}
+
+func TestService_WriteTagValue_RegisterOverflow_ReturnsError(t *testing.T) {
+	ctx := context.Background()
+	tagSvc := setupTagSvc(t)
+	svc := NewService(tagSvc, 200000)
+
+	floatTag, err := tagSvc.GetByKey(ctx, "test.temp.float32")
+	if err != nil {
+		t.Fatalf("get float tag failed: %v", err)
+	}
+
+	if _, err := svc.UpsertMapping(ctx, floatTag.ID, math.MaxUint16); err != nil {
+		t.Fatalf("upsert mapping failed: %v", err)
+	}
+
+	if err := svc.WriteTagValue(ctx, floatTag.ID, 1.25); err == nil {
+		t.Fatal("expected overflow error when writing multi-word value at last register")
 	}
 }

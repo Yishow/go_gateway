@@ -24,10 +24,15 @@ func (s *Service) WriteTagValue(ctx context.Context, tagID string, value interfa
 		return err
 	}
 
+	baseRegister := int(mapping.Register)
+	if baseRegister+len(words) > modbusMaxRegs {
+		return fmt.Errorf("register range overflow: start=%d words=%d max=%d", baseRegister, len(words), modbusMaxRegs)
+	}
+
 	for i, word := range words {
-		offset := int(mapping.Register+uint16(i)) * 2
+		offset := (baseRegister + i) * 2
 		if err := s.bank.WriteWord(offset, word); err != nil {
-			return fmt.Errorf("write register %d failed: %w", int(mapping.Register)+i, err)
+			return fmt.Errorf("write register %d failed: %w", baseRegister+i, err)
 		}
 	}
 

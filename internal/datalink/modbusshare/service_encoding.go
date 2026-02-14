@@ -113,6 +113,9 @@ func toInt64(v interface{}) (int64, error) {
 	case int64:
 		return n, nil
 	case uint:
+		if uint64(n) > uint64(math.MaxInt64) {
+			return 0, fmt.Errorf("uint value %d overflows int64", n)
+		}
 		return int64(n), nil
 	case uint8:
 		return int64(n), nil
@@ -121,10 +124,19 @@ func toInt64(v interface{}) (int64, error) {
 	case uint32:
 		return int64(n), nil
 	case uint64:
+		if n > uint64(math.MaxInt64) {
+			return 0, fmt.Errorf("uint64 value %d overflows int64", n)
+		}
 		return int64(n), nil
 	case float32:
+		if n > math.MaxInt64 || n < math.MinInt64 {
+			return 0, fmt.Errorf("float32 value %v overflows int64", n)
+		}
 		return int64(n), nil
 	case float64:
+		if n > math.MaxInt64 || n < math.MinInt64 {
+			return 0, fmt.Errorf("float64 value %v overflows int64", n)
+		}
 		return int64(n), nil
 	default:
 		return 0, fmt.Errorf("value is not numeric")
@@ -134,14 +146,29 @@ func toInt64(v interface{}) (int64, error) {
 func toUint64(v interface{}) (uint64, error) {
 	switch n := v.(type) {
 	case int:
+		if n < 0 {
+			return 0, fmt.Errorf("cannot convert negative value %d to uint64", n)
+		}
 		return uint64(n), nil
 	case int8:
+		if n < 0 {
+			return 0, fmt.Errorf("cannot convert negative value %d to uint64", n)
+		}
 		return uint64(n), nil
 	case int16:
+		if n < 0 {
+			return 0, fmt.Errorf("cannot convert negative value %d to uint64", n)
+		}
 		return uint64(n), nil
 	case int32:
+		if n < 0 {
+			return 0, fmt.Errorf("cannot convert negative value %d to uint64", n)
+		}
 		return uint64(n), nil
 	case int64:
+		if n < 0 {
+			return 0, fmt.Errorf("cannot convert negative value %d to uint64", n)
+		}
 		return uint64(n), nil
 	case uint:
 		return uint64(n), nil
@@ -154,8 +181,14 @@ func toUint64(v interface{}) (uint64, error) {
 	case uint64:
 		return n, nil
 	case float32:
+		if n < 0 || n > float32(math.MaxUint64) {
+			return 0, fmt.Errorf("float32 value %v out of uint64 range", n)
+		}
 		return uint64(n), nil
 	case float64:
+		if n < 0 || n > float64(math.MaxUint64) {
+			return 0, fmt.Errorf("float64 value %v out of uint64 range", n)
+		}
 		return uint64(n), nil
 	default:
 		return 0, fmt.Errorf("value is not numeric")

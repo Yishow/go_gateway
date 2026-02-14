@@ -12,6 +12,8 @@ import (
 	virtualmodbus "go-gateway/internal/virtual/server/modbus"
 )
 
+const modbusMaxRegs = 65536
+
 // TagMirrorMapping defines one tag-to-register mirror binding.
 type TagMirrorMapping struct {
 	TagID     string          `json:"tag_id"`
