@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"net/http"
 
 	"go-gateway/internal/datalink/connector"
@@ -157,7 +156,11 @@ func (h *DeviceHandler) Activate(w http.ResponseWriter, r *http.Request, id stri
 		return
 	}
 
-	dev, _ := h.svc.GetByID(ctx, id)
+	dev, err := h.svc.GetByID(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, dev)
 }
 
@@ -171,7 +174,11 @@ func (h *DeviceHandler) Disable(w http.ResponseWriter, r *http.Request, id strin
 		return
 	}
 
-	dev, _ := h.svc.GetByID(ctx, id)
+	dev, err := h.svc.GetByID(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, dev)
 }
 
@@ -250,7 +257,7 @@ func (h *DeviceHandler) BatchTestConnections(w http.ResponseWriter, r *http.Requ
 	results := make([]TestConnectionResponse, 0, len(req.DeviceIDs))
 
 	for _, id := range req.DeviceIDs {
-		result, err := h.svc.TestConnectionWithResult(context.Background(), id)
+		result, err := h.svc.TestConnectionWithResult(ctx, id)
 		if err != nil {
 			results = append(results, TestConnectionResponse{
 				DeviceID: id,
@@ -268,6 +275,5 @@ func (h *DeviceHandler) BatchTestConnections(w http.ResponseWriter, r *http.Requ
 		})
 	}
 
-	_ = ctx // 避免未使用警告
 	writeJSON(w, http.StatusOK, results)
 }

@@ -34,36 +34,27 @@ type APIMeta struct {
 
 // writeJSON 寫入 JSON 回應
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-
 	resp := APIResponse{
 		Success: status >= 200 && status < 300,
 		Data:    data,
 	}
 
-	_ = json.NewEncoder(w).Encode(resp)
+	writeAPIResponse(w, status, resp)
 }
 
 // writeJSONWithMeta 寫入帶分頁資訊的 JSON 回應
 func writeJSONWithMeta(w http.ResponseWriter, status int, data interface{}, meta APIMeta) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-
 	resp := APIResponse{
 		Success: status >= 200 && status < 300,
 		Data:    data,
 		Meta:    &meta,
 	}
 
-	_ = json.NewEncoder(w).Encode(resp)
+	writeAPIResponse(w, status, resp)
 }
 
 // writeError 寫入錯誤回應
 func writeError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-
 	code := httpStatusToCode(status)
 	resp := APIResponse{
 		Success: false,
@@ -73,14 +64,11 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		},
 	}
 
-	_ = json.NewEncoder(w).Encode(resp)
+	writeAPIResponse(w, status, resp)
 }
 
 // writeErrorWithDetails 寫入帶詳細資訊的錯誤回應
 func writeErrorWithDetails(w http.ResponseWriter, status int, message, details string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-
 	code := httpStatusToCode(status)
 	resp := APIResponse{
 		Success: false,
@@ -91,7 +79,21 @@ func writeErrorWithDetails(w http.ResponseWriter, status int, message, details s
 		},
 	}
 
-	_ = json.NewEncoder(w).Encode(resp)
+	writeAPIResponse(w, status, resp)
+}
+
+func writeAPIResponse(w http.ResponseWriter, status int, resp APIResponse) {
+	payload, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, "回應序列化失敗", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	if _, err := w.Write(payload); err != nil {
+		return
+	}
 }
 
 // httpStatusToCode 將 HTTP 狀態碼轉換為錯誤代碼

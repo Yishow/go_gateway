@@ -32,7 +32,10 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 	}
 
 	// 取得 properties
-	properties, _ := configSchema["properties"].(map[string]interface{})
+	properties, ok := configSchema["properties"].(map[string]interface{})
+	if !ok {
+		properties = make(map[string]interface{})
+	}
 
 	// 檢查必填欄位
 	required, ok := configSchema["required"].([]interface{})
