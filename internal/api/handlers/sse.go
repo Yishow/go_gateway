@@ -91,7 +91,10 @@ func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 				return
 			}
 			// 發送數據
-			c.Writer.Write(data)
+			if _, err := c.Writer.Write(data); err != nil {
+				log.Printf("SSE 寫入失敗: %v", err)
+				return
+			}
 			c.Writer.Flush()
 		}
 	}

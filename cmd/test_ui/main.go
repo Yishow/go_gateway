@@ -91,7 +91,11 @@ func main() {
 	// Connector Manager
 	// =========================================================================
 	connMgr := connector.GetConnectionManager()
-	defer connMgr.CloseAll()
+	defer func() {
+		if err := connMgr.CloseAll(); err != nil {
+			log.Printf("關閉 ConnectionManager 失敗: %v", err)
+		}
+	}()
 	log.Println("ConnectionManager 已初始化")
 
 	// 輸出已註冊的協議列表

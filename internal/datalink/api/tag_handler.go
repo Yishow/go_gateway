@@ -145,7 +145,11 @@ func (h *TagHandler) Activate(w http.ResponseWriter, r *http.Request, id string)
 		return
 	}
 
-	t, _ := h.svc.GetByID(ctx, id)
+	t, err := h.svc.GetByID(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -159,7 +163,11 @@ func (h *TagHandler) Retire(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	t, _ := h.svc.GetByID(ctx, id)
+	t, err := h.svc.GetByID(ctx, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -174,7 +182,7 @@ type BatchCreateTagRequest struct {
 
 // BatchCreateResponse 批量建立結果
 type BatchCreateTagResponse struct {
-	Created []string       `json:"created"`
+	Created []string        `json:"created"`
 	Errors  []BatchTagError `json:"errors,omitempty"`
 }
 

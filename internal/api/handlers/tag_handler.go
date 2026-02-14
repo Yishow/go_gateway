@@ -95,7 +95,11 @@ func (h *TagHandler) Activate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	t, _ := h.svc.GetByID(c.Request.Context(), id)
+	t, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": t})
 }
 
@@ -107,7 +111,11 @@ func (h *TagHandler) Retire(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	t, _ := h.svc.GetByID(c.Request.Context(), id)
+	t, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": t})
 }
 
@@ -118,8 +126,8 @@ type BatchCreateRequest struct {
 
 // BatchCreateResponse 批量建立回應
 type BatchCreateResponse struct {
-	Created []string            `json:"created"`
-	Errors  []BatchCreateError  `json:"errors"`
+	Created []string           `json:"created"`
+	Errors  []BatchCreateError `json:"errors"`
 }
 
 // BatchCreateError 批量建立錯誤
@@ -208,4 +216,3 @@ func (h *TagHandler) ValidateKey(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 }
-

@@ -154,11 +154,11 @@ type PreviewRequest struct {
 
 // PreviewResponse 預覽回應
 type PreviewResponse struct {
-	RawValue     interface{}                `json:"raw_value"`
-	FinalValue   interface{}                `json:"final_value"`
-	StepResults  []mapping.StepResult       `json:"step_results"`
-	Pipeline     []schema.TransformStep     `json:"pipeline,omitempty"`
-	Error        string                     `json:"error,omitempty"`
+	RawValue    interface{}            `json:"raw_value"`
+	FinalValue  interface{}            `json:"final_value"`
+	StepResults []mapping.StepResult   `json:"step_results"`
+	Pipeline    []schema.TransformStep `json:"pipeline,omitempty"`
+	Error       string                 `json:"error,omitempty"`
 }
 
 // Preview 預覽映射轉換結果
@@ -194,7 +194,13 @@ func (h *MappingHandler) Preview(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, resp)
 			return
 		}
-		pipelineJSON = mustMarshalJSON(req.TransformPipeline)
+		serializedPipeline, marshalErr := mustMarshalJSON(req.TransformPipeline)
+		if marshalErr != nil {
+			resp.Error = "序列化轉換管線失敗: " + marshalErr.Error()
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+		pipelineJSON = serializedPipeline
 		resp.Pipeline = req.TransformPipeline
 	} else if req.MappingID != "" {
 		// 使用現有映射的管線
@@ -273,7 +279,10 @@ func (h *MappingHandler) ValidatePipeline(w http.ResponseWriter, r *http.Request
 // 輔助函數
 // =============================================================================
 
-func mustMarshalJSON(v interface{}) string {
-	data, _ := json.Marshal(v)
-	return string(data)
+func mustMarshalJSON(v interface{}) (string, error) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
