@@ -125,7 +125,7 @@ func (c *ModbusClient) sendRequest(functionCode byte, data []byte) ([]byte, erro
 	// 檢查是否支持 GetNextTransactionID（TCP/UDP）或直接是 RTU
 	_, hasTransactionID := c.transport.(interface{ GetNextTransactionID() uint16 })
 	_, isRTU := c.transport.(*RTUTransport)
-	
+
 	if hasTransactionID {
 		return c.sendTCPRequest(functionCode, data)
 	} else if isRTU {
@@ -304,10 +304,11 @@ func (c *ModbusClient) WriteSingleRegister(address uint16, value uint16) error {
 
 // WriteMultipleCoils 寫入多個線圈
 func (c *ModbusClient) WriteMultipleCoils(address uint16, values []bool) error {
-	quantity := uint16(len(values))
-	if quantity < 1 || quantity > CoilMaxQuantity {
+	quantity := len(values)
+	if quantity < 1 || quantity > int(CoilMaxQuantity) {
 		return ErrInvalidQuantity
 	}
+	expectedQuantity := uint16(quantity)
 
 	requestData := BuildWriteMultipleCoilsRequest(address, values)
 	responseData, err := c.sendRequest(FuncWriteMultipleCoils, requestData)
@@ -327,8 +328,8 @@ func (c *ModbusClient) WriteMultipleCoils(address uint16, values []bool) error {
 		return fmt.Errorf("回應地址不匹配: 預期 %d, 實際 %d", address, respAddress)
 	}
 
-	if respQuantity != quantity {
-		return fmt.Errorf("回應數量不匹配: 預期 %d, 實際 %d", quantity, respQuantity)
+	if respQuantity != expectedQuantity {
+		return fmt.Errorf("回應數量不匹配: 預期 %d, 實際 %d", expectedQuantity, respQuantity)
 	}
 
 	return nil
@@ -336,10 +337,11 @@ func (c *ModbusClient) WriteMultipleCoils(address uint16, values []bool) error {
 
 // WriteMultipleRegisters 寫入多個暫存器
 func (c *ModbusClient) WriteMultipleRegisters(address uint16, values []uint16) error {
-	quantity := uint16(len(values))
-	if quantity < 1 || quantity > HoldingRegisterMaxQuantity {
+	quantity := len(values)
+	if quantity < 1 || quantity > int(HoldingRegisterMaxQuantity) {
 		return ErrInvalidQuantity
 	}
+	expectedQuantity := uint16(quantity)
 
 	requestData := BuildWriteMultipleRegistersRequest(address, values)
 	responseData, err := c.sendRequest(FuncWriteMultipleRegisters, requestData)
@@ -359,8 +361,8 @@ func (c *ModbusClient) WriteMultipleRegisters(address uint16, values []uint16) e
 		return fmt.Errorf("回應地址不匹配: 預期 %d, 實際 %d", address, respAddress)
 	}
 
-	if respQuantity != quantity {
-		return fmt.Errorf("回應數量不匹配: 預期 %d, 實際 %d", quantity, respQuantity)
+	if respQuantity != expectedQuantity {
+		return fmt.Errorf("回應數量不匹配: 預期 %d, 實際 %d", expectedQuantity, respQuantity)
 	}
 
 	return nil

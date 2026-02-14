@@ -3,6 +3,7 @@ package modbus
 import (
 	"encoding/binary"
 	"io"
+	"math"
 	"net"
 )
 
@@ -68,10 +69,13 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 		// 構建完整回應 (MBAP Header + PDU)
 		respLen := len(response) + 1 // +1 for Unit ID
+		if respLen > math.MaxUint16 {
+			return
+		}
 		fullResponse := make([]byte, MBAPHeaderLength+len(response))
 		binary.BigEndian.PutUint16(fullResponse[0:2], transactionID)
-		binary.BigEndian.PutUint16(fullResponse[2:4], 0) // Protocol ID
-		binary.BigEndian.PutUint16(fullResponse[4:6], uint16(respLen))
+		binary.BigEndian.PutUint16(fullResponse[2:4], 0)               // Protocol ID
+		binary.BigEndian.PutUint16(fullResponse[4:6], uint16(respLen)) // #nosec G115 -- respLen 已做上界檢查
 		fullResponse[6] = unitID
 		copy(fullResponse[7:], response)
 

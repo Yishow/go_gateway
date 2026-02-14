@@ -10,6 +10,13 @@ const (
 	minResponseLen = 2 // EndCode (2 bytes)
 )
 
+func checkedUint16(value int, field string) (uint16, error) {
+	if value < 0 || value > 0xFFFF {
+		return 0, fmt.Errorf("%s out of uint16 range: %d", field, value)
+	}
+	return uint16(value), nil
+}
+
 type MCClient struct {
 	transport Transport
 	frame     RequestFrame
@@ -35,8 +42,9 @@ func NewClient(host string, port int) *MCClient {
 //   - 配置好的 MC 客戶端實例
 //
 // Example:
-//   transport := NewTCPTransport("192.168.1.10", 5000)
-//   client := NewClientWithTransport(transport)
+//
+//	transport := NewTCPTransport("192.168.1.10", 5000)
+//	client := NewClientWithTransport(transport)
 func NewClientWithTransport(transport Transport) *MCClient {
 	return &MCClient{
 		transport: transport,
@@ -78,7 +86,11 @@ func (c *MCClient) BatchReadWord(device string, addr int, count int) ([]int, err
 	data[1] = byte((addr >> 8) & 0xFF)
 	data[2] = byte((addr >> 16) & 0xFF)
 	data[3] = devType.Code
-	binary.LittleEndian.PutUint16(data[4:], uint16(count))
+	countU16, err := checkedUint16(count, "count")
+	if err != nil {
+		return nil, err
+	}
+	binary.LittleEndian.PutUint16(data[4:], countU16)
 
 	// Build & Send
 	req := c.frame.BuildPacket(CmdBatchRead, SubCmdWord, data)
@@ -142,10 +154,18 @@ func (c *MCClient) BatchWriteWord(device string, addr int, values []int) error {
 	data[1] = byte((addr >> 8) & 0xFF)
 	data[2] = byte((addr >> 16) & 0xFF)
 	data[3] = devType.Code
-	binary.LittleEndian.PutUint16(data[4:], uint16(count))
+	countU16, err := checkedUint16(count, "count")
+	if err != nil {
+		return err
+	}
+	binary.LittleEndian.PutUint16(data[4:], countU16)
 
 	for i, val := range values {
-		binary.LittleEndian.PutUint16(data[6+i*2:], uint16(val))
+		wordValue, convErr := checkedUint16(val, "value")
+		if convErr != nil {
+			return convErr
+		}
+		binary.LittleEndian.PutUint16(data[6+i*2:], wordValue)
 	}
 
 	req := c.frame.BuildPacket(CmdBatchWrite, SubCmdWord, data)
@@ -194,7 +214,11 @@ func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, err
 	data[1] = byte((addr >> 8) & 0xFF)
 	data[2] = byte((addr >> 16) & 0xFF)
 	data[3] = devType.Code
-	binary.LittleEndian.PutUint16(data[4:], uint16(count))
+	countU16, err := checkedUint16(count, "count")
+	if err != nil {
+		return nil, err
+	}
+	binary.LittleEndian.PutUint16(data[4:], countU16)
 
 	req := c.frame.BuildPacket(CmdBatchRead, SubCmdBit, data)
 	resp, err := c.transport.SendReceive(req)
@@ -253,7 +277,11 @@ func (c *MCClient) BatchWriteBit(device string, addr int, values []bool) error {
 	data[1] = byte((addr >> 8) & 0xFF)
 	data[2] = byte((addr >> 16) & 0xFF)
 	data[3] = devType.Code
-	binary.LittleEndian.PutUint16(data[4:], uint16(count))
+	countU16, err := checkedUint16(count, "count")
+	if err != nil {
+		return err
+	}
+	binary.LittleEndian.PutUint16(data[4:], countU16)
 	copy(data[6:], bitData)
 
 	req := c.frame.BuildPacket(CmdBatchWrite, SubCmdBit, data)
