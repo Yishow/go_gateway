@@ -2,6 +2,7 @@ package edge
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -59,7 +60,7 @@ func TestPipeline_SingleProcessor(t *testing.T) {
 
 func TestPipeline_MultipleProcessors(t *testing.T) {
 	pipeline := NewPipeline()
-	pipeline.AddProcessor(&MockAddOneProcessor{})       // +1
+	pipeline.AddProcessor(&MockAddOneProcessor{})            // +1
 	pipeline.AddProcessor(&MockMultiplyProcessor{factor: 2}) // *2
 
 	input := []float64{1, 2, 3}
@@ -143,7 +144,7 @@ func TestPipeline_Timeout(t *testing.T) {
 	if err == nil {
 		t.Error("預期超時錯誤")
 	}
-	if err != context.DeadlineExceeded {
+	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("預期 DeadlineExceeded 錯誤，實際: %v", err)
 	}
 }

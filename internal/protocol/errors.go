@@ -1,7 +1,10 @@
 // Package protocol 提供工業協議通訊的共用定義
 package protocol
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // ProtocolException 是所有協議錯誤的基礎介面
 // 所有協議實作（Fatek、Modbus、MC Protocol）都應實作此介面
@@ -100,7 +103,7 @@ func IsConnectionClosed(err error) bool {
 		return false
 	}
 	// 檢查是否為預定義錯誤或包含相關訊息
-	if err == ErrConnectionClosed {
+	if errors.Is(err, ErrConnectionClosed) {
 		return true
 	}
 	// 檢查錯誤訊息（相容各協議的錯誤定義）
@@ -115,7 +118,7 @@ func IsTimeout(err error) bool {
 	if err == nil {
 		return false
 	}
-	if err == ErrTimeout {
+	if errors.Is(err, ErrTimeout) {
 		return true
 	}
 	errMsg := err.Error()

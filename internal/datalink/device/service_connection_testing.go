@@ -98,7 +98,7 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 func (s *Service) recordTestResult(ctx context.Context, id string, success bool, errMsg string, baseErr error) error {
 	if err := s.repo.UpdateTestResult(ctx, id, success, errMsg); err != nil {
 		if baseErr != nil {
-			return fmt.Errorf("%w；記錄測試結果失敗: %v", baseErr, err)
+			return fmt.Errorf("%w；記錄測試結果失敗: %w", baseErr, err)
 		}
 		return fmt.Errorf("記錄測試結果失敗: %w", err)
 	}
