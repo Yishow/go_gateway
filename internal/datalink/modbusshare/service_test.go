@@ -192,3 +192,26 @@ func TestService_ModbusClientRead_MirroredValues(t *testing.T) {
 		t.Fatalf("unexpected mirrored registers: %#v", registers)
 	}
 }
+
+func TestService_RemoveMappingAndHasMapping(t *testing.T) {
+	ctx := context.Background()
+	tagSvc := setupTagSvc(t)
+	svc := NewService(tagSvc, 4096)
+
+	floatTag, err := tagSvc.GetByKey(ctx, "test.temp.float32")
+	if err != nil {
+		t.Fatalf("get float tag failed: %v", err)
+	}
+
+	if _, err := svc.UpsertMapping(ctx, floatTag.ID, 50); err != nil {
+		t.Fatalf("upsert mapping failed: %v", err)
+	}
+	if !svc.HasMapping(floatTag.ID) {
+		t.Fatal("expected mapping to exist")
+	}
+
+	svc.RemoveMapping(floatTag.ID)
+	if svc.HasMapping(floatTag.ID) {
+		t.Fatal("expected mapping to be removed")
+	}
+}
