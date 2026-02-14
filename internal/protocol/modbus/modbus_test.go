@@ -2,6 +2,7 @@ package modbus
 
 import (
 	"encoding/binary"
+	"errors"
 	"testing"
 )
 
@@ -143,7 +144,7 @@ func TestBuildMBAPHeader(t *testing.T) {
 func TestParseMBAPHeader_Invalid(t *testing.T) {
 	// 測試過短的數據
 	_, err := ParseMBAPHeader([]byte{0x12})
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 
@@ -191,7 +192,7 @@ func TestParsePDU(t *testing.T) {
 
 	// 過短的數據
 	_, _, err = ParsePDU([]byte{})
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 }
@@ -408,7 +409,7 @@ func TestParseWriteResponse(t *testing.T) {
 
 	// 測試過短的數據
 	_, _, err = ParseWriteResponse([]byte{0x12}, false)
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 }

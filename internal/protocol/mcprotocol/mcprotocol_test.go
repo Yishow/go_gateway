@@ -2,6 +2,7 @@ package mcprotocol
 
 import (
 	"encoding/binary"
+	"errors"
 	"testing"
 )
 
@@ -394,7 +395,8 @@ func TestClient_ErrorHandling(t *testing.T) {
 		return
 	}
 
-	mcErr, ok := err.(*MCError)
+	var mcErr *MCError
+	ok := errors.As(err, &mcErr)
 	if !ok {
 		t.Logf("Error type: %T, error: %v", err, err)
 		// 可能不是 MCError，但應該有錯誤

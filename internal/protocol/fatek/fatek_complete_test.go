@@ -1,6 +1,7 @@
 package fatek
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -232,7 +233,7 @@ func TestParseResponse(t *testing.T) {
 	// 測試無效 STX
 	response[0] = 0xFF
 	_, err = ParseResponse(response, "44")
-	if err != ErrInvalidSTX {
+	if !errors.Is(err, ErrInvalidSTX) {
 		t.Errorf("Expected ErrInvalidSTX, got %v", err)
 	}
 
@@ -240,13 +241,13 @@ func TestParseResponse(t *testing.T) {
 	response[0] = STX
 	response[len(response)-1] = 0xFF
 	_, err = ParseResponse(response, "44")
-	if err != ErrInvalidETX {
+	if !errors.Is(err, ErrInvalidETX) {
 		t.Errorf("Expected ErrInvalidETX, got %v", err)
 	}
 
 	// 測試過短的回應
 	_, err = ParseResponse([]byte{STX, '0', '1'}, "44")
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 

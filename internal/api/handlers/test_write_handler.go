@@ -176,14 +176,14 @@ func (h *TestHandler) Batch(c *gin.Context) {
 					// 創建臨時客戶端並連線
 					tempClient, err = h.createClientWithDebug(state.Protocol, tempConfig, state.ID+"_temp_batch")
 					if err != nil {
-						err = fmt.Errorf("創建臨時客戶端失敗: %v", err)
+						err = fmt.Errorf("創建臨時客戶端失敗: %w", err)
 					} else {
 						// 連線臨時客戶端
 						if err = h.connectClient(tempClient, state.Protocol); err != nil {
 							if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
 								fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
 							}
-							err = fmt.Errorf("連線臨時客戶端失敗: %v", err)
+							err = fmt.Errorf("連線臨時客戶端失敗: %w", err)
 						} else {
 							clientToUse = tempClient
 						}
@@ -222,14 +222,14 @@ func (h *TestHandler) Batch(c *gin.Context) {
 					// 創建臨時客戶端並連線
 					tempClient, err = h.createClientWithDebug(state.Protocol, tempConfig, state.ID+"_temp_batch")
 					if err != nil {
-						err = fmt.Errorf("創建臨時客戶端失敗: %v", err)
+						err = fmt.Errorf("創建臨時客戶端失敗: %w", err)
 					} else {
 						// 連線臨時客戶端
 						if err = h.connectClient(tempClient, state.Protocol); err != nil {
 							if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
 								fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
 							}
-							err = fmt.Errorf("連線臨時客戶端失敗: %v", err)
+							err = fmt.Errorf("連線臨時客戶端失敗: %w", err)
 						} else {
 							clientToUse = tempClient
 						}

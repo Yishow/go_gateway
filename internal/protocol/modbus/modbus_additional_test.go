@@ -1,6 +1,7 @@
 package modbus
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -8,7 +9,7 @@ import (
 func TestParseReadResponse_EdgeCases(t *testing.T) {
 	// 測試空數據
 	_, err := ParseReadResponse([]byte{})
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 
@@ -22,7 +23,7 @@ func TestParseReadResponse_EdgeCases(t *testing.T) {
 	// 測試數據長度不足
 	data = []byte{10, 0x01, 0x02} // ByteCount=10, 但只有2字節數據
 	_, err = ParseReadResponse(data)
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 }
@@ -31,7 +32,7 @@ func TestParseReadResponse_EdgeCases(t *testing.T) {
 func TestParseRTUFrame_EdgeCases(t *testing.T) {
 	// 測試過短的數據
 	_, _, _, err := ParseRTUFrame([]byte{0x01})
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 
@@ -39,7 +40,7 @@ func TestParseRTUFrame_EdgeCases(t *testing.T) {
 	frame := BuildRTUFrame(1, 0x03, []byte{0x00, 0x0A})
 	frame[len(frame)-1] ^= 0xFF // 破壞 CRC
 	_, _, _, err = ParseRTUFrame(frame)
-	if err != ErrCRCError {
+	if !errors.Is(err, ErrCRCError) {
 		t.Errorf("Expected ErrCRCError, got %v", err)
 	}
 }
@@ -66,7 +67,7 @@ func TestParseTCPFrame_EdgeCases(t *testing.T) {
 func TestParsePDU_EdgeCases(t *testing.T) {
 	// 測試空數據
 	_, _, err := ParsePDU([]byte{})
-	if err != ErrResponseTooShort {
+	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)
 	}
 

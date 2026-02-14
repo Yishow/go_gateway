@@ -1,9 +1,9 @@
 package handlers
 
 import (
-"errors"
-"fmt"
-"net"
+	"errors"
+	"fmt"
+	"net"
 )
 
 // categorizeError 將底層錯誤轉換為更易讀的錯誤訊息
@@ -11,14 +11,14 @@ func categorizeError(err error) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	// 處理 net.Error (Timeout, Connection refused)
 	var netErr net.Error
 	if errors.As(err, &netErr) {
 		if netErr.Timeout() {
-			return fmt.Errorf("TIMEOUT: %v", err)
+			return fmt.Errorf("TIMEOUT: %w", err)
 		}
-		return fmt.Errorf("NETWORK_ERROR: %v", err)
+		return fmt.Errorf("NETWORK_ERROR: %w", err)
 	}
 
 	// 檢查常見的錯誤字串 (因為部分庫可能返回普通 error)
