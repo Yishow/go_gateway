@@ -1,6 +1,7 @@
 package datalink
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io/fs"
@@ -23,18 +24,18 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 	// For this prototype/phase, we prioritize the sqlite file if using sqlite driver (implied by this codebase context)
 	// In a full implementation we'd check driver name.
 	// For now, let's look specifically for "001_initial_schema_sqlite.sql" first.
-	
+
 	targetFile := "001_initial_schema_sqlite.sql"
-	
+
 	content, err := migrations.FS.ReadFile(targetFile)
 	if err == nil {
 		log.Printf("Executing SQLite migration: %s", targetFile)
-		if _, err := db.Exec(string(content)); err != nil {
+		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", targetFile, err)
 		}
 		return nil
 	}
-	
+
 	// Fallback to iterating if specific file not found (legacy behavior or different structure)
 	files, err := fs.ReadDir(migrations.FS, ".")
 	if err != nil {
@@ -47,10 +48,10 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".sql") || strings.Contains(file.Name(), ".down.") {
 			continue
 		}
-		
+
 		// Skip generated postgres files if we just want sqlite
 		if file.Name() == "001_initial_schema.up.sql" {
-			continue 
+			continue
 		}
 
 		log.Printf("Executing migration: %s", file.Name())
@@ -61,7 +62,7 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		}
 
 		// Execute SQL
-		_, err = db.Exec(string(content))
+		_, err = db.ExecContext(context.Background(), string(content))
 		if err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", file.Name(), err)
 		}

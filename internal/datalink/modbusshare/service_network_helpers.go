@@ -1,10 +1,12 @@
 package modbusshare
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 // ReadHoldingWords is a helper for tests and diagnostics.
@@ -29,7 +31,10 @@ func (s *Service) ReadHoldingWords(startRegister uint16, quantity uint16) ([]uin
 }
 
 func preflightPortAvailable(port int) error {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	listenCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var lc net.ListenConfig
+	ln, err := lc.Listen(listenCtx, "tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		if isAddressInUseError(err) {
 			return fmt.Errorf("port %d is already in use, please stop the conflicting process or choose another port", port)

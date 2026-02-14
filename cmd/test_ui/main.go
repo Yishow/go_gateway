@@ -70,7 +70,9 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := db.Ping(); err != nil {
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCancel()
+	if err := db.PingContext(pingCtx); err != nil {
 		log.Fatalf("無法連接資料庫: %v", err)
 	}
 
@@ -245,14 +247,17 @@ func openBrowser(serverAddr string) {
 	url := buildURL(serverAddr)
 	log.Printf("正在打開瀏覽器: %s", url)
 
+	openCtx, openCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer openCancel()
+
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
+		cmd = exec.CommandContext(openCtx, "cmd", "/c", "start", url)
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.CommandContext(openCtx, "open", url)
 	default: // linux
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.CommandContext(openCtx, "xdg-open", url)
 	}
 
 	if err := cmd.Start(); err != nil {

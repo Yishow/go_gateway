@@ -4,9 +4,11 @@
 package datalink
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 
 	_ "github.com/lib/pq"  // PostgreSQL driver
 	_ "modernc.org/sqlite" // SQLite driver (pure Go)
@@ -115,7 +117,9 @@ func (m *DBManager) Connect() error {
 	}
 
 	// 測試連接
-	if err := db.Ping(); err != nil {
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer pingCancel()
+	if err := db.PingContext(pingCtx); err != nil {
 		db.Close()
 		return fmt.Errorf("資料庫連接測試失敗: %w", err)
 	}

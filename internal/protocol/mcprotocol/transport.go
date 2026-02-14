@@ -2,6 +2,7 @@ package mcprotocol
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -47,7 +48,9 @@ func (t *TCPTransport) Connect() error {
 
 	// 使用 net.JoinHostPort 支援 IPv6
 	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
-	conn, err := net.DialTimeout("tcp", addr, t.Timeout)
+	dialCtx, cancel := context.WithTimeout(context.Background(), t.Timeout)
+	defer cancel()
+	conn, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", addr)
 	if err != nil {
 		return err
 	}
@@ -129,7 +132,9 @@ func (t *TCPTransport) internalConnect() error {
 	}
 	// 使用 net.JoinHostPort 支援 IPv6
 	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
-	conn, err := net.DialTimeout("tcp", addr, t.Timeout)
+	dialCtx, cancel := context.WithTimeout(context.Background(), t.Timeout)
+	defer cancel()
+	conn, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", addr)
 	if err != nil {
 		return err
 	}
