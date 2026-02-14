@@ -2,11 +2,12 @@ package api
 
 import (
 	"encoding/hex"
+	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	"go-gateway/internal/virtual/memory"
 	modbusserver "go-gateway/internal/virtual/server/modbus"
 	"go-gateway/internal/virtual/simulation"
@@ -35,23 +36,28 @@ func NewVirtualDeviceHandler(bank *memory.MemoryBank, server *modbusserver.Serve
 // RegisterRoutes 註冊路由
 func (h *VirtualDeviceHandler) RegisterRoutes(r *gin.RouterGroup) {
 	v := r.Group("/virtual")
-	{
-		// 記憶體操作
-		v.GET("/memory/dump", h.GetMemoryDump)
-		v.GET("/memory/range", h.GetMemoryRange)
-		v.POST("/memory/write", h.WriteMemory)
-		v.POST("/memory/clear", h.ClearMemory)
+	// 記憶體操作
+	v.GET("/memory/dump", h.GetMemoryDump)
+	v.GET("/memory/range", h.GetMemoryRange)
+	v.POST("/memory/write", h.WriteMemory)
+	v.POST("/memory/clear", h.ClearMemory)
 
-		// 伺服器控制
-		v.POST("/server/start", h.StartServer)
-		v.POST("/server/stop", h.StopServer)
-		v.GET("/server/status", h.GetServerStatus)
+	// 伺服器控制
+	v.POST("/server/start", h.StartServer)
+	v.POST("/server/stop", h.StopServer)
+	v.GET("/server/status", h.GetServerStatus)
 
-		// 模擬控制
-		v.POST("/simulation/start", h.StartSimulation)
-		v.POST("/simulation/stop", h.StopSimulation)
-		v.POST("/simulation/rules", h.AddSimulationRule)
+	// 模擬控制
+	v.POST("/simulation/start", h.StartSimulation)
+	v.POST("/simulation/stop", h.StopSimulation)
+	v.POST("/simulation/rules", h.AddSimulationRule)
+}
+
+func toUint16(value int) (uint16, bool) {
+	if value < 0 || value > math.MaxUint16 {
+		return 0, false
 	}
+	return uint16(value), true
 }
 
 // =============================================================================
@@ -60,8 +66,8 @@ func (h *VirtualDeviceHandler) RegisterRoutes(r *gin.RouterGroup) {
 
 // MemoryDumpResponse 記憶體快照回應
 type MemoryDumpResponse struct {
-	Size   int    `json:"size"`
-	Data   string `json:"data"` // Hex 編碼
+	Size int    `json:"size"`
+	Data string `json:"data"` // Hex 編碼
 }
 
 // GetMemoryDump 取得完整記憶體快照
@@ -84,8 +90,8 @@ type MemoryRangeRequest struct {
 type MemoryRangeResponse struct {
 	Offset int      `json:"offset"`
 	Length int      `json:"length"`
-	Data   string   `json:"data"`      // Hex 編碼
-	Words  []uint16 `json:"words"`     // 16-bit 值陣列
+	Data   string   `json:"data"`  // Hex 編碼
+	Words  []uint16 `json:"words"` // 16-bit 值陣列
 }
 
 // GetMemoryRange 取得指定範圍記憶體
@@ -110,7 +116,11 @@ func (h *VirtualDeviceHandler) GetMemoryRange(c *gin.Context) {
 	// 轉換為 16-bit 值
 	words := make([]uint16, 0)
 	for i := 0; i+1 < len(data); i += 2 {
-		word, _ := h.bank.ReadWord(req.Offset + i)
+		word, err := h.bank.ReadWord(req.Offset + i)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		words = append(words, word)
 	}
 
@@ -140,7 +150,12 @@ func (h *VirtualDeviceHandler) WriteMemory(c *gin.Context) {
 
 	if req.Value != nil {
 		// 寫入單一 16-bit 值
-		err := h.bank.WriteWord(req.Offset, uint16(*req.Value))
+		word, ok := toUint16(*req.Value)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "value 超出 uint16 範圍"})
+			return
+		}
+		err := h.bank.WriteWord(req.Offset, word)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -290,7 +305,7 @@ func (h *VirtualDeviceHandler) AddSimulationRule(c *gin.Context) {
 		return
 	}
 
-	ruleType := simulation.RuleAutoIncrement
+	var ruleType simulation.RuleType
 	switch req.Type {
 	case "increment":
 		ruleType = simulation.RuleAutoIncrement
@@ -322,14 +337,4 @@ func (h *VirtualDeviceHandler) AddSimulationRule(c *gin.Context) {
 
 	h.simulation.AddRule(rule)
 	c.JSON(http.StatusOK, gin.H{"success": true, "rule_id": req.ID})
-}
-
-// parseIntParam 解析整數參數
-func parseIntParam(c *gin.Context, key string, defaultVal int) int {
-	if val := c.Query(key); val != "" {
-		if i, err := strconv.Atoi(val); err == nil {
-			return i
-		}
-	}
-	return defaultVal
 }

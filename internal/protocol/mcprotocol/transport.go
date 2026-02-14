@@ -78,7 +78,10 @@ func (t *TCPTransport) SendReceive(req []byte) ([]byte, error) {
 		}
 	}
 
-	t.conn.SetDeadline(time.Now().Add(t.Timeout))
+	if err := t.conn.SetDeadline(time.Now().Add(t.Timeout)); err != nil {
+		t.internalClose()
+		return nil, err
+	}
 
 	// Write
 	if _, err := t.conn.Write(req); err != nil {
@@ -245,7 +248,10 @@ func (s *SerialTransport) SendReceive(req []byte) ([]byte, error) {
 		return nil, fmt.Errorf("連線已關閉")
 	}
 
-	s.port.SetReadTimeout(s.Timeout)
+	if err := s.port.SetReadTimeout(s.Timeout); err != nil {
+		s.internalClose()
+		return nil, fmt.Errorf("設定串列埠讀取逾時失敗: %w", err)
+	}
 
 	// 寫入請求
 	if _, err := s.port.Write(req); err != nil {

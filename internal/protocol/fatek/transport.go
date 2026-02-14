@@ -196,7 +196,10 @@ func (s *SerialTransport) SendReceive(data []byte) ([]byte, error) {
 	}
 
 	// 設定讀取逾時
-	s.port.SetReadTimeout(s.Timeout)
+	if err := s.port.SetReadTimeout(s.Timeout); err != nil {
+		s.Close()
+		return nil, fmt.Errorf("set serial read timeout error: %w", err)
+	}
 
 	// 寫入資料
 	_, err := s.port.Write(data)

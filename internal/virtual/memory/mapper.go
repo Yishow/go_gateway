@@ -160,7 +160,10 @@ func (m *AddressMapper) GetBitOffset(address string) (int, error) {
 
 	// Modbus Coil
 	if m.modbusPattern.MatchString(address) {
-		num, _ := strconv.Atoi(address)
+		num, err := strconv.Atoi(address)
+		if err != nil {
+			return 0, ErrInvalidAddress
+		}
 		if num >= 1 && num <= 9999 {
 			return (num - 1) % 8, nil
 		}
@@ -173,7 +176,10 @@ func (m *AddressMapper) GetBitOffset(address string) (int, error) {
 	if m.plcPattern.MatchString(address) {
 		matches := m.plcPattern.FindStringSubmatch(address)
 		prefix := strings.ToUpper(matches[1])
-		num, _ := strconv.Atoi(matches[2])
+		num, err := strconv.Atoi(matches[2])
+		if err != nil {
+			return 0, ErrInvalidAddress
+		}
 
 		switch prefix {
 		case "M", "X", "Y":

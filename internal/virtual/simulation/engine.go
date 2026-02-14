@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"math"
 	"sync"
 	"time"
 
@@ -27,15 +28,15 @@ const (
 
 // Rule 模擬規則
 type Rule struct {
-	ID         string
-	RuleType   RuleType
-	Offset     int    // 記憶體偏移量
-	Interval   time.Duration
-	Increment  int    // 用於 AutoIncrement
-	MinValue   int    // 用於 Random
-	MaxValue   int    // 用於 Random
-	Amplitude  uint16 // 用於 SineWave
-	Period     time.Duration // 用於 SineWave
+	ID        string
+	RuleType  RuleType
+	Offset    int // 記憶體偏移量
+	Interval  time.Duration
+	Increment int           // 用於 AutoIncrement
+	MinValue  int           // 用於 Random
+	MaxValue  int           // 用於 Random
+	Amplitude uint16        // 用於 SineWave
+	Period    time.Duration // 用於 SineWave
 }
 
 // =============================================================================
@@ -159,8 +160,10 @@ func (e *SimulationEngine) executeRule(rule *Rule, counter int, startTime time.T
 
 // executeAutoIncrement 執行自動遞增
 func (e *SimulationEngine) executeAutoIncrement(rule *Rule, counter int) {
-	value := uint16(counter * rule.Increment)
-	e.bank.WriteWord(rule.Offset, value)
+	value := safeUint16(counter * rule.Increment)
+	if err := e.bank.WriteWord(rule.Offset, value); err != nil {
+		return
+	}
 }
 
 // executeSineWave 執行正弦波
@@ -170,29 +173,45 @@ func (e *SimulationEngine) executeSineWave(rule *Rule, startTime time.Time) {
 	if periodSec == 0 {
 		periodSec = 1
 	}
-	
+
 	// 正弦波計算: amplitude * sin(2π * t / period)
 	sin := sinApprox(2 * 3.14159265359 * elapsed / periodSec)
 	value := uint16(float64(rule.Amplitude) * (sin + 1) / 2) // 正規化到 0 ~ amplitude
-	e.bank.WriteWord(rule.Offset, value)
+	if err := e.bank.WriteWord(rule.Offset, value); err != nil {
+		return
+	}
 }
 
 // executeRandom 執行隨機值
 func (e *SimulationEngine) executeRandom(rule *Rule) {
-	range_ := rule.MaxValue - rule.MinValue
-	if range_ <= 0 {
-		range_ = 1
+	valueRange := rule.MaxValue - rule.MinValue
+	if valueRange <= 0 {
+		valueRange = 1
 	}
 	// 簡單的偽隨機
 	seed := time.Now().UnixNano()
-	value := uint16(rule.MinValue + int(seed%int64(range_)))
-	e.bank.WriteWord(rule.Offset, value)
+	value := safeUint16(rule.MinValue + int(seed%int64(valueRange)))
+	if err := e.bank.WriteWord(rule.Offset, value); err != nil {
+		return
+	}
 }
 
 // executeToggle 執行開關切換
 func (e *SimulationEngine) executeToggle(rule *Rule, counter int) {
-	value := uint16(counter % 2)
-	e.bank.WriteWord(rule.Offset, value)
+	value := safeUint16(counter % 2)
+	if err := e.bank.WriteWord(rule.Offset, value); err != nil {
+		return
+	}
+}
+
+func safeUint16(value int) uint16 {
+	if value < 0 {
+		return 0
+	}
+	if value > math.MaxUint16 {
+		return math.MaxUint16
+	}
+	return uint16(value)
 }
 
 // sinApprox 正弦近似函數 (避免 math 包依賴)
