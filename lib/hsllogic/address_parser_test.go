@@ -95,16 +95,16 @@ func TestParseMitsubishiAddress(t *testing.T) {
 		{"SM 特殊繼電器", "SM400", "SM", 400, true},
 
 		// 八進位設備 (X, Y)
-		{"X 輸入 (八進位)", "X17", "X", 15, true},  // 八進位 17 = 十進位 15
-		{"Y 輸出 (八進位)", "Y10", "Y", 8, true},   // 八進位 10 = 十進位 8
+		{"X 輸入 (八進位)", "X17", "X", 15, true}, // 八進位 17 = 十進位 15
+		{"Y 輸出 (八進位)", "Y10", "Y", 8, true},  // 八進位 10 = 十進位 8
 
 		// 十六進位設備 (W, B, SW, SB)
-		{"W 鏈路暫存器 (十六進位)", "W10", "W", 16, false},     // 十六進位 10 = 十進位 16
-		{"W 鏈路暫存器 (大數)", "W1000", "W", 4096, false},     // 十六進位 1000 = 十進位 4096
-		{"B 鏈路繼電器 (十六進位)", "B20", "B", 32, true},       // 十六進位 20 = 十進位 32
-		{"B 鏈路繼電器 (英文)", "BFF", "B", 255, true},         // 十六進位 FF = 十進位 255
-		{"SW 特殊鏈路暫存器", "SW100", "SW", 256, false},       // 十六進位 100 = 十進位 256
-		{"SB 特殊鏈路繼電器", "SB1A", "SB", 26, true},          // 十六進位 1A = 十進位 26
+		{"W 鏈路暫存器 (十六進位)", "W10", "W", 16, false},   // 十六進位 10 = 十進位 16
+		{"W 鏈路暫存器 (大數)", "W1000", "W", 4096, false}, // 十六進位 1000 = 十進位 4096
+		{"B 鏈路繼電器 (十六進位)", "B20", "B", 32, true},    // 十六進位 20 = 十進位 32
+		{"B 鏈路繼電器 (英文)", "BFF", "B", 255, true},     // 十六進位 FF = 十進位 255
+		{"SW 特殊鏈路暫存器", "SW100", "SW", 256, false},   // 十六進位 100 = 十進位 256
+		{"SB 特殊鏈路繼電器", "SB1A", "SB", 26, true},      // 十六進位 1A = 十進位 26
 	}
 
 	for _, tt := range tests {
@@ -283,5 +283,17 @@ func TestParsedAddress_String(t *testing.T) {
 				t.Errorf("String() = %v, 預期 %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestParsedAddress_ToByteOffset(t *testing.T) {
+	siemens := &ParsedAddress{Protocol: ProtocolSiemens, Offset: 10}
+	if siemens.ToByteOffset() != 10 {
+		t.Fatalf("Siemens ToByteOffset 預期 10，實際 %d", siemens.ToByteOffset())
+	}
+
+	modbus := &ParsedAddress{Protocol: ProtocolModbus, Offset: 10}
+	if modbus.ToByteOffset() != 20 {
+		t.Fatalf("Modbus ToByteOffset 預期 20，實際 %d", modbus.ToByteOffset())
 	}
 }
