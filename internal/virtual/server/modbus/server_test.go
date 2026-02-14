@@ -40,8 +40,8 @@ func TestModbusServer_ReadHoldingRegisters(t *testing.T) {
 	server := NewServer(bank)
 
 	// 預先寫入測試數據
-	bank.WriteWord(0, 12345)     // 暫存器 0
-	bank.WriteWord(2, 54321)     // 暫存器 1
+	bank.WriteWord(0, 12345)       // 暫存器 0
+	bank.WriteWord(2, 54321)       // 暫存器 1
 	bank.WriteDWord(4, 0xDEADBEEF) // 暫存器 2-3
 
 	err := server.Start(0)
@@ -279,8 +279,8 @@ func TestModbusServer_InvalidFunctionCode(t *testing.T) {
 		0x00, 0x04, // Transaction ID
 		0x00, 0x00, // Protocol ID
 		0x00, 0x06, // Length
-		0x01,       // Unit ID
-		0xFF,       // Invalid Function Code
+		0x01, // Unit ID
+		0xFF, // Invalid Function Code
 		0x00, 0x00,
 		0x00, 0x00,
 	}
@@ -306,4 +306,76 @@ func TestModbusServer_InvalidFunctionCode(t *testing.T) {
 	// 實際上 Modbus 異常回應是 FC | 0x80
 	// 這裡 FC = 0xFF，所以異常碼應該是 0xFF (溢出後)
 	// 但標準做法是 FC | 0x80，無效 FC 通常返回 Illegal Function (01)
+}
+
+func TestModbusServer_WriteSingleCoilAndReadCoils(t *testing.T) {
+	bank := memory.NewMemoryBank(65536)
+	server := NewServer(bank)
+
+	err := server.Start(0)
+	if err != nil {
+		t.Fatalf("啟動伺服器失敗: %v", err)
+	}
+	defer server.Stop()
+
+	time.Sleep(50 * time.Millisecond)
+
+	conn, err := net.Dial("tcp", server.Address())
+	if err != nil {
+		t.Fatalf("連接伺服器失敗: %v", err)
+	}
+	defer conn.Close()
+
+	conn.SetDeadline(time.Now().Add(2 * time.Second))
+
+	// 寫入單一線圈: 將地址 10 設為 ON (0xFF00)
+	writeReq := []byte{
+		0x00, 0x05, // Transaction ID
+		0x00, 0x00, // Protocol ID
+		0x00, 0x06, // Length
+		0x01,       // Unit ID
+		0x05,       // Function Code
+		0x00, 0x0A, // Coil Address
+		0xFF, 0x00, // ON
+	}
+	if _, err := conn.Write(writeReq); err != nil {
+		t.Fatalf("寫入線圈請求失敗: %v", err)
+	}
+
+	writeResp := make([]byte, 64)
+	if _, err := conn.Read(writeResp); err != nil {
+		t.Fatalf("讀取寫入線圈回應失敗: %v", err)
+	}
+
+	// 讀取線圈: 從地址 8 讀 8 個線圈，期望第 3 個 bit 為 1
+	readReq := []byte{
+		0x00, 0x06, // Transaction ID
+		0x00, 0x00, // Protocol ID
+		0x00, 0x06, // Length
+		0x01,       // Unit ID
+		0x01,       // Function Code (Read Coils)
+		0x00, 0x08, // Start Address
+		0x00, 0x08, // Quantity
+	}
+	if _, err := conn.Write(readReq); err != nil {
+		t.Fatalf("讀取線圈請求失敗: %v", err)
+	}
+
+	readResp := make([]byte, 64)
+	n, err := conn.Read(readResp)
+	if err != nil {
+		t.Fatalf("讀取線圈回應失敗: %v", err)
+	}
+	if n < 10 {
+		t.Fatalf("線圈回應長度不足: %d", n)
+	}
+	if readResp[7] != 0x01 {
+		t.Fatalf("Function Code 預期 0x01，實際 0x%02X", readResp[7])
+	}
+	if readResp[8] != 0x01 {
+		t.Fatalf("Byte Count 預期 0x01，實際 0x%02X", readResp[8])
+	}
+	if readResp[9] != 0x04 {
+		t.Fatalf("線圈資料預期 0x04，實際 0x%02X", readResp[9])
+	}
 }
