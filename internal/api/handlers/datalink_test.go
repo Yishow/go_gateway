@@ -82,7 +82,7 @@ func setupTagRouter() *gin.Engine {
 func TestDeviceHandler_List(t *testing.T) {
 	r := setupDeviceRouter()
 
-	req, _ := http.NewRequest("GET", "/devices", nil)
+	req, _ := http.NewRequest("GET", "/devices", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -104,8 +104,8 @@ func TestDeviceHandler_Create(t *testing.T) {
 	r := setupDeviceRouter()
 
 	newDevice := device.CreateDeviceRequest{
-		Name:        "Test Device",
-		Protocol:    schema.ProtocolModbusTCP,
+		Name:     "Test Device",
+		Protocol: schema.ProtocolModbusTCP,
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -180,7 +180,7 @@ func TestMappingHandler_Preview_Legacy(t *testing.T) {
 				"type": "scale",
 				"params": map[string]interface{}{
 					"multiplier": 2,
-					"offset": 1,
+					"offset":     1,
 				},
 			},
 		},
@@ -197,7 +197,7 @@ func TestMappingHandler_Preview_Legacy(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &response)
 	t.Logf("Response: %+v", response)
 	data := response["data"].(map[string]interface{})
-	
+
 	// Check step results for debug
 	if stepResults, ok := data["step_results"].([]interface{}); ok {
 		t.Logf("Step Results: %+v", stepResults)
@@ -208,12 +208,10 @@ func TestMappingHandler_Preview_Legacy(t *testing.T) {
 	assert.Equal(t, float64(11), data["final_value"])
 }
 
-
-
 func TestTagHandler_List(t *testing.T) {
 	r := setupTagRouter()
 
-	req, _ := http.NewRequest("GET", "/tags", nil)
+	req, _ := http.NewRequest("GET", "/tags", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -222,7 +220,7 @@ func TestTagHandler_List(t *testing.T) {
 	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	
+
 	data := response["data"].([]interface{})
 	assert.GreaterOrEqual(t, len(data), 2) // Seeded 2 tags
 }
@@ -231,9 +229,9 @@ func TestTagHandler_Create(t *testing.T) {
 	r := setupTagRouter()
 
 	newTag := tag.CreateTagRequest{
-		Key: "test_key",
+		Key:         "test_key",
 		DisplayName: "Test Key",
-		DataType: "int16",
+		DataType:    "int16",
 	}
 	body, _ := json.Marshal(newTag)
 	req, _ := http.NewRequest("POST", "/tags", bytes.NewBuffer(body))
@@ -242,7 +240,7 @@ func TestTagHandler_Create(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
 	data := response["data"].(map[string]interface{})

@@ -57,7 +57,7 @@ func TestModbusShareHandler_StartAndStopLifecycle(t *testing.T) {
 		t.Fatal("expected service enabled after start")
 	}
 
-	stopReq := httptest.NewRequest(http.MethodPost, "/stop", nil)
+	stopReq := httptest.NewRequest(http.MethodPost, "/stop", http.NoBody)
 	stopW := httptest.NewRecorder()
 	router.ServeHTTP(stopW, stopReq)
 	if stopW.Code != http.StatusOK {
@@ -127,7 +127,7 @@ func TestModbusShareHandler_StopIdempotent(t *testing.T) {
 
 	_ = svc.Stop()
 
-	req := httptest.NewRequest(http.MethodPost, "/stop", nil)
+	req := httptest.NewRequest(http.MethodPost, "/stop", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -162,7 +162,7 @@ func TestModbusShareHandler_StatusContainsBindState(t *testing.T) {
 		t.Fatalf("start failed: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequest(http.MethodGet, "/status", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -199,7 +199,7 @@ func TestModbusShareHandler_StatusAvailableWithoutMappings(t *testing.T) {
 	router := gin.New()
 	router.GET("/status", handler.Status)
 
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequest(http.MethodGet, "/status", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -237,7 +237,7 @@ func TestModbusShareHandler_StartAndStopWithContext(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/stop", nil).WithContext(ctx)
+	c.Request = httptest.NewRequest(http.MethodPost, "/stop", http.NoBody).WithContext(ctx)
 	handler.Stop(c)
 
 	if w.Code != http.StatusOK {
