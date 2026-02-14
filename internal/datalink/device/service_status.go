@@ -80,9 +80,14 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 	// For now we skip point checks to avoid circular dependencies or need to inject PointRepo
 
 	// Update device readiness status in DB
-	readinessJSON, _ := json.Marshal(readiness)
+	readinessJSON, err := json.Marshal(readiness)
+	if err != nil {
+		return nil, fmt.Errorf("序列化設備就緒狀態失敗: %w", err)
+	}
 	device.ReadinessStatus = string(readinessJSON)
-	_ = s.repo.Update(ctx, device)
+	if err := s.repo.Update(ctx, device); err != nil {
+		return nil, fmt.Errorf("更新設備就緒狀態失敗: %w", err)
+	}
 
 	return readiness, nil
 }

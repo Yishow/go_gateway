@@ -2,8 +2,10 @@ package device
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters"
 	"go-gateway/internal/datalink/schema"
 
@@ -65,4 +67,87 @@ func TestParseConnectionConfig(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "COM1", parsed.SerialPort)
 	assert.Equal(t, 9600, parsed.BaudRate)
+}
+
+func TestCheckReadinessReturnsErrorWhenUpdateFails(t *testing.T) {
+	repo := &stubDeviceRepository{
+		device: &schema.Device{
+			ID:               "dev-1",
+			Status:           schema.DeviceStatusActive,
+			Protocol:         schema.ProtocolModbusTCP,
+			ConnectionConfig: `{"host":"127.0.0.1"}`,
+		},
+		updateErr: fmt.Errorf("db update failed"),
+	}
+	svc := NewService(repo, nil)
+
+	_, err := svc.CheckReadiness(context.Background(), "dev-1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "更新設備就緒狀態失敗")
+}
+
+func TestTestConnectionReturnsErrorWhenResultUpdateFails(t *testing.T) {
+	repo := &stubDeviceRepository{
+		device: &schema.Device{
+			ID:               "dev-1",
+			Status:           schema.DeviceStatusDraft,
+			Protocol:         schema.ProtocolType("unsupported"),
+			ConnectionConfig: "{}",
+		},
+		updateTestResultErr: fmt.Errorf("update test result failed"),
+	}
+	svc := NewService(repo, connector.GetConnectionManager())
+
+	err := svc.TestConnection(context.Background(), "dev-1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "記錄測試結果失敗")
+	assert.Equal(t, 1, repo.updateTestResultCalls)
+}
+
+type stubDeviceRepository struct {
+	device                *schema.Device
+	updateErr             error
+	updateTestResultErr   error
+	updateTestResultCalls int
+}
+
+func (r *stubDeviceRepository) Create(ctx context.Context, device *schema.Device) error {
+	return nil
+}
+
+func (r *stubDeviceRepository) Update(ctx context.Context, device *schema.Device) error {
+	if r.updateErr != nil {
+		return r.updateErr
+	}
+	deviceCopy := *device
+	r.device = &deviceCopy
+	return nil
+}
+
+func (r *stubDeviceRepository) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+func (r *stubDeviceRepository) GetByID(ctx context.Context, id string) (*schema.Device, error) {
+	if r.device == nil {
+		return nil, fmt.Errorf("device not found")
+	}
+	deviceCopy := *r.device
+	return &deviceCopy, nil
+}
+
+func (r *stubDeviceRepository) List(ctx context.Context, filter ListFilter) ([]*schema.Device, error) {
+	return nil, nil
+}
+
+func (r *stubDeviceRepository) UpdateTestResult(ctx context.Context, id string, success bool, errMsg string) error {
+	r.updateTestResultCalls++
+	if r.updateTestResultErr != nil {
+		return r.updateTestResultErr
+	}
+	return nil
+}
+
+func (r *stubDeviceRepository) UpdateStatus(ctx context.Context, id string, status schema.DeviceStatus) error {
+	return nil
 }
