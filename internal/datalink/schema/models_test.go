@@ -22,3 +22,9 @@ func TestRegisterCountForDataType(t *testing.T) {
 		}
 	}
 }
+
+func TestRegisterCountForUnknownDataType(t *testing.T) {
+	if got := RegisterCountForDataType(DataType("custom")); got != 1 {
+		t.Fatalf("unknown data type expected 1 got %d", got)
+	}
+}
