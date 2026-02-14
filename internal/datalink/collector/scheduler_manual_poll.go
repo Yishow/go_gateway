@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
@@ -46,17 +47,38 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 			s.mu.RLock()
 			lock, exists := s.deviceLocks[devID]
 			deviceCfg, cfgExists := s.deviceConfigs[devID]
+			breaker := s.deviceBreakers[devID]
 			s.mu.RUnlock()
 
-			if !exists || !cfgExists {
+			if !exists || !cfgExists || breaker == nil {
 				s.mu.Lock()
 				s.ensureDeviceLock(devID)
 				lock = s.deviceLocks[devID]
 				deviceCfg, cfgExists = s.deviceConfigs[devID]
+				if s.deviceBreakers[devID] == nil {
+					s.deviceBreakers[devID] = health.NewCircuitBreaker(s.config.BreakerConfig)
+				}
+				breaker = s.deviceBreakers[devID]
 				s.mu.Unlock()
 				if !cfgExists {
 					return
 				}
+			}
+
+			if breaker != nil && !breaker.AllowRequest() {
+				now := time.Now()
+				resultsMu.Lock()
+				for _, pt := range pts {
+					results = append(results, CollectedValue{
+						PointID:   pt.ID,
+						DeviceID:  devID,
+						Timestamp: now,
+						Quality:   schema.QualityBad,
+						Error:     fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
+					})
+				}
+				resultsMu.Unlock()
+				return
 			}
 
 			lock.Lock()
@@ -65,6 +87,10 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 			ctx := context.Background()
 			conn, err := s.connMgr.GetOrCreate(ctx, devID, deviceCfg.Protocol, deviceCfg.Config)
 			if err != nil {
+				if breaker != nil {
+					breaker.ReportResult(err)
+				}
+
 				now := time.Now()
 				resultsMu.Lock()
 				for _, pt := range pts {
@@ -89,6 +115,9 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 				req.Count = schema.RegisterCountForDataType(pt.DataType)
 
 				result, readErr := conn.Read(ctx, req)
+				if breaker != nil {
+					breaker.ReportResult(readErr)
+				}
 				cv := CollectedValue{
 					PointID:   pt.ID,
 					DeviceID:  devID,

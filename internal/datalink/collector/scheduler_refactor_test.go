@@ -1,8 +1,11 @@
 package collector
 
 import (
+	"errors"
 	"testing"
+	"time"
 
+	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/assert"
@@ -88,4 +91,37 @@ func TestScheduler_ResetDeviceBreaker(t *testing.T) {
 		ConnectionConfig: `{"host":"127.0.0.1"}`,
 	})
 	assert.True(t, s.ResetDeviceBreaker("dev-2"))
+}
+
+func TestScheduler_PollNow_RespectsDeadBreaker(t *testing.T) {
+	cfg := DefaultSchedulerConfig()
+	cfg.BreakerConfig = health.BreakerConfig{
+		ErrorThreshold:    0.2,
+		WindowSize:        3,
+		UnstableThreshold: 0.5,
+		CooldownPeriod:    time.Hour,
+	}
+
+	s := NewScheduler(cfg, nil)
+	s.AddDevice(&schema.Device{
+		ID:               "dev-breaker",
+		Protocol:         schema.ProtocolModbusTCP,
+		ConnectionConfig: `{"host":"127.0.0.1","port":502}`,
+	})
+	s.AddPoint(&schema.Point{
+		ID:       "point-breaker",
+		DeviceID: "dev-breaker",
+		Address:  "40001",
+		Function: "03",
+		DataType: schema.DataTypeInt16,
+	})
+
+	for i := 0; i < 3; i++ {
+		s.deviceBreakers["dev-breaker"].ReportResult(errors.New("timeout"))
+	}
+
+	results := s.PollNow([]string{"point-breaker"})
+	require.Len(t, results, 1)
+	assert.Equal(t, schema.QualityBad, results[0].Quality)
+	assert.Contains(t, results[0].Error, "設備熔斷中")
 }
