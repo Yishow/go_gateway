@@ -137,3 +137,36 @@ func TestAcquireReleasePacketLog(t *testing.T) {
 
 	releasePacketLog(log2)
 }
+
+func TestParseHexStringAndFormatHexWithSpaces(t *testing.T) {
+	data, err := ParseHexString("0x01 0A FF")
+	if err != nil {
+		t.Fatalf("ParseHexString 失敗: %v", err)
+	}
+	if len(data) != 3 || data[0] != 0x01 || data[1] != 0x0A || data[2] != 0xFF {
+		t.Fatalf("ParseHexString 結果錯誤: %v", data)
+	}
+
+	formatted := FormatHexWithSpaces(data)
+	if formatted != "01 0A FF" {
+		t.Fatalf("FormatHexWithSpaces = %s, 期望 01 0A FF", formatted)
+	}
+}
+
+func TestSetGlobalPacketLogger(t *testing.T) {
+	// 先初始化 once，確保後續 Set 不會被 once 覆蓋
+	_ = GetGlobalPacketLogger()
+
+	logger := NewPacketLogger(PacketLoggerOptions{
+		Enabled:      true,
+		LogToFile:    false,
+		LogToConsole: false,
+		BufferSize:   8,
+	})
+	defer logger.Close()
+
+	SetGlobalPacketLogger(logger)
+	if GetGlobalPacketLogger() != logger {
+		t.Fatal("SetGlobalPacketLogger 後應返回相同實例")
+	}
+}
