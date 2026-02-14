@@ -318,24 +318,24 @@ func TestSQLRepository_List(t *testing.T) {
 	points := []*schema.Point{
 		createTestPoint(t, deviceID),
 		{
-			ID:       "test-point-002",
-			DeviceID: deviceID,
-			Name:     "測試點位 2",
-			Address:  "40002",
-			DataType: schema.DataTypeFloat32,
-			Mode:     schema.PointModeReadOnly,
-			Enabled:  true,
+			ID:        "test-point-002",
+			DeviceID:  deviceID,
+			Name:      "測試點位 2",
+			Address:   "40002",
+			DataType:  schema.DataTypeFloat32,
+			Mode:      schema.PointModeReadOnly,
+			Enabled:   true,
 			CreatedAt: time.Now().UTC(),
 			UpdatedAt: time.Now().UTC(),
 		},
 		{
-			ID:       "test-point-003",
-			DeviceID: deviceID,
-			Name:     "測試點位 3",
-			Address:  "40003",
-			DataType: schema.DataTypeBool,
-			Mode:     schema.PointModeReadWrite,
-			Enabled:  false,
+			ID:        "test-point-003",
+			DeviceID:  deviceID,
+			Name:      "測試點位 3",
+			Address:   "40003",
+			DataType:  schema.DataTypeBool,
+			Mode:      schema.PointModeReadWrite,
+			Enabled:   false,
 			CreatedAt: time.Now().UTC(),
 			UpdatedAt: time.Now().UTC(),
 		},
@@ -714,4 +714,61 @@ func TestSQLRepository_EnabledStatus(t *testing.T) {
 	retrieved, err = repo.GetByID(ctx, disabledPoint.ID)
 	assert.NoError(t, err)
 	assert.False(t, retrieved.Enabled)
+}
+
+func TestSQLRepository_UpdateReadResult(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewSQLRepository(db)
+	ctx := context.Background()
+
+	deviceID, _ := setupTestData(t, db)
+	point := createTestPoint(t, deviceID)
+	require.NoError(t, repo.Create(ctx, point))
+
+	require.NoError(t, repo.UpdateReadResult(ctx, point.ID, 123.45, ""))
+
+	retrieved, err := repo.GetByID(ctx, point.ID)
+	require.NoError(t, err)
+	require.NotNil(t, retrieved.LastValue)
+	assert.Equal(t, "123.45", *retrieved.LastValue)
+	assert.NotNil(t, retrieved.LastReadAt)
+	assert.Equal(t, "", retrieved.LastError)
+}
+
+func TestSQLRepository_BatchUpdateReadResult(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewSQLRepository(db)
+	ctx := context.Background()
+
+	deviceID, _ := setupTestData(t, db)
+	point1 := createTestPoint(t, deviceID)
+	point1.ID = "batch-point-1"
+	point1.Address = "80001"
+	point2 := createTestPoint(t, deviceID)
+	point2.ID = "batch-point-2"
+	point2.Address = "80002"
+
+	require.NoError(t, repo.Create(ctx, point1))
+	require.NoError(t, repo.Create(ctx, point2))
+
+	err := repo.BatchUpdateReadResult(ctx, []ReadResultUpdate{
+		{PointID: point1.ID, Value: 11},
+		{PointID: point2.ID, Error: "read failed"},
+	})
+	require.NoError(t, err)
+
+	updated1, err := repo.GetByID(ctx, point1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, updated1.LastValue)
+	assert.Equal(t, "11", *updated1.LastValue)
+	assert.Equal(t, "", updated1.LastError)
+
+	updated2, err := repo.GetByID(ctx, point2.ID)
+	require.NoError(t, err)
+	assert.Nil(t, updated2.LastValue)
+	assert.Equal(t, "read failed", updated2.LastError)
 }
