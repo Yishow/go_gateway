@@ -39,7 +39,7 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		path := c.Param("filepath")
 		// 移除前導斜線
 		path = strings.TrimPrefix(path, "/")
-		
+
 		if path == "" {
 			c.Status(http.StatusNotFound)
 			return
@@ -64,7 +64,7 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		// 強制設定 Content-Type，不依賴系統偵測
 		ext := strings.ToLower(filepath.Ext(path))
 		var contentType string
-		
+
 		switch ext {
 		case ".css":
 			contentType = "text/css; charset=utf-8"
@@ -86,10 +86,15 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		c.Header("Content-Type", contentType)
 		// 設定快取 (1年)
 		c.Header("Cache-Control", "public, max-age=31536000")
-		
+
 		log.Printf("📦 Serving Asset: %s (%s)", path, contentType)
-		
-		http.ServeContent(c.Writer, c.Request, path, stat.ModTime(), file.(io.ReadSeeker))
+
+		readSeeker, ok := file.(io.ReadSeeker)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "檔案不支援讀取"})
+			return
+		}
+		http.ServeContent(c.Writer, c.Request, path, stat.ModTime(), readSeeker)
 	}
 
 	// 註冊 /assets 路由
@@ -104,9 +109,18 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 			return
 		}
 		defer file.Close()
-		stat, _ := file.Stat()
+		stat, err := file.Stat()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得 vite.svg 檔案資訊"})
+			return
+		}
+		readSeeker, ok := file.(io.ReadSeeker)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "vite.svg 檔案不支援讀取"})
+			return
+		}
 		c.Header("Content-Type", "image/svg+xml")
-		http.ServeContent(c.Writer, c.Request, "vite.svg", stat.ModTime(), file.(io.ReadSeeker))
+		http.ServeContent(c.Writer, c.Request, "vite.svg", stat.ModTime(), readSeeker)
 	})
 
 	// SPA 路由處理：所有非 API 且非資源的路徑都回傳 index.html
@@ -131,8 +145,17 @@ func SetupStaticFiles(router *gin.Engine, staticFiles embed.FS) {
 		}
 		defer indexFile.Close()
 
-		stat, _ := indexFile.Stat()
+		stat, err := indexFile.Stat()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得 index.html 檔案資訊"})
+			return
+		}
+		readSeeker, ok := indexFile.(io.ReadSeeker)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "index.html 檔案不支援讀取"})
+			return
+		}
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile.(io.ReadSeeker))
+		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), readSeeker)
 	})
 }

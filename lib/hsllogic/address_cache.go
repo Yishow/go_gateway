@@ -59,7 +59,11 @@ func (c *AddressCache) Get(protocol ProtocolType, address string) (*ParsedAddres
 	// 嘗試從快取取得
 	if cached, ok := c.cache.Load(key); ok {
 		c.recordHit()
-		return cached.(*ParsedAddress), nil
+		parsed, typeOK := cached.(*ParsedAddress)
+		if !typeOK {
+			return nil, fmt.Errorf("快取資料型別錯誤: %s", key)
+		}
+		return parsed, nil
 	}
 
 	// 快取未命中，進行解析
