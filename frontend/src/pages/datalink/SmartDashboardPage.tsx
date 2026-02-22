@@ -15,9 +15,7 @@ import SmartDashboardHeader from './smart-dashboard/SmartDashboardHeader';
 import SmartDashboardIntentNotices from './smart-dashboard/SmartDashboardIntentNotices';
 import SmartDashboardControlBar from './smart-dashboard/SmartDashboardControlBar';
 import SmartDashboardWorkspace from './smart-dashboard/SmartDashboardWorkspace';
-import SmartDashboardSidebarTools from './smart-dashboard/SmartDashboardSidebarTools';
-import SmartDashboardCommitPanel from './smart-dashboard/SmartDashboardCommitPanel';
-import SmartDashboardTagAndModbusPanel from './smart-dashboard/SmartDashboardTagAndModbusPanel';
+import SmartDashboardSidebar, { type SidebarTab } from './smart-dashboard/SmartDashboardSidebar';
 import { useSmartDashboardTagLinking } from './smart-dashboard/useSmartDashboardTagLinking';
 import { useSmartDashboardModbusActions } from './smart-dashboard/useSmartDashboardModbusActions';
 import SmartDashboardWorkflowModal from './smart-dashboard/SmartDashboardWorkflowModal';
@@ -159,6 +157,7 @@ export default function SmartDashboard() {
   const rawModalIntent = searchParams.get('modal');
   const createDeviceIntent = searchParams.get('createDevice');
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('plan');
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
@@ -550,6 +549,8 @@ export default function SmartDashboard() {
       return;
     }
     setSelectedPoint(null);
+    // 選取空格位後自動切換到 Tag Tab
+    setSidebarTab('tag');
   };
 
   const getGridCenterAddress = (protocol: ProtocolType) =>
@@ -930,7 +931,6 @@ export default function SmartDashboard() {
       return;
     }
     setEditingDeviceInModal(refreshed);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devices, editingDeviceInModal?.id]);
 
   useEffect(() => {
@@ -1259,7 +1259,7 @@ export default function SmartDashboard() {
         onChooseDevice={handleChooseDevice}
         onCreateDevice={handleCreateDevice}
       />
-      <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 min-h-0">
+      <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 min-h-0">
         <SmartDashboardWorkspace
           selectedDevice={selectedDevice}
           planDataType={planDataType}
@@ -1271,25 +1271,9 @@ export default function SmartDashboard() {
           setPlanStartAddress={setPlanStartAddress}
           handleAutoAllocate={handleAutoAllocate}
           handleApplyPlan={handleApplyPlan}
-          templateName={templateName}
-          setTemplateName={setTemplateName}
-          handleSaveTemplate={handleSaveTemplate}
-          showConflictsOnly={showConflictsOnly}
-          setShowConflictsOnly={setShowConflictsOnly}
-          batchNamePrefix={batchNamePrefix}
-          setBatchNamePrefix={setBatchNamePrefix}
-          normalizeNamingPrefix={normalizeNamingPrefix}
-          namePreview={namePreview}
-          nameConflictCount={nameConflictCount}
-          staleTemplateCount={staleTemplateCount}
-          sourceTemplateSchemaVersion={SOURCE_TEMPLATE_SCHEMA_VERSION}
-          handleUpgradeTemplates={handleUpgradeTemplates}
           planConflictCount={planConflictCount}
           typedPlanValidation={typedPlanValidation}
-          allocationMessage={allocationMessage}
-          sourceTemplates={sourceTemplates}
-          handleLoadTemplate={handleLoadTemplate}
-          handleDeleteTemplate={handleDeleteTemplate}
+          showConflictsOnly={showConflictsOnly}
           flowSegments={FLOW_SEGMENTS}
           flowState={flowState}
           statusStyle={STATUS_STYLE}
@@ -1300,7 +1284,6 @@ export default function SmartDashboard() {
           guideStage={guideStage}
           reducedMotion={reducedMotion}
           motionTokens={MOTION_TOKENS}
-          goToLocalModbusWorkbench={goToLocalModbusWorkbench}
           modbusStatus={modbusStatus}
           allPoints={allPoints}
           linkedAddresses={linkedAddresses}
@@ -1317,7 +1300,102 @@ export default function SmartDashboard() {
             className={`h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl transition-all ${resolveIntentMotionClass(guideStage === 'commit' ? 'commit' : 'idle', reducedMotion)}`}
             style={{ transitionDuration: `${MOTION_TOKENS.commitFeedbackMs}ms` }}
           >
-            <SmartDashboardSidebarTools
+            <SmartDashboardSidebar
+              sidebarTab={sidebarTab}
+              setSidebarTab={setSidebarTab}
+              hasTagSelection={Boolean(selectedSourceAddress)}
+              planningTabProps={{
+                planDataType,
+                planCount,
+                totalPlannedCells,
+                planConflictCount,
+                typedPlanValidation,
+                allocationMessage,
+                templateName,
+                setTemplateName,
+                handleSaveTemplate,
+                sourceTemplates,
+                handleLoadTemplate,
+                handleDeleteTemplate,
+                staleTemplateCount,
+                sourceTemplateSchemaVersion: SOURCE_TEMPLATE_SCHEMA_VERSION,
+                handleUpgradeTemplates,
+                batchNamePrefix,
+                setBatchNamePrefix,
+                normalizeNamingPrefix,
+                namePreview,
+                nameConflictCount,
+                showConflictsOnly,
+                setShowConflictsOnly,
+                t,
+              }}
+              tagPanelProps={{
+                selectedSourceAddress,
+                activePointForLink,
+                linkedTag,
+                tagLinkMode,
+                setTagLinkMode,
+                selectedTagIdForLink,
+                setSelectedTagIdForLink,
+                tags,
+                handleLinkTagToSelectedAddress,
+                updateMappingPending: updateMappingMutation.isPending,
+                createMappingPending: createMappingMutation.isPending,
+                newTagKey,
+                setNewTagKey,
+                newTagDisplayName,
+                setNewTagDisplayName,
+                handleCreateTagAndLink,
+                createTagPending: createTagMutation.isPending,
+                tagLinkActionMessage,
+                linkedTagAffectedMappingsCount,
+                tagEditDisplayName,
+                setTagEditDisplayName,
+                tagEditUnit,
+                setTagEditUnit,
+                tagEditDescription,
+                setTagEditDescription,
+                handleSaveLinkedTagEdit,
+                updateTagPending: updateTagMutation.isPending,
+                pendingTagEdit,
+                handleConfirmTagEdit,
+                clearPendingTagEdit,
+                tagEditMessage,
+              }}
+              modbusPanelProps={{
+                goToLocalModbusWorkbench,
+                loadModbusStatus,
+                modbusStatus,
+                modbusRegister,
+                setModbusRegister,
+                handleBindTagToModbus,
+                handlePushCurrentValueToModbus,
+                handleSyncModbusFromMappings,
+              }}
+              commitPanelProps={{
+                commitQueueSummary,
+                commitImpactSummary,
+                preCommitLoadEstimate,
+                motionQAGate,
+                commitQueueItems,
+                onValidateFlow: handleValidateFlow,
+                canValidate,
+                validating: validatePipelineMutation.isPending,
+                onCommitFlow: handleCommitFlow,
+                canCommit: canActivate,
+                isCommitRunning,
+                onRetryFailed: handleRetryFailedCommits,
+                hasFailedChunk: failedChunkRetryQueue.length > 0,
+                onRollback: handleRollbackCommitRun,
+                canRollback: Boolean(lastCommitSnapshot),
+                segmentFeedback,
+                commitActionMessage,
+                commitAuditPayload,
+                commitChunkResults,
+                hasError,
+                onRecoverFlow: handleRecoverFlow,
+                t,
+              }}
               selectedDevice={selectedDevice}
               selectedAddressesCount={selectedAddresses.length}
               onBatchCreate={() => setPanelType('batch')}
@@ -1333,71 +1411,6 @@ export default function SmartDashboard() {
               redoDescription={history.getRedoAction()?.description || t('smartDashboard.noRedo')}
               onOpenShortcuts={() => setPanelType('shortcuts')}
               t={t}
-            />
-            <SmartDashboardCommitPanel
-              commitQueueSummary={commitQueueSummary}
-              commitImpactSummary={commitImpactSummary}
-              preCommitLoadEstimate={preCommitLoadEstimate}
-              motionQAGate={motionQAGate}
-              commitQueueItems={commitQueueItems}
-              onValidateFlow={handleValidateFlow}
-              canValidate={canValidate}
-              validating={validatePipelineMutation.isPending}
-              onCommitFlow={handleCommitFlow}
-              canCommit={canActivate}
-              isCommitRunning={isCommitRunning}
-              onRetryFailed={handleRetryFailedCommits}
-              hasFailedChunk={failedChunkRetryQueue.length > 0}
-              onRollback={handleRollbackCommitRun}
-              canRollback={Boolean(lastCommitSnapshot)}
-              segmentFeedback={segmentFeedback}
-              commitActionMessage={commitActionMessage}
-              commitAuditPayload={commitAuditPayload}
-              commitChunkResults={commitChunkResults}
-              hasError={hasError}
-              onRecoverFlow={handleRecoverFlow}
-              t={t}
-            />
-            <SmartDashboardTagAndModbusPanel
-              selectedSourceAddress={selectedSourceAddress}
-              activePointForLink={activePointForLink}
-              linkedTag={linkedTag}
-              tagLinkMode={tagLinkMode}
-              setTagLinkMode={setTagLinkMode}
-              selectedTagIdForLink={selectedTagIdForLink}
-              setSelectedTagIdForLink={setSelectedTagIdForLink}
-              tags={tags}
-              handleLinkTagToSelectedAddress={handleLinkTagToSelectedAddress}
-              updateMappingPending={updateMappingMutation.isPending}
-              createMappingPending={createMappingMutation.isPending}
-              newTagKey={newTagKey}
-              setNewTagKey={setNewTagKey}
-              newTagDisplayName={newTagDisplayName}
-              setNewTagDisplayName={setNewTagDisplayName}
-              handleCreateTagAndLink={handleCreateTagAndLink}
-              createTagPending={createTagMutation.isPending}
-              tagLinkActionMessage={tagLinkActionMessage}
-              linkedTagAffectedMappingsCount={linkedTagAffectedMappingsCount}
-              tagEditDisplayName={tagEditDisplayName}
-              setTagEditDisplayName={setTagEditDisplayName}
-              tagEditUnit={tagEditUnit}
-              setTagEditUnit={setTagEditUnit}
-              tagEditDescription={tagEditDescription}
-              setTagEditDescription={setTagEditDescription}
-              handleSaveLinkedTagEdit={handleSaveLinkedTagEdit}
-              updateTagPending={updateTagMutation.isPending}
-              pendingTagEdit={pendingTagEdit}
-              handleConfirmTagEdit={handleConfirmTagEdit}
-              clearPendingTagEdit={clearPendingTagEdit}
-              tagEditMessage={tagEditMessage}
-              goToLocalModbusWorkbench={goToLocalModbusWorkbench}
-              loadModbusStatus={loadModbusStatus}
-              modbusStatus={modbusStatus}
-              modbusRegister={modbusRegister}
-              setModbusRegister={setModbusRegister}
-              handleBindTagToModbus={handleBindTagToModbus}
-              handlePushCurrentValueToModbus={handlePushCurrentValueToModbus}
-              handleSyncModbusFromMappings={handleSyncModbusFromMappings}
             />
           </div>
         </div>

@@ -12,7 +12,7 @@ const QUALITY_DOT_CLASS: Record<string, string> = {
 const EMPTY_VALUE = '-';
 
 interface SmartDashboardFlowStatusSectionProps {
-  flowSegments: FlowSegment[];
+  flowSegments: readonly FlowSegment[];
   flowState: FlowState;
   statusStyle: Record<string, string>;
   hasError: boolean;

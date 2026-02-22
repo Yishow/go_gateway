@@ -1,4 +1,4 @@
-interface SmartDashboardCommitPanelProps {
+export interface SmartDashboardCommitPanelProps {
   commitQueueSummary: {
     total: number;
     pending: number;
@@ -40,7 +40,7 @@ interface SmartDashboardCommitPanelProps {
   hasFailedChunk: boolean;
   onRollback: () => void;
   canRollback: boolean;
-  segmentFeedback: Array<{ id: string; label: string; ok: boolean; message: string }>;
+  segmentFeedback: ReadonlyArray<{ id: string; label: string; ok: boolean; message: string }>;
   commitActionMessage: string;
   commitAuditPayload: {
     traceId: string;
