@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import type { ProtocolType, DataType, Point } from '../../types/datalink';
 import { addressParser } from '../../utils/addressParser';
+import { getSpanByDataType } from '../../features/datalink/typedOccupancy';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../utils/logger';
 
@@ -18,13 +19,19 @@ export interface BatchPointCreatorProps {
   pollingGroups: { id: string; name: string }[];
   /** 從規劃「套用到網格」帶入的命名模板，例如 SRC-{index03} */
   initialTemplate?: string;
+  /** 從規劃「套用到網格」帶入的資料型別，與記憶體網格一致 */
+  initialDataType?: DataType;
   onCreated: (points: Point[]) => void;
   onCancel: () => void;
 }
 
+/** 一個邏輯點（與記憶體網格一致：float32=2格、int64=4格等） */
 interface GeneratedPoint {
   name: string;
+  /** 起始位址（送出 API 用） */
   address: string;
+  /** 該點佔用的所有位址（顯示用，與網格一致） */
+  addresses: string[];
 }
 
 export function BatchPointCreator({
@@ -33,42 +40,49 @@ export function BatchPointCreator({
   preselectedAddresses = [],
   pollingGroups,
   initialTemplate,
+  initialDataType,
   onCreated,
   onCancel
 }: BatchPointCreatorProps) {
   const [template, setTemplate] = useState(initialTemplate ?? 'Pump_{index}');
-  const [dataType, setDataType] = useState<DataType>('int16');
+  const [dataType, setDataType] = useState<DataType>(initialDataType ?? 'int16');
   const [pollingGroupId, setPollingGroupId] = useState(pollingGroups[0]?.id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate preview
-  const previewPoints = useMemo<GeneratedPoint[]>(() => {
-    return preselectedAddresses.map((addr, idx) => {
-      let name = template;
-      name = name.replace(/\{index03\}/g, (idx + 1).toString().padStart(3, '0'));
-      name = name.replace(/\{index\}/g, idx.toString());
-      name = name.replace(/\{address\}/g, addr);
-      
-      // Try to extract number if possible for MC/Fatek
-      const parsed = addressParser.validate(addr, protocol);
-      if (parsed.valid) {
-          const p = addressParser.parse(addr, protocol);
-          name = name.replace(/\{num\}/g, p.startNumber.toString());
-      }
+  // 依資料型別 span 分組：與記憶體網格一致（float32=2格一組、int64=4格一組）
+  const span = getSpanByDataType(dataType);
 
+  const previewPoints = useMemo<GeneratedPoint[]>(() => {
+    const groups: string[][] = [];
+    for (let i = 0; i < preselectedAddresses.length; i += span) {
+      groups.push(preselectedAddresses.slice(i, i + span));
+    }
+    return groups.map((addresses, logicalIdx) => {
+      const startAddr = addresses[0];
+      let name = template;
+      name = name.replace(/\{index03\}/g, (logicalIdx + 1).toString().padStart(3, '0'));
+      name = name.replace(/\{index\}/g, logicalIdx.toString());
+      name = name.replace(/\{address\}/g, startAddr);
+      const parsed = addressParser.validate(startAddr, protocol);
+      if (parsed.valid) {
+        const p = addressParser.parse(startAddr, protocol);
+        name = name.replace(/\{num\}/g, p.startNumber.toString());
+      }
       return {
         name,
-        address: addr
+        address: startAddr,
+        addresses,
       };
     });
-  }, [template, preselectedAddresses, protocol]);
+  }, [template, preselectedAddresses, protocol, span]);
 
   const { showSuccess, showError } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (previewPoints.length === 0) return;
-    
+    // API 要的是每個邏輯點的 name + 起始位址
+    const pointsPayload = previewPoints.map((p) => ({ name: p.name, address: p.address }));
     setIsSubmitting(true);
     try {
       const payload = {
@@ -76,7 +90,7 @@ export function BatchPointCreator({
         polling_group_id: pollingGroupId,
         data_type: dataType,
         enabled: true,
-        points: previewPoints
+        points: pointsPayload
       };
       
       const response = await fetch('/api/v1/datalink/points/batch', {
@@ -106,7 +120,7 @@ export function BatchPointCreator({
       data-testid="batch-point-creator"
     >
       <div className="space-y-4">
-        {/* Template Input */}
+        {/* 命名模板：與規劃 Tab「批次命名前綴」對應（套用到網格時帶入） */}
         <div>
           <label htmlFor="template" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
             命名模板
@@ -117,11 +131,11 @@ export function BatchPointCreator({
             value={template}
             onChange={(e) => setTemplate(e.target.value)}
             className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-            placeholder="例如: Pump_{index}"
+            placeholder="例如: SRC-{index03} 或與規劃「批次命名前綴」一致"
             required
           />
           <p className="mt-1 text-xs text-slate-500">
-            支援變數: {'{index}'} (序號), {'{index03}'} (三位數 1 起), {'{address}'} (位址), {'{num}'} (數值部分)
+            支援變數: {'{index}'} (序號), {'{index03}'} (三位數 1 起), {'{address}'} (位址), {'{num}'} (數值部分)。與規劃 Tab 的「批次命名前綴」一致時，套用到網格會帶入此前綴。
           </p>
         </div>
 
@@ -140,7 +154,12 @@ export function BatchPointCreator({
               <option value="int16">Int16</option>
               <option value="uint16">Uint16</option>
               <option value="int32">Int32</option>
+              <option value="uint32">Uint32</option>
+              <option value="int64">Int64</option>
+              <option value="uint64">Uint64</option>
               <option value="float32">Float32</option>
+              <option value="float64">Float64</option>
+              <option value="string">String</option>
             </select>
           </div>
           
@@ -160,24 +179,26 @@ export function BatchPointCreator({
           </div>
         </div>
 
-        {/* Preview List */}
+        {/* 預覽列表：與記憶體網格規劃一致（依資料型別 span 分組，float32=2格/點、int64=4格/點） */}
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            預覽建立 ({previewPoints.length})
+            預覽建立 ({previewPoints.length} 個點，{dataType} = {span} 格/點) — 與記憶體網格一致
           </label>
-          <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+          <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-100 dark:bg-slate-800">
             <table className="w-full text-xs text-left">
-              <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              <thead className="sticky top-0 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
                 <tr>
+                  <th className="px-3 py-2 font-semibold">位址{span > 1 ? ` (${span}格/點)` : ''}</th>
                   <th className="px-3 py-2 font-semibold">名稱</th>
-                  <th className="px-3 py-2 font-semibold">位址</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {previewPoints.map((p, i) => (
                   <tr key={i}>
+                    <td className="px-3 py-2 font-mono text-slate-700 dark:text-slate-300">
+                      {p.addresses.length > 1 ? p.addresses.join(' ~ ') : p.address}
+                    </td>
                     <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{p.name}</td>
-                    <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">{p.address}</td>
                   </tr>
                 ))}
               </tbody>

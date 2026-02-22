@@ -1515,6 +1515,7 @@ export default function SmartDashboard() {
         pointDetailTitle={t("smartDashboard.pointDetail")}
         shortcutsHint={t("smartDashboard.shortcutsHint")}
         initialBatchTemplate={batchInitialTemplate ?? undefined}
+        initialBatchDataType={batchInitialTemplate != null ? planDataType : undefined}
         onBatchClose={() => setBatchInitialTemplate(null)}
         onBatchCreated={() => setSidebarTab("tag")}
       />
