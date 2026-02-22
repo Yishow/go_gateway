@@ -19,6 +19,12 @@ interface SmartDashboardPanelsProps {
   shortcutsTitle: string;
   pointDetailTitle: string;
   shortcutsHint: string;
+  /** 從「套用到網格」帶入的命名模板，例如 SRC-{index03} */
+  initialBatchTemplate?: string;
+  /** 批量建立面板關閉時回呼（用於清除 initialBatchTemplate） */
+  onBatchClose?: () => void;
+  /** 批量建立成功後回呼（例如切換至 Tag 分頁） */
+  onBatchCreated?: () => void;
 }
 
 export default function SmartDashboardPanels({
@@ -34,6 +40,9 @@ export default function SmartDashboardPanels({
   shortcutsTitle,
   pointDetailTitle,
   shortcutsHint,
+  initialBatchTemplate,
+  onBatchClose,
+  onBatchCreated,
 }: SmartDashboardPanelsProps) {
   return (
     <SlidePanel
@@ -53,11 +62,17 @@ export default function SmartDashboardPanels({
           protocol={selectedDevice.protocol}
           preselectedAddresses={selectedAddresses}
           pollingGroups={pollingGroups}
+          initialTemplate={initialBatchTemplate}
           onCreated={() => {
             setPanelType(null);
             setSelectedAddresses([]);
+            onBatchClose?.();
+            onBatchCreated?.();
           }}
-          onCancel={() => setPanelType(null)}
+          onCancel={() => {
+            setPanelType(null);
+            onBatchClose?.();
+          }}
         />
       )}
 

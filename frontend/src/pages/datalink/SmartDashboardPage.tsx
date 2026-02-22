@@ -129,6 +129,8 @@ export default function SmartDashboard() {
   const [activatingDeviceId, setActivatingDeviceId] = useState<string | null>(null);
   const [showSwitchConfirmDialog, setShowSwitchConfirmDialog] = useState(false);
   const [panelType, setPanelType] = useState<"batch" | "detail" | "shortcuts" | null>(null);
+  /** 「套用到網格」帶入的批量命名模板，關閉批量面板時清除 */
+  const [batchInitialTemplate, setBatchInitialTemplate] = useState<string | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [planDataType, setPlanDataType] = useState<DataType>("int16");
@@ -267,6 +269,7 @@ export default function SmartDashboard() {
     const expanded = addressParser.expand(planStartAddress, totalPlannedCells, selectedDevice.protocol);
     if (expanded.length < totalPlannedCells) return [];
 
+    const prefix = (batchNamePrefix.trim() || "SRC").toUpperCase();
     return Array.from({ length: planCount }).map((_, index) => {
       const start = index * cellSpan;
       const addresses = expanded.slice(start, start + cellSpan);
@@ -274,10 +277,10 @@ export default function SmartDashboard() {
         id: `plan-${index}`,
         dataType: planDataType,
         addresses,
-        label: `S${index + 1}`,
+        label: `${prefix}-${String(index + 1).padStart(3, "0")}`,
       };
     });
-  }, [cellSpan, planCount, planDataType, planStartAddress, selectedDevice, totalPlannedCells]);
+  }, [batchNamePrefix, cellSpan, planCount, planDataType, planStartAddress, selectedDevice, totalPlannedCells]);
 
   const planAddresses = useMemo(
     () => plannedAllocations.flatMap((allocation) => allocation.addresses),
@@ -329,6 +332,10 @@ export default function SmartDashboard() {
   useEffect(() => {
     saveSourceTemplates(sourceTemplates);
   }, [sourceTemplates]);
+
+  useEffect(() => {
+    if (panelType !== "batch") setBatchInitialTemplate(null);
+  }, [panelType]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -535,7 +542,9 @@ export default function SmartDashboard() {
     gridSectionRef.current?.scrollIntoView({ behavior: resolveScrollBehavior(reducedMotion), block: "start" });
     gridSectionRef.current?.focus();
     scheduleGuideStageReset();
-  }, [planAddresses, reducedMotion, scheduleGuideStageReset]);
+    setPanelType("batch");
+    setBatchInitialTemplate(`${(batchNamePrefix.trim() || "SRC").toUpperCase()}-{index03}`);
+  }, [planAddresses, batchNamePrefix, reducedMotion, scheduleGuideStageReset]);
 
   const handleCellClick = (_addr: string, point?: Point) => {
     if (point) {
@@ -1505,6 +1514,9 @@ export default function SmartDashboard() {
         shortcutsTitle={t("smartDashboard.shortcuts")}
         pointDetailTitle={t("smartDashboard.pointDetail")}
         shortcutsHint={t("smartDashboard.shortcutsHint")}
+        initialBatchTemplate={batchInitialTemplate ?? undefined}
+        onBatchClose={() => setBatchInitialTemplate(null)}
+        onBatchCreated={() => setSidebarTab("tag")}
       />
 
       {selectedDevice && (

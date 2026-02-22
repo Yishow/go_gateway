@@ -14,7 +14,7 @@ import SmartDashboardCommitPanel, {
   type SmartDashboardCommitPanelProps,
 } from './SmartDashboardCommitPanel';
 
-export type SidebarTab = 'plan' | 'tag' | 'commit';
+export type SidebarTab = 'plan' | 'tag' | 'modbus' | 'commit';
 
 interface MiniToolbarProps {
   selectedDevice: Device | null;
@@ -48,8 +48,9 @@ export interface SmartDashboardSidebarProps
 
 /** Tab 標籤定義 */
 const TABS = [
-  { id: 'plan',   label: '規劃' },
-  { id: 'tag',    label: 'Tag'  },
+  { id: 'plan', label: '規劃' },
+  { id: 'tag', label: 'Tag' },
+  { id: 'modbus', label: 'Modbus' },
   { id: 'commit', label: '提交' },
 ] as const;
 
@@ -194,11 +195,11 @@ export default function SmartDashboardSidebar({
         )}
 
         {sidebarTab === 'tag' && (
-          <>
-            <SmartDashboardTagPanel {...tagPanelProps} />
-            {/* Modbus 折疊在 Tag Tab 最下方 */}
-            <SmartDashboardModbusPanel {...modbusPanelProps} />
-          </>
+          <SmartDashboardTagPanel {...tagPanelProps} />
+        )}
+
+        {sidebarTab === 'modbus' && (
+          <SmartDashboardModbusPanel {...modbusPanelProps} />
         )}
 
         {sidebarTab === 'commit' && (

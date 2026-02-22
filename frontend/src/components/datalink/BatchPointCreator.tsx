@@ -16,6 +16,8 @@ export interface BatchPointCreatorProps {
   protocol: ProtocolType;
   preselectedAddresses?: string[];
   pollingGroups: { id: string; name: string }[];
+  /** 從規劃「套用到網格」帶入的命名模板，例如 SRC-{index03} */
+  initialTemplate?: string;
   onCreated: (points: Point[]) => void;
   onCancel: () => void;
 }
@@ -30,10 +32,11 @@ export function BatchPointCreator({
   protocol,
   preselectedAddresses = [],
   pollingGroups,
+  initialTemplate,
   onCreated,
   onCancel
 }: BatchPointCreatorProps) {
-  const [template, setTemplate] = useState('Pump_{index}');
+  const [template, setTemplate] = useState(initialTemplate ?? 'Pump_{index}');
   const [dataType, setDataType] = useState<DataType>('int16');
   const [pollingGroupId, setPollingGroupId] = useState(pollingGroups[0]?.id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,6 +45,7 @@ export function BatchPointCreator({
   const previewPoints = useMemo<GeneratedPoint[]>(() => {
     return preselectedAddresses.map((addr, idx) => {
       let name = template;
+      name = name.replace(/\{index03\}/g, (idx + 1).toString().padStart(3, '0'));
       name = name.replace(/\{index\}/g, idx.toString());
       name = name.replace(/\{address\}/g, addr);
       
@@ -117,7 +121,7 @@ export function BatchPointCreator({
             required
           />
           <p className="mt-1 text-xs text-slate-500">
-            支援變數: {'{index}'} (序號), {'{address}'} (位址), {'{num}'} (數值部分)
+            支援變數: {'{index}'} (序號), {'{index03}'} (三位數 1 起), {'{address}'} (位址), {'{num}'} (數值部分)
           </p>
         </div>
 

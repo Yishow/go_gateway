@@ -236,7 +236,11 @@ export function MemoryGrid({
   };
 
   return (
-    <div data-testid="memory-grid" className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5 p-3 select-none">
+    <div
+      data-testid="memory-grid"
+      className="grid h-full min-h-0 flex-1 grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5 p-3 select-none"
+      style={{ gridAutoRows: "minmax(2.5rem, 1fr)" }}
+    >
       {visibleDisplayUnits.map((unit) => (
         <button
           type="button"
@@ -252,7 +256,7 @@ export function MemoryGrid({
               : `Address ${unit.addresses[0]}, status ${unit.status}`
           }
           className={`
-            relative min-w-0 aspect-[2/1] border rounded-md flex flex-col items-center justify-center cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+            relative min-w-0 min-h-[2.5rem] border rounded-md flex flex-col items-center justify-center cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 overflow-hidden
             ${
               unit.status === "used"
                 ? "bg-green-100 border-green-500 text-green-800 dark:bg-green-900/30 dark:border-green-500/50 dark:text-green-300"
@@ -288,10 +292,10 @@ export function MemoryGrid({
             </>
           ) : (
             <>
-              <span className="text-[10px] font-mono font-bold tracking-tight">
+              <span className="text-[9px] font-mono font-bold tracking-tight leading-tight truncate max-w-full">
                 {unit.addresses[0]}–{unit.addresses[unit.addresses.length - 1]}
               </span>
-              <span className="mt-0.5 text-[9px] font-semibold tracking-wide opacity-90">
+              <span className="mt-0.5 text-[8px] font-semibold tracking-wide opacity-90 leading-tight truncate max-w-full">
                 {unit.plan?.label ?? "Block"} · {unit.plan?.dataType ?? ""}
               </span>
             </>
