@@ -967,11 +967,11 @@ export default function SmartDashboard() {
     setSource(selectedDeviceId || "", selectedSourceAddress, selectedPoint?.id || "");
   }, [selectedDeviceId, selectedPoint?.id, selectedSourceAddress, setSource]);
 
-  /** 當規劃起始位址或設備變更時，同步 grid 視窗起始位址 */
+  /** 僅在設備變更時初始化 grid 視窗起始位址；修改起始位址不聯動 grid，由「套用到網格」套用 */
   useEffect(() => {
-    const base = planStartAddress || (selectedDevice ? getGridCenterAddress(selectedDevice.protocol) : "");
-    setGridViewStartAddress(base);
-  }, [planStartAddress, selectedDevice, getGridCenterAddress]);
+    if (!selectedDevice) return;
+    setGridViewStartAddress(getGridCenterAddress(selectedDevice.protocol));
+  }, [selectedDevice, getGridCenterAddress]);
 
   const handleGridViewShift = useCallback(
     (delta: number) => {
@@ -993,7 +993,12 @@ export default function SmartDashboard() {
 
   useEffect(() => {
     const sourceQuality = selectedPoint?.last_error ? "bad" : selectedDevice ? "good" : "unknown";
-    const sourceValue = selectedPoint?.last_value === undefined ? "-" : String(selectedPoint.last_value);
+    const sourceValue =
+      selectedPoint?.last_value !== undefined
+        ? String(selectedPoint.last_value)
+        : selectedDevice
+          ? selectedDevice.name
+          : "-";
     const sourceTime = selectedPoint?.last_read_at || "-";
     const sourceError = selectedPoint?.last_error || "";
     const gridQuality = selectedSourceAddress ? "good" : "unknown";

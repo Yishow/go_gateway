@@ -131,7 +131,7 @@ describe('MemoryGrid', () => {
     expect(intLabels).toHaveLength(5);
   });
 
-  it('should render float32 planned count as paired cells', () => {
+  it('should render float32 planned as one logical cell per allocation', () => {
     const plannedAllocations = Array.from({ length: 10 }).map((_, index) => {
       const base = 40001 + index * 2;
       return {
@@ -150,11 +150,14 @@ describe('MemoryGrid', () => {
       />
     );
 
-    const pairedMarkers = screen.getAllByText(/\/2$/);
-    expect(pairedMarkers).toHaveLength(20);
+    const cells = screen.getAllByTestId('grid-cell');
+    const float32Blocks = cells.filter((el) => el.getAttribute('data-span') === '2');
+    expect(float32Blocks).toHaveLength(10);
+    expect(screen.getByText(/40001–40002/)).toBeInTheDocument();
+    expect(screen.getByText(/F1 · float32/)).toBeInTheDocument();
   });
 
-  it('should render int64 planned count as contiguous 4-cell groups', () => {
+  it('should render int64 planned as one logical cell per 4-address group', () => {
     const plannedAllocations = Array.from({ length: 5 }).map((_, index) => {
       const base = 40001 + index * 4;
       return {
@@ -173,8 +176,11 @@ describe('MemoryGrid', () => {
       />
     );
 
-    const markers = screen.getAllByText(/\/4$/);
-    expect(markers).toHaveLength(20);
+    const cells = screen.getAllByTestId('grid-cell');
+    const span4Blocks = cells.filter((el) => el.getAttribute('data-span') === '4');
+    expect(span4Blocks).toHaveLength(5);
+    expect(screen.getByText(/40001–40004/)).toBeInTheDocument();
+    expect(screen.getByText(/I1 · int64/)).toBeInTheDocument();
   });
 
   it('should render linked occupancy state', () => {
@@ -244,7 +250,7 @@ describe('MemoryGrid', () => {
     expect(screen.getByText('軟衝突')).toBeInTheDocument();
   });
 
-  it('should handle edge collision when planned cells exceed visible range', () => {
+  it('should handle edge when planned group exceeds visible range as single cells', () => {
     const plannedAllocations = [
       {
         id: 'float-edge',
@@ -264,7 +270,7 @@ describe('MemoryGrid', () => {
 
     expect(screen.getByText('40003')).toBeInTheDocument();
     expect(screen.queryByText('40004')).not.toBeInTheDocument();
-    expect(screen.getByText('EDGE 1/2')).toBeInTheDocument();
+    expect(screen.getByText('EDGE')).toBeInTheDocument();
   });
 
   it('should keep neighbor context when conflicts-only filter is enabled', () => {

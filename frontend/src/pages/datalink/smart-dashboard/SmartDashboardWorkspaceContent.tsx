@@ -123,6 +123,40 @@ export default function SmartDashboardWorkspaceContent({
       {/* ── Source Planner 緊湊列 ── */}
       <div className="shrink-0 border-b border-white/5 px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
+          {/* Modbus 區域（僅 Modbus 設備顯示，切換 FC 會更新預設起始位址） */}
+          {selectedDevice.protocol.startsWith("modbus") && (
+            <label className="flex items-center gap-1.5 text-xs text-slate-400">
+              {t("smartDashboard.sourcePlanner.modbusArea")}
+              <select
+                value={
+                  planStartAddress.startsWith("0")
+                    ? "0"
+                    : planStartAddress.startsWith("1")
+                      ? "1"
+                      : planStartAddress.startsWith("3")
+                        ? "3"
+                        : "4"
+                }
+                onChange={(e) => {
+                  const prefix = e.target.value as "0" | "1" | "3" | "4";
+                  const defaults: Record<string, string> = {
+                    "0": "00001",
+                    "1": "10001",
+                    "3": "30001",
+                    "4": "40001",
+                  };
+                  setPlanStartAddress(defaults[prefix] ?? "40001");
+                }}
+                className="rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label={t("smartDashboard.sourcePlanner.modbusArea")}
+              >
+                <option value="0">{t("smartDashboard.sourcePlanner.modbusAreaCoil")}</option>
+                <option value="1">{t("smartDashboard.sourcePlanner.modbusAreaDiscrete")}</option>
+                <option value="3">{t("smartDashboard.sourcePlanner.modbusAreaInputReg")}</option>
+                <option value="4">{t("smartDashboard.sourcePlanner.modbusAreaHoldingReg")}</option>
+              </select>
+            </label>
+          )}
           {/* 位址 */}
           <label className="flex items-center gap-1.5 text-xs text-slate-400">
             {t("smartDashboard.sourcePlanner.startAddress")}
