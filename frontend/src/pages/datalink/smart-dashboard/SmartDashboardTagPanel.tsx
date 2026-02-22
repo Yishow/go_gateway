@@ -1,0 +1,286 @@
+import type { Tag, Point } from '../../../types/datalink';
+
+/** Tag 編輯暫存結構（僅可編輯欄位） */
+export interface PendingTagEdit {
+  display_name: string;
+  unit: string;
+  description: string;
+}
+
+export interface SmartDashboardTagPanelProps {
+  selectedSourceAddress: string;
+  activePointForLink: Point | null;
+  linkedTag: Tag | null;
+  tagLinkMode: 'existing' | 'create';
+  setTagLinkMode: (mode: 'existing' | 'create') => void;
+  selectedTagIdForLink: string;
+  setSelectedTagIdForLink: (tagId: string) => void;
+  tags: Tag[];
+  handleLinkTagToSelectedAddress: () => void;
+  updateMappingPending: boolean;
+  createMappingPending: boolean;
+  newTagKey: string;
+  setNewTagKey: (value: string) => void;
+  newTagDisplayName: string;
+  setNewTagDisplayName: (value: string) => void;
+  handleCreateTagAndLink: () => void;
+  createTagPending: boolean;
+  tagLinkActionMessage: string;
+  linkedTagAffectedMappingsCount: number;
+  tagEditDisplayName: string;
+  setTagEditDisplayName: (value: string) => void;
+  tagEditUnit: string;
+  setTagEditUnit: (value: string) => void;
+  tagEditDescription: string;
+  setTagEditDescription: (value: string) => void;
+  handleSaveLinkedTagEdit: () => void;
+  updateTagPending: boolean;
+  pendingTagEdit: PendingTagEdit | null;
+  handleConfirmTagEdit: () => void;
+  clearPendingTagEdit: () => void;
+  tagEditMessage: string;
+}
+
+/** Tag 連結與全域 Tag 編輯面板 */
+export default function SmartDashboardTagPanel({
+  selectedSourceAddress,
+  activePointForLink,
+  linkedTag,
+  tagLinkMode,
+  setTagLinkMode,
+  selectedTagIdForLink,
+  setSelectedTagIdForLink,
+  tags,
+  handleLinkTagToSelectedAddress,
+  updateMappingPending,
+  createMappingPending,
+  newTagKey,
+  setNewTagKey,
+  newTagDisplayName,
+  setNewTagDisplayName,
+  handleCreateTagAndLink,
+  createTagPending,
+  tagLinkActionMessage,
+  linkedTagAffectedMappingsCount,
+  tagEditDisplayName,
+  setTagEditDisplayName,
+  tagEditUnit,
+  setTagEditUnit,
+  tagEditDescription,
+  setTagEditDescription,
+  handleSaveLinkedTagEdit,
+  updateTagPending,
+  pendingTagEdit,
+  handleConfirmTagEdit,
+  clearPendingTagEdit,
+  tagEditMessage,
+}: SmartDashboardTagPanelProps) {
+  return (
+    <div className="space-y-3 border-t border-white/5 p-4">
+      {/* 標題列 */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold tracking-wide text-slate-200">Tag Linkage</p>
+        <span className="font-mono text-[10px] text-slate-400">{selectedSourceAddress || '—'}</span>
+      </div>
+
+      {/* 目前選取狀態 */}
+      <div className="grid grid-cols-3 gap-1.5 rounded-lg border border-white/10 bg-slate-900/60 p-2.5 text-[11px]">
+        <div>
+          <p className="text-slate-500">格位</p>
+          <p className="mt-0.5 font-mono text-slate-200">{selectedSourceAddress || '—'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">點位</p>
+          <p className="mt-0.5 truncate text-slate-200">{activePointForLink?.name || '—'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500">Tag</p>
+          <p className="mt-0.5 truncate font-mono text-slate-200">{linkedTag?.key || '—'}</p>
+        </div>
+      </div>
+
+      {/* 模式切換 */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setTagLinkMode('existing')}
+          className={`rounded-lg border px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            tagLinkMode === 'existing'
+              ? 'border-blue-500/40 bg-blue-500/20 text-blue-100'
+              : 'border-slate-700 bg-slate-800/70 text-slate-300'
+          }`}
+        >
+          選擇既有 Tag
+        </button>
+        <button
+          type="button"
+          onClick={() => setTagLinkMode('create')}
+          className={`rounded-lg border px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            tagLinkMode === 'create'
+              ? 'border-indigo-500/40 bg-indigo-500/20 text-indigo-100'
+              : 'border-slate-700 bg-slate-800/70 text-slate-300'
+          }`}
+        >
+          新建 Tag
+        </button>
+      </div>
+
+      {/* 既有 Tag 選擇 / 新建 Tag */}
+      {tagLinkMode === 'existing' ? (
+        <div className="space-y-2">
+          <label className="block text-[11px] text-slate-300">
+            已有 Tag
+            <select
+              value={selectedTagIdForLink}
+              onChange={(e) => setSelectedTagIdForLink(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">請選擇 Tag</option>
+              {tags.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  {tag.key} ({tag.data_type})
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={handleLinkTagToSelectedAddress}
+            disabled={!activePointForLink || !selectedTagIdForLink || updateMappingPending || createMappingPending}
+            className="w-full rounded-lg border border-blue-500/40 bg-blue-500/20 px-3 py-2 text-xs font-medium text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            套用 Tag 連結
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <label className="block text-[11px] text-slate-300">
+            Tag Key
+            <input
+              value={newTagKey}
+              onChange={(e) => setNewTagKey(e.target.value)}
+              placeholder="例如: line_a_temp"
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </label>
+          <label className="block text-[11px] text-slate-300">
+            Display Name
+            <input
+              value={newTagDisplayName}
+              onChange={(e) => setNewTagDisplayName(e.target.value)}
+              placeholder="例如: Line A Temperature"
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleCreateTagAndLink}
+            disabled={!activePointForLink || !newTagKey.trim() || createTagPending || createMappingPending || updateMappingPending}
+            className="w-full rounded-lg border border-indigo-500/40 bg-indigo-500/20 px-3 py-2 text-xs font-medium text-indigo-100 hover:bg-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            建立並連結 Tag
+          </button>
+        </div>
+      )}
+
+      {tagLinkActionMessage && (
+        <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
+          {tagLinkActionMessage}
+        </p>
+      )}
+
+      {/* 全域 Tag 內嵌編輯 */}
+      <div className="space-y-2 rounded-lg border border-white/10 bg-slate-900/60 p-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-slate-200">全域 Tag 編輯</p>
+          <span className="text-[10px] text-slate-400">影響映射: {linkedTagAffectedMappingsCount}</span>
+        </div>
+        <label className="block text-[11px] text-slate-300">
+          Display Name
+          <input
+            value={tagEditDisplayName}
+            onChange={(e) => setTagEditDisplayName(e.target.value)}
+            disabled={!linkedTag}
+            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-[11px] text-slate-300">
+            Unit
+            <input
+              value={tagEditUnit}
+              onChange={(e) => setTagEditUnit(e.target.value)}
+              disabled={!linkedTag}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+            />
+          </label>
+          <label className="block text-[11px] text-slate-300">
+            Description
+            <input
+              value={tagEditDescription}
+              onChange={(e) => setTagEditDescription(e.target.value)}
+              disabled={!linkedTag}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          onClick={handleSaveLinkedTagEdit}
+          disabled={!linkedTag || updateTagPending}
+          className="w-full rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          儲存全域 Tag 變更
+        </button>
+
+        {/* 二次確認預覽 */}
+        {pendingTagEdit && linkedTag && (
+          <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
+            <p className="text-[11px] text-amber-100">
+              變更預覽：將影響 {linkedTagAffectedMappingsCount} 個映射
+            </p>
+            <div className="space-y-1 text-[11px] text-slate-200">
+              {(
+                [
+                  ['display_name', linkedTag.display_name, pendingTagEdit.display_name],
+                  ['unit',         linkedTag.unit,         pendingTagEdit.unit],
+                  ['description',  linkedTag.description,  pendingTagEdit.description],
+                ] as const
+              ).map(([field, before, after]) => (
+                <p key={field}>
+                  {field}:{' '}
+                  <span className="text-slate-400">{before || '—'}</span>
+                  {' → '}
+                  <span className="text-amber-100">{after || '—'}</span>
+                </p>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleConfirmTagEdit}
+                disabled={updateTagPending}
+                className="rounded-md border border-amber-400/40 bg-amber-500/20 px-2 py-1.5 text-[11px] font-medium text-amber-100 hover:bg-amber-500/30 disabled:opacity-50"
+              >
+                確認寫入
+              </button>
+              <button
+                type="button"
+                onClick={clearPendingTagEdit}
+                className="rounded-md border border-slate-700 bg-slate-800/70 px-2 py-1.5 text-[11px] text-slate-200 hover:bg-slate-700"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tagEditMessage && (
+          <p className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300">
+            {tagEditMessage}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

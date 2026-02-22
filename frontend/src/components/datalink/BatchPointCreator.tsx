@@ -1,16 +1,22 @@
 
 import { useState, useMemo } from 'react';
-import type { ProtocolType, DataType } from '../../types/datalink';
+import type { ProtocolType, DataType, Point } from '../../types/datalink';
 import { addressParser } from '../../utils/addressParser';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../utils/logger';
+
+/** 批量建立點位 API 回應結構 */
+interface BatchCreateResponse {
+  created_count?: number;
+  points?: Point[];
+}
 
 export interface BatchPointCreatorProps {
   deviceId: string;
   protocol: ProtocolType;
   preselectedAddresses?: string[];
-  pollingGroups: { id: string, name: string }[];
-  onCreated: (points: unknown[]) => void;
+  pollingGroups: { id: string; name: string }[];
+  onCreated: (points: Point[]) => void;
   onCancel: () => void;
 }
 
@@ -75,11 +81,12 @@ export function BatchPointCreator({
         body: JSON.stringify(payload)
       });
       
-      const result = await response.json();
+      const result = await response.json() as { error?: { message?: string }; data?: BatchCreateResponse };
       if (!response.ok) throw new Error(result.error?.message || '批量建立失敗');
-      
-      showSuccess(`成功建立 ${result.data?.created_count || previewPoints.length} 個點位`);
-      onCreated(result.data?.points || []);
+
+      const data = result.data ?? {};
+      showSuccess(`成功建立 ${data.created_count ?? previewPoints.length} 個點位`);
+      onCreated(data.points ?? []);
     } catch (err) {
       logger.error(err);
       showError('建立失敗: ' + (err instanceof Error ? err.message : '未知錯誤'));

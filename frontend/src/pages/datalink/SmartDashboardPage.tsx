@@ -920,15 +920,18 @@ export default function SmartDashboard() {
       setIsCreateDeviceModalOpen(true);
     }
   }, [createDeviceIntent]);
+  // 僅追蹤 id 變化，避免 setEditingDeviceInModal 觸發自身重複執行
   useEffect(() => {
-    if (!editingDeviceInModal) return;
-    const refreshed = devices.find((device) => device.id === editingDeviceInModal.id);
+    const editingId = editingDeviceInModal?.id;
+    if (!editingId) return;
+    const refreshed = devices.find((device) => device.id === editingId);
     if (!refreshed) {
       setEditingDeviceInModal(null);
       return;
     }
     setEditingDeviceInModal(refreshed);
-  }, [devices, editingDeviceInModal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devices, editingDeviceInModal?.id]);
 
   useEffect(() => {
     if (selectedDeviceId || devices.length === 0) return;
