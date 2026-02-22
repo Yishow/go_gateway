@@ -174,6 +174,15 @@ export default function SmartDashboard() {
   const [gridPopoverPoint, setGridPopoverPoint] = useState<Point | null>(null);
   const [gridPopoverAddress, setGridPopoverAddress] = useState("");
   const [gridPopoverPosition, setGridPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+  /** 網格右鍵選單：刪除點位（單一）或 Shift+右鍵 刪除所選多個 */
+  const gridContextMenuRef = useRef<HTMLDivElement | null>(null);
+  const [gridContextMenu, setGridContextMenu] = useState<{
+    x: number;
+    y: number;
+    point: Point;
+    shiftKey: boolean;
+    pointsToDelete: Point[];
+  } | null>(null);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
@@ -652,6 +661,35 @@ export default function SmartDashboard() {
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [gridPopoverOpen]);
+
+  const handleCellContextMenu = useCallback(
+    (_addr: string, point: Point, e: React.MouseEvent) => {
+      const shiftKey = e.shiftKey === true;
+      const pointsToDelete =
+        shiftKey && selectedAddresses.length > 0
+          ? allPoints.filter((p) => selectedAddresses.includes(p.address))
+          : [point];
+      setGridContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        point,
+        shiftKey,
+        pointsToDelete,
+      });
+    },
+    [allPoints, selectedAddresses]
+  );
+
+  useEffect(() => {
+    if (!gridContextMenu) return;
+    const onMouseDown = (ev: MouseEvent) => {
+      const target = ev.target as Node;
+      if (gridContextMenuRef.current?.contains(target)) return;
+      setGridContextMenu(null);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [gridContextMenu]);
 
   const getGridCenterAddress = useCallback((protocol: ProtocolType) => (protocol.startsWith("modbus") ? "40001" : "D0"), []);
 
@@ -1495,6 +1533,7 @@ export default function SmartDashboard() {
           plannedAllocations={plannedAllocations}
           setSelectedAddresses={setSelectedAddresses}
           handleCellClick={handleCellClick}
+          onCellContextMenu={handleCellContextMenu}
           getGridCenterAddress={getGridCenterAddress}
           gridViewStartAddress={gridViewStartAddress}
           onGridViewShift={handleGridViewShift}
@@ -1715,6 +1754,80 @@ export default function SmartDashboard() {
                 </div>
               )}
             </div>
+          </div>,
+          document.body
+        )}
+
+      {gridContextMenu &&
+        createPortal(
+          <div
+            ref={gridContextMenuRef}
+            className="fixed z-[110] min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-800"
+            style={{ left: gridContextMenu.x, top: gridContextMenu.y }}
+            role="menu"
+            aria-label={t("smartDashboard.gridContextMenu.ariaLabel")}
+          >
+            {gridContextMenu.pointsToDelete.length > 1 ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                onClick={async () => {
+                  const { pointsToDelete } = gridContextMenu;
+                  if (
+                    !window.confirm(
+                      t("smartDashboard.gridContextMenu.deleteSelectedConfirm", {
+                        count: pointsToDelete.length,
+                      })
+                    )
+                  )
+                    return;
+                  const deletedIds = new Set<string>();
+                  for (const p of pointsToDelete) {
+                    try {
+                      await deletePointMutation.mutateAsync(p.id);
+                      deletedIds.add(p.id);
+                    } catch (err) {
+                      showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
+                    }
+                  }
+                  if (deletedIds.size > 0) {
+                    showSuccess(
+                      t("smartDashboard.gridContextMenu.deleteSelectedDone", {
+                        count: deletedIds.size,
+                      })
+                    );
+                    if (selectedPoint && deletedIds.has(selectedPoint.id)) setSelectedPoint(null);
+                  }
+                  setGridContextMenu(null);
+                }}
+              >
+                {t("smartDashboard.gridContextMenu.deleteSelectedPoints", {
+                  count: gridContextMenu.pointsToDelete.length,
+                })}
+              </button>
+            ) : (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                onClick={async () => {
+                  const { point } = gridContextMenu;
+                  if (!window.confirm(t("smartDashboard.gridContextMenu.deleteConfirm", { name: point.name })))
+                    return;
+                  try {
+                    await deletePointMutation.mutateAsync(point.id);
+                    showSuccess(t("smartDashboard.pointDeleted"));
+                    setGridContextMenu(null);
+                    if (selectedPoint?.id === point.id) setSelectedPoint(null);
+                  } catch (err) {
+                    showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
+                  }
+                }}
+              >
+                {t("smartDashboard.gridContextMenu.deletePoint")}
+              </button>
+            )}
           </div>,
           document.body
         )}

@@ -42,6 +42,7 @@ interface SmartDashboardWorkspaceProps {
   plannedAllocations: PlannedAllocation[];
   setSelectedAddresses: (addresses: string[]) => void;
   handleCellClick: (address: string, point?: Point, e?: React.MouseEvent) => void;
+  onCellContextMenu?: (address: string, point: Point, e: React.MouseEvent) => void;
   getGridCenterAddress: (protocol: ProtocolType) => string;
   /** Grid 視窗起始位址（可與 planStartAddress 不同，用於滾輪/按鈕切換 100 格） */
   gridViewStartAddress: string;
@@ -81,6 +82,7 @@ export default function SmartDashboardWorkspace({
   plannedAllocations,
   setSelectedAddresses,
   handleCellClick,
+  onCellContextMenu,
   getGridCenterAddress,
   gridViewStartAddress,
   onGridViewShift,
@@ -122,6 +124,7 @@ export default function SmartDashboardWorkspace({
             plannedAllocations={plannedAllocations}
             setSelectedAddresses={setSelectedAddresses}
             handleCellClick={handleCellClick}
+            onCellContextMenu={onCellContextMenu}
             getGridCenterAddress={getGridCenterAddress}
             gridViewStartAddress={gridViewStartAddress}
             onGridViewShift={onGridViewShift}

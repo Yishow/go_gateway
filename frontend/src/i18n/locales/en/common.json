@@ -161,6 +161,14 @@
     "pointDetail": "Point Detail",
     "pointDeleted": "Point deleted",
     "deletePointFailed": "Delete failed",
+    "gridContextMenu": {
+      "ariaLabel": "Cell context menu",
+      "deletePoint": "Delete point",
+      "deleteConfirm": "Delete point \"{{name}}\"?",
+      "deleteSelectedPoints": "Delete selected points ({{count}})",
+      "deleteSelectedConfirm": "Delete {{count}} selected point(s)?",
+      "deleteSelectedDone": "Deleted {{count}} point(s)"
+    },
     "gridCellPopover": {
       "ariaLabel": "Cell actions",
       "openDetail": "Open detail",

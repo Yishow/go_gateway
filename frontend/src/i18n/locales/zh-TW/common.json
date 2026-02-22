@@ -161,6 +161,14 @@
     "pointDetail": "點位詳情",
     "pointDeleted": "點位已刪除",
     "deletePointFailed": "刪除失敗",
+    "gridContextMenu": {
+      "ariaLabel": "格位右鍵選單",
+      "deletePoint": "刪除點位",
+      "deleteConfirm": "確定要刪除點位「{{name}}」嗎？",
+      "deleteSelectedPoints": "刪除所選點位 ({{count}} 個)",
+      "deleteSelectedConfirm": "確定要刪除所選 {{count}} 個點位嗎？",
+      "deleteSelectedDone": "已刪除 {{count}} 個點位"
+    },
     "gridCellPopover": {
       "ariaLabel": "格位操作",
       "openDetail": "開啟詳情",

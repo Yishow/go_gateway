@@ -16,6 +16,8 @@ export interface MemoryGridProps {
   onSelect: (addresses: string[]) => void;
   /** 點擊格位時回呼；可傳入 event 供上層用於 Popover 定位 */
   onCellClick: (address: string, point?: Point, e?: React.MouseEvent) => void;
+  /** 右鍵格位時回呼（僅有點位時觸發，供上層顯示刪除等選單） */
+  onCellContextMenu?: (address: string, point: Point, e: React.MouseEvent) => void;
   plannedAllocations?: PlannedAllocation[];
   linkedAddresses?: string[];
   showConflictsOnly?: boolean;
@@ -61,6 +63,7 @@ export function MemoryGrid({
   selectedAddresses,
   onSelect,
   onCellClick,
+  onCellContextMenu,
   plannedAllocations = [],
   linkedAddresses = [],
   showConflictsOnly = false,
@@ -251,6 +254,12 @@ export function MemoryGrid({
           data-conflict-severity={unit.conflictSeverity}
           data-span={unit.span}
           onClick={(e) => handleUnitClick(unit, e)}
+          onContextMenu={(e) => {
+            if (unit.point) {
+              e.preventDefault();
+              onCellContextMenu?.(unit.addresses[0], unit.point, e);
+            }
+          }}
           aria-label={
             unit.addresses.length > 1
               ? `${unit.plan?.label ?? "Block"} ${unit.addresses[0]}–${unit.addresses[unit.addresses.length - 1]}, ${unit.status}`
