@@ -1,14 +1,17 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type {
   Device,
   Point,
+  Tag,
   CreatePointRequest,
   CreateDeviceRequest,
   UpdateDeviceRequest,
   ProtocolType,
   DataType,
 } from "../../types/datalink";
+import { tagAPI } from "../../services/datalink";
 import type { PlannedAllocation } from "../../components/datalink/MemoryGrid";
 import { ImportDialog, ExportDialog } from "../../components/datalink/ImportExportDialog";
 import SmartDashboardHeader from "./smart-dashboard/SmartDashboardHeader";
@@ -21,6 +24,8 @@ import { useSmartDashboardModbusActions } from "./smart-dashboard/useSmartDashbo
 import SmartDashboardWorkflowModal from "./smart-dashboard/SmartDashboardWorkflowModal";
 import SmartDashboardOverlays from "./smart-dashboard/SmartDashboardOverlays";
 import SmartDashboardPanels from "./smart-dashboard/SmartDashboardPanels";
+import SmartDashboardTagPanel from "./smart-dashboard/SmartDashboardTagPanel";
+import { PointDetailPanel } from "../../components/datalink/PointDetailPanel";
 import {
   useDevicesQuery,
   useDeleteDeviceMutation,
@@ -29,7 +34,7 @@ import {
   useTestConnectionMutation,
 } from "../../hooks/datalink/useDevices";
 import { usePollingGroupsQuery } from "../../hooks/datalink/usePollingGroups";
-import { usePointsQuery, useCreatePointMutation } from "../../hooks/datalink/usePoints";
+import { usePointsQuery, useCreatePointMutation, useDeletePointMutation } from "../../hooks/datalink/usePoints";
 import { useToast } from "../../contexts/ToastContext";
 import {
   useMappingsQuery,
@@ -37,7 +42,9 @@ import {
   useCreateMappingMutation,
   useUpdateMappingMutation,
 } from "../../hooks/datalink/useMappings";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTagsQuery, useCreateTagMutation, useUpdateTagMutation } from "../../hooks/datalink/useTags";
+import { tagKeys, pointKeys } from "../../hooks/datalink/keys";
 import { useSmartDashboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { usePointHistory } from "../../hooks/useHistory";
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from "../../features/flow/stateMachine";
@@ -160,6 +167,13 @@ export default function SmartDashboard() {
   const createDeviceIntent = searchParams.get("createDevice");
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("plan");
+  /** 網格格位點擊 Popover：不開側邊欄，改顯示 Popover */
+  const gridPopoverAnchorRef = useRef<HTMLElement | null>(null);
+  const gridPopoverContentRef = useRef<HTMLDivElement | null>(null);
+  const [gridPopoverOpen, setGridPopoverOpen] = useState(false);
+  const [gridPopoverPoint, setGridPopoverPoint] = useState<Point | null>(null);
+  const [gridPopoverAddress, setGridPopoverAddress] = useState("");
+  const [gridPopoverPosition, setGridPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
@@ -178,12 +192,14 @@ export default function SmartDashboard() {
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
   const { data: mappings = [] } = useMappingsQuery();
+  const queryClient = useQueryClient();
   const { data: tags = [] } = useTagsQuery();
   const createTagMutation = useCreateTagMutation();
   const updateTagMutation = useUpdateTagMutation();
   const createMappingMutation = useCreateMappingMutation();
   const updateMappingMutation = useUpdateMappingMutation();
   const createPointMutation = useCreatePointMutation();
+  const deletePointMutation = useDeletePointMutation();
   const history = usePointHistory({ maxHistory: 30 });
   const flow = useFlowLifecycle();
   const {
@@ -546,16 +562,96 @@ export default function SmartDashboard() {
     setBatchInitialTemplate(`${(batchNamePrefix.trim() || "SRC").toUpperCase()}-{index03}`);
   }, [planAddresses, batchNamePrefix, reducedMotion, scheduleGuideStageReset]);
 
-  const handleCellClick = (_addr: string, point?: Point) => {
-    if (point) {
-      setSelectedPoint(point);
-      setPanelType("detail");
+  /** 批量建立點位成功後：依點位命名自動建立 Tag 並建立 mapping，再切到 Tag 分頁 */
+  const handleBatchCreatedWithPoints = useCallback(
+    async (points: Point[]) => {
+      if (!points.length) {
+        setSidebarTab("tag");
+        return;
+      }
+      let tagCount = 0;
+      let linkCount = 0;
+      try {
+        for (const point of points) {
+          const name = (point.name || "").trim();
+          if (!name) continue;
+          let tagId: string | null = null;
+          try {
+            const tag = await createTagMutation.mutateAsync({
+              key: name,
+              display_name: name,
+              data_type: point.data_type,
+            });
+            tagId = tag.id;
+            tagCount += 1;
+          } catch {
+            await queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
+            const list = await queryClient.fetchQuery({
+              queryKey: tagKeys.list(),
+              queryFn: () => tagAPI.list(),
+            });
+            const existing = (list as Tag[]).find((t) => t.key === name);
+            if (existing) tagId = existing.id;
+          }
+          if (tagId) {
+            await createMappingMutation.mutateAsync({
+              point_id: point.id,
+              tag_id: tagId,
+              enabled: true,
+            });
+            linkCount += 1;
+          }
+        }
+        setSidebarTab("tag");
+        if (tagCount > 0 || linkCount > 0) {
+          showSuccess(`已建立 ${points.length} 個點位，並依命名建立 ${tagCount} 個 Tag、連結 ${linkCount} 筆映射。`);
+        }
+      } catch (err) {
+        showError("依命名建立 Tag 時發生錯誤: " + (err instanceof Error ? err.message : "未知錯誤"));
+        setSidebarTab("tag");
+      }
+    },
+    [
+      createTagMutation,
+      createMappingMutation,
+      queryClient,
+      setSidebarTab,
+      showSuccess,
+      showError,
+    ]
+  );
+
+  /** 點擊網格格位：顯示 Popover（不開側邊欄），供快速操作 */
+  const handleCellClick = useCallback((addr: string, point?: Point, e?: React.MouseEvent) => {
+    gridPopoverAnchorRef.current = (e?.currentTarget as HTMLElement) ?? null;
+    setGridPopoverAddress(addr);
+    setGridPopoverPoint(point ?? null);
+    setGridPopoverOpen(true);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!gridPopoverOpen || !gridPopoverAnchorRef.current) {
+      setGridPopoverPosition(null);
       return;
     }
-    setSelectedPoint(null);
-    // 選取空格位後自動切換到 Tag Tab
-    setSidebarTab("tag");
-  };
+    const rect = gridPopoverAnchorRef.current.getBoundingClientRect();
+    setGridPopoverPosition({ top: rect.bottom + 4, left: rect.left });
+  }, [gridPopoverOpen, gridPopoverAddress]);
+
+  useEffect(() => {
+    if (!gridPopoverOpen) return;
+    const onMouseDown = (ev: MouseEvent) => {
+      const target = ev.target as Node;
+      if (
+        gridPopoverContentRef.current?.contains(target) ||
+        gridPopoverAnchorRef.current?.contains(target)
+      )
+        return;
+      setGridPopoverOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [gridPopoverOpen]);
 
   const getGridCenterAddress = useCallback((protocol: ProtocolType) => (protocol.startsWith("modbus") ? "40001" : "D0"), []);
 
@@ -703,6 +799,77 @@ export default function SmartDashboard() {
     showInfo,
     showSuccess,
   });
+
+  /** Tag 面板 props，供側邊欄與網格 Popover 共用 */
+  const tagPanelProps = useMemo(
+    () => ({
+      selectedSourceAddress,
+      activePointForLink: activePointForLink ?? null,
+      linkedTag: linkedTag ?? null,
+      tagLinkMode,
+      setTagLinkMode,
+      selectedTagIdForLink,
+      setSelectedTagIdForLink,
+      tags,
+      handleLinkTagToSelectedAddress,
+      updateMappingPending: updateMappingMutation.isPending,
+      createMappingPending: createMappingMutation.isPending,
+      newTagKey,
+      setNewTagKey,
+      newTagDisplayName,
+      setNewTagDisplayName,
+      handleCreateTagAndLink,
+      createTagPending: createTagMutation.isPending,
+      tagLinkActionMessage,
+      linkedTagAffectedMappingsCount,
+      tagEditDisplayName,
+      setTagEditDisplayName,
+      tagEditUnit,
+      setTagEditUnit,
+      tagEditDescription,
+      setTagEditDescription,
+      handleSaveLinkedTagEdit,
+      updateTagPending: updateTagMutation.isPending,
+      pendingTagEdit,
+      handleConfirmTagEdit,
+      clearPendingTagEdit,
+      tagEditMessage,
+    }),
+    [
+      selectedSourceAddress,
+      activePointForLink,
+      linkedTag,
+      tagLinkMode,
+      setTagLinkMode,
+      selectedTagIdForLink,
+      setSelectedTagIdForLink,
+      tags,
+      handleLinkTagToSelectedAddress,
+      updateMappingMutation.isPending,
+      createMappingMutation.isPending,
+      newTagKey,
+      setNewTagKey,
+      newTagDisplayName,
+      setNewTagDisplayName,
+      handleCreateTagAndLink,
+      createTagMutation.isPending,
+      tagLinkActionMessage,
+      linkedTagAffectedMappingsCount,
+      tagEditDisplayName,
+      setTagEditDisplayName,
+      tagEditUnit,
+      setTagEditUnit,
+      tagEditDescription,
+      setTagEditDescription,
+      handleSaveLinkedTagEdit,
+      updateTagMutation.isPending,
+      pendingTagEdit,
+      handleConfirmTagEdit,
+      clearPendingTagEdit,
+      tagEditMessage,
+    ]
+  );
+
   const commitImpactSummary = useMemo(
     () => summarizeCommitImpact(commitQueueItems, Boolean(pendingTagEdit)),
     [commitQueueItems, pendingTagEdit],
@@ -1368,39 +1535,7 @@ export default function SmartDashboard() {
                 setShowConflictsOnly,
                 t,
               }}
-              tagPanelProps={{
-                selectedSourceAddress,
-                activePointForLink,
-                linkedTag,
-                tagLinkMode,
-                setTagLinkMode,
-                selectedTagIdForLink,
-                setSelectedTagIdForLink,
-                tags,
-                handleLinkTagToSelectedAddress,
-                updateMappingPending: updateMappingMutation.isPending,
-                createMappingPending: createMappingMutation.isPending,
-                newTagKey,
-                setNewTagKey,
-                newTagDisplayName,
-                setNewTagDisplayName,
-                handleCreateTagAndLink,
-                createTagPending: createTagMutation.isPending,
-                tagLinkActionMessage,
-                linkedTagAffectedMappingsCount,
-                tagEditDisplayName,
-                setTagEditDisplayName,
-                tagEditUnit,
-                setTagEditUnit,
-                tagEditDescription,
-                setTagEditDescription,
-                handleSaveLinkedTagEdit,
-                updateTagPending: updateTagMutation.isPending,
-                pendingTagEdit,
-                handleConfirmTagEdit,
-                clearPendingTagEdit,
-                tagEditMessage,
-              }}
+              tagPanelProps={tagPanelProps}
               modbusPanelProps={{
                 goToLocalModbusWorkbench,
                 loadModbusStatus,
@@ -1517,8 +1652,72 @@ export default function SmartDashboard() {
         initialBatchTemplate={batchInitialTemplate ?? undefined}
         initialBatchDataType={batchInitialTemplate != null ? planDataType : undefined}
         onBatchClose={() => setBatchInitialTemplate(null)}
-        onBatchCreated={() => setSidebarTab("tag")}
+        onBatchCreated={handleBatchCreatedWithPoints}
       />
+
+      {gridPopoverOpen &&
+        gridPopoverPosition &&
+        createPortal(
+          <div
+            ref={gridPopoverContentRef}
+            className="fixed z-[100] flex max-h-[85vh] w-[min(24rem,calc(100vw-1rem))] flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+            style={{
+              top: Math.min(gridPopoverPosition.top, window.innerHeight - 400),
+              left: Math.min(gridPopoverPosition.left, Math.max(0, window.innerWidth - 384)),
+            }}
+            role="dialog"
+            aria-label={t("smartDashboard.gridCellPopover.ariaLabel")}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+              <div>
+                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                  {gridPopoverAddress}
+                </span>
+                {gridPopoverPoint && (
+                  <span className="ml-2 text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {gridPopoverPoint.name}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setGridPopoverOpen(false)}
+                className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                aria-label={t("common.close", "關閉")}
+              >
+                ×
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              {gridPopoverPoint ? (
+                <PointDetailPanel
+                  point={gridPopoverPoint}
+                  onUpdate={(updatedPoint) => {
+                    queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
+                    setSelectedPoint(updatedPoint);
+                    setGridPopoverOpen(false);
+                  }}
+                  onDelete={async (id) => {
+                    try {
+                      await deletePointMutation.mutateAsync(id);
+                      showSuccess(t("smartDashboard.pointDeleted"));
+                      setSelectedPoint(null);
+                      setGridPopoverOpen(false);
+                    } catch (err) {
+                      showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
+                    }
+                  }}
+                  onClose={() => setGridPopoverOpen(false)}
+                />
+              ) : (
+                <div className="rounded-lg border border-white/10 bg-slate-800/40 p-3">
+                  <SmartDashboardTagPanel {...tagPanelProps} />
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {selectedDevice && (
         <>

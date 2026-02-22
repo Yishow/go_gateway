@@ -32,8 +32,8 @@ interface SmartDashboardPanelsProps {
   initialBatchDataType?: DataType;
   /** 批量建立關閉時回呼（用於清除 initial 狀態） */
   onBatchClose?: () => void;
-  /** 批量建立成功後回呼（例如切換至 Tag 分頁） */
-  onBatchCreated?: () => void;
+  /** 批量建立成功後回呼，傳入已建立的點位（可依命名自動建立 Tag 並連結） */
+  onBatchCreated?: (points: Point[]) => void;
 }
 
 export default function SmartDashboardPanels({
@@ -87,11 +87,11 @@ export default function SmartDashboardPanels({
               pollingGroups={pollingGroups}
               initialTemplate={initialBatchTemplate}
               initialDataType={initialBatchDataType}
-              onCreated={() => {
+              onCreated={(points) => {
                 setPanelType(null);
-                setSelectedAddresses([]);
                 onBatchClose?.();
-                onBatchCreated?.();
+                onBatchCreated?.(points);
+                /* 不清空 selectedAddresses，讓 Tag 分頁可對應到剛建立的點位 */
               }}
               onCancel={closeBatch}
             />

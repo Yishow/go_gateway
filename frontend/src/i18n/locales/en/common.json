@@ -159,6 +159,14 @@
     "shortcutsHint": "Use these shortcuts to speed up mapping tasks",
     "batchCreate": "Batch Create Points",
     "pointDetail": "Point Detail",
+    "pointDeleted": "Point deleted",
+    "deletePointFailed": "Delete failed",
+    "gridCellPopover": {
+      "ariaLabel": "Cell actions",
+      "openDetail": "Open detail",
+      "linkTag": "Link Tag",
+      "goToTagTab": "Go to Tag tab"
+    },
     "importedPoints": "Imported {{count}} points",
     "flowTitle": "Source Flow (Source → Memory Grid → Tag → DB)",
     "flowErrorHint": "Flow has errors. Fix source or mapping settings before validating again.",

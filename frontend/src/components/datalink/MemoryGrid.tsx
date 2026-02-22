@@ -14,7 +14,8 @@ export interface MemoryGridProps {
   existingPoints: Point[];
   selectedAddresses: string[];
   onSelect: (addresses: string[]) => void;
-  onCellClick: (address: string, point?: Point) => void;
+  /** 點擊格位時回呼；可傳入 event 供上層用於 Popover 定位 */
+  onCellClick: (address: string, point?: Point, e?: React.MouseEvent) => void;
   plannedAllocations?: PlannedAllocation[];
   linkedAddresses?: string[];
   showConflictsOnly?: boolean;
@@ -232,7 +233,7 @@ export function MemoryGrid({
     }
 
     onSelect(newSelection);
-    onCellClick(unit.addresses[0], unit.point);
+    onCellClick(unit.addresses[0], unit.point, e);
   };
 
   return (

@@ -43,7 +43,7 @@ interface SmartDashboardWorkspaceContentProps {
   selectedAddresses: string[];
   plannedAllocations: PlannedAllocation[];
   setSelectedAddresses: (addresses: string[]) => void;
-  handleCellClick: (address: string) => void;
+  handleCellClick: (address: string, point?: Point, e?: React.MouseEvent) => void;
   getGridCenterAddress: (protocol: ProtocolType) => string;
   /** Grid 視窗起始位址（滾輪/按鈕切換 100 格用） */
   gridViewStartAddress: string;

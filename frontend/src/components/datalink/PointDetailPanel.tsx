@@ -27,7 +27,7 @@ export function PointDetailPanel({
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/v1/datalink/points/${point.id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           device_id: point.device_id,

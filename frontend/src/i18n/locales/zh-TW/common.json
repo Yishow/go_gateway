@@ -159,6 +159,14 @@
     "shortcutsHint": "使用以下快捷鍵提升映射效率",
     "batchCreate": "批量建立點位",
     "pointDetail": "點位詳情",
+    "pointDeleted": "點位已刪除",
+    "deletePointFailed": "刪除失敗",
+    "gridCellPopover": {
+      "ariaLabel": "格位操作",
+      "openDetail": "開啟詳情",
+      "linkTag": "連結 Tag",
+      "goToTagTab": "切到 Tag 分頁"
+    },
     "importedPoints": "已匯入 {{count}} 個點位",
     "flowTitle": "來源資料流程（Source → Memory Grid → Tag → DB）",
     "flowErrorHint": "流程有錯誤，請先修正來源/映射設定後再重新驗證。",
