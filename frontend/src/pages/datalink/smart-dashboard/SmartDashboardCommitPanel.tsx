@@ -42,11 +42,16 @@ interface SmartDashboardCommitPanelProps {
   canRollback: boolean;
   segmentFeedback: Array<{ id: string; label: string; ok: boolean; message: string }>;
   commitActionMessage: string;
-  commitAuditPayload: any;
+  commitAuditPayload: {
+    traceId: string;
+    traceLink: string;
+    createdAt: string;
+    summary: { newPoints: number; globalTagUpdates: number; conflicts: number };
+  } | null;
   commitChunkResults: Array<{ chunk: number; totalChunks: number; success: number; failed: number; status: 'success' | 'failed' }>;
   hasError: boolean;
   onRecoverFlow: () => void;
-  t: (key: string, options?: any) => string;
+  t: import('i18next').TFunction;
 }
 
 export default function SmartDashboardCommitPanel({
@@ -80,24 +85,22 @@ export default function SmartDashboardCommitPanel({
           <p className="text-xs font-semibold tracking-wide text-slate-200">Commit Queue</p>
           <span className="text-[10px] text-slate-400">Total {commitQueueSummary.total}</span>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-[10px]">
-          <div className="rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-slate-200">
-            Pending {commitQueueSummary.pending}
-          </div>
-          <div className="rounded border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-indigo-100">
-            Linked {commitQueueSummary.linked}
-          </div>
-          <div className="rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-100">
-            Conflict {commitQueueSummary.conflict}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-[10px]">
-          <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-100">
-            Committed {commitQueueSummary.committed}
-          </div>
-          <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
-            Failed {commitQueueSummary.failed}
-          </div>
+        <div className="flex flex-wrap gap-1.5 text-[10px]">
+          <span className="rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-slate-200">
+            Pending <strong>{commitQueueSummary.pending}</strong>
+          </span>
+          <span className="rounded border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-indigo-100">
+            Linked <strong>{commitQueueSummary.linked}</strong>
+          </span>
+          <span className="rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-100">
+            Conflict <strong>{commitQueueSummary.conflict}</strong>
+          </span>
+          <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-100">
+            Committed <strong>{commitQueueSummary.committed}</strong>
+          </span>
+          <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
+            Failed <strong>{commitQueueSummary.failed}</strong>
+          </span>
         </div>
         <div className="space-y-1 rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-2 text-[10px] text-cyan-100">
           <p className="font-semibold tracking-wide">Commit Impact</p>
@@ -198,14 +201,6 @@ export default function SmartDashboardCommitPanel({
             {commitActionMessage}
           </p>
         )}
-        {commitAuditPayload && (
-          <a
-            href={commitAuditPayload.traceLink}
-            className="inline-flex text-[11px] text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
-          >
-            查看稽核追蹤（{commitAuditPayload.traceId}）
-          </a>
-        )}
         {commitChunkResults.length > 0 && (
           <div className="space-y-1 rounded-lg border border-white/10 bg-slate-900/60 p-2">
             <p className="text-[11px] font-semibold text-slate-200">Chunk 結果</p>
@@ -222,15 +217,28 @@ export default function SmartDashboardCommitPanel({
           </div>
         )}
         {commitAuditPayload && (
-          <div id="commit-audit-trace" className="space-y-1 rounded-lg border border-cyan-500/20 bg-slate-900/70 p-2">
-            <p className="text-[11px] font-semibold text-cyan-200">Audit Payload</p>
-            <p className="text-[10px] text-slate-300">
-              {commitAuditPayload.traceId} · {commitAuditPayload.createdAt} · new {commitAuditPayload.summary.newPoints} · tag{' '}
-              {commitAuditPayload.summary.globalTagUpdates} · conflict {commitAuditPayload.summary.conflicts}
-            </p>
-            <pre className="max-h-28 overflow-auto rounded bg-slate-950/70 p-2 text-[10px] text-slate-300">
-              {JSON.stringify(commitAuditPayload, null, 2)}
-            </pre>
+          <div id="commit-audit-trace" className="space-y-1.5 rounded-lg border border-cyan-500/20 bg-slate-900/70 p-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-cyan-200">Audit Trace</p>
+              <a
+                href={commitAuditPayload.traceLink}
+                className="text-[10px] text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
+              >
+                {commitAuditPayload.traceId}
+              </a>
+            </div>
+            <p className="text-[10px] text-slate-400">{commitAuditPayload.createdAt}</p>
+            <div className="flex flex-wrap gap-1.5 text-[10px]">
+              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-200">
+                new {commitAuditPayload.summary.newPoints}
+              </span>
+              <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-blue-200">
+                tag {commitAuditPayload.summary.globalTagUpdates}
+              </span>
+              <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-rose-200">
+                conflict {commitAuditPayload.summary.conflicts}
+              </span>
+            </div>
           </div>
         )}
         {hasError && (

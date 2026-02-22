@@ -58,7 +58,7 @@ export default function SmartDashboardFlowStatusSection({
           return (
             <article
               key={segment}
-              className="flex min-h-[100px] flex-col rounded-xl border border-white/10 bg-slate-800/40 p-3"
+              className="flex flex-col rounded-xl border border-white/10 bg-slate-800/40 p-3"
               aria-labelledby={`flow-segment-${segment}-title`}
             >
               <div className="flex items-center justify-between gap-2">

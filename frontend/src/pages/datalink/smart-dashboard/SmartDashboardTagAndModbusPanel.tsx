@@ -1,12 +1,21 @@
+import type { Tag, Point, ModbusShareStatus } from '../../../types/datalink';
+
+/** Tag 編輯暫存結構（僅可編輯欄位） */
+interface PendingTagEdit {
+  display_name: string;
+  unit: string;
+  description: string;
+}
+
 interface SmartDashboardTagAndModbusPanelProps {
   selectedSourceAddress: string;
-  activePointForLink: any;
-  linkedTag: any;
+  activePointForLink: Point | null;
+  linkedTag: Tag | null;
   tagLinkMode: 'existing' | 'create';
   setTagLinkMode: (mode: 'existing' | 'create') => void;
   selectedTagIdForLink: string;
   setSelectedTagIdForLink: (tagId: string) => void;
-  tags: any[];
+  tags: Tag[];
   handleLinkTagToSelectedAddress: () => void;
   updateMappingPending: boolean;
   createMappingPending: boolean;
@@ -26,13 +35,13 @@ interface SmartDashboardTagAndModbusPanelProps {
   setTagEditDescription: (value: string) => void;
   handleSaveLinkedTagEdit: () => void;
   updateTagPending: boolean;
-  pendingTagEdit: any;
+  pendingTagEdit: PendingTagEdit | null;
   handleConfirmTagEdit: () => void;
   clearPendingTagEdit: () => void;
   tagEditMessage: string;
   goToLocalModbusWorkbench: () => void;
   loadModbusStatus: () => void;
-  modbusStatus: any;
+  modbusStatus: ModbusShareStatus | null;
   modbusRegister: string;
   setModbusRegister: (value: string) => void;
   handleBindTagToModbus: () => void;
@@ -90,10 +99,19 @@ export default function SmartDashboardTagAndModbusPanel({
             {selectedSourceAddress || '-'}
           </span>
         </div>
-        <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3 text-[11px] text-slate-300 space-y-2">
-          <p>選取格位: {selectedSourceAddress || '尚未選取'}</p>
-          <p>點位: {activePointForLink?.name || '尚未建立點位'}</p>
-          <p>目前 Tag: {linkedTag?.key || '未連結'}</p>
+        <div className="grid grid-cols-3 gap-1.5 rounded-lg border border-white/10 bg-slate-900/60 p-2.5 text-[11px]">
+          <div>
+            <p className="text-slate-500">格位</p>
+            <p className="mt-0.5 font-mono text-slate-200">{selectedSourceAddress || '—'}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">點位</p>
+            <p className="mt-0.5 truncate text-slate-200">{activePointForLink?.name || '—'}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">Tag</p>
+            <p className="mt-0.5 truncate font-mono text-slate-200">{linkedTag?.key || '—'}</p>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -196,24 +214,26 @@ export default function SmartDashboardTagAndModbusPanel({
               className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
             />
           </label>
-          <label className="block text-[11px] text-slate-300">
-            Unit
-            <input
-              value={tagEditUnit}
-              onChange={(e) => setTagEditUnit(e.target.value)}
-              disabled={!linkedTag}
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-            />
-          </label>
-          <label className="block text-[11px] text-slate-300">
-            Description
-            <input
-              value={tagEditDescription}
-              onChange={(e) => setTagEditDescription(e.target.value)}
-              disabled={!linkedTag}
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
-            />
-          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block text-[11px] text-slate-300">
+              Unit
+              <input
+                value={tagEditUnit}
+                onChange={(e) => setTagEditUnit(e.target.value)}
+                disabled={!linkedTag}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+              />
+            </label>
+            <label className="block text-[11px] text-slate-300">
+              Description
+              <input
+                value={tagEditDescription}
+                onChange={(e) => setTagEditDescription(e.target.value)}
+                disabled={!linkedTag}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
+              />
+            </label>
+          </div>
           <button
             type="button"
             onClick={handleSaveLinkedTagEdit}
@@ -287,10 +307,21 @@ export default function SmartDashboardTagAndModbusPanel({
             </button>
           </div>
         </div>
-        <div className="rounded-lg border border-white/10 bg-slate-900/60 p-3 text-[11px] text-slate-300">
-          <p>狀態: {modbusStatus?.enabled ? 'Running' : 'Stopped'}</p>
-          <p>Address: {modbusStatus?.address || '-'} (Port 5020)</p>
-          <p>Mappings: {modbusStatus?.mapping_count ?? 0}</p>
+        <div className="grid grid-cols-3 gap-1.5 rounded-lg border border-white/10 bg-slate-900/60 p-2.5 text-[11px]">
+          <div>
+            <p className="text-slate-500">狀態</p>
+            <p className={`mt-0.5 font-semibold ${modbusStatus?.enabled ? 'text-emerald-300' : 'text-slate-400'}`}>
+              {modbusStatus?.enabled ? 'Running' : 'Stopped'}
+            </p>
+          </div>
+          <div>
+            <p className="text-slate-500">Address</p>
+            <p className="mt-0.5 font-mono text-slate-200">{modbusStatus?.address || '—'}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">Mappings</p>
+            <p className="mt-0.5 font-semibold text-slate-100">{modbusStatus?.mapping_count ?? 0}</p>
+          </div>
         </div>
         <label className="block text-[11px] text-slate-300">
           Register (Holding)
@@ -300,21 +331,23 @@ export default function SmartDashboardTagAndModbusPanel({
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </label>
-        <div className="grid grid-cols-1 gap-2">
-          <button
-            type="button"
-            onClick={handleBindTagToModbus}
-            className="w-full rounded-lg border border-indigo-500/40 bg-indigo-500/20 px-3 py-2 text-xs font-medium text-indigo-100 hover:bg-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-          >
-            綁定目前 Tag 到 Register
-          </button>
-          <button
-            type="button"
-            onClick={handlePushCurrentValueToModbus}
-            className="w-full rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-          >
-            推送目前值到 Modbus
-          </button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleBindTagToModbus}
+              className="rounded-lg border border-indigo-500/40 bg-indigo-500/20 px-3 py-2 text-xs font-medium text-indigo-100 hover:bg-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+              綁定 Tag 到 Register
+            </button>
+            <button
+              type="button"
+              onClick={handlePushCurrentValueToModbus}
+              className="rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+              推送目前值
+            </button>
+          </div>
           <button
             type="button"
             onClick={handleSyncModbusFromMappings}

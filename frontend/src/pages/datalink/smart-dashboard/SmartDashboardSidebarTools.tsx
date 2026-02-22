@@ -1,8 +1,10 @@
 import { Download, Keyboard, Redo2, Undo2, Upload } from 'lucide-react';
+import type { TFunction } from 'i18next';
+import type { Device } from '../../../types/datalink';
 import { QuickActions } from '../../../components/datalink/QuickActions';
 
 interface SmartDashboardSidebarToolsProps {
-  selectedDevice: any;
+  selectedDevice: Device | null;
   selectedAddressesCount: number;
   onBatchCreate: () => void;
   onOpenWorkbench: () => void;
@@ -16,7 +18,7 @@ interface SmartDashboardSidebarToolsProps {
   undoDescription: string;
   redoDescription: string;
   onOpenShortcuts: () => void;
-  t: (key: string, options?: any) => string;
+  t: TFunction;
 }
 
 export default function SmartDashboardSidebarTools({
