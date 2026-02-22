@@ -147,6 +147,20 @@ export class AddressParser {
     return `${area}${number}`;
   }
 
+  /**
+   * 將位址依協議偏移 delta 格，回傳新位址字串。
+   * 若偏移後數字小於 1 則箝制為 1。
+   */
+  offset(address: string, delta: number, protocol: ProtocolType = 'modbus_tcp'): string {
+    try {
+      const parsed = this.parse(address, protocol);
+      const newNumber = Math.max(1, parsed.startNumber + delta);
+      return this.format(parsed.area, newNumber, protocol, parsed.raw);
+    } catch {
+      return address;
+    }
+  }
+
   validate(address: string, protocol: ProtocolType = 'modbus_tcp'): ValidationResult {
     try {
       this.parse(address, protocol);

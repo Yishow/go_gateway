@@ -240,7 +240,9 @@
       "fullWorkbench": "Full Workbench",
       "bindState": "bind_state",
       "mappingCount": "mapping_count",
-      "conflictCount": "conflict_count"
+      "conflictCount": "conflict_count",
+      "prevRange": "Prev 100 cells",
+      "nextRange": "Next 100 cells"
     },
     "legacyMigration": {
       "title": "Legacy pages consolidated",

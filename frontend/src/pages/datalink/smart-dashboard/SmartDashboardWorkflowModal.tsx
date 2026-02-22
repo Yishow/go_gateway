@@ -29,6 +29,8 @@ interface SmartDashboardWorkflowModalProps {
   requestDeleteDevice: (deviceId: string) => void;
   deletingDeviceId: string | null;
   requestDeviceSwitch: (deviceId: string) => void;
+  /** 點選設備卡片時：切換到該設備（draft 會先啟用再切換），保持連接並關閉 modal */
+  handleSelectDevice: (device: Device) => void;
   isSwitchingDevice: boolean;
   selectedDeviceId: string | null;
   editingDeviceInModal: Device | null;
@@ -58,6 +60,7 @@ export default function SmartDashboardWorkflowModal({
   requestDeleteDevice,
   deletingDeviceId,
   requestDeviceSwitch,
+  handleSelectDevice,
   isSwitchingDevice,
   selectedDeviceId,
   editingDeviceInModal,
@@ -122,7 +125,22 @@ export default function SmartDashboardWorkflowModal({
               </div>
               <div className="mt-3 max-h-[45vh] space-y-2 overflow-auto pr-1 sm:max-h-[380px]">
                 {filteredDevices.map((device) => (
-                  <article key={device.id} className="rounded-xl border border-white/10 bg-slate-800/50 p-3">
+                  <article
+                    key={device.id}
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer rounded-xl border border-white/10 bg-slate-800/50 p-3 transition-colors hover:bg-slate-800/70 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button')) return;
+                      handleSelectDevice(device);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      if ((e.target as HTMLElement).closest('button')) return;
+                      e.preventDefault();
+                      handleSelectDevice(device);
+                    }}
+                  >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-100">{device.name}</p>
@@ -143,32 +161,32 @@ export default function SmartDashboardWorkflowModal({
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => openDeviceSetupModal(device.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeviceSetupModal(device.id);
+                          }}
                           className="min-h-9 rounded-md border border-slate-400/30 bg-slate-700/60 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                         >
                           設定
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleTestDeviceConnection(device.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleTestDeviceConnection(device.id);
+                          }}
                           disabled={testingDeviceId === device.id}
                           className="min-h-9 rounded-md border border-cyan-400/40 bg-cyan-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
                         >
                           {testingDeviceId === device.id ? '測試中...' : '測試連線'}
                         </button>
-                        {device.status === 'draft' ? (
+                        {device.status !== 'draft' && (
                           <button
                             type="button"
-                            onClick={() => void handleToggleDeviceStatusDirect(device.id, true)}
-                            disabled={activatingDeviceId === device.id}
-                            className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                          >
-                            {activatingDeviceId === device.id ? '啟用中...' : '啟用並切換'}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => void handleToggleDeviceStatusDirect(device.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleToggleDeviceStatusDirect(device.id);
+                            }}
                             disabled={activatingDeviceId === device.id}
                             className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                           >
@@ -177,24 +195,20 @@ export default function SmartDashboardWorkflowModal({
                         )}
                         <button
                           type="button"
-                          onClick={() => requestDeleteDevice(device.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            requestDeleteDevice(device.id);
+                          }}
                           disabled={deletingDeviceId === device.id}
                           className="min-h-9 rounded-md border border-rose-400/40 bg-rose-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                         >
                           {deletingDeviceId === device.id ? '刪除中...' : '刪除'}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => requestDeviceSwitch(device.id)}
-                          disabled={isSwitchingDevice || selectedDeviceId === device.id}
-                          className="min-h-9 rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                        >
-                          {isSwitchingDevice
-                            ? '切換中...'
-                            : selectedDeviceId === device.id
-                              ? '目前設備'
-                              : '切換'}
-                        </button>
+                        {selectedDeviceId === device.id && (
+                          <span className="min-h-9 inline-flex items-center rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100">
+                            目前設備
+                          </span>
+                        )}
                       </div>
                     </div>
                   </article>

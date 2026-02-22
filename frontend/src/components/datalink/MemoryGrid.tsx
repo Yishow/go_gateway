@@ -1,9 +1,8 @@
-
-import { useMemo } from 'react';
-import type { ProtocolType, Point, DataType } from '../../types/datalink';
-import { addressParser } from '../../utils/addressParser';
-import type { ConflictSeverity, OccupancyStatus } from '../../features/datalink/typedOccupancy';
-import { resolveConflictSeverity } from '../../features/datalink/typedOccupancy';
+import { useMemo } from "react";
+import type { ProtocolType, Point, DataType } from "../../types/datalink";
+import { addressParser } from "../../utils/addressParser";
+import type { ConflictSeverity, OccupancyStatus } from "../../features/datalink/typedOccupancy";
+import { resolveConflictSeverity } from "../../features/datalink/typedOccupancy";
 
 export interface MemoryGridProps {
   deviceId: string;
@@ -82,8 +81,8 @@ export function MemoryGrid({
 
     const addresses = addressParser.expand(centerAddress, range, protocol);
 
-    return addresses.map(addr => {
-      const point = existingPoints.find(p => p.address === addr);
+    return addresses.map((addr) => {
+      const point = existingPoints.find((p) => p.address === addr);
       const isSelected = selectedAddresses.includes(addr);
       const planned = plannedAddressMap.get(addr);
       const isLinked = linkedAddressSet.has(addr);
@@ -93,13 +92,13 @@ export function MemoryGrid({
             hasUsedPoint: Boolean(point),
             hasLinkedAddress: isLinked,
           })
-        : 'none';
+        : "none";
 
-      let status: GridCellStart['status'] = 'available';
-      if (point) status = 'used';
-      if (isLinked) status = 'linked';
-      if (planned) status = conflictSeverity === 'none' ? 'planned' : 'conflict';
-      if (isSelected && status !== 'conflict') status = 'selected';
+      let status: GridCellStart["status"] = "available";
+      if (point) status = "used";
+      if (isLinked) status = "linked";
+      if (planned) status = conflictSeverity === "none" ? "planned" : "conflict";
+      if (isSelected && status !== "conflict") status = "selected";
 
       return {
         address: addr,
@@ -119,7 +118,7 @@ export function MemoryGrid({
     if (!showConflictsOnly) return cells;
     const visibleIndexSet = new Set<number>();
     cells.forEach((cell, index) => {
-      if (cell.status !== 'conflict') return;
+      if (cell.status !== "conflict") return;
       visibleIndexSet.add(index);
       if (index > 0) visibleIndexSet.add(index - 1);
       if (index < cells.length - 1) visibleIndexSet.add(index + 1);
@@ -132,13 +131,13 @@ export function MemoryGrid({
 
     if (e.ctrlKey || e.metaKey) {
       if (selectedAddresses.includes(cell.address)) {
-        newSelection = selectedAddresses.filter(a => a !== cell.address);
+        newSelection = selectedAddresses.filter((a) => a !== cell.address);
       } else {
         newSelection = [...selectedAddresses, cell.address];
       }
     } else if (e.shiftKey && selectedAddresses.length > 0) {
       const lastSelected = selectedAddresses[selectedAddresses.length - 1];
-      const allAddresses = cells.map(c => c.address);
+      const allAddresses = cells.map((c) => c.address);
       const currentIndex = allAddresses.indexOf(cell.address);
       const lastIndex = allAddresses.indexOf(lastSelected);
 
@@ -160,11 +159,8 @@ export function MemoryGrid({
   };
 
   return (
-    <div 
-      data-testid="memory-grid" 
-      className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 select-none"
-    >
-      {visibleCells.map(cell => (
+    <div data-testid="memory-grid" className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5 p-3 select-none">
+      {visibleCells.map((cell) => (
         <button
           type="button"
           key={cell.address}
@@ -174,40 +170,39 @@ export function MemoryGrid({
           onClick={(e) => handleCellClick(cell, e)}
           aria-label={`Address ${cell.address}, status ${cell.status}`}
           className={`
-            relative aspect-[4/3] border flex flex-col items-center justify-center cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
-            ${cell.status === 'used' 
-              ? 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/30 dark:border-green-500/50 dark:text-green-300' 
-              : cell.status === 'linked'
-                ? 'bg-violet-100 border-violet-500 text-violet-800 dark:bg-violet-900/25 dark:border-violet-500/60 dark:text-violet-200'
-              : cell.status === 'planned'
-                ? 'bg-sky-100 border-sky-500 text-sky-800 dark:bg-sky-900/30 dark:border-sky-500 dark:text-sky-200'
-                : cell.status === 'conflict'
-                  ? 'bg-rose-100 border-rose-500 text-rose-800 dark:bg-rose-900/30 dark:border-rose-500 dark:text-rose-200'
-              : cell.status === 'selected'
-                ? 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-200'
-                : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500'
+            relative aspect-[2/1] border flex flex-col items-center justify-center cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+            ${
+              cell.status === "used"
+                ? "bg-green-100 border-green-500 text-green-800 dark:bg-green-900/30 dark:border-green-500/50 dark:text-green-300"
+                : cell.status === "linked"
+                  ? "bg-violet-100 border-violet-500 text-violet-800 dark:bg-violet-900/25 dark:border-violet-500/60 dark:text-violet-200"
+                  : cell.status === "planned"
+                    ? "bg-sky-100 border-sky-500 text-sky-800 dark:bg-sky-900/30 dark:border-sky-500 dark:text-sky-200"
+                    : cell.status === "conflict"
+                      ? "bg-rose-100 border-rose-500 text-rose-800 dark:bg-rose-900/30 dark:border-rose-500 dark:text-rose-200"
+                      : cell.status === "selected"
+                        ? "bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/30 dark:border-blue-500 dark:text-blue-200"
+                        : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400 dark:bg-zinc-800/50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500"
             }
-            ${!cell.plan || cell.plan.addresses.length <= 1 ? 'rounded-md' : ''}
-            ${cell.plan && cell.plan.addresses.length > 1 && cell.isPlanGroupStart ? 'rounded-l-md rounded-r-none border-l-2' : ''}
-            ${cell.plan && cell.plan.addresses.length > 1 && cell.isPlanGroupEnd ? 'rounded-r-md rounded-l-none border-r-2' : ''}
-            ${cell.plan && cell.plan.addresses.length > 1 && !cell.isPlanGroupStart && !cell.isPlanGroupEnd ? 'rounded-none border-y-2' : ''}
-            ${cell.isSelected ? 'ring-2 ring-blue-400/70' : ''}
+            ${!cell.plan || cell.plan.addresses.length <= 1 ? "rounded-md" : ""}
+            ${cell.plan && cell.plan.addresses.length > 1 && cell.isPlanGroupStart ? "rounded-l-md rounded-r-none border-l-2" : ""}
+            ${cell.plan && cell.plan.addresses.length > 1 && cell.isPlanGroupEnd ? "rounded-r-md rounded-l-none border-r-2" : ""}
+            ${cell.plan && cell.plan.addresses.length > 1 && !cell.isPlanGroupStart && !cell.isPlanGroupEnd ? "rounded-none border-y-2" : ""}
+            ${cell.isSelected ? "ring-2 ring-blue-400/70" : ""}
           `}
           title={
-            cell.status === 'conflict'
+            cell.status === "conflict"
               ? `Conflict (${cell.conflictSeverity}): ${cell.address}`
               : cell.point
                 ? `Point: ${cell.point.name}`
                 : `Address: ${cell.address}`
           }
         >
-          <span className="text-xs font-mono font-bold tracking-tight">
-            {cell.address}
-          </span>
+          <span className="text-[10px] font-mono font-bold tracking-tight">{cell.address}</span>
           {cell.plan && (
-            <span className="mt-0.5 text-[10px] font-semibold tracking-wide opacity-80">
+            <span className="mt-0.5 text-[9px] font-semibold tracking-wide opacity-80">
               {cell.plan.label}
-              {cell.plan.addresses.length > 1 ? ` ${cell.planCellIndex! + 1}/${cell.plan.addresses.length}` : ''}
+              {cell.plan.addresses.length > 1 ? ` ${cell.planCellIndex! + 1}/${cell.plan.addresses.length}` : ""}
             </span>
           )}
           {cell.plan && cell.plan.addresses.length > 1 && (
@@ -215,20 +210,18 @@ export function MemoryGrid({
               #{(cell.planCellIndex ?? 0) + 1}
             </span>
           )}
-          {cell.point && (
-            <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm" />
-          )}
-          {cell.status === 'conflict' && (
+          {cell.point && <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm" />}
+          {cell.status === "conflict" && (
             <div className="absolute inset-x-1 bottom-1 rounded bg-rose-500/20 text-[9px] text-rose-700 dark:text-rose-200 text-center">
-              {cell.conflictSeverity === 'hard' ? '硬衝突' : '軟衝突'}
+              {cell.conflictSeverity === "hard" ? "硬衝突" : "軟衝突"}
             </div>
           )}
         </button>
       ))}
-      
+
       {visibleCells.length === 0 && (
         <div className="col-span-full py-8 text-center text-gray-400">
-          {showConflictsOnly ? '目前沒有衝突格位' : '無位址資料或解析失敗'}
+          {showConflictsOnly ? "目前沒有衝突格位" : "無位址資料或解析失敗"}
         </div>
       )}
     </div>

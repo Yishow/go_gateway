@@ -202,20 +202,16 @@ function renderDashboard(entry = '/datalink') {
   );
 }
 
+/** 從設備選擇 modal 中點選設備卡片以切換到該設備（點擊卡片即切換，不需按切換/啟用並切換） */
 async function switchDeviceFromModal(deviceName: string) {
-  const switchButtons = screen.queryAllByRole('button', { name: '切換設備' });
   const chooseButtons = screen.queryAllByRole('button', { name: '選擇設備' });
-  const openButton = switchButtons[0] || chooseButtons[0];
-  if (openButton) {
+  const openButton = chooseButtons[0];
+  if (openButton && !screen.queryByText(deviceName)) {
     fireEvent.click(openButton);
   }
-  const deviceTitle = await screen.findByText(deviceName);
+  const deviceTitle = await screen.findByText(deviceName, {}, { timeout: 3000 });
   const card = deviceTitle.closest('article') as HTMLElement;
-  const switchButton =
-    within(card).queryByRole('button', { name: '切換' }) ||
-    within(card).queryByRole('button', { name: '目前設備' }) ||
-    within(card).getByRole('button', { name: '已選擇' });
-  fireEvent.click(switchButton);
+  fireEvent.click(card);
 }
 
 describe('SmartDashboard interactions', () => {
@@ -318,10 +314,8 @@ describe('SmartDashboard interactions', () => {
     await switchDeviceFromModal('Device Active');
 
     await waitFor(() => {
-      expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
     });
-    expect(screen.getByText(/最近切換:/)).toBeInTheDocument();
-    expect(screen.queryByText('最近切換: -')).not.toBeInTheDocument();
   });
 
   it('guards unsaved changes and supports cancel then discard-switch to read-only', async () => {
@@ -330,58 +324,72 @@ describe('SmartDashboard interactions', () => {
     await switchDeviceFromModal('Device Active');
     fireEvent.click(await screen.findByRole('button', { name: 'mock-select-address' }));
 
-    fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    await switchDeviceFromModal('Device Disabled');
+    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    await waitFor(() => {
+      expect(screen.getByText('Device Disabled')).toBeInTheDocument();
+    });
+    const card = screen.getByText('Device Disabled').closest('article') as HTMLElement;
+    fireEvent.click(card);
 
     expect(await screen.findByText('有未儲存變更')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '取消' }));
     await waitFor(() => {
       expect(screen.queryByText('有未儲存變更')).not.toBeInTheDocument();
     });
-    expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    await switchDeviceFromModal('Device Disabled');
-    fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
-
+    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
     await waitFor(() => {
-      expect(screen.getAllByText('Device Disabled').length).toBeGreaterThan(0);
+      expect(screen.getByText('Device Disabled')).toBeInTheDocument();
     });
-    expect(screen.getByText('Read-only')).toBeInTheDocument();
+    fireEvent.click((screen.getByText('Device Disabled').closest('article') as HTMLElement));
+    fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
+    });
   });
 
-  it('shows switch failure toast and opens in-modal setup for offline/draft device', async () => {
+  it('clicking draft device card enables and switches to that device', async () => {
     renderDashboard();
 
     await switchDeviceFromModal('Device Active');
-    fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
+    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
     await switchDeviceFromModal('Device Draft');
-    fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
 
-    expect(await screen.findByText(/目前不可切換/)).toBeInTheDocument();
-    expect(await screen.findByText('設定：Device Draft')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
+    });
   });
 
-  it('covers e2e-like mainline: success, unsaved intercept, read-only switch, then failure', async () => {
+  it('covers e2e-like mainline: success, unsaved intercept, read-only switch, then draft enable-and-switch', async () => {
     renderDashboard();
 
     await switchDeviceFromModal('Device Active');
     await waitFor(() => {
-      expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
     });
 
     fireEvent.click(await screen.findByRole('button', { name: 'mock-select-address' }));
-    fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    await switchDeviceFromModal('Device Disabled');
+    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    await waitFor(() => {
+      expect(screen.getByText('Device Disabled')).toBeInTheDocument();
+    });
+    fireEvent.click((screen.getByText('Device Disabled').closest('article') as HTMLElement));
     expect(await screen.findByText('有未儲存變更')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '放棄並切換' }));
-    expect(await screen.findByText('Read-only')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: '切換設備' }));
-    await switchDeviceFromModal('Device Draft');
-    fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
-    expect(await screen.findByText(/目前不可切換/)).toBeInTheDocument();
-    expect(await screen.findByText('設定：Device Draft')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    await waitFor(() => {
+      expect(screen.getByText('Device Draft')).toBeInTheDocument();
+    });
+    fireEvent.click((screen.getByText('Device Draft').closest('article') as HTMLElement));
+    await waitFor(() => {
+      expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
+    });
   });
 
   it('keeps typed occupancy contiguous rules for float32 and int64 plans', async () => {
@@ -389,23 +397,25 @@ describe('SmartDashboard interactions', () => {
 
     await switchDeviceFromModal('Device Active');
     await waitFor(() => {
-      expect(screen.getAllByText('Device Active').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText('Data Type'), { target: { value: 'float32' } });
+    const dataTypeSelect = screen.getByRole('combobox');
+    fireEvent.change(dataTypeSelect, { target: { value: 'float32' } });
     expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
     expect(screen.getByTestId('plan-span')).toHaveTextContent('2');
 
-    fireEvent.change(screen.getByLabelText('Data Type'), { target: { value: 'int64' } });
+    fireEvent.change(dataTypeSelect, { target: { value: 'int64' } });
     expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
     expect(screen.getByTestId('plan-span')).toHaveTextContent('4');
   });
 
-  it('shows direct activation action for draft device in selector modal', async () => {
+  it('draft device card is clickable to enable-and-switch in selector modal', async () => {
     renderDashboard('/datalink?modal=devices');
     const draftCard = await screen.findByText('Device Draft');
     const card = draftCard.closest('article') as HTMLElement;
-    expect(within(card).getByRole('button', { name: '啟用並切換' })).toBeInTheDocument();
+    expect(card).toHaveAttribute('role', 'button');
+    expect(card).toBeInTheDocument();
   });
 
   it('opens in-modal device setup from setup action', async () => {

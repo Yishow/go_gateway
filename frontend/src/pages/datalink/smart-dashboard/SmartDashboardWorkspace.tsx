@@ -43,6 +43,9 @@ interface SmartDashboardWorkspaceProps {
   setSelectedAddresses: (addresses: string[]) => void;
   handleCellClick: (address: string) => void;
   getGridCenterAddress: (protocol: ProtocolType) => string;
+  /** Grid 視窗起始位址（可與 planStartAddress 不同，用於滾輪/按鈕切換 100 格） */
+  gridViewStartAddress: string;
+  onGridViewShift: (delta: number) => void;
   handleChooseDevice: () => void;
   handleCreateDevice: () => void;
 }
@@ -79,6 +82,8 @@ export default function SmartDashboardWorkspace({
   setSelectedAddresses,
   handleCellClick,
   getGridCenterAddress,
+  gridViewStartAddress,
+  onGridViewShift,
   handleChooseDevice,
   handleCreateDevice,
 }: SmartDashboardWorkspaceProps) {
@@ -118,6 +123,8 @@ export default function SmartDashboardWorkspace({
             setSelectedAddresses={setSelectedAddresses}
             handleCellClick={handleCellClick}
             getGridCenterAddress={getGridCenterAddress}
+            gridViewStartAddress={gridViewStartAddress}
+            onGridViewShift={onGridViewShift}
           />
         ) : (
           <SmartDashboardWorkspaceEmptyState

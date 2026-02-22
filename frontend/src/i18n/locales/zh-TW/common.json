@@ -240,7 +240,9 @@
       "fullWorkbench": "完整工作台",
       "bindState": "bind_state",
       "mappingCount": "mapping_count",
-      "conflictCount": "conflict_count"
+      "conflictCount": "conflict_count",
+      "prevRange": "前一區 100 格",
+      "nextRange": "後一區 100 格"
     },
     "legacyMigration": {
       "title": "舊頁面已整併",
