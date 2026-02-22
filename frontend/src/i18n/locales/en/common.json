@@ -172,6 +172,14 @@
       "active": "Active",
       "error": "Error"
     },
+    "flowSegmentNotSet": "Not set",
+    "flowSegmentQuality": {
+      "label": "Status: {{quality}}",
+      "good": "Good",
+      "warning": "Warning",
+      "bad": "Bad",
+      "unknown": "Unknown"
+    },
     "flowErrors": {
       "missingSource": "Select source device, address, and tag mapping first.",
       "missingMapping": "Point-to-tag mapping has not been created.",
@@ -196,6 +204,43 @@
         "title": "Write Target",
         "subtitle": "Data persistence"
       }
+    },
+    "sourcePlanner": {
+      "title": "Source Planner",
+      "cells": "{{dataType}} × {{count}} = {{total}} cells",
+      "conflict": "Conflict",
+      "auto": "Auto",
+      "applyToGrid": "Apply to Grid",
+      "startAddress": "Start Address",
+      "startAddressPlaceholder": "e.g. 40001",
+      "sourceCount": "Source Count",
+      "dataType": "Data Type",
+      "dataTypeOption_int16": "int16 (1 cell)",
+      "dataTypeOption_int32": "int32 (2 cells)",
+      "dataTypeOption_float32": "float32 (2 cells)",
+      "dataTypeOption_int64": "int64 (4 cells)",
+      "dataTypeOption_float64": "float64 (4 cells)",
+      "saveTemplate": "Save Template",
+      "save": "Save",
+      "templatePlaceholder": "e.g. line-a-float32-10",
+      "batchNamePrefix": "Batch Name Prefix",
+      "batchNamePrefixPlaceholder": "e.g. LINEA",
+      "previewCount": "Preview {{count}} items",
+      "conflictCount": "Conflict {{count}}",
+      "showConflictsOnly": "Show conflicts only",
+      "batchNamingHint": "Letters, numbers, underscore, hyphen only; auto-uppercase and 3-digit suffix.",
+      "staleTemplates": "{{count}} legacy template(s) detected. Upgrade to v{{version}} for consistency.",
+      "upgradeTemplates": "Upgrade Templates",
+      "validationError": "Source count must be 1–200 and type cell rules must be valid.",
+      "deleteTemplateAria": "Delete template {{name}}"
+    },
+    "memoryGrid": {
+      "title": "Dashboard Memory Grid",
+      "subtitle": "bind_state / mapping_count / conflict_count (pre-check)",
+      "fullWorkbench": "Full Workbench",
+      "bindState": "bind_state",
+      "mappingCount": "mapping_count",
+      "conflictCount": "conflict_count"
     },
     "legacyMigration": {
       "title": "Legacy pages consolidated",

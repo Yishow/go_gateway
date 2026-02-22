@@ -172,6 +172,14 @@
       "active": "運作中",
       "error": "錯誤"
     },
+    "flowSegmentNotSet": "尚未設定",
+    "flowSegmentQuality": {
+      "label": "狀態：{{quality}}",
+      "good": "正常",
+      "warning": "警告",
+      "bad": "異常",
+      "unknown": "未知"
+    },
     "flowErrors": {
       "missingSource": "請先選擇來源設備、位址與標籤映射",
       "missingMapping": "尚未建立 point 與 tag 的映射",
@@ -196,6 +204,43 @@
         "title": "Write Target",
         "subtitle": "資料寫入"
       }
+    },
+    "sourcePlanner": {
+      "title": "來源規劃",
+      "cells": "{{dataType}} × {{count}} = {{total}} 格",
+      "conflict": "衝突",
+      "auto": "自動",
+      "applyToGrid": "套用到網格",
+      "startAddress": "起始位址",
+      "startAddressPlaceholder": "例如: 40001",
+      "sourceCount": "來源數量",
+      "dataType": "資料型別",
+      "dataTypeOption_int16": "int16 (1 格)",
+      "dataTypeOption_int32": "int32 (2 格)",
+      "dataTypeOption_float32": "float32 (2 格)",
+      "dataTypeOption_int64": "int64 (4 格)",
+      "dataTypeOption_float64": "float64 (4 格)",
+      "saveTemplate": "儲存模板",
+      "save": "儲存",
+      "templatePlaceholder": "例如: line-a-float32-10",
+      "batchNamePrefix": "批次命名前綴",
+      "batchNamePrefixPlaceholder": "例如: LINEA",
+      "previewCount": "預覽 {{count}} 筆",
+      "conflictCount": "衝突 {{count}}",
+      "showConflictsOnly": "只看衝突",
+      "batchNamingHint": "僅允許英數、底線、連字號；自動轉大寫並附加三位流水號。",
+      "staleTemplates": "偵測到 {{count}} 個舊版模板，建議升級到 v{{version}} 以確保流程一致性。",
+      "upgradeTemplates": "升級模板",
+      "validationError": "來源數量需介於 1 到 200，且型別占格規則必須有效。",
+      "deleteTemplateAria": "刪除模板 {{name}}"
+    },
+    "memoryGrid": {
+      "title": "儀表板記憶體格",
+      "subtitle": "bind_state / mapping_count / conflict_count（預檢一致）",
+      "fullWorkbench": "完整工作台",
+      "bindState": "bind_state",
+      "mappingCount": "mapping_count",
+      "conflictCount": "conflict_count"
     },
     "legacyMigration": {
       "title": "舊頁面已整併",
