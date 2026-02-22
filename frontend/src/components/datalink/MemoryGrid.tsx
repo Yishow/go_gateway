@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { ProtocolType, Point, DataType } from "../../types/datalink";
 import { addressParser } from "../../utils/addressParser";
 import type { ConflictSeverity, OccupancyStatus } from "../../features/datalink/typedOccupancy";
-import { resolveConflictSeverity } from "../../features/datalink/typedOccupancy";
+import { getSpanByDataType, resolveConflictSeverity } from "../../features/datalink/typedOccupancy";
 
 export interface MemoryGridProps {
   deviceId: string;
@@ -130,22 +130,75 @@ export function MemoryGrid({
     });
   }, [centerAddress, range, protocol, existingPoints, selectedAddresses, plannedAddressMap, linkedAddressSet]);
 
-  /** 將連續位址依規劃合併為顯示單元：多格型別（float32/int64 等）為一格邏輯單元；僅當該組位址全在可見範圍內才合併 */
+  /** 多格點位：僅「非起始」的位址集合，用於略過已合併的延續格 */
+  const pointCoveredAddresses = useMemo(() => {
+    const set = new Set<string>();
+    existingPoints.forEach((point) => {
+      const span = getSpanByDataType(point.data_type);
+      if (span <= 1) return;
+      const addrs = addressParser.expand(point.address, span, protocol);
+      addrs.slice(1).forEach((addr) => set.add(addr));
+    });
+    return set;
+  }, [existingPoints, protocol]);
+
+  /** 將連續位址依「既有點位資料型別」與「規劃」合併為顯示單元：int16 一格、float32 兩格合一、int64/float64 四格合一；重載後仍依點位 data_type 正確顯示 */
   const displayUnits = useMemo(() => {
     const units: DisplayUnit[] = [];
     let i = 0;
     while (i < cells.length) {
       const cell = cells[i];
+      if (pointCoveredAddresses.has(cell.address)) {
+        i += 1;
+        continue;
+      }
+      const point = cell.point;
+      const pointSpan = point ? getSpanByDataType(point.data_type) : 1;
+      const pointAddrs =
+        point && pointSpan > 1 ? addressParser.expand(point.address, pointSpan, protocol) : [];
+      const canMergeByPoint =
+        point &&
+        pointSpan > 1 &&
+        point.address === cell.address &&
+        pointAddrs.length === pointSpan &&
+        pointAddrs.every((addr, j) => cells[i + j]?.address === addr);
+
+      if (canMergeByPoint) {
+        const s = pointSpan as 2 | 4;
+        let status = cell.status;
+        let conflictSeverity = cell.conflictSeverity;
+        for (let j = 1; j < s; j++) {
+          const c = cells[i + j];
+          if (c?.status === "conflict") {
+            status = "conflict";
+            conflictSeverity = c.conflictSeverity;
+          }
+        }
+        const isSelected = pointAddrs.some((a) => selectedAddresses.includes(a));
+        units.push({
+          addresses: pointAddrs,
+          span: s,
+          status,
+          conflictSeverity,
+          isSelected,
+          plan: cell.plan,
+          point,
+          startCellIndex: i,
+        });
+        i += s;
+        continue;
+      }
+
       const planned = plannedAddressMap.get(cell.address);
       const plan = planned?.plan;
       const addrs = plan?.addresses ?? [];
       const span = addrs.length;
-      const canMerge =
+      const canMergeByPlan =
         planned?.isGroupStart &&
         span > 1 &&
         Array.from({ length: span }, (_, j) => cells[i + j]?.address === addrs[j]).every(Boolean);
 
-      if (canMerge) {
+      if (canMergeByPlan) {
         const s = span as 2 | 4;
         let status = cell.status;
         let conflictSeverity = cell.conflictSeverity;
@@ -157,7 +210,7 @@ export function MemoryGrid({
           }
         }
         const isSelected = addrs.some((a) => selectedAddresses.includes(a));
-        const point = existingPoints.find((p) => p.address === addrs[0]);
+        const pointAtStart = existingPoints.find((p) => p.address === addrs[0]);
         units.push({
           addresses: addrs,
           span: s,
@@ -165,7 +218,7 @@ export function MemoryGrid({
           conflictSeverity,
           isSelected,
           plan: plan!,
-          point,
+          point: pointAtStart,
           startCellIndex: i,
         });
         i += s;
@@ -184,7 +237,7 @@ export function MemoryGrid({
       }
     }
     return units;
-  }, [cells, plannedAddressMap, selectedAddresses, existingPoints]);
+  }, [cells, plannedAddressMap, pointCoveredAddresses, selectedAddresses, existingPoints]);
 
   const conflictVisibleIndexSet = useMemo(() => {
     const set = new Set<number>();
@@ -262,7 +315,7 @@ export function MemoryGrid({
           }}
           aria-label={
             unit.addresses.length > 1
-              ? `${unit.plan?.label ?? "Block"} ${unit.addresses[0]}–${unit.addresses[unit.addresses.length - 1]}, ${unit.status}`
+              ? `${unit.plan?.label ?? unit.point?.name ?? "Block"} ${unit.addresses[0]}–${unit.addresses[unit.addresses.length - 1]}, ${unit.status}`
               : `Address ${unit.addresses[0]}, status ${unit.status}`
           }
           className={`
@@ -306,7 +359,7 @@ export function MemoryGrid({
                 {unit.addresses[0]}–{unit.addresses[unit.addresses.length - 1]}
               </span>
               <span className="mt-0.5 text-[8px] font-semibold tracking-wide opacity-90 leading-tight truncate max-w-full">
-                {unit.plan?.label ?? "Block"} · {unit.plan?.dataType ?? ""}
+                {unit.plan?.label ?? unit.point?.name ?? "Block"} · {unit.plan?.dataType ?? unit.point?.data_type ?? ""}
               </span>
             </>
           )}

@@ -20,6 +20,8 @@ interface UseSmartDashboardTagLinkingParams {
   createMapping: (data: { point_id: string; tag_id: string; enabled: boolean }) => Promise<unknown>;
   updateMapping: (data: { id: string; data: { tag_id: string; enabled: boolean; transform_pipeline: unknown[] } }) => Promise<unknown>;
   updateTag: (data: { id: string; data: UpdateTagRequest }) => Promise<unknown>;
+  /** 連結成功後呼叫，讓 mappings 立即 refetch，格位/點位/Tag 與全域編輯區才能正確顯示 */
+  refetchMappings?: () => Promise<unknown>;
 }
 
 export function useSmartDashboardTagLinking({
@@ -34,6 +36,7 @@ export function useSmartDashboardTagLinking({
   createMapping,
   updateMapping,
   updateTag,
+  refetchMappings,
 }: UseSmartDashboardTagLinkingParams) {
   const [tagLinkMode, setTagLinkMode] = useState<TagLinkMode>('existing');
   const [selectedTagIdForLink, setSelectedTagIdForLink] = useState('');
@@ -84,6 +87,7 @@ export function useSmartDashboardTagLinking({
             transform_pipeline: parsePipeline(),
           },
         });
+        await refetchMappings?.();
         setTagLinkActionMessage(`已更新 ${activePointForLink.address} 的 Tag 連結。`);
         return;
       }
@@ -93,6 +97,7 @@ export function useSmartDashboardTagLinking({
         tag_id: targetTagId,
         enabled: true,
       });
+      await refetchMappings?.();
       setTagLinkActionMessage(`已建立 ${activePointForLink.address} 的 Tag 連結。`);
     } catch (error) {
       const message = error instanceof Error ? error.message : '連結失敗';
@@ -102,6 +107,7 @@ export function useSmartDashboardTagLinking({
     activePointForLink,
     createMapping,
     parsePipeline,
+    refetchMappings,
     selectedMapping,
     selectedTagIdForLink,
     updateMapping,
@@ -148,6 +154,7 @@ export function useSmartDashboardTagLinking({
           enabled: true,
         });
       }
+      await refetchMappings?.();
 
       setSelectedTagIdForLink(createdTag.id);
       setTagLinkActionMessage(`已建立 Tag ${createdTag.key} 並完成連結。`);
@@ -165,6 +172,7 @@ export function useSmartDashboardTagLinking({
     newTagDisplayName,
     newTagKey,
     parsePipeline,
+    refetchMappings,
     selectedMapping,
     tags,
     updateMapping,

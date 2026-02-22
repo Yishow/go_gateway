@@ -44,7 +44,7 @@ import {
 } from "../../hooks/datalink/useMappings";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTagsQuery, useCreateTagMutation, useUpdateTagMutation } from "../../hooks/datalink/useTags";
-import { tagKeys, pointKeys } from "../../hooks/datalink/keys";
+import { tagKeys, pointKeys, mappingKeys } from "../../hooks/datalink/keys";
 import { useSmartDashboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { usePointHistory } from "../../hooks/useHistory";
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from "../../features/flow/stateMachine";
@@ -202,6 +202,10 @@ export default function SmartDashboard() {
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
   const { data: mappings = [] } = useMappingsQuery();
   const queryClient = useQueryClient();
+  const refetchMappings = useCallback(
+    () => queryClient.refetchQueries({ queryKey: mappingKeys.lists() }),
+    [queryClient]
+  );
   const { data: tags = [] } = useTagsQuery();
   const createTagMutation = useCreateTagMutation();
   const updateTagMutation = useUpdateTagMutation();
@@ -378,10 +382,7 @@ export default function SmartDashboard() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!selectedDevice) return;
-    setPlanStartAddress(selectedDevice.protocol.startsWith("modbus") ? "40001" : "D0");
-  }, [selectedDevice]);
+  /** 起始位址預設為空白，由使用者手動輸入或透過 Modbus 區域下拉選單填寫；不依 selectedDevice 自動填入 */
 
   const handleBatchCreate = useCallback(() => {
     if (selectedDeviceId) setPanelType("batch");
@@ -658,8 +659,15 @@ export default function SmartDashboard() {
         return;
       setGridPopoverOpen(false);
     };
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") setGridPopoverOpen(false);
+    };
     document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [gridPopoverOpen]);
 
   const handleCellContextMenu = useCallback(
@@ -761,9 +769,21 @@ export default function SmartDashboard() {
     [allPoints, selectedSourceAddress],
   );
   const activePointForLink = selectedPoint ?? selectedPointFromGrid;
+
+  /** Popover 開啟且為空格位時，以點擊格位為 Tag 面板的選取來源，否則用側欄/網格選取 */
+  const effectiveSelectedSourceAddress =
+    gridPopoverOpen && !gridPopoverPoint ? gridPopoverAddress : selectedSourceAddress;
+  const effectiveActivePointForLink =
+    gridPopoverOpen && !gridPopoverPoint
+      ? allPoints.find((p) => p.address === gridPopoverAddress) ?? null
+      : activePointForLink;
+
   const selectedMapping = useMemo(
-    () => mappings.find((mapping) => activePointForLink && mapping.point_id === activePointForLink.id) || null,
-    [activePointForLink, mappings],
+    () =>
+      mappings.find(
+        (mapping) => effectiveActivePointForLink && mapping.point_id === effectiveActivePointForLink.id
+      ) || null,
+    [effectiveActivePointForLink, mappings],
   );
   const linkedTag = useMemo(
     () => tags.find((tag) => tag.id === selectedMapping?.tag_id) || null,
@@ -810,7 +830,7 @@ export default function SmartDashboard() {
     handleConfirmTagEdit,
     clearPendingTagEdit,
   } = useSmartDashboardTagLinking({
-    activePointForLink,
+    activePointForLink: effectiveActivePointForLink,
     selectedMapping: selectedMapping || undefined,
     tags,
     linkedTag: linkedTag || undefined,
@@ -821,6 +841,7 @@ export default function SmartDashboard() {
     createMapping: createMappingMutation.mutateAsync,
     updateMapping: updateMappingMutation.mutateAsync,
     updateTag: updateTagMutation.mutateAsync,
+    refetchMappings,
   });
   const {
     modbusStatus,
@@ -838,11 +859,11 @@ export default function SmartDashboard() {
     showSuccess,
   });
 
-  /** Tag 面板 props，供側邊欄與網格 Popover 共用 */
+  /** Tag 面板 props，供側邊欄與網格 Popover 共用（Popover 開啟時用點擊格位為來源） */
   const tagPanelProps = useMemo(
     () => ({
-      selectedSourceAddress,
-      activePointForLink: activePointForLink ?? null,
+      selectedSourceAddress: effectiveSelectedSourceAddress,
+      activePointForLink: effectiveActivePointForLink ?? null,
       linkedTag: linkedTag ?? null,
       tagLinkMode,
       setTagLinkMode,
@@ -874,8 +895,8 @@ export default function SmartDashboard() {
       tagEditMessage,
     }),
     [
-      selectedSourceAddress,
-      activePointForLink,
+      effectiveSelectedSourceAddress,
+      effectiveActivePointForLink,
       linkedTag,
       tagLinkMode,
       setTagLinkMode,
@@ -1610,8 +1631,6 @@ export default function SmartDashboard() {
                 t,
               }}
               selectedDevice={selectedDevice}
-              selectedAddressesCount={selectedAddresses.length}
-              onBatchCreate={() => setPanelType("batch")}
               onOpenWorkbench={goToLocalModbusWorkbench}
               onOpenImport={() => setImportDialogOpen(true)}
               onOpenExport={() => setExportDialogOpen(true)}

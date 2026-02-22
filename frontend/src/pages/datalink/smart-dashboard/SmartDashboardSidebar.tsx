@@ -1,4 +1,4 @@
-import { Download, Keyboard, Redo2, Undo2, Upload, LayoutGrid, Plus } from 'lucide-react';
+import { Download, Keyboard, Redo2, Undo2, Upload, LayoutGrid } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import type { Device } from '../../../types/datalink';
 import SmartDashboardPlanningTab, {
@@ -18,8 +18,6 @@ export type SidebarTab = 'plan' | 'tag' | 'modbus' | 'commit';
 
 interface MiniToolbarProps {
   selectedDevice: Device | null;
-  selectedAddressesCount: number;
-  onBatchCreate: () => void;
   onOpenWorkbench: () => void;
   onOpenImport: () => void;
   onOpenExport: () => void;
@@ -64,8 +62,6 @@ export default function SmartDashboardSidebar({
   modbusPanelProps,
   commitPanelProps,
   selectedDevice,
-  selectedAddressesCount,
-  onBatchCreate,
   onOpenWorkbench,
   onOpenImport,
   onOpenExport,
@@ -83,22 +79,6 @@ export default function SmartDashboardSidebar({
     <div className="flex h-full flex-col overflow-hidden">
       {/* ── Mini Toolbar ── */}
       <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-white/5 px-3 py-2">
-        {selectedDevice && (
-          <button
-            type="button"
-            onClick={onBatchCreate}
-            disabled={selectedAddressesCount === 0}
-            title={`批量建立點位${selectedAddressesCount > 0 ? ` (${selectedAddressesCount})` : ''}`}
-            className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
-            <Plus className="h-4 w-4" />
-            {selectedAddressesCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white">
-                {selectedAddressesCount > 9 ? '9+' : selectedAddressesCount}
-              </span>
-            )}
-          </button>
-        )}
         <button
           type="button"
           onClick={onOpenWorkbench}
