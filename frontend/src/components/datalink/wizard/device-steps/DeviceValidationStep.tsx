@@ -31,7 +31,7 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
       setResult({
         device_id: deviceId,
         status: 'error',
-        checks: [{ name: 'API Check', pass: false, message: 'Failed to communicate with server' }]
+        checks: [{ name: 'API 檢查', pass: false, message: '無法與伺服器通訊' }]
       });
       onValidationComplete(false);
     }
@@ -47,7 +47,7 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-        <p className="text-slate-400">Verifying device configuration...</p>
+        <p className="text-slate-400">正在驗證設備配置，請稍候...</p>
       </div>
     );
   }
@@ -57,7 +57,7 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
       <div>
-        <h3 className="text-lg font-medium text-slate-200 mb-4">Connection Verification</h3>
+        <h3 className="text-lg font-medium text-slate-200 mb-4">連線驗證</h3>
         
         <div className={`mb-6 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:gap-4 ${
           result.status === 'ready' ? 'bg-green-500/10 border-green-500/30' :
@@ -74,11 +74,13 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
                {result.status === 'error' && <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>}
            </div>
            <div>
-               <h4 className="font-medium text-slate-200 uppercase tracking-wide text-sm">{result.status}</h4>
+               <h4 className="font-medium text-slate-200 uppercase tracking-wide text-sm">
+                 {result.status === 'ready' ? '就緒' : result.status === 'warning' ? '警告' : '錯誤'}
+               </h4>
                <p className="text-slate-400 text-sm">
-                   {result.status === 'ready' ? 'Device is reachable and configured correctly.' :
-                    result.status === 'warning' ? 'Device is reachable but has configuration warnings.' :
-                    'Device configuration failed validation checks.'}
+                   {result.status === 'ready' ? '設備連線成功，配置正確。' :
+                    result.status === 'warning' ? '設備可連線，但配置有警告。' :
+                    '設備配置驗證失敗。'}
                </p>
            </div>
         </div>
@@ -105,7 +107,7 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
                     onClick={runCheck}
                     className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                    Retry Verification
+                    重新驗證
                 </button>
             </div>
         )}

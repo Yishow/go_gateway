@@ -20,18 +20,18 @@ export default function DeviceIdentityStep({
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
       <div>
-        <h3 className="text-lg font-medium text-slate-200 mb-4">Device Basics</h3>
+        <h3 className="text-lg font-medium text-slate-200 mb-4">設備基本資料</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Device Name <span className="text-red-400">*</span>
+              設備名稱 <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => onChange({ name: e.target.value })}
               className={`w-full bg-slate-900 border ${error?.name ? 'border-red-500' : 'border-slate-700'} rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 transition-colors`}
-              placeholder="e.g. Production Line PLC 01"
+              placeholder="例：產線 PLC-01"
               autoFocus
             />
             {error?.name && <p className="text-sm text-red-400 mt-1">{error.name}</p>}
@@ -39,21 +39,21 @@ export default function DeviceIdentityStep({
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1">
-              Description
+              描述（選填）
             </label>
             <textarea
               value={description}
               onChange={(e) => onChange({ description: e.target.value })}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none"
               rows={3}
-              placeholder="Optional description..."
+              placeholder="選填描述..."
             />
           </div>
         </div>
       </div>
 
       <div>
-        <h3 className="text-lg font-medium text-slate-200 mb-4">Communication Protocol</h3>
+        <h3 className="text-lg font-medium text-slate-200 mb-4">通訊協議</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {protocols.map((p) => (
             <div

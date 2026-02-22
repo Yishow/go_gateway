@@ -70,12 +70,12 @@ export default function SmartDashboardWorkflowModal({
   if (!modalIntent) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-      <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900 to-slate-950 p-4 shadow-2xl">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-indigo-200/80">Dashboard Modal</p>
-            <h3 className="text-base font-semibold text-slate-100">{modalIntentLabel}</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-2 sm:p-4">
+      <div className="my-auto flex w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900 to-slate-950 p-3 shadow-2xl sm:my-0 sm:max-h-[95dvh] sm:p-4">
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-wider text-indigo-200/80 sm:text-xs">Dashboard Modal</p>
+            <h3 className="truncate text-base font-semibold text-slate-100">{modalIntentLabel}</h3>
           </div>
           <button
             type="button"
@@ -86,19 +86,20 @@ export default function SmartDashboardWorkflowModal({
           </button>
         </div>
         {modalIntent === 'devices' ? (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
-              <div className="flex flex-wrap items-center gap-2">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+            <section className="flex min-h-0 flex-col rounded-2xl border border-white/10 bg-slate-900/60 p-3 sm:p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 <input
                   value={deviceSearchQuery}
                   onChange={(e) => setDeviceSearchQuery(e.target.value)}
                   placeholder="搜尋設備名稱 / protocol / ID"
-                  className="min-h-11 flex-1 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:min-w-[180px]"
                 />
                 <select
                   value={deviceStatusFilter}
                   onChange={(e) => setDeviceStatusFilter(e.target.value as DeviceStatusFilter)}
-                  className="min-h-11 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto sm:min-w-[120px]"
                 >
                   <option value="all">全部狀態</option>
                   <option value="active">active</option>
@@ -108,21 +109,21 @@ export default function SmartDashboardWorkflowModal({
                 <button
                   type="button"
                   onClick={handleCreateDevice}
-                  className="min-h-11 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="min-h-11 w-full shrink-0 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:w-auto"
                 >
                   新增設備
                 </button>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="rounded-lg border border-white/10 bg-slate-800/60 p-2 text-xs text-slate-300">總數: <span className="font-semibold text-slate-100">{deviceSummary.total}</span></div>
                 <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs text-emerald-200">active: <span className="font-semibold">{deviceSummary.active}</span></div>
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">disabled: <span className="font-semibold">{deviceSummary.disabled}</span></div>
                 <div className="rounded-lg border border-slate-500/40 bg-slate-800/60 p-2 text-xs text-slate-300">draft: <span className="font-semibold text-slate-100">{deviceSummary.draft}</span></div>
               </div>
-              <div className="mt-3 max-h-[380px] space-y-2 overflow-auto pr-1">
+              <div className="mt-3 max-h-[45vh] space-y-2 overflow-auto pr-1 sm:max-h-[380px]">
                 {filteredDevices.map((device) => (
                   <article key={device.id} className="rounded-xl border border-white/10 bg-slate-800/50 p-3">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-100">{device.name}</p>
                         <p className="mt-1 text-[11px] font-mono text-slate-400">{device.id.slice(0, 8)} · {device.protocol}</p>
@@ -137,8 +138,8 @@ export default function SmartDashboardWorkflowModal({
                         {device.status}
                       </span>
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-[11px] text-slate-400">上次測試: {device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-'}</p>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                      <p className="min-w-0 truncate text-[11px] text-slate-400">上次測試: {device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-'}</p>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
@@ -205,11 +206,11 @@ export default function SmartDashboardWorkflowModal({
                 )}
               </div>
             </section>
-            <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-slate-400">Device Setup</p>
-                  <h4 className="text-sm font-semibold text-slate-100">
+            <section className="flex min-h-0 flex-col rounded-2xl border border-white/10 bg-slate-900/60 p-3 sm:p-4">
+              <div className="flex shrink-0 items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400 sm:text-xs">Device Setup</p>
+                  <h4 className="truncate text-sm font-semibold text-slate-100">
                     {editingDeviceInModal ? `設定：${editingDeviceInModal.name}` : '請先選擇設備'}
                   </h4>
                 </div>
@@ -257,7 +258,7 @@ export default function SmartDashboardWorkflowModal({
                         : '刪除設備'}
                     </button>
                   </div>
-                  <div className="max-h-[52vh] overflow-auto rounded-xl border border-white/10 bg-slate-900/70 p-3">
+                  <div className="max-h-[45vh] overflow-auto rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:max-h-[52vh]">
                     <DeviceForm
                       device={editingDeviceInModal}
                       onSubmit={handleSubmitDeviceSetup}
@@ -271,6 +272,7 @@ export default function SmartDashboardWorkflowModal({
                 </div>
               )}
             </section>
+            </div>
           </div>
         ) : (
           <>

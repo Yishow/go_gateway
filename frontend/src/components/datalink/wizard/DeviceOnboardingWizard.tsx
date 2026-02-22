@@ -18,7 +18,7 @@ interface WizardFormData {
   name: string;
   description: string;
   protocol: ProtocolType | '';
-  config: Record<string, string | number | string[] | undefined>;
+  config: Record<string, string | number | boolean | string[] | undefined>;
 }
 
 const INITIAL_DATA: WizardFormData = {
@@ -29,10 +29,10 @@ const INITIAL_DATA: WizardFormData = {
 };
 
 const STEPS = [
-  { id: 'identity', title: 'Device Basics', description: 'Identity & Protocol', icon: '📱' },
-  { id: 'connection', title: 'Connection', description: 'Network Settings', icon: '🔌' },
-  { id: 'validation', title: 'Validation', description: 'Verify Connectivity', icon: '🔍' },
-  { id: 'complete', title: 'Complete', description: 'Ready to Run', icon: '✅' },
+  { id: 'identity', title: '設備資料', description: '名稱與協議', icon: '📱' },
+  { id: 'connection', title: '連線設定', description: '網路參數', icon: '🔌' },
+  { id: 'validation', title: '驗證測試', description: '連線驗證', icon: '🔍' },
+  { id: 'complete', title: '完成', description: '準備就緒', icon: '✅' },
 ];
 
 interface DeviceOnboardingWizardProps {
@@ -72,8 +72,8 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
   const validateStep = (step: number) => {
     const newErrors: Record<string, string> = {};
     if (step === 0) {
-      if (!formData.name) newErrors.name = 'Device name is required';
-      if (!formData.protocol) newErrors.protocol = 'Protocol is required';
+      if (!formData.name) newErrors.name = '請填寫設備名稱';
+      if (!formData.protocol) newErrors.protocol = '請選擇通訊協議';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -107,15 +107,15 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
       } catch (err: unknown) {
         const message =
           typeof err === 'object' && err !== null && 'message' in err
-            ? String((err as { message?: string }).message ?? 'Failed to save device')
-            : 'Failed to save device';
+            ? String((err as { message?: string }).message ?? '儲存設備失敗')
+            : '儲存設備失敗';
         showError(message);
         return;
       }
     } else if (currentStep === 2) {
       // Validation step
       if (!isValidated) {
-          showError("Please ensure validation passes before proceeding.");
+          showError('請確認驗證通過後再繼續。');
           return;
       }
       
@@ -123,7 +123,7 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
       if (deviceId) {
           try {
               await toggleStatusMutation.mutateAsync({ id: deviceId, currentStatus: 'draft' }); // activating
-              showSuccess("Device activated successfully!");
+              showSuccess('設備已成功啟用！');
               if (embedded) {
                 onActivated?.(deviceId);
               } else {
@@ -132,9 +132,9 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
           } catch(err: unknown) {
               const message =
                 typeof err === 'object' && err !== null && 'message' in err
-                  ? String((err as { message?: string }).message ?? 'Unknown error')
-                  : 'Unknown error';
-              showError("Failed to activate device: " + message);
+                  ? String((err as { message?: string }).message ?? '未知錯誤')
+                  : '未知錯誤';
+              showError('設備啟用失敗：' + message);
           }
       }
     } else {
@@ -165,11 +165,11 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
           <DeviceConnectionStep
             protocol={formData.protocol as ProtocolType}
             config={formData.config}
-            onChange={(cfg) => updateFormData({ config: cfg })}
+            onChange={(cfg: Record<string, string | number | boolean | string[] | undefined>) => updateFormData({ config: cfg })}
           />
         );
       case 2:
-        if (!deviceId) return <div className="text-red-400">Error: Device ID missing</div>;
+        if (!deviceId) return <div className="text-red-400">錯誤：找不到設備 ID</div>;
         return (
           <DeviceValidationStep
             deviceId={deviceId}
@@ -200,8 +200,8 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
   return (
     <div className="mx-auto w-full max-w-4xl px-3 py-4 sm:p-6">
       <div className="mb-4 sm:mb-8">
-        <h1 className="text-xl font-bold text-slate-100 mb-1 sm:mb-2 sm:text-2xl">New Device Onboarding</h1>
-        <p className="text-sm text-slate-400 sm:text-base">Follow the steps to configure and validate your new industrial device.</p>
+        <h1 className="text-xl font-bold text-slate-100 mb-1 sm:mb-2 sm:text-2xl">新增設備</h1>
+        <p className="text-sm text-slate-400 sm:text-base">依照步驟完成工業設備的設定與連線驗證。</p>
       </div>
 
       <StepIndicator
@@ -228,7 +228,7 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
              }}
              className="w-full rounded-xl px-6 py-3 font-medium text-slate-300 transition-colors hover:text-white sm:w-auto sm:py-2.5"
           >
-            {currentStep === 0 ? 'Cancel' : 'Back'}
+            {currentStep === 0 ? '取消' : '上一步'}
           </button>
           
           <button
@@ -239,7 +239,7 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
                 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5
             `}
           >
-            {currentStep === STEPS.length - 2 ? 'Complete & Activate' : 'Next Step'}
+            {currentStep === STEPS.length - 2 ? '完成並啟用' : '下一步'}
             {/* The STEPS array has 4 items. 'validation' is index 2. 'complete' is index 3.
                 My handleNext logic handles completion at step 2 (validation) -> activate.
                 Wait, I have a 'Complete' step in STEPS but distinct logic?
