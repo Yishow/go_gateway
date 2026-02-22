@@ -76,7 +76,6 @@ import {
   isDashboardModalIntent,
   isDashboardSectionIntent,
   isLegacyDecommissionRoute,
-  type DashboardModalIntent,
 } from '../../features/datalink/legacyRoutes';
 import { estimatePollingLoadDelta } from '../../features/datalink/pollingLoadEstimate';
 import {
@@ -92,17 +91,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const FLOW_SEGMENTS: FlowSegment[] = ['source', 'grid', 'tag', 'sink'];
 const COMMIT_CHUNK_SIZE = 8;
-const DASHBOARD_TABS = ['overview', 'devices', 'settings'] as const;
-type DashboardTab = (typeof DASHBOARD_TABS)[number];
-const DASHBOARD_MODAL_ORDER: DashboardModalIntent[] = [
-  'devices',
-  'settings',
-  'points',
-  'mappings',
-  'wizard',
-  'polling-groups',
-  'tags',
-];
+type DashboardTab = 'overview' | 'devices' | 'settings';
 
 const STATUS_STYLE: Record<FlowStatus, string> = {
   draft: 'bg-slate-700/70 text-slate-200 border-slate-600',
@@ -170,7 +159,6 @@ export default function SmartDashboard() {
   const rawModalIntent = searchParams.get('modal');
   const createDeviceIntent = searchParams.get('createDevice');
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
-  const [lastSwitchedAt, setLastSwitchedAt] = useState<string | null>(null);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
@@ -270,67 +258,6 @@ export default function SmartDashboard() {
     if (modalIntent === 'tags') return t('nav.tags');
     return modalIntent;
   }, [modalIntent, t]);
-  const modalQuickLinks = useMemo(
-    () =>
-      DASHBOARD_MODAL_ORDER.map((item) => ({
-        key: item,
-        label:
-          item === 'polling-groups'
-            ? t('nav.pollingGroups')
-            : item === 'wizard'
-              ? t('nav.mappingWizard')
-              : item === 'mappings'
-                ? t('nav.mappings')
-                : item === 'points'
-                  ? t('nav.points')
-                  : item === 'devices'
-                    ? t('nav.devices')
-                    : item === 'settings'
-                      ? t('nav.settings')
-                      : t('nav.tags'),
-      })),
-    [t]
-  );
-  const dashboardTabs = useMemo(
-    () =>
-      DASHBOARD_TABS.map((tab) => ({
-        key: tab,
-        label:
-          tab === 'overview'
-            ? t('nav.dashboard')
-            : tab === 'devices'
-              ? t('nav.devices')
-              : t('nav.settings'),
-      })),
-    [t]
-  );
-  const selectedDeviceState = useMemo<'active' | 'offline' | 'readonly'>(() => {
-    if (!selectedDevice) return 'offline';
-    if (selectedDevice.status === 'active') return 'active';
-    if (selectedDevice.status === 'disabled') return 'readonly';
-    return 'offline';
-  }, [selectedDevice]);
-  const selectedDeviceStateView = useMemo(() => {
-    if (selectedDeviceState === 'active') {
-      return {
-        label: t('smartDashboard.connected'),
-        className: 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300',
-        dotClass: 'bg-emerald-400',
-      };
-    }
-    if (selectedDeviceState === 'readonly') {
-      return {
-        label: 'Read-only',
-        className: 'bg-amber-500/10 border border-amber-500/30 text-amber-300',
-        dotClass: 'bg-amber-400',
-      };
-    }
-    return {
-      label: t('smartDashboard.disconnected'),
-      className: 'bg-rose-500/10 border border-rose-500/30 text-rose-300',
-      dotClass: 'bg-rose-400',
-    };
-  }, [selectedDeviceState, t]);
 
   const cellSpan = getSpanByDataType(planDataType);
   const typedPlanValidation = useMemo(
@@ -837,14 +764,6 @@ export default function SmartDashboard() {
     next.delete('modal');
     setSearchParams(next, { replace: true });
   }, [modalIntent, searchParams, setSearchParams]);
-  const openWorkflowModal = useCallback(
-    (nextModal: DashboardModalIntent) => {
-      const next = new URLSearchParams(searchParams);
-      next.set('modal', nextModal);
-      setSearchParams(next, { replace: true });
-    },
-    [searchParams, setSearchParams]
-  );
   const goToLocalModbusWorkbench = useCallback(() => {
     const section = activeTab;
     navigate(`/datalink/local-modbus?section=${section}`);
@@ -891,21 +810,6 @@ export default function SmartDashboard() {
       }
     },
     [showError, showSuccess, testConnectionMutation]
-  );
-  const handleSelectTab = useCallback(
-    (tab: DashboardTab) => {
-      setActiveTab(tab);
-      if (tab === 'overview') {
-        if (modalIntent) closeWorkflowModal();
-        return;
-      }
-      if (tab === 'devices') {
-        openWorkflowModal('devices');
-        return;
-      }
-      openWorkflowModal('settings');
-    },
-    [closeWorkflowModal, modalIntent, openWorkflowModal]
   );
   const handleChooseDevice = useCallback(() => {
     setActiveTab('devices');
@@ -1026,10 +930,6 @@ export default function SmartDashboard() {
     setEditingDeviceInModal(refreshed);
   }, [devices, editingDeviceInModal]);
 
-  useEffect(() => {
-    if (!selectedDeviceId) return;
-    setLastSwitchedAt(new Date().toISOString());
-  }, [selectedDeviceId]);
   useEffect(() => {
     if (selectedDeviceId || devices.length === 0) return;
     setActiveTab('devices');
@@ -1353,21 +1253,8 @@ export default function SmartDashboard() {
         closeWorkflowModal={closeWorkflowModal}
       />
       <SmartDashboardControlBar
-        tabs={dashboardTabs}
-        activeTab={activeTab}
-        onSelectTab={handleSelectTab}
-        selectedDevice={selectedDevice}
-        selectedDeviceStateView={selectedDeviceStateView}
-        lastSwitchedAt={lastSwitchedAt}
-        modalQuickLinks={modalQuickLinks}
-        modalIntent={modalIntent}
-        onOpenWorkflowModal={openWorkflowModal}
         onChooseDevice={handleChooseDevice}
         onCreateDevice={handleCreateDevice}
-        isSwitchingDevice={isSwitchingDevice}
-        hasUnsavedChanges={hasUnsavedChanges}
-        lastSyncLabel={t('smartDashboard.lastSync')}
-        cycleTimeLabel={t('smartDashboard.cycleTime')}
       />
       <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4 min-h-0">
         <SmartDashboardWorkspace

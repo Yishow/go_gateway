@@ -19,7 +19,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
       case 'modbus_tcp':
         return (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor={fieldId('host')} className="label">Host IP Address</label>
                 <input
@@ -44,7 +44,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor={fieldId('slave-id')} className="label">Slave ID</label>
                 <input
@@ -85,7 +85,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                         placeholder={window.navigator.userAgent.includes('Win') ? 'COM1' : '/dev/ttyUSB0'}
                     />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label htmlFor={fieldId('baud-rate')} className="label">Baud Rate</label>
                         <select
@@ -114,7 +114,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                         </select>
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                      <div>
                         <label htmlFor={fieldId('parity')} className="label">Parity</label>
                         <select
@@ -143,7 +143,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                         </select>
                     </div>
                 </div>
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label htmlFor={fieldId('rtu-slave-id')} className="label">Slave ID</label>
                         <input
@@ -175,7 +175,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
           <>
             <div className="mb-4">
                <p className="label">Connection Mode</p>
-               <div className="flex space-x-4">
+               <div className="flex flex-wrap gap-3 sm:gap-4">
                   <label htmlFor={fieldId('mode-tcp')} className="flex items-center space-x-2 cursor-pointer">
                       <input 
                         id={fieldId('mode-tcp')}
@@ -202,7 +202,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
             </div>
 
             {config.mode === 'tcp' ? (
-                 <div className="grid grid-cols-2 gap-4 fade-in">
+                 <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2">
                     <div>
                         <label htmlFor={fieldId('fatek-host')} className="label">Host IP</label>
                         <input
@@ -228,7 +228,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                     </div>
                 </div>
             ) : (
-                 <div className="grid grid-cols-2 gap-4 fade-in">
+                 <div className="grid grid-cols-1 gap-4 fade-in sm:grid-cols-2">
                      <div>
                         <label htmlFor={fieldId('fatek-serial-port')} className="label">Serial Port</label>
                         <input
@@ -258,7 +258,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                 </div>
             )}
             
-            <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label htmlFor={fieldId('fatek-station-no')} className="label">Station Number</label>
                     <input
@@ -300,7 +300,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                         placeholder="tcp://broker.hivemq.com:1883"
                     />
                 </div>
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label htmlFor={fieldId('client-id')} className="label">Client ID</label>
                         <input
@@ -325,7 +325,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                         </label>
                     </div>
                 </div>
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label htmlFor={fieldId('username')} className="label">Username (Optional)</label>
                         <input

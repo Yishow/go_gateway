@@ -198,10 +198,10 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
     // This is a common issue. I should pre-populate config when protocol is selected.
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-100 mb-2">New Device Onboarding</h1>
-        <p className="text-slate-400">Follow the steps to configure and validate your new industrial device.</p>
+    <div className="mx-auto w-full max-w-4xl px-3 py-4 sm:p-6">
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-xl font-bold text-slate-100 mb-1 sm:mb-2 sm:text-2xl">New Device Onboarding</h1>
+        <p className="text-sm text-slate-400 sm:text-base">Follow the steps to configure and validate your new industrial device.</p>
       </div>
 
       <StepIndicator
@@ -209,12 +209,12 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
         currentStep={currentStep}
       />
 
-      <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8 mt-8 shadow-xl">
-        <div className="min-h-[400px]">
+      <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-800 p-4 shadow-xl sm:mt-8 sm:p-8">
+        <div className="min-h-[240px] sm:min-h-[400px]">
           {renderContent()}
         </div>
 
-        <div className="flex justify-between pt-8 border-t border-slate-700 mt-8">
+        <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-700 pt-6 sm:mt-8 sm:flex-row sm:justify-between sm:gap-0">
           <button
              onClick={() => {
                  if (currentStep === 0) {
@@ -226,7 +226,7 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
                  }
                  else handleBack();
              }}
-             className="px-6 py-2.5 text-slate-300 hover:text-white transition-colors font-medium"
+             className="w-full rounded-xl px-6 py-3 font-medium text-slate-300 transition-colors hover:text-white sm:w-auto sm:py-2.5"
           >
             {currentStep === 0 ? 'Cancel' : 'Back'}
           </button>
@@ -235,8 +235,8 @@ export default function DeviceOnboardingWizard({ embedded = false, onClose, onAc
             onClick={handleNext}
             disabled={currentStep === 2 && !isValidated}
             className={`
-                px-8 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20 
-                disabled:opacity-50 disabled:cursor-not-allowed
+                w-full rounded-xl bg-blue-600 px-8 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500
+                disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5
             `}
           >
             {currentStep === STEPS.length - 2 ? 'Complete & Activate' : 'Next Step'}

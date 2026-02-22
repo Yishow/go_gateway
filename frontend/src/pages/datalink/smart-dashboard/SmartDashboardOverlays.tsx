@@ -116,9 +116,9 @@ export default function SmartDashboardOverlays({
       )}
 
       {isCreateDeviceModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-3 sm:p-4">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-slate-900/95 p-3 shadow-2xl sm:p-4">
-            <div className="mb-2 flex items-center justify-between">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-2 sm:p-4">
+          <div className="flex max-h-[95dvh] w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-slate-900/95 p-3 shadow-2xl sm:max-h-[92vh] sm:p-4">
+            <div className="mb-2 flex shrink-0 items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-100">設備建立流程</h3>
               <button
                 type="button"
@@ -128,7 +128,7 @@ export default function SmartDashboardOverlays({
                 關閉
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
               <DeviceOnboardingWizard
                 embedded
                 onClose={closeCreateDeviceModal}

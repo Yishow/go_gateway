@@ -59,7 +59,7 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
       <div>
         <h3 className="text-lg font-medium text-slate-200 mb-4">Connection Verification</h3>
         
-        <div className={`p-4 rounded-xl border mb-6 flex items-center space-x-4 ${
+        <div className={`mb-6 flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:gap-4 ${
           result.status === 'ready' ? 'bg-green-500/10 border-green-500/30' :
           result.status === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30' :
           'bg-red-500/10 border-red-500/30'
@@ -85,8 +85,8 @@ export default function DeviceValidationStep({ deviceId, onValidationComplete }:
 
         <div className="space-y-3">
             {result.checks.map((check, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg border border-slate-700">
-                    <div className="flex items-center space-x-3">
+                <div key={idx} className="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-900 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
+                    <div className="flex items-center gap-3">
                         {check.pass ? (
                              <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                         ) : (
