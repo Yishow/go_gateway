@@ -237,7 +237,7 @@ export function MemoryGrid({
       }
     }
     return units;
-  }, [cells, plannedAddressMap, pointCoveredAddresses, selectedAddresses, existingPoints]);
+  }, [cells, plannedAddressMap, pointCoveredAddresses, selectedAddresses, existingPoints, protocol]);
 
   const conflictVisibleIndexSet = useMemo(() => {
     const set = new Set<number>();

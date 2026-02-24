@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ThemeToggle } from './ThemeToggle'
 
 // Simple Icons
@@ -19,6 +20,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const { t } = useTranslation()
   const location = useLocation()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -33,9 +35,17 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex overflow-hidden bg-gray-50 dark:bg-[#0f172a]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-blue-600 focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        {t('layout.skipToMainContent')}
+      </a>
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
+          role="presentation"
+          aria-hidden="true"
           className="fixed inset-0 bg-gray-800 bg-opacity-50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -62,10 +72,10 @@ export default function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 min-h-0 px-4 py-6 space-y-1 overflow-y-auto">
+          <nav className="flex-1 min-h-0 px-4 py-6 space-y-1 overflow-y-auto" aria-label={t('layout.mainNav')}>
             {navItems.map((item) => {
               // 特殊處理首頁：當路徑是 /datalink 或其子路由時，都視為 active
-              const isActive = item.path === '/datalink' 
+              const isActive = item.path === '/datalink'
                 ? location.pathname === '/datalink' || location.pathname.startsWith('/datalink/')
                 : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
               return (
@@ -75,8 +85,9 @@ export default function Layout({ children }: LayoutProps) {
                   onClick={() => setIsSidebarOpen(false)}
                   className={`
                     flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group relative
-                    ${isActive 
-                      ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' 
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900
+                    ${isActive
+                      ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200'
                     }
                   `}
@@ -107,8 +118,10 @@ export default function Layout({ children }: LayoutProps) {
         {/* Mobile Header */}
         <header className="lg:hidden bg-white dark:bg-gray-900/80 backdrop-blur-lg shadow-sm border-b border-gray-200 dark:border-gray-800 h-16 flex items-center justify-between px-4 flex-shrink-0 relative z-30">
           <button
+            type="button"
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none"
+            aria-label={t('layout.openSidebar')}
+            className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
           >
             <Icons.Menu />
           </button>
@@ -117,7 +130,7 @@ export default function Layout({ children }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 lg:pb-32 min-h-full">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 lg:pb-32 min-h-full">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

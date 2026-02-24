@@ -8,6 +8,7 @@
     "update": "更新",
     "confirm": "確認",
     "close": "關閉",
+    "closeNotification": "關閉通知",
     "loading": "載入中...",
     "saving": "儲存中...",
     "error": "錯誤",
@@ -132,7 +133,10 @@
     "openSidebar": "開啟側邊欄",
     "closeSidebar": "關閉側邊欄",
     "notifications": "通知",
-    "languageSelector": "語言選擇器"
+    "languageSelector": "語言選擇器",
+    "skipToMainContent": "跳至主內容",
+    "toggleTheme": "切換主題",
+    "mainNav": "主要導航"
   },
   "smartDashboard": {
     "productSubtitle": "工業資料採集平台",

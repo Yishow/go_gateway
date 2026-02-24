@@ -8,6 +8,7 @@
     "update": "Update",
     "confirm": "Confirm",
     "close": "Close",
+    "closeNotification": "Close notification",
     "loading": "Loading...",
     "saving": "Saving...",
     "error": "Error",
@@ -132,7 +133,10 @@
     "openSidebar": "Open sidebar",
     "closeSidebar": "Close sidebar",
     "notifications": "Notifications",
-    "languageSelector": "Language selector"
+    "languageSelector": "Language selector",
+    "skipToMainContent": "Skip to main content",
+    "toggleTheme": "Toggle theme",
+    "mainNav": "Main navigation"
   },
   "smartDashboard": {
     "productSubtitle": "Industrial Data Collector",

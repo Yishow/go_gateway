@@ -1,13 +1,16 @@
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '../contexts/ThemeContext'
 
 export function ThemeToggle() {
+  const { t } = useTranslation()
   const { theme, toggleTheme } = useTheme()
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
-      className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 transition-colors relative z-50"
-      aria-label="Toggle theme"
+      className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 transition-colors relative z-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+      aria-label={t('layout.toggleTheme')}
     >
       {theme === 'light' ? (
         // Moon icon for light mode (switch to dark)

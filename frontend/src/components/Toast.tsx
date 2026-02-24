@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Toast 通知類型
@@ -27,6 +28,7 @@ interface ToastItemProps {
  * 單個 Toast 通知組件
  */
 function ToastItem({ toast, onClose }: ToastItemProps) {
+  const { t } = useTranslation()
   const [progress, setProgress] = useState(100)
   const [isPaused, setIsPaused] = useState(false)
   const duration = toast.duration || 3000
@@ -150,9 +152,10 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
       
       {/* 關閉按鈕 */}
       <button
+        type="button"
         onClick={() => onClose(toast.id)}
-        className="flex-shrink-0 text-slate-400 hover:text-slate-200 transition-colors p-1 rounded hover:bg-slate-700"
-        aria-label="關閉通知"
+        className="flex-shrink-0 text-slate-400 hover:text-slate-200 transition-colors p-1 rounded hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800"
+        aria-label={t('common.closeNotification')}
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
