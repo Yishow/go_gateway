@@ -5,6 +5,7 @@ package mapping
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"go-gateway/internal/datalink/schema"
@@ -40,11 +41,28 @@ type ListFilter struct {
 
 // Service 映射管理服務
 type Service struct {
-	repo Repository
-	mu   sync.RWMutex
+	repo        Repository
+	tagResolver func(context.Context, string) (*schema.Tag, error)
+	mu          sync.RWMutex
 }
+
+var ErrTagResolverNotConfigured = errors.New("tag resolver 未注入，無法執行 mapping 啟用驗證")
 
 // NewService 建立新的映射服務
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
+}
+
+// NewServiceWithTagResolver 建立帶有 tag resolver 的映射服務。
+func NewServiceWithTagResolver(repo Repository, resolver func(context.Context, string) (*schema.Tag, error)) *Service {
+	svc := &Service{repo: repo}
+	svc.SetTagResolver(resolver)
+	return svc
+}
+
+// SetTagResolver 設定 tag 查詢函數，供啟用前預覽 gate 驗證目標資料型別。
+func (s *Service) SetTagResolver(resolver func(context.Context, string) (*schema.Tag, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tagResolver = resolver
 }

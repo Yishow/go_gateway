@@ -125,7 +125,7 @@ func main() {
 
 	// Mapping
 	mappingRepo := mapping.NewSQLRepository(db)
-	mappingSvc := mapping.NewService(mappingRepo)
+	mappingSvc := mapping.NewServiceWithTagResolver(mappingRepo, tagSvc.GetByID)
 
 	// Local Modbus Share (Tag -> Virtual Modbus Memory Grid)
 	modbusShareSvc := modbusshare.NewService(tagSvc, 65536)

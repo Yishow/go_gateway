@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +27,9 @@ func setupMappingRouterWithExtended() *gin.Engine {
 
 	repo := mapping.NewMemoryRepository()
 	svc := mapping.NewService(repo)
+	svc.SetTagResolver(func(ctx context.Context, tagID string) (*schema.Tag, error) {
+		return &schema.Tag{ID: tagID, DataType: schema.DataTypeFloat64}, nil
+	})
 	h := NewMappingHandler(svc)
 
 	// 基礎端點
@@ -266,7 +270,7 @@ func TestMappingHandler_Preview_ComplexPipeline(t *testing.T) {
 	assert.True(t, response["success"].(bool))
 
 	data := response["data"].(map[string]interface{})
-	
+
 	// 5 * 10 + 5 = 55, clamp to [0, 100] = 55, round to 2 decimals = 55.00
 	assert.Equal(t, float64(55), data["final_value"])
 	assert.Contains(t, data, "step_results")
@@ -349,8 +353,8 @@ func TestMappingHandler_Preview_DifferentValueTypes(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	testCases := []struct {
-		rawValue  interface{}
-		expected  interface{}
+		rawValue interface{}
+		expected interface{}
 	}{
 		{5, float64(5)},
 		{3.14, float64(3.14)},

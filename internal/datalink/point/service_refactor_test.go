@@ -65,3 +65,175 @@ func TestGetLastValueReturnsRawStringOnInvalidJSON(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "not-json", value)
 }
+
+func TestBatchCreate_DryRunDoesNotWriteDB(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	ctx := context.Background()
+
+	result, err := svc.BatchCreate(ctx, BatchCreatePointsRequest{
+		DeviceID: "dev-1",
+		DataType: schema.DataTypeUint16,
+		DryRun:   true,
+		Points: []BatchPointItem{
+			{Name: "ok", Address: "40001", Function: "03"},
+			{Name: "", Address: "bad@addr", Function: "03"},
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.DryRun)
+	assert.False(t, result.Applied)
+	assert.Equal(t, 0, result.CreatedCount)
+	assert.Len(t, result.Points, 0)
+	assert.NotEmpty(t, result.Errors)
+	assert.Equal(t, 0, repo.Count(ctx))
+}
+
+func TestBatchCreate_ApplyIfClean(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	ctx := context.Background()
+
+	result, err := svc.BatchCreate(ctx, BatchCreatePointsRequest{
+		DeviceID:     "dev-1",
+		DataType:     schema.DataTypeUint16,
+		DryRun:       true,
+		ApplyIfClean: true,
+		Points: []BatchPointItem{
+			{Name: "p1", Address: "40001", Function: "03"},
+			{Name: "p2", Address: "40002", Function: "03"},
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.DryRun)
+	assert.True(t, result.Applied)
+	assert.Equal(t, 2, result.CreatedCount)
+	assert.Len(t, result.Errors, 0)
+	assert.Equal(t, 2, repo.Count(ctx))
+}
+
+func TestBatchCreate_BlockWhenDuplicateAddressFunctionExists(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	ctx := context.Background()
+
+	_, err := svc.Create(ctx, CreatePointRequest{
+		DeviceID: "dev-1",
+		Name:     "existing",
+		Address:  "40001",
+		DataType: schema.DataTypeUint16,
+	})
+	require.NoError(t, err)
+
+	result, err := svc.BatchCreate(ctx, BatchCreatePointsRequest{
+		DeviceID: "dev-1",
+		DataType: schema.DataTypeUint16,
+		Points: []BatchPointItem{
+			{Name: "dup", Address: "40001", Function: "03"},
+		},
+	})
+	require.NoError(t, err)
+	assert.False(t, result.Applied)
+	assert.Equal(t, 0, result.CreatedCount)
+	assert.NotEmpty(t, result.Errors)
+	assert.Equal(t, 1, repo.Count(ctx))
+}
+
+func TestBatchCreate_AllowSameAddressWithDifferentFunction(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	ctx := context.Background()
+
+	_, err := svc.Create(ctx, CreatePointRequest{
+		DeviceID: "dev-1",
+		Name:     "existing",
+		Address:  "40001",
+		Function: "03",
+		DataType: schema.DataTypeUint16,
+	})
+	require.NoError(t, err)
+
+	result, err := svc.BatchCreate(ctx, BatchCreatePointsRequest{
+		DeviceID: "dev-1",
+		DataType: schema.DataTypeUint16,
+		Points: []BatchPointItem{
+			{Name: "allow-diff-fn", Address: "40001", Function: "04"},
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Applied)
+	assert.Equal(t, 1, result.CreatedCount)
+	assert.Len(t, result.Errors, 0)
+	assert.Equal(t, 2, repo.Count(ctx))
+}
+
+func TestPointValidation_CreateAndBatchDryRunUseSameFormat(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	ctx := context.Background()
+
+	_, createErr := svc.Create(ctx, CreatePointRequest{
+		DeviceID: "dev-1",
+		Name:     "bad-address",
+		Address:  "bad@addr",
+		Function: "03",
+		DataType: schema.DataTypeUint16,
+	})
+	require.Error(t, createErr)
+	assert.Contains(t, createErr.Error(), "point 驗證失敗: field=address")
+	assert.Contains(t, createErr.Error(), "reason=格式無效")
+
+	result, err := svc.BatchCreate(ctx, BatchCreatePointsRequest{
+		DeviceID: "dev-1",
+		DataType: schema.DataTypeUint16,
+		DryRun:   true,
+		Points: []BatchPointItem{
+			{Name: "bad-address", Address: "bad@addr", Function: "03"},
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Errors)
+	assert.Contains(t, result.Errors[0], "point 驗證失敗: field=address")
+	assert.Contains(t, result.Errors[0], "reason=格式無效")
+}
+
+func TestPointValidation_NormalizeFunctionAcrossCreateUpdateAndBatch(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, CreatePointRequest{
+		DeviceID: "dev-1",
+		Name:     "norm",
+		Address:  "40001",
+		Function: "read_holding",
+		DataType: schema.DataTypeUint16,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "03", created.Function)
+
+	function := "fc04"
+	updated, err := svc.Update(ctx, created.ID, UpdatePointRequest{
+		Function: &function,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "04", updated.Function)
+
+	result, err := svc.BatchCreate(ctx, BatchCreatePointsRequest{
+		DeviceID: "dev-1",
+		DataType: schema.DataTypeUint16,
+		DryRun:   true,
+		Points: []BatchPointItem{
+			{Name: "alias-dup", Address: "40001", Function: "input"},
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Errors)
+	assert.Contains(t, result.Errors[0], "field=address+function")
+}

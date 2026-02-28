@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS points (
     name            VARCHAR(255) NOT NULL,
     description     TEXT,
     address         VARCHAR(255) NOT NULL,
-    function        VARCHAR(50),
+    function        VARCHAR(50) NOT NULL DEFAULT '',
     data_type       VARCHAR(20) NOT NULL,
     mode            VARCHAR(20) NOT NULL DEFAULT 'read',
     polling_group_id UUID REFERENCES polling_groups(id) ON DELETE SET NULL,
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS points (
     CONSTRAINT points_mode_check CHECK (
         mode IN ('read', 'readwrite')
     ),
-    CONSTRAINT points_device_address_unique UNIQUE (device_id, address)
+    CONSTRAINT points_device_address_function_unique UNIQUE (device_id, address, function)
 );
 
 CREATE INDEX idx_points_device_id ON points(device_id);

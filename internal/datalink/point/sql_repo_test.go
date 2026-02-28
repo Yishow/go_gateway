@@ -578,7 +578,7 @@ func TestSQLRepository_UpdateLastRead(t *testing.T) {
 }
 
 /**
- * TestSQLRepository_UniquenessConstraint 測試設備與位址的唯一性約束
+ * TestSQLRepository_UniquenessConstraint 測試設備內 address+function 的唯一性約束
  */
 func TestSQLRepository_UniquenessConstraint(t *testing.T) {
 	db := setupTestDB(t)
@@ -591,17 +591,27 @@ func TestSQLRepository_UniquenessConstraint(t *testing.T) {
 
 	// 建立第一個點位
 	point1 := createTestPoint(t, deviceID)
+	point1.Function = "03"
 	err := repo.Create(ctx, point1)
 	require.NoError(t, err)
 
-	// 建立相同設備和位址的第二個點位應失敗
+	// 相同設備和位址，但不同 function 應成功
 	point2 := createTestPoint(t, deviceID)
 	point2.ID = "test-point-002"
-	point2.Name = "重複位址點位"
+	point2.Name = "不同功能點位"
+	point2.Function = "04"
 	err = repo.Create(ctx, point2)
+	assert.NoError(t, err)
+
+	// 相同設備、位址與 function 應失敗
+	point3 := createTestPoint(t, deviceID)
+	point3.ID = "test-point-003"
+	point3.Name = "重複位址功能點位"
+	point3.Function = "03"
+	err = repo.Create(ctx, point3)
 	assert.Error(t, err)
 
-	// 不同設備但相同位址應成功
+	// 不同設備但相同位址與 function 應成功
 	otherDeviceID := "other-device"
 	_, err = db.ExecContext(ctx, `
 		INSERT INTO devices (id, name, protocol, status, connection_config, created_at, updated_at)
@@ -609,9 +619,10 @@ func TestSQLRepository_UniquenessConstraint(t *testing.T) {
 	`, otherDeviceID, "其他設備", schema.ProtocolModbusTCP, schema.DeviceStatusActive, "{}", time.Now().UTC(), time.Now().UTC())
 	require.NoError(t, err)
 
-	point3 := createTestPoint(t, otherDeviceID)
-	point3.ID = "test-point-003"
-	err = repo.Create(ctx, point3)
+	point4 := createTestPoint(t, otherDeviceID)
+	point4.ID = "test-point-004"
+	point4.Function = "03"
+	err = repo.Create(ctx, point4)
 	assert.NoError(t, err)
 }
 

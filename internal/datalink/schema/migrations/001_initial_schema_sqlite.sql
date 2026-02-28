@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS points (
     name            TEXT NOT NULL,
     description     TEXT,
     address         TEXT NOT NULL,
-    function        TEXT,
+    function        TEXT NOT NULL DEFAULT '',
     data_type       TEXT NOT NULL CHECK (data_type IN ('bool', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64', 'string')),
     mode            TEXT NOT NULL DEFAULT 'read' CHECK (mode IN ('read', 'readwrite')),
     polling_group_id TEXT REFERENCES polling_groups(id) ON DELETE SET NULL,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS points (
     enabled         INTEGER NOT NULL DEFAULT 1,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (device_id, address)
+    UNIQUE (device_id, address, function)
 );
 
 CREATE INDEX IF NOT EXISTS idx_points_device_id ON points(device_id);

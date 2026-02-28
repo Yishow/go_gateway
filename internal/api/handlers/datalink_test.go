@@ -137,6 +137,9 @@ func setupMappingRouter() *gin.Engine {
 	// 使用記憶體儲存庫建立服務
 	repo := mapping.NewMemoryRepository()
 	svc := mapping.NewService(repo)
+	svc.SetTagResolver(func(ctx context.Context, tagID string) (*schema.Tag, error) {
+		return &schema.Tag{ID: tagID, DataType: schema.DataTypeFloat64}, nil
+	})
 
 	h := NewMappingHandler(svc)
 	r.POST("/mappings", h.Create)

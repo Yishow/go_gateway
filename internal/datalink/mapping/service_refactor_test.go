@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"go-gateway/internal/datalink/schema"
 
@@ -11,9 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newServiceWithDefaultTagResolver(repo Repository) *Service {
+	svc := NewService(repo)
+	svc.SetTagResolver(func(ctx context.Context, tagID string) (*schema.Tag, error) {
+		return &schema.Tag{ID: tagID, DataType: schema.DataTypeFloat64}, nil
+	})
+	return svc
+}
+
 func TestService_CreateAndList(t *testing.T) {
 	repo := NewMemoryRepository()
-	svc := NewService(repo)
+	svc := newServiceWithDefaultTagResolver(repo)
 	ctx := context.Background()
 
 	req := CreateMappingRequest{
@@ -47,7 +56,7 @@ func TestService_CreateAndList(t *testing.T) {
 
 func TestService_Update(t *testing.T) {
 	repo := NewMemoryRepository()
-	svc := NewService(repo)
+	svc := newServiceWithDefaultTagResolver(repo)
 	ctx := context.Background()
 
 	created, err := svc.Create(ctx, CreateMappingRequest{
@@ -92,4 +101,128 @@ func TestParseConditionalParams(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "<=", op)
 	assert.Equal(t, 8.0, threshold)
+}
+
+func TestService_Update_EnableBlockedWhenPreviewExecutionFails(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := newServiceWithDefaultTagResolver(repo)
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, CreateMappingRequest{
+		PointID:           "point-exec-fail",
+		TagID:             "tag-exec-fail",
+		TransformPipeline: []schema.TransformStep{},
+	})
+	require.NoError(t, err)
+
+	disabled := false
+	_, err = svc.Update(ctx, created.ID, UpdateMappingRequest{Enabled: &disabled})
+	require.NoError(t, err)
+
+	enabled := true
+	_, err = svc.Update(ctx, created.ID, UpdateMappingRequest{
+		Enabled: &enabled,
+		TransformPipeline: []schema.TransformStep{
+			{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 2.0}},
+		},
+		PreviewRawValue: "abc",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "映射預覽驗證失敗")
+
+	current, getErr := svc.GetByID(ctx, created.ID)
+	require.NoError(t, getErr)
+	assert.False(t, current.Enabled)
+}
+
+func TestService_Update_EnableBlockedWhenOutputNotCastable(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := NewService(repo)
+	svc.SetTagResolver(func(ctx context.Context, tagID string) (*schema.Tag, error) {
+		return &schema.Tag{ID: tagID, DataType: schema.DataTypeBool}, nil
+	})
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, CreateMappingRequest{
+		PointID:           "point-cast-fail",
+		TagID:             "tag-cast-fail",
+		TransformPipeline: []schema.TransformStep{},
+		PreviewRawValue:   false,
+	})
+	require.NoError(t, err)
+
+	disabled := false
+	_, err = svc.Update(ctx, created.ID, UpdateMappingRequest{Enabled: &disabled})
+	require.NoError(t, err)
+
+	enabled := true
+	_, err = svc.Update(ctx, created.ID, UpdateMappingRequest{
+		Enabled:         &enabled,
+		PreviewRawValue: "not-bool",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "輸出無法轉換為 tag data_type")
+
+	current, getErr := svc.GetByID(ctx, created.ID)
+	require.NoError(t, getErr)
+	assert.False(t, current.Enabled)
+}
+
+func TestService_Create_BlockedWhenPreviewOutputNotCastable(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := NewService(repo)
+	svc.SetTagResolver(func(ctx context.Context, tagID string) (*schema.Tag, error) {
+		return &schema.Tag{ID: tagID, DataType: schema.DataTypeBool}, nil
+	})
+
+	_, err := svc.Create(context.Background(), CreateMappingRequest{
+		PointID: "point-create-cast-fail",
+		TagID:   "tag-create-cast-fail",
+		TransformPipeline: []schema.TransformStep{
+			{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 2.0}},
+		},
+		PreviewRawValue: 2.0,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "映射預覽驗證失敗")
+}
+
+func TestService_Create_ReturnsErrorWhenResolverMissing(t *testing.T) {
+	svc := NewService(NewMemoryRepository())
+
+	_, err := svc.Create(context.Background(), CreateMappingRequest{
+		PointID: "point-missing-resolver",
+		TagID:   "tag-missing-resolver",
+		TransformPipeline: []schema.TransformStep{
+			{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 1.0}},
+		},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrTagResolverNotConfigured)
+}
+
+func TestService_UpdateEnable_ReturnsErrorWhenResolverMissing(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := NewService(repo)
+	now := time.Now()
+	ctx := context.Background()
+
+	err := repo.Create(ctx, &schema.Mapping{
+		ID:                "mapping-no-resolver",
+		PointID:           "point-no-resolver",
+		TagID:             "tag-no-resolver",
+		TransformPipeline: "[]",
+		Enabled:           false,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	})
+	require.NoError(t, err)
+
+	enabled := true
+	_, err = svc.Update(ctx, "mapping-no-resolver", UpdateMappingRequest{
+		Enabled:         &enabled,
+		PreviewRawValue: 1.0,
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrTagResolverNotConfigured)
 }

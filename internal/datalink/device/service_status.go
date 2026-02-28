@@ -15,25 +15,7 @@ import (
 
 // Activate 啟用設備
 func (s *Service) Activate(ctx context.Context, id string) error {
-	device, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("取得設備失敗: %w", err)
-	}
-
-	if device.Status == schema.DeviceStatusActive {
-		return nil // 已經是啟用狀態
-	}
-
-	// 測試連線
-	if err := s.TestConnection(ctx, id); err != nil {
-		return fmt.Errorf("連線測試失敗，無法啟用設備: %w", err)
-	}
-
-	if err := s.repo.UpdateStatus(ctx, id, schema.DeviceStatusActive); err != nil {
-		return fmt.Errorf("更新設備狀態失敗: %w", err)
-	}
-
-	return nil
+	return s.ProbeAndActivate(ctx, id)
 }
 
 // CheckReadiness 檢查設備就緒狀態

@@ -33,6 +33,22 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", targetFile, err)
 		}
+
+		needPointUniqueMigration, err := needsSQLitePointUniqueMigration(db)
+		if err != nil {
+			return fmt.Errorf("failed to inspect sqlite points schema: %w", err)
+		}
+		if needPointUniqueMigration {
+			const sqlitePointUniqueMigration = "003_align_points_unique_function_sqlite.up.sql"
+			content, err := migrations.FS.ReadFile(sqlitePointUniqueMigration)
+			if err != nil {
+				return fmt.Errorf("failed to read migration file %s: %w", sqlitePointUniqueMigration, err)
+			}
+			log.Printf("Executing SQLite migration: %s", sqlitePointUniqueMigration)
+			if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
+				return fmt.Errorf("failed to execute migration %s: %w", sqlitePointUniqueMigration, err)
+			}
+		}
 		return nil
 	}
 
@@ -69,4 +85,22 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func needsSQLitePointUniqueMigration(db *sql.DB) (bool, error) {
+	var ddl string
+	err := db.QueryRowContext(context.Background(), `
+		SELECT sql
+		FROM sqlite_master
+		WHERE type = 'table' AND name = 'points'
+	`).Scan(&ddl)
+	if err != nil {
+		return false, err
+	}
+
+	normalized := strings.ToLower(ddl)
+	if strings.Contains(normalized, "unique (device_id, address, function)") {
+		return false, nil
+	}
+	return strings.Contains(normalized, "unique (device_id, address)"), nil
 }

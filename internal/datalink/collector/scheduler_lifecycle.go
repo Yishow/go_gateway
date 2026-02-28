@@ -37,9 +37,8 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 // Stop 停止排程器
 func (s *Scheduler) Stop() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if !s.running {
+		s.mu.Unlock()
 		return
 	}
 
@@ -52,11 +51,11 @@ func (s *Scheduler) Stop() {
 		gt.ticker.Stop()
 	}
 	s.groupTickers = make(map[string]*groupTicker)
-
-	// 等待所有 goroutine 結束
-	s.wg.Wait()
-
 	s.running = false
+	s.mu.Unlock()
+
+	// 等待所有 goroutine 結束（避免持有鎖造成死鎖）
+	s.wg.Wait()
 }
 
 // IsRunning 檢查是否正在運行
