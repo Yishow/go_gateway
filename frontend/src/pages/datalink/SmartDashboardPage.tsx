@@ -1,5 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   Device,
@@ -25,8 +24,8 @@ import { useSmartDashboardSidebarPanelMotion } from "./smart-dashboard/useSmartD
 import SmartDashboardWorkflowModal from "./smart-dashboard/SmartDashboardWorkflowModal";
 import SmartDashboardOverlays from "./smart-dashboard/SmartDashboardOverlays";
 import SmartDashboardPanels from "./smart-dashboard/SmartDashboardPanels";
-import SmartDashboardTagPanel from "./smart-dashboard/SmartDashboardTagPanel";
-import { PointDetailPanel } from "../../components/datalink/PointDetailPanel";
+import SmartDashboardGridOverlaysSection from "./smart-dashboard/SmartDashboardGridOverlaysSection";
+import { useSmartDashboardGridOverlays } from "./smart-dashboard/useSmartDashboardGridOverlays";
 import {
   useDevicesQuery,
   useDeleteDeviceMutation,
@@ -45,7 +44,7 @@ import {
 } from "../../hooks/datalink/useMappings";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTagsQuery, useCreateTagMutation, useUpdateTagMutation } from "../../hooks/datalink/useTags";
-import { tagKeys, pointKeys, mappingKeys } from "../../hooks/datalink/keys";
+import { tagKeys, mappingKeys } from "../../hooks/datalink/keys";
 import { useSmartDashboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { usePointHistory } from "../../hooks/useHistory";
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from "../../features/flow/stateMachine";
@@ -168,22 +167,6 @@ export default function SmartDashboard() {
   const createDeviceIntent = searchParams.get("createDevice");
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("plan");
-  /** 網格格位點擊 Popover：不開側邊欄，改顯示 Popover */
-  const gridPopoverAnchorRef = useRef<HTMLElement | null>(null);
-  const gridPopoverContentRef = useRef<HTMLDivElement | null>(null);
-  const [gridPopoverOpen, setGridPopoverOpen] = useState(false);
-  const [gridPopoverPoint, setGridPopoverPoint] = useState<Point | null>(null);
-  const [gridPopoverAddress, setGridPopoverAddress] = useState("");
-  const [gridPopoverPosition, setGridPopoverPosition] = useState<{ top: number; left: number } | null>(null);
-  /** 網格右鍵選單：刪除點位（單一）或 Shift+右鍵 刪除所選多個 */
-  const gridContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [gridContextMenu, setGridContextMenu] = useState<{
-    x: number;
-    y: number;
-    point: Point;
-    shiftKey: boolean;
-    pointsToDelete: Point[];
-  } | null>(null);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
@@ -201,6 +184,22 @@ export default function SmartDashboard() {
   const testConnectionMutation = useTestConnectionMutation();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
+  const {
+    gridPopoverOpen,
+    setGridPopoverOpen,
+    gridPopoverPoint,
+    gridPopoverAddress,
+    gridPopoverPosition,
+    gridPopoverContentRef,
+    gridContextMenuRef,
+    gridContextMenu,
+    setGridContextMenu,
+    handleCellClick,
+    handleCellContextMenu,
+  } = useSmartDashboardGridOverlays({
+    allPoints,
+    selectedAddresses,
+  });
   const { data: mappings = [] } = useMappingsQuery();
   const queryClient = useQueryClient();
   const refetchMappings = useCallback(
@@ -631,74 +630,6 @@ export default function SmartDashboard() {
       showError,
     ]
   );
-
-  /** 點擊網格格位：顯示 Popover（不開側邊欄），供快速操作 */
-  const handleCellClick = useCallback((addr: string, point?: Point, e?: React.MouseEvent) => {
-    gridPopoverAnchorRef.current = (e?.currentTarget as HTMLElement) ?? null;
-    setGridPopoverAddress(addr);
-    setGridPopoverPoint(point ?? null);
-    setGridPopoverOpen(true);
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!gridPopoverOpen || !gridPopoverAnchorRef.current) {
-      setGridPopoverPosition(null);
-      return;
-    }
-    const rect = gridPopoverAnchorRef.current.getBoundingClientRect();
-    setGridPopoverPosition({ top: rect.bottom + 4, left: rect.left });
-  }, [gridPopoverOpen, gridPopoverAddress]);
-
-  useEffect(() => {
-    if (!gridPopoverOpen) return;
-    const onMouseDown = (ev: MouseEvent) => {
-      const target = ev.target as Node;
-      if (
-        gridPopoverContentRef.current?.contains(target) ||
-        gridPopoverAnchorRef.current?.contains(target)
-      )
-        return;
-      setGridPopoverOpen(false);
-    };
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") setGridPopoverOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [gridPopoverOpen]);
-
-  const handleCellContextMenu = useCallback(
-    (_addr: string, point: Point, e: React.MouseEvent) => {
-      const shiftKey = e.shiftKey === true;
-      const pointsToDelete =
-        shiftKey && selectedAddresses.length > 0
-          ? allPoints.filter((p) => selectedAddresses.includes(p.address))
-          : [point];
-      setGridContextMenu({
-        x: e.clientX,
-        y: e.clientY,
-        point,
-        shiftKey,
-        pointsToDelete,
-      });
-    },
-    [allPoints, selectedAddresses]
-  );
-
-  useEffect(() => {
-    if (!gridContextMenu) return;
-    const onMouseDown = (ev: MouseEvent) => {
-      const target = ev.target as Node;
-      if (gridContextMenuRef.current?.contains(target)) return;
-      setGridContextMenu(null);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [gridContextMenu]);
 
   const getGridCenterAddress = useCallback((protocol: ProtocolType) => (protocol.startsWith("modbus") ? "40001" : "D0"), []);
 
@@ -1710,143 +1641,25 @@ export default function SmartDashboard() {
         onBatchCreated={handleBatchCreatedWithPoints}
       />
 
-      {gridPopoverOpen &&
-        gridPopoverPosition &&
-        createPortal(
-          <div
-            ref={gridPopoverContentRef}
-            className="fixed z-[100] flex max-h-[85vh] w-[min(24rem,calc(100vw-1rem))] flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-            style={{
-              top: Math.min(gridPopoverPosition.top, window.innerHeight - 400),
-              left: Math.min(gridPopoverPosition.left, Math.max(0, window.innerWidth - 384)),
-            }}
-            role="dialog"
-            aria-label={t("smartDashboard.gridCellPopover.ariaLabel")}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
-              <div>
-                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
-                  {gridPopoverAddress}
-                </span>
-                {gridPopoverPoint && (
-                  <span className="ml-2 text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {gridPopoverPoint.name}
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setGridPopoverOpen(false)}
-                className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                aria-label={t("common.close", "關閉")}
-              >
-                ×
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              {gridPopoverPoint ? (
-                <PointDetailPanel
-                  point={gridPopoverPoint}
-                  onUpdate={(updatedPoint) => {
-                    queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
-                    setSelectedPoint(updatedPoint);
-                    setGridPopoverOpen(false);
-                  }}
-                  onDelete={async (id) => {
-                    try {
-                      await deletePointMutation.mutateAsync(id);
-                      showSuccess(t("smartDashboard.pointDeleted"));
-                      setSelectedPoint(null);
-                      setGridPopoverOpen(false);
-                    } catch (err) {
-                      showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
-                    }
-                  }}
-                  onClose={() => setGridPopoverOpen(false)}
-                />
-              ) : (
-                <div className="rounded-lg border border-white/10 bg-slate-800/40 p-3">
-                  <SmartDashboardTagPanel {...tagPanelProps} />
-                </div>
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {gridContextMenu &&
-        createPortal(
-          <div
-            ref={gridContextMenuRef}
-            className="fixed z-[110] min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-800"
-            style={{ left: gridContextMenu.x, top: gridContextMenu.y }}
-            role="menu"
-            aria-label={t("smartDashboard.gridContextMenu.ariaLabel")}
-          >
-            {gridContextMenu.pointsToDelete.length > 1 ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
-                onClick={async () => {
-                  const { pointsToDelete } = gridContextMenu;
-                  if (
-                    !window.confirm(
-                      t("smartDashboard.gridContextMenu.deleteSelectedConfirm", {
-                        count: pointsToDelete.length,
-                      })
-                    )
-                  )
-                    return;
-                  const deletedIds = new Set<string>();
-                  for (const p of pointsToDelete) {
-                    try {
-                      await deletePointMutation.mutateAsync(p.id);
-                      deletedIds.add(p.id);
-                    } catch (err) {
-                      showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
-                    }
-                  }
-                  if (deletedIds.size > 0) {
-                    showSuccess(
-                      t("smartDashboard.gridContextMenu.deleteSelectedDone", {
-                        count: deletedIds.size,
-                      })
-                    );
-                    if (selectedPoint && deletedIds.has(selectedPoint.id)) setSelectedPoint(null);
-                  }
-                  setGridContextMenu(null);
-                }}
-              >
-                {t("smartDashboard.gridContextMenu.deleteSelectedPoints", {
-                  count: gridContextMenu.pointsToDelete.length,
-                })}
-              </button>
-            ) : (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
-                onClick={async () => {
-                  const { point } = gridContextMenu;
-                  if (!window.confirm(t("smartDashboard.gridContextMenu.deleteConfirm", { name: point.name })))
-                    return;
-                  try {
-                    await deletePointMutation.mutateAsync(point.id);
-                    showSuccess(t("smartDashboard.pointDeleted"));
-                    setGridContextMenu(null);
-                    if (selectedPoint?.id === point.id) setSelectedPoint(null);
-                  } catch (err) {
-                    showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
-                  }
-                }}
-              >
-                {t("smartDashboard.gridContextMenu.deletePoint")}
-              </button>
-            )}
-          </div>,
-          document.body
-        )}
+      <SmartDashboardGridOverlaysSection
+        gridPopoverOpen={gridPopoverOpen}
+        setGridPopoverOpen={setGridPopoverOpen}
+        gridPopoverPosition={gridPopoverPosition}
+        gridPopoverAddress={gridPopoverAddress}
+        gridPopoverPoint={gridPopoverPoint}
+        gridPopoverContentRef={gridPopoverContentRef}
+        tagPanelProps={tagPanelProps}
+        queryClient={queryClient}
+        deletePoint={deletePointMutation.mutateAsync}
+        selectedPoint={selectedPoint}
+        setSelectedPoint={setSelectedPoint}
+        showSuccess={showSuccess}
+        showError={showError}
+        gridContextMenu={gridContextMenu}
+        gridContextMenuRef={gridContextMenuRef}
+        setGridContextMenu={setGridContextMenu}
+        t={t}
+      />
 
       {selectedDevice && (
         <>
