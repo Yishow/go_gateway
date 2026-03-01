@@ -1,5 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   Device,
@@ -17,15 +16,18 @@ import { ImportDialog, ExportDialog } from "../../components/datalink/ImportExpo
 import SmartDashboardHeader from "./smart-dashboard/SmartDashboardHeader";
 import SmartDashboardIntentNotices from "./smart-dashboard/SmartDashboardIntentNotices";
 import SmartDashboardControlBar from "./smart-dashboard/SmartDashboardControlBar";
-import SmartDashboardWorkspace from "./smart-dashboard/SmartDashboardWorkspace";
-import SmartDashboardSidebar, { type SidebarTab } from "./smart-dashboard/SmartDashboardSidebar";
+import type { SidebarTab } from "./smart-dashboard/SmartDashboardSidebar";
+import SmartDashboardWorkspaceSection from "./smart-dashboard/SmartDashboardWorkspaceSection";
 import { useSmartDashboardTagLinking } from "./smart-dashboard/useSmartDashboardTagLinking";
 import { useSmartDashboardModbusActions } from "./smart-dashboard/useSmartDashboardModbusActions";
+import { useSmartDashboardSidebarPanelMotion } from "./smart-dashboard/useSmartDashboardSidebarPanelMotion";
 import SmartDashboardWorkflowModal from "./smart-dashboard/SmartDashboardWorkflowModal";
 import SmartDashboardOverlays from "./smart-dashboard/SmartDashboardOverlays";
 import SmartDashboardPanels from "./smart-dashboard/SmartDashboardPanels";
-import SmartDashboardTagPanel from "./smart-dashboard/SmartDashboardTagPanel";
-import { PointDetailPanel } from "../../components/datalink/PointDetailPanel";
+import SmartDashboardGridOverlaysSection from "./smart-dashboard/SmartDashboardGridOverlaysSection";
+import { useSmartDashboardGridOverlays } from "./smart-dashboard/useSmartDashboardGridOverlays";
+import { useSmartDashboardCommitFlow } from "./smart-dashboard/useSmartDashboardCommitFlow";
+import { useSmartDashboardWorkspaceState } from "./smart-dashboard/useSmartDashboardWorkspaceState";
 import {
   useDevicesQuery,
   useDeleteDeviceMutation,
@@ -44,7 +46,7 @@ import {
 } from "../../hooks/datalink/useMappings";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTagsQuery, useCreateTagMutation, useUpdateTagMutation } from "../../hooks/datalink/useTags";
-import { tagKeys, pointKeys, mappingKeys } from "../../hooks/datalink/keys";
+import { tagKeys, mappingKeys } from "../../hooks/datalink/keys";
 import { useSmartDashboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { usePointHistory } from "../../hooks/useHistory";
 import { useFlowLifecycle, type FlowSegment, type FlowStatus } from "../../features/flow/stateMachine";
@@ -63,16 +65,6 @@ import {
   upsertTemplateRecord,
 } from "../../features/datalink/sourcePlannerContract";
 import { findNearestValidContiguousSpan } from "../../features/datalink/allocationStrategy";
-import {
-  canExecuteCommit,
-  executeCommitLifecycle,
-  retryFailedLifecycle,
-  rollbackCommitLifecycle,
-  summarizeCommitImpact,
-  type CommitQueueViewStatus,
-  type QueueBaseStatus,
-} from "../../features/datalink/commitLifecycle";
-import { buildCommitAuditPayload, type CommitAuditPayload } from "../../features/datalink/commitAudit";
 import { getAffectedMappingCountForTag } from "../../features/datalink/tagEditImpact";
 import { buildGlobalTagGuardrail } from "../../features/datalink/globalTagGuardrails";
 import {
@@ -80,10 +72,8 @@ import {
   isDashboardSectionIntent,
   isLegacyDecommissionRoute,
 } from "../../features/datalink/legacyRoutes";
-import { estimatePollingLoadDelta } from "../../features/datalink/pollingLoadEstimate";
 import {
   MOTION_TOKENS,
-  buildMotionReadabilityGate,
   resolveIntentMotionClass,
   resolveScrollBehavior,
 } from "../../features/datalink/motionGuidance";
@@ -93,7 +83,6 @@ import { addressParser } from "../../utils/addressParser";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const FLOW_SEGMENTS: FlowSegment[] = ["source", "grid", "tag", "sink"];
-const COMMIT_CHUNK_SIZE = 8;
 type DashboardTab = "overview" | "devices" | "settings";
 
 const STATUS_STYLE: Record<FlowStatus, string> = {
@@ -152,37 +141,12 @@ export default function SmartDashboard() {
   const [guideStage, setGuideStage] = useState<"idle" | "grid" | "commit">("idle");
   const [reducedMotion, setReducedMotion] = useState(false);
   const [sourceTemplates, setSourceTemplates] = useState<SourceTemplate[]>(() => loadSourceTemplates());
-  const [commitActionMessage, setCommitActionMessage] = useState("");
-  const [commitQueueRunStatus, setCommitQueueRunStatus] = useState<Record<string, "success" | "failed">>({});
-  const [lastCommitSnapshot, setLastCommitSnapshot] = useState<Record<string, "success" | "failed"> | null>(null);
-  const [isCommitRunning, setIsCommitRunning] = useState(false);
-  const [commitChunkResults, setCommitChunkResults] = useState<
-    Array<{ chunk: number; totalChunks: number; success: number; failed: number; status: "success" | "failed" }>
-  >([]);
-  const [commitAuditPayload, setCommitAuditPayload] = useState<CommitAuditPayload | null>(null);
-  const [failedChunkRetryQueue, setFailedChunkRetryQueue] = useState<number[]>([]);
   const legacyRoute = searchParams.get("legacy");
   const rawSectionIntent = searchParams.get("section");
   const rawModalIntent = searchParams.get("modal");
   const createDeviceIntent = searchParams.get("createDevice");
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("plan");
-  /** 網格格位點擊 Popover：不開側邊欄，改顯示 Popover */
-  const gridPopoverAnchorRef = useRef<HTMLElement | null>(null);
-  const gridPopoverContentRef = useRef<HTMLDivElement | null>(null);
-  const [gridPopoverOpen, setGridPopoverOpen] = useState(false);
-  const [gridPopoverPoint, setGridPopoverPoint] = useState<Point | null>(null);
-  const [gridPopoverAddress, setGridPopoverAddress] = useState("");
-  const [gridPopoverPosition, setGridPopoverPosition] = useState<{ top: number; left: number } | null>(null);
-  /** 網格右鍵選單：刪除點位（單一）或 Shift+右鍵 刪除所選多個 */
-  const gridContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [gridContextMenu, setGridContextMenu] = useState<{
-    x: number;
-    y: number;
-    point: Point;
-    shiftKey: boolean;
-    pointsToDelete: Point[];
-  } | null>(null);
   const [isCreateDeviceModalOpen, setIsCreateDeviceModalOpen] = useState(false);
   const [justCreatedDeviceId, setJustCreatedDeviceId] = useState<string | null>(null);
   const [editingDeviceInModal, setEditingDeviceInModal] = useState<Device | null>(null);
@@ -200,6 +164,22 @@ export default function SmartDashboard() {
   const testConnectionMutation = useTestConnectionMutation();
   const { data: pollingGroups = [] } = usePollingGroupsQuery();
   const { data: allPoints = [] } = usePointsQuery({ device_id: selectedDeviceId || undefined });
+  const {
+    gridPopoverOpen,
+    setGridPopoverOpen,
+    gridPopoverPoint,
+    gridPopoverAddress,
+    gridPopoverPosition,
+    gridPopoverContentRef,
+    gridContextMenuRef,
+    gridContextMenu,
+    setGridContextMenu,
+    handleCellClick,
+    handleCellContextMenu,
+  } = useSmartDashboardGridOverlays({
+    allPoints,
+    selectedAddresses,
+  });
   const { data: mappings = [] } = useMappingsQuery();
   const queryClient = useQueryClient();
   const refetchMappings = useCallback(
@@ -631,139 +611,10 @@ export default function SmartDashboard() {
     ]
   );
 
-  /** 點擊網格格位：顯示 Popover（不開側邊欄），供快速操作 */
-  const handleCellClick = useCallback((addr: string, point?: Point, e?: React.MouseEvent) => {
-    gridPopoverAnchorRef.current = (e?.currentTarget as HTMLElement) ?? null;
-    setGridPopoverAddress(addr);
-    setGridPopoverPoint(point ?? null);
-    setGridPopoverOpen(true);
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!gridPopoverOpen || !gridPopoverAnchorRef.current) {
-      setGridPopoverPosition(null);
-      return;
-    }
-    const rect = gridPopoverAnchorRef.current.getBoundingClientRect();
-    setGridPopoverPosition({ top: rect.bottom + 4, left: rect.left });
-  }, [gridPopoverOpen, gridPopoverAddress]);
-
-  useEffect(() => {
-    if (!gridPopoverOpen) return;
-    const onMouseDown = (ev: MouseEvent) => {
-      const target = ev.target as Node;
-      if (
-        gridPopoverContentRef.current?.contains(target) ||
-        gridPopoverAnchorRef.current?.contains(target)
-      )
-        return;
-      setGridPopoverOpen(false);
-    };
-    const onKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") setGridPopoverOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [gridPopoverOpen]);
-
-  const handleCellContextMenu = useCallback(
-    (_addr: string, point: Point, e: React.MouseEvent) => {
-      const shiftKey = e.shiftKey === true;
-      const pointsToDelete =
-        shiftKey && selectedAddresses.length > 0
-          ? allPoints.filter((p) => selectedAddresses.includes(p.address))
-          : [point];
-      setGridContextMenu({
-        x: e.clientX,
-        y: e.clientY,
-        point,
-        shiftKey,
-        pointsToDelete,
-      });
-    },
-    [allPoints, selectedAddresses]
-  );
-
-  useEffect(() => {
-    if (!gridContextMenu) return;
-    const onMouseDown = (ev: MouseEvent) => {
-      const target = ev.target as Node;
-      if (gridContextMenuRef.current?.contains(target)) return;
-      setGridContextMenu(null);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [gridContextMenu]);
-
   const getGridCenterAddress = useCallback((protocol: ProtocolType) => (protocol.startsWith("modbus") ? "40001" : "D0"), []);
 
   const primarySelectedAddress = selectedAddresses[0] || "";
   const selectedSourceAddress = primarySelectedAddress || selectedPoint?.address || "";
-  const baseCommitQueueItems = useMemo(() => {
-    const usedSet = new Set(allPoints.map((point) => point.address));
-    const linkedSet = new Set(linkedAddresses);
-    return plannedAllocations.map((allocation, index) => {
-      const conflictCount = allocation.addresses.filter((address) => usedSet.has(address)).length;
-      const linkedCount = allocation.addresses.filter((address) => linkedSet.has(address)).length;
-      const status: QueueBaseStatus = conflictCount > 0 ? "conflict" : linkedCount > 0 ? "linked" : "pending";
-      return {
-        id: allocation.id,
-        label: allocation.label,
-        type: allocation.dataType,
-        addresses: allocation.addresses,
-        status,
-        order: index + 1,
-      };
-    });
-  }, [allPoints, linkedAddresses, plannedAllocations]);
-  const commitQueueItems = useMemo(() => {
-    return baseCommitQueueItems.map((item) => {
-      const runStatus = commitQueueRunStatus[item.id];
-      const viewStatus: CommitQueueViewStatus =
-        runStatus === "success" ? "committed" : runStatus === "failed" ? "failed" : item.status;
-      return {
-        ...item,
-        viewStatus,
-      };
-    });
-  }, [baseCommitQueueItems, commitQueueRunStatus]);
-  useEffect(() => {
-    setCommitQueueRunStatus((prev) => {
-      const next: Record<string, "success" | "failed"> = {};
-      baseCommitQueueItems.forEach((item) => {
-        if (prev[item.id]) next[item.id] = prev[item.id];
-      });
-      return next;
-    });
-  }, [baseCommitQueueItems]);
-  const commitQueueSummary = useMemo(() => {
-    return commitQueueItems.reduce(
-      (acc, item) => {
-        acc.total += 1;
-        if (item.viewStatus === "conflict") acc.conflict += 1;
-        if (item.viewStatus === "linked") acc.linked += 1;
-        if (item.viewStatus === "pending") acc.pending += 1;
-        if (item.viewStatus === "failed") acc.failed += 1;
-        if (item.viewStatus === "committed") acc.committed += 1;
-        return acc;
-      },
-      { total: 0, pending: 0, linked: 0, conflict: 0, failed: 0, committed: 0 },
-    );
-  }, [commitQueueItems]);
-  const motionQAGate = useMemo(
-    () =>
-      buildMotionReadabilityGate({
-        stageHandoffMs: MOTION_TOKENS.stageHandoffMs,
-        commitFeedbackMs: MOTION_TOKENS.commitFeedbackMs,
-        hasReducedMotionFallback: true,
-        intentOnlyAnimations: true,
-      }),
-    [],
-  );
   const selectedPointFromGrid = useMemo(
     () => allPoints.find((point) => point.address === selectedSourceAddress) || null,
     [allPoints, selectedSourceAddress],
@@ -929,15 +780,6 @@ export default function SmartDashboard() {
     ]
   );
 
-  const commitImpactSummary = useMemo(
-    () => summarizeCommitImpact(commitQueueItems, Boolean(pendingTagEdit)),
-    [commitQueueItems, pendingTagEdit],
-  );
-  const preCommitLoadEstimate = useMemo(
-    () => estimatePollingLoadDelta(allPoints, pollingGroups, commitImpactSummary.newPoints),
-    [allPoints, commitImpactSummary.newPoints, pollingGroups],
-  );
-
   const segmentFeedback = useMemo(() => {
     const sourceOk = Boolean(selectedDeviceId && selectedSourceAddress);
     const gridOk = planAddresses.length > 0 && planConflictCount === 0;
@@ -979,6 +821,36 @@ export default function SmartDashboard() {
     selectedMapping,
     selectedSourceAddress,
   ]);
+  const {
+    commitQueueItems,
+    commitQueueSummary,
+    commitImpactSummary,
+    preCommitLoadEstimate,
+    motionQAGate,
+    commitActionMessage,
+    setCommitActionMessage,
+    isCommitRunning,
+    commitChunkResults,
+    commitAuditPayload,
+    hasFailedChunk,
+    canRollback,
+    handleCommitFlow,
+    handleRetryFailedCommits,
+    handleRollbackCommitRun,
+  } = useSmartDashboardCommitFlow({
+    allPoints,
+    linkedAddresses,
+    plannedAllocations,
+    pendingGlobalTagEdit: Boolean(pendingTagEdit),
+    pollingGroups,
+    canActivate,
+    mappingEnabled: Boolean(selectedMapping?.enabled),
+    markActive,
+    markError,
+    setGuideStage,
+    scheduleGuideStageReset,
+    t,
+  });
 
   const dismissLegacyNotice = useCallback(() => {
     if (!isLegacyDecommissionRoute(legacyRoute)) return;
@@ -1324,152 +1196,10 @@ export default function SmartDashboard() {
     selectedDeviceId,
     selectedMapping,
     selectedSourceAddress,
+    setCommitActionMessage,
     t,
     validatePipelineMutation,
   ]);
-
-  const handleCommitFlow = useCallback(() => {
-    const commitGate = canExecuteCommit({
-      canActivate,
-      mappingEnabled: Boolean(selectedMapping?.enabled),
-    });
-    if (!commitGate.ok) {
-      if (commitGate.reason === "not_validated") {
-        markError("sink", t("smartDashboard.flowErrors.notValidated"));
-        setCommitActionMessage("Commit 失敗：請先完成 Validate。");
-        return;
-      }
-      markError("sink", t("smartDashboard.flowErrors.mappingDisabled"));
-      setCommitActionMessage("Commit 失敗：Mapping 尚未啟用。");
-      return;
-    }
-    setIsCommitRunning(true);
-    setLastCommitSnapshot(commitQueueRunStatus);
-    setCommitChunkResults([]);
-    setFailedChunkRetryQueue([]);
-
-    const chunks = Array.from({ length: Math.ceil(baseCommitQueueItems.length / COMMIT_CHUNK_SIZE) }, (_, index) =>
-      baseCommitQueueItems.slice(index * COMMIT_CHUNK_SIZE, (index + 1) * COMMIT_CHUNK_SIZE),
-    );
-    let rollingStatus = { ...commitQueueRunStatus };
-    const nextChunkResults: Array<{
-      chunk: number;
-      totalChunks: number;
-      success: number;
-      failed: number;
-      status: "success" | "failed";
-    }> = [];
-    let successCount = 0;
-    let failedCount = 0;
-
-    chunks.forEach((chunkItems, index) => {
-      const chunkResult = executeCommitLifecycle(chunkItems, rollingStatus);
-      rollingStatus = chunkResult.nextStatus;
-      successCount += chunkResult.successCount;
-      failedCount += chunkResult.failedCount;
-      nextChunkResults.push({
-        chunk: index + 1,
-        totalChunks: chunks.length,
-        success: chunkResult.successCount,
-        failed: chunkResult.failedCount,
-        status: chunkResult.failedCount > 0 ? "failed" : "success",
-      });
-    });
-
-    setCommitQueueRunStatus(rollingStatus);
-    setCommitChunkResults(nextChunkResults);
-    setFailedChunkRetryQueue(
-      nextChunkResults
-        .filter((chunkResult) => chunkResult.status === "failed")
-        .map((chunkResult) => chunkResult.chunk - 1),
-    );
-    const nextQueueItems = baseCommitQueueItems.map((item) => {
-      const runStatus = rollingStatus[item.id];
-      const viewStatus: CommitQueueViewStatus =
-        runStatus === "success" ? "committed" : runStatus === "failed" ? "failed" : item.status;
-      return {
-        ...item,
-        viewStatus,
-      };
-    });
-    const nextImpact = summarizeCommitImpact(nextQueueItems, Boolean(pendingTagEdit));
-    setCommitAuditPayload(
-      buildCommitAuditPayload({
-        queueItems: nextQueueItems,
-        chunkResults: nextChunkResults,
-        impact: nextImpact,
-      }),
-    );
-    setIsCommitRunning(false);
-
-    if (failedCount > 0) {
-      markError("sink", `Commit 部分失敗：${failedCount} 筆失敗，請執行 Retry 或 Rollback。`);
-      setCommitActionMessage(`Commit 部分成功：成功 ${successCount}、失敗 ${failedCount}。`);
-      return;
-    }
-
-    markActive();
-    setGuideStage("commit");
-    scheduleGuideStageReset();
-    setCommitActionMessage(`Commit 成功：${successCount} 筆已提交並啟用流程。`);
-  }, [
-    baseCommitQueueItems,
-    canActivate,
-    commitQueueRunStatus,
-    markActive,
-    markError,
-    pendingTagEdit,
-    scheduleGuideStageReset,
-    selectedMapping?.enabled,
-    t,
-  ]);
-
-  const handleRetryFailedCommits = useCallback(() => {
-    if (failedChunkRetryQueue.length === 0) {
-      setCommitActionMessage("沒有可重試的失敗項目。");
-      return;
-    }
-
-    const chunks = Array.from({ length: Math.ceil(baseCommitQueueItems.length / COMMIT_CHUNK_SIZE) }, (_, index) =>
-      baseCommitQueueItems.slice(index * COMMIT_CHUNK_SIZE, (index + 1) * COMMIT_CHUNK_SIZE),
-    );
-
-    let rollingStatus = { ...commitQueueRunStatus };
-    let recovered = 0;
-    let remainingFailed = 0;
-    const nextFailedChunkQueue: number[] = [];
-
-    failedChunkRetryQueue.forEach((chunkIndex) => {
-      const chunkItems = chunks[chunkIndex] || [];
-      const chunkRetry = retryFailedLifecycle(chunkItems, rollingStatus);
-      rollingStatus = chunkRetry.nextStatus;
-      recovered += chunkRetry.recovered;
-      remainingFailed += chunkRetry.remainingFailed;
-      if (chunkRetry.remainingFailed > 0) nextFailedChunkQueue.push(chunkIndex);
-    });
-
-    setCommitQueueRunStatus(rollingStatus);
-    setFailedChunkRetryQueue(nextFailedChunkQueue);
-
-    if (remainingFailed > 0) {
-      setCommitActionMessage(`Retry 完成：恢復 ${recovered} 筆，仍有 ${remainingFailed} 筆衝突。`);
-      return;
-    }
-
-    setCommitActionMessage(`Retry 成功：已恢復 ${recovered} 筆失敗項目。`);
-  }, [baseCommitQueueItems, commitQueueRunStatus, failedChunkRetryQueue]);
-
-  const handleRollbackCommitRun = useCallback(() => {
-    const rolledBack = rollbackCommitLifecycle(lastCommitSnapshot);
-    if (!rolledBack) {
-      setCommitActionMessage("目前沒有可回滾的提交快照。");
-      return;
-    }
-    setCommitQueueRunStatus(rolledBack);
-    setFailedChunkRetryQueue([]);
-    setLastCommitSnapshot(null);
-    setCommitActionMessage("已回滾到上次 Commit 前的佇列狀態。");
-  }, [lastCommitSnapshot]);
 
   const handleRecoverFlow = useCallback(() => {
     resetDraft();
@@ -1493,6 +1223,126 @@ export default function SmartDashboard() {
     onRecoverFlow: hasError ? handleRecoverFlow : undefined,
     onImport: handleImportShortcut,
     onExport: handleExportShortcut,
+  });
+  const sidebarPanelMotion = useSmartDashboardSidebarPanelMotion({ guideStage, reducedMotion });
+  const workspaceSectionState = useSmartDashboardWorkspaceState({
+    workspace: {
+      selectedDevice,
+      planDataType,
+      setPlanDataType,
+      planCount,
+      setPlanCount,
+      totalPlannedCells,
+      planStartAddress,
+      setPlanStartAddress,
+      handleAutoAllocate,
+      handleApplyPlan,
+      planConflictCount,
+      typedPlanValidation,
+      showConflictsOnly,
+      flowSegments: FLOW_SEGMENTS,
+      flowState,
+      statusStyle: STATUS_STYLE,
+      hasError,
+      t,
+      gridSectionRef,
+      resolveIntentMotionClass,
+      guideStage,
+      reducedMotion,
+      motionTokens: MOTION_TOKENS,
+      modbusStatus,
+      allPoints,
+      linkedAddresses,
+      selectedAddresses,
+      plannedAllocations,
+      setSelectedAddresses,
+      handleCellClick,
+      onCellContextMenu: handleCellContextMenu,
+      getGridCenterAddress,
+      gridViewStartAddress,
+      onGridViewShift: handleGridViewShift,
+      handleChooseDevice,
+      handleCreateDevice,
+    },
+    sidebar: {
+      sidebarTab,
+      setSidebarTab,
+      hasTagSelection: Boolean(selectedSourceAddress),
+      planningTabProps: {
+        planDataType,
+        planCount,
+        totalPlannedCells,
+        planConflictCount,
+        typedPlanValidation,
+        allocationMessage,
+        templateName,
+        setTemplateName,
+        handleSaveTemplate,
+        sourceTemplates,
+        handleLoadTemplate,
+        handleDeleteTemplate,
+        staleTemplateCount,
+        sourceTemplateSchemaVersion: SOURCE_TEMPLATE_SCHEMA_VERSION,
+        handleUpgradeTemplates,
+        batchNamePrefix,
+        setBatchNamePrefix,
+        normalizeNamingPrefix,
+        namePreview,
+        nameConflictCount,
+        showConflictsOnly,
+        setShowConflictsOnly,
+        t,
+      },
+      tagPanelProps,
+      modbusPanelProps: {
+        goToLocalModbusWorkbench,
+        loadModbusStatus,
+        modbusStatus,
+        modbusRegister,
+        setModbusRegister,
+        handleBindTagToModbus,
+        handlePushCurrentValueToModbus,
+        handleSyncModbusFromMappings,
+      },
+      commitPanelProps: {
+        commitQueueSummary,
+        commitImpactSummary,
+        preCommitLoadEstimate,
+        motionQAGate,
+        commitQueueItems,
+        onValidateFlow: handleValidateFlow,
+        canValidate,
+        validating: validatePipelineMutation.isPending,
+        onCommitFlow: handleCommitFlow,
+        canCommit: canActivate,
+        isCommitRunning,
+        onRetryFailed: handleRetryFailedCommits,
+        hasFailedChunk,
+        onRollback: handleRollbackCommitRun,
+        canRollback,
+        segmentFeedback,
+        commitActionMessage,
+        commitAuditPayload,
+        commitChunkResults,
+        hasError,
+        onRecoverFlow: handleRecoverFlow,
+        t,
+      },
+      selectedDevice,
+      onOpenWorkbench: goToLocalModbusWorkbench,
+      onOpenImport: () => setImportDialogOpen(true),
+      onOpenExport: () => setExportDialogOpen(true),
+      canExport: allPoints.length > 0,
+      onUndo: handleUndo,
+      onRedo: handleRedo,
+      canUndo: history.canUndo,
+      canRedo: history.canRedo,
+      undoDescription: history.getUndoAction()?.description || t("smartDashboard.noUndo"),
+      redoDescription: history.getRedoAction()?.description || t("smartDashboard.noRedo"),
+      onOpenShortcuts: () => setPanelType("shortcuts"),
+      t,
+    },
+    sidebarPanelMotion,
   });
 
   return (
@@ -1522,131 +1372,7 @@ export default function SmartDashboard() {
         closeWorkflowModal={closeWorkflowModal}
       />
       <SmartDashboardControlBar onChooseDevice={handleChooseDevice} onCreateDevice={handleCreateDevice} />
-      <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4 min-h-0">
-        <SmartDashboardWorkspace
-          selectedDevice={selectedDevice}
-          planDataType={planDataType}
-          setPlanDataType={setPlanDataType}
-          planCount={planCount}
-          setPlanCount={setPlanCount}
-          totalPlannedCells={totalPlannedCells}
-          planStartAddress={planStartAddress}
-          setPlanStartAddress={setPlanStartAddress}
-          handleAutoAllocate={handleAutoAllocate}
-          handleApplyPlan={handleApplyPlan}
-          planConflictCount={planConflictCount}
-          typedPlanValidation={typedPlanValidation}
-          showConflictsOnly={showConflictsOnly}
-          flowSegments={FLOW_SEGMENTS}
-          flowState={flowState}
-          statusStyle={STATUS_STYLE}
-          hasError={hasError}
-          t={t}
-          gridSectionRef={gridSectionRef}
-          resolveIntentMotionClass={resolveIntentMotionClass}
-          guideStage={guideStage}
-          reducedMotion={reducedMotion}
-          motionTokens={MOTION_TOKENS}
-          modbusStatus={modbusStatus}
-          allPoints={allPoints}
-          linkedAddresses={linkedAddresses}
-          selectedAddresses={selectedAddresses}
-          plannedAllocations={plannedAllocations}
-          setSelectedAddresses={setSelectedAddresses}
-          handleCellClick={handleCellClick}
-          onCellContextMenu={handleCellContextMenu}
-          getGridCenterAddress={getGridCenterAddress}
-          gridViewStartAddress={gridViewStartAddress}
-          onGridViewShift={handleGridViewShift}
-          handleChooseDevice={handleChooseDevice}
-          handleCreateDevice={handleCreateDevice}
-        />
-        <div className="min-h-[300px] xl:min-h-0">
-          <div
-            className={`h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl transition-all ${resolveIntentMotionClass(guideStage === "commit" ? "commit" : "idle", reducedMotion)}`}
-            style={{ transitionDuration: `${MOTION_TOKENS.commitFeedbackMs}ms` }}
-          >
-            <SmartDashboardSidebar
-              sidebarTab={sidebarTab}
-              setSidebarTab={setSidebarTab}
-              hasTagSelection={Boolean(selectedSourceAddress)}
-              planningTabProps={{
-                planDataType,
-                planCount,
-                totalPlannedCells,
-                planConflictCount,
-                typedPlanValidation,
-                allocationMessage,
-                templateName,
-                setTemplateName,
-                handleSaveTemplate,
-                sourceTemplates,
-                handleLoadTemplate,
-                handleDeleteTemplate,
-                staleTemplateCount,
-                sourceTemplateSchemaVersion: SOURCE_TEMPLATE_SCHEMA_VERSION,
-                handleUpgradeTemplates,
-                batchNamePrefix,
-                setBatchNamePrefix,
-                normalizeNamingPrefix,
-                namePreview,
-                nameConflictCount,
-                showConflictsOnly,
-                setShowConflictsOnly,
-                t,
-              }}
-              tagPanelProps={tagPanelProps}
-              modbusPanelProps={{
-                goToLocalModbusWorkbench,
-                loadModbusStatus,
-                modbusStatus,
-                modbusRegister,
-                setModbusRegister,
-                handleBindTagToModbus,
-                handlePushCurrentValueToModbus,
-                handleSyncModbusFromMappings,
-              }}
-              commitPanelProps={{
-                commitQueueSummary,
-                commitImpactSummary,
-                preCommitLoadEstimate,
-                motionQAGate,
-                commitQueueItems,
-                onValidateFlow: handleValidateFlow,
-                canValidate,
-                validating: validatePipelineMutation.isPending,
-                onCommitFlow: handleCommitFlow,
-                canCommit: canActivate,
-                isCommitRunning,
-                onRetryFailed: handleRetryFailedCommits,
-                hasFailedChunk: failedChunkRetryQueue.length > 0,
-                onRollback: handleRollbackCommitRun,
-                canRollback: Boolean(lastCommitSnapshot),
-                segmentFeedback,
-                commitActionMessage,
-                commitAuditPayload,
-                commitChunkResults,
-                hasError,
-                onRecoverFlow: handleRecoverFlow,
-                t,
-              }}
-              selectedDevice={selectedDevice}
-              onOpenWorkbench={goToLocalModbusWorkbench}
-              onOpenImport={() => setImportDialogOpen(true)}
-              onOpenExport={() => setExportDialogOpen(true)}
-              canExport={allPoints.length > 0}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              canUndo={history.canUndo}
-              canRedo={history.canRedo}
-              undoDescription={history.getUndoAction()?.description || t("smartDashboard.noUndo")}
-              redoDescription={history.getRedoAction()?.description || t("smartDashboard.noRedo")}
-              onOpenShortcuts={() => setPanelType("shortcuts")}
-              t={t}
-            />
-          </div>
-        </div>
-      </div>
+      <SmartDashboardWorkspaceSection {...workspaceSectionState} />
       <SmartDashboardWorkflowModal
         modalIntent={modalIntent}
         modalIntentLabel={modalIntentLabel}
@@ -1713,143 +1439,25 @@ export default function SmartDashboard() {
         onBatchCreated={handleBatchCreatedWithPoints}
       />
 
-      {gridPopoverOpen &&
-        gridPopoverPosition &&
-        createPortal(
-          <div
-            ref={gridPopoverContentRef}
-            className="fixed z-[100] flex max-h-[85vh] w-[min(24rem,calc(100vw-1rem))] flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-            style={{
-              top: Math.min(gridPopoverPosition.top, window.innerHeight - 400),
-              left: Math.min(gridPopoverPosition.left, Math.max(0, window.innerWidth - 384)),
-            }}
-            role="dialog"
-            aria-label={t("smartDashboard.gridCellPopover.ariaLabel")}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-slate-700">
-              <div>
-                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
-                  {gridPopoverAddress}
-                </span>
-                {gridPopoverPoint && (
-                  <span className="ml-2 text-sm font-medium text-slate-800 dark:text-slate-200">
-                    {gridPopoverPoint.name}
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setGridPopoverOpen(false)}
-                className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                aria-label={t("common.close", "關閉")}
-              >
-                ×
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              {gridPopoverPoint ? (
-                <PointDetailPanel
-                  point={gridPopoverPoint}
-                  onUpdate={(updatedPoint) => {
-                    queryClient.invalidateQueries({ queryKey: pointKeys.lists() });
-                    setSelectedPoint(updatedPoint);
-                    setGridPopoverOpen(false);
-                  }}
-                  onDelete={async (id) => {
-                    try {
-                      await deletePointMutation.mutateAsync(id);
-                      showSuccess(t("smartDashboard.pointDeleted"));
-                      setSelectedPoint(null);
-                      setGridPopoverOpen(false);
-                    } catch (err) {
-                      showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
-                    }
-                  }}
-                  onClose={() => setGridPopoverOpen(false)}
-                />
-              ) : (
-                <div className="rounded-lg border border-white/10 bg-slate-800/40 p-3">
-                  <SmartDashboardTagPanel {...tagPanelProps} />
-                </div>
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {gridContextMenu &&
-        createPortal(
-          <div
-            ref={gridContextMenuRef}
-            className="fixed z-[110] min-w-[160px] rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-slate-800"
-            style={{ left: gridContextMenu.x, top: gridContextMenu.y }}
-            role="menu"
-            aria-label={t("smartDashboard.gridContextMenu.ariaLabel")}
-          >
-            {gridContextMenu.pointsToDelete.length > 1 ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
-                onClick={async () => {
-                  const { pointsToDelete } = gridContextMenu;
-                  if (
-                    !window.confirm(
-                      t("smartDashboard.gridContextMenu.deleteSelectedConfirm", {
-                        count: pointsToDelete.length,
-                      })
-                    )
-                  )
-                    return;
-                  const deletedIds = new Set<string>();
-                  for (const p of pointsToDelete) {
-                    try {
-                      await deletePointMutation.mutateAsync(p.id);
-                      deletedIds.add(p.id);
-                    } catch (err) {
-                      showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
-                    }
-                  }
-                  if (deletedIds.size > 0) {
-                    showSuccess(
-                      t("smartDashboard.gridContextMenu.deleteSelectedDone", {
-                        count: deletedIds.size,
-                      })
-                    );
-                    if (selectedPoint && deletedIds.has(selectedPoint.id)) setSelectedPoint(null);
-                  }
-                  setGridContextMenu(null);
-                }}
-              >
-                {t("smartDashboard.gridContextMenu.deleteSelectedPoints", {
-                  count: gridContextMenu.pointsToDelete.length,
-                })}
-              </button>
-            ) : (
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
-                onClick={async () => {
-                  const { point } = gridContextMenu;
-                  if (!window.confirm(t("smartDashboard.gridContextMenu.deleteConfirm", { name: point.name })))
-                    return;
-                  try {
-                    await deletePointMutation.mutateAsync(point.id);
-                    showSuccess(t("smartDashboard.pointDeleted"));
-                    setGridContextMenu(null);
-                    if (selectedPoint?.id === point.id) setSelectedPoint(null);
-                  } catch (err) {
-                    showError(err instanceof Error ? err.message : t("smartDashboard.deletePointFailed"));
-                  }
-                }}
-              >
-                {t("smartDashboard.gridContextMenu.deletePoint")}
-              </button>
-            )}
-          </div>,
-          document.body
-        )}
+      <SmartDashboardGridOverlaysSection
+        gridPopoverOpen={gridPopoverOpen}
+        setGridPopoverOpen={setGridPopoverOpen}
+        gridPopoverPosition={gridPopoverPosition}
+        gridPopoverAddress={gridPopoverAddress}
+        gridPopoverPoint={gridPopoverPoint}
+        gridPopoverContentRef={gridPopoverContentRef}
+        tagPanelProps={tagPanelProps}
+        queryClient={queryClient}
+        deletePoint={deletePointMutation.mutateAsync}
+        selectedPoint={selectedPoint}
+        setSelectedPoint={setSelectedPoint}
+        showSuccess={showSuccess}
+        showError={showError}
+        gridContextMenu={gridContextMenu}
+        gridContextMenuRef={gridContextMenuRef}
+        setGridContextMenu={setGridContextMenu}
+        t={t}
+      />
 
       {selectedDevice && (
         <>

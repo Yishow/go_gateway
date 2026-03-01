@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../components/ui/dialog';
+import { useSmartDashboardPanelsState } from './useSmartDashboardPanelsState';
 
 type PanelType = 'batch' | 'detail' | 'shortcuts' | null;
 
@@ -54,24 +55,29 @@ export default function SmartDashboardPanels({
   onBatchClose,
   onBatchCreated,
 }: SmartDashboardPanelsProps) {
-  const closeBatch = () => {
-    setPanelType(null);
-    setSelectedAddresses([]);
-    onBatchClose?.();
-  };
+  const {
+    isBatchDialogOpen,
+    isSlidePanelOpen,
+    showDetailPanel,
+    showShortcutsPanel,
+    slidePanelTitle,
+    closeBatch,
+    handleBatchDialogOpenChange,
+    handlePanelClose,
+  } = useSmartDashboardPanelsState({
+    panelType,
+    setPanelType,
+    selectedPoint,
+    setSelectedAddresses,
+    shortcutsTitle,
+    pointDetailTitle,
+    onBatchClose,
+  });
 
   return (
     <>
       {/* 批量建立：以 Modal 顯示，內容可與記憶體網格設定對應（套用到網格時帶入） */}
-      <Dialog
-        open={panelType === 'batch'}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPanelType(null);
-            onBatchClose?.();
-          }
-        }}
-      >
+      <Dialog open={isBatchDialogOpen} onOpenChange={handleBatchDialogOpenChange}>
         <DialogContent
           className="max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
           overlayClassName="bg-black/30"
@@ -101,20 +107,20 @@ export default function SmartDashboardPanels({
 
       {/* 點位詳情、快捷鍵：維持側滑面板 */}
       <SlidePanel
-        isOpen={panelType === 'detail' || panelType === 'shortcuts'}
-        title={panelType === 'shortcuts' ? shortcutsTitle : pointDetailTitle}
-        onClose={() => setPanelType(null)}
+        isOpen={isSlidePanelOpen}
+        title={slidePanelTitle}
+        onClose={handlePanelClose}
       >
-        {panelType === 'detail' && selectedPoint && (
+        {showDetailPanel && selectedPoint && (
           <PointDetailPanel
             point={selectedPoint}
-            onUpdate={() => setPanelType(null)}
-            onDelete={() => setPanelType(null)}
-            onClose={() => setPanelType(null)}
+            onUpdate={handlePanelClose}
+            onDelete={handlePanelClose}
+            onClose={handlePanelClose}
           />
         )}
 
-        {panelType === 'shortcuts' && (
+        {showShortcutsPanel && (
           <div className="space-y-4 p-4">
             <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{shortcutsHint}</p>
             <div className="space-y-3">

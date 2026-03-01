@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import SmartDashboard from '../SmartDashboard';
 import { ToastProvider } from '../../../contexts/ToastContext';
+import type { Point } from '../../../types/datalink';
 
 const { mockDevicesState, mockDatalinkState, mockMutations, mockModbusShareAPI } = vi.hoisted(() => ({
   mockDevicesState: {
@@ -30,6 +32,7 @@ const { mockDevicesState, mockDatalinkState, mockMutations, mockModbusShareAPI }
   mockMutations: {
     deleteDevice: { mutateAsync: vi.fn(), isPending: false },
     createPoint: { mutateAsync: vi.fn(), isPending: false },
+    deletePoint: { mutateAsync: vi.fn(), isPending: false },
     validatePipeline: { mutateAsync: vi.fn(), isPending: false },
     createMapping: { mutateAsync: vi.fn(), isPending: false },
     updateMapping: { mutateAsync: vi.fn(), isPending: false },
@@ -74,6 +77,7 @@ vi.mock('../../../hooks/datalink/usePollingGroups', () => ({
 vi.mock('../../../hooks/datalink/usePoints', () => ({
   usePointsQuery: () => ({ data: mockDatalinkState.points }),
   useCreatePointMutation: () => mockMutations.createPoint,
+  useDeletePointMutation: () => mockMutations.deletePoint,
 }));
 
 vi.mock('../../../hooks/datalink/useMappings', () => ({
@@ -146,14 +150,44 @@ vi.mock('../../../components/datalink/DeviceTreeNav', () => ({
 vi.mock('../../../components/datalink/MemoryGrid', () => ({
   MemoryGrid: ({
     onSelect,
+    onCellContextMenu,
     plannedAllocations = [],
   }: {
     onSelect: (addresses: string[]) => void;
+    onCellContextMenu?: (address: string, point: Point, e: ReactMouseEvent<HTMLButtonElement>) => void;
     plannedAllocations?: Array<{ addresses: string[] }>;
   }) => (
     <div data-testid="memory-grid-mock">
       <button type="button" onClick={() => onSelect(['40001'])}>
         mock-select-address
+      </button>
+      <button
+        type="button"
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onCellContextMenu?.(
+            '40001',
+            {
+              id: 'point-1',
+              device_id: 'device-active',
+              name: 'Mock Point',
+              description: '',
+              data_type: 'int16',
+              address: '40001',
+              enabled: true,
+              polling_group_id: 'pg-1',
+              last_value: 1,
+              last_read_at: '',
+              last_error: '',
+              error_count: 0,
+              created_at: '',
+              updated_at: '',
+            },
+            event,
+          );
+        }}
+      >
+        mock-open-context-menu
       </button>
       <p data-testid="plan-count">{plannedAllocations.length}</p>
       <p data-testid="plan-span">{plannedAllocations[0]?.addresses.length ?? 0}</p>
@@ -191,14 +225,22 @@ vi.mock('../../../components/datalink/DeviceForm', () => ({
 }));
 
 function renderDashboard(entry = '/datalink') {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
   return render(
-    <ToastProvider>
-      <MemoryRouter initialEntries={[entry]}>
-        <Routes>
-          <Route path="/datalink" element={<SmartDashboard />} />
-        </Routes>
-      </MemoryRouter>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[entry]}>
+          <Routes>
+            <Route path="/datalink" element={<SmartDashboard />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -400,12 +442,23 @@ describe('SmartDashboard interactions', () => {
       expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
     });
 
-    const dataTypeSelect = screen.getByRole('combobox');
-    fireEvent.change(dataTypeSelect, { target: { value: 'float32' } });
+    const modbusAreaSelect = screen.getByRole('combobox', { name: 'smartDashboard.sourcePlanner.modbusArea' });
+    fireEvent.change(modbusAreaSelect, { target: { value: '4' } });
+    await waitFor(() => {
+      expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
+    });
+
+    const dataTypeSelect = screen
+      .getAllByRole('combobox')
+      .find((combobox) =>
+        within(combobox).queryByRole('option', { name: 'smartDashboard.sourcePlanner.dataTypeOption_float32' })
+      ) as HTMLSelectElement | undefined;
+    expect(dataTypeSelect).toBeTruthy();
+    fireEvent.change(dataTypeSelect!, { target: { value: 'float32' } });
     expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
     expect(screen.getByTestId('plan-span')).toHaveTextContent('2');
 
-    fireEvent.change(dataTypeSelect, { target: { value: 'int64' } });
+    fireEvent.change(dataTypeSelect!, { target: { value: 'int64' } });
     expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
     expect(screen.getByTestId('plan-span')).toHaveTextContent('4');
   });
@@ -425,5 +478,19 @@ describe('SmartDashboard interactions', () => {
     fireEvent.click(within(card).getByRole('button', { name: '設定' }));
     expect(await screen.findByText('設定：Device Draft')).toBeInTheDocument();
     expect(screen.getByText('device-form-mock')).toBeInTheDocument();
+  });
+
+  it('opens and closes grid context menu from memory grid callback', async () => {
+    renderDashboard();
+    await switchDeviceFromModal('Device Active');
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: 'mock-open-context-menu' }));
+    expect(await screen.findByRole('menu', { name: 'smartDashboard.gridContextMenu.ariaLabel' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'smartDashboard.gridContextMenu.deletePoint' })).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    await waitFor(() => {
+      expect(screen.queryByRole('menu', { name: 'smartDashboard.gridContextMenu.ariaLabel' })).not.toBeInTheDocument();
+    });
   });
 });
