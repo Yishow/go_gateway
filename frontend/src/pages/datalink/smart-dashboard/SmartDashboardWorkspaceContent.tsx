@@ -1,11 +1,12 @@
 import { ChevronLeft, ChevronRight, WandSparkles } from "lucide-react";
-import { useEffect, useRef, type RefObject } from "react";
+import type { RefObject } from "react";
 import type { TFunction } from "i18next";
 import { MemoryGrid } from "../../../components/datalink/MemoryGrid";
 import type { Point, DataType, ProtocolType, ModbusShareStatus } from "../../../types/datalink";
 import type { PlannedAllocation } from "../../../components/datalink/MemoryGrid";
 import type { FlowState, FlowSegment } from "../../../features/flow/stateMachine";
 import SmartDashboardFlowStatusSection from "./SmartDashboardFlowStatusSection";
+import { useSmartDashboardWorkspaceContentState } from "./useSmartDashboardWorkspaceContentState";
 
 type IntentStage = "idle" | "grid" | "commit";
 
@@ -87,30 +88,23 @@ export default function SmartDashboardWorkspaceContent({
   gridViewStartAddress,
   onGridViewShift,
 }: SmartDashboardWorkspaceContentProps) {
-  const lastWheelShiftAt = useRef(0);
-  const gridScrollRef = useRef<HTMLDivElement>(null);
-  const WHEEL_SHIFT_MS = 300;
-
-  /** 固定 100 格（約 10 列）；不依 resize 動態計算，避免重複 re-render 當機 */
-  const GRID_RANGE = 100;
-
-  useEffect(() => {
-    const el = gridScrollRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY === 0) return;
-      const now = Date.now();
-      if (now - lastWheelShiftAt.current < WHEEL_SHIFT_MS) {
-        e.preventDefault();
-        return;
-      }
-      lastWheelShiftAt.current = now;
-      e.preventDefault();
-      onGridViewShift(e.deltaY > 0 ? 100 : -100);
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [onGridViewShift]);
+  const {
+    gridScrollRef,
+    gridRange,
+    modbusArea,
+    centerAddress,
+    handleModbusAreaChange,
+    handlePlanStartAddressChange,
+    handlePlanCountChange,
+  } = useSmartDashboardWorkspaceContentState({
+    planStartAddress,
+    setPlanStartAddress,
+    setPlanCount,
+    selectedDeviceProtocol: selectedDevice.protocol,
+    gridViewStartAddress,
+    getGridCenterAddress,
+    onGridViewShift,
+  });
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -133,24 +127,9 @@ export default function SmartDashboardWorkspaceContent({
             <label className="flex items-center gap-1.5 text-xs text-slate-400">
               {t("smartDashboard.sourcePlanner.modbusArea")}
               <select
-                value={
-                  planStartAddress.startsWith("0")
-                    ? "0"
-                    : planStartAddress.startsWith("1")
-                      ? "1"
-                      : planStartAddress.startsWith("3")
-                        ? "3"
-                        : "4"
-                }
+                value={modbusArea}
                 onChange={(e) => {
-                  const prefix = e.target.value as "0" | "1" | "3" | "4";
-                  const defaults: Record<string, string> = {
-                    "0": "00001",
-                    "1": "10001",
-                    "3": "30001",
-                    "4": "40001",
-                  };
-                  setPlanStartAddress(defaults[prefix] ?? "40001");
+                  handleModbusAreaChange(e.target.value as "0" | "1" | "3" | "4");
                 }}
                 className="rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label={t("smartDashboard.sourcePlanner.modbusArea")}
@@ -167,7 +146,7 @@ export default function SmartDashboardWorkspaceContent({
             {t("smartDashboard.sourcePlanner.startAddress")}
             <input
               value={planStartAddress}
-              onChange={(e) => setPlanStartAddress(e.target.value.toUpperCase())}
+              onChange={(e) => handlePlanStartAddressChange(e.target.value)}
               placeholder={t("smartDashboard.sourcePlanner.startAddressPlaceholder")}
               className="w-24 rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 font-mono text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -180,11 +159,7 @@ export default function SmartDashboardWorkspaceContent({
               min={1}
               max={200}
               value={planCount}
-              onChange={(e) => {
-                const raw = Number(e.target.value);
-                const bounded = Number.isFinite(raw) ? Math.min(200, Math.max(1, Math.floor(raw))) : 1;
-                setPlanCount(bounded);
-              }}
+              onChange={(e) => handlePlanCountChange(e.target.value)}
               className="w-16 rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
@@ -291,8 +266,8 @@ export default function SmartDashboardWorkspaceContent({
           <MemoryGrid
             deviceId={selectedDevice.id}
             protocol={selectedDevice.protocol}
-            centerAddress={gridViewStartAddress || planStartAddress || getGridCenterAddress(selectedDevice.protocol)}
-            range={GRID_RANGE}
+            centerAddress={centerAddress}
+            range={gridRange}
             existingPoints={allPoints}
             linkedAddresses={linkedAddresses}
             selectedAddresses={selectedAddresses}
