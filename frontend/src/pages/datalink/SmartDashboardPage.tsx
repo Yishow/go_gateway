@@ -17,10 +17,11 @@ import { ImportDialog, ExportDialog } from "../../components/datalink/ImportExpo
 import SmartDashboardHeader from "./smart-dashboard/SmartDashboardHeader";
 import SmartDashboardIntentNotices from "./smart-dashboard/SmartDashboardIntentNotices";
 import SmartDashboardControlBar from "./smart-dashboard/SmartDashboardControlBar";
-import SmartDashboardWorkspace from "./smart-dashboard/SmartDashboardWorkspace";
-import SmartDashboardSidebar, { type SidebarTab } from "./smart-dashboard/SmartDashboardSidebar";
+import type { SidebarTab } from "./smart-dashboard/SmartDashboardSidebar";
+import SmartDashboardWorkspaceSection from "./smart-dashboard/SmartDashboardWorkspaceSection";
 import { useSmartDashboardTagLinking } from "./smart-dashboard/useSmartDashboardTagLinking";
 import { useSmartDashboardModbusActions } from "./smart-dashboard/useSmartDashboardModbusActions";
+import { useSmartDashboardSidebarPanelMotion } from "./smart-dashboard/useSmartDashboardSidebarPanelMotion";
 import SmartDashboardWorkflowModal from "./smart-dashboard/SmartDashboardWorkflowModal";
 import SmartDashboardOverlays from "./smart-dashboard/SmartDashboardOverlays";
 import SmartDashboardPanels from "./smart-dashboard/SmartDashboardPanels";
@@ -1494,6 +1495,7 @@ export default function SmartDashboard() {
     onImport: handleImportShortcut,
     onExport: handleExportShortcut,
   });
+  const sidebarPanelMotion = useSmartDashboardSidebarPanelMotion({ guideStage, reducedMotion });
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-11rem)] bg-gradient-to-br from-[#0B0F19] via-[#111827] to-[#0F172A] text-slate-100 font-sans rounded-2xl overflow-hidden selection:bg-blue-500/30">
@@ -1522,131 +1524,126 @@ export default function SmartDashboard() {
         closeWorkflowModal={closeWorkflowModal}
       />
       <SmartDashboardControlBar onChooseDevice={handleChooseDevice} onCreateDevice={handleCreateDevice} />
-      <div className="flex-1 p-3 sm:p-4 grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4 min-h-0">
-        <SmartDashboardWorkspace
-          selectedDevice={selectedDevice}
-          planDataType={planDataType}
-          setPlanDataType={setPlanDataType}
-          planCount={planCount}
-          setPlanCount={setPlanCount}
-          totalPlannedCells={totalPlannedCells}
-          planStartAddress={planStartAddress}
-          setPlanStartAddress={setPlanStartAddress}
-          handleAutoAllocate={handleAutoAllocate}
-          handleApplyPlan={handleApplyPlan}
-          planConflictCount={planConflictCount}
-          typedPlanValidation={typedPlanValidation}
-          showConflictsOnly={showConflictsOnly}
-          flowSegments={FLOW_SEGMENTS}
-          flowState={flowState}
-          statusStyle={STATUS_STYLE}
-          hasError={hasError}
-          t={t}
-          gridSectionRef={gridSectionRef}
-          resolveIntentMotionClass={resolveIntentMotionClass}
-          guideStage={guideStage}
-          reducedMotion={reducedMotion}
-          motionTokens={MOTION_TOKENS}
-          modbusStatus={modbusStatus}
-          allPoints={allPoints}
-          linkedAddresses={linkedAddresses}
-          selectedAddresses={selectedAddresses}
-          plannedAllocations={plannedAllocations}
-          setSelectedAddresses={setSelectedAddresses}
-          handleCellClick={handleCellClick}
-          onCellContextMenu={handleCellContextMenu}
-          getGridCenterAddress={getGridCenterAddress}
-          gridViewStartAddress={gridViewStartAddress}
-          onGridViewShift={handleGridViewShift}
-          handleChooseDevice={handleChooseDevice}
-          handleCreateDevice={handleCreateDevice}
-        />
-        <div className="min-h-[300px] xl:min-h-0">
-          <div
-            className={`h-full bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl transition-all ${resolveIntentMotionClass(guideStage === "commit" ? "commit" : "idle", reducedMotion)}`}
-            style={{ transitionDuration: `${MOTION_TOKENS.commitFeedbackMs}ms` }}
-          >
-            <SmartDashboardSidebar
-              sidebarTab={sidebarTab}
-              setSidebarTab={setSidebarTab}
-              hasTagSelection={Boolean(selectedSourceAddress)}
-              planningTabProps={{
-                planDataType,
-                planCount,
-                totalPlannedCells,
-                planConflictCount,
-                typedPlanValidation,
-                allocationMessage,
-                templateName,
-                setTemplateName,
-                handleSaveTemplate,
-                sourceTemplates,
-                handleLoadTemplate,
-                handleDeleteTemplate,
-                staleTemplateCount,
-                sourceTemplateSchemaVersion: SOURCE_TEMPLATE_SCHEMA_VERSION,
-                handleUpgradeTemplates,
-                batchNamePrefix,
-                setBatchNamePrefix,
-                normalizeNamingPrefix,
-                namePreview,
-                nameConflictCount,
-                showConflictsOnly,
-                setShowConflictsOnly,
-                t,
-              }}
-              tagPanelProps={tagPanelProps}
-              modbusPanelProps={{
-                goToLocalModbusWorkbench,
-                loadModbusStatus,
-                modbusStatus,
-                modbusRegister,
-                setModbusRegister,
-                handleBindTagToModbus,
-                handlePushCurrentValueToModbus,
-                handleSyncModbusFromMappings,
-              }}
-              commitPanelProps={{
-                commitQueueSummary,
-                commitImpactSummary,
-                preCommitLoadEstimate,
-                motionQAGate,
-                commitQueueItems,
-                onValidateFlow: handleValidateFlow,
-                canValidate,
-                validating: validatePipelineMutation.isPending,
-                onCommitFlow: handleCommitFlow,
-                canCommit: canActivate,
-                isCommitRunning,
-                onRetryFailed: handleRetryFailedCommits,
-                hasFailedChunk: failedChunkRetryQueue.length > 0,
-                onRollback: handleRollbackCommitRun,
-                canRollback: Boolean(lastCommitSnapshot),
-                segmentFeedback,
-                commitActionMessage,
-                commitAuditPayload,
-                commitChunkResults,
-                hasError,
-                onRecoverFlow: handleRecoverFlow,
-                t,
-              }}
-              selectedDevice={selectedDevice}
-              onOpenWorkbench={goToLocalModbusWorkbench}
-              onOpenImport={() => setImportDialogOpen(true)}
-              onOpenExport={() => setExportDialogOpen(true)}
-              canExport={allPoints.length > 0}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              canUndo={history.canUndo}
-              canRedo={history.canRedo}
-              undoDescription={history.getUndoAction()?.description || t("smartDashboard.noUndo")}
-              redoDescription={history.getRedoAction()?.description || t("smartDashboard.noRedo")}
-              onOpenShortcuts={() => setPanelType("shortcuts")}
-              t={t}
-            />
-          </div>
-        </div>
-      </div>
+      <SmartDashboardWorkspaceSection
+        workspaceProps={{
+          selectedDevice,
+          planDataType,
+          setPlanDataType,
+          planCount,
+          setPlanCount,
+          totalPlannedCells,
+          planStartAddress,
+          setPlanStartAddress,
+          handleAutoAllocate,
+          handleApplyPlan,
+          planConflictCount,
+          typedPlanValidation,
+          showConflictsOnly,
+          flowSegments: FLOW_SEGMENTS,
+          flowState,
+          statusStyle: STATUS_STYLE,
+          hasError,
+          t,
+          gridSectionRef,
+          resolveIntentMotionClass,
+          guideStage,
+          reducedMotion,
+          motionTokens: MOTION_TOKENS,
+          modbusStatus,
+          allPoints,
+          linkedAddresses,
+          selectedAddresses,
+          plannedAllocations,
+          setSelectedAddresses,
+          handleCellClick,
+          onCellContextMenu: handleCellContextMenu,
+          getGridCenterAddress,
+          gridViewStartAddress,
+          onGridViewShift: handleGridViewShift,
+          handleChooseDevice,
+          handleCreateDevice,
+        }}
+        sidebarContainerClassName={sidebarPanelMotion.className}
+        sidebarContainerStyle={sidebarPanelMotion.style}
+        sidebarProps={{
+          sidebarTab,
+          setSidebarTab,
+          hasTagSelection: Boolean(selectedSourceAddress),
+          planningTabProps: {
+            planDataType,
+            planCount,
+            totalPlannedCells,
+            planConflictCount,
+            typedPlanValidation,
+            allocationMessage,
+            templateName,
+            setTemplateName,
+            handleSaveTemplate,
+            sourceTemplates,
+            handleLoadTemplate,
+            handleDeleteTemplate,
+            staleTemplateCount,
+            sourceTemplateSchemaVersion: SOURCE_TEMPLATE_SCHEMA_VERSION,
+            handleUpgradeTemplates,
+            batchNamePrefix,
+            setBatchNamePrefix,
+            normalizeNamingPrefix,
+            namePreview,
+            nameConflictCount,
+            showConflictsOnly,
+            setShowConflictsOnly,
+            t,
+          },
+          tagPanelProps,
+          modbusPanelProps: {
+            goToLocalModbusWorkbench,
+            loadModbusStatus,
+            modbusStatus,
+            modbusRegister,
+            setModbusRegister,
+            handleBindTagToModbus,
+            handlePushCurrentValueToModbus,
+            handleSyncModbusFromMappings,
+          },
+          commitPanelProps: {
+            commitQueueSummary,
+            commitImpactSummary,
+            preCommitLoadEstimate,
+            motionQAGate,
+            commitQueueItems,
+            onValidateFlow: handleValidateFlow,
+            canValidate,
+            validating: validatePipelineMutation.isPending,
+            onCommitFlow: handleCommitFlow,
+            canCommit: canActivate,
+            isCommitRunning,
+            onRetryFailed: handleRetryFailedCommits,
+            hasFailedChunk: failedChunkRetryQueue.length > 0,
+            onRollback: handleRollbackCommitRun,
+            canRollback: Boolean(lastCommitSnapshot),
+            segmentFeedback,
+            commitActionMessage,
+            commitAuditPayload,
+            commitChunkResults,
+            hasError,
+            onRecoverFlow: handleRecoverFlow,
+            t,
+          },
+          selectedDevice,
+          onOpenWorkbench: goToLocalModbusWorkbench,
+          onOpenImport: () => setImportDialogOpen(true),
+          onOpenExport: () => setExportDialogOpen(true),
+          canExport: allPoints.length > 0,
+          onUndo: handleUndo,
+          onRedo: handleRedo,
+          canUndo: history.canUndo,
+          canRedo: history.canRedo,
+          undoDescription: history.getUndoAction()?.description || t("smartDashboard.noUndo"),
+          redoDescription: history.getRedoAction()?.description || t("smartDashboard.noRedo"),
+          onOpenShortcuts: () => setPanelType("shortcuts"),
+          t,
+        }}
+      />
       <SmartDashboardWorkflowModal
         modalIntent={modalIntent}
         modalIntentLabel={modalIntentLabel}
