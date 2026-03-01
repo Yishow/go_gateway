@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +31,7 @@ const { mockDevicesState, mockDatalinkState, mockMutations, mockModbusShareAPI }
   mockMutations: {
     deleteDevice: { mutateAsync: vi.fn(), isPending: false },
     createPoint: { mutateAsync: vi.fn(), isPending: false },
+    deletePoint: { mutateAsync: vi.fn(), isPending: false },
     validatePipeline: { mutateAsync: vi.fn(), isPending: false },
     createMapping: { mutateAsync: vi.fn(), isPending: false },
     updateMapping: { mutateAsync: vi.fn(), isPending: false },
@@ -74,6 +76,7 @@ vi.mock('../../../hooks/datalink/usePollingGroups', () => ({
 vi.mock('../../../hooks/datalink/usePoints', () => ({
   usePointsQuery: () => ({ data: mockDatalinkState.points }),
   useCreatePointMutation: () => mockMutations.createPoint,
+  useDeletePointMutation: () => mockMutations.deletePoint,
 }));
 
 vi.mock('../../../hooks/datalink/useMappings', () => ({
@@ -191,14 +194,22 @@ vi.mock('../../../components/datalink/DeviceForm', () => ({
 }));
 
 function renderDashboard(entry = '/datalink') {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
   return render(
-    <ToastProvider>
-      <MemoryRouter initialEntries={[entry]}>
-        <Routes>
-          <Route path="/datalink" element={<SmartDashboard />} />
-        </Routes>
-      </MemoryRouter>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[entry]}>
+          <Routes>
+            <Route path="/datalink" element={<SmartDashboard />} />
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -400,12 +411,23 @@ describe('SmartDashboard interactions', () => {
       expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
     });
 
-    const dataTypeSelect = screen.getByRole('combobox');
-    fireEvent.change(dataTypeSelect, { target: { value: 'float32' } });
+    const modbusAreaSelect = screen.getByRole('combobox', { name: 'smartDashboard.sourcePlanner.modbusArea' });
+    fireEvent.change(modbusAreaSelect, { target: { value: '4' } });
+    await waitFor(() => {
+      expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
+    });
+
+    const dataTypeSelect = screen
+      .getAllByRole('combobox')
+      .find((combobox) =>
+        within(combobox).queryByRole('option', { name: 'smartDashboard.sourcePlanner.dataTypeOption_float32' })
+      ) as HTMLSelectElement | undefined;
+    expect(dataTypeSelect).toBeTruthy();
+    fireEvent.change(dataTypeSelect!, { target: { value: 'float32' } });
     expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
     expect(screen.getByTestId('plan-span')).toHaveTextContent('2');
 
-    fireEvent.change(dataTypeSelect, { target: { value: 'int64' } });
+    fireEvent.change(dataTypeSelect!, { target: { value: 'int64' } });
     expect(screen.getByTestId('plan-count')).toHaveTextContent('5');
     expect(screen.getByTestId('plan-span')).toHaveTextContent('4');
   });
