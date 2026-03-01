@@ -789,27 +789,35 @@ export default function SmartDashboard() {
     return [
       {
         id: "source",
-        label: "Source",
+        label: t("smartDashboard.commit.segment.source.label"),
         ok: sourceOk,
-        message: sourceOk ? "來源已選定" : "請先選取來源設備與格位",
+        message: sourceOk
+          ? t("smartDashboard.commit.segment.source.ready")
+          : t("smartDashboard.commit.segment.source.missing"),
       },
       {
         id: "grid",
-        label: "Grid",
+        label: t("smartDashboard.commit.segment.grid.label"),
         ok: gridOk,
-        message: gridOk ? "格位驗證通過" : `仍有衝突 ${planConflictCount} 格或尚未規劃`,
+        message: gridOk
+          ? t("smartDashboard.commit.segment.grid.ready")
+          : t("smartDashboard.commit.segment.grid.missing", { count: planConflictCount }),
       },
       {
         id: "tag",
-        label: "Tag",
+        label: t("smartDashboard.commit.segment.tag.label"),
         ok: tagOk,
-        message: tagOk ? `已連結 Tag ${linkedTag?.key}` : "請先完成 Tag 連結",
+        message: tagOk
+          ? t("smartDashboard.commit.segment.tag.ready", { key: linkedTag?.key ?? "" })
+          : t("smartDashboard.commit.segment.tag.missing"),
       },
       {
         id: "sink",
-        label: "Sink",
+        label: t("smartDashboard.commit.segment.sink.label"),
         ok: sinkOk,
-        message: sinkOk ? "可提交到 DB" : "需先完成 Validate",
+        message: sinkOk
+          ? t("smartDashboard.commit.segment.sink.ready")
+          : t("smartDashboard.commit.segment.sink.missing"),
       },
     ] as const;
   }, [
@@ -820,6 +828,7 @@ export default function SmartDashboard() {
     selectedDeviceId,
     selectedMapping,
     selectedSourceAddress,
+    t,
   ]);
   const {
     commitQueueItems,
@@ -1160,7 +1169,7 @@ export default function SmartDashboard() {
       hasSelectedMapping: Boolean(selectedMapping),
     });
     if (!structural.ok) {
-      const structuralError = structural.error || "結構驗證未通過";
+      const structuralError = structural.error || t("smartDashboard.commit.validation.structureErrorDefault");
       if (structuralError.includes("來源")) {
         markError("source", t("smartDashboard.flowErrors.missingSource"));
       } else if (structuralError.includes("Tag")) {
@@ -1168,24 +1177,28 @@ export default function SmartDashboard() {
       } else {
         markError("grid", structuralError);
       }
-      setCommitActionMessage(`Validate 階段1（結構）失敗：${structuralError}`);
+      setCommitActionMessage(t("smartDashboard.commit.validation.structureFailed", { error: structuralError }));
       return;
     }
-    setCommitActionMessage("Validate 階段1（結構）通過，執行階段2（可執行）...");
+    setCommitActionMessage(t("smartDashboard.commit.validation.structurePassed"));
     try {
       const pipeline = parsePipeline();
       const result = await validatePipelineMutation.mutateAsync(pipeline);
       if (result.valid) {
         markValidated();
-        setCommitActionMessage("Validate 兩階段通過：可執行 Commit。");
+        setCommitActionMessage(t("smartDashboard.commit.validation.validationPassed"));
         return;
       }
       markError("grid", result.error || t("smartDashboard.flowErrors.validationFailed"));
-      setCommitActionMessage(`Validate 階段2（可執行）失敗：${result.error || "Grid 驗證未通過"}`);
+      setCommitActionMessage(
+        t("smartDashboard.commit.validation.executeFailed", {
+          error: result.error || t("smartDashboard.commit.validation.executeFailedDefault"),
+        })
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : t("smartDashboard.flowErrors.validationFailed");
       markError("grid", message);
-      setCommitActionMessage(`Validate 階段2（可執行）失敗：${message}`);
+      setCommitActionMessage(t("smartDashboard.commit.validation.executeFailed", { error: message }));
     }
   }, [
     markError,
@@ -1401,6 +1414,7 @@ export default function SmartDashboard() {
         setPanelType={setPanelType}
         setActiveTab={setActiveTab}
         goToLocalModbusWorkbench={goToLocalModbusWorkbench}
+        t={t}
       />
 
       <SmartDashboardOverlays

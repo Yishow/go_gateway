@@ -97,7 +97,7 @@ describe('useSmartDashboardCommitFlow', () => {
 
     expect(markError).toHaveBeenCalled();
     expect(result.current.hasFailedChunk).toBe(true);
-    expect(result.current.commitActionMessage).toContain('Commit 部分成功');
+    expect(result.current.commitActionMessage).toContain('smartDashboard.commit.action.partialSuccess');
 
     rerender({
       allPoints: [],
@@ -108,7 +108,7 @@ describe('useSmartDashboardCommitFlow', () => {
     });
 
     expect(result.current.hasFailedChunk).toBe(false);
-    expect(result.current.commitActionMessage).toContain('Retry 成功');
+    expect(result.current.commitActionMessage).toContain('smartDashboard.commit.action.retrySuccess');
     expect(markActive).not.toHaveBeenCalled();
     expect(setGuideStage).not.toHaveBeenCalledWith('commit');
   });
@@ -144,7 +144,7 @@ describe('useSmartDashboardCommitFlow', () => {
     expect(markActive).toHaveBeenCalledTimes(1);
     expect(setGuideStage).toHaveBeenCalledWith('commit');
     expect(scheduleGuideStageReset).toHaveBeenCalledTimes(1);
-    expect(result.current.commitActionMessage).toContain('Commit 成功');
+    expect(result.current.commitActionMessage).toContain('smartDashboard.commit.action.success');
     expect(result.current.canRollback).toBe(true);
 
     act(() => {
@@ -152,6 +152,6 @@ describe('useSmartDashboardCommitFlow', () => {
     });
 
     expect(result.current.canRollback).toBe(false);
-    expect(result.current.commitActionMessage).toContain('已回滾');
+    expect(result.current.commitActionMessage).toContain('smartDashboard.commit.action.rollbackSuccess');
   });
 });

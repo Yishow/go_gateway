@@ -475,8 +475,8 @@ describe('SmartDashboard interactions', () => {
     renderDashboard('/datalink?modal=devices');
     const draftCard = await screen.findByText('Device Draft');
     const card = draftCard.closest('article') as HTMLElement;
-    fireEvent.click(within(card).getByRole('button', { name: '設定' }));
-    expect(await screen.findByText('設定：Device Draft')).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole('button', { name: 'smartDashboard.workflowModal.setup' }));
+    expect(await screen.findByText('smartDashboard.workflowModal.editingDeviceTitle')).toBeInTheDocument();
     expect(screen.getByText('device-form-mock')).toBeInTheDocument();
   });
 

@@ -1,4 +1,5 @@
 import type { CreateDeviceRequest, Device, UpdateDeviceRequest } from '../../../types/datalink';
+import type { TFunction } from 'i18next';
 import DeviceForm from '../../../components/datalink/DeviceForm';
 
 type DeviceStatusFilter = 'all' | 'active' | 'disabled' | 'draft';
@@ -39,6 +40,7 @@ interface SmartDashboardWorkflowModalProps {
   setPanelType: (panel: PanelType) => void;
   setActiveTab: (tab: DashboardTab) => void;
   goToLocalModbusWorkbench: () => void;
+  t: TFunction;
 }
 
 export default function SmartDashboardWorkflowModal({
@@ -69,15 +71,32 @@ export default function SmartDashboardWorkflowModal({
   setPanelType,
   setActiveTab,
   goToLocalModbusWorkbench,
+  t,
 }: SmartDashboardWorkflowModalProps) {
   if (!modalIntent) return null;
+
+  const deviceStatusLabel = (status: Device['status']) => t(`device.status.${status}`);
+  const intentDescription =
+    modalIntent === 'settings'
+      ? t('smartDashboard.workflowModal.intent.settings')
+      : modalIntent === 'points'
+        ? t('smartDashboard.workflowModal.intent.points')
+        : modalIntent === 'mappings'
+          ? t('smartDashboard.workflowModal.intent.mappings')
+          : modalIntent === 'wizard'
+            ? t('smartDashboard.workflowModal.intent.wizard')
+            : modalIntent === 'polling-groups'
+              ? t('smartDashboard.workflowModal.intent.pollingGroups')
+              : modalIntent === 'tags'
+                ? t('smartDashboard.workflowModal.intent.tags')
+                : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-2 sm:p-4">
       <div className="my-auto flex w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/95 via-slate-900 to-slate-950 p-3 shadow-2xl sm:my-0 sm:max-h-[95dvh] sm:p-4">
         <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-indigo-200/80 sm:text-xs">Dashboard Modal</p>
+            <p className="text-[10px] uppercase tracking-wider text-indigo-200/80 sm:text-xs">{t('smartDashboard.workflowModal.title')}</p>
             <h3 className="truncate text-base font-semibold text-slate-100">{modalIntentLabel}</h3>
           </div>
           <button
@@ -85,7 +104,7 @@ export default function SmartDashboardWorkflowModal({
             onClick={closeWorkflowModal}
             className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
           >
-            關閉
+            {t('common.close')}
           </button>
         </div>
         {modalIntent === 'devices' ? (
@@ -96,7 +115,7 @@ export default function SmartDashboardWorkflowModal({
                 <input
                   value={deviceSearchQuery}
                   onChange={(e) => setDeviceSearchQuery(e.target.value)}
-                  placeholder="搜尋設備名稱 / protocol / ID"
+                  placeholder={t('smartDashboard.workflowModal.searchPlaceholder')}
                   className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:min-w-[180px]"
                 />
                 <select
@@ -104,24 +123,24 @@ export default function SmartDashboardWorkflowModal({
                   onChange={(e) => setDeviceStatusFilter(e.target.value as DeviceStatusFilter)}
                   className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto sm:min-w-[120px]"
                 >
-                  <option value="all">全部狀態</option>
-                  <option value="active">active</option>
-                  <option value="disabled">disabled</option>
-                  <option value="draft">draft</option>
+                  <option value="all">{t('smartDashboard.workflowModal.statusAll')}</option>
+                  <option value="active">{deviceStatusLabel('active')}</option>
+                  <option value="disabled">{deviceStatusLabel('disabled')}</option>
+                  <option value="draft">{deviceStatusLabel('draft')}</option>
                 </select>
                 <button
                   type="button"
                   onClick={handleCreateDevice}
                   className="min-h-11 w-full shrink-0 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:w-auto"
                 >
-                  新增設備
+                  {t('smartDashboard.actions.createDevice')}
                 </button>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div className="rounded-lg border border-white/10 bg-slate-800/60 p-2 text-xs text-slate-300">總數: <span className="font-semibold text-slate-100">{deviceSummary.total}</span></div>
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs text-emerald-200">active: <span className="font-semibold">{deviceSummary.active}</span></div>
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">disabled: <span className="font-semibold">{deviceSummary.disabled}</span></div>
-                <div className="rounded-lg border border-slate-500/40 bg-slate-800/60 p-2 text-xs text-slate-300">draft: <span className="font-semibold text-slate-100">{deviceSummary.draft}</span></div>
+                <div className="rounded-lg border border-white/10 bg-slate-800/60 p-2 text-xs text-slate-300">{t('smartDashboard.workflowModal.summary.total', { count: deviceSummary.total })}</div>
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs text-emerald-200">{t('smartDashboard.workflowModal.summary.active', { count: deviceSummary.active })}</div>
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200">{t('smartDashboard.workflowModal.summary.disabled', { count: deviceSummary.disabled })}</div>
+                <div className="rounded-lg border border-slate-500/40 bg-slate-800/60 p-2 text-xs text-slate-300">{t('smartDashboard.workflowModal.summary.draft', { count: deviceSummary.draft })}</div>
               </div>
               <div className="mt-3 max-h-[45vh] space-y-2 overflow-auto pr-1 sm:max-h-[380px]">
                 {filteredDevices.map((device) => (
@@ -153,11 +172,13 @@ export default function SmartDashboardWorkflowModal({
                             ? 'bg-amber-500/20 text-amber-200'
                             : 'bg-slate-700/70 text-slate-300'
                       }`}>
-                        {device.status}
+                        {deviceStatusLabel(device.status)}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                      <p className="min-w-0 truncate text-[11px] text-slate-400">上次測試: {device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-'}</p>
+                      <p className="min-w-0 truncate text-[11px] text-slate-400">
+                        {t('smartDashboard.workflowModal.lastTestAt', { value: device.last_test_at ? new Date(device.last_test_at).toLocaleString() : '-' })}
+                      </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
@@ -167,7 +188,7 @@ export default function SmartDashboardWorkflowModal({
                           }}
                           className="min-h-9 rounded-md border border-slate-400/30 bg-slate-700/60 px-2.5 py-1.5 text-[11px] font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                         >
-                          設定
+                          {t('smartDashboard.workflowModal.setup')}
                         </button>
                         <button
                           type="button"
@@ -178,7 +199,7 @@ export default function SmartDashboardWorkflowModal({
                           disabled={testingDeviceId === device.id}
                           className="min-h-9 rounded-md border border-cyan-400/40 bg-cyan-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
                         >
-                          {testingDeviceId === device.id ? '測試中...' : '測試連線'}
+                          {testingDeviceId === device.id ? t('smartDashboard.workflowModal.testing') : t('smartDashboard.workflowModal.testConnection')}
                         </button>
                         {device.status !== 'draft' && (
                           <button
@@ -190,7 +211,7 @@ export default function SmartDashboardWorkflowModal({
                             disabled={activatingDeviceId === device.id}
                             className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                           >
-                            {activatingDeviceId === device.id ? '處理中...' : device.status === 'active' ? '停用' : '啟用'}
+                            {activatingDeviceId === device.id ? t('smartDashboard.workflowModal.processing') : device.status === 'active' ? t('smartDashboard.workflowModal.disable') : t('smartDashboard.workflowModal.enable')}
                           </button>
                         )}
                         <button
@@ -202,11 +223,11 @@ export default function SmartDashboardWorkflowModal({
                           disabled={deletingDeviceId === device.id}
                           className="min-h-9 rounded-md border border-rose-400/40 bg-rose-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                         >
-                          {deletingDeviceId === device.id ? '刪除中...' : '刪除'}
+                          {deletingDeviceId === device.id ? t('smartDashboard.workflowModal.deleting') : t('common.delete')}
                         </button>
                         {selectedDeviceId === device.id && (
                           <span className="min-h-9 inline-flex items-center rounded-md border border-blue-400/40 bg-blue-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-blue-100">
-                            目前設備
+                            {t('smartDashboard.workflowModal.currentDevice')}
                           </span>
                         )}
                       </div>
@@ -215,7 +236,7 @@ export default function SmartDashboardWorkflowModal({
                 ))}
                 {filteredDevices.length === 0 && (
                   <div className="rounded-xl border border-dashed border-slate-600 p-4 text-center text-xs text-slate-400">
-                    查無符合條件的設備
+                    {t('smartDashboard.workflowModal.emptyDevices')}
                   </div>
                 )}
               </div>
@@ -223,9 +244,11 @@ export default function SmartDashboardWorkflowModal({
             <section className="flex min-h-0 flex-col rounded-2xl border border-white/10 bg-slate-900/60 p-3 sm:p-4">
               <div className="flex shrink-0 items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 sm:text-xs">Device Setup</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400 sm:text-xs">{t('smartDashboard.workflowModal.deviceSetupTitle')}</p>
                   <h4 className="truncate text-sm font-semibold text-slate-100">
-                    {editingDeviceInModal ? `設定：${editingDeviceInModal.name}` : '請先選擇設備'}
+                    {editingDeviceInModal
+                      ? t('smartDashboard.workflowModal.editingDeviceTitle', { name: editingDeviceInModal.name })
+                      : t('smartDashboard.workflowModal.selectDeviceFirst')}
                   </h4>
                 </div>
                 {editingDeviceInModal && (
@@ -234,7 +257,7 @@ export default function SmartDashboardWorkflowModal({
                     onClick={() => setEditingDeviceInModal(null)}
                     className="min-h-9 rounded-md border border-slate-700 px-2.5 py-1.5 text-[11px] text-slate-200 hover:bg-slate-800"
                   >
-                    關閉設定
+                    {t('smartDashboard.workflowModal.closeSetup')}
                   </button>
                 )}
               </div>
@@ -247,7 +270,7 @@ export default function SmartDashboardWorkflowModal({
                       disabled={testingDeviceId === editingDeviceInModal.id}
                       className="min-h-9 rounded-md border border-cyan-400/40 bg-cyan-500/20 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {testingDeviceId === editingDeviceInModal.id ? '測試中...' : '測試連線'}
+                      {testingDeviceId === editingDeviceInModal.id ? t('smartDashboard.workflowModal.testing') : t('smartDashboard.workflowModal.testConnection')}
                     </button>
                     <button
                       type="button"
@@ -256,10 +279,10 @@ export default function SmartDashboardWorkflowModal({
                       className="min-h-9 rounded-md border border-amber-400/40 bg-amber-500/20 px-3 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {activatingDeviceId === editingDeviceInModal.id
-                        ? '處理中...'
+                        ? t('smartDashboard.workflowModal.processing')
                         : editingDeviceInModal.status === 'active'
-                          ? '停用設備'
-                          : '啟用設備'}
+                          ? t('smartDashboard.workflowModal.disableDevice')
+                          : t('smartDashboard.workflowModal.enableDevice')}
                     </button>
                     <button
                       type="button"
@@ -268,8 +291,8 @@ export default function SmartDashboardWorkflowModal({
                       className="min-h-9 rounded-md border border-rose-400/40 bg-rose-500/20 px-3 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {deletingDeviceId === editingDeviceInModal.id
-                        ? '刪除中...'
-                        : '刪除設備'}
+                        ? t('smartDashboard.workflowModal.deleting')
+                        : t('smartDashboard.workflowModal.deleteDevice')}
                     </button>
                   </div>
                   <div className="max-h-[45vh] overflow-auto rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:max-h-[52vh]">
@@ -282,7 +305,7 @@ export default function SmartDashboardWorkflowModal({
                 </div>
               ) : (
                 <div className="mt-3 rounded-xl border border-dashed border-slate-600 bg-slate-900/60 p-4 text-xs text-slate-400">
-                  從左側設備卡片點擊「設定」，即可在此直接編輯來源協議、連線參數、重試策略並測試連線，不再跳轉到獨立設定頁。
+                  {t('smartDashboard.workflowModal.setupHint')}
                 </div>
               )}
             </section>
@@ -291,14 +314,7 @@ export default function SmartDashboardWorkflowModal({
         ) : (
           <>
             <div className="rounded-xl border border-white/10 bg-slate-800/50 p-3 text-sm text-slate-200">
-              <p>
-                {modalIntent === 'settings' && '系統設定以 Dashboard 內嵌設定模式開啟。'}
-                {modalIntent === 'points' && '點位流程已整合到 Source Planner + Batch 建立。'}
-                {modalIntent === 'mappings' && '映射流程已整合到 Flow + Tag Linkage 區。'}
-                {modalIntent === 'wizard' && '精靈流程以新增設備 modal 承載。'}
-                {modalIntent === 'polling-groups' && '輪詢群組管理透過設定與點位流程整合。'}
-                {modalIntent === 'tags' && 'Tag 管理與全域編輯整合在右側面板。'}
-              </p>
+              <p>{intentDescription}</p>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
@@ -312,7 +328,7 @@ export default function SmartDashboardWorkflowModal({
                 }}
                 className="min-h-11 rounded-lg border border-blue-400/40 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                開啟對應流程
+                {t('smartDashboard.workflowModal.openTargetFlow')}
               </button>
               <button
                 type="button"
@@ -322,7 +338,7 @@ export default function SmartDashboardWorkflowModal({
                 }}
                 className="min-h-11 rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-xs font-semibold text-cyan-100 hover:bg-cyan-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
               >
-                前往 Server Memory Grid
+                {t('smartDashboard.workflowModal.goToServerMemoryGrid')}
               </button>
             </div>
           </>

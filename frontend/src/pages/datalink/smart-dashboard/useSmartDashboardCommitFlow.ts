@@ -173,11 +173,11 @@ export function useSmartDashboardCommitFlow({
     if (!commitGate.ok) {
       if (commitGate.reason === 'not_validated') {
         markError('sink', t('smartDashboard.flowErrors.notValidated'));
-        setCommitActionMessage('Commit 失敗：請先完成 Validate。');
+        setCommitActionMessage(t('smartDashboard.commit.action.notValidated'));
         return;
       }
       markError('sink', t('smartDashboard.flowErrors.mappingDisabled'));
-      setCommitActionMessage('Commit 失敗：Mapping 尚未啟用。');
+      setCommitActionMessage(t('smartDashboard.commit.action.mappingDisabled'));
       return;
     }
 
@@ -241,15 +241,15 @@ export function useSmartDashboardCommitFlow({
     setIsCommitRunning(false);
 
     if (failedCount > 0) {
-      markError('sink', `Commit 部分失敗：${failedCount} 筆失敗，請執行 Retry 或 Rollback。`);
-      setCommitActionMessage(`Commit 部分成功：成功 ${successCount}、失敗 ${failedCount}。`);
+      markError('sink', t('smartDashboard.commit.action.partialFailedError', { failed: failedCount }));
+      setCommitActionMessage(t('smartDashboard.commit.action.partialSuccess', { success: successCount, failed: failedCount }));
       return;
     }
 
     markActive();
     setGuideStage('commit');
     scheduleGuideStageReset();
-    setCommitActionMessage(`Commit 成功：${successCount} 筆已提交並啟用流程。`);
+    setCommitActionMessage(t('smartDashboard.commit.action.success', { success: successCount }));
   }, [
     baseCommitQueueItems,
     canActivate,
@@ -266,7 +266,7 @@ export function useSmartDashboardCommitFlow({
 
   const handleRetryFailedCommits = useCallback(() => {
     if (failedChunkRetryQueue.length === 0) {
-      setCommitActionMessage('沒有可重試的失敗項目。');
+      setCommitActionMessage(t('smartDashboard.commit.action.noFailedRetry'));
       return;
     }
 
@@ -292,24 +292,24 @@ export function useSmartDashboardCommitFlow({
     setFailedChunkRetryQueue(nextFailedChunkQueue);
 
     if (remainingFailed > 0) {
-      setCommitActionMessage(`Retry 完成：恢復 ${recovered} 筆，仍有 ${remainingFailed} 筆衝突。`);
+      setCommitActionMessage(t('smartDashboard.commit.action.retryPartial', { recovered, remainingFailed }));
       return;
     }
 
-    setCommitActionMessage(`Retry 成功：已恢復 ${recovered} 筆失敗項目。`);
-  }, [baseCommitQueueItems, chunkSize, commitQueueRunStatus, failedChunkRetryQueue]);
+    setCommitActionMessage(t('smartDashboard.commit.action.retrySuccess', { recovered }));
+  }, [baseCommitQueueItems, chunkSize, commitQueueRunStatus, failedChunkRetryQueue, t]);
 
   const handleRollbackCommitRun = useCallback(() => {
     const rolledBack = rollbackCommitLifecycle(lastCommitSnapshot);
     if (!rolledBack) {
-      setCommitActionMessage('目前沒有可回滾的提交快照。');
+      setCommitActionMessage(t('smartDashboard.commit.action.noRollbackSnapshot'));
       return;
     }
     setCommitQueueRunStatus(rolledBack);
     setFailedChunkRetryQueue([]);
     setLastCommitSnapshot(null);
-    setCommitActionMessage('已回滾到上次 Commit 前的佇列狀態。');
-  }, [lastCommitSnapshot]);
+    setCommitActionMessage(t('smartDashboard.commit.action.rollbackSuccess'));
+  }, [lastCommitSnapshot, t]);
 
   return {
     commitQueueItems,

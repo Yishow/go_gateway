@@ -153,6 +153,10 @@
     "welcomeTitle": "Welcome to Smart Dashboard",
     "welcomeDescription": "Select a device to visualize source data in the memory grid, map it to tags, and prepare data for persistence.",
     "welcomeHint": "Pick a device from the left panel to start linking data flow.",
+    "actions": {
+      "chooseDevice": "Choose Device",
+      "createDevice": "Create Device"
+    },
     "import": "Import",
     "export": "Export",
     "undo": "Undo",
@@ -228,6 +232,7 @@
     "sourcePlanner": {
       "title": "Source Planner",
       "cells": "{{dataType}} × {{count}} = {{total}} cells",
+      "plannedCells": "= {{count}} cells",
       "conflict": "Conflict",
       "auto": "Auto",
       "applyToGrid": "Apply to Grid",
@@ -263,11 +268,129 @@
       "title": "Dashboard Memory Grid",
       "subtitle": "bind_state / mapping_count / conflict_count (pre-check)",
       "fullWorkbench": "Full Workbench",
+      "bindBadge": "bind {{state}}",
       "bindState": "bind_state",
       "mappingCount": "mapping_count",
       "conflictCount": "conflict_count",
       "prevRange": "Prev 100 cells",
       "nextRange": "Next 100 cells"
+    },
+    "commit": {
+      "queueTitle": "Commit Queue",
+      "total": "Total {{count}}",
+      "pending": "Pending {{count}}",
+      "linked": "Linked {{count}}",
+      "conflict": "Conflict {{count}}",
+      "committed": "Committed {{count}}",
+      "failed": "Failed {{count}}",
+      "impactTitle": "Commit Impact",
+      "newPoints": "New Points {{count}}",
+      "globalTagUpdates": "Global Tag Updates {{count}}",
+      "conflicts": "Conflicts {{count}}",
+      "pollingLoad": "Polling Load Δ +{{delta}}/s ({{baseline}}/s → {{projected}}/s, assumed interval {{intervalMs}}ms)",
+      "motionQaGate": "Motion QA Gate: {{result}} ({{passed}}/{{total}})",
+      "pass": "PASS",
+      "fail": "FAIL",
+      "emptyQueue": "No queued plans yet",
+      "running": "Commit running...",
+      "commitToDb": "Commit to DB",
+      "retryFailedChunk": "Retry failed chunks",
+      "rollback": "Rollback",
+      "chunkResultsTitle": "Chunk Results",
+      "chunkLabel": "Chunk {{chunk}}/{{totalChunks}}",
+      "chunkStats": "success {{success}} / failed {{failed}}",
+      "auditTrace": "Audit Trace",
+      "auditNew": "new {{count}}",
+      "auditTag": "tag {{count}}",
+      "auditConflict": "conflict {{count}}",
+      "status": {
+        "pending": "pending",
+        "linked": "linked",
+        "conflict": "conflict",
+        "committed": "committed",
+        "failed": "failed"
+      },
+      "action": {
+        "notValidated": "Commit failed: please complete validation first.",
+        "mappingDisabled": "Commit failed: mapping is not enabled.",
+        "partialFailedError": "Commit partially failed: {{failed}} failed item(s), please retry or rollback.",
+        "partialSuccess": "Commit partially succeeded: {{success}} success, {{failed}} failed.",
+        "success": "Commit succeeded: {{success}} item(s) committed and flow activated.",
+        "noFailedRetry": "No failed items to retry.",
+        "retryPartial": "Retry completed: recovered {{recovered}}, {{remainingFailed}} conflict(s) remain.",
+        "retrySuccess": "Retry succeeded: recovered {{recovered}} failed item(s).",
+        "noRollbackSnapshot": "No commit snapshot available for rollback.",
+        "rollbackSuccess": "Rolled back to the queue state before the last commit."
+      },
+      "validation": {
+        "structureErrorDefault": "structural validation failed",
+        "structureFailed": "Validate phase 1 (structure) failed: {{error}}",
+        "structurePassed": "Validate phase 1 (structure) passed, running phase 2 (executable)...",
+        "validationPassed": "Both validation phases passed: commit is available.",
+        "executeFailed": "Validate phase 2 (executable) failed: {{error}}",
+        "executeFailedDefault": "Grid validation failed"
+      },
+      "segment": {
+        "source": {
+          "label": "Source",
+          "ready": "Source is selected",
+          "missing": "Select source device and grid cell first"
+        },
+        "grid": {
+          "label": "Grid",
+          "ready": "Grid validation passed",
+          "missing": "{{count}} conflict cell(s) remain or no plan is applied"
+        },
+        "tag": {
+          "label": "Tag",
+          "ready": "Tag {{key}} linked",
+          "missing": "Complete tag linking first"
+        },
+        "sink": {
+          "label": "Sink",
+          "ready": "Ready to commit to DB",
+          "missing": "Validation is required before commit"
+        }
+      }
+    },
+    "workflowModal": {
+      "title": "Dashboard Modal",
+      "searchPlaceholder": "Search by device name / protocol / ID",
+      "statusAll": "All statuses",
+      "summary": {
+        "total": "Total: {{count}}",
+        "active": "active: {{count}}",
+        "disabled": "disabled: {{count}}",
+        "draft": "draft: {{count}}"
+      },
+      "lastTestAt": "Last test: {{value}}",
+      "setup": "Setup",
+      "testing": "Testing...",
+      "testConnection": "Test Connection",
+      "processing": "Processing...",
+      "disable": "Disable",
+      "enable": "Enable",
+      "deleting": "Deleting...",
+      "currentDevice": "Current Device",
+      "emptyDevices": "No matching devices found",
+      "deviceSetupTitle": "Device Setup",
+      "editingDeviceTitle": "Setup: {{name}}",
+      "selectDeviceFirst": "Please select a device first",
+      "closeSetup": "Close Setup",
+      "disableDevice": "Disable Device",
+      "enableDevice": "Enable Device",
+      "deleteDevice": "Delete Device",
+      "setupHint": "Click \"Setup\" on a device card to edit protocol, connection parameters, retry strategy, and run connection tests directly here.",
+      "intent": {
+        "settings": "System settings are opened in embedded dashboard mode.",
+        "points": "Point flow is consolidated into Source Planner + Batch creation.",
+        "mappings": "Mapping flow is consolidated into Flow + Tag Linkage.",
+        "wizard": "Wizard flow is hosted in the create-device modal.",
+        "pollingGroups": "Polling group management is integrated through settings and point flow.",
+        "tags": "Tag management and global editing are integrated in the right panel."
+      },
+      "openTargetFlow": "Open target flow",
+      "goToServerMemoryGrid": "Go to Server Memory Grid"
     },
     "legacyMigration": {
       "title": "Legacy pages consolidated",
