@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
 	"go-gateway/internal/datalink/collector"
@@ -117,9 +116,12 @@ type BatchCreateRequest struct {
 	PollingGroupID string          `json:"polling_group_id"`
 	DataType       schema.DataType `json:"data_type"`
 	Enabled        bool            `json:"enabled"`
+	DryRun         bool            `json:"dry_run,omitempty"`
+	ApplyIfClean   bool            `json:"apply_if_clean,omitempty"`
 	Points         []struct {
-		Name    string `json:"name"`
-		Address string `json:"address"`
+		Name     string `json:"name"`
+		Address  string `json:"address"`
+		Function string `json:"function,omitempty"`
 	} `json:"points"`
 }
 
@@ -134,35 +136,40 @@ func (h *PointHandler) BatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var createdPoints []*schema.Point
+	points := make([]point.BatchPointItem, 0, len(req.Points))
 	for _, p := range req.Points {
-		pt, err := h.svc.Create(ctx, point.CreatePointRequest{
-			DeviceID:       req.DeviceID,
-			PollingGroupID: &req.PollingGroupID,
-			DataType:       req.DataType,
-			Name:           p.Name,
-			Address:        p.Address,
+		points = append(points, point.BatchPointItem{
+			Name:     p.Name,
+			Address:  p.Address,
+			Function: p.Function,
 		})
-		if err != nil {
-			errorMessage := fmt.Sprintf("點位 '%s' (%s) 建立失敗: %s", p.Name, p.Address, err.Error())
-			writeError(w, http.StatusUnprocessableEntity, errorMessage)
-			return
+	}
+
+	result, err := h.svc.BatchCreate(ctx, point.BatchCreatePointsRequest{
+		DeviceID:       req.DeviceID,
+		PollingGroupID: req.PollingGroupID,
+		DataType:       req.DataType,
+		Enabled:        req.Enabled,
+		DryRun:         req.DryRun,
+		ApplyIfClean:   req.ApplyIfClean,
+		Points:         points,
+	})
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	if h.scheduler != nil && result.Applied {
+		for _, pt := range result.Points {
+			if pt.Enabled {
+				h.scheduler.AddPoint(pt)
+			}
 		}
-		
-		// 加入排程
-		if h.scheduler != nil && pt.Enabled {
-			h.scheduler.AddPoint(pt)
-		}
-		
-		createdPoints = append(createdPoints, pt)
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"success": true,
-		"data": map[string]interface{}{
-			"created_count": len(createdPoints),
-			"points":        createdPoints,
-		},
+		"data":    result,
 	})
 }
 

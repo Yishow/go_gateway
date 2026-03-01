@@ -24,6 +24,9 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 	if err != nil {
 		return nil, fmt.Errorf("序列化轉換管線失敗: %w", err)
 	}
+	if err := s.validateMappingPreviewGate(ctx, req.TagID, string(pipelineJSON), req.PreviewRawValue); err != nil {
+		return nil, fmt.Errorf("映射預覽驗證失敗: %w", err)
+	}
 
 	id, err := common.NewUUID()
 	if err != nil {
@@ -52,6 +55,7 @@ type CreateMappingRequest struct {
 	PointID           string                 `json:"point_id"`
 	TagID             string                 `json:"tag_id"`
 	TransformPipeline []schema.TransformStep `json:"transform_pipeline"`
+	PreviewRawValue   interface{}            `json:"preview_raw_value,omitempty"`
 }
 
 // Update 更新映射
@@ -61,6 +65,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 		return nil, fmt.Errorf("取得映射失敗: %w", err)
 	}
 
+	nextPipelineJSON := mapping.TransformPipeline
 	if req.TransformPipeline != nil {
 		if err := ValidateTransformPipeline(req.TransformPipeline); err != nil {
 			return nil, fmt.Errorf("轉換管線無效: %w", err)
@@ -69,12 +74,22 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 		if err != nil {
 			return nil, fmt.Errorf("序列化轉換管線失敗: %w", err)
 		}
-		mapping.TransformPipeline = string(pipelineJSON)
+		nextPipelineJSON = string(pipelineJSON)
+		mapping.TransformPipeline = nextPipelineJSON
 	}
 
+	nextEnabled := mapping.Enabled
 	if req.Enabled != nil {
-		mapping.Enabled = *req.Enabled
+		nextEnabled = *req.Enabled
 	}
+
+	shouldValidate := nextEnabled && (req.TransformPipeline != nil || (req.Enabled != nil && *req.Enabled))
+	if shouldValidate {
+		if err := s.validateMappingPreviewGate(ctx, mapping.TagID, nextPipelineJSON, req.PreviewRawValue); err != nil {
+			return nil, fmt.Errorf("映射預覽驗證失敗: %w", err)
+		}
+	}
+	mapping.Enabled = nextEnabled
 
 	mapping.UpdatedAt = time.Now()
 
@@ -89,6 +104,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 type UpdateMappingRequest struct {
 	TransformPipeline []schema.TransformStep `json:"transform_pipeline,omitempty"`
 	Enabled           *bool                  `json:"enabled,omitempty"`
+	PreviewRawValue   interface{}            `json:"preview_raw_value,omitempty"`
 }
 
 // Delete 刪除映射

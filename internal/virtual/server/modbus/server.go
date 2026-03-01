@@ -39,6 +39,7 @@ type Server struct {
 	mu       sync.RWMutex
 	bank     *memory.MemoryBank
 	listener net.Listener
+	conns    map[net.Conn]struct{}
 	port     int
 	running  bool
 	wg       sync.WaitGroup
@@ -48,8 +49,9 @@ type Server struct {
 // NewServer 建立新的 Modbus TCP 伺服器
 func NewServer(bank *memory.MemoryBank) *Server {
 	return &Server{
-		bank: bank,
-		done: make(chan struct{}),
+		bank:  bank,
+		done:  make(chan struct{}),
+		conns: make(map[net.Conn]struct{}),
 	}
 }
 
@@ -76,9 +78,10 @@ func (s *Server) Start(port int) error {
 	s.port = tcpAddr.Port
 	s.running = true
 	s.done = make(chan struct{})
+	s.conns = make(map[net.Conn]struct{})
 
 	s.wg.Add(1)
-	go s.acceptLoop()
+	go s.acceptLoop(listener)
 
 	return nil
 }
@@ -90,11 +93,24 @@ func (s *Server) Stop() error {
 		s.mu.Unlock()
 		return nil
 	}
+
 	s.running = false
 	close(s.done)
-	s.listener.Close()
+	listener := s.listener
+	s.listener = nil
+	conns := make([]net.Conn, 0, len(s.conns))
+	for conn := range s.conns {
+		conns = append(conns, conn)
+	}
 	s.port = 0
 	s.mu.Unlock()
+
+	if listener != nil {
+		_ = listener.Close()
+	}
+	for _, conn := range conns {
+		_ = conn.Close()
+	}
 
 	s.wg.Wait()
 	return nil

@@ -3,6 +3,7 @@ package point
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-gateway/internal/datalink/common"
@@ -11,9 +12,17 @@ import (
 
 // Create 建立新點位
 func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.Point, error) {
-	// 驗證資料型別
-	if !isValidDataType(req.DataType) {
-		return nil, fmt.Errorf("不支援的資料型別: %s", req.DataType)
+	if err := validatePointDataType(req.DataType); err != nil {
+		return nil, err
+	}
+
+	normalizedAddress, err := validateAndNormalizeAddress(req.Address)
+	if err != nil {
+		return nil, err
+	}
+	normalizedFunction, err := validateAndNormalizeFunction(req.Function)
+	if err != nil {
+		return nil, err
 	}
 
 	// 驗證模式
@@ -31,8 +40,8 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 		DeviceID:       req.DeviceID,
 		Name:           req.Name,
 		Description:    req.Description,
-		Address:        req.Address,
-		Function:       req.Function,
+		Address:        normalizedAddress,
+		Function:       normalizedFunction,
 		DataType:       req.DataType,
 		Mode:           req.Mode,
 		PollingGroupID: req.PollingGroupID,
@@ -59,13 +68,16 @@ type BatchCreatePointsRequest struct {
 	PollingGroupID string           `json:"polling_group_id"`
 	DataType       schema.DataType  `json:"data_type"`
 	Enabled        bool             `json:"enabled"`
+	DryRun         bool             `json:"dry_run,omitempty"`
+	ApplyIfClean   bool             `json:"apply_if_clean,omitempty"`
 	Points         []BatchPointItem `json:"points"`
 }
 
 // BatchPointItem 批次建立的單點資訊
 type BatchPointItem struct {
-	Name    string `json:"name"`
-	Address string `json:"address"`
+	Name     string `json:"name"`
+	Address  string `json:"address"`
+	Function string `json:"function,omitempty"`
 }
 
 // BatchCreateResult 批次建立結果
@@ -73,41 +85,66 @@ type BatchCreateResult struct {
 	CreatedCount int             `json:"created_count"`
 	Points       []*schema.Point `json:"points"`
 	Errors       []string        `json:"errors,omitempty"`
+	DryRun       bool            `json:"dry_run"`
+	Applied      bool            `json:"applied"`
 }
 
 // BatchCreate 批次建立新點位
 func (s *Service) BatchCreate(ctx context.Context, req BatchCreatePointsRequest) (*BatchCreateResult, error) {
-	result := &BatchCreateResult{
-		Points: make([]*schema.Point, 0),
-		Errors: make([]string, 0),
+	result, err := s.BatchDryRun(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	result.DryRun = req.DryRun
+
+	if len(result.Errors) > 0 {
+		return result, nil
+	}
+	if req.DryRun && !req.ApplyIfClean {
+		return result, nil
 	}
 
 	for _, item := range req.Points {
-		// 建構單點建立請求
 		createReq := CreatePointRequest{
 			DeviceID:       req.DeviceID,
-			Name:           item.Name,
-			Address:        item.Address,
+			Name:           strings.TrimSpace(item.Name),
+			Address:        strings.TrimSpace(item.Address),
+			Function:       strings.TrimSpace(item.Function),
 			DataType:       req.DataType,
-			Mode:           schema.PointModeReadOnly, // 預設唯讀
+			Mode:           schema.PointModeReadOnly,
 			PollingGroupID: nil,
 		}
-
 		if req.PollingGroupID != "" {
 			groupID := req.PollingGroupID
 			createReq.PollingGroupID = &groupID
 		}
 
-		point, err := s.Create(ctx, createReq)
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("點位 %s (%s) 建立失敗: %s", item.Name, item.Address, err.Error()))
+		point, createErr := s.Create(ctx, createReq)
+		if createErr != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("點位 %s (%s) 建立失敗: %s", item.Name, item.Address, createErr.Error()))
 			continue
 		}
-
 		result.Points = append(result.Points, point)
 		result.CreatedCount++
 	}
+	result.Applied = result.CreatedCount > 0
 
+	return result, nil
+}
+
+// BatchDryRun 批次建立預檢（只驗證，不落 DB）。
+func (s *Service) BatchDryRun(ctx context.Context, req BatchCreatePointsRequest) (*BatchCreateResult, error) {
+	result := &BatchCreateResult{
+		Points: make([]*schema.Point, 0),
+		Errors: make([]string, 0),
+		DryRun: true,
+	}
+
+	errors, err := s.validateBatchCreate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	result.Errors = append(result.Errors, errors...)
 	return result, nil
 }
 
@@ -137,14 +174,22 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 		point.Description = *req.Description
 	}
 	if req.Address != nil {
-		point.Address = *req.Address
+		address, err := validateAndNormalizeAddress(*req.Address)
+		if err != nil {
+			return nil, err
+		}
+		point.Address = address
 	}
 	if req.Function != nil {
-		point.Function = *req.Function
+		function, err := validateAndNormalizeFunction(*req.Function)
+		if err != nil {
+			return nil, err
+		}
+		point.Function = function
 	}
 	if req.DataType != nil {
-		if !isValidDataType(*req.DataType) {
-			return nil, fmt.Errorf("不支援的資料型別: %s", *req.DataType)
+		if err := validatePointDataType(*req.DataType); err != nil {
+			return nil, err
 		}
 		point.DataType = *req.DataType
 	}

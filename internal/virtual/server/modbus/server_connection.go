@@ -8,11 +8,11 @@ import (
 )
 
 // acceptLoop 接受連接循環
-func (s *Server) acceptLoop() {
+func (s *Server) acceptLoop(listener net.Listener) {
 	defer s.wg.Done()
 
 	for {
-		conn, err := s.listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			select {
 			case <-s.done:
@@ -22,6 +22,7 @@ func (s *Server) acceptLoop() {
 			}
 		}
 
+		s.trackConn(conn)
 		s.wg.Add(1)
 		go s.handleConnection(conn)
 	}
@@ -30,6 +31,7 @@ func (s *Server) acceptLoop() {
 // handleConnection 處理單一連接
 func (s *Server) handleConnection(conn net.Conn) {
 	defer s.wg.Done()
+	defer s.untrackConn(conn)
 	defer conn.Close()
 
 	for {
@@ -84,6 +86,18 @@ func (s *Server) handleConnection(conn net.Conn) {
 			return
 		}
 	}
+}
+
+func (s *Server) trackConn(conn net.Conn) {
+	s.mu.Lock()
+	s.conns[conn] = struct{}{}
+	s.mu.Unlock()
+}
+
+func (s *Server) untrackConn(conn net.Conn) {
+	s.mu.Lock()
+	delete(s.conns, conn)
+	s.mu.Unlock()
 }
 
 // handleRequest 處理 Modbus 請求
