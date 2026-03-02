@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { useState } from 'react'
 import { logger } from '../utils/logger';
+import { resolveGatewayUiVersion } from '../features/gateway/uiVersion';
 import type { 
   ConnectResponse, 
   ReadResponse, 
@@ -16,6 +17,17 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+})
+
+api.interceptors.request.use((config) => {
+  const uiVersion = resolveGatewayUiVersion();
+  if (uiVersion) {
+    config.headers = config.headers ?? {};
+    if (!config.headers['X-UI-Version']) {
+      config.headers['X-UI-Version'] = uiVersion;
+    }
+  }
+  return config;
 })
 
 interface DebugPacket {

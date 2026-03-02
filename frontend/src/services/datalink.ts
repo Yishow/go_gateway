@@ -5,6 +5,7 @@
  */
 
 import axios from 'axios';
+import { resolveGatewayUiVersion } from '../features/gateway/uiVersion';
 import type {
   Device,
   CreateDeviceRequest,
@@ -54,6 +55,18 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// 追加 UI 版本埋點 Header（僅雙入口頁）
+api.interceptors.request.use((config) => {
+  const uiVersion = resolveGatewayUiVersion();
+  if (uiVersion) {
+    config.headers = config.headers ?? {};
+    if (!config.headers['X-UI-Version']) {
+      config.headers['X-UI-Version'] = uiVersion;
+    }
+  }
+  return config;
 });
 
 // 添加響應攔截器以統一處理錯誤
