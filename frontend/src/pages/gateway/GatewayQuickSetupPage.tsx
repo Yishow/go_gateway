@@ -1,10 +1,41 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Server, Network, Shield, Code, ArrowLeft, Terminal, Save, CheckCircle2, ChevronRight, Zap } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardCheck,
+  Network,
+  Save,
+  Server,
+  Shield,
+  Terminal,
+  Zap,
+} from 'lucide-react';
 import { gatewayAdapter, type QuickDraft } from '../../features/gateway/gatewayAdapter';
 import { useTestAPI } from '../../services/api';
 
+interface WizardDraft {
+  sourcePlan: string;
+  tagName: string;
+  securityReviewed: boolean;
+  validationConfirmed: boolean;
+  submitConfirmed: boolean;
+}
+
+const STEPS = [
+  'Step1 設備連線',
+  'Step2 路由/來源規劃',
+  'Step3 Tag/安全',
+  'Step4 驗證',
+  'Step5 提交',
+] as const;
+
+const isPositiveInteger = (value: number | undefined) =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0;
+
 export default function GatewayQuickSetupPage() {
+  const [currentStep, setCurrentStep] = useState(1);
   const [draft, setDraft] = useState<QuickDraft>({
     protocol: 'modbus-tcp',
     host: '192.168.1.100',
@@ -13,18 +44,104 @@ export default function GatewayQuickSetupPage() {
     route: '/api/v1/data',
     auth: false,
   });
-
-  const payload = useMemo(() => gatewayAdapter.quickToPayload(draft), [draft]);
-  const { connect } = useTestAPI();
+  const [wizardDraft, setWizardDraft] = useState<WizardDraft>({
+    sourcePlan: 'line-a-source',
+    tagName: '',
+    securityReviewed: false,
+    validationConfirmed: false,
+    submitConfirmed: false,
+  });
+  const [stepErrors, setStepErrors] = useState<Partial<Record<number, string[]>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const payload = useMemo(() => gatewayAdapter.quickToPayload(draft), [draft]);
+  const { connect } = useTestAPI();
 
-  const handleChange = (key: keyof QuickDraft, value: string | number | boolean) => {
+  const validateStep = (step: number): string[] => {
+    const errors: string[] = [];
+
+    if (step === 1) {
+      if (!draft.protocol?.trim()) errors.push('請選擇通訊協定。');
+      if (!draft.host?.trim()) errors.push('請輸入主機位置。');
+      if (!isPositiveInteger(draft.port)) errors.push('通訊埠需為正整數。');
+      if (draft.protocol.includes('modbus') && !isPositiveInteger(draft.unitID)) {
+        errors.push('Modbus 站號需為正整數。');
+      }
+      if (draft.protocol.includes('fatek') && !isPositiveInteger(draft.station)) {
+        errors.push('Fatek 站號需為正整數。');
+      }
+    }
+
+    if (step === 2) {
+      if (!draft.route?.trim()) errors.push('請輸入 API 路徑。');
+      if (draft.route && !draft.route.startsWith('/')) errors.push('API 路徑需以 "/" 開頭。');
+      if (!wizardDraft.sourcePlan.trim()) errors.push('請輸入來源規劃。');
+    }
+
+    if (step === 3) {
+      if (!wizardDraft.tagName.trim()) errors.push('請輸入 Tag 名稱。');
+      if (!wizardDraft.securityReviewed) errors.push('請確認已完成安全檢查。');
+    }
+
+    if (step === 4 && !wizardDraft.validationConfirmed) {
+      errors.push('請勾選「已完成驗證」才能進入提交。');
+    }
+
+    if (step === 5 && !wizardDraft.submitConfirmed) {
+      errors.push('請勾選提交確認。');
+    }
+
+    return errors;
+  };
+
+  const validateAllSteps = (): Partial<Record<number, string[]>> => {
+    const nextErrors: Partial<Record<number, string[]>> = {};
+    [1, 2, 3, 4, 5].forEach((step) => {
+      const errors = validateStep(step);
+      if (errors.length > 0) nextErrors[step] = errors;
+    });
+    return nextErrors;
+  };
+
+  const allRequiredStepsValid = useMemo(
+    () => [1, 2, 3, 4].every((step) => validateStep(step).length === 0),
+    [draft, wizardDraft]
+  );
+
+  const handleQuickDraftChange = (key: keyof QuickDraft, value: string | number | boolean) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
+    setStepErrors((prev) => ({ ...prev, [currentStep]: [] }));
+  };
+
+  const handleWizardDraftChange = (key: keyof WizardDraft, value: string | boolean) => {
+    setWizardDraft((prev) => ({ ...prev, [key]: value }));
+    setStepErrors((prev) => ({ ...prev, [currentStep]: [] }));
+  };
+
+  const handleNext = () => {
+    const errors = validateStep(currentStep);
+    if (errors.length > 0) {
+      setStepErrors((prev) => ({ ...prev, [currentStep]: errors }));
+      return;
+    }
+    setStepErrors((prev) => ({ ...prev, [currentStep]: [] }));
+    setCurrentStep((prev) => Math.min(prev + 1, 5));
+  };
+
+  const handleBack = () => {
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
   const handleSubmit = async () => {
+    const nextErrors = validateAllSteps();
+    if (Object.keys(nextErrors).length > 0) {
+      setStepErrors(nextErrors);
+      const firstInvalidStep = [1, 2, 3, 4, 5].find((step) => nextErrors[step]?.length);
+      if (firstInvalidStep) setCurrentStep(firstInvalidStep);
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitMessage(null);
@@ -46,11 +163,10 @@ export default function GatewayQuickSetupPage() {
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
 
       <main className="mx-auto max-w-[1400px] px-6 py-10 flex flex-col min-h-screen relative z-10">
-        {/* Header Section */}
-        <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <Link 
-              to="/gateway/entry" 
+            <Link
+              to="/gateway/entry"
               className="inline-flex items-center text-xs font-semibold tracking-wider text-slate-400 hover:text-white transition-colors mb-6 uppercase bg-slate-800/50 px-3 py-1.5 rounded-md border border-slate-700/50"
             >
               <ArrowLeft className="mr-2 h-3.5 w-3.5" />
@@ -67,186 +183,275 @@ export default function GatewayQuickSetupPage() {
                     Quick Setup
                   </span>
                 </h1>
-                <p className="text-sm text-slate-400">
-                  配置邊緣設備連線參數，自動產生符合 Gateway 規範的 Payload 結構。
-                </p>
+                <p className="text-sm text-slate-400">五步驟狀態機：連線、規劃、Tag/安全、驗證與提交。</p>
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm text-slate-400 bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-800 shadow-sm">
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> 系統就緒</span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" /> 系統就緒
+            </span>
             <span className="w-px h-4 bg-slate-700"></span>
-            <span className="font-mono text-xs">v1.4.2</span>
+            <span className="font-mono text-xs">
+              {STEPS[currentStep - 1]}
+            </span>
           </div>
         </header>
-        
+
+        <div className="mb-6 grid grid-cols-1 gap-2 md:grid-cols-5">
+          {STEPS.map((step, index) => {
+            const stepNumber = index + 1;
+            const isActive = stepNumber === currentStep;
+            return (
+              <div
+                key={step}
+                className={`rounded-md border px-3 py-2 text-xs font-semibold ${
+                  isActive
+                    ? 'border-blue-500 bg-blue-500/15 text-blue-300'
+                    : 'border-slate-700 bg-slate-900/60 text-slate-400'
+                }`}
+              >
+                {step}
+              </div>
+            );
+          })}
+        </div>
+
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 flex-1 items-start">
-          {/* Form Area */}
           <div className="xl:col-span-7 space-y-6">
-            
-            {/* Section 1: Connection Intent */}
-            <section className="relative overflow-hidden rounded-xl border border-slate-800 bg-[#111827]/80 p-7 shadow-lg backdrop-blur-md">
-              <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50"></div>
-              
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 mr-3 border border-blue-500/20">
-                    <Server className="h-4 w-4" />
+            <section className="rounded-xl border border-slate-800 bg-[#111827]/80 p-7 shadow-lg backdrop-blur-md">
+              {currentStep === 1 ? (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Server className="h-5 w-5 text-blue-400" />
+                    <h2 className="text-base font-bold text-white">Step1 設備連線</h2>
+                  </div>
+                  <div className="grid gap-6">
+                    <div>
+                      <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">通訊協定</label>
+                      <div className="relative">
+                        <select
+                          data-testid="protocol-select"
+                          value={draft.protocol}
+                          onChange={(e) => handleQuickDraftChange('protocol', e.target.value)}
+                          className="w-full appearance-none rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                        >
+                          <option value="modbus-tcp">Modbus TCP</option>
+                          <option value="modbus-rtu">Modbus RTU</option>
+                          <option value="fatek-tcp">Fatek TCP</option>
+                          <option value="mc-tcp">Mitsubishi MC</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                          <ChevronRight className="h-4 w-4 rotate-90" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">主機位置 (Host)</label>
+                        <input
+                          type="text"
+                          data-testid="host-input"
+                          value={draft.host || ''}
+                          onChange={(e) => handleQuickDraftChange('host', e.target.value)}
+                          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono"
+                          placeholder="192.168.1.100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">通訊埠 (Port)</label>
+                        <input
+                          type="number"
+                          data-testid="port-input"
+                          value={draft.port || ''}
+                          onChange={(e) => handleQuickDraftChange('port', parseInt(e.target.value, 10))}
+                          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+                    {draft.protocol.includes('modbus') && (
+                      <div>
+                        <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">站號 (Unit ID)</label>
+                        <input
+                          type="number"
+                          data-testid="unit-id-input"
+                          value={draft.unitID || ''}
+                          onChange={(e) => handleQuickDraftChange('unitID', parseInt(e.target.value, 10))}
+                          className="w-full max-w-[200px] rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono"
+                        />
+                      </div>
+                    )}
+                    {draft.protocol.includes('fatek') && (
+                      <div>
+                        <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">站號 (Station)</label>
+                        <input
+                          type="number"
+                          data-testid="station-input"
+                          value={draft.station || ''}
+                          onChange={(e) => handleQuickDraftChange('station', parseInt(e.target.value, 10))}
+                          className="w-full max-w-[200px] rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {currentStep === 2 ? (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Network className="h-5 w-5 text-emerald-400" />
+                    <h2 className="text-base font-bold text-white">Step2 路由/來源規劃</h2>
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-white tracking-wide">1. 設備連線 (Intent Form)</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">定義目標設備的物理或網路通訊位置</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid gap-6">
-                <div className="group">
-                  <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2 group-focus-within:text-blue-400 transition-colors">通訊協定</label>
-                  <div className="relative">
-                    <select
-                      data-testid="protocol-select"
-                      value={draft.protocol}
-                      onChange={(e) => handleChange('protocol', e.target.value)}
-                      className="w-full appearance-none rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all shadow-inner"
-                    >
-                      <option value="modbus-tcp">Modbus TCP</option>
-                      <option value="modbus-rtu">Modbus RTU</option>
-                      <option value="fatek-tcp">Fatek TCP</option>
-                      <option value="mc-tcp">Mitsubishi MC</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                      <ChevronRight className="h-4 w-4 rotate-90" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="group">
-                    <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2 group-focus-within:text-blue-400 transition-colors">主機位置 (Host)</label>
+                    <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">API 路徑</label>
                     <input
                       type="text"
-                      data-testid="host-input"
-                      value={draft.host || ''}
-                      onChange={(e) => handleChange('host', e.target.value)}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all shadow-inner font-mono"
-                      placeholder="192.168.1.100"
+                      data-testid="route-input"
+                      value={draft.route || ''}
+                      onChange={(e) => handleQuickDraftChange('route', e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 py-3 px-4 text-sm text-white placeholder-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none font-mono"
+                      placeholder="/api/v1/data"
                     />
-                  </div>
-                  <div className="group">
-                    <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2 group-focus-within:text-blue-400 transition-colors">通訊埠 (Port)</label>
-                    <input
-                      type="number"
-                      data-testid="port-input"
-                      value={draft.port || ''}
-                      onChange={(e) => handleChange('port', parseInt(e.target.value, 10))}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all shadow-inner font-mono"
-                    />
-                  </div>
-                </div>
-
-                {draft.protocol.includes('modbus') && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300 group">
-                    <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2 group-focus-within:text-blue-400 transition-colors">站號 (Unit ID)</label>
-                    <input
-                      type="number"
-                      data-testid="unit-id-input"
-                      value={draft.unitID || ''}
-                      onChange={(e) => handleChange('unitID', parseInt(e.target.value, 10))}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all shadow-inner font-mono max-w-[200px]"
-                    />
-                  </div>
-                )}
-                {draft.protocol.includes('fatek') && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-300 group">
-                    <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2 group-focus-within:text-blue-400 transition-colors">站號 (Station)</label>
-                    <input
-                      type="number"
-                      data-testid="station-input"
-                      value={draft.station || ''}
-                      onChange={(e) => handleChange('station', parseInt(e.target.value, 10))}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all shadow-inner font-mono max-w-[200px]"
-                    />
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Section 2: Route Builder */}
-            <section className="relative overflow-hidden rounded-xl border border-slate-800 bg-[#111827]/80 p-7 shadow-lg backdrop-blur-md">
-              <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/50"></div>
-              
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 mr-3 border border-emerald-500/20">
-                    <Network className="h-4 w-4" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-white tracking-wide">2. 路由設定 (Route Builder)</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">定義資料在 Gateway 內的映射端點</p>
+                    <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">來源規劃 (Source Plan)</label>
+                    <input
+                      type="text"
+                      data-testid="source-input"
+                      value={wizardDraft.sourcePlan}
+                      onChange={(e) => handleWizardDraftChange('sourcePlan', e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 py-3 px-4 text-sm text-white placeholder-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                      placeholder="line-a-source"
+                    />
                   </div>
                 </div>
-              </div>
-              
-              <div className="group">
-                <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2 group-focus-within:text-emerald-400 transition-colors">API 路徑</label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 px-2 py-1 bg-slate-800 text-slate-300 font-mono text-[10px] font-bold tracking-wider rounded border border-slate-700">POST</span>
-                  <input
-                    type="text"
-                    data-testid="route-input"
-                    value={draft.route || ''}
-                    onChange={(e) => handleChange('route', e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 py-3 pl-[4.5rem] pr-4 text-sm text-white placeholder-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all shadow-inner font-mono"
-                    placeholder="/api/v1/data"
-                  />
-                </div>
-              </div>
-            </section>
+              ) : null}
 
-            {/* Section 3: Security */}
-            <section className="relative overflow-hidden rounded-xl border border-slate-800 bg-[#111827]/80 p-7 shadow-lg backdrop-blur-md">
-              <div className="absolute top-0 left-0 w-1 h-full bg-purple-500/50"></div>
-              
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 mr-3 border border-purple-500/20">
-                    <Shield className="h-4 w-4" />
+              {currentStep === 3 ? (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-purple-400" />
+                    <h2 className="text-base font-bold text-white">Step3 Tag/安全</h2>
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-white tracking-wide">3. 安全設定 (Auth)</h2>
-                    <p className="text-xs text-slate-400 mt-0.5">端點存取控制與防護</p>
+                    <label className="block text-xs font-semibold tracking-wider text-slate-400 uppercase mb-2">Tag 名稱</label>
+                    <input
+                      type="text"
+                      data-testid="tag-input"
+                      value={wizardDraft.tagName}
+                      onChange={(e) => handleWizardDraftChange('tagName', e.target.value)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900 py-3 px-4 text-sm text-white placeholder-slate-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                      placeholder="temperature"
+                    />
                   </div>
+                  <label className="flex items-center gap-3 rounded-lg border border-slate-700/60 bg-slate-900/50 p-4">
+                    <input
+                      type="checkbox"
+                      data-testid="auth-checkbox"
+                      checked={draft.auth || false}
+                      onChange={(e) => handleQuickDraftChange('auth', e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-slate-300">啟用基本身分驗證 (Basic Auth)</span>
+                  </label>
+                  <label className="flex items-center gap-3 rounded-lg border border-slate-700/60 bg-slate-900/50 p-4">
+                    <input
+                      type="checkbox"
+                      data-testid="security-review-checkbox"
+                      checked={wizardDraft.securityReviewed}
+                      onChange={(e) => handleWizardDraftChange('securityReviewed', e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-slate-300">我已確認 Tag 命名與安全策略。</span>
+                  </label>
                 </div>
+              ) : null}
+
+              {currentStep === 4 ? (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <ClipboardCheck className="h-5 w-5 text-cyan-400" />
+                    <h2 className="text-base font-bold text-white">Step4 驗證</h2>
+                  </div>
+                  <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4 text-sm">
+                    <p>設備：{draft.protocol} @ {draft.host}:{draft.port}</p>
+                    <p>路徑：{draft.route}</p>
+                    <p>來源：{wizardDraft.sourcePlan}</p>
+                    <p>Tag：{wizardDraft.tagName || '未設定'}</p>
+                  </div>
+                  <label className="flex items-center gap-3 rounded-lg border border-slate-700/60 bg-slate-900/50 p-4">
+                    <input
+                      type="checkbox"
+                      data-testid="validation-confirm-checkbox"
+                      checked={wizardDraft.validationConfirmed}
+                      onChange={(e) => handleWizardDraftChange('validationConfirmed', e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+                    />
+                    <span className="text-sm text-slate-300">已完成欄位驗證與參數核對。</span>
+                  </label>
+                </div>
+              ) : null}
+
+              {currentStep === 5 ? (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Save className="h-5 w-5 text-amber-400" />
+                    <h2 className="text-base font-bold text-white">Step5 提交</h2>
+                  </div>
+                  <label className="flex items-center gap-3 rounded-lg border border-slate-700/60 bg-slate-900/50 p-4">
+                    <input
+                      type="checkbox"
+                      data-testid="submit-confirm-checkbox"
+                      checked={wizardDraft.submitConfirmed}
+                      onChange={(e) => handleWizardDraftChange('submitConfirmed', e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500"
+                    />
+                    <span className="text-sm text-slate-300">確認以上設定可送出至 Gateway 測試流程。</span>
+                  </label>
+                </div>
+              ) : null}
+
+              {stepErrors[currentStep]?.length ? (
+                <div
+                  data-testid="step-error-message"
+                  className="mt-6 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200 space-y-1"
+                >
+                  {stepErrors[currentStep]?.map((message) => (
+                    <p key={message}>{message}</p>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-8 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  data-testid="step-back-btn"
+                  onClick={handleBack}
+                  disabled={currentStep === 1}
+                  className="rounded-md border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  上一步
+                </button>
+                {currentStep < 5 ? (
+                  <button
+                    type="button"
+                    data-testid="step-next-btn"
+                    onClick={handleNext}
+                    className="rounded-md border border-blue-500 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+                  >
+                    下一步
+                  </button>
+                ) : (
+                  <span className="text-xs text-slate-400">已到最後一步，請於右側提交。</span>
+                )}
               </div>
-              
-              <label className="group relative flex items-center gap-4 cursor-pointer rounded-lg border border-slate-700/50 bg-slate-900/50 p-4 transition-all hover:bg-slate-800/80 hover:border-slate-600">
-                <div className="relative flex items-center justify-center">
-                  <input
-                    type="checkbox"
-                    data-testid="auth-checkbox"
-                    checked={draft.auth || false}
-                    onChange={(e) => handleChange('auth', e.target.checked)}
-                    className="peer sr-only"
-                  />
-                  <div className="h-5 w-5 rounded border border-slate-600 bg-slate-800 transition-all peer-checked:border-purple-500 peer-checked:bg-purple-500 shadow-inner"></div>
-                  <svg className="absolute h-3.5 w-3.5 text-white opacity-0 transition-opacity peer-checked:opacity-100 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">啟用基本身分驗證 (Basic Auth)</span>
-                  <span className="text-xs text-slate-500 mt-1">要求 API 呼叫端提供標準帳號密碼，防止未授權存取。</span>
-                </div>
-              </label>
             </section>
           </div>
 
-          {/* Payload Preview Area */}
           <div className="xl:col-span-5 xl:sticky xl:top-8 h-[calc(100vh-8rem)] min-h-[600px] flex flex-col">
             <section className="flex flex-col h-full rounded-xl border border-slate-700 bg-[#090D14] shadow-2xl overflow-hidden ring-1 ring-white/5 relative">
-              {/* Terminal Header */}
               <div className="flex items-center justify-between px-4 py-3 bg-[#111827] border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-[#FF5F56] border border-black/20"></div>
@@ -257,46 +462,21 @@ export default function GatewayQuickSetupPage() {
                   <Terminal className="h-3.5 w-3.5 text-blue-400" />
                   <span>Payload 預覽 (供驗證)</span>
                 </div>
-                <div className="w-10"></div> {/* Spacer for balance */}
+                <div className="w-10"></div>
               </div>
-              
-              {/* Code Content */}
-              <div className="flex-1 overflow-auto bg-[#090D14] p-0 relative group">
-                {/* Line numbers background */}
-                <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#0D131F] border-r border-slate-800/80 pointer-events-none z-0"></div>
-                
-                <div className="absolute top-6 right-6 text-slate-700/30 pointer-events-none transition-opacity duration-500 group-hover:opacity-10">
-                  <Code className="h-32 w-32" />
-                </div>
-                
-                {/* Invisible element for tests to easily grab the raw payload */}
+              <div className="flex-1 overflow-auto p-5 font-mono text-xs leading-relaxed">
                 <div data-testid="payload-preview" className="hidden">
                   {JSON.stringify(payload, null, 2)}
                 </div>
-                
-                <div className="p-5 relative z-10 font-mono text-[13px] leading-relaxed">
-                  {JSON.stringify(payload, null, 2).split('\n').map((line, i) => {
-                    if (line.match(/"[^"]+":/)) line = line.replace(/"([^"]+)":/, (_m, p1) => `<span class="text-[#82AAFF]">"${p1}"</span>:`); // keys (blue)
-                    if (line.match(/: "[^"]+"/)) line = line.replace(/: "([^"]+)"/, (_m, p1) => `: <span class="text-[#C3E88D]">"${p1}"</span>`); // string values (green)
-                    if (line.match(/: \d+/)) line = line.replace(/: (\d+)/, (_m, p1) => `: <span class="text-[#F78C6C]">${p1}</span>`); // numbers (orange)
-                    if (line.match(/: (true|false)/)) line = line.replace(/: (true|false)/, (_m, p1) => `: <span class="text-[#C792EA]">${p1}</span>`); // booleans (purple)
-                    
-                    return (
-                      <div key={i} className="flex hover:bg-white/5 transition-colors -mx-5 px-5 group/line">
-                        <span className="select-none text-slate-600/70 mr-6 text-right inline-block w-6 shrink-0 group-hover/line:text-slate-400 transition-colors">{i + 1}</span>
-                        <span className="whitespace-pre-wrap break-all" dangerouslySetInnerHTML={{ __html: line }}></span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <pre className="whitespace-pre-wrap break-all text-slate-200">
+                  {JSON.stringify(payload, null, 2)}
+                </pre>
               </div>
-              
-              {/* Action Footer */}
               <div className="p-5 border-t border-slate-800 bg-[#111827] shrink-0">
                 <button
                   data-testid="save-btn"
-                  disabled={isSubmitting}
-                  className="group relative flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 font-semibold text-white transition-all hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#111827] active:scale-[0.98] shadow-[0_0_15px_-3px_rgba(37,99,235,0.4)] hover:shadow-[0_0_20px_-3px_rgba(59,130,246,0.6)] border border-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSubmitting || currentStep !== 5 || !allRequiredStepsValid || !wizardDraft.submitConfirmed}
+                  className="group relative flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 font-semibold text-white transition-all hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={handleSubmit}
                 >
                   <Save className="h-5 w-5" />

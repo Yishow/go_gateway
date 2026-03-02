@@ -1,7 +1,15 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import GatewayQuickSetupPage from '../GatewayQuickSetupPage';
+
+const connectMock = vi.fn();
+
+vi.mock('../../../services/api', () => ({
+  useTestAPI: () => ({
+    connect: connectMock,
+  }),
+}));
 
 describe('GatewayQuickSetupPage', () => {
   const renderComponent = () => {
@@ -12,76 +20,75 @@ describe('GatewayQuickSetupPage', () => {
     );
   };
 
-  it('renders the core components', () => {
-    renderComponent();
-
-    // Check IntentForm fields
-    expect(screen.getByText('1. 設備連線 (Intent Form)')).toBeInTheDocument();
-    expect(screen.getByTestId('protocol-select')).toBeInTheDocument();
-    expect(screen.getByTestId('host-input')).toBeInTheDocument();
-    expect(screen.getByTestId('port-input')).toBeInTheDocument();
-    expect(screen.getByTestId('unit-id-input')).toBeInTheDocument(); // default is modbus-tcp
-
-    // Check SimpleRouteBuilder fields
-    expect(screen.getByText('2. 路由設定 (Route Builder)')).toBeInTheDocument();
-    expect(screen.getByTestId('route-input')).toBeInTheDocument();
-
-    // Check BasicAuthToggle
-    expect(screen.getByText('3. 安全設定 (Auth)')).toBeInTheDocument();
-    expect(screen.getByTestId('auth-checkbox')).toBeInTheDocument();
-
-    // Check Payload Preview
-    expect(screen.getByText('Payload 預覽 (供驗證)')).toBeInTheDocument();
-    expect(screen.getByTestId('payload-preview')).toBeInTheDocument();
-  });
-
-  it('updates payload preview when changing fields', () => {
-    renderComponent();
-
-    const hostInput = screen.getByTestId('host-input');
-    fireEvent.change(hostInput, { target: { value: '10.0.0.1' } });
-
-    const portInput = screen.getByTestId('port-input');
-    fireEvent.change(portInput, { target: { value: '8080' } });
-
-    const routeInput = screen.getByTestId('route-input');
-    fireEvent.change(routeInput, { target: { value: '/custom/api' } });
-
-    const authCheckbox = screen.getByTestId('auth-checkbox');
-    fireEvent.click(authCheckbox);
-
-    const payloadPreview = screen.getByTestId('payload-preview');
-    const payloadContent = JSON.parse(payloadPreview.textContent || '{}');
-
-    expect(payloadContent).toMatchObject({
-      protocol: 'modbus-tcp',
-      config: {
-        host: '10.0.0.1',
-        port: 8080,
-        unitID: 1,
-        route: '/custom/api',
-        auth: true,
-      },
+  beforeEach(() => {
+    connectMock.mockReset();
+    connectMock.mockResolvedValue({
+      connection_id: 'conn-001',
+      status: 'connected',
     });
   });
 
-  it('conditionally renders unitID or station based on protocol', () => {
+  it('supports step navigation with next/back controls', () => {
     renderComponent();
 
-    const protocolSelect = screen.getByTestId('protocol-select');
-    
-    // Default Modbus: shows Unit ID
-    expect(screen.getByTestId('unit-id-input')).toBeInTheDocument();
-    expect(screen.queryByTestId('station-input')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Step1 設備連線' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+    expect(screen.getByRole('heading', { name: 'Step2 路由/來源規劃' })).toBeInTheDocument();
 
-    // Change to Fatek
-    fireEvent.change(protocolSelect, { target: { value: 'fatek-tcp' } });
-    expect(screen.queryByTestId('unit-id-input')).not.toBeInTheDocument();
-    expect(screen.getByTestId('station-input')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('step-back-btn'));
+    expect(screen.getByRole('heading', { name: 'Step1 設備連線' })).toBeInTheDocument();
+    expect(screen.getByTestId('host-input')).toBeInTheDocument();
+    expect(screen.getByTestId('payload-preview')).toBeInTheDocument();
+  });
 
-    // Change to MC Protocol (neither)
-    fireEvent.change(protocolSelect, { target: { value: 'mc-tcp' } });
-    expect(screen.queryByTestId('unit-id-input')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('station-input')).not.toBeInTheDocument();
+  it('blocks moving to next step when required fields are invalid', () => {
+    renderComponent();
+
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+    expect(screen.getByRole('heading', { name: 'Step2 路由/來源規劃' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('route-input'), { target: { value: '' } });
+    fireEvent.change(screen.getByTestId('source-input'), { target: { value: '' } });
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+
+    expect(screen.getByTestId('step-error-message')).toHaveTextContent('請輸入 API 路徑');
+    expect(screen.getByRole('heading', { name: 'Step2 路由/來源規劃' })).toBeInTheDocument();
+  });
+
+  it('retains entered state when switching between steps', () => {
+    renderComponent();
+
+    fireEvent.change(screen.getByTestId('host-input'), { target: { value: '10.0.0.1' } });
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+    fireEvent.click(screen.getByTestId('step-back-btn'));
+
+    expect(screen.getByTestId('host-input')).toHaveValue('10.0.0.1');
+    const payloadContent = JSON.parse(screen.getByTestId('payload-preview').textContent || '{}');
+    expect(payloadContent.config.host).toBe('10.0.0.1');
+  });
+
+  it('enforces submit conditions before calling connect', async () => {
+    renderComponent();
+
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+
+    fireEvent.change(screen.getByTestId('tag-input'), { target: { value: 'temperature' } });
+    fireEvent.click(screen.getByTestId('security-review-checkbox'));
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+
+    fireEvent.click(screen.getByTestId('validation-confirm-checkbox'));
+    fireEvent.click(screen.getByTestId('step-next-btn'));
+
+    const saveButton = screen.getByTestId('save-btn');
+    expect(saveButton).toBeDisabled();
+    fireEvent.click(saveButton);
+    expect(connectMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('submit-confirm-checkbox'));
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(connectMock).toHaveBeenCalledTimes(1));
   });
 });
