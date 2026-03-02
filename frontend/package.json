@@ -10,7 +10,10 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:gateway:unit": "vitest run src/features/gateway/__tests__/gatewayAdapter.test.ts src/features/gateway/__tests__/uiVersion.test.ts src/pages/gateway/__tests__/GatewayQuickSetupPage.test.tsx src/pages/gateway/__tests__/GatewayExpertWorkbenchPage.test.tsx",
+    "test:gateway:e2e": "playwright test tests/e2e/gateway/dual-entry.spec.ts",
+    "test:gateway:gate": "npm run test:gateway:unit && npm run test:gateway:e2e && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
