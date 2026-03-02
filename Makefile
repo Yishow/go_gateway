@@ -1,4 +1,4 @@
-.PHONY: build-frontend build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down
+.PHONY: build-frontend build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke
 
 GATE_WORKDIR ?= $(CURDIR)
 GATE_SMOKE_DURATION ?= 60s
@@ -88,3 +88,8 @@ points-migrate-down:
 	else \
 		./scripts/run_points_unique_migration.sh --db sqlite --action down --sqlite-file "$(POINTS_SQLITE_FILE)" --execute --confirm-down --down-conflict-strategy "$(POINTS_DOWN_STRATEGY)"; \
 	fi
+
+
+# 長任務提醒機制 smoke test（controller start/finish + reconcile）
+longtask-smoke:
+	bash ./scripts/longtask_smoke.sh

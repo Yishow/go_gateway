@@ -177,11 +177,11 @@ export default function SmartDashboardWorkspaceContent({
           </select>
           {/* 摘要 */}
           <span className="rounded-full bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-400 ring-1 ring-white/10">
-            = {totalPlannedCells} 格
+            {t("smartDashboard.sourcePlanner.plannedCells", { count: totalPlannedCells })}
           </span>
           {planConflictCount > 0 && (
             <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-300 ring-1 ring-amber-500/30">
-              衝突 {planConflictCount}
+              {t("smartDashboard.sourcePlanner.conflictCount", { count: planConflictCount })}
             </span>
           )}
           {!typedPlanValidation.valid && (
@@ -244,7 +244,7 @@ export default function SmartDashboardWorkspaceContent({
                 : "border-rose-500/30 bg-rose-500/10 text-rose-300"
             }`}
           >
-            bind {(modbusStatus?.bind_state ?? "fail").toUpperCase()}
+            {t("smartDashboard.memoryGrid.bindBadge", { state: (modbusStatus?.bind_state ?? "fail").toUpperCase() })}
           </span>
           <span
             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${
@@ -253,7 +253,7 @@ export default function SmartDashboardWorkspaceContent({
                 : "border-white/10 bg-slate-800/60 text-slate-400"
             }`}
           >
-            衝突 {planConflictCount}
+            {t("smartDashboard.sourcePlanner.conflictCount", { count: planConflictCount })}
           </span>
           <span className="ml-auto text-xs font-semibold text-slate-100">{t("smartDashboard.memoryGrid.title")}</span>
         </div>

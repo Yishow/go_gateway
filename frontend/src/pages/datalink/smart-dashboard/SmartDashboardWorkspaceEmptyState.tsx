@@ -27,14 +27,14 @@ export default function SmartDashboardWorkspaceEmptyState({
             onClick={onChooseDevice}
             className="min-h-11 cursor-pointer rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            選擇設備
+            {t('smartDashboard.actions.chooseDevice')}
           </button>
           <button
             type="button"
             onClick={onCreateDevice}
             className="min-h-11 cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            新增設備
+            {t('smartDashboard.actions.createDevice')}
           </button>
         </div>
       </div>

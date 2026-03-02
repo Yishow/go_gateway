@@ -78,50 +78,60 @@ export default function SmartDashboardCommitPanel({
   onRecoverFlow,
   t,
 }: SmartDashboardCommitPanelProps) {
+  const viewStatusLabel = (viewStatus: SmartDashboardCommitPanelProps['commitQueueItems'][number]['viewStatus']) =>
+    t(`smartDashboard.commit.status.${viewStatus}`);
+
   return (
     <>
       <div className="space-y-2 border-t border-white/5 p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold tracking-wide text-slate-200">Commit Queue</p>
-          <span className="text-[10px] text-slate-400">Total {commitQueueSummary.total}</span>
+          <p className="text-xs font-semibold tracking-wide text-slate-200">{t('smartDashboard.commit.queueTitle')}</p>
+          <span className="text-[10px] text-slate-400">{t('smartDashboard.commit.total', { count: commitQueueSummary.total })}</span>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[10px]">
           <span className="rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-slate-200">
-            Pending <strong>{commitQueueSummary.pending}</strong>
+            {t('smartDashboard.commit.pending', { count: commitQueueSummary.pending })}
           </span>
           <span className="rounded border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-indigo-100">
-            Linked <strong>{commitQueueSummary.linked}</strong>
+            {t('smartDashboard.commit.linked', { count: commitQueueSummary.linked })}
           </span>
           <span className="rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-100">
-            Conflict <strong>{commitQueueSummary.conflict}</strong>
+            {t('smartDashboard.commit.conflict', { count: commitQueueSummary.conflict })}
           </span>
           <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-100">
-            Committed <strong>{commitQueueSummary.committed}</strong>
+            {t('smartDashboard.commit.committed', { count: commitQueueSummary.committed })}
           </span>
           <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
-            Failed <strong>{commitQueueSummary.failed}</strong>
+            {t('smartDashboard.commit.failed', { count: commitQueueSummary.failed })}
           </span>
         </div>
         <div className="space-y-1 rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-2 text-[10px] text-cyan-100">
-          <p className="font-semibold tracking-wide">Commit Impact</p>
+          <p className="font-semibold tracking-wide">{t('smartDashboard.commit.impactTitle')}</p>
           <div className="grid grid-cols-3 gap-2">
-            <div>New Points {commitImpactSummary.newPoints}</div>
-            <div>Global Tag Updates {commitImpactSummary.globalTagUpdates}</div>
-            <div>Conflicts {commitImpactSummary.conflicts}</div>
+            <div>{t('smartDashboard.commit.newPoints', { count: commitImpactSummary.newPoints })}</div>
+            <div>{t('smartDashboard.commit.globalTagUpdates', { count: commitImpactSummary.globalTagUpdates })}</div>
+            <div>{t('smartDashboard.commit.conflicts', { count: commitImpactSummary.conflicts })}</div>
           </div>
           <p className="text-[10px] text-cyan-50/90">
-            Polling Load Δ +{preCommitLoadEstimate.deltaReadsPerSec}/s ({preCommitLoadEstimate.baselineReadsPerSec}
-            /s → {preCommitLoadEstimate.projectedReadsPerSec}/s, 假設週期 {preCommitLoadEstimate.assumedIntervalMs}ms)
+            {t('smartDashboard.commit.pollingLoad', {
+              delta: preCommitLoadEstimate.deltaReadsPerSec,
+              baseline: preCommitLoadEstimate.baselineReadsPerSec,
+              projected: preCommitLoadEstimate.projectedReadsPerSec,
+              intervalMs: preCommitLoadEstimate.assumedIntervalMs,
+            })}
           </p>
           <p className={`text-[10px] ${motionQAGate.pass ? 'text-emerald-200' : 'text-rose-200'}`}>
-            Motion QA Gate: {motionQAGate.pass ? 'PASS' : 'FAIL'} ({motionQAGate.checklist.filter((item) => item.pass).length}/
-            {motionQAGate.checklist.length})
+            {t('smartDashboard.commit.motionQaGate', {
+              result: motionQAGate.pass ? t('smartDashboard.commit.pass') : t('smartDashboard.commit.fail'),
+              passed: motionQAGate.checklist.filter((item) => item.pass).length,
+              total: motionQAGate.checklist.length,
+            })}
           </p>
         </div>
         <div className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
           {commitQueueItems.length === 0 ? (
             <p className="rounded border border-slate-700 bg-slate-900/60 px-2 py-2 text-[11px] text-slate-400">
-              尚無待提交規劃
+              {t('smartDashboard.commit.emptyQueue')}
             </p>
           ) : (
             commitQueueItems.map((item) => (
@@ -139,7 +149,7 @@ export default function SmartDashboardCommitPanel({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono">#{item.order} {item.label}</span>
-                  <span className="text-[10px] uppercase">{item.viewStatus}</span>
+                  <span className="text-[10px] uppercase">{viewStatusLabel(item.viewStatus)}</span>
                 </div>
                 <div className="mt-0.5 text-[10px] opacity-80">
                   {item.type} · {item.addresses[0]}..{item.addresses[item.addresses.length - 1]}
@@ -166,7 +176,7 @@ export default function SmartDashboardCommitPanel({
           aria-keyshortcuts="Control+Shift+Enter"
           className="w-full rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isCommitRunning ? 'Commit 執行中...' : 'Commit 到 DB'}
+          {isCommitRunning ? t('smartDashboard.commit.running') : t('smartDashboard.commit.commitToDb')}
         </button>
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -175,7 +185,7 @@ export default function SmartDashboardCommitPanel({
             disabled={!hasFailedChunk}
             className="rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-2 text-xs font-medium text-amber-100 hover:bg-amber-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Retry 失敗 Chunk
+            {t('smartDashboard.commit.retryFailedChunk')}
           </button>
           <button
             type="button"
@@ -183,7 +193,7 @@ export default function SmartDashboardCommitPanel({
             disabled={!canRollback}
             className="rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-2 text-xs font-medium text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Rollback
+            {t('smartDashboard.commit.rollback')}
           </button>
         </div>
         <div className="space-y-1 rounded-lg border border-white/10 bg-slate-900/60 p-2">
@@ -203,14 +213,20 @@ export default function SmartDashboardCommitPanel({
         )}
         {commitChunkResults.length > 0 && (
           <div className="space-y-1 rounded-lg border border-white/10 bg-slate-900/60 p-2">
-            <p className="text-[11px] font-semibold text-slate-200">Chunk 結果</p>
+            <p className="text-[11px] font-semibold text-slate-200">{t('smartDashboard.commit.chunkResultsTitle')}</p>
             {commitChunkResults.map((chunkResult) => (
               <div key={chunkResult.chunk} className="flex items-center justify-between text-[10px]">
                 <span className="text-slate-300">
-                  Chunk {chunkResult.chunk}/{chunkResult.totalChunks}
+                  {t('smartDashboard.commit.chunkLabel', {
+                    chunk: chunkResult.chunk,
+                    totalChunks: chunkResult.totalChunks,
+                  })}
                 </span>
                 <span className={chunkResult.status === 'success' ? 'text-emerald-300' : 'text-amber-300'}>
-                  success {chunkResult.success} / failed {chunkResult.failed}
+                  {t('smartDashboard.commit.chunkStats', {
+                    success: chunkResult.success,
+                    failed: chunkResult.failed,
+                  })}
                 </span>
               </div>
             ))}
@@ -219,7 +235,7 @@ export default function SmartDashboardCommitPanel({
         {commitAuditPayload && (
           <div id="commit-audit-trace" className="space-y-1.5 rounded-lg border border-cyan-500/20 bg-slate-900/70 p-2">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-cyan-200">Audit Trace</p>
+              <p className="text-[11px] font-semibold text-cyan-200">{t('smartDashboard.commit.auditTrace')}</p>
               <a
                 href={commitAuditPayload.traceLink}
                 className="text-[10px] text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
@@ -230,13 +246,13 @@ export default function SmartDashboardCommitPanel({
             <p className="text-[10px] text-slate-400">{commitAuditPayload.createdAt}</p>
             <div className="flex flex-wrap gap-1.5 text-[10px]">
               <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-200">
-                new {commitAuditPayload.summary.newPoints}
+                {t('smartDashboard.commit.auditNew', { count: commitAuditPayload.summary.newPoints })}
               </span>
               <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-blue-200">
-                tag {commitAuditPayload.summary.globalTagUpdates}
+                {t('smartDashboard.commit.auditTag', { count: commitAuditPayload.summary.globalTagUpdates })}
               </span>
               <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-rose-200">
-                conflict {commitAuditPayload.summary.conflicts}
+                {t('smartDashboard.commit.auditConflict', { count: commitAuditPayload.summary.conflicts })}
               </span>
             </div>
           </div>

@@ -1,3 +1,5 @@
+import type { TFunction } from 'i18next';
+
 interface SmartDashboardIntentNoticesProps {
   showLegacyNotice: boolean;
   legacyMigrationTitle: string;
@@ -10,6 +12,7 @@ interface SmartDashboardIntentNoticesProps {
   showModalIntentNotice: boolean;
   modalIntentLabel: string;
   closeWorkflowModal: () => void;
+  t: TFunction;
 }
 
 export default function SmartDashboardIntentNotices({
@@ -24,6 +27,7 @@ export default function SmartDashboardIntentNotices({
   showModalIntentNotice,
   modalIntentLabel,
   closeWorkflowModal,
+  t,
 }: SmartDashboardIntentNoticesProps) {
   return (
     <>
@@ -49,9 +53,9 @@ export default function SmartDashboardIntentNotices({
         <section className="mx-3 mt-3 rounded-2xl border border-blue-300/30 bg-blue-500/10 px-4 py-3 text-blue-100 shadow-lg shadow-blue-900/10 transition-all duration-300 sm:mx-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs uppercase tracking-wider text-blue-200/80">section redirect</p>
+              <p className="text-xs uppercase tracking-wider text-blue-200/80">{t('smartDashboard.intentNotices.sectionRedirectTitle')}</p>
               <p className="text-sm">
-                已導向 {sectionIntentLabel} 區段，主要操作已整合在 Dashboard 內。
+                {t('smartDashboard.intentNotices.sectionRedirectDesc', { label: sectionIntentLabel })}
               </p>
             </div>
             <button
@@ -59,7 +63,7 @@ export default function SmartDashboardIntentNotices({
               onClick={dismissSectionIntentNotice}
               className="rounded-lg border border-blue-300/40 bg-blue-500/20 px-3 py-1.5 text-xs font-medium hover:bg-blue-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
-              關閉
+              {t('common.close')}
             </button>
           </div>
         </section>
@@ -69,9 +73,9 @@ export default function SmartDashboardIntentNotices({
         <section className="mx-3 mt-3 rounded-2xl border border-indigo-300/30 bg-indigo-500/10 px-4 py-3 text-indigo-100 shadow-lg shadow-indigo-900/10 transition-all duration-300 sm:mx-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs uppercase tracking-wider text-indigo-200/80">modal redirect</p>
+              <p className="text-xs uppercase tracking-wider text-indigo-200/80">{t('smartDashboard.intentNotices.modalRedirectTitle')}</p>
               <p className="text-sm">
-                {modalIntentLabel} 已整合為 Dashboard modal 流程（/test 維持獨立頁）。
+                {t('smartDashboard.intentNotices.modalRedirectDesc', { label: modalIntentLabel })}
               </p>
             </div>
             <button
@@ -79,7 +83,7 @@ export default function SmartDashboardIntentNotices({
               onClick={closeWorkflowModal}
               className="rounded-lg border border-indigo-300/40 bg-indigo-500/20 px-3 py-1.5 text-xs font-medium hover:bg-indigo-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
             >
-              關閉
+              {t('common.close')}
             </button>
           </div>
         </section>

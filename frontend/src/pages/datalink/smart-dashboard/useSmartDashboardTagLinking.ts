@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { DataType, Mapping, Point, Tag, UpdateTagRequest } from '../../../types/datalink';
+import type { DataType, Mapping, Point, Tag, TransformStep, UpdateTagRequest } from '../../../types/datalink';
 import {
   buildGlobalTagEditDraft,
   hasGlobalTagEditChanges,
@@ -14,11 +14,11 @@ interface UseSmartDashboardTagLinkingParams {
   tags: Tag[];
   linkedTag?: Tag;
   linkedTagAffectedMappingsCount: number;
-  parsePipeline: () => unknown[];
+  parsePipeline: () => TransformStep[];
   tagEditGuardrailWarning: string;
   createTag: (data: { key: string; display_name: string; data_type: DataType }) => Promise<Tag>;
   createMapping: (data: { point_id: string; tag_id: string; enabled: boolean }) => Promise<unknown>;
-  updateMapping: (data: { id: string; data: { tag_id: string; enabled: boolean; transform_pipeline: unknown[] } }) => Promise<unknown>;
+  updateMapping: (data: { id: string; data: { tag_id: string; enabled: boolean; transform_pipeline: TransformStep[] } }) => Promise<unknown>;
   updateTag: (data: { id: string; data: UpdateTagRequest }) => Promise<unknown>;
   /** 連結成功後呼叫，讓 mappings 立即 refetch，格位/點位/Tag 與全域編輯區才能正確顯示 */
   refetchMappings?: () => Promise<unknown>;
