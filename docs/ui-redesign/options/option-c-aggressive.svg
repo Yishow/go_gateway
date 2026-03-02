@@ -1,0 +1,325 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <style>
+      text { font-family: 'Inter', 'Noto Sans TC', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+    </style>
+    <filter id="shadow-sm" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.05" />
+    </filter>
+    <filter id="shadow-md" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0F172A" flood-opacity="0.08" />
+    </filter>
+    <filter id="shadow-lg" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#4F46E5" flood-opacity="0.25" />
+    </filter>
+    
+    <linearGradient id="primary-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="50%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#3730A3" />
+    </linearGradient>
+    
+    <linearGradient id="ai-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#D946EF" />
+    </linearGradient>
+
+    <linearGradient id="chart-area" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0.0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Global Background -->
+  <rect x="0" y="0" width="1920" height="1080" fill="#F8FAFC" />
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <rect x="0" y="0" width="280" height="1080" fill="#0F172A" />
+  
+  <!-- Logo -->
+  <circle cx="45" cy="48" r="18" fill="#6366F1" />
+  <path d="M38 48 L45 38 L52 48 L45 58 Z" fill="#FFFFFF" />
+  <text x="75" y="55" fill="#FFFFFF" font-size="22" font-weight="900" letter-spacing="1">GoGateway</text>
+  <rect x="205" y="40" width="40" height="20" rx="4" fill="#3B82F6" fill-opacity="0.2" />
+  <text x="210" y="54" fill="#60A5FA" font-size="11" font-weight="bold">PRO</text>
+
+  <!-- Navigation Menu -->
+  <!-- Active Item -->
+  <rect x="16" y="100" width="248" height="52" rx="12" fill="#1E293B" />
+  <rect x="16" y="110" width="4" height="32" rx="2" fill="#6366F1" />
+  <text x="40" y="132" fill="#6366F1" font-size="18">📊</text>
+  <text x="75" y="132" fill="#FFFFFF" font-size="16" font-weight="bold">全域儀表板</text>
+
+  <!-- Inactive Items -->
+  <text x="42" y="192" fill="#64748B" font-size="18">⚡</text>
+  <text x="75" y="192" fill="#94A3B8" font-size="16" font-weight="500">API 服務管理</text>
+
+  <text x="42" y="252" fill="#64748B" font-size="18">🔀</text>
+  <text x="75" y="252" fill="#94A3B8" font-size="16" font-weight="500">路由與上游</text>
+
+  <text x="42" y="312" fill="#64748B" font-size="18">🛡️</text>
+  <text x="75" y="312" fill="#94A3B8" font-size="16" font-weight="500">安全與外掛</text>
+
+  <text x="42" y="372" fill="#64748B" font-size="18">📈</text>
+  <text x="75" y="372" fill="#94A3B8" font-size="16" font-weight="500">監控與告警</text>
+  <rect x="235" y="358" width="20" height="20" rx="10" fill="#EF4444" />
+  <text x="241" y="373" fill="#FFFFFF" font-size="12" font-weight="bold">3</text>
+
+  <text x="42" y="432" fill="#64748B" font-size="18">⚙️</text>
+  <text x="75" y="432" fill="#94A3B8" font-size="16" font-weight="500">系統配置</text>
+
+  <!-- Sidebar Bottom -->
+  <rect x="16" y="990" width="248" height="64" rx="12" fill="#1E293B" />
+  <circle cx="45" cy="1022" r="16" fill="#475569" />
+  <text x="36" y="1028" fill="#FFFFFF" font-size="16">👨‍💻</text>
+  <text x="75" y="1018" fill="#FFFFFF" font-size="14" font-weight="bold">Admin User</text>
+  <text x="75" y="1036" fill="#94A3B8" font-size="12">Super Administrator</text>
+
+
+  <!-- ==================== HEADER ==================== -->
+  <rect x="280" y="0" width="1640" height="80" fill="#FFFFFF" filter="url(#shadow-sm)" />
+  
+  <!-- Search Bar -->
+  <rect x="320" y="20" width="360" height="40" rx="20" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="340" y="45" fill="#94A3B8" font-size="16">🔍</text>
+  <text x="370" y="45" fill="#94A3B8" font-size="14">搜尋 API、路由規則、外掛設定 (Cmd+K)...</text>
+
+  <!-- Environment Toggle -->
+  <rect x="1350" y="22" width="180" height="36" rx="18" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="1"/>
+  <rect x="1470" y="25" width="56" height="30" rx="15" fill="#FFFFFF" filter="url(#shadow-sm)" />
+  <text x="1370" y="45" fill="#64748B" font-size="13" font-weight="600">開發</text>
+  <text x="1425" y="45" fill="#64748B" font-size="13" font-weight="600">測試</text>
+  <text x="1480" y="45" fill="#0F172A" font-size="13" font-weight="800">● 生產</text>
+
+  <!-- Actions & Profile -->
+  <text x="1600" y="47" fill="#64748B" font-size="20">📖</text>
+  
+  <path d="M1660 35 C1660 28 1665 24 1670 24 C1675 24 1680 28 1680 35 L1680 46 L1685 46 L1685 50 L1655 50 L1655 46 L1660 46 Z" fill="#64748B" />
+  <circle cx="1678" cy="26" r="5" fill="#EF4444" stroke="#FFFFFF" stroke-width="2" />
+
+  <circle cx="1740" cy="40" r="18" fill="#E2E8F0" />
+  <text x="1731" y="46" fill="#475569" font-size="18">👤</text>
+  <text x="1770" y="45" fill="#1E293B" font-size="14" font-weight="bold">設定 ▾</text>
+
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  
+  <!-- Section 1: Smart Suggestions Area (AI Banner) -->
+  <rect x="320" y="110" width="1560" height="72" rx="16" fill="#F5F3FF" stroke="#DDD6FE" stroke-width="1" />
+  <rect x="320" y="110" width="8" height="72" fill="url(#ai-grad)" rx="4" />
+  <text x="345" y="154" font-size="24">✨</text>
+  <text x="385" y="152" fill="#4C1D95" font-size="16" font-weight="800">AI 智慧維運分析：</text>
+  <text x="540" y="152" fill="#312E81" font-size="16" font-weight="500">檢測到 <tspan font-family="monospace" fill="#7C3AED" font-weight="bold">PaymentAPI_v2</tspan> 延遲異常 (P99 > 850ms)，建議立即為此路由開啟「動態限流」外掛或擴容上游節點。</text>
+  
+  <rect x="1600" y="126" width="120" height="40" rx="8" fill="#7C3AED" />
+  <text x="1628" y="151" fill="#FFFFFF" font-size="14" font-weight="bold">一鍵優化</text>
+  <text x="1740" y="151" fill="#6B7280" font-size="14" font-weight="500" text-decoration="underline">忽略建議</text>
+
+
+  <!-- Section 2: Dual Entry (Radical UI) -->
+  
+  <!-- Left Entry: Quick Setup (Highlighted) -->
+  <rect x="320" y="210" width="1000" height="380" rx="24" fill="url(#primary-grad)" filter="url(#shadow-lg)" />
+  
+  <!-- Decoration Circles -->
+  <circle cx="1200" cy="250" r="150" fill="#FFFFFF" fill-opacity="0.05" />
+  <circle cx="350" cy="500" r="100" fill="#FFFFFF" fill-opacity="0.05" />
+
+  <text x="370" y="275" fill="#FFFFFF" font-size="32" font-weight="900">⚡ 快速配置 API (Quick Setup)</text>
+  <text x="370" y="315" fill="#E0E7FF" font-size="16" font-weight="500">三步驟引導，將您的後端微服務安全地發佈到外網。最適合快速迭代與標準驗證場景。</text>
+
+  <!-- Flow Visual inside Quick Setup -->
+  <!-- Step 1 -->
+  <rect x="370" y="355" width="280" height="150" rx="16" fill="#FFFFFF" fill-opacity="0.1" stroke="#FFFFFF" stroke-opacity="0.2" stroke-width="1" />
+  <text x="390" y="390" fill="#FFFFFF" font-size="16" font-weight="bold">1. 綁定上游服務</text>
+  <rect x="390" y="410" width="240" height="40" rx="8" fill="#000000" fill-opacity="0.25" />
+  <text x="405" y="435" fill="#A5B4FC" font-size="14" font-family="monospace">http://internal-svc:8080</text>
+  <text x="390" y="475" fill="#86EFAC" font-size="13" font-weight="bold">✓ 自動健康檢查已啟用</text>
+
+  <!-- Arrow -->
+  <path d="M660 430 L685 430 M675 422 L685 430 L675 438" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Step 2 -->
+  <rect x="700" y="355" width="260" height="150" rx="16" fill="#FFFFFF" fill-opacity="0.1" stroke="#FFFFFF" stroke-opacity="0.2" stroke-width="1" />
+  <text x="720" y="390" fill="#FFFFFF" font-size="16" font-weight="bold">2. 安全與限流</text>
+  <rect x="720" y="410" width="220" height="34" rx="17" fill="#10B981" fill-opacity="0.2" stroke="#34D399" stroke-width="1" />
+  <text x="735" y="432" fill="#A7F3D0" font-size="14" font-weight="bold">🛡️ JWT 身分驗證</text>
+  <rect x="720" y="455" width="220" height="34" rx="17" fill="#F59E0B" fill-opacity="0.2" stroke="#FBBF24" stroke-width="1" />
+  <text x="735" y="477" fill="#FDE68A" font-size="14" font-weight="bold">⏱️ 速率限制 (100 req/s)</text>
+
+  <!-- Arrow -->
+  <path d="M970 430 L995 430 M985 422 L995 430 L985 438" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Step 3 -->
+  <rect x="1010" y="355" width="260" height="150" rx="16" fill="#FFFFFF" fill-opacity="0.1" stroke="#FFFFFF" stroke-opacity="0.2" stroke-width="1" />
+  <text x="1030" y="390" fill="#FFFFFF" font-size="16" font-weight="bold">3. 路由發佈</text>
+  <rect x="1030" y="410" width="220" height="40" rx="8" fill="#000000" fill-opacity="0.25" />
+  <text x="1045" y="435" fill="#A5B4FC" font-size="14" font-family="monospace">/api/v1/users/*</text>
+  <rect x="1030" y="465" width="220" height="40" rx="20" fill="#FFFFFF" filter="url(#shadow-sm)" />
+  <text x="1090" y="490" fill="#4F46E5" font-size="15" font-weight="900">🚀 立即啟動</text>
+
+  
+  <!-- Right Entry: Advanced & Standard Configuration -->
+  <rect x="1350" y="210" width="530" height="380" rx="24" fill="#FFFFFF" filter="url(#shadow-md)" stroke="#E2E8F0" stroke-width="1" />
+  <text x="1390" y="265" fill="#0F172A" font-size="24" font-weight="900">🛠️ 標準與進階配置</text>
+  <text x="1390" y="295" fill="#64748B" font-size="14" font-weight="500">適合微服務架構，支援精細控制與自訂外掛。</text>
+
+  <!-- Option 1 -->
+  <rect x="1390" y="325" width="450" height="70" rx="12" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" cursor="pointer" />
+  <rect x="1390" y="325" width="6" height="70" rx="3" fill="#6366F1" />
+  <circle cx="1430" cy="360" r="18" fill="#E0E7FF" />
+  <text x="1420" y="366" fill="#4F46E5" font-size="18">🔀</text>
+  <text x="1465" y="353" fill="#1E293B" font-size="16" font-weight="bold">建立高階路由規則</text>
+  <text x="1465" y="375" fill="#64748B" font-size="13">條件路由、金絲雀發佈、權重分配</text>
+  <path d="M1800 355 L1810 360 L1800 365" stroke="#94A3B8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Option 2 -->
+  <rect x="1390" y="410" width="450" height="70" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
+  <circle cx="1430" cy="445" r="18" fill="#DCFCE7" />
+  <text x="1420" y="451" fill="#16A34A" font-size="18">📦</text>
+  <text x="1465" y="438" fill="#1E293B" font-size="16" font-weight="bold">從 OpenAPI 匯入</text>
+  <text x="1465" y="460" fill="#64748B" font-size="13">支援 Swagger 2.0 / OpenAPI 3.0 自動解析</text>
+  <path d="M1800 440 L1810 445 L1800 450" stroke="#94A3B8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Option 3 -->
+  <rect x="1390" y="495" width="450" height="70" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
+  <circle cx="1430" cy="530" r="18" fill="#FEF3C7" />
+  <text x="1420" y="536" fill="#D97706" font-size="18">🧩</text>
+  <text x="1465" y="523" fill="#1E293B" font-size="16" font-weight="bold">全域外掛與安全配置</text>
+  <text x="1465" y="545" fill="#64748B" font-size="13">設定 WAF 防火牆、CORS、IP 黑白名單</text>
+  <path d="M1800 525 L1810 530 L1800 535" stroke="#94A3B8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+
+  <!-- Section 3: Process Timeline / Flow Guidance -->
+  <text x="320" y="640" fill="#0F172A" font-size="22" font-weight="900">即時流量處理管線 (Traffic Pipeline)</text>
+  <text x="680" y="638" fill="#64748B" font-size="14" font-weight="500">即時展示全域請求的平均處理階段與健康度</text>
+
+  <rect x="320" y="660" width="1560" height="120" rx="16" fill="#FFFFFF" filter="url(#shadow-md)" stroke="#E2E8F0" stroke-width="1" />
+
+  <!-- Pipeline Node 1: Client -->
+  <circle cx="380" cy="720" r="32" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="2" />
+  <text x="366" y="728" font-size="22">🌐</text>
+  <text x="350" y="775" fill="#475569" font-size="14" font-weight="bold">外部請求</text>
+
+  <path d="M420 720 L490 720" stroke="#CBD5E1" stroke-width="3" stroke-dasharray="6 4" />
+  <path d="M480 712 L492 720 L480 728" stroke="#CBD5E1" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Pipeline Node 2: WAF -->
+  <rect x="500" y="685" width="160" height="70" rx="10" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="2" />
+  <text x="515" y="715" fill="#DC2626" font-size="16" font-weight="bold">🛡️ WAF 防護</text>
+  <text x="515" y="740" fill="#991B1B" font-size="12" font-weight="500">今日攔截 1,204 次</text>
+
+  <path d="M670 720 L740 720" stroke="#CBD5E1" stroke-width="3" stroke-dasharray="6 4" />
+  <path d="M730 712 L742 720 L730 728" stroke="#CBD5E1" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Pipeline Node 3: Rate Limit -->
+  <rect x="750" y="685" width="160" height="70" rx="10" fill="#FFFBEB" stroke="#FCD34D" stroke-width="2" />
+  <text x="765" y="715" fill="#D97706" font-size="16" font-weight="bold">⏱️ 流量控制</text>
+  <text x="765" y="740" fill="#B45309" font-size="12" font-weight="500">觸發限流 0.05%</text>
+
+  <path d="M920 720 L990 720" stroke="#10B981" stroke-width="4" />
+  <path d="M980 712 L992 720 L980 728" stroke="#10B981" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Pipeline Node 4: Auth -->
+  <rect x="1000" y="685" width="160" height="70" rx="10" fill="#ECFDF5" stroke="#6EE7B7" stroke-width="2" />
+  <text x="1015" y="715" fill="#059669" font-size="16" font-weight="bold">🔑 身分驗證</text>
+  <text x="1015" y="740" fill="#047857" font-size="12" font-weight="500">JWT 校驗: 1.2ms</text>
+
+  <path d="M1170 720 L1240 720" stroke="#10B981" stroke-width="4" />
+  <path d="M1230 712 L1242 720 L1230 728" stroke="#10B981" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Pipeline Node 5: Routing -->
+  <rect x="1250" y="685" width="180" height="70" rx="10" fill="#EEF2FF" stroke="#A5B4FC" stroke-width="2" filter="url(#shadow-sm)" />
+  <text x="1265" y="715" fill="#4F46E5" font-size="16" font-weight="bold">🔀 核心路由分發</text>
+  <text x="1265" y="740" fill="#4338CA" font-size="12" font-weight="500">動態尋址耗時: 0.8ms</text>
+
+  <path d="M1440 720 L1670 720" stroke="#6366F1" stroke-width="4" stroke-dasharray="10 6" />
+  <path d="M1655 710 L1670 720 L1655 730" stroke="#6366F1" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <rect x="1505" y="698" width="100" height="24" rx="12" fill="#E0E7FF" />
+  <text x="1520" y="714" fill="#4F46E5" font-size="12" font-weight="bold">負載均衡轉發</text>
+
+  <!-- Pipeline Node 6: Upstream -->
+  <circle cx="1720" cy="720" r="36" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="4 2"/>
+  <circle cx="1720" cy="720" r="28" fill="#E2E8F0" />
+  <text x="1708" y="728" font-size="24">☁️</text>
+  <text x="1685" y="780" fill="#475569" font-size="14" font-weight="bold">後端微服務群</text>
+
+
+  <!-- Section 4: Dashboard Metrics (Widgets) -->
+  
+  <!-- Widget 1: System QPS -->
+  <rect x="320" y="810" width="480" height="240" rx="16" fill="#FFFFFF" filter="url(#shadow-sm)" stroke="#E2E8F0" stroke-width="1" />
+  <text x="350" y="850" fill="#0F172A" font-size="18" font-weight="bold">全域 QPS (Requests/sec)</text>
+  <text x="740" y="850" fill="#64748B" font-size="14">近 1 小時</text>
+  
+  <text x="350" y="900" fill="#4F46E5" font-size="40" font-weight="900">12,450</text>
+  <rect x="490" y="876" width="60" height="24" rx="12" fill="#D1FAE5" />
+  <text x="498" y="893" fill="#059669" font-size="12" font-weight="bold">↑ 14.2%</text>
+
+  <!-- Area Chart -->
+  <path d="M320 1000 L360 960 L400 980 L440 910 L480 940 L520 860 L560 890 L600 820 L640 860 L680 780 L720 810 L760 750 L800 770 L800 1050 L320 1050 Z" fill="url(#chart-area)" />
+  <path d="M320 1000 L360 960 L400 980 L440 910 L480 940 L520 860 L560 890 L600 820 L640 860 L680 780 L720 810 L760 750 L800 770" stroke="#6366F1" stroke-width="3" fill="none" stroke-linejoin="round" />
+  <!-- Current point -->
+  <circle cx="760" cy="750" r="6" fill="#FFFFFF" stroke="#6366F1" stroke-width="3" />
+
+
+  <!-- Widget 2: Top Active APIs -->
+  <rect x="830" y="810" width="480" height="240" rx="16" fill="#FFFFFF" filter="url(#shadow-sm)" stroke="#E2E8F0" stroke-width="1" />
+  <text x="860" y="850" fill="#0F172A" font-size="18" font-weight="bold">熱門 API 請求佔比 (Top 3)</text>
+  <text x="1240" y="850" fill="#3B82F6" font-size="14" font-weight="bold" cursor="pointer">查看全部</text>
+
+  <!-- Item 1 -->
+  <rect x="860" y="880" width="420" height="44" rx="8" fill="#F8FAFC" />
+  <text x="875" y="907" fill="#4F46E5" font-size="16" font-weight="900">1</text>
+  <text x="905" y="907" fill="#1E293B" font-size="14" font-family="monospace" font-weight="bold">/api/v1/orders/create</text>
+  <rect x="1100" y="900" width="100" height="8" rx="4" fill="#E2E8F0" />
+  <rect x="1100" y="900" width="85" height="8" rx="4" fill="#4F46E5" />
+  <text x="1215" y="907" fill="#64748B" font-size="14" font-weight="bold">4.2k</text>
+
+  <!-- Item 2 -->
+  <rect x="860" y="934" width="420" height="44" rx="8" fill="#FFFFFF" />
+  <text x="875" y="961" fill="#64748B" font-size="16" font-weight="900">2</text>
+  <text x="905" y="961" fill="#1E293B" font-size="14" font-family="monospace" font-weight="bold">/api/v1/users/profile</text>
+  <rect x="1100" y="954" width="100" height="8" rx="4" fill="#E2E8F0" />
+  <rect x="1100" y="954" width="65" height="8" rx="4" fill="#3B82F6" />
+  <text x="1215" y="961" fill="#64748B" font-size="14" font-weight="bold">3.1k</text>
+
+  <!-- Item 3 -->
+  <rect x="860" y="988" width="420" height="44" rx="8" fill="#F8FAFC" />
+  <text x="875" y="1015" fill="#64748B" font-size="16" font-weight="900">3</text>
+  <text x="905" y="1015" fill="#1E293B" font-size="14" font-family="monospace" font-weight="bold">/api/v1/products/list</text>
+  <rect x="1100" y="1008" width="100" height="8" rx="4" fill="#E2E8F0" />
+  <rect x="1100" y="1008" width="45" height="8" rx="4" fill="#64748B" />
+  <text x="1215" y="1015" fill="#64748B" font-size="14" font-weight="bold">2.8k</text>
+
+
+  <!-- Widget 3: Gateway Nodes Health -->
+  <rect x="1340" y="810" width="540" height="240" rx="16" fill="#FFFFFF" filter="url(#shadow-sm)" stroke="#E2E8F0" stroke-width="1" />
+  <text x="1370" y="850" fill="#0F172A" font-size="18" font-weight="bold">叢集節點健康度</text>
+  <rect x="1740" y="834" width="110" height="26" rx="13" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1" />
+  <circle cx="1755" cy="847" r="4" fill="#10B981" />
+  <text x="1767" y="852" fill="#047857" font-size="13" font-weight="bold">5/5 運行中</text>
+
+  <!-- Node grid -->
+  <rect x="1370" y="880" width="240" height="64" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+  <circle cx="1395" cy="900" r="6" fill="#10B981" />
+  <text x="1410" y="904" fill="#1E293B" font-size="14" font-weight="bold">gw-node-prod-01</text>
+  <text x="1390" y="928" fill="#64748B" font-size="12">CPU: 24% | RAM: 1.2G | 🟢</text>
+
+  <rect x="1630" y="880" width="220" height="64" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+  <circle cx="1655" cy="900" r="6" fill="#10B981" />
+  <text x="1670" y="904" fill="#1E293B" font-size="14" font-weight="bold">gw-node-prod-02</text>
+  <text x="1650" y="928" fill="#64748B" font-size="12">CPU: 28% | RAM: 1.4G | 🟢</text>
+
+  <rect x="1370" y="955" width="240" height="64" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+  <circle cx="1395" cy="975" r="6" fill="#10B981" />
+  <text x="1410" y="979" fill="#1E293B" font-size="14" font-weight="bold">gw-node-prod-03</text>
+  <text x="1390" y="1003" fill="#64748B" font-size="12">CPU: 21% | RAM: 1.1G | 🟢</text>
+
+  <rect x="1630" y="955" width="220" height="64" rx="10" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+  <circle cx="1655" cy="975" r="6" fill="#10B981" />
+  <text x="1670" y="979" fill="#1E293B" font-size="14" font-weight="bold">gw-node-prod-04</text>
+  <text x="1650" y="1003" fill="#64748B" font-size="12">CPU: 25% | RAM: 1.3G | 🟢</text>
+
+</svg>

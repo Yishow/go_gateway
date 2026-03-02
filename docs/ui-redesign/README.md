@@ -19,3 +19,9 @@
 1) Gemini 產 SVG（指定「純 SVG XML」+ 尺寸 + 畫面結構）
 2) 用 agent-browser 開啟 SVG 截圖為 PNG
 3) 傳送 PNG 供使用者決策，再回填到 spec/plan
+
+
+## 已選定方案
+- ✅ 最終選定：C 版（激進）
+- 差異圖：`c-option-diff-map.svg`
+- 落地任務清單：`c-option-implementation-tasklist.md`

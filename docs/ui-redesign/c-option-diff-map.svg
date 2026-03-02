@@ -1,0 +1,238 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <!-- Background grid pattern -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/>
+    </pattern>
+    
+    <!-- Card shadow -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+
+    <!-- Arrow Marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <!-- Base Background -->
+  <rect width="1920" height="1080" fill="#0f172a"/>
+  <rect width="1920" height="1080" fill="url(#grid)" />
+
+  <!-- Top Navigation Bar -->
+  <rect width="1920" height="64" fill="#0f172a"/>
+  <line x1="0" y1="64" x2="1920" y2="64" stroke="#334155" stroke-width="2"/>
+  <text x="32" y="40" font-size="20" font-weight="bold">
+    <tspan fill="#94a3b8">⚡ TECH CONSOLE</tspan>
+    <tspan fill="#334155"> :: </tspan>
+    <tspan fill="#38bdf8">GATEWAY_EVOLUTION</tspan>
+  </text>
+  <text x="1888" y="40" fill="#64748b" font-size="16" text-anchor="end" font-family="monospace">SYSTEM_ARCH_OVERVIEW // VERSION: C-RADICAL // STATUS: PROPOSED</text>
+
+  <!-- Title Section -->
+  <text x="960" y="130" fill="#f8fafc" font-size="42" font-weight="bold" text-anchor="middle">go_gateway 系統架構演進：現況 vs C版激進方案</text>
+  <text x="960" y="170" fill="#38bdf8" font-size="22" text-anchor="middle" letter-spacing="2">B2B 控制台核心網關升級策略與落地規劃</text>
+
+  <!-- Column Backgrounds & Headers -->
+  <!-- Col 1: Current -->
+  <rect x="60" y="200" width="580" height="850" rx="16" fill="#1e293b" fill-opacity="0.4" stroke="#334155" stroke-opacity="0.5" stroke-width="2"/>
+  <text x="350" y="245" fill="#94a3b8" font-size="26" font-weight="bold" text-anchor="middle">現況 (Current)</text>
+
+  <!-- Col 2: Target C -->
+  <rect x="670" y="200" width="580" height="850" rx="16" fill="#10b981" fill-opacity="0.06" stroke="#10b981" stroke-opacity="0.2" stroke-width="2"/>
+  <text x="960" y="245" fill="#34d399" font-size="26" font-weight="bold" text-anchor="middle">C版目標 (Target C)</text>
+
+  <!-- Col 3: Migration -->
+  <rect x="1280" y="200" width="580" height="850" rx="16" fill="#f59e0b" fill-opacity="0.06" stroke="#f59e0b" stroke-opacity="0.2" stroke-width="2"/>
+  <text x="1570" y="245" fill="#fbbf24" font-size="26" font-weight="bold" text-anchor="middle">落地步驟 (Migration)</text>
+
+  <!-- Flow Arrows between columns -->
+  <g stroke="#64748b" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#arrow)">
+    <line x1="620" y1="337.5" x2="680" y2="337.5" />
+    <line x1="1230" y1="337.5" x2="1290" y2="337.5" />
+    
+    <line x1="620" y1="464.5" x2="680" y2="464.5" />
+    <line x1="1230" y1="464.5" x2="1290" y2="464.5" />
+    
+    <line x1="620" y1="591.5" x2="680" y2="591.5" />
+    <line x1="1230" y1="591.5" x2="1290" y2="591.5" />
+    
+    <line x1="620" y1="718.5" x2="680" y2="718.5" />
+    <line x1="1230" y1="718.5" x2="1290" y2="718.5" />
+    
+    <line x1="620" y1="845.5" x2="680" y2="845.5" />
+    <line x1="1230" y1="845.5" x2="1290" y2="845.5" />
+    
+    <line x1="620" y1="972.5" x2="680" y2="972.5" />
+    <line x1="1230" y1="972.5" x2="1290" y2="972.5" />
+  </g>
+
+  <!-- ==================== COLUMN 1: CURRENT ==================== -->
+  <g transform="translate(80, 280)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#475569"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#334155"/>
+    <text x="86.5" y="35" fill="#cbd5e1" font-size="14" font-weight="bold" text-anchor="middle">入口 Entry</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">多個獨立、分散的 API 入口點</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">路由與權限邏輯耦合於各底層微服務</text>
+  </g>
+
+  <g transform="translate(80, 407)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#475569"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#334155"/>
+    <text x="86.5" y="35" fill="#cbd5e1" font-size="14" font-weight="bold" text-anchor="middle">流程 Process</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">同步阻塞 (Blocking) 調用模式</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">串行處理請求，整體響應耗時較長</text>
+  </g>
+
+  <g transform="translate(80, 534)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#475569"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#334155"/>
+    <text x="86.5" y="35" fill="#cbd5e1" font-size="14" font-weight="bold" text-anchor="middle">狀態 State</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">網關層無狀態，缺乏統一會話管理</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">完全依賴後端服務進行緩存與狀態維護</text>
+  </g>
+
+  <g transform="translate(80, 661)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#475569"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#334155"/>
+    <text x="86.5" y="35" fill="#cbd5e1" font-size="14" font-weight="bold" text-anchor="middle">提交 Commit</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">與後端業務系統緊耦合，需同步發版</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">缺乏灰度發佈能力，回滾風險較大</text>
+  </g>
+
+  <g transform="translate(80, 788)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#475569"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#334155"/>
+    <text x="86.5" y="35" fill="#cbd5e1" font-size="14" font-weight="bold" text-anchor="middle">風險 Risk</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">單點故障影響大，缺乏有效熔斷機制</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">流量突增易導致服務雪崩，擴容不靈活</text>
+  </g>
+
+  <g transform="translate(80, 915)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#475569"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#334155"/>
+    <text x="86.5" y="35" fill="#cbd5e1" font-size="14" font-weight="bold" text-anchor="middle">監控 Monitor</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">僅有基礎 CPU/Memory 與日誌監控</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">缺乏全鏈路追蹤與細粒度業務指標</text>
+  </g>
+
+
+  <!-- ==================== COLUMN 2: TARGET C ==================== -->
+  <g transform="translate(690, 280)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#065f46" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#10b981"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#064e3b"/>
+    <text x="86.5" y="35" fill="#34d399" font-size="14" font-weight="bold" text-anchor="middle">入口 Entry</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">構建統一 API Gateway 作為唯一入口</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">實現動態路由、權限校驗與流量清洗前置</text>
+  </g>
+
+  <g transform="translate(690, 407)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#065f46" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#10b981"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#064e3b"/>
+    <text x="86.5" y="35" fill="#34d399" font-size="14" font-weight="bold" text-anchor="middle">流程 Process</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">全面採用異步非阻塞 (Async/Non-blocking)</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">引入 BFF 層進行 API 聚合與高併發調用</text>
+  </g>
+
+  <g transform="translate(690, 534)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#065f46" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#10b981"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#064e3b"/>
+    <text x="86.5" y="35" fill="#34d399" font-size="14" font-weight="bold" text-anchor="middle">狀態 State</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">引入 Redis 建立網關層緩存與 JWT 會話</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">具備分佈式限流與黑白名單攔截能力</text>
+  </g>
+
+  <g transform="translate(690, 661)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#065f46" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#10b981"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#064e3b"/>
+    <text x="86.5" y="35" fill="#34d399" font-size="14" font-weight="bold" text-anchor="middle">提交 Commit</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">獨立的 CI/CD 流水線與容器化部署</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">支援無縫熱更新 (Hot-reload) 與灰度發佈</text>
+  </g>
+
+  <g transform="translate(690, 788)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#065f46" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#10b981"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#064e3b"/>
+    <text x="86.5" y="35" fill="#34d399" font-size="14" font-weight="bold" text-anchor="middle">風險 Risk</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">建立 Sentinel 熔斷降級與自適應保護機制</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">高可用集羣部署，具備強隔離性與容災能力</text>
+  </g>
+
+  <g transform="translate(690, 915)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#065f46" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#10b981"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#064e3b"/>
+    <text x="86.5" y="35" fill="#34d399" font-size="14" font-weight="bold" text-anchor="middle">監控 Monitor</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">引入 eBPF 與 OpenTelemetry 全鏈路追蹤</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">實時可視化大屏與智能化自動告警體系</text>
+  </g>
+
+
+  <!-- ==================== COLUMN 3: MIGRATION ==================== -->
+  <g transform="translate(1300, 280)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#92400e" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#f59e0b"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#78350f"/>
+    <text x="86.5" y="35" fill="#fbbf24" font-size="14" font-weight="bold" text-anchor="middle">入口 Entry</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">[階段一] 部署 Go Gateway 基礎框架</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">透過 Nginx 流量分發，進行小比例灰度接入</text>
+  </g>
+
+  <g transform="translate(1300, 407)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#92400e" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#f59e0b"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#78350f"/>
+    <text x="86.5" y="35" fill="#fbbf24" font-size="14" font-weight="bold" text-anchor="middle">流程 Process</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">[階段二] 重構核心高頻讀取 API</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">實施 GraphQL/BFF 模式優化數據聚合邏輯</text>
+  </g>
+
+  <g transform="translate(1300, 534)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#92400e" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#f59e0b"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#78350f"/>
+    <text x="86.5" y="35" fill="#fbbf24" font-size="14" font-weight="bold" text-anchor="middle">狀態 State</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">[階段三] 網關層接入 Redis 集羣</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">逐步將鑑權、Token 校驗與限流邏輯前置遷移</text>
+  </g>
+
+  <g transform="translate(1300, 661)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#92400e" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#f59e0b"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#78350f"/>
+    <text x="86.5" y="35" fill="#fbbf24" font-size="14" font-weight="bold" text-anchor="middle">提交 Commit</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">[階段四] 建立獨立自動化測試 (E2E) 管道</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">配置 Kubernetes 獨立 Namespace 與部署腳本</text>
+  </g>
+
+  <g transform="translate(1300, 788)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#92400e" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#f59e0b"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#78350f"/>
+    <text x="86.5" y="35" fill="#fbbf24" font-size="14" font-weight="bold" text-anchor="middle">風險 Risk</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">[階段五] 實施全鏈路壓測與混沌工程 (Chaos)</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">調優熔斷閾值，驗證降級策略與故障轉移機制</text>
+  </g>
+
+  <g transform="translate(1300, 915)">
+    <rect width="540" height="115" rx="8" fill="#1e293b" stroke="#92400e" stroke-width="1.5" filter="url(#shadow)"/>
+    <rect width="6" height="115" rx="3" fill="#f59e0b"/>
+    <rect x="24" y="16" width="125" height="28" rx="6" fill="#78350f"/>
+    <text x="86.5" y="35" fill="#fbbf24" font-size="14" font-weight="bold" text-anchor="middle">監控 Monitor</text>
+    <text x="24" y="72" fill="#f8fafc" font-size="19" font-weight="500">[階段六] 整合 Prometheus 與 Grafana 看板</text>
+    <text x="24" y="100" fill="#94a3b8" font-size="17">串接 Jaeger 追蹤日誌，完成監控體系閉環</text>
+  </g>
+
+</svg>

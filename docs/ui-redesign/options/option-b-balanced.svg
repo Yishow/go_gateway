@@ -1,0 +1,332 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" style="background-color: #F8FAFC; font-family: 'Inter', 'Noto Sans TC', sans-serif;">
+  <defs>
+    <!-- Shadows -->
+    <filter id="shadow-sm" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.04"/>
+    </filter>
+    <filter id="shadow-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#3B82F6" flood-opacity="0.15"/>
+    </filter>
+    
+    <!-- Gradients -->
+    <linearGradient id="primary-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+    <linearGradient id="risk-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FEF2F2" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+
+    <!-- Background Grid Pattern for Quick Setup -->
+    <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#EFF6FF" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- ================= BACKGROUND & LAYOUT BASE ================= -->
+  <rect width="1920" height="1080" fill="#F8FAFC" />
+
+  <!-- ================= LEFT SIDEBAR ================= -->
+  <rect x="0" y="0" width="240" height="1080" fill="#FFFFFF" filter="url(#shadow-sm)" />
+  
+  <!-- Logo -->
+  <g transform="translate(24, 24)">
+    <rect width="36" height="36" rx="8" fill="#3B82F6" />
+    <path d="M10 18 L18 26 L26 10" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  </g>
+  <text x="72" y="48" font-size="20" font-weight="800" fill="#0F172A">Go Gateway</text>
+
+  <!-- Sidebar Menu -->
+  <g transform="translate(16, 100)">
+    <!-- Active Item -->
+    <rect x="0" y="0" width="208" height="48" rx="8" fill="#EFF6FF" />
+    <path d="M16 26 L16 18 L24 12 L32 18 L32 26 Z" fill="none" stroke="#2563EB" stroke-width="2" stroke-linejoin="round" />
+    <text x="48" y="29" font-size="15" font-weight="700" fill="#2563EB">總覽 (Dashboard)</text>
+
+    <!-- Inactive Items -->
+    <path d="M16 80 H32 M16 76 L24 72 L32 76" fill="none" stroke="#64748B" stroke-width="2" stroke-linejoin="round" />
+    <text x="48" y="85" font-size="15" font-weight="500" fill="#64748B">路由與服務 (Routes)</text>
+
+    <path d="M16 136 Q24 128 32 136 M20 144 H28" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" />
+    <text x="48" y="141" font-size="15" font-weight="500" fill="#64748B">上游節點 (Upstreams)</text>
+
+    <path d="M18 188 H30 V200 H18 Z M22 188 V184 M26 188 V184" fill="none" stroke="#64748B" stroke-width="2" />
+    <text x="48" y="197" font-size="15" font-weight="500" fill="#64748B">消費者 (Consumers)</text>
+
+    <path d="M18 244 L24 238 L30 244 V256 H18 Z" fill="none" stroke="#64748B" stroke-width="2" stroke-linejoin="round" />
+    <text x="48" y="253" font-size="15" font-weight="500" fill="#64748B">外掛中心 (Plugins)</text>
+
+    <path d="M16 304 C16 296 32 296 32 304 C32 312 16 312 16 304 Z" fill="none" stroke="#64748B" stroke-width="2" />
+    <text x="48" y="309" font-size="15" font-weight="500" fill="#64748B">憑證管理 (Certificates)</text>
+
+    <path d="M16 364 V352 L22 358 L28 350 L32 356" fill="none" stroke="#64748B" stroke-width="2" stroke-linejoin="round" />
+    <text x="48" y="365" font-size="15" font-weight="500" fill="#64748B">監控與日誌 (Metrics)</text>
+  </g>
+
+  <!-- Settings at bottom -->
+  <g transform="translate(16, 1000)">
+    <path d="M16 20 A6 6 0 1 1 32 20 A6 6 0 1 1 16 20 M24 14 V12 M24 28 V30 M18 20 H16 M32 20 H34" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" />
+    <text x="48" y="26" font-size="15" font-weight="500" fill="#64748B">系統設定 (Settings)</text>
+  </g>
+
+  <!-- ================= TOP HEADER ================= -->
+  <rect x="240" y="0" width="1680" height="80" fill="#FFFFFF" filter="url(#shadow-sm)" />
+  <text x="280" y="47" font-size="18" font-weight="600" fill="#1E293B">首頁 / 總覽監控台</text>
+
+  <!-- Environment Badge -->
+  <rect x="1560" y="24" width="140" height="32" rx="16" fill="#ECFDF5" stroke="#10B981" stroke-width="1" />
+  <circle cx="1576" cy="40" r="5" fill="#10B981" />
+  <text x="1590" y="45" font-size="13" font-weight="600" fill="#065F46">生產環境 (Production)</text>
+
+  <!-- Notifications -->
+  <path d="M1740 45 C1736 45 1735 40 1735 36 C1735 32 1738 28 1744 28 C1750 28 1753 32 1753 36 C1753 40 1752 45 1748 45" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" />
+  <circle cx="1749" cy="28" r="4" fill="#EF4444" stroke="#FFFFFF" stroke-width="1.5" />
+
+  <!-- User Avatar -->
+  <circle cx="1840" cy="40" r="18" fill="#E2E8F0" />
+  <text x="1840" y="45" font-size="14" font-weight="700" fill="#475569" text-anchor="middle">A</text>
+  <path d="M1870 38 L1875 43 L1880 38" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" />
+
+
+  <!-- ================= CENTER TOP: STATE VISUALIZATION ================= -->
+  <g transform="translate(280, 110)">
+    <!-- Card 1: Total Traffic -->
+    <rect x="0" y="0" width="265" height="130" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)"/>
+    <text x="24" y="32" font-size="14" font-weight="600" fill="#64748B">總請求數 (Total Requests)</text>
+    <text x="24" y="72" font-size="32" font-weight="800" fill="#0F172A">12,450</text>
+    <rect x="24" y="90" width="60" height="20" rx="4" fill="#ECFDF5" />
+    <text x="54" y="104" font-size="12" font-weight="700" fill="#10B981" text-anchor="middle">↑ 12%</text>
+    <text x="92" y="104" font-size="12" fill="#94A3B8">vs 昨天</text>
+    <!-- Sparkline -->
+    <path d="M 140 100 C 160 80, 180 100, 190 70 C 200 40, 220 60, 245 45" fill="none" stroke="#3B82F6" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 140 100 C 160 80, 180 100, 190 70 C 200 40, 220 60, 245 45 L 245 130 L 140 130 Z" fill="url(#primary-grad)" opacity="0.1" />
+
+    <!-- Card 2: P99 Latency -->
+    <rect x="285" y="0" width="265" height="130" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)"/>
+    <text x="309" y="32" font-size="14" font-weight="600" fill="#64748B">P99 延遲 (P99 Latency)</text>
+    <text x="309" y="72" font-size="32" font-weight="800" fill="#0F172A">42 <tspan font-size="18" fill="#64748B">ms</tspan></text>
+    <text x="309" y="104" font-size="13" font-weight="600" fill="#64748B">→ 效能穩定 (Stable)</text>
+    <!-- Bar Sparkline -->
+    <rect x="440" y="70" width="6" height="30" rx="3" fill="#E2E8F0" />
+    <rect x="455" y="60" width="6" height="40" rx="3" fill="#E2E8F0" />
+    <rect x="470" y="75" width="6" height="25" rx="3" fill="#E2E8F0" />
+    <rect x="485" y="50" width="6" height="50" rx="3" fill="#10B981" />
+    <rect x="500" y="65" width="6" height="35" rx="3" fill="#E2E8F0" />
+    <rect x="515" y="80" width="6" height="20" rx="3" fill="#E2E8F0" />
+
+    <!-- Card 3: Error Rate -->
+    <rect x="570" y="0" width="265" height="130" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)"/>
+    <text x="594" y="32" font-size="14" font-weight="600" fill="#64748B">錯誤率 (Error Rate 5xx)</text>
+    <text x="594" y="72" font-size="32" font-weight="800" fill="#0F172A">0.03 <tspan font-size="18" fill="#64748B">%</tspan></text>
+    <text x="594" y="104" font-size="13" font-weight="600" fill="#10B981">系統健康 (Healthy)</text>
+    <!-- Flat line -->
+    <path d="M 720 80 L 760 80 L 770 65 L 780 80 L 810 80" fill="none" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Card 4: Active Nodes -->
+    <rect x="855" y="0" width="265" height="130" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)"/>
+    <text x="879" y="32" font-size="14" font-weight="600" fill="#64748B">活躍節點 (Active Nodes)</text>
+    <text x="879" y="72" font-size="32" font-weight="800" fill="#0F172A">6 / 6</text>
+    <text x="879" y="104" font-size="13" font-weight="600" fill="#10B981">叢集全數運行中</text>
+    <!-- Node Dots -->
+    <circle cx="1010" cy="85" r="5" fill="#10B981" />
+    <circle cx="1030" cy="85" r="5" fill="#10B981" />
+    <circle cx="1050" cy="85" r="5" fill="#10B981" />
+    <circle cx="1010" cy="65" r="5" fill="#10B981" />
+    <circle cx="1030" cy="65" r="5" fill="#10B981" />
+    <circle cx="1050" cy="65" r="5" fill="#10B981" />
+  </g>
+
+
+  <!-- ================= CENTER MIDDLE: DUAL ENTRY ================= -->
+  <!-- Left Entry: Quick Setup (Emphasized) -->
+  <g transform="translate(280, 270)">
+    <!-- Base styling with glow -->
+    <rect x="0" y="0" width="545" height="440" rx="16" fill="#FFFFFF" stroke="#3B82F6" stroke-width="2" filter="url(#shadow-glow)" />
+    <!-- Subtle tech pattern -->
+    <rect x="0" y="0" width="545" height="440" rx="16" fill="url(#grid-pattern)" />
+    <!-- Gradient overlay to keep text readable -->
+    <rect x="0" y="0" width="545" height="440" rx="16" fill="#FFFFFF" fill-opacity="0.85" />
+
+    <!-- Badge -->
+    <rect x="405" y="24" width="116" height="32" rx="16" fill="#DBEAFE" />
+    <text x="463" y="45" font-size="13" font-weight="700" fill="#1D4ED8" text-anchor="middle">✨ 推薦使用</text>
+
+    <!-- Content -->
+    <g transform="translate(40, 60)">
+      <rect width="56" height="56" rx="16" fill="#EFF6FF" />
+      <path d="M18 38 L38 18 M28 18 H38 V28 M18 38 H28 V28" fill="none" stroke="#3B82F6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      
+      <text x="0" y="90" font-size="26" font-weight="800" fill="#0F172A">快速設定精靈</text>
+      <text x="0" y="125" font-size="16" fill="#475569" line-height="1.5">三步驟視覺化配置新服務：定義路由、連接上游、</text>
+      <text x="0" y="150" font-size="16" fill="#475569">啟用基礎防護，零門檻完成 API 閘道上線。</text>
+    </g>
+
+    <!-- Visual Flow Diagram -->
+    <g transform="translate(40, 260)">
+      <!-- Connections -->
+      <line x1="50" y1="25" x2="190" y2="25" stroke="#BFDBFE" stroke-width="4" />
+      <line x1="250" y1="25" x2="390" y2="25" stroke="#E2E8F0" stroke-width="4" stroke-dasharray="8 8" />
+
+      <!-- Step 1 -->
+      <circle cx="25" cy="25" r="25" fill="#3B82F6" filter="url(#shadow-sm)" />
+      <text x="25" y="32" font-size="18" font-weight="bold" fill="#FFFFFF" text-anchor="middle">1</text>
+      <text x="25" y="75" font-size="15" font-weight="700" fill="#0F172A" text-anchor="middle">定義路由</text>
+
+      <!-- Step 2 -->
+      <circle cx="225" cy="25" r="25" fill="#FFFFFF" stroke="#3B82F6" stroke-width="4" filter="url(#shadow-sm)" />
+      <text x="225" y="32" font-size="18" font-weight="bold" fill="#3B82F6" text-anchor="middle">2</text>
+      <text x="225" y="75" font-size="15" font-weight="700" fill="#0F172A" text-anchor="middle">配置上游</text>
+
+      <!-- Step 3 -->
+      <circle cx="425" cy="25" r="25" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="3" />
+      <text x="425" y="32" font-size="18" font-weight="bold" fill="#94A3B8" text-anchor="middle">3</text>
+      <text x="425" y="75" font-size="15" font-weight="600" fill="#64748B" text-anchor="middle">套用插件</text>
+    </g>
+
+    <!-- CTA Button -->
+    <rect x="40" y="360" width="465" height="52" rx="8" fill="url(#primary-grad)" filter="url(#shadow-sm)" />
+    <text x="272" y="392" font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">立即建立路由 (Start Setup)</text>
+  </g>
+
+  <!-- Right Entry: Advanced Management -->
+  <g transform="translate(855, 270)">
+    <rect x="0" y="0" width="545" height="440" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)" />
+    
+    <g transform="translate(40, 60)">
+      <rect width="56" height="56" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+      <path d="M16 22 L24 22 M32 22 L40 22 M28 18 V26 M16 34 L32 34 M40 34 L40 34 M20 30 V38" fill="none" stroke="#64748B" stroke-width="3" stroke-linecap="round" />
+      
+      <text x="0" y="90" font-size="26" font-weight="800" fill="#0F172A">進階服務與管理</text>
+      <text x="0" y="125" font-size="16" fill="#475569" line-height="1.5">進入完整控制台，針對複雜微服務架構進行精細化</text>
+      <text x="0" y="150" font-size="16" fill="#475569">管理、金絲雀發布、負載均衡與全域插件配置。</text>
+    </g>
+
+    <!-- Feature List -->
+    <g transform="translate(40, 240)">
+      <!-- Item 1 -->
+      <rect x="0" y="-40" width="465" height="52" rx="8" fill="#F8FAFC" stroke="#F1F5F9" stroke-width="1"/>
+      <text x="20" y="-8" font-size="20" fill="#3B82F6">🔀</text>
+      <text x="56" y="-17" font-size="15" font-weight="700" fill="#0F172A">路由規則管理 (Routes Control)</text>
+      <text x="56" y="2" font-size="13" fill="#64748B">精細化配置路徑、Method、標頭匹配規則</text>
+
+      <!-- Item 2 -->
+      <rect x="0" y="24" width="465" height="52" rx="8" fill="#F8FAFC" stroke="#F1F5F9" stroke-width="1"/>
+      <text x="20" y="56" font-size="20" fill="#10B981">⚖️</text>
+      <text x="56" y="47" font-size="15" font-weight="700" fill="#0F172A">負載均衡與上游 (Upstreams)</text>
+      <text x="56" y="66" font-size="13" fill="#64748B">節點健康檢查、動態流量分配與金絲雀發布</text>
+
+      <!-- Item 3 -->
+      <rect x="0" y="88" width="465" height="52" rx="8" fill="#F8FAFC" stroke="#F1F5F9" stroke-width="1"/>
+      <text x="20" y="120" font-size="20" fill="#8B5CF6">🧩</text>
+      <text x="56" y="111" font-size="15" font-weight="700" fill="#0F172A">外掛與中介軟體 (Plugins)</text>
+      <text x="56" y="130" font-size="13" fill="#64748B">全域限流、JWT 認證、CORS 與監控日誌整合</text>
+    </g>
+
+    <!-- CTA Button -->
+    <rect x="40" y="360" width="465" height="52" rx="8" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="1" />
+    <text x="272" y="392" font-size="16" font-weight="700" fill="#475569" text-anchor="middle">進入進階控制台 (Advanced Dashboard)</text>
+  </g>
+
+
+  <!-- ================= CENTER BOTTOM: RISK AREA ================= -->
+  <g transform="translate(280, 740)">
+    <rect x="0" y="0" width="1120" height="300" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)" />
+    <!-- Red Accent Border Left -->
+    <path d="M16 0 L8 0 A8 8 0 0 0 0 8 L0 292 A8 8 0 0 0 8 300 L16 300 Z" fill="#EF4444" opacity="0.8"/>
+    
+    <text x="40" y="45" font-size="20" font-weight="800" fill="#0F172A">🛡️ 系統風險與安全警報 (Security &amp; Risks)</text>
+
+    <!-- Risk Item 1: High -->
+    <rect x="40" y="75" width="1040" height="56" rx="8" fill="#FEF2F2" stroke="#FECACA" stroke-width="1" />
+    <rect x="56" y="91" width="64" height="24" rx="12" fill="#FEE2E2" />
+    <text x="88" y="108" font-size="12" font-weight="800" fill="#B91C1C" text-anchor="middle">高風險</text>
+    <text x="140" y="108" font-size="15" font-weight="700" fill="#0F172A">憑證即將過期: api.payment.gw (剩餘 3 天)</text>
+    <text x="140" y="108" font-size="15" font-weight="700" fill="#0F172A">憑證即將過期: api.payment.gw (剩餘 3 天)</text>
+    <rect x="910" y="88" width="110" height="30" rx="6" fill="#FFFFFF" stroke="#EF4444" stroke-width="1" />
+    <text x="965" y="108" font-size="14" font-weight="700" fill="#EF4444" text-anchor="middle">立即更新</text>
+
+    <!-- Risk Item 2: Warning -->
+    <rect x="40" y="145" width="1040" height="56" rx="8" fill="#FFFBEB" stroke="#FDE68A" stroke-width="1" />
+    <rect x="56" y="161" width="64" height="24" rx="12" fill="#FEF3C7" />
+    <text x="88" y="178" font-size="12" font-weight="800" fill="#B45309" text-anchor="middle">警告</text>
+    <text x="140" y="178" font-size="15" font-weight="700" fill="#0F172A">異常流量峰值: 來自 IP 192.168.1.100 的突發流量已自動觸發 Rate Limit 攔截</text>
+    <rect x="910" y="158" width="110" height="30" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1" />
+    <text x="965" y="178" font-size="14" font-weight="700" fill="#D97706" text-anchor="middle">查看日誌</text>
+
+    <!-- Risk Item 3: Info -->
+    <rect x="40" y="215" width="1040" height="56" rx="8" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1" />
+    <rect x="56" y="231" width="64" height="24" rx="12" fill="#E0F2FE" />
+    <text x="88" y="248" font-size="12" font-weight="800" fill="#0369A1" text-anchor="middle">提示</text>
+    <text x="140" y="248" font-size="15" font-weight="600" fill="#475569">系統架構建議: 未配置全局 Rate Limiter 插件，建議啟用以增強抗 DDoS 能力</text>
+    <rect x="910" y="228" width="110" height="30" rx="6" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1" />
+    <text x="965" y="248" font-size="14" font-weight="700" fill="#64748B" text-anchor="middle">查看詳情</text>
+  </g>
+
+
+  <!-- ================= RIGHT SIDEBAR: TASK SUMMARY ================= -->
+  <g transform="translate(1440, 110)">
+    <rect x="0" y="0" width="440" height="930" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)" />
+    
+    <text x="32" y="45" font-size="20" font-weight="800" fill="#0F172A">📋 任務摘要與動態</text>
+    <text x="32" y="65" font-size="13" font-weight="500" fill="#64748B">Task Summary &amp; Recent Activities</text>
+
+    <!-- Tabs -->
+    <rect x="30" y="95" width="380" height="44" rx="8" fill="#F1F5F9" />
+    <rect x="34" y="99" width="186" height="36" rx="6" fill="#FFFFFF" filter="url(#shadow-sm)" />
+    <text x="127" y="122" font-size="14" font-weight="700" fill="#0F172A" text-anchor="middle">待處理審核 (2)</text>
+    <text x="313" y="122" font-size="14" font-weight="600" fill="#64748B" text-anchor="middle">系統日誌</text>
+
+    <!-- Pending Item 1 -->
+    <rect x="30" y="160" width="380" height="144" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)" />
+    <path d="M12 160 L8 160 A8 8 0 0 0 0 168 L0 296 A8 8 0 0 0 8 304 L12 304 Z" fill="#F59E0B" opacity="0.8" transform="translate(30,0)"/>
+    <text x="50" y="195" font-size="16" font-weight="700" fill="#0F172A">Auth Service 路由權重更新</text>
+    <text x="50" y="222" font-size="14" fill="#475569">變更上游節點的流量權重分配 (v1: 80%, v2: 20%)</text>
+    <text x="50" y="246" font-size="12" fill="#94A3B8">提案者: @dev_john • 2 小時前</text>
+    <!-- Buttons -->
+    <rect x="50" y="260" width="170" height="32" rx="6" fill="#ECFDF5" stroke="#10B981" stroke-width="1" />
+    <text x="135" y="281" font-size="14" font-weight="700" fill="#065F46" text-anchor="middle">✅ 批准 (Approve)</text>
+    <rect x="230" y="260" width="160" height="32" rx="6" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
+    <text x="310" y="281" font-size="14" font-weight="600" fill="#64748B" text-anchor="middle">❌ 拒絕</text>
+
+    <!-- Pending Item 2 -->
+    <rect x="30" y="320" width="380" height="144" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow-sm)" />
+    <path d="M12 320 L8 320 A8 8 0 0 0 0 328 L0 456 A8 8 0 0 0 8 464 L12 464 Z" fill="#F59E0B" opacity="0.8" transform="translate(30,0)"/>
+    <text x="50" y="355" font-size="16" font-weight="700" fill="#0F172A">Global 限流插件閾值調整</text>
+    <text x="50" y="382" font-size="14" fill="#475569">將預設限流從 1000 req/s 下調至 800 req/s</text>
+    <text x="50" y="406" font-size="12" fill="#94A3B8">提案者: @sec_ops • 4 小時前</text>
+    <!-- Buttons -->
+    <rect x="50" y="420" width="170" height="32" rx="6" fill="#ECFDF5" stroke="#10B981" stroke-width="1" />
+    <text x="135" y="441" font-size="14" font-weight="700" fill="#065F46" text-anchor="middle">✅ 批准 (Approve)</text>
+    <rect x="230" y="420" width="160" height="32" rx="6" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
+    <text x="310" y="441" font-size="14" font-weight="600" fill="#64748B" text-anchor="middle">❌ 拒絕</text>
+
+    <!-- Divider -->
+    <line x1="30" y1="500" x2="410" y2="500" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="6 6" />
+
+    <!-- Timeline Activity -->
+    <text x="30" y="545" font-size="18" font-weight="800" fill="#0F172A">系統動態 (Recent Activity)</text>
+
+    <!-- Timeline Track -->
+    <line x1="45" y1="575" x2="45" y2="800" stroke="#E2E8F0" stroke-width="2" />
+
+    <!-- Event 1 -->
+    <circle cx="45" cy="585" r="7" fill="#10B981" stroke="#FFFFFF" stroke-width="3" />
+    <text x="70" y="590" font-size="15" font-weight="700" fill="#1E293B">Payment API 金絲雀發布完成</text>
+    <text x="70" y="612" font-size="13" fill="#94A3B8">系統自動化佈署 • 10 分鐘前</text>
+
+    <!-- Event 2 -->
+    <circle cx="45" cy="665" r="7" fill="#3B82F6" stroke="#FFFFFF" stroke-width="3" />
+    <text x="70" y="670" font-size="15" font-weight="700" fill="#1E293B">新增自訂外掛: JWT Auth v2</text>
+    <text x="70" y="692" font-size="13" fill="#94A3B8">管理員 admin@sys • 1 小時前</text>
+
+    <!-- Event 3 -->
+    <circle cx="45" cy="745" r="7" fill="#64748B" stroke="#FFFFFF" stroke-width="3" />
+    <text x="70" y="750" font-size="15" font-weight="700" fill="#1E293B">Gateway Node-05 啟動並加入叢集</text>
+    <text x="70" y="772" font-size="13" fill="#94A3B8">系統自動擴容 (Auto-scaling) • 3 小時前</text>
+
+    <!-- View All Link -->
+    <text x="220" y="860" font-size="14" font-weight="700" fill="#3B82F6" text-anchor="middle">查看全部系統動態 →</text>
+  </g>
+
+</svg>
