@@ -408,6 +408,12 @@ export const mappingAPI = {
 // =============================================================================
 
 export const settingsAPI = {
+  /** 取得原始設定清單（配置中心） */
+  async listItems(): Promise<SettingItem[]> {
+    const res = await api.get<APIResponse<SettingItem[]>>('/settings');
+    return res.data.data ?? [];
+  },
+
   /** 取得所有設定 (聚合) */
   async get(): Promise<SystemSettings> {
     const res = await api.get<APIResponse<SettingItem[]>>('/settings');

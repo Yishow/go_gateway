@@ -11,6 +11,7 @@ import Layout from './components/Layout'
 import SmartDashboard from './pages/datalink/SmartDashboard'
 import { buildDashboardModalRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
 import LocalModbusWorkbenchPage from './pages/datalink/LocalModbusWorkbenchPage'
+import { GatewayCreateEntryRedirect, GatewayEntryRoute, GatewayExpertWorkbenchRoute, GatewayQuickSetupRoute } from './router/gateway'
 
 /**
  * 主應用程式組件
@@ -32,7 +33,7 @@ function AppRoutes() {
       <Route path="/datalink/dashboard-legacy" element={<Navigate to="/datalink" replace />} />
       <Route path="/datalink/devices-legacy" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
       <Route path="/datalink/devices" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
-      <Route path="/datalink/devices/new" element={<Navigate to="/datalink?modal=devices&section=devices&createDevice=1" replace />} />
+      <Route path="/datalink/devices/new" element={<GatewayCreateEntryRedirect />} />
       <Route path="/datalink/points" element={<Navigate to={buildLegacyMigrationRedirect('points')} replace />} />
       <Route path="/datalink/polling-groups" element={<Navigate to={buildDashboardModalRedirect('polling-groups')} replace />} />
       <Route path="/datalink/tags" element={<Navigate to={buildDashboardModalRedirect('tags')} replace />} />
@@ -40,6 +41,11 @@ function AppRoutes() {
       <Route path="/datalink/wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
       <Route path="/datalink/settings" element={<Navigate to="/datalink?modal=settings&section=settings" replace />} />
       <Route path="/datalink/local-modbus" element={<LocalModbusWorkbenchPage />} />
+
+      {/* Gateway Dual Entry (W1 skeleton) */}
+      <Route path="/gateway/entry" element={<GatewayEntryRoute />} />
+      <Route path="/gateway/quick-setup" element={<GatewayQuickSetupRoute />} />
+      <Route path="/gateway/expert-workbench" element={<GatewayExpertWorkbenchRoute />} />
 
       {/* Legacy Test UI Routes */}
       <Route path="/test" element={<Layout><TestPage /></Layout>} />
