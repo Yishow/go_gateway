@@ -1,69 +1,96 @@
 import { Link } from 'react-router-dom';
-import { Zap, Wrench, ArrowRight } from 'lucide-react';
+import { Zap, Wrench, ArrowRight, Activity, Terminal, ShieldCheck, Database } from 'lucide-react';
 
 export default function GatewayEntryPage() {
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16 text-slate-100 min-h-[calc(100vh-4rem)] flex flex-col justify-center">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-extrabold tracking-tight mb-4">
-          <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-            選擇工作模式
-          </span>
+    <main className="relative mx-auto max-w-5xl px-6 py-16 text-slate-100 min-h-[calc(100vh-4rem)] flex flex-col justify-center">
+      <div className="absolute inset-0 -z-10 h-full w-full bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-20"></div>
+
+      <div className="text-center mb-16 relative z-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-6">
+          <Activity className="w-4 h-4" />
+          <span>Go-Gateway Initialization</span>
+        </div>
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 text-white">
+          選擇工作模式
         </h1>
-        <p className="text-lg text-slate-400 max-w-xl mx-auto">
-          依據您的使用情境，選擇快速引導的入門流程，或是完整控制的專家模式。
+        <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+          依據您的部署情境與技術需求，選擇適當的初始化流程。系統將自動最佳化相應的資源分配與通訊參數。
         </p>
       </div>
 
-      <section className="grid gap-6 md:grid-cols-2">
-        {/* Quick Setup Card */}
+      <section className="grid gap-8 md:grid-cols-2 relative z-10">
         <Link
           to="/gateway/quick-setup"
-          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-800/40 p-8 transition-all hover:-translate-y-1 hover:border-blue-500/50 hover:bg-slate-800/60 hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.3)]"
+          className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/50 p-8 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/50 hover:bg-slate-800/80 hover:shadow-[0_8px_32px_-10px_rgba(59,130,246,0.3)] backdrop-blur-sm"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
           
-          <div>
-            <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/30">
-              <Zap className="h-6 w-6" />
-            </div>
-            <h2 className="mb-2 text-2xl font-bold text-slate-100 flex items-center gap-2">
-              快速設定
-              <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400 ring-1 ring-inset ring-blue-500/20">
-                推薦
+          <div className="relative z-10 flex-1">
+            <div className="flex items-start justify-between mb-6">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 text-blue-400 ring-1 ring-blue-500/30 shadow-inner">
+                <Zap className="h-7 w-7" />
+              </div>
+              <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-400 ring-1 ring-inset ring-blue-500/20">
+                推薦 (Recommended)
               </span>
-            </h2>
-            <p className="text-slate-400 leading-relaxed">
-              適合常見的設備代理場景。透過引導式表單與智能預設值，在幾分鐘內完成您的第一個設備連線。
+            </div>
+            
+            <h2 className="mb-3 text-2xl font-bold text-white tracking-wide">快速設定</h2>
+            <p className="text-slate-400 leading-relaxed mb-6 text-sm">
+              標準設備代理場景。透過智慧型精靈引導，自動套用最佳實踐配置，在數分鐘內建立穩定的工業通訊連線。
             </p>
+
+            <div className="space-y-3 mb-8">
+              <div className="flex items-center text-xs text-slate-300 gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" /> 內建防呆與參數驗證
+              </div>
+              <div className="flex items-center text-xs text-slate-300 gap-2">
+                <Database className="w-4 h-4 text-blue-400" /> 自動生成對應路由
+              </div>
+            </div>
           </div>
           
-          <div className="mt-8 flex items-center text-sm font-medium text-blue-400">
-            開始快速設定
-            <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          <div className="relative z-10 mt-auto pt-6 border-t border-slate-700/50 flex items-center justify-between text-sm font-semibold text-slate-300 group-hover:text-blue-400 transition-colors">
+            <span>開始快速部署</span>
+            <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1.5" />
           </div>
         </Link>
 
-        {/* Expert Workbench Card */}
         <Link
           to="/gateway/expert-workbench"
-          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-800/40 p-8 transition-all hover:-translate-y-1 hover:border-emerald-500/50 hover:bg-slate-800/60 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.2)]"
+          className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/50 p-8 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/50 hover:bg-slate-800/80 hover:shadow-[0_8px_32px_-10px_rgba(16,185,129,0.2)] backdrop-blur-sm"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
           
-          <div>
-            <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-slate-700/50 text-slate-300 ring-1 ring-slate-600">
-              <Wrench className="h-6 w-6" />
+          <div className="relative z-10 flex-1">
+            <div className="flex items-start justify-between mb-6">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/5 text-emerald-400 ring-1 ring-emerald-500/30 shadow-inner">
+                <Wrench className="h-7 w-7" />
+              </div>
+              <span className="inline-flex items-center rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-300 ring-1 ring-inset ring-slate-600">
+                進階 (Advanced)
+              </span>
             </div>
-            <h2 className="mb-2 text-2xl font-bold text-slate-100">專家工作台</h2>
-            <p className="text-slate-400 leading-relaxed">
-              專為進階需求打造。支援高密度路由配置、複雜通訊參數微調，提供毫無限制的底層控制能力。
+            
+            <h2 className="mb-3 text-2xl font-bold text-white tracking-wide">專家工作台</h2>
+            <p className="text-slate-400 leading-relaxed mb-6 text-sm">
+              專為複雜拓撲架構打造。支援高密度多點路由配置、通訊逾時重試策略微調，提供 100% 的底層引擎控制權限。
             </p>
+
+            <div className="space-y-3 mb-8">
+              <div className="flex items-center text-xs text-slate-300 gap-2">
+                <Terminal className="w-4 h-4 text-emerald-400" /> 原始 Payload 編輯器
+              </div>
+              <div className="flex items-center text-xs text-slate-300 gap-2">
+                <Database className="w-4 h-4 text-purple-400" /> 跨協定橋接與多重路由
+              </div>
+            </div>
           </div>
           
-          <div className="mt-8 flex items-center text-sm font-medium text-slate-300 group-hover:text-emerald-400 transition-colors">
-            進入專家模式
-            <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          <div className="relative z-10 mt-auto pt-6 border-t border-slate-700/50 flex items-center justify-between text-sm font-semibold text-slate-300 group-hover:text-emerald-400 transition-colors">
+            <span>進入專家模式</span>
+            <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1.5" />
           </div>
         </Link>
       </section>
