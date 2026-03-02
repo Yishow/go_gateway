@@ -1,0 +1,279 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+  <defs>
+    <!-- Background Dot Grid -->
+    <pattern id="dot-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.5" fill="#CBD5E1" opacity="0.4" />
+    </pattern>
+
+    <!-- Soft Drop Shadow -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.06" />
+    </filter>
+    
+    <filter id="shadow-sm" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.04" />
+    </filter>
+
+    <!-- Arrow Markers -->
+    <marker id="arrow-q" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#93C5FD" />
+    </marker>
+    <marker id="arrow-e" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#C4B5FD" />
+    </marker>
+    <marker id="arrow-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94A3B8" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="1200" fill="#F8FAFC" />
+  <rect width="1600" height="1200" fill="url(#dot-grid)" />
+
+  <!-- Diagram Titles -->
+  <text x="60" y="70" font-family="sans-serif" font-size="28" font-weight="800" fill="#0F172A">工業資料映射平台 (Industrial Data Mapping)</text>
+  <text x="60" y="105" font-family="sans-serif" font-size="16" font-weight="500" fill="#64748B">雙入口首頁與核心操作流程架構</text>
+
+  <!-- Phase Indicators -->
+  <g opacity="0.6">
+    <text x="1450" y="200" font-family="sans-serif" font-size="14" font-weight="800" fill="#94A3B8" letter-spacing="2" text-anchor="end">PHASE 1 : 模式選擇</text>
+    <path d="M 1470 195 L 1540 195" fill="none" stroke="#CBD5E1" stroke-width="2" />
+    
+    <text x="1450" y="620" font-family="sans-serif" font-size="14" font-weight="800" fill="#94A3B8" letter-spacing="2" text-anchor="end">PHASE 2 : 映射工作流</text>
+    <path d="M 1470 615 L 1540 615" fill="none" stroke="#CBD5E1" stroke-width="2" />
+    
+    <text x="1450" y="1090" font-family="sans-serif" font-size="14" font-weight="800" fill="#94A3B8" letter-spacing="2" text-anchor="end">PHASE 3 : 引擎執行</text>
+    <path d="M 1470 1085 L 1540 1085" fill="none" stroke="#CBD5E1" stroke-width="2" />
+  </g>
+
+  <!-- ==================== MAIN CONNECTION LINES ==================== -->
+  <!-- Branching Lines from Home to Flow Headers -->
+  <path d="M 660 305 C 660 340 400 330 400 354" fill="none" stroke="#93C5FD" stroke-width="3" stroke-dasharray="6 6" marker-end="url(#arrow-q)" />
+  <path d="M 940 305 C 940 340 1200 330 1200 354" fill="none" stroke="#C4B5FD" stroke-width="3" stroke-dasharray="6 6" marker-end="url(#arrow-e)" />
+  
+  <circle cx="660" cy="305" r="4" fill="#3B82F6" />
+  <circle cx="940" cy="305" r="4" fill="#8B5CF6" />
+
+  <!-- Flow Headers to First Nodes -->
+  <path d="M 400 392 L 400 412" fill="none" stroke="#93C5FD" stroke-width="3" marker-end="url(#arrow-q)" />
+  <path d="M 1200 392 L 1200 412" fill="none" stroke="#C4B5FD" stroke-width="3" marker-end="url(#arrow-e)" />
+
+  <!-- Quick Setup Internal Lines -->
+  <path d="M 400 520 L 400 562" fill="none" stroke="#93C5FD" stroke-width="3" marker-end="url(#arrow-q)" />
+  <path d="M 400 670 L 400 712" fill="none" stroke="#93C5FD" stroke-width="3" marker-end="url(#arrow-q)" />
+  <path d="M 400 820 L 400 862" fill="none" stroke="#93C5FD" stroke-width="3" marker-end="url(#arrow-q)" />
+
+  <!-- Expert Workbench Internal Lines -->
+  <path d="M 1200 520 L 1200 562" fill="none" stroke="#C4B5FD" stroke-width="3" marker-end="url(#arrow-e)" />
+  <path d="M 1200 670 L 1200 712" fill="none" stroke="#C4B5FD" stroke-width="3" marker-end="url(#arrow-e)" />
+  <path d="M 1200 820 L 1200 862" fill="none" stroke="#C4B5FD" stroke-width="3" marker-end="url(#arrow-e)" />
+
+  <!-- Convergence to Runtime Engine -->
+  <path d="M 400 970 C 400 1010 700 1000 700 1032" fill="none" stroke="#94A3B8" stroke-width="3" marker-end="url(#arrow-end)" />
+  <path d="M 1200 970 C 1200 1010 900 1000 900 1032" fill="none" stroke="#94A3B8" stroke-width="3" marker-end="url(#arrow-end)" />
+  
+  <circle cx="400" cy="970" r="4" fill="#3B82F6" />
+  <circle cx="1200" cy="970" r="4" fill="#8B5CF6" />
+
+  <!-- Engine to Destination -->
+  <path d="M 800 1140 L 800 1162" fill="none" stroke="#94A3B8" stroke-width="3" stroke-dasharray="4 4" marker-end="url(#arrow-end)" />
+
+
+  <!-- ==================== HOME NODE ==================== -->
+  <g class="home-node">
+    <rect x="500" y="70" width="600" height="235" rx="16" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" filter="url(#shadow)" />
+    
+    <!-- Dark Header Area -->
+    <path d="M 500 86 Q 500 70 516 70 L 1084 70 Q 1100 70 1100 86 L 1100 140 L 500 140 Z" fill="#0F172A" />
+    <text x="800" y="105" font-family="sans-serif" font-size="22" font-weight="700" fill="#FFFFFF" text-anchor="middle">Datalink 平台首頁</text>
+    <text x="800" y="128" font-family="sans-serif" font-size="13" font-weight="400" fill="#94A3B8" text-anchor="middle">依據您的技術背景與專案複雜度，選擇最適合的映射模式</text>
+
+    <!-- Quick Setup Button -->
+    <g transform="translate(530, 160)">
+      <rect x="0" y="0" width="260" height="120" rx="10" fill="#F0F9FF" stroke="#3B82F6" stroke-width="2" filter="url(#shadow-sm)" />
+      <circle cx="40" cy="60" r="22" fill="#DBEAFE" />
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" transform="translate(28, 48)" fill="none" stroke="#2563EB" stroke-width="2" stroke-linejoin="round" />
+      
+      <text x="80" y="45" font-family="sans-serif" font-size="18" font-weight="700" fill="#1E3A8A">快速精靈</text>
+      
+      <!-- Badge -->
+      <rect x="165" y="30" width="75" height="20" rx="10" fill="#DBEAFE" />
+      <text x="202.5" y="44" font-family="sans-serif" font-size="10" font-weight="800" fill="#2563EB" text-anchor="middle">NO CODE</text>
+      
+      <text x="80" y="72" font-family="sans-serif" font-size="13" font-weight="500" fill="#3B82F6">標準化設備、無代碼映射</text>
+      <text x="80" y="92" font-family="sans-serif" font-size="12" font-weight="400" fill="#64748B">引導式設定與 AI 自動推薦</text>
+    </g>
+
+    <!-- Expert Workbench Button -->
+    <g transform="translate(810, 160)">
+      <rect x="0" y="0" width="260" height="120" rx="10" fill="#FAF5FF" stroke="#8B5CF6" stroke-width="2" filter="url(#shadow-sm)" />
+      <circle cx="40" cy="60" r="22" fill="#F3E8FF" />
+      <path d="M8 6L2 12l6 6M16 6l6 6-6 6M14 4l-4 16" transform="translate(28, 48)" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      
+      <text x="80" y="45" font-family="sans-serif" font-size="18" font-weight="700" fill="#4C1D95">專家工作台</text>
+      
+      <!-- Badge -->
+      <rect x="180" y="30" width="60" height="20" rx="10" fill="#F3E8FF" />
+      <text x="210" y="44" font-family="sans-serif" font-size="10" font-weight="800" fill="#7C3AED" text-anchor="middle">PRO</text>
+      
+      <text x="80" y="72" font-family="sans-serif" font-size="13" font-weight="500" fill="#8B5CF6">資料工程師、複雜結構轉換</text>
+      <text x="80" y="92" font-family="sans-serif" font-size="12" font-weight="400" fill="#64748B">全自訂邏輯與進階沙盒除錯</text>
+    </g>
+  </g>
+
+
+  <!-- ==================== FLOW HEADERS ==================== -->
+  <rect x="300" y="360" width="200" height="32" rx="16" fill="#EFF6FF" stroke="#BFDBFE" />
+  <text x="400" y="381" font-family="sans-serif" font-size="14" font-weight="700" fill="#2563EB" text-anchor="middle">快速設定流程 (Quick Setup)</text>
+
+  <rect x="1100" y="360" width="200" height="32" rx="16" fill="#F5F3FF" stroke="#DDD6FE" />
+  <text x="1200" y="381" font-family="sans-serif" font-size="14" font-weight="700" fill="#7C3AED" text-anchor="middle">專家工作台 (Expert Workbench)</text>
+
+
+  <!-- ==================== QUICK SETUP FLOW (LEFT) ==================== -->
+  
+  <!-- Data Sources Decorators -->
+  <g opacity="0.9">
+    <path d="M 160 620 L 220 620" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 2" />
+    <rect x="60" y="590" width="100" height="26" rx="6" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#shadow-sm)" />
+    <text x="110" y="608" font-family="sans-serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">CSV / DB</text>
+    <rect x="60" y="625" width="100" height="26" rx="6" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#shadow-sm)" />
+    <text x="110" y="643" font-family="sans-serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">MQTT / OPC</text>
+  </g>
+
+  <!-- Node Q1 -->
+  <g class="node-q1" transform="translate(230, 420)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#3B82F6" />
+    <circle cx="50" cy="50" r="22" fill="#EFF6FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M9 21V9" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">1. 選擇設備模板</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">從內建資料庫選擇 CNC / PLC 標準模型</text>
+  </g>
+
+  <!-- Node Q2 -->
+  <g class="node-q2" transform="translate(230, 570)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#3B82F6" />
+    <circle cx="50" cy="50" r="22" fill="#EFF6FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">2. 匯入或連接資料</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">上傳靜態檔案或連接即時工業通訊協議</text>
+  </g>
+
+  <!-- Node Q3 -->
+  <g class="node-q3" transform="translate(230, 720)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#3B82F6" />
+    <circle cx="50" cy="50" r="22" fill="#EFF6FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3 6 6 3-6 3-3 6-3-6-6-3 6-3z" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">3. AI 智慧映射</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">系統自動比對欄位特徵並推薦映射關係</text>
+  </g>
+
+  <!-- Node Q4 -->
+  <g class="node-q4" transform="translate(230, 870)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#3B82F6" />
+    <circle cx="50" cy="50" r="22" fill="#EFF6FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">4. 預覽與發布</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">一鍵生成設定檔並無縫部署至邊緣節點</text>
+  </g>
+
+
+  <!-- ==================== EXPERT WORKBENCH FLOW (RIGHT) ==================== -->
+
+  <!-- Protocol Decorators -->
+  <g opacity="0.9">
+    <path d="M 1370 470 L 1430 470" fill="none" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 2" />
+    <rect x="1440" y="440" width="100" height="26" rx="6" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#shadow-sm)" />
+    <text x="1490" y="458" font-family="sans-serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">REST API</text>
+    <rect x="1440" y="475" width="100" height="26" rx="6" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#shadow-sm)" />
+    <text x="1490" y="493" font-family="sans-serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">Kafka / AMQP</text>
+  </g>
+
+  <!-- Node E1 -->
+  <g class="node-e1" transform="translate(1030, 420)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#8B5CF6" />
+    <circle cx="50" cy="50" r="22" fill="#F3E8FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">1. 進階連線設定</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">自訂複雜 API、資料庫與特殊通訊協定參數</text>
+  </g>
+
+  <!-- Node E2 -->
+  <g class="node-e2" transform="translate(1030, 570)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#8B5CF6" />
+    <circle cx="50" cy="50" r="22" fill="#F3E8FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <circle cx="15.5" cy="15.5" r="1.5" />
+      <path d="M8.5 10v4.5A1 1 0 0 0 9.5 15.5h4.5" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">2. 視覺化映射畫布</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">自由拖曳節點處理多對一、過濾與資料拆分</text>
+  </g>
+
+  <!-- Node E3 -->
+  <g class="node-e3" transform="translate(1030, 720)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#8B5CF6" />
+    <circle cx="50" cy="50" r="22" fill="#F3E8FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 18l6-6-6-6M8 6l-6 6 6 6M12 4l-4 16" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">3. 轉換腳本編輯</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">嵌入 Python / JavaScript 處理高階業務邏輯</text>
+  </g>
+
+  <!-- Node E4 -->
+  <g class="node-e4" transform="translate(1030, 870)">
+    <rect x="0" y="0" width="340" height="100" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.5" filter="url(#shadow)" />
+    <path d="M 0 12 C 0 5.37 5.37 0 12 0 L 16 0 L 16 100 L 12 100 C 5.37 100 0 94.63 0 88 Z" fill="#8B5CF6" />
+    <circle cx="50" cy="50" r="22" fill="#F3E8FF" />
+    <g transform="translate(38, 38)" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M13.5 2.5a5.5 5.5 0 0 1 7 7l-9 9-5.5 1.5 1.5-5.5 9-9zM10 10l4 4" />
+    </g>
+    <text x="90" y="44" font-family="sans-serif" font-size="17" font-weight="700" fill="#0F172A">4. 沙盒測試與部署</text>
+    <text x="90" y="68" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">即時除錯驗證、版本控管與線上熱部署</text>
+  </g>
+
+
+  <!-- ==================== RUNTIME ENGINE (BOTTOM) ==================== -->
+  
+  <g class="node-runtime" transform="translate(550, 1040)">
+    <rect x="0" y="0" width="500" height="100" rx="16" fill="#1E293B" filter="url(#shadow)" />
+    
+    <!-- Engine Badge -->
+    <rect x="210" y="-12" width="80" height="24" rx="12" fill="#059669" />
+    <text x="250" y="4" font-family="sans-serif" font-size="11" font-weight="800" fill="#D1FAE5" text-anchor="middle" letter-spacing="1">CORE</text>
+
+    <circle cx="60" cy="50" r="28" fill="#334155" />
+    <g transform="translate(48, 38)" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6a8 3 0 1 0 16 0A8 3 0 1 0 4 6zM4 12a8 3 0 1 0 16 0M4 18a8 3 0 1 0 16 0" />
+    </g>
+    <text x="110" y="46" font-family="sans-serif" font-size="22" font-weight="700" fill="#F8FAFC">資料映射執行引擎 (Runtime Engine)</text>
+    <text x="110" y="72" font-family="sans-serif" font-size="14" font-weight="400" fill="#94A3B8">高效能、低延遲的邊緣 / 雲端即時資料處理核心</text>
+  </g>
+
+  <!-- Destination Target -->
+  <rect x="710" y="1165" width="180" height="30" rx="15" fill="#FFFFFF" stroke="#E2E8F0" filter="url(#shadow-sm)" />
+  <text x="800" y="1185" font-family="sans-serif" font-size="13" font-weight="600" fill="#475569" text-anchor="middle">目標端 (MES / ERP / 雲端)</text>
+
+</svg>
