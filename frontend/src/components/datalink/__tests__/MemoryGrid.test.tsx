@@ -108,7 +108,7 @@ describe('MemoryGrid', () => {
     const cells = screen.getAllByTestId('grid-cell');
     fireEvent.click(cells[0]);
     
-    expect(onCellClick).toHaveBeenCalledWith('40001', point);
+    expect(onCellClick).toHaveBeenCalledWith('40001', point, expect.any(Object));
   });
 
   it('should match int16 count to exact planned cells', () => {

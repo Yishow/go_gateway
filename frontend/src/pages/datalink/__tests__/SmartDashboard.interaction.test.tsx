@@ -246,7 +246,7 @@ function renderDashboard(entry = '/datalink') {
 
 /** 從設備選擇 modal 中點選設備卡片以切換到該設備（點擊卡片即切換，不需按切換/啟用並切換） */
 async function switchDeviceFromModal(deviceName: string) {
-  const chooseButtons = screen.queryAllByRole('button', { name: '選擇設備' });
+  const chooseButtons = screen.queryAllByRole('button', { name: 'smartDashboard.actions.chooseDevice' });
   const openButton = chooseButtons[0];
   if (openButton && !screen.queryByText(deviceName)) {
     fireEvent.click(openButton);
@@ -331,22 +331,22 @@ describe('SmartDashboard interactions', () => {
   it('shows section intent notice and can dismiss it', async () => {
     renderDashboard('/datalink?section=devices');
 
-    const sectionNotice = await screen.findByText(/已導向/);
+    const sectionNotice = await screen.findByText(/smartDashboard.intentNotices.sectionRedirectDesc/);
     expect(sectionNotice).toBeInTheDocument();
-    fireEvent.click(within(sectionNotice.closest('section') as HTMLElement).getByRole('button', { name: '關閉' }));
+    fireEvent.click(within(sectionNotice.closest('section') as HTMLElement).getByRole('button', { name: 'common.close' }));
     await waitFor(() => {
-      expect(screen.queryByText(/已導向/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/smartDashboard.intentNotices.sectionRedirectDesc/)).not.toBeInTheDocument();
     });
   });
 
   it('shows modal intent notice and can dismiss it', async () => {
     renderDashboard('/datalink?modal=devices');
 
-    const modalNotice = await screen.findByText(/Dashboard modal 流程/);
+    const modalNotice = await screen.findByText(/smartDashboard.intentNotices.modalRedirectDesc/);
     expect(modalNotice).toBeInTheDocument();
-    fireEvent.click(within(modalNotice.closest('section') as HTMLElement).getByRole('button', { name: '關閉' }));
+    fireEvent.click(within(modalNotice.closest('section') as HTMLElement).getByRole('button', { name: 'common.close' }));
     await waitFor(() => {
-      expect(screen.queryByText(/Dashboard modal 流程/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/smartDashboard.intentNotices.modalRedirectDesc/)).not.toBeInTheDocument();
     });
   });
 
@@ -366,26 +366,26 @@ describe('SmartDashboard interactions', () => {
     await switchDeviceFromModal('Device Active');
     fireEvent.click(await screen.findByRole('button', { name: 'mock-select-address' }));
 
-    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    fireEvent.click(screen.getByRole('button', { name: 'smartDashboard.actions.chooseDevice' }));
     await waitFor(() => {
       expect(screen.getByText('Device Disabled')).toBeInTheDocument();
     });
     const card = screen.getByText('Device Disabled').closest('article') as HTMLElement;
     fireEvent.click(card);
 
-    expect(await screen.findByText('有未儲存變更')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    expect(await screen.findByText('smartDashboard.overlays.unsavedChangesTitle')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
     await waitFor(() => {
-      expect(screen.queryByText('有未儲存變更')).not.toBeInTheDocument();
+      expect(screen.queryByText('smartDashboard.overlays.unsavedChangesTitle')).not.toBeInTheDocument();
     });
     expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    fireEvent.click(screen.getByRole('button', { name: 'smartDashboard.actions.chooseDevice' }));
     await waitFor(() => {
       expect(screen.getByText('Device Disabled')).toBeInTheDocument();
     });
     fireEvent.click((screen.getByText('Device Disabled').closest('article') as HTMLElement));
-    fireEvent.click(await screen.findByRole('button', { name: '放棄並切換' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'smartDashboard.overlays.discardAndSwitch' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
@@ -396,7 +396,7 @@ describe('SmartDashboard interactions', () => {
     renderDashboard();
 
     await switchDeviceFromModal('Device Active');
-    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    fireEvent.click(screen.getByRole('button', { name: 'smartDashboard.actions.chooseDevice' }));
     await switchDeviceFromModal('Device Draft');
 
     await waitFor(() => {
@@ -413,18 +413,18 @@ describe('SmartDashboard interactions', () => {
     });
 
     fireEvent.click(await screen.findByRole('button', { name: 'mock-select-address' }));
-    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    fireEvent.click(screen.getByRole('button', { name: 'smartDashboard.actions.chooseDevice' }));
     await waitFor(() => {
       expect(screen.getByText('Device Disabled')).toBeInTheDocument();
     });
     fireEvent.click((screen.getByText('Device Disabled').closest('article') as HTMLElement));
-    expect(await screen.findByText('有未儲存變更')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '放棄並切換' }));
+    expect(await screen.findByText('smartDashboard.overlays.unsavedChangesTitle')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'smartDashboard.overlays.discardAndSwitch' }));
     await waitFor(() => {
       expect(screen.getByTestId('memory-grid-mock')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '選擇設備' }));
+    fireEvent.click(screen.getByRole('button', { name: 'smartDashboard.actions.chooseDevice' }));
     await waitFor(() => {
       expect(screen.getByText('Device Draft')).toBeInTheDocument();
     });

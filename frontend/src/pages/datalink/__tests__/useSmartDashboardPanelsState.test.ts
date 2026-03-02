@@ -20,7 +20,7 @@ describe('useSmartDashboardPanelsState', () => {
           pointDetailTitle: '點位詳情',
           onBatchClose: vi.fn(),
         }),
-      { initialProps: { panelType: 'batch' as const } },
+      { initialProps: { panelType: 'batch' } as { panelType: 'batch' | 'detail' | 'shortcuts' | null } },
     );
 
     expect(result.current.isBatchDialogOpen).toBe(true);

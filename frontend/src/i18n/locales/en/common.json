@@ -396,6 +396,28 @@
       "title": "Legacy pages consolidated",
       "description": "The \"{{route}}\" page has been merged into the Pipeline Studio single-screen workflow.",
       "dismiss": "Got it"
+    },
+    "intentNotices": {
+      "sectionRedirectTitle": "section redirect",
+      "sectionRedirectDesc": "Redirected to {{label}} section. Primary actions are now integrated into the Dashboard.",
+      "modalRedirectTitle": "modal redirect",
+      "modalRedirectDesc": "{{label}} flow is integrated as a Dashboard modal (/test remains independent)."
+    },
+    "overlays": {
+      "unsavedChangesTitle": "Unsaved Changes",
+      "unsavedChangesDesc": "Switching devices will affect your current plan. Please choose to save and switch, discard changes and switch, or cancel.",
+      "saveAndSwitch": "Save and Switch",
+      "discardAndSwitch": "Discard and Switch",
+      "deleteDeviceConfirmTitle": "Confirm Device Deletion",
+      "deleteDeviceConfirmDesc": "Are you sure you want to delete device \"{{name}}\"? This action cannot be undone.",
+      "deleteDeviceConfirmHint": "If there are associated points and mappings, please check dependencies before deleting.",
+      "deleting": "Deleting...",
+      "confirmDelete": "Confirm Delete",
+      "createDeviceFlowTitle": "Create Device Flow",
+      "createDeviceDoneTitle": "Device Created",
+      "createDeviceDoneDesc": "Do you want to switch to the new device immediately to continue setup?",
+      "switchLater": "Switch Later",
+      "switchNow": "Switch Now"
     }
   }
 }

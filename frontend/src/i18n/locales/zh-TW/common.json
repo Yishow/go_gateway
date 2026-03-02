@@ -396,6 +396,28 @@
       "title": "舊頁面已整併",
       "description": "你剛剛進入的「{{route}}」已整合到 Pipeline Studio 單頁流程。",
       "dismiss": "了解"
+    },
+    "intentNotices": {
+      "sectionRedirectTitle": "section redirect",
+      "sectionRedirectDesc": "已導向 {{label}} 區段，主要操作已整合在 Dashboard 內。",
+      "modalRedirectTitle": "modal redirect",
+      "modalRedirectDesc": "{{label}} 已整合為 Dashboard modal 流程（/test 維持獨立頁）。"
+    },
+    "overlays": {
+      "unsavedChangesTitle": "有未儲存變更",
+      "unsavedChangesDesc": "切換設備會影響目前規劃。請選擇要儲存後切換、放棄變更後切換，或取消。",
+      "saveAndSwitch": "儲存後切換",
+      "discardAndSwitch": "放棄並切換",
+      "deleteDeviceConfirmTitle": "刪除設備確認",
+      "deleteDeviceConfirmDesc": "確定要刪除設備「{{name}}」嗎？此操作無法復原。",
+      "deleteDeviceConfirmHint": "若存在關聯點位與映射，刪除前請先確認依賴關係。",
+      "deleting": "刪除中...",
+      "confirmDelete": "確認刪除",
+      "createDeviceFlowTitle": "設備建立流程",
+      "createDeviceDoneTitle": "設備建立完成",
+      "createDeviceDoneDesc": "是否立即切換到新設備以繼續設定流程？",
+      "switchLater": "稍後切換",
+      "switchNow": "立即切換"
     }
   }
 }
