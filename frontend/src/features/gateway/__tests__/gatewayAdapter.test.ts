@@ -46,7 +46,7 @@ describe('gatewayAdapter', () => {
     });
 
     it('should respect user provided host and port', () => {
-      const draft: QuickDraft = { protocol: 'modbus-tcp', host: '192.168.1.10', port: 1502, unitID: 5 };
+      const draft: QuickDraft = { protocol: 'modbus-tcp', host: '192.168.1.10', port: 1502, unitID: 5, route: '/api/v1', auth: true };
       const payload = gatewayAdapter.quickToPayload(draft);
       
       expect(payload).toEqual({
@@ -54,7 +54,9 @@ describe('gatewayAdapter', () => {
         config: {
           host: '192.168.1.10',
           port: 1502,
-          unitID: 5
+          unitID: 5,
+          route: '/api/v1',
+          auth: true
         }
       });
     });
@@ -106,7 +108,9 @@ describe('gatewayAdapter', () => {
         config: {
           host: '192.168.0.5',
           port: 502,
-          unitID: 2
+          unitID: 2,
+          route: '/test',
+          auth: false
         }
       };
       
@@ -118,7 +122,9 @@ describe('gatewayAdapter', () => {
           host: '192.168.0.5',
           port: 502,
           unitID: 2,
-          station: undefined
+          station: undefined,
+          route: '/test',
+          auth: false
         }
       });
     });

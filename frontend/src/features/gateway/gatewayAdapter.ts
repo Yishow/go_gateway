@@ -6,6 +6,8 @@ export interface QuickDraft {
   port?: number;
   unitID?: number;
   station?: number;
+  route?: string;
+  auth?: boolean;
 }
 
 export interface ExpertDraft {
@@ -33,6 +35,8 @@ export const gatewayAdapter = {
       config: {
         host: draft.host && draft.host.trim() !== '' ? draft.host.trim() : '127.0.0.1',
         port: typeof draft.port === 'number' && !isNaN(draft.port) ? draft.port : defaultPort,
+        ...(draft.route ? { route: draft.route } : {}),
+        ...(draft.auth !== undefined ? { auth: draft.auth } : {}),
       },
     };
 
@@ -80,7 +84,7 @@ export const gatewayAdapter = {
     }
 
     // Quick fields allowed
-    const quickFields = ['host', 'port', 'unitID', 'station'];
+    const quickFields = ['host', 'port', 'unitID', 'station', 'route', 'auth'];
     const configKeys = Object.keys(config);
 
     // If config has keys that are not part of quick form, or has nested objects, fallback to expert
@@ -110,6 +114,8 @@ export const gatewayAdapter = {
         port: typeof configRecord.port === 'number' ? configRecord.port : undefined,
         unitID: typeof configRecord.unitID === 'number' ? configRecord.unitID : undefined,
         station: typeof configRecord.station === 'number' ? configRecord.station : undefined,
+        route: typeof configRecord.route === 'string' ? configRecord.route : undefined,
+        auth: typeof configRecord.auth === 'boolean' ? configRecord.auth : undefined,
       },
     };
   },
