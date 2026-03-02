@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Server, Network, Shield, Code, ArrowLeft, Terminal, Save, CheckCircle2, ChevronRight, Zap } from 'lucide-react';
 import { gatewayAdapter, type QuickDraft } from '../../features/gateway/gatewayAdapter';
+import { useTestAPI } from '../../services/api';
 
 export default function GatewayQuickSetupPage() {
   const [draft, setDraft] = useState<QuickDraft>({
@@ -14,9 +15,29 @@ export default function GatewayQuickSetupPage() {
   });
 
   const payload = useMemo(() => gatewayAdapter.quickToPayload(draft), [draft]);
+  const { connect } = useTestAPI();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleChange = (key: keyof QuickDraft, value: string | number | boolean) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitMessage(null);
+
+    try {
+      const response = await connect(payload.protocol, payload.config);
+      setSubmitMessage(`連線測試成功：${response.connection_id} (${response.status})`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '提交失敗';
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -272,16 +293,27 @@ export default function GatewayQuickSetupPage() {
               
               {/* Action Footer */}
               <div className="p-5 border-t border-slate-800 bg-[#111827] shrink-0">
-                <button 
+                <button
                   data-testid="save-btn"
-                  className="group relative flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 font-semibold text-white transition-all hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#111827] active:scale-[0.98] shadow-[0_0_15px_-3px_rgba(37,99,235,0.4)] hover:shadow-[0_0_20px_-3px_rgba(59,130,246,0.6)] border border-blue-500/50"
-                  onClick={() => alert('目前為預覽模式，尚未發送至後端')}
+                  disabled={isSubmitting}
+                  className="group relative flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 font-semibold text-white transition-all hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#111827] active:scale-[0.98] shadow-[0_0_15px_-3px_rgba(37,99,235,0.4)] hover:shadow-[0_0_20px_-3px_rgba(59,130,246,0.6)] border border-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleSubmit}
                 >
                   <Save className="h-5 w-5" />
-                  <span>部署設定 (Deploy)</span>
+                  <span>{isSubmitting ? '提交中...' : '部署設定 (Deploy)'}</span>
                 </button>
+                {submitMessage ? (
+                  <p className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                    {submitMessage}
+                  </p>
+                ) : null}
+                {submitError ? (
+                  <p className="mt-3 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    提交失敗：{submitError}
+                  </p>
+                ) : null}
                 <p className="text-[11px] text-slate-500 mt-4 text-center font-mono">
-                  系統將依據上述 Payload 結構發送至 /api/v1/gateway/apply
+                  系統將依據上述 Payload 結構發送至 /api/v1/test/connect
                 </p>
               </div>
             </section>

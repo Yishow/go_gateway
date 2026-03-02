@@ -39,5 +39,6 @@ describe('GatewayExpertWorkbenchPage', () => {
     fireEvent.change(textarea, { target: { value: '{ invalid-json }' } });
 
     expect(screen.getByTestId('expert-manifest-error')).toBeInTheDocument();
+    expect(screen.getByTestId('expert-submit-btn')).toBeDisabled();
   });
 });

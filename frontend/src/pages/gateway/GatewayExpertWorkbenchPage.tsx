@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { gatewayAdapter } from '../../features/gateway/gatewayAdapter';
+import { useTestAPI } from '../../services/api';
 
 type RouteDraft = {
   id: string;
@@ -37,6 +38,10 @@ export default function GatewayExpertWorkbenchPage() {
     cors: true,
     rateLimit: false,
   });
+  const { connect } = useTestAPI();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const builderConfig = useMemo(
     () => ({
@@ -99,6 +104,24 @@ export default function GatewayExpertWorkbenchPage() {
 
   function syncBuilderToManifest() {
     setRawManifest(JSON.stringify(builderConfig, null, 2));
+  }
+
+  async function handleSubmit() {
+    if (!payloadResult.payload) return;
+
+    setIsSubmitting(true);
+    setSubmitMessage(null);
+    setSubmitError(null);
+
+    try {
+      const response = await connect(payloadResult.payload.protocol, payloadResult.payload.config);
+      setSubmitMessage(`連線測試成功：${response.connection_id} (${response.status})`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '提交失敗';
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -267,6 +290,25 @@ export default function GatewayExpertWorkbenchPage() {
             >
               {JSON.stringify(payloadResult.payload ?? { error: payloadResult.error }, null, 2)}
             </pre>
+            <button
+              type="button"
+              data-testid="expert-submit-btn"
+              onClick={handleSubmit}
+              disabled={Boolean(payloadResult.error) || isSubmitting}
+              className="mt-4 w-full rounded-md border border-cyan-500/40 bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-200 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting ? '提交中...' : '提交測試（Connect）'}
+            </button>
+            {submitMessage ? (
+              <p className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                {submitMessage}
+              </p>
+            ) : null}
+            {submitError ? (
+              <p className="mt-3 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                提交失敗：{submitError}
+              </p>
+            ) : null}
           </article>
         </div>
       </section>
