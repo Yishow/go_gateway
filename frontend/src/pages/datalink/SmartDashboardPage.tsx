@@ -1383,8 +1383,9 @@ export default function SmartDashboard() {
         showModalIntentNotice={Boolean(modalIntent && modalIntentLabel)}
         modalIntentLabel={modalIntentLabel}
         closeWorkflowModal={closeWorkflowModal}
+        t={t}
       />
-      <SmartDashboardControlBar onChooseDevice={handleChooseDevice} onCreateDevice={handleCreateDevice} />
+      <SmartDashboardControlBar onChooseDevice={handleChooseDevice} onCreateDevice={handleCreateDevice} t={t} />
       <SmartDashboardWorkspaceSection {...workspaceSectionState} />
       <SmartDashboardWorkflowModal
         modalIntent={modalIntent}
@@ -1433,6 +1434,7 @@ export default function SmartDashboard() {
         setJustCreatedDeviceId={setJustCreatedDeviceId}
         justCreatedDeviceId={justCreatedDeviceId}
         confirmSwitchToCreatedDevice={confirmSwitchToCreatedDevice}
+        t={t}
       />
       <SmartDashboardPanels
         panelType={panelType}

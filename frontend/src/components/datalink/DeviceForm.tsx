@@ -174,19 +174,19 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               </div>
               <div>
                 <label htmlFor={fieldId('port')} className={lbl}>連接埠 (Port)</label>
-                <input id={fieldId('port')} type="number" value={config.port ?? 502}
+                <input id={fieldId('port')} type="number" value={Number(config.port ?? 502)}
                   onChange={setNum('port')} className={inp} min={1} max={65535} />
               </div>
             </div>
             <div className="col-span-2 grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor={fieldId('slave-id')} className={lbl}>從站 ID (Slave ID)</label>
-                <input id={fieldId('slave-id')} type="number" value={config.slave_id ?? 1}
+                <input id={fieldId('slave-id')} type="number" value={Number(config.slave_id ?? 1)}
                   onChange={setNum('slave_id')} className={inp} min={1} max={247} />
               </div>
               <div>
                 <label htmlFor={fieldId('timeout')} className={lbl}>逾時秒數 (Timeout)</label>
-                <input id={fieldId('timeout')} type="number" value={config.timeout ?? 5}
+                <input id={fieldId('timeout')} type="number" value={Number(config.timeout ?? 5)}
                   onChange={setNum('timeout')} className={inp} min={1} />
               </div>
             </div>
@@ -206,19 +206,19 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               </div>
               <div>
                 <label htmlFor={fieldId('port')} className={lbl}>連接埠 (Port)</label>
-                <input id={fieldId('port')} type="number" value={config.port ?? 502}
+                <input id={fieldId('port')} type="number" value={Number(config.port ?? 502)}
                   onChange={setNum('port')} className={inp} min={1} max={65535} />
               </div>
             </div>
             <div className="col-span-2 grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor={fieldId('slave-id')} className={lbl}>從站 ID (Slave ID)</label>
-                <input id={fieldId('slave-id')} type="number" value={config.slave_id ?? 1}
+                <input id={fieldId('slave-id')} type="number" value={Number(config.slave_id ?? 1)}
                   onChange={setNum('slave_id')} className={inp} min={1} max={247} />
               </div>
               <div>
                 <label htmlFor={fieldId('timeout')} className={lbl}>逾時秒數 (Timeout)</label>
-                <input id={fieldId('timeout')} type="number" value={config.timeout ?? 5}
+                <input id={fieldId('timeout')} type="number" value={Number(config.timeout ?? 5)}
                   onChange={setNum('timeout')} className={inp} min={1} />
               </div>
             </div>
@@ -278,12 +278,12 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
             <div className="col-span-2 grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor={fieldId('slave-id')} className={lbl}>從站 ID (Slave ID)</label>
-                <input id={fieldId('slave-id')} type="number" value={config.slave_id ?? 1}
+                <input id={fieldId('slave-id')} type="number" value={Number(config.slave_id ?? 1)}
                   onChange={setNum('slave_id')} className={inp} min={1} max={247} />
               </div>
               <div>
                 <label htmlFor={fieldId('timeout')} className={lbl}>逾時秒數 (Timeout)</label>
-                <input id={fieldId('timeout')} type="number" value={config.timeout ?? 5}
+                <input id={fieldId('timeout')} type="number" value={Number(config.timeout ?? 5)}
                   onChange={setNum('timeout')} className={inp} min={1} />
               </div>
             </div>
@@ -337,7 +337,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                 </div>
                 <div>
                   <label htmlFor={fieldId('port')} className={lbl}>連接埠 (Port)</label>
-                  <input id={fieldId('port')} type="number" value={config.port ?? 500}
+                  <input id={fieldId('port')} type="number" value={Number(config.port ?? 500)}
                     onChange={setNum('port')} className={inp} min={1} max={65535} />
                 </div>
               </div>
@@ -345,12 +345,12 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
             <div className="col-span-2 grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor={fieldId('station-no')} className={lbl}>站號 (Station No)</label>
-                <input id={fieldId('station-no')} type="number" value={config.station_no ?? 1}
+                <input id={fieldId('station-no')} type="number" value={Number(config.station_no ?? 1)}
                   onChange={setNum('station_no')} className={inp} min={0} max={255} />
               </div>
               <div>
                 <label htmlFor={fieldId('timeout')} className={lbl}>逾時秒數 (Timeout)</label>
-                <input id={fieldId('timeout')} type="number" value={config.timeout ?? 5}
+                <input id={fieldId('timeout')} type="number" value={Number(config.timeout ?? 5)}
                   onChange={setNum('timeout')} className={inp} min={1} />
               </div>
             </div>
@@ -371,29 +371,29 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               </div>
               <div>
                 <label htmlFor={fieldId('port')} className={lbl}>連接埠 (Port)</label>
-                <input id={fieldId('port')} type="number" value={config.port ?? 3000}
+                <input id={fieldId('port')} type="number" value={Number(config.port ?? 3000)}
                   onChange={setNum('port')} className={inp} min={1} max={65535} />
               </div>
             </div>
             <div className="col-span-2 grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor={fieldId('network-no')} className={lbl}>網路編號 (Network No)</label>
-                <input id={fieldId('network-no')} type="number" value={config.network_no ?? 0}
+                <input id={fieldId('network-no')} type="number" value={Number(config.network_no ?? 0)}
                   onChange={setNum('network_no')} className={inp} min={0} />
               </div>
               <div>
                 <label htmlFor={fieldId('pc-no')} className={lbl}>PC 編號 (PC No)</label>
-                <input id={fieldId('pc-no')} type="number" value={config.pc_no ?? 255}
+                <input id={fieldId('pc-no')} type="number" value={Number(config.pc_no ?? 255)}
                   onChange={setNum('pc_no')} className={inp} min={0} max={255} />
               </div>
               <div>
                 <label htmlFor={fieldId('io-no')} className={lbl}>I/O 編號 (IO No)</label>
-                <input id={fieldId('io-no')} type="number" value={config.io_no ?? 1023}
+                <input id={fieldId('io-no')} type="number" value={Number(config.io_no ?? 1023)}
                   onChange={setNum('io_no')} className={inp} min={0} />
               </div>
               <div>
                 <label htmlFor={fieldId('station-no')} className={lbl}>站號 (Station No)</label>
-                <input id={fieldId('station-no')} type="number" value={config.station_no ?? 0}
+                <input id={fieldId('station-no')} type="number" value={Number(config.station_no ?? 0)}
                   onChange={setNum('station_no')} className={inp} min={0} max={255} />
               </div>
             </div>
@@ -411,7 +411,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               </div>
               <div>
                 <label htmlFor={fieldId('timeout')} className={lbl}>逾時秒數 (Timeout)</label>
-                <input id={fieldId('timeout')} type="number" value={config.timeout ?? 5}
+                <input id={fieldId('timeout')} type="number" value={Number(config.timeout ?? 5)}
                   onChange={setNum('timeout')} className={inp} min={1} />
               </div>
             </div>
