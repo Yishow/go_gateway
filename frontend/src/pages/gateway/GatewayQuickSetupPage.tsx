@@ -13,15 +13,13 @@ import {
   Zap,
 } from 'lucide-react';
 import { gatewayAdapter, type QuickDraft } from '../../features/gateway/gatewayAdapter';
+import {
+  setGatewayQuickStep,
+  updateGatewayQuickDraft,
+  updateGatewayQuickWizardDraft,
+  useGatewayDraftStore,
+} from '../../features/gateway/gatewayDraftStore';
 import { useTestAPI } from '../../services/api';
-
-interface WizardDraft {
-  sourcePlan: string;
-  tagName: string;
-  securityReviewed: boolean;
-  validationConfirmed: boolean;
-  submitConfirmed: boolean;
-}
 
 const STEPS = [
   'Step1 設備連線',
@@ -35,22 +33,9 @@ const isPositiveInteger = (value: number | undefined) =>
   typeof value === 'number' && Number.isInteger(value) && value > 0;
 
 export default function GatewayQuickSetupPage() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [draft, setDraft] = useState<QuickDraft>({
-    protocol: 'modbus-tcp',
-    host: '192.168.1.100',
-    port: 502,
-    unitID: 1,
-    route: '/api/v1/data',
-    auth: false,
-  });
-  const [wizardDraft, setWizardDraft] = useState<WizardDraft>({
-    sourcePlan: 'line-a-source',
-    tagName: '',
-    securityReviewed: false,
-    validationConfirmed: false,
-    submitConfirmed: false,
-  });
+  const currentStep = useGatewayDraftStore((state) => state.quickStep);
+  const draft = useGatewayDraftStore((state) => state.quickDraft);
+  const wizardDraft = useGatewayDraftStore((state) => state.quickWizardDraft);
   const [stepErrors, setStepErrors] = useState<Partial<Record<number, string[]>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
@@ -110,12 +95,12 @@ export default function GatewayQuickSetupPage() {
   );
 
   const handleQuickDraftChange = (key: keyof QuickDraft, value: string | number | boolean) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    updateGatewayQuickDraft({ [key]: value } as Partial<QuickDraft>);
     setStepErrors((prev) => ({ ...prev, [currentStep]: [] }));
   };
 
-  const handleWizardDraftChange = (key: keyof WizardDraft, value: string | boolean) => {
-    setWizardDraft((prev) => ({ ...prev, [key]: value }));
+  const handleWizardDraftChange = (key: keyof typeof wizardDraft, value: string | boolean) => {
+    updateGatewayQuickWizardDraft({ [key]: value } as Partial<typeof wizardDraft>);
     setStepErrors((prev) => ({ ...prev, [currentStep]: [] }));
   };
 
@@ -126,11 +111,11 @@ export default function GatewayQuickSetupPage() {
       return;
     }
     setStepErrors((prev) => ({ ...prev, [currentStep]: [] }));
-    setCurrentStep((prev) => Math.min(prev + 1, 5));
+    setGatewayQuickStep(currentStep + 1);
   };
 
   const handleBack = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    setGatewayQuickStep(currentStep - 1);
   };
 
   const handleSubmit = async () => {
@@ -138,7 +123,7 @@ export default function GatewayQuickSetupPage() {
     if (Object.keys(nextErrors).length > 0) {
       setStepErrors(nextErrors);
       const firstInvalidStep = [1, 2, 3, 4, 5].find((step) => nextErrors[step]?.length);
-      if (firstInvalidStep) setCurrentStep(firstInvalidStep);
+      if (firstInvalidStep) setGatewayQuickStep(firstInvalidStep);
       return;
     }
 

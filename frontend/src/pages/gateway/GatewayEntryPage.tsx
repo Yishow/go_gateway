@@ -1,7 +1,30 @@
+import { type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, Wrench, ArrowRight, Activity, Terminal, ShieldCheck, Database } from 'lucide-react';
+import {
+  confirmGatewayExpertDowngradeToQuick,
+  useGatewayDraftStore,
+} from '../../features/gateway/gatewayDraftStore';
 
 export default function GatewayEntryPage() {
+  const expertQuickCompatibility = useGatewayDraftStore((state) => state.expertQuickCompatibility);
+  const expertUnsupportedKeys = useGatewayDraftStore((state) => state.expertUnsupportedKeys);
+
+  function handleQuickEntryClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (expertQuickCompatibility !== 'unsupported') return;
+
+    const detail = expertUnsupportedKeys.length > 0 ? `\n不支援欄位：${expertUnsupportedKeys.join(', ')}` : '';
+    const confirmed = window.confirm(
+      `【降級警告】目前 Expert 設定包含 Quick 不支援欄位。\n切換後將移除這些設定且無法自動復原。\n是否仍要切換到 Quick？${detail}`,
+    );
+    if (!confirmed) {
+      event.preventDefault();
+      return;
+    }
+
+    confirmGatewayExpertDowngradeToQuick();
+  }
+
   return (
     <main className="relative mx-auto max-w-5xl px-6 py-16 text-slate-100 min-h-[calc(100vh-4rem)] flex flex-col justify-center">
       <div className="absolute inset-0 -z-10 h-full w-full bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-20"></div>
@@ -22,6 +45,8 @@ export default function GatewayEntryPage() {
       <section className="grid gap-8 md:grid-cols-2 relative z-10">
         <Link
           to="/gateway/quick-setup"
+          data-testid="gateway-entry-quick-link"
+          onClick={handleQuickEntryClick}
           className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/50 p-8 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/50 hover:bg-slate-800/80 hover:shadow-[0_8px_32px_-10px_rgba(59,130,246,0.3)] backdrop-blur-sm"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
@@ -48,6 +73,11 @@ export default function GatewayEntryPage() {
               <div className="flex items-center text-xs text-slate-300 gap-2">
                 <Database className="w-4 h-4 text-blue-400" /> 自動生成對應路由
               </div>
+              {expertQuickCompatibility === 'unsupported' ? (
+                <div data-testid="gateway-entry-downgrade-warning" className="flex items-center text-xs text-amber-300 gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" /> 【降級警告】切回 Quick 將移除不支援欄位
+                </div>
+              ) : null}
             </div>
           </div>
           
@@ -59,6 +89,7 @@ export default function GatewayEntryPage() {
 
         <Link
           to="/gateway/expert-workbench"
+          data-testid="gateway-entry-expert-link"
           className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/50 p-8 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/50 hover:bg-slate-800/80 hover:shadow-[0_8px_32px_-10px_rgba(16,185,129,0.2)] backdrop-blur-sm"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />

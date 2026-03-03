@@ -1,6 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { resetGatewayDraftStore } from '../../../features/gateway/gatewayDraftStore';
+import GatewayEntryPage from '../GatewayEntryPage';
+import GatewayExpertWorkbenchPage from '../GatewayExpertWorkbenchPage';
 import GatewayQuickSetupPage from '../GatewayQuickSetupPage';
 
 const connectMock = vi.fn();
@@ -21,6 +24,7 @@ describe('GatewayQuickSetupPage', () => {
   };
 
   beforeEach(() => {
+    resetGatewayDraftStore();
     connectMock.mockReset();
     connectMock.mockResolvedValue({
       connection_id: 'conn-001',
@@ -90,5 +94,44 @@ describe('GatewayQuickSetupPage', () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => expect(connectMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('shares quick draft state with expert payload preview', () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <GatewayQuickSetupPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByTestId('host-input'), { target: { value: '10.20.30.40' } });
+    unmount();
+
+    render(
+      <MemoryRouter>
+        <GatewayExpertWorkbenchPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('expert-payload-preview')).toHaveTextContent('10.20.30.40');
+  });
+
+  it('keeps draft data when switching quick -> entry -> expert -> entry -> quick', () => {
+    render(
+      <MemoryRouter initialEntries={['/gateway/quick-setup']}>
+        <Routes>
+          <Route path="/gateway/entry" element={<GatewayEntryPage />} />
+          <Route path="/gateway/quick-setup" element={<GatewayQuickSetupPage />} />
+          <Route path="/gateway/expert-workbench" element={<GatewayExpertWorkbenchPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByTestId('host-input'), { target: { value: '172.16.1.20' } });
+    fireEvent.click(screen.getByText('返回模式選擇'));
+    fireEvent.click(screen.getByTestId('gateway-entry-expert-link'));
+    fireEvent.click(screen.getByTestId('expert-back-entry-link'));
+    fireEvent.click(screen.getByTestId('gateway-entry-quick-link'));
+
+    expect(screen.getByTestId('host-input')).toHaveValue('172.16.1.20');
   });
 });

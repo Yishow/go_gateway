@@ -1,43 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { gatewayAdapter } from '../../features/gateway/gatewayAdapter';
+import {
+  confirmGatewayExpertDowngradeToQuick,
+  updateGatewayExpertBuilderPlugins,
+  updateGatewayExpertBuilderRoutes,
+  updateGatewayExpertDraft,
+  useGatewayDraftStore,
+} from '../../features/gateway/gatewayDraftStore';
 import { useTestAPI } from '../../services/api';
 
-type RouteDraft = {
-  id: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  path: string;
-  target: string;
-  enabled: boolean;
-};
-
-function createDefaultRoutes(): RouteDraft[] {
-  return [
-    {
-      id: 'route-1',
-      method: 'GET',
-      path: '/api/v1/metrics',
-      target: 'http://collector.internal:9000/metrics',
-      enabled: true,
-    },
-    {
-      id: 'route-2',
-      method: 'POST',
-      path: '/api/v1/write',
-      target: 'http://collector.internal:9000/write',
-      enabled: true,
-    },
-  ];
-}
-
 export default function GatewayExpertWorkbenchPage() {
-  const [protocol, setProtocol] = useState('modbus-tcp');
-  const [routes, setRoutes] = useState<RouteDraft[]>(createDefaultRoutes());
-  const [plugins, setPlugins] = useState({
-    requestId: true,
-    cors: true,
-    rateLimit: false,
-  });
+  const protocol = useGatewayDraftStore((state) => state.expertDraft.protocol);
+  const rawManifest = useGatewayDraftStore((state) => state.expertDraft.configJson);
+  const expertQuickCompatibility = useGatewayDraftStore((state) => state.expertQuickCompatibility);
+  const expertUnsupportedKeys = useGatewayDraftStore((state) => state.expertUnsupportedKeys);
+  const routes = useGatewayDraftStore((state) => state.expertBuilderRoutes);
+  const plugins = useGatewayDraftStore((state) => state.expertBuilderPlugins);
   const { connect } = useTestAPI();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
@@ -56,8 +35,6 @@ export default function GatewayExpertWorkbenchPage() {
     }),
     [plugins, routes],
   );
-
-  const [rawManifest, setRawManifest] = useState(() => JSON.stringify(builderConfig, null, 2));
 
   const payloadResult = useMemo(() => {
     try {
@@ -78,16 +55,20 @@ export default function GatewayExpertWorkbenchPage() {
     }
   }, [protocol, rawManifest]);
 
-  function updateRoute(id: string, key: keyof Omit<RouteDraft, 'id'>, value: string | boolean) {
-    setRoutes((prev) =>
-      prev.map((route) => (route.id === id ? { ...route, [key]: value } : route)),
+  function updateRoute(
+    id: string,
+    key: 'method' | 'path' | 'target' | 'enabled',
+    value: string | boolean,
+  ) {
+    updateGatewayExpertBuilderRoutes(
+      routes.map((route) => (route.id === id ? { ...route, [key]: value } : route)),
     );
   }
 
   function addRoute() {
     const index = routes.length + 1;
-    setRoutes((prev) => [
-      ...prev,
+    updateGatewayExpertBuilderRoutes([
+      ...routes,
       {
         id: `route-${Date.now()}`,
         method: 'GET',
@@ -99,11 +80,27 @@ export default function GatewayExpertWorkbenchPage() {
   }
 
   function removeRoute(id: string) {
-    setRoutes((prev) => prev.filter((route) => route.id !== id));
+    updateGatewayExpertBuilderRoutes(routes.filter((route) => route.id !== id));
   }
 
   function syncBuilderToManifest() {
-    setRawManifest(JSON.stringify(builderConfig, null, 2));
+    updateGatewayExpertDraft({ configJson: JSON.stringify(builderConfig, null, 2) });
+  }
+
+  function handleQuickSwitchClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (expertQuickCompatibility !== 'unsupported') return;
+
+    const detail = expertUnsupportedKeys.length > 0 ? `\n不支援欄位：${expertUnsupportedKeys.join(', ')}` : '';
+    const confirmed = window.confirm(
+      `【降級警告】目前 Expert 設定包含 Quick 不支援欄位。\n切換後將移除這些設定且無法自動復原。\n是否仍要切換到 Quick？${detail}`,
+    );
+
+    if (!confirmed) {
+      event.preventDefault();
+      return;
+    }
+
+    confirmGatewayExpertDowngradeToQuick();
   }
 
   async function handleSubmit() {
@@ -232,7 +229,7 @@ export default function GatewayExpertWorkbenchPage() {
                     <input
                       type="checkbox"
                       checked={plugins[pluginKey]}
-                      onChange={(e) => setPlugins((prev) => ({ ...prev, [pluginKey]: e.target.checked }))}
+                      onChange={(e) => updateGatewayExpertBuilderPlugins({ [pluginKey]: e.target.checked })}
                     />
                   </label>
                 );
@@ -258,7 +255,7 @@ export default function GatewayExpertWorkbenchPage() {
             <select
               data-testid="expert-protocol-select"
               value={protocol}
-              onChange={(e) => setProtocol(e.target.value)}
+              onChange={(e) => updateGatewayExpertDraft({ protocol: e.target.value })}
               className="mb-4 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
             >
               <option value="modbus-tcp">Modbus TCP</option>
@@ -270,7 +267,7 @@ export default function GatewayExpertWorkbenchPage() {
             <textarea
               data-testid="expert-raw-manifest"
               value={rawManifest}
-              onChange={(e) => setRawManifest(e.target.value)}
+              onChange={(e) => updateGatewayExpertDraft({ configJson: e.target.value })}
               className="h-72 w-full rounded-lg border border-slate-700 bg-[#0b1220] p-3 font-mono text-xs text-cyan-100"
             />
 
@@ -312,10 +309,27 @@ export default function GatewayExpertWorkbenchPage() {
           </article>
         </div>
       </section>
-
-      <Link to="/gateway/entry" className="mt-8 inline-block text-sm text-blue-300 hover:text-blue-200">
-        ← 回雙入口選擇
-      </Link>
+      {expertQuickCompatibility === 'unsupported' ? (
+        <p
+          data-testid="expert-downgrade-warning"
+          className="mt-6 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+        >
+          【降級警告】目前設定含有 Quick 不支援欄位，切換至 Quick 後會移除不相容設定。
+        </p>
+      ) : null}
+      <div className="mt-8 flex items-center gap-4 text-sm">
+        <Link to="/gateway/entry" data-testid="expert-back-entry-link" className="text-blue-300 hover:text-blue-200">
+          ← 回雙入口選擇
+        </Link>
+        <Link
+          to="/gateway/quick-setup"
+          data-testid="expert-switch-quick-link"
+          onClick={handleQuickSwitchClick}
+          className="text-emerald-300 hover:text-emerald-200"
+        >
+          切換到 Quick Setup →
+        </Link>
+      </div>
     </main>
   );
 }

@@ -41,7 +41,7 @@ test.describe('Gateway Dual Entry E2E', () => {
 
     const preview = page.getByTestId('expert-payload-preview');
     await expect(preview).toContainText('modbus-tcp');
-    await expect(preview).toContainText('routes');
+    await expect(preview).toContainText('/api/v1/data');
   });
 
   test('Expert invalid manifest blocks submit', async ({ page }) => {
