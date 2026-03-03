@@ -8,6 +8,8 @@ BUILD_DIR="bin"
 FRONTEND_DIR="frontend"
 FRONTEND_DEV_HOST="${FRONTEND_DEV_HOST:-0.0.0.0}"
 PORT="${PORT:-8080}"
+LOG_DIR="bin/logs"
+TMP_DIR="bin/tmp"
 AUTO_KILL_PORT=false
 SKIP_BUILD=false
 SKIP_LINT=false
@@ -26,11 +28,158 @@ DIAGNOSE=false
 COVERAGE=false
 VERBOSE=false
 HAS_ANY_PARAM=false
+FRONTEND_PID=""
+
+# 日誌噪音計數器（關聯陣列）
+declare -A LOG_NOISE_COUNTERS
 
 info() { printf "\033[36m[INFO]\033[0m %s\n" "$*"; }
 success() { printf "\033[32m[OK]\033[0m %s\n" "$*"; }
 warn() { printf "\033[33m[WARN]\033[0m %s\n" "$*"; }
 err() { printf "\033[31m[ERR]\033[0m %s\n" "$*"; }
+
+# ============================================
+# 日誌格式化與噪音過濾（對齊 PS1 功能）
+# ============================================
+
+# 判斷日誌行是否為噪音類別
+# 回傳噪音類別名稱，若非噪音則回傳空字串
+get_log_noise_category() {
+  local line="$1"
+  # air watcher 常見輸出
+  if [[ "$line" =~ ^watching|^building\.\.\.|^\!exclude|^[[:space:]]*/|^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+    printf "air-watcher"
+    return
+  fi
+  # modbus status polling
+  if [[ "$line" == *"/api/v1/datalink/modbus-share/status"* ]]; then
+    printf "status-polling"
+    return
+  fi
+  # dashboard 輪詢請求
+  if [[ "$line" =~ \/api\/v1\/datalink\/(devices|polling-groups|points|mappings|tags) ]]; then
+    printf "dashboard-refresh"
+    return
+  fi
+  # 啟動細節日誌
+  if [[ "$line" == *"資料庫路徑"* || "$line" == *"Executing SQLite migration"* || "$line" == *"ConnectionManager 已初始化"* || "$line" == *"已註冊的協議"* ]]; then
+    printf "startup-detail"
+    return
+  fi
+  printf ""
+}
+
+# 格式化單行執行時日誌輸出（對齊 PS1 Write-RuntimeLogLine）
+runtime_log_line() {
+  local line="$1"
+  [[ -z "$line" ]] && return
+
+  # HTTP 請求行格式化：[timestamp] METHOD /path STATUS latency
+  if [[ "$line" =~ \[([^\]]+)\][[:space:]]+[^[:space:]]+[[:space:]]+(GET|POST|PUT|DELETE|PATCH)[[:space:]]+([^[:space:]]+)[[:space:]]+([0-9]{3})[[:space:]]+(.+) ]]; then
+    local ts="${BASH_REMATCH[1]}"
+    local method="${BASH_REMATCH[2]}"
+    local path="${BASH_REMATCH[3]}"
+    local status="${BASH_REMATCH[4]}"
+    local latency="${BASH_REMATCH[5]}"
+    # 擷取時間部分 HH:MM:SS
+    local time_part
+    if [[ "$ts" =~ ([0-9]{2}:[0-9]{2}:[0-9]{2})$ ]]; then
+      time_part="${BASH_REMATCH[1]}"
+    else
+      time_part="--:--:--"
+    fi
+
+    # dashboard 輪詢在非 verbose 模式下隱藏
+    if [[ "$method" == "GET" && "$status" == "200" && "$path" =~ ^/api/v1/datalink/(devices|polling-groups|points|mappings|tags|modbus-share/status)$ ]]; then
+      if [[ "$VERBOSE" != true ]]; then
+        LOG_NOISE_COUNTERS["dashboard-refresh"]=$(( ${LOG_NOISE_COUNTERS["dashboard-refresh"]:-0} + 1 ))
+        return
+      fi
+    fi
+
+    local formatted
+    formatted=$(printf "[HTTP] %s  %-6s %-46.46s %3s %9s" "$time_part" "$method" "$path" "$status" "$latency")
+    if (( status >= 500 )); then
+      printf "\033[31m%s\033[0m\n" "$formatted"
+    elif (( status >= 400 )); then
+      printf "\033[33m%s\033[0m\n" "$formatted"
+    else
+      printf "\033[90m%s\033[0m\n" "$formatted"
+    fi
+    return
+  fi
+
+  # Go 標準日誌行：yyyy/mm/dd HH:MM:SS file:line: msg
+  if [[ "$line" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[[:space:]]+[^:]+:[0-9]+:[[:space:]]+(.+)$ ]]; then
+    local msg="${BASH_REMATCH[1]}"
+    local category
+    category="$(get_log_noise_category "$line")"
+    if [[ -n "$category" && "$VERBOSE" != true ]]; then
+      LOG_NOISE_COUNTERS["$category"]=$(( ${LOG_NOISE_COUNTERS["$category"]:-0} + 1 ))
+      return
+    fi
+    if [[ "$msg" == *"127.0.0.1:5020"* ]]; then
+      printf "\033[32m[BOOT] Local Modbus share started on 127.0.0.1:5020\033[0m\n"
+    elif [[ "$msg" == *"localhost:8080"* ]]; then
+      printf "\033[32m[BOOT] Server started at http://localhost:8080\033[0m\n"
+    elif [[ "$msg" == *"資料庫路徑"* ]]; then
+      printf "\033[90m[BOOT] Database initialized\033[0m\n"
+    elif [[ "$VERBOSE" == true ]]; then
+      printf "\033[90m[BOOT] %s\033[0m\n" "$msg"
+    fi
+    return
+  fi
+
+  # 一般噪音過濾
+  local category
+  category="$(get_log_noise_category "$line")"
+  if [[ -n "$category" && "$VERBOSE" != true ]]; then
+    LOG_NOISE_COUNTERS["$category"]=$(( ${LOG_NOISE_COUNTERS["$category"]:-0} + 1 ))
+    return
+  fi
+
+  # 著色輸出
+  if [[ "$line" =~ ERROR|Error|panic|FATAL ]]; then
+    printf "\033[31m%s\033[0m\n" "$line"
+  elif [[ "$line" =~ WARN|Warning ]]; then
+    printf "\033[33m%s\033[0m\n" "$line"
+  elif [[ "$line" =~ 啟動於|localhost:8080|本機\ Modbus\ 分享服務已啟動 ]]; then
+    printf "\033[32m%s\033[0m\n" "$line"
+  else
+    printf "\033[90m%s\033[0m\n" "$line"
+  fi
+}
+
+# 顯示被隱藏的噪音日誌統計（對齊 PS1 Show-LogNoiseSummary）
+show_log_noise_summary() {
+  [[ ${#LOG_NOISE_COUNTERS[@]} -eq 0 ]] && return
+  [[ "$VERBOSE" == true ]] && return
+  printf "\n\033[36m============================================\033[0m\n"
+  printf "\033[36m   已隱藏雜訊日誌\033[0m\n"
+  printf "\033[36m============================================\033[0m\n"
+  for key in "${!LOG_NOISE_COUNTERS[@]}"; do
+    printf "\033[33m- %s: %s 行\033[0m\n" "$key" "${LOG_NOISE_COUNTERS[$key]}"
+  done
+  info "可加上 --verbose 顯示全部原始日誌。"
+}
+
+# 清理前端開發伺服器及其子進程
+cleanup_frontend() {
+  if [[ -n "$FRONTEND_PID" ]]; then
+    info "正在停止前端開發伺服器（PID: ${FRONTEND_PID}）..."
+    # 終止整個進程組
+    kill -- -"$FRONTEND_PID" 2>/dev/null || kill "$FRONTEND_PID" 2>/dev/null || true
+    wait "$FRONTEND_PID" 2>/dev/null || true
+    FRONTEND_PID=""
+    success "前端開發伺服器已停止"
+  fi
+}
+
+# 清理所有子進程
+cleanup_all() {
+  cleanup_frontend
+  show_log_noise_summary
+}
 
 usage() {
   cat <<USAGE
@@ -335,33 +484,101 @@ diagnose() {
 }
 
 start_dev_mode() {
+  info "🚀 開發模式（無需編譯）"
+  info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後需要手動重新運行"
+  info "💡 將同時啟動前端開發伺服器和後端服務"
+
+  # 設定清理 trap
+  trap cleanup_all EXIT INT TERM
+
   if [[ -d "$FRONTEND_DIR" ]]; then
-    info "啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
-    (cd "$FRONTEND_DIR" && pnpm run dev -- --host "$FRONTEND_DEV_HOST") &
+    info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
+    # 使用 setsid 建立新進程組，方便整體清理
+    if has_cmd setsid; then
+      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev -- --host '$FRONTEND_DEV_HOST'" &
+    else
+      (cd "$FRONTEND_DIR" && pnpm run dev -- --host "$FRONTEND_DEV_HOST") &
+    fi
     FRONTEND_PID=$!
-    trap 'kill "$FRONTEND_PID" 2>/dev/null || true' EXIT
+    success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
+    info "💡 前端開發伺服器通常運行在 http://localhost:5173"
   fi
+
   clear_port
-  info "啟動後端 go run..."
-  (cd "$APP_PATH" && PORT="$PORT" go run .)
+  info "▶️  啟動後端應用程式（使用 go run）..."
+
+  # 重置噪音計數器
+  LOG_NOISE_COUNTERS=()
+
+  # 使用日誌格式化管道
+  (cd "$APP_PATH" && PORT="$PORT" go run .) 2>&1 | while IFS= read -r line; do
+    runtime_log_line "$line"
+  done
+
+  show_log_noise_summary
 }
 
 start_air_mode() {
+  info "🔥 熱重載模式（Air）"
+  info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新運行"
+  info "💡 將同時啟動前端開發伺服器和後端服務"
+
+  # 設定清理 trap
+  trap cleanup_all EXIT INT TERM
+
+  # 檢查 Air 是否安裝，若無則自動安裝
   local air_cmd
-  air_cmd="$(find_air_cmd)" || {
-    err "未安裝 air，請先執行: go install github.com/air-verse/air@latest"
-    warn "若已安裝，請確認 PATH 包含 \$(go env GOPATH)/bin"
-    return 1
-  }
-  if [[ -d "$FRONTEND_DIR" ]]; then
-    info "啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
-    (cd "$FRONTEND_DIR" && pnpm run dev -- --host "$FRONTEND_DEV_HOST") &
-    FRONTEND_PID=$!
-    trap 'kill "$FRONTEND_PID" 2>/dev/null || true' EXIT
+  if ! air_cmd="$(find_air_cmd)"; then
+    warn "Air 工具未安裝，正在嘗試安裝..."
+    if has_cmd go; then
+      go install github.com/air-verse/air@latest
+      if air_cmd="$(find_air_cmd)"; then
+        success "Air 安裝成功"
+      else
+        err "無法安裝 Air，請手動安裝："
+        info "  go install github.com/air-verse/air@latest"
+        info "💡 建議: 使用選項 1 開發模式（go run）作為替代方案"
+        return 1
+      fi
+    else
+      err "未安裝 go，無法自動安裝 air"
+      return 1
+    fi
   fi
+
+  # 啟動前端開發伺服器
+  if [[ -d "$FRONTEND_DIR" ]]; then
+    info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
+    if has_cmd setsid; then
+      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev -- --host '$FRONTEND_DEV_HOST'" &
+    else
+      (cd "$FRONTEND_DIR" && pnpm run dev -- --host "$FRONTEND_DEV_HOST") &
+    fi
+    FRONTEND_PID=$!
+    success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
+    info "💡 前端開發伺服器通常運行在 http://localhost:5173"
+    info "💡 前端修改會自動熱重載"
+  fi
+
   clear_port
-  info "啟動 air 熱重載... ($air_cmd)"
-  PORT="$PORT" "$air_cmd"
+
+  # 檢查 .air.toml 是否存在
+  if [[ ! -f ".air.toml" ]]; then
+    warn ".air.toml 配置檔案不存在，Air 將使用預設配置"
+  fi
+
+  info "▶️  啟動 Air 熱重載... ($air_cmd)"
+  info "💡 修改程式碼後，Air 會自動檢測並使用 go run 重新運行"
+
+  # 重置噪音計數器
+  LOG_NOISE_COUNTERS=()
+
+  # 使用日誌格式化管道（對齊 PS1 行為）
+  PORT="$PORT" "$air_cmd" 2>&1 | while IFS= read -r line; do
+    runtime_log_line "$line"
+  done
+
+  show_log_noise_summary
 }
 
 run_lint() {

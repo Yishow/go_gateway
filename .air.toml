@@ -13,8 +13,7 @@ tmp_dir = "bin/tmp"
   # bin 設為空，不使用編譯產物
   bin = ""
   # 直接使用 go run，不進行編譯（與選項1開發模式一致）
-  # 在 Windows 上使用 cmd /c 來正確執行 go run
-  cmd = "cmd /c go run ./cmd/test_ui"
+  cmd = "go run ./cmd/test_ui"
   delay = 1000
   # 只監控必要的目錄，排除其他 cmd 子目錄和不需要的目錄
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "bin", "frontend", "node_modules", ".git", "docs", "lib", "cmd/fatek_test", "cmd/gateway", "cmd/test_all", "conductor"]
