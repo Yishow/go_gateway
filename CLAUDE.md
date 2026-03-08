@@ -4,9 +4,16 @@
 
 ## 文件分工（先讀）
 1. 先讀 `AGENTS.md`：通用貢獻規範（結構、命令、測試、PR）。
-2. 再讀 `CLAUDE.md`：AI 工作流程、架構脈絡與實作注意事項。
+2. 依修改檔案類型讀取 `.github/instructions/` 下對應規範：
+   - Go：`go.instructions.md`
+   - React：`reactjs.instructions.md`
+   - TypeScript：`typescript-5-es2022.instructions.md`
+3. 再讀 `CLAUDE.md`：AI 工作流程、架構脈絡與實作注意事項。
 
-原則：`AGENTS.md` 是共用規範；本檔補充「AI 需要的上下文與執行邊界」。
+原則：
+- `AGENTS.md` 是共用規範與專案目標入口。
+- `.github/instructions/` 是語言與框架的正式實作規範來源。
+- `CLAUDE.md` 補充 AI 需要的上下文、工作流程與執行邊界。
 
 ## 專案快速脈絡
 - 專案目標：工業資料採集閘道，從 PLC 協議讀取資料，經 Datalink 映射後輸出到資料儲存/訊息系統。
@@ -50,11 +57,19 @@ npm run build
 ```
 
 ## AI 實作流程（必遵守）
-1. **Context Check**：先讀 `AGENTS.md` 與對應 `openspec/specs/*/spec.md`。
+1. **Context Check**：先讀 `AGENTS.md`、對應 `.github/instructions/` 與 `openspec/specs/*/spec.md`。
 2. **Plan by Phase**：明確本次 phase、輸入、輸出、驗收條件。
 3. **Implement Fully**：不可跳步、不可僅最小可動；需完成錯誤處理與邊界條件。
 4. **Validate**：執行受影響範圍測試與 lint。
 5. **Report**：回報修改檔案、驗證結果、風險與後續建議。
+
+## 文件與規範優先順序
+1. `AGENTS.md`
+   專案目標、測試要求、TDD、文件化工作流與 UI/UX 主線。
+2. `.github/instructions/*.md`
+   依檔案類型套用的語言與框架實作規範。
+3. `CLAUDE.md`
+   Agent 執行邊界、專案脈絡與補充工作方式。
 
 ## 開發路徑指引
 ### 新增協議適配器

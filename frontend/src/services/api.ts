@@ -7,10 +7,9 @@ import type {
   ReadResponse, 
   ConnectionState
 } from '../types/api'
+import { VITE_API_BASE_URL } from '../env'
 
-// 從環境變數讀取 API 基礎路徑，預設為 /api/v1
-// 在開發環境中，可以通過 .env 文件設置 VITE_API_BASE_URL
-const apiBaseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const apiBaseURL = VITE_API_BASE_URL
 
 const api = axios.create({
   baseURL: apiBaseURL,

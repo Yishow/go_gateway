@@ -11,7 +11,7 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:gateway:unit": "vitest run src/features/gateway/__tests__/gatewayAdapter.test.ts src/features/gateway/__tests__/uiVersion.test.ts src/pages/gateway/__tests__/GatewayQuickSetupPage.test.tsx src/pages/gateway/__tests__/GatewayExpertWorkbenchPage.test.tsx",
+    "test:gateway:unit": "vitest run tests/unit/features/gateway tests/unit/pages/gateway",
     "test:gateway:e2e": "playwright test tests/e2e/gateway/dual-entry.spec.ts",
     "test:gateway:gate": "npm run test:gateway:unit && npm run test:gateway:e2e && npm run build"
   },
@@ -57,6 +57,7 @@
     "react-i18next": "^16.5.3",
     "react-router-dom": "^7.12.0",
     "recharts": "^3.6.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zod": "^3.25.0"
   }
 }

@@ -34,9 +34,10 @@ import type {
   ModbusShareStatus,
   ModbusShareMapping,
 } from '../types/datalink';
+import { VITE_API_BASE_URL } from '../env';
 
 // API 基礎路徑
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE = VITE_API_BASE_URL;
 const DATALINK_BASE = `${API_BASE}/datalink`;
 
 interface DeviceReadinessResult {

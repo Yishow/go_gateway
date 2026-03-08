@@ -311,12 +311,30 @@ export default function TestPage() {
   }, [connectionMode, config])
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-40">
+    <div className="mx-auto max-w-[1600px] space-y-6 rounded-2xl bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] p-4 pb-40 text-slate-100 sm:p-6">
       {/* 最小化 Card Bar */}
       <MinimizedCardsBar />
       {/* 頂部：協議選擇器和 Profile 選擇器 */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-2xl p-6 transition-colors">
+      <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 transition-colors">
         <div className="space-y-6">
+          <div className="flex flex-col gap-2 border-b border-white/10 pb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+              Engineer Workspace
+            </p>
+            <div className="flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-50">
+                  協議測試工作台
+                </h1>
+                <p className="mt-1 text-sm text-slate-400">
+                  保持工程測試用途不變，僅收斂視覺語言與主要資訊層級。
+                </p>
+              </div>
+              <div className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-200">
+                TestPage 專用工具
+              </div>
+            </div>
+          </div>
           {/* Profile 選擇器 */}
           <ProfileSelector
             currentProtocol={selectedProtocol}
@@ -341,41 +359,41 @@ export default function TestPage() {
             {isConfigMinimized && (
               <div 
                 onClick={handleConfigExpand}
-                className="bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:shadow-md transition-all duration-200 animate-slide-up flex-shrink-0 min-w-[280px] mt-7"
+                className="mt-7 min-w-[280px] flex-shrink-0 cursor-pointer rounded-xl border border-white/10 bg-slate-950/70 p-4 shadow-lg shadow-black/20 animate-slide-up transition-[border-color,background-color,box-shadow] duration-200 hover:border-blue-500/30 hover:bg-slate-900/80 hover:shadow-xl"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
                     <span className="w-1 h-4 bg-blue-500 rounded-full"></span>
                     連線配置
                   </h3>
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                 </div>
-                <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                <div className="space-y-2 text-xs text-slate-300">
                   {connectionMode === 'tcp' || connectionMode === 'udp' ? (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-gray-500 dark:text-gray-400">主機:</span>
+                        <span className="text-slate-500">主機:</span>
                         <span className="font-mono">{String(config.host ?? '-')}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500 dark:text-gray-400">埠號:</span>
+                        <span className="text-slate-500">埠號:</span>
                         <span className="font-mono">{String(config.port ?? '-')}</span>
                       </div>
                     </>
                   ) : (
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">串列埠:</span>
+                      <span className="text-slate-500">串列埠:</span>
                       <span className="font-mono">{String(config.port ?? '-')}</span>
                     </div>
                   )}
                   {connectionId && (
-                    <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-                      <span className="text-gray-500 dark:text-gray-400">連線 ID:</span>
-                      <span className="font-mono text-green-600 dark:text-green-400">{connectionId.slice(0, 8)}...</span>
+                    <div className="flex justify-between border-t border-white/10 pt-2">
+                      <span className="text-slate-500">連線 ID:</span>
+                      <span className="font-mono text-emerald-300">{connectionId.slice(0, 8)}...</span>
                     </div>
                   )}
                 </div>
-                <div className="mt-3 text-xs text-blue-600 dark:text-blue-400 text-center">
+                <div className="mt-3 text-center text-xs text-blue-300">
                   點擊展開
                 </div>
               </div>
@@ -389,7 +407,7 @@ export default function TestPage() {
         <div className={`xl:col-span-7 grid grid-cols-1 ${!isConfigMinimized ? 'lg:grid-cols-2' : ''} gap-6`}>
           {/* 配置表單 - 當縮小時隱藏 */}
           {!isConfigMinimized && !isMinimized('config') && (
-            <div className="relative bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-2xl p-6 h-fit animate-fade-in transition-colors">
+            <div className="relative h-fit rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 animate-fade-in transition-colors">
               {/* 最小化按鈕 */}
               <CardMinimizeButton
                 cardType="config"
@@ -397,7 +415,7 @@ export default function TestPage() {
                 summary={configSummary}
                 status={connectionId ? 'connected' : 'disconnected'}
               />
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-slate-100">
                 <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
                 連線配置
               </h2>
@@ -415,7 +433,7 @@ export default function TestPage() {
 
           {/* 測試操作 */}
           {!isMinimized('operations') && (
-            <div className={`relative bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-2xl p-6 h-fit ${isConfigMinimized ? 'lg:col-span-1' : ''} transition-colors`}>
+            <div className={`relative h-fit rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 ${isConfigMinimized ? 'lg:col-span-1' : ''} transition-colors`}>
               {/* 最小化按鈕 */}
               <CardMinimizeButton
                 cardType="operations"
@@ -423,7 +441,7 @@ export default function TestPage() {
                 summary={selectedProtocol}
                 status={connectionId ? 'connected' : 'disconnected'}
               />
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-slate-100">
                 <span className="w-1.5 h-6 bg-amber-500 rounded-full"></span>
                 測試操作
               </h2>
@@ -436,7 +454,7 @@ export default function TestPage() {
 
           {/* 掃描設備 */}
           {!isMinimized('scanner') && (
-            <div className={`relative ${!isConfigMinimized ? 'lg:col-span-2' : ''} bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-2xl p-6 transition-colors`}>
+            <div className={`relative ${!isConfigMinimized ? 'lg:col-span-2' : ''} rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 transition-colors`}>
               {/* 最小化按鈕 */}
               <CardMinimizeButton
                 cardType="scanner"
@@ -444,7 +462,7 @@ export default function TestPage() {
                 summary={selectedProtocol}
                 status="idle"
               />
-              <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-slate-100">
                 <span className="w-1.5 h-6 bg-green-500 rounded-full"></span>
                 設備掃描
               </h2>
@@ -458,7 +476,7 @@ export default function TestPage() {
 
           {/* 監控模式 (放在操作下方) */}
           {!isMinimized('monitor') && (
-            <div className={`relative ${!isConfigMinimized ? 'lg:col-span-2' : ''} bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-2xl p-6 transition-colors`}>
+            <div className={`relative ${!isConfigMinimized ? 'lg:col-span-2' : ''} rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 transition-colors`}>
               {/* 最小化按鈕 */}
               <CardMinimizeButton
                 cardType="monitor"
@@ -487,7 +505,7 @@ export default function TestPage() {
         {/* 右側：Debug 面板 (佔 5/12) - 獨立顯示以獲得更好的寬度 */}
         {!isMinimized('debug') && (
           <div className="xl:col-span-5 flex flex-col gap-6 sticky top-6">
-            <div className="relative">
+            <div className="relative rounded-2xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20 transition-colors">
               {/* 最小化按鈕 */}
               <CardMinimizeButton
                 cardType="debug"

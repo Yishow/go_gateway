@@ -1,74 +1,44 @@
-# Project: go-gateway
+# GEMINI.md
 
-## Overview
+本檔案提供 Gemini 系列 Agent 在本倉庫工作的補充說明。
 
-`go-gateway` is an industrial data collector designed for cross-platform deployment (Windows, Linux, Embedded ARM). It acts as a bridge between industrial devices and IT databases/cloud systems.
+## 文件分工（先讀）
+1. 先讀 `AGENTS.md`：專案共通規範、測試要求、UI/UX 主線與文件化工作流。
+2. 依修改檔案類型讀取 `.github/instructions/` 下對應規範：
+   - Go：`go.instructions.md`
+   - React：`reactjs.instructions.md`
+   - TypeScript：`typescript-5-es2022.instructions.md`
+3. 再讀 `GEMINI.md`：Gemini Agent 的專案脈絡與執行補充。
 
-## Key Features
+原則：
+- `AGENTS.md` 管專案怎麼做。
+- `.github/instructions/` 管程式怎麼寫。
+- `GEMINI.md` 補充 Agent 如何在本專案內工作。
 
-- **Multi-Protocol Support**: Modbus RTU/TCP, FATEK FBs, Mitsubishi MC Protocol (3E), MQTT.
-- **Flexible Data Mapping**: Configurable "Datalink" engine to map PLC registers directly to Database tables/columns.
-- **Cross-Platform**: Built with Go for single-binary deployment on Windows, Linux, and Raspberry Pi.
-- **Multi-Database**: Supports SQLite, MySQL, PostgreSQL, and SQL Server.
+## 專案脈絡
+- 專案目標：工業資料採集閘道，從 PLC 協議讀取資料，經 Datalink 映射後輸出到資料儲存與訊息系統。
+- 技術棧：後端為 Go 1.25.x + Gin；前端為 React 19 + TypeScript + Vite。
+- 部署型態：以單一可執行檔整合 API 與嵌入式前端，主要入口為 `cmd/test_ui`。
+- 關鍵協議：Modbus、FATEK、MC Protocol；對應實作位於 `internal/protocol/*` 與 `internal/datalink/connector/adapters/*`。
 
-## Current Status
+## 前端 UI/UX 目前主線
+- `SmartDashboard` 是 datalink 主產品介面，應優先對齊單人操作情境：
+  `建立/選擇資料來源 -> 在格子上看到資料 -> 設定 Tag -> 對應本地 Modbus -> 寫入資料庫供其他 UI 專案使用`
+- `LocalModbusWorkbenchPage` 是後段工作台，應與 `SmartDashboard` 形成清楚接力。
+- `TestPage` 是專用工程測試工具，只做風格一致化，不承載產品主流程。
+- UI/UX 改造前需先盤查 `SmartDashboard` 的 legacy 結構、舊 redirect、未引用元件與過時設計。
 
-**Phase:** Design & Prototyping
-**Primary Language:** Go (Planned), Python (Prototyping)
+## Gemini 工作流程
+1. 先確認本次任務涉及的規範來源：`AGENTS.md`、`.github/instructions/`、必要時 `openspec/specs/*`。
+2. 多步驟任務預設採 `planning-with-files`，在專案根目錄維持 `task_plan.md`、`findings.md`、`progress.md`。
+3. 依 phase 執行，不跳步、不只交付最小可動版本。
+4. 實作後執行受影響範圍的測試、lint 與建置。
+5. 回報修改檔案、驗證結果、風險與後續建議。
 
-The project is currently in the detailed design phase. A comprehensive architecture specification and a Python prototype for the FATEK driver have been developed.
+## 驗證基準
+- 後端最低：`go test ./...`、`golangci-lint run ./...`
+- 前端最低：`cd frontend && npm run lint && npm run test && npm run build`
+- 任何未執行項都必須在回報中說明原因、風險與建議補驗證步驟。
 
-## Key Documentation
-
-The core design documents are located in the `docs/` directory. **Read these first to understand the system architecture.**
-
-- **[`docs/snazzy-herding-firefly.md`](docs/snazzy-herding-firefly.md)**: **Main Design Document**. Contains the system overview, module structure, interface definitions (Go), and database schema.
-- **[`docs/plan.md`](docs/plan.md)**: Work Breakdown Structure (WBS) and detailed implementation phases.
-- **[`docs/fatek.md`](docs/fatek.md)**: Technical specification for the FATEK Protocol (ASCII/TCP), including frame structure and checksum algorithms.
-
-## Prototypes
-
-- **[`fatek_driver.py`](fatek_driver.py)**: A fully functional Python implementation of the FATEK PLC driver. It supports both Serial and TCP modes, auto-checksum calculation, and high-level commands (Read/Write Status, Registers, Mixed Read). Use this as a reference when implementing the Go version.
-
-## Architecture Highlights
-
-- **Protocol Abstraction**: A common `Protocol` interface allows easy addition of new device drivers.
-- **Datalink Engine**: An ETL-like engine that handles `Source (PLC) -> Transform -> Target (DB)` logic.
-- **Task Engine**: A scheduler that manages concurrent data collection tasks with different intervals and priorities.
-
-## Usage (Prototype)
-
-### FATEK Driver (Python)
-
-To use the Python driver prototype:
-
-```bash
-# Install dependencies
-pip install pyserial
-
-# Import in your python script
-from fatek_driver import create_tcp_client
-client = create_tcp_client('192.168.1.5')
-client.connect()
-print(client.read_registers('D', 0, 10))
-```
-
-## Planned Go Workflow
-
-Once the Go implementation starts, the standard workflow will be:
-
-```bash
-# Initialize dependencies
-go mod tidy
-
-# Run tests
-go test ./...
-
-# Build binary
-go build -o gateway ./cmd/gateway
-
-# Run with configuration
-./gateway -c configs/gateway.yaml
-```
-
-繁體中文回答所有的問題。
+## 語言要求
+- 回答與回報使用繁體中文。

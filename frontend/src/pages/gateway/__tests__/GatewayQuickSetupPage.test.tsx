@@ -90,8 +90,8 @@ describe('GatewayQuickSetupPage', () => {
     expect(connectMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId('submit-confirm-checkbox'));
-    await waitFor(() => expect(saveButton).toBeEnabled());
-    fireEvent.click(saveButton);
+    await waitFor(() => expect(screen.getByTestId('save-btn')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('save-btn'));
 
     await waitFor(() => expect(connectMock).toHaveBeenCalledTimes(1));
   });

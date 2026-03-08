@@ -89,10 +89,7 @@ export default function GatewayQuickSetupPage() {
     return nextErrors;
   };
 
-  const allRequiredStepsValid = useMemo(
-    () => [1, 2, 3, 4].every((step) => validateStep(step).length === 0),
-    [draft, wizardDraft]
-  );
+  const allRequiredStepsValid = [1, 2, 3, 4].every((step) => validateStep(step).length === 0);
 
   const handleQuickDraftChange = (key: keyof QuickDraft, value: string | number | boolean) => {
     updateGatewayQuickDraft({ [key]: value } as Partial<QuickDraft>);
