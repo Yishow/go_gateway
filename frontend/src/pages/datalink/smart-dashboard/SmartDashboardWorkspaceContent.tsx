@@ -8,6 +8,7 @@ import type { PlannedAllocation } from "../../../components/datalink/MemoryGrid"
 import type { FlowState, FlowSegment } from "../../../features/flow/stateMachine";
 import SmartDashboardFlowStatusSection from "./SmartDashboardFlowStatusSection";
 import { useSmartDashboardWorkspaceContentState } from "./useSmartDashboardWorkspaceContentState";
+import { designSystem } from "../../../styles/designSystem";
 
 type IntentStage = "idle" | "grid" | "commit";
 
@@ -152,6 +153,7 @@ export default function SmartDashboardWorkspaceContent({
                 onChange={(e) => {
                   handleModbusAreaChange(e.target.value as "0" | "1" | "3" | "4");
                 }}
+                name="modbus-area"
                 className="rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label={t("smartDashboard.sourcePlanner.modbusArea")}
               >
@@ -163,17 +165,20 @@ export default function SmartDashboardWorkspaceContent({
             </label>
           )}
           {/* 位址 */}
-          <label className="flex items-center gap-1.5 text-xs text-slate-400">
+          <label className={`${designSystem.forms.label.base} flex items-center gap-1.5 text-xs`}>
             {t("smartDashboard.sourcePlanner.startAddress")}
             <input
               value={planStartAddress}
               onChange={(e) => handlePlanStartAddressChange(e.target.value)}
               placeholder={t("smartDashboard.sourcePlanner.startAddressPlaceholder")}
+              name={designSystem.forms.name.pointAddress}
+              autoComplete={designSystem.forms.autocomplete.text}
+              inputMode={designSystem.forms.inputmode.text}
               className="w-24 rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 font-mono text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
           {/* 數量 */}
-          <label className="flex items-center gap-1.5 text-xs text-slate-400">
+          <label className={`${designSystem.forms.label.base} flex items-center gap-1.5 text-xs`}>
             {t("smartDashboard.sourcePlanner.sourceCount")}
             <input
               type="number"
@@ -181,6 +186,9 @@ export default function SmartDashboardWorkspaceContent({
               max={200}
               value={planCount}
               onChange={(e) => handlePlanCountChange(e.target.value)}
+              name="plan-count"
+              autoComplete={designSystem.forms.autocomplete.number}
+              inputMode={designSystem.forms.inputmode.numeric}
               className="w-16 rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </label>
@@ -188,6 +196,7 @@ export default function SmartDashboardWorkspaceContent({
           <select
             value={planDataType}
             onChange={(e) => setPlanDataType(e.target.value as DataType)}
+            name={designSystem.forms.name.pointDataType}
             className="rounded-md border border-slate-700 bg-slate-800/80 px-2 py-1 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="int16">{t("smartDashboard.sourcePlanner.dataTypeOption_int16")}</option>

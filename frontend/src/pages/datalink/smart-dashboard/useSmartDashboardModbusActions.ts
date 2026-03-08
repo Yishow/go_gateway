@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { modbusShareAPI } from '../../../services/datalink';
 import type { ModbusShareStatus, Point, Tag } from '../../../types/datalink';
+import { designSystem } from '../../../styles/designSystem';
 
 interface UseSmartDashboardModbusActionsParams {
   linkedTag?: Tag;
@@ -77,9 +78,9 @@ export function useSmartDashboardModbusActions({
       const result = await modbusShareAPI.sync();
       await loadModbusStatus();
       const errorHint = result.errors.length > 0 ? `, errors=${result.errors.length}` : '';
-      showInfo(`同步完成: updated=${result.updated}, skipped=${result.skipped}${errorHint}`);
+      showInfo(`${designSystem.microcopy.feedback.success.validated}：updated=${result.updated}, skipped=${result.skipped}${errorHint}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : '同步失敗';
+      const message = error instanceof Error ? error.message : designSystem.microcopy.feedback.error.validationFailed;
       showError(message);
     }
   }, [loadModbusStatus, showError, showInfo]);

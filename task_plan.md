@@ -56,11 +56,15 @@
   - 定義 microcopy 規範（loading、button、feedback、ellipsis）
 - [x] 驗證 `designSystem.ts` 無 lint 錯誤
 
-**後續實作**（Phase 3+ 時逐步應用）：
-- 逐步將現有元件遷移到使用 `designSystem.components.*`
-- 補齊表單元件的 `autocomplete`、`inputmode`、`name` 屬性
-- 統一 microcopy 使用 `designSystem.microcopy.*`
-- 考慮建立統一的 FormInput、FormLabel、FormError 元件
+**後續實作**（Phase 2 後續 - 進行中）：
+- [complete] 補齊表單元件的 `autocomplete`、`inputmode`、`name` 屬性
+  - 已完成 `SmartDashboardWorkspaceContent`、`SmartDashboardWorkflowModal`、`LocalModbusWorkbenchPage` 的表單屬性補齊
+  - 使用 `designSystem.forms.name.*`、`designSystem.forms.autocomplete.*`、`designSystem.forms.inputmode.*`
+- [complete] 統一 microcopy 使用 `designSystem.microcopy.*`
+  - 已完成 `LocalModbusWorkbenchPage` loading 狀態統一（`designSystem.microcopy.loading.*`）
+  - 已完成 `useSmartDashboardModbusActions` 與 `LocalModbusWorkbenchPage` 的 feedback 訊息統一（`designSystem.microcopy.feedback.*`）
+- [pending] 逐步將現有元件遷移到使用 `designSystem.components.*`
+- [pending] 考慮建立統一的 FormInput、FormLabel、FormError 元件
 
 ### Phase 3: 重整 SmartDashboard 核心流程 [complete]
 - [x] 重新定義唯一主線：建立資料來源 -> 格子檢視 -> Tag 設定 -> Local Modbus -> 資料庫（已在 Sidebar 加入流程指引）

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { modbusShareAPI } from '../../services/datalink';
 import { useTagsQuery } from '../../hooks/datalink/useTags';
 import type { ModbusShareMapping, ModbusShareStatus } from '../../types/datalink';
+import { designSystem } from '../../styles/designSystem';
 
 type MappingConflict = {
   register: number;
@@ -144,10 +145,10 @@ export default function LocalModbusWorkbenchPage() {
     setIsBusy(true);
     try {
       const result = await modbusShareAPI.sync();
-      setMessage(`同步完成：updated=${result.updated}, skipped=${result.skipped}, errors=${result.errors.length}`);
+      setMessage(`${designSystem.microcopy.feedback.success.validated}：updated=${result.updated}, skipped=${result.skipped}, errors=${result.errors.length}`);
       await loadData();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '同步失敗');
+      setMessage(error instanceof Error ? error.message : designSystem.microcopy.feedback.error.validationFailed);
     } finally {
       setIsBusy(false);
     }
@@ -199,9 +200,9 @@ export default function LocalModbusWorkbenchPage() {
           await modbusShareAPI.upsertMapping(item.tag_id, item.register);
         }
         await loadData();
-        setMessage(`匯入完成：${imported.length} 筆`);
+        setMessage(`${designSystem.microcopy.feedback.success.created}：${imported.length} 筆`);
       } catch {
-        setMessage('匯入格式錯誤，請使用匯出的 JSON 檔');
+        setMessage(designSystem.microcopy.feedback.error.createFailed);
       }
       event.target.value = '';
     },
@@ -269,6 +270,9 @@ export default function LocalModbusWorkbenchPage() {
             value={serverPortInput}
             onChange={(event) => setServerPortInput(event.target.value)}
             placeholder="Server Port"
+            name={designSystem.forms.name.modbusPort}
+            autoComplete={designSystem.forms.autocomplete.port}
+            inputMode={designSystem.forms.inputmode.numeric}
             className="min-h-11 w-32 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isBusy || !!status?.enabled}
           />
@@ -333,6 +337,9 @@ export default function LocalModbusWorkbenchPage() {
                 value={registerInput}
                 onChange={(event) => setRegisterInput(event.target.value)}
                 placeholder="Register (0-65535)"
+                name={designSystem.forms.name.modbusRegister}
+                autoComplete={designSystem.forms.autocomplete.number}
+                inputMode={designSystem.forms.inputmode.numeric}
                 className="min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
@@ -341,7 +348,7 @@ export default function LocalModbusWorkbenchPage() {
                 disabled={isBusy}
                 className="min-h-11 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                新增 / 更新映射
+                {isBusy ? designSystem.microcopy.loading.saving : '新增 / 更新映射'}
               </button>
             </div>
             <div className="max-h-[400px] space-y-2 overflow-auto rounded-lg border border-white/5 bg-slate-950/50 p-2">
@@ -418,6 +425,9 @@ export default function LocalModbusWorkbenchPage() {
                 value={testValue}
                 onChange={(event) => setTestValue(event.target.value)}
                 placeholder="測試數值"
+                name="test-value"
+                autoComplete={designSystem.forms.autocomplete.number}
+                inputMode={designSystem.forms.inputmode.decimal}
                 className="w-full min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
@@ -426,7 +436,7 @@ export default function LocalModbusWorkbenchPage() {
                 onClick={() => void handleWriteTest()}
                 className="w-full min-h-11 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                執行測試寫入
+                {isBusy ? designSystem.microcopy.loading.saving : '執行測試寫入'}
               </button>
               {!canWrite && (
                 <p className="text-[11px] text-amber-300">請先解決衝突或啟動 Server</p>
@@ -444,7 +454,7 @@ export default function LocalModbusWorkbenchPage() {
           aria-live="polite"
           aria-atomic="true"
         >
-          {isBusy ? '處理中…' : message}
+          {isBusy ? designSystem.microcopy.loading.default : message}
         </footer>
       )}
     </div>

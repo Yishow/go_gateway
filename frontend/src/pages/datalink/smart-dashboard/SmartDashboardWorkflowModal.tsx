@@ -1,6 +1,7 @@
 import type { CreateDeviceRequest, Device, UpdateDeviceRequest } from '../../../types/datalink';
 import type { TFunction } from 'i18next';
 import DeviceForm from '../../../components/datalink/DeviceForm';
+import { designSystem } from '../../../styles/designSystem';
 
 type DeviceStatusFilter = 'all' | 'active' | 'disabled' | 'draft';
 type PanelType = 'batch' | 'detail' | 'shortcuts' | null;
@@ -151,6 +152,9 @@ export default function SmartDashboardWorkflowModal({
                   value={deviceSearchQuery}
                   onChange={(e) => setDeviceSearchQuery(e.target.value)}
                   placeholder={t('smartDashboard.workflowModal.searchPlaceholder')}
+                  name={designSystem.forms.name.searchQuery}
+                  autoComplete={designSystem.forms.autocomplete.search}
+                  inputMode={designSystem.forms.inputmode.search}
                   className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:min-w-[180px]"
                 />
                 <select

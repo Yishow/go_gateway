@@ -2,6 +2,35 @@
 
 ## 2026-03-08
 
+### Phase 2 後續實作 - 補齊表單屬性 [進行中]
+- 補齊 `SmartDashboardWorkspaceContent` 表單屬性：
+  - 起始位址 input：`name={designSystem.forms.name.pointAddress}`、`autoComplete={designSystem.forms.autocomplete.text}`、`inputMode={designSystem.forms.inputmode.text}`
+  - 數量 input：`name="plan-count"`、`autoComplete={designSystem.forms.autocomplete.number}`、`inputMode={designSystem.forms.inputmode.numeric}`
+  - Modbus 區域 select：`name="modbus-area"`
+  - 資料型別 select：`name={designSystem.forms.name.pointDataType}`
+- 補齊 `SmartDashboardWorkflowModal` 表單屬性：
+  - 搜尋 input：`name={designSystem.forms.name.searchQuery}`、`autoComplete={designSystem.forms.autocomplete.search}`、`inputMode={designSystem.forms.inputmode.search}`
+- 補齊 `LocalModbusWorkbenchPage` 表單屬性：
+  - Server Port input：`name={designSystem.forms.name.modbusPort}`、`autoComplete={designSystem.forms.autocomplete.port}`、`inputMode={designSystem.forms.inputmode.numeric}`
+  - Register input：`name={designSystem.forms.name.modbusRegister}`、`autoComplete={designSystem.forms.autocomplete.number}`、`inputMode={designSystem.forms.inputmode.numeric}`
+  - 測試數值 input：`name="test-value"`、`autoComplete={designSystem.forms.autocomplete.number}`、`inputMode={designSystem.forms.inputmode.decimal}`
+- 統一 `LocalModbusWorkbenchPage` loading 狀態 microcopy：
+  - 狀態訊息：`{isBusy ? designSystem.microcopy.loading.default : message}`
+  - 新增/更新映射按鈕：`{isBusy ? designSystem.microcopy.loading.saving : '新增 / 更新映射'}`
+  - 執行測試寫入按鈕：`{isBusy ? designSystem.microcopy.loading.saving : '執行測試寫入'}`
+- 統一 `useSmartDashboardModbusActions` feedback 訊息：
+  - 同步成功：`${designSystem.microcopy.feedback.success.validated}：updated=...`
+  - 同步失敗：`designSystem.microcopy.feedback.error.validationFailed`
+- 統一 `LocalModbusWorkbenchPage` feedback 訊息：
+  - 同步成功：`${designSystem.microcopy.feedback.success.validated}：updated=...`
+  - 同步失敗：`designSystem.microcopy.feedback.error.validationFailed`
+  - 匯入成功：`${designSystem.microcopy.feedback.success.created}：${imported.length} 筆`
+  - 匯入失敗：`designSystem.microcopy.feedback.error.createFailed`
+- 修正 ESLint 錯誤：
+  - 移除 `smart-dashboard-regression.test.tsx` 中未使用的 `screen` import
+  - 補齊 `useSmartDashboardModbusActions.ts` 中缺少的 `designSystem` import
+- 驗證所有變更通過 ESLint 與測試（4 tests passed）
+
 ### Session Start
 - 執行 `planning-with-files` session catchup。
 - 確認專案根目錄存在，可建立持久化工作檔。
