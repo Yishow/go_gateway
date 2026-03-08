@@ -83,3 +83,272 @@
   - 測試入口集中在 root `tests/`
   - 類型與領域有清楚分類
   - `vi.mock` 與模組快取不互相污染
+
+### TDD 基線規劃（SmartDashboard / LocalModbusWorkbench / TestPage）
+
+| 頁面 | 測試入口 | 覆蓋範圍 | 基線狀態 |
+|------|----------|----------|----------|
+| **TestPage** | `tests/unit/pages/test-page.test.tsx` | 批次最小化、config 收折/展開、協議切換模式同步 | 已完成實體遷移，3 tests |
+| **SmartDashboard** | `tests/unit/pages/datalink/smart-dashboard-*.test.ts` | interaction（section/modal intent、設備切換、unsaved guard、draft 啟用）、grid-overlays（popover、delete）、state hooks（commit flow、panels、workspace） | wrapper 匯入 src，21 tests |
+| **LocalModbusWorkbenchPage** | `tests/unit/pages/datalink/local-modbus-workbench.test.ts` | 啟動/停止 server、register 衝突阻擋、dashboard 返回連結 | wrapper 匯入 src，4 tests |
+
+**後續 UI 變更前**：先跑對應頁面的測試確保基線通過，再改樣式或 IA。SmartDashboard / LocalModbusWorkbench 若要收斂視覺，需維持或補強現有測試。
+
+### .github/instructions 在 UI/UX 實作中的套用點
+
+| 規範檔 | 套用於 | 具體 touchpoint |
+|--------|--------|-----------------|
+| **reactjs.instructions.md** | `*.tsx`、`*.jsx`、`*.css`、`*.scss` | 元件設計（單一職責、composition）、hooks 依賴陣列、state 結構、styling（CSS 變數、responsive、ARIA）、form 受控元件、routing、測試用 RTL、accessibility |
+| **typescript-5-es2022.instructions.md** | `*.ts` | props/state 型別、 discriminated unions（例如 flow 狀態機）、`unknown` + narrowing、避免 `any`、utility types、async 錯誤處理、命名與格式 |
+| **go.instructions.md** | 後端、API | 非前端 UI/UX 直接套用，但 API 契約會影響前端型別與 data fetching |
+
+**實務對齊**：新增或修改 React 元件時，同時遵守 reactjs（元件設計、hooks、樣式）與 typescript（型別、async）兩份 instructions；既有的 `react-hooks/exhaustive-deps`、`no-unused-vars` 等 lint 規則與 instructions 一致。
+
+### SmartDashboard Legacy 盤查結果
+
+#### 未使用檔案（可安全刪除）
+
+| 檔案路徑 | 狀態 | 說明 |
+|---------|------|------|
+| `frontend/src/layouts/DatalinkLayout.tsx` | **未引用** | 舊版 layout，目前 SmartDashboard 直接渲染，不使用 Outlet |
+| `frontend/src/pages/datalink/smart-dashboard/SmartDashboardSidebarTools.tsx` | **未引用** | 功能已整合到 `SmartDashboardSidebar.tsx` 的 Mini Toolbar 區塊 |
+| `frontend/src/pages/datalink/smart-dashboard/SmartDashboardTagAndModbusPanel.tsx` | **未引用** | `SmartDashboardSidebar` 直接使用 `SmartDashboardTagPanel` 與 `SmartDashboardModbusPanel`，不再需要組合層 |
+
+#### Legacy 路由與 Redirect（App.tsx）
+
+| 路由 | 目標 | 類型 | 建議 |
+|------|------|------|------|
+| `/datalink/dashboard-legacy` | `/datalink` | 直接重定向 | 可移除，無外部引用 |
+| `/datalink/devices-legacy` | `/datalink?modal=devices` | Modal intent | 可移除，`/datalink/devices` 已提供相同功能 |
+| `/datalink/points` | `/datalink?legacy=points&modal=points` | Legacy migration | 保留，可能仍有外部書籤 |
+| `/datalink/mappings` | `/datalink?legacy=mappings&modal=mappings` | Legacy migration | 保留，可能仍有外部書籤 |
+| `/datalink/wizard` | `/datalink?legacy=wizard&modal=wizard` | Legacy migration | 保留，可能仍有外部書籤 |
+| `/datalink/devices` | `/datalink?modal=devices` | Modal intent | 保留，現役路由 |
+| `/datalink/polling-groups` | `/datalink?modal=polling-groups` | Modal intent | 保留，現役路由 |
+| `/datalink/tags` | `/datalink?modal=tags` | Modal intent | 保留，現役路由 |
+| `/datalink/settings` | `/datalink?modal=settings&section=settings` | Section + Modal | 保留，現役路由 |
+
+#### SmartDashboard 現役結構
+
+**主入口**：
+- `SmartDashboard.tsx`：僅 re-export `SmartDashboardPage.tsx`
+- `SmartDashboardPage.tsx`：主元件（1498 行），包含完整狀態管理與業務邏輯
+
+**子元件層級**：
+- `SmartDashboardHeader`：頂部標題與狀態顯示
+- `SmartDashboardIntentNotices`：section/modal intent 通知
+- `SmartDashboardControlBar`：設備選擇與建立按鈕
+- `SmartDashboardWorkspaceSection`：工作區（記憶體格 + 側欄）
+- `SmartDashboardWorkflowModal`：設備管理中心 modal
+- `SmartDashboardOverlays`：切換確認、刪除確認、建立設備 modal
+- `SmartDashboardPanels`：BatchCreate、Shortcuts、PointDetail 滑出面板
+- `SmartDashboardGridOverlaysSection`：格位 popover（Tag 連結、點位詳情）
+- `ImportDialog` / `ExportDialog`：匯入/匯出對話框
+
+**側欄結構**（`SmartDashboardSidebar`）：
+- Mini Toolbar：Workbench、Import/Export、Undo/Redo、Shortcuts
+- Tab Bar：`plan` / `tag` / `modbus` / `commit` 四分頁
+- Tab Content：對應 `SmartDashboardPlanningTab`、`SmartDashboardTagPanel`、`SmartDashboardModbusPanel`、`SmartDashboardCommitPanel`
+
+**狀態管理 hooks**：
+- `useSmartDashboardWorkspaceState`：工作區狀態
+- `useSmartDashboardTagLinking`：Tag 連結邏輯
+- `useSmartDashboardModbusActions`：Modbus 操作
+- `useSmartDashboardCommitFlow`：提交流程
+- `useSmartDashboardGridOverlays`：格位 overlay 狀態
+- `useSmartDashboardSidebarPanelMotion`：側欄動畫
+
+#### Legacy 相容層評估
+
+**`legacyRoutes.ts`**：
+- 定義 `LEGACY_DECOMMISSION_ROUTES`：`['points', 'mappings', 'wizard']`
+- 定義 `DASHBOARD_MODAL_INTENTS`：`['devices', 'settings', 'points', 'mappings', 'wizard', 'polling-groups', 'tags']`
+- 提供 `buildLegacyMigrationRedirect`、`buildDashboardModalRedirect` 等 helper
+- **狀態**：現役使用中，`SmartDashboardPage` 透過 URL query 參數解析 intent
+
+**建議**：
+- 三個未使用檔案可立即刪除
+- Legacy 路由可先觀察 1-2 週使用量，再決定是否移除
+- `legacyRoutes.ts` 需保留，但可簡化為只支援現役 modal intents
+
+### TDD 基線狀態（Phase 1 驗證）
+
+#### SmartDashboard 主流程測試覆蓋
+
+| 主流程 | 測試入口 | 覆蓋狀態 | 測試數量 |
+|--------|----------|----------|----------|
+| **選設備** | `smart-dashboard-interaction.test.ts` | ✅ 完整 | 6 tests（設備切換、unsaved guard、draft 啟用） |
+| **規劃來源** | `smart-dashboard-interaction.test.ts` + `useSmartDashboardWorkspaceContentState.test.tsx` | ✅ 完整 | 4 tests（typed occupancy、planner bindings、grid view 優先） |
+| **格子顯示/選取** | `smart-dashboard-grid-overlays.test.ts` | ✅ 完整 | 2 tests（popover tag panel、context menu delete） |
+| **Tag 設定** | `smart-dashboard-grid-overlays.test.ts`（透過 TagPanel mock） | ⚠️ 部分 | TagPanel 本身未獨立測試，但透過 grid overlay 有覆蓋 |
+| **前往 Local Modbus Workbench** | `local-modbus-workbench.test.ts` | ✅ 完整 | 4 tests（啟動/停止 server、衝突阻擋、返回連結） |
+
+**測試執行結果**（2026-03-08）：
+- `tests/unit/pages/datalink/`：**25 tests passed**（4 test files）
+- 包含：interaction（10 tests）、grid-overlays（2 tests）、state hooks（13 tests）、local-modbus（4 tests）
+
+#### 測試缺口分析
+
+**已覆蓋**：
+- ✅ 設備選擇與切換流程
+- ✅ 來源規劃（modbus area、data type、contiguous rules）
+- ✅ 記憶體格選取與 context menu
+- ✅ Local Modbus Workbench 基本操作
+- ✅ Commit flow（validation、activation、rollback）
+- ✅ Workspace state management
+
+**部分覆蓋**：
+- ⚠️ Tag 設定：目前透過 `SmartDashboardGridOverlaysSection` 測試 TagPanel 的渲染與關閉，但缺少：
+  - Tag 連結到格位的完整流程
+  - 建立新 Tag 並連結
+  - Tag 編輯（display name、unit、description）
+  - Tag 與 Mapping 的影響範圍計算
+
+**建議補強**（Phase 2 或後續）：
+- 新增 `SmartDashboardTagPanel` 獨立測試，覆蓋 tag linking、creation、editing 流程
+- 或擴充 `smart-dashboard-interaction.test.ts` 加入端對端 tag 設定場景
+
+#### TDD 基線結論
+
+**現有測試基線足以支撐 Phase 2 的 UI 規範建立與 Phase 3 的 SmartDashboard 核心流程重整**：
+- 主要互動流程（設備選擇、來源規劃、格位選取）已有穩定測試保護
+- State hooks 與 commit flow 有完整覆蓋
+- 後續 UI 變更可先跑現有測試確保基線通過，再進行樣式或資訊架構調整
+
+**風險**：
+- Tag 設定流程的測試覆蓋較弱，若 Phase 3 要大幅調整 TagPanel UI，需先補強對應測試
+
+### Phase 2：設計系統基礎盤查
+
+#### 現有設計 tokens 與樣式系統
+
+| 檔案 | 用途 | 狀態 |
+|------|------|------|
+| `frontend/src/styles/tokens.ts` | 基礎設計 tokens（色彩、間距、圓角、陰影、字體） | ✅ 現役 |
+| `frontend/src/pages/gateway/styleTokens.ts` | Gateway 頁面專用 tokens（light mode 導向） | ⚠️ 僅 Gateway 使用 |
+| `frontend/src/components/ui/button.tsx` | shadcn/ui Button 元件（使用 CVA） | ✅ 現役 |
+| `frontend/src/components/ui/alert.tsx` | shadcn/ui Alert 元件 | ✅ 現役 |
+| `frontend/src/components/ui/dialog.tsx` | shadcn/ui Dialog 元件 | ✅ 現役 |
+| `frontend/src/index.css` | Tailwind 基礎設定、scrollbar、動畫 | ✅ 現役 |
+
+#### 設計系統問題
+
+1. **多套 tokens 並存**：
+   - `tokens.ts` 為 dark mode 導向（slate-900/800/700）
+   - `styleTokens.ts` 為 light mode 導向（slate-50/100/200）
+   - 兩者未統一，導致不同頁面風格不一致
+
+2. **元件樣式未統一**：
+   - 按鈕：`button.tsx`（shadcn/ui）、`styleTokens.ts`（Gateway）、直接 Tailwind class（SmartDashboard）
+   - 卡片：各頁面手寫 Tailwind class，未統一
+   - Badge：未統一元件，各處手寫
+
+3. **表單規範缺失**：
+   - `placeholder` 不一致（有些有，有些無）
+   - `autocomplete` 幾乎未使用
+   - `inputmode` 未使用
+   - `name` 屬性命名不一致
+
+4. **Microcopy 未規範化**：
+   - 載入狀態混用 `...` 與 `…`
+   - 按鈕文字不一致（「儲存」vs「儲存中」）
+   - 錯誤訊息語氣不一致
+
+#### Phase 2 產出
+
+**已建立**：
+- `frontend/src/styles/designSystem.ts`：統一設計系統規範
+  - 整合 `tokens.ts` 作為單一來源
+  - 提供元件樣式類別（button、card、badge、sectionHeader）
+  - 定義表單規範（input、label、error、autocomplete、inputmode、name）
+  - 定義 microcopy 規範（loading、button、feedback、ellipsis）
+
+**後續實作方向**：
+- 逐步將現有元件遷移到使用 `designSystem.components.*`
+- 補齊表單元件的 `autocomplete`、`inputmode`、`name` 屬性
+- 統一 microcopy 使用 `designSystem.microcopy.*`
+- 考慮建立統一的 FormInput、FormLabel、FormError 元件
+
+### Phase 3：SmartDashboard 核心流程重整實作
+
+#### 已完成的改進
+
+1. **資料流向說明**（`SmartDashboardCommitPanel.tsx`）：
+   - 在提交按鈕上方加入資料流向說明區塊
+   - 明確說明資料會流向：
+     - **資料庫**：點位與 Tag 資料寫入資料庫，供其他 UI 專案透過 API 取用
+     - **本地 Modbus**：映射設定寫入本地 Modbus Server，供外部設備讀取
+   - 使用藍色邊框與背景，與提交按鈕視覺一致
+
+2. **流程指引**（`SmartDashboardSidebar.tsx`）：
+   - 在 Tab Bar 上方加入流程指引區塊（僅在已選擇設備時顯示）
+   - 顯示主流程：規劃 → Tag → Modbus → 提交
+   - 當前步驟以藍色高亮顯示
+   - 使用藍色邊框與背景，與 Tab 樣式一致
+
+3. **WorkflowModal 收斂**（`SmartDashboardWorkflowModal.tsx`）：
+   - 收斂為設備入口，標題改為「設備管理中心」
+   - 非設備 intent 顯示簡化訊息：
+     - 說明該功能已整合至主工作流程
+     - 提供具體指引（例如：點位管理請使用「規劃」分頁）
+     - 提供「前往設備管理中心」按鈕
+   - 保留設備管理完整功能（搜尋、篩選、建立、編輯、測試、啟用/停用、刪除）
+
+#### 改進效果
+
+- ✅ 使用者清楚知道資料會流向資料庫與本地 Modbus
+- ✅ 主流程（規劃 → Tag → Modbus → 提交）更加明確
+- ✅ WorkflowModal 責任更清晰，不再承擔過多 legacy intent
+- ✅ 非設備 intent 有明確的引導，不會讓使用者困惑
+
+#### Phase 3 完成項目
+
+- [x] 將 `WorkspaceContent` 聚焦在「資料來源設定 + 格子可視化」：
+  - Flow Status Section 改為可收折，預設收合
+  - 保留 Source Planner 緊湊列與 Memory Grid 作為核心功能
+  - 使用者可依需要展開 Flow Status 查看詳細診斷資訊
+
+#### Phase 4 完成項目
+
+- [x] `LocalModbusWorkbenchPage` 重整區塊層級：
+  - 系統狀態區塊：Server 狀態、映射數量、衝突狀態，含 Server 控制按鈕
+  - Mapping 編輯區塊：Tag 選擇、Register 輸入、映射列表
+  - 衝突治理區塊：顯示衝突列表與解決指引
+  - 寫入測試區塊：Tag 選擇、測試數值輸入、執行測試寫入
+- [x] 改善標題與說明文字，使其更符合單人工作流程
+- [x] 更新測試以匹配新 UI（4 tests passed）
+
+#### Phase 5：可近用性與響應式驗證
+
+**Accessibility 補強**：
+- [x] 在 `SmartDashboardCommitPanel` 的 `commitActionMessage` 加入 `aria-live="polite"` 與 `role="status"`
+- [x] 在 `LocalModbusWorkbenchPage` 的狀態訊息加入 `aria-live="polite"` 與 `role="status"`
+- [x] 在 `SmartDashboardSidebar` 的流程指引加入 `role="region"`、`aria-label` 與 `aria-current="step"`
+- [x] 在 `SmartDashboardCommitPanel` 的資料流向說明加入 `role="region"` 與 `aria-label`
+- [x] 裝飾性圖示加入 `aria-hidden="true"`
+
+**響應式設計檢查結果**：
+
+| 元件 | 窄螢幕處理 | 狀態 |
+|------|-----------|------|
+| **SmartDashboardWorkspaceSection** | `grid-cols-1 xl:grid-cols-[1fr_380px]` | ✅ 側欄在 xl 以下堆疊 |
+| **SmartDashboardSidebar** | `flex-wrap` 用於 Mini Toolbar | ✅ Toolbar 按鈕可換行 |
+| **SmartDashboardWorkspaceContent** | Source Planner 使用 `flex-wrap`，`px-2 sm:px-4` | ✅ 窄螢幕減少 padding |
+| **SmartDashboardWorkflowModal** | `grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]` | ✅ 設備列表與設定在 xl 以下堆疊 |
+| **LocalModbusWorkbenchPage** | `grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1fr_400px]` | ✅ Mapping 編輯與衝突/測試在 lg 以下堆疊 |
+| **Flow Status Section** | `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4` | ✅ 流程區段響應式排列 |
+
+**建議**：
+- 窄螢幕下側欄可能需要改為 drawer/modal 模式（目前為堆疊）
+- Source Planner 緊湊列在極窄螢幕下可能需要進一步優化（目前使用 flex-wrap）
+
+**UI Regression Test**：
+- [x] 建立 `tests/integration/ui/smart-dashboard-regression.test.tsx`
+- [x] 驗證主要 UI 結構渲染正常
+
+#### 後續優化建議（Phase 4+）
+
+- [ ] 考慮加入更多視覺提示，引導使用者完成主流程（例如：完成某步驟後顯示下一步提示）
+- [ ] 優化 Sidebar Tab 切換的動畫與過渡效果
+- [ ] 考慮在 WorkspaceContent 加入「快速開始」引導（首次使用時）
+- [ ] 窄螢幕下側欄可考慮改為 drawer/modal 模式

@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, WandSparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, WandSparkles, ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
 import type { RefObject } from "react";
 import type { TFunction } from "i18next";
 import { MemoryGrid } from "../../../components/datalink/MemoryGrid";
@@ -106,21 +107,41 @@ export default function SmartDashboardWorkspaceContent({
     onGridViewShift,
   });
 
+  const [isFlowStatusExpanded, setIsFlowStatusExpanded] = useState(false);
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* ── Flow Status（置頂） ── */}
-      <div className="shrink-0 border-b border-white/5">
-        <SmartDashboardFlowStatusSection
-          flowSegments={flowSegments}
-          flowState={flowState}
-          statusStyle={statusStyle}
-          hasError={hasError}
-          t={t}
-        />
+      {/* ── Flow Status（可收折，預設收合以聚焦主流程） ── */}
+      <div className={`shrink-0 border-b border-white/5 transition-all duration-200 ${isFlowStatusExpanded ? '' : 'overflow-hidden'}`}>
+        <button
+          type="button"
+          onClick={() => setIsFlowStatusExpanded(!isFlowStatusExpanded)}
+          className="w-full flex items-center justify-between px-4 py-2 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-900/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-expanded={isFlowStatusExpanded}
+          aria-label={t('smartDashboard.flowStatusToggle', { defaultValue: '切換流程狀態顯示' })}
+        >
+          <span className="font-medium">{t('smartDashboard.flowTitle')}</span>
+          {isFlowStatusExpanded ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </button>
+        {isFlowStatusExpanded && (
+          <div className="px-4 pb-3">
+            <SmartDashboardFlowStatusSection
+              flowSegments={flowSegments}
+              flowState={flowState}
+              statusStyle={statusStyle}
+              hasError={hasError}
+              t={t}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Source Planner 緊湊列 ── */}
-      <div className="shrink-0 border-b border-white/5 px-4 py-2.5">
+      <div className="shrink-0 border-b border-white/5 px-2 sm:px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
           {/* Modbus 區域（僅 Modbus 設備顯示，切換 FC 會更新預設起始位址） */}
           {selectedDevice.protocol.startsWith("modbus") && (

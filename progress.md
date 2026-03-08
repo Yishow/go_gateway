@@ -34,8 +34,75 @@
 - 修正 `GatewayQuickSetupPage` 既有測試不穩定斷言，避免 root wrapper 驗證時誤判
 - 修正 `gatewayAdapter.ts` 未使用例外變數與 `GatewayQuickSetupPage.tsx` 的 hook 依賴 lint 問題
 
+### Completed（本 session）
+- 規劃 SmartDashboard / LocalModbusWorkbench / TestPage 的 TDD 基線（寫入 findings.md）
+- 盤點 `.github/instructions/` 在 UI/UX 實作中的具體套用點（寫入 findings.md）
+- 將 Phase 3 標記為 complete
+
 ### In Progress
-- 規劃後續 UI/UX 實作前的 TDD 基線與規範套用方式
+- Phase 1：Legacy 盤查與 TDD 基線建立（進行中）
+
+### Completed（本 session - Phase 1）
+- 盤查 SmartDashboard 現役結構與未使用檔案
+- 識別三個可安全刪除的未使用檔案：`DatalinkLayout.tsx`、`SmartDashboardSidebarTools.tsx`、`SmartDashboardTagAndModbusPanel.tsx`
+- 盤查 Legacy 路由與 redirect 策略
+- 驗證 SmartDashboard 主流程測試覆蓋（25 tests passed）
+- 記錄 TDD 基線狀態與測試缺口分析
+
+### Completed（本 session - Phase 1, Phase 2 & Phase 3 開始）
+
+**Phase 3: 重整 SmartDashboard 核心流程（完成）**
+- 在 `SmartDashboardCommitPanel` 加入資料流向說明區塊，明確說明資料會流向資料庫與本地 Modbus
+- 在 `SmartDashboardSidebar` 加入流程指引（規劃 → Tag → Modbus → 提交），顯示當前步驟
+- 簡化 `SmartDashboardWorkflowModal`，收斂為設備入口：
+  - 非設備 intent（points、mappings、tags、polling-groups、settings、wizard）顯示簡化訊息
+  - 引導使用者前往設備管理中心或使用主工作流程
+  - 保留設備管理完整功能（搜尋、篩選、建立、編輯、測試、啟用/停用、刪除）
+- 將 `SmartDashboardWorkspaceContent` 聚焦在「資料來源設定 + 格子可視化」：
+  - Flow Status Section 改為可收折，預設收合以聚焦主流程
+  - 保留 Source Planner 緊湊列與 Memory Grid 作為核心功能
+- 驗證所有測試通過（25 tests passed，4 test files）
+- 驗證 lint 檢查通過
+
+**Phase 4: 整理 LocalModbusWorkbench 與 TestPage（完成）**
+- 重整 `LocalModbusWorkbenchPage` 區塊層級：
+  - 系統狀態區塊：Server 狀態、映射數量、衝突狀態，含 Server 控制按鈕
+  - Mapping 編輯區塊：Tag 選擇、Register 輸入、映射列表
+  - 衝突治理區塊：顯示衝突列表與解決指引
+  - 寫入測試區塊：Tag 選擇、測試數值輸入、執行測試寫入
+- 改善標題與說明文字，使其更符合單人工作流程
+- 更新測試以匹配新 UI（4 tests passed）
+
+### 修改檔案清單（Phase 3 & Phase 4）
+- `frontend/src/pages/datalink/smart-dashboard/SmartDashboardCommitPanel.tsx`：加入資料流向說明區塊
+- `frontend/src/pages/datalink/smart-dashboard/SmartDashboardSidebar.tsx`：加入流程指引（規劃 → Tag → Modbus → 提交）
+- `frontend/src/pages/datalink/smart-dashboard/SmartDashboardWorkflowModal.tsx`：收斂為設備入口，非設備 intent 顯示簡化訊息
+- `frontend/src/pages/datalink/smart-dashboard/SmartDashboardWorkspaceContent.tsx`：Flow Status 改為可收折，預設收合
+- `frontend/src/pages/datalink/LocalModbusWorkbenchPage.tsx`：重整區塊層級（系統狀態 / Mapping 編輯 / 衝突治理 / 寫入測試）
+- `frontend/src/pages/datalink/__tests__/LocalModbusWorkbenchPage.test.tsx`：更新測試以匹配新 UI
+- `frontend/src/pages/datalink/smart-dashboard/SmartDashboardSidebar.tsx`：補強 accessibility（role、aria-label、aria-current）
+- `frontend/src/pages/datalink/smart-dashboard/SmartDashboardCommitPanel.tsx`：補強 accessibility（aria-live、role="status"）
+- `frontend/src/pages/datalink/smart-dashboard/SmartDashboardWorkspaceContent.tsx`：改善響應式設計（px-2 sm:px-4）
+- `frontend/src/pages/datalink/LocalModbusWorkbenchPage.tsx`：補強 accessibility（aria-live、role="status"）
+- `frontend/tests/integration/ui/smart-dashboard-regression.test.tsx`：建立 UI regression test
+
+### Completed（本 session - Phase 1 & Phase 2）
+**Phase 1: Legacy 盤查與 TDD 基線建立**
+- 盤查 SmartDashboard 現役結構與未使用檔案
+- 識別三個可安全刪除的未使用檔案：`DatalinkLayout.tsx`、`SmartDashboardSidebarTools.tsx`、`SmartDashboardTagAndModbusPanel.tsx`
+- 盤查 Legacy 路由與 redirect 策略
+- 驗證 SmartDashboard 主流程測試覆蓋（25 tests passed）
+- 記錄 TDD 基線狀態與測試缺口分析
+
+**Phase 2: 建立最小 UI 規範底座**
+- 盤查現有設計 tokens 與樣式系統
+- 識別設計系統問題（多套 tokens、元件未統一、表單規範缺失、microcopy 未規範化）
+- 建立 `frontend/src/styles/designSystem.ts` 統一設計系統規範
+  - 整合 tokens 作為單一來源
+  - 提供元件樣式類別（button、card、badge、sectionHeader）
+  - 定義表單規範（input、label、error、autocomplete、inputmode、name）
+  - 定義 microcopy 規範（loading、button、feedback、ellipsis）
+- 驗證 `designSystem.ts` 無 lint 錯誤
 
 ### Validation
 - 已執行：`cd frontend && npm run test -- src/pages/__tests__/TestPage.test.tsx --run`

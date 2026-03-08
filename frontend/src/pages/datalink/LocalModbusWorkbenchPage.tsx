@@ -210,9 +210,13 @@ export default function LocalModbusWorkbenchPage() {
 
   return (
     <div className="min-h-[calc(100vh-11rem)] rounded-2xl bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] p-4 text-slate-100 sm:p-6">
+      {/* ── Header ── */}
       <header className="rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-bold tracking-tight text-slate-100">Local Modbus 5020 - Server Memory Grid</h1>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-100">Local Modbus 工作台</h1>
+            <p className="mt-1 text-xs text-slate-400">將 Tag 映射到本地 Modbus Server，供外部設備讀取</p>
+          </div>
           <Link
             to={returnTarget}
             className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -220,36 +224,53 @@ export default function LocalModbusWorkbenchPage() {
             返回 Dashboard
           </Link>
         </div>
-        <p className="mt-1 text-xs text-slate-400">設備來源隔離，僅本機 5020 目標空間做衝突治理。</p>
-        <p className="mt-1 text-[11px] text-slate-500">回跳區段: {section || 'overview'}</p>
       </header>
 
-      <section className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <article className="rounded-xl border border-white/10 bg-slate-900/70 p-3">
-          <p className="text-[11px] text-slate-400">Server</p>
-          <p className={`mt-1 text-sm font-semibold ${status?.enabled ? 'text-emerald-300' : 'text-rose-300'}`}>
-            {status?.enabled ? `Running @ ${status.address}:${status.port}` : 'Stopped'}
-          </p>
-        </article>
-        <article className="rounded-xl border border-white/10 bg-slate-900/70 p-3">
-          <p className="text-[11px] text-slate-400">Mappings</p>
-          <p className="mt-1 text-sm font-semibold text-slate-100">{status?.mapping_count ?? mappings.length}</p>
-        </article>
-        <article className="rounded-xl border border-white/10 bg-slate-900/70 p-3">
-          <p className="text-[11px] text-slate-400">Conflicts</p>
-          <p className={`mt-1 text-sm font-semibold ${conflicts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
-            {conflicts.length > 0 ? `${conflicts.length} blocked` : '0'}
-          </p>
-        </article>
-      </section>
-
-      <section className="mt-3 rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* ── 系統狀態 ── */}
+      <section className="mt-4 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-slate-200">系統狀態</h2>
+          <button
+            type="button"
+            onClick={() => void loadData()}
+            disabled={isBusy}
+            className="rounded-lg border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            重新整理
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <article className="rounded-xl border border-white/10 bg-slate-800/50 p-3">
+            <p className="text-[11px] font-medium text-slate-400 mb-1">Server 狀態</p>
+            <p className={`text-sm font-semibold ${status?.enabled ? 'text-emerald-300' : 'text-rose-300'}`}>
+              {status?.enabled ? `運行中 @ ${status.address}` : '已停止'}
+            </p>
+            {status?.enabled && (
+              <p className="mt-1 text-[11px] text-slate-400">Port: {status.port}</p>
+            )}
+          </article>
+          <article className="rounded-xl border border-white/10 bg-slate-800/50 p-3">
+            <p className="text-[11px] font-medium text-slate-400 mb-1">映射數量</p>
+            <p className="text-sm font-semibold text-slate-100">{status?.mapping_count ?? mappings.length}</p>
+            <p className="mt-1 text-[11px] text-slate-400">已設定映射</p>
+          </article>
+          <article className="rounded-xl border border-white/10 bg-slate-800/50 p-3">
+            <p className="text-[11px] font-medium text-slate-400 mb-1">衝突狀態</p>
+            <p className={`text-sm font-semibold ${conflicts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+              {conflicts.length > 0 ? `${conflicts.length} 個衝突` : '無衝突'}
+            </p>
+            <p className={`mt-1 text-[11px] ${canWrite ? 'text-emerald-300' : 'text-amber-300'}`}>
+              {canWrite ? '寫入模式：就緒' : '寫入模式：已阻擋'}
+            </p>
+          </article>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 pt-3 border-t border-white/5">
           <input
             value={serverPortInput}
             onChange={(event) => setServerPortInput(event.target.value)}
             placeholder="Server Port"
             className="min-h-11 w-32 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isBusy || !!status?.enabled}
           />
           <button
             type="button"
@@ -257,7 +278,7 @@ export default function LocalModbusWorkbenchPage() {
             onClick={() => void handleStartServer()}
             className="min-h-11 rounded-lg border border-emerald-400/30 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Start Server
+            啟動 Server
           </button>
           <button
             type="button"
@@ -265,161 +286,167 @@ export default function LocalModbusWorkbenchPage() {
             onClick={() => void handleStopServer()}
             className="min-h-11 rounded-lg border border-rose-400/30 bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Stop Server
-          </button>
-          <button
-            type="button"
-            onClick={() => void loadData()}
-            className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-          >
-            Refresh
+            停止 Server
           </button>
           <button
             type="button"
             disabled={!canWrite || isBusy}
             onClick={() => void handleSync()}
-            className="min-h-11 rounded-lg border border-emerald-400/30 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-lg border border-blue-400/30 bg-blue-500/20 px-3 py-2 text-xs font-semibold text-blue-100 hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Sync from Mappings
+            同步映射
           </button>
           <button
             type="button"
             onClick={handleExport}
             className="min-h-11 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
           >
-            Export
+            匯出
           </button>
           <label className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700">
-            Import
+            匯入
             <input type="file" accept="application/json" className="hidden" onChange={(e) => void handleImport(e)} />
           </label>
-          <p className={`ml-auto text-xs ${canWrite ? 'text-emerald-300' : 'text-amber-300'}`}>
-            Write Mode: {canWrite ? 'Ready' : 'Blocked'}
-          </p>
         </div>
       </section>
 
-      <section className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[420px_1fr_320px]">
-        <article className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-          <h2 className="text-sm font-semibold text-slate-100">Mapping Editor</h2>
-          <div className="mt-3 grid grid-cols-1 gap-2">
-            <select
-              value={selectedTagId}
-              onChange={(event) => setSelectedTagId(event.target.value)}
-              className="min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">選擇 Tag</option>
-              {tags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.key}
-                </option>
-              ))}
-            </select>
-            <input
-              value={registerInput}
-              onChange={(event) => setRegisterInput(event.target.value)}
-              placeholder="Register (0-65535)"
-              className="min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="button"
-              onClick={() => void handleUpsert()}
-              className="min-h-11 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500"
-            >
-              新增 / 更新映射
-            </button>
-          </div>
-          <div className="mt-3 max-h-[420px] space-y-2 overflow-auto">
-            {mappings.map((mapping) => (
-              <div key={mapping.tag_id} className="rounded-lg border border-white/10 bg-slate-800/70 p-2">
-                <p className="text-xs text-slate-100">
-                  {tagById.get(mapping.tag_id)?.key ?? mapping.tag_id}{' -> '}HR{mapping.register}
-                </p>
-                <p className="text-[11px] text-slate-400">{new Date(mapping.updated_at).toLocaleString()}</p>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(mapping.tag_id)}
-                  className="mt-1 text-[11px] text-rose-300 hover:text-rose-200"
-                >
-                  刪除
-                </button>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-          <h2 className="text-sm font-semibold text-slate-100">Server Memory Grid (5020)</h2>
-          <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/70 p-3">
-            <p className="text-xs text-slate-400">Preflight</p>
-            <div className="mt-1 flex flex-wrap gap-3 text-xs">
-              <span className={status?.bind_state === 'pass' ? 'text-emerald-300' : 'text-rose-300'}>
-                Bind: {(status?.bind_state ?? 'fail').toUpperCase()}
-              </span>
-              <span className={conflicts.length > 0 ? 'text-amber-300' : 'text-emerald-300'}>
-                Conflict: {conflicts.length > 0 ? `FAIL (${conflicts.length})` : 'PASS'}
-              </span>
-              <span className="text-emerald-300">Permission: PASS</span>
+      {/* ── 主要工作區：Mapping 編輯 / 衝突治理 / 寫入測試 ── */}
+      <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-[1fr_400px]">
+        {/* Mapping 編輯 */}
+        <article className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+          <h2 className="text-sm font-semibold text-slate-200 mb-3">Mapping 編輯</h2>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2">
+              <select
+                value={selectedTagId}
+                onChange={(event) => setSelectedTagId(event.target.value)}
+                className="min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">選擇 Tag</option>
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.key}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={registerInput}
+                onChange={(event) => setRegisterInput(event.target.value)}
+                placeholder="Register (0-65535)"
+                className="min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => void handleUpsert()}
+                disabled={isBusy}
+                className="min-h-11 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                新增 / 更新映射
+              </button>
+            </div>
+            <div className="max-h-[400px] space-y-2 overflow-auto rounded-lg border border-white/5 bg-slate-950/50 p-2">
+              {mappings.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-4">尚無映射</p>
+              ) : (
+                mappings.map((mapping) => (
+                  <div key={mapping.tag_id} className="rounded-lg border border-white/10 bg-slate-800/70 p-2">
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-slate-100">
+                          {tagById.get(mapping.tag_id)?.key ?? mapping.tag_id}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-400">HR{mapping.register}</p>
+                        <p className="mt-1 text-[10px] text-slate-500">{new Date(mapping.updated_at).toLocaleString()}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(mapping.tag_id)}
+                        className="ml-2 rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-500/20"
+                      >
+                        刪除
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-          <div className="mt-3 h-[420px] rounded-lg border border-white/10 bg-slate-950/70 p-3">
-            <p className="text-xs text-slate-400">Grid Canvas Placeholder (HR00000 - HR65535)</p>
-          </div>
         </article>
 
-        <article className="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-          <h2 className="text-sm font-semibold text-slate-100">Conflict + Write Test</h2>
-          <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/70 p-3">
-            <p className="text-xs font-semibold text-amber-200">Conflict Queue</p>
+        {/* 衝突治理 + 寫入測試 */}
+        <div className="space-y-4">
+          {/* 衝突治理 */}
+          <article className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+            <h2 className="text-sm font-semibold text-slate-200 mb-3">衝突治理</h2>
             {conflicts.length === 0 ? (
-              <p className="mt-2 text-xs text-emerald-300">無衝突</p>
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-center">
+                <p className="text-xs text-emerald-300">無衝突</p>
+                <p className="mt-1 text-[11px] text-emerald-200/80">所有映射皆可正常寫入</p>
+              </div>
             ) : (
-              <div className="mt-2 space-y-2">
+              <div className="space-y-2">
                 {conflicts.map((conflict) => (
-                  <div key={conflict.register} className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2">
-                    <p className="text-xs text-amber-200">HR{conflict.register}</p>
-                    <p className="text-[11px] text-amber-100">
+                  <div key={conflict.register} className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                    <p className="text-xs font-semibold text-amber-200">HR{conflict.register}</p>
+                    <p className="mt-1 text-[11px] text-amber-100">
                       {conflict.mappings.map((mapping) => tagById.get(mapping.tag_id)?.key ?? mapping.tag_id).join(' / ')}
                     </p>
+                    <p className="mt-1 text-[10px] text-amber-200/70">請刪除多餘映射以解決衝突</p>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-          <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/70 p-3">
-            <p className="text-xs font-semibold text-slate-200">Test Read/Write</p>
-            <select
-              value={testTagId}
-              onChange={(event) => setTestTagId(event.target.value)}
-              className="mt-2 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">選擇 Tag</option>
-              {tags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.key}
-                </option>
-              ))}
-            </select>
-            <input
-              value={testValue}
-              onChange={(event) => setTestValue(event.target.value)}
-              className="mt-2 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="button"
-              disabled={!canWrite || isBusy}
-              onClick={() => void handleWriteTest()}
-              className="mt-2 min-h-11 w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              執行測試寫入
-            </button>
-          </div>
-        </article>
+          </article>
+
+          {/* 寫入測試 */}
+          <article className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+            <h2 className="text-sm font-semibold text-slate-200 mb-3">寫入測試</h2>
+            <div className="space-y-2">
+              <select
+                value={testTagId}
+                onChange={(event) => setTestTagId(event.target.value)}
+                className="w-full min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">選擇 Tag</option>
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.key}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={testValue}
+                onChange={(event) => setTestValue(event.target.value)}
+                placeholder="測試數值"
+                className="w-full min-h-11 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                disabled={!canWrite || isBusy || !testTagId}
+                onClick={() => void handleWriteTest()}
+                className="w-full min-h-11 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                執行測試寫入
+              </button>
+              {!canWrite && (
+                <p className="text-[11px] text-amber-300">請先解決衝突或啟動 Server</p>
+              )}
+            </div>
+          </article>
+        </div>
       </section>
 
-      <footer className="mt-3 rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">
-        {isBusy ? '處理中...' : message || 'Ready'}
-      </footer>
+      {/* ── 狀態訊息 ── */}
+      {message && (
+        <footer 
+          className="mt-4 rounded-xl border border-white/10 bg-slate-900/70 px-4 py-2 text-xs text-slate-300"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {isBusy ? '處理中…' : message}
+        </footer>
+      )}
     </div>
   );
 }

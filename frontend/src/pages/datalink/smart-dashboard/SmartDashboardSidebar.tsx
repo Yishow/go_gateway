@@ -143,6 +143,26 @@ export default function SmartDashboardSidebar({
         </button>
       </div>
 
+      {/* ── 流程指引 ── */}
+      {selectedDevice && (
+        <div className="shrink-0 border-b border-white/5 px-3 py-2" role="region" aria-label={t('smartDashboard.sidebar.workflowGuide', { defaultValue: '工作流程' })}>
+          <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-200 mb-1.5">
+              {t('smartDashboard.sidebar.workflowGuide', { defaultValue: '工作流程' })}
+            </p>
+            <nav aria-label={t('smartDashboard.sidebar.workflowSteps', { defaultValue: '流程步驟' })} className="flex items-center gap-1 text-[10px] text-slate-300">
+              <span className={sidebarTab === 'plan' ? 'text-blue-300 font-medium' : ''} aria-current={sidebarTab === 'plan' ? 'step' : undefined}>1. 規劃</span>
+              <span className="text-slate-500" aria-hidden="true">→</span>
+              <span className={sidebarTab === 'tag' ? 'text-blue-300 font-medium' : ''} aria-current={sidebarTab === 'tag' ? 'step' : undefined}>2. Tag</span>
+              <span className="text-slate-500" aria-hidden="true">→</span>
+              <span className={sidebarTab === 'modbus' ? 'text-blue-300 font-medium' : ''} aria-current={sidebarTab === 'modbus' ? 'step' : undefined}>3. Modbus</span>
+              <span className="text-slate-500" aria-hidden="true">→</span>
+              <span className={sidebarTab === 'commit' ? 'text-blue-300 font-medium' : ''} aria-current={sidebarTab === 'commit' ? 'step' : undefined}>4. 提交</span>
+            </nav>
+          </div>
+        </div>
+      )}
+
       {/* ── Tab Bar ── */}
       <div className="flex shrink-0 border-b border-white/5">
         {TABS.map((tab) => {

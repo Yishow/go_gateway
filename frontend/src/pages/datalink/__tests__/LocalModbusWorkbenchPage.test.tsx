@@ -67,10 +67,10 @@ describe('LocalModbusWorkbenchPage', () => {
   it('starts local server with specified port', async () => {
     renderPage();
 
-    await screen.findByText('Stopped');
+    await screen.findByText('已停止');
     const input = await screen.findByPlaceholderText('Server Port');
     fireEvent.change(input, { target: { value: '5030' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start Server' }));
+    fireEvent.click(screen.getByRole('button', { name: '啟動 Server' }));
 
     await waitFor(() => {
       expect(mockModbusShareAPI.start).toHaveBeenCalledWith(5030);
@@ -88,7 +88,7 @@ describe('LocalModbusWorkbenchPage', () => {
 
     renderPage();
 
-    const stopButton = await screen.findByRole('button', { name: 'Stop Server' });
+    const stopButton = await screen.findByRole('button', { name: '停止 Server' });
     fireEvent.click(stopButton);
 
     await waitFor(() => {
@@ -111,7 +111,7 @@ describe('LocalModbusWorkbenchPage', () => {
 
     renderPage();
 
-    const syncButton = await screen.findByRole('button', { name: 'Sync from Mappings' });
+    const syncButton = await screen.findByRole('button', { name: '同步映射' });
     expect(syncButton).toBeDisabled();
     expect(mockModbusShareAPI.sync).not.toHaveBeenCalled();
   });
@@ -120,6 +120,6 @@ describe('LocalModbusWorkbenchPage', () => {
     renderPage('/datalink/local-modbus?section=settings');
     const returnLink = await screen.findByRole('link', { name: '返回 Dashboard' });
     expect(returnLink).toHaveAttribute('href', '/datalink?section=settings');
-    expect(screen.getByText('回跳區段: settings')).toBeInTheDocument();
+    // 已移除回跳區段顯示，改為更簡潔的 header
   });
 });
