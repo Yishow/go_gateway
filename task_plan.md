@@ -63,8 +63,18 @@
 - [complete] 統一 microcopy 使用 `designSystem.microcopy.*`
   - 已完成 `LocalModbusWorkbenchPage` loading 狀態統一（`designSystem.microcopy.loading.*`）
   - 已完成 `useSmartDashboardModbusActions` 與 `LocalModbusWorkbenchPage` 的 feedback 訊息統一（`designSystem.microcopy.feedback.*`）
-- [pending] 逐步將現有元件遷移到使用 `designSystem.components.*`
-- [pending] 考慮建立統一的 FormInput、FormLabel、FormError 元件
+- [complete] 逐步將現有元件遷移到使用 `designSystem.components.*`
+  - 已完成 SmartDashboard 中的 icon 按鈕遷移（`SmartDashboardWorkspaceContent`、`SmartDashboardSidebar`）
+  - 已完成 SmartDashboard 中的卡片與 badge 遷移（`SmartDashboardCommitPanel`）
+  - 其他頁面的按鈕與卡片樣式可在後續逐步遷移
+- [complete] 建立統一的 FormInput、FormLabel、FormError 元件
+  - 已建立 `frontend/src/components/forms/` 目錄下的統一表單元件
+  - `FormLabel`：使用 `designSystem.forms.label.*`，支援必填標記
+  - `FormInput`：整合 Label、Input、Error、Hint、Success，使用 `designSystem.forms.*`
+  - `FormError`：使用 `designSystem.forms.error.*`，支援圖示
+  - `FormHint`：使用 `designSystem.forms.hint.*`
+  - `FormSuccess`：使用 `designSystem.forms.success.*`，支援圖示
+  - 所有元件已通過 ESLint 驗證
 
 ### Phase 3: 重整 SmartDashboard 核心流程 [complete]
 - [x] 重新定義唯一主線：建立資料來源 -> 格子檢視 -> Tag 設定 -> Local Modbus -> 資料庫（已在 Sidebar 加入流程指引）

@@ -31,6 +31,33 @@
   - 補齊 `useSmartDashboardModbusActions.ts` 中缺少的 `designSystem` import
 - 驗證所有變更通過 ESLint 與測試（4 tests passed）
 
+### Phase 2 後續實作 - 建立統一表單元件 [完成]
+- 建立 `frontend/src/components/forms/` 目錄與統一表單元件：
+  - `FormLabel.tsx`：統一的表單標籤元件，支援必填標記（`required` prop）
+  - `FormInput.tsx`：整合的表單輸入元件，包含 Label、Input、Error、Hint、Success 訊息
+  - `FormError.tsx`：統一的錯誤訊息元件，支援圖示（AlertCircle）
+  - `FormHint.tsx`：統一的提示訊息元件
+  - `FormSuccess.tsx`：統一的成功訊息元件，支援圖示（CheckCircle2）
+  - `index.ts`：統一匯出所有表單元件
+- 所有元件特性：
+  - 使用 `designSystem.forms.*` 樣式系統
+  - 完整的 TypeScript 型別定義與 JSDoc 註解
+  - 支援 accessibility（`aria-invalid`、`aria-describedby`、`htmlFor`）
+  - 支援自訂 className 與 id
+- 驗證所有元件通過 ESLint
+
+### Phase 2 後續實作 - 元件遷移到 designSystem.components [進行中]
+- 遷移 `SmartDashboardWorkspaceContent` icon 按鈕：
+  - Grid 切換按鈕（ChevronLeft/Right）使用 `designSystem.components.button.icon`
+- 遷移 `SmartDashboardSidebar` icon 按鈕：
+  - Workbench、Import、Export、Undo、Redo、Shortcuts 按鈕使用 `designSystem.components.button.icon`
+- 遷移 `SmartDashboardCommitPanel` 卡片與 badge：
+  - Segment feedback 卡片使用 `designSystem.components.card.panel`
+  - Commit action message 卡片使用 `designSystem.components.card.panel`
+  - Chunk results 卡片使用 `designSystem.components.card.panel`
+  - Badge（pending、linked、conflict、committed、failed）使用 `designSystem.components.badge.*`
+- 驗證所有變更通過 ESLint
+
 ### Session Start
 - 執行 `planning-with-files` session catchup。
 - 確認專案根目錄存在，可建立持久化工作檔。

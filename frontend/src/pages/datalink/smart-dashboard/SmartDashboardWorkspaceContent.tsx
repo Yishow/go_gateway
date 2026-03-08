@@ -251,7 +251,7 @@ export default function SmartDashboardWorkspaceContent({
             <button
               type="button"
               onClick={() => onGridViewShift(-100)}
-              className="inline-flex items-center rounded border border-slate-600 bg-slate-800/80 p-1 text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className={`${designSystem.components.button.icon} rounded border border-slate-600 bg-slate-800/80 p-1 text-slate-300 hover:bg-slate-700 hover:text-slate-100`}
               title={t("smartDashboard.memoryGrid.prevRange")}
               aria-label={t("smartDashboard.memoryGrid.prevRange")}
             >
@@ -260,7 +260,7 @@ export default function SmartDashboardWorkspaceContent({
             <button
               type="button"
               onClick={() => onGridViewShift(100)}
-              className="inline-flex items-center rounded border border-slate-600 bg-slate-800/80 p-1 text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className={`${designSystem.components.button.icon} rounded border border-slate-600 bg-slate-800/80 p-1 text-slate-300 hover:bg-slate-700 hover:text-slate-100`}
               title={t("smartDashboard.memoryGrid.nextRange")}
               aria-label={t("smartDashboard.memoryGrid.nextRange")}
             >

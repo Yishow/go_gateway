@@ -1,3 +1,5 @@
+import { designSystem } from '../../../styles/designSystem';
+
 export interface SmartDashboardCommitPanelProps {
   commitQueueSummary: {
     total: number;
@@ -89,19 +91,19 @@ export default function SmartDashboardCommitPanel({
           <span className="text-[10px] text-slate-400">{t('smartDashboard.commit.total', { count: commitQueueSummary.total })}</span>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[10px]">
-          <span className="rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-slate-200">
+          <span className={designSystem.components.badge.default}>
             {t('smartDashboard.commit.pending', { count: commitQueueSummary.pending })}
           </span>
-          <span className="rounded border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-indigo-100">
+          <span className={designSystem.components.badge.info}>
             {t('smartDashboard.commit.linked', { count: commitQueueSummary.linked })}
           </span>
-          <span className="rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-100">
+          <span className={designSystem.components.badge.error}>
             {t('smartDashboard.commit.conflict', { count: commitQueueSummary.conflict })}
           </span>
-          <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-emerald-100">
+          <span className={designSystem.components.badge.success}>
             {t('smartDashboard.commit.committed', { count: commitQueueSummary.committed })}
           </span>
-          <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
+          <span className={designSystem.components.badge.warning}>
             {t('smartDashboard.commit.failed', { count: commitQueueSummary.failed })}
           </span>
         </div>
@@ -222,7 +224,7 @@ export default function SmartDashboardCommitPanel({
             {t('smartDashboard.commit.rollback')}
           </button>
         </div>
-        <div className="space-y-1 rounded-lg border border-white/10 bg-slate-900/60 p-2">
+        <div className={`${designSystem.components.card.panel} space-y-1`}>
           {segmentFeedback.map((segment) => (
             <div key={segment.id} className="flex items-center justify-between text-[11px]">
               <span className="text-slate-300">{segment.label}</span>
@@ -234,7 +236,7 @@ export default function SmartDashboardCommitPanel({
         </div>
         {commitActionMessage && (
           <p 
-            className="rounded border border-slate-700 bg-slate-900/70 px-2 py-1.5 text-[11px] text-slate-300"
+            className={`${designSystem.components.card.panel} rounded border border-slate-700 px-2 py-1.5 text-[11px] text-slate-300`}
             role="status"
             aria-live="polite"
             aria-atomic="true"
@@ -243,7 +245,7 @@ export default function SmartDashboardCommitPanel({
           </p>
         )}
         {commitChunkResults.length > 0 && (
-          <div className="space-y-1 rounded-lg border border-white/10 bg-slate-900/60 p-2">
+          <div className={`${designSystem.components.card.panel} space-y-1`}>
             <p className="text-[11px] font-semibold text-slate-200">{t('smartDashboard.commit.chunkResultsTitle')}</p>
             {commitChunkResults.map((chunkResult) => (
               <div key={chunkResult.chunk} className="flex items-center justify-between text-[10px]">

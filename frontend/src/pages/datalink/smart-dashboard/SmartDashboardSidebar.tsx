@@ -1,6 +1,7 @@
 import { Download, Keyboard, Redo2, Undo2, Upload, LayoutGrid } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import type { Device } from '../../../types/datalink';
+import { designSystem } from '../../../styles/designSystem';
 import SmartDashboardPlanningTab, {
   type SmartDashboardPlanningTabProps,
 } from './SmartDashboardPlanningTab';
@@ -83,7 +84,7 @@ export default function SmartDashboardSidebar({
           type="button"
           onClick={onOpenWorkbench}
           title="Server Memory Grid"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/50 text-slate-400 hover:bg-slate-800/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className={`${designSystem.components.button.icon} h-8 w-8 border border-slate-700/50`}
         >
           <LayoutGrid className="h-4 w-4" />
         </button>
@@ -136,7 +137,7 @@ export default function SmartDashboardSidebar({
           type="button"
           onClick={onOpenShortcuts}
           title={t('smartDashboard.shortcuts')}
-          className="ml-auto inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-slate-700/50 px-2 text-slate-400 hover:bg-slate-800/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className={`${designSystem.components.button.icon} ml-auto h-8 gap-1 px-2 border border-slate-700/50`}
         >
           <Keyboard className="h-4 w-4" />
           <span className="text-[10px] font-mono opacity-60">?</span>
