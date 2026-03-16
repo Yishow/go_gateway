@@ -299,9 +299,11 @@
   - device list 改成 compact row layout，只保留 identity / endpoint / health / 兩個 capability hints
   - inspector 持續承接 edit / clone / test 細節
 - [ ] `scan-source-toolbar-canvas`
-  - Step 2 收成單一 toolbar
-  - demote template / save-load / coverage / jump / freeze / snapshot
-  - 放大 `AddressCanvas`，降低 rule list 視覺權重
+- [x] `scan-source-toolbar-canvas`
+  - Step 2 收成 `source-primary-toolbar`
+  - jump / freeze / snapshot / save-load / batch create 改進 `source-secondary-controls`
+  - `AddressCanvas` workspace 標成 primary，rule layer 降為 supporting
+  - coverage overview 留在 primary workspace，但改成 lighter supporting strip
 - [ ] `scan-tag-row-board`
   - Step 3 厚卡改 row board
   - batch action 僅在 selection 後出現

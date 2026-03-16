@@ -258,7 +258,6 @@
 ### In Progress
 - `scan-first` implementation planning
   - `scan-shell-density`
-  - `scan-source-toolbar-canvas`
   - `scan-tag-row-board`
   - `scan-output-active-target`
   - `scan-cross-step-regressions`
@@ -309,6 +308,23 @@
 
 ### Validation
 - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+
+## 2026-03-17：scan-source-toolbar-canvas
+
+### Completed
+- 先在 `DatalinkWorkbenchSourceStep.test.tsx` 補紅燈：
+  - Step 2 需拆成 `source-primary-toolbar` 與 `source-secondary-controls`
+  - `source-canvas-workspace` 必須是 primary，`source-rule-layer` 必須是 supporting
+- `SourceCanvasSection.tsx` 已改為 scan-first Step 2：
+  - primary toolbar 承接 view mode / value format / planner inputs / apply
+  - secondary controls 承接 jump / freeze / snapshot / showAudit / batch create / save-load
+  - coverage overview 留在 primary workspace 內，但改為 lighter strip
+  - rule layer 改為 supporting side rail，減少與 canvas 競爭
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
 - `cd frontend && npm run lint`
 - `cd frontend && npx tsc --noEmit`
 

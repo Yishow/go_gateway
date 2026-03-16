@@ -111,6 +111,11 @@
 - 把 clone / continue 從 main surface 移除後，Step 1 的主要工作會自然收斂到 `search / filter / select`，而 edit / clone / test 仍可由 inspector 承接，不會真的少功能。
 - `protocol-traits` 不能直接當 compact row 的 endpoint；它在 MQTT / MC3E 代表的是 transport traits，不是連線目標。現在已改為使用 `buildDeviceEndpointSummary()`，而 capability hints 才繼續沿用 `buildDeviceCapabilitySummary()`。
 
+### 2026-03-17：scan-source-toolbar-canvas 實作發現
+- Step 2 的噪音來源不是單一 control，而是主工作區同時存在 `view mode row + planner row + jump row + template row + coverage panel`；它們都在 canvas 上方，會把 lattice 主體往下擠。
+- 將 Step 2 明確切成 `source-primary-toolbar` 與 `source-secondary-controls` 之後，使用者第一眼會先看到規劃與 canvas，而不是工具列牆。
+- coverage overview 不需要拿掉；只要把它縮成 primary workspace 裡的 supporting strip，而不是獨立大 panel，就能保留 jump / gap / conflict 掃描能力，同時降低競爭感。
+
 ## 2026-03-08
 
 ### 規範來源盤查

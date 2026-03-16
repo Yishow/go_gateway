@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
@@ -182,6 +182,73 @@ describe('DatalinkWorkbench source step', () => {
     expect(firstRow).toHaveAttribute('data-row-start-address', '40001');
     expect(firstRow).toHaveAttribute('data-row-end-address', '40005');
     expect(firstRow).toHaveAttribute('data-lattice-columns', '16');
+  });
+
+  it('keeps source planning in one primary toolbar and moves utility actions to a secondary group', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const primaryToolbar = screen.getByTestId('source-primary-toolbar');
+    const secondaryControls = screen.getByTestId('source-secondary-controls');
+
+    expect(
+      within(primaryToolbar).getByRole('button', { name: 'workbench.source.view.plan' }),
+    ).toBeInTheDocument();
+    expect(
+      within(primaryToolbar).getByLabelText('workbench.source.planner.startAddress'),
+    ).toBeInTheDocument();
+    expect(
+      within(primaryToolbar).getByRole('button', { name: 'workbench.source.planner.apply' }),
+    ).toBeInTheDocument();
+    expect(
+      within(primaryToolbar).queryByRole('button', {
+        name: 'workbench.source.toolbar.saveTemplate',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(primaryToolbar).queryByRole('button', {
+        name: 'workbench.source.toolbar.snapshotCompare',
+      }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      within(secondaryControls).getByRole('button', {
+        name: 'workbench.source.toolbar.saveTemplate',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(secondaryControls).getByRole('button', {
+        name: 'workbench.source.toolbar.loadTemplate',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(secondaryControls).getByRole('button', {
+        name: 'workbench.source.toolbar.snapshotCompare',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('treats the address canvas as the primary workspace and the rule layer as supporting context', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('source-canvas-workspace')).toHaveAttribute(
+      'data-emphasis',
+      'primary',
+    );
+    expect(screen.getByTestId('source-rule-layer')).toHaveAttribute(
+      'data-emphasis',
+      'supporting',
+    );
+    expect(
+      within(screen.getByTestId('source-canvas-workspace')).getByTestId(
+        'source-coverage-overview',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('preserves merged spans and gap cells across multiple source rules', () => {

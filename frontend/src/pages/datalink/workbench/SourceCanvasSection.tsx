@@ -551,8 +551,8 @@ export function SourceCanvasSection() {
 
   return (
     <section className="space-y-6">
-      <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 md:grid-cols-4">
-        <div className="space-y-1 md:col-span-2">
+      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/30 p-4 xl:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
             {t('workbench.runtime.summary.title')}
           </p>
@@ -575,7 +575,7 @@ export function SourceCanvasSection() {
           </p>
         </div>
 
-        <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+        <article className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-3">
           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
             {t('workbench.runtime.summary.pointsHealthy')}
           </p>
@@ -584,7 +584,7 @@ export function SourceCanvasSection() {
           </p>
         </article>
 
-        <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+        <article className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-3">
           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
             {t('workbench.runtime.summary.pointsStale')}
           </p>
@@ -594,9 +594,13 @@ export function SourceCanvasSection() {
         </article>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="space-y-4">
-          <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+          <section
+            className="space-y-3 rounded-2xl border border-slate-800/70 bg-slate-950/25 p-4"
+            data-emphasis="supporting"
+            data-testid="source-rule-layer"
+          >
             <div className="space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
                 {t('workbench.source.ruleLayer.eyebrow')}
@@ -610,21 +614,21 @@ export function SourceCanvasSection() {
             </div>
 
             {rules.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/40 px-3 py-4 text-xs text-slate-400">
+              <p className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 px-3 py-4 text-xs text-slate-400">
                 {t('workbench.source.ruleLayer.empty')}
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {rules.map((rule) => {
                   const coverage = buildSourceRuleCoverage(rule, selectedDevice.protocol);
                   const isSelected = rule.id === selectedRuleId;
                   return (
                     <article
                       className={[
-                        'space-y-3 rounded-xl border p-3 transition',
+                        'space-y-2 rounded-xl border p-3 transition',
                         isSelected
                           ? 'border-cyan-500/40 bg-cyan-500/10'
-                          : 'border-slate-800 bg-slate-900/70',
+                          : 'border-slate-800/70 bg-slate-900/50',
                       ].join(' ')}
                       data-testid={`source-rule-${rule.id}`}
                       key={rule.id}
@@ -651,9 +655,9 @@ export function SourceCanvasSection() {
                         </p>
                       </button>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <button
-                          className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-200"
+                          className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-300"
                           onClick={() => handleToggleRuleEnabled(rule.id)}
                           type="button"
                         >
@@ -693,69 +697,46 @@ export function SourceCanvasSection() {
           </section>
         </aside>
 
-        <div className="space-y-4">
-          <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {(['plan', 'live', 'link'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setViewMode(mode)}
-                    className={
-                      viewMode === mode
-                        ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
-                        : 'rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300'
-                    }
-                  >
-                    {t(`workbench.source.view.${mode}`)}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  aria-label={t('workbench.source.toolbar.valueFormat')}
-                  value={valueFormat}
-                  onChange={(event) =>
-                    setValueFormat(event.target.value as SourceValueFormat)
+        <section
+          className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
+          data-emphasis="primary"
+          data-testid="source-canvas-workspace"
+        >
+          <div
+            className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between"
+            data-testid="source-primary-toolbar"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              {(['plan', 'live', 'link'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  className={
+                    viewMode === mode
+                      ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
+                      : 'rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300'
                   }
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-200"
                 >
-                  <option value="decimal">{t('workbench.source.formats.decimal')}</option>
-                  <option value="hex">{t('workbench.source.formats.hex')}</option>
-                  <option value="binary">{t('workbench.source.formats.binary')}</option>
-                  <option value="float">{t('workbench.source.formats.float')}</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={handleToggleFreezeLive}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300"
-                >
-                  {freezeLive
-                    ? t('workbench.source.toolbar.unfreezeLive')
-                    : t('workbench.source.toolbar.freezeLive')}
+                  {t(`workbench.source.view.${mode}`)}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleCaptureSnapshot}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300"
-                >
-                  {t('workbench.source.toolbar.snapshotCompare')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAudit((currentValue) => !currentValue)}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300"
-                >
-                  {showAudit
-                    ? t('workbench.source.toolbar.hideAudit')
-                    : t('workbench.source.toolbar.showAudit')}
-                </button>
-              </div>
+              ))}
+              <select
+                aria-label={t('workbench.source.toolbar.valueFormat')}
+                value={valueFormat}
+                onChange={(event) =>
+                  setValueFormat(event.target.value as SourceValueFormat)
+                }
+                className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-200"
+              >
+                <option value="decimal">{t('workbench.source.formats.decimal')}</option>
+                <option value="hex">{t('workbench.source.formats.hex')}</option>
+                <option value="binary">{t('workbench.source.formats.binary')}</option>
+                <option value="float">{t('workbench.source.formats.float')}</option>
+              </select>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-5">
+            <div className="flex flex-1 flex-wrap items-end gap-2 xl:justify-end">
               <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
                 <span>{t('workbench.source.planner.startAddress')}</span>
                 <input
@@ -765,7 +746,7 @@ export function SourceCanvasSection() {
                     clearAppliedTemplate();
                     setStartAddress(event.target.value);
                   }}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-28 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 />
               </label>
               <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
@@ -777,7 +758,7 @@ export function SourceCanvasSection() {
                     clearAppliedTemplate();
                     setDataType(event.target.value as DataType);
                   }}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-28 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 >
                   {SOURCE_PLANNER_ALLOWED_DATA_TYPES.map((option) => (
                     <option key={option} value={option}>
@@ -797,7 +778,7 @@ export function SourceCanvasSection() {
                     clearAppliedTemplate();
                     setCount(Number(event.target.value) || 0);
                   }}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-20 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 />
               </label>
               <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
@@ -806,42 +787,49 @@ export function SourceCanvasSection() {
                   aria-label={t('workbench.source.planner.namingPrefix')}
                   value={namingPrefix}
                   onChange={(event) => setNamingPrefix(event.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-24 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 />
               </label>
-              <div className="flex items-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleApplyPlan}
-                  className="w-full rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-slate-950"
-                >
-                  {t('workbench.source.planner.apply')}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleApplyPlan}
+                className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-slate-950"
+              >
+                {t('workbench.source.planner.apply')}
+              </button>
             </div>
+          </div>
 
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                <span>{t('workbench.source.toolbar.jumpToAddress')}</span>
-                <input
-                  aria-label={t('workbench.source.toolbar.jumpToAddress')}
-                  value={jumpAddress}
-                  onChange={(event) => setJumpAddress(event.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                />
-              </label>
-              <div className="flex items-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleJumpToAddress}
-                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300"
-                >
-                  {t('workbench.source.toolbar.jump')}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
+          <div
+            className="space-y-3 rounded-xl border border-slate-800/60 bg-slate-950/20 px-3 py-3"
+            data-testid="source-secondary-controls"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleFreezeLive}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
+              >
+                {freezeLive
+                  ? t('workbench.source.toolbar.unfreezeLive')
+                  : t('workbench.source.toolbar.freezeLive')}
+              </button>
+              <button
+                type="button"
+                onClick={handleCaptureSnapshot}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
+              >
+                {t('workbench.source.toolbar.snapshotCompare')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAudit((currentValue) => !currentValue)}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
+              >
+                {showAudit
+                  ? t('workbench.source.toolbar.hideAudit')
+                  : t('workbench.source.toolbar.showAudit')}
+              </button>
               <button
                 type="button"
                 onClick={() => void handleBatchCreate()}
@@ -850,14 +838,14 @@ export function SourceCanvasSection() {
                   hasConflicts ||
                   createPointMutation.isPending
                 }
-                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300 disabled:opacity-50"
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
               >
                 {t('workbench.source.planner.batchCreate')}
               </button>
               <button
                 type="button"
                 onClick={handleOpenSaveTemplate}
-                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300 disabled:opacity-50"
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
               >
                 {t('workbench.source.toolbar.saveTemplate')}
               </button>
@@ -865,116 +853,147 @@ export function SourceCanvasSection() {
                 type="button"
                 onClick={handleOpenLoadTemplate}
                 disabled={templates.length === 0}
-                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300 disabled:opacity-50"
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
               >
                 {t('workbench.source.toolbar.loadTemplate')}
               </button>
             </div>
 
-            {isSaveTemplateOpen ? (
-              <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                  <span>{t('workbench.source.templates.name')}</span>
-                  <input
-                    aria-label={t('workbench.source.templates.name')}
-                    value={templateName}
-                    onChange={(event) => setTemplateName(event.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                  />
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSaveTemplate}
-                    className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-slate-950"
-                  >
-                    {t('workbench.source.templates.confirmSave')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSaveTemplateOpen(false);
-                      setTemplateName('');
-                    }}
-                    className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-                  >
-                    {t('workbench.source.templates.cancel')}
-                  </button>
-                </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                <span>{t('workbench.source.toolbar.jumpToAddress')}</span>
+                <input
+                  aria-label={t('workbench.source.toolbar.jumpToAddress')}
+                  value={jumpAddress}
+                  onChange={(event) => setJumpAddress(event.target.value)}
+                  className="w-36 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleJumpToAddress}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
+              >
+                {t('workbench.source.toolbar.jump')}
+              </button>
+            </div>
+          </div>
+
+          {isSaveTemplateOpen ? (
+            <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                <span>{t('workbench.source.templates.name')}</span>
+                <input
+                  aria-label={t('workbench.source.templates.name')}
+                  value={templateName}
+                  onChange={(event) => setTemplateName(event.target.value)}
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveTemplate}
+                  className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-slate-950"
+                >
+                  {t('workbench.source.templates.confirmSave')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSaveTemplateOpen(false);
+                    setTemplateName('');
+                  }}
+                  className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+                >
+                  {t('workbench.source.templates.cancel')}
+                </button>
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {isLoadTemplateOpen ? (
-              <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    {t('workbench.source.templates.library')}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {t('workbench.source.templates.description')}
-                  </p>
-                </div>
-                {templates.length > 0 ? (
-                  <div className="space-y-2">
-                    {templates.map((template) => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        aria-label={template.name}
-                        onClick={() => handleApplyTemplate(template)}
-                        className="block w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-3 text-left transition hover:border-cyan-500/40"
-                      >
-                        <p className="text-sm font-semibold text-slate-100">
-                          {template.name}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {template.startAddress} · {template.dataType} · {template.count}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400">
-                    {t('workbench.source.templates.empty')}
-                  </p>
-                )}
+          {isLoadTemplateOpen ? (
+            <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  {t('workbench.source.templates.library')}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {t('workbench.source.templates.description')}
+                </p>
               </div>
-            ) : null}
+              {templates.length > 0 ? (
+                <div className="space-y-2">
+                  {templates.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      aria-label={template.name}
+                      onClick={() => handleApplyTemplate(template)}
+                      className="block w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-3 text-left transition hover:border-cyan-500/40"
+                    >
+                      <p className="text-sm font-semibold text-slate-100">
+                        {template.name}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {template.startAddress} · {template.dataType} · {template.count}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  {t('workbench.source.templates.empty')}
+                </p>
+              )}
+            </div>
+          ) : null}
 
-            {hasConflicts ? (
-              <p className="text-sm text-rose-300">
-                {t('workbench.source.planner.conflictHint')}
-              </p>
-            ) : null}
+          {hasConflicts ? (
+            <p className="text-sm text-rose-300">
+              {t('workbench.source.planner.conflictHint')}
+            </p>
+          ) : null}
 
-            {templateWarning ? (
-              <p className="text-sm text-amber-200" data-testid="source-template-warning">
-                {templateWarning}
-              </p>
-            ) : null}
+          {templateWarning ? (
+            <p className="text-sm text-amber-200" data-testid="source-template-warning">
+              {templateWarning}
+            </p>
+          ) : null}
 
-            {templateNotice ? (
-              <p className="text-sm text-slate-300">{templateNotice}</p>
-            ) : null}
+          {templateNotice ? (
+            <p className="text-sm text-slate-300">{templateNotice}</p>
+          ) : null}
 
-            {batchCreateSummary ? (
-              <p className="text-sm text-slate-300">
-                {t('workbench.source.planner.batchSummary', batchCreateSummary)}
-              </p>
-            ) : null}
-          </section>
+          {batchCreateSummary ? (
+            <p className="text-sm text-slate-300">
+              {t('workbench.source.planner.batchSummary', batchCreateSummary)}
+            </p>
+          ) : null}
 
           <section
-            className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
+            className="space-y-2 rounded-xl border border-slate-800/60 bg-slate-950/20 p-3"
             data-testid="source-coverage-overview"
           >
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
-                {t('workbench.source.coverage.eyebrow')}
-              </p>
-              <h3 className="text-sm font-semibold text-slate-100">
-                {t('workbench.source.coverage.title')}
-              </h3>
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                  {t('workbench.source.coverage.eyebrow')}
+                </p>
+                <h3 className="text-sm font-semibold text-slate-100">
+                  {t('workbench.source.coverage.title')}
+                </h3>
+              </div>
+              {coverageSegments.length > 0 ? (
+                <p className="text-xs text-slate-400">
+                  {t('workbench.source.coverage.cells', {
+                    count: coverageSegments.reduce(
+                      (total, segment) => total + segment.cellCount,
+                      0,
+                    ),
+                  })}
+                </p>
+              ) : null}
             </div>
             {coverageSegments.length > 0 ? (
               <div className="space-y-3">
@@ -982,17 +1001,17 @@ export function SourceCanvasSection() {
                   {coverageSegments.map((segment) => (
                     <div
                       key={segment.id}
-                      className={`h-3 rounded-full ${getCoverageSegmentClass(segment.status)}`}
+                      className={`h-2 rounded-full ${getCoverageSegmentClass(segment.status)}`}
                       style={{ flex: Math.max(segment.cellCount, 1) }}
                       title={`${segment.startAddress} → ${segment.endAddress}`}
                     />
                   ))}
                 </div>
-                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <div className="flex flex-wrap gap-2">
                   {coverageSegments.map((segment) => (
                     <button
                       key={`${segment.id}-jump`}
-                      className="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-left text-xs text-slate-300"
+                      className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-left text-[11px] text-slate-300"
                       onClick={() => handleSelectAddress(segment.startAddress)}
                       type="button"
                     >
@@ -1000,10 +1019,7 @@ export function SourceCanvasSection() {
                         {segment.startAddress} → {segment.endAddress}
                       </p>
                       <p className="mt-1">
-                        {t(`workbench.source.coverage.status.${segment.status}`)} ·{' '}
-                        {t('workbench.source.coverage.cells', {
-                          count: segment.cellCount,
-                        })}
+                        {t(`workbench.source.coverage.status.${segment.status}`)}
                       </p>
                     </button>
                   ))}
@@ -1025,13 +1041,15 @@ export function SourceCanvasSection() {
           />
 
           {showAudit ? (
-            <AddressLedger
-              items={items}
-              valueFormat={valueFormat}
-              viewMode={viewMode}
-            />
+            <div className="rounded-xl border border-slate-800/60 bg-slate-950/20 p-3">
+              <AddressLedger
+                items={items}
+                valueFormat={valueFormat}
+                viewMode={viewMode}
+              />
+            </div>
           ) : null}
-        </div>
+        </section>
       </div>
     </section>
   );
