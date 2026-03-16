@@ -106,6 +106,11 @@
 - 同理，Step 4 也不能讓唯一 CTA 退回「切換設備」這種重置動作；即使先只做到語義層，也要讓 output step 保有 output-focused primary action。
 - 但把 Step 4 CTA 改成 output-focused 文案後，如果 click handler 是 no-op，一樣會變成新的 UX 假動作；最小可接受作法是讓它把焦點拉回 output 主控區。
 
+### 2026-03-17：scan-device-browser 實作發現
+- Device step 目前最吵的不是表單本身，而是 main surface 同時存在 `header action cluster + filter row + 厚 capability cards`，讓「先選設備」這個任務失焦。
+- 把 clone / continue 從 main surface 移除後，Step 1 的主要工作會自然收斂到 `search / filter / select`，而 edit / clone / test 仍可由 inspector 承接，不會真的少功能。
+- `protocol-traits` 不能直接當 compact row 的 endpoint；它在 MQTT / MC3E 代表的是 transport traits，不是連線目標。現在已改為使用 `buildDeviceEndpointSummary()`，而 capability hints 才繼續沿用 `buildDeviceCapabilitySummary()`。
+
 ## 2026-03-08
 
 ### 規範來源盤查

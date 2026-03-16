@@ -293,10 +293,11 @@
     - shell / foundation tests 與 scan-first spec 對齊
 
 #### Phase P1：Step surfaces（可平行） [pending]
-- [ ] `scan-device-browser`
-  - Step 1 列表降噪與 inline toolbar
-  - 未選取 / 已選取狀態更聚焦
-  - inspector 承接 edit / clone / test 細節
+- [x] `scan-device-browser`
+  - Step 1 改成 single-row primary toolbar（search / protocol / status / refresh / create）
+  - 移除 main surface 的 clone / continue cluster，前進改由 shell CTA 承接
+  - device list 改成 compact row layout，只保留 identity / endpoint / health / 兩個 capability hints
+  - inspector 持續承接 edit / clone / test 細節
 - [ ] `scan-source-toolbar-canvas`
   - Step 2 收成單一 toolbar
   - demote template / save-load / coverage / jump / freeze / snapshot

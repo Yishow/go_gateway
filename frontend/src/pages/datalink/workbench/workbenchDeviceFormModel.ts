@@ -494,3 +494,57 @@ export function buildDeviceConnectionSummary(
       ];
   }
 }
+
+function joinEndpointParts(
+  primary: string | null | undefined,
+  secondary?: string | null | undefined,
+  separator = ' · ',
+) {
+  const left = primary && primary.trim() !== '' ? primary : '—';
+  const right = secondary && secondary.trim() !== '' ? secondary : null;
+
+  if (!right) {
+    return left;
+  }
+
+  if (left === '—') {
+    return right;
+  }
+
+  return `${left}${separator}${right}`;
+}
+
+export function buildDeviceEndpointSummary(
+  protocol: ProtocolType,
+  connectionConfig: DeviceConnectionConfig,
+) {
+  switch (protocol) {
+    case 'modbus_tcp':
+    case 'modbus_udp':
+    case 'mc_3e':
+      return joinEndpointParts(
+        readConnectionValueAsString(connectionConfig, 'host'),
+        readConnectionValueAsString(connectionConfig, 'port'),
+        ':',
+      );
+    case 'modbus_rtu':
+      return joinEndpointParts(
+        readConnectionValueAsString(connectionConfig, 'serial_port'),
+        readConnectionValueAsString(connectionConfig, 'baud_rate'),
+      );
+    case 'fatek_fbs':
+      if (readConnectionValueAsString(connectionConfig, 'mode') === 'serial') {
+        return joinEndpointParts(
+          readConnectionValueAsString(connectionConfig, 'serial_port'),
+          readConnectionValueAsString(connectionConfig, 'baud_rate'),
+        );
+      }
+      return joinEndpointParts(
+        readConnectionValueAsString(connectionConfig, 'host'),
+        readConnectionValueAsString(connectionConfig, 'port'),
+        ':',
+      );
+    case 'mqtt':
+      return readConnectionValueAsString(connectionConfig, 'broker_url') ?? '—';
+  }
+}

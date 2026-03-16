@@ -22,6 +22,7 @@ import type {
 import { useWorkbench } from './WorkbenchProvider';
 import {
   buildDeviceCapabilitySummary,
+  buildDeviceEndpointSummary,
   buildDeviceDraftFromDevice,
   createDefaultDeviceConnectionConfig,
   createEmptyDeviceDraft,
@@ -227,16 +228,28 @@ function getNoticeClasses(tone: DeviceNotice['tone']) {
   }
 }
 
-function getDeviceTestLabel(t: (key: string) => string, device: Device) {
+function getDeviceHealthLabel(t: (key: string) => string, device: Device) {
   if (device.last_test_success === true) {
     return t('workbench.device.card.testPassed');
   }
 
   if (device.last_test_success === false) {
-    return device.last_test_error || t('workbench.device.card.testFailed');
+    return t('workbench.device.card.testFailed');
   }
 
   return t('workbench.device.card.notTested');
+}
+
+function getDeviceHealthClasses(lastTestSuccess: boolean | null) {
+  if (lastTestSuccess === true) {
+    return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200';
+  }
+
+  if (lastTestSuccess === false) {
+    return 'border-rose-500/40 bg-rose-500/10 text-rose-200';
+  }
+
+  return 'border-slate-700 bg-slate-900/70 text-slate-300';
 }
 
 function requireText(
@@ -375,10 +388,8 @@ export function WorkbenchDeviceStep() {
     clearInspectorSelection,
     closeDevicePanel,
     devicePanelState,
-    openCloneDevicePanel,
     openCreateDevicePanel,
     selectedDeviceId,
-    setActiveStep,
     setInspectorSelection,
     setSelectedDeviceId,
   } = useWorkbench();
@@ -393,11 +404,6 @@ export function WorkbenchDeviceStep() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
   const [notice, setNotice] = useState<DeviceNotice | null>(null);
   const pendingSelectedDeviceIdRef = useRef<string | null>(null);
-
-  const selectedDevice = useMemo(
-    () => devices.find((device) => device.id === selectedDeviceId) ?? null,
-    [devices, selectedDeviceId],
-  );
 
   const filteredDevices = useMemo(() => {
     return devices.filter((device) => {
@@ -1016,15 +1022,39 @@ export function WorkbenchDeviceStep() {
             {t('workbench.device.description')}
           </p>
         </div>
-        {devices.length > 0 ? (
-          <div className="flex flex-wrap gap-3">
-            <button
-              className={primaryButtonClassName}
-              onClick={openCreateDevicePanel}
-              type="button"
-            >
-              {t('workbench.device.actions.create')}
-            </button>
+      </div>
+
+      {devices.length > 0 ? (
+        <div
+          className="grid gap-3 rounded-3xl border border-slate-800 bg-slate-950/40 p-5 xl:grid-cols-[minmax(0,1fr)_180px_180px_auto] xl:items-end"
+          data-testid="device-primary-toolbar"
+        >
+          <TextField
+            id="workbench-device-search"
+            label={t('workbench.device.search.label')}
+            onChange={setSearchQuery}
+            placeholder={t('workbench.device.search.placeholder')}
+            value={searchQuery}
+          />
+          <SelectField
+            id="workbench-device-protocol-filter"
+            label={t('workbench.device.filters.protocol')}
+            onChange={(value) =>
+              setProtocolFilter(value === 'all' ? 'all' : (value as ProtocolType))
+            }
+            options={protocolOptions}
+            value={protocolFilter}
+          />
+          <SelectField
+            id="workbench-device-status-filter"
+            label={t('workbench.device.filters.status')}
+            onChange={(value) =>
+              setStatusFilter(value === 'all' ? 'all' : (value as DeviceStatus))
+            }
+            options={statusOptions}
+            value={statusFilter}
+          />
+          <div className="flex flex-wrap items-end justify-end gap-2">
             <button
               className={ghostButtonClassName}
               onClick={() => void handleRefreshDevices()}
@@ -1033,53 +1063,15 @@ export function WorkbenchDeviceStep() {
               {t('workbench.device.actions.refresh')}
             </button>
             <button
-              className={ghostButtonClassName}
-              disabled={!selectedDevice}
-              onClick={() => selectedDevice && openCloneDevicePanel(selectedDevice.id)}
+              className={primaryButtonClassName}
+              onClick={openCreateDevicePanel}
               type="button"
             >
-              {t('workbench.device.actions.clone')}
+              {t('workbench.device.actions.create')}
             </button>
-            {selectedDevice ? (
-              <button
-                className={ghostButtonClassName}
-                onClick={() => setActiveStep('source')}
-                type="button"
-              >
-                {t('workbench.device.actions.continue')}
-              </button>
-            ) : null}
           </div>
-        ) : null}
-      </div>
-
-      <div className="grid gap-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-5 md:grid-cols-[minmax(0,1fr)_180px_180px]">
-        <TextField
-          id="workbench-device-search"
-          label={t('workbench.device.search.label')}
-          onChange={setSearchQuery}
-          placeholder={t('workbench.device.search.placeholder')}
-          value={searchQuery}
-        />
-        <SelectField
-          id="workbench-device-protocol-filter"
-          label={t('workbench.device.filters.protocol')}
-          onChange={(value) =>
-            setProtocolFilter(value === 'all' ? 'all' : (value as ProtocolType))
-          }
-          options={protocolOptions}
-          value={protocolFilter}
-        />
-        <SelectField
-          id="workbench-device-status-filter"
-          label={t('workbench.device.filters.status')}
-          onChange={(value) =>
-            setStatusFilter(value === 'all' ? 'all' : (value as DeviceStatus))
-          }
-          options={statusOptions}
-          value={statusFilter}
-        />
-      </div>
+        </div>
+      ) : null}
 
       {notice ? (
         <div
@@ -1134,22 +1126,28 @@ export function WorkbenchDeviceStep() {
       ) : null}
 
       {!isLoading && filteredDevices.length > 0 ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="space-y-3">
           {filteredDevices.map((device) => {
             const isSelected = device.id === selectedDeviceId;
+            const connectionConfig = parseDeviceConnectionConfig(device.connection_config);
             const capabilitySummary = buildDeviceCapabilitySummary(
               device.protocol,
-              parseDeviceConnectionConfig(device.connection_config),
+              connectionConfig,
               t,
+            );
+            const endpoint = buildDeviceEndpointSummary(device.protocol, connectionConfig);
+            const capabilityHints = capabilitySummary.filter(
+              (item) => item.id === 'unit-id' || item.id === 'address-base',
             );
 
             return (
               <button
+                data-testid={`device-row-${device.id}`}
                 key={device.id}
                 aria-label={device.name}
                 aria-pressed={isSelected}
                 className={joinClasses(
-                  'flex flex-col gap-4 rounded-3xl border p-5 text-left transition',
+                  'grid w-full gap-3 rounded-2xl border px-4 py-4 text-left transition lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_auto] lg:items-center',
                   isSelected
                     ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
                     : 'border-slate-800 bg-slate-950/40 hover:border-slate-600 hover:bg-slate-900/70',
@@ -1161,20 +1159,40 @@ export function WorkbenchDeviceStep() {
                 }}
                 type="button"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-lg font-semibold text-slate-50">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-base font-semibold text-slate-50">
                         {device.name}
-                      </span>
-                      <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
+                    </span>
+                    <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
                         {t(getWorkbenchProtocolLabelKey(device.protocol))}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-400">
-                      {device.description || t('workbench.device.card.noDescription')}
-                    </p>
+                    </span>
                   </div>
+                  <p
+                    className="truncate text-sm text-slate-400"
+                    data-testid={`device-endpoint-${device.id}`}
+                  >
+                    {endpoint}
+                  </p>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {capabilityHints.map((item) => (
+                    <div
+                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2"
+                      key={`${device.id}-${item.id}`}
+                    >
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                        {t(item.labelKey)}
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-slate-100">
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                   <span
                     className={joinClasses(
                       'rounded-full border px-2 py-1 text-xs font-medium',
@@ -1183,35 +1201,15 @@ export function WorkbenchDeviceStep() {
                   >
                     {t(getWorkbenchDeviceStatusLabelKey(device.status))}
                   </span>
-                </div>
-                <dl className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <dt className={labelClassName}>
-                      {t('workbench.device.card.protocol')}
-                    </dt>
-                    <dd>{t(getWorkbenchProtocolLabelKey(device.protocol))}</dd>
-                  </div>
-                  <div className="space-y-1">
-                    <dt className={labelClassName}>
-                      {t('workbench.device.card.lastTest')}
-                    </dt>
-                    <dd>{getDeviceTestLabel(t, device)}</dd>
-                  </div>
-                </dl>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {capabilitySummary.map((item) => (
-                    <div
-                      className="rounded-2xl border border-slate-800 bg-slate-950/70 px-3 py-3"
-                      key={`${device.id}-${item.id}`}
-                    >
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                        {t(item.labelKey)}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-slate-100">
-                        {item.value}
-                      </p>
-                    </div>
-                  ))}
+                  <span
+                    className={joinClasses(
+                      'rounded-full border px-2.5 py-1 text-[11px] font-medium',
+                      getDeviceHealthClasses(device.last_test_success),
+                    )}
+                    data-testid={`device-health-${device.id}`}
+                  >
+                    {getDeviceHealthLabel(t, device)}
+                  </span>
                 </div>
               </button>
             );

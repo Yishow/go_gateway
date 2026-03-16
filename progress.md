@@ -258,7 +258,6 @@
 ### In Progress
 - `scan-first` implementation planning
   - `scan-shell-density`
-  - `scan-device-browser`
   - `scan-source-toolbar-canvas`
   - `scan-tag-row-board`
   - `scan-output-active-target`
@@ -293,6 +292,25 @@
 - `frontend/src/pages/datalink/workbench/LocalModbusBoard.tsx`
 - `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx`
 - `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchFoundation.test.tsx`
+
+## 2026-03-17：scan-device-browser
+
+### Completed
+- 先在 `DatalinkWorkbenchFoundation.test.tsx` 補紅燈：
+  - Step 1 要有 `device-primary-toolbar`
+  - compact row 要只保留 endpoint / health / 兩個 capability hints
+  - MQTT / MC3E compact row endpoint 要顯示真正 connection target，而不是 `protocol-traits`
+- `WorkbenchDeviceStep.tsx` 已改為 scan-first Step 1：
+  - toolbar 收成單列（search / protocol / status / refresh / create）
+  - main surface 移除 clone / continue cluster
+  - device list 改成 compact rows，詳細能力與 recent tests 留在 inspector
+- `workbenchDeviceFormModel.ts` 新增 `buildDeviceEndpointSummary()`，將 host/port、serial、broker URL 等 endpoint derivation 集中處理。
+- foundation 內「前進到 source」測試改為走 ContextBar CTA，對齊 shell-first 流程。
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
 
 ### Validation
 - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx`

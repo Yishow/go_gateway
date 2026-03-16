@@ -223,6 +223,97 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(screen.getByTestId('workbench-inspector-panel')).toBeInTheDocument();
   });
 
+  it('keeps Step 1 search, protocol filter, and create action inside one primary toolbar', () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const toolbar = screen.getByTestId('device-primary-toolbar');
+
+    expect(
+      within(toolbar).getByRole('textbox', { name: 'workbench.device.search.label' }),
+    ).toBeInTheDocument();
+    expect(
+      within(toolbar).getByRole('combobox', { name: 'workbench.device.filters.protocol' }),
+    ).toBeInTheDocument();
+    expect(
+      within(toolbar).getByRole('button', { name: 'workbench.device.actions.create' }),
+    ).toBeInTheDocument();
+    expect(
+      within(toolbar).queryByRole('button', { name: 'workbench.device.actions.clone' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'workbench.device.actions.continue' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders compact device rows with endpoint, health, and two primary capability hints', () => {
+    renderApp();
+
+    const row = screen.getByTestId('device-row-device-1');
+
+    expect(within(row).getByText('192.168.1.10:502')).toBeInTheDocument();
+    expect(within(row).getByTestId('device-health-device-1')).toHaveTextContent(
+      'workbench.device.card.testPassed',
+    );
+    expect(
+      within(row).getByText('workbench.device.capability.labels.unitId'),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByText('workbench.device.capability.labels.addressBase'),
+    ).toBeInTheDocument();
+    expect(
+      within(row).queryByText('workbench.device.capability.labels.wordOrder'),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).queryByText('workbench.device.capability.labels.protocolTraits'),
+    ).not.toBeInTheDocument();
+    expect(within(row).queryByText('Main line')).not.toBeInTheDocument();
+  });
+
+  it('uses protocol-specific connection targets for compact row endpoints', () => {
+    mockDevices.push(
+      {
+        id: 'device-3',
+        name: 'Telemetry Broker',
+        description: 'MQTT edge',
+        protocol: 'mqtt',
+        status: 'active',
+        connection_config:
+          '{"broker_url":"mqtt://broker.internal:1883","client_id":"edge-gateway","topics":["plant/telemetry"],"use_tls":true,"qos":1}',
+        last_test_at: null,
+        last_test_success: null,
+        last_test_error: '',
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'device-4',
+        name: 'Packaging PLC',
+        description: 'MC 3E line',
+        protocol: 'mc_3e',
+        status: 'active',
+        connection_config:
+          '{"host":"10.0.0.20","port":5000,"network_no":1,"station_no":2,"data_format":"binary"}',
+        last_test_at: null,
+        last_test_success: null,
+        last_test_error: '',
+        created_at: '',
+        updated_at: '',
+      },
+    );
+
+    renderApp();
+
+    const mqttRow = screen.getByTestId('device-row-device-3');
+    expect(within(mqttRow).getByText('mqtt://broker.internal:1883')).toBeInTheDocument();
+    expect(within(mqttRow).queryByText(/QoS 1/)).not.toBeInTheDocument();
+
+    const mcRow = screen.getByTestId('device-row-device-4');
+    expect(within(mcRow).getByText('10.0.0.20:5000')).toBeInTheDocument();
+    expect(within(mcRow).queryByText('1/2 · binary')).not.toBeInTheDocument();
+  });
+
   it('supports workbench deep links for step and output target', async () => {
     window.history.pushState({}, '', '/datalink/workbench?step=output&target=database');
 
@@ -258,9 +349,7 @@ describe('DatalinkWorkbench foundation route', () => {
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    fireEvent.click(
-      screen.getByRole('button', { name: 'workbench.device.actions.continue' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
 
     expect(
       screen.getByRole('button', { name: /workbench\.steps\.source/ }),
