@@ -97,14 +97,7 @@ export function TagBindingStudio() {
   );
   const [batchSummary, setBatchSummary] = useState<TagBindingBatchSummary | null>(null);
 
-  const pointIdsKey = useMemo(
-    () => points.map((point) => point.id).join('|'),
-    [points],
-  );
-  const allPointIds = useMemo(
-    () => (pointIdsKey ? pointIdsKey.split('|') : []),
-    [pointIdsKey],
-  );
+  const pointIdsKey = useMemo(() => points.map((point) => point.id).join('|'), [points]);
 
   const candidates = useMemo(
     () =>
@@ -121,9 +114,9 @@ export function TagBindingStudio() {
   );
 
   useEffect(() => {
-    setSelectedPointIds(allPointIds);
+    setSelectedPointIds([]);
     setBatchSummary(null);
-  }, [allPointIds, selectedDeviceId]);
+  }, [pointIdsKey, selectedDeviceId]);
 
   useEffect(() => {
     setExistingTagSelections((currentState) => {
@@ -485,7 +478,7 @@ export function TagBindingStudio() {
           </div>
         </div>
 
-        <div className="grid gap-3">
+        <div className="space-y-2" data-testid="tag-candidate-board" data-layout="row-board">
           {filteredCandidates.map((candidate) => {
             const selected = selectedPointIds.includes(candidate.pointId);
             const boundMapping = mappingByPointId.get(candidate.pointId);
@@ -497,6 +490,7 @@ export function TagBindingStudio() {
             return (
               <article
                 key={candidate.pointId}
+                data-layout="row"
                 data-testid={`tag-candidate-${candidate.pointId}`}
                 onClick={() =>
                   setInspectorSelection({
@@ -516,15 +510,15 @@ export function TagBindingStudio() {
                     conflictReason: candidate.conflictReason,
                     alreadyLinked: candidate.alreadyLinked,
                     existingTagLabel: selectedExistingTag?.displayName ?? null,
-                  })
+                    })
                 }
-                className={`rounded-2xl border p-4 transition ${
+                className={`rounded-xl border px-4 py-3 transition ${
                   selected
                     ? 'border-cyan-500/40 bg-cyan-500/5'
                     : 'border-slate-800 bg-slate-900/70'
                 }`}
               >
-                <div className="flex gap-3">
+                <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(220px,0.9fr)] lg:items-center">
                   <span className="pt-1">
                     <input
                       type="checkbox"
@@ -536,116 +530,94 @@ export function TagBindingStudio() {
                     />
                   </span>
 
-                  <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(220px,0.8fr)]">
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-slate-50">
-                          {candidate.pointName}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {t('workbench.tag.selection.pointMeta', {
-                            address: candidate.pointAddress,
-                            dataType: candidate.dataType,
-                          })}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {t('workbench.tag.board.span', {
-                            cells: candidate.cellSpan,
-                            bitWidth: candidate.bitWidth,
-                          })}
-                        </p>
-                      </div>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-semibold text-slate-50">
+                      {candidate.pointName}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {t('workbench.tag.selection.pointMeta', {
+                        address: candidate.pointAddress,
+                        dataType: candidate.dataType,
+                      })}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {t('workbench.tag.board.span', {
+                        cells: candidate.cellSpan,
+                        bitWidth: candidate.bitWidth,
+                      })}
+                    </p>
+                  </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        {candidate.alreadyLinked ? (
-                          <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
-                            {t('workbench.tag.badges.alreadyLinked')}
-                          </span>
-                        ) : null}
-                        {candidate.conflictReason === 'existing-key' ? (
-                          <span className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-200">
-                            {t('workbench.tag.badges.existingKey')}
-                          </span>
-                        ) : null}
-                        {candidate.conflictReason === 'duplicate-preview' ? (
-                          <span className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-200">
-                            {t('workbench.tag.badges.duplicatePreview')}
-                          </span>
-                        ) : null}
-                      </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                        {t('workbench.tag.board.rawValue')}
+                      </p>
+                      <p
+                        className="mt-1 text-sm font-medium text-slate-100"
+                        data-testid={`tag-raw-${candidate.pointId}`}
+                      >
+                        {formatCandidateValue(candidate.rawValue)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                        {t('workbench.tag.board.transformedValue')}
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-slate-100">
+                        {formatCandidateValue(candidate.transformedValue)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 lg:justify-self-end">
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusToneClass(
+                        candidate.bindingStatus,
+                      )}`}
+                      data-testid={`tag-status-${candidate.pointId}`}
+                    >
+                      {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
+                    </span>
+
+                    <div
+                      data-testid={`tag-preview-${candidate.pointId}`}
+                      data-conflict={candidate.conflict ? 'true' : 'false'}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                        candidate.conflict
+                          ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
+                          : 'border-slate-800 bg-slate-950/80 text-cyan-100'
+                      }`}
+                    >
+                      {candidate.previewKey}
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                          {t('workbench.tag.board.rawValue')}
-                        </p>
-                        <p
-                          className="mt-2 text-sm font-medium text-slate-100"
-                          data-testid={`tag-raw-${candidate.pointId}`}
+                    {flowMode === 'existing' ? (
+                      <label className="block space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                        <span>{t('workbench.tag.board.existingTag')}</span>
+                        <select
+                          data-testid={`existing-tag-select-${candidate.pointId}`}
+                          value={existingTagSelections[candidate.pointId] ?? ''}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) =>
+                            handleExistingTagSelection(
+                              candidate.pointId,
+                              event.target.value,
+                            )
+                          }
+                          className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                         >
-                          {formatCandidateValue(candidate.rawValue)}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                          {t('workbench.tag.board.transformedValue')}
-                        </p>
-                        <p className="mt-2 text-sm font-medium text-slate-100">
-                          {formatCandidateValue(candidate.transformedValue)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusToneClass(
-                          candidate.bindingStatus,
-                        )}`}
-                        data-testid={`tag-status-${candidate.pointId}`}
-                      >
-                        {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
-                      </span>
-
-                      <div
-                        data-testid={`tag-preview-${candidate.pointId}`}
-                        data-conflict={candidate.conflict ? 'true' : 'false'}
-                        className={`rounded-xl border px-3 py-2 text-sm font-medium ${
-                          candidate.conflict
-                            ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
-                            : 'border-slate-800 bg-slate-950/80 text-cyan-100'
-                        }`}
-                      >
-                        {candidate.previewKey}
-                      </div>
-
-                      {flowMode === 'existing' ? (
-                        <label className="block space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                          <span>{t('workbench.tag.board.existingTag')}</span>
-                          <select
-                            data-testid={`existing-tag-select-${candidate.pointId}`}
-                            value={existingTagSelections[candidate.pointId] ?? ''}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) =>
-                              handleExistingTagSelection(
-                                candidate.pointId,
-                                event.target.value,
-                              )
-                            }
-                            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                          >
-                            <option value="">
-                              {t('workbench.tag.board.noExistingTag')}
+                          <option value="">
+                            {t('workbench.tag.board.noExistingTag')}
+                          </option>
+                          {candidate.existingTagOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.displayName}
                             </option>
-                            {candidate.existingTagOptions.map((option) => (
-                              <option key={option.id} value={option.id}>
-                                {option.displayName}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ) : null}
-                    </div>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
                   </div>
                 </div>
               </article>
@@ -830,19 +802,21 @@ export function TagBindingStudio() {
           </p>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => void handleBatchBind()}
-          disabled={
-            readyCount === 0
-            || blockedSelectionCount > 0
-            || createTagMutation.isPending
-            || createMappingMutation.isPending
-          }
-          className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {t('workbench.tag.actions.bind')}
-        </button>
+        {selectedCandidates.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => void handleBatchBind()}
+            disabled={
+              readyCount === 0
+              || blockedSelectionCount > 0
+              || createTagMutation.isPending
+              || createMappingMutation.isPending
+            }
+            className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t('workbench.tag.actions.bind')}
+          </button>
+        ) : null}
 
         {batchSummary ? (
           <div

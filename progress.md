@@ -255,9 +255,11 @@
 - 取得使用者同意進入 implementation planning
 - 已將 planning 檔同步到新的 `scan-first` phase breakdown
 
-### In Progress
+### Completed
 - `scan-first` implementation planning
   - `scan-shell-density`
+  - `scan-device-browser`
+  - `scan-source-toolbar-canvas`
   - `scan-tag-row-board`
   - `scan-output-active-target`
   - `scan-cross-step-regressions`
@@ -325,6 +327,56 @@
 
 ### Validation
 - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+
+## 2026-03-17：scan-tag-row-board
+
+### Completed
+- 先在 `DatalinkWorkbenchTagStep.test.tsx` 補紅燈：
+  - row board 需要明確的 `tag-candidate-board` / `data-layout="row-board"` 結構
+  - batch diff preview 與 bind CTA 只有在至少選取一筆 row 後才顯示
+  - conflict detail 不再出現在預設 row，而是改由 inspector 承接
+- `TagBindingStudio.tsx` 已改為 scan-first Step 3：
+  - `selectedPointIds` 進入 Step 3 時預設為空，不再自動全選所有 point
+  - candidate list 改成 row-board / table-like 密度，將 source meta、raw/transformed value、preview/status 壓回單列
+  - `alreadyLinked` / `existingKey` / `duplicatePreview` badge 從 row 主表面移除，交由 inspector 顯示
+  - batch diff preview / bind CTA 僅在 selection 存在時顯示
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-tag-step.test.tsx`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+
+## 2026-03-17：scan-output-active-target
+
+### Completed
+- 先在 `DatalinkWorkbenchOutputStep.test.tsx` 補紅燈：
+  - shared candidate rows 只顯示 active target 的 mapping field
+  - Modbus operational panels 要明確標成 supporting sections
+  - Database 的 schema snapshot / write preview 要被 grouped 成 supporting secondary panels
+  - shared output candidate selection 要與 Database mapping form 維持同步，不能 split-brain
+- `LocalModbusBoard.tsx` 已改為 scan-first Step 4：
+  - shared candidate row 依 `activeOutputTarget` 僅顯示 Modbus 或 Database 其中一種狀態 badge
+  - Modbus metrics / server controls 區塊加上 `modbus-secondary-panels` supporting 語意
+  - active target 切換後，shared candidate selection 與 database form 共用同一個 `selectedTagId`
+- `DatabaseTargetBoard.tsx` 已改為 scan-first Step 4：
+  - selection 改由 parent 注入，消除 shared board / database board 的雙重選取來源
+  - schema snapshot 與 write-row-preview 改收進 `database-secondary-panels`
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-output-step.test.tsx`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+
+## 2026-03-17：scan-cross-step-regressions
+
+### Completed
+- 針對 shell / foundation / source / tag / output / locale 跑一輪 workbench regression，確認 Step 3 與 Step 4 的 progressive disclosure 沒有打壞既有路徑。
+- 驗證 shell CTA、shared output target switcher、source canvas hierarchy、tag row-board disclosure、database form sync 均維持可用。
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
 - `cd frontend && npm run lint`
 - `cd frontend && npx tsc --noEmit`
 

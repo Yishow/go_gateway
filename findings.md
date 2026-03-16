@@ -116,6 +116,18 @@
 - 將 Step 2 明確切成 `source-primary-toolbar` 與 `source-secondary-controls` 之後，使用者第一眼會先看到規劃與 canvas，而不是工具列牆。
 - coverage overview 不需要拿掉；只要把它縮成 primary workspace 裡的 supporting strip，而不是獨立大 panel，就能保留 jump / gap / conflict 掃描能力，同時降低競爭感。
 
+### 2026-03-17：scan-tag-row-board 實作發現
+- Step 3 最破壞掃描節奏的，不是資料量本身，而是 candidate row 一進來就預設全選、同時常駐 batch diff / bind actions；使用者還沒開始選，就先被次要操作淹沒。
+- 把 `selectedPointIds` 改成預設空集合後，batch diff preview 與 bind CTA 才真正符合 progressive disclosure，也讓 create / existing flow 的意圖更清楚。
+- `alreadyLinked` / `existingKey` / `duplicatePreview` 這些衝突細節若留在主 row，會把 row-board 再次打回 badge 牆；主表面只保留 status 與 preview key，衝突原因交給 inspector，掃描速度會明顯改善。
+- Step 3 的 row-board 不只是視覺變薄；它同時把 `point + address/dataType + span + raw/transformed value + preview/status` 壓回單列結構，讓使用者能在桌面上更快做橫向比對。
+
+### 2026-03-17：scan-output-active-target 實作發現
+- Step 4 的 shared candidate row 若同時常駐 Modbus 與 Database 兩種狀態 badge，使用者仍會把它讀成「雙重工作台」，active target 切換的聚焦效果會被抵消。
+- shared output row 改成只顯示目前 active target 的 mapping badge 後，center board 才真正符合「一次操作一種輸出模式」；另一側 target 的細節仍留在 inspector trace，不是功能消失。
+- `DatabaseTargetBoard` 若自己再維護一份 `selectedTagId`，會和上方 shared candidate board 形成 split-brain selection；把 tag selection 提升成單一來源後，shared row、database form、inspector 才會一起同步。
+- Modbus operational cards 與 Database 的 schema/preview panels 只要明確標成 `supporting` secondary sections，就能在不刪功能的前提下降低畫面權重，符合本輪 scan-first 目標。
+
 ## 2026-03-08
 
 ### 規範來源盤查

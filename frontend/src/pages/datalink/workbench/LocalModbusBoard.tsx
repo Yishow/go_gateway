@@ -753,30 +753,33 @@ export function LocalModbusBoard() {
                 </span>
 
                 <span className="flex flex-wrap gap-2">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      candidate.register !== null
-                        ? 'bg-emerald-500/10 text-emerald-200'
-                        : 'bg-slate-800 text-slate-300'
-                    }`}
-                    data-testid={`output-modbus-status-${candidate.tagId}`}
-                  >
-                    {candidate.register !== null
-                      ? `HR${candidate.register}`
-                      : t('workbench.output.selection.unmapped')}
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      candidate.databasePath
-                        ? 'bg-violet-500/10 text-violet-200'
-                        : 'bg-slate-800 text-slate-300'
-                    }`}
-                    data-testid={`output-db-status-${candidate.tagId}`}
-                  >
-                    {candidate.databasePath
-                      ? candidate.databasePath
-                      : t('workbench.output.selection.databaseUnmapped')}
-                  </span>
+                  {activeOutputTarget === 'modbus' ? (
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        candidate.register !== null
+                          ? 'bg-emerald-500/10 text-emerald-200'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                      data-testid={`output-modbus-status-${candidate.tagId}`}
+                    >
+                      {candidate.register !== null
+                        ? `HR${candidate.register}`
+                        : t('workbench.output.selection.unmapped')}
+                    </span>
+                  ) : (
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        candidate.databasePath
+                          ? 'bg-violet-500/10 text-violet-200'
+                          : 'bg-slate-800 text-slate-300'
+                      }`}
+                      data-testid={`output-db-status-${candidate.tagId}`}
+                    >
+                      {candidate.databasePath
+                        ? candidate.databasePath
+                        : t('workbench.output.selection.databaseUnmapped')}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -807,7 +810,11 @@ export function LocalModbusBoard() {
             />
           </div>
 
-          <aside className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+          <aside
+            className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5"
+            data-testid="modbus-secondary-panels"
+            data-emphasis="supporting"
+          >
             <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
               <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
@@ -968,7 +975,11 @@ export function LocalModbusBoard() {
       ) : null}
 
       {activeOutputTarget === 'database' ? (
-        <DatabaseTargetBoard candidates={candidates} />
+        <DatabaseTargetBoard
+          candidates={candidates}
+          selectedTagId={selectedTagId}
+          onSelectedTagChange={setSelectedTagId}
+        />
       ) : null}
     </div>
   );

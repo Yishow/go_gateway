@@ -292,7 +292,7 @@
     - output-ready 狀態下，CTA 會把焦點拉回輸出主控區，不再是 enabled no-op
     - shell / foundation tests 與 scan-first spec 對齊
 
-#### Phase P1：Step surfaces（可平行） [pending]
+#### Phase P1：Step surfaces（可平行） [complete]
 - [x] `scan-device-browser`
   - Step 1 改成 single-row primary toolbar（search / protocol / status / refresh / create）
   - 移除 main surface 的 clone / continue cluster，前進改由 shell CTA 承接
@@ -304,17 +304,17 @@
   - jump / freeze / snapshot / save-load / batch create 改進 `source-secondary-controls`
   - `AddressCanvas` workspace 標成 primary，rule layer 降為 supporting
   - coverage overview 留在 primary workspace，但改成 lighter supporting strip
-- [ ] `scan-tag-row-board`
+- [x] `scan-tag-row-board`
   - Step 3 厚卡改 row board
   - batch action 僅在 selection 後出現
   - conflict / already-linked 細節進 inspector
-- [ ] `scan-output-active-target`
+- [x] `scan-output-active-target`
   - Step 4 row 只顯示 active target 必要資訊
   - Modbus / DB 次層資訊分組降權
   - non-active-target detail 移入 inspector
 
-#### Phase P2：Cross-step regression + rollout [pending]
-- [ ] `scan-cross-step-regressions`
+#### Phase P2：Cross-step regression + rollout [complete]
+- [x] `scan-cross-step-regressions`
   - progressive disclosure regression
   - `step/target` deep-link regression
   - `1920×1080` toolbar / CTA / shell 穩定性驗證

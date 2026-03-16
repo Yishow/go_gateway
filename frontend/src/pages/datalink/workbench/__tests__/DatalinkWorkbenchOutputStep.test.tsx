@@ -360,7 +360,7 @@ describe('DatalinkWorkbench output step', () => {
     });
   });
 
-  it('renders a unified candidate board with target switcher and per-target statuses', async () => {
+  it('renders only the active target mapping field inside the shared candidate rows', async () => {
     mockModbusShareAPI.listMappings.mockResolvedValue([
       {
         tag_id: 'tag-1',
@@ -401,10 +401,16 @@ describe('DatalinkWorkbench output step', () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByTestId('output-candidate-tag-1')).toHaveTextContent('TAG_40001');
-    expect(screen.getByTestId('output-modbus-status-tag-1')).toHaveTextContent('HR12');
-    expect(screen.getByTestId('output-db-status-tag-2')).toHaveTextContent(
-      'main.sensor_values.value',
-    );
+    expect(
+      within(screen.getByTestId('output-candidate-tag-1')).getByTestId(
+        'output-modbus-status-tag-1',
+      ),
+    ).toHaveTextContent('HR12');
+    expect(
+      within(screen.getByTestId('output-candidate-tag-1')).queryByTestId(
+        'output-db-status-tag-1',
+      ),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -413,11 +419,36 @@ describe('DatalinkWorkbench output step', () => {
     );
 
     expect(
+      within(screen.getByTestId('output-candidate-tag-2')).getByTestId(
+        'output-db-status-tag-2',
+      ),
+    ).toHaveTextContent(
+      'main.sensor_values.value',
+    );
+    expect(
+      within(screen.getByTestId('output-candidate-tag-2')).queryByTestId(
+        'output-modbus-status-tag-2',
+      ),
+    ).not.toBeInTheDocument();
+
+    expect(
       screen.getByRole('button', {
         name: 'workbench.output.targetSwitcher.database',
       }),
     ).toHaveAttribute('aria-pressed', 'true');
     await screen.findByLabelText('workbench.output.database.mapping.table');
+  });
+
+  it('marks modbus operational panels as supporting sections', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(await screen.findByTestId('modbus-secondary-panels')).toHaveAttribute(
+      'data-emphasis',
+      'supporting',
+    );
   });
 
   it('binds a linked tag to a local modbus register', async () => {
@@ -562,6 +593,30 @@ describe('DatalinkWorkbench output step', () => {
     });
   });
 
+  it('keeps the database mapping form aligned with the shared output candidate selection', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'workbench.output.targetSwitcher.database',
+      }),
+    );
+
+    await screen.findByLabelText('workbench.output.database.mapping.tag');
+    fireEvent.click(screen.getByTestId('output-candidate-tag-2'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText('workbench.output.database.mapping.tag'),
+      ).toHaveValue('tag-2');
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('trace-tag-key')).toHaveTextContent('TAG_40002');
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Modbus studio deepening (redesign-modbus-studio)
   // ---------------------------------------------------------------------------
@@ -687,6 +742,23 @@ describe('DatalinkWorkbench output step', () => {
   // ---------------------------------------------------------------------------
 
   describe('database studio schema snapshot', () => {
+    it('groups schema snapshot and write preview into supporting secondary panels', async () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'workbench.output.targetSwitcher.database',
+        }),
+      );
+
+      const secondaryPanels = await screen.findByTestId('database-secondary-panels');
+      expect(secondaryPanels).toHaveAttribute('data-emphasis', 'supporting');
+      expect(await screen.findByTestId('schema-snapshot')).toBeInTheDocument();
+      expect(within(secondaryPanels).getByTestId('write-row-preview')).toBeInTheDocument();
+    });
+
     it('renders a schema snapshot with column type badges', async () => {
       renderPage();
 
