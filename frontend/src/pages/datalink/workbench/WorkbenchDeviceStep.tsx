@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type InputHTMLAttributes,
   type FormEvent,
@@ -391,6 +392,7 @@ export function WorkbenchDeviceStep() {
   const [draft, setDraft] = useState<DeviceDraft>(() => createEmptyDeviceDraft());
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
   const [notice, setNotice] = useState<DeviceNotice | null>(null);
+  const pendingSelectedDeviceIdRef = useRef<string | null>(null);
 
   const selectedDevice = useMemo(
     () => devices.find((device) => device.id === selectedDeviceId) ?? null,
@@ -413,7 +415,24 @@ export function WorkbenchDeviceStep() {
   }, [devices, protocolFilter, searchQuery, statusFilter]);
 
   useEffect(() => {
-    if (selectedDeviceId && !devices.some((device) => device.id === selectedDeviceId)) {
+    if (!selectedDeviceId) {
+      pendingSelectedDeviceIdRef.current = null;
+      return;
+    }
+
+    const deviceExists = devices.some((device) => device.id === selectedDeviceId);
+    if (deviceExists) {
+      if (pendingSelectedDeviceIdRef.current === selectedDeviceId) {
+        pendingSelectedDeviceIdRef.current = null;
+      }
+      return;
+    }
+
+    if (pendingSelectedDeviceIdRef.current === selectedDeviceId) {
+      return;
+    }
+
+    if (selectedDeviceId && !deviceExists) {
       setSelectedDeviceId(null);
       clearInspectorSelection();
     }
@@ -544,6 +563,14 @@ export function WorkbenchDeviceStep() {
     event.preventDefault();
 
     const nextErrors = validateDeviceDraft(draft, t);
+    if (devicePanelState?.mode === 'clone') {
+      const sourceDevice = devices.find(
+        (device) => device.id === devicePanelState.sourceDeviceId,
+      );
+      if (sourceDevice && draft.name.trim() === sourceDevice.name.trim()) {
+        nextErrors.name = t('workbench.device.validation.cloneNameDistinct');
+      }
+    }
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       return;
@@ -558,6 +585,7 @@ export function WorkbenchDeviceStep() {
           connection_config: sanitizeDeviceConnectionConfig(draft.connectionConfig),
         });
 
+        pendingSelectedDeviceIdRef.current = createdDevice.id;
         setSelectedDeviceId(createdDevice.id);
         setNotice({
           tone: 'success',

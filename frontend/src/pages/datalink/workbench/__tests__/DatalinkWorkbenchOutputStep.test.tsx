@@ -360,6 +360,66 @@ describe('DatalinkWorkbench output step', () => {
     });
   });
 
+  it('renders a unified candidate board with target switcher and per-target statuses', async () => {
+    mockModbusShareAPI.listMappings.mockResolvedValue([
+      {
+        tag_id: 'tag-1',
+        register: 12,
+        data_type: 'int16',
+        updated_at: '',
+      },
+    ]);
+    mockDBTargetAPI.listMappings.mockResolvedValue([
+      {
+        id: 'db-mapping-2',
+        tag_id: 'tag-2',
+        connector_id: 'connector-1',
+        table_schema: 'main',
+        table_name: 'sensor_values',
+        column_name: 'value',
+        write_mode: 'insert',
+        timestamp_column: null,
+        enabled: true,
+        created_at: '',
+        updated_at: '',
+      },
+    ]);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(
+      await screen.findByRole('button', {
+        name: 'workbench.output.targetSwitcher.modbus',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'workbench.output.targetSwitcher.database',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('output-candidate-tag-1')).toHaveTextContent('TAG_40001');
+    expect(screen.getByTestId('output-modbus-status-tag-1')).toHaveTextContent('HR12');
+    expect(screen.getByTestId('output-db-status-tag-2')).toHaveTextContent(
+      'main.sensor_values.value',
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'workbench.output.targetSwitcher.database',
+      }),
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: 'workbench.output.targetSwitcher.database',
+      }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await screen.findByLabelText('workbench.output.database.mapping.table');
+  });
+
   it('binds a linked tag to a local modbus register', async () => {
     renderPage();
 
@@ -461,6 +521,11 @@ describe('DatalinkWorkbench output step', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'workbench.output.targetSwitcher.database',
+      }),
+    );
 
     await screen.findByLabelText('workbench.output.database.mapping.table');
     await waitFor(() => {

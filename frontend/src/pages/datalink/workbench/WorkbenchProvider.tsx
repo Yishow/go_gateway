@@ -4,17 +4,21 @@ import {
   useContext,
   useMemo,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import {
   type DevicePanelState,
   type DeviceTestHistoryEntry,
   INSPECTOR_SELECTION_NONE,
   WORKBENCH_CROSS_STEP_CONTEXT_INITIAL,
+  WORKBENCH_SOURCE_PLANNING_INITIAL,
   WORKBENCH_STEPS,
   type InspectorSelection,
   type OutputTarget,
   type WorkbenchCrossStepContext,
+  type WorkbenchSourcePlanningState,
   type WorkbenchStep,
 } from './workbenchTypes';
 
@@ -43,6 +47,11 @@ type WorkbenchContextValue = {
   setFocusedTagIds: (tagIds: ReadonlyArray<string>) => void;
   clearCrossStepContext: () => void;
 
+  // Step 2 shared source planning state — persists across step navigation
+  sourcePlanningState: WorkbenchSourcePlanningState;
+  setSourcePlanningState: Dispatch<SetStateAction<WorkbenchSourcePlanningState>>;
+  clearSourcePlanningState: () => void;
+
   // Step 1 shared UI state
   devicePanelState: DevicePanelState;
   openCreateDevicePanel: () => void;
@@ -68,6 +77,9 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [crossStepContext, setCrossStepContext] = useState<WorkbenchCrossStepContext>(
     WORKBENCH_CROSS_STEP_CONTEXT_INITIAL,
   );
+  const [sourcePlanningState, setSourcePlanningState] = useState<WorkbenchSourcePlanningState>(
+    WORKBENCH_SOURCE_PLANNING_INITIAL,
+  );
   const [devicePanelState, setDevicePanelState] = useState<DevicePanelState>(null);
   const [recentDeviceTests, setRecentDeviceTests] = useState<
     Record<string, ReadonlyArray<DeviceTestHistoryEntry>>
@@ -83,6 +95,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
 
   const clearCrossStepContext = useCallback(() => {
     setCrossStepContext(WORKBENCH_CROSS_STEP_CONTEXT_INITIAL);
+  }, []);
+
+  const clearSourcePlanningState = useCallback(() => {
+    setSourcePlanningState(WORKBENCH_SOURCE_PLANNING_INITIAL);
   }, []);
 
   // Clear inspector selection when switching steps so stale context
@@ -103,9 +119,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     (deviceId: string | null) => {
       setSelectedDeviceIdRaw(deviceId);
       clearCrossStepContext();
+      clearSourcePlanningState();
       closeDevicePanel();
     },
-    [clearCrossStepContext, closeDevicePanel],
+    [clearCrossStepContext, clearSourcePlanningState, closeDevicePanel],
   );
 
   const setFocusedRuleId = useCallback((ruleId: string | null) => {
@@ -161,6 +178,9 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setFocusedRuleId,
       setFocusedTagIds,
       clearCrossStepContext,
+      sourcePlanningState,
+      setSourcePlanningState,
+      clearSourcePlanningState,
       devicePanelState,
       openCreateDevicePanel,
       openEditDevicePanel,
@@ -181,6 +201,9 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setFocusedRuleId,
       setFocusedTagIds,
       clearCrossStepContext,
+      sourcePlanningState,
+      setSourcePlanningState,
+      clearSourcePlanningState,
       devicePanelState,
       openCreateDevicePanel,
       openEditDevicePanel,

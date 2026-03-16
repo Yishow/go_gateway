@@ -201,6 +201,83 @@ describe('DatalinkWorkbench tag step', () => {
     expect(screen.getByTestId('tag-preview-point-1')).toHaveTextContent('LINEA_40001');
   });
 
+  it('shows dense source metadata for each candidate row', () => {
+    mockPoints[0].last_value = 123;
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('tag-candidate-point-1')).toHaveTextContent('40001');
+    expect(screen.getByTestId('tag-raw-point-1')).toHaveTextContent('123');
+    expect(screen.getByTestId('tag-status-point-1')).toHaveTextContent(
+      'workbench.tag.board.status.unbound',
+    );
+  });
+
+  it('filters tag candidates by keyword and status', () => {
+    mockMappings.push({
+      id: 'mapping-2',
+      point_id: 'point-2',
+      tag_id: 'tag-2',
+      enabled: true,
+      transform_pipeline: '',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.tag.board.search'), {
+      target: { value: 'Pressure' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.tag.board.statusFilter'), {
+      target: { value: 'bound' },
+    });
+
+    expect(screen.queryByText('Flow Sensor')).not.toBeInTheDocument();
+    expect(screen.getByText('Pressure Sensor')).toBeInTheDocument();
+  });
+
+  it('supports binding selected points to an existing tag', async () => {
+    mockTags.push({
+      id: 'tag-existing',
+      key: 'LINEA_FLOW',
+      display_name: 'Line A Flow',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'active',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
+    fireEvent.click(screen.getByLabelText('Pressure Sensor'));
+    fireEvent.change(screen.getByTestId('existing-tag-select-point-1'), {
+      target: { value: 'tag-existing' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.actions.bind' }));
+
+    await waitFor(() => {
+      expect(mockCreateMappingMutation.mutateAsync).toHaveBeenCalledWith({
+        point_id: 'point-1',
+        tag_id: 'tag-existing',
+        enabled: true,
+      });
+    });
+
+    expect(mockCreateTagMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
   it('blocks batch binding when preview keys conflict with existing tags', () => {
     mockTags.push({
       id: 'tag-existing',

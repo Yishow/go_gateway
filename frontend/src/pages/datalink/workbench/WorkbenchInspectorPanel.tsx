@@ -137,6 +137,10 @@ function DeviceInspectorContent() {
   const recentHistory = [...storedHistory, ...fallbackHistory].slice(0, 3);
 
   const handleTestConnection = async () => {
+    if (testConnectionMutation.isPending) {
+      return;
+    }
+
     try {
       const result = await testConnectionMutation.mutateAsync(selectedDevice.id);
       await queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
@@ -254,7 +258,8 @@ function DeviceInspectorContent() {
           {t('workbench.device.actions.edit')}
         </button>
         <button
-          className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-slate-50"
+          className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={testConnectionMutation.isPending}
           onClick={() => void handleTestConnection()}
           type="button"
         >

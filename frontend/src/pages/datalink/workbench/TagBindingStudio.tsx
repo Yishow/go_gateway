@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
-import { useMappingsQuery, useCreateMappingMutation } from '../../../hooks/datalink/useMappings';
+import {
+  useCreateMappingMutation,
+  useMappingsQuery,
+} from '../../../hooks/datalink/useMappings';
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
-import { useCreateTagMutation, useTagsQuery } from '../../../hooks/datalink/useTags';
+import {
+  useCreateTagMutation,
+  useTagsQuery,
+} from '../../../hooks/datalink/useTags';
 import type { Device } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
 import {
   buildTagBindingCandidates,
   buildTagBindingRequests,
+  type TagBindingCandidate,
   type TagBindingStrategy,
 } from './tagBindingModel';
 
@@ -25,12 +32,38 @@ type TagBindingBatchSummary = {
   failures: TagBindingFailure[];
 };
 
+type TagBindingFlowMode = 'create' | 'existing';
+type TagBindingStatusFilter = 'all' | 'unbound' | 'partial' | 'bound';
+
 function getSelectedDevice(devices: Device[], selectedDeviceId: string | null) {
   return devices.find((device) => device.id === selectedDeviceId) ?? null;
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function isNonNull<T>(value: T | null): value is T {
+  return value !== null;
+}
+
+function formatCandidateValue(value: unknown) {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+
+  return String(value);
+}
+
+function getStatusToneClass(status: TagBindingCandidate['bindingStatus']) {
+  switch (status) {
+    case 'bound':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200';
+    case 'partial':
+      return 'border-amber-500/40 bg-amber-500/10 text-amber-200';
+    case 'unbound':
+      return 'border-slate-700 bg-slate-950/70 text-slate-300';
+  }
 }
 
 export function TagBindingStudio() {
@@ -48,8 +81,15 @@ export function TagBindingStudio() {
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
   const [prefix, setPrefix] = useState('TAG');
   const [strategy, setStrategy] = useState<TagBindingStrategy>('address');
+  const [flowMode, setFlowMode] = useState<TagBindingFlowMode>('create');
+  const [statusFilter, setStatusFilter] = useState<TagBindingStatusFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedPointIds, setSelectedPointIds] = useState<string[]>([]);
+  const [existingTagSelections, setExistingTagSelections] = useState<Record<string, string>>(
+    {},
+  );
   const [batchSummary, setBatchSummary] = useState<TagBindingBatchSummary | null>(null);
+
   const pointIdsKey = useMemo(
     () => points.map((point) => point.id).join('|'),
     [points],
@@ -78,20 +118,73 @@ export function TagBindingStudio() {
     setBatchSummary(null);
   }, [allPointIds, selectedDeviceId]);
 
+  useEffect(() => {
+    setExistingTagSelections((currentState) => {
+      let didChange = false;
+      const nextState = { ...currentState };
+      for (const candidate of candidates) {
+        if (!nextState[candidate.pointId] && candidate.existingTagOptions[0]) {
+          nextState[candidate.pointId] = candidate.existingTagOptions[0].id;
+          didChange = true;
+        }
+      }
+      return didChange ? nextState : currentState;
+    });
+  }, [candidates]);
+
+  const filteredCandidates = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    return candidates.filter((candidate) => {
+      const matchesSearch = !normalizedQuery
+        || candidate.pointName.toLowerCase().includes(normalizedQuery)
+        || candidate.pointAddress.toLowerCase().includes(normalizedQuery)
+        || candidate.previewKey.toLowerCase().includes(normalizedQuery);
+      const matchesStatus =
+        statusFilter === 'all' || candidate.bindingStatus === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [candidates, searchQuery, statusFilter]);
+
   const selectedCandidates = useMemo(
     () =>
       candidates.filter((candidate) => selectedPointIds.includes(candidate.pointId)),
     [candidates, selectedPointIds],
   );
 
-  const bindableRequests = useMemo(
+  const createRequests = useMemo(
     () => buildTagBindingRequests(candidates, selectedPointIds),
     [candidates, selectedPointIds],
   );
 
-  const blockedSelectionCount = selectedCandidates.filter(
-    (candidate) => candidate.conflict || candidate.alreadyLinked,
+  const existingRequests = useMemo(
+    () =>
+      candidates
+        .filter(
+          (candidate) =>
+            selectedPointIds.includes(candidate.pointId)
+            && !candidate.alreadyLinked
+            && Boolean(existingTagSelections[candidate.pointId]),
+        )
+        .map((candidate) => ({
+          pointId: candidate.pointId,
+          tagId: existingTagSelections[candidate.pointId]!,
+          tagKey:
+            candidate.existingTagOptions.find(
+              (option) => option.id === existingTagSelections[candidate.pointId],
+            )?.key ?? existingTagSelections[candidate.pointId]!,
+        })),
+    [candidates, existingTagSelections, selectedPointIds],
+  );
+
+  const blockedSelectionCount = selectedCandidates.filter((candidate) =>
+    flowMode === 'create'
+      ? candidate.conflict || candidate.alreadyLinked
+      : candidate.alreadyLinked || !existingTagSelections[candidate.pointId],
   ).length;
+
+  const readyCount = flowMode === 'create'
+    ? createRequests.length
+    : existingRequests.length;
 
   const handleTogglePoint = (pointId: string) => {
     setSelectedPointIds((previous) =>
@@ -103,14 +196,18 @@ export function TagBindingStudio() {
   };
 
   const handleSelectAll = () => {
-    setSelectedPointIds(candidates.map((candidate) => candidate.pointId));
+    setSelectedPointIds(filteredCandidates.map((candidate) => candidate.pointId));
     setBatchSummary(null);
   };
 
   const handleSelectBindable = () => {
     setSelectedPointIds(
-      candidates
-        .filter((candidate) => !candidate.conflict && !candidate.alreadyLinked)
+      filteredCandidates
+        .filter((candidate) =>
+          flowMode === 'create'
+            ? !candidate.conflict && !candidate.alreadyLinked
+            : !candidate.alreadyLinked && candidate.existingTagOptions.length > 0,
+        )
         .map((candidate) => candidate.pointId),
     );
     setBatchSummary(null);
@@ -121,53 +218,94 @@ export function TagBindingStudio() {
     setBatchSummary(null);
   };
 
+  const handleExistingTagSelection = (pointId: string, tagId: string) => {
+    setExistingTagSelections((currentState) => ({
+      ...currentState,
+      [pointId]: tagId,
+    }));
+    setBatchSummary(null);
+  };
+
   const handleBatchBind = async () => {
-    if (
-      !selectedDevice ||
-      bindableRequests.length === 0 ||
-      blockedSelectionCount > 0
-    ) {
+    if (!selectedDevice || blockedSelectionCount > 0) {
       return;
     }
 
-    const results = await Promise.all(
-      bindableRequests.map(async (request) => {
-        try {
-          const createdTag = await createTagMutation.mutateAsync(request.tagRequest);
+    if (flowMode === 'create') {
+      if (createRequests.length === 0) {
+        return;
+      }
 
+      const results = await Promise.all(
+        createRequests.map(async (request) => {
           try {
-            await createMappingMutation.mutateAsync({
-              point_id: request.pointId,
-              tag_id: createdTag.id,
-              enabled: true,
-            });
+            const createdTag = await createTagMutation.mutateAsync(request.tagRequest);
 
-            return null;
+            try {
+              await createMappingMutation.mutateAsync({
+                point_id: request.pointId,
+                tag_id: createdTag.id,
+                enabled: true,
+              });
+
+              return null;
+            } catch (error) {
+              return {
+                pointId: request.pointId,
+                tagKey: request.tagKey,
+                stage: 'mapping' as const,
+                error: getErrorMessage(error, t('workbench.tag.results.mappingFallback')),
+              };
+            }
           } catch (error) {
             return {
               pointId: request.pointId,
               tagKey: request.tagKey,
-              stage: 'mapping' as const,
-              error: getErrorMessage(error, t('workbench.tag.results.mappingFallback')),
+              stage: 'tag' as const,
+              error: getErrorMessage(error, t('workbench.tag.results.tagFallback')),
             };
           }
+        }),
+      );
+
+      const failures = results.filter(isNonNull);
+
+      setBatchSummary({
+        successCount: createRequests.length - failures.length,
+        failureCount: failures.length,
+        failures,
+      });
+      return;
+    }
+
+    if (existingRequests.length === 0) {
+      return;
+    }
+
+    const results = await Promise.all(
+      existingRequests.map(async (request) => {
+        try {
+          await createMappingMutation.mutateAsync({
+            point_id: request.pointId,
+            tag_id: request.tagId,
+            enabled: true,
+          });
+          return null;
         } catch (error) {
           return {
             pointId: request.pointId,
             tagKey: request.tagKey,
-            stage: 'tag' as const,
-            error: getErrorMessage(error, t('workbench.tag.results.tagFallback')),
+            stage: 'mapping' as const,
+            error: getErrorMessage(error, t('workbench.tag.results.mappingFallback')),
           };
         }
       }),
     );
 
-    const failures = results.filter(
-      (result): result is TagBindingFailure => result !== null,
-    );
+    const failures = results.filter(isNonNull);
 
     setBatchSummary({
-      successCount: bindableRequests.length - failures.length,
+      successCount: existingRequests.length - failures.length,
       failureCount: failures.length,
       failures,
     });
@@ -225,112 +363,243 @@ export function TagBindingStudio() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
+    <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.95fr)]">
       <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-              {t('workbench.tag.selection.eyebrow')}
-            </p>
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-50">
-                {t('workbench.tag.selection.title')}
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-slate-300">
-                {t('workbench.tag.selection.description')}
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                {t('workbench.tag.selection.eyebrow')}
               </p>
+              <div>
+                <h2 className="text-2xl font-semibold text-slate-50">
+                  {t('workbench.tag.selection.title')}
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm text-slate-300">
+                  {t('workbench.tag.selection.description')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setFlowMode('create')}
+                className={
+                  flowMode === 'create'
+                    ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
+                    : 'rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300'
+                }
+              >
+                {t('workbench.tag.board.flow.create')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFlowMode('existing')}
+                className={
+                  flowMode === 'existing'
+                    ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
+                    : 'rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300'
+                }
+              >
+                {t('workbench.tag.board.flow.existing')}
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-            >
-              {t('workbench.tag.actions.selectAll')}
-            </button>
-            <button
-              type="button"
-              onClick={handleSelectBindable}
-              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-            >
-              {t('workbench.tag.actions.selectBindable')}
-            </button>
-            <button
-              type="button"
-              onClick={handleClearSelection}
-              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-            >
-              {t('workbench.tag.actions.clearSelection')}
-            </button>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_200px_200px]">
+            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+              <span>{t('workbench.tag.board.search')}</span>
+              <input
+                aria-label={t('workbench.tag.board.search')}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+              <span>{t('workbench.tag.board.statusFilter')}</span>
+              <select
+                aria-label={t('workbench.tag.board.statusFilter')}
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(event.target.value as TagBindingStatusFilter)
+                }
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              >
+                <option value="all">{t('workbench.tag.board.statusFilters.all')}</option>
+                <option value="unbound">
+                  {t('workbench.tag.board.statusFilters.unbound')}
+                </option>
+                <option value="partial">
+                  {t('workbench.tag.board.statusFilters.partial')}
+                </option>
+                <option value="bound">{t('workbench.tag.board.statusFilters.bound')}</option>
+              </select>
+            </label>
+            <div className="flex flex-wrap items-end gap-2">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+              >
+                {t('workbench.tag.actions.selectAll')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSelectBindable}
+                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+              >
+                {t('workbench.tag.actions.selectBindable')}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+              >
+                {t('workbench.tag.actions.clearSelection')}
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="grid gap-3">
-          {candidates.map((candidate) => {
+          {filteredCandidates.map((candidate) => {
             const selected = selectedPointIds.includes(candidate.pointId);
 
             return (
-              <label
+              <article
                 key={candidate.pointId}
-                className={`grid gap-3 rounded-2xl border p-4 transition md:grid-cols-[auto_minmax(0,1fr)_minmax(220px,0.8fr)] ${
+                data-testid={`tag-candidate-${candidate.pointId}`}
+                className={`rounded-2xl border p-4 transition ${
                   selected
                     ? 'border-cyan-500/40 bg-cyan-500/5'
                     : 'border-slate-800 bg-slate-900/70'
                 }`}
               >
-                <span className="pt-1">
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={() => handleTogglePoint(candidate.pointId)}
-                    aria-label={candidate.pointName}
-                    className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-cyan-400"
-                  />
-                </span>
+                <div className="flex gap-3">
+                  <span className="pt-1">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => handleTogglePoint(candidate.pointId)}
+                      aria-label={candidate.pointName}
+                      className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-cyan-400"
+                    />
+                  </span>
 
-                <span className="space-y-2">
-                  <span className="block text-sm font-semibold text-slate-50">
-                    {candidate.pointName}
-                  </span>
-                  <span className="block text-xs text-slate-400">
-                    {t('workbench.tag.selection.pointMeta', {
-                      address: candidate.pointAddress,
-                      dataType: candidate.dataType,
-                    })}
-                  </span>
-                  <span className="flex flex-wrap gap-2">
-                    {candidate.alreadyLinked ? (
-                      <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
-                        {t('workbench.tag.badges.alreadyLinked')}
-                      </span>
-                    ) : null}
-                    {candidate.conflictReason === 'existing-key' ? (
-                      <span className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-200">
-                        {t('workbench.tag.badges.existingKey')}
-                      </span>
-                    ) : null}
-                    {candidate.conflictReason === 'duplicate-preview' ? (
-                      <span className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-200">
-                        {t('workbench.tag.badges.duplicatePreview')}
-                      </span>
-                    ) : null}
-                  </span>
-                </span>
+                  <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(220px,0.8fr)]">
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-slate-50">
+                          {candidate.pointName}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {t('workbench.tag.selection.pointMeta', {
+                            address: candidate.pointAddress,
+                            dataType: candidate.dataType,
+                          })}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {t('workbench.tag.board.span', {
+                            cells: candidate.cellSpan,
+                            bitWidth: candidate.bitWidth,
+                          })}
+                        </p>
+                      </div>
 
-                <span
-                  data-testid={`tag-preview-${candidate.pointId}`}
-                  data-conflict={candidate.conflict ? 'true' : 'false'}
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium ${
-                    candidate.conflict
-                      ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
-                      : 'border-slate-800 bg-slate-950/80 text-cyan-100'
-                  }`}
-                >
-                  {candidate.previewKey}
-                </span>
-              </label>
+                      <div className="flex flex-wrap gap-2">
+                        {candidate.alreadyLinked ? (
+                          <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs text-amber-200">
+                            {t('workbench.tag.badges.alreadyLinked')}
+                          </span>
+                        ) : null}
+                        {candidate.conflictReason === 'existing-key' ? (
+                          <span className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-200">
+                            {t('workbench.tag.badges.existingKey')}
+                          </span>
+                        ) : null}
+                        {candidate.conflictReason === 'duplicate-preview' ? (
+                          <span className="rounded-full bg-rose-500/10 px-2 py-1 text-xs text-rose-200">
+                            {t('workbench.tag.badges.duplicatePreview')}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                          {t('workbench.tag.board.rawValue')}
+                        </p>
+                        <p
+                          className="mt-2 text-sm font-medium text-slate-100"
+                          data-testid={`tag-raw-${candidate.pointId}`}
+                        >
+                          {formatCandidateValue(candidate.rawValue)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                          {t('workbench.tag.board.transformedValue')}
+                        </p>
+                        <p className="mt-2 text-sm font-medium text-slate-100">
+                          {formatCandidateValue(candidate.transformedValue)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusToneClass(
+                          candidate.bindingStatus,
+                        )}`}
+                        data-testid={`tag-status-${candidate.pointId}`}
+                      >
+                        {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
+                      </span>
+
+                      <div
+                        data-testid={`tag-preview-${candidate.pointId}`}
+                        data-conflict={candidate.conflict ? 'true' : 'false'}
+                        className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                          candidate.conflict
+                            ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
+                            : 'border-slate-800 bg-slate-950/80 text-cyan-100'
+                        }`}
+                      >
+                        {candidate.previewKey}
+                      </div>
+
+                      {flowMode === 'existing' ? (
+                        <label className="block space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                          <span>{t('workbench.tag.board.existingTag')}</span>
+                          <select
+                            data-testid={`existing-tag-select-${candidate.pointId}`}
+                            value={existingTagSelections[candidate.pointId] ?? ''}
+                            onChange={(event) =>
+                              handleExistingTagSelection(
+                                candidate.pointId,
+                                event.target.value,
+                              )
+                            }
+                            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                          >
+                            <option value="">
+                              {t('workbench.tag.board.noExistingTag')}
+                            </option>
+                            {candidate.existingTagOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.displayName}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
@@ -398,7 +667,7 @@ export function TagBindingStudio() {
               {t('workbench.tag.metrics.ready')}
             </dt>
             <dd className="mt-2 text-2xl font-semibold text-emerald-200">
-              {bindableRequests.length}
+              {readyCount}
             </dd>
           </div>
           <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
@@ -425,10 +694,10 @@ export function TagBindingStudio() {
           type="button"
           onClick={() => void handleBatchBind()}
           disabled={
-            bindableRequests.length === 0 ||
-            blockedSelectionCount > 0 ||
-            createTagMutation.isPending ||
-            createMappingMutation.isPending
+            readyCount === 0
+            || blockedSelectionCount > 0
+            || createTagMutation.isPending
+            || createMappingMutation.isPending
           }
           className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -453,7 +722,10 @@ export function TagBindingStudio() {
             {batchSummary.failures.length > 0 ? (
               <ul className="space-y-2 text-sm text-rose-100">
                 {batchSummary.failures.map((failure) => (
-                  <li key={`${failure.pointId}-${failure.stage}`} className="rounded-xl bg-rose-500/10 px-3 py-2">
+                  <li
+                    key={`${failure.pointId}-${failure.stage}`}
+                    className="rounded-xl bg-rose-500/10 px-3 py-2"
+                  >
                     <span className="font-medium">{failure.tagKey}</span>
                     <span className="ml-2">{failure.error}</span>
                   </li>

@@ -1,7 +1,63 @@
 import { useTranslation } from 'react-i18next';
-import type { AddressCanvasItem } from './sourceCanvasModel';
+import {
+  formatSourceValue,
+  type AddressCanvasItem,
+  type SourceValueFormat,
+  type SourceViewMode,
+} from './sourceCanvasModel';
 
-export function AddressLedger({ items }: { items: AddressCanvasItem[] }) {
+function getStatusLabel(item: AddressCanvasItem, t: (key: string) => string) {
+  switch (item.status) {
+    case 'conflict':
+      return t('workbench.source.canvas.conflictState');
+    case 'gap':
+      return t('workbench.source.canvas.gapState');
+    case 'planned':
+      return t('workbench.source.canvas.plannedState');
+    case 'used':
+      return t('workbench.source.canvas.usedLabel');
+  }
+}
+
+function getNameLabel(item: AddressCanvasItem, t: (key: string) => string) {
+  switch (item.status) {
+    case 'conflict':
+      return t('workbench.source.canvas.conflictLabel');
+    case 'gap':
+      return t('workbench.source.canvas.gapLabel');
+    case 'planned':
+      return item.point?.name ?? t('workbench.source.canvas.plannedLabel');
+    case 'used':
+      return item.point?.name ?? t('workbench.source.canvas.usedLabel');
+  }
+}
+
+function getValueLabel(input: {
+  item: AddressCanvasItem;
+  t: (key: string) => string;
+  valueFormat: SourceValueFormat;
+  viewMode: SourceViewMode;
+}) {
+  const { item, t, valueFormat, viewMode } = input;
+  switch (viewMode) {
+    case 'plan':
+      return item.primaryRuleId ?? '—';
+    case 'live':
+      return formatSourceValue(item.liveValue, valueFormat);
+    case 'link':
+      return item.linkLabelKey ? t(item.linkLabelKey) : t('workbench.source.link.noState');
+  }
+}
+
+export function AddressLedger({
+  items,
+  valueFormat,
+  viewMode,
+}: {
+  items: AddressCanvasItem[];
+  valueFormat: SourceValueFormat;
+  viewMode: SourceViewMode;
+}) {
   const { t } = useTranslation();
 
   if (items.length === 0) {
@@ -28,21 +84,11 @@ export function AddressLedger({ items }: { items: AddressCanvasItem[] }) {
             <tr key={item.address} data-testid={`address-ledger-row-${item.address}`}>
               <td className="px-4 py-3 font-mono text-xs text-slate-300">{item.address}</td>
               <td className="px-4 py-3">
-                {item.status === 'conflict'
-                  ? t('workbench.source.canvas.conflictLabel')
-                  : item.point?.name ?? t('workbench.source.canvas.plannedLabel')}
+                {getNameLabel(item, t)}
               </td>
-              <td className="px-4 py-3">
-                {item.status === 'used'
-                  ? t('workbench.source.canvas.usedLabel')
-                  : item.status === 'conflict'
-                    ? t('workbench.source.canvas.conflictState')
-                    : t('workbench.source.canvas.plannedState')}
-              </td>
+              <td className="px-4 py-3">{getStatusLabel(item, t)}</td>
               <td className="px-4 py-3 text-cyan-100">
-                {item.point?.last_value === null || item.point?.last_value === undefined
-                  ? '—'
-                  : String(item.point.last_value)}
+                {getValueLabel({ item, t, valueFormat, viewMode })}
               </td>
             </tr>
           ))}

@@ -488,8 +488,18 @@
 - Step 1 的 capability summary 目前沒有後端專用欄位可直接讀取 `address base / word order`；安全做法是用 `connection_config` + protocol defaults/traits 派生，缺值時顯示 `protocol default / not specified / n/a`，而不是虛構 schema。
 - Step 1 的「最近三次連線測試」可先以前端 session-local history 補齊：沿用後端 `last_test_*` 當 fallback latest snapshot，並在 workbench 內每次 `Test connection` 後將結果推入最近三筆時間線。
 - Step 2 的價值不只是地址規畫，還包含即時值監看與規則模板；因此 `AddressCanvas` 需要穩定幾何 + 可切換資訊層，而不是切成多套獨立頁面。
+- Step 2 的 lattice 不能只畫「有點位或有規劃的格子」；必須從最小位址畫到最大位址，把 gap 保留下來，操作者才看得出空洞與衝突位置。
+- Step 2 的 `Plan / Live / Link` 不應切成三套不同 layout；正確做法是固定同一套幾何，只替換每格要顯示的資訊層。
+- `sourceCanvasModel` 需要同時兼容新 `rules[]` 模型與舊 `plannedPointAddresses` 測試輸入，才能在重構期間保住既有單元測試 contract。
+- Step 2 的 source rules 不能只放在 `SourceCanvasSection` local state；desktop flow 會頻繁做 `Source → Tag → Output → Source` 往返，若切步驟就清空，整個規畫體驗會斷掉。至少 `rules / selectedRuleId / selectedAddress` 要提升到 provider 或其他持久層。
+- 當 source rules 被提升為跨步驟 state 後，rule id 不能再依賴 component-local ref；重新掛載後若 ref 歸零，下一次 apply 會重複產生 `rule-1`，造成 key/selection 混亂。安全做法是由現存 rule id 推導下一個序號。
+- Step 3 的 candidate row 若只顯示 preview key，使用者仍不知道「這筆綁定代表哪個來源值」；至少要把 address/span/raw value/bit width/status 與 preview key 放在同一列。
+- Step 3 的 `create new tag` 與 `bind existing tag` 必須明確分流；若只留一個 batch bind 按鈕，使用者無法理解自己是在建立新 Tag 還是沿用舊 Tag。
 - Step 3 使用者更在意 tag 管理資訊密度，而不只是批次操作按鈕；主區必須直接露出 naming/source/value/merge/status 等資訊。
 - Step 4 若只保留表格式設定，無法達到「能理解、能驗證、能維運」；Local Modbus 與 Database 都需要各自的可視化與驗證面。
+- Step 4 的第一層不應直接掉進單一 target 的詳細表單；正確做法是先有 shared candidate board，讓使用者一眼看到每個 tag 在 Modbus / Database 兩邊的綁定狀態，再切換 active studio 做細部設定。
+- shared board 上的 Modbus 狀態不適合再用長句 microcopy；桌面情境下直接顯示 `HR12` 這種短 badge，比「Mapped to HR12」更容易掃描與比對。
+- output step 測試若會切到 `DatabaseTargetBoard`，必須等待 database mapping table 掛載完成，否則 async load 會在測試結束後補跑 setState，留下 React `act(...)` 警告。
 - shell state 需要明確拆成兩種脈絡：
   - `inspectorSelection`：只代表目前步驟的局部選取，切步驟時必須清掉
   - `crossStepContext`：保存 Step 2 → Step 3 → Step 4 的焦點 rule/tag 線索，只在切換 device 時重置

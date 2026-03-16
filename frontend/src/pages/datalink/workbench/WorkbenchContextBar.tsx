@@ -46,10 +46,11 @@ export function WorkbenchContextBar() {
           ? selectedDevice.last_test_error || t('workbench.contextBar.testFailed')
           : t('workbench.contextBar.notTested')
     : null;
+  const latestTestSuccess = latestTestEntry?.success ?? selectedDevice?.last_test_success ?? null;
   const lastTestToneClass = selectedDevice
-    ? selectedDevice.last_test_success === true
+    ? latestTestSuccess === true
       ? 'text-emerald-300'
-      : selectedDevice.last_test_success === false
+      : latestTestSuccess === false
         ? 'text-rose-300'
         : 'text-slate-400'
     : 'text-slate-400';

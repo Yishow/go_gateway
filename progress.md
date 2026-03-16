@@ -422,10 +422,53 @@
   - `WorkbenchInspectorPanel` 在 Step 1 會顯示 device identity / capability summary / connection summary / recent test timeline / clone action
   - `WorkbenchContextBar` 顯示 selected device capability chips
   - clone flow 以 workbench drawer 形式預填 connection defaults，但保留空白 name 強制新識別
+- 已完成 Step 1 review follow-up：
+  - create/clone 後以 pending selection guard 避免 list refresh race 清掉新選取設備
+  - clone flow 明確阻擋與來源設備同名
+  - context bar latest test tone 改以前端 session-local latest test result 為準
+  - inspector `Test connection` pending 時 disable，避免重複點擊
+- 已完成 Phase 1 / Step 2 第一輪核心 slice：
+  - `SourceCanvasSection` 改為真正的 AddressCanvasWorkspace：RuleLayerBar + PlannerToolbar + CoverageOverview + audit drawer
+  - `sourceCanvasModel` 改為連續 16-bit lattice，會把 `planned / used / conflict / gap` 放進同一條連續位址帶
+  - 已支援 `Plan / Live / Link` 三種資訊層、value format、freeze live / snapshot compare、jump to address
+  - Link view 先用 point→mapping→tag 狀態導出 `needsPoint / unbound / draft / ready / blocked`
+- 已完成 Phase 1 / Step 3 主板第一輪 slice：
+  - `TagBindingStudio` 改為 dense board，單列直接顯示 source address、span、raw/transformed value、preview key、status badge
+  - 已支援 `create new` / `bind existing` 明確切換、search、status filter、existing tag select
+  - `tagBindingModel` 已補齊 `bitWidth / cellSpan / rawValue / bindingStatus / existingTagOptions`
 - 本輪驗證：
   - `cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-readiness.test.ts tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx`（59 tests passed）
   - `cd frontend && npm run lint`
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm run build`
+- Step 2 補充驗證：
+  - `cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-source-canvas-model.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`（12 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- Step 3 補充驗證：
+  - `cd frontend && npm run test -- --run tests/unit/features/datalink/tag-binding-model.test.ts tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`（14 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
 - Reviewer sub-agent 多次因 429 未能返回有效 review，本輪改以 TDD + targeted validation + controller manual spec spot-check 收斂 Step 1。
-- 下一步：dispatch Phase 1 下一波 ready todos（source-rule-model / tag-board / output-board）
+- `claude-opus-4.6` 的 `redesign-source-rule-model` / `redesign-tag-board` 子代理都因 429 失敗，已改為 controller 手動接手。
+- 已由 controller 手動接手並完成 Step 4 `OutputWorkspace` shared board：
+  - `LocalModbusBoard` 現在先顯示 shared candidate board，再以 target switcher 切換 Local Modbus / Database studio
+  - 同一列會同時顯示 Modbus badge 與 database path/status，避免切頁才知道另一個 target 是否已綁定
+  - 為避免 shared board 測試留下 React `act(...)` 警告，test 會在切換到 database 後等待 mapping table 掛載完成
+- 已補修 Step 2 source rule persistence：
+  - `SourceCanvasSection` 的 `rules / selectedRuleId / selectedAddress` 已提升到 `WorkbenchProvider`
+  - `Source → Tag → Source` 往返不再遺失已套用規則
+  - rule id 會依目前 persisted rules 推導，避免 component remount 後再度產生重複 `rule-1`
+- Step 4 補充驗證：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`（11 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- broader workbench regression：
+  - `cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`（69 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- 下一步：收尾 `redesign-modbus-studio` / `redesign-database-studio` / `redesign-output-inspector`，讓 Step 4 從 shared board 走到完整 trace 與操作細節。

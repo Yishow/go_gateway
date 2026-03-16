@@ -1,5 +1,6 @@
 import { normalizeNamingPrefix } from '../../../features/datalink/sourcePlannerContract';
 import type { CreateTagRequest, Mapping, Point, Tag } from '../../../types/datalink';
+import { getDataTypeBitWidth, getDataTypeCellSpan } from './sourceCanvasModel';
 
 export type TagBindingStrategy = 'address' | 'pointName';
 
@@ -13,6 +14,16 @@ export interface TagBindingCandidate {
   pointName: string;
   pointAddress: string;
   dataType: Point['data_type'];
+  bitWidth: number;
+  cellSpan: number;
+  rawValue: unknown;
+  transformedValue: unknown;
+  bindingStatus: 'bound' | 'unbound' | 'partial';
+  existingTagOptions: Array<{
+    id: string;
+    key: string;
+    displayName: string;
+  }>;
   previewKey: string;
   conflict: boolean;
   conflictReason: 'existing-key' | 'duplicate-preview' | null;
@@ -55,19 +66,42 @@ export function buildTagBindingCandidates(input: {
     return acc;
   }, new Map());
   const existingKeys = new Set(input.tags.map((tag) => tag.key.trim().toLowerCase()));
-  const linkedPointIds = new Set(input.mappings.map((mapping) => mapping.point_id));
+  const linkedMappingsByPointId = input.mappings.reduce<Map<string, Mapping>>((acc, mapping) => {
+    if (!acc.has(mapping.point_id)) {
+      acc.set(mapping.point_id, mapping);
+    }
+    return acc;
+  }, new Map());
 
   return input.points.map((point, index) => {
     const previewKey = previewKeys[index];
     const normalizedKey = previewKey.toLowerCase();
     const duplicatePreview = (previewKeyCounts.get(normalizedKey) ?? 0) > 1;
     const existingKey = existingKeys.has(normalizedKey);
+    const alreadyLinked = linkedMappingsByPointId.has(point.id);
+    const bindingStatus = alreadyLinked
+      ? 'bound'
+      : duplicatePreview || existingKey
+        ? 'partial'
+        : 'unbound';
 
     return {
       pointId: point.id,
       pointName: point.name,
       pointAddress: point.address,
       dataType: point.data_type,
+      bitWidth: getDataTypeBitWidth(point.data_type),
+      cellSpan: getDataTypeCellSpan(point.data_type),
+      rawValue: point.last_value,
+      transformedValue: point.last_value,
+      bindingStatus,
+      existingTagOptions: input.tags
+        .filter((tag) => tag.data_type === point.data_type)
+        .map((tag) => ({
+          id: tag.id,
+          key: tag.key,
+          displayName: tag.display_name || tag.key,
+        })),
       previewKey,
       conflict: duplicatePreview || existingKey,
       conflictReason: existingKey
@@ -75,7 +109,7 @@ export function buildTagBindingCandidates(input: {
         : duplicatePreview
           ? 'duplicate-preview'
           : null,
-      alreadyLinked: linkedPointIds.has(point.id),
+      alreadyLinked,
     };
   });
 }

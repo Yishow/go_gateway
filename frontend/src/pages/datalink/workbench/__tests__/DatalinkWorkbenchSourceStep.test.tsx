@@ -2,11 +2,13 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
-import type { Device, Point } from '../../../../types/datalink';
+import type { Device, Mapping, Point, Tag } from '../../../../types/datalink';
 
-const { mockDevices, mockPoints, mockCreatePointMutation } = vi.hoisted(() => ({
+const { mockDevices, mockPoints, mockMappings, mockTags, mockCreatePointMutation } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
+  mockMappings: [] as Mapping[],
+  mockTags: [] as Tag[],
   mockCreatePointMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
@@ -46,6 +48,28 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     isLoading: false,
   }),
   useCreatePointMutation: () => mockCreatePointMutation,
+}));
+
+vi.mock('../../../../hooks/datalink/useMappings', () => ({
+  useMappingsQuery: () => ({
+    data: mockMappings,
+    isLoading: false,
+  }),
+  useCreateMappingMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
+vi.mock('../../../../hooks/datalink/useTags', () => ({
+  useTagsQuery: () => ({
+    data: mockTags,
+    isLoading: false,
+  }),
+  useCreateTagMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 function renderPage() {
@@ -97,6 +121,8 @@ describe('DatalinkWorkbench source step', () => {
       updated_at: '',
     });
     mockCreatePointMutation.mutateAsync.mockResolvedValue(undefined);
+    mockMappings.splice(0, mockMappings.length);
+    mockTags.splice(0, mockTags.length);
   });
 
   it('gates source planning behind device selection', () => {
@@ -113,7 +139,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByLabelText('workbench.source.planner.count')).toBeInTheDocument();
   });
 
-  it('renders planned addresses in grid and ledger views', () => {
+  it('renders a source rule layer and continuous gap cells after applying a rule', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
@@ -127,14 +153,54 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
 
+    expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+    expect(screen.getByTestId('source-coverage-overview')).toBeInTheDocument();
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
     expect(screen.getByTestId('address-cell-40003')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-40004')).toHaveAttribute('data-status', 'gap');
     expect(screen.getByTestId('address-cell-40005')).toHaveAttribute('data-status', 'used');
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.table' }));
+  it('switches plan, live, and link overlays without changing the lattice addresses', () => {
+    renderPage();
 
-    expect(screen.getByTestId('address-ledger-row-40001')).toHaveTextContent('40001');
-    expect(screen.getByTestId('address-ledger-row-40005')).toHaveTextContent('Existing Pressure');
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
+    expect(screen.getByTestId('source-canvas')).toHaveAttribute('data-view-mode', 'live');
+    expect(screen.getByTestId('address-cell-40001')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.link' }));
+    expect(screen.getByTestId('source-canvas')).toHaveAttribute('data-view-mode', 'link');
+    expect(screen.getByTestId('address-cell-40001')).toBeInTheDocument();
+    expect(screen.getByText('workbench.source.link.unbound')).toBeInTheDocument();
+  });
+
+  it('persists applied source rules when navigating away from and back to the source step', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+
+    expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
   });
 
   it('batch creates points from the planned address range', async () => {

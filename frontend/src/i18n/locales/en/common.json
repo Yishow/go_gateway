@@ -560,8 +560,15 @@
         "description": "Step 2 needs an active device so the address canvas can visualize existing points and planned ranges."
       },
       "view": {
-        "grid": "Grid",
-        "table": "Table"
+        "plan": "Plan",
+        "live": "Live",
+        "link": "Link"
+      },
+      "formats": {
+        "decimal": "Decimal",
+        "hex": "Hex",
+        "binary": "Binary",
+        "float": "Float"
       },
       "planner": {
         "startAddress": "Start address",
@@ -575,13 +582,63 @@
         "import": "Import",
         "export": "Export"
       },
+      "toolbar": {
+        "valueFormat": "Value format",
+        "freezeLive": "Freeze live",
+        "unfreezeLive": "Resume live",
+        "snapshotCompare": "Snapshot compare",
+        "showAudit": "Show audit",
+        "hideAudit": "Hide audit",
+        "jumpToAddress": "Jump to address",
+        "jump": "Jump",
+        "saveTemplate": "Save template",
+        "loadTemplate": "Load template"
+      },
+      "ruleLayer": {
+        "eyebrow": "Rule layer",
+        "title": "Manage planning directives",
+        "description": "Keep multiple address rules visible, focusable, and reorderable.",
+        "empty": "Apply a planning rule to start building the shared source lattice.",
+        "meta": "{{bitWidth}}-bit · {{count}} item(s) · {{cells}} cells",
+        "enable": "Enable",
+        "disable": "Disable",
+        "lock": "Lock",
+        "unlock": "Unlock",
+        "moveUp": "Move up",
+        "moveDown": "Move down"
+      },
+      "coverage": {
+        "eyebrow": "Coverage overview",
+        "title": "Continuous address coverage",
+        "empty": "No address coverage yet.",
+        "cells": "{{count}} cells",
+        "status": {
+          "planned": "Planned",
+          "used": "Used",
+          "conflict": "Conflict",
+          "gap": "Gap"
+        }
+      },
       "canvas": {
         "empty": "No planned range or existing points yet.",
         "plannedLabel": "Planned range",
         "plannedState": "Planned",
         "usedLabel": "Existing point",
         "conflictLabel": "Conflict",
-        "conflictState": "Address overlap"
+        "conflictState": "Address overlap",
+        "gapLabel": "Gap",
+        "gapState": "Unused address space",
+        "mergeState": "Span {{cells}} cells"
+      },
+      "link": {
+        "needsPoint": "Create point first",
+        "unbound": "Unbound",
+        "draft": "Tag draft",
+        "ready": "Tag ready",
+        "blocked": "Binding blocked",
+        "missingTag": "Tag missing",
+        "conflict": "Resolve conflict first",
+        "noState": "No downstream state"
       },
       "ledger": {
         "empty": "Switch a device and apply a plan to inspect address rows.",
@@ -605,6 +662,30 @@
         "title": "Select the points to bind in batch",
         "description": "This step only handles source-to-tag binding. Select the target points first, then decide the key template.",
         "pointMeta": "Address {{address}} · {{dataType}}"
+      },
+      "board": {
+        "search": "Search candidates",
+        "statusFilter": "Status filter",
+        "flow": {
+          "create": "Create new tags",
+          "existing": "Bind existing tags"
+        },
+        "statusFilters": {
+          "all": "All",
+          "unbound": "Unbound",
+          "partial": "Needs review",
+          "bound": "Already bound"
+        },
+        "span": "{{cells}} cells · {{bitWidth}}-bit",
+        "rawValue": "Raw value",
+        "transformedValue": "Transformed value",
+        "existingTag": "Existing tag",
+        "noExistingTag": "Choose a tag",
+        "status": {
+          "bound": "Bound",
+          "unbound": "Unbound",
+          "partial": "Partial"
+        }
       },
       "template": {
         "eyebrow": "Tag key template",
@@ -654,11 +735,21 @@
       },
       "selection": {
         "eyebrow": "Choose linked tags",
-        "title": "Send linked tags to Local Modbus",
-        "description": "Select the linked tag you want to expose, assign a holding register, then sync the server.",
+        "title": "Review output candidates across Local Modbus and Database",
+        "description": "Keep one candidate board for both targets, then switch the active studio to finish the mapping details.",
         "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
         "mapped": "Mapped to HR{{register}}",
-        "unmapped": "Not mapped yet"
+        "unmapped": "Not mapped yet",
+        "databaseUnmapped": "No database mapping",
+        "latestValue": "Latest value: {{value}}"
+      },
+      "targetSwitcher": {
+        "modbus": "Local Modbus",
+        "database": "Database"
+      },
+      "modbusStudio": {
+        "eyebrow": "Local Modbus studio",
+        "title": "Operate the active Modbus publishing target"
       },
       "status": {
         "server": "Server",
@@ -936,6 +1027,7 @@
       },
       "validation": {
         "nameRequired": "Enter a device name",
+        "cloneNameDistinct": "Use a new device name for the cloned source",
         "hostRequired": "Enter a host",
         "portRequired": "Enter a port",
         "serialPortRequired": "Enter a serial port",

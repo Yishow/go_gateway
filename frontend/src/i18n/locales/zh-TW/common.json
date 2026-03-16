@@ -560,8 +560,15 @@
         "description": "Step 2 需要綁定一台設備，地址畫布才能顯示既有點位與新規劃範圍。"
       },
       "view": {
-        "grid": "Grid",
-        "table": "Table"
+        "plan": "規劃",
+        "live": "即時",
+        "link": "連結"
+      },
+      "formats": {
+        "decimal": "十進位",
+        "hex": "十六進位",
+        "binary": "二進位",
+        "float": "浮點"
       },
       "planner": {
         "startAddress": "起始位址",
@@ -575,13 +582,63 @@
         "import": "匯入",
         "export": "匯出"
       },
+      "toolbar": {
+        "valueFormat": "數值格式",
+        "freezeLive": "凍結即時值",
+        "unfreezeLive": "恢復即時值",
+        "snapshotCompare": "快照比對",
+        "showAudit": "顯示稽核清單",
+        "hideAudit": "隱藏稽核清單",
+        "jumpToAddress": "跳到位址",
+        "jump": "跳轉",
+        "saveTemplate": "儲存模板",
+        "loadTemplate": "載入模板"
+      },
+      "ruleLayer": {
+        "eyebrow": "規劃規則層",
+        "title": "管理來源規劃規則",
+        "description": "讓多條位址規則能同時可見、聚焦、切換與重排。",
+        "empty": "先套用一條規劃規則，才能開始建立共享位址 lattice。",
+        "meta": "{{bitWidth}} 位元 · {{count}} 筆 · {{cells}} 格",
+        "enable": "啟用",
+        "disable": "停用",
+        "lock": "鎖定",
+        "unlock": "解除鎖定",
+        "moveUp": "上移",
+        "moveDown": "下移"
+      },
+      "coverage": {
+        "eyebrow": "覆蓋總覽",
+        "title": "連續位址覆蓋帶",
+        "empty": "目前還沒有任何位址覆蓋。",
+        "cells": "{{count}} 格",
+        "status": {
+          "planned": "規劃中",
+          "used": "既有點位",
+          "conflict": "衝突",
+          "gap": "空白區"
+        }
+      },
       "canvas": {
         "empty": "目前還沒有規劃範圍或既有點位。",
         "plannedLabel": "規劃範圍",
         "plannedState": "規劃中",
         "usedLabel": "既有點位",
         "conflictLabel": "衝突",
-        "conflictState": "位址重疊"
+        "conflictState": "位址重疊",
+        "gapLabel": "空白區",
+        "gapState": "未使用位址空間",
+        "mergeState": "跨 {{cells}} 格"
+      },
+      "link": {
+        "needsPoint": "需先建立 point",
+        "unbound": "尚未綁定",
+        "draft": "Tag 草稿",
+        "ready": "Tag 已就緒",
+        "blocked": "綁定受阻",
+        "missingTag": "找不到 Tag",
+        "conflict": "需先排除衝突",
+        "noState": "尚無下游狀態"
       },
       "ledger": {
         "empty": "請先選擇設備並套用規劃，才能檢視位址清單。",
@@ -605,6 +662,30 @@
         "title": "批次挑選要綁定的 point",
         "description": "這裡只做來源到 Tag 的綁定，先把要推進的點位圈起來，再決定 key 模板。",
         "pointMeta": "位址 {{address}} · {{dataType}}"
+      },
+      "board": {
+        "search": "搜尋候選項",
+        "statusFilter": "狀態篩選",
+        "flow": {
+          "create": "建立新 Tag",
+          "existing": "綁定既有 Tag"
+        },
+        "statusFilters": {
+          "all": "全部",
+          "unbound": "未綁定",
+          "partial": "需複查",
+          "bound": "已綁定"
+        },
+        "span": "{{cells}} 格 · {{bitWidth}} 位元",
+        "rawValue": "原始值",
+        "transformedValue": "轉換後值",
+        "existingTag": "既有 Tag",
+        "noExistingTag": "請選擇 Tag",
+        "status": {
+          "bound": "已綁定",
+          "unbound": "未綁定",
+          "partial": "部分完成"
+        }
       },
       "template": {
         "eyebrow": "Tag key 模板",
@@ -654,11 +735,21 @@
       },
       "selection": {
         "eyebrow": "選擇已連結 Tag",
-        "title": "將已連結 Tag 發佈到 Local Modbus",
-        "description": "先選要暴露的 Tag，指定 holding register，再同步到本地 server。",
+        "title": "在 Local Modbus / Database 間檢視輸出候選項",
+        "description": "先在同一塊 candidate board 看兩種輸出目標的狀態，再切換 active studio 完成細部設定。",
         "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
         "mapped": "已映射到 HR{{register}}",
-        "unmapped": "尚未映射"
+        "unmapped": "尚未映射",
+        "databaseUnmapped": "尚未設定資料庫映射",
+        "latestValue": "最新值：{{value}}"
+      },
+      "targetSwitcher": {
+        "modbus": "Local Modbus",
+        "database": "資料庫"
+      },
+      "modbusStudio": {
+        "eyebrow": "Local Modbus 工作台",
+        "title": "操作目前的 Modbus 發佈目標"
       },
       "status": {
         "server": "Server 狀態",
@@ -936,6 +1027,7 @@
       },
       "validation": {
         "nameRequired": "請輸入設備名稱",
+        "cloneNameDistinct": "複製後的來源設備必須使用新的名稱",
         "hostRequired": "請輸入主機位址",
         "portRequired": "請輸入 Port",
         "serialPortRequired": "請輸入串列埠",

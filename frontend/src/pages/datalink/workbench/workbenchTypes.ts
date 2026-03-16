@@ -1,4 +1,5 @@
 import type { DeviceStatus, TagStatus } from '../../../types/datalink';
+import type { SourceRule } from './sourceCanvasModel';
 
 // ---------------------------------------------------------------------------
 // Step definitions
@@ -122,6 +123,18 @@ export type WorkbenchCrossStepContext = {
 export const WORKBENCH_CROSS_STEP_CONTEXT_INITIAL: WorkbenchCrossStepContext = {
   focusedRuleId: null,
   focusedTagIds: [],
+} as const;
+
+export type WorkbenchSourcePlanningState = {
+  rules: ReadonlyArray<SourceRule>;
+  selectedRuleId: string | null;
+  selectedAddress: string | null;
+};
+
+export const WORKBENCH_SOURCE_PLANNING_INITIAL: WorkbenchSourcePlanningState = {
+  rules: [],
+  selectedRuleId: null,
+  selectedAddress: null,
 } as const;
 
 export type DevicePanelState =

@@ -185,6 +185,7 @@ describe('DatalinkWorkbench foundation route', () => {
     mockUpdateDeviceMutation.mutateAsync.mockReset();
     mockUpdateDeviceMutation.mutateAsync.mockResolvedValue(undefined);
     mockTestConnectionMutation.mutateAsync.mockReset();
+    mockTestConnectionMutation.isPending = false;
   });
 
   function renderApp() {
@@ -360,6 +361,63 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(screen.getByLabelText('workbench.device.connection.host')).toHaveValue('192.168.1.10');
     expect(screen.getByLabelText('workbench.device.connection.port')).toHaveValue('502');
     expect(screen.getByLabelText('workbench.device.connection.slaveId')).toHaveValue('1');
+  });
+
+  it('prevents saving a clone with the same source device name', async () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      within(screen.getByTestId('workbench-inspector-panel')).getByRole('button', {
+        name: 'workbench.device.actions.clone',
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('workbench.device.fields.name'), {
+      target: { value: 'Mixer PLC' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.save' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('workbench.device.validation.cloneNameDistinct'),
+      ).toBeInTheDocument();
+    });
+    expect(mockCreateDeviceMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('disables inspector test action while a connection test is already pending', () => {
+    mockTestConnectionMutation.isPending = true;
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    const inspector = screen.getByTestId('workbench-inspector-panel');
+    expect(
+      within(inspector).getByRole('button', {
+        name: 'workbench.device.actions.testing',
+      }),
+    ).toBeDisabled();
+  });
+
+  it('uses the latest session test result tone in the context bar', async () => {
+    mockTestConnectionMutation.mutateAsync
+      .mockReset()
+      .mockResolvedValueOnce({ success: false, error: 'timeout-latest', latency_ms: 0 });
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      within(screen.getByTestId('workbench-inspector-panel')).getByRole('button', {
+        name: 'workbench.device.actions.testConnection',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('context-bar-test-status')).toHaveTextContent('timeout-latest');
+      expect(screen.getByTestId('context-bar-test-status')).toHaveClass('text-rose-300');
+    });
   });
 
   it('keeps only the three most recent connection tests in the inspector timeline', async () => {

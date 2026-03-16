@@ -1,12 +1,89 @@
-import type { DataType, Point, ProtocolType } from '../../../types/datalink';
+import type {
+  DataType,
+  Mapping,
+  Point,
+  ProtocolType,
+  Tag,
+} from '../../../types/datalink';
 import { addressParser } from '../../../utils/addressParser';
 
-export type SourceViewMode = 'grid' | 'table';
+export type SourceViewMode = 'plan' | 'live' | 'link';
+
+export type SourceValueFormat = 'decimal' | 'hex' | 'binary' | 'float';
+
+export type SourceRule = {
+  id: string;
+  startAddress: string;
+  count: number;
+  dataType: DataType;
+  namingPrefix: string;
+  enabled: boolean;
+  locked: boolean;
+  origin: 'manual' | 'template';
+  templateName?: string;
+};
+
+export type AddressCanvasStatus = 'gap' | 'planned' | 'used' | 'conflict';
+
+export type AddressLinkState = 'needsPoint' | 'unbound' | 'draft' | 'ready' | 'blocked';
 
 export type AddressCanvasItem = {
   address: string;
-  status: 'planned' | 'used' | 'conflict';
+  status: AddressCanvasStatus;
   point?: Point;
+  ruleIds: ReadonlyArray<string>;
+  primaryRuleId: string | null;
+  mergeSpan: number;
+  mergeOffset: number;
+  linkState: AddressLinkState | null;
+  linkLabelKey: string | null;
+  liveValue: unknown;
+  liveTimestamp: string | null;
+};
+
+export type CoverageOverviewSegment = {
+  id: string;
+  status: AddressCanvasStatus;
+  startAddress: string;
+  endAddress: string;
+  cellCount: number;
+};
+
+type LiveValueSnapshot = {
+  raw_value?: unknown;
+  timestamp?: string;
+};
+
+type BuildAddressCanvasItemsInput =
+  | {
+      points: Point[];
+      rules: ReadonlyArray<SourceRule>;
+      mappings?: Mapping[];
+      tags?: Tag[];
+      protocol: ProtocolType;
+      liveValues?: Readonly<Record<string, LiveValueSnapshot>>;
+    }
+  | {
+      points: Point[];
+      plannedPointAddresses: string[];
+      plannedDataType: DataType;
+      mappings?: Mapping[];
+      tags?: Tag[];
+      protocol: ProtocolType;
+      liveValues?: Readonly<Record<string, LiveValueSnapshot>>;
+    };
+
+type PointOccupancy = {
+  point: Point;
+  mergeSpan: number;
+  mergeOffset: number;
+};
+
+type RuleOccupancy = {
+  ruleIds: string[];
+  primaryRuleId: string;
+  mergeSpan: number;
+  mergeOffset: number;
 };
 
 const DATA_TYPE_CELL_SPAN: Record<DataType, number> = {
@@ -26,6 +103,10 @@ export function getDataTypeCellSpan(dataType: DataType): number {
   return DATA_TYPE_CELL_SPAN[dataType] ?? 1;
 }
 
+export function getDataTypeBitWidth(dataType: DataType): number {
+  return getDataTypeCellSpan(dataType) * 16;
+}
+
 export function buildPlannedPointAddresses(input: {
   startAddress: string;
   count: number;
@@ -40,77 +121,234 @@ export function buildPlannedPointAddresses(input: {
   );
 }
 
-export function buildAddressCanvasItems(input: {
-  points: Point[];
-  plannedPointAddresses: string[];
-  plannedDataType: DataType;
-  protocol: ProtocolType;
-}): AddressCanvasItem[] {
-  const itemMap = new Map<string, AddressCanvasItem>();
-  const usedAddressMap = buildUsedAddressMap(input.points, input.protocol);
-  const conflictAddresses = new Set(
-    getConflictingPlannedPointAddresses({
-      points: input.points,
-      plannedPointAddresses: input.plannedPointAddresses,
-      plannedDataType: input.plannedDataType,
-      protocol: input.protocol,
-    }),
-  );
+export function buildSourceRuleCoverage(rule: SourceRule, protocol: ProtocolType) {
+  const occupiedAddresses = expandRuleOccupiedAddresses(rule, protocol);
+  const startAddress = occupiedAddresses[0] ?? rule.startAddress;
+  const endAddress = occupiedAddresses.at(-1) ?? rule.startAddress;
 
-  for (const [address, point] of usedAddressMap.entries()) {
-    itemMap.set(address, {
+  return {
+    startAddress,
+    endAddress,
+    cellCount: occupiedAddresses.length,
+    bitWidth: getDataTypeBitWidth(rule.dataType),
+  };
+}
+
+export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): AddressCanvasItem[] {
+  const pointOccupancy = buildPointOccupancyMap(input.points, input.protocol);
+  const ruleOccupancy =
+    'rules' in input
+      ? buildRuleOccupancyMap(input.rules, input.protocol)
+      : buildLegacyRuleOccupancyMap(
+          input.plannedPointAddresses,
+          input.plannedDataType,
+          input.protocol,
+        );
+  const mappings = input.mappings ?? [];
+  const tags = input.tags ?? [];
+  const occupiedAddresses = new Set<string>([
+    ...pointOccupancy.keys(),
+    ...ruleOccupancy.keys(),
+  ]);
+
+  if (occupiedAddresses.size === 0) {
+    return [];
+  }
+
+  const sortedOccupiedAddresses = [...occupiedAddresses].sort((left, right) =>
+    sortAddresses(left, right, input.protocol),
+  );
+  const minAddress = sortedOccupiedAddresses[0]!;
+  const maxAddress = sortedOccupiedAddresses[sortedOccupiedAddresses.length - 1]!;
+  const cellCount = getSequentialCellCount(minAddress, maxAddress, input.protocol);
+
+  return Array.from({ length: cellCount }, (_, offset) => {
+    const address = addressParser.offset(minAddress, offset, input.protocol);
+    const pointMeta = pointOccupancy.get(address);
+    const ruleMeta = ruleOccupancy.get(address);
+    const hasRuleConflict = (ruleMeta?.ruleIds.length ?? 0) > 1;
+
+    let status: AddressCanvasStatus = 'gap';
+    if ((pointMeta && ruleMeta) || hasRuleConflict) {
+      status = 'conflict';
+    } else if (pointMeta) {
+      status = 'used';
+    } else if (ruleMeta) {
+      status = 'planned';
+    }
+
+    const link = resolveLinkState({
+      point: pointMeta?.point,
+      hasRule: Boolean(ruleMeta),
+      mappings,
+      tags,
+      hasConflict: status === 'conflict',
+    });
+    const liveSnapshot = pointMeta?.point ? input.liveValues?.[pointMeta.point.id] : undefined;
+
+    return {
       address,
-      status: 'used',
-      point,
+      status,
+      point: pointMeta?.point,
+      ruleIds: ruleMeta?.ruleIds ?? [],
+      primaryRuleId: ruleMeta?.primaryRuleId ?? null,
+      mergeSpan: pointMeta?.mergeSpan ?? ruleMeta?.mergeSpan ?? 1,
+      mergeOffset: pointMeta?.mergeOffset ?? ruleMeta?.mergeOffset ?? 0,
+      linkState: link.state,
+      linkLabelKey: link.labelKey,
+      liveValue: liveSnapshot?.raw_value ?? pointMeta?.point?.last_value,
+      liveTimestamp:
+        liveSnapshot?.timestamp ?? pointMeta?.point?.last_read_at ?? null,
+    };
+  });
+}
+
+export function buildCoverageOverviewSegments(
+  items: ReadonlyArray<AddressCanvasItem>,
+): CoverageOverviewSegment[] {
+  const segments: CoverageOverviewSegment[] = [];
+
+  for (const item of items) {
+    const lastSegment = segments.at(-1);
+    if (!lastSegment || lastSegment.status !== item.status) {
+      segments.push({
+        id: `${item.status}-${item.address}`,
+        status: item.status,
+        startAddress: item.address,
+        endAddress: item.address,
+        cellCount: 1,
+      });
+      continue;
+    }
+
+    lastSegment.endAddress = item.address;
+    lastSegment.cellCount += 1;
+  }
+
+  return segments;
+}
+
+export function formatSourceValue(value: unknown, format: SourceValueFormat): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return String(value);
+  }
+
+  switch (format) {
+    case 'hex':
+      return `0x${Math.trunc(value).toString(16).toUpperCase()}`;
+    case 'binary':
+      return `0b${Math.trunc(value).toString(2)}`;
+    case 'float':
+      return value.toFixed(3).replace(/\.?0+$/, '');
+    case 'decimal':
+      return String(value);
+  }
+}
+
+function buildPointOccupancyMap(points: Point[], protocol: ProtocolType) {
+  const occupancy = new Map<string, PointOccupancy>();
+
+  for (const point of points) {
+    const occupiedAddresses = expandOccupiedAddresses(
+      point.address,
+      point.data_type,
+      protocol,
+    );
+
+    occupiedAddresses.forEach((address, index) => {
+      occupancy.set(address, {
+        point,
+        mergeSpan: occupiedAddresses.length,
+        mergeOffset: index,
+      });
     });
   }
 
-  for (const pointAddress of input.plannedPointAddresses) {
-    for (const address of expandOccupiedAddresses(
-      pointAddress,
-      input.plannedDataType,
-      input.protocol,
-    )) {
-      itemMap.set(address, {
-        address,
-        status: conflictAddresses.has(pointAddress) && usedAddressMap.has(address)
-          ? 'conflict'
-          : 'planned',
-        point: usedAddressMap.get(address),
+  return occupancy;
+}
+
+function buildRuleOccupancyMap(rules: ReadonlyArray<SourceRule>, protocol: ProtocolType) {
+  const occupancy = new Map<string, RuleOccupancy>();
+
+  for (const rule of rules.filter((candidate) => candidate.enabled)) {
+    const pointAddresses = buildPlannedPointAddresses({
+      startAddress: rule.startAddress,
+      count: rule.count,
+      dataType: rule.dataType,
+      protocol,
+    });
+
+    for (const pointAddress of pointAddresses) {
+      const occupiedAddresses = expandOccupiedAddresses(
+        pointAddress,
+        rule.dataType,
+        protocol,
+      );
+
+      occupiedAddresses.forEach((address, index) => {
+        const current = occupancy.get(address);
+        if (current) {
+          occupancy.set(address, {
+            ...current,
+            ruleIds: [...current.ruleIds, rule.id],
+          });
+          return;
+        }
+
+        occupancy.set(address, {
+          ruleIds: [rule.id],
+          primaryRuleId: rule.id,
+          mergeSpan: occupiedAddresses.length,
+          mergeOffset: index,
+        });
       });
     }
   }
 
-  return [...itemMap.values()].sort((left, right) =>
-    sortAddresses(left.address, right.address, input.protocol),
-  );
+  return occupancy;
 }
 
-export function getConflictingPlannedPointAddresses(input: {
-  points: Point[];
-  plannedPointAddresses: string[];
-  plannedDataType: DataType;
-  protocol: ProtocolType;
-}) {
-  const usedAddressMap = buildUsedAddressMap(input.points, input.protocol);
+function buildLegacyRuleOccupancyMap(
+  plannedPointAddresses: ReadonlyArray<string>,
+  plannedDataType: DataType,
+  protocol: ProtocolType,
+) {
+  const occupancy = new Map<string, RuleOccupancy>();
 
-  return input.plannedPointAddresses.filter((pointAddress) =>
-    expandOccupiedAddresses(pointAddress, input.plannedDataType, input.protocol).some((address) =>
-      usedAddressMap.has(address),
-    ),
-  );
+  plannedPointAddresses.forEach((pointAddress, ruleIndex) => {
+    const occupiedAddresses = expandOccupiedAddresses(
+      pointAddress,
+      plannedDataType,
+      protocol,
+    );
+    const ruleId = `legacy-rule-${ruleIndex + 1}`;
+
+    occupiedAddresses.forEach((address, index) => {
+      occupancy.set(address, {
+        ruleIds: [ruleId],
+        primaryRuleId: ruleId,
+        mergeSpan: occupiedAddresses.length,
+        mergeOffset: index,
+      });
+    });
+  });
+
+  return occupancy;
 }
 
-function buildUsedAddressMap(points: Point[], protocol: ProtocolType) {
-  const usedAddressMap = new Map<string, Point>();
-
-  for (const point of points) {
-    for (const address of expandOccupiedAddresses(point.address, point.data_type, protocol)) {
-      usedAddressMap.set(address, point);
-    }
-  }
-
-  return usedAddressMap;
+function expandRuleOccupiedAddresses(rule: SourceRule, protocol: ProtocolType) {
+  return buildPlannedPointAddresses({
+    startAddress: rule.startAddress,
+    count: rule.count,
+    dataType: rule.dataType,
+    protocol,
+  }).flatMap((pointAddress) =>
+    expandOccupiedAddresses(pointAddress, rule.dataType, protocol),
+  );
 }
 
 function expandOccupiedAddresses(
@@ -118,11 +356,23 @@ function expandOccupiedAddresses(
   dataType: DataType,
   protocol: ProtocolType,
 ) {
-  return addressParser.expand(
-    startAddress,
-    getDataTypeCellSpan(dataType),
-    protocol,
-  );
+  return addressParser.expand(startAddress, getDataTypeCellSpan(dataType), protocol);
+}
+
+function getSequentialCellCount(
+  startAddress: string,
+  endAddress: string,
+  protocol: ProtocolType,
+) {
+  try {
+    return (
+      addressParser.parse(endAddress, protocol).startNumber -
+        addressParser.parse(startAddress, protocol).startNumber +
+      1
+    );
+  } catch {
+    return 1;
+  }
 }
 
 function sortAddresses(left: string, right: string, protocol: ProtocolType) {
@@ -133,5 +383,66 @@ function sortAddresses(left: string, right: string, protocol: ProtocolType) {
     );
   } catch {
     return left.localeCompare(right);
+  }
+}
+
+function resolveLinkState(input: {
+  point: Point | undefined;
+  hasRule: boolean;
+  mappings: Mapping[];
+  tags: Tag[];
+  hasConflict: boolean;
+}): { state: AddressLinkState | null; labelKey: string | null } {
+  if (input.hasConflict) {
+    return {
+      state: 'blocked',
+      labelKey: 'workbench.source.link.conflict',
+    };
+  }
+
+  if (!input.point) {
+    return input.hasRule
+      ? {
+          state: 'needsPoint',
+          labelKey: 'workbench.source.link.needsPoint',
+        }
+      : {
+          state: null,
+          labelKey: null,
+        };
+  }
+
+  const mapping = input.mappings.find((candidate) => candidate.point_id === input.point?.id);
+  if (!mapping) {
+    return {
+      state: 'unbound',
+      labelKey: 'workbench.source.link.unbound',
+    };
+  }
+
+  const tag = input.tags.find((candidate) => candidate.id === mapping.tag_id);
+  if (!tag) {
+    return {
+      state: 'blocked',
+      labelKey: 'workbench.source.link.missingTag',
+    };
+  }
+
+  switch (tag.status) {
+    case 'active':
+      return {
+        state: 'ready',
+        labelKey: 'workbench.source.link.ready',
+      };
+    case 'draft':
+      return {
+        state: 'draft',
+        labelKey: 'workbench.source.link.draft',
+      };
+    case 'retired':
+      return {
+        state: 'blocked',
+        labelKey: 'workbench.source.link.blocked',
+      };
   }
 }
