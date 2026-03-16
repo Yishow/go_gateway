@@ -183,3 +183,126 @@
 - 下一個自然階段可選：`LocalModbusWorkbenchPage` 的視覺收斂，或 `SmartDashboard` 主流程的 TDD 缺口補強
 - 前端測試現已正式收斂到 root `frontend/tests/` 作為執行入口
 - 第二階段實體遷移：utils、hooks、features、components 已搬至 `frontend/tests/`，來源檔已刪除；頁面測試（Gateway、SmartDashboard）仍以 wrapper 匯入 `src/pages/.../__tests__/`，可於後續 session 遷移
+
+## Session: 2026-03-15
+
+### Datalink UI 深度分析與重整方向確認
+- **Status:** complete
+- Actions taken:
+  - 建立 SQL todos，拆分為前端主流程盤查、後端能力盤查、可重用資產/技術債盤查、整合改版方案四個任務
+  - 以 `claude-opus-4.6` 平行啟動三個分析代理，並確認 todos 狀態全數完成
+  - 快速 spot-check `SmartDashboardPage.tsx`、`LocalModbusWorkbenchPage.tsx`、`legacyRoutes.ts`
+  - 使用 `ask_user` 確認使用者偏好：
+    - 同一畫面先完成 `Tag -> Local Modbus`，資料庫作為同流程下一步
+    - 可視化偏好為格狀視覺化為主、表格為輔
+  - 產出整合結論：建議採 **混合式過渡**，新增 `/datalink/workbench` 逐步取代現有 SmartDashboard 主線
+  - 完成設計 spec：`docs/superpowers/specs/2026-03-15-datalink-workbench-design.md`
+  - 完成 spec review 並取得使用者核准進入 implementation plan
+  - 以繁中 commit 設計 spec：`5afef10 新增 datalink workbench 設計規格`
+  - 建立 execution backlog：foundation / shell UI / source canvas / tag binding / local modbus / integration / quality / phase2 contracts
+  - 依使用者指示先做「2、3 再做 1」，補齊兩份 detail spec：
+    - `docs/superpowers/specs/2026-03-15-datalink-workbench-ui-detail.md`
+    - `docs/superpowers/specs/phase2-runtime-dbtarget-detail.md`
+  - 補查 implementation 風險：確認 `MemoryGrid` props 已足以承接 workbench 主視覺；確認 `POST /datalink/points/:id/poll` 與 `POST /datalink/points/poll` 皆已掛上 router
+- Files created/modified:
+  - `findings.md`
+  - `task_plan.md`
+  - `progress.md`
+  - `/Users/yishow/.copilot/session-state/63ec8c96-8e62-43c4-969c-5c845467d5be/plan.md`
+
+## Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| SQL todo workflow | 建立/更新分析 todos | todo 狀態依序變更 | 四個 todos 皆完成 | ✓ |
+| 平行分析代理 | `frontend-flow-audit` / `backend-capability-audit` / `reuse-debt-audit` | 各自完成盤查並回報 | 三個代理皆完成且 SQL 狀態為 `done` | ✓ |
+| Spec review loop | reviewer 檢查 spec 完整性 | spec 可進 implementation planning | reviewer 核准通過 | ✓ |
+| Spec commit | `git commit` spec 文件 | 設計 spec 獨立提交 | commit `5afef10` 完成 | ✓ |
+| Detail planning | UI 細節與 Phase 2 契約補齊 | 形成可開工前的完整規劃 | 兩份 detail spec 已完成 | ✓ |
+
+## 5-Question Reboot Check
+| Question | Answer |
+|----------|--------|
+| Where am I? | implementation plan 已建立，等待是否啟動 Phase 1 |
+| Where am I going? | 若使用者同意，即用 fleet mode 派發 foundation 與第一批 UI 子任務；Phase 2 契約也已有提前規劃 |
+| What's the goal? | 讓 datalink UI 收斂成「來源 -> 可視化 -> Tag -> 輸出」的單純主線 |
+| What have I learned? | 問題集中在頁面層，底層 domain 資產大多可沿用；runtime API 與 DB target 已完成細化規劃但尚未實作 |
+| What have I done? | 已完成深度盤查、設計 spec、spec review、spec commit、implementation backlog、Phase 1/2 detail planning |
+
+## Session: 2026-03-16
+
+### Workbench 主線實作補齊
+- **Status:** complete
+- Actions taken:
+  - 完成 Step 3 `TagBindingStudio`
+    - 新增 `tagBindingModel.ts`
+    - 支援 prefix / strategy preview key
+    - 支援 existing key / duplicate preview / already linked 阻擋
+    - 支援 partial failure summary
+  - 完成 Step 4 `LocalModbusBoard`
+    - 整合 Local Modbus server 啟停、register 綁定、conflict block sync、push current value
+    - 以 selected device 的 points + mappings + tags 推導 output candidates
+  - 強化 shell UI
+    - 新增 `useWorkbenchSummary.ts`
+    - `WorkbenchHeaderBar` 顯示 point/tag/output counts
+    - `WorkbenchActionDock` 顯示 readiness 與 next action
+  - 補齊 workbench i18n keys（en / zh-TW）
+  - 補齊測試：
+    - `workbench-tag-step.test.tsx`
+    - `workbench-output-step.test.tsx`
+    - `workbench-shell-ui.test.tsx`
+    - `tag-binding-model.test.ts`
+  - 完成 integration / quality 收尾
+    - 手動 review `useWorkbenchSummary`、`WorkbenchHeaderBar`、`WorkbenchActionDock`、`TagBindingStudio`、`LocalModbusBoard`
+    - 將 `workbench-integration`、`workbench-quality-pass` 回寫為 `done`
+    - 確認 `runtime-live-value-phase2`、`database-target-phase2` 轉為 ready todo
+  - 手動完成最終驗證
+    - 分批執行 workbench 測試
+    - 執行 `npm run lint`
+    - 執行 `npm run build`
+    - 執行 `git --no-pager diff --check`
+- Files created/modified:
+  - `frontend/src/pages/datalink/workbench/TagBindingStudio.tsx`
+  - `frontend/src/pages/datalink/workbench/tagBindingModel.ts`
+  - `frontend/src/pages/datalink/workbench/LocalModbusBoard.tsx`
+  - `frontend/src/pages/datalink/workbench/useWorkbenchSummary.ts`
+  - `frontend/src/pages/datalink/workbench/WorkbenchHeaderBar.tsx`
+  - `frontend/src/pages/datalink/workbench/WorkbenchActionDock.tsx`
+  - `frontend/src/pages/datalink/workbench/DatalinkWorkbenchPage.tsx`
+  - `frontend/src/i18n/locales/en/common.json`
+  - `frontend/src/i18n/locales/zh-TW/common.json`
+  - `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchTagStep.test.tsx`
+  - `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx`
+  - `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx`
+  - `frontend/src/pages/datalink/workbench/__tests__/tagBindingModel.test.ts`
+  - `frontend/tests/unit/features/datalink/tag-binding-model.test.ts`
+  - `frontend/tests/unit/pages/datalink/workbench-tag-step.test.tsx`
+  - `frontend/tests/unit/pages/datalink/workbench-output-step.test.tsx`
+  - `frontend/tests/unit/pages/datalink/workbench-shell-ui.test.tsx`
+
+### Errors Encountered
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `claude-opus-4.6` background agents returned 429 / rate limit | 1 | 改由主代理手動接手 Step 3 / Step 4 實作 |
+| `gpt-5.4` general-purpose / explore background agents 長時間 running 但沒有第一輪 turn | 1 | 停止空等，直接由主代理手動做 quality pass 與 phase2 接手準備 |
+| `LocalModbusBoard` 在測試中因 `loadData` 依賴 `t` 而重複觸發 effect | 1 | 以 `ref` 穩定 fallback translation，讓 callback 不受 `t` identity 影響 |
+| `LocalModbusBoard` register input 被 effect 重設回 `0` | 1 | 將 effect 依賴收斂到 `selectedTagId` 與 `selectedCandidateRegister` |
+| `TagBindingStudio` selection 因 fresh array dependency 反覆重設 | 1 | 改為 `pointIdsKey -> split` 產生穩定 id list |
+| 多個 workbench Vitest 檔一次串跑時 worker 在測試通過後不正常結束 | 1 | 改採分批驗證，保留定位能力並避免白等 |
+
+## Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Tag binding model | `tests/unit/features/datalink/tag-binding-model.test.ts` | preview/build request contract 正常 | 3 tests passed | ✓ |
+| Tag step UI | `tests/unit/pages/datalink/workbench-tag-step.test.tsx` | empty state / preview / conflict / partial failure 正常 | 4 tests passed | ✓ |
+| Output + Local Modbus | `tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/local-modbus-workbench.test.ts` | server start / register bind / conflict block / legacy page 正常 | 9 tests passed | ✓ |
+| Shell UI summary | `tests/unit/pages/datalink/workbench-shell-ui.test.tsx` | header/action dock 反映 counts 與 next action | 2 tests passed | ✓ |
+| Unit/meta batch | `tests/unit/utils/designSystemForms.test.ts ... tests/unit/features/datalink/legacyRoutes.test.ts` | foundation/meta contracts 正常 | 19 tests passed | ✓ |
+| Shell/foundation batch | `tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx` | route + summary UI 正常 | 4 tests passed | ✓ |
+| Manual quality pass | 三批 workbench 測試 + `npm run lint` + `npm run build` + `git --no-pager diff --check` | workbench 可 commit，且無新增格式問題 | pass（僅既有 Vite chunk size warning） | ✓ |
+| Frontend lint | `cd frontend && npm run lint` | 無 lint error/warning | pass | ✓ |
+| Frontend build | `cd frontend && npm run build` | TypeScript + Vite build 通過 | pass（僅既有 chunk size warning） | ✓ |
+
+## Next Focus
+- 先以繁中 commit 關帳本輪 workbench phase
+- 接著進入 `runtime-live-value-phase2`
+- 再進入 `database-target-phase2`

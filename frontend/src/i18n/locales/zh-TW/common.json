@@ -431,7 +431,10 @@
       "eyebrow": "全新骨架",
       "currentStep": "目前步驟",
       "selectedDevice": "目前設備",
-      "noDevice": "尚未選擇設備"
+      "noDevice": "尚未選擇設備",
+      "pointCount": "Point 數量",
+      "linkedTagCount": "已連結 Tag",
+      "outputCandidateCount": "輸出候選"
     },
     "stepNavigator": {
       "ariaLabel": "工作流步驟"
@@ -439,10 +442,33 @@
     "actionDock": {
       "ariaLabel": "工作台操作摘要",
       "title": "執行摘要",
-      "description": "後續 slices 會把驗證、就緒度與輸出操作收斂到這個區塊。",
+      "description": "這個區塊會集中顯示目前就緒度、主線數量與下一步建議。",
       "activeStep": "作用中步驟",
       "selectedDevice": "目前設備",
-      "noDevice": "尚未選擇設備"
+      "noDevice": "尚未選擇設備",
+      "nextActionLabel": "下一步",
+      "metrics": {
+        "points": "Point 數量",
+        "tags": "已連結 Tag",
+        "outputs": "輸出候選"
+      },
+      "readiness": {
+        "title": "主線就緒度",
+        "source": "來源規劃",
+        "tag": "Tag 綁定",
+        "output": "輸出映射",
+        "ready": "已就緒",
+        "pending": "待處理"
+      },
+      "nextAction": {
+        "selectDevice": "先選擇設備，才能解鎖來源、Tag 與輸出三個步驟。",
+        "createPoints": "先規劃位址並批次建立來源 point。",
+        "advanceToTag": "來源 point 已就緒，下一步可以前往 Tag 綁定。",
+        "bindTags": "請先為目前設備建立並連結 Tag，再往輸出步驟前進。",
+        "advanceToOutput": "Tag 綁定已就緒，下一步可以設定 Local Modbus 輸出。",
+        "completeTagBinding": "請先完成 Tag 綁定，Step 4 才會有可發佈的 linked tag。",
+        "configureOutput": "開始指定 Local Modbus register，並同步輸出映射。"
+      }
     },
     "steps": {
       "device": "設備",
@@ -493,6 +519,121 @@
           "name": "名稱",
           "status": "狀態"
         }
+      }
+    },
+    "tag": {
+      "empty": {
+        "eyebrow": "Step 3：Tag 綁定",
+        "deviceTitle": "請先選擇設備，再挑選要綁定的 point",
+        "deviceDescription": "Tag 綁定會直接列出目前設備下的 point，方便你沿著來源規劃結果往下走。",
+        "title": "目前設備還沒有可綁定的 point",
+        "description": "先回到來源步驟建立 point，再回來批次產生 Tag 與 mapping。"
+      },
+      "selection": {
+        "eyebrow": "選擇來源 point",
+        "title": "批次挑選要綁定的 point",
+        "description": "這裡只做來源到 Tag 的綁定，先把要推進的點位圈起來，再決定 key 模板。",
+        "pointMeta": "位址 {{address}} · {{dataType}}"
+      },
+      "template": {
+        "eyebrow": "Tag key 模板",
+        "title": "決定命名策略與預覽 key",
+        "description": "先用前綴與策略產生 preview key，衝突點位會立刻標示出來。",
+        "prefix": "前綴",
+        "strategy": "策略",
+        "strategies": {
+          "address": "依位址",
+          "pointName": "依 point 名稱"
+        }
+      },
+      "metrics": {
+        "selected": "已選 point",
+        "ready": "可直接綁定",
+        "blocked": "需先排除"
+      },
+      "badges": {
+        "alreadyLinked": "已連結既有 Tag",
+        "existingKey": "Tag key 已存在",
+        "duplicatePreview": "Preview key 重複"
+      },
+      "conflicts": {
+        "summary": "目前選取內容包含已連結或 key 衝突的 point，請先改用「只選可綁定」或手動取消。"
+      },
+      "actions": {
+        "selectAll": "全選",
+        "selectBindable": "只選可綁定",
+        "clearSelection": "清空",
+        "bind": "批次建立 Tag 並綁定"
+      },
+      "results": {
+        "success": "Tag 綁定完成",
+        "partialFailure": "Tag 綁定部分失敗",
+        "summary": "成功 {{successCount}} 筆，失敗 {{failureCount}} 筆。",
+        "tagFallback": "建立 Tag 失敗",
+        "mappingFallback": "建立 mapping 失敗"
+      }
+    },
+    "output": {
+      "empty": {
+        "eyebrow": "Step 4：輸出綁定",
+        "deviceTitle": "請先選擇設備，再設定 Local Modbus 輸出",
+        "deviceDescription": "輸出步驟會沿用目前設備，讓你把已連結的 Tag 繼續發佈到 Local Modbus。",
+        "title": "目前沒有可送往 Local Modbus 的已連結 Tag",
+        "description": "請先完成 Tag 綁定。Step 4 只接受目前設備下已建立 mapping 的 Tag。"
+      },
+      "selection": {
+        "eyebrow": "選擇已連結 Tag",
+        "title": "將已連結 Tag 發佈到 Local Modbus",
+        "description": "先選要暴露的 Tag，指定 holding register，再同步到本地 server。",
+        "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
+        "mapped": "已映射到 HR{{register}}",
+        "unmapped": "尚未映射"
+      },
+      "status": {
+        "server": "Server 狀態",
+        "serverRunning": "運行中 @ {{address}}",
+        "serverStopped": "已停止",
+        "mappingCount": "映射數量",
+        "conflicts": "衝突數量"
+      },
+      "server": {
+        "port": "Server Port"
+      },
+      "mapping": {
+        "tag": "已連結 Tag",
+        "register": "Holding Register"
+      },
+      "actions": {
+        "startServer": "啟動 Server",
+        "stopServer": "停止 Server",
+        "sync": "同步映射",
+        "bind": "綁定到 Register",
+        "delete": "刪除映射",
+        "pushValue": "推送目前值"
+      },
+      "conflicts": {
+        "summary": "當 holding register 重複時會阻擋同步，請先排除以下衝突。",
+        "item": "HR{{register}} 目前有 {{count}} 筆映射。"
+      },
+      "results": {
+        "statusFallback": "讀取 Local Modbus 狀態失敗",
+        "invalidPort": "Port 必須為 1 到 65535 的整數",
+        "startFallback": "啟動 Local Modbus server 失敗",
+        "stopFallback": "停止 Local Modbus server 失敗",
+        "serverStarted": "Server 已啟動於 127.0.0.1:{{port}}",
+        "serverStopped": "Server 已停止",
+        "noTagSelected": "請先選擇已連結 Tag",
+        "invalidRegister": "Register 必須為 0 到 65535 的整數",
+        "mappingFallback": "更新 Local Modbus 映射失敗",
+        "mappingUpdated": "{{key}} 已綁定到 HR{{register}}",
+        "mappingDeleted": "已刪除 {{key}} 的 Local Modbus 映射",
+        "deleteFallback": "刪除 Local Modbus 映射失敗",
+        "syncBlocked": "同步已阻擋，請先確認 server 已啟動且沒有 register 衝突",
+        "syncFallback": "同步 Local Modbus 映射失敗",
+        "syncSummary": "同步完成：updated={{updated}}、skipped={{skipped}}、errors={{errors}}",
+        "noPointValue": "目前 point 還沒有可推送的值",
+        "writeFallback": "推送目前值到 Local Modbus 失敗",
+        "valuePushed": "已將 {{key}} 的目前值推送到 Local Modbus"
       }
     }
   }

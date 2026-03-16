@@ -3,7 +3,9 @@ import { WorkbenchActionDock } from './WorkbenchActionDock';
 import { WorkbenchHeaderBar } from './WorkbenchHeaderBar';
 import { WorkbenchProvider, useWorkbench } from './WorkbenchProvider';
 import { WorkbenchStepNavigator } from './WorkbenchStepNavigator';
+import { LocalModbusBoard } from './LocalModbusBoard';
 import { SourceCanvasSection } from './SourceCanvasSection';
+import { TagBindingStudio } from './TagBindingStudio';
 import { WORKBENCH_STEP_META } from './workbenchTypes';
 
 function WorkbenchShell() {
@@ -19,9 +21,13 @@ function WorkbenchShell() {
         <WorkbenchStepNavigator />
 
         <main className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-2xl shadow-slate-950/40">
-          {activeStep === 'source' ? (
-            <SourceCanvasSection />
-          ) : (
+          {activeStep === 'source' ? <SourceCanvasSection /> : null}
+
+          {activeStep === 'tag' ? <TagBindingStudio /> : null}
+
+          {activeStep === 'output' ? <LocalModbusBoard /> : null}
+
+          {activeStep !== 'source' && activeStep !== 'tag' && activeStep !== 'output' ? (
             <section className="space-y-4 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
                 {t('workbench.foundation.label')}
@@ -35,7 +41,7 @@ function WorkbenchShell() {
                 </p>
               </div>
             </section>
-          )}
+          ) : null}
         </main>
 
         <WorkbenchActionDock />

@@ -431,7 +431,10 @@
       "eyebrow": "Fresh Build",
       "currentStep": "Current step",
       "selectedDevice": "Selected device",
-      "noDevice": "No device selected"
+      "noDevice": "No device selected",
+      "pointCount": "Points",
+      "linkedTagCount": "Linked tags",
+      "outputCandidateCount": "Output candidates"
     },
     "stepNavigator": {
       "ariaLabel": "Workbench steps"
@@ -439,10 +442,33 @@
     "actionDock": {
       "ariaLabel": "Workbench action dock",
       "title": "Execution summary",
-      "description": "This dock will consolidate validation, readiness, and output actions as the next slices land.",
+      "description": "Use this dock to track readiness, counts, and the next action for the active step.",
       "activeStep": "Active step",
       "selectedDevice": "Selected device",
-      "noDevice": "No device selected"
+      "noDevice": "No device selected",
+      "nextActionLabel": "Next action",
+      "metrics": {
+        "points": "Points",
+        "tags": "Linked tags",
+        "outputs": "Output candidates"
+      },
+      "readiness": {
+        "title": "Readiness",
+        "source": "Source planning",
+        "tag": "Tag binding",
+        "output": "Output mapping",
+        "ready": "Ready",
+        "pending": "Pending"
+      },
+      "nextAction": {
+        "selectDevice": "Select a device to unlock the source, tag, and output steps.",
+        "createPoints": "Plan addresses and batch-create source points for this device.",
+        "advanceToTag": "Source points are ready. Continue to tag binding and generate linked tags.",
+        "bindTags": "Create and link tags for the selected device before configuring outputs.",
+        "advanceToOutput": "Tag bindings are ready. Move to Local Modbus output mapping.",
+        "completeTagBinding": "Finish tag binding first so Step 4 has linked tags to publish.",
+        "configureOutput": "Assign Local Modbus registers and sync the output mappings."
+      }
     },
     "steps": {
       "device": "Device",
@@ -493,6 +519,121 @@
           "name": "Name",
           "status": "Status"
         }
+      }
+    },
+    "tag": {
+      "empty": {
+        "eyebrow": "Step 3: Tag binding",
+        "deviceTitle": "Choose a device before selecting points to bind",
+        "deviceDescription": "Tag binding shows the current device's points so you can continue from the source planning result.",
+        "title": "No points are ready for binding on this device",
+        "description": "Create points in the source step first, then come back to batch-generate tags and mappings."
+      },
+      "selection": {
+        "eyebrow": "Choose source points",
+        "title": "Select the points to bind in batch",
+        "description": "This step only handles source-to-tag binding. Select the target points first, then decide the key template.",
+        "pointMeta": "Address {{address}} · {{dataType}}"
+      },
+      "template": {
+        "eyebrow": "Tag key template",
+        "title": "Choose a naming strategy and preview keys",
+        "description": "Generate preview keys from a prefix and strategy. Conflicts are highlighted immediately.",
+        "prefix": "Prefix",
+        "strategy": "Strategy",
+        "strategies": {
+          "address": "From address",
+          "pointName": "From point name"
+        }
+      },
+      "metrics": {
+        "selected": "Selected points",
+        "ready": "Ready to bind",
+        "blocked": "Need attention"
+      },
+      "badges": {
+        "alreadyLinked": "Already linked",
+        "existingKey": "Tag key exists",
+        "duplicatePreview": "Preview key duplicates"
+      },
+      "conflicts": {
+        "summary": "The current selection includes already-linked points or key conflicts. Use \"select bindable\" or uncheck them first."
+      },
+      "actions": {
+        "selectAll": "Select all",
+        "selectBindable": "Select bindable only",
+        "clearSelection": "Clear",
+        "bind": "Create tags and bind"
+      },
+      "results": {
+        "success": "Tag binding completed",
+        "partialFailure": "Tag binding partially failed",
+        "summary": "{{successCount}} succeeded, {{failureCount}} failed.",
+        "tagFallback": "Failed to create tag",
+        "mappingFallback": "Failed to create mapping"
+      }
+    },
+    "output": {
+      "empty": {
+        "eyebrow": "Step 4: Output mapping",
+        "deviceTitle": "Choose a device before configuring Local Modbus output",
+        "deviceDescription": "Output mapping continues from the selected device so you can publish the linked tags to Local Modbus.",
+        "title": "No linked tags are ready for Local Modbus",
+        "description": "Complete the tag binding step first. Step 4 only accepts tags that are already linked from the selected device."
+      },
+      "selection": {
+        "eyebrow": "Choose linked tags",
+        "title": "Send linked tags to Local Modbus",
+        "description": "Select the linked tag you want to expose, assign a holding register, then sync the server.",
+        "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
+        "mapped": "Mapped to HR{{register}}",
+        "unmapped": "Not mapped yet"
+      },
+      "status": {
+        "server": "Server",
+        "serverRunning": "Running @ {{address}}",
+        "serverStopped": "Stopped",
+        "mappingCount": "Mappings",
+        "conflicts": "Conflicts"
+      },
+      "server": {
+        "port": "Server port"
+      },
+      "mapping": {
+        "tag": "Linked tag",
+        "register": "Holding register"
+      },
+      "actions": {
+        "startServer": "Start server",
+        "stopServer": "Stop server",
+        "sync": "Sync mappings",
+        "bind": "Bind to register",
+        "delete": "Delete mapping",
+        "pushValue": "Push current value"
+      },
+      "conflicts": {
+        "summary": "Duplicate holding registers block sync. Resolve the conflicts below first.",
+        "item": "HR{{register}} has {{count}} mappings."
+      },
+      "results": {
+        "statusFallback": "Failed to load Local Modbus status",
+        "invalidPort": "Port must be an integer between 1 and 65535",
+        "startFallback": "Failed to start Local Modbus server",
+        "stopFallback": "Failed to stop Local Modbus server",
+        "serverStarted": "Server started on 127.0.0.1:{{port}}",
+        "serverStopped": "Server stopped",
+        "noTagSelected": "Choose a linked tag first",
+        "invalidRegister": "Register must be an integer between 0 and 65535",
+        "mappingFallback": "Failed to update Local Modbus mapping",
+        "mappingUpdated": "{{key}} is now mapped to HR{{register}}",
+        "mappingDeleted": "Removed Local Modbus mapping for {{key}}",
+        "deleteFallback": "Failed to delete Local Modbus mapping",
+        "syncBlocked": "Sync is blocked until the server is running and conflicts are resolved",
+        "syncFallback": "Failed to sync Local Modbus mappings",
+        "syncSummary": "Synced mappings: updated={{updated}}, skipped={{skipped}}, errors={{errors}}",
+        "noPointValue": "The selected point does not have a current value yet",
+        "writeFallback": "Failed to push the current value to Local Modbus",
+        "valuePushed": "Pushed the current value for {{key}} to Local Modbus"
       }
     }
   }

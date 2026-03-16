@@ -113,3 +113,97 @@
   過度聚合 `SmartDashboard` 相關測試後，`vi.mock` 隔離被模組快取污染，導致 `SmartDashboardGridOverlaysSection` 的 mock 未生效；改為更細粒度的 root wrapper 後解決。
 - `test:gateway:unit`
   `GatewayQuickSetupPage` 舊測試在 root wrapper 驗證時暴露出既有不穩定斷言；改成重新查詢啟用後的提交按鈕並以獨立 wrapper 執行 page suites 後恢復穩定。
+
+## 2026-03-15：Datalink Workbench 重整決策
+
+### Phase A: 深度盤查目前 datalink UI [complete]
+- [x] 以平行子任務盤查前端主流程、後端能力、可重用資產與技術債
+- [x] 確認目前核心問題集中在頁面層資訊架構與 SmartDashboard God Component
+- [x] 確認 `MemoryGrid`、`hooks/services/types/designSystem` 可作為新畫面的重用底座
+
+### Phase B: 收斂改版方向 [complete]
+- [x] 與使用者確認第一版偏好：同畫面先完成 `Tag -> Local Modbus`，資料庫作為同流程下一步
+- [x] 與使用者確認可視化偏好：格狀視覺化為主，表格為輔
+- [x] 比較三條路徑：漸進重整、全新單頁工作台、混合式過渡
+- [x] 建議採 **混合式過渡**：新增 `/datalink/workbench`，保留舊頁作 fallback
+
+### Phase C: 設計確認與 spec 文件 [complete]
+- [x] 取得使用者對混合式過渡方案與新畫面資訊架構的確認
+- [x] 將確認後的設計寫成 spec 文件
+- [x] 完成 spec review 並取得使用者同意進入 implementation plan
+
+### Phase D: Implementation planning [complete]
+- [x] 產出 `docs/superpowers/specs/2026-03-15-datalink-workbench-design.md`
+- [x] 將 spec 以繁中 commit：`5afef10 新增 datalink workbench 設計規格`
+- [x] 建立 execution backlog 與依賴關係
+
+### Phase E: 先做 2、3 再做 1 的細化規劃 [complete]
+- [x] 補齊 Phase 1 UI 細節：`docs/superpowers/specs/2026-03-15-datalink-workbench-ui-detail.md`
+- [x] 補齊 Phase 2 runtime/live value/database target 細化規劃：`docs/superpowers/specs/phase2-runtime-dbtarget-detail.md`
+- [x] 再確認 `MemoryGrid` 可沿用、`points poll` 路由已存在，避免 implementation planning 建立在錯誤假設上
+
+## Implementation backlog（已建立 SQL todos）
+- `Phase 1 / foundation`
+  - `workbench-foundation`
+  - 建立 `/datalink/workbench`、`DatalinkWorkbenchPage`、WorkbenchProvider/store、fallback 導流與第一批測試骨架
+- `Phase 2 / 可平行 UI 任務`
+  - `workbench-shell-ui`
+  - `source-canvas-step`
+  - `tag-binding-step`
+  - `local-modbus-step`
+- `Phase 3 / integration`
+  - `workbench-integration`
+  - 整合來源格位、tag 綁定、local modbus 主線與 validation/readiness
+- `Phase 4 / quality`
+  - `workbench-quality-pass`
+  - 單元/整合/UI regression、a11y、responsive、lint/build/code-review、繁中 commit
+- `Phase 5 / phase 2 contracts`
+  - `runtime-live-value-phase2`
+  - `database-target-phase2`
+  - 補 runtime/live value 與 database target
+
+## 2026-03-16：Workbench implementation 進度更新
+
+### 已完成
+- [x] `workbench-foundation`
+  - `/datalink/workbench` 路由、`DatalinkWorkbenchPage`、`WorkbenchProvider`、`WorkbenchStepNavigator`、`WorkbenchHeaderBar`、`WorkbenchActionDock`
+  - foundation route/provider/locale tests
+- [x] `frontend-build-blockers`
+  - 補上 `designSystem.forms.autocomplete.search`
+  - 透過 `npm install --no-audit --no-fund` 補齊前端依賴，解除 `zod` 缺失
+- [x] `source-canvas-step`
+  - `SourceCanvasSection`、`AddressCanvas`、`AddressLedger`
+  - `sourceCanvasModel` 補齊 wide type span、occupied cells、conflict blocking 與 partial failure batch create
+- [x] `tag-binding-step`
+  - `TagBindingStudio`
+  - `tagBindingModel`
+  - batch preview key、已連結/既有 key 衝突阻擋、partial failure summary
+- [x] `local-modbus-step`
+  - `LocalModbusBoard`
+  - 將 Local Modbus 輸出整合回 workbench 主線，完成 server 啟停、register 綁定、conflict block sync、push current value
+- [x] `workbench-shell-ui`
+  - `WorkbenchHeaderBar` / `WorkbenchActionDock` 改為實際摘要卡
+  - 新增 `useWorkbenchSummary`，顯示 point/tag/output counts 與下一步建議
+- [x] `workbench-integration`
+  - 手動 review `useWorkbenchSummary`、`WorkbenchHeaderBar`、`WorkbenchActionDock`、`TagBindingStudio`、`LocalModbusBoard`
+  - 確認 Step 2/3/4、shell summary、route wiring、i18n 與 state handoff 已連成完整主線
+- [x] `workbench-quality-pass`
+  - 以分批測試 + lint/build/diff check 完成最終驗證
+  - 背景 code-review / explore / general-purpose agents 持續出現 zero-turn 卡住或 `429`，本輪改由主代理手動收尾
+
+### 下一個 ready phase
+- [ ] `runtime-live-value-phase2`
+  - 目標：依 `docs/superpowers/specs/phase2-runtime-dbtarget-detail.md` 補 runtime/live value 相關 UI/contract
+- [ ] `database-target-phase2`
+  - 目標：補齊資料庫輸出目標與後續工作流
+
+### 最新驗證摘要
+- 已通過：
+  - `cd frontend && npm run test -- tests/unit/utils/designSystemForms.test.ts tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-locale.test.ts tests/unit/features/datalink/workbench-source-canvas-model.test.ts tests/unit/features/datalink/tag-binding-model.test.ts tests/unit/features/datalink/legacyRoutes.test.ts --run`
+  - `cd frontend && npm run test -- tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx --run`
+  - `cd frontend && npm run test -- tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/local-modbus-workbench.test.ts --run`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+  - `git --no-pager diff --check`
+- 注意：
+  - 一次串太多 workbench Vitest 檔案時，曾出現 worker 在測試通過後仍不正常結束的情況；改為分批驗證可穩定完成

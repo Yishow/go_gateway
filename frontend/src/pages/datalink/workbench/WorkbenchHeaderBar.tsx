@@ -1,10 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkbench } from './WorkbenchProvider';
 import { WORKBENCH_STEP_META } from './workbenchTypes';
+import { useWorkbenchSummary } from './useWorkbenchSummary';
 
 export function WorkbenchHeaderBar() {
   const { t } = useTranslation();
-  const { activeStep, selectedDeviceId } = useWorkbench();
+  const { activeStep } = useWorkbench();
+  const {
+    selectedDevice,
+    pointCount,
+    linkedTagCount,
+    outputCandidateCount,
+  } = useWorkbenchSummary();
+  const selectedDeviceLabel = selectedDevice?.name ?? t('workbench.header.noDevice');
 
   return (
     <header
@@ -21,7 +29,7 @@ export function WorkbenchHeaderBar() {
         </div>
       </div>
 
-      <dl className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200 sm:grid-cols-2">
+      <dl className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200 sm:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-1">
           <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
             {t('workbench.header.currentStep')}
@@ -35,7 +43,40 @@ export function WorkbenchHeaderBar() {
             {t('workbench.header.selectedDevice')}
           </dt>
           <dd className="font-medium text-slate-50">
-            {selectedDeviceId ?? t('workbench.header.noDevice')}
+            {selectedDeviceLabel}
+          </dd>
+        </div>
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.header.pointCount')}
+          </dt>
+          <dd
+            className="font-medium text-slate-50"
+            data-testid="workbench-header-point-count"
+          >
+            {pointCount}
+          </dd>
+        </div>
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.header.linkedTagCount')}
+          </dt>
+          <dd
+            className="font-medium text-slate-50"
+            data-testid="workbench-header-tag-count"
+          >
+            {linkedTagCount}
+          </dd>
+        </div>
+        <div className="space-y-1 sm:col-span-2 xl:col-span-1">
+          <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.header.outputCandidateCount')}
+          </dt>
+          <dd
+            className="font-medium text-slate-50"
+            data-testid="workbench-header-output-count"
+          >
+            {outputCandidateCount}
           </dd>
         </div>
       </dl>

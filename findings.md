@@ -1,5 +1,64 @@
 # Findings
 
+## 2026-03-15
+
+### datalink UI 深度分析：快速 spot-check
+- `frontend/src/pages/datalink/SmartDashboardPage.tsx` 仍是主入口，單檔很大，並同時承擔流程控制、URL intent、面板切換、overlay、匯入匯出、commit 等多重責任。
+- `SmartDashboard` 仍透過 query 參數與 `legacyRoutes.ts` 承接多種 modal intent，代表畫面入口與使用者真正想做的主線任務還有歷史包袱混在一起。
+- `SmartDashboardSidebar` 目前包含 `plan` / `tag` / `modbus` / `commit` 四分頁，主流程被拆成多個區域與狀態來源，對單純工作流不夠聚焦。
+- `SmartDashboardWorkflowModal`、`SmartDashboardOverlays`、`SmartDashboardPanels`、`SmartDashboardGridOverlaysSection` 顯示目前交互大量依賴 modal / slide panel / popover 疊加。
+- `LocalModbusWorkbenchPage.tsx` 仍是獨立頁面，代表 Tag -> Local Modbus 的後段操作沒有真正整合回單一工作台。
+- Repo 中仍存在 `SmartDashboardSidebarTools.tsx`、`SmartDashboardTagAndModbusPanel.tsx`、`DatalinkLayout.tsx` 等 legacy/未引用檔案，說明 datalink UI 歷經多輪演變，維護認知成本偏高。
+
+### 本輪分析方向
+- 優先確認是否應改成單頁主線工作台：來源設定 -> 記憶體/位址視覺化 -> Tag 綁定 -> 輸出目標（Local Modbus / DB）。
+- 優先保留既有資料模型、hooks、測試與 design system；除非結構耦合太深，再考慮另開新頁取代 `SmartDashboardPage`。
+
+### SmartDashboard / LocalModbus 原始碼補讀
+- `SmartDashboardPage.tsx` 一開頭就引入大量 hook、service、feature helper 與多種 UI 容器，顯示主畫面仍是 orchestration god component，維護成本高。
+- 頁面 state 同時管理：device 切換、grid 選取、planner、batch naming、template、guide stage、active tab、sidebar tab、workflow modal、create/edit/delete device、import/export 等，說明目前單一主線被太多旁支任務共用同一個畫面狀態。
+- `legacyRoutes.ts` 仍定義 `points` / `mappings` / `wizard` 等 legacy intent，且透過 `?legacy=`、`?modal=`、`?section=` 注入 SmartDashboard，表示新舊入口尚未真正切開。
+- `LocalModbusWorkbenchPage.tsx` 雖然本身流程相對單純，但仍是獨立頁，且以「映射管理工具」思維設計，不是從來源規劃一路往下完成輸出綁定的單頁體驗。
+- `LocalModbusWorkbenchPage` 已具備可重用的後段能力：讀 status、列 mappings、upsert/delete mapping、sync、write test、匯入匯出；若新 UI 要重做，這些 API 與互動可以保留，但應改成嵌入同一條主流程，而不是跳另一頁。
+
+### 使用者需求與偏好確認
+- 第一版新流程：同一畫面先完成 `Tag -> Local Modbus`，資料庫保留在同流程中的下一步。
+- 來源位置可視化：採「格狀視覺化為主，表格為輔助編輯」。
+
+### 三份盤查整合結論
+- **最嚴重問題** 是主線被切碎：SmartDashboard 以 Dashboard + Sidebar Tabs + Modal/Popover/SlidePanel 組成，無法讓使用者連續完成「來源 -> 可視化 -> Tag -> 輸出」。
+- **頁面層技術債** 集中在 `SmartDashboardPage.tsx` 與其高度耦合的 SmartDashboard* 子元件；底層 `hooks/services/types/MemoryGrid/designSystem` 大多可以沿用。
+- **LocalModbusWorkbenchPage** 的 domain 能力完整，但它以獨立工具頁存在，造成主線後段斷裂。
+- **後端大致夠用**：Device / Point / Tag / Mapping / PollingGroup / ModbusShare CRUD 與前端 service/hook 可直接承接；大 blocker 是 runtime HTTP API 缺失、point poll stub 與 database target 契約尚未成形。
+
+### 改版 approach 對照
+- **Approach A：漸進重整既有 SmartDashboard**
+  - 優點：短期改動小、較少新路由與導流成本。
+  - 缺點：仍被既有 Dashboard/Tab/Modal 架構限制，主線體感改善有限。
+- **Approach B：全新單頁工作台**
+  - 優點：最能對齊使用者主線，資訊架構最乾淨。
+  - 缺點：開發量最大，過渡期要維護新舊兩套入口。
+- **Approach C：混合式過渡（推薦）**
+  - 先新增 `/datalink/workbench` 作為新入口，不碰舊 `SmartDashboardPage`；
+  - Phase 1 先完成純前端主線：Device -> Grid/Point -> Tag -> Local Modbus；
+  - Phase 2 再接 runtime 即時值與 database target。
+
+### 推薦方案
+- **推薦採用混合式過渡**：新做單頁工作台，但以漸進方式導入。
+- 理由：
+  - 直接對齊使用者偏好與主線任務。
+  - 可大量重用既有底層資產，避免重寫 domain 層。
+  - 不必在 1498 行的 God Component 上做高風險大手術。
+  - 第一階段不受後端 runtime API 缺口阻擋，能先交付可操作的新流程骨架。
+
+### 補充風險盤查（implementation planning 前）
+- `MemoryGrid` 目前 props 已具備新 workbench 需要的大部分核心能力：`selectedAddresses`、`onSelect`、`onCellClick`、`plannedAllocations`、`linkedAddresses`、`showConflictsOnly`。這代表格狀主視覺可以沿用，但 **table mode 仍需要獨立的新元件**，不在 `MemoryGrid` 本身內處理。
+- 後端 router 已實際掛上：
+  - `POST /datalink/points/:id/poll`
+  - `POST /datalink/points/poll`
+  - `GET /datalink/preview/stream`
+- 因此 spec review 提到的 `points/:id/poll` 路由疑慮已排除；Phase 2 真正要補的是更高階的 runtime/status/stream 契約，而不是 point poll 路由不存在。
+
 ## 2026-03-08
 
 ### 規範來源盤查
@@ -352,3 +411,49 @@
 - [ ] 優化 Sidebar Tab 切換的動畫與過渡效果
 - [ ] 考慮在 WorkspaceContent 加入「快速開始」引導（首次使用時）
 - [ ] 窄螢幕下側欄可考慮改為 drawer/modal 模式
+
+## 2026-03-16：Workbench implementation 關鍵發現
+
+### Step 3 / TagBindingStudio
+- `TagBindingStudio` 應沿用既有 `tagAPI.create` / `mappingAPI.create` 能力，但 UI 必須整合進 workbench，不能再回到舊 SmartDashboard/獨立 panel 心智模型。
+- `tagBindingModel.ts` 必須把三種狀態拆清楚：
+  - preview key 是否與既有 Tag 重複
+  - preview key 是否在本批次內重複
+  - point 是否已經有 mapping（already linked）
+- batch bind 不能用 happy path 假設；必須逐筆建立 Tag 與 mapping，並把 partial failure 顯示回 UI，否則使用者會誤判整批已成功。
+- `useEffect` 若直接依賴每次 render 都新建的 point id array，會造成 Step 3 selection 被反覆重設；改用 `pointIdsKey -> split` 後才能穩定。
+
+### Step 4 / LocalModbusBoard
+- `LocalModbusWorkbenchPage` 的 domain 能力可重用，但呈現層必須重做為 workbench 內嵌 board。
+- output candidates 不能只看 Tag 或只看 Modbus mapping；必須以「selected device 的 points + mappings + linked tags」交集推導，否則會把別台設備的輸出候選混進來。
+- Local Modbus sync 需明確以 duplicate register conflict 作為 block 條件；若 register 衝突未阻擋 sync，使用者會把錯誤映射推到 server。
+- `loadData` 若直接依賴 `t`，在測試 mock `useTranslation()` 時可能造成 callback identity 改變，進而重複觸發 effect；以 `ref` 穩定 fallback translation 後可避免這個問題。
+- register input 若在 `selectedCandidate` object identity 改變時每次都重設，會蓋掉使用者剛輸入的值；依賴應收斂到 `selectedTagId` 與 `selectedCandidateRegister`。
+
+### Shell UI / Summary
+- `WorkbenchHeaderBar` 與 `WorkbenchActionDock` 若只顯示 active step / selected device，不足以支撐單頁主流程；需要補 point/tag/output counts 與 next action，使用者才知道目前流程停在哪裡。
+- `useWorkbenchSummary` 適合作為 shell 層的單一摘要來源，讓 header/action dock 不必各自重複查詢與計算。
+
+### 驗證策略
+- 某些 workbench Vitest 組合在同一個 command 下，會出現「測試邏輯已通過，但 worker 不正常結束」的情況；分批跑：
+  - unit/meta tests
+  - shell/foundation
+  - source/tag
+  - output/local-modbus
+  可以穩定完成驗證並保留定位能力。
+
+## 2026-03-16：Workbench 收尾與 phase2 接手
+
+### 收尾結論
+- 手動 integration review 後，`useWorkbenchSummary`、`WorkbenchHeaderBar`、`WorkbenchActionDock`、`TagBindingStudio`、`LocalModbusBoard` 沒有再發現 correctness blocker；目前 `/datalink/workbench` 已可完整承接 `來源可視化 -> Tag -> Local Modbus` 主線。
+- workbench 這段的可靠 quality pass 做法，是把測試拆成三批再跑 lint/build/diff check；直接把多個 workbench 測試檔一次串成超大批次，容易碰到 Vitest worker 不正常結束。
+
+### 代理執行策略修正
+- 本 session 多個 background agents（code-review、general-purpose、explore）都出現兩種問題：
+  - 長時間 `running` 但沒有第一輪 turn
+  - `claude-opus-4.6` code review 回覆 `429 rate limit`
+- 因此後續 phase2 若再遇到相同狀況，不應空等；應優先改為主代理手動執行，或改派更小範圍的 sync 子任務。
+
+### phase2 接手判斷
+- `runtime-live-value-phase2` 與 `database-target-phase2` 在 workbench quality pass 完成後已成為 ready todo。
+- 依目前 spec 與先前掃描結果，runtime / db target 很可能不是「把現有 UI 接上」即可，而是要從 backend contract、frontend service/hook、頁面區塊三個面向補一個新的 vertical slice。
