@@ -114,11 +114,12 @@ export const designSystem = {
      * autocomplete 屬性對應表
      * 參考 MDN autocomplete 規範：https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete
      */
-    autocomplete: {
-      // 文字輸入
-      text: 'off', // 一般文字輸入預設關閉 autocomplete
-      name: 'name', // 姓名
-      organization: 'organization', // 組織名稱
+      autocomplete: {
+        // 文字輸入
+        text: 'off', // 一般文字輸入預設關閉 autocomplete
+        search: 'off', // 搜尋輸入預設關閉
+        name: 'name', // 姓名
+        organization: 'organization', // 組織名稱
       // 數字輸入
       number: 'off', // 數字輸入預設關閉
       port: 'off', // 連接埠
