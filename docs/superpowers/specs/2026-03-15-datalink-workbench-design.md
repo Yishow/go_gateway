@@ -1,6 +1,6 @@
 # Datalink Workbench Design
 
-- Status: Approved for specification review
+- Status: Updated after user feedback; review passed; pending user re-approval
 - Date: 2026-03-15
 - Scope: `frontend/src/pages/datalink/*`, related datalink hooks/services/types, and required backend contract additions for runtime/live value and database target support
 
@@ -66,7 +66,8 @@ The current datalink UI does not match the actual user goal.
 
 ### Engineering goals
 
-- Reuse healthy datalink foundations: hooks, services, types, `MemoryGrid`, and shared styles.
+- Reuse only healthy datalink domain foundations: hooks, services, types, and pure feature helpers.
+- Rebuild the UI layer from scratch so the workbench feels genuinely new rather than visually migrated.
 - Avoid a risky deep rewrite of `SmartDashboardPage.tsx`.
 - Define clear units so the implementation plan can be executed incrementally.
 
@@ -89,7 +90,7 @@ The chosen approach is **Hybrid transition** because it:
 
 - Matches the approved user direction
 - Avoids high-risk surgery on `SmartDashboardPage.tsx`
-- Reuses most of the healthy domain and UI foundations
+- Reuses the healthy domain/data foundations while replacing the entire presentational layer
 - Produces a production-quality first release faster than a full page replacement strategy
 
 ## 6. Information Architecture
@@ -267,50 +268,69 @@ The new page must be composed of focused units with clear responsibilities.
   - Owns local workflow state
   - Coordinates selected device, selected spans, selection summaries, and step transitions
 
-- `WorkbenchStepRail`
-  - Renders the persistent step navigation
+- `WorkbenchFrame`
+  - The new layout frame for navigator, main surface, detail surface, and action dock
 
-- `WorkbenchContextBar`
-  - Displays active device and quick actions
+- `WorkbenchStepNavigator`
+  - Renders the step navigation
 
-- `SourceCanvasSection`
-  - Hosts `MemoryGrid`
-  - Hosts grid/table mode switch
-  - Hosts source planner controls
+- `WorkbenchHeaderBar`
+  - Displays active device, connectivity, and quick actions
 
-- `SourceInspectorPanel`
-  - Displays selection details, transform preview, and conflicts
+- `AddressCanvas`
+  - The new address visualization surface
+  - Replaces the old grid component entirely
 
-- `BatchTagBinder`
+- `AddressLedger`
+  - The dense auditing and batch-edit companion to `AddressCanvas`
+
+- `SelectionInspector`
+  - Displays selection details, transform preview state, issues, and next actions
+
+- `TagBindingStudio`
   - Handles multi-point tag creation and linking
 
-- `OutputTargetsPanel`
-  - Contains:
-    - `LocalModbusTargetCard`
-    - `DatabaseTargetCard`
+- `SelectionSnapshotCard`
+  - Shows the currently selected point/address group summary
 
-- `WorkbenchBottomBar`
+- `TagBatchComposer`
+  - Handles naming generation, linking mode, and preview
+
+- `TagBatchResultPanel`
+  - Shows created/linked/skipped/failed result detail
+
+- `OutputStudio`
+  - Wraps all output-target work for the step
+
+- `LocalModbusBoard`
+  - Hosts the full Release 1 Local Modbus experience
+
+- `RegisterMappingGrid`
+  - Presents tag-to-register assignment and conflicts
+
+- `OutputValidationPanel`
+  - Shows readiness, conflicts, and blocked items
+
+- `OutputWriteTestPanel`
+  - Handles write-test interactions
+
+- `WorkbenchActionDock`
   - Shows readiness and validation counts
 
 ### Existing modules to reuse
 
-- `MemoryGrid`
 - `hooks/datalink/*`
 - `services/datalink.ts`
 - `types/datalink.ts`
-- `frontend/src/styles/designSystem.ts`
 - Pure feature helpers under `frontend/src/features/datalink/`
 
-### Existing modules to extract logic from
+### Reuse boundary
 
-- `LocalModbusWorkbenchPage`
-  - Extract domain interactions into reusable hooks/sections
-
-- `useSmartDashboardTagLinking`
-  - Reuse domain behavior while removing SmartDashboard-specific assumptions
-
-- `useSmartDashboardCommitFlow`
-  - Reuse only if the validation model still fits the workbench
+- No legacy presentational component is reused.
+- No legacy page shell is reused.
+- No legacy grid component is reused.
+- Legacy pages and components may be referenced for behavior understanding only, not for direct composition.
+- Visual and motion helpers must be evaluated individually; old motion tokens are not automatically inherited by the new workbench UI.
 
 ## 10. State Model
 
@@ -338,6 +358,7 @@ The workbench uses one dedicated workflow store/provider.
 - Restore workbench state on route-local navigation
 - Avoid mixing route query params with core workflow state
 - Keep legacy deep links separate from the new workbench state model
+- Keep the state model UI-agnostic so multiple new components can consume it without inheriting legacy view assumptions
 
 ## 11. Data Flow
 
@@ -403,10 +424,21 @@ The design is not considered ready for implementation without a full test plan.
 
 ### UI regression tests
 
-- grid cell states
+- address canvas states
 - inspector rendering
-- output target cards
-- summary bar readiness states
+- output surfaces
+- action dock readiness states
+
+### Accessibility tests
+
+- keyboard navigation across the address canvas and step navigator
+- screen reader labels for address units, action summaries, and validation states
+- focus order between navigator, canvas, inspector, and output surfaces
+
+### Localization tests
+
+- new UI copy must use translation keys rather than hardcoded strings
+- error, warning, and status messages must render correctly from i18n resources
 
 ### End-to-end tests
 
@@ -502,11 +534,11 @@ Deliver:
 
 - `/datalink/workbench`
 - Device selection
-- Source planning and grid/table workflow
+- Source planning with `AddressCanvas` and `AddressLedger`
 - Batch point creation
 - Batch tag binding
 - Local Modbus output panel with full operational behavior
-- summary bar and inline validation
+- action dock and inline validation
 - legacy fallback link
 
 This release is production-grade for the approved first scope.
