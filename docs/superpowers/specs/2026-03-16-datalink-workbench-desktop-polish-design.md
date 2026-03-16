@@ -39,6 +39,24 @@ The approved improvement bundle for this round is:
 - `17` Output candidates show only active-target information
 - `20` Unavailable actions hide until the required selection exists
 
+### 2.1 Relationship to the prior redesign spec
+
+This polish spec is a refinement layer on top of `2026-03-16-datalink-workbench-desktop-redesign.md`.
+
+All prior redesign decisions remain in effect **except** where this document explicitly narrows the visual contract for calmer desktop scanning.
+
+This document supersedes the following prior expectations:
+
+- prior redesign `§4.4 Context bar behavior` — the context bar no longer needs to surface `last test result` and full capability-chip runs in the top line; those details may move to the inspector
+- prior redesign `§7.1` output candidate rows — the center row no longer needs to show both local Modbus and database mapping status at the same time; the main row only needs the currently active target's mapping information
+
+This document does **not** supersede:
+
+- the five-region shell
+- current `step` / `target` deep-link behavior
+- the ability for one candidate to still have mapping state for both targets in the underlying data model
+- Phase 2 output and runtime functionality
+
 ## 3. Shell-level information hierarchy
 
 ### 3.1 `WorkbenchContextBar`
@@ -165,8 +183,8 @@ The existing workbench deep-link behavior remains intact.
 When entering from SmartDashboard or legacy routes:
 
 - keep `step` / `target` routing
-- allow a short, dismissible handoff summary if needed
-- avoid adding another persistent banner layer after the first-use context is understood
+- do not add another persistent or first-run-only UI layer in this polish round
+- if entry context needs clarification, reuse existing routing state and current context surfaces instead of inventing a new banner
 
 ## 6. Error handling and operational feedback
 
@@ -186,12 +204,13 @@ This polish round should be implemented by tightening regression coverage before
 Required focus:
 
 - desktop shell remains stable at `1920×1080`
-- top toolbar density does not wrap excessively
-- primary CTA remains visible and predictable
-- Step 2 keeps the address canvas visually primary
-- Step 3 hides batch actions until selection exists
-- Step 4 center content reflects only the active output target
-- inspector owns the moved detail rather than duplicating it back into the main surface
+- the top toolbar remains one row at `1920×1080` in the default desktop state for Step 1 and Step 2
+- the primary CTA remains rendered in the same shell region across steps
+- Step 2 keeps the address canvas as the largest visual block in the primary work area
+- Step 3 does not render batch actions before at least one row is selected
+- Step 4 center rows do not render non-active-target mapping fields
+- existing `step` / `target` deep-link regressions remain covered
+- inspector-owned detail is not duplicated back into the default main-row presentation
 
 ## 8. Implementation notes
 
@@ -208,8 +227,9 @@ Therefore:
 
 This polish round is successful when:
 
-- the operator can identify the current step and primary next action immediately
-- Step 2 visually centers the address lattice
-- Step 3 becomes easier to compare across many candidates
-- Step 4 no longer overloads the user with inactive-target detail
-- desktop workbench feels calmer without losing datalink functionality
+- at `1920×1080`, the operator can identify the current step and primary CTA without scanning multiple toolbar rows
+- Step 2 defaults to a center-dominant address lattice view rather than a tool-dominant view
+- Step 3 candidate density allows side-by-side comparison with noticeably less vertical scrolling than the thick-card layout
+- Step 3 batch actions stay absent until selection exists
+- Step 4 main rows only present active-target mapping detail while preserving both-target capability underneath
+- current workbench routing, readiness, runtime, and output capability remain intact
