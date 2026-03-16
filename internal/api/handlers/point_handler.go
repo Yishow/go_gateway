@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"net/http"
-	"time"
+	"strings"
 
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
@@ -11,8 +11,11 @@ import (
 )
 
 type PointHandler struct {
-	svc         *point.Service
-	runtimeSync pointRuntimeSyncer
+	svc             *point.Service
+	runtimeSync     pointRuntimeSyncer
+	manualPoller    pointManualPoller
+	mappingLister   pointMappingLister
+	pollingGroupSvc pointPollingGroupGetter
 }
 
 type pointRuntimeSyncer interface {
@@ -128,44 +131,34 @@ type PollResult struct {
 	Timestamp        string      `json:"timestamp"`
 	Quality          int         `json:"quality"`
 	Stale            bool        `json:"stale"`
-	Error            string      `json:"error,omitempty"`
+	Error            string      `json:"error"`
 }
 
 // Poll 單點輪詢
 // POST /datalink/points/:id/poll
 func (h *PointHandler) Poll(c *gin.Context) {
-	id := c.Param("id")
-
-	// 取得點位資訊
-	pt, err := h.svc.GetByID(c.Request.Context(), id)
+	result, err := h.pollPoint(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Point not found"}})
+		statusCode := http.StatusInternalServerError
+		message := err.Error()
+		if isPointPollNotFound(err) {
+			statusCode = http.StatusNotFound
+			message = "Point not found"
+		}
+		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": message}})
 		return
 	}
-
-	// TODO: 實際呼叫協議連接器讀取值
-	// 這裡返回模擬結果
-	result := PollResult{
-		PointID:          pt.ID,
-		Value:            nil,
-		TransformedValue: nil,
-		Timestamp:        time.Now().Format(time.RFC3339),
-		Quality:          192, // Good quality
-		Stale:            false,
-		Error:            "Poll not implemented - requires protocol connector integration",
-	}
-
-	if pt.LastValue != nil {
-		result.Value = *pt.LastValue
-		result.TransformedValue = *pt.LastValue
-	}
-
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 
 // PollBatchRequest 批量輪詢請求
 type PollBatchRequest struct {
 	PointIDs *[]string `json:"point_ids"`
+}
+
+func isPointPollNotFound(err error) bool {
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "點位不存在") || strings.Contains(message, "point not found")
 }
 
 // PollBatch 批量輪詢
@@ -183,33 +176,10 @@ func (h *PointHandler) PollBatch(c *gin.Context) {
 		return
 	}
 
-	results := make([]PollResult, 0, len(*req.PointIDs))
-
-	for _, id := range *req.PointIDs {
-		pt, err := h.svc.GetByID(c.Request.Context(), id)
-		if err != nil {
-			results = append(results, PollResult{
-				PointID: id,
-				Error:   "Point not found",
-			})
-			continue
-		}
-
-		result := PollResult{
-			PointID:          pt.ID,
-			TransformedValue: nil,
-			Timestamp:        time.Now().Format(time.RFC3339),
-			Quality:          192,
-			Stale:            false,
-			Error:            "Poll not implemented",
-		}
-
-		if pt.LastValue != nil {
-			result.Value = *pt.LastValue
-			result.TransformedValue = *pt.LastValue
-		}
-
-		results = append(results, result)
+	results, err := h.pollBatch(c.Request.Context(), *req.PointIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})

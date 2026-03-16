@@ -391,3 +391,110 @@ export interface ModbusShareMapping {
   data_type: DataType;
   updated_at: string;
 }
+
+// =============================================================================
+// Database Target
+// =============================================================================
+
+export type DatabaseConnectorKind =
+  | 'sqlite'
+  | 'postgres'
+  | 'mysql'
+  | 'sqlserver';
+
+export type DatabaseConnectorStatus =
+  | 'ready'
+  | 'unreachable'
+  | 'auth_failed'
+  | 'error';
+
+export type DatabaseWriteMode = 'insert' | 'upsert';
+
+export interface DatabaseConnector {
+  id: string;
+  name: string;
+  kind: DatabaseConnectorKind;
+  connection_config: Record<string, unknown>;
+  status: DatabaseConnectorStatus;
+  last_check_at?: string | null;
+  last_check_error: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateDatabaseConnectorRequest {
+  name: string;
+  kind: DatabaseConnectorKind;
+  connection_config: Record<string, unknown>;
+  enabled?: boolean;
+}
+
+export interface UpdateDatabaseConnectorRequest {
+  name?: string;
+  kind?: DatabaseConnectorKind;
+  connection_config?: Record<string, unknown>;
+  clear_password?: boolean;
+  enabled?: boolean;
+}
+
+export interface DatabaseTargetMapping {
+  id: string;
+  tag_id: string;
+  connector_id: string;
+  table_schema: string;
+  table_name: string;
+  column_name: string;
+  write_mode: DatabaseWriteMode;
+  timestamp_column?: string | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateDatabaseTargetMappingRequest {
+  tag_id: string;
+  connector_id: string;
+  table_schema?: string;
+  table_name: string;
+  column_name: string;
+  write_mode?: DatabaseWriteMode;
+  timestamp_column?: string;
+  enabled?: boolean;
+}
+
+export interface UpdateDatabaseTargetMappingRequest {
+  table_schema?: string;
+  table_name?: string;
+  column_name?: string;
+  write_mode?: DatabaseWriteMode;
+  timestamp_column?: string;
+  enabled?: boolean;
+}
+
+export interface DatabaseTableColumn {
+  name: string;
+  data_type: string;
+  nullable: boolean;
+  primary_key: boolean;
+  unique?: boolean;
+}
+
+export interface DatabaseTableInfo {
+  schema: string;
+  name: string;
+  columns: DatabaseTableColumn[];
+}
+
+export interface DatabaseTargetValidationIssue {
+  severity: 'error' | 'warning';
+  mapping_id?: string;
+  tag_id?: string;
+  code: string;
+  message: string;
+}
+
+export interface DatabaseTargetValidationResult {
+  ready: boolean;
+  issues: DatabaseTargetValidationIssue[];
+}

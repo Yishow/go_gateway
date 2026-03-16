@@ -6,21 +6,17 @@ import { usePointsQuery } from '../../../hooks/datalink/usePoints';
 import { useTagsQuery } from '../../../hooks/datalink/useTags';
 import { modbusShareAPI } from '../../../services/datalink';
 import type { Device, ModbusShareMapping, ModbusShareStatus } from '../../../types/datalink';
+import { DatabaseTargetBoard } from './DatabaseTargetBoard';
 import { useWorkbench } from './WorkbenchProvider';
+import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 
 type MappingConflict = {
   register: number;
   mappings: ModbusShareMapping[];
 };
 
-type OutputCandidate = {
-  tagId: string;
-  tagKey: string;
-  pointName: string;
-  pointAddress: string;
-  dataType: ModbusShareMapping['data_type'];
+type OutputCandidate = WorkbenchOutputCandidate & {
   register: number | null;
-  lastValue: unknown;
 };
 
 function getSelectedDevice(devices: Device[], selectedDeviceId: string | null) {
@@ -375,8 +371,9 @@ export function LocalModbusBoard() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.95fr)]">
-      <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+    <div className="space-y-6">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.95fr)]">
+        <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
             {t('workbench.output.selection.eyebrow')}
@@ -437,9 +434,9 @@ export function LocalModbusBoard() {
             );
           })}
         </div>
-      </div>
+        </div>
 
-      <aside className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+        <aside className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
           <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
             <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
@@ -595,7 +592,10 @@ export function LocalModbusBoard() {
             {message}
           </p>
         ) : null}
-      </aside>
-    </section>
+        </aside>
+      </section>
+
+      <DatabaseTargetBoard candidates={candidates} />
+    </div>
   );
 }

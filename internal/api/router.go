@@ -7,6 +7,7 @@ import (
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink/collector"
+	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/modbusshare"
@@ -34,6 +35,8 @@ type DatalinkServices struct {
 	ModbusShare  *modbusshare.Service
 	Scheduler    *collector.Scheduler
 	Runtime      *datalinkruntime.Service
+	DBTarget     *dbtarget.ConnectorService
+	DBMapping    *dbtarget.MappingService
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -187,7 +190,8 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.POST("/devices/test-batch", deviceHandler.TestConnectionBatch)
 
 			// Points
-			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime)
+			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime).
+				WithPolling(datalinkServices.Scheduler, datalinkServices.Mapping, datalinkServices.PollingGroup)
 			datalinkGroup.GET("/points", pointHandler.List)
 			datalinkGroup.POST("/points", pointHandler.Create)
 			datalinkGroup.POST("/points/batch", pointHandler.BatchCreate)
@@ -243,6 +247,26 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.DELETE("/modbus-share/mappings/:tagId", modbusShareHandler.DeleteMapping)
 				datalinkGroup.POST("/modbus-share/write-tag-value", modbusShareHandler.WriteTagValue)
 				datalinkGroup.POST("/modbus-share/sync", modbusShareHandler.SyncFromMappings)
+			}
+
+			if datalinkServices.DBTarget != nil && datalinkServices.DBMapping != nil {
+				dbTargetHandler := handlers.NewDatabaseTargetHandler(
+					datalinkServices.DBTarget,
+					datalinkServices.DBMapping,
+				)
+				datalinkGroup.GET("/db-targets/connectors", dbTargetHandler.ListConnectors)
+				datalinkGroup.POST("/db-targets/connectors", dbTargetHandler.CreateConnector)
+				datalinkGroup.GET("/db-targets/connectors/:id", dbTargetHandler.GetConnector)
+				datalinkGroup.PUT("/db-targets/connectors/:id", dbTargetHandler.UpdateConnector)
+				datalinkGroup.DELETE("/db-targets/connectors/:id", dbTargetHandler.DeleteConnector)
+				datalinkGroup.POST("/db-targets/connectors/:id/test", dbTargetHandler.TestConnector)
+				datalinkGroup.GET("/db-targets/connectors/:id/tables", dbTargetHandler.ListTables)
+				datalinkGroup.GET("/db-targets/connectors/:id/validate", dbTargetHandler.ValidateConnector)
+				datalinkGroup.GET("/db-targets/mappings", dbTargetHandler.ListMappings)
+				datalinkGroup.POST("/db-targets/mappings", dbTargetHandler.CreateMapping)
+				datalinkGroup.GET("/db-targets/mappings/:id", dbTargetHandler.GetMapping)
+				datalinkGroup.PUT("/db-targets/mappings/:id", dbTargetHandler.UpdateMapping)
+				datalinkGroup.DELETE("/db-targets/mappings/:id", dbTargetHandler.DeleteMapping)
 			}
 		}
 	}

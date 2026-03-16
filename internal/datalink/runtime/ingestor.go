@@ -55,9 +55,15 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		record := storage.ValueToRecord(b.TagID, finalValue, rawValue, cv.Timestamp, quality, b.TagDataType)
 		if err := s.writer.Write(ctx, record); err != nil {
 			s.writeError.Add(1)
-			continue
+		} else {
+			s.writeSuccess.Add(1)
 		}
-		s.writeSuccess.Add(1)
+
+		if s.target != nil {
+			if err := s.target.WriteTagValue(ctx, b.TagID, finalValue, cv.Timestamp); err != nil {
+				s.writeError.Add(1)
+			}
+		}
 	}
 
 	deviceID := cv.DeviceID

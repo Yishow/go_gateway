@@ -4,6 +4,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,7 +26,7 @@ import (
 func setupPointRouterWithExtended() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
-	
+
 	// Setup Device Handler (for test data creation)
 	devRepo := device.NewMemoryRepository()
 	devSvc := device.NewService(devRepo, nil)
@@ -54,8 +55,8 @@ func TestPointHandler_Poll(t *testing.T) {
 
 	// 先建立設備和點位
 	newDevice := device.CreateDeviceRequest{
-		Name:        "測試設備",
-		Protocol:    "modbus_tcp",
+		Name:     "測試設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -136,8 +137,8 @@ func TestPointHandler_PollBatch(t *testing.T) {
 
 	// 建立設備
 	newDevice := device.CreateDeviceRequest{
-		Name:        "批量測試設備",
-		Protocol:    "modbus_tcp",
+		Name:     "批量測試設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -161,7 +162,7 @@ func TestPointHandler_PollBatch(t *testing.T) {
 		newPoint := point.CreatePointRequest{
 			DeviceID: deviceID,
 			Name:     "批量測試點位 " + string(rune('0'+i)),
-			Address:  "4000" + string(rune('1'+i)),
+			Address:  fmt.Sprintf("400%02d", i+1),
 			DataType: "int16",
 			Mode:     "read",
 		}
@@ -255,8 +256,8 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 
 	// 建立一個點位
 	newDevice := device.CreateDeviceRequest{
-		Name:        "部分測試設備",
-		Protocol:    "modbus_tcp",
+		Name:     "部分測試設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -321,8 +322,8 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 
 	// 建立設備
 	newDevice := device.CreateDeviceRequest{
-		Name:        "大批量測試設備",
-		Protocol:    "modbus_tcp",
+		Name:     "大批量測試設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -346,7 +347,7 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 		newPoint := point.CreatePointRequest{
 			DeviceID: deviceID,
 			Name:     "大批量點位 " + string(rune('0'+i)),
-			Address:  "4000" + string(rune('1'+i%10)),
+			Address:  fmt.Sprintf("400%02d", i+1),
 			DataType: "int16",
 			Mode:     "read",
 		}
@@ -392,8 +393,8 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 
 	// 建立設備
 	newDevice := device.CreateDeviceRequest{
-		Name:        "結構測試設備",
-		Protocol:    "modbus_tcp",
+		Name:     "結構測試設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,

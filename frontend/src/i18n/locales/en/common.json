@@ -647,6 +647,101 @@
         "noPointValue": "The selected point does not have a current value yet",
         "writeFallback": "Failed to push the current value to Local Modbus",
         "valuePushed": "Pushed the current value for {{key}} to Local Modbus"
+      },
+      "database": {
+        "eyebrow": "Database Target",
+        "title": "Write linked tags into a database",
+        "description": "Create a database connector, choose the target table and column, then let runtime automatically write tag values into the external database after each collection.",
+        "summary": {
+          "connector": "Connector status",
+          "mappingCount": "Mappings",
+          "validationIssues": "Validation issues",
+          "none": "Not configured"
+        },
+        "connector": {
+          "listTitle": "Connectors",
+          "empty": "No database connector yet. Create a SQLite or PostgreSQL target first.",
+          "name": "Connector name",
+          "kind": "Database kind",
+          "sqliteDsn": "SQLite path / DSN",
+          "postgresHost": "Postgres host",
+          "postgresPort": "Postgres port",
+          "postgresUser": "Postgres user",
+          "postgresPassword": "Postgres password",
+          "postgresPasswordHint": "Leave blank to keep the stored password.",
+          "postgresDatabase": "Postgres database",
+          "postgresSslMode": "Postgres SSL mode",
+          "clearSavedPassword": "Clear the stored password when saving",
+          "enabled": "Enable this connector"
+        },
+        "candidates": {
+          "meta": "Point {{point}} · {{address}} · {{dataType}}",
+          "mapped": "Writing to {{table}}.{{column}}",
+          "unmapped": "No database column bound"
+        },
+        "mapping": {
+          "tag": "Linked tag",
+          "table": "Target table",
+          "tablePlaceholder": "Choose a table",
+          "column": "Value column",
+          "columnPlaceholder": "Choose a column",
+          "writeMode": "Write mode",
+          "timestampColumn": "Timestamp column",
+          "timestampPlaceholder": "Choose a timestamp column for upsert"
+        },
+        "writeMode": {
+          "insert": "insert",
+          "upsert": "upsert"
+        },
+        "actions": {
+          "newConnector": "New connector",
+          "saveConnector": "Save connector",
+          "testConnector": "Test connection",
+          "deleteConnector": "Delete connector",
+          "saveMapping": "Save database mapping",
+          "deleteMapping": "Delete database mapping",
+          "refreshValidation": "Refresh validation"
+        },
+        "validation": {
+          "ready": "Database target is ready",
+          "notReady": "Database target still has issues",
+          "empty": "No validation messages yet. Save a connector or mapping to inspect readiness and schema issues here."
+        },
+        "preview": {
+          "table": "Target table",
+          "column": "Value column",
+          "value": "Current value",
+          "empty": "Not selected"
+        },
+        "status": {
+          "ready": "Ready",
+          "unreachable": "Unreachable",
+          "auth_failed": "Authentication failed",
+          "error": "Configuration error"
+        },
+        "results": {
+          "load": "Failed to load database target data",
+          "connectorDetail": "Failed to load connector details",
+          "connectorNameRequired": "Enter a connector name first",
+          "sqliteDsnRequired": "SQLite targets require a path or DSN",
+          "connectorSaved": "{{name}} has been saved",
+          "connectorSaveFailed": "Failed to save connector",
+          "connectorNotSaved": "Save the connector before testing or binding mappings",
+          "connectorTested": "Connection test finished. Current status: {{status}}",
+          "connectorTestFailed": "Failed to test the connector",
+          "connectorDeleted": "Deleted connector {{name}}",
+          "connectorDeleteFailed": "Failed to delete the connector",
+          "noTagSelected": "Choose a linked tag first",
+          "tableRequired": "Choose a target table first",
+          "columnRequired": "Choose a value column first",
+          "timestampRequired": "Upsert mode requires a timestamp column",
+          "mappingSaved": "{{key}} is now bound to {{table}}.{{column}}",
+          "mappingSaveFailed": "Failed to save the database mapping",
+          "mappingDeleted": "Removed database mapping for {{key}}",
+          "mappingDeleteFailed": "Failed to delete the database mapping",
+          "validationRefreshed": "Validation refreshed: {{ready}}",
+          "validationRefreshFailed": "Failed to refresh validation"
+        }
       }
     }
   }

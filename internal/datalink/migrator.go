@@ -49,6 +49,16 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 				return fmt.Errorf("failed to execute migration %s: %w", sqlitePointUniqueMigration, err)
 			}
 		}
+
+		const sqliteDatabaseTargetMigration = "004_database_targets_sqlite.up.sql"
+		content, err = migrations.FS.ReadFile(sqliteDatabaseTargetMigration)
+		if err != nil {
+			return fmt.Errorf("failed to read migration file %s: %w", sqliteDatabaseTargetMigration, err)
+		}
+		log.Printf("Executing SQLite migration: %s", sqliteDatabaseTargetMigration)
+		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", sqliteDatabaseTargetMigration, err)
+		}
 		return nil
 	}
 

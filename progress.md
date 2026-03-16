@@ -309,3 +309,25 @@
   - frontend：source step runtime summary + EventSource live raw value
 - `runtime-live-value-phase2` 尚餘 `runtime-poll-contract`
 - 下一個主目標：`database-target-phase2`
+
+## Session: 2026-03-16（續）
+
+### Database Target Phase 2 收尾
+- **Status:** complete
+- Actions taken:
+  - 在同一個 workbench output step 新增 `DatabaseTargetBoard`，讓 Database Target 與 Local Modbus 同時存在於同一條主線
+  - 落地 dbtarget schema / migration / repo / service / writer / API handler / router / runtime writer fan-out
+  - 補齊前端型別、API client、i18n 與 `workbench-output-step` 測試
+  - 修正 reviewer 指出的契約問題：
+    - redaction 後的密碼更新路徑新增 `clear_password`
+    - upsert timestamp 欄位必須為 PK / single-column unique
+    - insert / upsert 切換時清空並忽略 `timestamp_column`
+    - sqlite introspection self-deadlock
+  - 修正 `point_handler_extended_test.go` 的 large-list baseline 測試資料
+- Validation:
+  - `go test ./internal/datalink/dbtarget ./internal/datalink/runtime ./internal/api/handlers ./internal/api -count=1`
+  - `go build ./cmd/test_ui`
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-output-step.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+  - `git --no-pager diff --check`

@@ -22,7 +22,17 @@ func TestMigrator_Migrate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Assert: Check if tables exist
-	tables := []string{"devices", "points", "tags", "mappings", "polling_groups", "system_settings", "timeseries"}
+	tables := []string{
+		"devices",
+		"points",
+		"tags",
+		"mappings",
+		"polling_groups",
+		"system_settings",
+		"timeseries",
+		"database_connectors",
+		"database_target_mappings",
+	}
 	for _, table := range tables {
 		var name string
 		err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name)

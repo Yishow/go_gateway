@@ -29,6 +29,25 @@ func (m *mockWriter) WriteBatch(ctx context.Context, records []storage.TimeSerie
 func (m *mockWriter) Flush(ctx context.Context) error { return nil }
 func (m *mockWriter) Close() error                    { return nil }
 
+type mockTargetWriter struct {
+	calls []targetWriteCall
+}
+
+type targetWriteCall struct {
+	tagID      string
+	value      any
+	observedAt time.Time
+}
+
+func (m *mockTargetWriter) WriteTagValue(ctx context.Context, tagID string, value any, observedAt time.Time) error {
+	m.calls = append(m.calls, targetWriteCall{
+		tagID:      tagID,
+		value:      value,
+		observedAt: observedAt,
+	})
+	return nil
+}
+
 func TestHandleCollectedValue_RunPipelineAndWrite(t *testing.T) {
 	mw := &mockWriter{}
 	s := &Service{
@@ -75,4 +94,36 @@ func TestHandleCollectedValue_NoMapping_NoWrite(t *testing.T) {
 	})
 
 	require.Len(t, mw.records, 0)
+}
+
+func TestHandleCollectedValue_WritesToTargetWriter(t *testing.T) {
+	mw := &mockWriter{}
+	targetWriter := &mockTargetWriter{}
+	ts := time.Date(2026, 3, 16, 12, 0, 0, 0, time.UTC)
+	s := &Service{
+		config: Config{UpdatePointState: false},
+		writer: mw,
+		target: targetWriter,
+		mappingIndex: map[string][]mappingBinding{
+			"p1": {
+				{
+					TagID:             "t1",
+					TagDataType:       schema.DataTypeFloat64,
+					TransformPipeline: `[{"type":"scale","order":1,"params":{"scale":0.5}}]`,
+				},
+			},
+		},
+	}
+
+	s.handleCollectedValue(context.Background(), collector.CollectedValue{
+		PointID:   "p1",
+		Value:     20.0,
+		Timestamp: ts,
+		Quality:   schema.QualityGood,
+	})
+
+	require.Len(t, targetWriter.calls, 1)
+	require.Equal(t, "t1", targetWriter.calls[0].tagID)
+	require.Equal(t, 10.0, targetWriter.calls[0].value)
+	require.Equal(t, ts, targetWriter.calls[0].observedAt)
 }

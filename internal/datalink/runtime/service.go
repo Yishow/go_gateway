@@ -39,11 +39,16 @@ func DefaultConfig() Config {
 type Dependencies struct {
 	Scheduler           *collector.Scheduler
 	Writer              storage.Writer
+	TargetWriter        TargetWriter
 	DeviceService       *device.Service
 	PointService        *point.Service
 	MappingService      *mapping.Service
 	TagService          *tag.Service
 	PollingGroupService *pollinggroup.Service
+}
+
+type TargetWriter interface {
+	WriteTagValue(ctx context.Context, tagID string, value any, observedAt time.Time) error
 }
 
 // Stats runtime 指標。
@@ -67,6 +72,7 @@ type Service struct {
 
 	scheduler *collector.Scheduler
 	writer    storage.Writer
+	target    TargetWriter
 
 	deviceSvc  *device.Service
 	pointSvc   *point.Service
@@ -124,6 +130,7 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		}
 		s.scheduler = deps.Scheduler
 		s.writer = deps.Writer
+		s.target = deps.TargetWriter
 		s.deviceSvc = deps.DeviceService
 		s.pointSvc = deps.PointService
 		s.mappingSvc = deps.MappingService

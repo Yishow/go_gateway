@@ -28,6 +28,7 @@ import (
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
+	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/modbusshare"
@@ -151,6 +152,13 @@ func main() {
 	settingsRepo := settings.NewSQLRepository(db)
 	settingsSvc := settings.NewService(settingsRepo)
 
+	// Database Target
+	dbTargetConnectorRepo := dbtarget.NewSQLConnectorRepository(db)
+	dbTargetMappingRepo := dbtarget.NewSQLTargetMappingRepository(db)
+	dbTargetConnectorSvc := dbtarget.NewConnectorService(dbTargetConnectorRepo, dbTargetMappingRepo)
+	dbTargetMappingSvc := dbtarget.NewMappingService(dbTargetMappingRepo, dbTargetConnectorRepo, tagSvc)
+	dbTargetWriter := dbtarget.NewWriter(dbTargetConnectorRepo, dbTargetMappingRepo)
+
 	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr)
 	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig())
 	runtimeSvc, err := datalinkruntime.NewService(
@@ -158,6 +166,7 @@ func main() {
 		datalinkruntime.Dependencies{
 			Scheduler:           scheduler,
 			Writer:              runtimeWriter,
+			TargetWriter:        dbTargetWriter,
 			DeviceService:       devSvc,
 			PointService:        pointSvc,
 			MappingService:      mappingSvc,
@@ -190,6 +199,8 @@ func main() {
 		ModbusShare:  modbusShareSvc,
 		Scheduler:    scheduler,
 		Runtime:      runtimeSvc,
+		DBTarget:     dbTargetConnectorSvc,
+		DBMapping:    dbTargetMappingSvc,
 	}
 
 	// 建立 API 路由器

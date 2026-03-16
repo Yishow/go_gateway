@@ -647,6 +647,101 @@
         "noPointValue": "目前 point 還沒有可推送的值",
         "writeFallback": "推送目前值到 Local Modbus 失敗",
         "valuePushed": "已將 {{key}} 的目前值推送到 Local Modbus"
+      },
+      "database": {
+        "eyebrow": "Database Target",
+        "title": "將已連結 Tag 寫入資料庫",
+        "description": "先建立資料庫連接器，再選擇目標表與欄位，讓 runtime 在每次採集後自動把 Tag 值寫入外部資料庫。",
+        "summary": {
+          "connector": "Connector 狀態",
+          "mappingCount": "映射數量",
+          "validationIssues": "驗證問題",
+          "none": "尚未設定"
+        },
+        "connector": {
+          "listTitle": "連接器列表",
+          "empty": "目前還沒有資料庫連接器，先建立一個 SQLite 或 PostgreSQL 目標。",
+          "name": "Connector 名稱",
+          "kind": "資料庫類型",
+          "sqliteDsn": "SQLite 路徑 / DSN",
+          "postgresHost": "Postgres Host",
+          "postgresPort": "Postgres Port",
+          "postgresUser": "Postgres User",
+          "postgresPassword": "Postgres Password",
+          "postgresPasswordHint": "留空代表保留已儲存密碼。",
+          "postgresDatabase": "Postgres Database",
+          "postgresSslMode": "Postgres SSL Mode",
+          "clearSavedPassword": "儲存時清除已儲存密碼",
+          "enabled": "啟用此 connector"
+        },
+        "candidates": {
+          "meta": "Point {{point}} · {{address}} · {{dataType}}",
+          "mapped": "已寫入 {{table}}.{{column}}",
+          "unmapped": "尚未綁定資料庫欄位"
+        },
+        "mapping": {
+          "tag": "已連結 Tag",
+          "table": "目標資料表",
+          "tablePlaceholder": "請先選擇資料表",
+          "column": "值欄位",
+          "columnPlaceholder": "請先選擇欄位",
+          "writeMode": "寫入模式",
+          "timestampColumn": "Timestamp 欄位",
+          "timestampPlaceholder": "若使用 upsert，請選擇 timestamp 欄位"
+        },
+        "writeMode": {
+          "insert": "insert",
+          "upsert": "upsert"
+        },
+        "actions": {
+          "newConnector": "新增 Connector",
+          "saveConnector": "儲存 Connector",
+          "testConnector": "測試連線",
+          "deleteConnector": "刪除 Connector",
+          "saveMapping": "儲存資料庫映射",
+          "deleteMapping": "刪除資料庫映射",
+          "refreshValidation": "重新驗證"
+        },
+        "validation": {
+          "ready": "資料庫目標已就緒",
+          "notReady": "資料庫目標仍有問題",
+          "empty": "目前沒有驗證訊息。儲存 connector 或 mapping 後，這裡會顯示 readiness 與結構問題。"
+        },
+        "preview": {
+          "table": "目標表",
+          "column": "值欄位",
+          "value": "目前值",
+          "empty": "尚未選擇"
+        },
+        "status": {
+          "ready": "已就緒",
+          "unreachable": "無法連線",
+          "auth_failed": "認證失敗",
+          "error": "設定錯誤"
+        },
+        "results": {
+          "load": "讀取資料庫目標資料失敗",
+          "connectorDetail": "讀取 connector 明細失敗",
+          "connectorNameRequired": "請先輸入 connector 名稱",
+          "sqliteDsnRequired": "SQLite 目標必須提供路徑或 DSN",
+          "connectorSaved": "{{name}} 已儲存",
+          "connectorSaveFailed": "儲存 connector 失敗",
+          "connectorNotSaved": "請先儲存 connector，再進行測試或綁定",
+          "connectorTested": "連線測試完成，目前狀態：{{status}}",
+          "connectorTestFailed": "測試 connector 失敗",
+          "connectorDeleted": "已刪除 {{name}} connector",
+          "connectorDeleteFailed": "刪除 connector 失敗",
+          "noTagSelected": "請先選擇已連結 Tag",
+          "tableRequired": "請先選擇目標資料表",
+          "columnRequired": "請先選擇值欄位",
+          "timestampRequired": "upsert 模式需要 timestamp 欄位",
+          "mappingSaved": "{{key}} 已綁定到 {{table}}.{{column}}",
+          "mappingSaveFailed": "儲存資料庫映射失敗",
+          "mappingDeleted": "已刪除 {{key}} 的資料庫映射",
+          "mappingDeleteFailed": "刪除資料庫映射失敗",
+          "validationRefreshed": "驗證完成：{{ready}}",
+          "validationRefreshFailed": "重新驗證失敗"
+        }
       }
     }
   }

@@ -34,6 +34,14 @@ import type {
   ModbusShareStatus,
   ModbusShareMapping,
   RuntimeStatus,
+  DatabaseConnector,
+  CreateDatabaseConnectorRequest,
+  UpdateDatabaseConnectorRequest,
+  DatabaseTableInfo,
+  DatabaseTargetValidationResult,
+  DatabaseTargetMapping,
+  CreateDatabaseTargetMappingRequest,
+  UpdateDatabaseTargetMappingRequest,
 } from '../types/datalink';
 import { VITE_API_BASE_URL } from '../env';
 
@@ -622,5 +630,107 @@ export const modbusShareAPI = {
   async sync(): Promise<{ updated: number; skipped: number; errors: string[] }> {
     const res = await api.post<APIResponse<{ updated: number; skipped: number; errors: string[] }>>('/modbus-share/sync');
     return res.data.data ?? { updated: 0, skipped: 0, errors: [] };
+  },
+};
+
+export const dbTargetAPI = {
+  async listConnectors(params?: { enabled?: boolean }): Promise<DatabaseConnector[]> {
+    const res = await api.get<APIResponse<DatabaseConnector[]>>('/db-targets/connectors', {
+      params,
+    });
+    return res.data.data ?? [];
+  },
+
+  async getConnector(id: string): Promise<DatabaseConnector> {
+    const res = await api.get<APIResponse<DatabaseConnector>>(`/db-targets/connectors/${id}`);
+    return res.data.data!;
+  },
+
+  async createConnector(
+    data: CreateDatabaseConnectorRequest,
+  ): Promise<DatabaseConnector> {
+    const res = await api.post<APIResponse<DatabaseConnector>>(
+      '/db-targets/connectors',
+      data,
+    );
+    return res.data.data!;
+  },
+
+  async updateConnector(
+    id: string,
+    data: UpdateDatabaseConnectorRequest,
+  ): Promise<DatabaseConnector> {
+    const res = await api.put<APIResponse<DatabaseConnector>>(
+      `/db-targets/connectors/${id}`,
+      data,
+    );
+    return res.data.data!;
+  },
+
+  async deleteConnector(id: string): Promise<void> {
+    await api.delete(`/db-targets/connectors/${id}`);
+  },
+
+  async testConnector(id: string): Promise<DatabaseConnector> {
+    const res = await api.post<APIResponse<DatabaseConnector>>(
+      `/db-targets/connectors/${id}/test`,
+    );
+    return res.data.data!;
+  },
+
+  async listTables(id: string): Promise<DatabaseTableInfo[]> {
+    const res = await api.get<APIResponse<DatabaseTableInfo[]>>(
+      `/db-targets/connectors/${id}/tables`,
+    );
+    return res.data.data ?? [];
+  },
+
+  async validateConnector(id: string): Promise<DatabaseTargetValidationResult> {
+    const res = await api.get<APIResponse<DatabaseTargetValidationResult>>(
+      `/db-targets/connectors/${id}/validate`,
+    );
+    return res.data.data ?? { ready: false, issues: [] };
+  },
+
+  async listMappings(params?: {
+    connector_id?: string;
+    tag_id?: string;
+    enabled?: boolean;
+  }): Promise<DatabaseTargetMapping[]> {
+    const res = await api.get<APIResponse<DatabaseTargetMapping[]>>(
+      '/db-targets/mappings',
+      { params },
+    );
+    return res.data.data ?? [];
+  },
+
+  async getMapping(id: string): Promise<DatabaseTargetMapping> {
+    const res = await api.get<APIResponse<DatabaseTargetMapping>>(`/db-targets/mappings/${id}`);
+    return res.data.data!;
+  },
+
+  async createMapping(
+    data: CreateDatabaseTargetMappingRequest,
+  ): Promise<DatabaseTargetMapping> {
+    const res = await api.post<APIResponse<DatabaseTargetMapping>>(
+      '/db-targets/mappings',
+      data,
+    );
+    return res.data.data!;
+  },
+
+  async updateMapping(
+    id: string,
+    data: UpdateDatabaseTargetMappingRequest,
+  ): Promise<DatabaseTargetMapping> {
+    const res = await api.put<APIResponse<DatabaseTargetMapping>>(
+      `/db-targets/mappings/${id}`,
+      data,
+    );
+    return res.data.data!;
+  },
+
+  async deleteMapping(id: string): Promise<void> {
+    await api.delete(`/db-targets/mappings/${id}`);
   },
 };

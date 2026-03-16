@@ -10,6 +10,7 @@ const {
   mockTags,
   mockMappings,
   mockModbusShareAPI,
+  mockDBTargetAPI,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
@@ -25,6 +26,21 @@ const {
     writeTagValue: vi.fn(),
     sync: vi.fn(),
   },
+  mockDBTargetAPI: {
+    listConnectors: vi.fn(),
+    getConnector: vi.fn(),
+    createConnector: vi.fn(),
+    updateConnector: vi.fn(),
+    deleteConnector: vi.fn(),
+    testConnector: vi.fn(),
+    listTables: vi.fn(),
+    validateConnector: vi.fn(),
+    listMappings: vi.fn(),
+    getMapping: vi.fn(),
+    createMapping: vi.fn(),
+    updateMapping: vi.fn(),
+    deleteMapping: vi.fn(),
+  },
 }));
 
 vi.mock('react-i18next', () => ({
@@ -35,6 +51,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('../../../../services/datalink', () => ({
   modbusShareAPI: mockModbusShareAPI,
+  dbTargetAPI: mockDBTargetAPI,
 }));
 
 vi.mock('../../../../hooks/datalink/useDevices', () => ({
@@ -222,6 +239,79 @@ describe('DatalinkWorkbench output step', () => {
       errors: [],
     });
     mockModbusShareAPI.writeTagValue.mockResolvedValue(undefined);
+
+    mockDBTargetAPI.listConnectors.mockResolvedValue([
+      {
+        id: 'connector-1',
+        name: 'Main SQLite',
+        kind: 'sqlite',
+        connection_config: {
+          dsn: '/tmp/target.db',
+        },
+        status: 'ready',
+        last_check_at: '',
+        last_check_error: '',
+        enabled: true,
+        created_at: '',
+        updated_at: '',
+      },
+    ]);
+    mockDBTargetAPI.listMappings.mockResolvedValue([]);
+    mockDBTargetAPI.listTables.mockResolvedValue([
+      {
+        schema: 'main',
+        name: 'sensor_values',
+        columns: [
+          { name: 'ts', data_type: 'datetime', nullable: false, primary_key: true },
+          { name: 'value', data_type: 'real', nullable: false, primary_key: false },
+        ],
+      },
+    ]);
+    mockDBTargetAPI.validateConnector.mockResolvedValue({
+      ready: true,
+      issues: [],
+    });
+    mockDBTargetAPI.createConnector.mockResolvedValue({
+      id: 'connector-1',
+      name: 'Main SQLite',
+      kind: 'sqlite',
+      connection_config: {
+        dsn: '/tmp/target.db',
+      },
+      status: 'ready',
+      last_check_at: '',
+      last_check_error: '',
+      enabled: true,
+      created_at: '',
+      updated_at: '',
+    });
+    mockDBTargetAPI.updateConnector.mockResolvedValue({
+      id: 'connector-1',
+      name: 'Main SQLite',
+      kind: 'sqlite',
+      connection_config: {
+        dsn: '/tmp/target.db',
+      },
+      status: 'ready',
+      last_check_at: '',
+      last_check_error: '',
+      enabled: true,
+      created_at: '',
+      updated_at: '',
+    });
+    mockDBTargetAPI.createMapping.mockResolvedValue({
+      id: 'db-mapping-1',
+      tag_id: 'tag-1',
+      connector_id: 'connector-1',
+      table_schema: 'main',
+      table_name: 'sensor_values',
+      column_name: 'value',
+      write_mode: 'insert',
+      timestamp_column: null,
+      enabled: true,
+      created_at: '',
+      updated_at: '',
+    });
   });
 
   it('shows an empty state when the selected device has no linked tags', async () => {
@@ -307,8 +397,8 @@ describe('DatalinkWorkbench output step', () => {
       expect(screen.getByDisplayValue('12')).toBeInTheDocument();
     });
 
-    const firstCandidate = screen.getByRole('button', { name: /TAG_40001/ });
-    const secondCandidate = screen.getByRole('button', { name: /TAG_40002/ });
+    const firstCandidate = screen.getAllByRole('button', { name: /TAG_40001/ })[0];
+    const secondCandidate = screen.getAllByRole('button', { name: /TAG_40002/ })[0];
 
     expect(firstCandidate).toHaveAttribute('aria-pressed', 'true');
     expect(secondCandidate).toHaveAttribute('aria-pressed', 'false');
@@ -352,5 +442,46 @@ describe('DatalinkWorkbench output step', () => {
 
     expect(await screen.findByRole('button', { name: 'workbench.output.actions.sync' })).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent('workbench.output.conflicts.summary');
+  });
+
+  it('binds a linked tag to a database target mapping', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    await screen.findByLabelText('workbench.output.database.mapping.table');
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', {
+          name: 'workbench.output.database.actions.saveMapping',
+        }),
+      ).toBeEnabled();
+    });
+
+    fireEvent.change(screen.getByLabelText('workbench.output.database.mapping.table'), {
+      target: { value: 'main.sensor_values' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.output.database.mapping.column'), {
+      target: { value: 'value' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'workbench.output.database.actions.saveMapping',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockDBTargetAPI.createMapping).toHaveBeenCalledWith({
+        tag_id: 'tag-1',
+        connector_id: 'connector-1',
+        table_schema: 'main',
+        table_name: 'sensor_values',
+        column_name: 'value',
+        write_mode: 'insert',
+        timestamp_column: '',
+        enabled: true,
+      });
+    });
   });
 });

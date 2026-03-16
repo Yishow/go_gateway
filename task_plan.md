@@ -142,6 +142,15 @@
 - [x] 補齊 Phase 2 runtime/live value/database target 細化規劃：`docs/superpowers/specs/phase2-runtime-dbtarget-detail.md`
 - [x] 再確認 `MemoryGrid` 可沿用、`points poll` 路由已存在，避免 implementation planning 建立在錯誤假設上
 
+### Phase F: Phase 2 契約與輸出目標落地 [complete]
+- [x] `runtime-live-value-phase2`
+  - 已補齊 runtime status / stream、source runtime summary 與 point poll contract
+- [x] `database-target-phase2`
+  - 同一個 output step 已可同時承接 Local Modbus 與 Database Target
+  - 已完成 dbtarget schema / migration / repo / service / writer / API routes
+  - 已完成 reviewer 收尾：secret redaction、`clear_password`、upsert unique 驗證、insert 清空 timestamp、sqlite introspection deadlock、point handler large-list baseline
+  - 已完成前後端驗證與 `git diff --check`
+
 ## Implementation backlog（已建立 SQL todos）
 - `Phase 1 / foundation`
   - `workbench-foundation`
@@ -192,17 +201,8 @@
   - 背景 code-review / explore / general-purpose agents 持續出現 zero-turn 卡住或 `429`，本輪改由主代理手動收尾
 
 ### 下一個 ready phase
-- [ ] `runtime-live-value-phase2`
-  - 已完成：
-    - `GET /api/v1/datalink/runtime/status`
-    - `GET /api/v1/datalink/runtime/stream`
-    - `cmd/test_ui/main.go` 已接上 scheduler + runtime service + writer
-    - workbench source step 已顯示 runtime summary，且可用 EventSource 即時更新 source cell raw value
-    - runtime service 已補 point/mapping refresh path，避免 runtime 只吃啟動時快照
-  - 剩餘：
-    - `runtime-poll-contract`：讓 `/points/:id/poll`、`/points/poll` 真正計算 `transformed_value` 與 `stale`
-- [ ] `database-target-phase2`
-  - 目標：補齊資料庫輸出目標與後續工作流
+- [ ] 收斂 `/datalink/workbench` 與舊 `SmartDashboard` / legacy redirect 的導流策略
+- [ ] 視使用者下一步決定是否把 Local Modbus / Database Target 再收斂成單一輸出策略面板
 
 ### 最新驗證摘要
 - 已通過：

@@ -59,6 +59,13 @@
   - `GET /datalink/preview/stream`
 - 因此 spec review 提到的 `points/:id/poll` 路由疑慮已排除；Phase 2 真正要補的是更高階的 runtime/status/stream 契約，而不是 point poll 路由不存在。
 
+### 2026-03-16：Database Target Phase 2 收尾發現
+- `LocalModbusBoard` 下方直接嵌入 `DatabaseTargetBoard`，能維持「來源 -> Tag -> 輸出」單一路徑，不需要再跳另一個工具頁。
+- `timestamp_column` 必須明確收斂成 **只有 upsert 模式有效**；若 insert 模式仍殘留舊值，UI 顯示與 runtime writer 實際行為會分離。
+- Secret redaction 之後，空字串不能同時代表「保留舊密碼」與「清除密碼」；若要支援編輯既有 connector，必須提供額外明確訊號（本輪採 `clear_password`）。
+- SQLite schema introspection 在 `MaxOpenConns=1` 情境下，不能一邊遍歷 `PRAGMA index_list` rows 一邊再查 `PRAGMA index_info`；必須先收完 index names 再逐一查 detail，否則會自我阻塞。
+- `point_handler_extended_test.go` 的 large-list baseline 問題是測試資料生成錯誤（第 10 筆位址被拼成 `4000:`），不是 handler 主邏輯。
+
 ## 2026-03-08
 
 ### 規範來源盤查
