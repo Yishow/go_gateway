@@ -26,6 +26,9 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.stepRail.heading).not.toBe(enCommon.workbench.stepRail.heading);
     expect(zhTWCommon.workbench.contextBar.ariaLabel).not.toBe(enCommon.workbench.contextBar.ariaLabel);
     expect(zhTWCommon.workbench.contextBar.noDevice).not.toBe(enCommon.workbench.contextBar.noDevice);
+    expect(zhTWCommon.workbench.contextBar.actions.gotoTag).not.toBe(
+      enCommon.workbench.contextBar.actions.gotoTag,
+    );
     expect(zhTWCommon.workbench.inspector.ariaLabel).not.toBe(enCommon.workbench.inspector.ariaLabel);
     expect(zhTWCommon.workbench.inspector.heading).not.toBe(enCommon.workbench.inspector.heading);
     expect(zhTWCommon.workbench.inspector.placeholder).not.toBe(enCommon.workbench.inspector.placeholder);

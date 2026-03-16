@@ -257,15 +257,19 @@ describe('DatalinkWorkbench five-region shell', () => {
       expect(screen.getByTestId('context-bar-device-name')).toHaveTextContent('Mixer PLC');
     });
 
-    it('shows device capability chips when a device is selected', () => {
+    it('renders a compact step summary instead of capability chips when a device is selected', () => {
       renderPage();
 
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      expect(screen.getByTestId('context-bar-capability-unit-id')).toBeInTheDocument();
-      expect(screen.getByTestId('context-bar-capability-address-base')).toBeInTheDocument();
-      expect(screen.getByTestId('context-bar-capability-word-order')).toBeInTheDocument();
-      expect(screen.getByTestId('context-bar-capability-protocol-traits')).toBeInTheDocument();
+      const summary = screen.getByTestId('context-bar-step-summary');
+      expect(summary).toHaveTextContent('workbench.steps.device');
+      expect(summary).toHaveTextContent('Mixer PLC');
+      expect(screen.queryByTestId('context-bar-capability-unit-id')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('context-bar-capability-address-base')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('context-bar-capability-word-order')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('context-bar-capability-protocol-traits')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('context-bar-test-status')).not.toBeInTheDocument();
     });
 
     it('shows no-device label when no device is selected', () => {
@@ -275,13 +279,82 @@ describe('DatalinkWorkbench five-region shell', () => {
       expect(screen.getByTestId('context-bar-device-name')).toHaveTextContent('workbench.contextBar.noDevice');
     });
 
-    it('provides quick-action buttons for navigation', () => {
+    it('shows a single primary action instead of a quick-action cluster', () => {
       renderPage();
 
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
       const contextBar = screen.getByTestId('workbench-context-bar');
-      expect(within(contextBar).getByText('workbench.contextBar.actions.selectDevice')).toBeInTheDocument();
-      expect(within(contextBar).getByText('workbench.contextBar.actions.gotoSource')).toBeInTheDocument();
-      expect(within(contextBar).getByText('workbench.contextBar.actions.gotoOutput')).toBeInTheDocument();
+      const actions = within(contextBar).getAllByRole('button');
+
+      expect(actions).toHaveLength(1);
+      expect(actions[0]).toHaveTextContent('workbench.contextBar.actions.gotoSource');
+    });
+
+    it('keeps the primary action aligned with the next step instead of skipping from source to output', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+
+      const contextBar = screen.getByTestId('workbench-context-bar');
+      const actions = within(contextBar).getAllByRole('button');
+
+      expect(screen.getByTestId('context-bar-step-summary')).toHaveTextContent('workbench.steps.source');
+      expect(actions).toHaveLength(1);
+      expect(actions[0]).toHaveTextContent('workbench.contextBar.actions.gotoTag');
+    });
+
+    it('disables the source-step primary action until source points exist', () => {
+      mockPoints.splice(0, mockPoints.length);
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+
+      expect(screen.getByTestId('context-bar-step-summary')).toHaveTextContent('workbench.steps.source');
+      expect(
+        within(screen.getByTestId('workbench-context-bar')).getByRole('button', {
+          name: 'workbench.contextBar.actions.gotoTag',
+        }),
+      ).toBeDisabled();
+    });
+
+    it('shows an output-focused primary action on step 4 instead of falling back to switch device', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
+
+      const contextBar = screen.getByTestId('workbench-context-bar');
+      const actions = within(contextBar).getAllByRole('button');
+
+      expect(screen.getByTestId('context-bar-step-summary')).toHaveTextContent('workbench.steps.output');
+      expect(actions).toHaveLength(1);
+      expect(actions[0]).toHaveTextContent('workbench.actionDock.nextAction.configureOutput');
+      expect(actions[0]).not.toHaveTextContent('workbench.contextBar.actions.switchDevice');
+    });
+
+    it('focuses the output primary anchor when the output CTA is pressed', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
+
+      const action = within(screen.getByTestId('workbench-context-bar')).getByRole('button', {
+        name: 'workbench.actionDock.nextAction.configureOutput',
+      });
+      const anchor = screen.getByTestId('output-primary-anchor');
+
+      expect(anchor).not.toHaveFocus();
+
+      fireEvent.click(action);
+
+      expect(anchor).toHaveFocus();
     });
   });
 
@@ -344,6 +417,20 @@ describe('DatalinkWorkbench five-region shell', () => {
       // No device selected yet → device readiness should be "draft"
       const deviceIndicator = screen.getByTestId('readiness-device');
       expect(deviceIndicator).toHaveAttribute('data-readiness', 'draft');
+    });
+
+    it('emphasizes only the active step and compacts the rest of the readiness strip', () => {
+      renderPage();
+
+      expect(screen.getByTestId('readiness-device')).toHaveAttribute('data-emphasis', 'active');
+      expect(screen.getByTestId('readiness-source')).toHaveAttribute('data-emphasis', 'compact');
+      expect(screen.getByTestId('readiness-tag')).toHaveAttribute('data-emphasis', 'compact');
+      expect(screen.getByTestId('readiness-output')).toHaveAttribute('data-emphasis', 'compact');
+
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+
+      expect(screen.getByTestId('readiness-device')).toHaveAttribute('data-emphasis', 'compact');
+      expect(screen.getByTestId('readiness-source')).toHaveAttribute('data-emphasis', 'active');
     });
   });
 

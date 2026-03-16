@@ -82,6 +82,30 @@
 - `SourceTemplateRecord` 升 schema 時要保留向下相容，否則會直接打壞仍在使用舊 template shape 的 SmartDashboard flow。
 - Tag batch 新增 diff preview 後，原本用純文字搜尋 row 的測試會被 preview 面板污染；測試應改鎖定 candidate row `data-testid`，精準驗證 filter 行為而不是整頁文字存在性。
 
+### 2026-03-16：Workbench desktop polish（scan-first）規劃發現
+- 目前 workbench 真正的桌面噪音，不是缺功能，而是 **太多資訊同時同權重**：
+  - `WorkbenchContextBar` 與 `WorkbenchBottomSummaryBar` 都在講狀態
+  - Step 2 工具列與次要工具太多，壓過 address lattice
+  - Step 3 厚卡讓比較多筆 candidate 時的掃描節奏很差
+  - Step 4 同時顯示 Modbus / Database 細節，讓 active target 不夠聚焦
+- 因此本輪最有價值的改善，不是再加新面板，而是把次要資訊降權到 inspector 或次層控制。
+- 使用者最後批准的方向不是「功能更多」，而是 **scan-first**：
+  - 先降低噪音
+  - 讓主 CTA 固定
+  - 讓 Step 2 格子成為主角
+  - 讓 Step 3 / Step 4 回到可快速比對的桌面節奏
+- 與前一份 redesign spec 的關係必須明確寫出 supersede 邊界，否則 implementation 會在 `ContextBar` 與 `Output candidate row` 兩處發生雙重規格衝突。
+- 使用者補充了新的偏好：前端設計 / UI 提案若可選品質等級，應優先採用 Opus 級別的輸出與審視。
+
+### 2026-03-16：scan-shell-density 實作發現
+- ContextBar 一旦同時顯示 device name、protocol、status、capability chips、last test 與三顆 action buttons，使用者根本不會把它當「脈絡列」，而會把它讀成第二個控制面板。
+- 把 latest test 結果留在 inspector timeline，而不是頂部常駐，可保留診斷能力，同時明顯降低桌面第一視線噪音。
+- BottomSummary 不需要移除 readiness；只要把非 active step 壓成 compact marker，掃描節奏就會立刻改善，而且不會打壞既有 readiness model。
+- 單一 CTA 如果沒有跟著 step/readiness 走，反而比原本三顆按鈕更危險；最先暴露的 regression 是 `source` 直接跳成 `output`。
+- 因此 shell 的單一 CTA 不能只靠簡單 switch；至少要守住 `device -> source -> tag -> output` 的順序，並在 `sourceReady` / `tagReady` 未滿足時 disabled。
+- 同理，Step 4 也不能讓唯一 CTA 退回「切換設備」這種重置動作；即使先只做到語義層，也要讓 output step 保有 output-focused primary action。
+- 但把 Step 4 CTA 改成 output-focused 文案後，如果 click handler 是 no-op，一樣會變成新的 UX 假動作；最小可接受作法是讓它把焦點拉回 output 主控區。
+
 ## 2026-03-08
 
 ### 規範來源盤查

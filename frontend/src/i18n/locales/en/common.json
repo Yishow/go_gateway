@@ -443,6 +443,7 @@
         "selectDevice": "Select device",
         "switchDevice": "Switch device",
         "gotoSource": "Go to source",
+        "gotoTag": "Go to tag",
         "gotoOutput": "Go to output"
       }
     },
@@ -463,6 +464,7 @@
         "selectDevice": "Select device",
         "switchDevice": "Switch device",
         "gotoSource": "Go to source",
+        "gotoTag": "Go to tag",
         "gotoOutput": "Go to output"
       }
     },

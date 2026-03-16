@@ -273,14 +273,16 @@ describe('DatalinkWorkbench foundation route', () => {
     ).toBeInTheDocument();
   });
 
-  it('context bar enables quick-action buttons after selecting a device on step 1', () => {
+  it('context bar keeps a single primary action after selecting a device on step 1', () => {
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-    expect(
-      screen.getByText('workbench.contextBar.actions.switchDevice'),
-    ).toBeInTheDocument();
+    const contextBar = screen.getByTestId('workbench-context-bar');
+    const actions = within(contextBar).getAllByRole('button');
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toHaveTextContent('workbench.contextBar.actions.gotoSource');
   });
 
   it('opens the create device form when there are no devices yet', () => {
@@ -466,7 +468,7 @@ describe('DatalinkWorkbench foundation route', () => {
     ).toBeDisabled();
   });
 
-  it('uses the latest session test result tone in the context bar', async () => {
+  it('keeps the latest session test result in the inspector while the context bar stays compact', async () => {
     mockTestConnectionMutation.mutateAsync
       .mockReset()
       .mockResolvedValueOnce({ success: false, error: 'timeout-latest', latency_ms: 0 });
@@ -481,8 +483,12 @@ describe('DatalinkWorkbench foundation route', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('context-bar-test-status')).toHaveTextContent('timeout-latest');
-      expect(screen.getByTestId('context-bar-test-status')).toHaveClass('text-rose-300');
+      const inspectorEntry = within(screen.getByTestId('workbench-inspector-panel')).getByText(
+        'timeout-latest',
+      );
+      expect(inspectorEntry).toBeInTheDocument();
+      expect(inspectorEntry).toHaveClass('text-rose-300');
+      expect(screen.queryByTestId('context-bar-test-status')).not.toBeInTheDocument();
     });
   });
 

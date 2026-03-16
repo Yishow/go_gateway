@@ -33,7 +33,7 @@ function getReadinessTextColor(status: WorkbenchReadiness): string {
 
 export function WorkbenchBottomSummaryBar() {
   const { t } = useTranslation();
-  const { activeOutputTarget } = useWorkbench();
+  const { activeOutputTarget, activeStep } = useWorkbench();
   const {
     pointCount,
     linkedTagCount,
@@ -89,23 +89,41 @@ export function WorkbenchBottomSummaryBar() {
       {/* Readiness indicators */}
       <ul className="flex items-center gap-4" data-testid="readiness-indicators">
         {readinessItems.map((item) => (
-          <li
-            key={item.step}
-            className="flex items-center gap-1.5"
-            data-testid={`readiness-${item.step}`}
-            data-readiness={item.state.status}
-          >
-            <span
-              aria-hidden="true"
-              className={[
-                'inline-block h-2 w-2 rounded-full',
-                getReadinessDotColor(item.state.status),
-              ].join(' ')}
-            />
-            <span className={getReadinessTextColor(item.state.status)}>
-              {t(item.labelKey)}
-            </span>
-          </li>
+          (() => {
+            const isActive = item.step === activeStep;
+
+            return (
+              <li
+                key={item.step}
+                className={[
+                  'flex items-center gap-1.5 rounded-full border px-2 py-1 transition-colors',
+                  isActive
+                    ? 'border-slate-700/80 bg-slate-950/70'
+                    : 'border-transparent bg-transparent px-1 py-0.5',
+                ].join(' ')}
+                data-emphasis={isActive ? 'active' : 'compact'}
+                data-testid={`readiness-${item.step}`}
+                data-readiness={item.state.status}
+              >
+                <span
+                  aria-hidden="true"
+                  className={[
+                    'inline-block rounded-full',
+                    isActive ? 'h-2.5 w-2.5' : 'h-2 w-2',
+                    getReadinessDotColor(item.state.status),
+                  ].join(' ')}
+                />
+                <span
+                  className={[
+                    getReadinessTextColor(item.state.status),
+                    isActive ? 'font-semibold' : 'text-[11px] opacity-75',
+                  ].join(' ')}
+                >
+                  {t(item.labelKey)}
+                </span>
+              </li>
+            );
+          })()
         ))}
       </ul>
 

@@ -659,7 +659,11 @@ export function LocalModbusBoard() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+      <section
+        className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-5"
+        data-testid="output-primary-anchor"
+        tabIndex={-1}
+      >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">

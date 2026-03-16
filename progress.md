@@ -238,6 +238,69 @@
 - `cd frontend && npx tsc --noEmit`
 - `cd frontend && npm run build`
 
+## 2026-03-16：Workbench desktop polish（scan-first）spec 與 implementation planning
+
+### Completed
+- 重新做 workbench 桌面 audit，並用 brainstorming 與使用者逐段確認 shell 規則、step 改法、互動規則與測試策略
+- 新增 spec：`docs/superpowers/specs/2026-03-16-datalink-workbench-desktop-polish-design.md`
+- 完成 spec review loop
+  - reviewer 首輪指出 3 個問題：
+    - 未明確說明與前一份 redesign spec 的 supersede 邊界
+    - `handoff summary` 有 scope creep
+    - 驗收與測試條件太主觀
+  - 已修正後取得 `APPROVED`
+- 完成兩個繁中 commit：
+  - `ce2eae0` 補齊 workbench 掃描優先 polish 設計規格
+  - `eb4a2c2` 修正 workbench polish 規格邊界與驗收條件
+- 取得使用者同意進入 implementation planning
+- 已將 planning 檔同步到新的 `scan-first` phase breakdown
+
+### In Progress
+- `scan-first` implementation planning
+  - `scan-shell-density`
+  - `scan-device-browser`
+  - `scan-source-toolbar-canvas`
+  - `scan-tag-row-board`
+  - `scan-output-active-target`
+  - `scan-cross-step-regressions`
+
+### Notes
+- 這一輪尚未開始新的前端程式碼實作，先完成 spec 與 implementation plan，避免又在 UI 方向上走偏。
+- 使用者新增偏好：前端設計 / 提案若能選模型品質，優先採用 Opus 級別輸出。
+
+## 2026-03-16：scan-shell-density
+
+### Completed
+- 以 TDD 先補 `WorkbenchContextBar` 的紅燈：
+  - compact step summary 取代 capability chips 常駐顯示
+  - single primary action 取代 quick-action cluster
+- reviewer 補抓 `source -> output` 跳步 regression 後，再補一輪 TDD：
+  - `source` step CTA 改成 `gotoTag`
+  - `sourceReady` 未滿足時 disabled
+  - locale 補上 `workbench.contextBar.actions.gotoTag`
+- reviewer 第二輪再抓到 Step 4 CTA 語義不對：
+  - output step 不再退回 `switchDevice`
+  - 改為 output-focused CTA 文案（`configureOutput` / `completeTagBinding`）
+  - output-ready 時，CTA 會 focus `output-primary-anchor`，不再是 enabled no-op
+- 以 TDD 補 `WorkbenchBottomSummaryBar` 的紅燈：
+  - 只高亮 active step
+  - 其餘 step 改成 compact readiness marker
+- 將 related foundation tests 從舊的 context-bar assumptions 對齊到 scan-first spec
+
+### Files modified
+- `frontend/src/pages/datalink/workbench/WorkbenchContextBar.tsx`
+- `frontend/src/pages/datalink/workbench/WorkbenchBottomSummaryBar.tsx`
+- `frontend/src/pages/datalink/workbench/LocalModbusBoard.tsx`
+- `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx`
+- `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchFoundation.test.tsx`
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx`
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx`
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|

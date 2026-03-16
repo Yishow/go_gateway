@@ -249,6 +249,74 @@
 - [x] 完成 OpenSpec proposal/design/specs/tasks artifacts
 - [x] 完成 implementation execution plan（SQL backlog + phase breakdown）
 
+## 2026-03-16：Workbench desktop polish（scan-first）implementation planning
+
+### 已完成
+- [x] 重新盤查 workbench 桌面殼層與四個步驟的資訊密度問題
+- [x] 以 brainstorming 收斂 3 個方向：`靜音桌面` / `緊湊儀表板` / `嚮導接力`
+- [x] 與使用者逐段確認 shell 規則、step-by-step 改法、互動與測試策略
+- [x] 產出 spec：`docs/superpowers/specs/2026-03-16-datalink-workbench-desktop-polish-design.md`
+- [x] 完成 spec review loop
+- [x] 取得使用者核准進入 implementation planning
+
+### 設計決策
+- 本輪只做 **scan-first polish**，不再重寫 workflow。
+- 優先 bundle：
+  - `01` ContextBar 只留步驟摘要與主 CTA
+  - `02` BottomSummary 改成細進度條，只高亮目前步驟
+  - `05` 所有步驟主 CTA 固定在同一位置
+  - `07` Device 搜尋 / 篩選 / 建立收成同一列
+  - `11` Source 只保留一條緊湊 toolbar
+  - `13` Address canvas 放大成主角，rule list 降權
+  - `14` Tag candidate 改成 row board / table-like
+  - `15` Tag batch action 只有勾選後才出現
+  - `17` Output candidate 只顯示當前 target 必要資訊
+  - `20` 各步驟未選取時隱藏不必要操作
+- 前端設計 / 提案 / review 若可選模型，優先採用 Opus 品質等級。
+
+### 實作 phase
+
+#### Phase P0：Shell density polish [pending]
+- [x] `scan-shell-density`
+  - 調整 `WorkbenchContextBar`
+  - 調整 `WorkbenchBottomSummaryBar`
+  - 固定主 CTA 區域
+  - 更新 shell / foundation regression tests
+  - 已完成：
+    - ContextBar 改成 `step summary + single primary action`
+    - 移除預設 capability chip / latest test 狀態常駐顯示
+    - BottomSummary 新增 `active / compact` emphasis
+    - primary CTA 改回逐步流程：`device -> source -> tag -> output`
+    - source / tag 未就緒時，CTA 直接 disabled，避免跳步
+    - output step CTA 改成 output-focused 文案，不再退回 `switchDevice`
+    - output-ready 狀態下，CTA 會把焦點拉回輸出主控區，不再是 enabled no-op
+    - shell / foundation tests 與 scan-first spec 對齊
+
+#### Phase P1：Step surfaces（可平行） [pending]
+- [ ] `scan-device-browser`
+  - Step 1 列表降噪與 inline toolbar
+  - 未選取 / 已選取狀態更聚焦
+  - inspector 承接 edit / clone / test 細節
+- [ ] `scan-source-toolbar-canvas`
+  - Step 2 收成單一 toolbar
+  - demote template / save-load / coverage / jump / freeze / snapshot
+  - 放大 `AddressCanvas`，降低 rule list 視覺權重
+- [ ] `scan-tag-row-board`
+  - Step 3 厚卡改 row board
+  - batch action 僅在 selection 後出現
+  - conflict / already-linked 細節進 inspector
+- [ ] `scan-output-active-target`
+  - Step 4 row 只顯示 active target 必要資訊
+  - Modbus / DB 次層資訊分組降權
+  - non-active-target detail 移入 inspector
+
+#### Phase P2：Cross-step regression + rollout [pending]
+- [ ] `scan-cross-step-regressions`
+  - progressive disclosure regression
+  - `step/target` deep-link regression
+  - `1920×1080` toolbar / CTA / shell 穩定性驗證
+  - 文件、OpenSpec tasks、繁中 commit、code review
+
 ### Implementation Phase Breakdown（Redesign Round 2）
 
 **Phase 0: Shell Infrastructure（序列，已完成）**

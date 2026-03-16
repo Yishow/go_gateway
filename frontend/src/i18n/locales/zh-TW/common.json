@@ -443,6 +443,7 @@
         "selectDevice": "選擇設備",
         "switchDevice": "切換設備",
         "gotoSource": "前往來源規劃",
+        "gotoTag": "前往 Tag 綁定",
         "gotoOutput": "前往輸出設定"
       }
     },
@@ -463,6 +464,7 @@
         "selectDevice": "選擇設備",
         "switchDevice": "切換設備",
         "gotoSource": "前往來源規劃",
+        "gotoTag": "前往 Tag 綁定",
         "gotoOutput": "前往輸出設定"
       }
     },
