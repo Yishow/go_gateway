@@ -77,12 +77,19 @@ type Service struct {
 	// snapshot mode 使用
 	snapshot Snapshot
 
-	mappingMu    sync.RWMutex
-	mappingIndex map[string][]mappingBinding // pointID -> mappings
+	mappingMu      sync.RWMutex
+	mappingIndex   map[string][]mappingBinding // pointID -> mappings
+	pointMetaMu    sync.RWMutex
+	pointMetaIndex map[string]pointMeta
 
-	stopCh  chan struct{}
-	wg      sync.WaitGroup
-	running atomic.Bool
+	subscriberMu     sync.RWMutex
+	subscribers      map[int64]valueSubscriber
+	nextSubscriberID atomic.Int64
+
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
+	running   atomic.Bool
+	startedAt atomic.Int64
 
 	collectedTotal  atomic.Uint64
 	writeSuccess    atomic.Uint64
@@ -97,9 +104,11 @@ type Service struct {
 // 2) snapshot mode: NewService(Config{Writer:..., Snapshot:...})
 func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 	s := &Service{
-		config:       config,
-		mappingIndex: make(map[string][]mappingBinding),
-		stopCh:       make(chan struct{}),
+		config:         config,
+		mappingIndex:   make(map[string][]mappingBinding),
+		pointMetaIndex: make(map[string]pointMeta),
+		subscribers:    make(map[int64]valueSubscriber),
+		stopCh:         make(chan struct{}),
 	}
 
 	if len(depsOpt) > 0 {
@@ -141,9 +150,11 @@ func (s *Service) Start(ctx context.Context) error {
 	if !s.running.CompareAndSwap(false, true) {
 		return fmt.Errorf("runtime 已在運行")
 	}
+	s.startedAt.Store(time.Now().UnixNano())
 
 	if err := s.bootstrap(ctx); err != nil {
 		s.running.Store(false)
+		s.startedAt.Store(0)
 		return err
 	}
 
@@ -157,6 +168,7 @@ func (s *Service) Stop(ctx context.Context) error {
 	if !s.running.CompareAndSwap(true, false) {
 		return nil
 	}
+	s.startedAt.Store(0)
 
 	close(s.stopCh)
 	s.scheduler.Stop()
@@ -197,6 +209,58 @@ func (s *Service) Metrics() Metrics {
 	}
 }
 
+// IsRunning reports whether runtime service is actively running.
+func (s *Service) IsRunning() bool {
+	return s.running.Load()
+}
+
+// UptimeSeconds returns elapsed runtime seconds since the latest successful start.
+func (s *Service) UptimeSeconds() int64 {
+	if !s.IsRunning() {
+		return 0
+	}
+
+	startedAt := s.startedAt.Load()
+	if startedAt <= 0 {
+		return 0
+	}
+
+	return int64(time.Since(time.Unix(0, startedAt)).Seconds())
+}
+
+// UpsertPoint updates runtime metadata and scheduler state for a point.
+func (s *Service) UpsertPoint(point *schema.Point) {
+	if point == nil {
+		return
+	}
+
+	s.registerPointMeta(point.ID, pointMeta{
+		DeviceID: point.DeviceID,
+		Address:  point.Address,
+	})
+
+	if s.scheduler == nil {
+		return
+	}
+
+	if point.Enabled {
+		s.scheduler.AddPoint(point)
+		return
+	}
+	s.scheduler.RemovePoint(point.ID)
+}
+
+// RemovePoint removes runtime metadata and scheduler state for a point.
+func (s *Service) RemovePoint(pointID string) {
+	s.pointMetaMu.Lock()
+	delete(s.pointMetaIndex, pointID)
+	s.pointMetaMu.Unlock()
+
+	if s.scheduler != nil {
+		s.scheduler.RemovePoint(pointID)
+	}
+}
+
 func (s *Service) bootstrap(ctx context.Context) error {
 	if s.deviceSvc != nil {
 		return s.bootstrapFromServices(ctx)
@@ -219,6 +283,10 @@ func (s *Service) bootstrapFromServices(ctx context.Context) error {
 		return fmt.Errorf("載入 points 失敗: %w", err)
 	}
 	for _, p := range points {
+		s.registerPointMeta(p.ID, pointMeta{
+			DeviceID: p.DeviceID,
+			Address:  p.Address,
+		})
 		if !p.Enabled {
 			continue
 		}
@@ -247,6 +315,10 @@ func (s *Service) bootstrapFromSnapshot(_ context.Context) error {
 		s.scheduler.AddDevice(d)
 	}
 	for _, p := range s.snapshot.Points {
+		s.registerPointMeta(p.ID, pointMeta{
+			DeviceID: p.DeviceID,
+			Address:  p.Address,
+		})
 		if !p.Enabled {
 			continue
 		}

@@ -470,6 +470,19 @@
         "configureOutput": "開始指定 Local Modbus register，並同步輸出映射。"
       }
     },
+    "runtime": {
+      "summary": {
+        "title": "Runtime 健康摘要",
+        "running": "運行中",
+        "warning": "警告",
+        "error": "錯誤",
+        "idle": "待命",
+        "uptime": "運行 {{seconds}} 秒",
+        "pointsHealthy": "健康點位",
+        "pointsStale": "過時點位"
+      },
+      "currentValue": "當前值"
+    },
     "steps": {
       "device": "設備",
       "source": "來源",

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import {
   normalizeNamingPrefix,
   SOURCE_PLANNER_ALLOWED_DATA_TYPES,
@@ -9,6 +10,8 @@ import {
   useCreatePointMutation,
   usePointsQuery,
 } from '../../../hooks/datalink/usePoints';
+import { useRuntimeStream } from '../../../hooks/datalink/useRuntimeStream';
+import { runtimeAPI } from '../../../services/datalink';
 import type { DataType, Device } from '../../../types/datalink';
 import { AddressCanvas } from './AddressCanvas';
 import { AddressLedger } from './AddressLedger';
@@ -32,8 +35,34 @@ export function SourceCanvasSection() {
     selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
   );
   const createPointMutation = useCreatePointMutation();
+  const runtimeStatusQuery = useQuery({
+    queryKey: ['runtime-status', selectedDeviceId],
+    queryFn: () => runtimeAPI.getStatus(selectedDeviceId ?? undefined),
+    enabled: Boolean(selectedDeviceId),
+    staleTime: 10_000,
+  });
+  const runtimeStream = useRuntimeStream({
+    deviceId: selectedDeviceId,
+    pointIds: points.map((point) => point.id),
+  });
 
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
+  const pointsWithLiveValues = useMemo(
+    () =>
+      points.map((point) => {
+        const liveValue = runtimeStream.liveValues[point.id];
+        if (!liveValue) {
+          return point;
+        }
+
+        return {
+          ...point,
+          last_value: liveValue.raw_value ?? point.last_value,
+          last_read_at: liveValue.timestamp,
+        };
+      }),
+    [points, runtimeStream.liveValues],
+  );
   const [viewMode, setViewMode] = useState<SourceViewMode>('grid');
   const [startAddress, setStartAddress] = useState('40001');
   const [dataType, setDataType] = useState<DataType>('int16');
@@ -51,12 +80,12 @@ export function SourceCanvasSection() {
     }
 
     return buildAddressCanvasItems({
-      points,
+      points: pointsWithLiveValues,
       plannedPointAddresses,
       plannedDataType: dataType,
       protocol: selectedDevice.protocol,
     });
-  }, [dataType, plannedPointAddresses, points, selectedDevice]);
+  }, [dataType, plannedPointAddresses, pointsWithLiveValues, selectedDevice]);
 
   const conflictingPointAddresses = useMemo(() => {
     if (!selectedDevice) {
@@ -64,12 +93,12 @@ export function SourceCanvasSection() {
     }
 
     return getConflictingPlannedPointAddresses({
-      points,
+      points: pointsWithLiveValues,
       plannedPointAddresses,
       plannedDataType: dataType,
       protocol: selectedDevice.protocol,
     });
-  }, [dataType, plannedPointAddresses, points, selectedDevice]);
+  }, [dataType, plannedPointAddresses, pointsWithLiveValues, selectedDevice]);
 
   const handleApplyPlan = () => {
     if (!selectedDevice) {
@@ -150,6 +179,49 @@ export function SourceCanvasSection() {
 
   return (
     <section className="space-y-6">
+      <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4 md:grid-cols-4">
+        <div className="space-y-1 md:col-span-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+            {t('workbench.runtime.summary.title')}
+          </p>
+          <p
+            className="text-sm font-medium text-slate-50"
+            data-testid="workbench-runtime-status"
+          >
+            {runtimeStatusQuery.data?.collectors[0]?.status === 'running'
+              ? t('workbench.runtime.summary.running')
+              : runtimeStatusQuery.data?.collectors[0]?.status === 'warning'
+                ? t('workbench.runtime.summary.warning')
+                : runtimeStatusQuery.data?.collectors[0]?.status === 'error'
+                  ? t('workbench.runtime.summary.error')
+                  : t('workbench.runtime.summary.idle')}
+          </p>
+          <p className="text-xs text-slate-400">
+            {t('workbench.runtime.summary.uptime', {
+              seconds: runtimeStatusQuery.data?.uptime_seconds ?? 0,
+            })}
+          </p>
+        </div>
+
+        <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.runtime.summary.pointsHealthy')}
+          </p>
+          <p className="mt-2 text-lg font-semibold text-slate-50">
+            {runtimeStatusQuery.data?.collectors[0]?.points_healthy ?? 0}
+          </p>
+        </article>
+
+        <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.runtime.summary.pointsStale')}
+          </p>
+          <p className="mt-2 text-lg font-semibold text-slate-50">
+            {runtimeStatusQuery.data?.collectors[0]?.points_stale ?? 0}
+          </p>
+        </article>
+      </div>
+
       <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="flex flex-wrap gap-2">

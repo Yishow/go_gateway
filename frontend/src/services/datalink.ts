@@ -33,6 +33,7 @@ import type {
   PollResult,
   ModbusShareStatus,
   ModbusShareMapping,
+  RuntimeStatus,
 } from '../types/datalink';
 import { VITE_API_BASE_URL } from '../env';
 
@@ -554,6 +555,27 @@ export const dashboardAPI = {
   async getDeviceStatuses(): Promise<DeviceStatus[]> {
     const res = await api.get<APIResponse<DeviceStatus[]>>('/dashboard/device-statuses');
     return res.data.data ?? [];
+  },
+};
+
+export const runtimeAPI = {
+  async getStatus(deviceId?: string): Promise<RuntimeStatus> {
+    const res = await api.get<APIResponse<RuntimeStatus>>('/runtime/status', {
+      params: deviceId ? { device_id: deviceId } : undefined,
+    });
+    return res.data.data ?? {
+      running: false,
+      uptime_seconds: 0,
+      collectors: [],
+    };
+  },
+
+  getStreamUrl(deviceId: string, pointIds?: string[]): string {
+    const params = new URLSearchParams({ device_id: deviceId });
+    if (pointIds && pointIds.length > 0) {
+      params.set('point_ids', pointIds.join(','));
+    }
+    return `${DATALINK_BASE}/runtime/stream?${params.toString()}`;
   },
 };
 

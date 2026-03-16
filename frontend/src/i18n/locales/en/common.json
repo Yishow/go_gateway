@@ -470,6 +470,19 @@
         "configureOutput": "Assign Local Modbus registers and sync the output mappings."
       }
     },
+    "runtime": {
+      "summary": {
+        "title": "Runtime health",
+        "running": "Running",
+        "warning": "Warning",
+        "error": "Error",
+        "idle": "Idle",
+        "uptime": "Uptime {{seconds}}s",
+        "pointsHealthy": "Healthy points",
+        "pointsStale": "Stale points"
+      },
+      "currentValue": "Current value"
+    },
     "steps": {
       "device": "Device",
       "source": "Source",

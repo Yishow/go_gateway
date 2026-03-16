@@ -6,11 +6,13 @@ import (
 
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
+	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
+	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/settings"
 	"go-gateway/internal/datalink/tag"
 
@@ -30,6 +32,8 @@ type DatalinkServices struct {
 	PollingGroup *pollinggroup.Service
 	Settings     *settings.Service
 	ModbusShare  *modbusshare.Service
+	Scheduler    *collector.Scheduler
+	Runtime      *datalinkruntime.Service
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -147,6 +151,17 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.GET("/dashboard/stats", dashboardHandler.GetStats)
 			datalinkGroup.GET("/dashboard/device-statuses", dashboardHandler.GetDeviceStatuses)
 
+			runtimeHandler := handlers.NewRuntimeHandler(
+				datalinkServices.Device,
+				datalinkServices.Point,
+				datalinkServices.PollingGroup,
+				datalinkServices.Scheduler,
+				datalinkServices.Runtime,
+			)
+			datalinkGroup.GET("/runtime/status", runtimeHandler.Status)
+			runtimeStreamHandler := handlers.NewRuntimeStreamHandler(datalinkServices.Runtime)
+			datalinkGroup.GET("/runtime/stream", runtimeStreamHandler.Stream)
+
 			// Protocols
 			protocolHandler := handlers.NewProtocolHandler()
 			datalinkGroup.GET("/protocols", protocolHandler.List)
@@ -172,7 +187,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.POST("/devices/test-batch", deviceHandler.TestConnectionBatch)
 
 			// Points
-			pointHandler := handlers.NewPointHandler(datalinkServices.Point)
+			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime)
 			datalinkGroup.GET("/points", pointHandler.List)
 			datalinkGroup.POST("/points", pointHandler.Create)
 			datalinkGroup.POST("/points/batch", pointHandler.BatchCreate)
@@ -195,7 +210,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.POST("/tags/validate-key", tagHandler.ValidateKey)
 
 			// Mappings
-			mappingHandler := handlers.NewMappingHandler(datalinkServices.Mapping)
+			mappingHandler := handlers.NewMappingHandler(datalinkServices.Mapping, datalinkServices.Runtime)
 			datalinkGroup.GET("/mappings", mappingHandler.List)
 			datalinkGroup.POST("/mappings", mappingHandler.Create)
 			datalinkGroup.GET("/mappings/:id", mappingHandler.Get)

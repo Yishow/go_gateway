@@ -5,25 +5,36 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/point"
+	"go-gateway/internal/datalink/schema"
 
 	"github.com/gin-gonic/gin"
 )
 
 type PointHandler struct {
-	svc *point.Service
+	svc         *point.Service
+	runtimeSync pointRuntimeSyncer
 }
 
-func NewPointHandler(svc *point.Service) *PointHandler {
-	return &PointHandler{svc: svc}
+type pointRuntimeSyncer interface {
+	UpsertPoint(point *schema.Point)
+	RemovePoint(pointID string)
+}
+
+func NewPointHandler(svc *point.Service, runtimeSync ...pointRuntimeSyncer) *PointHandler {
+	var syncer pointRuntimeSyncer
+	if len(runtimeSync) > 0 {
+		syncer = runtimeSync[0]
+	}
+	return &PointHandler{svc: svc, runtimeSync: syncer}
 }
 
 func (h *PointHandler) List(c *gin.Context) {
 	deviceID := c.Query("device_id")
-    filter := point.ListFilter{}
-    if deviceID != "" {
-        filter.DeviceID = &deviceID
-    }
-    
+	filter := point.ListFilter{}
+	if deviceID != "" {
+		filter.DeviceID = &deviceID
+	}
+
 	points, err := h.svc.List(c.Request.Context(), filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
@@ -54,6 +65,9 @@ func (h *PointHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
+	if h.runtimeSync != nil {
+		h.runtimeSync.UpsertPoint(p)
+	}
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": p})
 }
 
@@ -71,7 +85,7 @@ func (h *PointHandler) BatchCreate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 
@@ -88,6 +102,9 @@ func (h *PointHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
+	if h.runtimeSync != nil {
+		h.runtimeSync.UpsertPoint(p)
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": p})
 }
 
@@ -97,16 +114,21 @@ func (h *PointHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
+	if h.runtimeSync != nil {
+		h.runtimeSync.RemovePoint(id)
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 // PollResult 輪詢結果
 type PollResult struct {
-	PointID   string      `json:"point_id"`
-	Value     interface{} `json:"value"`
-	Timestamp string      `json:"timestamp"`
-	Quality   int         `json:"quality"`
-	Error     string      `json:"error,omitempty"`
+	PointID          string      `json:"point_id"`
+	Value            interface{} `json:"value"`
+	TransformedValue interface{} `json:"transformed_value"`
+	Timestamp        string      `json:"timestamp"`
+	Quality          int         `json:"quality"`
+	Stale            bool        `json:"stale"`
+	Error            string      `json:"error,omitempty"`
 }
 
 // Poll 單點輪詢
@@ -124,15 +146,18 @@ func (h *PointHandler) Poll(c *gin.Context) {
 	// TODO: 實際呼叫協議連接器讀取值
 	// 這裡返回模擬結果
 	result := PollResult{
-		PointID:   pt.ID,
-		Value:     nil,
-		Timestamp: time.Now().Format(time.RFC3339),
-		Quality:   192, // Good quality
-		Error:     "Poll not implemented - requires protocol connector integration",
+		PointID:          pt.ID,
+		Value:            nil,
+		TransformedValue: nil,
+		Timestamp:        time.Now().Format(time.RFC3339),
+		Quality:          192, // Good quality
+		Stale:            false,
+		Error:            "Poll not implemented - requires protocol connector integration",
 	}
 
 	if pt.LastValue != nil {
 		result.Value = *pt.LastValue
+		result.TransformedValue = *pt.LastValue
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
@@ -171,14 +196,17 @@ func (h *PointHandler) PollBatch(c *gin.Context) {
 		}
 
 		result := PollResult{
-			PointID:   pt.ID,
-			Timestamp: time.Now().Format(time.RFC3339),
-			Quality:   192,
-			Error:     "Poll not implemented",
+			PointID:          pt.ID,
+			TransformedValue: nil,
+			Timestamp:        time.Now().Format(time.RFC3339),
+			Quality:          192,
+			Stale:            false,
+			Error:            "Poll not implemented",
 		}
 
 		if pt.LastValue != nil {
 			result.Value = *pt.LastValue
+			result.TransformedValue = *pt.LastValue
 		}
 
 		results = append(results, result)
@@ -186,4 +214,3 @@ func (h *PointHandler) PollBatch(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
-

@@ -303,6 +303,9 @@
 | Frontend build | `cd frontend && npm run build` | TypeScript + Vite build 通過 | pass（僅既有 chunk size warning） | ✓ |
 
 ## Next Focus
-- 先以繁中 commit 關帳本輪 workbench phase
-- 接著進入 `runtime-live-value-phase2`
-- 再進入 `database-target-phase2`
+- runtime/live value vertical slice 已完成大部分核心：
+  - backend：`runtime/status`、`runtime/stream`、runtime service pubsub、point/mapping refresh path
+  - app wiring：`cmd/test_ui/main.go` 已接上 scheduler/runtime，smoke 成功
+  - frontend：source step runtime summary + EventSource live raw value
+- `runtime-live-value-phase2` 尚餘 `runtime-poll-contract`
+- 下一個主目標：`database-target-phase2`

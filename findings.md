@@ -457,3 +457,10 @@
 ### phase2 接手判斷
 - `runtime-live-value-phase2` 與 `database-target-phase2` 在 workbench quality pass 完成後已成為 ready todo。
 - 依目前 spec 與先前掃描結果，runtime / db target 很可能不是「把現有 UI 接上」即可，而是要從 backend contract、frontend service/hook、頁面區塊三個面向補一個新的 vertical slice。
+
+### runtime/live value vertical slice（本輪完成）
+- `runtime.Service` 現在除了寫 timeseries，也會廣播 device-scoped `value` 事件；`/api/v1/datalink/runtime/stream` 已可接收 `device_id` + `point_ids` 過濾並輸出 `value` / `heartbeat` SSE。
+- `cmd/test_ui/main.go` 已接上 `collector.Scheduler`、`runtime.Service` 與 batch writer；實際 smoke 測到 `/api/v1/datalink/runtime/status` 回 `{"running":true,...}`，代表 app wiring 生效。
+- workbench source step 現在會用 `runtime/status` 顯示 collector summary，並透過 `useRuntimeStream` 將 source cell / ledger 更新為 point raw live value。
+- review 補強後，point create/update/delete 會同步 runtime scheduler/meta，mapping create/update/delete 會 refresh runtime mappings，避免 runtime 只吃啟動時快照。
+- source 視圖必須顯示 point raw value，不應吃 mapping `transformed_value`；tag/output 相關面板才適合顯示 transform 後的值。

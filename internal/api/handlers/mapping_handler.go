@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,25 +13,34 @@ import (
 )
 
 type MappingHandler struct {
-	svc *mapping.Service
+	svc            *mapping.Service
+	runtimeRefresh mappingRuntimeRefresher
 }
 
-func NewMappingHandler(svc *mapping.Service) *MappingHandler {
-	return &MappingHandler{svc: svc}
+type mappingRuntimeRefresher interface {
+	RefreshMappings(ctx context.Context) error
+}
+
+func NewMappingHandler(svc *mapping.Service, runtimeRefresh ...mappingRuntimeRefresher) *MappingHandler {
+	var refresher mappingRuntimeRefresher
+	if len(runtimeRefresh) > 0 {
+		refresher = runtimeRefresh[0]
+	}
+	return &MappingHandler{svc: svc, runtimeRefresh: refresher}
 }
 
 // ... existing List/Get/Create/Update/Delete methods ... (Assuming they will be kept but need struct update)
-// Since I am replacing the struct definition, I should verify the rest of the file remains valid or if I need to update it too. 
+// Since I am replacing the struct definition, I should verify the rest of the file remains valid or if I need to update it too.
 // The tool replaces a block. I will replace the top block.
 
 func (h *MappingHandler) List(c *gin.Context) {
-    filter := mapping.ListFilter{}
-    if s := c.Query("point_id"); s != "" {
-        filter.PointID = &s
-    }
-    if s := c.Query("tag_id"); s != "" {
-        filter.TagID = &s
-    }
+	filter := mapping.ListFilter{}
+	if s := c.Query("point_id"); s != "" {
+		filter.PointID = &s
+	}
+	if s := c.Query("tag_id"); s != "" {
+		filter.TagID = &s
+	}
 
 	mappings, err := h.svc.List(c.Request.Context(), filter)
 	if err != nil {
@@ -62,6 +72,12 @@ func (h *MappingHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
+	if h.runtimeRefresh != nil {
+		if err := h.runtimeRefresh.RefreshMappings(c.Request.Context()); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			return
+		}
+	}
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": m})
 }
 
@@ -78,6 +94,12 @@ func (h *MappingHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
+	if h.runtimeRefresh != nil {
+		if err := h.runtimeRefresh.RefreshMappings(c.Request.Context()); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			return
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": m})
 }
 
@@ -87,19 +109,25 @@ func (h *MappingHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
+	if h.runtimeRefresh != nil {
+		if err := h.runtimeRefresh.RefreshMappings(c.Request.Context()); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			return
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 type MappingPreviewRequest struct {
-    RawValue interface{} `json:"raw_value"`
-    TransformPipeline *[]schema.TransformStep `json:"transform_pipeline"`
+	RawValue          interface{}             `json:"raw_value"`
+	TransformPipeline *[]schema.TransformStep `json:"transform_pipeline"`
 }
 
 type MappingPreviewResponse struct {
-    RawValue interface{} `json:"raw_value"`
-    FinalValue interface{} `json:"final_value"`
-    StepResults []mapping.StepResult `json:"step_results"`
-    Error string `json:"error,omitempty"`
+	RawValue    interface{}          `json:"raw_value"`
+	FinalValue  interface{}          `json:"final_value"`
+	StepResults []mapping.StepResult `json:"step_results"`
+	Error       string               `json:"error,omitempty"`
 }
 
 func (h *MappingHandler) Preview(c *gin.Context) {
@@ -115,25 +143,25 @@ func (h *MappingHandler) Preview(c *gin.Context) {
 		return
 	}
 
-    // Serialize pipeline to JSON string for ExecutePipeline
-    pipelineJSON, err := json.Marshal(*req.TransformPipeline)
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "Invalid pipeline format"}})
-        return
-    }
+	// Serialize pipeline to JSON string for ExecutePipeline
+	pipelineJSON, err := json.Marshal(*req.TransformPipeline)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "Invalid pipeline format"}})
+		return
+	}
 
 	// Execute pipeline
-    ctx, err := mapping.ExecutePipeline(req.RawValue, string(pipelineJSON))
-    
+	ctx, err := mapping.ExecutePipeline(req.RawValue, string(pipelineJSON))
+
 	res := MappingPreviewResponse{
-		RawValue: req.RawValue,
-        FinalValue: ctx.CurrentValue,
+		RawValue:    req.RawValue,
+		FinalValue:  ctx.CurrentValue,
 		StepResults: ctx.StepResults,
 	}
-    if err != nil {
-        res.Error = err.Error()
-    }
-	
+	if err != nil {
+		res.Error = err.Error()
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": res})
 }
 
@@ -201,4 +229,3 @@ func (h *MappingHandler) ValidatePipeline(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 }
-

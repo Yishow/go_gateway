@@ -43,6 +43,14 @@ export function AddressCanvas({ items }: { items: AddressCanvasItem[] }) {
                   ? t('workbench.source.canvas.conflictState')
                   : t('workbench.source.canvas.plannedState')}
             </p>
+            {item.point ? (
+              <p className="text-xs text-cyan-100">
+                {t('workbench.runtime.currentValue')}:{' '}
+                {item.point.last_value === null || item.point.last_value === undefined
+                  ? '—'
+                  : String(item.point.last_value)}
+              </p>
+            ) : null}
           </div>
         </div>
       ))}

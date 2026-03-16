@@ -20,6 +20,7 @@ export function AddressLedger({ items }: { items: AddressCanvasItem[] }) {
             <th className="px-4 py-3 text-left">{t('workbench.source.ledger.columns.address')}</th>
             <th className="px-4 py-3 text-left">{t('workbench.source.ledger.columns.name')}</th>
             <th className="px-4 py-3 text-left">{t('workbench.source.ledger.columns.status')}</th>
+            <th className="px-4 py-3 text-left">{t('workbench.runtime.currentValue')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
@@ -37,6 +38,11 @@ export function AddressLedger({ items }: { items: AddressCanvasItem[] }) {
                   : item.status === 'conflict'
                     ? t('workbench.source.canvas.conflictState')
                     : t('workbench.source.canvas.plannedState')}
+              </td>
+              <td className="px-4 py-3 text-cyan-100">
+                {item.point?.last_value === null || item.point?.last_value === undefined
+                  ? '—'
+                  : String(item.point.last_value)}
               </td>
             </tr>
           ))}

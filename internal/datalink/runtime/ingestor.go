@@ -31,15 +31,14 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		}
 	}
 
+	meta := s.lookupPointMeta(cv.PointID)
+	transformedValue := cv.Value
+
 	s.mappingMu.RLock()
 	bindings := s.mappingIndex[cv.PointID]
 	s.mappingMu.RUnlock()
-	if len(bindings) == 0 {
-		return
-	}
-
 	rawValue := buildRawValue(cv)
-	for _, b := range bindings {
+	for index, b := range bindings {
 		finalValue := cv.Value
 		if shouldRunPipeline(b.TransformPipeline) {
 			out, err := mapping.ExecutePipeline(cv.Value, b.TransformPipeline)
@@ -49,6 +48,9 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 			}
 			finalValue = out.CurrentValue
 		}
+		if index == 0 {
+			transformedValue = finalValue
+		}
 
 		record := storage.ValueToRecord(b.TagID, finalValue, rawValue, cv.Timestamp, quality, b.TagDataType)
 		if err := s.writer.Write(ctx, record); err != nil {
@@ -57,6 +59,21 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		}
 		s.writeSuccess.Add(1)
 	}
+
+	deviceID := cv.DeviceID
+	if deviceID == "" {
+		deviceID = meta.DeviceID
+	}
+	s.broadcastValueEvent(ValueEvent{
+		DeviceID:         deviceID,
+		PointID:          cv.PointID,
+		Address:          meta.Address,
+		RawValue:         cv.Value,
+		TransformedValue: transformedValue,
+		Quality:          quality,
+		Stale:            false,
+		Timestamp:        cv.Timestamp,
+	})
 }
 
 func shouldRunPipeline(raw string) bool {

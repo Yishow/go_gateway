@@ -25,6 +25,7 @@ import (
 	"go-gateway/internal/api"
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
 	"go-gateway/internal/datalink/device"
@@ -32,7 +33,9 @@ import (
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
+	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/settings"
+	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/web"
 )
@@ -115,9 +118,13 @@ func main() {
 	devRepo := device.NewSQLRepository(db)
 	devSvc := device.NewService(devRepo, connMgr)
 
+	// PollingGroup
+	pgRepo := pollinggroup.NewSQLRepository(db)
+	pgSvc := pollinggroup.NewService(pgRepo)
+
 	// Point
 	pointRepo := point.NewSQLRepository(db)
-	pointSvc := point.NewService(pointRepo, nil) // PollingGroupRepository 暫為 nil
+	pointSvc := point.NewService(pointRepo, pgRepo)
 
 	// Tag
 	tagRepo := tag.NewSQLRepository(db)
@@ -140,13 +147,37 @@ func main() {
 		}
 	}()
 
-	// PollingGroup
-	pgRepo := pollinggroup.NewSQLRepository(db)
-	pgSvc := pollinggroup.NewService(pgRepo)
-
 	// Settings
 	settingsRepo := settings.NewSQLRepository(db)
 	settingsSvc := settings.NewService(settingsRepo)
+
+	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr)
+	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig())
+	runtimeSvc, err := datalinkruntime.NewService(
+		datalinkruntime.DefaultConfig(),
+		datalinkruntime.Dependencies{
+			Scheduler:           scheduler,
+			Writer:              runtimeWriter,
+			DeviceService:       devSvc,
+			PointService:        pointSvc,
+			MappingService:      mappingSvc,
+			TagService:          tagSvc,
+			PollingGroupService: pgSvc,
+		},
+	)
+	if err != nil {
+		log.Fatalf("建立 datalink runtime 失敗: %v", err)
+	}
+	if err := runtimeSvc.Start(context.Background()); err != nil {
+		log.Printf("datalink runtime 啟動失敗，runtime 功能將不可用: %v", err)
+	}
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := runtimeSvc.Stop(stopCtx); err != nil {
+			log.Printf("關閉 datalink runtime 失敗: %v", err)
+		}
+	}()
 
 	// Container
 	datalinkServices := &api.DatalinkServices{
@@ -157,6 +188,8 @@ func main() {
 		PollingGroup: pgSvc,
 		Settings:     settingsSvc,
 		ModbusShare:  modbusShareSvc,
+		Scheduler:    scheduler,
+		Runtime:      runtimeSvc,
 	}
 
 	// 建立 API 路由器

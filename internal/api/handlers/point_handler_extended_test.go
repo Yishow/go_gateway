@@ -107,6 +107,8 @@ func TestPointHandler_Poll(t *testing.T) {
 	assert.Equal(t, pointID, data["point_id"])
 	assert.Contains(t, data, "timestamp")
 	assert.Contains(t, data, "quality")
+	assert.Contains(t, data, "transformed_value")
+	assert.Contains(t, data, "stale")
 }
 
 /**

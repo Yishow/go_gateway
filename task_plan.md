@@ -193,7 +193,14 @@
 
 ### 下一個 ready phase
 - [ ] `runtime-live-value-phase2`
-  - 目標：依 `docs/superpowers/specs/phase2-runtime-dbtarget-detail.md` 補 runtime/live value 相關 UI/contract
+  - 已完成：
+    - `GET /api/v1/datalink/runtime/status`
+    - `GET /api/v1/datalink/runtime/stream`
+    - `cmd/test_ui/main.go` 已接上 scheduler + runtime service + writer
+    - workbench source step 已顯示 runtime summary，且可用 EventSource 即時更新 source cell raw value
+    - runtime service 已補 point/mapping refresh path，避免 runtime 只吃啟動時快照
+  - 剩餘：
+    - `runtime-poll-contract`：讓 `/points/:id/poll`、`/points/poll` 真正計算 `transformed_value` 與 `stale`
 - [ ] `database-target-phase2`
   - 目標：補齊資料庫輸出目標與後續工作流
 
@@ -205,5 +212,11 @@
   - `cd frontend && npm run lint`
   - `cd frontend && npm run build`
   - `git --no-pager diff --check`
+  - `go test ./internal/api -run 'TestNewRouter_RuntimeStatusEndpoint|TestNewRouter_RuntimeStreamEndpointRequiresDeviceID|TestNewRouter_RuntimeStatusUsesRuntimeServiceState' -count=1`
+  - `go test ./internal/api/handlers -run 'TestRuntimeStreamHandler_StreamWritesValueEvent|TestPointHandler_Poll$|TestPointHandler_(CreateSyncsRuntimePoint|DeleteRemovesRuntimePoint)|TestMappingHandler_(CreateRefreshesRuntimeMappings|DeleteRefreshesRuntimeMappings)' -count=1`
+  - `go test ./internal/datalink/runtime -run 'TestService_SubscribeValueEvents_BroadcastsMatchingPoint|TestHandleCollectedValue_RunPipelineAndWrite|TestHandleCollectedValue_NoMapping_NoWrite' -count=1`
+  - `go build ./cmd/test_ui`
+  - `PORT=18080 AUTO_OPEN_BROWSER=0 go run ./cmd/test_ui` + `curl http://127.0.0.1:18080/api/v1/datalink/runtime/status`
 - 注意：
   - 一次串太多 workbench Vitest 檔案時，曾出現 worker 在測試通過後仍不正常結束的情況；改為分批驗證可穩定完成
+  - `go test ./internal/api/...` 全包驗證仍會撞到既有 `TestPointHandler_PollBatch_LargeList`（測試本身用 `4000:` 當位址建立第 10 筆 point），本輪未順手修改該既有 baseline 問題

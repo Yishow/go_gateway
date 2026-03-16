@@ -329,10 +329,49 @@ export interface APIResponse<T> {
 export interface PollResult {
   point_id: string;
   value: unknown;
+  transformed_value?: unknown;
   timestamp: string;
   quality: number;
   error: string;
+  stale?: boolean;
 }
+
+export interface RuntimeCollectorStatus {
+  device_id: string;
+  device_name: string;
+  protocol: ProtocolType | string;
+  status: 'idle' | 'running' | 'warning' | 'error';
+  points_total: number;
+  points_healthy: number;
+  points_stale: number;
+  points_error: number;
+  last_read_at: string | null;
+  last_error: string | null;
+  breaker_state: 'closed' | 'open' | 'half-open' | string;
+}
+
+export interface RuntimeStatus {
+  running: boolean;
+  uptime_seconds: number;
+  collectors: RuntimeCollectorStatus[];
+}
+
+export interface RuntimeValueEvent {
+  device_id: string;
+  point_id: string;
+  address: string;
+  raw_value: unknown;
+  transformed_value: unknown;
+  quality: 'good' | 'bad' | 'uncertain';
+  stale: boolean;
+  timestamp: string;
+}
+
+export type RuntimeStreamConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'error';
 
 // =============================================================================
 // Local Modbus Share
