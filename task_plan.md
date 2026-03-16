@@ -236,3 +236,17 @@
 - 注意：
   - 一次串太多 workbench Vitest 檔案時，曾出現 worker 在測試通過後仍不正常結束的情況；改為分批驗證可穩定完成
   - `go test ./internal/api/...` 全包驗證仍會撞到既有 `TestPointHandler_PollBatch_LargeList`（測試本身用 `4000:` 當位址建立第 10 筆 point），本輪未順手修改該既有 baseline 問題
+
+## 2026-03-16：Workbench desktop redesign round 2 [design approved]
+- [x] 以 brainstorming 重新審視 1920×1080 的 workbench 桌面版資訊架構
+- [x] 確認回到原始 spec 骨架：`StepRail + ContextBar + PrimaryWorkArea + InspectorPanel + BottomSummaryBar`
+- [x] 重新定義 Step 1：`DeviceWorkspace`（能力摘要、Clone、測試歷史）
+- [x] 重新定義 Step 2：`AddressCanvasWorkspace`（Plan/Live/Link、多組 rule、templates、coverage/live controls）
+- [x] 重新定義 Step 3：`TagBindingBoard`（source→tag 高資訊密度、diff preview、結果總表）
+- [x] 重新定義 Step 4：`OutputWorkspace`（Local Modbus + Database 同工作台）
+- [x] 核准產出新 spec：`docs/superpowers/specs/2026-03-16-datalink-workbench-desktop-redesign.md`
+- [x] scaffold OpenSpec change：`openspec/changes/redesign-datalink-workbench-desktop-flow/`
+- [ ] 完成新 spec review loop
+- [ ] 將設計同步成 OpenSpec proposal/design/specs/tasks artifacts
+- [ ] 再進入 implementation plan 與實作
+

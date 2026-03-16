@@ -481,3 +481,11 @@
 - workbench source step 現在會用 `runtime/status` 顯示 collector summary，並透過 `useRuntimeStream` 將 source cell / ledger 更新為 point raw live value。
 - review 補強後，point create/update/delete 會同步 runtime scheduler/meta，mapping create/update/delete 會 refresh runtime mappings，避免 runtime 只吃啟動時快照。
 - source 視圖必須顯示 point raw value，不應吃 mapping `transformed_value`；tag/output 相關面板才適合顯示 transform 後的值。
+
+## 2026-03-16：Workbench desktop redesign round 2 關鍵發現
+- 1920×1080 下的主要問題不是單一 CSS 細修，而是 shell IA drift：主工作區被 `max-w` 內容框與常駐 summary dock 共同壓縮。
+- Step 1 不能在 desktop main column 內再自帶第二個 inline inspector，否則即使 viewport 很寬，實際可用內容仍過窄。
+- Step 2 的價值不只是地址規畫，還包含即時值監看與規則模板；因此 `AddressCanvas` 需要穩定幾何 + 可切換資訊層，而不是切成多套獨立頁面。
+- Step 3 使用者更在意 tag 管理資訊密度，而不只是批次操作按鈕；主區必須直接露出 naming/source/value/merge/status 等資訊。
+- Step 4 若只保留表格式設定，無法達到「能理解、能驗證、能維運」；Local Modbus 與 Database 都需要各自的可視化與驗證面。
+

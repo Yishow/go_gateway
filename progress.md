@@ -382,3 +382,21 @@
   - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/workbench-runtime-phase.test.tsx`
   - `cd frontend && npm run lint`
   - `cd frontend && npm run build`
+
+## 2026-03-16：Workbench desktop redesign round 2（brainstorming -> spec drafting）
+- 已依使用者要求停止把 layout 問題當成小修，改以第二輪 desktop redesign 處理。
+- 已確認 root cause：workbench shell 偏離原 spec 骨架，導致 1920×1080 下主區過窄，Step 1 內嵌 inspector 壓縮主欄，Step 2 缺 detail surface。
+- 已與使用者逐段確認：
+  - 回到原始 desktop 骨架
+  - Step 1 全新 `DeviceWorkspace`
+  - Step 2 全新 `AddressCanvasWorkspace`
+  - Step 3 全新 `TagBindingBoard`
+  - Step 4 全新 `OutputWorkspace`
+- 已補入使用者挑選的實用設計：
+  - Step 1：能力摘要、clone device
+  - Step 2：rule layer、coverage/gap overview、value format、freeze/snapshot
+  - Step 3：命名規則預覽、source/value/merge 詳情、existing/new tag 分流、diff preview、結果總表
+  - Step 4：register map、base/offset、schema snapshot、required/missing、output readiness、filter/search、auto-map、dry-run、health summary、preview、sync result
+- 已建立新 spec：`docs/superpowers/specs/2026-03-16-datalink-workbench-desktop-redesign.md`
+- 已 scaffold OpenSpec change：`openspec/changes/redesign-datalink-workbench-desktop-flow/`
+
