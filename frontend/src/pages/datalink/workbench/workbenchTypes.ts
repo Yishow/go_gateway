@@ -90,7 +90,21 @@ export type InspectorSelection =
   | { kind: 'device'; deviceId: string }
   | { kind: 'rule'; ruleId: string }
   | { kind: 'span'; spanAddress: string; ruleId?: string }
-  | { kind: 'tag'; tagId: string; pointId?: string }
+  | {
+      kind: 'tag';
+      tagId: string;
+      pointId?: string;
+      pointName?: string;
+      pointAddress?: string;
+      rawValue?: unknown;
+      transformedValue?: unknown;
+      bitWidth?: number;
+      cellSpan?: number;
+      bindingStatus?: 'bound' | 'unbound' | 'partial';
+      conflictReason?: 'existing-key' | 'duplicate-preview' | null;
+      alreadyLinked?: boolean;
+      existingTagLabel?: string | null;
+    }
   | { kind: 'outputCandidate'; tagId: string; target?: OutputTarget };
 
 export const INSPECTOR_SELECTION_NONE: InspectorSelection = { kind: 'none' } as const;

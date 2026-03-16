@@ -279,10 +279,11 @@ Step 2 — AddressCanvasWorkspace：
 - [x] `redesign-address-canvas`：連續 16-bit lattice + 多 rule merged spans（依賴 rule-model）
 - [x] `redesign-source-viewmodes`：Plan/Live/Link + PlannerToolbar（依賴 canvas）
 - [x] `redesign-source-templates`：本地 template 持久化（依賴 rule-model）
-- `redesign-source-inspector`：Step 2 inspector + audit surface（依賴 canvas）
+- [x] `redesign-source-inspector`：Step 2 inspector + audit surface（依賴 canvas）
   - 已完成 RuleLayerBar、連續 gap 可視化、coverage overview、Plan/Live/Link、value format、freeze/snapshot、jump to address、audit drawer
   - 已補齊 source rules 跨步驟 persistence；從 Source 切到 Tag/Output 再回來，不會把已套用規則清空
   - 已補齊 source template 本地儲存 / 載入、view mode 回填、capability snapshot warning 與 template-origin provenance
+  - 已補齊 shared inspector 的 rule / span detail，會顯示 coverage、origin、bit width、raw value、link state
   - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-source-canvas-model.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
   - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/features/datalink/sourceTemplateStorage.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
   - 驗證：`cd frontend && npm run lint`
@@ -292,9 +293,10 @@ Step 2 — AddressCanvasWorkspace：
 Step 3 — TagBindingBoard：
 - [x] `redesign-tag-board`：Dense board 主面
 - [x] `redesign-tag-batch`：Batch diff preview + 結果總表（依賴 tag-board）
-- `redesign-tag-inspector`：Step 3 inspector（依賴 tag-board）
+- [x] `redesign-tag-inspector`：Step 3 inspector（依賴 tag-board）
   - 已完成 dense candidate rows、create/existing flow switch、search/status filter、raw/transformed value 區、status badge、existing tag 選擇
   - 已補齊 batch diff preview、skip reasons、create/existing result summary counters 與對應 model helper
+  - 已補齊 shared inspector 的單筆 tag detail，會顯示 preview/bound tag key、source address、raw/transformed value、span/bit width、衝突提示
   - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/tag-binding-model.test.ts tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
   - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/features/datalink/sourceTemplateStorage.test.ts tests/unit/features/datalink/tag-binding-model.test.ts tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx`
   - 驗證：`cd frontend && npm run lint`
@@ -352,5 +354,6 @@ Phase 2 (serial after all tracks):
 - i18n 字典隨各 step 同步更新，Phase 2 做最終稽核
 
 ### 當前 ready queue
-- `redesign-source-inspector`
-- `redesign-tag-inspector`
+- `redesign-i18n-a11y`
+- `redesign-regression-tests`
+- `redesign-legacy-compat`

@@ -71,7 +71,7 @@ function getStatusToneClass(status: TagBindingCandidate['bindingStatus']) {
 
 export function TagBindingStudio() {
   const { t } = useTranslation();
-  const { selectedDeviceId, setSelectedDeviceId } = useWorkbench();
+  const { selectedDeviceId, setInspectorSelection, setSelectedDeviceId } = useWorkbench();
   const { data: devices = [] } = useDevicesQuery();
   const { data: tags = [] } = useTagsQuery();
   const { data: mappings = [] } = useMappingsQuery();
@@ -82,6 +82,10 @@ export function TagBindingStudio() {
   const createMappingMutation = useCreateMappingMutation();
 
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
+  const mappingByPointId = useMemo(
+    () => new Map(mappings.map((mapping) => [mapping.point_id, mapping])),
+    [mappings],
+  );
   const [prefix, setPrefix] = useState('TAG');
   const [strategy, setStrategy] = useState<TagBindingStrategy>('address');
   const [flowMode, setFlowMode] = useState<TagBindingFlowMode>('create');
@@ -484,11 +488,36 @@ export function TagBindingStudio() {
         <div className="grid gap-3">
           {filteredCandidates.map((candidate) => {
             const selected = selectedPointIds.includes(candidate.pointId);
+            const boundMapping = mappingByPointId.get(candidate.pointId);
+            const selectedExistingTag =
+              candidate.existingTagOptions.find(
+                (option) => option.id === existingTagSelections[candidate.pointId],
+              ) ?? null;
 
             return (
               <article
                 key={candidate.pointId}
                 data-testid={`tag-candidate-${candidate.pointId}`}
+                onClick={() =>
+                  setInspectorSelection({
+                    kind: 'tag',
+                    tagId:
+                      boundMapping?.tag_id
+                      ?? selectedExistingTag?.key
+                      ?? candidate.previewKey,
+                    pointId: candidate.pointId,
+                    pointName: candidate.pointName,
+                    pointAddress: candidate.pointAddress,
+                    rawValue: candidate.rawValue,
+                    transformedValue: candidate.transformedValue,
+                    bitWidth: candidate.bitWidth,
+                    cellSpan: candidate.cellSpan,
+                    bindingStatus: candidate.bindingStatus,
+                    conflictReason: candidate.conflictReason,
+                    alreadyLinked: candidate.alreadyLinked,
+                    existingTagLabel: selectedExistingTag?.displayName ?? null,
+                  })
+                }
                 className={`rounded-2xl border p-4 transition ${
                   selected
                     ? 'border-cyan-500/40 bg-cyan-500/5'
@@ -500,6 +529,7 @@ export function TagBindingStudio() {
                     <input
                       type="checkbox"
                       checked={selected}
+                      onClick={(event) => event.stopPropagation()}
                       onChange={() => handleTogglePoint(candidate.pointId)}
                       aria-label={candidate.pointName}
                       className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-cyan-400"
@@ -595,6 +625,7 @@ export function TagBindingStudio() {
                           <select
                             data-testid={`existing-tag-select-${candidate.pointId}`}
                             value={existingTagSelections[candidate.pointId] ?? ''}
+                            onClick={(event) => event.stopPropagation()}
                             onChange={(event) =>
                               handleExistingTagSelection(
                                 candidate.pointId,

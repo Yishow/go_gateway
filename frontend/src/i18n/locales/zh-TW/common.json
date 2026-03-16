@@ -663,6 +663,24 @@
           "name": "名稱",
           "status": "狀態"
         }
+      },
+      "inspector": {
+        "rule": {
+          "heading": "規則明細",
+          "coverage": "覆蓋範圍",
+          "count": "邏輯數量",
+          "bitWidth": "位元寬度",
+          "origin": "來源",
+          "originManual": "手動規則",
+          "originTemplate": "模板"
+        },
+        "span": {
+          "heading": "Span 明細",
+          "pointName": "Point",
+          "bitWidth": "位元寬度",
+          "rawValue": "原始值",
+          "linkState": "下游連結狀態"
+        }
       }
     },
     "tag": {
@@ -755,6 +773,18 @@
         "skippedLabel": "略過",
         "tagFallback": "建立 Tag 失敗",
         "mappingFallback": "建立 mapping 失敗"
+      },
+      "inspector": {
+        "heading": "Tag 明細",
+        "pointName": "Point",
+        "sourceAddress": "來源位址",
+        "span": "Span 格數",
+        "bitWidth": "位元寬度",
+        "alreadyLinked": "這個 point 已經連到既有 Tag。",
+        "conflict": {
+          "existing-key": "目前的 preview key 已存在。",
+          "duplicate-preview": "目前有其他已選 point 共用了同一個 preview key。"
+        }
       }
     },
     "output": {

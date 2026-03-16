@@ -663,6 +663,24 @@
           "name": "Name",
           "status": "Status"
         }
+      },
+      "inspector": {
+        "rule": {
+          "heading": "Rule detail",
+          "coverage": "Coverage",
+          "count": "Logical count",
+          "bitWidth": "Bit width",
+          "origin": "Origin",
+          "originManual": "Manual rule",
+          "originTemplate": "Template"
+        },
+        "span": {
+          "heading": "Span detail",
+          "pointName": "Point",
+          "bitWidth": "Bit width",
+          "rawValue": "Raw value",
+          "linkState": "Downstream link state"
+        }
       }
     },
     "tag": {
@@ -755,6 +773,18 @@
         "skippedLabel": "Skipped",
         "tagFallback": "Failed to create tag",
         "mappingFallback": "Failed to create mapping"
+      },
+      "inspector": {
+        "heading": "Tag detail",
+        "pointName": "Point",
+        "sourceAddress": "Source address",
+        "span": "Span cells",
+        "bitWidth": "Bit width",
+        "alreadyLinked": "This point is already linked to an existing tag.",
+        "conflict": {
+          "existing-key": "The preview key already exists.",
+          "duplicate-preview": "Another selected point currently shares the same preview key."
+        }
       }
     },
     "output": {

@@ -16,13 +16,13 @@
 - [ ] 3.2 Rebuild `AddressCanvas` to render a continuous 16-bit lattice with multi-rule merged spans and visible gaps.
 - [ ] 3.3 Implement `Plan / Live / Link` view modes plus value-format switch, freeze/snapshot compare, jump-to-address, and coverage overview.
 - [x] 3.4 Add local template persistence for rule groups and capability-mismatch warnings when applying templates.
-- [ ] 3.5 Add the secondary audit surface and Step 2 inspector flows for rule selection, span inspection, and batch point creation.
+- [x] 3.5 Add the secondary audit surface and Step 2 inspector flows for rule selection, span inspection, and batch point creation.
 
 ## 4. Tag binding workspace redesign
 
 - [x] 4.1 Rebuild Step 3 as a dense `TagBindingBoard` that exposes naming preview, source span, raw/transformed value, bit width, and binding state in the main surface.
 - [x] 4.2 Implement existing/new tag branching, filter/search, batch diff preview, and batch result summary flows.
-- [ ] 4.3 Build the Step 3 inspector for full metadata editing, conflict detail, and single-item overrides.
+- [x] 4.3 Build the Step 3 inspector for full metadata editing, conflict detail, and single-item overrides.
 
 ## 5. Unified output workspace redesign
 

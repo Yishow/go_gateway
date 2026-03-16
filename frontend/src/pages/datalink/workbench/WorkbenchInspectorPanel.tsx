@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { deviceKeys } from '../../../hooks/datalink/keys';
 import {
@@ -18,6 +18,11 @@ import {
   getWorkbenchProtocolLabelKey,
   parseDeviceConnectionConfig,
 } from './workbenchDeviceFormModel';
+import {
+  buildAddressCanvasItems,
+  buildSourceRuleCoverage,
+  getDataTypeBitWidth,
+} from './sourceCanvasModel';
 import { computeOutputReadiness } from './workbenchOutputTypes';
 import { useWorkbench } from './WorkbenchProvider';
 import { WORKBENCH_STEP_META, type InspectorSelection } from './workbenchTypes';
@@ -69,6 +74,14 @@ function getSelectionId(selection: InspectorSelection): string | null {
     case 'outputCandidate':
       return selection.tagId;
   }
+}
+
+function formatInspectorValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+
+  return String(value);
 }
 
 function DeviceInspectorContent() {
@@ -285,6 +298,349 @@ function DeviceInspectorContent() {
   );
 }
 
+function SourceInspectorContent() {
+  const { t } = useTranslation();
+  const {
+    inspectorSelection,
+    selectedDeviceId,
+    setSourcePlanningState,
+    sourcePlanningState,
+  } = useWorkbench();
+  const { data: devices = [] } = useDevicesQuery();
+  const { data: points = [] } = usePointsQuery(
+    selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
+  );
+  const { data: mappings = [] } = useMappingsQuery();
+  const { data: tags = [] } = useTagsQuery();
+  const selectedDevice =
+    devices.find((device) => device.id === selectedDeviceId) ?? null;
+
+  const items = useMemo(() => {
+    if (!selectedDevice) {
+      return [];
+    }
+
+    return buildAddressCanvasItems({
+      points,
+      rules: sourcePlanningState.rules,
+      mappings,
+      tags,
+      protocol: selectedDevice.protocol,
+    });
+  }, [mappings, points, selectedDevice, sourcePlanningState.rules, tags]);
+
+  if (!selectedDevice) {
+    return null;
+  }
+
+  if (inspectorSelection.kind === 'rule') {
+    const rule =
+      sourcePlanningState.rules.find((item) => item.id === inspectorSelection.ruleId)
+      ?? null;
+    if (!rule) {
+      return null;
+    }
+
+    const coverage = buildSourceRuleCoverage(rule, selectedDevice.protocol);
+
+    return (
+      <div
+        data-testid="source-rule-inspector"
+        className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+      >
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            {t('workbench.source.inspector.rule.heading')}
+          </p>
+          <h3 className="text-sm font-semibold text-slate-100">{rule.namingPrefix}</h3>
+        </div>
+
+        <dl className="space-y-3 text-sm">
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.source.inspector.rule.coverage')}
+            </dt>
+            <dd className="font-medium text-slate-100" data-testid="source-rule-coverage">
+              {coverage.startAddress} → {coverage.endAddress}
+            </dd>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+                {t('workbench.source.inspector.rule.count')}
+              </dt>
+              <dd className="font-medium text-slate-100">
+                {rule.count}
+              </dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+                {t('workbench.source.inspector.rule.bitWidth')}
+              </dt>
+              <dd className="font-medium text-slate-100">
+                {coverage.bitWidth}
+              </dd>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.source.inspector.rule.origin')}
+            </dt>
+            <dd className="font-medium text-slate-100">
+              {rule.origin === 'template'
+                ? `${t('workbench.source.inspector.rule.originTemplate')} · ${rule.templateName ?? '—'}`
+                : t('workbench.source.inspector.rule.originManual')}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setSourcePlanningState((currentState) => ({
+                ...currentState,
+                rules: currentState.rules.map((item) =>
+                  item.id === rule.id ? { ...item, enabled: !item.enabled } : item,
+                ),
+              }))
+            }
+            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200"
+          >
+            {rule.enabled
+              ? t('workbench.source.ruleLayer.disable')
+              : t('workbench.source.ruleLayer.enable')}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setSourcePlanningState((currentState) => ({
+                ...currentState,
+                rules: currentState.rules.map((item) =>
+                  item.id === rule.id ? { ...item, locked: !item.locked } : item,
+                ),
+              }))
+            }
+            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200"
+          >
+            {rule.locked
+              ? t('workbench.source.ruleLayer.unlock')
+              : t('workbench.source.ruleLayer.lock')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (inspectorSelection.kind === 'span') {
+    const item =
+      items.find((candidate) => candidate.address === inspectorSelection.spanAddress) ?? null;
+    const rule =
+      sourcePlanningState.rules.find((candidate) => candidate.id === inspectorSelection.ruleId)
+      ?? null;
+    const bitWidth = item?.point
+      ? getDataTypeBitWidth(item.point.data_type)
+      : rule
+        ? getDataTypeBitWidth(rule.dataType)
+        : 0;
+
+    return (
+      <div
+        data-testid="source-span-inspector"
+        className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+      >
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            {t('workbench.source.inspector.span.heading')}
+          </p>
+          <h3 className="text-sm font-semibold text-slate-100">
+            {inspectorSelection.spanAddress}
+          </h3>
+        </div>
+
+        <dl className="space-y-3 text-sm">
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.source.inspector.span.pointName')}
+            </dt>
+            <dd className="font-medium text-slate-100">
+              {item?.point?.name ?? '—'}
+            </dd>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+                {t('workbench.source.inspector.span.bitWidth')}
+              </dt>
+              <dd className="font-medium text-slate-100">{bitWidth || '—'}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+                {t('workbench.source.inspector.span.rawValue')}
+              </dt>
+              <dd className="font-medium text-slate-100">
+                {formatInspectorValue(item?.liveValue ?? item?.point?.last_value)}
+              </dd>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.source.inspector.span.linkState')}
+            </dt>
+            <dd
+              className="font-medium text-slate-100"
+              data-testid="source-span-link-state"
+            >
+              {item?.linkLabelKey ? t(item.linkLabelKey) : '—'}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function getTagBindingClasses(status: 'bound' | 'unbound' | 'partial') {
+  switch (status) {
+    case 'bound':
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200';
+    case 'partial':
+      return 'border-amber-500/30 bg-amber-500/10 text-amber-200';
+    case 'unbound':
+      return 'border-slate-700 bg-slate-900/80 text-slate-300';
+  }
+}
+
+function TagInspectorContent() {
+  const { t } = useTranslation();
+  const { inspectorSelection, selectedDeviceId } = useWorkbench();
+  const { data: points = [] } = usePointsQuery(
+    selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
+  );
+  const { data: tags = [] } = useTagsQuery();
+  const { data: mappings = [] } = useMappingsQuery();
+
+  if (inspectorSelection.kind !== 'tag') {
+    return null;
+  }
+
+  const point = inspectorSelection.pointId
+    ? points.find((candidate) => candidate.id === inspectorSelection.pointId) ?? null
+    : null;
+  const mapping = inspectorSelection.pointId
+    ? mappings.find((candidate) => candidate.point_id === inspectorSelection.pointId) ?? null
+    : mappings.find((candidate) => candidate.tag_id === inspectorSelection.tagId) ?? null;
+  const boundTag = mapping
+    ? tags.find((candidate) => candidate.id === mapping.tag_id) ?? null
+    : tags.find((candidate) => candidate.id === inspectorSelection.tagId) ?? null;
+  const bindingStatus =
+    inspectorSelection.bindingStatus ?? (mapping ? 'bound' : 'unbound');
+  const displayTagKey =
+    boundTag?.key
+    ?? inspectorSelection.existingTagLabel
+    ?? inspectorSelection.tagId;
+
+  return (
+    <div
+      data-testid="tag-inspector-panel"
+      className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+    >
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          {t('workbench.tag.inspector.heading')}
+        </p>
+        <h3
+          className="text-sm font-semibold text-slate-100"
+          data-testid="tag-inspector-tag-key"
+        >
+          {displayTagKey}
+        </h3>
+      </div>
+
+      <span
+        className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getTagBindingClasses(
+          bindingStatus,
+        )}`}
+        data-testid="tag-inspector-binding-status"
+      >
+        {t(`workbench.tag.board.status.${bindingStatus}`)}
+      </span>
+
+      <dl className="space-y-3 text-sm">
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+            {t('workbench.tag.inspector.pointName')}
+          </dt>
+          <dd className="font-medium text-slate-100">
+            {inspectorSelection.pointName ?? point?.name ?? '—'}
+          </dd>
+        </div>
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+            {t('workbench.tag.inspector.sourceAddress')}
+          </dt>
+          <dd
+            className="font-medium text-slate-100"
+            data-testid="tag-inspector-point-address"
+          >
+            {inspectorSelection.pointAddress ?? point?.address ?? '—'}
+          </dd>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.tag.board.rawValue')}
+            </dt>
+            <dd className="font-medium text-slate-100">
+              {formatInspectorValue(inspectorSelection.rawValue ?? point?.last_value)}
+            </dd>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.tag.board.transformedValue')}
+            </dt>
+            <dd className="font-medium text-slate-100">
+              {formatInspectorValue(inspectorSelection.transformedValue)}
+            </dd>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.tag.inspector.span')}
+            </dt>
+            <dd className="font-medium text-slate-100">
+              {inspectorSelection.cellSpan ?? '—'}
+            </dd>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              {t('workbench.tag.inspector.bitWidth')}
+            </dt>
+            <dd className="font-medium text-slate-100">
+              {inspectorSelection.bitWidth ?? '—'}
+            </dd>
+          </div>
+        </div>
+      </dl>
+
+      {inspectorSelection.conflictReason ? (
+        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          {t(`workbench.tag.inspector.conflict.${inspectorSelection.conflictReason}`)}
+        </div>
+      ) : null}
+
+      {inspectorSelection.alreadyLinked ? (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {t('workbench.tag.inspector.alreadyLinked')}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function OutputInspectorContent() {
   const { t } = useTranslation();
   const { inspectorSelection, selectedDeviceId } = useWorkbench();
@@ -443,6 +799,11 @@ export function WorkbenchInspectorPanel() {
 
       {activeStep === 'device' ? (
         <DeviceInspectorContent />
+      ) : activeStep === 'source' &&
+        (inspectorSelection.kind === 'rule' || inspectorSelection.kind === 'span') ? (
+        <SourceInspectorContent />
+      ) : activeStep === 'tag' && inspectorSelection.kind === 'tag' ? (
+        <TagInspectorContent />
       ) : activeStep === 'output' && inspectorSelection.kind === 'outputCandidate' ? (
         <OutputInspectorContent />
       ) : hasSelection ? (

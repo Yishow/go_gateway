@@ -216,6 +216,21 @@ describe('DatalinkWorkbench tag step', () => {
     );
   });
 
+  it('shows tag inspector details when a candidate row is selected', () => {
+    mockPoints[0].last_value = 123;
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.click(screen.getByTestId('tag-candidate-point-1'));
+
+    expect(screen.getByTestId('tag-inspector-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('tag-inspector-tag-key')).toHaveTextContent('TAG_40001');
+    expect(screen.getByTestId('tag-inspector-point-address')).toHaveTextContent('40001');
+  });
+
   it('filters tag candidates by keyword and status', () => {
     mockMappings.push({
       id: 'mapping-2',

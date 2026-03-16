@@ -183,6 +183,43 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByText('workbench.source.link.unbound')).toBeInTheDocument();
   });
 
+  it('shows rule inspector details when a source rule is selected', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    fireEvent.click(screen.getByTestId('source-rule-rule-1'));
+
+    expect(screen.getByTestId('source-rule-inspector')).toBeInTheDocument();
+    expect(screen.getByTestId('source-rule-coverage')).toHaveTextContent('40001');
+  });
+
+  it('shows span inspector details when an address cell is selected', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    fireEvent.click(screen.getByTestId('address-cell-40001'));
+
+    expect(screen.getByTestId('source-span-inspector')).toBeInTheDocument();
+    expect(screen.getByTestId('source-span-link-state')).toHaveTextContent(
+      'workbench.source.link.needsPoint',
+    );
+  });
+
   it('persists applied source rules when navigating away from and back to the source step', () => {
     renderPage();
 

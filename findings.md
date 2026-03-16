@@ -456,6 +456,8 @@
 - Local Modbus register 衝突不能只比對 start register；multi-word data type（如 `int32` / `float64`）必須以實際占用 slot 範圍判斷 overlap，否則會漏掉 `HR10~11` 與 `HR11` 這類交疊衝突。
 - Database schema snapshot 不應在 metadata 尚未回來時先 render 空殼 testid；否則測試與使用者都會在「面板已出現但內容尚未掛上」的中間態讀到錯誤結論。
 - Step 4 inspector 的 readiness 不能只看 active target；正確來源是 `outputCandidate` 對應 tag 在 Local Modbus 與 Database 兩邊的 mapping 完整度。
+- Step 2 inspector 不需要再從 `SourceCanvasSection` 手動傳 detail props；既然 `rules / selectedRuleId / selectedAddress` 已在 provider，直接在 shared inspector 以 provider state + queries 重建 detail model，比跨元件穿線更穩定。
+- Step 3 若要在 shared inspector 看單筆 detail，candidate row 本身就必須成為 selection source；只靠 checkbox 無法表達「我想看哪一筆」。
 
 ### Shell UI / Summary
 - `WorkbenchHeaderBar` 與 `WorkbenchActionDock` 若只顯示 active step / selected device，不足以支撐單頁主流程；需要補 point/tag/output counts 與 next action，使用者才知道目前流程停在哪裡。

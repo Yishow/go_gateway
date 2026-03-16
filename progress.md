@@ -500,4 +500,12 @@
   - `cd frontend && npm run lint`
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm run build`
-- 下一步：回頭收 `redesign-source-inspector` / `redesign-tag-inspector`，再進入 `redesign-i18n-a11y` / `redesign-regression-tests` / `redesign-legacy-compat`。
+- 已完成 shared inspector 第二波收尾：
+  - Step 2 rule / span selection 會在右側 inspector 顯示 coverage、origin、bit width、raw value、downstream link state
+  - Step 3 candidate row 已接上 `tag` inspector selection，右側可顯示單筆 tag key、source address、raw/transformed value、span/bit width 與 conflict/already-linked 提示
+- 第二波 inspector 驗證：
+  - `cd frontend && npm run test -- --run tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/features/datalink/sourceTemplateStorage.test.ts tests/unit/features/datalink/tag-binding-model.test.ts tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx`（80 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- 下一步：進入 `redesign-i18n-a11y` / `redesign-regression-tests` / `redesign-legacy-compat`。
