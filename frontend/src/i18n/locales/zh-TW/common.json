@@ -419,5 +419,42 @@
       "switchLater": "稍後切換",
       "switchNow": "立即切換"
     }
+  },
+  "workbench": {
+    "title": "Datalink 工作台",
+    "subtitle": "以全新的單頁流程，從來源設定一路走到位址可視化、Tag 綁定與輸出映射。",
+    "foundation": {
+      "label": "基底已就緒"
+    },
+    "header": {
+      "ariaLabel": "資料鏈結工作台頁首",
+      "eyebrow": "全新骨架",
+      "currentStep": "目前步驟",
+      "selectedDevice": "目前設備",
+      "noDevice": "尚未選擇設備"
+    },
+    "stepNavigator": {
+      "ariaLabel": "工作流步驟"
+    },
+    "actionDock": {
+      "ariaLabel": "工作台操作摘要",
+      "title": "執行摘要",
+      "description": "後續 slices 會把驗證、就緒度與輸出操作收斂到這個區塊。",
+      "activeStep": "作用中步驟",
+      "selectedDevice": "目前設備",
+      "noDevice": "尚未選擇設備"
+    },
+    "steps": {
+      "device": "設備",
+      "source": "來源",
+      "tag": "Tag 綁定",
+      "output": "輸出"
+    },
+    "placeholders": {
+      "device": "foundation 外框已就緒，下一個 slice 會補上設備選擇體驗。",
+      "source": "foundation 外框已就緒，下一個 slice 會補上地址畫布與 ledger。",
+      "tag": "foundation 外框已就緒，下一個 slice 會補上 tag 綁定工作台。",
+      "output": "foundation 外框已就緒，下一個 slice 會補上 Local Modbus 與資料庫輸出面板。"
+    }
   }
 }

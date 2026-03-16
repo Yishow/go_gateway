@@ -419,5 +419,42 @@
       "switchLater": "Switch Later",
       "switchNow": "Switch Now"
     }
+  },
+  "workbench": {
+    "title": "Datalink Workbench",
+    "subtitle": "Use a fresh single-screen workflow to move from source setup to visual address planning, tag binding, and output mapping.",
+    "foundation": {
+      "label": "Foundation Ready"
+    },
+    "header": {
+      "ariaLabel": "Workbench header",
+      "eyebrow": "Fresh Build",
+      "currentStep": "Current step",
+      "selectedDevice": "Selected device",
+      "noDevice": "No device selected"
+    },
+    "stepNavigator": {
+      "ariaLabel": "Workbench steps"
+    },
+    "actionDock": {
+      "ariaLabel": "Workbench action dock",
+      "title": "Execution summary",
+      "description": "This dock will consolidate validation, readiness, and output actions as the next slices land.",
+      "activeStep": "Active step",
+      "selectedDevice": "Selected device",
+      "noDevice": "No device selected"
+    },
+    "steps": {
+      "device": "Device",
+      "source": "Source",
+      "tag": "Tag Binding",
+      "output": "Output"
+    },
+    "placeholders": {
+      "device": "Foundation shell ready. The device selection experience will land in the next slice.",
+      "source": "Foundation shell ready. The address canvas and ledger will land in the next slice.",
+      "tag": "Foundation shell ready. The tag binding studio will land in the next slice.",
+      "output": "Foundation shell ready. Local Modbus and database output boards will land in the next slice."
+    }
   }
 }

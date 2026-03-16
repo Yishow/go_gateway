@@ -11,6 +11,7 @@ import Layout from './components/Layout'
 import SmartDashboard from './pages/datalink/SmartDashboard'
 import { buildDashboardModalRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
 import LocalModbusWorkbenchPage from './pages/datalink/LocalModbusWorkbenchPage'
+import DatalinkWorkbenchPage from './pages/datalink/workbench/DatalinkWorkbenchPage'
 import { GatewayCreateEntryRedirect, GatewayEntryRoute, GatewayExpertWorkbenchRoute, GatewayQuickSetupRoute } from './router/gateway'
 
 /**
@@ -41,6 +42,7 @@ function AppRoutes() {
       <Route path="/datalink/wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
       <Route path="/datalink/settings" element={<Navigate to="/datalink?modal=settings&section=settings" replace />} />
       <Route path="/datalink/local-modbus" element={<LocalModbusWorkbenchPage />} />
+      <Route path="/datalink/workbench" element={<DatalinkWorkbenchPage />} />
 
       {/* Gateway Dual Entry (W1 skeleton) */}
       <Route path="/gateway/entry" element={<GatewayEntryRoute />} />
