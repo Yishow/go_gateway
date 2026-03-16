@@ -244,6 +244,21 @@ function getDeviceTestLabel(t: (key: string) => string, device: Device) {
   return t('workbench.device.card.notTested');
 }
 
+function getDeviceTestTimestampLabel(
+  rawTimestamp: string | null,
+  t: (key: string) => string,
+) {
+  if (
+    !rawTimestamp ||
+    rawTimestamp.trim() === '' ||
+    rawTimestamp === '0001-01-01T00:00:00Z'
+  ) {
+    return t('workbench.device.inspector.unknownTestTime');
+  }
+
+  return rawTimestamp;
+}
+
 function requireText(
   errors: FieldErrorMap,
   field: string,
@@ -1185,7 +1200,7 @@ export function WorkbenchDeviceStep() {
                 {getDeviceTestLabel(t, selectedDevice)}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                {selectedDevice.last_test_at || t('workbench.device.inspector.noTestYet')}
+                {getDeviceTestTimestampLabel(selectedDevice.last_test_at, t)}
               </p>
             </div>
 

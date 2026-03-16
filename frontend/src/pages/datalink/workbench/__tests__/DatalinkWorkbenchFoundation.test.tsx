@@ -169,6 +169,19 @@ describe('DatalinkWorkbench foundation route', () => {
       },
     );
     mockCreateDeviceMutation.mutateAsync.mockReset();
+    mockCreateDeviceMutation.mutateAsync.mockResolvedValue({
+      id: 'device-new',
+      name: 'Browser Smoke PLC',
+      description: 'Smoke flow',
+      protocol: 'modbus_tcp',
+      status: 'draft',
+      connection_config: '{"host":"127.0.0.1","port":502,"slave_id":1,"timeout":5}',
+      last_test_at: null,
+      last_test_success: null,
+      last_test_error: '',
+      created_at: '',
+      updated_at: '',
+    });
     mockUpdateDeviceMutation.mutateAsync.mockReset();
     mockUpdateDeviceMutation.mutateAsync.mockResolvedValue(undefined);
     mockTestConnectionMutation.mutateAsync.mockReset();
@@ -229,6 +242,16 @@ describe('DatalinkWorkbench foundation route', () => {
     ).toBeInTheDocument();
   });
 
+  it('updates the action dock guidance after selecting a device on step 1', () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(
+      screen.getByText('workbench.actionDock.nextAction.advanceToSourcePlanning'),
+    ).toBeInTheDocument();
+  });
+
   it('opens the create device form when there are no devices yet', () => {
     mockDevices.splice(0, mockDevices.length);
 
@@ -239,6 +262,36 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(
       screen.getByRole('heading', { name: 'workbench.device.panel.createTitle' }),
     ).toBeInTheDocument();
+  });
+
+  it('keeps the created device selected while the list refreshes', async () => {
+    mockDevices.splice(0, mockDevices.length);
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.create' }));
+    fireEvent.change(screen.getByLabelText('workbench.device.fields.name'), {
+      target: { value: 'Browser Smoke PLC' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.device.connection.host'), {
+      target: { value: '127.0.0.1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.device.connection.port'), {
+      target: { value: '502' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.device.connection.slaveId'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.device.connection.timeout'), {
+      target: { value: '5' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.save' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'workbench.header.actions.gotoSource' }),
+      ).toBeEnabled();
+    });
   });
 
   it('allows clearing device description when editing', async () => {
@@ -265,5 +318,18 @@ describe('DatalinkWorkbench foundation route', () => {
         }),
       );
     });
+  });
+
+  it('hides zero-value test timestamps in the inspector', () => {
+    mockDevices[0].last_test_at = '0001-01-01T00:00:00Z';
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(
+      screen.getByText('workbench.device.inspector.unknownTestTime'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('0001-01-01T00:00:00Z')).not.toBeInTheDocument();
   });
 });

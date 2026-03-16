@@ -364,3 +364,21 @@
   - `cd frontend && npm run build`
 - 雜項：
   - 清除先前驗證殘留的 `.tmp_dbtarget_verify.go` 與 `test_ui`
+
+### Workbench browser smoke + polish（完成）
+- 使用者回報 Vite 開發環境出現 `/api/v1/datalink/*` proxy errors。
+- 實際查證結果：
+  - Vite dev server 仍在 `localhost:5173`
+  - proxy target 預設為 `http://localhost:8080`
+  - 當時真正的 root cause 是後端 `test_ui` 沒有在 `8080` listen，不是剛重做的 Device Step UI 壞掉
+- smoke 流程驗證：
+  - 啟動 `go run ./cmd/test_ui` 後，`/api/v1/datalink/devices` direct / proxy 都恢復 `200`
+  - 使用 `agent-browser` 驗證 `Create device -> Select device -> Continue to source`
+  - 驗證 `Test connection` 失敗時會顯示明確錯誤，而不是靜默失敗
+- 依 smoke 補做 polish：
+  - `WorkbenchActionDock` 在 Step 1 已選設備時，改為顯示前往 Source 的 next action
+  - Step 1 inspector 對 `0001-01-01T00:00:00Z` 改顯示 fallback microcopy，不直接暴露 zero timestamp
+- smoke 後驗證：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/workbench-runtime-phase.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`

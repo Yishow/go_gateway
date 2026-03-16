@@ -71,6 +71,10 @@
 - 這個問題不能用「把舊 `DeviceForm` / `DeviceOnboardingWizard` 塞回來」快修；使用者已明確要求依 spec 重做，且 spec 也要求 Step 1 應是 `cards/list + inspector + embedded panel` 的工作台式體驗。
 - `ContextBar` 若只做摘要數字卡，不足以承接 Step 1 的「立即顯示選中設備上下文」需求；至少要把 selected device / protocol / status / last test 與 quick actions 放進同一個頂部脈絡列。
 - 設備編輯流程有一個容易漏掉的契約：`description` 清空時前端不能送 `undefined`，否則後端 pointer update 會把它解讀成「不更新」，舊描述會殘留。
+- Vite proxy error 不代表 workbench UI regression；在本輪 browser smoke 中，實際 root cause 是 dev server 還活著，但 `http://localhost:8080` 後端未啟動。
+- browser smoke 額外揭露兩個值得收斂的 UI polish：
+  - Step 1 已選設備時，`ActionDock` 不能再顯示「先選設備」；next action 要改成前往 Source。
+  - `last_test_at` 若來自後端 zero timestamp（`0001-01-01T00:00:00Z`），前端要顯示 fallback microcopy，而不是直接把零值時間戳丟給使用者。
 
 ## 2026-03-08
 

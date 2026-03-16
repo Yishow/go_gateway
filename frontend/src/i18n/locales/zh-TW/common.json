@@ -477,7 +477,8 @@
         "bindTags": "請先為目前設備建立並連結 Tag，再往輸出步驟前進。",
         "advanceToOutput": "Tag 綁定已就緒，下一步可以設定 Local Modbus 輸出。",
         "completeTagBinding": "請先完成 Tag 綁定，Step 4 才會有可發佈的 linked tag。",
-        "configureOutput": "開始指定 Local Modbus register，並同步輸出映射。"
+        "configureOutput": "開始指定 Local Modbus register，並同步輸出映射。",
+        "advanceToSourcePlanning": "設備已選擇，下一步前往來源規劃並套用位址範圍。"
       }
     },
     "runtime": {
@@ -803,7 +804,8 @@
         "noTestYet": "尚未執行連線測試",
         "connectionSummary": "連線摘要",
         "emptyTitle": "先選擇一台設備",
-        "emptyDescription": "選取左側設備卡後，這裡會顯示協定、連線摘要與下一步操作。若還沒有設備，也可以直接從這裡建立。"
+        "emptyDescription": "選取左側設備卡後，這裡會顯示協定、連線摘要與下一步操作。若還沒有設備，也可以直接從這裡建立。",
+        "unknownTestTime": "測試時間尚未同步"
       },
       "panel": {
         "eyebrow": "嵌入式設備面板",

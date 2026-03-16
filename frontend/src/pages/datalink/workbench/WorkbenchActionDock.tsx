@@ -14,6 +14,10 @@ function getNextActionKey(input: {
     return 'workbench.actionDock.nextAction.selectDevice';
   }
 
+  if (input.activeStep === 'device') {
+    return 'workbench.actionDock.nextAction.advanceToSourcePlanning';
+  }
+
   if (input.activeStep === 'source') {
     return input.sourceReady
       ? 'workbench.actionDock.nextAction.advanceToTag'
@@ -32,7 +36,7 @@ function getNextActionKey(input: {
       : 'workbench.actionDock.nextAction.completeTagBinding';
   }
 
-  return 'workbench.actionDock.nextAction.selectDevice';
+  return 'workbench.actionDock.nextAction.advanceToSourcePlanning';
 }
 
 export function WorkbenchActionDock() {

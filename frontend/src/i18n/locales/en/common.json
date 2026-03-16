@@ -477,7 +477,8 @@
         "bindTags": "Create and link tags for the selected device before configuring outputs.",
         "advanceToOutput": "Tag bindings are ready. Move to Local Modbus output mapping.",
         "completeTagBinding": "Finish tag binding first so Step 4 has linked tags to publish.",
-        "configureOutput": "Assign Local Modbus registers and sync the output mappings."
+        "configureOutput": "Assign Local Modbus registers and sync the output mappings.",
+        "advanceToSourcePlanning": "A device is selected. Continue to source planning and apply an address range."
       }
     },
     "runtime": {
@@ -803,7 +804,8 @@
         "noTestYet": "No connection test has been run yet",
         "connectionSummary": "Connection summary",
         "emptyTitle": "Select a device first",
-        "emptyDescription": "Once you pick a device card, this panel shows the protocol, connection summary, and next actions. If there is no device yet, create one here."
+        "emptyDescription": "Once you pick a device card, this panel shows the protocol, connection summary, and next actions. If there is no device yet, create one here.",
+        "unknownTestTime": "Test timestamp not available yet"
       },
       "panel": {
         "eyebrow": "Embedded device panel",
