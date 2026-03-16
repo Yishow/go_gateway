@@ -36,6 +36,26 @@ export interface TagBindingRequest {
   tagRequest: CreateTagRequest;
 }
 
+export type TagBindingFlowMode = 'create' | 'existing';
+
+export interface TagBindingDiffEntry {
+  pointId: string;
+  pointName: string;
+  tagKey: string;
+}
+
+export interface TagBindingSkippedEntry {
+  pointId: string;
+  pointName: string;
+  reason: 'conflict' | 'already-linked' | 'no-tag-selected';
+}
+
+export interface TagBindingBatchDiffPreview {
+  toCreate: TagBindingDiffEntry[];
+  toBind: TagBindingDiffEntry[];
+  skipped: TagBindingSkippedEntry[];
+}
+
 function normalizeTagKeySegment(value: string): string {
   const compact = value.trim().toUpperCase();
   const sanitized = compact
@@ -136,4 +156,83 @@ export function buildTagBindingRequests(
         display_name: candidate.pointName,
       },
     }));
+}
+
+export function buildBatchDiffPreview(input: {
+  candidates: TagBindingCandidate[];
+  selectedPointIds: string[];
+  flowMode: TagBindingFlowMode;
+  existingTagSelections: Record<string, string>;
+}): TagBindingBatchDiffPreview {
+  const selected = new Set(input.selectedPointIds);
+
+  return input.candidates.reduce<TagBindingBatchDiffPreview>(
+    (acc, candidate) => {
+      if (!selected.has(candidate.pointId)) {
+        return acc;
+      }
+
+      if (input.flowMode === 'create') {
+        if (candidate.alreadyLinked) {
+          acc.skipped.push({
+            pointId: candidate.pointId,
+            pointName: candidate.pointName,
+            reason: 'already-linked',
+          });
+          return acc;
+        }
+
+        if (candidate.conflict) {
+          acc.skipped.push({
+            pointId: candidate.pointId,
+            pointName: candidate.pointName,
+            reason: 'conflict',
+          });
+          return acc;
+        }
+
+        acc.toCreate.push({
+          pointId: candidate.pointId,
+          pointName: candidate.pointName,
+          tagKey: candidate.previewKey,
+        });
+        return acc;
+      }
+
+      if (candidate.alreadyLinked) {
+        acc.skipped.push({
+          pointId: candidate.pointId,
+          pointName: candidate.pointName,
+          reason: 'already-linked',
+        });
+        return acc;
+      }
+
+      const selectedTagId = input.existingTagSelections[candidate.pointId];
+      if (!selectedTagId) {
+        acc.skipped.push({
+          pointId: candidate.pointId,
+          pointName: candidate.pointName,
+          reason: 'no-tag-selected',
+        });
+        return acc;
+      }
+
+      const selectedTagKey =
+        candidate.existingTagOptions.find((option) => option.id === selectedTagId)?.key
+        ?? selectedTagId;
+
+      acc.toBind.push({
+        pointId: candidate.pointId,
+        pointName: candidate.pointName,
+        tagKey: selectedTagKey,
+      });
+      return acc;
+    },
+    {
+      toCreate: [],
+      toBind: [],
+      skipped: [],
+    },
+  );
 }

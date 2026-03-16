@@ -564,6 +564,7 @@ export function DatabaseTargetBoard({ candidates }: DatabaseTargetBoardProps) {
 
   const currentTableFromKey = parseTableKey(tableKey);
   const mappedTagCount = connectorMappings.length;
+  const schemaColumns = selectedTable?.columns ?? [];
 
   return (
     <section className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
@@ -1021,36 +1022,108 @@ export function DatabaseTargetBoard({ candidates }: DatabaseTargetBoardProps) {
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <article className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                {t('workbench.output.database.preview.table')}
+          {schemaColumns.length > 0 ? (
+            <div
+              data-testid="schema-snapshot"
+              className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+            >
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  {t('workbench.output.database.schema.title')}
+                </p>
+                <p className="text-sm text-slate-300">
+                  {t('workbench.output.database.schema.description')}
+                </p>
+              </div>
+
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-1">
+                {schemaColumns.map((column) => {
+                  const isRequired =
+                    !column.nullable
+                    && !column.primary_key
+                    && column.name !== columnName
+                    && (writeMode !== 'upsert' || column.name !== timestampColumn);
+
+                  return (
+                    <article
+                      key={column.name}
+                      data-testid={`schema-column-${column.name}`}
+                      data-required={isRequired ? 'true' : undefined}
+                      className={`rounded-xl border p-3 ${
+                        isRequired
+                          ? 'border-amber-500/30 bg-amber-500/10'
+                          : 'border-slate-800 bg-slate-900/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-50">{column.name}</p>
+                        <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em]">
+                          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
+                            {column.data_type}
+                          </span>
+                          {column.primary_key ? (
+                            <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-200">
+                              PK
+                            </span>
+                          ) : null}
+                          {isRequired ? (
+                            <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-200">
+                              {t('workbench.output.database.schema.required')}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div
+            data-testid="write-row-preview"
+            className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+          >
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                {t('workbench.output.database.preview.title')}
               </p>
-              <p className="mt-2 text-sm font-semibold text-slate-50">
-                {currentTableFromKey
-                  ? `${currentTableFromKey.schema}.${currentTableFromKey.name}`
-                  : t('workbench.output.database.preview.empty')}
+              <p className="text-sm text-slate-300">
+                {t('workbench.output.database.preview.description')}
               </p>
-            </article>
-            <article className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                {t('workbench.output.database.preview.column')}
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-50">
-                {columnName || t('workbench.output.database.preview.empty')}
-              </p>
-            </article>
-            <article className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                {t('workbench.output.database.preview.value')}
-              </p>
-              <p className="mt-2 break-all text-sm font-semibold text-slate-50">
-                {selectedCandidate?.lastValue === null ||
-                selectedCandidate?.lastValue === undefined
-                  ? t('workbench.output.database.preview.empty')
-                  : String(selectedCandidate.lastValue)}
-              </p>
-            </article>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <article className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                  {t('workbench.output.database.preview.table')}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-50">
+                  {currentTableFromKey
+                    ? `${currentTableFromKey.schema}.${currentTableFromKey.name}`
+                    : t('workbench.output.database.preview.empty')}
+                </p>
+              </article>
+              <article className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                  {t('workbench.output.database.preview.column')}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-50">
+                  {columnName || t('workbench.output.database.preview.empty')}
+                </p>
+              </article>
+              <article className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                  {t('workbench.output.database.preview.value')}
+                </p>
+                <p className="mt-2 break-all text-sm font-semibold text-slate-50">
+                  {selectedCandidate?.lastValue === null ||
+                  selectedCandidate?.lastValue === undefined
+                    ? t('workbench.output.database.preview.empty')
+                    : String(selectedCandidate.lastValue)}
+                </p>
+              </article>
+            </div>
           </div>
 
           {validation?.issues.length ? (

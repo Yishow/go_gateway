@@ -1,10 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { deviceKeys } from '../../../hooks/datalink/keys';
 import {
   useDevicesQuery,
   useTestConnectionMutation,
 } from '../../../hooks/datalink/useDevices';
+import { useMappingsQuery } from '../../../hooks/datalink/useMappings';
+import { usePointsQuery } from '../../../hooks/datalink/usePoints';
+import { useTagsQuery } from '../../../hooks/datalink/useTags';
+import { dbTargetAPI, modbusShareAPI } from '../../../services/datalink';
 import {
   buildDeviceCapabilitySummary,
   buildDeviceConnectionSummary,
@@ -13,6 +18,7 @@ import {
   getWorkbenchProtocolLabelKey,
   parseDeviceConnectionConfig,
 } from './workbenchDeviceFormModel';
+import { computeOutputReadiness } from './workbenchOutputTypes';
 import { useWorkbench } from './WorkbenchProvider';
 import { WORKBENCH_STEP_META, type InspectorSelection } from './workbenchTypes';
 
@@ -279,6 +285,140 @@ function DeviceInspectorContent() {
   );
 }
 
+function OutputInspectorContent() {
+  const { t } = useTranslation();
+  const { inspectorSelection, selectedDeviceId } = useWorkbench();
+  const { data: tags = [] } = useTagsQuery();
+  const { data: mappings = [] } = useMappingsQuery();
+  const { data: points = [] } = usePointsQuery(
+    selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
+  );
+  const [modbusMappings, setModbusMappings] = useState<Array<{ tag_id: string; register: number }>>(
+    [],
+  );
+  const [databaseMappings, setDatabaseMappings] = useState<
+    Array<{ tag_id: string; table_schema: string; table_name: string; column_name: string }>
+  >([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (inspectorSelection.kind !== 'outputCandidate') {
+      return;
+    }
+
+    let cancelled = false;
+    void Promise.all([modbusShareAPI.listMappings(), dbTargetAPI.listMappings()])
+      .then(([nextModbusMappings, nextDatabaseMappings]) => {
+        if (cancelled) {
+          return;
+        }
+        setModbusMappings(nextModbusMappings);
+        setDatabaseMappings(nextDatabaseMappings);
+        setLoadError(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setModbusMappings([]);
+        setDatabaseMappings([]);
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : t('workbench.output.inspector.loadFailed'),
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inspectorSelection, t]);
+
+  if (inspectorSelection.kind !== 'outputCandidate') {
+    return null;
+  }
+
+  const tag = tags.find((item) => item.id === inspectorSelection.tagId) ?? null;
+  const mapping = mappings.find((item) => item.tag_id === inspectorSelection.tagId) ?? null;
+  const point = mapping ? points.find((item) => item.id === mapping.point_id) ?? null : null;
+  const modbusMapping =
+    modbusMappings.find((item) => item.tag_id === inspectorSelection.tagId) ?? null;
+  const databaseMapping =
+    databaseMappings.find((item) => item.tag_id === inspectorSelection.tagId) ?? null;
+  const readiness = computeOutputReadiness(Boolean(modbusMapping), Boolean(databaseMapping));
+
+  return (
+    <div
+      data-testid="inspector-trace-panel"
+      className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+    >
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          {t('workbench.output.inspector.heading')}
+        </p>
+        <p
+          className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${
+            readiness === 'ready'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+              : readiness === 'partial'
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                : 'border-slate-700 bg-slate-900/80 text-slate-300'
+          }`}
+          data-testid="trace-readiness"
+        >
+          {t(`workbench.output.inspector.readiness.${readiness}`)}
+        </p>
+      </div>
+
+      {loadError ? (
+        <p
+          role="status"
+          className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200"
+        >
+          {loadError}
+        </p>
+      ) : null}
+
+      <dl className="space-y-3 text-sm">
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+            {t('workbench.output.inspector.sourceAddress')}
+          </dt>
+          <dd className="font-medium text-slate-100" data-testid="trace-source-address">
+            {point?.address ?? '—'}
+          </dd>
+        </div>
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+            {t('workbench.output.inspector.tagKey')}
+          </dt>
+          <dd className="font-medium text-slate-100" data-testid="trace-tag-key">
+            {tag?.key ?? inspectorSelection.tagId}
+          </dd>
+        </div>
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+            {t('workbench.output.inspector.outputModbus')}
+          </dt>
+          <dd className="font-medium text-slate-100" data-testid="trace-output-modbus">
+            {modbusMapping ? `HR${modbusMapping.register}` : t('workbench.output.selection.unmapped')}
+          </dd>
+        </div>
+        <div className="space-y-1">
+          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+            {t('workbench.output.inspector.outputDatabase')}
+          </dt>
+          <dd className="font-medium text-slate-100" data-testid="trace-output-database">
+            {databaseMapping
+              ? `${databaseMapping.table_schema}.${databaseMapping.table_name}.${databaseMapping.column_name}`
+              : t('workbench.output.selection.databaseUnmapped')}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
 export function WorkbenchInspectorPanel() {
   const { t } = useTranslation();
   const { activeStep, inspectorSelection } = useWorkbench();
@@ -303,6 +443,8 @@ export function WorkbenchInspectorPanel() {
 
       {activeStep === 'device' ? (
         <DeviceInspectorContent />
+      ) : activeStep === 'output' && inspectorSelection.kind === 'outputCandidate' ? (
+        <OutputInspectorContent />
       ) : hasSelection ? (
         <div
           className="space-y-2 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"

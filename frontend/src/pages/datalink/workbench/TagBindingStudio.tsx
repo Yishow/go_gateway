@@ -13,6 +13,7 @@ import {
 import type { Device } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
 import {
+  buildBatchDiffPreview,
   buildTagBindingCandidates,
   buildTagBindingRequests,
   type TagBindingCandidate,
@@ -27,7 +28,9 @@ type TagBindingFailure = {
 };
 
 type TagBindingBatchSummary = {
-  successCount: number;
+  createdCount: number;
+  linkedCount: number;
+  skippedCount: number;
   failureCount: number;
   failures: TagBindingFailure[];
 };
@@ -176,6 +179,17 @@ export function TagBindingStudio() {
     [candidates, existingTagSelections, selectedPointIds],
   );
 
+  const batchDiffPreview = useMemo(
+    () =>
+      buildBatchDiffPreview({
+        candidates,
+        selectedPointIds,
+        flowMode,
+        existingTagSelections,
+      }),
+    [candidates, selectedPointIds, flowMode, existingTagSelections],
+  );
+
   const blockedSelectionCount = selectedCandidates.filter((candidate) =>
     flowMode === 'create'
       ? candidate.conflict || candidate.alreadyLinked
@@ -271,7 +285,9 @@ export function TagBindingStudio() {
       const failures = results.filter(isNonNull);
 
       setBatchSummary({
-        successCount: createRequests.length - failures.length,
+        createdCount: createRequests.length - failures.length,
+        linkedCount: 0,
+        skippedCount: batchDiffPreview.skipped.length,
         failureCount: failures.length,
         failures,
       });
@@ -302,12 +318,14 @@ export function TagBindingStudio() {
       }),
     );
 
-    const failures = results.filter(isNonNull);
+    const existingFailures = results.filter(isNonNull);
 
     setBatchSummary({
-      successCount: existingRequests.length - failures.length,
-      failureCount: failures.length,
-      failures,
+      createdCount: 0,
+      linkedCount: existingRequests.length - existingFailures.length,
+      skippedCount: batchDiffPreview.skipped.length,
+      failureCount: existingFailures.length,
+      failures: existingFailures,
     });
   };
 
@@ -680,6 +698,97 @@ export function TagBindingStudio() {
           </div>
         </dl>
 
+        {selectedCandidates.length > 0 ? (
+          <div
+            data-testid="batch-diff-preview"
+            className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+              {t('workbench.tag.diff.title')}
+            </p>
+
+            <dl className="grid grid-cols-2 gap-2">
+              {flowMode === 'create' ? (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                  <dt className="text-[11px] uppercase tracking-[0.16em] text-emerald-300">
+                    {t('workbench.tag.diff.toCreate')}
+                  </dt>
+                  <dd
+                    className="mt-1 text-lg font-semibold text-emerald-100"
+                    data-testid="diff-to-create-count"
+                  >
+                    {batchDiffPreview.toCreate.length}
+                  </dd>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
+                  <dt className="text-[11px] uppercase tracking-[0.16em] text-cyan-300">
+                    {t('workbench.tag.diff.toBind')}
+                  </dt>
+                  <dd
+                    className="mt-1 text-lg font-semibold text-cyan-100"
+                    data-testid="diff-to-bind-count"
+                  >
+                    {batchDiffPreview.toBind.length}
+                  </dd>
+                </div>
+              )}
+              <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+                <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                  {t('workbench.tag.diff.skipped')}
+                </dt>
+                <dd
+                  className="mt-1 text-lg font-semibold text-slate-300"
+                  data-testid="diff-skipped-count"
+                >
+                  {batchDiffPreview.skipped.length}
+                </dd>
+              </div>
+            </dl>
+
+            {(flowMode === 'create'
+              ? batchDiffPreview.toCreate
+              : batchDiffPreview.toBind
+            ).length > 0 ? (
+              <ul className="max-h-40 space-y-1 overflow-y-auto text-xs">
+                {(flowMode === 'create'
+                  ? batchDiffPreview.toCreate
+                  : batchDiffPreview.toBind
+                ).map((item) => (
+                  <li
+                    key={item.pointId}
+                    className="flex items-center justify-between rounded-lg bg-slate-950/50 px-2 py-1.5"
+                  >
+                    <span className="truncate text-slate-300">{item.pointName}</span>
+                    <span className="ml-2 shrink-0 font-mono text-cyan-200">{item.tagKey}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {batchDiffPreview.skipped.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                  {t('workbench.tag.diff.skippedItems')}
+                </p>
+                <ul className="max-h-24 space-y-1 overflow-y-auto text-xs">
+                  {batchDiffPreview.skipped.map((item) => (
+                    <li
+                      key={item.pointId}
+                      className="flex items-center justify-between rounded-lg bg-amber-500/5 px-2 py-1.5"
+                    >
+                      <span className="truncate text-slate-400">{item.pointName}</span>
+                      <span className="ml-2 shrink-0 text-amber-300">
+                        {t(`workbench.tag.diff.skipReason.${item.reason}`)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {blockedSelectionCount > 0 ? (
           <p
             role="status"
@@ -715,9 +824,42 @@ export function TagBindingStudio() {
                 ? t('workbench.tag.results.partialFailure')
                 : t('workbench.tag.results.success')}
             </p>
-            <p className="text-sm text-slate-300">
-              {t('workbench.tag.results.summary', batchSummary)}
-            </p>
+
+            <dl className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2">
+                <dt className="text-emerald-300">
+                  {flowMode === 'existing'
+                    ? t('workbench.tag.results.linked')
+                    : t('workbench.tag.results.created')}
+                </dt>
+                <dd
+                  className="mt-1 text-lg font-semibold text-emerald-100"
+                  data-testid={flowMode === 'existing' ? 'result-linked-count' : 'result-created-count'}
+                >
+                  {flowMode === 'existing' ? batchSummary.linkedCount : batchSummary.createdCount}
+                </dd>
+              </div>
+              <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2">
+                <dt className="text-rose-300">{t('workbench.tag.results.failedLabel')}</dt>
+                <dd
+                  className="mt-1 text-lg font-semibold text-rose-100"
+                  data-testid="result-failed-count"
+                >
+                  {batchSummary.failureCount}
+                </dd>
+              </div>
+              {batchSummary.skippedCount > 0 ? (
+                <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-2">
+                  <dt className="text-slate-400">{t('workbench.tag.results.skippedLabel')}</dt>
+                  <dd
+                    className="mt-1 text-lg font-semibold text-slate-300"
+                    data-testid="result-skipped-count"
+                  >
+                    {batchSummary.skippedCount}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
 
             {batchSummary.failures.length > 0 ? (
               <ul className="space-y-2 text-sm text-rose-100">

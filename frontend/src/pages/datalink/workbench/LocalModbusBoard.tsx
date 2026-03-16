@@ -14,6 +14,7 @@ import type {
 import { DatabaseTargetBoard } from './DatabaseTargetBoard';
 import { useWorkbench } from './WorkbenchProvider';
 import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
+import type { AutoMapStrategy, DryRunResult } from './workbenchOutputTypes';
 
 type MappingConflict = {
   register: number;
@@ -33,12 +34,247 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+function dataTypeWidth(dataType: string): number {
+  switch (dataType) {
+    case 'int32':
+    case 'uint32':
+    case 'float32':
+      return 2;
+    case 'int64':
+    case 'uint64':
+    case 'float64':
+      return 4;
+    default:
+      return 1;
+  }
+}
+
+function getRegisterSlots(register: number, dataType: string): number[] {
+  const width = dataTypeWidth(dataType);
+  return Array.from({ length: width }, (_, index) => register + index);
+}
+
+function buildRegisterUsage(
+  mappings: ModbusShareMapping[],
+): Map<number, ModbusShareMapping[]> {
+  const usage = new Map<number, ModbusShareMapping[]>();
+
+  mappings.forEach((mapping) => {
+    getRegisterSlots(mapping.register, mapping.data_type).forEach((slot) => {
+      const list = usage.get(slot) ?? [];
+      list.push(mapping);
+      usage.set(slot, list);
+    });
+  });
+
+  return usage;
+}
+
+function computeAutoMap(
+  strategy: AutoMapStrategy,
+  candidates: OutputCandidate[],
+  existingMappings: ModbusShareMapping[],
+): Array<{ tagId: string; register: number }> {
+  const occupied = new Set<number>(buildRegisterUsage(existingMappings).keys());
+
+  const unmapped = candidates.filter((c) => c.register === null);
+  const result: Array<{ tagId: string; register: number }> = [];
+
+  if (strategy === 'sequential') {
+    let cursor = occupied.size > 0 ? Math.max(...occupied) + 1 : 0;
+    for (const candidate of unmapped) {
+      const width = dataTypeWidth(candidate.dataType);
+      while (Array.from({ length: width }, (_, i) => cursor + i).some((r) => occupied.has(r))) {
+        cursor++;
+      }
+      result.push({ tagId: candidate.tagId, register: cursor });
+      for (let i = 0; i < width; i++) {
+        occupied.add(cursor + i);
+      }
+      cursor += width;
+    }
+  } else if (strategy === 'gapAware') {
+    let cursor = 0;
+    for (const candidate of unmapped) {
+      const width = dataTypeWidth(candidate.dataType);
+      while (Array.from({ length: width }, (_, i) => cursor + i).some((r) => occupied.has(r))) {
+        cursor++;
+      }
+      result.push({ tagId: candidate.tagId, register: cursor });
+      for (let i = 0; i < width; i++) {
+        occupied.add(cursor + i);
+      }
+      cursor += width;
+    }
+  } else {
+    let cursor = 0;
+    for (const candidate of unmapped) {
+      const width = dataTypeWidth(candidate.dataType);
+      const alignment = width;
+      cursor = Math.ceil(cursor / alignment) * alignment;
+      while (Array.from({ length: width }, (_, i) => cursor + i).some((r) => occupied.has(r))) {
+        cursor += alignment;
+      }
+      result.push({ tagId: candidate.tagId, register: cursor });
+      for (let i = 0; i < width; i++) {
+        occupied.add(cursor + i);
+      }
+      cursor += width;
+    }
+  }
+
+  return result;
+}
+
+function computeDryRun(
+  candidates: OutputCandidate[],
+  shareMappings: ModbusShareMapping[],
+): DryRunResult[] {
+  const registerUsage = buildRegisterUsage(shareMappings);
+
+  return candidates.map((c) => {
+    const mapping = shareMappings.find((m) => m.tag_id === c.tagId);
+    if (!mapping) {
+      return { tagId: c.tagId, tagKey: c.tagKey, register: -1, valid: false, reason: 'unmapped' };
+    }
+    const hasConflict = getRegisterSlots(mapping.register, mapping.data_type).some((slot) => {
+      const users = registerUsage.get(slot) ?? [];
+      return users.length > 1;
+    });
+    if (hasConflict) {
+      return { tagId: c.tagId, tagKey: c.tagKey, register: mapping.register, valid: false, reason: 'conflict' };
+    }
+    return { tagId: c.tagId, tagKey: c.tagKey, register: mapping.register, valid: true };
+  });
+}
+
+type RegisterMapCanvasProps = {
+  candidates: OutputCandidate[];
+  shareMappings: ModbusShareMapping[];
+  conflicts: MappingConflict[];
+  onAutoMap: (strategy: AutoMapStrategy) => void;
+  onDryRun: () => void;
+  dryRunResults: DryRunResult[] | null;
+  t: (key: string, params?: Record<string, unknown>) => string;
+};
+
+function RegisterMapCanvas({
+  candidates,
+  shareMappings,
+  conflicts,
+  onAutoMap,
+  onDryRun,
+  dryRunResults,
+  t,
+}: RegisterMapCanvasProps) {
+  const conflictRegisters = new Set(conflicts.map((c) => c.register));
+  const mappedSlots = new Map<number, OutputCandidate>();
+
+  for (const mapping of shareMappings) {
+    const candidate = candidates.find((c) => c.tagId === mapping.tag_id);
+    if (candidate) {
+      getRegisterSlots(mapping.register, mapping.data_type).forEach((slot) => {
+        mappedSlots.set(slot, candidate);
+      });
+    }
+  }
+
+  const maxRegister = Math.max(16, ...Array.from(mappedSlots.keys()).map((r) => r + 4));
+  const slotCount = Math.min(maxRegister, 64);
+
+  return (
+    <div data-testid="register-map-canvas" className="space-y-4">
+      <div className="flex flex-wrap gap-1">
+        {Array.from({ length: slotCount }, (_, i) => {
+          const candidate = mappedSlots.get(i);
+          const isConflict = conflictRegisters.has(i);
+          return (
+            <div
+              key={i}
+              data-testid={`register-slot-${i}`}
+              data-conflict={isConflict ? 'true' : undefined}
+              className={`flex min-w-[60px] flex-col items-center rounded-lg border px-2 py-1 text-[10px] ${
+                isConflict
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+                  : candidate
+                    ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
+                    : 'border-slate-800 bg-slate-950/50 text-slate-500'
+              }`}
+            >
+              <span className="font-mono text-[9px] text-slate-500">HR{i}</span>
+              <span className="truncate font-medium">
+                {candidate?.tagKey ?? '—'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onAutoMap('sequential')}
+          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-cyan-500/40"
+        >
+          {t('workbench.output.modbusStudio.autoMap.sequential')}
+        </button>
+        <button
+          type="button"
+          onClick={() => onAutoMap('gapAware')}
+          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-cyan-500/40"
+        >
+          {t('workbench.output.modbusStudio.autoMap.gapAware')}
+        </button>
+        <button
+          type="button"
+          onClick={() => onAutoMap('aligned')}
+          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-cyan-500/40"
+        >
+          {t('workbench.output.modbusStudio.autoMap.aligned')}
+        </button>
+        <button
+          type="button"
+          onClick={onDryRun}
+          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20"
+        >
+          {t('workbench.output.modbusStudio.actions.dryRun')}
+        </button>
+      </div>
+
+      {dryRunResults ? (
+        <div data-testid="dry-run-results" className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.output.modbusStudio.dryRun.heading')}
+          </p>
+          <ul className="space-y-1">
+            {dryRunResults.map((r) => (
+              <li
+                key={r.tagId}
+                className={`rounded-lg border px-3 py-1.5 text-xs ${
+                  r.valid
+                    ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-200'
+                    : 'border-rose-500/20 bg-rose-500/5 text-rose-200'
+                }`}
+              >
+                {r.tagKey}: {r.valid
+                  ? t('workbench.output.modbusStudio.dryRun.valid', { register: r.register })
+                  : t('workbench.output.modbusStudio.dryRun.invalid', { reason: r.reason ?? 'unknown' })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function LocalModbusBoard() {
   const { t } = useTranslation();
   const tRef = useRef(t);
   tRef.current = t;
   const {
     activeOutputTarget,
+    setInspectorSelection,
     selectedDeviceId,
     setActiveOutputTarget,
     setSelectedDeviceId,
@@ -58,6 +294,7 @@ export function LocalModbusBoard() {
   const [serverPortInput, setServerPortInput] = useState('5020');
   const [message, setMessage] = useState('');
   const [isBusy, setIsBusy] = useState(true);
+  const [dryRunResults, setDryRunResults] = useState<DryRunResult[] | null>(null);
 
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
   const pointById = useMemo(
@@ -82,6 +319,7 @@ export function LocalModbusBoard() {
       setStatus(nextStatus);
       setShareMappings(nextMappings);
       setDBTargetMappings(nextDBMappings);
+      setDryRunResults(null);
       setMessage('');
     } catch (error) {
       setMessage(
@@ -175,15 +413,7 @@ export function LocalModbusBoard() {
   }, [selectedCandidateRegister, selectedTagId]);
 
   const conflicts = useMemo<MappingConflict[]>(() => {
-    const grouped = new Map<number, ModbusShareMapping[]>();
-
-    shareMappings.forEach((mapping) => {
-      const list = grouped.get(mapping.register) ?? [];
-      list.push(mapping);
-      grouped.set(mapping.register, list);
-    });
-
-    return Array.from(grouped.entries())
+    return Array.from(buildRegisterUsage(shareMappings).entries())
       .filter(([, items]) => items.length > 1)
       .map(([register, items]) => ({ register, mappings: items }));
   }, [shareMappings]);
@@ -340,6 +570,42 @@ export function LocalModbusBoard() {
     }
   }, [selectedCandidate, t]);
 
+  const handleAutoMap = useCallback(
+    async (strategy: AutoMapStrategy) => {
+      const assignments = computeAutoMap(strategy, candidates, shareMappings);
+      if (assignments.length === 0) {
+        setMessage(t('workbench.output.modbusStudio.autoMap.noChanges'));
+        return;
+      }
+
+      setIsBusy(true);
+      try {
+        await Promise.all(
+          assignments.map((assignment) =>
+            modbusShareAPI.upsertMapping(assignment.tagId, assignment.register),
+          ),
+        );
+        await loadData();
+        setMessage(
+          t('workbench.output.modbusStudio.autoMap.applied', {
+            count: assignments.length,
+          }),
+        );
+      } catch (error) {
+        setMessage(
+          getErrorMessage(error, t('workbench.output.modbusStudio.autoMap.failed')),
+        );
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [candidates, loadData, shareMappings, t],
+  );
+
+  const handleDryRun = useCallback(() => {
+    setDryRunResults(computeDryRun(candidates, shareMappings));
+  }, [candidates, shareMappings]);
+
   if (!selectedDevice) {
     return (
       <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
@@ -445,7 +711,14 @@ export function LocalModbusBoard() {
               <button
                 key={candidate.tagId}
                 type="button"
-                onClick={() => setSelectedTagId(candidate.tagId)}
+                onClick={() => {
+                  setSelectedTagId(candidate.tagId);
+                  setInspectorSelection({
+                    kind: 'outputCandidate',
+                    tagId: candidate.tagId,
+                    target: activeOutputTarget,
+                  });
+                }}
                 aria-pressed={active}
                 data-testid={`output-candidate-${candidate.tagId}`}
                 className={`grid gap-3 rounded-2xl border p-4 text-left transition xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] ${
@@ -519,26 +792,15 @@ export function LocalModbusBoard() {
               </h3>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {candidates.map((candidate) => (
-                <article
-                  key={`register-map-${candidate.tagId}`}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
-                >
-                  <p className="text-sm font-semibold text-slate-50">{candidate.tagKey}</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {candidate.pointAddress} · {candidate.pointName}
-                  </p>
-                  <p className="mt-3 text-sm text-slate-200">
-                    {candidate.register !== null
-                      ? t('workbench.output.selection.mapped', {
-                          register: candidate.register,
-                        })
-                      : t('workbench.output.selection.unmapped')}
-                  </p>
-                </article>
-              ))}
-            </div>
+            <RegisterMapCanvas
+              candidates={candidates}
+              shareMappings={shareMappings}
+              conflicts={conflicts}
+              onAutoMap={(strategy) => void handleAutoMap(strategy)}
+              onDryRun={handleDryRun}
+              dryRunResults={dryRunResults}
+              t={t}
+            />
           </div>
 
           <aside className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">

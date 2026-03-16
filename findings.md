@@ -76,6 +76,12 @@
   - Step 1 已選設備時，`ActionDock` 不能再顯示「先選設備」；next action 要改成前往 Source。
   - `last_test_at` 若來自後端 zero timestamp（`0001-01-01T00:00:00Z`），前端要顯示 fallback microcopy，而不是直接把零值時間戳丟給使用者。
 
+### 2026-03-16：Source templates / Tag batch 收斂發現
+- Source template 不能只存 planner 欄位；若不一併保存 `preferredViewMode`，重新套用模板後會回不到使用者儲存時的工作上下文。
+- Source template 也不能把能力摘要直接存成翻譯後文字；應改存 `capabilitySnapshot` 這種穩定結構，才能跨語系比較並在套用時產生 warning。
+- `SourceTemplateRecord` 升 schema 時要保留向下相容，否則會直接打壞仍在使用舊 template shape 的 SmartDashboard flow。
+- Tag batch 新增 diff preview 後，原本用純文字搜尋 row 的測試會被 preview 面板污染；測試應改鎖定 candidate row `data-testid`，精準驗證 filter 行為而不是整頁文字存在性。
+
 ## 2026-03-08
 
 ### 規範來源盤查
@@ -446,6 +452,10 @@
 - Local Modbus sync 需明確以 duplicate register conflict 作為 block 條件；若 register 衝突未阻擋 sync，使用者會把錯誤映射推到 server。
 - `loadData` 若直接依賴 `t`，在測試 mock `useTranslation()` 時可能造成 callback identity 改變，進而重複觸發 effect；以 `ref` 穩定 fallback translation 後可避免這個問題。
 - register input 若在 `selectedCandidate` object identity 改變時每次都重設，會蓋掉使用者剛輸入的值；依賴應收斂到 `selectedTagId` 與 `selectedCandidateRegister`。
+- `RegisterMapCanvas`、auto-map、dry-run helper 若只存在於檔案上半但沒有接進主 render，對使用者來說等同功能不存在；這類「已實作 helper / 未接線 UI」是 Step 4 的主要落差來源。
+- Local Modbus register 衝突不能只比對 start register；multi-word data type（如 `int32` / `float64`）必須以實際占用 slot 範圍判斷 overlap，否則會漏掉 `HR10~11` 與 `HR11` 這類交疊衝突。
+- Database schema snapshot 不應在 metadata 尚未回來時先 render 空殼 testid；否則測試與使用者都會在「面板已出現但內容尚未掛上」的中間態讀到錯誤結論。
+- Step 4 inspector 的 readiness 不能只看 active target；正確來源是 `outputCandidate` 對應 tag 在 Local Modbus 與 Database 兩邊的 mapping 完整度。
 
 ### Shell UI / Summary
 - `WorkbenchHeaderBar` 與 `WorkbenchActionDock` 若只顯示 active step / selected device，不足以支撐單頁主流程；需要補 point/tag/output counts 與 next action，使用者才知道目前流程停在哪裡。

@@ -1,7 +1,9 @@
 import type { DataType } from '../../types/datalink';
 import {
   SOURCE_TEMPLATE_SCHEMA_VERSION,
+  type SourceTemplateCapabilitySnapshot,
   type SourceTemplateRecord,
+  type SourceTemplateViewMode,
 } from './sourceTemplateStorage';
 
 export const SOURCE_PLANNER_ALLOWED_DATA_TYPES = ['int16', 'int32', 'float32'] as const;
@@ -26,6 +28,8 @@ export function normalizeTemplateId(name: string): string {
 export function createTemplateFromPlanner(input: {
   templateName: string;
   draft: Pick<SourcePlannerDraft, 'dataType' | 'count' | 'startAddress'>;
+  preferredViewMode?: SourceTemplateViewMode;
+  capabilitySnapshot?: SourceTemplateCapabilitySnapshot;
   now?: string;
 }): SourceTemplateRecord {
   const now = input.now ?? new Date().toISOString();
@@ -37,6 +41,8 @@ export function createTemplateFromPlanner(input: {
     dataType: input.draft.dataType,
     count: input.draft.count,
     startAddress: input.draft.startAddress.trim().toUpperCase(),
+    preferredViewMode: input.preferredViewMode ?? 'plan',
+    capabilitySnapshot: input.capabilitySnapshot,
     updatedAt: now,
     lastUsedAt: now,
     version: SOURCE_TEMPLATE_SCHEMA_VERSION,
@@ -69,6 +75,12 @@ export function isTemplateRecordContractValid(template: SourceTemplateRecord): b
   if (!Number.isInteger(template.count) || template.count <= 0 || template.count > 200) return false;
   if (!template.startAddress.trim()) return false;
   if (!Number.isFinite(template.version) || template.version < 1) return false;
+  if (
+    template.preferredViewMode !== undefined &&
+    !['plan', 'live', 'link'].includes(template.preferredViewMode)
+  ) {
+    return false;
+  }
   if (!SOURCE_PLANNER_ALLOWED_DATA_TYPES.includes(template.dataType as (typeof SOURCE_PLANNER_ALLOWED_DATA_TYPES)[number])) {
     return false;
   }

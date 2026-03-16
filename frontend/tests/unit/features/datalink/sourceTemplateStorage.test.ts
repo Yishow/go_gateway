@@ -26,6 +26,7 @@ describe('sourceTemplateStorage', () => {
         dataType: 'int16',
         count: 5,
         startAddress: '40001',
+        preferredViewMode: 'plan',
         updatedAt: '2026-02-13T00:00:00.000Z',
         lastUsedAt: '2026-02-13T00:00:00.000Z',
         version: SOURCE_TEMPLATE_SCHEMA_VERSION,
@@ -36,6 +37,7 @@ describe('sourceTemplateStorage', () => {
         dataType: 'float32',
         count: 10,
         startAddress: '40101',
+        preferredViewMode: 'live',
         updatedAt: '2026-02-13T00:00:01.000Z',
         lastUsedAt: '2026-02-13T00:00:01.000Z',
         version: SOURCE_TEMPLATE_SCHEMA_VERSION,
@@ -70,6 +72,7 @@ describe('sourceTemplateStorage', () => {
     const [legacy] = loadSourceTemplates();
     expect(legacy.lastUsedAt).toBe('2026-02-13T00:00:00.000Z');
     expect(legacy.version).toBe(1);
+    expect(legacy.preferredViewMode).toBe('plan');
     expect(isTemplateStale(legacy)).toBe(true);
   });
 
@@ -81,6 +84,7 @@ describe('sourceTemplateStorage', () => {
         dataType: 'int16',
         count: 2,
         startAddress: '40001',
+        preferredViewMode: 'plan',
         updatedAt: '2026-02-13T00:00:00.000Z',
         lastUsedAt: '2026-02-13T00:00:00.000Z',
         version: 1,

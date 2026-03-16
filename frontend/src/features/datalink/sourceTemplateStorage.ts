@@ -1,7 +1,15 @@
-import type { DataType } from '../../types/datalink';
+import type { DataType, ProtocolType } from '../../types/datalink';
 
 export const SOURCE_TEMPLATE_STORAGE_KEY = 'pipeline-studio-source-templates-v1';
-export const SOURCE_TEMPLATE_SCHEMA_VERSION = 2;
+export const SOURCE_TEMPLATE_SCHEMA_VERSION = 3;
+
+export type SourceTemplateViewMode = 'plan' | 'live' | 'link';
+
+export interface SourceTemplateCapabilitySnapshot {
+  protocol: ProtocolType;
+  addressBase: string;
+  wordOrder: string;
+}
 
 export interface SourceTemplateRecord {
   id: string;
@@ -9,6 +17,8 @@ export interface SourceTemplateRecord {
   dataType: DataType;
   count: number;
   startAddress: string;
+  preferredViewMode?: SourceTemplateViewMode;
+  capabilitySnapshot?: SourceTemplateCapabilitySnapshot;
   updatedAt: string;
   lastUsedAt: string;
   version: number;
@@ -43,6 +53,7 @@ export function upgradeTemplates(templates: SourceTemplateRecord[]): SourceTempl
   const now = new Date().toISOString();
   return templates.map((template) => ({
     ...template,
+    preferredViewMode: template.preferredViewMode ?? 'plan',
     version: SOURCE_TEMPLATE_SCHEMA_VERSION,
     updatedAt: template.updatedAt || now,
     lastUsedAt: template.lastUsedAt || template.updatedAt || now,
@@ -68,6 +79,22 @@ function normalizeTemplateRecord(raw: unknown): SourceTemplateRecord | null {
     typeof rec.lastUsedAt === 'string' && rec.lastUsedAt ? rec.lastUsedAt : rec.updatedAt;
   const inferredVersion =
     typeof rec.version === 'number' && Number.isFinite(rec.version) ? rec.version : 1;
+  const preferredViewMode =
+    rec.preferredViewMode === 'live' || rec.preferredViewMode === 'link'
+      ? rec.preferredViewMode
+      : 'plan';
+  const capabilitySnapshot =
+    rec.capabilitySnapshot &&
+    typeof rec.capabilitySnapshot === 'object' &&
+    typeof rec.capabilitySnapshot.protocol === 'string' &&
+    typeof rec.capabilitySnapshot.addressBase === 'string' &&
+    typeof rec.capabilitySnapshot.wordOrder === 'string'
+      ? {
+          protocol: rec.capabilitySnapshot.protocol as ProtocolType,
+          addressBase: rec.capabilitySnapshot.addressBase,
+          wordOrder: rec.capabilitySnapshot.wordOrder,
+        }
+      : undefined;
 
   return {
     id: rec.id,
@@ -75,6 +102,8 @@ function normalizeTemplateRecord(raw: unknown): SourceTemplateRecord | null {
     dataType: rec.dataType as DataType,
     count: rec.count,
     startAddress: rec.startAddress,
+    preferredViewMode,
+    capabilitySnapshot,
     updatedAt: rec.updatedAt,
     lastUsedAt: inferredLastUsedAt,
     version: inferredVersion,

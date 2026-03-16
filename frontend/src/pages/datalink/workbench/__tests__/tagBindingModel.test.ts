@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Mapping, Point, Tag } from '../../../../types/datalink';
 import {
+  buildBatchDiffPreview,
   buildTagBindingCandidates,
   buildTagBindingRequests,
   buildTagKey,
@@ -110,5 +111,158 @@ describe('tagBindingModel', () => {
         },
       },
     ]);
+  });
+
+  describe('buildBatchDiffPreview (create flow)', () => {
+    it('puts bindable candidates into toCreate', () => {
+      const candidates = buildTagBindingCandidates({
+        points: [
+          createPoint({ id: 'p1', address: '40001' }),
+          createPoint({ id: 'p2', address: '40002', name: 'Pressure' }),
+        ],
+        tags: [],
+        mappings: [],
+        template: { prefix: 'tag', strategy: 'address' },
+      });
+
+      const diff = buildBatchDiffPreview({
+        candidates,
+        selectedPointIds: ['p1', 'p2'],
+        flowMode: 'create',
+        existingTagSelections: {},
+      });
+
+      expect(diff.toCreate).toEqual([
+        { pointId: 'p1', pointName: 'Flow Sensor', tagKey: 'TAG_40001' },
+        { pointId: 'p2', pointName: 'Pressure', tagKey: 'TAG_40002' },
+      ]);
+      expect(diff.toBind).toEqual([]);
+      expect(diff.skipped).toEqual([]);
+    });
+
+    it('skips conflicting candidates with reason', () => {
+      const candidates = buildTagBindingCandidates({
+        points: [
+          createPoint({ id: 'p1', address: '40001' }),
+          createPoint({ id: 'p2', address: '40002', name: 'Pressure' }),
+        ],
+        tags: [createTag({ key: 'TAG_40001' })],
+        mappings: [],
+        template: { prefix: 'tag', strategy: 'address' },
+      });
+
+      const diff = buildBatchDiffPreview({
+        candidates,
+        selectedPointIds: ['p1', 'p2'],
+        flowMode: 'create',
+        existingTagSelections: {},
+      });
+
+      expect(diff.toCreate).toHaveLength(1);
+      expect(diff.toCreate[0].pointId).toBe('p2');
+      expect(diff.skipped).toEqual([
+        { pointId: 'p1', pointName: 'Flow Sensor', reason: 'conflict' },
+      ]);
+    });
+
+    it('skips already-linked candidates', () => {
+      const candidates = buildTagBindingCandidates({
+        points: [createPoint({ id: 'p1', address: '40001' })],
+        tags: [],
+        mappings: [createMapping({ point_id: 'p1' })],
+        template: { prefix: 'tag', strategy: 'address' },
+      });
+
+      const diff = buildBatchDiffPreview({
+        candidates,
+        selectedPointIds: ['p1'],
+        flowMode: 'create',
+        existingTagSelections: {},
+      });
+
+      expect(diff.toCreate).toEqual([]);
+      expect(diff.skipped).toEqual([
+        { pointId: 'p1', pointName: 'Flow Sensor', reason: 'already-linked' },
+      ]);
+    });
+
+    it('excludes unselected candidates entirely', () => {
+      const candidates = buildTagBindingCandidates({
+        points: [
+          createPoint({ id: 'p1', address: '40001' }),
+          createPoint({ id: 'p2', address: '40002', name: 'Pressure' }),
+        ],
+        tags: [],
+        mappings: [],
+        template: { prefix: 'tag', strategy: 'address' },
+      });
+
+      const diff = buildBatchDiffPreview({
+        candidates,
+        selectedPointIds: ['p1'],
+        flowMode: 'create',
+        existingTagSelections: {},
+      });
+
+      expect(diff.toCreate).toHaveLength(1);
+      expect(diff.toCreate[0].pointId).toBe('p1');
+      expect(diff.skipped).toEqual([]);
+    });
+  });
+
+  describe('buildBatchDiffPreview (existing flow)', () => {
+    it('puts candidates with existing tag selections into toBind', () => {
+      const candidates = buildTagBindingCandidates({
+        points: [
+          createPoint({ id: 'p1', address: '40001' }),
+          createPoint({ id: 'p2', address: '40002', name: 'Pressure' }),
+        ],
+        tags: [
+          createTag({ id: 'tag-a', key: 'FLOW_TAG' }),
+          createTag({ id: 'tag-b', key: 'PRESS_TAG' }),
+        ],
+        mappings: [],
+        template: { prefix: 'tag', strategy: 'address' },
+      });
+
+      const diff = buildBatchDiffPreview({
+        candidates,
+        selectedPointIds: ['p1', 'p2'],
+        flowMode: 'existing',
+        existingTagSelections: { p1: 'tag-a', p2: 'tag-b' },
+      });
+
+      expect(diff.toCreate).toEqual([]);
+      expect(diff.toBind).toEqual([
+        { pointId: 'p1', pointName: 'Flow Sensor', tagKey: 'FLOW_TAG' },
+        { pointId: 'p2', pointName: 'Pressure', tagKey: 'PRESS_TAG' },
+      ]);
+      expect(diff.skipped).toEqual([]);
+    });
+
+    it('skips candidates without tag selection in existing flow', () => {
+      const candidates = buildTagBindingCandidates({
+        points: [
+          createPoint({ id: 'p1', address: '40001' }),
+          createPoint({ id: 'p2', address: '40002', name: 'Pressure' }),
+        ],
+        tags: [createTag({ id: 'tag-a', key: 'FLOW_TAG' })],
+        mappings: [],
+        template: { prefix: 'tag', strategy: 'address' },
+      });
+
+      const diff = buildBatchDiffPreview({
+        candidates,
+        selectedPointIds: ['p1', 'p2'],
+        flowMode: 'existing',
+        existingTagSelections: { p1: 'tag-a' },
+      });
+
+      expect(diff.toBind).toHaveLength(1);
+      expect(diff.toBind[0].pointId).toBe('p1');
+      expect(diff.skipped).toEqual([
+        { pointId: 'p2', pointName: 'Pressure', reason: 'no-tag-selected' },
+      ]);
+    });
   });
 });

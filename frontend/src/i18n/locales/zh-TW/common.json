@@ -594,6 +594,22 @@
         "saveTemplate": "儲存模板",
         "loadTemplate": "載入模板"
       },
+      "templates": {
+        "name": "模板名稱",
+        "confirmSave": "儲存模板",
+        "cancel": "取消",
+        "library": "模板列表",
+        "description": "把常用來源規劃規則存成這台工作站的本地模板。",
+        "empty": "目前還沒有已儲存的來源模板。",
+        "saved": "模板已儲存。",
+        "loaded": "模板已套用。",
+        "nameRequired": "請先輸入模板名稱再儲存。",
+        "warning": {
+          "message": "這個模板的能力假設與目前設備不一致。",
+          "addressBase": "位址基底",
+          "wordOrder": "字組順序"
+        }
+      },
       "ruleLayer": {
         "eyebrow": "規劃規則層",
         "title": "管理來源規劃規則",
@@ -717,10 +733,26 @@
         "clearSelection": "清空",
         "bind": "批次建立 Tag 並綁定"
       },
+      "diff": {
+        "title": "批次差異預覽",
+        "toCreate": "待建立",
+        "toBind": "待綁定",
+        "skipped": "略過",
+        "skippedItems": "略過項目",
+        "skipReason": {
+          "conflict": "衝突",
+          "already-linked": "已連結",
+          "no-tag-selected": "尚未選擇 Tag"
+        }
+      },
       "results": {
         "success": "Tag 綁定完成",
         "partialFailure": "Tag 綁定部分失敗",
         "summary": "成功 {{successCount}} 筆，失敗 {{failureCount}} 筆。",
+        "created": "已建立",
+        "linked": "已綁定",
+        "failedLabel": "失敗",
+        "skippedLabel": "略過",
         "tagFallback": "建立 Tag 失敗",
         "mappingFallback": "建立 mapping 失敗"
       }
@@ -749,7 +781,23 @@
       },
       "modbusStudio": {
         "eyebrow": "Local Modbus 工作台",
-        "title": "操作目前的 Modbus 發佈目標"
+        "title": "操作目前的 Modbus 發佈目標",
+        "autoMap": {
+          "sequential": "連續填滿",
+          "gapAware": "優先補空洞",
+          "aligned": "依資料寬度對齊",
+          "applied": "已對 {{count}} 筆候選項套用自動映射。",
+          "noChanges": "目前沒有未映射候選項可自動配置。",
+          "failed": "套用自動映射失敗。"
+        },
+        "actions": {
+          "dryRun": "Dry-run 驗證"
+        },
+        "dryRun": {
+          "heading": "Dry-run 結果",
+          "valid": "有效 @ HR{{register}}",
+          "invalid": "已阻擋：{{reason}}"
+        }
       },
       "status": {
         "server": "Server 狀態",
@@ -857,10 +905,17 @@
           "empty": "目前沒有驗證訊息。儲存 connector 或 mapping 後，這裡會顯示 readiness 與結構問題。"
         },
         "preview": {
+          "title": "寫入列預覽",
+          "description": "在儲存映射前先確認這筆 row payload。",
           "table": "目標表",
           "column": "值欄位",
           "value": "目前值",
           "empty": "尚未選擇"
+        },
+        "schema": {
+          "title": "Schema 快照",
+          "description": "先檢查目前資料表結構，再決定哪些必填欄位需要補齊。",
+          "required": "必填"
         },
         "status": {
           "ready": "已就緒",
@@ -890,6 +945,19 @@
           "mappingDeleteFailed": "刪除資料庫映射失敗",
           "validationRefreshed": "驗證完成：{{ready}}",
           "validationRefreshFailed": "重新驗證失敗"
+        }
+      },
+      "inspector": {
+        "heading": "輸出追蹤",
+        "loadFailed": "讀取輸出追蹤映射失敗",
+        "sourceAddress": "來源位址",
+        "tagKey": "Tag Key",
+        "outputModbus": "Local Modbus",
+        "outputDatabase": "資料庫目標",
+        "readiness": {
+          "ready": "已就緒",
+          "partial": "部分完成",
+          "unmapped": "尚未映射"
         }
       }
     },

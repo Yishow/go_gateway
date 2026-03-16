@@ -238,8 +238,8 @@ describe('DatalinkWorkbench tag step', () => {
       target: { value: 'bound' },
     });
 
-    expect(screen.queryByText('Flow Sensor')).not.toBeInTheDocument();
-    expect(screen.getByText('Pressure Sensor')).toBeInTheDocument();
+    expect(screen.queryByTestId('tag-candidate-point-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('tag-candidate-point-2')).toBeInTheDocument();
   });
 
   it('supports binding selected points to an existing tag', async () => {
@@ -331,5 +331,80 @@ describe('DatalinkWorkbench tag step', () => {
     expect(mockCreateMappingMutation.mutateAsync).toHaveBeenCalledTimes(1);
     expect(screen.getByText('workbench.tag.results.partialFailure')).toBeInTheDocument();
     expect(screen.getByText('duplicate key')).toBeInTheDocument();
+  });
+
+  it('shows a batch diff preview before executing the bind', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const diffPanel = screen.getByTestId('batch-diff-preview');
+    expect(diffPanel).toBeInTheDocument();
+    expect(diffPanel).toHaveTextContent('TAG_40001');
+    expect(diffPanel).toHaveTextContent('TAG_40002');
+    expect(screen.getByTestId('diff-to-create-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('diff-skipped-count')).toHaveTextContent('0');
+  });
+
+  it('shows skipped items in the diff preview when candidates have conflicts', () => {
+    mockTags.push({
+      id: 'tag-existing',
+      key: 'TAG_40001',
+      display_name: 'Existing Flow Sensor',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'draft',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('diff-to-create-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('diff-skipped-count')).toHaveTextContent('1');
+  });
+
+  it('switches diff preview to show toBind items in existing flow', () => {
+    mockTags.push({
+      id: 'tag-existing',
+      key: 'LINEA_FLOW',
+      display_name: 'Line A Flow',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'active',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
+
+    expect(screen.getByTestId('diff-to-bind-count')).toBeInTheDocument();
+  });
+
+  it('shows an enhanced result summary with created/linked/skipped/failed counts', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.actions.bind' }));
+
+    await waitFor(() => {
+      expect(mockCreateTagMutation.mutateAsync).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.getByTestId('result-created-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('result-failed-count')).toHaveTextContent('0');
   });
 });

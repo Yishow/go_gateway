@@ -29,11 +29,13 @@ describe('sourcePlannerContract', () => {
         count: 10,
         startAddress: '40001',
       },
+      preferredViewMode: 'live',
       now: '2026-02-13T00:00:00.000Z',
     });
 
     expect(template.id).toBe('line-a-float');
     expect(isTemplateRecordContractValid(template)).toBe(true);
+    expect(template.preferredViewMode).toBe('live');
     expect(applyTemplateToPlanner(template)).toEqual({
       dataType: 'float32',
       count: 10,
@@ -49,6 +51,7 @@ describe('sourcePlannerContract', () => {
         count: 5,
         startAddress: '40010',
       },
+      preferredViewMode: 'plan',
       now: '2026-02-13T00:00:00.000Z',
     });
 

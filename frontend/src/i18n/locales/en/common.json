@@ -594,6 +594,22 @@
         "saveTemplate": "Save template",
         "loadTemplate": "Load template"
       },
+      "templates": {
+        "name": "Template name",
+        "confirmSave": "Save template",
+        "cancel": "Cancel",
+        "library": "Template library",
+        "description": "Reusable local rule recipes for this workstation.",
+        "empty": "No saved source templates yet.",
+        "saved": "Template saved.",
+        "loaded": "Template applied.",
+        "nameRequired": "Enter a template name before saving.",
+        "warning": {
+          "message": "Template capability assumptions differ from the current device.",
+          "addressBase": "address base",
+          "wordOrder": "word order"
+        }
+      },
       "ruleLayer": {
         "eyebrow": "Rule layer",
         "title": "Manage planning directives",
@@ -717,10 +733,26 @@
         "clearSelection": "Clear",
         "bind": "Create tags and bind"
       },
+      "diff": {
+        "title": "Batch diff preview",
+        "toCreate": "To create",
+        "toBind": "To bind",
+        "skipped": "Skipped",
+        "skippedItems": "Skipped items",
+        "skipReason": {
+          "conflict": "Conflict",
+          "already-linked": "Already linked",
+          "no-tag-selected": "No tag selected"
+        }
+      },
       "results": {
         "success": "Tag binding completed",
         "partialFailure": "Tag binding partially failed",
         "summary": "{{successCount}} succeeded, {{failureCount}} failed.",
+        "created": "Created",
+        "linked": "Linked",
+        "failedLabel": "Failed",
+        "skippedLabel": "Skipped",
         "tagFallback": "Failed to create tag",
         "mappingFallback": "Failed to create mapping"
       }
@@ -749,7 +781,23 @@
       },
       "modbusStudio": {
         "eyebrow": "Local Modbus studio",
-        "title": "Operate the active Modbus publishing target"
+        "title": "Operate the active Modbus publishing target",
+        "autoMap": {
+          "sequential": "Sequential fill",
+          "gapAware": "Gap-aware fill",
+          "aligned": "Data-type aligned",
+          "applied": "Applied auto-map to {{count}} candidates.",
+          "noChanges": "No unmapped candidates to auto-map.",
+          "failed": "Failed to apply auto-map."
+        },
+        "actions": {
+          "dryRun": "Dry-run validation"
+        },
+        "dryRun": {
+          "heading": "Dry-run results",
+          "valid": "valid @ HR{{register}}",
+          "invalid": "blocked: {{reason}}"
+        }
       },
       "status": {
         "server": "Server",
@@ -857,10 +905,17 @@
           "empty": "No validation messages yet. Save a connector or mapping to inspect readiness and schema issues here."
         },
         "preview": {
+          "title": "Write-row preview",
+          "description": "Preview the row payload before saving the mapping.",
           "table": "Target table",
           "column": "Value column",
           "value": "Current value",
           "empty": "Not selected"
+        },
+        "schema": {
+          "title": "Schema snapshot",
+          "description": "Inspect the active table shape before binding required fields.",
+          "required": "Required"
         },
         "status": {
           "ready": "Ready",
@@ -890,6 +945,19 @@
           "mappingDeleteFailed": "Failed to delete the database mapping",
           "validationRefreshed": "Validation refreshed: {{ready}}",
           "validationRefreshFailed": "Failed to refresh validation"
+        }
+      },
+      "inspector": {
+        "heading": "Output trace",
+        "loadFailed": "Failed to load output trace mappings",
+        "sourceAddress": "Source address",
+        "tagKey": "Tag key",
+        "outputModbus": "Local Modbus",
+        "outputDatabase": "Database target",
+        "readiness": {
+          "ready": "Ready",
+          "partial": "Partial",
+          "unmapped": "Unmapped"
         }
       }
     },

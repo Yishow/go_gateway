@@ -1,10 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
+  applyTemplateToPlanner,
+  createTemplateFromPlanner,
   normalizeNamingPrefix,
   SOURCE_PLANNER_ALLOWED_DATA_TYPES,
+  upsertTemplateRecord,
 } from '../../../features/datalink/sourcePlannerContract';
+import {
+  isTemplateStale,
+  loadSourceTemplates,
+  saveSourceTemplates,
+  upgradeTemplates,
+  type SourceTemplateCapabilitySnapshot,
+  type SourceTemplateRecord,
+} from '../../../features/datalink/sourceTemplateStorage';
 import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
 import { useMappingsQuery } from '../../../hooks/datalink/useMappings';
 import {
@@ -18,6 +29,7 @@ import type { DataType, Device } from '../../../types/datalink';
 import { AddressCanvas } from './AddressCanvas';
 import { AddressLedger } from './AddressLedger';
 import { useWorkbench } from './WorkbenchProvider';
+import { parseDeviceConnectionConfig } from './workbenchDeviceFormModel';
 import {
   buildAddressCanvasItems,
   buildCoverageOverviewSegments,
@@ -68,6 +80,84 @@ function getCoverageSegmentClass(status: ReturnType<typeof buildCoverageOverview
   }
 }
 
+function sortTemplates(templates: ReadonlyArray<SourceTemplateRecord>) {
+  return [...templates].sort((left, right) =>
+    right.lastUsedAt.localeCompare(left.lastUsedAt),
+  );
+}
+
+function buildTemplateCapabilitySnapshot(
+  device: Device | null,
+): SourceTemplateCapabilitySnapshot | null {
+  if (!device) {
+    return null;
+  }
+
+  const connectionConfig = parseDeviceConnectionConfig(device.connection_config);
+  const addressBase = (() => {
+    switch (device.protocol) {
+      case 'modbus_tcp':
+      case 'modbus_udp':
+      case 'modbus_rtu':
+        return 'modbus-register';
+      case 'mqtt':
+        return 'topic-based';
+      case 'fatek_fbs':
+      case 'mc_3e':
+        return 'protocol-native';
+    }
+  })();
+
+  const wordOrder = (() => {
+    switch (device.protocol) {
+      case 'mc_3e':
+        return typeof connectionConfig.data_format === 'string'
+          ? connectionConfig.data_format
+          : 'protocol-default';
+      case 'mqtt':
+        return 'not-applicable';
+      case 'modbus_tcp':
+      case 'modbus_udp':
+      case 'modbus_rtu':
+      case 'fatek_fbs':
+        return 'protocol-default';
+    }
+  })();
+
+  return {
+    protocol: device.protocol,
+    addressBase,
+    wordOrder,
+  };
+}
+
+function buildTemplateWarning(
+  template: SourceTemplateRecord,
+  currentCapability: SourceTemplateCapabilitySnapshot | null,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  if (!template.capabilitySnapshot || !currentCapability) {
+    return null;
+  }
+
+  const mismatches: string[] = [];
+  if (template.capabilitySnapshot.addressBase !== currentCapability.addressBase) {
+    mismatches.push(t('workbench.source.templates.warning.addressBase'));
+  }
+  if (template.capabilitySnapshot.wordOrder !== currentCapability.wordOrder) {
+    mismatches.push(t('workbench.source.templates.warning.wordOrder'));
+  }
+
+  if (mismatches.length === 0) {
+    return null;
+  }
+
+  return t('workbench.source.templates.warning.message', {
+    name: template.name,
+    mismatches: mismatches.join(', '),
+  });
+}
+
 export function SourceCanvasSection() {
   const { t } = useTranslation();
   const {
@@ -113,9 +203,46 @@ export function SourceCanvasSection() {
     successCount: number;
     failureCount: number;
   } | null>(null);
+  const [templates, setTemplates] = useState<SourceTemplateRecord[]>([]);
+  const [templateName, setTemplateName] = useState('');
+  const [isSaveTemplateOpen, setIsSaveTemplateOpen] = useState(false);
+  const [isLoadTemplateOpen, setIsLoadTemplateOpen] = useState(false);
+  const [templateNotice, setTemplateNotice] = useState<string | null>(null);
+  const [templateWarning, setTemplateWarning] = useState<string | null>(null);
+  const [appliedTemplate, setAppliedTemplate] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const rules = sourcePlanningState.rules;
   const selectedRuleId = sourcePlanningState.selectedRuleId;
   const selectedAddress = sourcePlanningState.selectedAddress;
+  const currentCapability = useMemo(
+    () => buildTemplateCapabilitySnapshot(selectedDevice),
+    [selectedDevice],
+  );
+
+  useEffect(() => {
+    const restored = loadSourceTemplates();
+    if (restored.length === 0) {
+      setTemplates([]);
+      return;
+    }
+
+    const nextTemplates = restored.some(isTemplateStale)
+      ? sortTemplates(upgradeTemplates(restored))
+      : sortTemplates(restored);
+
+    if (restored.some(isTemplateStale)) {
+      saveSourceTemplates(nextTemplates);
+    }
+
+    setTemplates(nextTemplates);
+  }, []);
+
+  useEffect(() => {
+    setTemplateWarning(null);
+    setAppliedTemplate(null);
+  }, [selectedDeviceId]);
 
   const effectiveLiveValues = freezeLive && frozenLiveValues
     ? frozenLiveValues
@@ -176,6 +303,11 @@ export function SourceCanvasSection() {
 
   const hasConflicts = items.some((item) => item.status === 'conflict');
 
+  const clearAppliedTemplate = () => {
+    setAppliedTemplate(null);
+    setTemplateWarning(null);
+  };
+
   const handleApplyPlan = () => {
     if (!selectedDevice) {
       return;
@@ -190,7 +322,8 @@ export function SourceCanvasSection() {
       namingPrefix,
       enabled: true,
       locked: false,
-      origin: 'manual',
+      origin: appliedTemplate ? 'template' : 'manual',
+      templateName: appliedTemplate?.name,
     };
 
     setSourcePlanningState((currentState) => ({
@@ -283,6 +416,78 @@ export function SourceCanvasSection() {
   const handleCaptureSnapshot = () => {
     setFreezeLive(true);
     setFrozenLiveValues(runtimeStream.liveValues);
+  };
+
+  const handleOpenSaveTemplate = () => {
+    setTemplateName(appliedTemplate?.name ?? '');
+    setIsSaveTemplateOpen(true);
+    setIsLoadTemplateOpen(false);
+    setTemplateNotice(null);
+  };
+
+  const handleSaveTemplate = () => {
+    const trimmedName = templateName.trim();
+    if (!trimmedName) {
+      setTemplateNotice(t('workbench.source.templates.nameRequired'));
+      return;
+    }
+
+    const nextTemplate = createTemplateFromPlanner({
+      templateName: trimmedName,
+      draft: {
+        startAddress,
+        count,
+        dataType,
+      },
+      preferredViewMode: viewMode,
+      capabilitySnapshot: currentCapability ?? undefined,
+    });
+    const nextTemplates = sortTemplates(upsertTemplateRecord(templates, nextTemplate));
+
+    saveSourceTemplates(nextTemplates);
+    setTemplates(nextTemplates);
+    setTemplateName('');
+    setIsSaveTemplateOpen(false);
+    setTemplateNotice(
+      t('workbench.source.templates.saved', {
+        name: nextTemplate.name,
+      }),
+    );
+  };
+
+  const handleOpenLoadTemplate = () => {
+    setTemplates(sortTemplates(loadSourceTemplates()));
+    setIsLoadTemplateOpen((currentValue) => !currentValue);
+    setIsSaveTemplateOpen(false);
+    setTemplateNotice(null);
+  };
+
+  const handleApplyTemplate = (template: SourceTemplateRecord) => {
+    const plannerDraft = applyTemplateToPlanner(template);
+    const now = new Date().toISOString();
+    const nextTemplate = {
+      ...template,
+      lastUsedAt: now,
+    };
+    const nextTemplates = sortTemplates(upsertTemplateRecord(templates, nextTemplate));
+
+    setStartAddress(plannerDraft.startAddress);
+    setCount(plannerDraft.count);
+    setDataType(plannerDraft.dataType);
+    setViewMode(template.preferredViewMode ?? 'plan');
+    setAppliedTemplate({
+      id: template.id,
+      name: template.name,
+    });
+    setTemplateWarning(buildTemplateWarning(template, currentCapability, t));
+    setTemplateNotice(
+      t('workbench.source.templates.loaded', {
+        name: template.name,
+      }),
+    );
+    setTemplates(nextTemplates);
+    saveSourceTemplates(nextTemplates);
+    setIsLoadTemplateOpen(false);
   };
 
   const handleBatchCreate = async () => {
@@ -556,7 +761,10 @@ export function SourceCanvasSection() {
                 <input
                   aria-label={t('workbench.source.planner.startAddress')}
                   value={startAddress}
-                  onChange={(event) => setStartAddress(event.target.value)}
+                  onChange={(event) => {
+                    clearAppliedTemplate();
+                    setStartAddress(event.target.value);
+                  }}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 />
               </label>
@@ -565,7 +773,10 @@ export function SourceCanvasSection() {
                 <select
                   aria-label={t('workbench.source.planner.dataType')}
                   value={dataType}
-                  onChange={(event) => setDataType(event.target.value as DataType)}
+                  onChange={(event) => {
+                    clearAppliedTemplate();
+                    setDataType(event.target.value as DataType);
+                  }}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 >
                   {SOURCE_PLANNER_ALLOWED_DATA_TYPES.map((option) => (
@@ -582,7 +793,10 @@ export function SourceCanvasSection() {
                   type="number"
                   min={1}
                   value={count}
-                  onChange={(event) => setCount(Number(event.target.value) || 0)}
+                  onChange={(event) => {
+                    clearAppliedTemplate();
+                    setCount(Number(event.target.value) || 0);
+                  }}
                   className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 />
               </label>
@@ -642,24 +856,105 @@ export function SourceCanvasSection() {
               </button>
               <button
                 type="button"
-                disabled
+                onClick={handleOpenSaveTemplate}
                 className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300 disabled:opacity-50"
               >
                 {t('workbench.source.toolbar.saveTemplate')}
               </button>
               <button
                 type="button"
-                disabled
+                onClick={handleOpenLoadTemplate}
+                disabled={templates.length === 0}
                 className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300 disabled:opacity-50"
               >
                 {t('workbench.source.toolbar.loadTemplate')}
               </button>
             </div>
 
+            {isSaveTemplateOpen ? (
+              <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                  <span>{t('workbench.source.templates.name')}</span>
+                  <input
+                    aria-label={t('workbench.source.templates.name')}
+                    value={templateName}
+                    onChange={(event) => setTemplateName(event.target.value)}
+                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveTemplate}
+                    className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-slate-950"
+                  >
+                    {t('workbench.source.templates.confirmSave')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSaveTemplateOpen(false);
+                      setTemplateName('');
+                    }}
+                    className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+                  >
+                    {t('workbench.source.templates.cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {isLoadTemplateOpen ? (
+              <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    {t('workbench.source.templates.library')}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {t('workbench.source.templates.description')}
+                  </p>
+                </div>
+                {templates.length > 0 ? (
+                  <div className="space-y-2">
+                    {templates.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        aria-label={template.name}
+                        onClick={() => handleApplyTemplate(template)}
+                        className="block w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-3 text-left transition hover:border-cyan-500/40"
+                      >
+                        <p className="text-sm font-semibold text-slate-100">
+                          {template.name}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {template.startAddress} · {template.dataType} · {template.count}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    {t('workbench.source.templates.empty')}
+                  </p>
+                )}
+              </div>
+            ) : null}
+
             {hasConflicts ? (
               <p className="text-sm text-rose-300">
                 {t('workbench.source.planner.conflictHint')}
               </p>
+            ) : null}
+
+            {templateWarning ? (
+              <p className="text-sm text-amber-200" data-testid="source-template-warning">
+                {templateWarning}
+              </p>
+            ) : null}
+
+            {templateNotice ? (
+              <p className="text-sm text-slate-300">{templateNotice}</p>
             ) : null}
 
             {batchCreateSummary ? (

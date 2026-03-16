@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
+import { SOURCE_TEMPLATE_STORAGE_KEY } from '../../../../features/datalink/sourceTemplateStorage';
 import type { Device, Mapping, Point, Tag } from '../../../../types/datalink';
 
 const { mockDevices, mockPoints, mockMappings, mockTags, mockCreatePointMutation } = vi.hoisted(() => ({
@@ -90,6 +91,7 @@ function renderPage() {
 describe('DatalinkWorkbench source step', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockDevices.splice(0, mockDevices.length, {
       id: 'device-1',
       name: 'Mixer PLC',
@@ -201,6 +203,62 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+  });
+
+  it('saves a source template locally and reapplies it to the planner inputs', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40101' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '3' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.saveTemplate' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.templates.name'), {
+      target: { value: 'Line Float' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'workbench.source.templates.confirmSave' }),
+    );
+
+    const storedTemplates = JSON.parse(
+      localStorage.getItem(SOURCE_TEMPLATE_STORAGE_KEY) ?? '[]',
+    ) as Array<Record<string, unknown>>;
+    expect(storedTemplates[0]).toMatchObject({
+      name: 'Line Float',
+      startAddress: '40101',
+      count: 3,
+      dataType: 'float32',
+      preferredViewMode: 'live',
+    });
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '49999' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'int16' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.plan' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.loadTemplate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Line Float' }));
+
+    expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('40101');
+    expect(screen.getByLabelText('workbench.source.planner.count')).toHaveValue(3);
+    expect(screen.getByLabelText('workbench.source.planner.dataType')).toHaveValue('float32');
+    expect(screen.getByTestId('source-canvas')).toHaveAttribute('data-view-mode', 'live');
   });
 
   it('batch creates points from the planned address range', async () => {

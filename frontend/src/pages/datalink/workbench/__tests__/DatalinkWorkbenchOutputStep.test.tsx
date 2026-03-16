@@ -561,4 +561,329 @@ describe('DatalinkWorkbench output step', () => {
       });
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Modbus studio deepening (redesign-modbus-studio)
+  // ---------------------------------------------------------------------------
+
+  describe('modbus studio register map canvas', () => {
+    it('renders a register map canvas showing allocated register ranges', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 0, data_type: 'int16', updated_at: '' },
+        { tag_id: 'tag-2', register: 2, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      expect(
+        await screen.findByTestId('register-map-canvas'),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('register-slot-0')).toHaveTextContent('TAG_40001');
+      expect(screen.getByTestId('register-slot-2')).toHaveTextContent('TAG_40002');
+    });
+
+    it('highlights conflicting register slots', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 10, data_type: 'int16', updated_at: '' },
+        { tag_id: 'tag-2', register: 10, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      const conflictSlot = await screen.findByTestId('register-slot-10');
+      expect(conflictSlot).toHaveAttribute('data-conflict', 'true');
+    });
+
+    it('treats overlapping multi-word ranges as conflicting slots', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 10, data_type: 'int32', updated_at: '' },
+        { tag_id: 'tag-2', register: 11, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      const overlapSlot = await screen.findByTestId('register-slot-11');
+      expect(overlapSlot).toHaveAttribute('data-conflict', 'true');
+    });
+
+    it('renders auto-map strategy selector with three strategies', async () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      await screen.findByTestId('register-map-canvas');
+
+      expect(
+        screen.getByRole('button', { name: 'workbench.output.modbusStudio.autoMap.sequential' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'workbench.output.modbusStudio.autoMap.gapAware' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'workbench.output.modbusStudio.autoMap.aligned' }),
+      ).toBeInTheDocument();
+    });
+
+    it('sequential auto-map appends after the current occupied range', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 0, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      await screen.findByTestId('register-map-canvas');
+
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'workbench.output.modbusStudio.autoMap.sequential',
+        }),
+      );
+
+      await waitFor(() => {
+        expect(mockModbusShareAPI.upsertMapping).toHaveBeenCalledWith('tag-2', 1);
+      });
+    });
+
+    it('renders a dry-run validation button and displays results', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 0, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      await screen.findByTestId('register-map-canvas');
+
+      const dryRunButton = screen.getByRole('button', {
+        name: 'workbench.output.modbusStudio.actions.dryRun',
+      });
+      expect(dryRunButton).toBeInTheDocument();
+
+      fireEvent.click(dryRunButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dry-run-results')).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Database studio deepening (redesign-database-studio)
+  // ---------------------------------------------------------------------------
+
+  describe('database studio schema snapshot', () => {
+    it('renders a schema snapshot with column type badges', async () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'workbench.output.targetSwitcher.database',
+        }),
+      );
+
+      expect(
+        await screen.findByTestId('schema-snapshot'),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('schema-column-ts')).toHaveTextContent('datetime');
+      expect(screen.getByTestId('schema-column-value')).toHaveTextContent('real');
+    });
+
+    it('marks primary key columns with a PK badge', async () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'workbench.output.targetSwitcher.database',
+        }),
+      );
+
+      const tsColumn = await screen.findByTestId('schema-column-ts');
+      expect(tsColumn).toHaveTextContent('PK');
+    });
+
+    it('renders a write-row preview panel', async () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'workbench.output.targetSwitcher.database',
+        }),
+      );
+
+      expect(
+        await screen.findByTestId('write-row-preview'),
+      ).toBeInTheDocument();
+    });
+
+    it('highlights unmapped required columns in the schema snapshot', async () => {
+      mockDBTargetAPI.listTables.mockResolvedValue([
+        {
+          schema: 'main',
+          name: 'sensor_values',
+          columns: [
+            { name: 'ts', data_type: 'datetime', nullable: false, primary_key: true, unique: true },
+            { name: 'value', data_type: 'real', nullable: false, primary_key: false, unique: false },
+            { name: 'source_id', data_type: 'text', nullable: false, primary_key: false, unique: false },
+          ],
+        },
+      ]);
+      mockDBTargetAPI.listMappings.mockResolvedValue([]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'workbench.output.targetSwitcher.database',
+        }),
+      );
+
+      const requiredColumn = await screen.findByTestId('schema-column-source_id');
+      expect(requiredColumn).toHaveAttribute('data-required', 'true');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Output inspector traceability (redesign-output-inspector)
+  // ---------------------------------------------------------------------------
+
+  describe('output inspector traceability', () => {
+    it('shows source→tag→output trace when an output candidate is selected', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 0, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      const candidate = await screen.findByTestId('output-candidate-tag-1');
+      fireEvent.click(candidate);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('trace-source-address')).toHaveTextContent('40001');
+      expect(screen.getByTestId('trace-tag-key')).toHaveTextContent('TAG_40001');
+      expect(screen.getByTestId('trace-output-modbus')).toHaveTextContent('HR0');
+    });
+
+    it('shows readiness reasons for partial output candidate', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 0, data_type: 'int16', updated_at: '' },
+      ]);
+      mockDBTargetAPI.listMappings.mockResolvedValue([]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      const candidate = await screen.findByTestId('output-candidate-tag-1');
+      fireEvent.click(candidate);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('trace-readiness')).toHaveTextContent(
+        'workbench.output.inspector.readiness.partial',
+      );
+    });
+
+    it('shows ready readiness when both modbus and database are mapped', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 0, data_type: 'int16', updated_at: '' },
+      ]);
+      mockDBTargetAPI.listMappings.mockResolvedValue([
+        {
+          id: 'db-mapping-1',
+          tag_id: 'tag-1',
+          connector_id: 'connector-1',
+          table_schema: 'main',
+          table_name: 'sensor_values',
+          column_name: 'value',
+          write_mode: 'insert',
+          timestamp_column: null,
+          enabled: true,
+          created_at: '',
+          updated_at: '',
+        },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      const candidate = await screen.findByTestId('output-candidate-tag-1');
+      fireEvent.click(candidate);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('trace-readiness')).toHaveTextContent(
+        'workbench.output.inspector.readiness.ready',
+      );
+    });
+
+    it('shows database path in trace when database mapping exists', async () => {
+      mockDBTargetAPI.listMappings.mockResolvedValue([
+        {
+          id: 'db-mapping-1',
+          tag_id: 'tag-1',
+          connector_id: 'connector-1',
+          table_schema: 'main',
+          table_name: 'sensor_values',
+          column_name: 'value',
+          write_mode: 'insert',
+          timestamp_column: null,
+          enabled: true,
+          created_at: '',
+          updated_at: '',
+        },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      const candidate = await screen.findByTestId('output-candidate-tag-1');
+      fireEvent.click(candidate);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('trace-output-database')).toHaveTextContent(
+        'main.sensor_values.value',
+      );
+    });
+  });
 });

@@ -219,6 +219,25 @@
 | Spec commit | `git commit` spec 文件 | 設計 spec 獨立提交 | commit `5afef10` 完成 | ✓ |
 | Detail planning | UI 細節與 Phase 2 契約補齊 | 形成可開工前的完整規劃 | 兩份 detail spec 已完成 | ✓ |
 
+## 2026-03-16：Source templates / Tag batch 收尾
+
+### Completed
+- `redesign-source-templates`
+  - 在 `SourceCanvasSection.tsx` 接上本地 template save/load UI，不再停留在 disabled buttons
+  - `sourceTemplateStorage.ts` schema 升到 v3，新增 `preferredViewMode` 與 `capabilitySnapshot`
+  - `sourcePlannerContract.ts` 補齊 template contract / create helper 對新欄位的支援，同時保留 SmartDashboard 舊資料的向下相容
+  - Source step 測試新增儲存模板、重新套用 planner inputs / view mode 的覆蓋
+- `redesign-tag-batch`
+  - 整合外部變更後，完成 `TagBindingStudio.tsx` 的 batch diff preview 與結果總表
+  - `tagBindingModel.ts` 新增 `buildBatchDiffPreview()` 與相關 diff contracts
+  - Tag step / model tests 補齊 create 與 existing flow 的 diff preview、skip reasons、結果 summary 覆蓋
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/features/datalink/sourceTemplateStorage.test.ts tests/unit/features/datalink/tag-binding-model.test.ts tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+- `cd frontend && npm run build`
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
@@ -471,4 +490,14 @@
   - `cd frontend && npm run lint`
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm run build`
-- 下一步：收尾 `redesign-modbus-studio` / `redesign-database-studio` / `redesign-output-inspector`，讓 Step 4 從 shared board 走到完整 trace 與操作細節。
+- 已完成 Step 4 細化收尾：
+  - `LocalModbusBoard` 已把既有 `RegisterMapCanvas` / auto-map / dry-run helper 接回主 UI
+  - `DatabaseTargetBoard` 已補 `schema-snapshot`、required highlight、`write-row-preview`
+  - `WorkbenchInspectorPanel` 已補 `outputCandidate` trace panel，顯示 source→tag→Local Modbus / Database readiness
+  - controller 手動 review 後，再補上 multi-word register overlap 判斷與 inspector mapping 載入失敗提示
+- Step 4 收尾驗證：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`（25 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- 下一步：回頭收 `redesign-source-inspector` / `redesign-tag-inspector`，再進入 `redesign-i18n-a11y` / `redesign-regression-tests` / `redesign-legacy-compat`。
