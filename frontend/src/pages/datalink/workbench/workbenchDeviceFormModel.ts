@@ -10,12 +10,20 @@ export type DeviceConnectionConfig = Record<
   DeviceConnectionValue | undefined
 >;
 
+type TranslateFn = (key: string) => string;
+
 export interface DeviceDraft {
   name: string;
   description: string;
   protocol: ProtocolType;
   connectionConfig: DeviceConnectionConfig;
 }
+
+export type DeviceCapabilityItem = {
+  id: 'address-base' | 'word-order' | 'unit-id' | 'protocol-traits';
+  labelKey: string;
+  value: string;
+};
 
 export const WORKBENCH_PROTOCOLS: readonly ProtocolType[] = [
   'modbus_tcp',
@@ -224,123 +232,264 @@ export function sanitizeDeviceConnectionConfig(
   return sanitized;
 }
 
+function readConnectionValueAsString(
+  connectionConfig: DeviceConnectionConfig,
+  key: string,
+): string | null {
+  const value = connectionConfig[key];
+  if (typeof value === 'string' && value.trim() !== '') {
+    return value.trim();
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (Array.isArray(value) && value.length > 0) {
+    return value.join(', ');
+  }
+
+  return null;
+}
+
+export function buildDeviceCapabilitySummary(
+  protocol: ProtocolType,
+  connectionConfig: DeviceConnectionConfig,
+  t: TranslateFn,
+): DeviceCapabilityItem[] {
+  const notSpecified = t('workbench.device.capability.values.notSpecified');
+  const notApplicable = t('workbench.device.capability.values.notApplicable');
+
+  const unitId = (() => {
+    switch (protocol) {
+      case 'modbus_tcp':
+      case 'modbus_udp':
+      case 'modbus_rtu':
+        return readConnectionValueAsString(connectionConfig, 'slave_id') ?? notSpecified;
+      case 'fatek_fbs':
+      case 'mc_3e':
+        return readConnectionValueAsString(connectionConfig, 'station_no') ?? notSpecified;
+      case 'mqtt':
+        return notApplicable;
+    }
+  })();
+
+  const addressBase = (() => {
+    switch (protocol) {
+      case 'modbus_tcp':
+      case 'modbus_udp':
+      case 'modbus_rtu':
+        return t('workbench.device.capability.values.modbusRegister');
+      case 'mqtt':
+        return t('workbench.device.capability.values.topicBased');
+      case 'fatek_fbs':
+      case 'mc_3e':
+        return t('workbench.device.capability.values.protocolNative');
+    }
+  })();
+
+  const wordOrder = (() => {
+    switch (protocol) {
+      case 'mc_3e':
+        return readConnectionValueAsString(connectionConfig, 'data_format')
+          ?? t('workbench.device.capability.values.protocolDefault');
+      case 'mqtt':
+        return notApplicable;
+      case 'modbus_tcp':
+      case 'modbus_udp':
+      case 'modbus_rtu':
+      case 'fatek_fbs':
+        return t('workbench.device.capability.values.protocolDefault');
+    }
+  })();
+
+  const protocolTraits = (() => {
+    switch (protocol) {
+      case 'modbus_tcp':
+      case 'modbus_udp': {
+        const host = readConnectionValueAsString(connectionConfig, 'host') ?? notSpecified;
+        const port = readConnectionValueAsString(connectionConfig, 'port') ?? notSpecified;
+        return `${host}:${port}`;
+      }
+      case 'modbus_rtu': {
+        const serialPort =
+          readConnectionValueAsString(connectionConfig, 'serial_port') ?? notSpecified;
+        const baudRate =
+          readConnectionValueAsString(connectionConfig, 'baud_rate') ?? notSpecified;
+        return `${serialPort} · ${baudRate}`;
+      }
+      case 'fatek_fbs': {
+        const mode = readConnectionValueAsString(connectionConfig, 'mode') ?? 'tcp';
+        if (mode === 'serial') {
+          const serialPort =
+            readConnectionValueAsString(connectionConfig, 'serial_port') ?? notSpecified;
+          const baudRate =
+            readConnectionValueAsString(connectionConfig, 'baud_rate') ?? notSpecified;
+          return `${t('workbench.device.mode.serial')} · ${serialPort} · ${baudRate}`;
+        }
+        const host = readConnectionValueAsString(connectionConfig, 'host') ?? notSpecified;
+        const port = readConnectionValueAsString(connectionConfig, 'port') ?? notSpecified;
+        return `${t('workbench.device.mode.tcp')} · ${host}:${port}`;
+      }
+      case 'mc_3e': {
+        const networkNo =
+          readConnectionValueAsString(connectionConfig, 'network_no') ?? notSpecified;
+        const stationNo =
+          readConnectionValueAsString(connectionConfig, 'station_no') ?? notSpecified;
+        const dataFormat =
+          readConnectionValueAsString(connectionConfig, 'data_format')
+          ?? t('workbench.device.capability.values.protocolDefault');
+        return `${networkNo}/${stationNo} · ${dataFormat}`;
+      }
+      case 'mqtt': {
+        const qos = readConnectionValueAsString(connectionConfig, 'qos') ?? '0';
+        const useTLS = connectionConfig.use_tls === true
+          ? t('workbench.device.capability.values.tlsEnabled')
+          : t('workbench.device.capability.values.tlsDisabled');
+        return `QoS ${qos} · ${useTLS}`;
+      }
+    }
+  })();
+
+  return [
+    {
+      id: 'unit-id',
+      labelKey: 'workbench.device.capability.labels.unitId',
+      value: unitId,
+    },
+    {
+      id: 'address-base',
+      labelKey: 'workbench.device.capability.labels.addressBase',
+      value: addressBase,
+    },
+    {
+      id: 'word-order',
+      labelKey: 'workbench.device.capability.labels.wordOrder',
+      value: wordOrder,
+    },
+    {
+      id: 'protocol-traits',
+      labelKey: 'workbench.device.capability.labels.protocolTraits',
+      value: protocolTraits,
+    },
+  ];
+}
+
+export function getDeviceTestTimestampLabel(
+  rawTimestamp: string | null,
+  t: TranslateFn,
+) {
+  if (
+    !rawTimestamp ||
+    rawTimestamp.trim() === '' ||
+    rawTimestamp === '0001-01-01T00:00:00Z'
+  ) {
+    return t('workbench.device.inspector.unknownTestTime');
+  }
+
+  return rawTimestamp;
+}
+
 export function buildDeviceConnectionSummary(
   protocol: ProtocolType,
   connectionConfig: DeviceConnectionConfig,
 ): Array<{ labelKey: string; value: string }> {
-  const stringValue = (key: string): string | null => {
-    const value = connectionConfig[key];
-    if (typeof value === 'string' && value.trim() !== '') {
-      return value.trim();
-    }
-    if (typeof value === 'number') {
-      return String(value);
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-    if (Array.isArray(value) && value.length > 0) {
-      return value.join(', ');
-    }
-
-    return null;
-  };
-
   switch (protocol) {
     case 'modbus_tcp':
     case 'modbus_udp':
       return [
-        { labelKey: 'workbench.device.connection.host', value: stringValue('host') ?? '—' },
-        { labelKey: 'workbench.device.connection.port', value: stringValue('port') ?? '—' },
+        { labelKey: 'workbench.device.connection.host', value: readConnectionValueAsString(connectionConfig, 'host') ?? '—' },
+        { labelKey: 'workbench.device.connection.port', value: readConnectionValueAsString(connectionConfig, 'port') ?? '—' },
         {
           labelKey: 'workbench.device.connection.slaveId',
-          value: stringValue('slave_id') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'slave_id') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.timeout',
-          value: stringValue('timeout') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'timeout') ?? '—',
         },
       ];
     case 'modbus_rtu':
       return [
         {
           labelKey: 'workbench.device.connection.serialPort',
-          value: stringValue('serial_port') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'serial_port') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.baudRate',
-          value: stringValue('baud_rate') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'baud_rate') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.parity',
-          value: stringValue('parity') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'parity') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.slaveId',
-          value: stringValue('slave_id') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'slave_id') ?? '—',
         },
       ];
     case 'fatek_fbs':
       return [
         {
           labelKey: 'workbench.device.connection.mode',
-          value: stringValue('mode') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'mode') ?? '—',
         },
         {
           labelKey:
-            stringValue('mode') === 'serial'
+            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
               ? 'workbench.device.connection.serialPort'
               : 'workbench.device.connection.host',
           value:
-            stringValue('mode') === 'serial'
-              ? stringValue('serial_port') ?? '—'
-              : stringValue('host') ?? '—',
+            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
+              ? readConnectionValueAsString(connectionConfig, 'serial_port') ?? '—'
+              : readConnectionValueAsString(connectionConfig, 'host') ?? '—',
         },
         {
           labelKey:
-            stringValue('mode') === 'serial'
+            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
               ? 'workbench.device.connection.baudRate'
               : 'workbench.device.connection.port',
           value:
-            stringValue('mode') === 'serial'
-              ? stringValue('baud_rate') ?? '—'
-              : stringValue('port') ?? '—',
+            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
+              ? readConnectionValueAsString(connectionConfig, 'baud_rate') ?? '—'
+              : readConnectionValueAsString(connectionConfig, 'port') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.stationNo',
-          value: stringValue('station_no') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'station_no') ?? '—',
         },
       ];
     case 'mc_3e':
       return [
-        { labelKey: 'workbench.device.connection.host', value: stringValue('host') ?? '—' },
-        { labelKey: 'workbench.device.connection.port', value: stringValue('port') ?? '—' },
+        { labelKey: 'workbench.device.connection.host', value: readConnectionValueAsString(connectionConfig, 'host') ?? '—' },
+        { labelKey: 'workbench.device.connection.port', value: readConnectionValueAsString(connectionConfig, 'port') ?? '—' },
         {
           labelKey: 'workbench.device.connection.networkNo',
-          value: stringValue('network_no') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'network_no') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.stationNo',
-          value: stringValue('station_no') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'station_no') ?? '—',
         },
       ];
     case 'mqtt':
       return [
         {
           labelKey: 'workbench.device.connection.brokerUrl',
-          value: stringValue('broker_url') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'broker_url') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.clientId',
-          value: stringValue('client_id') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'client_id') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.topics',
-          value: stringValue('topics') ?? '—',
+          value: readConnectionValueAsString(connectionConfig, 'topics') ?? '—',
         },
         {
           labelKey: 'workbench.device.connection.useTls',
-          value: stringValue('use_tls') ?? 'false',
+          value: readConnectionValueAsString(connectionConfig, 'use_tls') ?? 'false',
         },
       ];
   }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -205,12 +205,11 @@ describe('DatalinkWorkbench foundation route', () => {
   it('renders a real device setup step through /datalink/workbench', () => {
     renderApp();
 
-    expect(screen.getByRole('heading', { name: 'workbench.title' })).toBeInTheDocument();
     expect(
-      screen.getByRole('navigation', { name: 'workbench.stepNavigator.ariaLabel' }),
+      screen.getByRole('navigation', { name: 'workbench.stepRail.ariaLabel' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'workbench.steps.device' }),
+      screen.getByRole('button', { name: /workbench\.steps\.device/ }),
     ).toHaveAttribute('aria-current', 'step');
     expect(
       screen.getByRole('textbox', { name: 'workbench.device.search.label' }),
@@ -218,9 +217,7 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(screen.getByText('Mixer PLC')).toBeInTheDocument();
     expect(screen.getByText('Backup PLC')).toBeInTheDocument();
     expect(screen.queryByText('workbench.placeholders.device')).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('complementary', { name: 'workbench.actionDock.ariaLabel' }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('workbench-inspector-panel')).toBeInTheDocument();
   });
 
   it('selects a device from the device step and advances to source planning', () => {
@@ -232,7 +229,7 @@ describe('DatalinkWorkbench foundation route', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: 'workbench.steps.source' }),
+      screen.getByRole('button', { name: /workbench\.steps\.source/ }),
     ).toHaveAttribute('aria-current', 'step');
     expect(
       screen.getByLabelText('workbench.source.planner.startAddress'),
@@ -242,13 +239,13 @@ describe('DatalinkWorkbench foundation route', () => {
     ).toBeInTheDocument();
   });
 
-  it('updates the action dock guidance after selecting a device on step 1', () => {
+  it('context bar enables quick-action buttons after selecting a device on step 1', () => {
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(
-      screen.getByText('workbench.actionDock.nextAction.advanceToSourcePlanning'),
+      screen.getByText('workbench.contextBar.actions.switchDevice'),
     ).toBeInTheDocument();
   });
 
@@ -289,7 +286,7 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: 'workbench.header.actions.gotoSource' }),
+        screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }),
       ).toBeEnabled();
     });
   });
@@ -331,5 +328,79 @@ describe('DatalinkWorkbench foundation route', () => {
       screen.getByText('workbench.device.inspector.unknownTestTime'),
     ).toBeInTheDocument();
     expect(screen.queryByText('0001-01-01T00:00:00Z')).not.toBeInTheDocument();
+  });
+
+  it('renders selected device details in the right-side inspector', () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const inspector = screen.getByTestId('workbench-inspector-panel');
+    expect(within(inspector).getByText('Mixer PLC')).toBeInTheDocument();
+    expect(within(inspector).getByText('workbench.device.inspector.connectionSummary')).toBeInTheDocument();
+    expect(within(inspector).getByRole('button', { name: 'workbench.device.actions.edit' })).toBeInTheDocument();
+    expect(within(inspector).getByRole('button', { name: 'workbench.device.actions.testConnection' })).toBeInTheDocument();
+    expect(within(inspector).getByRole('button', { name: 'workbench.device.actions.clone' })).toBeInTheDocument();
+  });
+
+  it('opens a clone drawer with connection defaults but requires a new device name', () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      within(screen.getByTestId('workbench-inspector-panel')).getByRole('button', {
+        name: 'workbench.device.actions.clone',
+      }),
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'workbench.device.panel.cloneTitle' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('workbench.device.fields.name')).toHaveValue('');
+    expect(screen.getByLabelText('workbench.device.connection.host')).toHaveValue('192.168.1.10');
+    expect(screen.getByLabelText('workbench.device.connection.port')).toHaveValue('502');
+    expect(screen.getByLabelText('workbench.device.connection.slaveId')).toHaveValue('1');
+  });
+
+  it('keeps only the three most recent connection tests in the inspector timeline', async () => {
+    mockTestConnectionMutation.mutateAsync
+      .mockReset()
+      .mockResolvedValueOnce({ success: false, error: 'timeout-1', latency_ms: 0 })
+      .mockResolvedValueOnce({ success: true, error: '', latency_ms: 14 })
+      .mockResolvedValueOnce({ success: false, error: 'crc-2', latency_ms: 0 })
+      .mockResolvedValueOnce({ success: false, error: 'offline-3', latency_ms: 0 });
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    const inspector = screen.getByTestId('workbench-inspector-panel');
+    const testButton = within(inspector).getByRole('button', {
+      name: 'workbench.device.actions.testConnection',
+    });
+
+    fireEvent.click(testButton);
+    await waitFor(() => {
+      expect(within(inspector).getByText('timeout-1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(testButton);
+    await waitFor(() => {
+      expect(
+        within(inspector).getByText('workbench.device.messages.testSuccess'),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(testButton);
+    await waitFor(() => {
+      expect(within(inspector).getByText('crc-2')).toBeInTheDocument();
+    });
+
+    fireEvent.click(testButton);
+    await waitFor(() => {
+      expect(within(inspector).getByText('offline-3')).toBeInTheDocument();
+      expect(within(inspector).getAllByRole('listitem')).toHaveLength(3);
+    });
+
+    expect(within(inspector).queryByText('timeout-1')).not.toBeInTheDocument();
   });
 });

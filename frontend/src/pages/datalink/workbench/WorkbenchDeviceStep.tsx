@@ -10,7 +10,6 @@ import { useTranslation } from 'react-i18next';
 import {
   useCreateDeviceMutation,
   useDevicesQuery,
-  useTestConnectionMutation,
   useUpdateDeviceMutation,
 } from '../../../hooks/datalink/useDevices';
 import { deviceKeys } from '../../../hooks/datalink/keys';
@@ -21,7 +20,7 @@ import type {
 } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
 import {
-  buildDeviceConnectionSummary,
+  buildDeviceCapabilitySummary,
   buildDeviceDraftFromDevice,
   createDefaultDeviceConnectionConfig,
   createEmptyDeviceDraft,
@@ -49,11 +48,6 @@ type DeviceNotice = {
   tone: 'success' | 'error' | 'info';
   message: string;
 };
-
-type DevicePanelState =
-  | { mode: 'create' }
-  | { mode: 'edit'; deviceId: string }
-  | null;
 
 type FieldErrorMap = Record<string, string>;
 
@@ -244,21 +238,6 @@ function getDeviceTestLabel(t: (key: string) => string, device: Device) {
   return t('workbench.device.card.notTested');
 }
 
-function getDeviceTestTimestampLabel(
-  rawTimestamp: string | null,
-  t: (key: string) => string,
-) {
-  if (
-    !rawTimestamp ||
-    rawTimestamp.trim() === '' ||
-    rawTimestamp === '0001-01-01T00:00:00Z'
-  ) {
-    return t('workbench.device.inspector.unknownTestTime');
-  }
-
-  return rawTimestamp;
-}
-
 function requireText(
   errors: FieldErrorMap,
   field: string,
@@ -391,16 +370,24 @@ function validateDeviceDraft(
 export function WorkbenchDeviceStep() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const { selectedDeviceId, setActiveStep, setSelectedDeviceId } = useWorkbench();
+  const {
+    clearInspectorSelection,
+    closeDevicePanel,
+    devicePanelState,
+    openCloneDevicePanel,
+    openCreateDevicePanel,
+    selectedDeviceId,
+    setActiveStep,
+    setInspectorSelection,
+    setSelectedDeviceId,
+  } = useWorkbench();
   const { data: devices = [], isLoading } = useDevicesQuery();
   const createDeviceMutation = useCreateDeviceMutation();
   const updateDeviceMutation = useUpdateDeviceMutation();
-  const testConnectionMutation = useTestConnectionMutation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [protocolFilter, setProtocolFilter] = useState<'all' | ProtocolType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | DeviceStatus>('all');
-  const [panelState, setPanelState] = useState<DevicePanelState>(null);
   const [draft, setDraft] = useState<DeviceDraft>(() => createEmptyDeviceDraft());
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
   const [notice, setNotice] = useState<DeviceNotice | null>(null);
@@ -428,8 +415,41 @@ export function WorkbenchDeviceStep() {
   useEffect(() => {
     if (selectedDeviceId && !devices.some((device) => device.id === selectedDeviceId)) {
       setSelectedDeviceId(null);
+      clearInspectorSelection();
     }
-  }, [devices, selectedDeviceId, setSelectedDeviceId]);
+  }, [clearInspectorSelection, devices, selectedDeviceId, setSelectedDeviceId]);
+
+  useEffect(() => {
+    if (!devicePanelState) {
+      return;
+    }
+
+    if (devicePanelState.mode === 'create') {
+      setDraft(createEmptyDeviceDraft());
+      setFieldErrors({});
+      return;
+    }
+
+    const sourceDevice =
+      devicePanelState.mode === 'edit'
+        ? devices.find((device) => device.id === devicePanelState.deviceId)
+        : devices.find((device) => device.id === devicePanelState.sourceDeviceId);
+
+    if (!sourceDevice) {
+      return;
+    }
+
+    const nextDraft = buildDeviceDraftFromDevice(sourceDevice);
+    setDraft(
+      devicePanelState.mode === 'clone'
+        ? {
+            ...nextDraft,
+            name: '',
+          }
+        : nextDraft,
+    );
+    setFieldErrors({});
+  }, [devicePanelState, devices]);
 
   const isSaving =
     createDeviceMutation.isPending || updateDeviceMutation.isPending;
@@ -507,20 +527,8 @@ export function WorkbenchDeviceStep() {
     );
   };
 
-  const openCreatePanel = () => {
-    setDraft(createEmptyDeviceDraft());
-    setFieldErrors({});
-    setPanelState({ mode: 'create' });
-  };
-
-  const openEditPanel = (device: Device) => {
-    setDraft(buildDeviceDraftFromDevice(device));
-    setFieldErrors({});
-    setPanelState({ mode: 'edit', deviceId: device.id });
-  };
-
   const closePanel = () => {
-    setPanelState(null);
+    closeDevicePanel();
     setFieldErrors({});
   };
 
@@ -542,7 +550,7 @@ export function WorkbenchDeviceStep() {
     }
 
     try {
-      if (panelState?.mode === 'create') {
+      if (devicePanelState?.mode === 'create' || devicePanelState?.mode === 'clone') {
         const createdDevice = await createDeviceMutation.mutateAsync({
           name: draft.name.trim(),
           description: draft.description.trim() || undefined,
@@ -557,9 +565,9 @@ export function WorkbenchDeviceStep() {
         });
       }
 
-      if (panelState?.mode === 'edit') {
+      if (devicePanelState?.mode === 'edit') {
         await updateDeviceMutation.mutateAsync({
-          id: panelState.deviceId,
+          id: devicePanelState.deviceId,
           data: {
             name: draft.name.trim(),
             description: draft.description.trim(),
@@ -567,7 +575,7 @@ export function WorkbenchDeviceStep() {
           },
         });
 
-        setSelectedDeviceId(panelState.deviceId);
+        setSelectedDeviceId(devicePanelState.deviceId);
         setNotice({
           tone: 'success',
           message: t('workbench.device.messages.updateSuccess'),
@@ -582,27 +590,6 @@ export function WorkbenchDeviceStep() {
           error instanceof Error
             ? error.message
             : t('workbench.device.messages.saveFailed'),
-      });
-    }
-  };
-
-  const handleTestConnection = async (device: Device) => {
-    try {
-      const result = await testConnectionMutation.mutateAsync(device.id);
-      await queryClient.invalidateQueries({ queryKey: deviceKeys.lists() });
-      setNotice({
-        tone: result.success ? 'success' : 'error',
-        message: result.success
-          ? t('workbench.device.messages.testSuccess')
-          : result.error || t('workbench.device.messages.testFailed'),
-      });
-    } catch (error) {
-      setNotice({
-        tone: 'error',
-        message:
-          error instanceof Error
-            ? error.message
-            : t('workbench.device.messages.testFailed'),
       });
     }
   };
@@ -982,305 +969,222 @@ export function WorkbenchDeviceStep() {
   };
 
   return (
-    <section className="relative grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_360px]">
-      <div className="space-y-5">
-        <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-5">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-              {t('workbench.device.eyebrow')}
-            </p>
-            <h2 className="text-2xl font-semibold text-slate-50">
-              {t('workbench.device.title')}
-            </h2>
-            <p className="max-w-3xl text-sm text-slate-300">
-              {t('workbench.device.description')}
-            </p>
-          </div>
-          {devices.length > 0 ? (
-            <div className="flex flex-wrap gap-3">
-              <button
-                className={primaryButtonClassName}
-                onClick={openCreatePanel}
-                type="button"
-              >
-                {t('workbench.device.actions.create')}
-              </button>
-              <button
-                className={ghostButtonClassName}
-                onClick={() => void handleRefreshDevices()}
-                type="button"
-              >
-                {t('workbench.device.actions.refresh')}
-              </button>
-            </div>
-          ) : null}
+    <section className="relative space-y-5">
+      <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-5">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+            {t('workbench.device.eyebrow')}
+          </p>
+          <h2 className="text-2xl font-semibold text-slate-50">
+            {t('workbench.device.title')}
+          </h2>
+          <p className="max-w-3xl text-sm text-slate-300">
+            {t('workbench.device.description')}
+          </p>
         </div>
-
-        <div className="grid gap-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-5 md:grid-cols-[minmax(0,1fr)_180px_180px]">
-          <TextField
-            id="workbench-device-search"
-            label={t('workbench.device.search.label')}
-            onChange={setSearchQuery}
-            placeholder={t('workbench.device.search.placeholder')}
-            value={searchQuery}
-          />
-          <SelectField
-            id="workbench-device-protocol-filter"
-            label={t('workbench.device.filters.protocol')}
-            onChange={(value) =>
-              setProtocolFilter(value === 'all' ? 'all' : (value as ProtocolType))
-            }
-            options={protocolOptions}
-            value={protocolFilter}
-          />
-          <SelectField
-            id="workbench-device-status-filter"
-            label={t('workbench.device.filters.status')}
-            onChange={(value) =>
-              setStatusFilter(value === 'all' ? 'all' : (value as DeviceStatus))
-            }
-            options={statusOptions}
-            value={statusFilter}
-          />
-        </div>
-
-        {notice ? (
-          <div
-            className={joinClasses(
-              'rounded-2xl border px-4 py-3 text-sm',
-              getNoticeClasses(notice.tone),
-            )}
-            role="status"
-          >
-            {notice.message}
-          </div>
-        ) : null}
-
-        {isLoading ? (
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-8 text-sm text-slate-400">
-            {t('workbench.device.loading')}
-          </div>
-        ) : null}
-
-        {!isLoading && devices.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/40 p-8 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-              {t('workbench.device.empty.eyebrow')}
-            </p>
-            <h3 className="mt-3 text-2xl font-semibold text-slate-50">
-              {t('workbench.device.empty.title')}
-            </h3>
-            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-300">
-              {t('workbench.device.empty.description')}
-            </p>
+        {devices.length > 0 ? (
+          <div className="flex flex-wrap gap-3">
             <button
-              className={joinClasses(primaryButtonClassName, 'mt-6')}
-              onClick={openCreatePanel}
+              className={primaryButtonClassName}
+              onClick={openCreateDevicePanel}
               type="button"
             >
               {t('workbench.device.actions.create')}
             </button>
-          </div>
-        ) : null}
-
-        {!isLoading && devices.length > 0 && filteredDevices.length === 0 ? (
-          <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-8 text-center text-sm text-slate-300">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-              {t('workbench.device.filteredEmpty.eyebrow')}
-            </p>
-            <h3 className="mt-3 text-2xl font-semibold text-slate-50">
-              {t('workbench.device.filteredEmpty.title')}
-            </h3>
-            <p className="mt-3">{t('workbench.device.filteredEmpty.description')}</p>
-          </div>
-        ) : null}
-
-        {!isLoading && filteredDevices.length > 0 ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {filteredDevices.map((device) => {
-              const isSelected = device.id === selectedDeviceId;
-              return (
-                <button
-                  key={device.id}
-                  aria-label={device.name}
-                  aria-pressed={isSelected}
-                  className={joinClasses(
-                    'flex flex-col gap-4 rounded-3xl border p-5 text-left transition',
-                    isSelected
-                      ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
-                      : 'border-slate-800 bg-slate-950/40 hover:border-slate-600 hover:bg-slate-900/70',
-                  )}
-                  onClick={() => {
-                    setSelectedDeviceId(device.id);
-                    setNotice(null);
-                  }}
-                  type="button"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-lg font-semibold text-slate-50">
-                          {device.name}
-                        </span>
-                        <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
-                          {t(getWorkbenchProtocolLabelKey(device.protocol))}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-400">
-                        {device.description || t('workbench.device.card.noDescription')}
-                      </p>
-                    </div>
-                    <span
-                      className={joinClasses(
-                        'rounded-full border px-2 py-1 text-xs font-medium',
-                        getStatusClasses(device.status),
-                      )}
-                    >
-                      {t(getWorkbenchDeviceStatusLabelKey(device.status))}
-                    </span>
-                  </div>
-                  <dl className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <dt className={labelClassName}>
-                        {t('workbench.device.card.protocol')}
-                      </dt>
-                      <dd>{t(getWorkbenchProtocolLabelKey(device.protocol))}</dd>
-                    </div>
-                    <div className="space-y-1">
-                      <dt className={labelClassName}>
-                        {t('workbench.device.card.lastTest')}
-                      </dt>
-                      <dd>{getDeviceTestLabel(t, device)}</dd>
-                    </div>
-                  </dl>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
-
-      <aside className="rounded-3xl border border-slate-800 bg-slate-950/40 p-5">
-        {selectedDevice ? (
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                {t('workbench.device.inspector.eyebrow')}
-              </p>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-semibold text-slate-50">
-                  {selectedDevice.name}
-                </h3>
-                <p className="text-sm text-slate-300">
-                  {selectedDevice.description ||
-                    t('workbench.device.card.noDescription')}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
-                {t(getWorkbenchProtocolLabelKey(selectedDevice.protocol))}
-              </span>
-              <span
-                className={joinClasses(
-                  'rounded-full border px-2 py-1 text-xs font-medium',
-                  getStatusClasses(selectedDevice.status),
-                )}
-              >
-                {t(getWorkbenchDeviceStatusLabelKey(selectedDevice.status))}
-              </span>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-              <p className={labelClassName}>
-                {t('workbench.device.inspector.lastTest')}
-              </p>
-              <p className="mt-2 text-sm text-slate-200">
-                {getDeviceTestLabel(t, selectedDevice)}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                {getDeviceTestTimestampLabel(selectedDevice.last_test_at, t)}
-              </p>
-            </div>
-
-            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-              <p className={labelClassName}>
-                {t('workbench.device.inspector.connectionSummary')}
-              </p>
-              <dl className="space-y-3 text-sm text-slate-200">
-                {buildDeviceConnectionSummary(
-                  selectedDevice.protocol,
-                  parseDeviceConnectionConfig(selectedDevice.connection_config),
-                ).map((item) => (
-                  <div
-                    className="flex items-center justify-between gap-4"
-                    key={`${selectedDevice.id}-${item.labelKey}`}
-                  >
-                    <dt className="text-slate-400">{t(item.labelKey)}</dt>
-                    <dd className="text-right font-medium text-slate-100">
-                      {item.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-
-            <div className="grid gap-3">
+            <button
+              className={ghostButtonClassName}
+              onClick={() => void handleRefreshDevices()}
+              type="button"
+            >
+              {t('workbench.device.actions.refresh')}
+            </button>
+            <button
+              className={ghostButtonClassName}
+              disabled={!selectedDevice}
+              onClick={() => selectedDevice && openCloneDevicePanel(selectedDevice.id)}
+              type="button"
+            >
+              {t('workbench.device.actions.clone')}
+            </button>
+            {selectedDevice ? (
               <button
-                className={primaryButtonClassName}
+                className={ghostButtonClassName}
                 onClick={() => setActiveStep('source')}
                 type="button"
               >
                 {t('workbench.device.actions.continue')}
               </button>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  className={ghostButtonClassName}
-                  onClick={() => void handleTestConnection(selectedDevice)}
-                  type="button"
-                >
-                  {testConnectionMutation.isPending
-                    ? t('workbench.device.actions.testing')
-                    : t('workbench.device.actions.testConnection')}
-                </button>
-                <button
-                  className={ghostButtonClassName}
-                  onClick={() => openEditPanel(selectedDevice)}
-                  type="button"
-                >
-                  {t('workbench.device.actions.edit')}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-              {t('workbench.device.inspector.eyebrow')}
-            </p>
-            <div className="space-y-2">
-              <h3 className="text-2xl font-semibold text-slate-50">
-                {t('workbench.device.inspector.emptyTitle')}
-              </h3>
-              <p className="text-sm text-slate-300">
-                {t('workbench.device.inspector.emptyDescription')}
-              </p>
-            </div>
-            {devices.length > 0 ? (
-              <button
-                className={primaryButtonClassName}
-                onClick={openCreatePanel}
-                type="button"
-              >
-                {t('workbench.device.actions.create')}
-              </button>
             ) : null}
           </div>
-        )}
-      </aside>
+        ) : null}
+      </div>
 
-      {panelState ? (
+      <div className="grid gap-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-5 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <TextField
+          id="workbench-device-search"
+          label={t('workbench.device.search.label')}
+          onChange={setSearchQuery}
+          placeholder={t('workbench.device.search.placeholder')}
+          value={searchQuery}
+        />
+        <SelectField
+          id="workbench-device-protocol-filter"
+          label={t('workbench.device.filters.protocol')}
+          onChange={(value) =>
+            setProtocolFilter(value === 'all' ? 'all' : (value as ProtocolType))
+          }
+          options={protocolOptions}
+          value={protocolFilter}
+        />
+        <SelectField
+          id="workbench-device-status-filter"
+          label={t('workbench.device.filters.status')}
+          onChange={(value) =>
+            setStatusFilter(value === 'all' ? 'all' : (value as DeviceStatus))
+          }
+          options={statusOptions}
+          value={statusFilter}
+        />
+      </div>
+
+      {notice ? (
+        <div
+          className={joinClasses(
+            'rounded-2xl border px-4 py-3 text-sm',
+            getNoticeClasses(notice.tone),
+          )}
+          role="status"
+        >
+          {notice.message}
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-8 text-sm text-slate-400">
+          {t('workbench.device.loading')}
+        </div>
+      ) : null}
+
+      {!isLoading && devices.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/40 p-8 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+            {t('workbench.device.empty.eyebrow')}
+          </p>
+          <h3 className="mt-3 text-2xl font-semibold text-slate-50">
+            {t('workbench.device.empty.title')}
+          </h3>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-300">
+            {t('workbench.device.empty.description')}
+          </p>
+          <button
+            className={joinClasses(primaryButtonClassName, 'mt-6')}
+            onClick={openCreateDevicePanel}
+            type="button"
+          >
+            {t('workbench.device.actions.create')}
+          </button>
+        </div>
+      ) : null}
+
+      {!isLoading && devices.length > 0 && filteredDevices.length === 0 ? (
+        <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-8 text-center text-sm text-slate-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+            {t('workbench.device.filteredEmpty.eyebrow')}
+          </p>
+          <h3 className="mt-3 text-2xl font-semibold text-slate-50">
+            {t('workbench.device.filteredEmpty.title')}
+          </h3>
+          <p className="mt-3">{t('workbench.device.filteredEmpty.description')}</p>
+        </div>
+      ) : null}
+
+      {!isLoading && filteredDevices.length > 0 ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {filteredDevices.map((device) => {
+            const isSelected = device.id === selectedDeviceId;
+            const capabilitySummary = buildDeviceCapabilitySummary(
+              device.protocol,
+              parseDeviceConnectionConfig(device.connection_config),
+              t,
+            );
+
+            return (
+              <button
+                key={device.id}
+                aria-label={device.name}
+                aria-pressed={isSelected}
+                className={joinClasses(
+                  'flex flex-col gap-4 rounded-3xl border p-5 text-left transition',
+                  isSelected
+                    ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
+                    : 'border-slate-800 bg-slate-950/40 hover:border-slate-600 hover:bg-slate-900/70',
+                )}
+                onClick={() => {
+                  setSelectedDeviceId(device.id);
+                  setInspectorSelection({ kind: 'device', deviceId: device.id });
+                  setNotice(null);
+                }}
+                type="button"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-lg font-semibold text-slate-50">
+                        {device.name}
+                      </span>
+                      <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
+                        {t(getWorkbenchProtocolLabelKey(device.protocol))}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      {device.description || t('workbench.device.card.noDescription')}
+                    </p>
+                  </div>
+                  <span
+                    className={joinClasses(
+                      'rounded-full border px-2 py-1 text-xs font-medium',
+                      getStatusClasses(device.status),
+                    )}
+                  >
+                    {t(getWorkbenchDeviceStatusLabelKey(device.status))}
+                  </span>
+                </div>
+                <dl className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <dt className={labelClassName}>
+                      {t('workbench.device.card.protocol')}
+                    </dt>
+                    <dd>{t(getWorkbenchProtocolLabelKey(device.protocol))}</dd>
+                  </div>
+                  <div className="space-y-1">
+                    <dt className={labelClassName}>
+                      {t('workbench.device.card.lastTest')}
+                    </dt>
+                    <dd>{getDeviceTestLabel(t, device)}</dd>
+                  </div>
+                </dl>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {capabilitySummary.map((item) => (
+                    <div
+                      className="rounded-2xl border border-slate-800 bg-slate-950/70 px-3 py-3"
+                      key={`${device.id}-${item.id}`}
+                    >
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                        {t(item.labelKey)}
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-slate-100">
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {devicePanelState ? (
         <div className="absolute inset-0 z-20 flex justify-end bg-slate-950/70 p-4 backdrop-blur-sm">
           <div
             aria-modal="true"
@@ -1293,14 +1197,18 @@ export function WorkbenchDeviceStep() {
                   {t('workbench.device.panel.eyebrow')}
                 </p>
                 <h3 className="text-2xl font-semibold text-slate-50">
-                  {panelState.mode === 'create'
+                  {devicePanelState.mode === 'create'
                     ? t('workbench.device.panel.createTitle')
-                    : t('workbench.device.panel.editTitle')}
+                    : devicePanelState.mode === 'clone'
+                      ? t('workbench.device.panel.cloneTitle')
+                      : t('workbench.device.panel.editTitle')}
                 </h3>
                 <p className="text-sm text-slate-300">
-                  {panelState.mode === 'create'
+                  {devicePanelState.mode === 'create'
                     ? t('workbench.device.panel.createDescription')
-                    : t('workbench.device.panel.editDescription')}
+                    : devicePanelState.mode === 'clone'
+                      ? t('workbench.device.panel.cloneDescription')
+                      : t('workbench.device.panel.editDescription')}
                 </p>
               </div>
               <button
@@ -1344,7 +1252,7 @@ export function WorkbenchDeviceStep() {
                       label: t(getWorkbenchProtocolLabelKey(protocol)),
                     }))}
                     value={draft.protocol}
-                    disabled={panelState.mode === 'edit'}
+                    disabled={devicePanelState.mode !== 'create'}
                   />
                   <div className="md:col-span-2">
                     <TextAreaField

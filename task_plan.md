@@ -246,7 +246,87 @@
 - [x] 重新定義 Step 4：`OutputWorkspace`（Local Modbus + Database 同工作台）
 - [x] 核准產出新 spec：`docs/superpowers/specs/2026-03-16-datalink-workbench-desktop-redesign.md`
 - [x] scaffold OpenSpec change：`openspec/changes/redesign-datalink-workbench-desktop-flow/`
-- [ ] 完成新 spec review loop
-- [ ] 將設計同步成 OpenSpec proposal/design/specs/tasks artifacts
-- [ ] 再進入 implementation plan 與實作
+- [x] 完成 OpenSpec proposal/design/specs/tasks artifacts
+- [x] 完成 implementation execution plan（SQL backlog + phase breakdown）
 
+### Implementation Phase Breakdown（Redesign Round 2）
+
+**Phase 0: Shell Infrastructure（序列，已完成）**
+- [x] `redesign-shell-frame`：以五區 shell 取代現有 HeaderBar/ActionDock/StepNavigator
+- [x] `redesign-shell-state`：擴充 WorkbenchProvider，加入 readiness/inspector/output-target/cross-step 狀態
+  - 已補齊 `WorkbenchProvider` 的 `inspectorSelection`、`activeOutputTarget`、`crossStepContext`
+  - 已補齊 `workbenchTypes.ts` readiness / inspector / cross-step contracts
+  - 已補齊 `useWorkbenchSummary.ts` per-step readiness 匯總
+  - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-readiness.test.ts tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx`
+  - 驗證：`cd frontend && npm run lint`
+  - 驗證：`cd frontend && npx tsc --noEmit`
+
+**Phase 1: 四個 Step Workspace（可平行，依賴 Phase 0）**
+
+Step 1 — DeviceWorkspace：
+- [x] `redesign-device-workspace`：DeviceBrowser（搜尋/篩選/建立/重新整理/cards）
+- [x] `redesign-device-inspector`：Device inspector + ContextBar 能力摘要
+- [x] `redesign-device-clone`：Clone flow drawer（依賴 device-workspace）
+  - 已完成卡片 capability summary、右側 inspector 詳情、context bar capability chips、clone drawer
+  - 已以 session-local recent test history 補足 inspector 最近三次測試時間線
+  - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-readiness.test.ts tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx`
+  - 驗證：`cd frontend && npm run lint`
+  - 驗證：`cd frontend && npx tsc --noEmit`
+  - 驗證：`cd frontend && npm run build`
+
+Step 2 — AddressCanvasWorkspace：
+- `redesign-source-rule-model`：Rule 資料模型 + RuleLayerBar
+- `redesign-address-canvas`：連續 16-bit lattice + 多 rule merged spans（依賴 rule-model）
+- `redesign-source-viewmodes`：Plan/Live/Link + PlannerToolbar（依賴 canvas）
+- `redesign-source-templates`：本地 template 持久化（依賴 rule-model）
+- `redesign-source-inspector`：Step 2 inspector + audit surface（依賴 canvas）
+
+Step 3 — TagBindingBoard：
+- `redesign-tag-board`：Dense board 主面
+- `redesign-tag-batch`：Batch diff preview + 結果總表（依賴 tag-board）
+- `redesign-tag-inspector`：Step 3 inspector（依賴 tag-board）
+
+Step 4 — OutputWorkspace：
+- `redesign-output-board`：OutputCandidateBoard + TargetSwitcher
+- `redesign-modbus-studio`：RegisterMapCanvas + auto-map + dry-run（依賴 output-board）
+- `redesign-database-studio`：Schema snapshot + mapping UI（依賴 output-board）
+- `redesign-output-inspector`：Source→tag→output trace（依賴 output-board）
+
+**Phase 2: Quality + Rollout（依賴所有 Step 完成）**
+- `redesign-i18n-a11y`：i18n + 鍵盤導覽 + aria
+- `redesign-regression-tests`：1920×1080 regression + 功能覆蓋
+- `redesign-legacy-compat`：Legacy route 相容策略
+
+### Parallelism Map
+
+```
+Phase 0 (serial):
+  shell-frame → shell-state
+
+Phase 1 (4 parallel tracks after Phase 0):
+  Track A: device-workspace ──┬─→ device-clone
+                              └─→ device-inspector
+  Track B: source-rule-model ─┬─→ address-canvas ──┬─→ source-viewmodes
+                              │                     └─→ source-inspector
+                              └─→ source-templates
+  Track C: tag-board ─────────┬─→ tag-batch
+                              └─→ tag-inspector
+  Track D: output-board ──────┬─→ modbus-studio
+                              ├─→ database-studio
+                              └─→ output-inspector
+
+Phase 2 (serial after all tracks):
+  i18n-a11y → regression-tests → legacy-compat
+```
+
+### 實作原則
+- 不重用舊 presentational components，僅重用 hooks/services/types/helper
+- 所有新 UI 元件以 Opus-first 品質為目標
+- 每個 todo 含對應測試，測試先行
+- 每個 step 完成後獨立驗證 lint + build
+- i18n 字典隨各 step 同步更新，Phase 2 做最終稽核
+
+### 當前 ready queue
+- `redesign-source-rule-model`
+- `redesign-tag-board`
+- `redesign-output-board`

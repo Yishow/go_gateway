@@ -449,6 +449,53 @@
     "stepNavigator": {
       "ariaLabel": "工作流步驟"
     },
+    "stepRail": {
+      "ariaLabel": "工作台步驟導軌",
+      "heading": "步驟"
+    },
+    "contextBar": {
+      "ariaLabel": "工作台上下文列",
+      "noDevice": "尚未選擇設備",
+      "testPassed": "連線測試成功",
+      "testFailed": "連線測試失敗",
+      "notTested": "尚未測試",
+      "actions": {
+        "selectDevice": "選擇設備",
+        "switchDevice": "切換設備",
+        "gotoSource": "前往來源規劃",
+        "gotoOutput": "前往輸出設定"
+      }
+    },
+    "inspector": {
+      "ariaLabel": "工作台檢查面板",
+      "heading": "檢查面板",
+      "placeholder": "在工作區選取項目以檢視其詳細資訊。",
+      "noSelection": "未選取",
+      "selectionKind": {
+        "device": "設備",
+        "rule": "規則",
+        "span": "位址區段",
+        "tag": "標籤",
+        "outputCandidate": "輸出候選項"
+      }
+    },
+    "bottomSummary": {
+      "ariaLabel": "工作台摘要列",
+      "points": "Point 數量",
+      "tags": "Tag 數量",
+      "outputs": "輸出數量",
+      "readiness": {
+        "source": "來源",
+        "tag": "Tag",
+        "output": "輸出",
+        "device": "設備"
+      },
+      "target": "輸出目標",
+      "targets": {
+        "modbus": "本地 Modbus",
+        "database": "資料庫"
+      }
+    },
     "actionDock": {
       "ariaLabel": "工作台操作摘要",
       "title": "執行摘要",
@@ -773,6 +820,7 @@
       "actions": {
         "create": "新增設備",
         "refresh": "重新整理",
+        "clone": "從已選設備複製",
         "continue": "使用這台設備進入來源規劃",
         "testConnection": "測試連線",
         "testing": "測試中…",
@@ -802,17 +850,39 @@
         "eyebrow": "設備 Inspector",
         "lastTest": "最後測試結果",
         "noTestYet": "尚未執行連線測試",
+        "capabilitySummary": "能力摘要",
         "connectionSummary": "連線摘要",
+        "recentTests": "最近三次連線測試",
         "emptyTitle": "先選擇一台設備",
         "emptyDescription": "選取左側設備卡後，這裡會顯示協定、連線摘要與下一步操作。若還沒有設備，也可以直接從這裡建立。",
         "unknownTestTime": "測試時間尚未同步"
+      },
+      "capability": {
+        "labels": {
+          "addressBase": "位址基準",
+          "wordOrder": "字序",
+          "unitId": "站號 / Unit ID",
+          "protocolTraits": "協定特性"
+        },
+        "values": {
+          "modbusRegister": "4x / 40001",
+          "protocolDefault": "協定預設",
+          "notSpecified": "未指定",
+          "notApplicable": "不適用",
+          "protocolNative": "協定原生位址",
+          "topicBased": "Topic 型位址",
+          "tlsEnabled": "已啟用 TLS",
+          "tlsDisabled": "未啟用 TLS"
+        }
       },
       "panel": {
         "eyebrow": "嵌入式設備面板",
         "createTitle": "建立新設備",
         "editTitle": "編輯設備",
+        "cloneTitle": "複製設備成新的來源",
         "createDescription": "用新的 workbench flow 直接完成設備建立，不再跳出舊式 modal/wizard。",
-        "editDescription": "保留目前選擇脈絡，在同一個工作台裡調整設備連線設定。"
+        "editDescription": "保留目前選擇脈絡，在同一個工作台裡調整設備連線設定。",
+        "cloneDescription": "沿用已選設備的連線與能力預設，但儲存前仍必須確認新的設備識別。"
       },
       "fields": {
         "name": "設備名稱",

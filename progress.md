@@ -383,7 +383,7 @@
   - `cd frontend && npm run lint`
   - `cd frontend && npm run build`
 
-## 2026-03-16：Workbench desktop redesign round 2（brainstorming -> spec drafting）
+## 2026-03-16：Workbench desktop redesign round 2（brainstorming -> spec drafting -> execution plan）
 - 已依使用者要求停止把 layout 問題當成小修，改以第二輪 desktop redesign 處理。
 - 已確認 root cause：workbench shell 偏離原 spec 骨架，導致 1920×1080 下主區過窄，Step 1 內嵌 inspector 壓縮主欄，Step 2 缺 detail surface。
 - 已與使用者逐段確認：
@@ -399,4 +399,33 @@
   - Step 4：register map、base/offset、schema snapshot、required/missing、output readiness、filter/search、auto-map、dry-run、health summary、preview、sync result
 - 已建立新 spec：`docs/superpowers/specs/2026-03-16-datalink-workbench-desktop-redesign.md`
 - 已 scaffold OpenSpec change：`openspec/changes/redesign-datalink-workbench-desktop-flow/`
+- 已完成 OpenSpec proposal/design/specs/tasks artifacts
 
+### Execution plan 完成（本 session）
+- 建立 20 個 SQL todos（`redesign-*`）與 31 條 dependency edges
+- Phase 0（Shell）→ Phase 1（四條平行 track）→ Phase 2（Quality + Rollout）
+- 最大平行度：Phase 0 完成後可同時啟動 4 個 step workspace track
+- 每個 track 內部有序列依賴（如 rule-model → canvas → viewmodes）
+- 更新 `task_plan.md` 加入完整 phase breakdown 與 parallelism map
+- 更新 `findings.md` 加入 redesign follow-up 記錄
+- 更新 session `plan.md` 加入 execution plan 指引
+- 已完成 Phase 0 shell：
+  - `WorkbenchFrame` / `WorkbenchStepRail` / `WorkbenchContextBar` / `WorkbenchInspectorPanel` / `WorkbenchBottomSummaryBar`
+  - `WorkbenchProvider` 新增 `inspectorSelection`、`activeOutputTarget`、`crossStepContext`
+  - `useWorkbenchSummary` 新增 device/source/tag/output readiness 匯總
+- Phase 0 驗證：
+  - `cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-readiness.test.ts tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx`（54 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+- 已完成 Phase 1 / Step 1 slice：
+  - `WorkbenchDeviceStep` 改為新 DeviceBrowser 主區，不再內嵌第二個 desktop inspector
+  - `WorkbenchInspectorPanel` 在 Step 1 會顯示 device identity / capability summary / connection summary / recent test timeline / clone action
+  - `WorkbenchContextBar` 顯示 selected device capability chips
+  - clone flow 以 workbench drawer 形式預填 connection defaults，但保留空白 name 強制新識別
+- 本輪驗證：
+  - `cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-readiness.test.ts tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx`（59 tests passed）
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- Reviewer sub-agent 多次因 429 未能返回有效 review，本輪改以 TDD + targeted validation + controller manual spec spot-check 收斂 Step 1。
+- 下一步：dispatch Phase 1 下一波 ready todos（source-rule-model / tag-board / output-board）

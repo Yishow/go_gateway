@@ -485,7 +485,22 @@
 ## 2026-03-16：Workbench desktop redesign round 2 關鍵發現
 - 1920×1080 下的主要問題不是單一 CSS 細修，而是 shell IA drift：主工作區被 `max-w` 內容框與常駐 summary dock 共同壓縮。
 - Step 1 不能在 desktop main column 內再自帶第二個 inline inspector，否則即使 viewport 很寬，實際可用內容仍過窄。
+- Step 1 的 capability summary 目前沒有後端專用欄位可直接讀取 `address base / word order`；安全做法是用 `connection_config` + protocol defaults/traits 派生，缺值時顯示 `protocol default / not specified / n/a`，而不是虛構 schema。
+- Step 1 的「最近三次連線測試」可先以前端 session-local history 補齊：沿用後端 `last_test_*` 當 fallback latest snapshot，並在 workbench 內每次 `Test connection` 後將結果推入最近三筆時間線。
 - Step 2 的價值不只是地址規畫，還包含即時值監看與規則模板；因此 `AddressCanvas` 需要穩定幾何 + 可切換資訊層，而不是切成多套獨立頁面。
 - Step 3 使用者更在意 tag 管理資訊密度，而不只是批次操作按鈕；主區必須直接露出 naming/source/value/merge/status 等資訊。
 - Step 4 若只保留表格式設定，無法達到「能理解、能驗證、能維運」；Local Modbus 與 Database 都需要各自的可視化與驗證面。
+- shell state 需要明確拆成兩種脈絡：
+  - `inspectorSelection`：只代表目前步驟的局部選取，切步驟時必須清掉
+  - `crossStepContext`：保存 Step 2 → Step 3 → Step 4 的焦點 rule/tag 線索，只在切換 device 時重置
+- `useWorkbenchSummary` 已成為 shell 層的單一 readiness 匯總來源；StepRail 與 BottomSummaryBar 應共用這份導出，避免各自重算。
+- frontend Vitest 的正式入口仍以 `frontend/tests/unit/**` wrapper 為主；若要做 targeted validation，應優先跑 wrapper 檔而不是直接把 `src/pages/.../__tests__` 路徑丟給 `npm run test`.
 
+
+### Execution plan 關鍵決策
+- 拆為 20 個 todos，以最大化平行度：Phase 0 完成後可同時展開 4 條 track（Device/Source/Tag/Output）。
+- 每條 track 內部有序列依賴，但 track 之間完全獨立，適合 fleet dispatch。
+- 現有 workbench 檔案（WorkbenchDeviceStep、SourceCanvasSection、TagBindingStudio、LocalModbusBoard 等）視為「可參考但需重做」，不直接 patch。
+- workbenchDeviceFormModel.ts、sourceCanvasModel.ts、tagBindingModel.ts 的計算邏輯可重用，但 UI composition 需重寫。
+- i18n 鍵在各 step 實作時同步擴充，Phase 2 做最終稽核。
+- 不在此輪刪除 legacy routes（SmartDashboard、LocalModbusWorkbenchPage），僅決策導流策略。

@@ -449,6 +449,53 @@
     "stepNavigator": {
       "ariaLabel": "Workbench steps"
     },
+    "stepRail": {
+      "ariaLabel": "Workbench step rail",
+      "heading": "Steps"
+    },
+    "contextBar": {
+      "ariaLabel": "Workbench context bar",
+      "noDevice": "No device selected",
+      "testPassed": "Connection test passed",
+      "testFailed": "Connection test failed",
+      "notTested": "Not tested yet",
+      "actions": {
+        "selectDevice": "Select device",
+        "switchDevice": "Switch device",
+        "gotoSource": "Go to source",
+        "gotoOutput": "Go to output"
+      }
+    },
+    "inspector": {
+      "ariaLabel": "Workbench inspector",
+      "heading": "Inspector",
+      "placeholder": "Select an item in the work area to see its details here.",
+      "noSelection": "No selection",
+      "selectionKind": {
+        "device": "Device",
+        "rule": "Rule",
+        "span": "Address Span",
+        "tag": "Tag",
+        "outputCandidate": "Output Candidate"
+      }
+    },
+    "bottomSummary": {
+      "ariaLabel": "Workbench summary bar",
+      "points": "Points",
+      "tags": "Tags",
+      "outputs": "Outputs",
+      "readiness": {
+        "source": "Source",
+        "tag": "Tag",
+        "output": "Output",
+        "device": "Device"
+      },
+      "target": "Target",
+      "targets": {
+        "modbus": "Local Modbus",
+        "database": "Database"
+      }
+    },
     "actionDock": {
       "ariaLabel": "Workbench action dock",
       "title": "Execution summary",
@@ -773,6 +820,7 @@
       "actions": {
         "create": "Create device",
         "refresh": "Refresh",
+        "clone": "Clone from selected",
         "continue": "Use this device for source planning",
         "testConnection": "Test connection",
         "testing": "Testing…",
@@ -802,17 +850,39 @@
         "eyebrow": "Device inspector",
         "lastTest": "Latest test result",
         "noTestYet": "No connection test has been run yet",
+        "capabilitySummary": "Capability summary",
         "connectionSummary": "Connection summary",
+        "recentTests": "Recent connection tests",
         "emptyTitle": "Select a device first",
         "emptyDescription": "Once you pick a device card, this panel shows the protocol, connection summary, and next actions. If there is no device yet, create one here.",
         "unknownTestTime": "Test timestamp not available yet"
+      },
+      "capability": {
+        "labels": {
+          "addressBase": "Address base",
+          "wordOrder": "Word order",
+          "unitId": "Unit ID",
+          "protocolTraits": "Protocol traits"
+        },
+        "values": {
+          "modbusRegister": "4x / 40001",
+          "protocolDefault": "Protocol default",
+          "notSpecified": "Not specified",
+          "notApplicable": "N/A",
+          "protocolNative": "Protocol native",
+          "topicBased": "Topic-based",
+          "tlsEnabled": "TLS on",
+          "tlsDisabled": "TLS off"
+        }
       },
       "panel": {
         "eyebrow": "Embedded device panel",
         "createTitle": "Create a new device",
         "editTitle": "Edit device",
+        "cloneTitle": "Clone device into a new source",
         "createDescription": "Finish device setup in the new workbench flow without jumping back into the old modal or wizard shell.",
-        "editDescription": "Adjust the selected device in context, without leaving the workbench."
+        "editDescription": "Adjust the selected device in context, without leaving the workbench.",
+        "cloneDescription": "Start from the selected device defaults, but confirm a distinct device identity before saving."
       },
       "fields": {
         "name": "Device name",

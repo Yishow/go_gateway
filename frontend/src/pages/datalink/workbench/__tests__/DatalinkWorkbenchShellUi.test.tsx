@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
@@ -110,7 +110,7 @@ function renderPage() {
   );
 }
 
-describe('DatalinkWorkbench shell UI', () => {
+describe('DatalinkWorkbench five-region shell', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -120,7 +120,7 @@ describe('DatalinkWorkbench shell UI', () => {
       description: '',
       protocol: 'modbus_tcp',
       status: 'active',
-      connection_config: '{}',
+      connection_config: '{"host":"192.168.1.10","port":502,"slave_id":7,"timeout":5}',
       last_test_at: null,
       last_test_success: null,
       last_test_error: '',
@@ -189,35 +189,167 @@ describe('DatalinkWorkbench shell UI', () => {
     });
   });
 
-  it('shows workbench summary metrics after a device is selected', () => {
-    renderPage();
+  describe('WorkbenchFrame layout', () => {
+    it('renders all five shell regions', () => {
+      renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      expect(screen.getByTestId('workbench-frame')).toBeInTheDocument();
+      expect(screen.getByTestId('workbench-context-bar')).toBeInTheDocument();
+      expect(screen.getByTestId('workbench-step-rail')).toBeInTheDocument();
+      expect(screen.getByTestId('workbench-primary-work-area')).toBeInTheDocument();
+      expect(screen.getByTestId('workbench-inspector-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('workbench-bottom-summary-bar')).toBeInTheDocument();
+    });
 
-    expect(screen.getByTestId('workbench-header-point-count')).toHaveTextContent('2');
-    expect(screen.getByTestId('workbench-header-tag-count')).toHaveTextContent('1');
-    expect(screen.getByTestId('workbench-header-output-count')).toHaveTextContent('1');
-    expect(
-      screen.getByText('workbench.actionDock.nextAction.advanceToTag'),
-    ).toBeInTheDocument();
+    it('does not render the old ActionDock or HeaderBar', () => {
+      renderPage();
+
+      expect(screen.queryByText('workbench.actionDock.title')).not.toBeInTheDocument();
+      expect(screen.queryByText('workbench.header.eyebrow')).not.toBeInTheDocument();
+    });
   });
 
-  it('updates the action dock guidance when the active step changes', async () => {
-    renderPage();
+  describe('WorkbenchStepRail', () => {
+    it('renders all four steps in the rail', () => {
+      renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    expect(screen.getByText('workbench.actionDock.nextAction.advanceToTag')).toBeInTheDocument();
+      const rail = screen.getByTestId('workbench-step-rail');
+      expect(within(rail).getByRole('button', { name: /workbench\.steps\.device/ })).toBeInTheDocument();
+      expect(within(rail).getByRole('button', { name: /workbench\.steps\.source/ })).toBeInTheDocument();
+      expect(within(rail).getByRole('button', { name: /workbench\.steps\.tag/ })).toBeInTheDocument();
+      expect(within(rail).getByRole('button', { name: /workbench\.steps\.output/ })).toBeInTheDocument();
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
-    expect(screen.getByText('workbench.actionDock.nextAction.advanceToOutput')).toBeInTheDocument();
+    it('highlights the active step with aria-current', () => {
+      renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
-    await waitFor(() => {
+      const rail = screen.getByTestId('workbench-step-rail');
+      const deviceBtn = within(rail).getByRole('button', { name: /workbench\.steps\.device/ });
+      expect(deviceBtn).toHaveAttribute('aria-current', 'step');
+
+      fireEvent.click(within(rail).getByRole('button', { name: /workbench\.steps\.source/ }));
+      expect(deviceBtn).not.toHaveAttribute('aria-current');
+      expect(within(rail).getByRole('button', { name: /workbench\.steps\.source/ })).toHaveAttribute('aria-current', 'step');
+    });
+  });
+
+  describe('WorkbenchContextBar', () => {
+    it('shows device name when a device is selected', () => {
+      renderPage();
+
+      // Select the device first by clicking it in the device step
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      expect(screen.getByTestId('context-bar-device-name')).toHaveTextContent('Mixer PLC');
+    });
+
+    it('shows device capability chips when a device is selected', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      expect(screen.getByTestId('context-bar-capability-unit-id')).toBeInTheDocument();
+      expect(screen.getByTestId('context-bar-capability-address-base')).toBeInTheDocument();
+      expect(screen.getByTestId('context-bar-capability-word-order')).toBeInTheDocument();
+      expect(screen.getByTestId('context-bar-capability-protocol-traits')).toBeInTheDocument();
+    });
+
+    it('shows no-device label when no device is selected', () => {
+      mockDevices.splice(0, mockDevices.length);
+      renderPage();
+
+      expect(screen.getByTestId('context-bar-device-name')).toHaveTextContent('workbench.contextBar.noDevice');
+    });
+
+    it('provides quick-action buttons for navigation', () => {
+      renderPage();
+
+      const contextBar = screen.getByTestId('workbench-context-bar');
+      expect(within(contextBar).getByText('workbench.contextBar.actions.selectDevice')).toBeInTheDocument();
+      expect(within(contextBar).getByText('workbench.contextBar.actions.gotoSource')).toBeInTheDocument();
+      expect(within(contextBar).getByText('workbench.contextBar.actions.gotoOutput')).toBeInTheDocument();
+    });
+  });
+
+  describe('WorkbenchInspectorPanel', () => {
+    it('renders the inspector with step-dependent heading', () => {
+      renderPage();
+
+      const inspector = screen.getByTestId('workbench-inspector-panel');
+      expect(inspector).toBeInTheDocument();
       expect(
-        screen.getByText('workbench.actionDock.nextAction.configureOutput'),
+        within(inspector).getByText('workbench.device.inspector.emptyTitle'),
       ).toBeInTheDocument();
+    });
+
+    it('shows device-step empty state when no item is selected', () => {
+      renderPage();
+
+      expect(
+        screen.getByText('workbench.device.inspector.emptyTitle'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('workbench.device.inspector.emptyDescription'),
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId('inspector-selection-context')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('WorkbenchBottomSummaryBar', () => {
+    it('shows summary metrics after device is selected', () => {
+      renderPage();
+
+      // Select device to populate counters
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      expect(screen.getByTestId('summary-point-count')).toHaveTextContent('2');
+      expect(screen.getByTestId('summary-tag-count')).toHaveTextContent('1');
+      expect(screen.getByTestId('summary-output-count')).toHaveTextContent('1');
+    });
+
+    it('shows readiness indicators with four steps', () => {
+      renderPage();
+
+      const summaryBar = screen.getByTestId('workbench-bottom-summary-bar');
+      expect(within(summaryBar).getByText('workbench.bottomSummary.readiness.device')).toBeInTheDocument();
+      expect(within(summaryBar).getByText('workbench.bottomSummary.readiness.source')).toBeInTheDocument();
+      expect(within(summaryBar).getByText('workbench.bottomSummary.readiness.tag')).toBeInTheDocument();
+      expect(within(summaryBar).getByText('workbench.bottomSummary.readiness.output')).toBeInTheDocument();
+    });
+
+    it('shows the active output target badge', () => {
+      renderPage();
+
+      expect(screen.getByTestId('active-output-target')).toBeInTheDocument();
+      expect(screen.getByText('workbench.bottomSummary.targets.modbus')).toBeInTheDocument();
+    });
+
+    it('propagates rich readiness status via data attributes', () => {
+      renderPage();
+
+      // No device selected yet → device readiness should be "draft"
+      const deviceIndicator = screen.getByTestId('readiness-device');
+      expect(deviceIndicator).toHaveAttribute('data-readiness', 'draft');
+    });
+  });
+
+  describe('Step switching wires content into PrimaryWorkArea', () => {
+    it('switches step content when step rail buttons are clicked', () => {
+      renderPage();
+
+      const rail = screen.getByTestId('workbench-step-rail');
+      const workArea = screen.getByTestId('workbench-primary-work-area');
+
+      // Device step is the default — device step content should be in work area
+      expect(workArea).toBeInTheDocument();
+
+      // Switch to source step
+      fireEvent.click(within(rail).getByRole('button', { name: /workbench\.steps\.source/ }));
+      expect(screen.getByTestId('workbench-primary-work-area')).toBeInTheDocument();
+
+      // Switch to tag step
+      fireEvent.click(within(rail).getByRole('button', { name: /workbench\.steps\.tag/ }));
+      expect(screen.getByTestId('workbench-primary-work-area')).toBeInTheDocument();
     });
   });
 });

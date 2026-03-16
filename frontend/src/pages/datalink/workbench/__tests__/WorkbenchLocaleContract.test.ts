@@ -20,4 +20,84 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.steps.tag).not.toBe(enCommon.workbench.steps.tag);
     expect(zhTWCommon.workbench.steps.output).not.toBe(enCommon.workbench.steps.output);
   });
+
+  it('ships localized zh-TW strings for the five-region shell components', () => {
+    expect(zhTWCommon.workbench.stepRail.ariaLabel).not.toBe(enCommon.workbench.stepRail.ariaLabel);
+    expect(zhTWCommon.workbench.stepRail.heading).not.toBe(enCommon.workbench.stepRail.heading);
+    expect(zhTWCommon.workbench.contextBar.ariaLabel).not.toBe(enCommon.workbench.contextBar.ariaLabel);
+    expect(zhTWCommon.workbench.contextBar.noDevice).not.toBe(enCommon.workbench.contextBar.noDevice);
+    expect(zhTWCommon.workbench.inspector.ariaLabel).not.toBe(enCommon.workbench.inspector.ariaLabel);
+    expect(zhTWCommon.workbench.inspector.heading).not.toBe(enCommon.workbench.inspector.heading);
+    expect(zhTWCommon.workbench.inspector.placeholder).not.toBe(enCommon.workbench.inspector.placeholder);
+    expect(zhTWCommon.workbench.bottomSummary.ariaLabel).not.toBe(enCommon.workbench.bottomSummary.ariaLabel);
+    expect(zhTWCommon.workbench.bottomSummary.points).not.toBe(enCommon.workbench.bottomSummary.points);
+  });
+
+  it('ships localized zh-TW strings for the shared state shell (readiness, inspector, output target)', () => {
+    // Readiness – device label
+    expect(zhTWCommon.workbench.bottomSummary.readiness.device).not.toBe(
+      enCommon.workbench.bottomSummary.readiness.device,
+    );
+
+    // Output target
+    expect(zhTWCommon.workbench.bottomSummary.target).not.toBe(
+      enCommon.workbench.bottomSummary.target,
+    );
+    expect(zhTWCommon.workbench.bottomSummary.targets.modbus).not.toBe(
+      enCommon.workbench.bottomSummary.targets.modbus,
+    );
+    expect(zhTWCommon.workbench.bottomSummary.targets.database).not.toBe(
+      enCommon.workbench.bottomSummary.targets.database,
+    );
+
+    // Inspector selection kinds
+    expect(zhTWCommon.workbench.inspector.noSelection).not.toBe(
+      enCommon.workbench.inspector.noSelection,
+    );
+    expect(zhTWCommon.workbench.inspector.selectionKind.device).not.toBe(
+      enCommon.workbench.inspector.selectionKind.device,
+    );
+    expect(zhTWCommon.workbench.inspector.selectionKind.rule).not.toBe(
+      enCommon.workbench.inspector.selectionKind.rule,
+    );
+    expect(zhTWCommon.workbench.inspector.selectionKind.span).not.toBe(
+      enCommon.workbench.inspector.selectionKind.span,
+    );
+    expect(zhTWCommon.workbench.inspector.selectionKind.tag).not.toBe(
+      enCommon.workbench.inspector.selectionKind.tag,
+    );
+    expect(zhTWCommon.workbench.inspector.selectionKind.outputCandidate).not.toBe(
+      enCommon.workbench.inspector.selectionKind.outputCandidate,
+    );
+  });
+
+  it('ships localized zh-TW strings for Step 1 capability, clone, and recent-test surfaces', () => {
+    expect(zhTWCommon.workbench.device.actions.clone).not.toBe(
+      enCommon.workbench.device.actions.clone,
+    );
+    expect(zhTWCommon.workbench.device.panel.cloneTitle).not.toBe(
+      enCommon.workbench.device.panel.cloneTitle,
+    );
+    expect(zhTWCommon.workbench.device.panel.cloneDescription).not.toBe(
+      enCommon.workbench.device.panel.cloneDescription,
+    );
+    expect(zhTWCommon.workbench.device.inspector.capabilitySummary).not.toBe(
+      enCommon.workbench.device.inspector.capabilitySummary,
+    );
+    expect(zhTWCommon.workbench.device.inspector.recentTests).not.toBe(
+      enCommon.workbench.device.inspector.recentTests,
+    );
+    expect(zhTWCommon.workbench.device.capability.labels.addressBase).not.toBe(
+      enCommon.workbench.device.capability.labels.addressBase,
+    );
+    expect(zhTWCommon.workbench.device.capability.labels.wordOrder).not.toBe(
+      enCommon.workbench.device.capability.labels.wordOrder,
+    );
+    expect(zhTWCommon.workbench.device.capability.labels.unitId).not.toBe(
+      enCommon.workbench.device.capability.labels.unitId,
+    );
+    expect(zhTWCommon.workbench.device.capability.labels.protocolTraits).not.toBe(
+      enCommon.workbench.device.capability.labels.protocolTraits,
+    );
+  });
 });
