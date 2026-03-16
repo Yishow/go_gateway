@@ -6,12 +6,40 @@ import {
   type SourceViewMode,
 } from './sourceCanvasModel';
 
+const LATTICE_COLUMNS = 16;
+
 const statusClassName: Record<AddressCanvasItem['status'], string> = {
   conflict: 'border-rose-500/50 bg-rose-900/30 text-rose-100',
   gap: 'border-slate-800 bg-slate-950/40 text-slate-500',
   planned: 'border-sky-700/40 bg-sky-900/20 text-sky-100',
   used: 'border-emerald-700/40 bg-emerald-900/20 text-emerald-100',
 };
+
+function chunkItems(items: ReadonlyArray<AddressCanvasItem>, size: number) {
+  const rows: AddressCanvasItem[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+
+  return rows;
+}
+
+function getMergeShapeClassName(item: AddressCanvasItem) {
+  if (item.mergeSpan <= 1) {
+    return 'rounded-xl';
+  }
+
+  if (item.mergeOffset === 0) {
+    return 'rounded-l-xl rounded-r-none';
+  }
+
+  if (item.mergeOffset === item.mergeSpan - 1) {
+    return '-ml-px rounded-l-none rounded-r-xl';
+  }
+
+  return '-ml-px rounded-none';
+}
 
 function getPrimaryLabel(item: AddressCanvasItem, t: (key: string) => string) {
   switch (item.status) {
@@ -71,6 +99,7 @@ export function AddressCanvas({
   viewMode: SourceViewMode;
 }) {
   const { t } = useTranslation();
+  const rows = chunkItems(items, LATTICE_COLUMNS);
 
   if (items.length === 0) {
     return (
@@ -82,46 +111,68 @@ export function AddressCanvas({
 
   return (
     <div
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5 2xl:grid-cols-6"
+      className="space-y-3"
       data-testid="source-canvas"
       data-view-mode={viewMode}
     >
-      {items.map((item) => (
-        <button
-          key={item.address}
-          data-testid={`address-cell-${item.address}`}
-          data-status={item.status}
-          className={[
-            'rounded-2xl border p-4 text-left transition',
-            statusClassName[item.status],
-            selectedAddress === item.address ? 'ring-2 ring-cyan-400/60' : '',
-          ].join(' ')}
-          onClick={() => onSelectAddress?.(item.address)}
-          type="button"
+      {rows.map((rowItems, rowIndex) => (
+        <div
+          key={`source-canvas-row-${rowIndex}`}
+          className="grid gap-0.5 rounded-2xl border border-slate-800 bg-slate-900/70 p-1"
+          data-lattice-columns={String(LATTICE_COLUMNS)}
+          data-row-end-address={rowItems.at(-1)?.address ?? ''}
+          data-row-start-address={rowItems[0]?.address ?? ''}
+          data-testid={`source-canvas-row-${rowIndex}`}
+          style={{ gridTemplateColumns: `repeat(${LATTICE_COLUMNS}, minmax(0, 1fr))` }}
         >
-          <p className="font-mono text-xs uppercase tracking-[0.18em] text-slate-300">
-            {item.address}
-          </p>
-          <div className="mt-3 space-y-1">
-            <p className="text-sm font-semibold text-white">
-              {getPrimaryLabel(item, t)}
-            </p>
-            <p className="text-xs text-slate-300">
-              {getOverlayValue({ item, t, valueFormat, viewMode })}
-            </p>
-            {viewMode === 'plan' && item.mergeSpan > 1 ? (
-              <p className="text-xs text-cyan-100">
-                {t('workbench.source.canvas.mergeState', { cells: item.mergeSpan })}
-              </p>
-            ) : null}
-            {viewMode === 'live' && item.liveTimestamp ? (
-              <p className="text-xs text-slate-400">{item.liveTimestamp}</p>
-            ) : null}
-            {item.primaryRuleId ? (
-              <p className="text-[11px] text-slate-400">{item.primaryRuleId}</p>
-            ) : null}
-          </div>
-        </button>
+          {rowItems.map((item) => {
+            const isMergeContinuation = item.mergeSpan > 1 && item.mergeOffset > 0;
+
+            return (
+              <button
+                aria-pressed={selectedAddress === item.address}
+                key={item.address}
+                data-merge-offset={String(item.mergeOffset)}
+                data-merge-span={String(item.mergeSpan)}
+                data-status={item.status}
+                data-testid={`address-cell-${item.address}`}
+                className={[
+                  'min-h-28 border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60',
+                  statusClassName[item.status],
+                  getMergeShapeClassName(item),
+                  selectedAddress === item.address ? 'ring-2 ring-cyan-400/60' : '',
+                ].join(' ')}
+                onClick={() => onSelectAddress?.(item.address)}
+                type="button"
+              >
+                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-300">
+                  {item.address}
+                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs font-semibold text-white">
+                    {isMergeContinuation
+                      ? `+${item.mergeOffset}`
+                      : getPrimaryLabel(item, t)}
+                  </p>
+                  <p className="text-[11px] text-slate-300">
+                    {getOverlayValue({ item, t, valueFormat, viewMode })}
+                  </p>
+                  {viewMode === 'plan' && item.mergeSpan > 1 && item.mergeOffset === 0 ? (
+                    <p className="text-[11px] text-cyan-100">
+                      {t('workbench.source.canvas.mergeState', { cells: item.mergeSpan })}
+                    </p>
+                  ) : null}
+                  {viewMode === 'live' && item.liveTimestamp && !isMergeContinuation ? (
+                    <p className="text-[11px] text-slate-400">{item.liveTimestamp}</p>
+                  ) : null}
+                  {item.primaryRuleId && !isMergeContinuation ? (
+                    <p className="text-[11px] text-slate-400">{item.primaryRuleId}</p>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       ))}
     </div>
   );

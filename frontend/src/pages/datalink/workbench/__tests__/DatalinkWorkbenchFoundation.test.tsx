@@ -118,6 +118,8 @@ vi.mock('@/router/gateway', () => ({
 vi.mock('@/features/datalink/legacyRoutes', () => ({
   buildDashboardModalRedirect: (intent: string) => `/mock/dashboard/${intent}`,
   buildLegacyMigrationRedirect: (intent: string) => `/mock/legacy/${intent}`,
+  buildLocalModbusCompatRedirect: (section?: string | null) =>
+    `/datalink/workbench?step=output&target=modbus${section ? `&section=${section}` : ''}`,
 }));
 
 vi.mock('@/services/datalink', async () => {
@@ -221,6 +223,37 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(screen.getByTestId('workbench-inspector-panel')).toBeInTheDocument();
   });
 
+  it('supports workbench deep links for step and output target', async () => {
+    window.history.pushState({}, '', '/datalink/workbench?step=output&target=database');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+    expect(screen.getByTestId('active-output-target')).toHaveTextContent(
+      'workbench.bottomSummary.targets.database',
+    );
+  });
+
+  it('redirects legacy local modbus entry into the new workbench output step', async () => {
+    window.history.pushState({}, '', '/datalink/local-modbus?section=settings');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+    expect(screen.queryByTestId('local-modbus-workbench-mock')).not.toBeInTheDocument();
+    expect(screen.getByTestId('active-output-target')).toHaveTextContent(
+      'workbench.bottomSummary.targets.modbus',
+    );
+  });
+
   it('selects a device from the device step and advances to source planning', () => {
     renderApp();
 
@@ -259,6 +292,39 @@ describe('DatalinkWorkbench foundation route', () => {
 
     expect(
       screen.getByRole('heading', { name: 'workbench.device.panel.createTitle' }),
+    ).toBeInTheDocument();
+  });
+
+  it('localizes protocol-specific connection option labels in the create drawer', () => {
+    mockDevices.splice(0, mockDevices.length);
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.create' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.device.fields.protocol'), {
+      target: { value: 'modbus_rtu' },
+    });
+
+    const paritySelect = screen.getByLabelText('workbench.device.connection.parity');
+    expect(within(paritySelect).getByRole('option', { name: 'device.parityNone' })).toBeInTheDocument();
+    expect(within(paritySelect).getByRole('option', { name: 'device.parityEven' })).toBeInTheDocument();
+    expect(within(paritySelect).getByRole('option', { name: 'device.parityOdd' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('workbench.device.fields.protocol'), {
+      target: { value: 'mc_3e' },
+    });
+
+    const dataFormatSelect = screen.getByLabelText('workbench.device.connection.dataFormat');
+    expect(
+      within(dataFormatSelect).getByRole('option', {
+        name: 'workbench.device.connection.dataFormats.binary',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(dataFormatSelect).getByRole('option', {
+        name: 'workbench.device.connection.dataFormats.ascii',
+      }),
     ).toBeInTheDocument();
   });
 
@@ -460,5 +526,18 @@ describe('DatalinkWorkbench foundation route', () => {
     });
 
     expect(within(inspector).queryByText('timeout-1')).not.toBeInTheDocument();
+  });
+
+  it('announces device notices through a polite live region', async () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.refresh' }));
+
+    const statusRegions = await screen.findAllByRole('status');
+    const liveNotice = statusRegions.find((element) =>
+      element.textContent?.includes('workbench.device.messages.refreshed'),
+    );
+
+    expect(liveNotice).toHaveAttribute('aria-live', 'polite');
   });
 });

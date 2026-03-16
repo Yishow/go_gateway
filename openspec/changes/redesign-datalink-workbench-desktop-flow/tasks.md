@@ -13,8 +13,8 @@
 ## 3. Source workspace redesign
 
 - [x] 3.1 Introduce the formal Step 2 rule model and `RuleLayerBar` with enable/disable, lock, reorder, and focus behaviors.
-- [ ] 3.2 Rebuild `AddressCanvas` to render a continuous 16-bit lattice with multi-rule merged spans and visible gaps.
-- [ ] 3.3 Implement `Plan / Live / Link` view modes plus value-format switch, freeze/snapshot compare, jump-to-address, and coverage overview.
+- [x] 3.2 Rebuild `AddressCanvas` to render a continuous 16-bit lattice with multi-rule merged spans and visible gaps.
+- [x] 3.3 Implement `Plan / Live / Link` view modes plus value-format switch, freeze/snapshot compare, jump-to-address, and coverage overview.
 - [x] 3.4 Add local template persistence for rule groups and capability-mismatch warnings when applying templates.
 - [x] 3.5 Add the secondary audit surface and Step 2 inspector flows for rule selection, span inspection, and batch point creation.
 
@@ -33,6 +33,6 @@
 
 ## 6. Quality, compatibility, and rollout
 
-- [ ] 6.1 Update i18n, accessibility, and keyboard coverage for the redesigned shell and Step 1~4 workspaces.
-- [ ] 6.2 Add or update desktop regression coverage for 1920×1080 layout stability and the new Step 2/3/4 information surfaces.
-- [ ] 6.3 Decide and implement the compatibility strategy for `/datalink/local-modbus` and other legacy workbench entry points during rollout.
+- [x] 6.1 Update i18n, accessibility, and keyboard coverage for the redesigned shell and Step 1~4 workspaces.
+- [x] 6.2 Add or update desktop regression coverage for 1920×1080 layout stability and the new Step 2/3/4 information surfaces.
+- [x] 6.3 Decide and implement the compatibility strategy for `/datalink/local-modbus` and other legacy workbench entry points during rollout.

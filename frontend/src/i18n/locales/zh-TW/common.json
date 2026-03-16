@@ -1098,6 +1098,10 @@
         "pcNo": "PC No",
         "ioNo": "I/O No",
         "dataFormat": "資料格式",
+        "dataFormats": {
+          "binary": "二進位",
+          "ascii": "ASCII"
+        },
         "brokerUrl": "Broker URL",
         "clientId": "Client ID",
         "username": "使用者名稱",

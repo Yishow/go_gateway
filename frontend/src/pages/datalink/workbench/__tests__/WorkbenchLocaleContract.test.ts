@@ -99,5 +99,10 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.device.capability.labels.protocolTraits).not.toBe(
       enCommon.workbench.device.capability.labels.protocolTraits,
     );
+    expect(zhTWCommon.workbench.device.connection.dataFormats.binary).not.toBe(
+      enCommon.workbench.device.connection.dataFormats.binary,
+    );
+    expect(zhTWCommon.workbench.device.connection.dataFormats.ascii).toBeTruthy();
+    expect(enCommon.workbench.device.connection.dataFormats.ascii).toBeTruthy();
   });
 });

@@ -10,9 +10,14 @@ export const DASHBOARD_MODAL_INTENTS = [
   'tags',
 ] as const;
 
+export const WORKBENCH_COMPAT_STEPS = ['device', 'source', 'tag', 'output'] as const;
+export const WORKBENCH_COMPAT_TARGETS = ['modbus', 'database'] as const;
+
 export type LegacyDecommissionRoute = (typeof LEGACY_DECOMMISSION_ROUTES)[number];
 export type DashboardSectionIntent = (typeof DASHBOARD_SECTION_INTENTS)[number];
 export type DashboardModalIntent = (typeof DASHBOARD_MODAL_INTENTS)[number];
+export type WorkbenchCompatStep = (typeof WORKBENCH_COMPAT_STEPS)[number];
+export type WorkbenchCompatTarget = (typeof WORKBENCH_COMPAT_TARGETS)[number];
 
 export function isLegacyDecommissionRoute(route: string | null): route is LegacyDecommissionRoute {
   if (!route) return false;
@@ -39,4 +44,31 @@ export function isDashboardModalIntent(modal: string | null): modal is Dashboard
 
 export function buildDashboardModalRedirect(modal: DashboardModalIntent): string {
   return `/datalink?modal=${modal}`;
+}
+
+export function buildWorkbenchRedirect(options?: {
+  step?: WorkbenchCompatStep;
+  target?: WorkbenchCompatTarget;
+  section?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  if (options?.step) {
+    params.set('step', options.step);
+  }
+  if (options?.target) {
+    params.set('target', options.target);
+  }
+  if (options?.section) {
+    params.set('section', options.section);
+  }
+  const query = params.toString();
+  return query ? `/datalink/workbench?${query}` : '/datalink/workbench';
+}
+
+export function buildLocalModbusCompatRedirect(section?: string | null): string {
+  return buildWorkbenchRedirect({
+    step: 'output',
+    target: 'modbus',
+    section,
+  });
 }

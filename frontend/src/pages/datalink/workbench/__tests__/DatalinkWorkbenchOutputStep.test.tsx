@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
@@ -884,6 +884,25 @@ describe('DatalinkWorkbench output step', () => {
       expect(screen.getByTestId('trace-output-database')).toHaveTextContent(
         'main.sensor_values.value',
       );
+    });
+
+    it('announces inspector mapping load failures through a polite live region', async () => {
+      mockModbusShareAPI.listMappings.mockRejectedValue(new Error('boom'));
+      mockDBTargetAPI.listMappings.mockResolvedValue([]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      const candidate = await screen.findByTestId('output-candidate-tag-1');
+      fireEvent.click(candidate);
+
+      const tracePanel = await screen.findByTestId('inspector-trace-panel');
+      const loadError = await within(tracePanel).findByText('boom');
+
+      expect(loadError).toHaveAttribute('role', 'status');
+      expect(loadError).toHaveAttribute('aria-live', 'polite');
     });
   });
 });

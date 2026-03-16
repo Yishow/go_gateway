@@ -68,6 +68,7 @@ import { findNearestValidContiguousSpan } from "../../features/datalink/allocati
 import { getAffectedMappingCountForTag } from "../../features/datalink/tagEditImpact";
 import { buildGlobalTagGuardrail } from "../../features/datalink/globalTagGuardrails";
 import {
+  buildWorkbenchRedirect,
   isDashboardModalIntent,
   isDashboardSectionIntent,
   isLegacyDecommissionRoute,
@@ -881,7 +882,13 @@ export default function SmartDashboard() {
   }, [modalIntent, searchParams, setSearchParams]);
   const goToLocalModbusWorkbench = useCallback(() => {
     const section = activeTab;
-    navigate(`/datalink/local-modbus?section=${section}`);
+    navigate(
+      buildWorkbenchRedirect({
+        step: "output",
+        target: "modbus",
+        section,
+      }),
+    );
   }, [activeTab, navigate]);
   const openDeviceSetupModal = useCallback(
     (deviceId?: string | null) => {

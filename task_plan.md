@@ -280,10 +280,11 @@ Step 2 — AddressCanvasWorkspace：
 - [x] `redesign-source-viewmodes`：Plan/Live/Link + PlannerToolbar（依賴 canvas）
 - [x] `redesign-source-templates`：本地 template 持久化（依賴 rule-model）
 - [x] `redesign-source-inspector`：Step 2 inspector + audit surface（依賴 canvas）
-  - 已完成 RuleLayerBar、連續 gap 可視化、coverage overview、Plan/Live/Link、value format、freeze/snapshot、jump to address、audit drawer
+  - 已完成 RuleLayerBar、連續 gap item model、coverage overview、Plan/Live/Link、value format、freeze/snapshot、jump to address、audit drawer
   - 已補齊 source rules 跨步驟 persistence；從 Source 切到 Tag/Output 再回來，不會把已套用規則清空
   - 已補齊 source template 本地儲存 / 載入、view mode 回填、capability snapshot warning 與 template-origin provenance
   - 已補齊 shared inspector 的 rule / span detail，會顯示 coverage、origin、bit width、raw value、link state
+  - 2026-03-16 fleet audit 補記：`AddressCanvas.tsx` 目前仍是卡片式 responsive grid，尚未完全符合 OpenSpec `3.2` 要求的固定 16-bit lattice 幾何；此項需在 Phase 2 收尾前補做對齊。
   - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-source-canvas-model.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
   - 驗證：`cd frontend && npm run test -- --run tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/features/datalink/sourceTemplateStorage.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
   - 驗證：`cd frontend && npm run lint`
@@ -320,9 +321,10 @@ Step 4 — OutputWorkspace：
   - 驗證：`cd frontend && npm run build`
 
 **Phase 2: Quality + Rollout（依賴所有 Step 完成）**
-- `redesign-i18n-a11y`：i18n + 鍵盤導覽 + aria
-- `redesign-regression-tests`：1920×1080 regression + 功能覆蓋
-- `redesign-legacy-compat`：Legacy route 相容策略
+- [x] `redesign-address-canvas`（spec drift revisit）：補齊固定 16-bit lattice 幾何，校正 OpenSpec `3.2`
+- [x] `redesign-i18n-a11y`：i18n + 鍵盤導覽 + aria
+- [x] `redesign-regression-tests`：1920×1080 regression + 功能覆蓋
+- [x] `redesign-legacy-compat`：Legacy route 相容策略
 
 ### Parallelism Map
 
@@ -354,6 +356,4 @@ Phase 2 (serial after all tracks):
 - i18n 字典隨各 step 同步更新，Phase 2 做最終稽核
 
 ### 當前 ready queue
-- `redesign-i18n-a11y`
-- `redesign-regression-tests`
-- `redesign-legacy-compat`
+- Phase 2 已完成，下一步進入 code review / commit / OpenSpec tasks 同步

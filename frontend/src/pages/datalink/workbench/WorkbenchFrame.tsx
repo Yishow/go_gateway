@@ -25,7 +25,7 @@ type WorkbenchFrameProps = {
 export function WorkbenchFrame({ children }: WorkbenchFrameProps) {
   return (
     <div
-      className="grid min-h-screen gap-2 bg-slate-950 p-3 text-slate-100"
+      className="grid min-h-screen gap-2 overflow-hidden bg-slate-950 p-3 text-slate-100"
       data-testid="workbench-frame"
       style={{
         gridTemplateRows: 'auto 1fr auto',
@@ -36,20 +36,20 @@ export function WorkbenchFrame({ children }: WorkbenchFrameProps) {
           "summary  summary   summary"
         `,
       }}
-    >
-      {/* Row 1: ContextBar spans full width */}
-      <div style={{ gridArea: 'context' }}>
-        <WorkbenchContextBar />
-      </div>
+      >
+        {/* Row 1: ContextBar spans full width */}
+        <div style={{ gridArea: 'context' }}>
+          <WorkbenchContextBar />
+        </div>
 
       {/* Row 2 col 1: StepRail */}
-      <div style={{ gridArea: 'rail' }}>
+      <div className="min-h-0" style={{ gridArea: 'rail' }}>
         <WorkbenchStepRail />
       </div>
 
       {/* Row 2 col 2: PrimaryWorkArea */}
       <main
-        className="overflow-auto rounded-2xl border border-slate-800 bg-slate-900/70 p-5"
+        className="min-h-0 overflow-auto rounded-2xl border border-slate-800 bg-slate-900/70 p-5"
         style={{ gridArea: 'main' }}
         data-testid="workbench-primary-work-area"
       >
@@ -57,7 +57,7 @@ export function WorkbenchFrame({ children }: WorkbenchFrameProps) {
       </main>
 
       {/* Row 2 col 3: InspectorPanel */}
-      <div style={{ gridArea: 'inspector' }}>
+      <div className="min-h-0" style={{ gridArea: 'inspector' }}>
         <WorkbenchInspectorPanel />
       </div>
 

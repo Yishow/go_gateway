@@ -163,6 +163,62 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('address-cell-40005')).toHaveAttribute('data-status', 'used');
   });
 
+  it('renders the source canvas as fixed 16-bit lattice rows', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    const firstRow = screen.getByTestId('source-canvas-row-0');
+
+    expect(firstRow).toHaveAttribute('data-row-start-address', '40001');
+    expect(firstRow).toHaveAttribute('data-row-end-address', '40005');
+    expect(firstRow).toHaveAttribute('data-lattice-columns', '16');
+  });
+
+  it('preserves merged spans and gap cells across multiple source rules', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40004' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'int16' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+    expect(screen.getByTestId('source-rule-rule-2')).toBeInTheDocument();
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-merge-span', '2');
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-merge-offset', '0');
+    expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-merge-span', '2');
+    expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-merge-offset', '1');
+    expect(screen.getByTestId('address-cell-40003')).toHaveAttribute('data-status', 'gap');
+    expect(screen.getByTestId('address-cell-40004')).toHaveAttribute('data-status', 'planned');
+  });
+
   it('switches plan, live, and link overlays without changing the lattice addresses', () => {
     renderPage();
 
@@ -218,6 +274,25 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-span-link-state')).toHaveTextContent(
       'workbench.source.link.needsPoint',
     );
+  });
+
+  it('marks the selected address cell with aria-pressed', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+
+    const addressCell = screen.getByTestId('address-cell-40001');
+
+    expect(addressCell).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(addressCell);
+
+    expect(addressCell).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('persists applied source rules when navigating away from and back to the source step', () => {

@@ -526,3 +526,23 @@
 - workbenchDeviceFormModel.ts、sourceCanvasModel.ts、tagBindingModel.ts 的計算邏輯可重用，但 UI composition 需重寫。
 - i18n 鍵在各 step 實作時同步擴充，Phase 2 做最終稽核。
 - 不在此輪刪除 legacy routes（SmartDashboard、LocalModbusWorkbenchPage），僅決策導流策略。
+
+### 2026-03-16：Phase 2 / spec alignment 再盤查
+- OpenSpec `tasks.md` 目前仍有 `3.2`、`3.3`、`6.1`、`6.2`、`6.3` 未勾；這表示目前剩餘工作不只是 quality/rollout，Step 2 視覺幾何也需要再對齊 spec。
+- `SourceCanvasSection.tsx` 的 toolbar 與 state 基本已具備 `Plan / Live / Link`、value format、freeze live / snapshot compare、jump-to-address、coverage overview；因此 `3.3` 比較像是「已大致實作，但 OpenSpec 勾選尚未同步」。
+- 真正的 spec drift 在 `AddressCanvas.tsx`：目前主畫面仍是 `sm:grid-cols-2 xl:grid-cols-5 2xl:grid-cols-6` 的卡片格，而不是批准規格要求的固定 16-bit 連續 lattice。換句話說，item model 雖已會補 gap，但呈現幾何尚未到位。
+- 目前 `DatalinkWorkbenchSourceStep.test.tsx` 只驗證 `address-cell-*` 的狀態與 view mode 切換，並沒有驗證 row geometry / 固定欄數 / 連續 lattice 版面，因此這個 drift 先前能通過測試。
+- `/datalink/local-modbus` 目前在 `App.tsx` 仍直接掛到 `LocalModbusWorkbenchPage`，`SmartDashboardPage.tsx` 也仍用 `navigate('/datalink/local-modbus?...')` 導向舊頁；這代表 `6.3` 的 rollout / compatibility strategy 尚未真正落地。
+- rollout spec 的核心原則仍應維持：legacy route 保留作 fallback，但要把「Try new workbench」與新舊入口關係說清楚，避免把 legacy deep link 直接混入尚未完成的新 state model。
+- 本輪 `agent-77` 的 spec audit 再次因 `429` 失敗，說明 fleet 在 Phase 2 收尾仍不能只靠 Opus background agents；controller 必須持續手動 spot-check 並修正 planning artifacts。
+
+### 2026-03-17：Phase 2 已收斂
+- `AddressCanvas.tsx` 已改為固定 16-bit lattice；先前 `3.2` drift 已由 row geometry / lattice columns / merged span regression tests 補齊。
+- `redesign-i18n-a11y` 的高風險缺口集中在：
+  - source cell 缺 `aria-pressed`
+  - device notice / output inspector error 缺 `aria-live`
+  - Step 1 protocol-specific option label 仍有硬編碼英文
+  以上現已補齊並有對應測試。
+- `WorkbenchFrame` 加上 `overflow-hidden` 與 row-2 `min-h-0` 後，桌面殼層更符合 1920×1080 的固定區域滾動模型。
+- `/datalink/local-modbus` 現在改為 compat redirect 到新 workbench output；舊 `LocalModbusWorkbenchPage` 保留在 `/datalink/local-modbus/legacy` 作 fallback。
+- `SmartDashboardPage` 後段 CTA 已直接導向 `/datalink/workbench?step=output&target=modbus`，新舊入口關係已收斂到單一路徑。

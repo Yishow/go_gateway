@@ -224,6 +224,7 @@ describe('DatalinkWorkbench runtime phase surface', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('workbench-runtime-status')).toHaveTextContent(
@@ -242,6 +243,7 @@ describe('DatalinkWorkbench runtime phase surface', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
     await waitFor(() => {
       expect(mockEventSources).toHaveLength(1);
@@ -272,6 +274,7 @@ describe('DatalinkWorkbench runtime phase surface', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
     await waitFor(() => {
       expect(mockEventSources).toHaveLength(1);

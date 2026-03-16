@@ -509,3 +509,59 @@
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm run build`
 - 下一步：進入 `redesign-i18n-a11y` / `redesign-regression-tests` / `redesign-legacy-compat`。
+
+## Session: 2026-03-16（fleet follow-up）
+
+### Phase 2 / spec alignment audit（進行中）
+- 重新查 SQL 後確認尚未完成的 todo 只剩：
+  - `redesign-i18n-a11y`（in_progress）
+  - `redesign-regression-tests`（in_progress）
+  - `spec-alignment-audit`（in_progress）
+  - `redesign-legacy-compat`（pending）
+- `redesign-legacy-compat` 目前在 SQL 依賴 `redesign-regression-tests`，因此尚未進入 ready queue。
+- 手動補查 OpenSpec `openspec/changes/redesign-datalink-workbench-desktop-flow/tasks.md`，發現未勾項目為：
+  - `3.2 Rebuild AddressCanvas ... continuous 16-bit lattice`
+  - `3.3 Plan / Live / Link ...`
+  - `6.1 i18n / accessibility / keyboard`
+  - `6.2 desktop regression`
+  - `6.3 compatibility strategy`
+- 進一步 spot-check `SourceCanvasSection.tsx` / `AddressCanvas.tsx`：
+  - `3.3` 所需的大部分控制列已在（view mode、value format、freeze/snapshot、jump-to-address、coverage overview）
+  - 但 `AddressCanvas.tsx` 仍是卡片式 responsive grid，而非批准 spec 的固定 16-bit lattice，表示 `3.2` 仍有 drift
+- 進一步 spot-check rollout 路由：
+  - `App.tsx` 仍將 `/datalink/local-modbus` 直接導向 `LocalModbusWorkbenchPage`
+  - `SmartDashboardPage.tsx` 仍把後段 CTA 導向舊 `/datalink/local-modbus`
+  - 代表 `6.3` 的新舊入口導流策略尚未落地
+- 背景代理狀態：
+  - `agent-72` / `agent-73` / `agent-74` 仍在 running 且尚未產生第一輪 turn
+  - `agent-77` spec audit 直接以 `429` 結束，未提供可用摘要
+
+### Errors Encountered
+- `agent-77`（spec alignment explore）再次遭遇 `429 rate limit`，代表本輪 fleet 仍不能只依賴 Opus 子代理產出。
+- 重新跑 `planning-with-files` catchup 時，誤用了 `~/.codex/.../session-catchup.py`；本機 skill 實際位於 `~/.copilot/skills/...`。
+
+## Session: 2026-03-17（Phase 2 收尾完成）
+
+- 已手動完成 `redesign-address-canvas-revisit`：
+  - `AddressCanvas.tsx` 改為固定 16 欄的連續 lattice row render
+  - row 補上 `data-row-start-address` / `data-row-end-address` / `data-lattice-columns`
+  - cell 補上 `data-merge-span` / `data-merge-offset` 與 `aria-pressed`
+- 已完成 `redesign-i18n-a11y`：
+  - `WorkbenchDeviceStep` notice banner 補 `aria-live="polite"`
+  - `WorkbenchInspectorPanel` output inspector load error 補 `aria-live="polite"`
+  - `WorkbenchDeviceStep` 的 parity / data format option 改為 `t()`，移除 `None / Even / Odd / Binary / ASCII` 硬編碼 label
+  - `DatalinkWorkbenchFoundation` / `WorkbenchLocaleContract` 新增對應回歸測試
+- 已完成 `redesign-regression-tests`：
+  - 補 `WorkbenchFrame` 桌面殼層 sizing + `overflow-hidden` regression test
+  - 補 Step 2 多 rule / merged span / gap cell regression test
+  - runtime tests 改成顯式切到 `live` overlay，避免依賴過時預設值
+- 已完成 `redesign-legacy-compat`：
+  - `App.tsx` 將 `/datalink/local-modbus` 改為 compat redirect，導向 `/datalink/workbench?step=output&target=modbus`
+  - 保留舊頁 fallback 路徑 `/datalink/local-modbus/legacy`
+  - `SmartDashboardPage.tsx` 後段 CTA 直接導向新 workbench，而不再先進舊 Local Modbus 頁
+  - `DatalinkWorkbenchPage` 新增 query bootstrap，支援 `step` / `target` deep link，且在無 Router 的單元測試環境下安全退化
+- 本輪驗證已通過：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/workbench-runtime-phase.test.tsx tests/unit/features/datalink/workbench-locale.test.ts tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-readiness.test.ts tests/unit/features/datalink/workbench-source-canvas-model.test.ts`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`

@@ -729,6 +729,7 @@ function OutputInspectorContent() {
       {loadError ? (
         <p
           role="status"
+          aria-live="polite"
           className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200"
         >
           {loadError}

@@ -1098,6 +1098,10 @@
         "pcNo": "PC No",
         "ioNo": "I/O No",
         "dataFormat": "Data format",
+        "dataFormats": {
+          "binary": "Binary",
+          "ascii": "ASCII"
+        },
         "brokerUrl": "Broker URL",
         "clientId": "Client ID",
         "username": "Username",

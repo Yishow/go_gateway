@@ -201,6 +201,20 @@ describe('DatalinkWorkbench five-region shell', () => {
       expect(screen.getByTestId('workbench-bottom-summary-bar')).toBeInTheDocument();
     });
 
+    it('locks desktop layout sizing and keeps overflow inside the work area', () => {
+      renderPage();
+
+      const frame = screen.getByTestId('workbench-frame');
+      const workArea = screen.getByTestId('workbench-primary-work-area');
+
+      expect(frame).toHaveStyle({
+        gridTemplateRows: 'auto 1fr auto',
+        gridTemplateColumns: '200px 1fr 280px',
+      });
+      expect(frame).toHaveClass('overflow-hidden');
+      expect(workArea).toHaveClass('overflow-auto');
+    });
+
     it('does not render the old ActionDock or HeaderBar', () => {
       renderPage();
 

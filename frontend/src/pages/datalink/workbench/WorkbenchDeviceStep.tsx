@@ -720,9 +720,9 @@ export function WorkbenchDeviceStep() {
                 label={t('workbench.device.connection.parity')}
                 onChange={(value) => setConnectionValue('parity', value)}
                 options={[
-                  { value: 'none', label: 'None' },
-                  { value: 'even', label: 'Even' },
-                  { value: 'odd', label: 'Odd' },
+                  { value: 'none', label: t('device.parityNone') },
+                  { value: 'even', label: t('device.parityEven') },
+                  { value: 'odd', label: t('device.parityOdd') },
                 ]}
                 value={connectionValueAsString('parity') || 'none'}
               />
@@ -920,8 +920,14 @@ export function WorkbenchDeviceStep() {
                 label={t('workbench.device.connection.dataFormat')}
                 onChange={(value) => setConnectionValue('data_format', value)}
                 options={[
-                  { value: 'binary', label: 'Binary' },
-                  { value: 'ascii', label: 'ASCII' },
+                  {
+                    value: 'binary',
+                    label: t('workbench.device.connection.dataFormats.binary'),
+                  },
+                  {
+                    value: 'ascii',
+                    label: t('workbench.device.connection.dataFormats.ascii'),
+                  },
                 ]}
                 value={connectionValueAsString('data_format') || 'binary'}
               />
@@ -1077,6 +1083,7 @@ export function WorkbenchDeviceStep() {
 
       {notice ? (
         <div
+          aria-live="polite"
           className={joinClasses(
             'rounded-2xl border px-4 py-3 text-sm',
             getNoticeClasses(notice.tone),

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { CardMinimizeProvider } from './components/CardMinimizeProvider'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -9,10 +9,19 @@ import ComparePage from './pages/ComparePage'
 import AnalyzerPage from './pages/AnalyzerPage'
 import Layout from './components/Layout'
 import SmartDashboard from './pages/datalink/SmartDashboard'
-import { buildDashboardModalRedirect, buildLegacyMigrationRedirect } from './features/datalink/legacyRoutes'
+import {
+  buildDashboardModalRedirect,
+  buildLegacyMigrationRedirect,
+  buildLocalModbusCompatRedirect,
+} from './features/datalink/legacyRoutes'
 import LocalModbusWorkbenchPage from './pages/datalink/LocalModbusWorkbenchPage'
 import DatalinkWorkbenchPage from './pages/datalink/workbench/DatalinkWorkbenchPage'
 import { GatewayCreateEntryRedirect, GatewayEntryRoute, GatewayExpertWorkbenchRoute, GatewayQuickSetupRoute } from './router/gateway'
+
+function LocalModbusCompatRoute() {
+  const [searchParams] = useSearchParams()
+  return <Navigate to={buildLocalModbusCompatRedirect(searchParams.get('section'))} replace />
+}
 
 /**
  * 主應用程式組件
@@ -41,7 +50,8 @@ function AppRoutes() {
       <Route path="/datalink/mappings" element={<Navigate to={buildLegacyMigrationRedirect('mappings')} replace />} />
       <Route path="/datalink/wizard" element={<Navigate to={buildLegacyMigrationRedirect('wizard')} replace />} />
       <Route path="/datalink/settings" element={<Navigate to="/datalink?modal=settings&section=settings" replace />} />
-      <Route path="/datalink/local-modbus" element={<LocalModbusWorkbenchPage />} />
+      <Route path="/datalink/local-modbus" element={<LocalModbusCompatRoute />} />
+      <Route path="/datalink/local-modbus/legacy" element={<LocalModbusWorkbenchPage />} />
       <Route path="/datalink/workbench" element={<DatalinkWorkbenchPage />} />
 
       {/* Gateway Dual Entry (W1 skeleton) */}
