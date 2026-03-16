@@ -331,3 +331,36 @@
   - `cd frontend && npm run lint`
   - `cd frontend && npm run build`
   - `git --no-pager diff --check`
+
+### Workbench Device Step 補完（完成）
+- 使用者實機回報：進入 `/datalink/workbench` 後沒有設備可設定與選取，頁面只剩骨架。
+- root cause 已確認：
+  - `WorkbenchProvider` 預設 active step 為 `device`
+  - `DatalinkWorkbenchPage` 對 `device` step 仍走 placeholder render path，沒有真正的設備設定 UI
+- 本輪採用的修正策略：
+  - 按 spec 的 Slice 1 一次補齊 `HeaderBar/ContextBar + Device Step + Inspector + embedded create/edit panel + connection test`
+  - 不重用舊 `DeviceForm` / `DeviceOnboardingWizard` UI，只參考其欄位模型與 hooks / API
+- 本輪完成項目：
+  - 新增 `WorkbenchDeviceStep.tsx`
+    - Device cards/list
+    - 搜尋 / protocol / status 篩選
+    - Step 1 inspector
+    - embedded create/edit panel
+    - 連線測試互動與 inline status
+  - 新增 `workbenchDeviceFormModel.ts`
+    - 協定欄位預設值
+    - connection config parse / sanitize
+    - connection summary builder
+  - `WorkbenchHeaderBar` 改為較接近 spec 的 context bar：
+    - selected device / protocol / status / last test
+    - 快速跳回 device / source / output
+  - `DatalinkWorkbenchPage` 將 device step placeholder 換成真正的 `WorkbenchDeviceStep`
+  - 補齊 zh-TW / en 的 workbench device i18n
+- 本輪手動 review 額外修掉：
+  - 編輯設備時若把 description 清空，原本會送 `undefined` 導致後端保留舊值；已改成送空字串，並補 regression test
+- 本輪驗證：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/workbench-runtime-phase.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run build`
+- 雜項：
+  - 清除先前驗證殘留的 `.tmp_dbtarget_verify.go` 與 `test_ui`

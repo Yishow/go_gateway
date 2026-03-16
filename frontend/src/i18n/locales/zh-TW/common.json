@@ -428,13 +428,23 @@
     },
     "header": {
       "ariaLabel": "資料鏈結工作台頁首",
-      "eyebrow": "全新骨架",
+      "eyebrow": "工作台主線",
       "currentStep": "目前步驟",
       "selectedDevice": "目前設備",
       "noDevice": "尚未選擇設備",
       "pointCount": "Point 數量",
       "linkedTagCount": "已連結 Tag",
-      "outputCandidateCount": "輸出候選"
+      "outputCandidateCount": "輸出候選",
+      "lastTest": "最後測試",
+      "testPassed": "連線測試成功",
+      "testFailed": "連線測試失敗",
+      "notTested": "尚未測試",
+      "actions": {
+        "selectDevice": "選擇設備",
+        "switchDevice": "切換設備",
+        "gotoSource": "前往來源規劃",
+        "gotoOutput": "前往輸出設定"
+      }
     },
     "stepNavigator": {
       "ariaLabel": "工作流步驟"
@@ -742,6 +752,133 @@
           "validationRefreshed": "驗證完成：{{ready}}",
           "validationRefreshFailed": "重新驗證失敗"
         }
+      }
+    },
+    "device": {
+      "eyebrow": "Step 1：設備設定",
+      "title": "先把資料來源設備選對，再往下做來源可視化",
+      "description": "這裡集中處理設備搜尋、篩選、連線測試與建立/編輯。選好設備後，再進入來源位址規劃與 Tag / Output 主線。",
+      "loading": "載入設備清單中…",
+      "search": {
+        "label": "搜尋設備",
+        "placeholder": "依設備名稱或描述搜尋"
+      },
+      "filters": {
+        "protocol": "協定",
+        "status": "狀態",
+        "allProtocols": "全部協定",
+        "allStatuses": "全部狀態"
+      },
+      "actions": {
+        "create": "新增設備",
+        "refresh": "重新整理",
+        "continue": "使用這台設備進入來源規劃",
+        "testConnection": "測試連線",
+        "testing": "測試中…",
+        "edit": "編輯設備",
+        "save": "儲存設備",
+        "saving": "儲存中…"
+      },
+      "empty": {
+        "eyebrow": "還沒有任何設備",
+        "title": "先建立一台來源設備，工作台主線才會解鎖",
+        "description": "新的 workbench 不再要求你跳去舊 wizard。直接在這裡建立設備，接著就能進入來源位址規劃。"
+      },
+      "filteredEmpty": {
+        "eyebrow": "沒有符合條件的設備",
+        "title": "目前篩選條件找不到結果",
+        "description": "請調整搜尋字串或協定 / 狀態篩選，或直接建立新的設備。"
+      },
+      "card": {
+        "noDescription": "尚未填寫設備描述",
+        "protocol": "協定",
+        "lastTest": "最後測試",
+        "testPassed": "最近測試成功",
+        "testFailed": "最近測試失敗",
+        "notTested": "尚未測試"
+      },
+      "inspector": {
+        "eyebrow": "設備 Inspector",
+        "lastTest": "最後測試結果",
+        "noTestYet": "尚未執行連線測試",
+        "connectionSummary": "連線摘要",
+        "emptyTitle": "先選擇一台設備",
+        "emptyDescription": "選取左側設備卡後，這裡會顯示協定、連線摘要與下一步操作。若還沒有設備，也可以直接從這裡建立。"
+      },
+      "panel": {
+        "eyebrow": "嵌入式設備面板",
+        "createTitle": "建立新設備",
+        "editTitle": "編輯設備",
+        "createDescription": "用新的 workbench flow 直接完成設備建立，不再跳出舊式 modal/wizard。",
+        "editDescription": "保留目前選擇脈絡，在同一個工作台裡調整設備連線設定。"
+      },
+      "fields": {
+        "name": "設備名稱",
+        "protocol": "協定",
+        "description": "設備描述",
+        "descriptionPlaceholder": "例如：Line A 混料站 PLC"
+      },
+      "connection": {
+        "eyebrow": "通訊設定",
+        "title": "連線參數",
+        "description": "依協定切換欄位，但維持同一套 panel 佈局，避免設備設定又回到多層 modal。",
+        "host": "主機位址",
+        "port": "Port",
+        "slaveId": "Slave ID",
+        "timeout": "逾時秒數",
+        "serialPort": "串列埠",
+        "baudRate": "Baud Rate",
+        "dataBits": "資料位元",
+        "stopBits": "停止位元",
+        "parity": "同位檢查",
+        "mode": "連線模式",
+        "stationNo": "站號",
+        "networkNo": "Network No",
+        "pcNo": "PC No",
+        "ioNo": "I/O No",
+        "dataFormat": "資料格式",
+        "brokerUrl": "Broker URL",
+        "clientId": "Client ID",
+        "username": "使用者名稱",
+        "password": "密碼",
+        "topics": "Topics",
+        "qos": "QoS",
+        "useTls": "使用 TLS"
+      },
+      "mode": {
+        "tcp": "TCP",
+        "serial": "Serial"
+      },
+      "protocols": {
+        "modbus_tcp": "Modbus TCP",
+        "modbus_udp": "Modbus UDP",
+        "modbus_rtu": "Modbus RTU",
+        "fatek_fbs": "FATEK FBs",
+        "mc_3e": "MC Protocol 3E",
+        "mqtt": "MQTT"
+      },
+      "status": {
+        "active": "啟用中",
+        "draft": "草稿",
+        "disabled": "停用"
+      },
+      "validation": {
+        "nameRequired": "請輸入設備名稱",
+        "hostRequired": "請輸入主機位址",
+        "portRequired": "請輸入 Port",
+        "serialPortRequired": "請輸入串列埠",
+        "stationRequired": "請輸入站號",
+        "brokerUrlRequired": "請輸入 Broker URL",
+        "clientIdRequired": "請輸入 Client ID",
+        "topicsRequired": "請至少輸入一個 Topic"
+      },
+      "messages": {
+        "refreshed": "設備清單已重新整理",
+        "createSuccess": "設備建立完成",
+        "updateSuccess": "設備更新完成",
+        "saveFailed": "設備儲存失敗",
+        "testSuccess": "連線測試成功",
+        "testFailed": "連線測試失敗"
       }
     }
   }

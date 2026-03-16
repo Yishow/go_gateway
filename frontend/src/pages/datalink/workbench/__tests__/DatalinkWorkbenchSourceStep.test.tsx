@@ -24,6 +24,18 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
     data: mockDevices,
     isLoading: false,
   }),
+  useCreateDeviceMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useUpdateDeviceMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useTestConnectionMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/usePoints', () => ({

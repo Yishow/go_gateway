@@ -204,6 +204,22 @@
 - [ ] 收斂 `/datalink/workbench` 與舊 `SmartDashboard` / legacy redirect 的導流策略
 - [ ] 視使用者下一步決定是否把 Local Modbus / Database Target 再收斂成單一輸出策略面板
 
+### 2026-03-16：Slice 1 補完（完成）
+- [x] `workbench-device-step-redesign`
+  - 問題：目前 `device` step 只有 placeholder，導致進頁面後無法設定或選取設備，使用者只看到骨架
+  - 依 spec 補齊範圍：
+    - `WorkbenchHeaderBar / ContextBar` 的設備上下文與 quick actions
+    - Device Step 的 `list/cards + 搜尋/篩選`
+    - Step 1 Inspector（設備詳情 / 連線摘要 / 測試連線 / 編輯）
+    - embedded create/edit panel flow
+    - 連線測試互動與回饋
+  - 原則：**不重用舊 `DeviceForm` / `DeviceOnboardingWizard` UI**，僅參考既有 domain 欄位與 hooks / API
+  - 已完成內容：
+    - `WorkbenchDeviceStep.tsx` 與 `workbenchDeviceFormModel.ts` 新增 workbench 專屬設備設定體驗
+    - `/datalink/workbench` 不再落回 `device` placeholder
+    - `WorkbenchHeaderBar` 收斂成較接近 spec 的 ContextBar
+    - 補齊 zh-TW / en i18n、foundation regression 與其餘 workbench mocks
+
 ### 最新驗證摘要
 - 已通過：
   - `cd frontend && npm run test -- tests/unit/utils/designSystemForms.test.ts tests/unit/features/datalink/workbench-provider.test.tsx tests/unit/features/datalink/workbench-locale.test.ts tests/unit/features/datalink/workbench-source-canvas-model.test.ts tests/unit/features/datalink/tag-binding-model.test.ts tests/unit/features/datalink/legacyRoutes.test.ts --run`

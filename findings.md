@@ -66,6 +66,12 @@
 - SQLite schema introspection 在 `MaxOpenConns=1` 情境下，不能一邊遍歷 `PRAGMA index_list` rows 一邊再查 `PRAGMA index_info`；必須先收完 index names 再逐一查 detail，否則會自我阻塞。
 - `point_handler_extended_test.go` 的 large-list baseline 問題是測試資料生成錯誤（第 10 筆位址被拼成 `4000:`），不是 handler 主邏輯。
 
+### 2026-03-16：Workbench Device Step 重做發現
+- `/datalink/workbench` 進頁只有骨架的直接原因，不是資料沒載入，而是 `device` step 根本還停留在 placeholder render path。
+- 這個問題不能用「把舊 `DeviceForm` / `DeviceOnboardingWizard` 塞回來」快修；使用者已明確要求依 spec 重做，且 spec 也要求 Step 1 應是 `cards/list + inspector + embedded panel` 的工作台式體驗。
+- `ContextBar` 若只做摘要數字卡，不足以承接 Step 1 的「立即顯示選中設備上下文」需求；至少要把 selected device / protocol / status / last test 與 quick actions 放進同一個頂部脈絡列。
+- 設備編輯流程有一個容易漏掉的契約：`description` 清空時前端不能送 `undefined`，否則後端 pointer update 會把它解讀成「不更新」，舊描述會殘留。
+
 ## 2026-03-08
 
 ### 規範來源盤查

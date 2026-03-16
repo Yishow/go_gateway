@@ -428,13 +428,23 @@
     },
     "header": {
       "ariaLabel": "Workbench header",
-      "eyebrow": "Fresh Build",
+      "eyebrow": "Workbench flow",
       "currentStep": "Current step",
       "selectedDevice": "Selected device",
       "noDevice": "No device selected",
       "pointCount": "Points",
       "linkedTagCount": "Linked tags",
-      "outputCandidateCount": "Output candidates"
+      "outputCandidateCount": "Output candidates",
+      "lastTest": "Last test",
+      "testPassed": "Connection test passed",
+      "testFailed": "Connection test failed",
+      "notTested": "Not tested yet",
+      "actions": {
+        "selectDevice": "Select device",
+        "switchDevice": "Switch device",
+        "gotoSource": "Go to source",
+        "gotoOutput": "Go to output"
+      }
     },
     "stepNavigator": {
       "ariaLabel": "Workbench steps"
@@ -742,6 +752,133 @@
           "validationRefreshed": "Validation refreshed: {{ready}}",
           "validationRefreshFailed": "Failed to refresh validation"
         }
+      }
+    },
+    "device": {
+      "eyebrow": "Step 1: Device setup",
+      "title": "Choose the source device before planning addresses",
+      "description": "Search, filter, test, create, and edit devices here. Once the device is set, continue into the visual source, tag, and output flow.",
+      "loading": "Loading devices…",
+      "search": {
+        "label": "Search devices",
+        "placeholder": "Search by name or description"
+      },
+      "filters": {
+        "protocol": "Protocol",
+        "status": "Status",
+        "allProtocols": "All protocols",
+        "allStatuses": "All statuses"
+      },
+      "actions": {
+        "create": "Create device",
+        "refresh": "Refresh",
+        "continue": "Use this device for source planning",
+        "testConnection": "Test connection",
+        "testing": "Testing…",
+        "edit": "Edit device",
+        "save": "Save device",
+        "saving": "Saving…"
+      },
+      "empty": {
+        "eyebrow": "No devices yet",
+        "title": "Create a source device to unlock the workbench flow",
+        "description": "The new workbench no longer sends you through the legacy wizard. Create the device here, then continue to source planning."
+      },
+      "filteredEmpty": {
+        "eyebrow": "No matching devices",
+        "title": "Nothing matches the current filters",
+        "description": "Adjust the search or protocol / status filters, or create a new device directly from here."
+      },
+      "card": {
+        "noDescription": "No description yet",
+        "protocol": "Protocol",
+        "lastTest": "Last test",
+        "testPassed": "Latest test passed",
+        "testFailed": "Latest test failed",
+        "notTested": "Not tested yet"
+      },
+      "inspector": {
+        "eyebrow": "Device inspector",
+        "lastTest": "Latest test result",
+        "noTestYet": "No connection test has been run yet",
+        "connectionSummary": "Connection summary",
+        "emptyTitle": "Select a device first",
+        "emptyDescription": "Once you pick a device card, this panel shows the protocol, connection summary, and next actions. If there is no device yet, create one here."
+      },
+      "panel": {
+        "eyebrow": "Embedded device panel",
+        "createTitle": "Create a new device",
+        "editTitle": "Edit device",
+        "createDescription": "Finish device setup in the new workbench flow without jumping back into the old modal or wizard shell.",
+        "editDescription": "Adjust the selected device in context, without leaving the workbench."
+      },
+      "fields": {
+        "name": "Device name",
+        "protocol": "Protocol",
+        "description": "Description",
+        "descriptionPlaceholder": "Example: Line A mixer PLC"
+      },
+      "connection": {
+        "eyebrow": "Connection setup",
+        "title": "Connection parameters",
+        "description": "The fields switch by protocol, but the layout stays inside one consistent workbench panel instead of multiple modals.",
+        "host": "Host",
+        "port": "Port",
+        "slaveId": "Slave ID",
+        "timeout": "Timeout (s)",
+        "serialPort": "Serial port",
+        "baudRate": "Baud rate",
+        "dataBits": "Data bits",
+        "stopBits": "Stop bits",
+        "parity": "Parity",
+        "mode": "Mode",
+        "stationNo": "Station No",
+        "networkNo": "Network No",
+        "pcNo": "PC No",
+        "ioNo": "I/O No",
+        "dataFormat": "Data format",
+        "brokerUrl": "Broker URL",
+        "clientId": "Client ID",
+        "username": "Username",
+        "password": "Password",
+        "topics": "Topics",
+        "qos": "QoS",
+        "useTls": "Use TLS"
+      },
+      "mode": {
+        "tcp": "TCP",
+        "serial": "Serial"
+      },
+      "protocols": {
+        "modbus_tcp": "Modbus TCP",
+        "modbus_udp": "Modbus UDP",
+        "modbus_rtu": "Modbus RTU",
+        "fatek_fbs": "FATEK FBs",
+        "mc_3e": "MC Protocol 3E",
+        "mqtt": "MQTT"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft",
+        "disabled": "Disabled"
+      },
+      "validation": {
+        "nameRequired": "Enter a device name",
+        "hostRequired": "Enter a host",
+        "portRequired": "Enter a port",
+        "serialPortRequired": "Enter a serial port",
+        "stationRequired": "Enter a station number",
+        "brokerUrlRequired": "Enter a broker URL",
+        "clientIdRequired": "Enter a client ID",
+        "topicsRequired": "Enter at least one topic"
+      },
+      "messages": {
+        "refreshed": "Device list refreshed",
+        "createSuccess": "Device created",
+        "updateSuccess": "Device updated",
+        "saveFailed": "Failed to save device",
+        "testSuccess": "Connection test passed",
+        "testFailed": "Connection test failed"
       }
     }
   }
