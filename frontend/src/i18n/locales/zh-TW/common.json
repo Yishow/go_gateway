@@ -455,6 +455,45 @@
       "source": "foundation 外框已就緒，下一個 slice 會補上地址畫布與 ledger。",
       "tag": "foundation 外框已就緒，下一個 slice 會補上 tag 綁定工作台。",
       "output": "foundation 外框已就緒，下一個 slice 會補上 Local Modbus 與資料庫輸出面板。"
+    },
+    "source": {
+      "empty": {
+        "eyebrow": "先選擇來源設備",
+        "title": "請先選擇設備，再開始規劃位址",
+        "description": "Step 2 需要綁定一台設備，地址畫布才能顯示既有點位與新規劃範圍。"
+      },
+      "view": {
+        "grid": "Grid",
+        "table": "Table"
+      },
+      "planner": {
+        "startAddress": "起始位址",
+        "dataType": "資料型態",
+        "count": "數量",
+        "namingPrefix": "命名前綴",
+        "apply": "套用規劃",
+        "batchCreate": "批次建立",
+        "conflictHint": "請先排除位址衝突，再進行批次建立。",
+        "batchSummary": "已建立 {{successCount}} 筆 point，失敗 {{failureCount}} 筆。",
+        "import": "匯入",
+        "export": "匯出"
+      },
+      "canvas": {
+        "empty": "目前還沒有規劃範圍或既有點位。",
+        "plannedLabel": "規劃範圍",
+        "plannedState": "規劃中",
+        "usedLabel": "既有點位",
+        "conflictLabel": "衝突",
+        "conflictState": "位址重疊"
+      },
+      "ledger": {
+        "empty": "請先選擇設備並套用規劃，才能檢視位址清單。",
+        "columns": {
+          "address": "位址",
+          "name": "名稱",
+          "status": "狀態"
+        }
+      }
     }
   }
 }

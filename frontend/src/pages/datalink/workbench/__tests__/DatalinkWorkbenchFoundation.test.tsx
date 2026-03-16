@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../../../App';
@@ -53,6 +54,24 @@ vi.mock('@/pages/datalink/LocalModbusWorkbenchPage', () => ({
   default: () => <div data-testid="local-modbus-workbench-mock">local-modbus-workbench</div>,
 }));
 
+vi.mock('@/hooks/datalink/useDevices', () => ({
+  useDevicesQuery: () => ({
+    data: [],
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/hooks/datalink/usePoints', () => ({
+  usePointsQuery: () => ({
+    data: [],
+    isLoading: false,
+  }),
+  useCreatePointMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
 vi.mock('@/router/gateway', () => ({
   GatewayCreateEntryRedirect: () => <div data-testid="gateway-create-entry-redirect-mock" />,
   GatewayEntryRoute: () => <div data-testid="gateway-entry-route-mock" />,
@@ -70,8 +89,23 @@ describe('DatalinkWorkbench foundation route', () => {
     window.history.pushState({}, '', '/datalink/workbench');
   });
 
+  function renderApp() {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>,
+    );
+  }
+
   it('renders the new foundation shell through /datalink/workbench', () => {
-    render(<App />);
+    renderApp();
 
     expect(screen.getByRole('heading', { name: 'workbench.title' })).toBeInTheDocument();
     expect(
@@ -87,14 +121,16 @@ describe('DatalinkWorkbench foundation route', () => {
   });
 
   it('switches the active step from the step navigator', () => {
-    render(<App />);
+    renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
 
     expect(
       screen.getByRole('button', { name: 'workbench.steps.source' }),
     ).toHaveAttribute('aria-current', 'step');
-    expect(screen.getByRole('heading', { name: 'workbench.steps.source' })).toBeInTheDocument();
-    expect(screen.getByText('workbench.placeholders.source')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'workbench.source.empty.title' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('workbench.source.empty.description')).toBeInTheDocument();
   });
 });

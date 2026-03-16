@@ -455,6 +455,45 @@
       "source": "Foundation shell ready. The address canvas and ledger will land in the next slice.",
       "tag": "Foundation shell ready. The tag binding studio will land in the next slice.",
       "output": "Foundation shell ready. Local Modbus and database output boards will land in the next slice."
+    },
+    "source": {
+      "empty": {
+        "eyebrow": "Select a source device",
+        "title": "Choose a device before planning addresses",
+        "description": "Step 2 needs an active device so the address canvas can visualize existing points and planned ranges."
+      },
+      "view": {
+        "grid": "Grid",
+        "table": "Table"
+      },
+      "planner": {
+        "startAddress": "Start address",
+        "dataType": "Data type",
+        "count": "Count",
+        "namingPrefix": "Naming prefix",
+        "apply": "Apply plan",
+        "batchCreate": "Batch create",
+        "conflictHint": "Resolve address conflicts before batch creating points.",
+        "batchSummary": "Created {{successCount}} point(s), {{failureCount}} failed.",
+        "import": "Import",
+        "export": "Export"
+      },
+      "canvas": {
+        "empty": "No planned range or existing points yet.",
+        "plannedLabel": "Planned range",
+        "plannedState": "Planned",
+        "usedLabel": "Existing point",
+        "conflictLabel": "Conflict",
+        "conflictState": "Address overlap"
+      },
+      "ledger": {
+        "empty": "Switch a device and apply a plan to inspect address rows.",
+        "columns": {
+          "address": "Address",
+          "name": "Name",
+          "status": "Status"
+        }
+      }
     }
   }
 }
