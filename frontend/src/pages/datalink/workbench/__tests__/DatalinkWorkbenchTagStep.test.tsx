@@ -218,6 +218,50 @@ describe('DatalinkWorkbench tag step', () => {
     );
   });
 
+  it('shows adaptive board guidance and flow hints as selection state changes', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByText('workbench.tag.board.selectionHint.none')).toBeInTheDocument();
+    expect(screen.getByText('workbench.tag.board.flowModeHint.create')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Flow Sensor'));
+
+    expect(screen.getByText('workbench.tag.board.selectionHint.ready')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
+
+    expect(screen.getByText('workbench.tag.board.flowModeHint.existing')).toBeInTheDocument();
+  });
+
+  it('replaces preview keys with existing-tag selectors in existing flow rows', () => {
+    mockTags.push({
+      id: 'tag-existing',
+      key: 'LINEA_FLOW',
+      display_name: 'Line A Flow',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'active',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
+
+    const row = screen.getByTestId('tag-candidate-point-1');
+
+    expect(within(row).queryByTestId('tag-preview-point-1')).not.toBeInTheDocument();
+    expect(within(row).getByTestId('existing-tag-select-point-1')).toBeInTheDocument();
+  });
+
   it('shows batch actions only after one or more candidate rows are selected', () => {
     renderPage();
 

@@ -303,6 +303,8 @@ function SourceInspectorContent() {
   const {
     inspectorSelection,
     selectedDeviceId,
+    setFocusedRuleId,
+    setInspectorSelection,
     setSourcePlanningState,
     sourcePlanningState,
   } = useWorkbench();
@@ -426,6 +428,28 @@ function SourceInspectorContent() {
             {rule.locked
               ? t('workbench.source.ruleLayer.unlock')
               : t('workbench.source.ruleLayer.lock')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const shouldClearSelection =
+                sourcePlanningState.selectedRuleId === rule.id;
+              setSourcePlanningState((currentState) => ({
+                ...currentState,
+                rules: currentState.rules.filter((item) => item.id !== rule.id),
+                selectedRuleId:
+                  currentState.selectedRuleId === rule.id ? null : currentState.selectedRuleId,
+                selectedAddress:
+                  currentState.selectedRuleId === rule.id ? null : currentState.selectedAddress,
+              }));
+              if (shouldClearSelection) {
+                setFocusedRuleId(null);
+                setInspectorSelection({ kind: 'none' });
+              }
+            }}
+            className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-100"
+          >
+            {t('workbench.source.ruleLayer.delete')}
           </button>
         </div>
       </div>
@@ -786,7 +810,7 @@ export function WorkbenchInspectorPanel() {
   return (
     <aside
       aria-label={t('workbench.inspector.ariaLabel')}
-      className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
+      className="flex flex-col gap-4 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
       data-testid="workbench-inspector-panel"
     >
       <div className="space-y-1">

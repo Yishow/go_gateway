@@ -320,6 +320,32 @@
   - `1920×1080` toolbar / CTA / shell 穩定性驗證
   - 文件、OpenSpec tasks、繁中 commit、code review
 
+## 2026-03-17：quiet desktop v2 收尾 [complete]
+- [x] `ui-compact-step1`
+  - 移除 Step 1 裝飾 hero
+  - 收斂 device row density 與 capability pills
+  - device create/edit panel 改成 viewport overlay
+  - inspector aside 支援捲動
+- [x] `ui-guide-step2`
+  - planner 搬進 rule layer
+  - `apply` 改成 `addRule`
+  - 加入 delete rule
+  - utility tools 收進 `moreTools`
+  - canvas / coverage / rule layer 主次層級重排
+- [x] `ui-align-step3`
+  - 補 flow mode / selection guidance
+  - row-board 扁平化 raw/transformed value
+  - existing mode 移除 preview，保留 existing tag select
+  - sidebar metrics 壓縮
+- [x] `ui-compact-step4`
+  - shared candidate board 成為唯一 tag selection surface
+  - Modbus / Database 改成 selected-tag summary
+  - Database connector form 預設收合
+- [x] `ui-regressions-quiet-desktop-v2`
+  - targeted workbench regression
+  - lint / tsc / build
+  - code review feedback fix-up
+
 ### Implementation Phase Breakdown（Redesign Round 2）
 
 **Phase 0: Shell Infrastructure（序列，已完成）**

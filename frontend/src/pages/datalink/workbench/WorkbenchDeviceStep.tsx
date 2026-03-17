@@ -1009,24 +1009,10 @@ export function WorkbenchDeviceStep() {
   };
 
   return (
-    <section className="relative space-y-5">
-      <div className="flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-950/40 p-5">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-            {t('workbench.device.eyebrow')}
-          </p>
-          <h2 className="text-2xl font-semibold text-slate-50">
-            {t('workbench.device.title')}
-          </h2>
-          <p className="max-w-3xl text-sm text-slate-300">
-            {t('workbench.device.description')}
-          </p>
-        </div>
-      </div>
-
+    <section className="space-y-4">
       {devices.length > 0 ? (
         <div
-          className="grid gap-3 rounded-3xl border border-slate-800 bg-slate-950/40 p-5 xl:grid-cols-[minmax(0,1fr)_180px_180px_auto] xl:items-end"
+          className="grid gap-3 rounded-3xl border border-slate-800 bg-slate-950/40 p-4 xl:grid-cols-[minmax(0,1fr)_180px_180px_auto] xl:items-end"
           data-testid="device-primary-toolbar"
         >
           <TextField
@@ -1147,7 +1133,7 @@ export function WorkbenchDeviceStep() {
                 aria-label={device.name}
                 aria-pressed={isSelected}
                 className={joinClasses(
-                  'grid w-full gap-3 rounded-2xl border px-4 py-4 text-left transition lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_auto] lg:items-center',
+                  'grid w-full gap-3 rounded-2xl border px-4 py-3 text-left transition lg:grid-cols-[minmax(220px,1fr)_auto_auto] lg:items-center',
                   isSelected
                     ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
                     : 'border-slate-800 bg-slate-950/40 hover:border-slate-600 hover:bg-slate-900/70',
@@ -1176,19 +1162,22 @@ export function WorkbenchDeviceStep() {
                   </p>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div
+                  className="flex flex-wrap items-center gap-2"
+                  data-testid={`device-capability-strip-${device.id}`}
+                >
                   {capabilityHints.map((item) => (
-                    <div
-                      className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2"
+                    <span
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1 text-xs text-slate-300"
                       key={`${device.id}-${item.id}`}
                     >
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                      <span className="uppercase tracking-[0.18em] text-slate-500">
                         {t(item.labelKey)}
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-slate-100">
+                      </span>
+                      <span className="font-medium text-slate-100">
                         {item.value}
-                      </p>
-                    </div>
+                      </span>
+                    </span>
                   ))}
                 </div>
 
@@ -1218,10 +1207,13 @@ export function WorkbenchDeviceStep() {
       ) : null}
 
       {devicePanelState ? (
-        <div className="absolute inset-0 z-20 flex justify-end bg-slate-950/70 p-4 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-40 flex justify-end bg-slate-950/70 p-4 backdrop-blur-sm sm:p-6"
+          data-testid="device-panel-overlay"
+        >
           <div
             aria-modal="true"
-            className="flex h-full w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/60"
+            className="flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/60"
             role="dialog"
           >
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">

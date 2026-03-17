@@ -573,11 +573,14 @@
         "float": "浮點"
       },
       "planner": {
+        "title": "規則建立器",
+        "helper": "一次定義一條位址規則，主要檢視重心留給下方畫布。",
         "startAddress": "起始位址",
         "dataType": "資料型態",
         "count": "數量",
         "namingPrefix": "命名前綴",
         "apply": "套用規劃",
+        "addRule": "新增規則",
         "batchCreate": "批次建立",
         "conflictHint": "請先排除位址衝突，再進行批次建立。",
         "batchSummary": "已建立 {{successCount}} 筆 point，失敗 {{failureCount}} 筆。",
@@ -591,6 +594,8 @@
         "snapshotCompare": "快照比對",
         "showAudit": "顯示稽核清單",
         "hideAudit": "隱藏稽核清單",
+        "moreTools": "更多工具",
+        "hideTools": "收起工具",
         "jumpToAddress": "跳到位址",
         "jump": "跳轉",
         "saveTemplate": "儲存模板",
@@ -623,7 +628,8 @@
         "lock": "鎖定",
         "unlock": "解除鎖定",
         "moveUp": "上移",
-        "moveDown": "下移"
+        "moveDown": "下移",
+        "delete": "刪除規則"
       },
       "coverage": {
         "eyebrow": "覆蓋總覽",
@@ -706,11 +712,21 @@
           "create": "建立新 Tag",
           "existing": "綁定既有 Tag"
         },
+        "flowModeHint": {
+          "create": "建立模式會保留 preview key，方便你先掃描衝突再批次綁定。",
+          "existing": "既有 Tag 模式會把重點放在幫每個 point 選對目標 Tag。"
+        },
         "statusFilters": {
           "all": "全部",
           "unbound": "未綁定",
           "partial": "需複查",
           "bound": "已綁定"
+        },
+        "selectionHint": {
+          "none": "先從候選列勾選一筆以上的 point，才能開始下一批綁定。",
+          "ready": "目前選取內容已可執行，確認預覽後即可從右側送出批次綁定。",
+          "conflicts": "目前選取內容包含受阻項目，請先排除衝突或改用只選可綁定。",
+          "done": "上一批已完成，請檢查最新狀態後再繼續下一批。"
         },
         "span": "{{cells}} 格 · {{bitWidth}} 位元",
         "rawValue": "原始值",
@@ -843,6 +859,7 @@
       },
       "mapping": {
         "tag": "已連結 Tag",
+        "selectedTag": "目前選取 Tag",
         "register": "Holding Register"
       },
       "actions": {
@@ -910,6 +927,7 @@
         },
         "mapping": {
           "tag": "已連結 Tag",
+          "selectedTag": "目前選取 Tag",
           "table": "目標資料表",
           "tablePlaceholder": "請先選擇資料表",
           "column": "值欄位",
@@ -924,6 +942,8 @@
         },
         "actions": {
           "newConnector": "新增 Connector",
+          "configureConnector": "設定 Connector",
+          "hideConnector": "收起 Connector 設定",
           "saveConnector": "儲存 Connector",
           "testConnector": "測試連線",
           "deleteConnector": "刪除 Connector",

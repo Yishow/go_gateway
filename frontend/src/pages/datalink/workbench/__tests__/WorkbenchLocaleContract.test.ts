@@ -108,4 +108,31 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.device.connection.dataFormats.ascii).toBeTruthy();
     expect(enCommon.workbench.device.connection.dataFormats.ascii).toBeTruthy();
   });
+
+  it('ships localized zh-TW strings for the compact source, tag, and output guidance additions', () => {
+    expect(zhTWCommon.workbench.source.planner.addRule).not.toBe(
+      enCommon.workbench.source.planner.addRule,
+    );
+    expect(zhTWCommon.workbench.source.ruleLayer.delete).not.toBe(
+      enCommon.workbench.source.ruleLayer.delete,
+    );
+    expect(zhTWCommon.workbench.source.toolbar.moreTools).not.toBe(
+      enCommon.workbench.source.toolbar.moreTools,
+    );
+    expect(zhTWCommon.workbench.tag.board.flowModeHint.create).not.toBe(
+      enCommon.workbench.tag.board.flowModeHint.create,
+    );
+    expect(zhTWCommon.workbench.tag.board.selectionHint.ready).not.toBe(
+      enCommon.workbench.tag.board.selectionHint.ready,
+    );
+    expect(zhTWCommon.workbench.output.mapping.selectedTag).not.toBe(
+      enCommon.workbench.output.mapping.selectedTag,
+    );
+    expect(zhTWCommon.workbench.output.database.mapping.selectedTag).not.toBe(
+      enCommon.workbench.output.database.mapping.selectedTag,
+    );
+    expect(zhTWCommon.workbench.output.database.actions.configureConnector).not.toBe(
+      enCommon.workbench.output.database.actions.configureConnector,
+    );
+  });
 });

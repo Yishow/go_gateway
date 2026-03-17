@@ -153,7 +153,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '3' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     expect(screen.getByTestId('source-coverage-overview')).toBeInTheDocument();
@@ -175,7 +175,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '3' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const firstRow = screen.getByTestId('source-canvas-row-0');
 
@@ -184,7 +184,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(firstRow).toHaveAttribute('data-lattice-columns', '16');
   });
 
-  it('keeps source planning in one primary toolbar and moves utility actions to a secondary group', () => {
+  it('keeps only view controls in the primary toolbar and reveals utility tools on demand', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
@@ -192,15 +192,27 @@ describe('DatalinkWorkbench source step', () => {
 
     const primaryToolbar = screen.getByTestId('source-primary-toolbar');
     const secondaryControls = screen.getByTestId('source-secondary-controls');
+    const ruleLayer = screen.getByTestId('source-rule-layer');
 
     expect(
       within(primaryToolbar).getByRole('button', { name: 'workbench.source.view.plan' }),
     ).toBeInTheDocument();
     expect(
-      within(primaryToolbar).getByLabelText('workbench.source.planner.startAddress'),
+      within(primaryToolbar).getByLabelText('workbench.source.toolbar.valueFormat'),
     ).toBeInTheDocument();
     expect(
-      within(primaryToolbar).getByRole('button', { name: 'workbench.source.planner.apply' }),
+      within(primaryToolbar).queryByLabelText('workbench.source.planner.startAddress'),
+    ).not.toBeInTheDocument();
+    expect(
+      within(primaryToolbar).queryByRole('button', {
+        name: 'workbench.source.planner.addRule',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(ruleLayer).getByLabelText('workbench.source.planner.startAddress'),
+    ).toBeInTheDocument();
+    expect(
+      within(ruleLayer).getByRole('button', { name: 'workbench.source.planner.addRule' }),
     ).toBeInTheDocument();
     expect(
       within(primaryToolbar).queryByRole('button', {
@@ -212,6 +224,33 @@ describe('DatalinkWorkbench source step', () => {
         name: 'workbench.source.toolbar.snapshotCompare',
       }),
     ).not.toBeInTheDocument();
+
+    expect(
+      within(secondaryControls).getByRole('button', {
+        name: 'workbench.source.toolbar.moreTools',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(secondaryControls).queryByRole('button', {
+        name: 'workbench.source.toolbar.saveTemplate',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(secondaryControls).queryByRole('button', {
+        name: 'workbench.source.toolbar.loadTemplate',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(secondaryControls).queryByRole('button', {
+        name: 'workbench.source.toolbar.snapshotCompare',
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(secondaryControls).getByRole('button', {
+        name: 'workbench.source.toolbar.moreTools',
+      }),
+    );
 
     expect(
       within(secondaryControls).getByRole('button', {
@@ -228,6 +267,34 @@ describe('DatalinkWorkbench source step', () => {
         name: 'workbench.source.toolbar.snapshotCompare',
       }),
     ).toBeInTheDocument();
+  });
+
+  it('adds and deletes rules directly from the rule layer workflow', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const ruleLayer = screen.getByTestId('source-rule-layer');
+
+    fireEvent.change(within(ruleLayer).getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(within(ruleLayer).getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(
+      within(ruleLayer).getByRole('button', { name: 'workbench.source.planner.addRule' }),
+    );
+
+    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    expect(ruleCard).toBeInTheDocument();
+
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.delete' }),
+    );
+
+    expect(screen.queryByTestId('source-rule-rule-1')).not.toBeInTheDocument();
   });
 
   it('treats the address canvas as the primary workspace and the rule layer as supporting context', () => {
@@ -263,7 +330,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40004' },
@@ -274,7 +341,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     expect(screen.getByTestId('source-rule-rule-2')).toBeInTheDocument();
@@ -294,7 +361,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
     expect(screen.getByTestId('source-canvas')).toHaveAttribute('data-view-mode', 'live');
@@ -317,7 +384,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '2' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     fireEvent.click(screen.getByTestId('source-rule-rule-1'));
 
@@ -333,7 +400,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     fireEvent.click(screen.getByTestId('address-cell-40001'));
 
@@ -351,7 +418,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const addressCell = screen.getByTestId('address-cell-40001');
 
@@ -373,7 +440,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '2' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
 
@@ -401,6 +468,7 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.moreTools' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.saveTemplate' }));
     fireEvent.change(screen.getByLabelText('workbench.source.templates.name'), {
       target: { value: 'Line Float' },
@@ -454,7 +522,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.batchCreate' }));
 
     await waitFor(() => {
@@ -491,7 +559,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.apply' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'conflict');
     expect(

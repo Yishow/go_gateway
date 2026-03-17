@@ -573,11 +573,14 @@
         "float": "Float"
       },
       "planner": {
+        "title": "Rule builder",
+        "helper": "Define one address rule at a time, then keep the canvas as the main review surface.",
         "startAddress": "Start address",
         "dataType": "Data type",
         "count": "Count",
         "namingPrefix": "Naming prefix",
         "apply": "Apply plan",
+        "addRule": "Add rule",
         "batchCreate": "Batch create",
         "conflictHint": "Resolve address conflicts before batch creating points.",
         "batchSummary": "Created {{successCount}} point(s), {{failureCount}} failed.",
@@ -591,6 +594,8 @@
         "snapshotCompare": "Snapshot compare",
         "showAudit": "Show audit",
         "hideAudit": "Hide audit",
+        "moreTools": "More tools",
+        "hideTools": "Hide tools",
         "jumpToAddress": "Jump to address",
         "jump": "Jump",
         "saveTemplate": "Save template",
@@ -623,7 +628,8 @@
         "lock": "Lock",
         "unlock": "Unlock",
         "moveUp": "Move up",
-        "moveDown": "Move down"
+        "moveDown": "Move down",
+        "delete": "Delete rule"
       },
       "coverage": {
         "eyebrow": "Coverage overview",
@@ -706,11 +712,21 @@
           "create": "Create new tags",
           "existing": "Bind existing tags"
         },
+        "flowModeHint": {
+          "create": "Create mode keeps the preview key visible so you can scan conflicts before binding.",
+          "existing": "Existing-tag mode focuses on picking the destination tag for each selected point."
+        },
         "statusFilters": {
           "all": "All",
           "unbound": "Unbound",
           "partial": "Needs review",
           "bound": "Already bound"
+        },
+        "selectionHint": {
+          "none": "Pick one or more points from the board to start the next binding batch.",
+          "ready": "Current selection is ready. Review the preview and trigger the batch action from the sidebar.",
+          "conflicts": "Some selected rows are blocked. Clear conflicts or switch to bindable-only selection first.",
+          "done": "Latest batch completed. Review the updated statuses and continue with the next selection."
         },
         "span": "{{cells}} cells · {{bitWidth}}-bit",
         "rawValue": "Raw value",
@@ -843,6 +859,7 @@
       },
       "mapping": {
         "tag": "Linked tag",
+        "selectedTag": "Selected tag",
         "register": "Holding register"
       },
       "actions": {
@@ -910,6 +927,7 @@
         },
         "mapping": {
           "tag": "Linked tag",
+          "selectedTag": "Selected tag",
           "table": "Target table",
           "tablePlaceholder": "Choose a table",
           "column": "Value column",
@@ -924,6 +942,8 @@
         },
         "actions": {
           "newConnector": "New connector",
+          "configureConnector": "Configure connector",
+          "hideConnector": "Hide connector setup",
           "saveConnector": "Save connector",
           "testConnector": "Test connection",
           "deleteConnector": "Delete connector",

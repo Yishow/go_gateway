@@ -196,6 +196,18 @@ export function TagBindingStudio() {
   const readyCount = flowMode === 'create'
     ? createRequests.length
     : existingRequests.length;
+  const selectionHintKey = batchSummary
+    && batchSummary.failureCount === 0
+    && (batchSummary.createdCount > 0 || batchSummary.linkedCount > 0)
+    ? 'workbench.tag.board.selectionHint.done'
+    : selectedCandidates.length === 0
+      ? 'workbench.tag.board.selectionHint.none'
+      : blockedSelectionCount > 0
+        ? 'workbench.tag.board.selectionHint.conflicts'
+        : 'workbench.tag.board.selectionHint.ready';
+  const flowModeHintKey = flowMode === 'create'
+    ? 'workbench.tag.board.flowModeHint.create'
+    : 'workbench.tag.board.flowModeHint.existing';
 
   const handleTogglePoint = (pointId: string) => {
     setSelectedPointIds((previous) =>
@@ -422,7 +434,9 @@ export function TagBindingStudio() {
             </div>
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_200px_200px]">
+          <p className="text-sm text-slate-300">{t(flowModeHintKey)}</p>
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
             <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
               <span>{t('workbench.tag.board.search')}</span>
               <input
@@ -452,30 +466,33 @@ export function TagBindingStudio() {
                 <option value="bound">{t('workbench.tag.board.statusFilters.bound')}</option>
               </select>
             </label>
-            <div className="flex flex-wrap items-end gap-2">
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-              >
-                {t('workbench.tag.actions.selectAll')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSelectBindable}
-                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-              >
-                {t('workbench.tag.actions.selectBindable')}
-              </button>
-              <button
-                type="button"
-                onClick={handleClearSelection}
-                className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-              >
-                {t('workbench.tag.actions.clearSelection')}
-              </button>
-            </div>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+            >
+              {t('workbench.tag.actions.selectAll')}
+            </button>
+            <button
+              type="button"
+              onClick={handleSelectBindable}
+              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+            >
+              {t('workbench.tag.actions.selectBindable')}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearSelection}
+              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
+            >
+              {t('workbench.tag.actions.clearSelection')}
+            </button>
+          </div>
+
+          <p className="text-sm text-slate-300">{t(selectionHintKey)}</p>
         </div>
 
         <div className="space-y-2" data-testid="tag-candidate-board" data-layout="row-board">
@@ -518,7 +535,7 @@ export function TagBindingStudio() {
                     : 'border-slate-800 bg-slate-900/70'
                 }`}
               >
-                <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(220px,0.9fr)] lg:items-center">
+                <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1.2fr)_minmax(96px,0.45fr)_minmax(96px,0.45fr)_minmax(220px,0.9fr)] lg:items-center">
                   <span className="pt-1">
                     <input
                       type="checkbox"
@@ -548,48 +565,50 @@ export function TagBindingStudio() {
                     </p>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                        {t('workbench.tag.board.rawValue')}
-                      </p>
-                      <p
-                        className="mt-1 text-sm font-medium text-slate-100"
-                        data-testid={`tag-raw-${candidate.pointId}`}
-                      >
-                        {formatCandidateValue(candidate.rawValue)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/70 px-3 py-2">
-                      <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                        {t('workbench.tag.board.transformedValue')}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-slate-100">
-                        {formatCandidateValue(candidate.transformedValue)}
-                      </p>
-                    </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                      {t('workbench.tag.board.rawValue')}
+                    </p>
+                    <p
+                      className="text-sm font-medium text-slate-100"
+                      data-testid={`tag-raw-${candidate.pointId}`}
+                    >
+                      {formatCandidateValue(candidate.rawValue)}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                      {t('workbench.tag.board.transformedValue')}
+                    </p>
+                    <p className="text-sm font-medium text-slate-100">
+                      {formatCandidateValue(candidate.transformedValue)}
+                    </p>
                   </div>
 
-                  <div className="space-y-2 lg:justify-self-end">
-                    <span
-                      className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusToneClass(
-                        candidate.bindingStatus,
-                      )}`}
-                      data-testid={`tag-status-${candidate.pointId}`}
-                    >
-                      {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
-                    </span>
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusToneClass(
+                          candidate.bindingStatus,
+                        )}`}
+                        data-testid={`tag-status-${candidate.pointId}`}
+                      >
+                        {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
+                      </span>
 
-                    <div
-                      data-testid={`tag-preview-${candidate.pointId}`}
-                      data-conflict={candidate.conflict ? 'true' : 'false'}
-                      className={`rounded-lg border px-3 py-2 text-sm font-medium ${
-                        candidate.conflict
-                          ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
-                          : 'border-slate-800 bg-slate-950/80 text-cyan-100'
-                      }`}
-                    >
-                      {candidate.previewKey}
+                      {flowMode === 'create' ? (
+                        <div
+                          data-testid={`tag-preview-${candidate.pointId}`}
+                          data-conflict={candidate.conflict ? 'true' : 'false'}
+                          className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                            candidate.conflict
+                              ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
+                              : 'border-slate-800 bg-slate-950/80 text-cyan-100'
+                          }`}
+                        >
+                          {candidate.previewKey}
+                        </div>
+                      ) : null}
                     </div>
 
                     {flowMode === 'existing' ? (
@@ -674,28 +693,28 @@ export function TagBindingStudio() {
           </div>
         </div>
 
-        <dl className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+        <dl className="grid gap-2 sm:grid-cols-3 xl:grid-cols-3">
+          <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
             <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
               {t('workbench.tag.metrics.selected')}
             </dt>
-            <dd className="mt-2 text-2xl font-semibold text-slate-50">
+            <dd className="mt-1 text-xl font-semibold text-slate-50">
               {selectedCandidates.length}
             </dd>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+          <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
             <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
               {t('workbench.tag.metrics.ready')}
             </dt>
-            <dd className="mt-2 text-2xl font-semibold text-emerald-200">
+            <dd className="mt-1 text-xl font-semibold text-emerald-200">
               {readyCount}
             </dd>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+          <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
             <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
               {t('workbench.tag.metrics.blocked')}
             </dt>
-            <dd className="mt-2 text-2xl font-semibold text-rose-200">
+            <dd className="mt-1 text-xl font-semibold text-rose-200">
               {blockedSelectionCount}
             </dd>
           </div>

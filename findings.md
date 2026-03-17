@@ -128,6 +128,12 @@
 - `DatabaseTargetBoard` 若自己再維護一份 `selectedTagId`，會和上方 shared candidate board 形成 split-brain selection；把 tag selection 提升成單一來源後，shared row、database form、inspector 才會一起同步。
 - Modbus operational cards 與 Database 的 schema/preview panels 只要明確標成 `supporting` secondary sections，就能在不刪功能的前提下降低畫面權重，符合本輪 scan-first 目標。
 
+### 2026-03-17：quiet desktop v2 收尾發現
+- Step 2 即使把 planner 搬進 rule layer，如果 save/load/snapshot/jump 仍常駐在 primary toolbar，使用者第一眼還是會看到工具牆；真正有效的是把這些 secondary actions 收進 `moreTools` disclosure，讓 rule list 與 canvas 回到主角。
+- Step 3 的 existing mode 若還保留 preview key，畫面會同時暗示「要建立什麼」與「要綁到哪裡」，造成雙重心智模型；改成 existing mode 只顯示 existing tag select 後，掃描節奏會穩很多。
+- Step 4 的 database connector form 預設收合可以降低噪音，但 connector list click 也必須直接展開 editor；否則使用者只會看到 active state 變化，卻感覺像「選了沒反應」。
+- 當 shared candidate board 成為唯一 tag selection source 後，Modbus register editor、Database mapping form、Inspector trace 三者才能維持同一份 selected-tag truth，不再 split-brain。
+
 ## 2026-03-08
 
 ### 規範來源盤查

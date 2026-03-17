@@ -343,7 +343,7 @@ describe('DatalinkWorkbench output step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-    await screen.findByLabelText('workbench.output.mapping.tag');
+    await screen.findByLabelText('workbench.output.mapping.register');
     await waitFor(() => {
       expect(
         screen.getByRole('button', { name: 'workbench.output.actions.startServer' }),
@@ -451,13 +451,36 @@ describe('DatalinkWorkbench output step', () => {
     );
   });
 
+  it('uses the shared candidate board as the only tag selection surface for both targets', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    await screen.findByTestId('output-candidate-tag-1');
+
+    expect(screen.queryByLabelText('workbench.output.mapping.tag')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'workbench.output.targetSwitcher.database',
+      }),
+    );
+
+    await screen.findByLabelText('workbench.output.database.mapping.table');
+
+    expect(
+      screen.queryByLabelText('workbench.output.database.mapping.tag'),
+    ).not.toBeInTheDocument();
+  });
+
   it('binds a linked tag to a local modbus register', async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-    await screen.findByLabelText('workbench.output.mapping.tag');
+    await screen.findByLabelText('workbench.output.mapping.register');
     await waitFor(() => {
       expect(
         screen.getByRole('button', { name: 'workbench.output.actions.bind' }),
@@ -495,7 +518,7 @@ describe('DatalinkWorkbench output step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-    await screen.findByLabelText('workbench.output.mapping.tag');
+    await screen.findByLabelText('workbench.output.mapping.register');
     await waitFor(() => {
       expect(screen.getByDisplayValue('12')).toBeInTheDocument();
     });
@@ -604,13 +627,11 @@ describe('DatalinkWorkbench output step', () => {
       }),
     );
 
-    await screen.findByLabelText('workbench.output.database.mapping.tag');
+    await screen.findByLabelText('workbench.output.database.mapping.table');
     fireEvent.click(screen.getByTestId('output-candidate-tag-2'));
 
     await waitFor(() => {
-      expect(
-        screen.getByLabelText('workbench.output.database.mapping.tag'),
-      ).toHaveValue('tag-2');
+      expect(screen.getByTestId('database-selected-tag')).toHaveTextContent('TAG_40002');
     });
     await waitFor(() => {
       expect(screen.getByTestId('trace-tag-key')).toHaveTextContent('TAG_40002');
@@ -742,6 +763,32 @@ describe('DatalinkWorkbench output step', () => {
   // ---------------------------------------------------------------------------
 
   describe('database studio schema snapshot', () => {
+    it('collapses connector fields until the operator expands connector setup', async () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'workbench.output.targetSwitcher.database',
+        }),
+      );
+
+      expect(
+        screen.queryByLabelText('workbench.output.database.connector.name'),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'workbench.output.database.actions.configureConnector',
+        }),
+      );
+
+      expect(
+        await screen.findByLabelText('workbench.output.database.connector.name'),
+      ).toBeInTheDocument();
+    });
+
     it('groups schema snapshot and write preview into supporting secondary panels', async () => {
       renderPage();
 

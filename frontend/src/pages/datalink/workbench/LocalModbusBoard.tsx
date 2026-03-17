@@ -660,7 +660,7 @@ export function LocalModbusBoard() {
   return (
     <div className="space-y-6">
       <section
-        className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-5"
+        className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
         data-testid="output-primary-anchor"
         tabIndex={-1}
       >
@@ -707,7 +707,7 @@ export function LocalModbusBoard() {
           </div>
         </div>
 
-        <div className="grid gap-3">
+        <div className="grid gap-2">
           {candidates.map((candidate) => {
             const active = selectedTagId === candidate.tagId;
 
@@ -725,12 +725,12 @@ export function LocalModbusBoard() {
                 }}
                 aria-pressed={active}
                 data-testid={`output-candidate-${candidate.tagId}`}
-                className={`grid gap-3 rounded-2xl border p-4 text-left transition xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] ${
-                  active
-                    ? 'border-cyan-500/40 bg-cyan-500/5'
-                    : 'border-slate-800 bg-slate-900/70'
-                }`}
-              >
+                  className={`grid gap-2 rounded-xl border px-3 py-3 text-left transition xl:grid-cols-[minmax(0,1.1fr)_auto] ${
+                    active
+                      ? 'border-cyan-500/40 bg-cyan-500/5'
+                      : 'border-slate-800 bg-slate-900/70'
+                  }`}
+                >
                 <span className="space-y-2">
                   <span className="block text-sm font-semibold text-slate-50">
                     {candidate.tagKey}
@@ -887,21 +887,14 @@ export function LocalModbusBoard() {
             </div>
 
             <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                <span>{t('workbench.output.mapping.tag')}</span>
-                <select
-                  aria-label={t('workbench.output.mapping.tag')}
-                  value={selectedTagId}
-                  onChange={(event) => setSelectedTagId(event.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-                >
-                  {candidates.map((candidate) => (
-                    <option key={candidate.tagId} value={candidate.tagId}>
-                      {candidate.tagKey}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                  {t('workbench.output.mapping.selectedTag')}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-50">
+                  {selectedCandidate?.tagKey ?? '—'}
+                </p>
+              </div>
 
               <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
                 <span>{t('workbench.output.mapping.register')}</span>

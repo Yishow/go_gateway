@@ -247,6 +247,13 @@ describe('DatalinkWorkbench foundation route', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('drops the decorative Step 1 hero block once the compact toolbar is available', () => {
+    renderApp();
+
+    expect(screen.queryByText('workbench.device.title')).not.toBeInTheDocument();
+    expect(screen.queryByText('workbench.device.description')).not.toBeInTheDocument();
+  });
+
   it('renders compact device rows with endpoint, health, and two primary capability hints', () => {
     renderApp();
 
@@ -381,6 +388,8 @@ describe('DatalinkWorkbench foundation route', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.create' }));
 
+    expect(screen.getByTestId('device-panel-overlay')).toHaveClass('fixed');
+    expect(screen.getByTestId('device-panel-overlay')).not.toHaveClass('absolute');
     expect(
       screen.getByRole('heading', { name: 'workbench.device.panel.createTitle' }),
     ).toBeInTheDocument();

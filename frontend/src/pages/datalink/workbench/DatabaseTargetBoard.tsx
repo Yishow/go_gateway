@@ -134,7 +134,7 @@ function statusBadgeClasses(status: DatabaseConnector['status']): string {
 export function DatabaseTargetBoard({
   candidates,
   selectedTagId,
-  onSelectedTagChange,
+  onSelectedTagChange: _onSelectedTagChange,
 }: DatabaseTargetBoardProps) {
   const { t } = useTranslation();
   const tRef = useRef(t);
@@ -147,6 +147,7 @@ export function DatabaseTargetBoard({
     null,
   );
   const [selectedConnectorId, setSelectedConnectorId] = useState('');
+  const [isConnectorEditorOpen, setIsConnectorEditorOpen] = useState(false);
   const [draft, setDraft] = useState<ConnectorDraft>(() => createEmptyDraft());
   const [tableKey, setTableKey] = useState('');
   const [columnName, setColumnName] = useState('');
@@ -318,6 +319,7 @@ export function DatabaseTargetBoard({
 
   const handleNewConnector = useCallback(() => {
     setSelectedConnectorId('');
+    setIsConnectorEditorOpen(true);
     setDraft(createEmptyDraft());
     setClearSavedPassword(false);
     setTables([]);
@@ -633,15 +635,18 @@ export function DatabaseTargetBoard({
                 {connectors.map((connector) => {
                   const active = connector.id === selectedConnectorId;
                   return (
-                    <button
-                      key={connector.id}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setSelectedConnectorId(connector.id)}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left ${
-                        active
-                          ? 'border-violet-500/40 bg-violet-500/5'
-                          : 'border-slate-800 bg-slate-950/70'
+                     <button
+                       key={connector.id}
+                       type="button"
+                       aria-pressed={active}
+                       onClick={() => {
+                         setSelectedConnectorId(connector.id);
+                         setIsConnectorEditorOpen(true);
+                       }}
+                       className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left ${
+                         active
+                           ? 'border-violet-500/40 bg-violet-500/5'
+                           : 'border-slate-800 bg-slate-950/70'
                       }`}
                     >
                       <span className="space-y-1">
@@ -664,18 +669,29 @@ export function DatabaseTargetBoard({
                 })}
               </div>
             )}
+
+            <button
+              type="button"
+              onClick={() => setIsConnectorEditorOpen((currentValue) => !currentValue)}
+              className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200"
+            >
+              {isConnectorEditorOpen
+                ? t('workbench.output.database.actions.hideConnector')
+                : t('workbench.output.database.actions.configureConnector')}
+            </button>
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.output.database.connector.name')}</span>
-              <input
-                aria-label={t('workbench.output.database.connector.name')}
-                value={draft.name}
-                onChange={(event) => handleConnectorField('name', event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-              />
-            </label>
+          {isConnectorEditorOpen ? (
+            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                <span>{t('workbench.output.database.connector.name')}</span>
+                <input
+                  aria-label={t('workbench.output.database.connector.name')}
+                  value={draft.name}
+                  onChange={(event) => handleConnectorField('name', event.target.value)}
+                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                />
+              </label>
 
             <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
               <span>{t('workbench.output.database.connector.kind')}</span>
@@ -820,101 +836,59 @@ export function DatabaseTargetBoard({
               <span>{t('workbench.output.database.connector.enabled')}</span>
             </label>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void handleSaveConnector()}
-                disabled={isBusy}
-                className="rounded-lg bg-violet-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
-              >
-                {t('workbench.output.database.actions.saveConnector')}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleTestConnector()}
-                disabled={isBusy || !selectedConnectorId}
-                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
-              >
-                {t('workbench.output.database.actions.testConnector')}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDeleteConnector()}
-                disabled={isBusy || !selectedConnectorId}
-                className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100 disabled:opacity-50"
-              >
-                {t('workbench.output.database.actions.deleteConnector')}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleSaveConnector()}
+                  disabled={isBusy}
+                  className="rounded-lg bg-violet-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+                >
+                  {t('workbench.output.database.actions.saveConnector')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleTestConnector()}
+                  disabled={isBusy || !selectedConnectorId}
+                  className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
+                >
+                  {t('workbench.output.database.actions.testConnector')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteConnector()}
+                  disabled={isBusy || !selectedConnectorId}
+                  className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100 disabled:opacity-50"
+                >
+                  {t('workbench.output.database.actions.deleteConnector')}
+                </button>
+              </div>
             </div>
-          </div>
+          ) : null}
         </aside>
 
         <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <div className="grid gap-3">
-            {candidates.map((candidate) => {
-              const active = candidate.tagId === selectedTagId;
-              const mapped = connectorMappings.find(
-                (mapping) => mapping.tag_id === candidate.tagId,
-              );
-              return (
-                <button
-                  key={candidate.tagId}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onSelectedTagChange(candidate.tagId)}
-                  className={`grid gap-3 rounded-2xl border p-4 text-left transition md:grid-cols-[minmax(0,1fr)_auto] ${
-                    active
-                      ? 'border-violet-500/40 bg-violet-500/5'
-                      : 'border-slate-800 bg-slate-950/70'
-                  }`}
-                >
-                  <span className="space-y-2">
-                    <span className="block text-sm font-semibold text-slate-50">
-                      {candidate.tagKey}
-                    </span>
-                    <span className="block text-xs text-slate-400">
-                      {t('workbench.output.database.candidates.meta', {
-                        point: candidate.pointName,
-                        address: candidate.pointAddress,
-                        dataType: candidate.dataType,
-                      })}
-                    </span>
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      mapped
-                        ? 'bg-emerald-500/10 text-emerald-200'
-                        : 'bg-slate-800 text-slate-300'
-                    }`}
-                  >
-                    {mapped
-                      ? t('workbench.output.database.candidates.mapped', {
-                          table: mapped.table_name,
-                          column: mapped.column_name,
-                        })
-                      : t('workbench.output.database.candidates.unmapped')}
-                  </span>
-                </button>
-              );
-            })}
+          <div
+            className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+            data-testid="database-selected-tag"
+          >
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+              {t('workbench.output.database.mapping.selectedTag')}
+            </p>
+            <p className="mt-2 text-sm font-semibold text-slate-50">
+              {selectedCandidate?.tagKey ?? t('workbench.output.database.summary.none')}
+            </p>
+            {selectedCandidate ? (
+              <p className="mt-1 text-xs text-slate-400">
+                {t('workbench.output.database.candidates.meta', {
+                  point: selectedCandidate.pointName,
+                  address: selectedCandidate.pointAddress,
+                  dataType: selectedCandidate.dataType,
+                })}
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 lg:grid-cols-2">
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.output.database.mapping.tag')}</span>
-              <select
-                aria-label={t('workbench.output.database.mapping.tag')}
-                value={selectedTagId}
-                onChange={(event) => onSelectedTagChange(event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-              >
-                {candidates.map((candidate) => (
-                  <option key={candidate.tagId} value={candidate.tagId}>
-                    {candidate.tagKey}
-                  </option>
-                ))}
-              </select>
-            </label>
 
             <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
               <span>{t('workbench.output.database.mapping.table')}</span>

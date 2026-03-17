@@ -387,6 +387,41 @@
 - `cd frontend && npm run lint`
 - `cd frontend && npx tsc --noEmit`
 
+## 2026-03-17：quiet desktop v2 收尾
+
+### Completed
+- Step 1 收斂完成：
+  - `WorkbenchDeviceStep.tsx` 移除裝飾 hero block
+  - device row 改為更緊湊的 desktop grid
+  - capability hints 改成 inline pills
+  - create/edit panel overlay 改成 viewport-level `fixed`
+  - `WorkbenchInspectorPanel.tsx` 補上 scrollable aside
+- Step 2 收斂完成：
+  - `SourceCanvasSection.tsx` 將 planner 移入 rule layer
+  - `apply` 正式改為 `addRule`
+  - 加入 delete rule（workspace + inspector 兩條路徑）
+  - utility tools 收進 `moreTools`
+  - `AddressCanvas` 與 coverage strip 的主次層級重新排序
+- Step 3 收斂完成：
+  - `TagBindingStudio.tsx` 補齊 `flowModeHint` / `selectionHint`
+  - raw/transformed value 扁平化為 row-board 欄位
+  - existing mode 隱藏 preview key，只保留 existing tag select
+  - sidebar metrics 壓縮，讓候選列掃描更穩
+- Step 4 收斂完成：
+  - `LocalModbusBoard.tsx` / `DatabaseTargetBoard.tsx` 改成 shared candidate board 為唯一 tag selection surface
+  - Modbus / Database studio 以 read-only selected-tag summary 取代各自的 tag select
+  - Database connector form 預設收合，並新增 `configureConnector` / `hideConnector`
+- Code review 已執行，並依 reviewer 建議補強：
+  - 點選既有 connector 時會直接展開 connector editor
+  - inspector delete-rule 路徑與 source workspace delete-rule 路徑維持同樣的 focus/selection 清理條件
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+- `cd frontend && npm run build`
+- code review：reviewer 先抓出 connector editor 展開互動缺口與 delete-rule contract 不一致，兩項已修正後再完成驗證
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
