@@ -601,6 +601,7 @@ export function SourceCanvasSection() {
               startAddress: editDraft.startAddress.trim(),
               count: editDraft.count,
               dataType: editDraft.dataType,
+              skippedAddresses: [],
             }
           : rule,
       ),

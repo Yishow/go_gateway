@@ -1166,4 +1166,56 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     expect(screen.getByTestId('source-rule-rule-2')).toBeInTheDocument();
   });
+
+  it('resets skippedAddresses when a rule is inline-edited so stale skips do not suppress wrong spans', () => {
+    // 1. Create float32 rule at 40001 count=2 → planned at 40001, 40003
+    // 2. Add point at 40003 → conflict at 40003
+    // 3. Skip span at 40003 → skippedAddresses=['40003'], conflict resolved
+    // 4. Inline-edit rule to start at 40010 → geometry changes completely
+    // 5. Verify the old skip ('40003') does NOT suppress 40003-range in the new geometry
+    //    (new planned addresses are 40010, 40012 — '40003' is irrelevant)
+    //    If skippedAddresses were preserved, a future edit back to 40001 would silently lose 40003.
+    mockPoints[0].address = '40003';
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    // Skip the conflicting span
+    const conflictItem = screen.getByTestId('conflict-item-40003');
+    fireEvent.click(
+      within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.skipSpan' }),
+    );
+    expect(screen.queryByTestId('source-conflict-queue')).not.toBeInTheDocument();
+    expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('1');
+
+    // Inline-edit rule to move start address
+    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
+    );
+    const editForm = within(ruleCard).getByTestId('rule-inline-edit-form');
+    fireEvent.change(within(editForm).getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40010' },
+    });
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editSave' }),
+    );
+
+    // After edit, both spans of the new geometry should be ready (no stale skip)
+    expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('address-cell-40010')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-40012')).toHaveAttribute('data-status', 'planned');
+  });
 });
