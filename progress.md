@@ -505,21 +505,18 @@
 - `cd frontend && npx tsc --noEmit`
 - `cd frontend && npm run build`
 
-## 2026-03-17：P2 slice 1 — source summary 與雙主 CTA
+## 2026-03-17：P2 完成 — source studio 收尾
 
 ### Completed
-- `SourceCanvasSection.tsx`
-  - 在 primary toolbar 右側補上 Step 2-local `source-step-summary`
-  - 將 `ready to create / in conflict / protected` 三個摘要分塊落地
-  - 新增 `Create selected points` / `Create rule points` 雙主 CTA
-  - 將 rule bulk create 主動作自 secondary controls 移出，讓 `More tools` 回到純工具 disclosure
-  - `Create selected points` 先補單一 logical span 建立路徑，支援從 32-bit merge continuation 回推 root address
-- `DatalinkWorkbenchSourceStep.test.tsx`
-  - 新增 source-step summary regression
-  - 新增 selection-first create regression（點選 32-bit span 第二格仍建立 root point）
-- locale
-  - 補齊 `workbench.source.summary.*`
-  - 補齊 `workbench.source.actions.*`
+- `master-detail-step2-creation-flow`
+  - `SourceCanvasSection.tsx` 已完成 Step 2 右上健康摘要與雙主 CTA
+  - 已補 selection toolbar、rule inline edit 與 point create 雙路徑
+  - `Create selected points` 支援 logical span 建立，並能從 merge continuation 回推 root address
+- `master-detail-step2-conflict-types`
+  - actionable conflict queue 已落地
+  - grouped data type selector 對齊現有 `DataType`
+  - `Protect plan` 文案 / 說明與 32/64-bit logical cell guard 已補齊
+  - fixed 16-bit lattice、coverage summary 與 Step 2 inspector seam 已穩定
 
 ### Validation
 - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
@@ -527,14 +524,57 @@
 - `cd frontend && npx tsc --noEmit`
 - `cd frontend && npm run build`
 
+## 2026-03-17：P3 完成 — Step 3/4 continuity
+
+### Completed
+- `master-detail-step3-guidance`
+  - Step 3 empty state 改為顯示 `No points have been created yet`
+  - 顯示來自 Step 2 的 `eligible spans`
+  - 補 `Go to Source Planning` CTA
+  - `countEligibleSpans` 已與 Step 2 `readyToCreateCount` 對齊
+- `master-detail-step4-continuity`
+  - Step 3 在 create flow / existing flow bind success 後寫入真實 `focusedTagIds`
+  - 點選已綁定 row 時，也會把對應 tag 焦點交給 Step 4
+  - Step 4 candidate selection 會優先吃 `focusedTagIds`，再 fallback 到第一個可用候選
+
+### Validation
+- targeted tag/output/model regressions 已通過
+- spec review：`APPROVED`
+- code quality review：`APPROVED`
+- commits：
+  - `668543b 完成 Step 3 空狀態引導與解鎖語意對齊`
+  - `0e239b7 修正 countEligibleSpans 語意對齊 Step 2 readyToCreateCount`
+  - `3827d39 接通 Step 3→Step 4 跨步驟 tag 焦點交接`
+
+## 2026-03-17：P4 完成 — regressions / desktop check / route-sync fix
+
+### Completed
+- `master-detail-polish-regressions`
+  - 重新跑完整 workbench regression
+  - 完成 1920×1080 desktop check，截圖保存於 session artifacts
+  - 補齊 deep-link query lock regression，修正 `?step=...` 會把 step rail / CTA 鎖回初始步驟的問題
+  - `DatalinkWorkbenchPage.tsx` 改為 two-phase sync：mount 時先 hydrate，之後由 provider state 回寫 URL
+  - `DatalinkWorkbenchFoundation.test.tsx` 補 deep-link 後仍可切換步驟的回歸測試
+  - 真瀏覽器 smoke 已驗證 `?step=device` 可正常切到 `?step=source`
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/workbench-source-canvas-model.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+- 結果：`134/134` tests passed
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+- `cd frontend && npm run build`
+- requirement review：`APPROVED`
+- final code review：`APPROVED`
+- commit：`efe0e0b 修正 workbench 深連結後步驟導航被鎖定的回歸問題`
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | implementation plan 已建立，等待是否啟動 Phase 1 |
-| Where am I going? | 若使用者同意，即用 fleet mode 派發 foundation 與第一批 UI 子任務；Phase 2 契約也已有提前規劃 |
-| What's the goal? | 讓 datalink UI 收斂成「來源 -> 可視化 -> Tag -> 輸出」的單純主線 |
-| What have I learned? | 問題集中在頁面層，底層 domain 資產大多可沿用；runtime API 與 DB target 已完成細化規劃但尚未實作 |
-| What have I done? | 已完成深度盤查、設計 spec、spec review、spec commit、implementation backlog、Phase 1/2 detail planning |
+| Where am I? | `master-detail polish` 與 regression 收尾已完成，`/datalink/workbench` 主線可實機 review |
+| Where am I going? | 下一步是由使用者確認是否將 `/datalink/workbench` 升格為 datalink 主入口，或先做 rollout / embedded static 收尾 |
+| What's the goal? | 保持 datalink UI 的單純主線：來源設定 -> 可視化 -> Tag -> 輸出（Local Modbus / Database） |
+| What have I learned? | 真桌面檢查抓出的主要 regressions 已不是版面，而是 deep-link route-sync；修正後主流程與 URL 狀態已重新對齊 |
+| What have I done? | 已完成 Step 2/3/4 polish、桌面檢查、route-lock fix、文件同步、review 與回歸驗證 |
 
 ## Session: 2026-03-16
 

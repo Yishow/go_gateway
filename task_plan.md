@@ -154,7 +154,7 @@
 - [x] 為每個 phase 定義主要檔案、依賴與驗證焦點
 - [x] 將 execution backlog 回寫到 planning files 與 SQL todos
 
-### Phase I: Master-detail polish implementation [in progress]
+### Phase I: Master-detail polish implementation [complete]
 
 #### Phase P0：Shared readiness contract [complete]
 - [x] `master-detail-readiness-contract`
@@ -176,37 +176,41 @@
   - regression seam 已補：shell inspector query scope 與 foundation master-detail assertions
   - 已通過 `workbench-shell-ui.test.tsx`、`workbench-foundation.test.tsx`、`npm run lint`、`npx tsc --noEmit`、`npm run build`
 
-#### Phase P2：Step 2 source studio [in progress]
-- [ ] `master-detail-step2-creation-flow`
+#### Phase P2：Step 2 source studio [complete]
+- [x] `master-detail-step2-creation-flow`
   - `SourceCanvasSection.tsx` 補右上健康摘要與雙主 CTA
-  - 補 selection toolbar
-  - rule inline edit 與 point 建立雙路徑對齊 spec
-  - 已完成 slice 1：
-    - `source-step-summary`：`ready to create / in conflict / protected`
-    - `Create selected points` / `Create rule points` 雙主 CTA
-    - point create 主動作自 secondary controls 退位，`More tools` 回到純工具區
-    - selection-first 先補單一 logical span create，支援從 merge continuation 回推 root address
-- [ ] `master-detail-step2-conflict-types`
-  - actionable conflict queue
+  - 補齊 selection toolbar
+  - 補齊 rule inline edit 與 point create 雙路徑
+  - `source-step-summary`：`ready to create / in conflict / protected`
+  - `Create selected points` / `Create rule points` 雙主 CTA
+  - point create 主動作自 secondary controls 退位，`More tools` 回到純工具區
+  - selection-first 支援 logical span create，並能從 merge continuation 回推 root address
+- [x] `master-detail-step2-conflict-types`
+  - actionable conflict queue 已落地
   - data type grouped selector 對齊現有 `DataType`
-  - `Protect plan` 文案 / 說明落地
-  - 32/64-bit logical cell selection guard
+  - `Protect plan` 文案 / 說明已落地
+  - 32/64-bit logical cell selection guard 已補齊
+  - fixed 16-bit lattice、coverage summary 與 Step 2 inspector seam 已穩定
 
-#### Phase P3：Step 3/4 continuity [pending]
-- [ ] `master-detail-step3-guidance`
+#### Phase P3：Step 3/4 continuity [complete]
+- [x] `master-detail-step3-guidance`
   - Step 3 只在 persisted/usable point 存在時解鎖
-  - empty state 顯示可建立 span 數量與返回 Step 2 快捷動作
-  - row-board guidance 與 inspector handoff 對齊
-- [ ] `master-detail-step4-continuity`
-  - 確認 shared tag selection surface 與 active-target contract 持續成立
-  - 若 Step 3 handoff 暴露 drift，再做最小修補
+  - empty state 會顯示可建立 span 數量與返回 Step 2 的快捷動作
+  - `countEligibleSpans` 已對齊 Step 2 `readyToCreateCount`
+  - row-board guidance 與 inspector handoff 已對齊
+- [x] `master-detail-step4-continuity`
+  - Step 3 bind success 與 bound row focus 都會交接真實 `focusedTagIds`
+  - Step 4 shared tag selection surface 會優先接續 Step 3 焦點，再 fallback 到既有候選
+  - active-target contract 持續成立，未重開另一套 selection UI
 
-#### Phase P4：Quality and rollout [pending]
-- [ ] `master-detail-polish-regressions`
-  - 補/改 unit/page regressions
-  - `lint` / `tsc --noEmit` / `build`
-  - 1920×1080 desktop check
-  - code review / 文件同步 / 繁中 commit
+#### Phase P4：Quality and rollout [complete]
+- [x] `master-detail-polish-regressions`
+  - 補/改 unit/page regressions，最終 workbench suite `134/134` 通過
+  - `lint` / `tsc --noEmit` / `build` 全數通過
+  - 1920×1080 desktop check 已完成，截圖保存在 session artifacts
+  - 補齊 deep-link route-sync regression，修正 `?step=...` stale query 會鎖住步驟導航的問題
+  - requirement review 與 final code review 皆為 `APPROVED`
+  - 文件同步完成，route-fix 已繁中 commit：`efe0e0b 修正 workbench 深連結後步驟導航被鎖定的回歸問題`
 
 ### Phase F: Phase 2 契約與輸出目標落地 [complete]
 - [x] `runtime-live-value-phase2`
