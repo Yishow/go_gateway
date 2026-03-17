@@ -134,6 +134,12 @@
 - Step 4 的 database connector form 預設收合可以降低噪音，但 connector list click 也必須直接展開 editor；否則使用者只會看到 active state 變化，卻感覺像「選了沒反應」。
 - 當 shared candidate board 成為唯一 tag selection source 後，Modbus register editor、Database mapping form、Inspector trace 三者才能維持同一份 selected-tag truth，不再 split-brain。
 
+### 2026-03-17：master-detail polish spec 發現
+- Step 1 的真正痛點不是缺功能，而是「裝置列表、搜尋、編輯表單」同時搶主位；回到 master-detail 後，使用者第一眼才會先看到裝置本身與下一步，而不是控制元件。
+- Step 2 若要同時支援 rule-first 與 selection-first，必須明確區分 `planned span` 與 `persisted point`；否則 Step 3 會在錯的時機被解鎖，讓使用者以為 UI 又壞掉。
+- Step 2 的右上健康摘要若不和 `BottomSummaryBar` 切清楚，會再次產生雙重計數來源；正確做法是上方只管本步驟 readiness，底部只管跨步驟進度。
+- data type selector 不能只追求「看起來完整」，還必須對齊現有 `DataType` union；這次 spec review 就抓出 `bitset` 不存在、`bool`/`string` 反而被漏掉，代表規格層也要嚴格對 code reality 對齊。
+
 ## 2026-03-08
 
 ### 規範來源盤查

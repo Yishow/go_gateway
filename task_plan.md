@@ -142,6 +142,13 @@
 - [x] 補齊 Phase 2 runtime/live value/database target 細化規劃：`docs/superpowers/specs/phase2-runtime-dbtarget-detail.md`
 - [x] 再確認 `MemoryGrid` 可沿用、`points poll` 路由已存在，避免 implementation planning 建立在錯誤假設上
 
+### Phase G: Master-detail polish 設計定稿 [complete]
+- [x] 延續 quiet desktop v2 後的使用者回饋，重新聚焦 Step 1/2/3 的桌面操作模型
+- [x] 以 brainstorming + frontend-design 收斂 master-detail 方向
+- [x] 完成設計 spec：`docs/superpowers/specs/2026-03-17-datalink-workbench-master-detail-polish-design.md`
+- [x] 完成 spec review loop，修正 data type、Step 2 summary 分工、Step 3 unlock 條件等 drift
+- [ ] 等待使用者 review spec，確認是否進入 implementation planning
+
 ### Phase F: Phase 2 契約與輸出目標落地 [complete]
 - [x] `runtime-live-value-phase2`
   - 已補齊 runtime status / stream、source runtime summary 與 point poll contract

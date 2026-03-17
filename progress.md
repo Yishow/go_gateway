@@ -422,6 +422,31 @@
 - `cd frontend && npm run build`
 - code review：reviewer 先抓出 connector editor 展開互動缺口與 delete-rule contract 不一致，兩項已修正後再完成驗證
 
+## 2026-03-17：master-detail polish spec 定稿
+
+### Completed
+- 已完成新一輪 workbench polish 設計定稿：
+  - `docs/superpowers/specs/2026-03-17-datalink-workbench-master-detail-polish-design.md`
+- 本輪設計重點：
+  - Step 1 回到真正的 master-detail device studio
+  - Step 2 明確定義 rule-first + selection-first 的雙 point 建立路徑
+  - Step 2 右上健康摘要與底部 `BottomSummaryBar` 完成分工切線
+  - `32-bit` / `64-bit` 明確定義為單一邏輯格，不允許半格選取
+  - data type 分組對齊現有 `DataType` union，避免 spec drift
+  - Step 3 改成至少有一筆 persisted/usable point 才解鎖
+- 已依 frontend-design / UX psychology 原則將設計收斂到：
+  - Hick's Law：減少同時選項
+  - Fitts' Law：主 CTA 固定且可快速命中
+  - Miller's Law：摘要與衝突資訊分塊呈現
+
+### Validation
+- spec review loop：
+  - 第一輪抓出 3 個實質問題：data type drift、Step 2/BottomSummary 重複計數風險、Step 3 解鎖門檻模糊
+  - 修正後重新審稿，結果：`Approved`
+- 目前狀態：
+  - spec 已寫成 repo 文件
+  - 等待使用者 review spec 後，再決定是否進入 implementation planning
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
