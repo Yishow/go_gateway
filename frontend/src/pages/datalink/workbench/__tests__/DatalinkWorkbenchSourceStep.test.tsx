@@ -892,7 +892,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(within(conflictQueue).getByText('workbench.source.conflictQueue.title')).toBeInTheDocument();
     expect(within(conflictQueue).getByText('workbench.source.conflictQueue.step3Blocked')).toBeInTheDocument();
 
-    const conflictItem = screen.getByTestId('conflict-item-40002');
+    const conflictItem = screen.getByTestId('conflict-item-40001');
     expect(conflictItem).toBeInTheDocument();
     expect(within(conflictItem).getByText('workbench.source.conflictQueue.pointOverlap')).toBeInTheDocument();
     expect(
@@ -921,7 +921,7 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    const conflictItem = screen.getByTestId('conflict-item-40002');
+    const conflictItem = screen.getByTestId('conflict-item-40001');
     fireEvent.click(
       within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.editRule' }),
     );
@@ -1003,7 +1003,7 @@ describe('DatalinkWorkbench source step', () => {
 
     const rootCell = screen.getByTestId('address-cell-40001');
     expect(rootCell).toHaveAttribute('aria-pressed', 'true');
-    expect(continuationCell).toHaveAttribute('aria-pressed', 'false');
+    expect(continuationCell).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('highlights all cells of a selected logical cell', () => {
@@ -1026,5 +1026,86 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(rootCell.className).toContain('ring-2');
     expect(continuationCell.className).toContain('ring-2');
+  });
+
+  it('emits conflict queue item for continuation-only conflicts', () => {
+    // Point at 40003, rule plans float32 at 40002 (occupies 40002+40003).
+    // Conflict at continuation cell (40003) should resolve to root (40002).
+    mockPoints[0].address = '40003';
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40002' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const conflictQueue = screen.getByTestId('source-conflict-queue');
+    expect(within(conflictQueue).getByTestId('conflict-item-40002')).toBeInTheDocument();
+  });
+
+  it('skip-span excludes only the conflicting logical span, not the entire rule', () => {
+    // Point at 40003, rule plans float32 count=2 at 40001 (40001-40002 and 40003-40004).
+    // Conflict at 40003 (root of second planned span). Skip should only remove 40003-40004.
+    mockPoints[0].address = '40003';
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const conflictQueue = screen.getByTestId('source-conflict-queue');
+    const conflictItem = within(conflictQueue).getByTestId('conflict-item-40003');
+
+    fireEvent.click(
+      within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.skipSpan' }),
+    );
+
+    // Conflict should be resolved — queue disappears
+    expect(screen.queryByTestId('source-conflict-queue')).not.toBeInTheDocument();
+
+    // First span (40001-40002) should still be planned
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'planned');
+
+    // Rule should still be enabled (not disabled)
+    expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('1');
+  });
+
+  it('aria-pressed is true for all cells of a selected logical span', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    fireEvent.click(screen.getByTestId('address-cell-40001'));
+
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('aria-pressed', 'true');
   });
 });

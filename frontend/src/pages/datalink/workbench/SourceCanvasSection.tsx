@@ -196,6 +196,7 @@ function buildRulePointDefinitions(input: {
     });
 
     plannedAddresses.forEach((address) => {
+      if (rule.skippedAddresses?.includes(address)) return;
       if (!definitions.has(address)) {
         definitions.set(address, buildPointDefinition(rule, address));
       }
@@ -416,6 +417,7 @@ export function SourceCanvasSection() {
       locked: false,
       origin: appliedTemplate ? 'template' : 'manual',
       templateName: appliedTemplate?.name,
+      skippedAddresses: [],
     };
 
     setSourcePlanningState((currentState) => ({
@@ -495,6 +497,18 @@ export function SourceCanvasSection() {
         rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule,
       ),
     }));
+  };
+
+  const handleSkipConflictSpan = (ruleId: string, spanRootAddress: string) => {
+    setSourcePlanningState((currentState) => ({
+      ...currentState,
+      rules: currentState.rules.map((rule) =>
+        rule.id === ruleId
+          ? { ...rule, skippedAddresses: [...(rule.skippedAddresses ?? []), spanRootAddress] }
+          : rule,
+      ),
+    }));
+    setBatchCreateSummary(null);
   };
 
   const handleToggleRuleLocked = (ruleId: string) => {
@@ -1497,7 +1511,7 @@ export function SourceCanvasSection() {
                             <button
                               type="button"
                               className="rounded-lg border border-rose-500/30 px-2 py-1 text-[11px] text-rose-100"
-                              onClick={() => handleToggleRuleEnabled(targetRuleId)}
+                              onClick={() => handleSkipConflictSpan(targetRuleId, conflict.address)}
                             >
                               {t('workbench.source.conflictQueue.skipSpan')}
                             </button>

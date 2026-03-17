@@ -21,6 +21,7 @@ export type SourceRule = {
   locked: boolean;
   origin: 'manual' | 'template';
   templateName?: string;
+  skippedAddresses: string[];
 };
 
 export type AddressCanvasStatus = 'gap' | 'planned' | 'used' | 'conflict';
@@ -35,6 +36,7 @@ export type AddressCanvasItem = {
   primaryRuleId: string | null;
   mergeSpan: number;
   mergeOffset: number;
+  ruleMergeOffset: number;
   linkState: AddressLinkState | null;
   linkLabelKey: string | null;
   liveValue: unknown;
@@ -194,6 +196,7 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
       primaryRuleId: ruleMeta?.primaryRuleId ?? null,
       mergeSpan: pointMeta?.mergeSpan ?? ruleMeta?.mergeSpan ?? 1,
       mergeOffset: pointMeta?.mergeOffset ?? ruleMeta?.mergeOffset ?? 0,
+      ruleMergeOffset: ruleMeta?.mergeOffset ?? 0,
       linkState: link.state,
       linkLabelKey: link.labelKey,
       liveValue: liveSnapshot?.raw_value ?? pointMeta?.point?.last_value,
@@ -283,6 +286,7 @@ function buildRuleOccupancyMap(rules: ReadonlyArray<SourceRule>, protocol: Proto
     });
 
     for (const pointAddress of pointAddresses) {
+      if (rule.skippedAddresses?.includes(pointAddress)) continue;
       const occupiedAddresses = expandOccupiedAddresses(
         pointAddress,
         rule.dataType,
@@ -398,17 +402,24 @@ export function buildConflictQueue(
   items: ReadonlyArray<AddressCanvasItem>,
 ): ConflictQueueItem[] {
   const queue: ConflictQueueItem[] = [];
+  const emitted = new Set<string>();
 
-  for (const item of items) {
-    if (item.status !== 'conflict' || item.mergeOffset > 0) {
-      continue;
-    }
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.status !== 'conflict') continue;
+
+    // Resolve to root of the rule's logical span using rule-perspective offset
+    const rootIndex = i - item.ruleMergeOffset;
+    const rootAddress = rootIndex >= 0 ? items[rootIndex].address : item.address;
+
+    if (emitted.has(rootAddress)) continue;
+    emitted.add(rootAddress);
 
     const isRuleOverlap = item.ruleIds.length > 1;
 
     queue.push({
-      id: `conflict-${item.address}`,
-      address: item.address,
+      id: `conflict-${rootAddress}`,
+      address: rootAddress,
       ruleIds: item.ruleIds,
       reason: isRuleOverlap ? 'rule-overlap' : 'point-overlap',
       reasonKey: isRuleOverlap

@@ -145,7 +145,7 @@ export function AddressCanvas({
 
             return (
               <button
-                aria-pressed={selectedAddress === item.address}
+                aria-pressed={selectedLogicalAddresses.has(item.address)}
                 key={item.address}
                 data-merge-offset={String(item.mergeOffset)}
                 data-merge-span={String(item.mergeSpan)}
