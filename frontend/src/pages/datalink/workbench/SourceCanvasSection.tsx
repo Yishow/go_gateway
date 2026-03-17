@@ -554,6 +554,8 @@ export function SourceCanvasSection() {
     setEditingRuleId(null);
     setEditDraft(null);
     setBatchCreateSummary(null);
+    setFocusedRuleId(ruleId);
+    setInspectorSelection({ kind: 'rule', ruleId });
   };
 
   const handleCancelRuleEdit = () => {

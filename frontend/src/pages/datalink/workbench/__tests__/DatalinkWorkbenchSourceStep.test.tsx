@@ -836,4 +836,36 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.queryByTestId('source-selection-toolbar')).not.toBeInTheDocument();
   });
+
+  it('retargets the inspector to the edited rule after inline save', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    fireEvent.click(screen.getByTestId('address-cell-40001'));
+    expect(screen.getByTestId('source-span-inspector')).toBeInTheDocument();
+
+    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
+    );
+    const editForm = within(ruleCard).getByTestId('rule-inline-edit-form');
+    fireEvent.change(within(editForm).getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40010' },
+    });
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editSave' }),
+    );
+
+    expect(screen.queryByTestId('source-span-inspector')).not.toBeInTheDocument();
+    expect(screen.getByTestId('source-rule-inspector')).toBeInTheDocument();
+  });
 });
