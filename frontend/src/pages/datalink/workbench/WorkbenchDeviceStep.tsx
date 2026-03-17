@@ -390,6 +390,7 @@ export function WorkbenchDeviceStep() {
     devicePanelState,
     openCreateDevicePanel,
     selectedDeviceId,
+    setActiveStep,
     setInspectorSelection,
     setSelectedDeviceId,
   } = useWorkbench();
@@ -419,6 +420,39 @@ export function WorkbenchDeviceStep() {
       return matchesSearch && matchesProtocol && matchesStatus;
     });
   }, [devices, protocolFilter, searchQuery, statusFilter]);
+
+  const selectedDevice = useMemo(
+    () => devices.find((device) => device.id === selectedDeviceId) ?? null,
+    [devices, selectedDeviceId],
+  );
+
+  const selectedDeviceConnectionConfig = useMemo(
+    () =>
+      selectedDevice
+        ? parseDeviceConnectionConfig(selectedDevice.connection_config)
+        : null,
+    [selectedDevice],
+  );
+
+  const selectedDeviceEndpoint = useMemo(
+    () =>
+      selectedDevice && selectedDeviceConnectionConfig
+        ? buildDeviceEndpointSummary(selectedDevice.protocol, selectedDeviceConnectionConfig)
+        : null,
+    [selectedDevice, selectedDeviceConnectionConfig],
+  );
+
+  const selectedDeviceCapabilitySummary = useMemo(
+    () =>
+      selectedDevice && selectedDeviceConnectionConfig
+        ? buildDeviceCapabilitySummary(
+            selectedDevice.protocol,
+            selectedDeviceConnectionConfig,
+            t,
+          )
+        : [],
+    [selectedDevice, selectedDeviceConnectionConfig, t],
+  );
 
   useEffect(() => {
     if (!selectedDeviceId) {
@@ -1112,108 +1146,201 @@ export function WorkbenchDeviceStep() {
       ) : null}
 
       {!isLoading && filteredDevices.length > 0 ? (
-        <div className="space-y-3">
-          {filteredDevices.map((device) => {
-            const isSelected = device.id === selectedDeviceId;
-            const connectionConfig = parseDeviceConnectionConfig(device.connection_config);
-            const capabilitySummary = buildDeviceCapabilitySummary(
-              device.protocol,
-              connectionConfig,
-              t,
-            );
-            const endpoint = buildDeviceEndpointSummary(device.protocol, connectionConfig);
-            const capabilityHints = capabilitySummary.filter(
-              (item) => item.id === 'unit-id' || item.id === 'address-base',
-            );
+        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)]">
+          <div className="space-y-3">
+            {filteredDevices.map((device) => {
+              const isSelected = device.id === selectedDeviceId;
+              const connectionConfig = parseDeviceConnectionConfig(device.connection_config);
+              const capabilitySummary = buildDeviceCapabilitySummary(
+                device.protocol,
+                connectionConfig,
+                t,
+              );
+              const endpoint = buildDeviceEndpointSummary(device.protocol, connectionConfig);
+              const capabilityHints = capabilitySummary.filter(
+                (item) => item.id === 'unit-id' || item.id === 'address-base',
+              );
 
-            return (
-              <button
-                data-testid={`device-row-${device.id}`}
-                key={device.id}
-                aria-label={device.name}
-                aria-pressed={isSelected}
-                className={joinClasses(
-                  'grid w-full gap-3 rounded-2xl border px-4 py-3 text-left transition lg:grid-cols-[minmax(220px,1fr)_auto_auto] lg:items-center',
-                  isSelected
-                    ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
-                    : 'border-slate-800 bg-slate-950/40 hover:border-slate-600 hover:bg-slate-900/70',
-                )}
-                onClick={() => {
-                  setSelectedDeviceId(device.id);
-                  setInspectorSelection({ kind: 'device', deviceId: device.id });
-                  setNotice(null);
-                }}
-                type="button"
-              >
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-base font-semibold text-slate-50">
+              return (
+                <button
+                  data-testid={`device-row-${device.id}`}
+                  key={device.id}
+                  aria-label={device.name}
+                  aria-pressed={isSelected}
+                  className={joinClasses(
+                    'grid w-full gap-3 rounded-2xl border px-4 py-3 text-left transition lg:grid-cols-[minmax(220px,1fr)_auto_auto] lg:items-center',
+                    isSelected
+                      ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
+                      : 'border-slate-800 bg-slate-950/40 hover:border-slate-600 hover:bg-slate-900/70',
+                  )}
+                  onClick={() => {
+                    setSelectedDeviceId(device.id);
+                    setInspectorSelection({ kind: 'device', deviceId: device.id });
+                    setNotice(null);
+                  }}
+                  type="button"
+                >
+                  <div className="min-w-0 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-base font-semibold text-slate-50">
                         {device.name}
-                    </span>
-                    <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
+                      </span>
+                      <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
                         {t(getWorkbenchProtocolLabelKey(device.protocol))}
+                      </span>
+                    </div>
+                    <p
+                      className="truncate text-sm text-slate-400"
+                      data-testid={`device-endpoint-${device.id}`}
+                    >
+                      {endpoint}
+                    </p>
+                  </div>
+
+                  <div
+                    className="flex flex-wrap items-center gap-2"
+                    data-testid={`device-capability-strip-${device.id}`}
+                  >
+                    {capabilityHints.map((item) => (
+                      <span
+                        className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1 text-xs text-slate-300"
+                        key={`${device.id}-${item.id}`}
+                      >
+                        <span className="uppercase tracking-[0.18em] text-slate-500">
+                          {t(item.labelKey)}
+                        </span>
+                        <span className="font-medium text-slate-100">
+                          {item.value}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    <span
+                      className={joinClasses(
+                        'rounded-full border px-2 py-1 text-xs font-medium',
+                        getStatusClasses(device.status),
+                      )}
+                    >
+                      {t(getWorkbenchDeviceStatusLabelKey(device.status))}
+                    </span>
+                    <span
+                      className={joinClasses(
+                        'rounded-full border px-2.5 py-1 text-[11px] font-medium',
+                        getDeviceHealthClasses(device.last_test_success),
+                      )}
+                      data-testid={`device-health-${device.id}`}
+                    >
+                      {getDeviceHealthLabel(t, device)}
                     </span>
                   </div>
-                  <p
-                    className="truncate text-sm text-slate-400"
-                    data-testid={`device-endpoint-${device.id}`}
-                  >
-                    {endpoint}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6"
+            data-testid="device-detail-panel"
+          >
+            {selectedDevice ? (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+                    {t('workbench.device.eyebrow')}
                   </p>
-                </div>
-
-                <div
-                  className="flex flex-wrap items-center gap-2"
-                  data-testid={`device-capability-strip-${device.id}`}
-                >
-                  {capabilityHints.map((item) => (
-                    <span
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1 text-xs text-slate-300"
-                      key={`${device.id}-${item.id}`}
-                    >
-                      <span className="uppercase tracking-[0.18em] text-slate-500">
-                        {t(item.labelKey)}
-                      </span>
-                      <span className="font-medium text-slate-100">
-                        {item.value}
-                      </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-2xl font-semibold text-slate-50">{selectedDevice.name}</h3>
+                    <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
+                      {t(getWorkbenchProtocolLabelKey(selectedDevice.protocol))}
                     </span>
-                  ))}
+                    <span
+                      className={joinClasses(
+                        'rounded-full border px-2 py-1 text-xs font-medium',
+                        getStatusClasses(selectedDevice.status),
+                      )}
+                    >
+                      {t(getWorkbenchDeviceStatusLabelKey(selectedDevice.status))}
+                    </span>
+                  </div>
+                  {selectedDeviceEndpoint ? (
+                    <p
+                      className="text-sm text-slate-300"
+                      data-testid="device-detail-endpoint"
+                    >
+                      {selectedDeviceEndpoint}
+                    </p>
+                  ) : null}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <span
-                    className={joinClasses(
-                      'rounded-full border px-2 py-1 text-xs font-medium',
-                      getStatusClasses(device.status),
-                    )}
-                  >
-                    {t(getWorkbenchDeviceStatusLabelKey(device.status))}
-                  </span>
-                  <span
-                    className={joinClasses(
-                      'rounded-full border px-2.5 py-1 text-[11px] font-medium',
-                      getDeviceHealthClasses(device.last_test_success),
-                    )}
-                    data-testid={`device-health-${device.id}`}
-                  >
-                    {getDeviceHealthLabel(t, device)}
-                  </span>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                  <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      {t('workbench.device.inspector.capabilitySummary')}
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {selectedDeviceCapabilitySummary.map((item) => (
+                        <div
+                          className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3"
+                          key={`selected-${item.id}`}
+                        >
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                            {t(item.labelKey)}
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-slate-100">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      {t('workbench.device.card.lastTest')}
+                    </p>
+                    <span
+                      className={joinClasses(
+                        'inline-flex rounded-full border px-2.5 py-1 text-xs font-medium',
+                        getDeviceHealthClasses(selectedDevice.last_test_success),
+                      )}
+                    >
+                      {getDeviceHealthLabel(t, selectedDevice)}
+                    </span>
+                    <button
+                      className={joinClasses(primaryButtonClassName, 'w-full')}
+                      onClick={() => setActiveStep('source')}
+                      type="button"
+                    >
+                      {t('workbench.device.actions.continue')}
+                    </button>
+                  </div>
                 </div>
-              </button>
-            );
-          })}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+                  {t('workbench.device.eyebrow')}
+                </p>
+                <h3 className="text-2xl font-semibold text-slate-50">
+                  {t('workbench.device.inspector.emptyTitle')}
+                </h3>
+                <p className="max-w-2xl text-sm text-slate-300">
+                  {t('workbench.device.inspector.emptyDescription')}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
 
       {devicePanelState ? (
         <div
-          className="fixed inset-0 z-40 flex justify-end bg-slate-950/70 p-4 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm sm:p-6"
           data-testid="device-panel-overlay"
         >
           <div
             aria-modal="true"
-            className="flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/60"
+            className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/60"
             role="dialog"
           >
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">

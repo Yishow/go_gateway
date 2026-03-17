@@ -104,6 +104,7 @@ export function WorkbenchBottomSummaryBar() {
                 data-emphasis={isActive ? 'active' : 'compact'}
                 data-testid={`readiness-${item.step}`}
                 data-readiness={item.state.status}
+                data-reason={item.state.reason ?? undefined}
               >
                 <span
                   aria-hidden="true"

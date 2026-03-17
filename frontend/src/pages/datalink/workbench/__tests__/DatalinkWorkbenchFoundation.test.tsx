@@ -243,7 +243,7 @@ describe('DatalinkWorkbench foundation route', () => {
       within(toolbar).queryByRole('button', { name: 'workbench.device.actions.clone' }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'workbench.device.actions.continue' }),
+      within(toolbar).queryByRole('button', { name: 'workbench.device.actions.continue' }),
     ).not.toBeInTheDocument();
   });
 
@@ -369,6 +369,24 @@ describe('DatalinkWorkbench foundation route', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows a master-detail device panel after a device is selected', () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const detailPanel = screen.getByTestId('device-detail-panel');
+    expect(detailPanel).toBeInTheDocument();
+    expect(within(detailPanel).getByText('Mixer PLC')).toBeInTheDocument();
+    expect(within(detailPanel).getByTestId('device-detail-endpoint')).toHaveTextContent(
+      '192.168.1.10:502',
+    );
+    expect(
+      within(detailPanel).getByRole('button', {
+        name: 'workbench.device.actions.continue',
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('context bar keeps a single primary action after selecting a device on step 1', () => {
     renderApp();
 
@@ -389,6 +407,8 @@ describe('DatalinkWorkbench foundation route', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.create' }));
 
     expect(screen.getByTestId('device-panel-overlay')).toHaveClass('fixed');
+    expect(screen.getByTestId('device-panel-overlay')).toHaveClass('items-center');
+    expect(screen.getByTestId('device-panel-overlay')).toHaveClass('justify-center');
     expect(screen.getByTestId('device-panel-overlay')).not.toHaveClass('absolute');
     expect(
       screen.getByRole('heading', { name: 'workbench.device.panel.createTitle' }),

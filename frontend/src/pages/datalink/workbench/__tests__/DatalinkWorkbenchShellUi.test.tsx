@@ -372,11 +372,13 @@ describe('DatalinkWorkbench five-region shell', () => {
     it('shows device-step empty state when no item is selected', () => {
       renderPage();
 
+      const inspector = screen.getByTestId('workbench-inspector-panel');
+
       expect(
-        screen.getByText('workbench.device.inspector.emptyTitle'),
+        within(inspector).getByText('workbench.device.inspector.emptyTitle'),
       ).toBeInTheDocument();
       expect(
-        screen.getByText('workbench.device.inspector.emptyDescription'),
+        within(inspector).getByText('workbench.device.inspector.emptyDescription'),
       ).toBeInTheDocument();
       expect(screen.queryByTestId('inspector-selection-context')).not.toBeInTheDocument();
     });
@@ -417,6 +419,35 @@ describe('DatalinkWorkbench five-region shell', () => {
       // No device selected yet → device readiness should be "draft"
       const deviceIndicator = screen.getByTestId('readiness-device');
       expect(deviceIndicator).toHaveAttribute('data-readiness', 'draft');
+    });
+
+    it('marks tag readiness as blocked when source points are missing', () => {
+      mockPoints.splice(0, mockPoints.length);
+      mockTags.splice(0, mockTags.length);
+      mockMappings.splice(0, mockMappings.length);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      expect(screen.getByTestId('readiness-source')).toHaveAttribute('data-readiness', 'draft');
+      expect(screen.getByTestId('readiness-source')).toHaveAttribute('data-reason', 'no-points');
+      expect(screen.getByTestId('readiness-tag')).toHaveAttribute('data-readiness', 'blocked');
+      expect(screen.getByTestId('readiness-tag')).toHaveAttribute('data-reason', 'no-source-points');
+    });
+
+    it('marks output readiness as blocked until tags are linked', () => {
+      mockTags.splice(0, mockTags.length);
+      mockMappings.splice(0, mockMappings.length);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      expect(screen.getByTestId('readiness-tag')).toHaveAttribute('data-readiness', 'draft');
+      expect(screen.getByTestId('readiness-tag')).toHaveAttribute('data-reason', 'no-tags-linked');
+      expect(screen.getByTestId('readiness-output')).toHaveAttribute('data-readiness', 'blocked');
+      expect(screen.getByTestId('readiness-output')).toHaveAttribute('data-reason', 'no-tags-linked');
     });
 
     it('emphasizes only the active step and compacts the rest of the readiness strip', () => {

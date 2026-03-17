@@ -468,6 +468,43 @@
 - Step 2 拆成兩個 serial tasks，而不是再切更多，是因為 `SourceCanvasSection.tsx` 與相關 model/state 高機率共享同一批邏輯與測試。
 - Step 4 本輪只列 continuity task，不預設大改；如果 shared selection surface 與 active-target contract 沒 drift，就維持最小修補。
 
+## 2026-03-17：P0 shared readiness contract
+
+### Completed
+- `useWorkbenchSummary.ts`
+  - `tagReadiness`：在有 device 但沒有 source points 時改成 `blocked / no-source-points`
+  - `outputReadiness`：在 source/tag 前置未完成時改成 `blocked`
+- `WorkbenchBottomSummaryBar.tsx`
+  - readiness chip 補 `data-reason`
+  - 讓 shell regression 可以直接鎖住 status/reason 契約
+- `DatalinkWorkbenchShellUi.test.tsx`
+  - 新增 `source no-points -> tag blocked`
+  - 新增 `no tags linked -> output blocked`
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+
+## 2026-03-17：P1 Step 1 device studio
+
+### Completed
+- `WorkbenchDeviceStep.tsx`
+  - Step 1 主工作區改成 master-detail 兩欄：左側為 device row browser，右側為 selected-device detail panel
+  - selected device detail panel 補齊 endpoint、capability summary、last test 與前往 Step 2 的 continue CTA
+  - create/edit/clone overlay 由側邊抽屜姿態收斂成 desktop 置中大型 dialog
+- `DatalinkWorkbenchFoundation.test.tsx`
+  - 新增 selected-device detail panel 與 centered overlay regression
+  - 舊 toolbar assertion 改成 scoped query，避免 detail panel 的 continue CTA 造成誤判
+- `DatalinkWorkbenchShellUi.test.tsx`
+  - inspector empty-state assertion 改成 scope 到 inspector，自動避開新 detail panel 的同文案 empty state
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+- `cd frontend && npm run build`
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|

@@ -154,20 +154,27 @@
 - [x] 為每個 phase 定義主要檔案、依賴與驗證焦點
 - [x] 將 execution backlog 回寫到 planning files 與 SQL todos
 
-### Phase I: Master-detail polish implementation [planned]
+### Phase I: Master-detail polish implementation [in progress]
 
-#### Phase P0：Shared readiness contract [pending]
-- [ ] `master-detail-readiness-contract`
+#### Phase P0：Shared readiness contract [complete]
+- [x] `master-detail-readiness-contract`
   - 對齊 Step 2 右上摘要與 `BottomSummaryBar` 的責任分工
   - 對齊 Step 2/3 的 point lifecycle 語意（`planned/selected` vs `used/linked`）
   - 先穩定 selector / helper / microcopy 契約，再進 UI 改造
+  - 已完成：
+    - `useWorkbenchSummary.ts` 將 downstream prerequisite 缺口改成 `blocked`
+    - `WorkbenchBottomSummaryBar.tsx` 補 `data-reason`
+    - shell test 補齊 `no-points -> tag blocked`、`no-tags-linked -> output blocked`
+    - 已通過 `workbench-shell-ui.test.tsx`、`npm run lint`、`npx tsc --noEmit`
 
-#### Phase P1：Step 1 device studio [pending]
-- [ ] `master-detail-step1-studio`
-  - `WorkbenchDeviceStep.tsx` 改成更明確的 master-detail
-  - 搜尋 / 篩選 / 建立收成單列
-  - center detail panel 強化選中裝置與下一步
-  - create/edit dialog 調整為 desktop 大型置中姿態，並補 RWD fallback
+#### Phase P1：Step 1 device studio [complete]
+- [x] `master-detail-step1-studio`
+  - `WorkbenchDeviceStep.tsx` 主工作區改成裝置列 + selected-device detail panel 的 master-detail 兩欄
+  - 搜尋 / 篩選 / 建立維持單列，保留 scan-first 的 device row browser
+  - detail panel 補齊 selected device 的 endpoint、capability summary、last test 與 continue CTA
+  - create/edit/clone dialog 改成 desktop 大型置中姿態，保留全螢幕 overlay
+  - regression seam 已補：shell inspector query scope 與 foundation master-detail assertions
+  - 已通過 `workbench-shell-ui.test.tsx`、`workbench-foundation.test.tsx`、`npm run lint`、`npx tsc --noEmit`、`npm run build`
 
 #### Phase P2：Step 2 source studio [pending]
 - [ ] `master-detail-step2-creation-flow`

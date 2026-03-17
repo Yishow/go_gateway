@@ -71,9 +71,11 @@ export function useWorkbenchSummary(): WorkbenchSummary {
     const hasBlockedTags = linkedTags.some((tag) =>
       tagStatusToReadiness(tag.status, true) === 'blocked',
     );
-    const tagReadiness: StepReadinessState = !sourceReady
-      ? { status: 'draft', reason: 'no-source-points' }
-      : tagReady
+    const tagReadiness: StepReadinessState = !selectedDevice
+      ? { status: 'draft', reason: 'no-device-selected' }
+      : !sourceReady
+        ? { status: 'blocked', reason: 'no-source-points' }
+        : tagReady
         ? hasBlockedTags
           ? { status: 'partial', reason: 'some-tags-blocked' }
           : { status: 'ready' }
@@ -84,9 +86,13 @@ export function useWorkbenchSummary(): WorkbenchSummary {
     // mapping state (Local Modbus / Database) becomes available, this
     // will also incorporate per-target sync status.
     const outputReady = linkedTagCount > 0;
-    const outputReadiness: StepReadinessState = !tagReady
-      ? { status: 'draft', reason: 'no-tags-linked' }
-      : { status: 'partial', reason: 'output-not-applied' };
+    const outputReadiness: StepReadinessState = !selectedDevice
+      ? { status: 'draft', reason: 'no-device-selected' }
+      : !sourceReady
+        ? { status: 'blocked', reason: 'no-source-points' }
+        : !tagReady
+          ? { status: 'blocked', reason: 'no-tags-linked' }
+          : { status: 'partial', reason: 'output-not-applied' };
 
     return {
       selectedDevice,
