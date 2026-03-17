@@ -505,6 +505,28 @@
 - `cd frontend && npx tsc --noEmit`
 - `cd frontend && npm run build`
 
+## 2026-03-17：P2 slice 1 — source summary 與雙主 CTA
+
+### Completed
+- `SourceCanvasSection.tsx`
+  - 在 primary toolbar 右側補上 Step 2-local `source-step-summary`
+  - 將 `ready to create / in conflict / protected` 三個摘要分塊落地
+  - 新增 `Create selected points` / `Create rule points` 雙主 CTA
+  - 將 rule bulk create 主動作自 secondary controls 移出，讓 `More tools` 回到純工具 disclosure
+  - `Create selected points` 先補單一 logical span 建立路徑，支援從 32-bit merge continuation 回推 root address
+- `DatalinkWorkbenchSourceStep.test.tsx`
+  - 新增 source-step summary regression
+  - 新增 selection-first create regression（點選 32-bit span 第二格仍建立 root point）
+- locale
+  - 補齊 `workbench.source.summary.*`
+  - 補齊 `workbench.source.actions.*`
+
+### Validation
+- `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+- `cd frontend && npm run build`
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|

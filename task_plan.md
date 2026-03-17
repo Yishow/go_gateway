@@ -176,11 +176,16 @@
   - regression seam 已補：shell inspector query scope 與 foundation master-detail assertions
   - 已通過 `workbench-shell-ui.test.tsx`、`workbench-foundation.test.tsx`、`npm run lint`、`npx tsc --noEmit`、`npm run build`
 
-#### Phase P2：Step 2 source studio [pending]
+#### Phase P2：Step 2 source studio [in progress]
 - [ ] `master-detail-step2-creation-flow`
   - `SourceCanvasSection.tsx` 補右上健康摘要與雙主 CTA
   - 補 selection toolbar
   - rule inline edit 與 point 建立雙路徑對齊 spec
+  - 已完成 slice 1：
+    - `source-step-summary`：`ready to create / in conflict / protected`
+    - `Create selected points` / `Create rule points` 雙主 CTA
+    - point create 主動作自 secondary controls 退位，`More tools` 回到純工具區
+    - selection-first 先補單一 logical span create，支援從 merge continuation 回推 root address
 - [ ] `master-detail-step2-conflict-types`
   - actionable conflict queue
   - data type grouped selector 對齊現有 `DataType`

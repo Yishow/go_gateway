@@ -587,6 +587,16 @@
         "import": "匯入",
         "export": "匯出"
       },
+      "summary": {
+        "title": "來源 point 建立摘要",
+        "readyToCreate": "可建立",
+        "inConflict": "衝突中",
+        "protected": "已保護"
+      },
+      "actions": {
+        "createSelectedPoints": "建立選取點位",
+        "createRulePoints": "建立規則點位"
+      },
       "toolbar": {
         "valueFormat": "數值格式",
         "freezeLive": "凍結即時值",

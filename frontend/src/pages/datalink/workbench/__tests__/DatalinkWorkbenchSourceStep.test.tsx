@@ -269,6 +269,68 @@ describe('DatalinkWorkbench source step', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows a step-local health summary with dual point-creation actions', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const summary = screen.getByTestId('source-step-summary');
+
+    expect(within(summary).getByTestId('source-summary-ready-count')).toHaveTextContent('2');
+    expect(within(summary).getByTestId('source-summary-conflict-count')).toHaveTextContent('0');
+    expect(within(summary).getByTestId('source-summary-protected-count')).toHaveTextContent('0');
+    expect(
+      within(summary).getByRole('button', {
+        name: 'workbench.source.actions.createSelectedPoints',
+      }),
+    ).toBeDisabled();
+    expect(
+      within(summary).getByRole('button', {
+        name: 'workbench.source.actions.createRulePoints',
+      }),
+    ).toBeEnabled();
+  });
+
+  it('creates the selected logical span from the summary action', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    fireEvent.click(screen.getByTestId('address-cell-40002'));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'workbench.source.actions.createSelectedPoints' }),
+    );
+
+    await waitFor(() => {
+      expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledWith({
+      device_id: 'device-1',
+      address: '40001',
+      data_type: 'float32',
+      name: 'SRC_40001',
+    });
+  });
+
   it('adds and deletes rules directly from the rule layer workflow', () => {
     renderPage();
 
@@ -523,7 +585,9 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: 'float32' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.batchCreate' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
+    );
 
     await waitFor(() => {
       expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledTimes(2);
@@ -563,7 +627,7 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'conflict');
     expect(
-      screen.getByRole('button', { name: 'workbench.source.planner.batchCreate' }),
+      screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
     ).toBeDisabled();
   });
 });

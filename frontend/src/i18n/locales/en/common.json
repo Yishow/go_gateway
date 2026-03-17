@@ -587,6 +587,16 @@
         "import": "Import",
         "export": "Export"
       },
+      "summary": {
+        "title": "Source point creation summary",
+        "readyToCreate": "Ready to create",
+        "inConflict": "In conflict",
+        "protected": "Protected"
+      },
+      "actions": {
+        "createSelectedPoints": "Create selected points",
+        "createRulePoints": "Create rule points"
+      },
       "toolbar": {
         "valueFormat": "Value format",
         "freezeLive": "Freeze live",

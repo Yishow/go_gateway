@@ -25,7 +25,8 @@ import {
 import { useRuntimeStream } from '../../../hooks/datalink/useRuntimeStream';
 import { useTagsQuery } from '../../../hooks/datalink/useTags';
 import { runtimeAPI } from '../../../services/datalink';
-import type { DataType, Device } from '../../../types/datalink';
+import type { DataType, Device, ProtocolType } from '../../../types/datalink';
+import { addressParser } from '../../../utils/addressParser';
 import { AddressCanvas } from './AddressCanvas';
 import { AddressLedger } from './AddressLedger';
 import { useWorkbench } from './WorkbenchProvider';
@@ -158,6 +159,51 @@ function buildTemplateWarning(
   });
 }
 
+type PointDefinition = {
+  address: string;
+  dataType: DataType;
+  name: string;
+};
+
+function buildPointDefinition(rule: SourceRule, address: string): PointDefinition {
+  const prefix = normalizeNamingPrefix(rule.namingPrefix);
+
+  return {
+    address,
+    dataType: rule.dataType,
+    name: `${prefix}_${address}`,
+  };
+}
+
+function buildRulePointDefinitions(input: {
+  rules: ReadonlyArray<SourceRule>;
+  protocol: ProtocolType;
+  locked?: boolean;
+}) {
+  const definitions = new Map<string, PointDefinition>();
+
+  for (const rule of input.rules.filter(
+    (candidate) =>
+      candidate.enabled &&
+      (input.locked === undefined || candidate.locked === input.locked),
+  )) {
+    const plannedAddresses = buildPlannedPointAddresses({
+      startAddress: rule.startAddress,
+      count: rule.count,
+      dataType: rule.dataType,
+      protocol: input.protocol,
+    });
+
+    plannedAddresses.forEach((address) => {
+      if (!definitions.has(address)) {
+        definitions.set(address, buildPointDefinition(rule, address));
+      }
+    });
+  }
+
+  return [...definitions.values()];
+}
+
 export function SourceCanvasSection() {
   const { t } = useTranslation();
   const {
@@ -274,35 +320,72 @@ export function SourceCanvasSection() {
       return [];
     }
 
-    const definitions = new Map<
-      string,
-      { address: string; dataType: DataType; name: string }
-    >();
-
-    for (const rule of rules.filter((candidate) => candidate.enabled)) {
-      const prefix = normalizeNamingPrefix(rule.namingPrefix);
-      const plannedAddresses = buildPlannedPointAddresses({
-        startAddress: rule.startAddress,
-        count: rule.count,
-        dataType: rule.dataType,
-        protocol: selectedDevice.protocol,
-      });
-
-      plannedAddresses.forEach((address) => {
-        if (!definitions.has(address)) {
-          definitions.set(address, {
-            address,
-            dataType: rule.dataType,
-            name: `${prefix}_${address}`,
-          });
-        }
-      });
-    }
-
-    return [...definitions.values()];
+    return buildRulePointDefinitions({
+      rules,
+      protocol: selectedDevice.protocol,
+      locked: false,
+    });
   }, [rules, selectedDevice]);
 
+  const protectedPointDefinitions = useMemo(() => {
+    if (!selectedDevice) {
+      return [];
+    }
+
+    return buildRulePointDefinitions({
+      rules,
+      protocol: selectedDevice.protocol,
+      locked: true,
+    });
+  }, [rules, selectedDevice]);
+
+  const protectedAddressSet = useMemo(
+    () => new Set(protectedPointDefinitions.map((definition) => definition.address)),
+    [protectedPointDefinitions],
+  );
+  const readyToCreateCount = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.status === 'planned' &&
+          item.mergeOffset === 0 &&
+          !protectedAddressSet.has(item.address),
+      ).length,
+    [items, protectedAddressSet],
+  );
+  const conflictCount = useMemo(
+    () => items.filter((item) => item.status === 'conflict' && item.mergeOffset === 0).length,
+    [items],
+  );
   const hasConflicts = items.some((item) => item.status === 'conflict');
+  const selectedPointDefinition = useMemo(() => {
+    if (!selectedAddress || !selectedDevice) {
+      return null;
+    }
+
+    const selectedItem = items.find((item) => item.address === selectedAddress);
+    if (!selectedItem || selectedItem.status !== 'planned' || !selectedItem.primaryRuleId) {
+      return null;
+    }
+
+    const rule = rules.find(
+      (candidate) => candidate.id === selectedItem.primaryRuleId && candidate.enabled,
+    );
+    if (!rule) {
+      return null;
+    }
+
+    const rootAddress =
+      selectedItem.mergeOffset > 0
+        ? addressParser.offset(
+            selectedItem.address,
+            -selectedItem.mergeOffset,
+            selectedDevice.protocol,
+          )
+        : selectedItem.address;
+
+    return buildPointDefinition(rule, rootAddress);
+  }, [items, rules, selectedAddress, selectedDevice]);
 
   const clearAppliedTemplate = () => {
     setAppliedTemplate(null);
@@ -535,6 +618,24 @@ export function SourceCanvasSection() {
       successCount: results.filter((result) => result.status === 'fulfilled').length,
       failureCount: results.filter((result) => result.status === 'rejected').length,
     });
+  };
+
+  const handleCreateSelectedPoint = async () => {
+    if (!selectedDevice || !selectedPointDefinition) {
+      return;
+    }
+
+    try {
+      await createPointMutation.mutateAsync({
+        device_id: selectedDevice.id,
+        address: selectedPointDefinition.address,
+        data_type: selectedPointDefinition.dataType,
+        name: selectedPointDefinition.name,
+      });
+      setBatchCreateSummary({ successCount: 1, failureCount: 0 });
+    } catch {
+      setBatchCreateSummary({ successCount: 0, failureCount: 1 });
+    }
   };
 
   if (!selectedDevice) {
@@ -806,7 +907,7 @@ export function SourceCanvasSection() {
           data-testid="source-canvas-workspace"
         >
           <div
-            className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between"
+            className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between"
             data-testid="source-primary-toolbar"
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -898,10 +999,75 @@ export function SourceCanvasSection() {
                       <p className="mt-1">
                         {t(`workbench.source.coverage.status.${segment.status}`)}
                       </p>
-                    </button>
-                  ))}
-                </div>
+                </button>
+              ))}
+            </div>
+
+            <section
+              aria-label={t('workbench.source.summary.title')}
+              className="grid gap-3 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-3 xl:min-w-[420px]"
+              data-testid="source-step-summary"
+            >
+              <div className="grid gap-2 sm:grid-cols-3">
+                <article className="rounded-xl border border-slate-800/70 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                    {t('workbench.source.summary.readyToCreate')}
+                  </p>
+                  <p
+                    className="mt-2 text-lg font-semibold text-emerald-200"
+                    data-testid="source-summary-ready-count"
+                  >
+                    {readyToCreateCount}
+                  </p>
+                </article>
+                <article className="rounded-xl border border-slate-800/70 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                    {t('workbench.source.summary.inConflict')}
+                  </p>
+                  <p
+                    className="mt-2 text-lg font-semibold text-rose-200"
+                    data-testid="source-summary-conflict-count"
+                  >
+                    {conflictCount}
+                  </p>
+                </article>
+                <article className="rounded-xl border border-slate-800/70 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                    {t('workbench.source.summary.protected')}
+                  </p>
+                  <p
+                    className="mt-2 text-lg font-semibold text-amber-200"
+                    data-testid="source-summary-protected-count"
+                  >
+                    {protectedPointDefinitions.length}
+                  </p>
+                </article>
               </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleCreateSelectedPoint()}
+                  disabled={!selectedPointDefinition || createPointMutation.isPending}
+                  className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-950/40 disabled:text-slate-500"
+                >
+                  {t('workbench.source.actions.createSelectedPoints')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleBatchCreate()}
+                  disabled={
+                    plannedPointDefinitions.length === 0 ||
+                    hasConflicts ||
+                    createPointMutation.isPending
+                  }
+                  className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                >
+                  {t('workbench.source.actions.createRulePoints')}
+                </button>
+              </div>
+            </section>
+          </div>
             ) : (
               <p className="text-xs text-slate-400">
                 {t('workbench.source.coverage.empty')}
@@ -914,18 +1080,6 @@ export function SourceCanvasSection() {
             data-testid="source-secondary-controls"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void handleBatchCreate()}
-                disabled={
-                  plannedPointDefinitions.length === 0 ||
-                  hasConflicts ||
-                  createPointMutation.isPending
-                }
-                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
-              >
-                {t('workbench.source.planner.batchCreate')}
-              </button>
               <button
                 type="button"
                 onClick={() => setShowUtilityTools((currentValue) => !currentValue)}
