@@ -12,6 +12,7 @@ import {
 } from '../../../hooks/datalink/useTags';
 import type { Device } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
+import { countEligibleSpans } from './sourceCanvasModel';
 import {
   buildBatchDiffPreview,
   buildTagBindingCandidates,
@@ -71,7 +72,7 @@ function getStatusToneClass(status: TagBindingCandidate['bindingStatus']) {
 
 export function TagBindingStudio() {
   const { t } = useTranslation();
-  const { selectedDeviceId, setInspectorSelection, setSelectedDeviceId } = useWorkbench();
+  const { selectedDeviceId, setActiveStep, setInspectorSelection, setSelectedDeviceId, sourcePlanningState } = useWorkbench();
   const { data: devices = [] } = useDevicesQuery();
   const { data: tags = [] } = useTagsQuery();
   const { data: mappings = [] } = useMappingsQuery();
@@ -372,6 +373,14 @@ export function TagBindingStudio() {
   }
 
   if (points.length === 0) {
+    const eligibleSpanCount = selectedDevice
+      ? countEligibleSpans({
+          rules: sourcePlanningState.rules,
+          points: [],
+          protocol: selectedDevice.protocol,
+        })
+      : 0;
+
     return (
       <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
@@ -385,6 +394,27 @@ export function TagBindingStudio() {
             {t('workbench.tag.empty.description')}
           </p>
         </div>
+
+        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3">
+          <span
+            className="text-sm text-slate-300"
+            data-testid="tag-empty-eligible-spans"
+            data-count={eligibleSpanCount}
+          >
+            {eligibleSpanCount > 0
+              ? t('workbench.tag.empty.eligibleSpans', { count: eligibleSpanCount })
+              : t('workbench.tag.empty.eligibleSpansNone')}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveStep('source')}
+          data-testid="tag-empty-goto-source"
+          className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+        >
+          {t('workbench.tag.empty.goToSource')}
+        </button>
       </section>
     );
   }

@@ -730,8 +730,11 @@
         "eyebrow": "Step 3：Tag 綁定",
         "deviceTitle": "請先選擇設備，再挑選要綁定的 point",
         "deviceDescription": "Tag 綁定會直接列出目前設備下的 point，方便你沿著來源規劃結果往下走。",
-        "title": "目前設備還沒有可綁定的 point",
-        "description": "先回到來源步驟建立 point，再回來批次產生 Tag 與 mapping。"
+        "title": "目前還沒有建立任何 point",
+        "description": "先回到來源步驟建立 point，再回來批次產生 Tag 與 mapping。",
+        "eligibleSpans": "Step 2 有 {{count}} 個可建立的 span",
+        "eligibleSpansNone": "Step 2 尚無可用 span — 請先新增來源規則。",
+        "goToSource": "前往來源規劃"
       },
       "selection": {
         "eyebrow": "選擇來源 point",

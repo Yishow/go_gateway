@@ -730,8 +730,11 @@
         "eyebrow": "Step 3: Tag binding",
         "deviceTitle": "Choose a device before selecting points to bind",
         "deviceDescription": "Tag binding shows the current device's points so you can continue from the source planning result.",
-        "title": "No points are ready for binding on this device",
-        "description": "Create points in the source step first, then come back to batch-generate tags and mappings."
+        "title": "No points have been created yet",
+        "description": "Create points in the source step first, then come back to batch-generate tags and mappings.",
+        "eligibleSpans": "{{count}} eligible spans available in Step 2",
+        "eligibleSpansNone": "No eligible spans in Step 2 yet — add source rules first.",
+        "goToSource": "Go to Source Planning"
       },
       "selection": {
         "eyebrow": "Choose source points",

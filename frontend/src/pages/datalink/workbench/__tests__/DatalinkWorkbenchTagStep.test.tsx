@@ -184,6 +184,26 @@ describe('DatalinkWorkbench tag step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByText('workbench.tag.empty.title')).toBeInTheDocument();
+    expect(screen.getByTestId('tag-empty-eligible-spans')).toBeInTheDocument();
+    expect(screen.getByText('workbench.tag.empty.eligibleSpansNone')).toBeInTheDocument();
+  });
+
+  it('shows a go-to-source action in the empty state that navigates to step 2', () => {
+    mockPoints.splice(0, mockPoints.length);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const goToSourceButton = screen.getByTestId('tag-empty-goto-source');
+    expect(goToSourceButton).toBeInTheDocument();
+
+    fireEvent.click(goToSourceButton);
+
+    // After clicking, active step should switch to source (step 2)
+    const sourceStepButton = screen.getByRole('button', { name: 'workbench.steps.source' });
+    expect(sourceStepButton).toHaveAttribute('aria-current', 'step');
   });
 
   it('previews tag keys for selected points and updates the preview when the prefix changes', () => {

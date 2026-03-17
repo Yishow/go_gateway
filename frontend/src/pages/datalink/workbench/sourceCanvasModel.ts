@@ -433,6 +433,40 @@ export function buildConflictQueue(
   return queue;
 }
 
+/**
+ * Count planned point-level spans from source rules that do not yet
+ * have a persisted point, i.e. addresses eligible for point creation
+ * in Step 2.
+ */
+export function countEligibleSpans(input: {
+  rules: ReadonlyArray<SourceRule>;
+  points: Point[];
+  protocol: ProtocolType;
+}): number {
+  const existingAddresses = new Set(input.points.map((point) => point.address));
+  let count = 0;
+
+  for (const rule of input.rules.filter((candidate) => candidate.enabled)) {
+    const planned = buildPlannedPointAddresses({
+      startAddress: rule.startAddress,
+      count: rule.count,
+      dataType: rule.dataType,
+      protocol: input.protocol,
+    });
+
+    for (const address of planned) {
+      if (
+        !rule.skippedAddresses?.includes(address) &&
+        !existingAddresses.has(address)
+      ) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
 function resolveLinkState(input: {
   point: Point | undefined;
   hasRule: boolean;

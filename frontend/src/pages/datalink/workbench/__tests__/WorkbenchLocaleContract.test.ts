@@ -153,4 +153,16 @@ describe('Workbench locale contract', () => {
       enCommon.workbench.output.database.actions.configureConnector,
     );
   });
+
+  it('ships localized zh-TW strings for Step 3 empty-state guidance additions', () => {
+    expect(zhTWCommon.workbench.tag.empty.eligibleSpans).not.toBe(
+      enCommon.workbench.tag.empty.eligibleSpans,
+    );
+    expect(zhTWCommon.workbench.tag.empty.eligibleSpansNone).not.toBe(
+      enCommon.workbench.tag.empty.eligibleSpansNone,
+    );
+    expect(zhTWCommon.workbench.tag.empty.goToSource).not.toBe(
+      enCommon.workbench.tag.empty.goToSource,
+    );
+  });
 });
