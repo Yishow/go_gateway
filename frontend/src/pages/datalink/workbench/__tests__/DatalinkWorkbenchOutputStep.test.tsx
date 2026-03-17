@@ -91,12 +91,20 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
     data: mockTags,
     isLoading: false,
   }),
+  useCreateTagMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/useMappings', () => ({
   useMappingsQuery: () => ({
     data: mockMappings,
     isLoading: false,
+  }),
+  useCreateMappingMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
   }),
 }));
 
@@ -1022,6 +1030,48 @@ describe('DatalinkWorkbench output step', () => {
 
       expect(loadError).toHaveAttribute('role', 'status');
       expect(loadError).toHaveAttribute('aria-live', 'polite');
+    });
+  });
+
+  describe('cross-step tag handoff (Step 3 → Step 4)', () => {
+    it('pre-selects the focused tag from Step 3 when entering Step 4', async () => {
+      renderPage();
+
+      // Select a device first (via output step, which always works)
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      await screen.findByTestId('output-candidate-tag-1');
+
+      // Navigate to tag step — TagBindingStudio renders with bound candidates
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+      const boundRow = await screen.findByTestId('tag-candidate-point-2');
+      fireEvent.click(boundRow);
+
+      // Navigate back to output step — LocalModbusBoard should pre-select tag-2
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      await screen.findByTestId('output-candidate-tag-2');
+
+      const tag1 = screen.getByTestId('output-candidate-tag-1');
+      const tag2 = screen.getByTestId('output-candidate-tag-2');
+
+      expect(tag2).toHaveAttribute('aria-pressed', 'true');
+      expect(tag1).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('falls back to the first candidate when focusedTagIds do not match', async () => {
+      renderPage();
+
+      // Go directly to output without setting any focusedTagIds
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      await screen.findByTestId('output-candidate-tag-1');
+
+      const tag1 = screen.getByTestId('output-candidate-tag-1');
+      const tag2 = screen.getByTestId('output-candidate-tag-2');
+
+      expect(tag1).toHaveAttribute('aria-pressed', 'true');
+      expect(tag2).toHaveAttribute('aria-pressed', 'false');
     });
   });
 });

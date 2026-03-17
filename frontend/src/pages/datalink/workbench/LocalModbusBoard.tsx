@@ -274,6 +274,7 @@ export function LocalModbusBoard() {
   tRef.current = t;
   const {
     activeOutputTarget,
+    crossStepContext,
     setInspectorSelection,
     selectedDeviceId,
     setActiveOutputTarget,
@@ -388,6 +389,8 @@ export function LocalModbusBoard() {
     candidates.find((candidate) => candidate.tagId === selectedTagId) ?? null;
   const selectedCandidateRegister = selectedCandidate?.register ?? null;
 
+  const { focusedTagIds } = crossStepContext;
+
   useEffect(() => {
     if (candidates.length === 0) {
       setSelectedTagId('');
@@ -395,12 +398,16 @@ export function LocalModbusBoard() {
       return;
     }
 
-    setSelectedTagId((previous) =>
-      candidates.some((candidate) => candidate.tagId === previous)
-        ? previous
-        : candidates[0].tagId,
-    );
-  }, [candidateKey, candidates]);
+    setSelectedTagId((previous) => {
+      if (candidates.some((candidate) => candidate.tagId === previous)) {
+        return previous;
+      }
+      const focused = focusedTagIds.find((id) =>
+        candidates.some((candidate) => candidate.tagId === id),
+      );
+      return focused ?? candidates[0].tagId;
+    });
+  }, [candidateKey, candidates, focusedTagIds]);
 
   useEffect(() => {
     if (!selectedTagId) {

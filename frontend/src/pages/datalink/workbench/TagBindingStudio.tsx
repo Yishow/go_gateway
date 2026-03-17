@@ -72,7 +72,7 @@ function getStatusToneClass(status: TagBindingCandidate['bindingStatus']) {
 
 export function TagBindingStudio() {
   const { t } = useTranslation();
-  const { selectedDeviceId, setActiveStep, setInspectorSelection, setSelectedDeviceId, sourcePlanningState } = useWorkbench();
+  const { selectedDeviceId, setActiveStep, setFocusedTagIds, setInspectorSelection, setSelectedDeviceId, sourcePlanningState } = useWorkbench();
   const { data: devices = [] } = useDevicesQuery();
   const { data: tags = [] } = useTagsQuery();
   const { data: mappings = [] } = useMappingsQuery();
@@ -260,6 +260,7 @@ export function TagBindingStudio() {
         return;
       }
 
+      const boundTagIds: string[] = [];
       const results = await Promise.all(
         createRequests.map(async (request) => {
           try {
@@ -272,6 +273,7 @@ export function TagBindingStudio() {
                 enabled: true,
               });
 
+              boundTagIds.push(createdTag.id);
               return null;
             } catch (error) {
               return {
@@ -294,6 +296,10 @@ export function TagBindingStudio() {
 
       const failures = results.filter(isNonNull);
 
+      if (boundTagIds.length > 0) {
+        setFocusedTagIds(boundTagIds);
+      }
+
       setBatchSummary({
         createdCount: createRequests.length - failures.length,
         linkedCount: 0,
@@ -308,6 +314,7 @@ export function TagBindingStudio() {
       return;
     }
 
+    const linkedTagIds: string[] = [];
     const results = await Promise.all(
       existingRequests.map(async (request) => {
         try {
@@ -316,6 +323,7 @@ export function TagBindingStudio() {
             tag_id: request.tagId,
             enabled: true,
           });
+          linkedTagIds.push(request.tagId);
           return null;
         } catch (error) {
           return {
@@ -329,6 +337,10 @@ export function TagBindingStudio() {
     );
 
     const existingFailures = results.filter(isNonNull);
+
+    if (linkedTagIds.length > 0) {
+      setFocusedTagIds(linkedTagIds);
+    }
 
     setBatchSummary({
       createdCount: 0,
@@ -539,7 +551,10 @@ export function TagBindingStudio() {
                 key={candidate.pointId}
                 data-layout="row"
                 data-testid={`tag-candidate-${candidate.pointId}`}
-                onClick={() =>
+                onClick={() => {
+                  if (boundMapping) {
+                    setFocusedTagIds([boundMapping.tag_id]);
+                  }
                   setInspectorSelection({
                     kind: 'tag',
                     tagId:
@@ -557,8 +572,8 @@ export function TagBindingStudio() {
                     conflictReason: candidate.conflictReason,
                     alreadyLinked: candidate.alreadyLinked,
                     existingTagLabel: selectedExistingTag?.displayName ?? null,
-                    })
-                }
+                    });
+                }}
                 className={`rounded-xl border px-4 py-3 transition ${
                   selected
                     ? 'border-cyan-500/40 bg-cyan-500/5'
