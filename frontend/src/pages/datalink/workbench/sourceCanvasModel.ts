@@ -393,6 +393,7 @@ function sortAddresses(left: string, right: string, protocol: ProtocolType) {
 export type ConflictQueueItem = {
   id: string;
   address: string;
+  conflictCellAddress: string;
   ruleIds: ReadonlyArray<string>;
   reason: 'rule-overlap' | 'point-overlap';
   reasonKey: string;
@@ -420,6 +421,7 @@ export function buildConflictQueue(
     queue.push({
       id: `conflict-${rootAddress}`,
       address: rootAddress,
+      conflictCellAddress: item.address,
       ruleIds: item.ruleIds,
       reason: isRuleOverlap ? 'rule-overlap' : 'point-overlap',
       reasonKey: isRuleOverlap

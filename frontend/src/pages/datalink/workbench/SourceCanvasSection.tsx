@@ -37,6 +37,7 @@ import {
   buildCoverageOverviewSegments,
   buildPlannedPointAddresses,
   buildSourceRuleCoverage,
+  getDataTypeCellSpan,
   type SourceRule,
   type SourceValueFormat,
   type SourceViewMode,
@@ -499,14 +500,37 @@ export function SourceCanvasSection() {
     }));
   };
 
-  const handleSkipConflictSpan = (ruleId: string, spanRootAddress: string) => {
+  const handleSkipConflictSpan = (ruleId: string, conflictCellAddress: string) => {
+    if (!selectedDevice) return;
+
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.map((rule) =>
-        rule.id === ruleId
-          ? { ...rule, skippedAddresses: [...(rule.skippedAddresses ?? []), spanRootAddress] }
-          : rule,
-      ),
+      rules: currentState.rules.map((rule) => {
+        if (rule.id !== ruleId) return rule;
+
+        const plannedAddresses = buildPlannedPointAddresses({
+          startAddress: rule.startAddress,
+          count: rule.count,
+          dataType: rule.dataType,
+          protocol: selectedDevice.protocol,
+        });
+
+        const spanRoot = plannedAddresses.find((pointAddr) => {
+          const occupied = addressParser.expand(
+            pointAddr,
+            getDataTypeCellSpan(rule.dataType),
+            selectedDevice.protocol,
+          );
+          return occupied.includes(conflictCellAddress);
+        });
+
+        if (!spanRoot) return rule;
+
+        return {
+          ...rule,
+          skippedAddresses: [...(rule.skippedAddresses ?? []), spanRoot],
+        };
+      }),
     }));
     setBatchCreateSummary(null);
   };
@@ -1511,7 +1535,7 @@ export function SourceCanvasSection() {
                             <button
                               type="button"
                               className="rounded-lg border border-rose-500/30 px-2 py-1 text-[11px] text-rose-100"
-                              onClick={() => handleSkipConflictSpan(targetRuleId, conflict.address)}
+                              onClick={() => handleSkipConflictSpan(targetRuleId, conflict.conflictCellAddress)}
                             >
                               {t('workbench.source.conflictQueue.skipSpan')}
                             </button>

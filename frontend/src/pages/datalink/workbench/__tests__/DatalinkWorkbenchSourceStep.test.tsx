@@ -1108,4 +1108,62 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('aria-pressed', 'true');
   });
+
+  it('skip-span resolves correct span root when rule-overlap occurs on a continuation cell', () => {
+    // Rule A: int32 at 40001 (occupies 40001-40002, mergeOffset 0-1)
+    // Rule B: int16 at 40002 (occupies 40002)
+    // Conflict at 40002 — continuation cell of Rule A but root cell of Rule B
+    // Skip must target Rule B's span root (40002), not Rule A's (40001)
+    mockPoints.splice(0, mockPoints.length);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    // Add Rule A: int32 at 40001
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'int32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    // Add Rule B: int16 at 40002
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'int16' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40002' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    // Conflict should exist
+    const conflictQueue = screen.getByTestId('source-conflict-queue');
+    const conflictItem = within(conflictQueue).getByTestId('conflict-item-40001');
+    expect(conflictItem).toBeInTheDocument();
+
+    // Click skip span — targets Rule B (last ruleId)
+    fireEvent.click(
+      within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.skipSpan' }),
+    );
+
+    // Conflict should be resolved
+    expect(screen.queryByTestId('source-conflict-queue')).not.toBeInTheDocument();
+
+    // Rule A's span (40001-40002) should remain planned
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'planned');
+
+    // Both rules still exist (Rule B is enabled but its only span is skipped)
+    expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+    expect(screen.getByTestId('source-rule-rule-2')).toBeInTheDocument();
+  });
 });
