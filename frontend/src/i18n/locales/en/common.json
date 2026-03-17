@@ -639,7 +639,10 @@
         "unlock": "Unlock",
         "moveUp": "Move up",
         "moveDown": "Move down",
-        "delete": "Delete rule"
+        "delete": "Delete rule",
+        "editStart": "Edit",
+        "editSave": "Save",
+        "editCancel": "Cancel"
       },
       "coverage": {
         "eyebrow": "Coverage overview",
@@ -699,6 +702,11 @@
           "rawValue": "Raw value",
           "linkState": "Downstream link state"
         }
+      },
+      "selectionToolbar": {
+        "createPoints": "Create points",
+        "addToRule": "Add to rule",
+        "skip": "Skip"
       }
     },
     "tag": {

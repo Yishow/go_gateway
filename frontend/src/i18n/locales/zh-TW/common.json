@@ -639,7 +639,10 @@
         "unlock": "解除鎖定",
         "moveUp": "上移",
         "moveDown": "下移",
-        "delete": "刪除規則"
+        "delete": "刪除規則",
+        "editStart": "編輯",
+        "editSave": "儲存",
+        "editCancel": "取消"
       },
       "coverage": {
         "eyebrow": "覆蓋總覽",
@@ -699,6 +702,11 @@
           "rawValue": "原始值",
           "linkState": "下游連結狀態"
         }
+      },
+      "selectionToolbar": {
+        "createPoints": "建立點位",
+        "addToRule": "加入規則",
+        "skip": "略過"
       }
     },
     "tag": {

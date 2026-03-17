@@ -246,6 +246,12 @@ export function SourceCanvasSection() {
   const [count, setCount] = useState(4);
   const [namingPrefix, setNamingPrefix] = useState('SRC');
   const [jumpAddress, setJumpAddress] = useState('');
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{
+    startAddress: string;
+    count: number;
+    dataType: DataType;
+  } | null>(null);
   const [batchCreateSummary, setBatchCreateSummary] = useState<{
     successCount: number;
     failureCount: number;
@@ -502,6 +508,57 @@ export function SourceCanvasSection() {
     }
 
     handleSelectAddress(targetItem.address);
+  };
+
+  const handleSkipSelection = () => {
+    setSourcePlanningState((currentState) => ({
+      ...currentState,
+      selectedAddress: null,
+    }));
+    setInspectorSelection({ kind: 'none' });
+  };
+
+  const handleStartRuleEdit = (ruleId: string) => {
+    const rule = rules.find((candidate) => candidate.id === ruleId);
+    if (!rule) {
+      return;
+    }
+
+    setEditingRuleId(ruleId);
+    setEditDraft({
+      startAddress: rule.startAddress,
+      count: rule.count,
+      dataType: rule.dataType,
+    });
+  };
+
+  const handleSaveRuleEdit = (ruleId: string) => {
+    if (!editDraft) {
+      return;
+    }
+
+    setSourcePlanningState((currentState) => ({
+      ...currentState,
+      rules: currentState.rules.map((rule) =>
+        rule.id === ruleId
+          ? {
+              ...rule,
+              startAddress: editDraft.startAddress.trim(),
+              count: editDraft.count,
+              dataType: editDraft.dataType,
+            }
+          : rule,
+      ),
+      selectedAddress: null,
+    }));
+    setEditingRuleId(null);
+    setEditDraft(null);
+    setBatchCreateSummary(null);
+  };
+
+  const handleCancelRuleEdit = () => {
+    setEditingRuleId(null);
+    setEditDraft(null);
   };
 
   const handleToggleFreezeLive = () => {
@@ -819,6 +876,7 @@ export function SourceCanvasSection() {
                 {rules.map((rule) => {
                   const coverage = buildSourceRuleCoverage(rule, selectedDevice.protocol);
                   const isSelected = rule.id === selectedRuleId;
+                  const isEditing = editingRuleId === rule.id;
                   return (
                     <article
                       className={[
@@ -852,6 +910,81 @@ export function SourceCanvasSection() {
                         </p>
                       </button>
 
+                      {isEditing && editDraft ? (
+                        <div
+                          className="space-y-2 rounded-lg border border-cyan-500/20 bg-slate-950/60 p-2"
+                          data-testid="rule-inline-edit-form"
+                        >
+                          <label className="block space-y-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                            <span>{t('workbench.source.planner.startAddress')}</span>
+                            <input
+                              aria-label={t('workbench.source.planner.startAddress')}
+                              value={editDraft.startAddress}
+                              onChange={(event) =>
+                                setEditDraft((draft) =>
+                                  draft ? { ...draft, startAddress: event.target.value } : draft,
+                                )
+                              }
+                              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                            />
+                          </label>
+                          <label className="block space-y-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                            <span>{t('workbench.source.planner.count')}</span>
+                            <input
+                              aria-label={t('workbench.source.planner.count')}
+                              min={1}
+                              type="number"
+                              value={editDraft.count}
+                              onChange={(event) =>
+                                setEditDraft((draft) =>
+                                  draft
+                                    ? { ...draft, count: Number(event.target.value) || 0 }
+                                    : draft,
+                                )
+                              }
+                              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                            />
+                          </label>
+                          <label className="block space-y-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                            <span>{t('workbench.source.planner.dataType')}</span>
+                            <select
+                              aria-label={t('workbench.source.planner.dataType')}
+                              value={editDraft.dataType}
+                              onChange={(event) =>
+                                setEditDraft((draft) =>
+                                  draft
+                                    ? { ...draft, dataType: event.target.value as DataType }
+                                    : draft,
+                                )
+                              }
+                              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                            >
+                              {SOURCE_PLANNER_ALLOWED_DATA_TYPES.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveRuleEdit(rule.id)}
+                              className="rounded-lg bg-cyan-500 px-2 py-1 text-[11px] font-medium text-slate-950"
+                            >
+                              {t('workbench.source.ruleLayer.editSave')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelRuleEdit}
+                              className="rounded-lg border border-slate-700/70 px-2 py-1 text-[11px] text-slate-300"
+                            >
+                              {t('workbench.source.ruleLayer.editCancel')}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <button
                           className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-300"
@@ -870,6 +1003,13 @@ export function SourceCanvasSection() {
                           {rule.locked
                             ? t('workbench.source.ruleLayer.unlock')
                             : t('workbench.source.ruleLayer.lock')}
+                        </button>
+                        <button
+                          className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-2 py-1 text-cyan-200"
+                          onClick={() => handleStartRuleEdit(rule.id)}
+                          type="button"
+                        >
+                          {t('workbench.source.ruleLayer.editStart')}
                         </button>
                         <button
                           className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-200"
@@ -948,6 +1088,41 @@ export function SourceCanvasSection() {
             valueFormat={valueFormat}
             viewMode={viewMode}
           />
+
+          {selectedPointDefinition ? (
+            <div
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-3 py-2"
+              data-testid="source-selection-toolbar"
+            >
+              <span className="text-xs font-medium text-cyan-200">
+                {selectedPointDefinition.address}
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleCreateSelectedPoint()}
+                disabled={createPointMutation.isPending}
+                className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+              >
+                {t('workbench.source.selectionToolbar.createPoints')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectRule(
+                  items.find((item) => item.address === selectedAddress)?.primaryRuleId ?? '',
+                )}
+                className="rounded-lg border border-slate-700/70 px-3 py-1.5 text-xs text-slate-300"
+              >
+                {t('workbench.source.selectionToolbar.addToRule')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSkipSelection}
+                className="rounded-lg border border-slate-700/70 px-3 py-1.5 text-xs text-slate-300"
+              >
+                {t('workbench.source.selectionToolbar.skip')}
+              </button>
+            </div>
+          ) : null}
 
           <section
             className="space-y-2 rounded-xl border border-slate-800/60 bg-slate-950/20 p-3"
