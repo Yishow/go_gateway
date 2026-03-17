@@ -147,7 +147,54 @@
 - [x] 以 brainstorming + frontend-design 收斂 master-detail 方向
 - [x] 完成設計 spec：`docs/superpowers/specs/2026-03-17-datalink-workbench-master-detail-polish-design.md`
 - [x] 完成 spec review loop，修正 data type、Step 2 summary 分工、Step 3 unlock 條件等 drift
-- [ ] 等待使用者 review spec，確認是否進入 implementation planning
+- [x] 已取得使用者 review 與核准，進入 implementation planning
+
+### Phase H: Master-detail polish implementation planning [complete]
+- [x] 依最新 spec 將實作拆為「共享契約 -> Step 1 -> Step 2 -> Step 3/4 -> 品質驗證」
+- [x] 為每個 phase 定義主要檔案、依賴與驗證焦點
+- [x] 將 execution backlog 回寫到 planning files 與 SQL todos
+
+### Phase I: Master-detail polish implementation [planned]
+
+#### Phase P0：Shared readiness contract [pending]
+- [ ] `master-detail-readiness-contract`
+  - 對齊 Step 2 右上摘要與 `BottomSummaryBar` 的責任分工
+  - 對齊 Step 2/3 的 point lifecycle 語意（`planned/selected` vs `used/linked`）
+  - 先穩定 selector / helper / microcopy 契約，再進 UI 改造
+
+#### Phase P1：Step 1 device studio [pending]
+- [ ] `master-detail-step1-studio`
+  - `WorkbenchDeviceStep.tsx` 改成更明確的 master-detail
+  - 搜尋 / 篩選 / 建立收成單列
+  - center detail panel 強化選中裝置與下一步
+  - create/edit dialog 調整為 desktop 大型置中姿態，並補 RWD fallback
+
+#### Phase P2：Step 2 source studio [pending]
+- [ ] `master-detail-step2-creation-flow`
+  - `SourceCanvasSection.tsx` 補右上健康摘要與雙主 CTA
+  - 補 selection toolbar
+  - rule inline edit 與 point 建立雙路徑對齊 spec
+- [ ] `master-detail-step2-conflict-types`
+  - actionable conflict queue
+  - data type grouped selector 對齊現有 `DataType`
+  - `Protect plan` 文案 / 說明落地
+  - 32/64-bit logical cell selection guard
+
+#### Phase P3：Step 3/4 continuity [pending]
+- [ ] `master-detail-step3-guidance`
+  - Step 3 只在 persisted/usable point 存在時解鎖
+  - empty state 顯示可建立 span 數量與返回 Step 2 快捷動作
+  - row-board guidance 與 inspector handoff 對齊
+- [ ] `master-detail-step4-continuity`
+  - 確認 shared tag selection surface 與 active-target contract 持續成立
+  - 若 Step 3 handoff 暴露 drift，再做最小修補
+
+#### Phase P4：Quality and rollout [pending]
+- [ ] `master-detail-polish-regressions`
+  - 補/改 unit/page regressions
+  - `lint` / `tsc --noEmit` / `build`
+  - 1920×1080 desktop check
+  - code review / 文件同步 / 繁中 commit
 
 ### Phase F: Phase 2 契約與輸出目標落地 [complete]
 - [x] `runtime-live-value-phase2`

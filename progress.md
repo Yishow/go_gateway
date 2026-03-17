@@ -445,7 +445,28 @@
   - 修正後重新審稿，結果：`Approved`
 - 目前狀態：
   - spec 已寫成 repo 文件
-  - 等待使用者 review spec 後，再決定是否進入 implementation planning
+  - 已等待使用者 review spec
+
+## 2026-03-17：master-detail polish implementation planning
+
+### Completed
+- 使用者已 review 並批准：
+  - `docs/superpowers/specs/2026-03-17-datalink-workbench-master-detail-polish-design.md`
+- 已將實作順序定為：
+  - `P0` shared readiness contract
+  - `P1` Step 1 device studio
+  - `P2` Step 2 source studio
+  - `P3` Step 3/4 continuity
+  - `P4` regressions / validation / code review
+- 已將 execution backlog 寫回：
+  - `task_plan.md`
+  - session `plan.md`
+  - SQL todos / deps
+
+### Planning notes
+- 先做 `master-detail-readiness-contract`，是為了避免 Step 2 右上摘要、`BottomSummaryBar`、Step 3 unlock 各自解讀不同 readiness 狀態。
+- Step 2 拆成兩個 serial tasks，而不是再切更多，是因為 `SourceCanvasSection.tsx` 與相關 model/state 高機率共享同一批邏輯與測試。
+- Step 4 本輪只列 continuity task，不預設大改；如果 shared selection surface 與 active-target contract 沒 drift，就維持最小修補。
 
 ## 5-Question Reboot Check
 | Question | Answer |
