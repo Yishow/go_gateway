@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useInRouterContext, useSearchParams } from 'react-router-dom';
 import { WorkbenchDeviceStep } from './WorkbenchDeviceStep';
 import { WorkbenchFrame } from './WorkbenchFrame';
@@ -35,23 +35,57 @@ function StepContent() {
   }
 }
 
+/**
+ * Two-phase route ↔ provider sync:
+ *
+ * Phase 1 (mount): deep-link query params hydrate provider state.
+ * Phase 2 (post-hydration): provider state is the source of truth and
+ *   the URL is updated to stay coherent with it.  This prevents stale
+ *   query params from overriding user-driven step navigation.
+ */
 function WorkbenchRouteStateSyncWithRouter() {
-  const [searchParams] = useSearchParams();
-  const requestedStep = searchParams.get('step');
-  const requestedTarget = searchParams.get('target');
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeStep, setActiveStep, activeOutputTarget, setActiveOutputTarget } = useWorkbench();
+  const [hydrated, setHydrated] = useState(false);
 
+  // Phase 1: apply deep-link params → provider state (once on mount).
   useEffect(() => {
-    if (isWorkbenchStepParam(requestedStep) && requestedStep !== activeStep) {
-      setActiveStep(requestedStep);
-    }
-  }, [activeStep, requestedStep, setActiveStep]);
+    const step = searchParams.get('step');
+    const target = searchParams.get('target');
 
-  useEffect(() => {
-    if (isWorkbenchOutputTargetParam(requestedTarget) && requestedTarget !== activeOutputTarget) {
-      setActiveOutputTarget(requestedTarget);
+    if (isWorkbenchStepParam(step) && step !== activeStep) {
+      setActiveStep(step);
     }
-  }, [activeOutputTarget, requestedTarget, setActiveOutputTarget]);
+    if (isWorkbenchOutputTargetParam(target) && target !== activeOutputTarget) {
+      setActiveOutputTarget(target);
+    }
+
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally run once
+  }, []);
+
+  // Phase 2: provider state → URL (after hydration).
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const next = new URLSearchParams(searchParams);
+
+    if (activeStep === 'device') {
+      next.delete('step');
+    } else {
+      next.set('step', activeStep);
+    }
+
+    if (activeOutputTarget === 'modbus') {
+      next.delete('target');
+    } else {
+      next.set('target', activeOutputTarget);
+    }
+
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [hydrated, activeStep, activeOutputTarget, searchParams, setSearchParams]);
 
   return null;
 }

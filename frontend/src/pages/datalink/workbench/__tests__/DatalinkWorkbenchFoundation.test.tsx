@@ -336,6 +336,30 @@ describe('DatalinkWorkbench foundation route', () => {
     );
   });
 
+  it('does not lock step navigation after a deep-link is applied', async () => {
+    window.history.pushState({}, '', '/datalink/workbench?step=output&target=database');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+
+    // User clicks the device step in the step rail — must NOT be locked back to output.
+    fireEvent.click(
+      screen.getByRole('button', { name: /workbench\.steps\.device/ }),
+    );
+
+    expect(
+      screen.getByRole('button', { name: /workbench\.steps\.device/ }),
+    ).toHaveAttribute('aria-current', 'step');
+    expect(
+      screen.getByRole('button', { name: /workbench\.steps\.output/ }),
+    ).not.toHaveAttribute('aria-current', 'step');
+  });
+
   it('redirects legacy local modbus entry into the new workbench output step', async () => {
     window.history.pushState({}, '', '/datalink/local-modbus?section=settings');
 
