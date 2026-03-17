@@ -386,6 +386,40 @@ function sortAddresses(left: string, right: string, protocol: ProtocolType) {
   }
 }
 
+export type ConflictQueueItem = {
+  id: string;
+  address: string;
+  ruleIds: ReadonlyArray<string>;
+  reason: 'rule-overlap' | 'point-overlap';
+  reasonKey: string;
+};
+
+export function buildConflictQueue(
+  items: ReadonlyArray<AddressCanvasItem>,
+): ConflictQueueItem[] {
+  const queue: ConflictQueueItem[] = [];
+
+  for (const item of items) {
+    if (item.status !== 'conflict' || item.mergeOffset > 0) {
+      continue;
+    }
+
+    const isRuleOverlap = item.ruleIds.length > 1;
+
+    queue.push({
+      id: `conflict-${item.address}`,
+      address: item.address,
+      ruleIds: item.ruleIds,
+      reason: isRuleOverlap ? 'rule-overlap' : 'point-overlap',
+      reasonKey: isRuleOverlap
+        ? 'workbench.source.conflictQueue.ruleOverlap'
+        : 'workbench.source.conflictQueue.pointOverlap',
+    });
+  }
+
+  return queue;
+}
+
 function resolveLinkState(input: {
   point: Point | undefined;
   hasRule: boolean;

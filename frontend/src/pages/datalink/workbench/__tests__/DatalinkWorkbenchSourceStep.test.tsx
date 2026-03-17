@@ -868,4 +868,163 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.queryByTestId('source-span-inspector')).not.toBeInTheDocument();
     expect(screen.getByTestId('source-rule-inspector')).toBeInTheDocument();
   });
+
+  it('replaces the conflict hint with an actionable conflict queue', () => {
+    mockPoints[0].address = '40002';
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const conflictQueue = screen.getByTestId('source-conflict-queue');
+    expect(conflictQueue).toBeInTheDocument();
+    expect(within(conflictQueue).getByText('workbench.source.conflictQueue.title')).toBeInTheDocument();
+    expect(within(conflictQueue).getByText('workbench.source.conflictQueue.step3Blocked')).toBeInTheDocument();
+
+    const conflictItem = screen.getByTestId('conflict-item-40002');
+    expect(conflictItem).toBeInTheDocument();
+    expect(within(conflictItem).getByText('workbench.source.conflictQueue.pointOverlap')).toBeInTheDocument();
+    expect(
+      within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.editRule' }),
+    ).toBeInTheDocument();
+    expect(
+      within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.skipSpan' }),
+    ).toBeInTheDocument();
+  });
+
+  it('opens inline edit when clicking edit rule in the conflict queue', () => {
+    mockPoints[0].address = '40002';
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const conflictItem = screen.getByTestId('conflict-item-40002');
+    fireEvent.click(
+      within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.editRule' }),
+    );
+
+    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    expect(within(ruleCard).getByTestId('rule-inline-edit-form')).toBeInTheDocument();
+  });
+
+  it('renders data type selector with grouped optgroups and disabled unsupported types', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const dataTypeSelect = screen.getByLabelText('workbench.source.planner.dataType');
+    const options = within(dataTypeSelect).getAllByRole('option');
+
+    const supportedOptions = options.filter((opt) => !(opt as HTMLOptionElement).disabled);
+    const disabledOptions = options.filter((opt) => (opt as HTMLOptionElement).disabled);
+
+    expect(supportedOptions.length).toBe(3);
+    expect(disabledOptions.length).toBe(7);
+
+    const supportedValues = supportedOptions.map((opt) => (opt as HTMLOptionElement).value);
+    expect(supportedValues).toEqual(expect.arrayContaining(['int16', 'int32', 'float32']));
+
+    const disabledValues = disabledOptions.map((opt) => (opt as HTMLOptionElement).value);
+    expect(disabledValues).toEqual(
+      expect.arrayContaining(['bool', 'uint16', 'string', 'uint32', 'int64', 'uint64', 'float64']),
+    );
+  });
+
+  it('uses protect plan wording instead of lock/unlock', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const protectButton = within(ruleCard).getByRole('button', {
+      name: 'workbench.source.ruleLayer.protectPlan',
+    });
+    expect(protectButton).toBeInTheDocument();
+
+    fireEvent.click(protectButton);
+
+    expect(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.unprotectPlan' }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('rule-protect-hint-rule-1')).toHaveTextContent(
+      'workbench.source.ruleLayer.protectHint',
+    );
+  });
+
+  it('snaps selection to the root cell when clicking a merge continuation', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const continuationCell = screen.getByTestId('address-cell-40002');
+    expect(continuationCell).toHaveAttribute('data-merge-offset', '1');
+
+    fireEvent.click(continuationCell);
+
+    const rootCell = screen.getByTestId('address-cell-40001');
+    expect(rootCell).toHaveAttribute('aria-pressed', 'true');
+    expect(continuationCell).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('highlights all cells of a selected logical cell', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    fireEvent.click(screen.getByTestId('address-cell-40001'));
+
+    const rootCell = screen.getByTestId('address-cell-40001');
+    const continuationCell = screen.getByTestId('address-cell-40002');
+
+    expect(rootCell.className).toContain('ring-2');
+    expect(continuationCell.className).toContain('ring-2');
+  });
 });

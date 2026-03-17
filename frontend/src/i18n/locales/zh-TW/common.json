@@ -585,7 +585,13 @@
         "conflictHint": "請先排除位址衝突，再進行批次建立。",
         "batchSummary": "已建立 {{successCount}} 筆 point，失敗 {{failureCount}} 筆。",
         "import": "匯入",
-        "export": "匯出"
+        "export": "匯出",
+        "dataTypeGroup": {
+          "singleWord": "單字組 (16-bit)",
+          "32bit": "32 位元",
+          "64bit": "64 位元"
+        },
+        "dataTypeUnsupported": "目前環境尚未支援"
       },
       "summary": {
         "title": "來源 point 建立摘要",
@@ -635,14 +641,15 @@
         "meta": "{{bitWidth}} 位元 · {{count}} 筆 · {{cells}} 格",
         "enable": "啟用",
         "disable": "停用",
-        "lock": "鎖定",
-        "unlock": "解除鎖定",
         "moveUp": "上移",
         "moveDown": "下移",
         "delete": "刪除規則",
         "editStart": "編輯",
         "editSave": "儲存",
-        "editCancel": "取消"
+        "editCancel": "取消",
+        "protectPlan": "保護規劃",
+        "unprotectPlan": "解除保護",
+        "protectHint": "受保護的 span 不能被隨意拖曳、不會被新規則覆蓋、也會排除在批次建立之外。"
       },
       "coverage": {
         "eyebrow": "覆蓋總覽",
@@ -707,6 +714,15 @@
         "createPoints": "建立點位",
         "addToRule": "加入規則",
         "skip": "略過"
+      },
+      "conflictQueue": {
+        "title": "衝突佇列",
+        "ruleOverlap": "多條規則在此位址重疊",
+        "pointOverlap": "規則與既有點位重疊",
+        "editRule": "編輯規則",
+        "skipSpan": "略過此 span",
+        "step3Blocked": "需先排除所有衝突，才能繼續前往 Step 3。",
+        "affectedRule": "受影響：{{ruleId}}"
       }
     },
     "tag": {

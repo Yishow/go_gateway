@@ -585,7 +585,13 @@
         "conflictHint": "Resolve address conflicts before batch creating points.",
         "batchSummary": "Created {{successCount}} point(s), {{failureCount}} failed.",
         "import": "Import",
-        "export": "Export"
+        "export": "Export",
+        "dataTypeGroup": {
+          "singleWord": "Single-word (16-bit)",
+          "32bit": "32-bit",
+          "64bit": "64-bit"
+        },
+        "dataTypeUnsupported": "Not yet supported"
       },
       "summary": {
         "title": "Source point creation summary",
@@ -635,14 +641,15 @@
         "meta": "{{bitWidth}}-bit · {{count}} item(s) · {{cells}} cells",
         "enable": "Enable",
         "disable": "Disable",
-        "lock": "Lock",
-        "unlock": "Unlock",
         "moveUp": "Move up",
         "moveDown": "Move down",
         "delete": "Delete rule",
         "editStart": "Edit",
         "editSave": "Save",
-        "editCancel": "Cancel"
+        "editCancel": "Cancel",
+        "protectPlan": "Protect plan",
+        "unprotectPlan": "Unprotect plan",
+        "protectHint": "Protected spans cannot be casually dragged, overwritten by a new rule, or included in bulk creation."
       },
       "coverage": {
         "eyebrow": "Coverage overview",
@@ -707,6 +714,15 @@
         "createPoints": "Create points",
         "addToRule": "Add to rule",
         "skip": "Skip"
+      },
+      "conflictQueue": {
+        "title": "Conflict queue",
+        "ruleOverlap": "Rules overlap at this address",
+        "pointOverlap": "Rule overlaps an existing point",
+        "editRule": "Edit rule",
+        "skipSpan": "Skip span",
+        "step3Blocked": "Conflicts must be resolved before proceeding to Step 3.",
+        "affectedRule": "Affected: {{ruleId}}"
       }
     },
     "tag": {

@@ -8,6 +8,45 @@ import {
 
 export const SOURCE_PLANNER_ALLOWED_DATA_TYPES = ['int16', 'int32', 'float32'] as const;
 
+export type DataTypeGroupEntry = {
+  value: DataType;
+  supported: boolean;
+  disabledReasonKey?: string;
+};
+
+export type DataTypeGroup = {
+  labelKey: string;
+  types: DataTypeGroupEntry[];
+};
+
+export const SOURCE_PLANNER_DATA_TYPE_GROUPS: DataTypeGroup[] = [
+  {
+    labelKey: 'workbench.source.planner.dataTypeGroup.singleWord',
+    types: [
+      { value: 'bool', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'int16', supported: true },
+      { value: 'uint16', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'string', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+    ],
+  },
+  {
+    labelKey: 'workbench.source.planner.dataTypeGroup.32bit',
+    types: [
+      { value: 'int32', supported: true },
+      { value: 'uint32', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'float32', supported: true },
+    ],
+  },
+  {
+    labelKey: 'workbench.source.planner.dataTypeGroup.64bit',
+    types: [
+      { value: 'int64', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'uint64', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'float64', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+    ],
+  },
+];
+
 export interface SourcePlannerDraft {
   dataType: DataType;
   count: number;

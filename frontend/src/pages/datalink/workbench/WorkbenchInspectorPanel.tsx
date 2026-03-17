@@ -426,8 +426,8 @@ function SourceInspectorContent() {
             className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200"
           >
             {rule.locked
-              ? t('workbench.source.ruleLayer.unlock')
-              : t('workbench.source.ruleLayer.lock')}
+              ? t('workbench.source.ruleLayer.unprotectPlan')
+              : t('workbench.source.ruleLayer.protectPlan')}
           </button>
           <button
             type="button"

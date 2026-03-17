@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   formatSourceValue,
@@ -101,6 +102,20 @@ export function AddressCanvas({
   const { t } = useTranslation();
   const rows = chunkItems(items, LATTICE_COLUMNS);
 
+  const selectedLogicalAddresses = useMemo(() => {
+    if (!selectedAddress) return new Set<string>();
+    const rootIndex = items.findIndex((candidate) => candidate.address === selectedAddress);
+    if (rootIndex === -1) return new Set<string>();
+    const rootItem = items[rootIndex];
+    if (rootItem.mergeSpan <= 1) return new Set([selectedAddress]);
+
+    const addresses = new Set<string>();
+    for (let offset = 0; offset < rootItem.mergeSpan && rootIndex + offset < items.length; offset++) {
+      addresses.add(items[rootIndex + offset].address);
+    }
+    return addresses;
+  }, [items, selectedAddress]);
+
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 px-4 py-10 text-center text-sm text-slate-400">
@@ -140,7 +155,7 @@ export function AddressCanvas({
                   'min-h-28 border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60',
                   statusClassName[item.status],
                   getMergeShapeClassName(item),
-                  selectedAddress === item.address ? 'ring-2 ring-cyan-400/60' : '',
+                  selectedLogicalAddresses.has(item.address) ? 'ring-2 ring-cyan-400/60' : '',
                 ].join(' ')}
                 onClick={() => onSelectAddress?.(item.address)}
                 type="button"

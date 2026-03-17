@@ -5,7 +5,7 @@ import {
   applyTemplateToPlanner,
   createTemplateFromPlanner,
   normalizeNamingPrefix,
-  SOURCE_PLANNER_ALLOWED_DATA_TYPES,
+  SOURCE_PLANNER_DATA_TYPE_GROUPS,
   upsertTemplateRecord,
 } from '../../../features/datalink/sourcePlannerContract';
 import {
@@ -33,6 +33,7 @@ import { useWorkbench } from './WorkbenchProvider';
 import { parseDeviceConnectionConfig } from './workbenchDeviceFormModel';
 import {
   buildAddressCanvasItems,
+  buildConflictQueue,
   buildCoverageOverviewSegments,
   buildPlannedPointAddresses,
   buildSourceRuleCoverage,
@@ -364,6 +365,7 @@ export function SourceCanvasSection() {
     [items],
   );
   const hasConflicts = items.some((item) => item.status === 'conflict');
+  const conflictQueue = useMemo(() => buildConflictQueue(items), [items]);
   const selectedPointDefinition = useMemo(() => {
     if (!selectedAddress || !selectedDevice) {
       return null;
@@ -455,19 +457,34 @@ export function SourceCanvasSection() {
   };
 
   const handleSelectAddress = (address: string) => {
-    const selectedItem = items.find((item) => item.address === address);
+    const clickedItem = items.find((item) => item.address === address);
+
+    // Logical cell guard: snap to root address for multi-word values
+    let resolvedAddress = address;
+    if (clickedItem && clickedItem.mergeSpan > 1 && clickedItem.mergeOffset > 0 && selectedDevice) {
+      resolvedAddress = addressParser.offset(
+        address,
+        -clickedItem.mergeOffset,
+        selectedDevice.protocol,
+      );
+    }
+
+    const resolvedItem = resolvedAddress !== address
+      ? items.find((item) => item.address === resolvedAddress)
+      : clickedItem;
+
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      selectedAddress: address,
-      selectedRuleId: selectedItem?.primaryRuleId ?? currentState.selectedRuleId,
+      selectedAddress: resolvedAddress,
+      selectedRuleId: resolvedItem?.primaryRuleId ?? currentState.selectedRuleId,
     }));
-    if (selectedItem?.primaryRuleId) {
-      setFocusedRuleId(selectedItem.primaryRuleId);
+    if (resolvedItem?.primaryRuleId) {
+      setFocusedRuleId(resolvedItem.primaryRuleId);
     }
     setInspectorSelection({
       kind: 'span',
-      spanAddress: address,
-      ruleId: selectedItem?.primaryRuleId ?? undefined,
+      spanAddress: resolvedAddress,
+      ruleId: resolvedItem?.primaryRuleId ?? undefined,
     });
   };
 
@@ -828,10 +845,21 @@ export function SourceCanvasSection() {
                     }}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                   >
-                    {SOURCE_PLANNER_ALLOWED_DATA_TYPES.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
+                    {SOURCE_PLANNER_DATA_TYPE_GROUPS.map((group) => (
+                      <optgroup key={group.labelKey} label={t(group.labelKey)}>
+                        {group.types.map((entry) => (
+                          <option
+                            key={entry.value}
+                            value={entry.value}
+                            disabled={!entry.supported}
+                          >
+                            {entry.value}
+                            {!entry.supported && entry.disabledReasonKey
+                              ? ` — ${t(entry.disabledReasonKey)}`
+                              : ''}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </label>
@@ -961,10 +989,21 @@ export function SourceCanvasSection() {
                               }
                               className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
                             >
-                              {SOURCE_PLANNER_ALLOWED_DATA_TYPES.map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
+                              {SOURCE_PLANNER_DATA_TYPE_GROUPS.map((group) => (
+                                <optgroup key={group.labelKey} label={t(group.labelKey)}>
+                                  {group.types.map((entry) => (
+                                    <option
+                                      key={entry.value}
+                                      value={entry.value}
+                                      disabled={!entry.supported}
+                                    >
+                                      {entry.value}
+                                      {!entry.supported && entry.disabledReasonKey
+                                        ? ` — ${t(entry.disabledReasonKey)}`
+                                        : ''}
+                                    </option>
+                                  ))}
+                                </optgroup>
                               ))}
                             </select>
                           </label>
@@ -1003,9 +1042,17 @@ export function SourceCanvasSection() {
                           type="button"
                         >
                           {rule.locked
-                            ? t('workbench.source.ruleLayer.unlock')
-                            : t('workbench.source.ruleLayer.lock')}
+                            ? t('workbench.source.ruleLayer.unprotectPlan')
+                            : t('workbench.source.ruleLayer.protectPlan')}
                         </button>
+                        {rule.locked ? (
+                          <p
+                            className="col-span-2 text-[10px] text-amber-200/80"
+                            data-testid={`rule-protect-hint-${rule.id}`}
+                          >
+                            {t('workbench.source.ruleLayer.protectHint')}
+                          </p>
+                        ) : null}
                         <button
                           className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-2 py-1 text-cyan-200"
                           onClick={() => handleStartRuleEdit(rule.id)}
@@ -1405,10 +1452,63 @@ export function SourceCanvasSection() {
             </div>
           ) : null}
 
-          {hasConflicts ? (
-            <p className="text-sm text-rose-300">
-              {t('workbench.source.planner.conflictHint')}
-            </p>
+          {conflictQueue.length > 0 ? (
+            <section
+              className="space-y-2 rounded-xl border border-rose-500/30 bg-rose-900/10 p-3"
+              data-testid="source-conflict-queue"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-300">
+                {t('workbench.source.conflictQueue.title')}
+              </p>
+              <p className="text-xs text-rose-200">
+                {t('workbench.source.conflictQueue.step3Blocked')}
+              </p>
+              <div className="space-y-2">
+                {conflictQueue.map((conflict) => {
+                  const targetRuleId = conflict.ruleIds[conflict.ruleIds.length - 1];
+                  return (
+                    <article
+                      key={conflict.id}
+                      className="flex flex-wrap items-center gap-2 rounded-lg border border-rose-500/20 bg-rose-950/40 px-3 py-2"
+                      data-testid={`conflict-item-${conflict.address}`}
+                    >
+                      <span className="font-mono text-xs text-rose-100">
+                        {conflict.address}
+                      </span>
+                      <span className="text-xs text-rose-200">
+                        {t(conflict.reasonKey)}
+                      </span>
+                      <span className="text-xs text-rose-300">
+                        {conflict.ruleIds.join(', ')}
+                      </span>
+                      <div className="ml-auto flex gap-1">
+                        {targetRuleId ? (
+                          <>
+                            <button
+                              type="button"
+                              className="rounded-lg border border-rose-500/30 px-2 py-1 text-[11px] text-rose-100"
+                              onClick={() => {
+                                handleSelectRule(targetRuleId);
+                                handleStartRuleEdit(targetRuleId);
+                              }}
+                            >
+                              {t('workbench.source.conflictQueue.editRule')}
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg border border-rose-500/30 px-2 py-1 text-[11px] text-rose-100"
+                              onClick={() => handleToggleRuleEnabled(targetRuleId)}
+                            >
+                              {t('workbench.source.conflictQueue.skipSpan')}
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
           ) : null}
 
           {templateWarning ? (

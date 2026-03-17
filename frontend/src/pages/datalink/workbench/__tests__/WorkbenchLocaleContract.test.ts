@@ -119,6 +119,24 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.source.toolbar.moreTools).not.toBe(
       enCommon.workbench.source.toolbar.moreTools,
     );
+    expect(zhTWCommon.workbench.source.ruleLayer.protectPlan).not.toBe(
+      enCommon.workbench.source.ruleLayer.protectPlan,
+    );
+    expect(zhTWCommon.workbench.source.ruleLayer.unprotectPlan).not.toBe(
+      enCommon.workbench.source.ruleLayer.unprotectPlan,
+    );
+    expect(zhTWCommon.workbench.source.ruleLayer.protectHint).not.toBe(
+      enCommon.workbench.source.ruleLayer.protectHint,
+    );
+    expect(zhTWCommon.workbench.source.conflictQueue.title).not.toBe(
+      enCommon.workbench.source.conflictQueue.title,
+    );
+    expect(zhTWCommon.workbench.source.conflictQueue.step3Blocked).not.toBe(
+      enCommon.workbench.source.conflictQueue.step3Blocked,
+    );
+    expect(zhTWCommon.workbench.source.planner.dataTypeUnsupported).not.toBe(
+      enCommon.workbench.source.planner.dataTypeUnsupported,
+    );
     expect(zhTWCommon.workbench.tag.board.flowModeHint.create).not.toBe(
       enCommon.workbench.tag.board.flowModeHint.create,
     );
