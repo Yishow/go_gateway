@@ -434,37 +434,63 @@ export function buildConflictQueue(
 }
 
 /**
- * Count planned point-level spans from source rules that do not yet
- * have a persisted point, i.e. addresses eligible for point creation
- * in Step 2.
+ * Count eligible (ready-to-create) logical spans that Step 2 reports.
+ *
+ * Mirrors the exact `readyToCreateCount` semantics from SourceCanvasSection:
+ *   1. Build the full address canvas from rules + existing points.
+ *   2. Keep only items with `status === 'planned'` (excludes conflicts,
+ *      existing-point overlap, and gaps).
+ *   3. Keep only logical-root cells (`mergeOffset === 0`), not continuation
+ *      cells of wide data types.
+ *   4. Exclude addresses belonging to locked (protected) rules, because
+ *      Step 2 reports them separately.
  */
 export function countEligibleSpans(input: {
   rules: ReadonlyArray<SourceRule>;
   points: Point[];
   protocol: ProtocolType;
 }): number {
-  const existingAddresses = new Set(input.points.map((point) => point.address));
-  let count = 0;
+  const items = buildAddressCanvasItems({
+    points: input.points,
+    rules: input.rules,
+    protocol: input.protocol,
+  });
 
-  for (const rule of input.rules.filter((candidate) => candidate.enabled)) {
+  const protectedAddresses = buildProtectedAddressSet(input.rules, input.protocol);
+
+  return items.filter(
+    (item) =>
+      item.status === 'planned' &&
+      item.mergeOffset === 0 &&
+      !protectedAddresses.has(item.address),
+  ).length;
+}
+
+/**
+ * Collect all point-level addresses produced by locked (protected) rules.
+ */
+function buildProtectedAddressSet(
+  rules: ReadonlyArray<SourceRule>,
+  protocol: ProtocolType,
+): Set<string> {
+  const addresses = new Set<string>();
+
+  for (const rule of rules.filter((r) => r.enabled && r.locked)) {
     const planned = buildPlannedPointAddresses({
       startAddress: rule.startAddress,
       count: rule.count,
       dataType: rule.dataType,
-      protocol: input.protocol,
+      protocol,
     });
 
     for (const address of planned) {
-      if (
-        !rule.skippedAddresses?.includes(address) &&
-        !existingAddresses.has(address)
-      ) {
-        count++;
+      if (!rule.skippedAddresses?.includes(address)) {
+        addresses.add(address);
       }
     }
   }
 
-  return count;
+  return addresses;
 }
 
 function resolveLinkState(input: {
