@@ -171,8 +171,15 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
     const hasRuleConflict = (ruleMeta?.ruleIds.length ?? 0) > 1;
 
     let status: AddressCanvasStatus = 'gap';
-    if ((pointMeta && ruleMeta) || hasRuleConflict) {
+    if (hasRuleConflict) {
       status = 'conflict';
+    } else if (pointMeta && ruleMeta) {
+      // 若 point 的合併特徵與 rule 一致，表示 point 是由該 rule 建立的 → used
+      // 若不一致（如既有 uint16 與 float32 continuation 重疊），則為真正的衝突
+      const mergeMatch =
+        pointMeta.mergeSpan === ruleMeta.mergeSpan &&
+        pointMeta.mergeOffset === ruleMeta.mergeOffset;
+      status = mergeMatch ? 'used' : 'conflict';
     } else if (pointMeta) {
       status = 'used';
     } else if (ruleMeta) {

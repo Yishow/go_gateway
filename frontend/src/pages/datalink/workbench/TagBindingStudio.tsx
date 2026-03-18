@@ -11,6 +11,7 @@ import {
   useCreateTagMutation,
   useTagsQuery,
 } from '../../../hooks/datalink/useTags';
+import { tagAPI } from '../../../services/datalink';
 import type { Device } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
 import { countEligibleSpans } from './sourceCanvasModel';
@@ -48,10 +49,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function isNonNull<T>(value: T | null): value is T {
-  return value !== null;
-}
-
 function formatCandidateValue(value: unknown) {
   if (value === null || value === undefined || value === '') {
     return '—';
@@ -75,7 +72,9 @@ export function TagBindingStudio() {
   const { t } = useTranslation();
   const { selectedDeviceId, setActiveStep, setFocusedTagIds, setInspectorSelection, setSelectedDeviceId, sourcePlanningState } = useWorkbench();
   const { data: devices = [] } = useDevicesQuery();
-  const { data: tags = [] } = useTagsQuery();
+  const tagsQuery = useTagsQuery();
+  const tagsData = tagsQuery.data;
+  const tags = useMemo(() => tagsData ?? [], [tagsData]);
   const { data: mappings = [] } = useMappingsQuery();
   const { data: points = [] } = usePointsQuery(
     selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
@@ -268,40 +267,83 @@ export function TagBindingStudio() {
       }
 
       const boundTagIds: string[] = [];
-      const results = await Promise.all(
-        createRequests.map(async (request) => {
-          try {
-            const createdTag = await createTagMutation.mutateAsync(request.tagRequest);
+      const failures: TagBindingFailure[] = [];
+
+      try {
+        // 使用 batch API 一次建立所有 tags，避免 SQLite lock
+        const batchResult = await tagAPI.batchCreate(
+          createRequests.map((request) => request.tagRequest),
+        );
+
+        // 取得所有新建立的 tags（需要 tag ID 建立 mapping）
+        const createdTagIds = batchResult.created;
+        const tagErrors = batchResult.errors;
+
+        // 記錄 tag 建立失敗
+        for (const tagError of tagErrors) {
+          const request = createRequests.find((r) => r.tagKey === tagError.key);
+          if (request) {
+            failures.push({
+              pointId: request.pointId,
+              tagKey: request.tagKey,
+              stage: 'tag',
+              error: tagError.error,
+            });
+          }
+        }
+
+        // 依序建立 mappings（逐一以避免 SQLite lock）
+        if (createdTagIds.length > 0) {
+          // 重新查詢以取得剛建立的 tags
+          const { data: freshTags = [] } = await tagsQuery.refetch();
+
+          for (const request of createRequests) {
+            // 跳過 tag 建立失敗的
+            if (tagErrors.some((e) => e.key === request.tagKey)) {
+              continue;
+            }
+
+            const matchedTag = freshTags.find(
+              (t) => t.key.toLowerCase() === request.tagKey.toLowerCase(),
+            );
+            if (!matchedTag) {
+              failures.push({
+                pointId: request.pointId,
+                tagKey: request.tagKey,
+                stage: 'tag',
+                error: t('workbench.tag.results.tagFallback'),
+              });
+              continue;
+            }
 
             try {
               await createMappingMutation.mutateAsync({
                 point_id: request.pointId,
-                tag_id: createdTag.id,
+                tag_id: matchedTag.id,
                 enabled: true,
               });
-
-              boundTagIds.push(createdTag.id);
-              return null;
+              boundTagIds.push(matchedTag.id);
             } catch (error) {
-              return {
+              failures.push({
                 pointId: request.pointId,
                 tagKey: request.tagKey,
-                stage: 'mapping' as const,
+                stage: 'mapping',
                 error: getErrorMessage(error, t('workbench.tag.results.mappingFallback')),
-              };
+              });
             }
-          } catch (error) {
-            return {
-              pointId: request.pointId,
-              tagKey: request.tagKey,
-              stage: 'tag' as const,
-              error: getErrorMessage(error, t('workbench.tag.results.tagFallback')),
-            };
           }
-        }),
-      );
-
-      const failures = results.filter(isNonNull);
+        }
+      } catch (error) {
+        // batch API 整體失敗
+        for (const request of createRequests) {
+          failures.push({
+            pointId: request.pointId,
+            tagKey: request.tagKey,
+            stage: 'tag',
+            error: getErrorMessage(error, t('workbench.tag.results.tagFallback')),
+          });
+        }
+      }
 
       if (boundTagIds.length > 0) {
         setFocusedTagIds(boundTagIds);
@@ -322,28 +364,26 @@ export function TagBindingStudio() {
     }
 
     const linkedTagIds: string[] = [];
-    const results = await Promise.all(
-      existingRequests.map(async (request) => {
-        try {
-          await createMappingMutation.mutateAsync({
-            point_id: request.pointId,
-            tag_id: request.tagId,
-            enabled: true,
-          });
-          linkedTagIds.push(request.tagId);
-          return null;
-        } catch (error) {
-          return {
-            pointId: request.pointId,
-            tagKey: request.tagKey,
-            stage: 'mapping' as const,
-            error: getErrorMessage(error, t('workbench.tag.results.mappingFallback')),
-          };
-        }
-      }),
-    );
+    const existingFailures: TagBindingFailure[] = [];
 
-    const existingFailures = results.filter(isNonNull);
+    // 依序建立 mappings 以避免 SQLite lock
+    for (const request of existingRequests) {
+      try {
+        await createMappingMutation.mutateAsync({
+          point_id: request.pointId,
+          tag_id: request.tagId,
+          enabled: true,
+        });
+        linkedTagIds.push(request.tagId);
+      } catch (error) {
+        existingFailures.push({
+          pointId: request.pointId,
+          tagKey: request.tagKey,
+          stage: 'mapping',
+          error: getErrorMessage(error, t('workbench.tag.results.mappingFallback')),
+        });
+      }
+    }
 
     if (linkedTagIds.length > 0) {
       setFocusedTagIds(linkedTagIds);

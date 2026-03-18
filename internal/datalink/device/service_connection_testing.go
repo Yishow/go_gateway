@@ -47,6 +47,9 @@ type TestConnectionResult struct {
 	LatencyMs int64     `json:"latency_ms"`
 }
 
+// testConnectionTimeout 連線測試的整體逾時上限
+const testConnectionTimeout = 15 * time.Second
+
 // TestConnectionWithResult 測試設備連線並返回詳細結果
 func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*TestConnectionResult, error) {
 	if s.connMgr == nil {
@@ -58,13 +61,17 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 		return nil, fmt.Errorf("取得設備失敗: %w", err)
 	}
 
+	// 為整體連線測試流程設定逾時上限
+	testCtx, cancel := context.WithTimeout(ctx, testConnectionTimeout)
+	defer cancel()
+
 	start := time.Now()
 	result := &TestConnectionResult{
 		Timestamp: start,
 	}
 
 	// 嘗試建立連線
-	conn, err := s.connMgr.GetOrCreate(ctx, id, device.Protocol, device.ConnectionConfig)
+	conn, err := s.connMgr.GetOrCreate(testCtx, id, device.Protocol, device.ConnectionConfig)
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
@@ -75,8 +82,8 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 		return result, nil
 	}
 
-	// 執行連線測試
-	err = conn.Protocol.TestConnection(ctx)
+	// 執行連線測試（同樣受逾時上限保護）
+	err = conn.Protocol.TestConnection(testCtx)
 	result.LatencyMs = time.Since(start).Milliseconds()
 
 	if err != nil {

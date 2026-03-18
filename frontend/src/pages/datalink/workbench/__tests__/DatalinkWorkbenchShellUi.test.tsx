@@ -52,12 +52,17 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useDeletePointMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/useTags', () => ({
   useTagsQuery: () => ({
     data: mockTags,
     isLoading: false,
+    refetch: vi.fn().mockResolvedValue({ data: mockTags }),
   }),
   useCreateTagMutation: () => ({
     mutateAsync: vi.fn(),
@@ -71,6 +76,10 @@ vi.mock('../../../../hooks/datalink/useMappings', () => ({
     isLoading: false,
   }),
   useCreateMappingMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteMappingMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
@@ -92,6 +101,9 @@ vi.mock('../../../../services/datalink', () => ({
     deleteMapping: vi.fn(),
     writeTagValue: vi.fn(),
     sync: vi.fn(),
+  },
+  tagAPI: {
+    batchCreate: vi.fn().mockResolvedValue({ created: [], errors: [] }),
   },
 }));
 

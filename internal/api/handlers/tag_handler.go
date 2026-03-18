@@ -151,21 +151,14 @@ func (h *TagHandler) BatchCreate(c *gin.Context) {
 		return
 	}
 
-	resp := BatchCreateResponse{
-		Created: make([]string, 0),
-		Errors:  make([]BatchCreateError, 0),
-	}
+	created, batchErrors := h.svc.BatchCreate(c.Request.Context(), *req.Tags)
 
-	for _, tagReq := range *req.Tags {
-		t, err := h.svc.Create(c.Request.Context(), tagReq)
-		if err != nil {
-			resp.Errors = append(resp.Errors, BatchCreateError{
-				Key:   tagReq.Key,
-				Error: err.Error(),
-			})
-		} else {
-			resp.Created = append(resp.Created, t.ID)
-		}
+	resp := BatchCreateResponse{
+		Created: created,
+		Errors:  make([]BatchCreateError, 0, len(batchErrors)),
+	}
+	for _, be := range batchErrors {
+		resp.Errors = append(resp.Errors, BatchCreateError{Key: be.Key, Error: be.Error})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})

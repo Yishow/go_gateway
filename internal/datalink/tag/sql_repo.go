@@ -54,6 +54,57 @@ func (r *SQLRepository) Create(ctx context.Context, tag *schema.Tag) error {
 	return nil
 }
 
+// BatchCreate 在交易內批量建立標籤
+func (r *SQLRepository) BatchCreate(ctx context.Context, tags []*schema.Tag) error {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("開啟交易失敗: %w", err)
+	}
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+			return
+		}
+	}()
+
+	query := `
+		INSERT INTO tags (id, key, key_lower, display_name, data_type, unit, description, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("準備插入語句失敗: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, tag := range tags {
+		_, err = stmt.ExecContext(ctx,
+			tag.ID,
+			tag.Key,
+			strings.ToLower(tag.Key),
+			tag.DisplayName,
+			tag.DataType,
+			tag.Unit,
+			tag.Description,
+			tag.Status,
+			tag.CreatedAt,
+			tag.UpdatedAt,
+		)
+		if err != nil {
+			return fmt.Errorf("批量建立標籤 %s 失敗: %w", tag.Key, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("提交交易失敗: %w", err)
+	}
+
+	return nil
+}
+
 // Update 更新標籤
 func (r *SQLRepository) Update(ctx context.Context, tag *schema.Tag) error {
 	query := `

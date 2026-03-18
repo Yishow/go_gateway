@@ -80,6 +80,92 @@ type CreateTagRequest struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 }
 
+// BatchCreateError 批量建立時的單筆錯誤
+type BatchCreateError struct {
+	Key   string
+	Error string
+}
+
+// BatchCreate 批量建立標籤，使用交易確保原子性
+func (s *Service) BatchCreate(ctx context.Context, reqs []CreateTagRequest) ([]string, []BatchCreateError) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	created := make([]string, 0, len(reqs))
+	var errs []BatchCreateError
+
+	// 預先驗證所有請求
+	tags := make([]*schema.Tag, 0, len(reqs))
+	for _, req := range reqs {
+		if err := ValidateTagKey(req.Key); err != nil {
+			errs = append(errs, BatchCreateError{Key: req.Key, Error: err.Error()})
+			continue
+		}
+
+		exists, err := s.repo.ExistsByKey(ctx, req.Key)
+		if err != nil {
+			errs = append(errs, BatchCreateError{Key: req.Key, Error: fmt.Sprintf("檢查標籤鍵失敗: %v", err)})
+			continue
+		}
+		if exists {
+			errs = append(errs, BatchCreateError{Key: req.Key, Error: fmt.Sprintf("標籤鍵已存在: %s", req.Key)})
+			continue
+		}
+
+		if !isValidDataType(req.DataType) {
+			errs = append(errs, BatchCreateError{Key: req.Key, Error: fmt.Sprintf("不支援的資料型別: %s", req.DataType)})
+			continue
+		}
+
+		labelsJSON := "{}"
+		if req.Labels != nil {
+			if data, jsonErr := json.Marshal(req.Labels); jsonErr == nil {
+				labelsJSON = string(data)
+			}
+		}
+
+		id, err := common.NewUUID()
+		if err != nil {
+			errs = append(errs, BatchCreateError{Key: req.Key, Error: fmt.Sprintf("建立 ID 失敗: %v", err)})
+			continue
+		}
+
+		tag := &schema.Tag{
+			ID:          id,
+			Key:         req.Key,
+			KeyLower:    NormalizeTagKey(req.Key),
+			DisplayName: req.DisplayName,
+			Description: req.Description,
+			Unit:        req.Unit,
+			DataType:    req.DataType,
+			Status:      schema.TagStatusDraft,
+			Labels:      labelsJSON,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+		if tag.DisplayName == "" {
+			tag.DisplayName = req.Key
+		}
+
+		tags = append(tags, tag)
+	}
+
+	// 使用交易批量寫入
+	if len(tags) > 0 {
+		if err := s.repo.BatchCreate(ctx, tags); err != nil {
+			for _, tag := range tags {
+				errs = append(errs, BatchCreateError{Key: tag.Key, Error: err.Error()})
+			}
+		} else {
+			for _, tag := range tags {
+				created = append(created, tag.ID)
+			}
+		}
+	}
+
+	return created, errs
+}
+
 // Update 更新標籤
 func (s *Service) Update(ctx context.Context, id string, req UpdateTagRequest) (*schema.Tag, error) {
 	tag, err := s.repo.GetByID(ctx, id)

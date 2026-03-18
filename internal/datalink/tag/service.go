@@ -49,6 +49,9 @@ type Repository interface {
 	// Create 建立新標籤
 	Create(ctx context.Context, tag *schema.Tag) error
 
+	// BatchCreate 批量建立標籤（交易內）
+	BatchCreate(ctx context.Context, tags []*schema.Tag) error
+
 	// Update 更新標籤
 	Update(ctx context.Context, tag *schema.Tag) error
 

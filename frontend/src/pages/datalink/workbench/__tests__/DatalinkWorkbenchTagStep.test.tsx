@@ -12,6 +12,7 @@ const {
   mockCreateTagMutation,
   mockCreateMappingMutation,
   mockDeleteMappingMutation,
+  mockBatchCreate,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
@@ -29,6 +30,7 @@ const {
     mutateAsync: vi.fn(),
     isPending: false,
   },
+  mockBatchCreate: vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -77,8 +79,15 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
   useTagsQuery: () => ({
     data: mockTags,
     isLoading: false,
+    refetch: vi.fn().mockResolvedValue({ data: mockTags }),
   }),
   useCreateTagMutation: () => mockCreateTagMutation,
+}));
+
+vi.mock('../../../../services/datalink', () => ({
+  tagAPI: {
+    batchCreate: mockBatchCreate,
+  },
 }));
 
 vi.mock('../../../../hooks/datalink/useMappings', () => ({
@@ -162,6 +171,26 @@ describe('DatalinkWorkbench tag step', () => {
 
     mockTags.splice(0, mockTags.length);
     mockMappings.splice(0, mockMappings.length);
+    mockBatchCreate.mockImplementation(async (tags: Array<{ key: string }>) => {
+      // 模擬 batch create：所有 tags 都成功建立
+      const created = tags.map((tag) => `tag-${tag.key}`);
+      // 同時把 tags 加到 mockTags 以供 refetch 找到
+      for (const tag of tags) {
+        mockTags.push({
+          id: `tag-${tag.key}`,
+          key: tag.key,
+          display_name: tag.key,
+          description: '',
+          data_type: 'int16',
+          unit: '',
+          labels: null,
+          status: 'draft',
+          created_at: '',
+          updated_at: '',
+        });
+      }
+      return { created, errors: [] };
+    });
     mockCreateTagMutation.mutateAsync.mockImplementation(async (request: { key: string }) => ({
       id: `tag-${request.key}`,
       key: request.key,
@@ -442,11 +471,13 @@ describe('DatalinkWorkbench tag step', () => {
   });
 
   it('shows a partial failure summary when part of the batch bind fails', async () => {
-    mockCreateTagMutation.mutateAsync
-      .mockResolvedValueOnce({
-        id: 'tag-1',
+    // 模擬 batch create 部分失敗（default strategy=address, prefix=TAG）
+    mockBatchCreate.mockImplementationOnce(async () => {
+      // TAG_40001 成功，TAG_40002 失敗
+      mockTags.push({
+        id: 'tag-TAG_40001',
         key: 'TAG_40001',
-        display_name: 'TAG_40001',
+        display_name: 'Flow Sensor',
         description: '',
         data_type: 'int16',
         unit: '',
@@ -454,8 +485,12 @@ describe('DatalinkWorkbench tag step', () => {
         status: 'draft',
         created_at: '',
         updated_at: '',
-      })
-      .mockRejectedValueOnce(new Error('duplicate key'));
+      });
+      return {
+        created: ['tag-TAG_40001'],
+        errors: [{ key: 'TAG_40002', error: 'duplicate key' }],
+      };
+    });
 
     renderPage();
 
@@ -466,11 +501,12 @@ describe('DatalinkWorkbench tag step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.actions.bind' }));
 
     await waitFor(() => {
-      expect(mockCreateTagMutation.mutateAsync).toHaveBeenCalledTimes(2);
+      expect(mockBatchCreate).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockCreateMappingMutation.mutateAsync).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('workbench.tag.results.partialFailure')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('workbench.tag.results.partialFailure')).toBeInTheDocument();
+    });
     expect(screen.getByText('duplicate key')).toBeInTheDocument();
   });
 
@@ -549,7 +585,7 @@ describe('DatalinkWorkbench tag step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.actions.bind' }));
 
     await waitFor(() => {
-      expect(mockCreateTagMutation.mutateAsync).toHaveBeenCalledTimes(2);
+      expect(mockBatchCreate).toHaveBeenCalledTimes(1);
     });
 
     expect(screen.getByTestId('result-created-count')).toHaveTextContent('2');

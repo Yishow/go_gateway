@@ -46,6 +46,30 @@ func (r *MemoryRepository) Create(ctx context.Context, tag *schema.Tag) error {
 	return nil
 }
 
+// BatchCreate 批量建立標籤
+func (r *MemoryRepository) BatchCreate(ctx context.Context, tags []*schema.Tag) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, tag := range tags {
+		if _, exists := r.tags[tag.ID]; exists {
+			return fmt.Errorf("標籤 ID 已存在: %s", tag.ID)
+		}
+		for _, existing := range r.tags {
+			if existing.KeyLower == tag.KeyLower {
+				return fmt.Errorf("標籤鍵已存在: %s", tag.Key)
+			}
+		}
+	}
+
+	for _, tag := range tags {
+		tagCopy := *tag
+		r.tags[tag.ID] = &tagCopy
+	}
+
+	return nil
+}
+
 // Update 更新標籤
 func (r *MemoryRepository) Update(ctx context.Context, tag *schema.Tag) error {
 	r.mu.Lock()
