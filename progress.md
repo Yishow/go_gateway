@@ -77,6 +77,10 @@
 - round 2 code review：
   - `APPROVED`
   - 確認 Step 4 已真正達成 direct surface binding，不只是縮成 compact selector。
+- 四步驟除錯修正驗證：
+  - workbench suite `141/141` passed（含修復 7 個 pre-existing shell-ui mock 缺口）
+  - Go tests: `tag/...`、`handlers/...`、`device/...` 全部通過
+  - `go build ./...`、`npx tsc --noEmit`、`npm run lint` 全部通過
 
 ## 精簡歷史里程碑
 
@@ -94,3 +98,12 @@
 ### 2026-03-17（下半段）
 - 使用者提出 round 2 polish 回饋。
 - Step 1、Step 2、Step 3、Step 4 與 final regression 均已完成。
+
+### 2026-03-18
+- 完成四步驟除錯修正：
+  - Step 1: 連線測試 15 秒逾時
+  - Step 2: sourceCanvasModel merge 特徵衝突偵測
+  - Step 3: tagAPI.batchCreate + 後端 BatchCreate 交易包裝
+  - Step 4: 驗證已對齊，無需修改
+- 修復 7 個 pre-existing shell-ui test mock 缺口
+- commit: `bc84416`
