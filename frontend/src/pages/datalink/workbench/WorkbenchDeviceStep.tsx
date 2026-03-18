@@ -1042,6 +1042,132 @@ export function WorkbenchDeviceStep() {
     }
   };
 
+  const renderInlineEditor = () => {
+    if (!devicePanelState) return null;
+    return (
+      <div
+        className="flex flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/40"
+        data-testid="device-inline-editor"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+              {t('workbench.device.panel.eyebrow')}
+            </p>
+            <h3 className="text-2xl font-semibold text-slate-50">
+              {devicePanelState.mode === 'create'
+                ? t('workbench.device.panel.createTitle')
+                : devicePanelState.mode === 'clone'
+                  ? t('workbench.device.panel.cloneTitle')
+                  : t('workbench.device.panel.editTitle')}
+            </h3>
+            <p className="text-sm text-slate-300">
+              {devicePanelState.mode === 'create'
+                ? t('workbench.device.panel.createDescription')
+                : devicePanelState.mode === 'clone'
+                  ? t('workbench.device.panel.cloneDescription')
+                  : t('workbench.device.panel.editDescription')}
+            </p>
+          </div>
+          <button
+            className={ghostButtonClassName}
+            onClick={closePanel}
+            type="button"
+          >
+            {t('common.cancel')}
+          </button>
+        </div>
+
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <TextField
+                id="device-name"
+                label={t('workbench.device.fields.name')}
+                onChange={(value) =>
+                  setDraft((currentDraft) => ({
+                    ...currentDraft,
+                    name: value,
+                  }))
+                }
+                placeholder="Mixer PLC"
+                value={draft.name}
+                error={fieldErrors.name}
+              />
+              <SelectField
+                id="device-protocol"
+                label={t('workbench.device.fields.protocol')}
+                onChange={(value) => {
+                  const nextProtocol = value as ProtocolType;
+                  setDraft((currentDraft) => ({
+                    ...currentDraft,
+                    protocol: nextProtocol,
+                    connectionConfig: createDefaultDeviceConnectionConfig(nextProtocol),
+                  }));
+                }}
+                options={WORKBENCH_PROTOCOLS.map((protocol) => ({
+                  value: protocol,
+                  label: t(getWorkbenchProtocolLabelKey(protocol)),
+                }))}
+                value={draft.protocol}
+                disabled={devicePanelState.mode !== 'create'}
+              />
+              <div className="md:col-span-2">
+                <TextAreaField
+                  id="device-description"
+                  label={t('workbench.device.fields.description')}
+                  onChange={(value) =>
+                    setDraft((currentDraft) => ({
+                      ...currentDraft,
+                      description: value,
+                    }))
+                  }
+                  placeholder={t('workbench.device.fields.descriptionPlaceholder')}
+                  value={draft.description}
+                />
+              </div>
+            </div>
+
+            <section className="space-y-4 rounded-3xl border border-slate-800 bg-slate-900/50 p-5">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+                  {t('workbench.device.connection.eyebrow')}
+                </p>
+                <h4 className="text-xl font-semibold text-slate-50">
+                  {t('workbench.device.connection.title')}
+                </h4>
+                <p className="text-sm text-slate-300">
+                  {t('workbench.device.connection.description')}
+                </p>
+              </div>
+
+              {renderConnectionFields()}
+            </section>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-slate-800 px-6 py-4">
+            <button
+              className={ghostButtonClassName}
+              onClick={closePanel}
+              type="button"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              className={primaryButtonClassName}
+              disabled={isSaving}
+              type="submit"
+            >
+              {isSaving
+                ? t('workbench.device.actions.saving')
+                : t('workbench.device.actions.save')}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  };
+
   return (
     <section className="space-y-4">
       {devices.length > 0 ? (
@@ -1112,7 +1238,7 @@ export function WorkbenchDeviceStep() {
         </div>
       ) : null}
 
-      {!isLoading && devices.length === 0 ? (
+      {!isLoading && devices.length === 0 && !devicePanelState ? (
         <div className="rounded-3xl border border-dashed border-slate-700 bg-slate-950/40 p-8 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
             {t('workbench.device.empty.eyebrow')}
@@ -1133,7 +1259,7 @@ export function WorkbenchDeviceStep() {
         </div>
       ) : null}
 
-      {!isLoading && devices.length > 0 && filteredDevices.length === 0 ? (
+      {!isLoading && devices.length > 0 && filteredDevices.length === 0 && !devicePanelState ? (
         <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-8 text-center text-sm text-slate-300">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
             {t('workbench.device.filteredEmpty.eyebrow')}
@@ -1142,6 +1268,12 @@ export function WorkbenchDeviceStep() {
             {t('workbench.device.filteredEmpty.title')}
           </h3>
           <p className="mt-3">{t('workbench.device.filteredEmpty.description')}</p>
+        </div>
+      ) : null}
+
+      {!isLoading && filteredDevices.length === 0 && devicePanelState ? (
+        <div className="mx-auto max-w-4xl">
+          {renderInlineEditor()}
         </div>
       ) : null}
 
@@ -1240,225 +1372,100 @@ export function WorkbenchDeviceStep() {
             })}
           </div>
 
-          <div
-            className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6"
-            data-testid="device-detail-panel"
-          >
-            {selectedDevice ? (
-              <div className="space-y-6">
-                <div className="space-y-2">
+          {devicePanelState ? (
+            renderInlineEditor()
+          ) : (
+            <div
+              className="rounded-3xl border border-slate-800 bg-slate-950/40 p-6"
+              data-testid="device-detail-panel"
+            >
+              {selectedDevice ? (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+                      {t('workbench.device.eyebrow')}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-2xl font-semibold text-slate-50">{selectedDevice.name}</h3>
+                      <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
+                        {t(getWorkbenchProtocolLabelKey(selectedDevice.protocol))}
+                      </span>
+                      <span
+                        className={joinClasses(
+                          'rounded-full border px-2 py-1 text-xs font-medium',
+                          getStatusClasses(selectedDevice.status),
+                        )}
+                      >
+                        {t(getWorkbenchDeviceStatusLabelKey(selectedDevice.status))}
+                      </span>
+                    </div>
+                    {selectedDeviceEndpoint ? (
+                      <p
+                        className="text-sm text-slate-300"
+                        data-testid="device-detail-endpoint"
+                      >
+                        {selectedDeviceEndpoint}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                    <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {t('workbench.device.inspector.capabilitySummary')}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {selectedDeviceCapabilitySummary.map((item) => (
+                          <div
+                            className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3"
+                            key={`selected-${item.id}`}
+                          >
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                              {t(item.labelKey)}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-slate-100">{item.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {t('workbench.device.card.lastTest')}
+                      </p>
+                      <span
+                        className={joinClasses(
+                          'inline-flex rounded-full border px-2.5 py-1 text-xs font-medium',
+                          getDeviceHealthClasses(selectedDevice.last_test_success),
+                        )}
+                      >
+                        {getDeviceHealthLabel(t, selectedDevice)}
+                      </span>
+                      <button
+                        className={joinClasses(primaryButtonClassName, 'w-full')}
+                        onClick={() => setActiveStep('source')}
+                        type="button"
+                      >
+                        {t('workbench.device.actions.continue')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
                     {t('workbench.device.eyebrow')}
                   </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-2xl font-semibold text-slate-50">{selectedDevice.name}</h3>
-                    <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2 py-1 text-xs text-slate-300">
-                      {t(getWorkbenchProtocolLabelKey(selectedDevice.protocol))}
-                    </span>
-                    <span
-                      className={joinClasses(
-                        'rounded-full border px-2 py-1 text-xs font-medium',
-                        getStatusClasses(selectedDevice.status),
-                      )}
-                    >
-                      {t(getWorkbenchDeviceStatusLabelKey(selectedDevice.status))}
-                    </span>
-                  </div>
-                  {selectedDeviceEndpoint ? (
-                    <p
-                      className="text-sm text-slate-300"
-                      data-testid="device-detail-endpoint"
-                    >
-                      {selectedDeviceEndpoint}
-                    </p>
-                  ) : null}
+                  <h3 className="text-2xl font-semibold text-slate-50">
+                    {t('workbench.device.inspector.emptyTitle')}
+                  </h3>
+                  <p className="max-w-2xl text-sm text-slate-300">
+                    {t('workbench.device.inspector.emptyDescription')}
+                  </p>
                 </div>
-
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-                  <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      {t('workbench.device.inspector.capabilitySummary')}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {selectedDeviceCapabilitySummary.map((item) => (
-                        <div
-                          className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3"
-                          key={`selected-${item.id}`}
-                        >
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                            {t(item.labelKey)}
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-slate-100">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      {t('workbench.device.card.lastTest')}
-                    </p>
-                    <span
-                      className={joinClasses(
-                        'inline-flex rounded-full border px-2.5 py-1 text-xs font-medium',
-                        getDeviceHealthClasses(selectedDevice.last_test_success),
-                      )}
-                    >
-                      {getDeviceHealthLabel(t, selectedDevice)}
-                    </span>
-                    <button
-                      className={joinClasses(primaryButtonClassName, 'w-full')}
-                      onClick={() => setActiveStep('source')}
-                      type="button"
-                    >
-                      {t('workbench.device.actions.continue')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                  {t('workbench.device.eyebrow')}
-                </p>
-                <h3 className="text-2xl font-semibold text-slate-50">
-                  {t('workbench.device.inspector.emptyTitle')}
-                </h3>
-                <p className="max-w-2xl text-sm text-slate-300">
-                  {t('workbench.device.inspector.emptyDescription')}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      {devicePanelState ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm sm:p-6"
-          data-testid="device-panel-overlay"
-        >
-          <div
-            aria-modal="true"
-            className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/60"
-            role="dialog"
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                  {t('workbench.device.panel.eyebrow')}
-                </p>
-                <h3 className="text-2xl font-semibold text-slate-50">
-                  {devicePanelState.mode === 'create'
-                    ? t('workbench.device.panel.createTitle')
-                    : devicePanelState.mode === 'clone'
-                      ? t('workbench.device.panel.cloneTitle')
-                      : t('workbench.device.panel.editTitle')}
-                </h3>
-                <p className="text-sm text-slate-300">
-                  {devicePanelState.mode === 'create'
-                    ? t('workbench.device.panel.createDescription')
-                    : devicePanelState.mode === 'clone'
-                      ? t('workbench.device.panel.cloneDescription')
-                      : t('workbench.device.panel.editDescription')}
-                </p>
-              </div>
-              <button
-                className={ghostButtonClassName}
-                onClick={closePanel}
-                type="button"
-              >
-                {t('common.cancel')}
-              </button>
+              )}
             </div>
-
-            <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <TextField
-                    id="device-name"
-                    label={t('workbench.device.fields.name')}
-                    onChange={(value) =>
-                      setDraft((currentDraft) => ({
-                        ...currentDraft,
-                        name: value,
-                      }))
-                    }
-                    placeholder="Mixer PLC"
-                    value={draft.name}
-                    error={fieldErrors.name}
-                  />
-                  <SelectField
-                    id="device-protocol"
-                    label={t('workbench.device.fields.protocol')}
-                    onChange={(value) => {
-                      const nextProtocol = value as ProtocolType;
-                      setDraft((currentDraft) => ({
-                        ...currentDraft,
-                        protocol: nextProtocol,
-                        connectionConfig: createDefaultDeviceConnectionConfig(nextProtocol),
-                      }));
-                    }}
-                    options={WORKBENCH_PROTOCOLS.map((protocol) => ({
-                      value: protocol,
-                      label: t(getWorkbenchProtocolLabelKey(protocol)),
-                    }))}
-                    value={draft.protocol}
-                    disabled={devicePanelState.mode !== 'create'}
-                  />
-                  <div className="md:col-span-2">
-                    <TextAreaField
-                      id="device-description"
-                      label={t('workbench.device.fields.description')}
-                      onChange={(value) =>
-                        setDraft((currentDraft) => ({
-                          ...currentDraft,
-                          description: value,
-                        }))
-                      }
-                      placeholder={t('workbench.device.fields.descriptionPlaceholder')}
-                      value={draft.description}
-                    />
-                  </div>
-                </div>
-
-                <section className="space-y-4 rounded-3xl border border-slate-800 bg-slate-900/50 p-5">
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-                      {t('workbench.device.connection.eyebrow')}
-                    </p>
-                    <h4 className="text-xl font-semibold text-slate-50">
-                      {t('workbench.device.connection.title')}
-                    </h4>
-                    <p className="text-sm text-slate-300">
-                      {t('workbench.device.connection.description')}
-                    </p>
-                  </div>
-
-                  {renderConnectionFields()}
-                </section>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-3 border-t border-slate-800 px-6 py-4">
-                <button
-                  className={ghostButtonClassName}
-                  onClick={closePanel}
-                  type="button"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  className={primaryButtonClassName}
-                  disabled={isSaving}
-                  type="submit"
-                >
-                  {isSaving
-                    ? t('workbench.device.actions.saving')
-                    : t('workbench.device.actions.save')}
-                </button>
-              </div>
-            </form>
-          </div>
+          )}
         </div>
       ) : null}
     </section>

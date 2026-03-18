@@ -152,6 +152,8 @@ type RegisterMapCanvasProps = {
   candidates: OutputCandidate[];
   shareMappings: ModbusShareMapping[];
   conflicts: MappingConflict[];
+  selectedTagId: string;
+  onSlotClick: (slotIndex: number, occupant: OutputCandidate | null) => void;
   onAutoMap: (strategy: AutoMapStrategy) => void;
   onDryRun: () => void;
   dryRunResults: DryRunResult[] | null;
@@ -162,6 +164,8 @@ function RegisterMapCanvas({
   candidates,
   shareMappings,
   conflicts,
+  selectedTagId,
+  onSlotClick,
   onAutoMap,
   onDryRun,
   dryRunResults,
@@ -188,24 +192,31 @@ function RegisterMapCanvas({
         {Array.from({ length: slotCount }, (_, i) => {
           const candidate = mappedSlots.get(i);
           const isConflict = conflictRegisters.has(i);
+          const isSlotForSelected = candidate?.tagId === selectedTagId && Boolean(selectedTagId);
           return (
-            <div
+            <button
+              type="button"
               key={i}
               data-testid={`register-slot-${i}`}
               data-conflict={isConflict ? 'true' : undefined}
-              className={`flex min-w-[60px] flex-col items-center rounded-lg border px-2 py-1 text-[10px] ${
+              onClick={() => onSlotClick(i, candidate ?? null)}
+              className={`flex min-w-[60px] cursor-pointer flex-col items-center rounded-lg border px-2 py-1 text-[10px] transition hover:ring-1 hover:ring-cyan-400/40 ${
                 isConflict
                   ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
-                  : candidate
-                    ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
-                    : 'border-slate-800 bg-slate-950/50 text-slate-500'
+                  : isSlotForSelected
+                    ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/50'
+                    : candidate
+                      ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
+                      : selectedTagId
+                        ? 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-cyan-500/40 hover:bg-cyan-500/5'
+                        : 'border-slate-800 bg-slate-950/50 text-slate-500'
               }`}
             >
               <span className="font-mono text-[9px] text-slate-500">HR{i}</span>
               <span className="truncate font-medium">
                 {candidate?.tagKey ?? '—'}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -523,6 +534,53 @@ export function LocalModbusBoard() {
     }
   }, [loadData, selectedCandidate, t]);
 
+  const handleSlotClick = useCallback(async (slotIndex: number, occupant: OutputCandidate | null) => {
+    if (occupant) {
+      setIsBusy(true);
+      try {
+        await modbusShareAPI.deleteMapping(occupant.tagId);
+        await loadData();
+        setMessage(
+          t('workbench.output.results.slotUnbound', {
+            key: occupant.tagKey,
+            register: slotIndex,
+          }),
+        );
+      } catch (error) {
+        setMessage(
+          getErrorMessage(error, t('workbench.output.results.deleteFallback')),
+        );
+      } finally {
+        setIsBusy(false);
+      }
+      return;
+    }
+
+    if (!selectedTagId) {
+      setMessage(t('workbench.output.results.noTagSelected'));
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      await modbusShareAPI.upsertMapping(selectedTagId, slotIndex);
+      await loadData();
+      const boundTag = candidates.find((c) => c.tagId === selectedTagId);
+      setMessage(
+        t('workbench.output.results.slotBound', {
+          key: boundTag?.tagKey ?? selectedTagId,
+          register: slotIndex,
+        }),
+      );
+    } catch (error) {
+      setMessage(
+        getErrorMessage(error, t('workbench.output.results.mappingFallback')),
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  }, [candidates, loadData, selectedTagId, t]);
+
   const handleSync = useCallback(async () => {
     if (!canSync) {
       setMessage(t('workbench.output.results.syncBlocked'));
@@ -671,21 +729,19 @@ export function LocalModbusBoard() {
         data-testid="output-primary-anchor"
         tabIndex={-1}
       >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-              {t('workbench.output.selection.eyebrow')}
-            </p>
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-50">
-                {t('workbench.output.selection.title')}
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-slate-300">
-                {t('workbench.output.selection.description')}
-              </p>
-            </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">
+              {t('workbench.output.surface.activeTag')}
+            </span>
+            {selectedCandidate ? (
+              <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-200" data-testid="active-tag-badge">
+                {selectedCandidate.tagKey}
+              </span>
+            ) : (
+              <span className="text-xs text-slate-500">{t('workbench.output.surface.noneActive')}</span>
+            )}
           </div>
-
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -714,84 +770,45 @@ export function LocalModbusBoard() {
           </div>
         </div>
 
-        <div className="grid gap-2">
-          {candidates.map((candidate) => {
-            const active = selectedTagId === candidate.tagId;
-
+        <div className="flex flex-wrap gap-1.5" data-testid="output-tag-chips">
+          {candidates.map((c) => {
+            const isActive = c.tagId === selectedTagId;
+            const modbusLabel = c.register !== null ? ` HR${c.register}` : '';
+            const dbLabel = c.databasePath ? ` DB` : '';
+            const statusSuffix = activeOutputTarget === 'modbus' ? modbusLabel : dbLabel;
             return (
               <button
-                key={candidate.tagId}
+                key={c.tagId}
                 type="button"
+                data-testid={`output-candidate-${c.tagId}`}
+                aria-pressed={isActive}
                 onClick={() => {
-                  setSelectedTagId(candidate.tagId);
+                  setSelectedTagId(c.tagId);
                   setInspectorSelection({
                     kind: 'outputCandidate',
-                    tagId: candidate.tagId,
+                    tagId: c.tagId,
                     target: activeOutputTarget,
                   });
                 }}
-                aria-pressed={active}
-                data-testid={`output-candidate-${candidate.tagId}`}
-                  className={`grid gap-2 rounded-xl border px-3 py-3 text-left transition xl:grid-cols-[minmax(0,1.1fr)_auto] ${
-                    active
-                      ? 'border-cyan-500/40 bg-cyan-500/5'
-                      : 'border-slate-800 bg-slate-900/70'
-                  }`}
-                >
-                <span className="space-y-2">
-                  <span className="block text-sm font-semibold text-slate-50">
-                    {candidate.tagKey}
-                  </span>
-                  <span className="block text-xs text-slate-400">
-                    {t('workbench.output.selection.candidateMeta', {
-                      point: candidate.pointName,
-                      address: candidate.pointAddress,
-                      dataType: candidate.dataType,
-                    })}
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    {t('workbench.output.selection.latestValue', {
-                      value:
-                        candidate.lastValue === null || candidate.lastValue === undefined
-                          ? '—'
-                          : String(candidate.lastValue),
-                    })}
-                  </span>
-                </span>
-
-                <span className="flex flex-wrap gap-2">
-                  {activeOutputTarget === 'modbus' ? (
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        candidate.register !== null
-                          ? 'bg-emerald-500/10 text-emerald-200'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                      data-testid={`output-modbus-status-${candidate.tagId}`}
-                    >
-                      {candidate.register !== null
-                        ? `HR${candidate.register}`
-                        : t('workbench.output.selection.unmapped')}
-                    </span>
-                  ) : (
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        candidate.databasePath
-                          ? 'bg-violet-500/10 text-violet-200'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                      data-testid={`output-db-status-${candidate.tagId}`}
-                    >
-                      {candidate.databasePath
-                        ? candidate.databasePath
-                        : t('workbench.output.selection.databaseUnmapped')}
-                    </span>
-                  )}
-                </span>
+                className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                  isActive
+                    ? 'border-cyan-400 bg-cyan-500/20 font-semibold text-cyan-100 ring-1 ring-cyan-400/50'
+                    : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-cyan-500/30'
+                }`}
+              >
+                {c.tagKey}{statusSuffix ? <span className="ml-1 text-[10px] text-slate-400">{statusSuffix}</span> : null}
               </button>
             );
           })}
         </div>
+
+        {selectedCandidate && (
+          <p className="text-xs text-slate-400" data-testid="surface-hint">
+            {activeOutputTarget === 'modbus'
+              ? t('workbench.output.surface.clickSlotHint', { key: selectedCandidate.tagKey })
+              : t('workbench.output.surface.clickColumnHint', { key: selectedCandidate.tagKey })}
+          </p>
+        )}
       </section>
 
       {activeOutputTarget === 'modbus' ? (
@@ -810,6 +827,8 @@ export function LocalModbusBoard() {
               candidates={candidates}
               shareMappings={shareMappings}
               conflicts={conflicts}
+              selectedTagId={selectedTagId}
+              onSlotClick={(slot, occupant) => void handleSlotClick(slot, occupant)}
               onAutoMap={(strategy) => void handleAutoMap(strategy)}
               onDryRun={handleDryRun}
               dryRunResults={dryRunResults}
@@ -978,7 +997,6 @@ export function LocalModbusBoard() {
         <DatabaseTargetBoard
           candidates={candidates}
           selectedTagId={selectedTagId}
-          onSelectedTagChange={setSelectedTagId}
         />
       ) : null}
     </div>

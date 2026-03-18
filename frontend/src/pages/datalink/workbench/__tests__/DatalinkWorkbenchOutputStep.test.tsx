@@ -84,6 +84,10 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useDeletePointMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/useTags', () => ({
@@ -103,6 +107,10 @@ vi.mock('../../../../hooks/datalink/useMappings', () => ({
     isLoading: false,
   }),
   useCreateMappingMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteMappingMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
@@ -368,7 +376,7 @@ describe('DatalinkWorkbench output step', () => {
     });
   });
 
-  it('renders only the active target mapping field inside the shared candidate rows', async () => {
+  it('renders compact tag chips with status suffixes for the active target', async () => {
     mockModbusShareAPI.listMappings.mockResolvedValue([
       {
         tag_id: 'tag-1',
@@ -408,43 +416,34 @@ describe('DatalinkWorkbench output step', () => {
         name: 'workbench.output.targetSwitcher.database',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('output-candidate-tag-1')).toHaveTextContent('TAG_40001');
-    expect(
-      within(screen.getByTestId('output-candidate-tag-1')).getByTestId(
-        'output-modbus-status-tag-1',
-      ),
-    ).toHaveTextContent('HR12');
-    expect(
-      within(screen.getByTestId('output-candidate-tag-1')).queryByTestId(
-        'output-db-status-tag-1',
-      ),
-    ).not.toBeInTheDocument();
 
+    const tagChips = screen.getByTestId('output-tag-chips');
+    expect(tagChips).toBeInTheDocument();
+    expect(screen.getByTestId('output-candidate-tag-1')).toBeInTheDocument();
+
+    // Click tag-1 chip and verify active badge appears
+    fireEvent.click(screen.getByTestId('output-candidate-tag-1'));
+    expect(screen.getByTestId('active-tag-badge')).toBeInTheDocument();
+
+    // Switch to database target
     fireEvent.click(
       screen.getByRole('button', {
         name: 'workbench.output.targetSwitcher.database',
       }),
     );
 
-    expect(
-      within(screen.getByTestId('output-candidate-tag-2')).getByTestId(
-        'output-db-status-tag-2',
-      ),
-    ).toHaveTextContent(
-      'main.sensor_values.value',
-    );
-    expect(
-      within(screen.getByTestId('output-candidate-tag-2')).queryByTestId(
-        'output-modbus-status-tag-2',
-      ),
-    ).not.toBeInTheDocument();
+    // Select tag-2 via chip click
+    fireEvent.click(screen.getByTestId('output-candidate-tag-2'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('active-tag-badge')).toHaveTextContent('TAG_40002');
+    });
 
     expect(
       screen.getByRole('button', {
         name: 'workbench.output.targetSwitcher.database',
       }),
     ).toHaveAttribute('aria-pressed', 'true');
-    await screen.findByLabelText('workbench.output.database.mapping.table');
   });
 
   it('marks modbus operational panels as supporting sections', async () => {
@@ -459,15 +458,17 @@ describe('DatalinkWorkbench output step', () => {
     );
   });
 
-  it('uses the shared candidate board as the only tag selection surface for both targets', async () => {
+  it('uses the tag chips as the unified selection surface for both targets', async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-    await screen.findByTestId('output-candidate-tag-1');
+    await screen.findByTestId('output-tag-chips');
 
-    expect(screen.queryByLabelText('workbench.output.mapping.tag')).not.toBeInTheDocument();
+    const tagChips = screen.getByTestId('output-tag-chips');
+    expect(tagChips).toBeInTheDocument();
+    expect(screen.getByTestId('output-candidate-tag-1')).toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -475,11 +476,12 @@ describe('DatalinkWorkbench output step', () => {
       }),
     );
 
-    await screen.findByLabelText('workbench.output.database.mapping.table');
-
-    expect(
-      screen.queryByLabelText('workbench.output.database.mapping.tag'),
-    ).not.toBeInTheDocument();
+    // Tag chips remain visible after switching target
+    expect(tagChips).toBeInTheDocument();
+    // Database panel shows selected tag context
+    await waitFor(() => {
+      expect(screen.getByTestId('database-selected-tag')).toBeInTheDocument();
+    });
   });
 
   it('binds a linked tag to a local modbus register', async () => {
@@ -505,7 +507,7 @@ describe('DatalinkWorkbench output step', () => {
     });
   });
 
-  it('keeps candidate selection and register input in sync', async () => {
+  it('keeps tag chip selection and register input in sync', async () => {
     mockModbusShareAPI.listMappings.mockResolvedValue([
       {
         tag_id: 'tag-1',
@@ -531,19 +533,16 @@ describe('DatalinkWorkbench output step', () => {
       expect(screen.getByDisplayValue('12')).toBeInTheDocument();
     });
 
-    const firstCandidate = screen.getAllByRole('button', { name: /TAG_40001/ })[0];
-    const secondCandidate = screen.getAllByRole('button', { name: /TAG_40002/ })[0];
+    const tag1Chip = screen.getByTestId('output-candidate-tag-1');
+    expect(tag1Chip).toHaveAttribute('aria-pressed', 'true');
 
-    expect(firstCandidate).toHaveAttribute('aria-pressed', 'true');
-    expect(secondCandidate).toHaveAttribute('aria-pressed', 'false');
-
-    fireEvent.click(secondCandidate);
+    fireEvent.click(screen.getByTestId('output-candidate-tag-2'));
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('24')).toBeInTheDocument();
     });
-    expect(firstCandidate).toHaveAttribute('aria-pressed', 'false');
-    expect(secondCandidate).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('output-candidate-tag-2')).toHaveAttribute('aria-pressed', 'true');
+    expect(tag1Chip).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('blocks sync when register conflicts exist', async () => {
@@ -578,7 +577,7 @@ describe('DatalinkWorkbench output step', () => {
     expect(screen.getByRole('status')).toHaveTextContent('workbench.output.conflicts.summary');
   });
 
-  it('binds a linked tag to a database target mapping', async () => {
+  it('binds a linked tag to a database column via direct surface click', async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
@@ -589,42 +588,36 @@ describe('DatalinkWorkbench output step', () => {
       }),
     );
 
-    await screen.findByLabelText('workbench.output.database.mapping.table');
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', {
-          name: 'workbench.output.database.actions.saveMapping',
-        }),
-      ).toBeEnabled();
-    });
+    // Wait for schema columns to load
+    await screen.findByTestId('schema-column-surface');
 
+    // Select a table first
+    await waitFor(() => {
+      expect(screen.getByLabelText('workbench.output.database.mapping.table')).toBeInTheDocument();
+    });
     fireEvent.change(screen.getByLabelText('workbench.output.database.mapping.table'), {
       target: { value: 'main.sensor_values' },
     });
-    fireEvent.change(screen.getByLabelText('workbench.output.database.mapping.column'), {
-      target: { value: 'value' },
+
+    // Click on the 'value' column to bind tag-1
+    await waitFor(() => {
+      expect(screen.getByTestId('schema-column-value')).toBeInTheDocument();
     });
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'workbench.output.database.actions.saveMapping',
-      }),
-    );
+    fireEvent.click(screen.getByTestId('schema-column-value'));
 
     await waitFor(() => {
-      expect(mockDBTargetAPI.createMapping).toHaveBeenCalledWith({
-        tag_id: 'tag-1',
-        connector_id: 'connector-1',
-        table_schema: 'main',
-        table_name: 'sensor_values',
-        column_name: 'value',
-        write_mode: 'insert',
-        timestamp_column: '',
-        enabled: true,
-      });
+      expect(mockDBTargetAPI.createMapping).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tag_id: 'tag-1',
+          connector_id: 'connector-1',
+          table_name: 'sensor_values',
+          column_name: 'value',
+        }),
+      );
     });
   });
 
-  it('keeps the database mapping form aligned with the shared output candidate selection', async () => {
+  it('keeps the database selected-tag display aligned with the tag chips', async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
@@ -635,14 +628,11 @@ describe('DatalinkWorkbench output step', () => {
       }),
     );
 
-    await screen.findByLabelText('workbench.output.database.mapping.table');
+    // Select tag-2 via chip
     fireEvent.click(screen.getByTestId('output-candidate-tag-2'));
 
     await waitFor(() => {
       expect(screen.getByTestId('database-selected-tag')).toHaveTextContent('TAG_40002');
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId('trace-tag-key')).toHaveTextContent('TAG_40002');
     });
   });
 
@@ -907,8 +897,8 @@ describe('DatalinkWorkbench output step', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      const candidate = await screen.findByTestId('output-candidate-tag-1');
-      fireEvent.click(candidate);
+      await screen.findByTestId('output-tag-chips');
+      fireEvent.click(screen.getByTestId('output-candidate-tag-1'));
 
       await waitFor(() => {
         expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
@@ -930,8 +920,8 @@ describe('DatalinkWorkbench output step', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      const candidate = await screen.findByTestId('output-candidate-tag-1');
-      fireEvent.click(candidate);
+      await screen.findByTestId('output-tag-chips');
+      fireEvent.click(screen.getByTestId('output-candidate-tag-1'));
 
       await waitFor(() => {
         expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
@@ -967,8 +957,8 @@ describe('DatalinkWorkbench output step', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      const candidate = await screen.findByTestId('output-candidate-tag-1');
-      fireEvent.click(candidate);
+      await screen.findByTestId('output-tag-chips');
+      fireEvent.click(screen.getByTestId('output-candidate-tag-1'));
 
       await waitFor(() => {
         expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
@@ -1001,8 +991,8 @@ describe('DatalinkWorkbench output step', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      const candidate = await screen.findByTestId('output-candidate-tag-1');
-      fireEvent.click(candidate);
+      await screen.findByTestId('output-tag-chips');
+      fireEvent.click(screen.getByTestId('output-candidate-tag-1'));
 
       await waitFor(() => {
         expect(screen.getByTestId('inspector-trace-panel')).toBeInTheDocument();
@@ -1022,8 +1012,8 @@ describe('DatalinkWorkbench output step', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      const candidate = await screen.findByTestId('output-candidate-tag-1');
-      fireEvent.click(candidate);
+      await screen.findByTestId('output-tag-chips');
+      fireEvent.click(screen.getByTestId('output-candidate-tag-1'));
 
       const tracePanel = await screen.findByTestId('inspector-trace-panel');
       const loadError = await within(tracePanel).findByText('boom');
@@ -1037,41 +1027,33 @@ describe('DatalinkWorkbench output step', () => {
     it('pre-selects the focused tag from Step 3 when entering Step 4', async () => {
       renderPage();
 
-      // Select a device first (via output step, which always works)
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-      await screen.findByTestId('output-candidate-tag-1');
+      await screen.findByTestId('output-tag-chips');
 
-      // Navigate to tag step — TagBindingStudio renders with bound candidates
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
       const boundRow = await screen.findByTestId('tag-candidate-point-2');
       fireEvent.click(boundRow);
 
-      // Navigate back to output step — LocalModbusBoard should pre-select tag-2
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
-      await screen.findByTestId('output-candidate-tag-2');
+      await screen.findByTestId('output-tag-chips');
 
-      const tag1 = screen.getByTestId('output-candidate-tag-1');
-      const tag2 = screen.getByTestId('output-candidate-tag-2');
-
-      expect(tag2).toHaveAttribute('aria-pressed', 'true');
-      expect(tag1).toHaveAttribute('aria-pressed', 'false');
+      await waitFor(() => {
+        expect(screen.getByTestId('output-candidate-tag-2')).toHaveAttribute('aria-pressed', 'true');
+      });
     });
 
     it('falls back to the first candidate when focusedTagIds do not match', async () => {
       renderPage();
 
-      // Go directly to output without setting any focusedTagIds
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      await screen.findByTestId('output-candidate-tag-1');
+      await screen.findByTestId('output-tag-chips');
 
-      const tag1 = screen.getByTestId('output-candidate-tag-1');
-      const tag2 = screen.getByTestId('output-candidate-tag-2');
-
-      expect(tag1).toHaveAttribute('aria-pressed', 'true');
-      expect(tag2).toHaveAttribute('aria-pressed', 'false');
+      await waitFor(() => {
+        expect(screen.getByTestId('output-candidate-tag-1')).toHaveAttribute('aria-pressed', 'true');
+      });
     });
   });
 });

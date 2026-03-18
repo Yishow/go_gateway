@@ -11,6 +11,7 @@ const {
   mockMappings,
   mockCreateTagMutation,
   mockCreateMappingMutation,
+  mockDeleteMappingMutation,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
@@ -21,6 +22,10 @@ const {
     isPending: false,
   },
   mockCreateMappingMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockDeleteMappingMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
   },
@@ -62,6 +67,10 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useDeletePointMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/useTags', () => ({
@@ -78,6 +87,7 @@ vi.mock('../../../../hooks/datalink/useMappings', () => ({
     isLoading: false,
   }),
   useCreateMappingMutation: () => mockCreateMappingMutation,
+  useDeleteMappingMutation: () => mockDeleteMappingMutation,
 }));
 
 function renderPage() {
@@ -214,6 +224,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     expect(screen.getByTestId('tag-preview-point-1')).toHaveTextContent('TAG_40001');
 
+    fireEvent.click(screen.getByTestId('tag-template-toggle'));
     fireEvent.change(screen.getByLabelText('workbench.tag.template.prefix'), {
       target: { value: 'linea' },
     });
@@ -543,5 +554,106 @@ describe('DatalinkWorkbench tag step', () => {
 
     expect(screen.getByTestId('result-created-count')).toHaveTextContent('2');
     expect(screen.getByTestId('result-failed-count')).toHaveTextContent('0');
+  });
+
+  it('shows an unbind button for bound candidates and calls delete mutation after confirm', async () => {
+    mockTags.push({
+      id: 'tag-bound-1',
+      key: 'TAG_40001',
+      display_name: 'TAG 40001',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'active',
+      created_at: '',
+      updated_at: '',
+    });
+    mockMappings.push({
+      id: 'mapping-bound-1',
+      point_id: 'point-1',
+      tag_id: 'tag-bound-1',
+      enabled: true,
+      transform_pipeline: '',
+      created_at: '',
+      updated_at: '',
+    });
+    mockDeleteMappingMutation.mutateAsync.mockResolvedValue(undefined);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const candidate = screen.getByTestId('tag-candidate-point-1');
+    const unbindButton = within(candidate).getByTestId('tag-unbind-point-1');
+    expect(unbindButton).toBeInTheDocument();
+
+    const boundLabel = within(candidate).getByTestId('tag-bound-label-point-1');
+    expect(boundLabel).toBeInTheDocument();
+
+    fireEvent.click(unbindButton);
+
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockDeleteMappingMutation.mutateAsync).toHaveBeenCalledWith('mapping-bound-1');
+    });
+
+    vi.restoreAllMocks();
+  });
+
+  it('does not unbind when the user cancels the confirmation dialog', async () => {
+    mockTags.push({
+      id: 'tag-bound-2',
+      key: 'TAG_40001',
+      display_name: 'TAG 40001',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'active',
+      created_at: '',
+      updated_at: '',
+    });
+    mockMappings.push({
+      id: 'mapping-bound-2',
+      point_id: 'point-1',
+      tag_id: 'tag-bound-2',
+      enabled: true,
+      transform_pipeline: '',
+      created_at: '',
+      updated_at: '',
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const candidate = screen.getByTestId('tag-candidate-point-1');
+    const unbindButton = within(candidate).getByTestId('tag-unbind-point-1');
+    fireEvent.click(unbindButton);
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(mockDeleteMappingMutation.mutateAsync).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+
+  it('shows the template panel collapsed by default with a toggle button', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const toggle = screen.getByTestId('tag-template-toggle');
+    expect(toggle).toBeInTheDocument();
+
+    expect(screen.queryByLabelText('workbench.tag.template.prefix')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(screen.getByLabelText('workbench.tag.template.prefix')).toBeInTheDocument();
   });
 });

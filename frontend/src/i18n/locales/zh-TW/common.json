@@ -774,7 +774,8 @@
           "bound": "已綁定",
           "unbound": "未綁定",
           "partial": "部分完成"
-        }
+        },
+        "boundTag": "已綁定至 {{tag}}"
       },
       "template": {
         "eyebrow": "Tag key 模板",
@@ -785,7 +786,8 @@
         "strategies": {
           "address": "依位址",
           "pointName": "依 point 名稱"
-        }
+        },
+        "toggle": "模板設定"
       },
       "metrics": {
         "selected": "已選 point",
@@ -804,7 +806,9 @@
         "selectAll": "全選",
         "selectBindable": "只選可綁定",
         "clearSelection": "清空",
-        "bind": "批次建立 Tag 並綁定"
+        "bind": "批次建立 Tag 並綁定",
+        "unbind": "解除綁定",
+        "unbindConfirm": "確定解除此點位的綁定？"
       },
       "diff": {
         "title": "批次差異預覽",
@@ -827,7 +831,9 @@
         "failedLabel": "失敗",
         "skippedLabel": "略過",
         "tagFallback": "建立 Tag 失敗",
-        "mappingFallback": "建立 mapping 失敗"
+        "mappingFallback": "建立 mapping 失敗",
+        "unbindSuccess": "已移除 {{name}} 的綁定",
+        "unbindFailed": "解除綁定失敗"
       },
       "inspector": {
         "heading": "Tag 明細",
@@ -858,7 +864,13 @@
         "mapped": "已映射到 HR{{register}}",
         "unmapped": "尚未映射",
         "databaseUnmapped": "尚未設定資料庫映射",
-        "latestValue": "最新值：{{value}}"
+        "latestValue": "最新值：{{value}}",
+        "compactLabel": "輸出標籤",
+        "compactPlaceholder": "選擇要映射的標籤",
+        "statusMapped": "{{key}} — HR{{register}}",
+        "statusUnmapped": "{{key}} — 未映射",
+        "statusDbMapped": "{{key}} — {{path}}",
+        "statusDbUnmapped": "{{key}} — 無資料庫映射"
       },
       "targetSwitcher": {
         "modbus": "Local Modbus",
@@ -971,7 +983,9 @@
           "columnPlaceholder": "請先選擇欄位",
           "writeMode": "寫入模式",
           "timestampColumn": "Timestamp 欄位",
-          "timestampPlaceholder": "若使用 upsert，請選擇 timestamp 欄位"
+          "timestampPlaceholder": "若使用 upsert，請選擇 timestamp 欄位",
+          "tagSelector": "映射標籤",
+          "tagPlaceholder": "選擇標籤"
         },
         "writeMode": {
           "insert": "insert",
@@ -1004,7 +1018,11 @@
         "schema": {
           "title": "Schema 快照",
           "description": "先檢查目前資料表結構，再決定哪些必填欄位需要補齊。",
-          "required": "必填"
+          "required": "必填",
+          "clickToBind": "點擊綁定 {{key}} → {{column}}",
+          "boundTag": "已綁定：{{key}}",
+          "unbind": "點擊解除綁定",
+          "columnBound": "{{column}} ← {{key}}"
         },
         "status": {
           "ready": "已就緒",
@@ -1048,6 +1066,13 @@
           "partial": "部分完成",
           "unmapped": "尚未映射"
         }
+      },
+      "surface": {
+        "activeTag": "作用中標籤",
+        "pickTag": "先選一個標籤，再點擊目標位置綁定",
+        "noneActive": "未選擇標籤",
+        "clickSlotHint": "點擊暫存器插槽以綁定 {{key}}",
+        "clickColumnHint": "點擊欄位以綁定 {{key}}"
       }
     },
     "device": {

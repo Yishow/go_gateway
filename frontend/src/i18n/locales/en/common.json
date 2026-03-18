@@ -774,7 +774,8 @@
           "bound": "Bound",
           "unbound": "Unbound",
           "partial": "Partial"
-        }
+        },
+        "boundTag": "Bound to {{tag}}"
       },
       "template": {
         "eyebrow": "Tag key template",
@@ -785,7 +786,8 @@
         "strategies": {
           "address": "From address",
           "pointName": "From point name"
-        }
+        },
+        "toggle": "Template settings"
       },
       "metrics": {
         "selected": "Selected points",
@@ -804,7 +806,9 @@
         "selectAll": "Select all",
         "selectBindable": "Select bindable only",
         "clearSelection": "Clear",
-        "bind": "Create tags and bind"
+        "bind": "Create tags and bind",
+        "unbind": "Unbind",
+        "unbindConfirm": "Unbind this point?"
       },
       "diff": {
         "title": "Batch diff preview",
@@ -827,7 +831,9 @@
         "failedLabel": "Failed",
         "skippedLabel": "Skipped",
         "tagFallback": "Failed to create tag",
-        "mappingFallback": "Failed to create mapping"
+        "mappingFallback": "Failed to create mapping",
+        "unbindSuccess": "Removed binding for {{name}}",
+        "unbindFailed": "Failed to unbind mapping"
       },
       "inspector": {
         "heading": "Tag detail",
@@ -858,7 +864,13 @@
         "mapped": "Mapped to HR{{register}}",
         "unmapped": "Not mapped yet",
         "databaseUnmapped": "No database mapping",
-        "latestValue": "Latest value: {{value}}"
+        "latestValue": "Latest value: {{value}}",
+        "compactLabel": "Output tag",
+        "compactPlaceholder": "Select a tag to map",
+        "statusMapped": "{{key}} — HR{{register}}",
+        "statusUnmapped": "{{key}} — unmapped",
+        "statusDbMapped": "{{key}} — {{path}}",
+        "statusDbUnmapped": "{{key}} — no db mapping"
       },
       "targetSwitcher": {
         "modbus": "Local Modbus",
@@ -971,7 +983,9 @@
           "columnPlaceholder": "Choose a column",
           "writeMode": "Write mode",
           "timestampColumn": "Timestamp column",
-          "timestampPlaceholder": "Choose a timestamp column for upsert"
+          "timestampPlaceholder": "Choose a timestamp column for upsert",
+          "tagSelector": "Tag to map",
+          "tagPlaceholder": "Select a tag"
         },
         "writeMode": {
           "insert": "insert",
@@ -1004,7 +1018,11 @@
         "schema": {
           "title": "Schema snapshot",
           "description": "Inspect the active table shape before binding required fields.",
-          "required": "Required"
+          "required": "Required",
+          "clickToBind": "Click to bind {{key}} → {{column}}",
+          "boundTag": "Bound: {{key}}",
+          "unbind": "Click to unbind",
+          "columnBound": "{{column}} ← {{key}}"
         },
         "status": {
           "ready": "Ready",
@@ -1048,6 +1066,13 @@
           "partial": "Partial",
           "unmapped": "Unmapped"
         }
+      },
+      "surface": {
+        "activeTag": "Active tag",
+        "pickTag": "Pick a tag below, then click a target to bind",
+        "noneActive": "No tag selected",
+        "clickSlotHint": "Click a register slot to bind {{key}}",
+        "clickColumnHint": "Click a column to bind {{key}}"
       }
     },
     "device": {

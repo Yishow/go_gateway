@@ -16,6 +16,30 @@ const statusClassName: Record<AddressCanvasItem['status'], string> = {
   used: 'border-emerald-700/40 bg-emerald-900/20 text-emerald-100',
 };
 
+type CanvasRowItem =
+  | { kind: 'cell'; item: AddressCanvasItem; colSpan: number }
+  | { kind: 'hidden'; item: AddressCanvasItem };
+
+function buildRowLayout(
+  rowItems: ReadonlyArray<AddressCanvasItem>,
+): CanvasRowItem[] {
+  const layout: CanvasRowItem[] = [];
+
+  for (const item of rowItems) {
+    if (item.mergeSpan > 1 && item.mergeOffset > 0) {
+      layout.push({ kind: 'hidden', item });
+      continue;
+    }
+
+    const remainingInRow =
+      rowItems.length - rowItems.indexOf(item);
+    const colSpan = Math.min(item.mergeSpan, remainingInRow);
+    layout.push({ kind: 'cell', item, colSpan });
+  }
+
+  return layout;
+}
+
 function chunkItems(items: ReadonlyArray<AddressCanvasItem>, size: number) {
   const rows: AddressCanvasItem[][] = [];
 
@@ -24,22 +48,6 @@ function chunkItems(items: ReadonlyArray<AddressCanvasItem>, size: number) {
   }
 
   return rows;
-}
-
-function getMergeShapeClassName(item: AddressCanvasItem) {
-  if (item.mergeSpan <= 1) {
-    return 'rounded-xl';
-  }
-
-  if (item.mergeOffset === 0) {
-    return 'rounded-l-xl rounded-r-none';
-  }
-
-  if (item.mergeOffset === item.mergeSpan - 1) {
-    return '-ml-px rounded-l-none rounded-r-xl';
-  }
-
-  return '-ml-px rounded-none';
 }
 
 function getPrimaryLabel(item: AddressCanvasItem, t: (key: string) => string) {
@@ -130,65 +138,85 @@ export function AddressCanvas({
       data-testid="source-canvas"
       data-view-mode={viewMode}
     >
-      {rows.map((rowItems, rowIndex) => (
-        <div
-          key={`source-canvas-row-${rowIndex}`}
-          className="grid gap-0.5 rounded-2xl border border-slate-800 bg-slate-900/70 p-1"
-          data-lattice-columns={String(LATTICE_COLUMNS)}
-          data-row-end-address={rowItems.at(-1)?.address ?? ''}
-          data-row-start-address={rowItems[0]?.address ?? ''}
-          data-testid={`source-canvas-row-${rowIndex}`}
-          style={{ gridTemplateColumns: `repeat(${LATTICE_COLUMNS}, minmax(0, 1fr))` }}
-        >
-          {rowItems.map((item) => {
-            const isMergeContinuation = item.mergeSpan > 1 && item.mergeOffset > 0;
+      {rows.map((rowItems, rowIndex) => {
+        const layout = buildRowLayout(rowItems);
+        return (
+          <div
+            key={`source-canvas-row-${rowIndex}`}
+            className="grid gap-0.5 rounded-2xl border border-slate-800 bg-slate-900/70 p-1"
+            data-lattice-columns={String(LATTICE_COLUMNS)}
+            data-row-end-address={rowItems.at(-1)?.address ?? ''}
+            data-row-start-address={rowItems[0]?.address ?? ''}
+            data-testid={`source-canvas-row-${rowIndex}`}
+            style={{ gridTemplateColumns: `repeat(${LATTICE_COLUMNS}, minmax(0, 1fr))` }}
+          >
+            {layout.map((entry) => {
+              if (entry.kind === 'hidden') {
+                return (
+                  <button
+                    aria-hidden
+                    aria-pressed={selectedLogicalAddresses.has(entry.item.address)}
+                    key={entry.item.address}
+                    data-merge-offset={String(entry.item.mergeOffset)}
+                    data-merge-span={String(entry.item.mergeSpan)}
+                    data-status={entry.item.status}
+                    data-testid={`address-cell-${entry.item.address}`}
+                    className="sr-only"
+                    onClick={() => onSelectAddress?.(entry.item.address)}
+                    type="button"
+                    tabIndex={-1}
+                  >
+                    {entry.item.address}
+                  </button>
+                );
+              }
 
-            return (
-              <button
-                aria-pressed={selectedLogicalAddresses.has(item.address)}
-                key={item.address}
-                data-merge-offset={String(item.mergeOffset)}
-                data-merge-span={String(item.mergeSpan)}
-                data-status={item.status}
-                data-testid={`address-cell-${item.address}`}
-                className={[
-                  'min-h-28 border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60',
-                  statusClassName[item.status],
-                  getMergeShapeClassName(item),
-                  selectedLogicalAddresses.has(item.address) ? 'ring-2 ring-cyan-400/60' : '',
-                ].join(' ')}
-                onClick={() => onSelectAddress?.(item.address)}
-                type="button"
-              >
-                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-300">
-                  {item.address}
-                </p>
-                <div className="mt-2 space-y-1">
-                  <p className="text-xs font-semibold text-white">
-                    {isMergeContinuation
-                      ? `+${item.mergeOffset}`
-                      : getPrimaryLabel(item, t)}
+              const { item, colSpan } = entry;
+              return (
+                <button
+                  aria-pressed={selectedLogicalAddresses.has(item.address)}
+                  key={item.address}
+                  data-merge-offset={String(item.mergeOffset)}
+                  data-merge-span={String(item.mergeSpan)}
+                  data-status={item.status}
+                  data-testid={`address-cell-${item.address}`}
+                  className={[
+                    'min-h-28 rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60',
+                    statusClassName[item.status],
+                    selectedLogicalAddresses.has(item.address) ? 'ring-2 ring-cyan-400/60' : '',
+                  ].join(' ')}
+                  onClick={() => onSelectAddress?.(item.address)}
+                  style={colSpan > 1 ? { gridColumn: `span ${colSpan}` } : undefined}
+                  type="button"
+                >
+                  <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-300">
+                    {item.address}
                   </p>
-                  <p className="text-[11px] text-slate-300">
-                    {getOverlayValue({ item, t, valueFormat, viewMode })}
-                  </p>
-                  {viewMode === 'plan' && item.mergeSpan > 1 && item.mergeOffset === 0 ? (
-                    <p className="text-[11px] text-cyan-100">
-                      {t('workbench.source.canvas.mergeState', { cells: item.mergeSpan })}
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs font-semibold text-white">
+                      {getPrimaryLabel(item, t)}
                     </p>
-                  ) : null}
-                  {viewMode === 'live' && item.liveTimestamp && !isMergeContinuation ? (
-                    <p className="text-[11px] text-slate-400">{item.liveTimestamp}</p>
-                  ) : null}
-                  {item.primaryRuleId && !isMergeContinuation ? (
-                    <p className="text-[11px] text-slate-400">{item.primaryRuleId}</p>
-                  ) : null}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ))}
+                    <p className="text-[11px] text-slate-300">
+                      {getOverlayValue({ item, t, valueFormat, viewMode })}
+                    </p>
+                    {viewMode === 'plan' && colSpan > 1 ? (
+                      <p className="text-[11px] text-cyan-100">
+                        {t('workbench.source.canvas.mergeState', { cells: item.mergeSpan })}
+                      </p>
+                    ) : null}
+                    {viewMode === 'live' && item.liveTimestamp ? (
+                      <p className="text-[11px] text-slate-400">{item.liveTimestamp}</p>
+                    ) : null}
+                    {item.primaryRuleId ? (
+                      <p className="text-[11px] text-slate-400">{item.primaryRuleId}</p>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }

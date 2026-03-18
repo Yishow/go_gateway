@@ -15,7 +15,6 @@ import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 type DatabaseTargetBoardProps = {
   candidates: WorkbenchOutputCandidate[];
   selectedTagId: string;
-  onSelectedTagChange: (tagId: string) => void;
 };
 
 type ConnectorDraft = {
@@ -134,7 +133,6 @@ function statusBadgeClasses(status: DatabaseConnector['status']): string {
 export function DatabaseTargetBoard({
   candidates,
   selectedTagId,
-  onSelectedTagChange: _onSelectedTagChange,
 }: DatabaseTargetBoardProps) {
   const { t } = useTranslation();
   const tRef = useRef(t);
@@ -431,107 +429,6 @@ export function DatabaseTargetBoard({
     }
   }, [loadData, selectedConnector, selectedConnectorId, t]);
 
-  const handleSaveMapping = useCallback(async () => {
-    if (!selectedConnectorId) {
-      setMessage(t('workbench.output.database.results.connectorNotSaved'));
-      return;
-    }
-    if (!selectedCandidate) {
-      setMessage(t('workbench.output.database.results.noTagSelected'));
-      return;
-    }
-    if (!selectedTable) {
-      setMessage(t('workbench.output.database.results.tableRequired'));
-      return;
-    }
-    if (!columnName) {
-      setMessage(t('workbench.output.database.results.columnRequired'));
-      return;
-    }
-    if (writeMode === 'upsert' && !timestampColumn.trim()) {
-      setMessage(t('workbench.output.database.results.timestampRequired'));
-      return;
-    }
-
-    setIsBusy(true);
-    try {
-        if (selectedMapping) {
-          await dbTargetAPI.updateMapping(selectedMapping.id, {
-            table_schema: selectedTable.schema,
-            table_name: selectedTable.name,
-            column_name: columnName,
-            write_mode: writeMode,
-            timestamp_column:
-              writeMode === 'upsert' ? timestampColumn.trim() : '',
-            enabled: true,
-          });
-        } else {
-          await dbTargetAPI.createMapping({
-            tag_id: selectedCandidate.tagId,
-            connector_id: selectedConnectorId,
-            table_schema: selectedTable.schema,
-            table_name: selectedTable.name,
-            column_name: columnName,
-            write_mode: writeMode,
-            timestamp_column:
-              writeMode === 'upsert' ? timestampColumn.trim() : '',
-            enabled: true,
-          });
-        }
-
-      await loadData();
-      setMessage(
-        t('workbench.output.database.results.mappingSaved', {
-          key: selectedCandidate.tagKey,
-          table: selectedTable.name,
-          column: columnName,
-        }),
-      );
-    } catch (error) {
-      setMessage(
-        getErrorMessage(error, t('workbench.output.database.results.mappingSaveFailed')),
-      );
-    } finally {
-      setIsBusy(false);
-    }
-  }, [
-    columnName,
-    loadData,
-    selectedCandidate,
-    selectedConnectorId,
-    selectedMapping,
-    selectedTable,
-    t,
-    timestampColumn,
-    writeMode,
-  ]);
-
-  const handleDeleteMapping = useCallback(async () => {
-    if (!selectedMapping || !selectedCandidate) {
-      return;
-    }
-
-    setIsBusy(true);
-    try {
-      await dbTargetAPI.deleteMapping(selectedMapping.id);
-      await loadData();
-      setMessage(
-        t('workbench.output.database.results.mappingDeleted', {
-          key: selectedCandidate.tagKey,
-        }),
-      );
-    } catch (error) {
-      setMessage(
-        getErrorMessage(
-          error,
-          t('workbench.output.database.results.mappingDeleteFailed'),
-        ),
-      );
-    } finally {
-      setIsBusy(false);
-    }
-  }, [loadData, selectedCandidate, selectedMapping, t]);
-
   const handleRefreshValidation = useCallback(async () => {
     if (!selectedConnectorId) {
       setMessage(t('workbench.output.database.results.connectorNotSaved'));
@@ -564,6 +461,89 @@ export function DatabaseTargetBoard({
   const currentTableFromKey = parseTableKey(tableKey);
   const mappedTagCount = connectorMappings.length;
   const schemaColumns = selectedTable?.columns ?? [];
+
+  const columnMappingByColumn = useMemo(() => {
+    const map = new Map<string, { mapping: DatabaseTargetMapping; candidate: WorkbenchOutputCandidate | null }>();
+    for (const mapping of connectorMappings) {
+      const candidate = candidates.find((c) => c.tagId === mapping.tag_id) ?? null;
+      map.set(mapping.column_name, { mapping, candidate });
+    }
+    return map;
+  }, [connectorMappings, candidates]);
+
+  const handleColumnClick = useCallback(async (column: DatabaseTableColumn) => {
+    if (!selectedConnectorId) {
+      setMessage(t('workbench.output.database.results.connectorNotSaved'));
+      return;
+    }
+
+    const existingBinding = columnMappingByColumn.get(column.name);
+
+    if (existingBinding) {
+      setIsBusy(true);
+      try {
+        await dbTargetAPI.deleteMapping(existingBinding.mapping.id);
+        await loadData();
+        setMessage(
+          t('workbench.output.database.results.mappingDeleted', {
+            key: existingBinding.candidate?.tagKey ?? existingBinding.mapping.tag_id,
+          }),
+        );
+      } catch (error) {
+        setMessage(
+          getErrorMessage(error, t('workbench.output.database.results.mappingDeleteFailed')),
+        );
+      } finally {
+        setIsBusy(false);
+      }
+      return;
+    }
+
+    if (!selectedTagId) {
+      setMessage(t('workbench.output.database.results.noTagSelected'));
+      return;
+    }
+
+    const selectedCandidateForBind = candidates.find((c) => c.tagId === selectedTagId) ?? null;
+    if (!selectedCandidateForBind) {
+      return;
+    }
+
+    if (!selectedTable) {
+      setMessage(t('workbench.output.database.results.tableRequired'));
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      await dbTargetAPI.createMapping({
+        tag_id: selectedTagId,
+        connector_id: selectedConnectorId,
+        table_schema: selectedTable.schema,
+        table_name: selectedTable.name,
+        column_name: column.name,
+        write_mode: writeMode,
+        timestamp_column:
+          writeMode === 'upsert' ? timestampColumn.trim() : '',
+        enabled: true,
+      });
+
+      await loadData();
+      setMessage(
+        t('workbench.output.database.results.mappingSaved', {
+          key: selectedCandidateForBind.tagKey,
+          table: selectedTable.name,
+          column: column.name,
+        }),
+      );
+    } catch (error) {
+      setMessage(
+        getErrorMessage(error, t('workbench.output.database.results.mappingSaveFailed')),
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  }, [candidates, columnMappingByColumn, loadData, selectedConnectorId, selectedTable, selectedTagId, t, timestampColumn, writeMode]);
 
   return (
     <section className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
@@ -875,7 +855,7 @@ export function DatabaseTargetBoard({
               {t('workbench.output.database.mapping.selectedTag')}
             </p>
             <p className="mt-2 text-sm font-semibold text-slate-50">
-              {selectedCandidate?.tagKey ?? t('workbench.output.database.summary.none')}
+              {selectedCandidate?.tagKey ?? '—'}
             </p>
             {selectedCandidate ? (
               <p className="mt-1 text-xs text-slate-400">
@@ -889,7 +869,6 @@ export function DatabaseTargetBoard({
           </div>
 
           <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 lg:grid-cols-2">
-
             <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
               <span>{t('workbench.output.database.mapping.table')}</span>
               <select
@@ -902,25 +881,6 @@ export function DatabaseTargetBoard({
                 {tables.map((table) => (
                   <option key={buildTableKey(table)} value={buildTableKey(table)}>
                     {buildTableKey(table)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.output.database.mapping.column')}</span>
-              <select
-                aria-label={t('workbench.output.database.mapping.column')}
-                value={columnName}
-                onChange={(event) => setColumnName(event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-              >
-                <option value="">
-                  {t('workbench.output.database.mapping.columnPlaceholder')}
-                </option>
-                {tableColumns.map((column) => (
-                  <option key={column.name} value={column.name}>
-                    {column.name} ({column.data_type})
                   </option>
                 ))}
               </select>
@@ -945,44 +905,29 @@ export function DatabaseTargetBoard({
               </select>
             </label>
 
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400 lg:col-span-2">
-              <span>{t('workbench.output.database.mapping.timestampColumn')}</span>
-              <select
-                aria-label={t('workbench.output.database.mapping.timestampColumn')}
-                value={timestampColumn}
-                onChange={(event) => setTimestampColumn(event.target.value)}
-                disabled={writeMode !== 'upsert'}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100 disabled:opacity-50"
-              >
-                <option value="">
-                  {t('workbench.output.database.mapping.timestampPlaceholder')}
-                </option>
-                {tableColumns.map((column) => (
-                  <option key={column.name} value={column.name}>
-                    {column.name} ({column.data_type})
+            {writeMode === 'upsert' ? (
+              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400 lg:col-span-2">
+                <span>{t('workbench.output.database.mapping.timestampColumn')}</span>
+                <select
+                  aria-label={t('workbench.output.database.mapping.timestampColumn')}
+                  value={timestampColumn}
+                  onChange={(event) => setTimestampColumn(event.target.value)}
+                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                >
+                  <option value="">
+                    {t('workbench.output.database.mapping.timestampPlaceholder')}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {tableColumns.map((column) => (
+                    <option key={column.name} value={column.name}>
+                      {column.name} ({column.data_type})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void handleSaveMapping()}
-              disabled={isBusy || !selectedConnectorId || !selectedTagId}
-              className="rounded-lg bg-violet-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
-            >
-              {t('workbench.output.database.actions.saveMapping')}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleDeleteMapping()}
-              disabled={isBusy || !selectedMapping}
-              className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
-            >
-              {t('workbench.output.database.actions.deleteMapping')}
-            </button>
             <button
               type="button"
               onClick={() => void handleRefreshValidation()}
@@ -1012,27 +957,54 @@ export function DatabaseTargetBoard({
                   </p>
                 </div>
 
-                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-1">
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-1" data-testid="schema-column-surface">
                   {schemaColumns.map((column) => {
                     const isRequired =
                       !column.nullable
                       && !column.primary_key
                       && column.name !== columnName
                       && (writeMode !== 'upsert' || column.name !== timestampColumn);
+                    const binding = columnMappingByColumn.get(column.name);
+                    const isBound = Boolean(binding);
+                    const isBindTarget = Boolean(selectedTagId) && !isBound && !column.primary_key;
 
                     return (
-                      <article
+                      <button
+                        type="button"
                         key={column.name}
                         data-testid={`schema-column-${column.name}`}
                         data-required={isRequired ? 'true' : undefined}
-                        className={`rounded-xl border p-3 ${
-                          isRequired
-                            ? 'border-amber-500/30 bg-amber-500/10'
-                            : 'border-slate-800 bg-slate-900/60'
-                        }`}
+                        data-bound={isBound ? 'true' : undefined}
+                        disabled={isBusy || column.primary_key}
+                        onClick={() => void handleColumnClick(column)}
+                        className={`rounded-xl border p-3 text-left transition ${
+                          isBound
+                            ? 'border-violet-500/40 bg-violet-500/10 hover:border-rose-400/40'
+                            : isBindTarget
+                              ? 'cursor-pointer border-slate-700 bg-slate-900/60 hover:border-violet-500/40 hover:bg-violet-500/5'
+                              : isRequired
+                                ? 'border-amber-500/30 bg-amber-500/10'
+                                : 'border-slate-800 bg-slate-900/60'
+                        } ${column.primary_key ? 'cursor-not-allowed opacity-60' : ''}`}
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-50">{column.name}</p>
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-slate-50">{column.name}</p>
+                            {isBound ? (
+                              <p className="text-xs text-violet-200">
+                                {t('workbench.output.database.schema.boundTag', {
+                                  key: binding?.candidate?.tagKey ?? binding?.mapping.tag_id ?? '',
+                                })}
+                              </p>
+                            ) : isBindTarget ? (
+                              <p className="text-xs text-slate-500">
+                                {t('workbench.output.database.schema.clickToBind', {
+                                  key: selectedCandidate?.tagKey ?? '',
+                                  column: column.name,
+                                })}
+                              </p>
+                            ) : null}
+                          </div>
                           <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em]">
                             <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">
                               {column.data_type}
@@ -1042,6 +1014,11 @@ export function DatabaseTargetBoard({
                                 PK
                               </span>
                             ) : null}
+                            {isBound ? (
+                              <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-200">
+                                ✓
+                              </span>
+                            ) : null}
                             {isRequired ? (
                               <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-200">
                                 {t('workbench.output.database.schema.required')}
@@ -1049,7 +1026,7 @@ export function DatabaseTargetBoard({
                             ) : null}
                           </div>
                         </div>
-                      </article>
+                      </button>
                     );
                   })}
                 </div>

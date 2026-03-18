@@ -20,6 +20,7 @@ import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
 import { useMappingsQuery } from '../../../hooks/datalink/useMappings';
 import {
   useCreatePointMutation,
+  useDeletePointMutation,
   usePointsQuery,
 } from '../../../hooks/datalink/usePoints';
 import { useRuntimeStream } from '../../../hooks/datalink/useRuntimeStream';
@@ -224,6 +225,7 @@ export function SourceCanvasSection() {
   const { data: mappings = [] } = useMappingsQuery();
   const { data: tags = [] } = useTagsQuery();
   const createPointMutation = useCreatePointMutation();
+  const deletePointMutation = useDeletePointMutation();
   const runtimeStatusQuery = useQuery({
     queryKey: ['runtime-status', selectedDeviceId],
     queryFn: () => runtimeAPI.getStatus(selectedDeviceId ?? undefined),
@@ -239,7 +241,6 @@ export function SourceCanvasSection() {
   const [viewMode, setViewMode] = useState<SourceViewMode>('plan');
   const [valueFormat, setValueFormat] = useState<SourceValueFormat>('decimal');
   const [showAudit, setShowAudit] = useState(false);
-  const [showUtilityTools, setShowUtilityTools] = useState(false);
   const [freezeLive, setFreezeLive] = useState(false);
   const [frozenLiveValues, setFrozenLiveValues] = useState<
     Readonly<Record<string, { raw_value?: unknown; timestamp?: string }>> | null
@@ -366,8 +367,26 @@ export function SourceCanvasSection() {
     () => items.filter((item) => item.status === 'conflict' && item.mergeOffset === 0).length,
     [items],
   );
-  const hasConflicts = items.some((item) => item.status === 'conflict');
   const conflictQueue = useMemo(() => buildConflictQueue(items), [items]);
+
+  const safePointDefinitions = useMemo(() => {
+    if (!selectedDevice) return [];
+    const itemMap = new Map(items.map((item) => [item.address, item]));
+
+    return plannedPointDefinitions.filter((definition) => {
+      const span = getDataTypeCellSpan(definition.dataType);
+      const occupied = addressParser.expand(
+        definition.address,
+        span,
+        selectedDevice.protocol,
+      );
+      return occupied.every((addr) => {
+        const cell = itemMap.get(addr);
+        return cell && cell.status === 'planned';
+      });
+    });
+  }, [items, plannedPointDefinitions, selectedDevice]);
+
   const selectedPointDefinition = useMemo(() => {
     if (!selectedAddress || !selectedDevice) {
       return null;
@@ -433,9 +452,27 @@ export function SourceCanvasSection() {
   };
 
   const handleDeleteRule = (ruleId: string) => {
+    const rule = rules.find((candidate) => candidate.id === ruleId);
+
+    if (rule && selectedDevice) {
+      const plannedAddresses = new Set(
+        buildPlannedPointAddresses({
+          startAddress: rule.startAddress,
+          count: rule.count,
+          dataType: rule.dataType,
+          protocol: selectedDevice.protocol,
+        }).filter((addr) => !rule.skippedAddresses?.includes(addr)),
+      );
+
+      const orphanedPoints = points.filter((point) => plannedAddresses.has(point.address));
+      for (const point of orphanedPoints) {
+        deletePointMutation.mutate(point.id);
+      }
+    }
+
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.filter((rule) => rule.id !== ruleId),
+      rules: currentState.rules.filter((r) => r.id !== ruleId),
       selectedRuleId:
         currentState.selectedRuleId === ruleId ? null : currentState.selectedRuleId,
       selectedAddress:
@@ -637,7 +674,6 @@ export function SourceCanvasSection() {
 
   const handleOpenSaveTemplate = () => {
     setTemplateName(appliedTemplate?.name ?? '');
-    setShowUtilityTools(true);
     setIsSaveTemplateOpen(true);
     setIsLoadTemplateOpen(false);
     setTemplateNotice(null);
@@ -674,7 +710,6 @@ export function SourceCanvasSection() {
   };
 
   const handleOpenLoadTemplate = () => {
-    setShowUtilityTools(true);
     setTemplates(sortTemplates(loadSourceTemplates()));
     setIsLoadTemplateOpen((currentValue) => !currentValue);
     setIsSaveTemplateOpen(false);
@@ -712,14 +747,13 @@ export function SourceCanvasSection() {
   const handleBatchCreate = async () => {
     if (
       !selectedDevice ||
-      plannedPointDefinitions.length === 0 ||
-      hasConflicts
+      safePointDefinitions.length === 0
     ) {
       return;
     }
 
     const results = await Promise.allSettled(
-      plannedPointDefinitions.map((definition) =>
+      safePointDefinitions.map((definition) =>
         createPointMutation.mutateAsync({
           device_id: selectedDevice.id,
           address: definition.address,
@@ -1307,7 +1341,7 @@ export function SourceCanvasSection() {
                 </article>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => void handleCreateSelectedPoint()}
@@ -1320,13 +1354,17 @@ export function SourceCanvasSection() {
                   type="button"
                   onClick={() => void handleBatchCreate()}
                   disabled={
-                    plannedPointDefinitions.length === 0 ||
-                    hasConflicts ||
+                    safePointDefinitions.length === 0 ||
                     createPointMutation.isPending
                   }
                   className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
                 >
                   {t('workbench.source.actions.createRulePoints')}
+                  {conflictCount > 0 && safePointDefinitions.length > 0 ? (
+                    <span className="ml-1 text-xs font-normal opacity-80">
+                      ({safePointDefinitions.length})
+                    </span>
+                  ) : null}
                 </button>
               </div>
             </section>
@@ -1345,80 +1383,61 @@ export function SourceCanvasSection() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowUtilityTools((currentValue) => !currentValue)}
+                onClick={handleToggleFreezeLive}
                 className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
               >
-                {showUtilityTools
-                  ? t('workbench.source.toolbar.hideTools')
-                  : t('workbench.source.toolbar.moreTools')}
+                {freezeLive
+                  ? t('workbench.source.toolbar.unfreezeLive')
+                  : t('workbench.source.toolbar.freezeLive')}
               </button>
+              <button
+                type="button"
+                onClick={handleCaptureSnapshot}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
+              >
+                {t('workbench.source.toolbar.snapshotCompare')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAudit((currentValue) => !currentValue)}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
+              >
+                {showAudit
+                  ? t('workbench.source.toolbar.hideAudit')
+                  : t('workbench.source.toolbar.showAudit')}
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenSaveTemplate}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
+              >
+                {t('workbench.source.toolbar.saveTemplate')}
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenLoadTemplate}
+                disabled={templates.length === 0}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
+              >
+                {t('workbench.source.toolbar.loadTemplate')}
+              </button>
+              <label className="flex items-end gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                <input
+                  aria-label={t('workbench.source.toolbar.jumpToAddress')}
+                  value={jumpAddress}
+                  onChange={(event) => setJumpAddress(event.target.value)}
+                  placeholder={t('workbench.source.toolbar.jumpToAddress')}
+                  className="w-28 rounded-lg border border-slate-800 bg-slate-900 px-2 py-2 text-sm text-slate-100"
+                />
+                <button
+                  type="button"
+                  onClick={handleJumpToAddress}
+                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
+                >
+                  {t('workbench.source.toolbar.jump')}
+                </button>
+              </label>
             </div>
-
-            {showUtilityTools ? (
-              <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleToggleFreezeLive}
-                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-                  >
-                    {freezeLive
-                      ? t('workbench.source.toolbar.unfreezeLive')
-                      : t('workbench.source.toolbar.freezeLive')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCaptureSnapshot}
-                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-                  >
-                    {t('workbench.source.toolbar.snapshotCompare')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAudit((currentValue) => !currentValue)}
-                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-                  >
-                    {showAudit
-                      ? t('workbench.source.toolbar.hideAudit')
-                      : t('workbench.source.toolbar.showAudit')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenSaveTemplate}
-                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
-                  >
-                    {t('workbench.source.toolbar.saveTemplate')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleOpenLoadTemplate}
-                    disabled={templates.length === 0}
-                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
-                  >
-                    {t('workbench.source.toolbar.loadTemplate')}
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-end gap-2">
-                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                    <span>{t('workbench.source.toolbar.jumpToAddress')}</span>
-                    <input
-                      aria-label={t('workbench.source.toolbar.jumpToAddress')}
-                      value={jumpAddress}
-                      onChange={(event) => setJumpAddress(event.target.value)}
-                      className="w-36 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleJumpToAddress}
-                    className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-                  >
-                    {t('workbench.source.toolbar.jump')}
-                  </button>
-                </div>
-              </>
-            ) : null}
           </div>
 
           {isSaveTemplateOpen ? (

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
 import {
   useCreateMappingMutation,
+  useDeleteMappingMutation,
   useMappingsQuery,
 } from '../../../hooks/datalink/useMappings';
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
@@ -81,11 +82,16 @@ export function TagBindingStudio() {
   );
   const createTagMutation = useCreateTagMutation();
   const createMappingMutation = useCreateMappingMutation();
+  const deleteMappingMutation = useDeleteMappingMutation();
 
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
   const mappingByPointId = useMemo(
     () => new Map(mappings.map((mapping) => [mapping.point_id, mapping])),
     [mappings],
+  );
+  const tagById = useMemo(
+    () => new Map(tags.map((tag) => [tag.id, tag])),
+    [tags],
   );
   const [prefix, setPrefix] = useState('TAG');
   const [strategy, setStrategy] = useState<TagBindingStrategy>('address');
@@ -97,6 +103,7 @@ export function TagBindingStudio() {
     {},
   );
   const [batchSummary, setBatchSummary] = useState<TagBindingBatchSummary | null>(null);
+  const [templateExpanded, setTemplateExpanded] = useState(false);
 
   const pointIdsKey = useMemo(() => points.map((point) => point.id).join('|'), [points]);
 
@@ -351,6 +358,40 @@ export function TagBindingStudio() {
     });
   };
 
+  const handleUnbind = async (pointId: string) => {
+    const mapping = mappingByPointId.get(pointId);
+    if (!mapping) {
+      return;
+    }
+
+    if (!window.confirm(t('workbench.tag.actions.unbindConfirm'))) {
+      return;
+    }
+
+    const point = points.find((p) => p.id === pointId);
+
+    try {
+      await deleteMappingMutation.mutateAsync(mapping.id);
+      setBatchSummary(null);
+      setSelectedPointIds((previous) => previous.filter((id) => id !== pointId));
+    } catch {
+      setBatchSummary({
+        createdCount: 0,
+        linkedCount: 0,
+        skippedCount: 0,
+        failureCount: 1,
+        failures: [
+          {
+            pointId,
+            tagKey: point?.name ?? pointId,
+            stage: 'mapping',
+            error: t('workbench.tag.results.unbindFailed'),
+          },
+        ],
+      });
+    }
+  };
+
   if (!selectedDevice) {
     return (
       <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
@@ -541,6 +582,7 @@ export function TagBindingStudio() {
           {filteredCandidates.map((candidate) => {
             const selected = selectedPointIds.includes(candidate.pointId);
             const boundMapping = mappingByPointId.get(candidate.pointId);
+            const boundTag = boundMapping ? tagById.get(boundMapping.tag_id) : null;
             const selectedExistingTag =
               candidate.existingTagOptions.find(
                 (option) => option.id === existingTagSelections[candidate.pointId],
@@ -641,7 +683,28 @@ export function TagBindingStudio() {
                         {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
                       </span>
 
-                      {flowMode === 'create' ? (
+                      {candidate.alreadyLinked && boundTag ? (
+                        <div className="flex items-center gap-2">
+                          <span
+                            data-testid={`tag-bound-label-${candidate.pointId}`}
+                            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-200"
+                          >
+                            {t('workbench.tag.board.boundTag', { tag: boundTag.key })}
+                          </span>
+                          <button
+                            type="button"
+                            data-testid={`tag-unbind-${candidate.pointId}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleUnbind(candidate.pointId);
+                            }}
+                            disabled={deleteMappingMutation.isPending}
+                            className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-50"
+                          >
+                            {t('workbench.tag.actions.unbind')}
+                          </button>
+                        </div>
+                      ) : flowMode === 'create' ? (
                         <div
                           data-testid={`tag-preview-${candidate.pointId}`}
                           data-conflict={candidate.conflict ? 'true' : 'false'}
@@ -656,7 +719,7 @@ export function TagBindingStudio() {
                       ) : null}
                     </div>
 
-                    {flowMode === 'existing' ? (
+                    {flowMode === 'existing' && !candidate.alreadyLinked ? (
                       <label className="block space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
                         <span>{t('workbench.tag.board.existingTag')}</span>
                         <select
@@ -692,50 +755,58 @@ export function TagBindingStudio() {
 
       <aside className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-              {t('workbench.tag.template.eyebrow')}
-            </p>
-            <div>
+          <button
+            type="button"
+            onClick={() => setTemplateExpanded((v) => !v)}
+            className="flex w-full items-center justify-between text-left"
+            data-testid="tag-template-toggle"
+          >
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                {t('workbench.tag.template.eyebrow')}
+              </p>
               <h3 className="text-xl font-semibold text-slate-50">
-                {t('workbench.tag.template.title')}
+                {t('workbench.tag.template.toggle')}
               </h3>
-              <p className="mt-1 text-sm text-slate-300">
+            </div>
+            <span className="text-sm text-slate-400">{templateExpanded ? '▲' : '▼'}</span>
+          </button>
+
+          {templateExpanded ? (
+            <div className="grid gap-3">
+              <p className="text-sm text-slate-300">
                 {t('workbench.tag.template.description')}
               </p>
+              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                <span>{t('workbench.tag.template.prefix')}</span>
+                <input
+                  aria-label={t('workbench.tag.template.prefix')}
+                  value={prefix}
+                  onChange={(event) => setPrefix(event.target.value)}
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                />
+              </label>
+
+              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                <span>{t('workbench.tag.template.strategy')}</span>
+                <select
+                  aria-label={t('workbench.tag.template.strategy')}
+                  value={strategy}
+                  onChange={(event) =>
+                    setStrategy(event.target.value as TagBindingStrategy)
+                  }
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                >
+                  <option value="address">
+                    {t('workbench.tag.template.strategies.address')}
+                  </option>
+                  <option value="pointName">
+                    {t('workbench.tag.template.strategies.pointName')}
+                  </option>
+                </select>
+              </label>
             </div>
-          </div>
-
-          <div className="grid gap-3">
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.tag.template.prefix')}</span>
-              <input
-                aria-label={t('workbench.tag.template.prefix')}
-                value={prefix}
-                onChange={(event) => setPrefix(event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              />
-            </label>
-
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.tag.template.strategy')}</span>
-              <select
-                aria-label={t('workbench.tag.template.strategy')}
-                value={strategy}
-                onChange={(event) =>
-                  setStrategy(event.target.value as TagBindingStrategy)
-                }
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              >
-                <option value="address">
-                  {t('workbench.tag.template.strategies.address')}
-                </option>
-                <option value="pointName">
-                  {t('workbench.tag.template.strategies.pointName')}
-                </option>
-              </select>
-            </label>
-          </div>
+          ) : null}
         </div>
 
         <dl className="grid gap-2 sm:grid-cols-3 xl:grid-cols-3">

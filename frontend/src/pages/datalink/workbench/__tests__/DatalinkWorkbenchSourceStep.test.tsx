@@ -5,12 +5,17 @@ import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
 import { SOURCE_TEMPLATE_STORAGE_KEY } from '../../../../features/datalink/sourceTemplateStorage';
 import type { Device, Mapping, Point, Tag } from '../../../../types/datalink';
 
-const { mockDevices, mockPoints, mockMappings, mockTags, mockCreatePointMutation } = vi.hoisted(() => ({
+const { mockDevices, mockPoints, mockMappings, mockTags, mockCreatePointMutation, mockDeletePointMutation } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
   mockMappings: [] as Mapping[],
   mockTags: [] as Tag[],
   mockCreatePointMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockDeletePointMutation: {
+    mutate: vi.fn(),
     mutateAsync: vi.fn(),
     isPending: false,
   },
@@ -49,6 +54,7 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     isLoading: false,
   }),
   useCreatePointMutation: () => mockCreatePointMutation,
+  useDeletePointMutation: () => mockDeletePointMutation,
 }));
 
 vi.mock('../../../../hooks/datalink/useMappings', () => ({
@@ -58,6 +64,11 @@ vi.mock('../../../../hooks/datalink/useMappings', () => ({
   }),
   useCreateMappingMutation: () => ({
     mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteMappingMutation: () => ({
+    mutateAsync: vi.fn(),
+    mutate: vi.fn(),
     isPending: false,
   }),
 }));
@@ -184,7 +195,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(firstRow).toHaveAttribute('data-lattice-columns', '16');
   });
 
-  it('keeps only view controls in the primary toolbar and reveals utility tools on demand', () => {
+  it('shows all utility tools directly in the secondary controls without a toggle', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
@@ -214,52 +225,16 @@ describe('DatalinkWorkbench source step', () => {
     expect(
       within(ruleLayer).getByRole('button', { name: 'workbench.source.planner.addRule' }),
     ).toBeInTheDocument();
-    expect(
-      within(primaryToolbar).queryByRole('button', {
-        name: 'workbench.source.toolbar.saveTemplate',
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(primaryToolbar).queryByRole('button', {
-        name: 'workbench.source.toolbar.snapshotCompare',
-      }),
-    ).not.toBeInTheDocument();
 
+    // No toggle needed — tools are always visible
     expect(
-      within(secondaryControls).getByRole('button', {
+      within(secondaryControls).queryByRole('button', {
         name: 'workbench.source.toolbar.moreTools',
       }),
-    ).toBeInTheDocument();
-    expect(
-      within(secondaryControls).queryByRole('button', {
-        name: 'workbench.source.toolbar.saveTemplate',
-      }),
     ).not.toBeInTheDocument();
-    expect(
-      within(secondaryControls).queryByRole('button', {
-        name: 'workbench.source.toolbar.loadTemplate',
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(secondaryControls).queryByRole('button', {
-        name: 'workbench.source.toolbar.snapshotCompare',
-      }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(
-      within(secondaryControls).getByRole('button', {
-        name: 'workbench.source.toolbar.moreTools',
-      }),
-    );
-
     expect(
       within(secondaryControls).getByRole('button', {
         name: 'workbench.source.toolbar.saveTemplate',
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(secondaryControls).getByRole('button', {
-        name: 'workbench.source.toolbar.loadTemplate',
       }),
     ).toBeInTheDocument();
     expect(
@@ -530,7 +505,6 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.moreTools' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.saveTemplate' }));
     fireEvent.change(screen.getByLabelText('workbench.source.templates.name'), {
       target: { value: 'Line Float' },
@@ -607,7 +581,7 @@ describe('DatalinkWorkbench source step', () => {
     });
   });
 
-  it('blocks batch create when planned cells overlap existing points', () => {
+  it('allows batch create for safe spans even when conflicts exist elsewhere', () => {
     mockPoints[0].address = '40002';
 
     renderPage();
@@ -626,6 +600,8 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'conflict');
+    // The float32 at 40001 occupies 40001-40002, and 40002 is a conflict, so the
+    // only planned span is itself unsafe — button should be disabled.
     expect(
       screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
     ).toBeDisabled();
@@ -1006,7 +982,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(continuationCell).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('highlights all cells of a selected logical cell', () => {
+  it('highlights the root cell of a selected logical span (continuations are visually merged)', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
@@ -1025,7 +1001,9 @@ describe('DatalinkWorkbench source step', () => {
     const continuationCell = screen.getByTestId('address-cell-40002');
 
     expect(rootCell.className).toContain('ring-2');
-    expect(continuationCell.className).toContain('ring-2');
+    // Continuation cell is sr-only (visually merged into root via gridColumn span)
+    expect(continuationCell).toHaveClass('sr-only');
+    expect(continuationCell).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('emits conflict queue item for continuation-only conflicts', () => {
@@ -1217,5 +1195,135 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
     expect(screen.getByTestId('address-cell-40010')).toHaveAttribute('data-status', 'planned');
     expect(screen.getByTestId('address-cell-40012')).toHaveAttribute('data-status', 'planned');
+  });
+
+  it('visually merges 32-bit cells with gridColumn span on root and hides continuations', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const rootCell = screen.getByTestId('address-cell-40001');
+    const contCell = screen.getByTestId('address-cell-40002');
+
+    // Root cell should span 2 columns
+    expect(rootCell.style.gridColumn).toBe('span 2');
+    // Continuation cell should be visually hidden
+    expect(contCell).toHaveClass('sr-only');
+  });
+
+  it('creates only safe spans when conflicts exist alongside valid planned ranges', async () => {
+    // Rule plans int16 at 40001, 40002, 40003.
+    // Existing point at 40005 (no conflict).
+    // Add a second rule at 40003 to create a rule-overlap conflict at 40003.
+    mockPoints.splice(0, mockPoints.length, {
+      id: 'point-1',
+      device_id: 'device-1',
+      name: 'Existing Pressure',
+      description: '',
+      data_type: 'int16',
+      address: '40005',
+      enabled: true,
+      polling_group_id: '',
+      last_value: 12,
+      last_read_at: '',
+      last_error: '',
+      error_count: 0,
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    // Rule 1: int16 at 40001, count=3 → plans 40001, 40002, 40003
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    // Rule 2: int16 at 40003, count=1 → overlap at 40003
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40003' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    // 40003 is conflict, but 40001 and 40002 are planned and safe
+    expect(screen.getByTestId('address-cell-40003')).toHaveAttribute('data-status', 'conflict');
+
+    // Batch create should still be enabled — 2 safe spans
+    const batchButton = screen.getByRole('button', {
+      name: /workbench\.source\.actions\.createRulePoints/,
+    });
+    expect(batchButton).toBeEnabled();
+
+    fireEvent.click(batchButton);
+
+    await waitFor(() => {
+      expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledTimes(2);
+    });
+
+    expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ address: '40001' }),
+    );
+    expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ address: '40002' }),
+    );
+  });
+
+  it('deletes orphaned points when a rule is deleted', () => {
+    // Simulate a point that was created from rule-1's planned addresses
+    mockPoints.splice(0, mockPoints.length, {
+      id: 'point-rule-1',
+      device_id: 'device-1',
+      name: 'SRC_40001',
+      description: '',
+      data_type: 'int16',
+      address: '40001',
+      enabled: true,
+      polling_group_id: '',
+      last_value: null,
+      last_read_at: '',
+      last_error: '',
+      error_count: 0,
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.delete' }),
+    );
+
+    // Point at 40001 should be deleted
+    expect(mockDeletePointMutation.mutate).toHaveBeenCalledWith('point-rule-1');
   });
 });

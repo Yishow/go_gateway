@@ -196,4 +196,79 @@ describe('sourceCanvasModel', () => {
       ).toBe(0);
     });
   });
+
+  describe('32-bit mergeSpan in canvas items', () => {
+    it('assigns mergeSpan=2 and mergeOffset 0,1 for int32 rule cells', () => {
+      const items = buildAddressCanvasItems({
+        points: [],
+        rules: [
+          {
+            id: 'rule-1',
+            startAddress: '40001',
+            count: 1,
+            dataType: 'int32',
+            namingPrefix: 'T',
+            enabled: true,
+            locked: false,
+            origin: 'manual',
+            skippedAddresses: [],
+          },
+        ],
+        protocol: 'modbus_tcp',
+      });
+
+      const root = items.find((item) => item.address === '40001');
+      const cont = items.find((item) => item.address === '40002');
+
+      expect(root?.mergeSpan).toBe(2);
+      expect(root?.mergeOffset).toBe(0);
+      expect(cont?.mergeSpan).toBe(2);
+      expect(cont?.mergeOffset).toBe(1);
+    });
+
+    it('assigns mergeSpan=2 for float32 existing points', () => {
+      const items = buildAddressCanvasItems({
+        points: [createPoint({ address: '40010', data_type: 'float32' })],
+        plannedPointAddresses: [],
+        plannedDataType: 'int16',
+        protocol: 'modbus_tcp',
+      });
+
+      const root = items.find((item) => item.address === '40010');
+      const cont = items.find((item) => item.address === '40011');
+
+      expect(root?.mergeSpan).toBe(2);
+      expect(root?.mergeOffset).toBe(0);
+      expect(root?.status).toBe('used');
+      expect(cont?.mergeSpan).toBe(2);
+      expect(cont?.mergeOffset).toBe(1);
+      expect(cont?.status).toBe('used');
+    });
+
+    it('assigns mergeSpan=4 for int64 rules', () => {
+      const items = buildAddressCanvasItems({
+        points: [],
+        rules: [
+          {
+            id: 'rule-1',
+            startAddress: '40001',
+            count: 1,
+            dataType: 'int64',
+            namingPrefix: 'T',
+            enabled: true,
+            locked: false,
+            origin: 'manual',
+            skippedAddresses: [],
+          },
+        ],
+        protocol: 'modbus_tcp',
+      });
+
+      expect(items).toHaveLength(4);
+      expect(items[0].mergeSpan).toBe(4);
+      expect(items[0].mergeOffset).toBe(0);
+      expect(items[3].mergeSpan).toBe(4);
+      expect(items[3].mergeOffset).toBe(3);
+    });
+  });
 });

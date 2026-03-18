@@ -106,6 +106,10 @@ vi.mock('@/hooks/datalink/usePoints', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useDeletePointMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('@/router/gateway', () => ({
@@ -423,17 +427,15 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(actions[0]).toHaveTextContent('workbench.contextBar.actions.gotoSource');
   });
 
-  it('opens the create device form when there are no devices yet', () => {
+  it('opens the create device form inline when there are no devices yet', () => {
     mockDevices.splice(0, mockDevices.length);
 
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.create' }));
 
-    expect(screen.getByTestId('device-panel-overlay')).toHaveClass('fixed');
-    expect(screen.getByTestId('device-panel-overlay')).toHaveClass('items-center');
-    expect(screen.getByTestId('device-panel-overlay')).toHaveClass('justify-center');
-    expect(screen.getByTestId('device-panel-overlay')).not.toHaveClass('absolute');
+    expect(screen.getByTestId('device-inline-editor')).toBeInTheDocument();
+    expect(screen.queryByTestId('device-panel-overlay')).not.toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'workbench.device.panel.createTitle' }),
     ).toBeInTheDocument();
@@ -528,6 +530,24 @@ describe('DatalinkWorkbench foundation route', () => {
     });
   });
 
+  it('shows the inline editor in the detail column while keeping the device list visible', () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'workbench.device.actions.edit' }),
+    );
+
+    expect(screen.getByTestId('device-inline-editor')).toBeInTheDocument();
+    expect(screen.queryByTestId('device-panel-overlay')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('device-detail-panel')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mixer PLC' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Backup PLC' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'workbench.device.panel.editTitle' }),
+    ).toBeInTheDocument();
+  });
+
   it('hides zero-value test timestamps in the inspector', () => {
     mockDevices[0].last_test_at = '0001-01-01T00:00:00Z';
 
@@ -564,6 +584,8 @@ describe('DatalinkWorkbench foundation route', () => {
       }),
     );
 
+    expect(screen.getByTestId('device-inline-editor')).toBeInTheDocument();
+    expect(screen.queryByTestId('device-panel-overlay')).not.toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'workbench.device.panel.cloneTitle' }),
     ).toBeInTheDocument();
