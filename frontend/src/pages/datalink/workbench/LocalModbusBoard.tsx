@@ -15,6 +15,12 @@ import { DatabaseTargetBoard } from './DatabaseTargetBoard';
 import { useWorkbench } from './WorkbenchProvider';
 import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 import type { AutoMapStrategy, DryRunResult } from './workbenchOutputTypes';
+import {
+  fromModbusDisplayRegister,
+  modbusDisplayRegisterMax,
+  modbusDisplayRegisterMin,
+  toModbusDisplayRegister,
+} from './workbenchOutputTypes';
 
 type MappingConflict = {
   register: number;
@@ -25,6 +31,10 @@ type OutputCandidate = WorkbenchOutputCandidate & {
   register: number | null;
   databasePath: string | null;
 };
+
+function formatModbusRegister(register: number): string {
+  return `HR${toModbusDisplayRegister(register)}`;
+}
 
 function getSelectedDevice(devices: Device[], selectedDeviceId: string | null) {
   return devices.find((device) => device.id === selectedDeviceId) ?? null;
@@ -153,6 +163,7 @@ type RegisterMapCanvasProps = {
   shareMappings: ModbusShareMapping[];
   conflicts: MappingConflict[];
   selectedTagId: string;
+  viewportAnchorRegister: number | null;
   onSlotClick: (slotIndex: number, occupant: OutputCandidate | null) => void;
   onAutoMap: (strategy: AutoMapStrategy) => void;
   onDryRun: () => void;
@@ -165,12 +176,14 @@ function RegisterMapCanvas({
   shareMappings,
   conflicts,
   selectedTagId,
+  viewportAnchorRegister,
   onSlotClick,
   onAutoMap,
   onDryRun,
   dryRunResults,
   t,
 }: RegisterMapCanvasProps) {
+  const maxCanvasSlots = 256;
   const conflictRegisters = new Set(conflicts.map((c) => c.register));
   const mappedSlots = new Map<number, OutputCandidate>();
 
@@ -184,22 +197,33 @@ function RegisterMapCanvas({
   }
 
   const maxRegister = Math.max(16, ...Array.from(mappedSlots.keys()).map((r) => r + 4));
-  const slotCount = Math.min(maxRegister, 64);
+  const slotCount = Math.min(maxRegister, maxCanvasSlots);
+  const viewportStart = slotCount >= maxRegister
+    ? 0
+    : Math.max(
+      0,
+      Math.min(
+        (viewportAnchorRegister ?? 0) - Math.floor(slotCount / 2),
+        maxRegister - slotCount,
+      ),
+    );
 
   return (
     <div data-testid="register-map-canvas" className="space-y-4">
       <div className="flex flex-wrap gap-1">
-        {Array.from({ length: slotCount }, (_, i) => {
-          const candidate = mappedSlots.get(i);
-          const isConflict = conflictRegisters.has(i);
+        {Array.from({ length: slotCount }, (_, index) => {
+          const slotRegister = viewportStart + index;
+          const candidate = mappedSlots.get(slotRegister);
+          const isConflict = conflictRegisters.has(slotRegister);
           const isSlotForSelected = candidate?.tagId === selectedTagId && Boolean(selectedTagId);
+          const displayRegister = toModbusDisplayRegister(slotRegister);
           return (
             <button
               type="button"
-              key={i}
-              data-testid={`register-slot-${i}`}
+              key={slotRegister}
+              data-testid={`register-slot-${displayRegister}`}
               data-conflict={isConflict ? 'true' : undefined}
-              onClick={() => onSlotClick(i, candidate ?? null)}
+              onClick={() => onSlotClick(slotRegister, candidate ?? null)}
               className={`flex min-w-[60px] cursor-pointer flex-col items-center rounded-lg border px-2 py-1 text-[10px] transition hover:ring-1 hover:ring-cyan-400/40 ${
                 isConflict
                   ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
@@ -212,7 +236,7 @@ function RegisterMapCanvas({
                         : 'border-slate-800 bg-slate-950/50 text-slate-500'
               }`}
             >
-              <span className="font-mono text-[9px] text-slate-500">HR{i}</span>
+              <span className="font-mono text-[9px] text-slate-500">HR{displayRegister}</span>
               <span className="truncate font-medium">
                 {candidate?.tagKey ?? '—'}
               </span>
@@ -268,7 +292,9 @@ function RegisterMapCanvas({
                 }`}
               >
                 {r.tagKey}: {r.valid
-                  ? t('workbench.output.modbusStudio.dryRun.valid', { register: r.register })
+                  ? t('workbench.output.modbusStudio.dryRun.valid', {
+                    register: toModbusDisplayRegister(r.register),
+                  })
                   : t('workbench.output.modbusStudio.dryRun.invalid', { reason: r.reason ?? 'unknown' })}
               </li>
             ))}
@@ -302,7 +328,7 @@ export function LocalModbusBoard() {
   const [shareMappings, setShareMappings] = useState<ModbusShareMapping[]>([]);
   const [dbTargetMappings, setDBTargetMappings] = useState<DatabaseTargetMapping[]>([]);
   const [selectedTagId, setSelectedTagId] = useState('');
-  const [registerInput, setRegisterInput] = useState('0');
+  const [registerInput, setRegisterInput] = useState(String(modbusDisplayRegisterMin));
   const [serverPortInput, setServerPortInput] = useState('5020');
   const [message, setMessage] = useState('');
   const [isBusy, setIsBusy] = useState(true);
@@ -399,13 +425,24 @@ export function LocalModbusBoard() {
   const selectedCandidate =
     candidates.find((candidate) => candidate.tagId === selectedTagId) ?? null;
   const selectedCandidateRegister = selectedCandidate?.register ?? null;
+  const requestedDisplayRegister = Number(registerInput);
+  const requestedRegister = Number.isInteger(requestedDisplayRegister) &&
+    requestedDisplayRegister >= modbusDisplayRegisterMin &&
+    requestedDisplayRegister <= modbusDisplayRegisterMax
+    ? fromModbusDisplayRegister(requestedDisplayRegister)
+    : null;
+  const highestMappedRegister = useMemo(
+    () => shareMappings.reduce((max, mapping) => Math.max(max, mapping.register), 0),
+    [shareMappings],
+  );
+  const viewportAnchorRegister = requestedRegister ?? selectedCandidateRegister ?? highestMappedRegister;
 
   const { focusedTagIds } = crossStepContext;
 
   useEffect(() => {
     if (candidates.length === 0) {
       setSelectedTagId('');
-      setRegisterInput('0');
+      setRegisterInput(String(modbusDisplayRegisterMin));
       return;
     }
 
@@ -426,7 +463,9 @@ export function LocalModbusBoard() {
     }
 
     setRegisterInput(
-      selectedCandidateRegister !== null ? String(selectedCandidateRegister) : '0',
+      selectedCandidateRegister !== null
+        ? String(toModbusDisplayRegister(selectedCandidateRegister))
+        : String(modbusDisplayRegisterMin),
     );
   }, [selectedCandidateRegister, selectedTagId]);
 
@@ -483,11 +522,16 @@ export function LocalModbusBoard() {
       return;
     }
 
-    const register = Number(registerInput);
-    if (!Number.isInteger(register) || register < 0 || register > 65535) {
+    const displayRegister = Number(registerInput);
+    if (
+      !Number.isInteger(displayRegister) ||
+      displayRegister < modbusDisplayRegisterMin ||
+      displayRegister > modbusDisplayRegisterMax
+    ) {
       setMessage(t('workbench.output.results.invalidRegister'));
       return;
     }
+    const register = fromModbusDisplayRegister(displayRegister);
 
     setIsBusy(true);
 
@@ -497,7 +541,7 @@ export function LocalModbusBoard() {
       setMessage(
         t('workbench.output.results.mappingUpdated', {
           key: selectedCandidate.tagKey,
-          register,
+          register: toModbusDisplayRegister(register),
         }),
       );
     } catch (error) {
@@ -543,7 +587,7 @@ export function LocalModbusBoard() {
         setMessage(
           t('workbench.output.results.slotUnbound', {
             key: occupant.tagKey,
-            register: slotIndex,
+            register: toModbusDisplayRegister(slotIndex),
           }),
         );
       } catch (error) {
@@ -569,7 +613,7 @@ export function LocalModbusBoard() {
       setMessage(
         t('workbench.output.results.slotBound', {
           key: boundTag?.tagKey ?? selectedTagId,
-          register: slotIndex,
+          register: toModbusDisplayRegister(slotIndex),
         }),
       );
     } catch (error) {
@@ -773,7 +817,7 @@ export function LocalModbusBoard() {
         <div className="flex flex-wrap gap-1.5" data-testid="output-tag-chips">
           {candidates.map((c) => {
             const isActive = c.tagId === selectedTagId;
-            const modbusLabel = c.register !== null ? ` HR${c.register}` : '';
+            const modbusLabel = c.register !== null ? ` ${formatModbusRegister(c.register)}` : '';
             const dbLabel = c.databasePath ? ` DB` : '';
             const statusSuffix = activeOutputTarget === 'modbus' ? modbusLabel : dbLabel;
             return (
@@ -828,6 +872,7 @@ export function LocalModbusBoard() {
               shareMappings={shareMappings}
               conflicts={conflicts}
               selectedTagId={selectedTagId}
+              viewportAnchorRegister={viewportAnchorRegister}
               onSlotClick={(slot, occupant) => void handleSlotClick(slot, occupant)}
               onAutoMap={(strategy) => void handleAutoMap(strategy)}
               onDryRun={handleDryRun}
@@ -971,7 +1016,7 @@ export function LocalModbusBoard() {
                   {conflicts.map((conflict) => (
                     <li key={conflict.register}>
                       {t('workbench.output.conflicts.item', {
-                        register: conflict.register,
+                        register: toModbusDisplayRegister(conflict.register),
                         count: conflict.mappings.length,
                       })}
                     </li>

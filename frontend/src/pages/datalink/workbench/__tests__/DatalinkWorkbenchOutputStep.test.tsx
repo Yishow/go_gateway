@@ -71,6 +71,10 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useTestDraftConnectionMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/usePoints', () => ({
@@ -503,7 +507,7 @@ describe('DatalinkWorkbench output step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.output.actions.bind' }));
 
     await waitFor(() => {
-      expect(mockModbusShareAPI.upsertMapping).toHaveBeenCalledWith('tag-1', 12);
+      expect(mockModbusShareAPI.upsertMapping).toHaveBeenCalledWith('tag-1', 11);
     });
   });
 
@@ -530,7 +534,7 @@ describe('DatalinkWorkbench output step', () => {
 
     await screen.findByLabelText('workbench.output.mapping.register');
     await waitFor(() => {
-      expect(screen.getByDisplayValue('12')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('13')).toBeInTheDocument();
     });
 
     const tag1Chip = screen.getByTestId('output-candidate-tag-1');
@@ -539,7 +543,7 @@ describe('DatalinkWorkbench output step', () => {
     fireEvent.click(screen.getByTestId('output-candidate-tag-2'));
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('24')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('25')).toBeInTheDocument();
     });
     expect(screen.getByTestId('output-candidate-tag-2')).toHaveAttribute('aria-pressed', 'true');
     expect(tag1Chip).toHaveAttribute('aria-pressed', 'false');
@@ -655,8 +659,8 @@ describe('DatalinkWorkbench output step', () => {
       expect(
         await screen.findByTestId('register-map-canvas'),
       ).toBeInTheDocument();
-      expect(screen.getByTestId('register-slot-0')).toHaveTextContent('TAG_40001');
-      expect(screen.getByTestId('register-slot-2')).toHaveTextContent('TAG_40002');
+      expect(screen.getByTestId('register-slot-1')).toHaveTextContent('TAG_40001');
+      expect(screen.getByTestId('register-slot-3')).toHaveTextContent('TAG_40002');
     });
 
     it('highlights conflicting register slots', async () => {
@@ -670,7 +674,7 @@ describe('DatalinkWorkbench output step', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      const conflictSlot = await screen.findByTestId('register-slot-10');
+      const conflictSlot = await screen.findByTestId('register-slot-11');
       expect(conflictSlot).toHaveAttribute('data-conflict', 'true');
     });
 
@@ -685,8 +689,38 @@ describe('DatalinkWorkbench output step', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-      const overlapSlot = await screen.findByTestId('register-slot-11');
+      const overlapSlot = await screen.findByTestId('register-slot-12');
       expect(overlapSlot).toHaveAttribute('data-conflict', 'true');
+    });
+
+    it('keeps high mapped registers visible in the canvas', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-2', register: 199, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      expect(await screen.findByTestId('register-slot-200')).toHaveTextContent('TAG_40002');
+    });
+
+    it('lets the operator unbind HR1 directly from the canvas', async () => {
+      mockModbusShareAPI.listMappings.mockResolvedValue([
+        { tag_id: 'tag-1', register: 0, data_type: 'int16', updated_at: '' },
+      ]);
+
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+      fireEvent.click(await screen.findByTestId('register-slot-1'));
+
+      await waitFor(() => {
+        expect(mockModbusShareAPI.deleteMapping).toHaveBeenCalledWith('tag-1');
+      });
     });
 
     it('renders auto-map strategy selector with three strategies', async () => {
@@ -906,7 +940,7 @@ describe('DatalinkWorkbench output step', () => {
 
       expect(screen.getByTestId('trace-source-address')).toHaveTextContent('40001');
       expect(screen.getByTestId('trace-tag-key')).toHaveTextContent('TAG_40001');
-      expect(screen.getByTestId('trace-output-modbus')).toHaveTextContent('HR0');
+      expect(screen.getByTestId('trace-output-modbus')).toHaveTextContent('HR1');
     });
 
     it('shows readiness reasons for partial output candidate', async () => {

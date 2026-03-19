@@ -100,6 +100,19 @@
   - `addressParser.offset()` 已補 protocol-aware lower bound：Modbus 維持從 `1` 起算，FATEK / MC3E 改為允許 `D0`，避免規劃器把 `D0` 錯誤偏移成 `D1`。
   - review 第二輪已確認上述三項修正後沒有新的實質問題。
 
+## 2026-03-19 Step 4 Local Modbus 新發現
+- `LocalModbusBoard` 原本雖然看起來是 HR 介面，但實際上整個 surface 都直接暴露 internal 0-based register：
+  - canvas slot label 直接顯示 `HR{i}`
+  - register input 預設 `0`
+  - inspector trace 顯示 `HR${modbusMapping.register}`
+  - conflict / message / dry-run 也全都直接印 internal register
+- 只把 label 改成 1-based 不夠；tag chips、inspector、dry-run、conflict 文案若沒一起改，會出現同畫面混用 `HR0` / `HR1` 的語意漂移。
+- 直接移除 64-slot cap 也不安全：若使用者輸入極高位址（例如 UI 允許的 `65536`），canvas 會一次 render 六萬多個 button，造成瀏覽器卡死。
+- 這輪最後採用的安全方案是：
+  - backend / stored mapping 維持 internal 0-based，不動既有 API 契約
+  - workbench surface 全面改成 1-based 顯示與輸入，再於 bind 時做轉換
+  - canvas 改成 bounded viewport，並以目前選取 / 輸入 register 作為 anchor，因此 `HR200` 可見，但高位址也不會炸 DOM
+
 ## round 2 已確認有效的收斂方向
 - Step 1：editor 進中央區，不再用 modal。
 - Step 2：

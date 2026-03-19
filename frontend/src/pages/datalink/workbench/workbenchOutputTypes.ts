@@ -21,6 +21,17 @@ export type DryRunResult = {
 
 export type OutputReadiness = 'ready' | 'partial' | 'unmapped';
 
+export const modbusDisplayRegisterMin = 1;
+export const modbusDisplayRegisterMax = 65536;
+
+export function toModbusDisplayRegister(register: number): number {
+  return register + 1;
+}
+
+export function fromModbusDisplayRegister(register: number): number {
+  return register - 1;
+}
+
 export function computeOutputReadiness(
   hasModbus: boolean,
   hasDatabase: boolean,

@@ -196,6 +196,25 @@
   - 視使用者決定回到 `4.2` Step 3 review / verification-first
   - 或繼續做下一輪實機回饋收斂
 
+## 2026-03-19 Step 4 Local Modbus indexing / viewport 修正
+- 已完成這輪 Step 4 實機回饋修正：
+  - Local Modbus surface 改成 **1-based HR 顯示**，不再出現 `HR0`
+  - 手動輸入 register 改為接受 `1..65536`，送 backend 時再轉回 internal 0-based register
+  - tag chips、canvas、dry-run、inspector trace 與 conflict 文案已統一使用 1-based 顯示
+  - canvas 不再固定只顯示 64 格；改成以目前選取 / 輸入 register 為 anchor 的 bounded viewport，讓 `HR200` 這類高位址可見，同時避免一次 render 幾萬格
+  - 低位址 `HR1` 現在可直接從 canvas 點擊解除綁定
+  - 補齊缺漏的 `slotBound / slotUnbound` i18n key
+- 新增 / 更新測試：
+  - `DatalinkWorkbenchOutputStep.test.tsx`：改以 1-based register expectation 驗證
+  - 新增 `HR200` 可見 regression
+  - 新增 `HR1` 可直接解除綁定 regression
+- 驗證已通過：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-output-step.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - focused code review：已補上 bounded viewport，避免高位址造成 DOM freeze
+
 ## 精簡歷史里程碑
 
 ### 2026-03-15

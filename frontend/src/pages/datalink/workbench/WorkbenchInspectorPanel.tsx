@@ -24,7 +24,7 @@ import {
   buildSourceRuleCoverage,
   getDataTypeBitWidth,
 } from './sourceCanvasModel';
-import { computeOutputReadiness } from './workbenchOutputTypes';
+import { computeOutputReadiness, toModbusDisplayRegister } from './workbenchOutputTypes';
 import { useWorkbench } from './WorkbenchProvider';
 import {
   WORKBENCH_STEP_META,
@@ -863,7 +863,9 @@ function OutputInspectorContent() {
             {t('workbench.output.inspector.outputModbus')}
           </dt>
           <dd className="font-medium text-slate-100" data-testid="trace-output-modbus">
-            {modbusMapping ? `HR${modbusMapping.register}` : t('workbench.output.selection.unmapped')}
+            {modbusMapping
+              ? `HR${toModbusDisplayRegister(modbusMapping.register)}`
+              : t('workbench.output.selection.unmapped')}
           </dd>
         </div>
         <div className="space-y-1">
