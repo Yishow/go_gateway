@@ -32,16 +32,17 @@ func (s *Service) ProbeAndActivate(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("連線測試失敗，無法啟用設備: %w", err)
 	}
-	if result == nil || !result.Success {
-		if result != nil && result.Error != "" {
+	if result == nil {
+		return fmt.Errorf("連線測試失敗，無法啟用設備")
+	}
+	if !result.CanActivate {
+		if result.Probe.Status == TestConnectionStageFailed && result.Probe.Error != "" {
+			return fmt.Errorf("讀取探測失敗，無法啟用設備: %s", result.Probe.Error)
+		}
+		if result.Error != "" {
 			return fmt.Errorf("連線測試失敗，無法啟用設備: %s", result.Error)
 		}
 		return fmt.Errorf("連線測試失敗，無法啟用設備")
-	}
-
-	if err := s.probeRead(ctx, device); err != nil {
-		_ = s.repo.UpdateTestResult(ctx, id, false, err.Error())
-		return fmt.Errorf("讀取探測失敗，無法啟用設備: %w", err)
 	}
 
 	if err := s.repo.UpdateStatus(ctx, id, schema.DeviceStatusActive); err != nil {
@@ -51,35 +52,35 @@ func (s *Service) ProbeAndActivate(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Service) probeRead(ctx context.Context, device *schema.Device) error {
+func (s *Service) probeRead(ctx context.Context, device *schema.Device) (bool, error) {
 	target, err := buildReadProbeTarget(device)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !target.enabled {
-		return nil
+		return false, nil
 	}
 	if s.connMgr == nil {
-		return fmt.Errorf("連線管理器未初始化")
+		return true, fmt.Errorf("連線管理器未初始化")
 	}
 
 	conn, err := s.connMgr.GetOrCreate(ctx, device.ID, device.Protocol, device.ConnectionConfig)
 	if err != nil {
-		return fmt.Errorf("%s, connect 失敗: %w", target.details, err)
+		return true, fmt.Errorf("%s, connect 失敗: %w", target.details, err)
 	}
 
 	result, err := conn.Read(ctx, target.req)
 	if err != nil {
-		return fmt.Errorf("%s, read 失敗: %w", target.details, err)
+		return true, fmt.Errorf("%s, read 失敗: %w", target.details, err)
 	}
 	if result.Error != "" {
-		return fmt.Errorf("%s, read 錯誤: %s", target.details, result.Error)
+		return true, fmt.Errorf("%s, read 錯誤: %s", target.details, result.Error)
 	}
 	if result.Quality == schema.QualityBad {
-		return fmt.Errorf("%s, read 品質為 bad", target.details)
+		return true, fmt.Errorf("%s, read 品質為 bad", target.details)
 	}
 
-	return nil
+	return true, nil
 }
 
 func buildReadProbeTarget(device *schema.Device) (readProbeTarget, error) {

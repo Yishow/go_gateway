@@ -698,6 +698,49 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(within(inspector).queryByText('timeout-1')).not.toBeInTheDocument();
   });
 
+  it('shows connect and probe phase diagnostics separately in the inspector timeline', async () => {
+    mockTestConnectionMutation.mutateAsync
+      .mockReset()
+      .mockResolvedValueOnce({
+        success: false,
+        error: 'probe failed',
+        latency_ms: 21,
+        can_activate: false,
+        can_collect: false,
+        connect: {
+          status: 'success',
+          message: 'TCP ready',
+          latency_ms: 8,
+        },
+        probe: {
+          status: 'failed',
+          error: 'CRC mismatch',
+          latency_ms: 13,
+        },
+      });
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    const inspector = screen.getByTestId('workbench-inspector-panel');
+
+    fireEvent.click(
+      within(inspector).getByRole('button', {
+        name: 'workbench.device.actions.testConnection',
+      }),
+    );
+
+    await waitFor(() => {
+      const timelineEntry = within(inspector).getByText('probe failed').closest('li');
+      expect(timelineEntry).not.toBeNull();
+      expect(within(timelineEntry as HTMLElement).getByText('workbench.device.inspector.phases.connect')).toBeInTheDocument();
+      expect(within(timelineEntry as HTMLElement).getByText('TCP ready')).toBeInTheDocument();
+      expect(within(timelineEntry as HTMLElement).getByText('workbench.device.inspector.phases.probe')).toBeInTheDocument();
+      expect(within(timelineEntry as HTMLElement).getByText('CRC mismatch')).toBeInTheDocument();
+      expect(within(timelineEntry as HTMLElement).getByText('workbench.device.inspector.activationBlocked')).toBeInTheDocument();
+    });
+  });
+
   it('announces device notices through a polite live region', async () => {
     renderApp();
 

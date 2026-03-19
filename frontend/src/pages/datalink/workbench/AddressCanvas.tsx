@@ -13,6 +13,7 @@ const statusClassName: Record<AddressCanvasItem['status'], string> = {
   conflict: 'border-rose-500/50 bg-rose-900/30 text-rose-100',
   gap: 'border-slate-800 bg-slate-950/40 text-slate-500',
   planned: 'border-sky-700/40 bg-sky-900/20 text-sky-100',
+  unmanaged: 'border-amber-700/40 bg-amber-900/20 text-amber-100',
   used: 'border-emerald-700/40 bg-emerald-900/20 text-emerald-100',
 };
 
@@ -58,6 +59,8 @@ function getPrimaryLabel(item: AddressCanvasItem, t: (key: string) => string) {
       return t('workbench.source.canvas.gapLabel');
     case 'planned':
       return item.point?.name ?? t('workbench.source.canvas.plannedLabel');
+    case 'unmanaged':
+      return item.point?.name ?? t('workbench.source.canvas.unmanagedLabel');
     case 'used':
       return item.point?.name ?? t('workbench.source.canvas.usedLabel');
   }
@@ -71,8 +74,10 @@ function getPlanStateLabel(item: AddressCanvasItem, t: (key: string) => string) 
       return t('workbench.source.canvas.gapState');
     case 'planned':
       return t('workbench.source.canvas.plannedState');
+    case 'unmanaged':
+      return t('workbench.source.canvas.unmanagedState');
     case 'used':
-      return t('workbench.source.canvas.usedLabel');
+      return t('workbench.source.canvas.usedState');
   }
 }
 

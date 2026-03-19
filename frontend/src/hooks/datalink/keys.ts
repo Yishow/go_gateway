@@ -34,6 +34,16 @@ export const pointKeys = {
   detail: (id: string) => [...pointKeys.details(), id] as const,
 };
 
+/** Source Rule 相關 Query Keys */
+export const sourceRuleKeys = {
+  all: ['source-rules'] as const,
+  lists: () => [...sourceRuleKeys.all, 'list'] as const,
+  list: (filters?: { device_id?: string; enabled?: boolean }) =>
+    [...sourceRuleKeys.lists(), filters ?? {}] as const,
+  details: () => [...sourceRuleKeys.all, 'detail'] as const,
+  detail: (id: string) => [...sourceRuleKeys.details(), id] as const,
+};
+
 /** Tag 相關 Query Keys */
 export const tagKeys = {
   all: ['tags'] as const,

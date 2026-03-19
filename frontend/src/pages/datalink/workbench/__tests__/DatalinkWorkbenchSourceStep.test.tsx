@@ -3,19 +3,59 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
 import { SOURCE_TEMPLATE_STORAGE_KEY } from '../../../../features/datalink/sourceTemplateStorage';
-import type { Device, Mapping, Point, Tag } from '../../../../types/datalink';
+import type {
+  Device,
+  Mapping,
+  Point,
+  SourceRuleRecord,
+  Tag,
+} from '../../../../types/datalink';
 
-const { mockDevices, mockPoints, mockMappings, mockTags, mockCreatePointMutation, mockDeletePointMutation } = vi.hoisted(() => ({
+const {
+  mockDevices,
+  mockPoints,
+  mockMappings,
+  mockTags,
+  mockSourceRules,
+  mockCreatePointMutation,
+  mockDeletePointMutation,
+  mockCreateSourceRuleMutation,
+  mockUpdateSourceRuleMutation,
+  mockDeleteSourceRuleMutation,
+  mockEnableSourceRuleMutation,
+  mockDisableSourceRuleMutation,
+} = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
   mockMappings: [] as Mapping[],
   mockTags: [] as Tag[],
+  mockSourceRules: [] as SourceRuleRecord[],
   mockCreatePointMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
   },
   mockDeletePointMutation: {
     mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockCreateSourceRuleMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockUpdateSourceRuleMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockDeleteSourceRuleMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockEnableSourceRuleMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockDisableSourceRuleMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
   },
@@ -55,6 +95,21 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
   }),
   useCreatePointMutation: () => mockCreatePointMutation,
   useDeletePointMutation: () => mockDeletePointMutation,
+}));
+
+vi.mock('../../../../hooks/datalink/useSourceRules', () => ({
+  useSourceRulesQuery: (filters?: { device_id?: string }) => ({
+    data: filters?.device_id
+      ? mockSourceRules.filter((rule) => rule.device_id === filters.device_id)
+      : [],
+    isLoading: false,
+    isSuccess: true,
+  }),
+  useCreateSourceRuleMutation: () => mockCreateSourceRuleMutation,
+  useUpdateSourceRuleMutation: () => mockUpdateSourceRuleMutation,
+  useDeleteSourceRuleMutation: () => mockDeleteSourceRuleMutation,
+  useEnableSourceRuleMutation: () => mockEnableSourceRuleMutation,
+  useDisableSourceRuleMutation: () => mockDisableSourceRuleMutation,
 }));
 
 vi.mock('../../../../hooks/datalink/useMappings', () => ({
@@ -134,8 +189,14 @@ describe('DatalinkWorkbench source step', () => {
       updated_at: '',
     });
     mockCreatePointMutation.mutateAsync.mockResolvedValue(undefined);
+    mockCreateSourceRuleMutation.mutateAsync.mockImplementation(async (payload) => payload);
+    mockUpdateSourceRuleMutation.mutateAsync.mockImplementation(async ({ data }) => data);
+    mockDeleteSourceRuleMutation.mutateAsync.mockResolvedValue(undefined);
+    mockEnableSourceRuleMutation.mutateAsync.mockResolvedValue(undefined);
+    mockDisableSourceRuleMutation.mutateAsync.mockResolvedValue(undefined);
     mockMappings.splice(0, mockMappings.length);
     mockTags.splice(0, mockTags.length);
+    mockSourceRules.splice(0, mockSourceRules.length);
   });
 
   it('gates source planning behind device selection', () => {
@@ -171,7 +232,83 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
     expect(screen.getByTestId('address-cell-40003')).toHaveAttribute('data-status', 'planned');
     expect(screen.getByTestId('address-cell-40004')).toHaveAttribute('data-status', 'gap');
-    expect(screen.getByTestId('address-cell-40005')).toHaveAttribute('data-status', 'used');
+    expect(screen.getByTestId('address-cell-40005')).toHaveAttribute('data-status', 'unmanaged');
+  });
+
+  it('loads persisted source rules from backend state for the selected device', () => {
+    mockSourceRules.splice(0, mockSourceRules.length, {
+      id: 'persisted-rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 2,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      template_name: '',
+      skipped_addresses: [],
+      created_at: '',
+      updated_at: '2026-03-19T00:00:00Z',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('source-rule-persisted-rule-1')).toBeInTheDocument();
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'planned');
+  });
+
+  it('explains unmanaged existing points in the inspector', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByTestId('address-cell-40005'));
+
+    expect(screen.getByTestId('source-span-inspector')).toBeInTheDocument();
+    expect(screen.getByText('workbench.source.inspector.span.unmanagedNotice')).toBeInTheDocument();
+  });
+
+  it('preserves skipped addresses when editing a persisted rule', async () => {
+    mockSourceRules.splice(0, mockSourceRules.length, {
+      id: 'persisted-rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 2,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      template_name: '',
+      skipped_addresses: ['40002'],
+      created_at: '',
+      updated_at: '2026-03-19T00:00:00Z',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }));
+    fireEvent.change(screen.getAllByDisplayValue('40001').at(-1)!, {
+      target: { value: '40005' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.ruleLayer.editSave' }));
+
+    await waitFor(() => {
+      expect(mockUpdateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'persisted-rule-1',
+        data: expect.objectContaining({
+          start_address: '40005',
+          skipped_addresses: ['40002'],
+        }),
+      });
+    });
   });
 
   it('renders the source canvas as fixed 16-bit lattice rows', () => {
@@ -304,6 +441,44 @@ describe('DatalinkWorkbench source step', () => {
       data_type: 'float32',
       name: 'SRC_40001',
     });
+  });
+
+  it('persists rule points through the source-rule API when applying the rule batch action', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
+    );
+
+    await waitFor(() => {
+      expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith({
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 2,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      template_name: undefined,
+      skipped_addresses: [],
+    });
+    expect(mockCreatePointMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
   it('adds and deletes rules directly from the rule layer workflow', () => {
@@ -544,7 +719,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-canvas')).toHaveAttribute('data-view-mode', 'live');
   });
 
-  it('batch creates points from the planned address range', async () => {
+  it('batch persists eligible source rules from the planned address range', async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
@@ -564,21 +739,23 @@ describe('DatalinkWorkbench source step', () => {
     );
 
     await waitFor(() => {
-      expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledTimes(2);
+      expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockCreatePointMutation.mutateAsync).toHaveBeenNthCalledWith(1, {
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith({
+      id: 'rule-1',
       device_id: 'device-1',
-      address: '40001',
+      start_address: '40001',
+      count: 2,
       data_type: 'float32',
-      name: 'SRC_40001',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      template_name: undefined,
+      skipped_addresses: [],
     });
-    expect(mockCreatePointMutation.mutateAsync).toHaveBeenNthCalledWith(2, {
-      device_id: 'device-1',
-      address: '40003',
-      data_type: 'float32',
-      name: 'SRC_40003',
-    });
+    expect(mockCreatePointMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
   it('allows batch create for safe spans even when conflicts exist elsewhere', () => {
@@ -1219,7 +1396,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(contCell).toHaveClass('sr-only');
   });
 
-  it('creates only safe spans when conflicts exist alongside valid planned ranges', async () => {
+  it('persists only safe spans when conflicts exist alongside valid planned ranges', async () => {
     // Rule plans int16 at 40001, 40002, 40003.
     // Existing point at 40005 (no conflict).
     // Add a second rule at 40003 to create a rule-overlap conflict at 40003.
@@ -1275,15 +1452,17 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(batchButton);
 
     await waitFor(() => {
-      expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledTimes(2);
+      expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ address: '40001' }),
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'rule-1',
+        start_address: '40001',
+        skipped_addresses: ['40003'],
+      }),
     );
-    expect(mockCreatePointMutation.mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ address: '40002' }),
-    );
+    expect(mockCreatePointMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
   it('deletes orphaned points when a rule is deleted', () => {

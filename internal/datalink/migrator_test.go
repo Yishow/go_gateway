@@ -28,6 +28,8 @@ func TestMigrator_Migrate(t *testing.T) {
 		"tags",
 		"mappings",
 		"polling_groups",
+		"source_rules",
+		"source_rule_links",
 		"system_settings",
 		"timeseries",
 		"database_connectors",

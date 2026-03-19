@@ -82,6 +82,53 @@
   - Go tests: `tag/...`、`handlers/...`、`device/...` 全部通過
   - `go build ./...`、`npx tsc --noEmit`、`npm run lint` 全部通過
 
+## 2026-03-18 OpenSpec / 選項分析進度
+- 已完成 OpenSpec 前置盤查：
+  - Step1 connect/probe 與診斷分流
+  - Step2 rule drift / address model / persistence 方向
+  - Step3/4/Database state drift 與 connector scope
+  - rule persistence / point-tag model 兩條 domain audit
+- 使用者已明確拍板：
+  - connect success 與 probe success 要分開顯示
+  - connect 成功但 probe 失敗時，可存設備但不可啟動規則/採集
+  - rule disable 只停止採集，不拆 Point/Tag/Output 關聯
+  - 建立規則後自動建立 Tag + Mapping，Step3 改成檢查/覆核
+  - Database 這輪 scope 鎖 `SQLite + PostgreSQL`
+- 目前進到第二輪「各 step 可優化處選項分析」：
+  - `step2-optimization-analysis`、`step3-optimization-analysis` 已收斂為 done
+  - `step1-optimization-analysis` 補跑完成，推薦 `connect/probe 分流 + connect 成功可存設備但不可啟動規則`
+  - `step4-optimization-analysis` 補跑完成，推薦 `target selection 隔離 + 單一狀態來源`
+  - `database-optimization-analysis` 補跑完成，推薦 `connector/schema/mapping 分層`
+  - `workflow-optimization-synthesis` 已完成
+  - 使用者已選擇：
+    - Step1：`connect/probe 分流`、`connect 成功可存設備但 probe 失敗禁採集`、`更細錯誤診斷`
+    - Step2：`規則持久化/啟停/重啟恢復`、`依設備能力自動切換`、`格子語意講清楚`、`drift 偵測與提示`
+    - Step3：`建立規則後自動建立 Tag + Mapping`、`Step3 改成檢查/覆核`、`Point 內部化 / Tag 對外化`
+    - Step4：`target selection 狀態分離`、`單一狀態來源`、`綁定/解除流程更明確`、`即時衝突提示與高亮`
+    - Database：`Connector / Schema / Mapping 分層`
+  - OpenSpec umbrella change 已建立完成：
+    - `openspec/changes/rework-datalink-rule-persistence-and-point-tag-flow/`
+    - artifacts：`proposal.md`、`design.md`、`specs/**/*.md`、`tasks.md`
+  - `openspec status --change rework-datalink-rule-persistence-and-point-tag-flow` 已顯示 `All artifacts complete!`
+
+## 2026-03-19 SourceRule persistence slice
+- 已完成 OpenSpec `rework-datalink-rule-persistence-and-point-tag-flow` 的 `1.1 ~ 3.3`：
+  - backend 新增 persisted `SourceRule` schema / migrations / memory + SQL repositories
+  - 新增 `sourcerule.Service` 與 `/datalink/source-rules` CRUD + enable/disable API
+  - runtime bootstrap 會在啟動前同步 persisted rule enable 狀態回 derived points
+  - Step 2 `Create rule points` 已改走 source-rule API，不再直接 batch create unmanaged points
+  - Step 2 現在會 merge persisted rules 與 local drafts，並把 `unmanaged` legacy points 與 `used` rule-derived points 分開顯示
+  - Step 2 inspector 已補 unmanaged notice；runtime live value / restored rule state 會回灌到 grid 與 inspector
+- 本輪驗證已通過：
+  - `go test ./internal/api/handlers ./internal/api ./internal/datalink ./internal/datalink/sourcerule ./cmd/test_ui -count=1`
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-runtime-phase.test.tsx tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/features/datalink/workbench-locale.test.ts`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- 下一個主題：
+  - `4.1` auto-create / sync Tag + Mapping（strict `1 Point : 1 Tag`）
+  - `4.2` Step 3 review / verification flow
+
 ## 精簡歷史里程碑
 
 ### 2026-03-15

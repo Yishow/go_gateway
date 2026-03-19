@@ -86,11 +86,24 @@ export interface UpdateDeviceRequest {
   connection_config?: Record<string, unknown>;
 }
 
+export type ConnectionTestStageStatus = 'success' | 'failed' | 'skipped';
+
+export interface ConnectionTestStageResult {
+  status: ConnectionTestStageStatus;
+  message?: string;
+  error?: string;
+  latency_ms: number;
+}
+
 /** 連線測試結果 */
 export interface ConnectionTestResult {
   success: boolean;
   error: string;
   latency_ms: number;
+  connect?: ConnectionTestStageResult;
+  probe?: ConnectionTestStageResult;
+  can_activate?: boolean;
+  can_collect?: boolean;
 }
 
 /** 協議資訊 */
@@ -142,6 +155,50 @@ export interface UpdatePointRequest {
   address?: string;
   enabled?: boolean;
   polling_group_id?: string;
+}
+
+/** 來源規則 */
+export interface SourceRuleRecord {
+  id: string;
+  device_id: string;
+  start_address: string;
+  count: number;
+  data_type: DataType;
+  naming_prefix: string;
+  enabled: boolean;
+  locked: boolean;
+  origin: 'manual' | 'template';
+  template_name?: string;
+  skipped_addresses: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** 建立來源規則請求 */
+export interface CreateSourceRuleRequest {
+  id?: string;
+  device_id: string;
+  start_address: string;
+  count: number;
+  data_type: DataType;
+  naming_prefix: string;
+  enabled: boolean;
+  locked?: boolean;
+  origin?: 'manual' | 'template';
+  template_name?: string;
+  skipped_addresses?: string[];
+}
+
+/** 更新來源規則請求 */
+export interface UpdateSourceRuleRequest {
+  start_address?: string;
+  count?: number;
+  data_type?: DataType;
+  naming_prefix?: string;
+  enabled?: boolean;
+  locked?: boolean;
+  template_name?: string;
+  skipped_addresses?: string[];
 }
 
 /** 輪詢群組 */

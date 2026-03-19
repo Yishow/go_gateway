@@ -18,6 +18,7 @@ import {
   getWorkbenchProtocolLabelKey,
   parseDeviceConnectionConfig,
 } from './workbenchDeviceFormModel';
+import type { ConnectionTestStageResult } from '../../../types/datalink';
 import {
   buildAddressCanvasItems,
   buildSourceRuleCoverage,
@@ -25,7 +26,11 @@ import {
 } from './sourceCanvasModel';
 import { computeOutputReadiness } from './workbenchOutputTypes';
 import { useWorkbench } from './WorkbenchProvider';
-import { WORKBENCH_STEP_META, type InspectorSelection } from './workbenchTypes';
+import {
+  WORKBENCH_STEP_META,
+  type DeviceTestHistoryEntry,
+  type InspectorSelection,
+} from './workbenchTypes';
 
 function joinClasses(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
@@ -84,6 +89,25 @@ function formatInspectorValue(value: unknown): string {
   return String(value);
 }
 
+function getStageStatusClasses(status: ConnectionTestStageResult['status']): string {
+  switch (status) {
+    case 'success':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    case 'failed':
+      return 'border-rose-500/40 bg-rose-500/10 text-rose-300';
+    case 'skipped':
+      return 'border-slate-700 bg-slate-900 text-slate-300';
+  }
+}
+
+function getStageMessage(stage: ConnectionTestStageResult | undefined): string {
+  if (!stage) {
+    return '—';
+  }
+
+  return stage.error || stage.message || '—';
+}
+
 function DeviceInspectorContent() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -135,7 +159,7 @@ function DeviceInspectorContent() {
     connectionConfig,
   );
   const storedHistory = recentDeviceTests[selectedDevice.id] ?? [];
-  const fallbackHistory =
+  const fallbackHistory: DeviceTestHistoryEntry[] =
     storedHistory.length === 0
       && (selectedDevice.last_test_success !== null || selectedDevice.last_test_at)
       ? [
@@ -170,6 +194,15 @@ function DeviceInspectorContent() {
           ? t('workbench.device.messages.testSuccess')
           : result.error || t('workbench.device.messages.testFailed'),
         latencyMs: result.latency_ms ?? null,
+        phaseDetails:
+          result.connect || result.probe
+            ? {
+                connect: result.connect,
+                probe: result.probe,
+              }
+            : undefined,
+        canActivate: result.can_activate ?? result.success,
+        canCollect: result.can_collect ?? result.success,
       });
     } catch (error) {
       recordDeviceTest(selectedDevice.id, {
@@ -260,6 +293,45 @@ function DeviceInspectorContent() {
                 <p className="mt-1 text-xs text-slate-500">
                   {getDeviceTestTimestampLabel(entry.testedAt, t)}
                 </p>
+                {entry.phaseDetails ? (
+                  <div className="mt-3 grid gap-2 border-t border-slate-800/80 pt-3">
+                    {(
+                      [
+                        ['connect', entry.phaseDetails.connect],
+                        ['probe', entry.phaseDetails.probe],
+                      ] as const
+                    ).map(([phaseKey, stage]) =>
+                      stage ? (
+                        <div
+                          className="flex items-start justify-between gap-3"
+                          key={phaseKey}
+                        >
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                              {t(`workbench.device.inspector.phases.${phaseKey}`)}
+                            </p>
+                            <p className="text-xs text-slate-300">
+                              {getStageMessage(stage)}
+                            </p>
+                          </div>
+                          <span
+                            className={joinClasses(
+                              'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                              getStageStatusClasses(stage.status),
+                            )}
+                          >
+                            {t(`workbench.device.inspector.phaseStatus.${stage.status}`)}
+                          </span>
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
+                ) : null}
+                {entry.canActivate === false ? (
+                  <p className="mt-3 text-xs font-medium text-amber-300">
+                    {t('workbench.device.inspector.activationBlocked')}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -519,6 +591,12 @@ function SourceInspectorContent() {
             </dd>
           </div>
         </dl>
+
+        {item?.status === 'unmanaged' ? (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            {t('workbench.source.inspector.span.unmanagedNotice')}
+          </div>
+        ) : null}
       </div>
     );
   }

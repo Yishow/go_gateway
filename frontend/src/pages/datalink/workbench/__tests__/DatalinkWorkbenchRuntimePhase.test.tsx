@@ -90,6 +90,38 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useDeletePointMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
+vi.mock('../../../../hooks/datalink/useSourceRules', () => ({
+  useSourceRulesQuery: () => ({
+    data: [],
+    isLoading: false,
+    isSuccess: true,
+  }),
+  useCreateSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useUpdateSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useEnableSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDisableSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/useTags', () => ({

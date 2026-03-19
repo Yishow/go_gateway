@@ -13,6 +13,9 @@ export * from './useDevices';
 // Point Hooks
 export * from './usePoints';
 
+// Source Rule Hooks
+export * from './useSourceRules';
+
 // Tag Hooks
 export * from './useTags';
 

@@ -1,4 +1,8 @@
-import type { DeviceStatus, TagStatus } from '../../../types/datalink';
+import type {
+  ConnectionTestStageResult,
+  DeviceStatus,
+  TagStatus,
+} from '../../../types/datalink';
 import type { SourceRule } from './sourceCanvasModel';
 
 // ---------------------------------------------------------------------------
@@ -163,4 +167,10 @@ export type DeviceTestHistoryEntry = {
   success: boolean;
   message: string;
   latencyMs: number | null;
+  phaseDetails?: {
+    connect?: ConnectionTestStageResult;
+    probe?: ConnectionTestStageResult;
+  };
+  canActivate?: boolean;
+  canCollect?: boolean;
 };

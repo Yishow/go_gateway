@@ -658,6 +658,7 @@
         "cells": "{{count}} cells",
         "status": {
           "planned": "Planned",
+          "unmanaged": "Unmanaged",
           "used": "Used",
           "conflict": "Conflict",
           "gap": "Gap"
@@ -667,7 +668,10 @@
         "empty": "No planned range or existing points yet.",
         "plannedLabel": "Planned range",
         "plannedState": "Planned",
+        "unmanagedLabel": "Unmanaged point",
+        "unmanagedState": "Point without rule",
         "usedLabel": "Existing point",
+        "usedState": "Rule-created point",
         "conflictLabel": "Conflict",
         "conflictState": "Address overlap",
         "gapLabel": "Gap",
@@ -707,7 +711,8 @@
           "pointName": "Point",
           "bitWidth": "Bit width",
           "rawValue": "Raw value",
-          "linkState": "Downstream link state"
+          "linkState": "Downstream link state",
+          "unmanagedNotice": "This address already has a point, but it is not backed by a persisted source rule yet."
         }
       },
       "selectionToolbar": {
@@ -1128,7 +1133,17 @@
         "recentTests": "Recent connection tests",
         "emptyTitle": "Select a device first",
         "emptyDescription": "Once you pick a device card, this panel shows the protocol, connection summary, and next actions. If there is no device yet, create one here.",
-        "unknownTestTime": "Test timestamp not available yet"
+        "unknownTestTime": "Test timestamp not available yet",
+        "phases": {
+          "connect": "Connect phase",
+          "probe": "Protocol probe"
+        },
+        "phaseStatus": {
+          "success": "Connected",
+          "failed": "Failed",
+          "skipped": "Skipped"
+        },
+        "activationBlocked": "The device can be saved, but rules and collection stay blocked until the probe passes."
       },
       "capability": {
         "labels": {

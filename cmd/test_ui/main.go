@@ -36,6 +36,7 @@ import (
 	"go-gateway/internal/datalink/pollinggroup"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/settings"
+	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/web"
@@ -135,6 +136,9 @@ func main() {
 	mappingRepo := mapping.NewSQLRepository(db)
 	mappingSvc := mapping.NewServiceWithTagResolver(mappingRepo, tagSvc.GetByID)
 
+	// Source Rule
+	sourceRuleRepo := sourcerule.NewSQLRepository(db)
+
 	// Local Modbus Share (Tag -> Virtual Modbus Memory Grid)
 	modbusShareSvc := modbusshare.NewService(tagSvc, 65536)
 	if err := modbusShareSvc.Start(5020); err != nil {
@@ -177,6 +181,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("建立 datalink runtime 失敗: %v", err)
 	}
+	sourceRuleSvc := sourcerule.NewService(sourceRuleRepo, devSvc, pointSvc, runtimeSvc)
+	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
+		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
+	}
 	if err := runtimeSvc.Start(context.Background()); err != nil {
 		log.Printf("datalink runtime 啟動失敗，runtime 功能將不可用: %v", err)
 	}
@@ -201,6 +209,7 @@ func main() {
 		Runtime:      runtimeSvc,
 		DBTarget:     dbTargetConnectorSvc,
 		DBMapping:    dbTargetMappingSvc,
+		SourceRule:   sourceRuleSvc,
 	}
 
 	// 建立 API 路由器

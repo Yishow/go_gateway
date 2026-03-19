@@ -15,6 +15,7 @@ import (
 	"go-gateway/internal/datalink/pollinggroup"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/settings"
+	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/tag"
 
 	_ "go-gateway/docs/swagger" // Swagger docs
@@ -37,6 +38,7 @@ type DatalinkServices struct {
 	Runtime      *datalinkruntime.Service
 	DBTarget     *dbtarget.ConnectorService
 	DBMapping    *dbtarget.MappingService
+	SourceRule   *sourcerule.Service
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -188,6 +190,18 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.POST("/devices/:id/activate", deviceHandler.Activate)
 			datalinkGroup.POST("/devices/:id/disable", deviceHandler.Disable)
 			datalinkGroup.POST("/devices/test-batch", deviceHandler.TestConnectionBatch)
+
+			// Source Rules
+			if datalinkServices.SourceRule != nil {
+				sourceRuleHandler := handlers.NewSourceRuleHandler(datalinkServices.SourceRule)
+				datalinkGroup.GET("/source-rules", sourceRuleHandler.List)
+				datalinkGroup.POST("/source-rules", sourceRuleHandler.Create)
+				datalinkGroup.GET("/source-rules/:id", sourceRuleHandler.Get)
+				datalinkGroup.PUT("/source-rules/:id", sourceRuleHandler.Update)
+				datalinkGroup.DELETE("/source-rules/:id", sourceRuleHandler.Delete)
+				datalinkGroup.POST("/source-rules/:id/enable", sourceRuleHandler.Enable)
+				datalinkGroup.POST("/source-rules/:id/disable", sourceRuleHandler.Disable)
+			}
 
 			// Points
 			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime).

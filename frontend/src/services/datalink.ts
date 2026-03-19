@@ -15,6 +15,9 @@ import type {
   Point,
   CreatePointRequest,
   UpdatePointRequest,
+  SourceRuleRecord,
+  CreateSourceRuleRequest,
+  UpdateSourceRuleRequest,
   PollingGroup,
   CreatePollingGroupRequest,
   UpdatePollingGroupRequest,
@@ -225,6 +228,53 @@ export const pointAPI = {
       point_ids: pointIds,
     });
     return res.data.data ?? [];
+  },
+};
+
+// =============================================================================
+// 來源規則 API
+// =============================================================================
+
+export const sourceRuleAPI = {
+  /** 列出來源規則 */
+  async list(params?: { device_id?: string; enabled?: boolean }): Promise<SourceRuleRecord[]> {
+    const res = await api.get<APIResponse<SourceRuleRecord[]>>('/source-rules', { params });
+    return res.data.data ?? [];
+  },
+
+  /** 取得來源規則 */
+  async get(id: string): Promise<SourceRuleRecord> {
+    const res = await api.get<APIResponse<SourceRuleRecord>>(`/source-rules/${id}`);
+    return res.data.data!;
+  },
+
+  /** 建立來源規則 */
+  async create(data: CreateSourceRuleRequest): Promise<SourceRuleRecord> {
+    const res = await api.post<APIResponse<SourceRuleRecord>>('/source-rules', data);
+    return res.data.data!;
+  },
+
+  /** 更新來源規則 */
+  async update(id: string, data: UpdateSourceRuleRequest): Promise<SourceRuleRecord> {
+    const res = await api.put<APIResponse<SourceRuleRecord>>(`/source-rules/${id}`, data);
+    return res.data.data!;
+  },
+
+  /** 刪除來源規則 */
+  async delete(id: string): Promise<void> {
+    await api.delete(`/source-rules/${id}`);
+  },
+
+  /** 啟用來源規則 */
+  async enable(id: string): Promise<SourceRuleRecord> {
+    const res = await api.post<APIResponse<SourceRuleRecord>>(`/source-rules/${id}/enable`);
+    return res.data.data!;
+  },
+
+  /** 停用來源規則 */
+  async disable(id: string): Promise<SourceRuleRecord> {
+    const res = await api.post<APIResponse<SourceRuleRecord>>(`/source-rules/${id}/disable`);
+    return res.data.data!;
   },
 };
 

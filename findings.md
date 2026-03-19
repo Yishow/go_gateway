@@ -30,6 +30,42 @@
   - 何時把最新前端重新嵌入 `cmd/test_ui/static`。
 - Step 3/4 雖已完成需求對齊，但仍值得透過實機驗收再確認是否還有局部操作阻力。
 
+## 2026-03-18 OpenSpec 前置分析新發現
+- 使用者的重點已從單純 UI polish 轉成 **資料模型與流程語意**：
+  - Step1 需要把 `connect` 與 `probe` 分流顯示與判定。
+  - Step2 的 rule 不只是暫存規劃，而是要進 DB、可啟停、重啟還原。
+  - Step3 傾向改成「建立規則後自動建立 Tag + Mapping，再由 UI 做覆核」。
+  - Database 頁這輪要連 `SQLite + PostgreSQL` connector scope 一起定。
+- 本輪選項分析曾出現 agent 狀態漂移：
+  - SQL 顯示 `step1/database/step4` analysis 仍為 `in_progress`
+  - 但 background agents 已不存在
+  - 後續需要以新一輪 agent 補跑分析，再做總整合
+
+## 2026-03-18 各 step 可優化處（目前已回收）
+- Step1：
+  - 最值得優先的是 **connect / probe 分流** + **允許 connect 成功但 probe 失敗時先存設備、但禁止啟動規則/採集**
+  - 純粹只加 timeout 已不足，核心其實是狀態機與診斷粒度
+- Step4：
+  - 最值得優先的是 **每個 output target 分離 selection 狀態** + **用單一 source of truth 管 register/tag/binding state**
+  - 問題核心是 drift，不是缺更多按鈕
+- Database：
+  - 最值得優先的是 **Connector / Schema / Mapping 分層**
+  - 後續 drift check、versioning、智慧預設都應建立在分層之上
+
+## 2026-03-19 SourceRule / Step 2 新發現
+- Step 2 若把所有 existing point 都顯示成同一種 `used` 狀態，操作員無法分辨：
+  - 這是 persisted rule 已落地的 span
+  - 還是只有 point、沒有 rule 的 unmanaged legacy 狀態
+- 因此 Step 2 狀態至少要拆成：
+  - `planned`：rule 已存在但 point 尚未落地
+  - `used`：rule-backed point 已落地
+  - `unmanaged`：只有 point、尚未納入 persisted rule
+  - `conflict`：rule / point / merge semantics 不一致
+- `Create rule points` 與 `Create selected points` 的語意必須分開：
+  - `Create rule points` = persist source rules（必要時帶 `skipped_addresses`）
+  - `Create selected points` = manual / unmanaged exception path
+- runtime live values 與 restart restoration 只有在 Step 2 直接吃 persisted rule + derived point 狀態時，grid / inspector 才不會和 backend lifecycle drift。
+
 ## round 2 已確認有效的收斂方向
 - Step 1：editor 進中央區，不再用 modal。
 - Step 2：

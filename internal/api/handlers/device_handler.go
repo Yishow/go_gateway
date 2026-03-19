@@ -101,9 +101,13 @@ func (h *DeviceHandler) TestConnection(c *gin.Context) {
 	if err != nil {
 		// Return structured failure
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": device.TestConnectionResult{
-			Success:   false,
-			Error:     err.Error(),
-			Timestamp: time.Now(),
+			Success:     false,
+			Error:       err.Error(),
+			Timestamp:   time.Now(),
+			Connect:     device.TestConnectionStageResult{Status: device.TestConnectionStageFailed, Error: err.Error()},
+			Probe:       device.TestConnectionStageResult{Status: device.TestConnectionStageSkipped},
+			CanActivate: false,
+			CanCollect:  false,
 		}})
 		return
 	}
@@ -173,10 +177,14 @@ func (h *DeviceHandler) TestConnectionBatch(c *gin.Context) {
 		result, err := h.svc.TestConnectionWithResult(c.Request.Context(), id)
 		if err != nil {
 			results = append(results, device.TestConnectionResult{
-				LatencyMs: 0,
-				Success:   false,
-				Error:     err.Error(),
-				Timestamp: time.Now(),
+				LatencyMs:   0,
+				Success:     false,
+				Error:       err.Error(),
+				Timestamp:   time.Now(),
+				Connect:     device.TestConnectionStageResult{Status: device.TestConnectionStageFailed, Error: err.Error()},
+				Probe:       device.TestConnectionStageResult{Status: device.TestConnectionStageSkipped},
+				CanActivate: false,
+				CanCollect:  false,
 			})
 		} else {
 			results = append(results, *result)
@@ -185,4 +193,3 @@ func (h *DeviceHandler) TestConnectionBatch(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
-

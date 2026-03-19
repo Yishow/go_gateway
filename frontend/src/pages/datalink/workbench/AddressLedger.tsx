@@ -14,8 +14,10 @@ function getStatusLabel(item: AddressCanvasItem, t: (key: string) => string) {
       return t('workbench.source.canvas.gapState');
     case 'planned':
       return t('workbench.source.canvas.plannedState');
+    case 'unmanaged':
+      return t('workbench.source.canvas.unmanagedState');
     case 'used':
-      return t('workbench.source.canvas.usedLabel');
+      return t('workbench.source.canvas.usedState');
   }
 }
 
@@ -27,6 +29,8 @@ function getNameLabel(item: AddressCanvasItem, t: (key: string) => string) {
       return t('workbench.source.canvas.gapLabel');
     case 'planned':
       return item.point?.name ?? t('workbench.source.canvas.plannedLabel');
+    case 'unmanaged':
+      return item.point?.name ?? t('workbench.source.canvas.unmanagedLabel');
     case 'used':
       return item.point?.name ?? t('workbench.source.canvas.usedLabel');
   }

@@ -24,9 +24,22 @@ import {
   usePointsQuery,
 } from '../../../hooks/datalink/usePoints';
 import { useRuntimeStream } from '../../../hooks/datalink/useRuntimeStream';
+import {
+  useCreateSourceRuleMutation,
+  useDeleteSourceRuleMutation,
+  useDisableSourceRuleMutation,
+  useEnableSourceRuleMutation,
+  useSourceRulesQuery,
+  useUpdateSourceRuleMutation,
+} from '../../../hooks/datalink/useSourceRules';
 import { useTagsQuery } from '../../../hooks/datalink/useTags';
 import { runtimeAPI } from '../../../services/datalink';
-import type { DataType, Device, ProtocolType } from '../../../types/datalink';
+import type {
+  DataType,
+  Device,
+  ProtocolType,
+  SourceRuleRecord,
+} from '../../../types/datalink';
 import { addressParser } from '../../../utils/addressParser';
 import { AddressCanvas } from './AddressCanvas';
 import { AddressLedger } from './AddressLedger';
@@ -79,6 +92,8 @@ function getCoverageSegmentClass(status: ReturnType<typeof buildCoverageOverview
       return 'bg-slate-700';
     case 'planned':
       return 'bg-sky-500/80';
+    case 'unmanaged':
+      return 'bg-amber-500/80';
     case 'used':
       return 'bg-emerald-500/80';
   }
@@ -133,6 +148,47 @@ function buildTemplateCapabilitySnapshot(
     addressBase,
     wordOrder,
   };
+}
+
+function mapPersistedRuleToPlannerRule(rule: SourceRuleRecord): SourceRule {
+  return {
+    id: rule.id,
+    startAddress: rule.start_address,
+    count: rule.count,
+    dataType: rule.data_type,
+    namingPrefix: rule.naming_prefix,
+    enabled: rule.enabled,
+    locked: rule.locked,
+    origin: rule.origin,
+    templateName: rule.template_name,
+    skippedAddresses: rule.skipped_addresses ?? [],
+    persisted: true,
+    updatedAt: rule.updated_at,
+  };
+}
+
+function areRulesEqual(left: ReadonlyArray<SourceRule>, right: ReadonlyArray<SourceRule>) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((rule, index) => {
+    const candidate = right[index];
+    return (
+      rule.id === candidate.id &&
+      rule.startAddress === candidate.startAddress &&
+      rule.count === candidate.count &&
+      rule.dataType === candidate.dataType &&
+      rule.namingPrefix === candidate.namingPrefix &&
+      rule.enabled === candidate.enabled &&
+      rule.locked === candidate.locked &&
+      rule.origin === candidate.origin &&
+      rule.templateName === candidate.templateName &&
+      rule.persisted === candidate.persisted &&
+      rule.updatedAt === candidate.updatedAt &&
+      rule.skippedAddresses.join(',') === candidate.skippedAddresses.join(',')
+    );
+  });
 }
 
 function buildTemplateWarning(
@@ -226,6 +282,14 @@ export function SourceCanvasSection() {
   const { data: tags = [] } = useTagsQuery();
   const createPointMutation = useCreatePointMutation();
   const deletePointMutation = useDeletePointMutation();
+  const sourceRulesQuery = useSourceRulesQuery(
+    selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
+  );
+  const createSourceRuleMutation = useCreateSourceRuleMutation();
+  const updateSourceRuleMutation = useUpdateSourceRuleMutation();
+  const deleteSourceRuleMutation = useDeleteSourceRuleMutation();
+  const enableSourceRuleMutation = useEnableSourceRuleMutation();
+  const disableSourceRuleMutation = useDisableSourceRuleMutation();
   const runtimeStatusQuery = useQuery({
     queryKey: ['runtime-status', selectedDeviceId],
     queryFn: () => runtimeAPI.getStatus(selectedDeviceId ?? undefined),
@@ -255,6 +319,7 @@ export function SourceCanvasSection() {
     startAddress: string;
     count: number;
     dataType: DataType;
+    skippedAddresses: string[];
   } | null>(null);
   const [batchCreateSummary, setBatchCreateSummary] = useState<{
     successCount: number;
@@ -276,6 +341,10 @@ export function SourceCanvasSection() {
   const currentCapability = useMemo(
     () => buildTemplateCapabilitySnapshot(selectedDevice),
     [selectedDevice],
+  );
+  const persistedRules = useMemo(
+    () => (sourceRulesQuery.data ?? []).map(mapPersistedRuleToPlannerRule),
+    [sourceRulesQuery.data],
   );
 
   useEffect(() => {
@@ -300,6 +369,33 @@ export function SourceCanvasSection() {
     setTemplateWarning(null);
     setAppliedTemplate(null);
   }, [selectedDeviceId]);
+
+  useEffect(() => {
+    if (!selectedDeviceId || !sourceRulesQuery.isSuccess) {
+      return;
+    }
+
+    setSourcePlanningState((currentState) => {
+      const draftRules = currentState.rules.filter((rule) => !rule.persisted);
+      const nextRules = [...persistedRules, ...draftRules];
+      if (areRulesEqual(currentState.rules, nextRules)) {
+        return currentState;
+      }
+
+      const nextSelectedRuleId = nextRules.some(
+        (rule) => rule.id === currentState.selectedRuleId,
+      )
+        ? currentState.selectedRuleId
+        : null;
+
+      return {
+        ...currentState,
+        rules: nextRules,
+        selectedRuleId: nextSelectedRuleId,
+        selectedAddress: nextSelectedRuleId ? currentState.selectedAddress : null,
+      };
+    });
+  }, [persistedRules, selectedDeviceId, setSourcePlanningState, sourceRulesQuery.isSuccess]);
 
   const effectiveLiveValues = freezeLive && frozenLiveValues
     ? frozenLiveValues
@@ -438,6 +534,7 @@ export function SourceCanvasSection() {
       origin: appliedTemplate ? 'template' : 'manual',
       templateName: appliedTemplate?.name,
       skippedAddresses: [],
+      persisted: false,
     };
 
     setSourcePlanningState((currentState) => ({
@@ -451,10 +548,31 @@ export function SourceCanvasSection() {
     setInspectorSelection({ kind: 'rule', ruleId });
   };
 
-  const handleDeleteRule = (ruleId: string) => {
+  const handleDeleteRule = async (ruleId: string) => {
     const rule = rules.find((candidate) => candidate.id === ruleId);
+    if (!rule) {
+      return;
+    }
 
-    if (rule && selectedDevice) {
+    if (rule.persisted) {
+      await deleteSourceRuleMutation.mutateAsync(ruleId);
+      setSourcePlanningState((currentState) => ({
+        ...currentState,
+        rules: currentState.rules.filter((candidate) => candidate.id !== ruleId),
+        selectedRuleId:
+          currentState.selectedRuleId === ruleId ? null : currentState.selectedRuleId,
+        selectedAddress:
+          currentState.selectedRuleId === ruleId ? null : currentState.selectedAddress,
+      }));
+      if (selectedRuleId === ruleId) {
+        setFocusedRuleId(null);
+        setInspectorSelection({ kind: 'none' });
+      }
+      setBatchCreateSummary(null);
+      return;
+    }
+
+    if (selectedDevice) {
       const plannedAddresses = new Set(
         buildPlannedPointAddresses({
           startAddress: rule.startAddress,
@@ -529,10 +647,24 @@ export function SourceCanvasSection() {
   };
 
   const handleToggleRuleEnabled = (ruleId: string) => {
+    const rule = rules.find((candidate) => candidate.id === ruleId);
+    if (!rule) {
+      return;
+    }
+
+    if (rule.persisted) {
+      if (rule.enabled) {
+        void disableSourceRuleMutation.mutateAsync(ruleId);
+      } else {
+        void enableSourceRuleMutation.mutateAsync(ruleId);
+      }
+      return;
+    }
+
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.map((rule) =>
-        rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule,
+      rules: currentState.rules.map((candidate) =>
+        candidate.id === ruleId ? { ...candidate, enabled: !candidate.enabled } : candidate,
       ),
     }));
   };
@@ -621,11 +753,35 @@ export function SourceCanvasSection() {
       startAddress: rule.startAddress,
       count: rule.count,
       dataType: rule.dataType,
+      skippedAddresses: [...rule.skippedAddresses],
     });
   };
 
-  const handleSaveRuleEdit = (ruleId: string) => {
+  const handleSaveRuleEdit = async (ruleId: string) => {
     if (!editDraft) {
+      return;
+    }
+
+    const rule = rules.find((candidate) => candidate.id === ruleId);
+    if (!rule) {
+      return;
+    }
+
+    if (rule.persisted) {
+      await updateSourceRuleMutation.mutateAsync({
+        id: ruleId,
+        data: {
+          start_address: editDraft.startAddress.trim(),
+          count: editDraft.count,
+          data_type: editDraft.dataType,
+          skipped_addresses: editDraft.skippedAddresses,
+        },
+      });
+      setEditingRuleId(null);
+      setEditDraft(null);
+      setBatchCreateSummary(null);
+      setFocusedRuleId(ruleId);
+      setInspectorSelection({ kind: 'rule', ruleId });
       return;
     }
 
@@ -638,7 +794,7 @@ export function SourceCanvasSection() {
               startAddress: editDraft.startAddress.trim(),
               count: editDraft.count,
               dataType: editDraft.dataType,
-              skippedAddresses: [],
+              skippedAddresses: editDraft.skippedAddresses,
             }
           : rule,
       ),
@@ -745,23 +901,71 @@ export function SourceCanvasSection() {
   };
 
   const handleBatchCreate = async () => {
-    if (
-      !selectedDevice ||
-      safePointDefinitions.length === 0
-    ) {
+    if (!selectedDevice || safePointDefinitions.length === 0) {
+      return;
+    }
+
+    const safeAddressSet = new Set(safePointDefinitions.map((definition) => definition.address));
+    const eligibleRules = rules
+      .filter((rule) => !rule.persisted && rule.enabled)
+      .map((rule) => {
+        const ruleDefinitions = buildRulePointDefinitions({
+          rules: [rule],
+          protocol: selectedDevice.protocol,
+        });
+        const conflictingRoots = ruleDefinitions
+          .filter((definition) => !safeAddressSet.has(definition.address))
+          .map((definition) => definition.address);
+        const skippedAddresses = [...new Set([...(rule.skippedAddresses ?? []), ...conflictingRoots])];
+        const safeDefinitionCount = ruleDefinitions.length - conflictingRoots.length;
+
+        return {
+          rule,
+          skippedAddresses,
+          safeDefinitionCount,
+        };
+      })
+      .filter((candidate) => candidate.safeDefinitionCount > 0);
+
+    if (eligibleRules.length === 0) {
       return;
     }
 
     const results = await Promise.allSettled(
-      safePointDefinitions.map((definition) =>
-        createPointMutation.mutateAsync({
+      eligibleRules.map(({ rule, skippedAddresses }) =>
+        createSourceRuleMutation.mutateAsync({
+          id: rule.id,
           device_id: selectedDevice.id,
-          address: definition.address,
-          data_type: definition.dataType,
-          name: definition.name,
+          start_address: rule.startAddress,
+          count: rule.count,
+          data_type: rule.dataType,
+          naming_prefix: rule.namingPrefix,
+          enabled: rule.enabled,
+          locked: rule.locked,
+          origin: rule.origin,
+          template_name: rule.templateName,
+          skipped_addresses: skippedAddresses,
         }),
       ),
     );
+
+    const succeededRuleIds = eligibleRules
+      .filter((_, index) => results[index]?.status === 'fulfilled')
+      .map(({ rule }) => rule.id);
+
+    if (succeededRuleIds.length > 0) {
+      setSourcePlanningState((currentState) => ({
+        ...currentState,
+        rules: currentState.rules.filter(
+          (rule) => rule.persisted || !succeededRuleIds.includes(rule.id),
+        ),
+        selectedRuleId:
+          currentState.selectedRuleId && succeededRuleIds.includes(currentState.selectedRuleId)
+            ? null
+            : currentState.selectedRuleId,
+        selectedAddress: null,
+      }));
+    }
 
     setBatchCreateSummary({
       successCount: results.filter((result) => result.status === 'fulfilled').length,

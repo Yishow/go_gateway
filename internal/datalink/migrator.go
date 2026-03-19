@@ -59,6 +59,16 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", sqliteDatabaseTargetMigration, err)
 		}
+
+		const sqliteSourceRuleMigration = "005_source_rules_sqlite.up.sql"
+		content, err = migrations.FS.ReadFile(sqliteSourceRuleMigration)
+		if err != nil {
+			return fmt.Errorf("failed to read migration file %s: %w", sqliteSourceRuleMigration, err)
+		}
+		log.Printf("Executing SQLite migration: %s", sqliteSourceRuleMigration)
+		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", sqliteSourceRuleMigration, err)
+		}
 		return nil
 	}
 

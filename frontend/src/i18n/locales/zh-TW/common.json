@@ -658,6 +658,7 @@
         "cells": "{{count}} 格",
         "status": {
           "planned": "規劃中",
+          "unmanaged": "未納管",
           "used": "既有點位",
           "conflict": "衝突",
           "gap": "空白區"
@@ -667,7 +668,10 @@
         "empty": "目前還沒有規劃範圍或既有點位。",
         "plannedLabel": "規劃範圍",
         "plannedState": "規劃中",
+        "unmanagedLabel": "未納管點位",
+        "unmanagedState": "只有 point、尚無規則",
         "usedLabel": "既有點位",
+        "usedState": "規則已建立 point",
         "conflictLabel": "衝突",
         "conflictState": "位址重疊",
         "gapLabel": "空白區",
@@ -707,7 +711,8 @@
           "pointName": "Point",
           "bitWidth": "位元寬度",
           "rawValue": "原始值",
-          "linkState": "下游連結狀態"
+          "linkState": "下游連結狀態",
+          "unmanagedNotice": "這個位址已經有 point，但目前還沒有對應的持久化來源規則。"
         }
       },
       "selectionToolbar": {
@@ -1128,7 +1133,17 @@
         "recentTests": "最近三次連線測試",
         "emptyTitle": "先選擇一台設備",
         "emptyDescription": "選取左側設備卡後，這裡會顯示協定、連線摘要與下一步操作。若還沒有設備，也可以直接從這裡建立。",
-        "unknownTestTime": "測試時間尚未同步"
+        "unknownTestTime": "測試時間尚未同步",
+        "phases": {
+          "connect": "建立連線",
+          "probe": "協定探測"
+        },
+        "phaseStatus": {
+          "success": "成功",
+          "failed": "失敗",
+          "skipped": "略過"
+        },
+        "activationBlocked": "設備可以先儲存，但在 probe 成功前不可啟動規則或開始採集。"
       },
       "capability": {
         "labels": {

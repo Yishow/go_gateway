@@ -22,9 +22,11 @@ export type SourceRule = {
   origin: 'manual' | 'template';
   templateName?: string;
   skippedAddresses: string[];
+  persisted?: boolean;
+  updatedAt?: string;
 };
 
-export type AddressCanvasStatus = 'gap' | 'planned' | 'used' | 'conflict';
+export type AddressCanvasStatus = 'gap' | 'planned' | 'used' | 'unmanaged' | 'conflict';
 
 export type AddressLinkState = 'needsPoint' | 'unbound' | 'draft' | 'ready' | 'blocked';
 
@@ -181,7 +183,7 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
         pointMeta.mergeOffset === ruleMeta.mergeOffset;
       status = mergeMatch ? 'used' : 'conflict';
     } else if (pointMeta) {
-      status = 'used';
+      status = 'unmanaged';
     } else if (ruleMeta) {
       status = 'planned';
     }

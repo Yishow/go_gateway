@@ -43,16 +43,24 @@
   - planning files / session plan 已同步
 
 ## 當前待辦任務
-1. 規劃後續 rollout
-   - 是否把 `/datalink/workbench` 升格成 datalink 主入口。
-   - 何時處理 embedded static / build 交付。
-2. 規劃是否還需要下一輪純 UX polish
-   - 以實機驗收為準，不再先預設新一輪大改。
+1. 已完成 OpenSpec umbrella change：
+   - `rework-datalink-rule-persistence-and-point-tag-flow`
+2. OpenSpec implementation 已完成第一個可驗證 slice：
+   - `1.1 ~ 1.3` persisted SourceRule lifecycle
+   - `2.1 ~ 2.2` Step 1 connect / probe diagnostics
+   - `3.1 ~ 3.3` Step 2 persisted rule + unmanaged/live state
+3. 當前主線待辦：
+   - `4.1` auto-create / sync Tag + Mapping，strict `1 Point : 1 Tag`
+   - `4.2` Step 3 改成 review / verification + exception handling
+   - `5.1 ~ 5.3` Output / Database authoritative state model
+4. rollout / embedded static / 主入口切換先暫緩
+   - 目前主焦點已轉為規則持久化、Point/Tag 模型與 step 行為語意
 
 ## 目前最重要的續作順序
-1. 視實機驗收結果決定 rollout / 入口切換
-2. 若要交付桌面版 build，再處理 embedded static
-3. 若使用者仍有局部操作阻力，再開新一輪小範圍 polish
+1. 完成 `4.1`，讓 rule-derived Point / Tag / Mapping 自動串接
+2. 完成 `4.2`，把 Step 3 從手動綁定改成 review-first surface
+3. 再進 `5.x` output / database state model
+4. 完成 OpenSpec regression / docs 後，再回頭決定 rollout / 入口切換 / embedded static
 
 ## 精簡里程碑歸檔
 
