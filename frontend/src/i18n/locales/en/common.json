@@ -1103,7 +1103,9 @@
         "clone": "Clone from selected",
         "continue": "Use this device for source planning",
         "testConnection": "Test connection",
+        "testDraftConnection": "Test current draft settings",
         "testing": "Testing…",
+        "testingDraft": "Testing draft…",
         "edit": "Edit device",
         "save": "Save device",
         "saving": "Saving…"
@@ -1145,7 +1147,8 @@
           "failed": "Failed",
           "skipped": "Skipped"
         },
-        "activationBlocked": "The device can be saved, but rules and collection stay blocked until the probe passes."
+        "activationBlocked": "The device can be saved, but rules and collection stay blocked until the probe passes.",
+        "backendHostHint": "This test runs from the backend host and uses the saved device settings. If the backend is on a different machine than the browser, the TCP route can differ too."
       },
       "capability": {
         "labels": {
@@ -1184,6 +1187,7 @@
         "eyebrow": "Connection setup",
         "title": "Connection parameters",
         "description": "The fields switch by protocol, but the layout stays inside one consistent workbench panel instead of multiple modals.",
+        "backendHostHint": "You can test the current draft settings here without saving first. The dial still starts from the backend host, so judge reachability from the backend-to-device network path.",
         "host": "Host",
         "port": "Port",
         "slaveId": "Slave ID",
@@ -1244,6 +1248,8 @@
         "createSuccess": "Device created",
         "updateSuccess": "Device updated",
         "saveFailed": "Failed to save device",
+        "draftTestSuccess": "Draft connection test passed",
+        "draftTestFailed": "Draft connection test failed",
         "testSuccess": "Connection test passed",
         "testFailed": "Connection test failed"
       }

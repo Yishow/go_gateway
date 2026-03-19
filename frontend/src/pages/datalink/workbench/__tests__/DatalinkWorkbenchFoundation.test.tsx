@@ -7,6 +7,7 @@ import App from '../../../../App';
 const {
   mockDevices,
   mockCreateDeviceMutation,
+  mockTestDraftConnectionMutation,
   mockUpdateDeviceMutation,
   mockTestConnectionMutation,
 } = vi.hoisted(() => ({
@@ -24,6 +25,10 @@ const {
     updated_at: string;
   }>,
   mockCreateDeviceMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockTestDraftConnectionMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
   },
@@ -93,6 +98,7 @@ vi.mock('@/hooks/datalink/useDevices', () => ({
     isLoading: false,
   }),
   useCreateDeviceMutation: () => mockCreateDeviceMutation,
+  useTestDraftConnectionMutation: () => mockTestDraftConnectionMutation,
   useUpdateDeviceMutation: () => mockUpdateDeviceMutation,
   useTestConnectionMutation: () => mockTestConnectionMutation,
 }));
@@ -188,6 +194,8 @@ describe('DatalinkWorkbench foundation route', () => {
       created_at: '',
       updated_at: '',
     });
+    mockTestDraftConnectionMutation.mutateAsync.mockReset();
+    mockTestDraftConnectionMutation.isPending = false;
     mockUpdateDeviceMutation.mutateAsync.mockReset();
     mockUpdateDeviceMutation.mutateAsync.mockResolvedValue(undefined);
     mockTestConnectionMutation.mutateAsync.mockReset();
@@ -546,6 +554,58 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(
       screen.getByRole('heading', { name: 'workbench.device.panel.editTitle' }),
     ).toBeInTheDocument();
+  });
+
+  it('tests the current draft config from the inline editor and explains that the backend host runs the dial', async () => {
+    mockTestDraftConnectionMutation.mutateAsync.mockResolvedValueOnce({
+      success: true,
+      error: '',
+      latency_ms: 18,
+      can_activate: true,
+      can_collect: true,
+      connect: {
+        status: 'success',
+        message: 'connect ok',
+        latency_ms: 7,
+      },
+      probe: {
+        status: 'success',
+        message: 'probe ok',
+        latency_ms: 11,
+      },
+    });
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'workbench.device.actions.edit' }),
+    );
+
+    expect(
+      screen.getByText('workbench.device.connection.backendHostHint'),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('workbench.device.connection.host'), {
+      target: { value: '10.0.0.77' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'workbench.device.actions.testDraftConnection',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockTestDraftConnectionMutation.mutateAsync).toHaveBeenCalledWith({
+        protocol: 'modbus_tcp',
+        connection_config: {
+          host: '10.0.0.77',
+          port: 502,
+          slave_id: 1,
+          timeout: 5,
+        },
+      });
+    });
   });
 
   it('hides zero-value test timestamps in the inspector', () => {

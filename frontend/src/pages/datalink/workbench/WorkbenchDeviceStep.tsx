@@ -11,10 +11,13 @@ import { useTranslation } from 'react-i18next';
 import {
   useCreateDeviceMutation,
   useDevicesQuery,
+  useTestDraftConnectionMutation,
   useUpdateDeviceMutation,
 } from '../../../hooks/datalink/useDevices';
 import { deviceKeys } from '../../../hooks/datalink/keys';
 import type {
+  ConnectionTestResult,
+  ConnectionTestStageResult,
   Device,
   DeviceStatus,
   ProtocolType,
@@ -228,6 +231,28 @@ function getNoticeClasses(tone: DeviceNotice['tone']) {
   }
 }
 
+function getDraftStageStatusClasses(
+  status: ConnectionTestStageResult['status'] | undefined,
+) {
+  switch (status) {
+    case 'success':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200';
+    case 'failed':
+      return 'border-rose-500/40 bg-rose-500/10 text-rose-200';
+    case 'skipped':
+    default:
+      return 'border-slate-700 bg-slate-900/70 text-slate-300';
+  }
+}
+
+function getDraftStageMessage(stage: ConnectionTestStageResult | undefined) {
+  if (!stage) {
+    return '—';
+  }
+
+  return stage.error || stage.message || '—';
+}
+
 function getDeviceHealthLabel(t: (key: string) => string, device: Device) {
   if (device.last_test_success === true) {
     return t('workbench.device.card.testPassed');
@@ -274,15 +299,11 @@ function requireNumber(
   }
 }
 
-function validateDeviceDraft(
+function validateDeviceConnectionFields(
   draft: DeviceDraft,
   t: (key: string) => string,
 ): FieldErrorMap {
   const errors: FieldErrorMap = {};
-
-  if (draft.name.trim() === '') {
-    errors.name = t('workbench.device.validation.nameRequired');
-  }
 
   switch (draft.protocol) {
     case 'modbus_tcp':
@@ -381,6 +402,19 @@ function validateDeviceDraft(
   return errors;
 }
 
+function validateDeviceDraft(
+  draft: DeviceDraft,
+  t: (key: string) => string,
+): FieldErrorMap {
+  const errors = validateDeviceConnectionFields(draft, t);
+
+  if (draft.name.trim() === '') {
+    errors.name = t('workbench.device.validation.nameRequired');
+  }
+
+  return errors;
+}
+
 export function WorkbenchDeviceStep() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -396,12 +430,14 @@ export function WorkbenchDeviceStep() {
   } = useWorkbench();
   const { data: devices = [], isLoading } = useDevicesQuery();
   const createDeviceMutation = useCreateDeviceMutation();
+  const testDraftConnectionMutation = useTestDraftConnectionMutation();
   const updateDeviceMutation = useUpdateDeviceMutation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [protocolFilter, setProtocolFilter] = useState<'all' | ProtocolType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | DeviceStatus>('all');
   const [draft, setDraft] = useState<DeviceDraft>(() => createEmptyDeviceDraft());
+  const [draftTestResult, setDraftTestResult] = useState<ConnectionTestResult | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
   const [notice, setNotice] = useState<DeviceNotice | null>(null);
   const pendingSelectedDeviceIdRef = useRef<string | null>(null);
@@ -510,6 +546,10 @@ export function WorkbenchDeviceStep() {
     setFieldErrors({});
   }, [devicePanelState, devices]);
 
+  useEffect(() => {
+    setDraftTestResult(null);
+  }, [draft]);
+
   const isSaving =
     createDeviceMutation.isPending || updateDeviceMutation.isPending;
 
@@ -589,6 +629,7 @@ export function WorkbenchDeviceStep() {
   const closePanel = () => {
     closeDevicePanel();
     setFieldErrors({});
+    setDraftTestResult(null);
   };
 
   const handleRefreshDevices = async () => {
@@ -658,6 +699,41 @@ export function WorkbenchDeviceStep() {
           error instanceof Error
             ? error.message
             : t('workbench.device.messages.saveFailed'),
+      });
+    }
+  };
+
+  const handleTestDraftConnection = async () => {
+    if (testDraftConnectionMutation.isPending) {
+      return;
+    }
+
+    const nextErrors = validateDeviceConnectionFields(draft, t);
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    try {
+      const result = await testDraftConnectionMutation.mutateAsync({
+        protocol: draft.protocol,
+        connection_config: sanitizeDeviceConnectionConfig(draft.connectionConfig),
+      });
+      setDraftTestResult(result);
+      setNotice({
+        tone: result.success ? 'success' : 'error',
+        message: result.success
+          ? t('workbench.device.messages.draftTestSuccess')
+          : result.error || t('workbench.device.messages.draftTestFailed'),
+      });
+    } catch (error) {
+      setDraftTestResult(null);
+      setNotice({
+        tone: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : t('workbench.device.messages.draftTestFailed'),
       });
     }
   };
@@ -1139,13 +1215,86 @@ export function WorkbenchDeviceStep() {
                 <p className="text-sm text-slate-300">
                   {t('workbench.device.connection.description')}
                 </p>
+                <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/50 px-4 py-3 text-xs text-slate-300">
+                  {t('workbench.device.connection.backendHostHint')}
+                </div>
               </div>
 
               {renderConnectionFields()}
+
+              {draftTestResult ? (
+                <div
+                  className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4"
+                  data-testid="device-draft-test-result"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      {t('workbench.device.actions.testDraftConnection')}
+                    </p>
+                    <span
+                      className={joinClasses(
+                        'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                        getDraftStageStatusClasses(
+                          draftTestResult.success ? 'success' : 'failed',
+                        ),
+                      )}
+                    >
+                      {draftTestResult.success
+                        ? t('workbench.device.inspector.phaseStatus.success')
+                        : t('workbench.device.inspector.phaseStatus.failed')}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {([
+                      ['connect', draftTestResult.connect],
+                      ['probe', draftTestResult.probe],
+                    ] as const).map(([stageKey, stage]) => (
+                      <div
+                        className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3"
+                        key={stageKey}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            {t(`workbench.device.inspector.phases.${stageKey}`)}
+                          </span>
+                          <span
+                            className={joinClasses(
+                              'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                              getDraftStageStatusClasses(stage?.status),
+                            )}
+                          >
+                            {t(
+                              `workbench.device.inspector.phaseStatus.${stage?.status ?? 'skipped'}`,
+                            )}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-slate-200">
+                          {getDraftStageMessage(stage)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {draftTestResult.can_activate === false ? (
+                    <p className="text-xs font-medium text-amber-300">
+                      {t('workbench.device.inspector.activationBlocked')}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </section>
           </div>
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-slate-800 px-6 py-4">
+            <button
+              className={ghostButtonClassName}
+              disabled={testDraftConnectionMutation.isPending}
+              onClick={() => void handleTestDraftConnection()}
+              type="button"
+            >
+              {testDraftConnectionMutation.isPending
+                ? t('workbench.device.actions.testingDraft')
+                : t('workbench.device.actions.testDraftConnection')}
+            </button>
             <button
               className={ghostButtonClassName}
               onClick={closePanel}

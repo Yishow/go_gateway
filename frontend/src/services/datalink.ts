@@ -11,6 +11,7 @@ import type {
   CreateDeviceRequest,
   UpdateDeviceRequest,
   ConnectionTestResult,
+  TestDraftConnectionRequest,
   ProtocolInfo,
   Point,
   CreatePointRequest,
@@ -143,6 +144,17 @@ export const deviceAPI = {
   async testConnection(id: string): Promise<ConnectionTestResult> {
     const res = await api.post<APIResponse<ConnectionTestResult>>(
       `/devices/${id}/test`
+    );
+    return res.data.data!;
+  },
+
+  /** 測試尚未儲存的設備草稿 */
+  async testDraftConnection(
+    data: TestDraftConnectionRequest
+  ): Promise<ConnectionTestResult> {
+    const res = await api.post<APIResponse<ConnectionTestResult>>(
+      '/devices/test-draft',
+      data
     );
     return res.data.data!;
   },

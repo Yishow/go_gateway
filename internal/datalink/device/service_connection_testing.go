@@ -2,8 +2,12 @@ package device
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
+
+	"go-gateway/internal/datalink/connector"
+	"go-gateway/internal/datalink/schema"
 )
 
 // =============================================================================
@@ -71,6 +75,12 @@ type TestConnectionResult struct {
 	CanCollect  bool                      `json:"can_collect"`
 }
 
+// DraftTestConnectionRequest 代表尚未儲存的設備草稿連線測試請求。
+type DraftTestConnectionRequest struct {
+	Protocol         schema.ProtocolType    `json:"protocol"`
+	ConnectionConfig map[string]interface{} `json:"connection_config"`
+}
+
 // testConnectionTimeout 連線測試的整體逾時上限
 const testConnectionTimeout = 15 * time.Second
 
@@ -85,6 +95,38 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 		return nil, fmt.Errorf("取得設備失敗: %w", err)
 	}
 
+	return s.runConnectionTest(ctx, device, true, true)
+}
+
+// TestDraftConnectionWithResult 測試尚未儲存的設備草稿連線並返回詳細結果。
+func (s *Service) TestDraftConnectionWithResult(
+	ctx context.Context,
+	req DraftTestConnectionRequest,
+) (*TestConnectionResult, error) {
+	if err := validateConnectionConfig(req.Protocol, req.ConnectionConfig); err != nil {
+		return nil, fmt.Errorf("連線配置無效: %w", err)
+	}
+
+	configJSON, err := json.Marshal(req.ConnectionConfig)
+	if err != nil {
+		return nil, fmt.Errorf("序列化連線配置失敗: %w", err)
+	}
+
+	device := &schema.Device{
+		ID:               "__draft__",
+		Protocol:         req.Protocol,
+		ConnectionConfig: string(configJSON),
+	}
+
+	return s.runConnectionTest(ctx, device, false, false)
+}
+
+func (s *Service) runConnectionTest(
+	ctx context.Context,
+	device *schema.Device,
+	persistResult bool,
+	useConnectionManager bool,
+) (*TestConnectionResult, error) {
 	// 為整體連線測試流程設定逾時上限
 	testCtx, cancel := context.WithTimeout(ctx, testConnectionTimeout)
 	defer cancel()
@@ -101,7 +143,20 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 	}
 
 	connectStartedAt := time.Now()
-	conn, err := s.connMgr.GetOrCreate(testCtx, id, device.Protocol, device.ConnectionConfig)
+	var protocol connector.Protocol
+	var err error
+	if useConnectionManager {
+		if s.connMgr == nil {
+			return nil, fmt.Errorf("連線管理器未初始化，無法測試連線")
+		}
+		conn, connErr := s.connMgr.GetOrCreate(testCtx, device.ID, device.Protocol, device.ConnectionConfig)
+		err = connErr
+		if conn != nil {
+			protocol = conn.Protocol
+		}
+	} else {
+		protocol, err = connector.Get(testCtx, device.Protocol, device.ConnectionConfig)
+	}
 	result.Connect.LatencyMs = time.Since(connectStartedAt).Milliseconds()
 	if err != nil {
 		result.Success = false
@@ -109,18 +164,22 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 		result.LatencyMs = time.Since(start).Milliseconds()
 		result.Connect.Status = TestConnectionStageFailed
 		result.Connect.Error = err.Error()
-		if updateErr := s.repo.UpdateTestResult(ctx, id, false, result.Error); updateErr != nil {
-			return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+		if persistResult {
+			if updateErr := s.repo.UpdateTestResult(ctx, device.ID, false, result.Error); updateErr != nil {
+				return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+			}
 		}
 		return result, nil
 	}
-	_ = conn
+	if !useConnectionManager {
+		defer protocol.Close()
+	}
 
 	result.Connect.Status = TestConnectionStageSuccess
 	result.Connect.Message = "connect ok"
 
 	probeStartedAt := time.Now()
-	probeEnabled, probeErr := s.probeRead(testCtx, device)
+	probeEnabled, probeErr := probeReadWithProtocol(testCtx, protocol, device)
 	result.Probe.LatencyMs = time.Since(probeStartedAt).Milliseconds()
 	result.LatencyMs = time.Since(start).Milliseconds()
 
@@ -130,8 +189,10 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 		result.Error = fmt.Sprintf("讀取探測失敗: %s", probeErr.Error())
 		result.Probe.Status = TestConnectionStageFailed
 		result.Probe.Error = probeErr.Error()
-		if updateErr := s.repo.UpdateTestResult(ctx, id, false, result.Error); updateErr != nil {
-			return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+		if persistResult {
+			if updateErr := s.repo.UpdateTestResult(ctx, device.ID, false, result.Error); updateErr != nil {
+				return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+			}
 		}
 	case !probeEnabled:
 		result.Success = true
@@ -139,8 +200,10 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 		result.Probe.Message = "probe skipped"
 		result.CanActivate = true
 		result.CanCollect = true
-		if updateErr := s.repo.UpdateTestResult(ctx, id, true, ""); updateErr != nil {
-			return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+		if persistResult {
+			if updateErr := s.repo.UpdateTestResult(ctx, device.ID, true, ""); updateErr != nil {
+				return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+			}
 		}
 	default:
 		result.Success = true
@@ -148,8 +211,10 @@ func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*Tes
 		result.Probe.Message = "probe ok"
 		result.CanActivate = true
 		result.CanCollect = true
-		if updateErr := s.repo.UpdateTestResult(ctx, id, true, ""); updateErr != nil {
-			return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+		if persistResult {
+			if updateErr := s.repo.UpdateTestResult(ctx, device.ID, true, ""); updateErr != nil {
+				return result, fmt.Errorf("記錄測試結果失敗: %w", updateErr)
+			}
 		}
 	}
 

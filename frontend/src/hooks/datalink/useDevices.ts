@@ -10,6 +10,7 @@ import { deviceKeys, mappingKeys, pointKeys } from './keys';
 import type {
   Device,
   CreateDeviceRequest,
+  TestDraftConnectionRequest,
   UpdateDeviceRequest,
 } from '../../types/datalink';
 
@@ -127,6 +128,16 @@ export function useCheckReadinessMutation() {
 export function useTestConnectionMutation() {
   return useMutation({
     mutationFn: (id: string) => deviceAPI.testConnection(id),
+  });
+}
+
+/**
+ * Test Draft Connection
+ */
+export function useTestDraftConnectionMutation() {
+  return useMutation({
+    mutationFn: (data: TestDraftConnectionRequest) =>
+      deviceAPI.testDraftConnection(data),
   });
 }
 

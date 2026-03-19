@@ -79,6 +79,11 @@ export interface CreateDeviceRequest {
   connection_config: Record<string, unknown>;
 }
 
+export interface TestDraftConnectionRequest {
+  protocol: ProtocolType;
+  connection_config: Record<string, unknown>;
+}
+
 /** 更新設備請求 */
 export interface UpdateDeviceRequest {
   name?: string;

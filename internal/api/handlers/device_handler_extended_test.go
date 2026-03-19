@@ -392,6 +392,56 @@ func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t
 	assert.NotEmpty(t, data["probe"].(map[string]interface{})["error"])
 }
 
+func TestDeviceHandler_TestDraftConnection_AllowsUnsavedPayload(t *testing.T) {
+	bank := memory.NewMemoryBank(64)
+	require.NoError(t, bank.WriteWord(0, 123))
+
+	server := virtualmodbus.NewServer(bank)
+	require.NoError(t, server.Start(0))
+	defer server.Stop()
+
+	gin.SetMode(gin.TestMode)
+	r := gin.Default()
+
+	repo := device.NewMemoryRepository()
+	connMgr := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
+	svc := device.NewService(repo, connMgr)
+	h := NewDeviceHandler(svc)
+	r.POST("/datalink/devices/test-draft", h.TestDraftConnection)
+
+	reqBody := map[string]interface{}{
+		"protocol": "modbus_tcp",
+		"connection_config": map[string]interface{}{
+			"host":     "127.0.0.1",
+			"port":     server.Port(),
+			"slave_id": 1,
+			"timeout":  2,
+		},
+	}
+
+	body, err := json.Marshal(reqBody)
+	require.NoError(t, err)
+	req, err := http.NewRequest("POST", "/datalink/devices/test-draft", bytes.NewBuffer(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.True(t, response["success"].(bool))
+
+	data := response["data"].(map[string]interface{})
+	assert.True(t, data["success"].(bool))
+	assert.Equal(t, true, data["can_activate"])
+	assert.Equal(t, true, data["can_collect"])
+	require.Contains(t, data, "connect")
+	require.Contains(t, data, "probe")
+	assert.Equal(t, "success", data["connect"].(map[string]interface{})["status"])
+	assert.Equal(t, "success", data["probe"].(map[string]interface{})["status"])
+}
+
 /**
  * TestDeviceHandler_TestConnectionBatch_Empty 測試批量測試空陣列
  */

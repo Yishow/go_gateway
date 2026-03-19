@@ -15,6 +15,11 @@ type DeviceHandler struct {
 	svc *device.Service
 }
 
+type TestDraftConnectionRequest struct {
+	Protocol         schema.ProtocolType    `json:"protocol"`
+	ConnectionConfig map[string]interface{} `json:"connection_config"`
+}
+
 func NewDeviceHandler(svc *device.Service) *DeviceHandler {
 	return &DeviceHandler{svc: svc}
 }
@@ -111,6 +116,25 @@ func (h *DeviceHandler) TestConnection(c *gin.Context) {
 		}})
 		return
 	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+func (h *DeviceHandler) TestDraftConnection(c *gin.Context) {
+	var req TestDraftConnectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	result, err := h.svc.TestDraftConnectionWithResult(c.Request.Context(), device.DraftTestConnectionRequest{
+		Protocol:         req.Protocol,
+		ConnectionConfig: req.ConnectionConfig,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 

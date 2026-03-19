@@ -1103,7 +1103,9 @@
         "clone": "從已選設備複製",
         "continue": "使用這台設備進入來源規劃",
         "testConnection": "測試連線",
+        "testDraftConnection": "測試目前草稿設定",
         "testing": "測試中…",
+        "testingDraft": "測試草稿中…",
         "edit": "編輯設備",
         "save": "儲存設備",
         "saving": "儲存中…"
@@ -1145,7 +1147,8 @@
           "failed": "失敗",
           "skipped": "略過"
         },
-        "activationBlocked": "設備可以先儲存，但在 probe 成功前不可啟動規則或開始採集。"
+        "activationBlocked": "設備可以先儲存，但在 probe 成功前不可啟動規則或開始採集。",
+        "backendHostHint": "這裡的測試會從 backend 所在主機發起，使用的是已儲存設備設定。若 backend 與瀏覽器不在同一台機器，TCP 路徑也可能不同。"
       },
       "capability": {
         "labels": {
@@ -1184,6 +1187,7 @@
         "eyebrow": "通訊設定",
         "title": "連線參數",
         "description": "依協定切換欄位，但維持同一套 panel 佈局，避免設備設定又回到多層 modal。",
+        "backendHostHint": "這裡可直接測目前編輯中的草稿設定，不必先儲存；測試一樣是從 backend 所在主機發起，所以請以 backend 到目標設備的網路路徑為準。",
         "host": "主機位址",
         "port": "Port",
         "slaveId": "Slave ID",
@@ -1244,6 +1248,8 @@
         "createSuccess": "設備建立完成",
         "updateSuccess": "設備更新完成",
         "saveFailed": "設備儲存失敗",
+        "draftTestSuccess": "目前草稿設定的連線測試成功",
+        "draftTestFailed": "目前草稿設定的連線測試失敗",
         "testSuccess": "連線測試成功",
         "testFailed": "連線測試失敗"
       }

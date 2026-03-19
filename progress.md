@@ -150,7 +150,7 @@
 - 下一個主題：
   - `4.2` Step 3 改成 review / verification-first + exception handling
 
-## 2026-03-19 Step1 / Step2 bug trace（進行中）
+## 2026-03-19 Step1 / Step2 bug trace（已完成這輪收斂）
 - 已先定位兩個高機率根因：
   - Step 1 測試連線只會測已存檔 `selectedDevice`，不會測 inline editor 裡尚未儲存的 draft config
   - Step 2 起始位址目前硬編 `40001`，沒有依協議切換預設 address baseline
@@ -160,6 +160,18 @@
   - `ping 192.168.31.62` 成功
   - 直接 TCP connect `192.168.31.62:502` 在目前執行環境同樣失敗，錯誤為 `Errno 65 No route to host`
   - 代表當前 Step 1 顯示的 connect failure 至少在這組 IP/port 上與真實網路 reachability 一致，非單純 UI 假錯
+- Step 1 已完成這輪修正：
+  - 新增 `POST /datalink/devices/test-draft`，允許用 unsaved `protocol + connection_config` 做一次性 connect/probe 測試
+  - `WorkbenchDeviceStep` inline editor 新增 `測試目前草稿設定`
+  - editor 內會顯示 draft connect / probe 結果與 activation blocked 提示
+  - inspector / editor 都新增 backend-host hint，清楚說明測試是從 backend 主機發起
+- Step 1 驗證已通過：
+  - `go test ./internal/datalink/device ./internal/api/handlers ./internal/api -count=1`
+  - `go build ./cmd/test_ui`
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
 
 ## 2026-03-19 Step 2 Tag-first / baseline 修正
 - 已完成 Step 2 這輪落地與 reviewer 收斂：
@@ -180,9 +192,9 @@
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm run build`
   - focused code review second pass：`No significant issues found`
-- Step 1 目前尚未收尾；下一步需回頭判讀：
-  - UI / draft 測試行為
-  - backend host / LAN routing 差異
+- 下一個主題：
+  - 視使用者決定回到 `4.2` Step 3 review / verification-first
+  - 或繼續做下一輪實機回饋收斂
 
 ## 精簡歷史里程碑
 

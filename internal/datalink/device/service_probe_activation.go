@@ -53,6 +53,23 @@ func (s *Service) ProbeAndActivate(ctx context.Context, id string) error {
 }
 
 func (s *Service) probeRead(ctx context.Context, device *schema.Device) (bool, error) {
+	if s.connMgr == nil {
+		return false, fmt.Errorf("連線管理器未初始化")
+	}
+
+	conn, err := s.connMgr.GetOrCreate(ctx, device.ID, device.Protocol, device.ConnectionConfig)
+	if err != nil {
+		return true, err
+	}
+
+	return probeReadWithProtocol(ctx, conn.Protocol, device)
+}
+
+func probeReadWithProtocol(
+	ctx context.Context,
+	protocol connector.Protocol,
+	device *schema.Device,
+) (bool, error) {
 	target, err := buildReadProbeTarget(device)
 	if err != nil {
 		return false, err
@@ -60,16 +77,8 @@ func (s *Service) probeRead(ctx context.Context, device *schema.Device) (bool, e
 	if !target.enabled {
 		return false, nil
 	}
-	if s.connMgr == nil {
-		return true, fmt.Errorf("連線管理器未初始化")
-	}
 
-	conn, err := s.connMgr.GetOrCreate(ctx, device.ID, device.Protocol, device.ConnectionConfig)
-	if err != nil {
-		return true, fmt.Errorf("%s, connect 失敗: %w", target.details, err)
-	}
-
-	result, err := conn.Read(ctx, target.req)
+	result, err := protocol.Read(ctx, target.req)
 	if err != nil {
 		return true, fmt.Errorf("%s, read 失敗: %w", target.details, err)
 	}

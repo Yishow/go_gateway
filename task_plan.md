@@ -143,3 +143,22 @@
 - 下一步回到 Step 1：
   - 釐清 draft config test flow 是否要補 draft-aware diagnostics
   - 把 UI 行為問題與 backend host / network topology 問題分開處理
+
+### 2026-03-19：Step 1 draft-aware diagnostics / network-topology 提示完成
+- 已新增 draft-aware test flow：
+  - `POST /datalink/devices/test-draft`
+  - `WorkbenchDeviceStep` inline editor 可直接測目前草稿設定
+- 已把 saved vs draft 測試路徑分開：
+  - inspector `測試連線` 仍測已儲存設備
+  - editor `測試目前草稿設定` 直接測當前 draft payload
+- 已把 network-topology 語意做成 UI：
+  - inspector / editor 皆提示測試是從 backend host 發起
+  - 避免把 browser reachability 與 backend reachability 混為一談
+- 已完成驗證：
+  - `go test ./internal/datalink/device ./internal/api/handlers ./internal/api -count=1`
+  - `go build ./cmd/test_ui`
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- 這輪 Step 1 / Step 2 bugfix slice 可視為收斂完成；下一步交還使用者決定要先進 `4.2` 還是做下一輪實機回饋修正

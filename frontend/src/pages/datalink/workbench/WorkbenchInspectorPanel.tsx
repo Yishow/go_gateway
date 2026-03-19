@@ -341,6 +341,9 @@ function DeviceInspectorContent() {
       </section>
 
       <div className="mt-auto grid gap-2">
+        <p className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs text-slate-400">
+          {t('workbench.device.inspector.backendHostHint')}
+        </p>
         <button
           className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-slate-50"
           onClick={() => openEditDevicePanel(selectedDevice.id)}

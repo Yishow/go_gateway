@@ -85,6 +85,10 @@
   - 直接從目前執行環境用 Python `socket.connect(('192.168.31.62', 502))` 會得到 `OSError: [Errno 65] No route to host`，與 workbench 回報一致。
   - `127.0.0.1:502` / `localhost:502` 在目前機器上則是 `Connection refused`，表示此刻本機沒有服務在 502 上 listening。
   - 因此至少目前這個錯誤不是前端捏造；更像目標主機 / 防火牆 / port bind 問題，或使用者所測的「本機可連」不是同一個 IP/port 組合。
+- 2026-03-19 Step 1 診斷修正已落地：
+  - `WorkbenchDeviceStep` 新增 draft-aware 測試入口，inline editor 可直接呼叫 `/datalink/devices/test-draft` 測目前草稿設定，不必先 save。
+  - draft test 後端刻意不走 `ConnectionManager.GetOrCreate()` 快取，而是用一次性 `connector.Get()` + direct probe read，避免沿用舊的 saved-device 連線狀態。
+  - `WorkbenchInspectorPanel` 與 `WorkbenchDeviceStep` 都新增 backend-host hint，明確說明 TCP dial / probe 是從 backend 所在主機發起；saved test 與 draft test 的設定來源也因此被分開講清楚。
 - 2026-03-19 Step 2 實作決策已落地：
   - `startAddress` 不再只是 `SourceCanvasSection` 本地 state；每台設備的最後規劃起點會記在 `WorkbenchSourcePlanningState.plannerStartAddressByDeviceId`。
   - 切設備時，Step 2 會先恢復該設備上次的起點；若沒有記憶值，則透過 `getDefaultPlannerStartAddress(protocol)` fallback 到協議預設（目前 Modbus=`40001`、FATEK=`D0`、MC3E=`D0`）。
