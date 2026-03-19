@@ -22,8 +22,8 @@
 
 ## 5. Output and database state model
 
-- [ ] 5.1 Refactor Local Modbus output state so each target keeps isolated selection state and one authoritative bind/unbind model
-- [ ] 5.2 Rebuild Database output flow into explicit Connector / Schema / Mapping layers for SQLite and PostgreSQL
+- [x] 5.1 Refactor Local Modbus output state so each target keeps isolated selection state and one authoritative bind/unbind model
+- [x] 5.2 Rebuild Database output flow into explicit Connector / Schema / Mapping layers for SQLite and PostgreSQL
 - [ ] 5.3 Preserve direct binding feedback, conflict handling, and compatibility behavior across Output targets
 
 ## 6. Validation and migration

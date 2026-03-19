@@ -9,6 +9,7 @@ function WorkbenchProbe() {
     steps,
     inspectorSelection,
     activeOutputTarget,
+    outputSelectionState,
     crossStepContext,
     sourcePlanningState,
     setActiveStep,
@@ -16,9 +17,11 @@ function WorkbenchProbe() {
     setInspectorSelection,
     clearInspectorSelection,
     setActiveOutputTarget,
+    setSelectedOutputTagId,
     setFocusedRuleId,
     setFocusedTagIds,
     setSourcePlannerStartAddress,
+    clearOutputSelectionState,
     clearCrossStepContext,
   } = useWorkbench();
 
@@ -29,6 +32,8 @@ function WorkbenchProbe() {
       <p data-testid="steps">{steps.join(',')}</p>
       <p data-testid="inspector-kind">{inspectorSelection.kind}</p>
       <p data-testid="output-target">{activeOutputTarget}</p>
+      <p data-testid="output-tag-modbus">{outputSelectionState.modbus || 'none'}</p>
+      <p data-testid="output-tag-database">{outputSelectionState.database || 'none'}</p>
       <p data-testid="focused-rule-id">{crossStepContext.focusedRuleId ?? 'none'}</p>
       <p data-testid="focused-tag-ids">{crossStepContext.focusedTagIds.join(',') || 'none'}</p>
       <p data-testid="device-42-start-address">
@@ -77,6 +82,15 @@ function WorkbenchProbe() {
       </button>
       <button type="button" onClick={() => setActiveOutputTarget('database')}>
         switch-to-database
+      </button>
+      <button type="button" onClick={() => setSelectedOutputTagId('modbus', 'tag-modbus')}>
+        select-modbus-tag
+      </button>
+      <button type="button" onClick={() => setSelectedOutputTagId('database', 'tag-database')}>
+        select-database-tag
+      </button>
+      <button type="button" onClick={clearOutputSelectionState}>
+        clear-output-selection
       </button>
       <button type="button" onClick={() => setFocusedRuleId('rule-abc')}>
         focus-rule
@@ -227,6 +241,38 @@ describe('WorkbenchProvider', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'switch-to-database' }));
       expect(screen.getByTestId('output-target')).toHaveTextContent('database');
+    });
+
+    it('stores selected tag separately for each output target', () => {
+      render(
+        <WorkbenchProvider>
+          <WorkbenchProbe />
+        </WorkbenchProvider>,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'select-modbus-tag' }));
+      fireEvent.click(screen.getByRole('button', { name: 'select-database-tag' }));
+
+      expect(screen.getByTestId('output-tag-modbus')).toHaveTextContent('tag-modbus');
+      expect(screen.getByTestId('output-tag-database')).toHaveTextContent('tag-database');
+    });
+
+    it('clears output selections when the device changes', () => {
+      render(
+        <WorkbenchProvider>
+          <WorkbenchProbe />
+        </WorkbenchProvider>,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'select-modbus-tag' }));
+      fireEvent.click(screen.getByRole('button', { name: 'select-database-tag' }));
+      expect(screen.getByTestId('output-tag-modbus')).toHaveTextContent('tag-modbus');
+      expect(screen.getByTestId('output-tag-database')).toHaveTextContent('tag-database');
+
+      fireEvent.click(screen.getByRole('button', { name: 'select-device' }));
+
+      expect(screen.getByTestId('output-tag-modbus')).toHaveTextContent('none');
+      expect(screen.getByTestId('output-tag-database')).toHaveTextContent('none');
     });
   });
 

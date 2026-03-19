@@ -256,6 +256,26 @@
   - `cd frontend && npx tsc --noEmit`
   - `cd frontend && npm run build`
 
+## 2026-03-19 Step 4 / Database state isolation
+- 已完成 OpenSpec `5.1` / `5.2` 這輪收斂：
+  - `WorkbenchProvider` 新增 `outputSelectionState`，將 `modbus` / `database` 的 selected tag 分離為 per-target state
+  - `LocalModbusBoard` 不再持有本地 `selectedTagId`；Step 3 → Step 4 的 `focusedTagIds` 交接仍優先於舊 selection，但進入 Step 4 後各 target 仍可各自改選
+  - `DatabaseTargetBoard` 新增 explicit `DatabaseOutputScope`，把 `connector / table / column / writeMode / timestampColumn` 收斂成單一 scope
+  - connector 切換時會同步清掉舊的 table/column/timestamp scope，不再殘留 stale schema state
+  - write mode 與 timestamp column 現在會跟 scope 一起正規化，避免 `upsert` / `insert` 切換後殘留漂移狀態
+- 新增 / 更新測試：
+  - `WorkbenchProvider.test.tsx`：驗證 per-target output selected tag state 與切設備清空行為
+  - `DatalinkWorkbenchOutputStep.test.tsx`：新增空 register click-to-bind、connector switch clears stale table scope、write-mode/timestamp sync regressions
+- 驗證已通過：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-provider.test.tsx tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-runtime-phase.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- OpenSpec 狀態：
+  - `5.1` done
+  - `5.2` done
+  - 下一個主題：`4.2`、`5.3`、`6.2`、`6.3`
+
 ## 精簡歷史里程碑
 
 ### 2026-03-15

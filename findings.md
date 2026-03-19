@@ -126,6 +126,16 @@
   - 對已綁定 Tag 先顯示 `使用中` 並停用刪除，避免在 review flow 直接拆壞既有 mapping
 - batch unbind 這種多步 mutation 不能只依賴 React Query 單一 mutation 的 `isPending`；若沒有本地 in-flight guard，按鈕會在迴圈間短暫重新啟用，造成重入。
 
+## 2026-03-19 Step 4 / Database 新發現
+- Step 4 的 target-isolated state 不能只做「各 target 各自記住 selected tag」；若保留 Step 3 → Step 4 的 `focusedTagIds` 交接，handoff 必須高於既有 selection，否則回到 Step 4 時會看起來像焦點沒有接上。
+- 但 handoff 只該在 `focusedTagIds` 改變時覆寫 selection；一旦進到 Step 4 內部，`modbus` / `database` 仍必須能各自保留後續手動改選，否則會重新回到 cross-target drift。
+- `DatabaseTargetBoard` 原本真正的 drift 來源不是單一 bug，而是 `selectedConnectorId / tableKey / columnName / writeMode / timestampColumn` 五段 state 分散在多個 effect 裡互相修正，connector 切換時很容易短暫殘留上一個 schema 的 table/column。
+- 把 database output state 收斂成明確的 `DatabaseOutputScope`（connector / table / column / writeMode / timestamp）後，才比較容易保證：
+  - connector 切換時 downstream scope 一起 reset
+  - table 切換時 column / timestamp 會跟著重新正規化
+  - `upsert` / `insert` 切換不會留下失效的 timestamp column
+- 這次也證實：Database flow 若要做 `Connector / Schema / Mapping` 分層，最小安全做法不是先重做 UI，而是先把 scope model 顯性化，再讓 UI 反映該 scope。
+
 ## round 2 已確認有效的收斂方向
 - Step 1：editor 進中央區，不再用 modal。
 - Step 2：

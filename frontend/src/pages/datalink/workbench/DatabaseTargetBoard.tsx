@@ -10,6 +10,10 @@ import type {
   DatabaseTargetValidationResult,
   DatabaseWriteMode,
 } from '../../../types/datalink';
+import {
+  DATABASE_OUTPUT_SCOPE_INITIAL,
+  type DatabaseOutputScope,
+} from './databaseOutputModel';
 import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 
 type DatabaseTargetBoardProps = {
@@ -144,16 +148,20 @@ export function DatabaseTargetBoard({
   const [validation, setValidation] = useState<DatabaseTargetValidationResult | null>(
     null,
   );
-  const [selectedConnectorId, setSelectedConnectorId] = useState('');
+  const [scope, setScope] = useState<DatabaseOutputScope>(
+    DATABASE_OUTPUT_SCOPE_INITIAL,
+  );
   const [isConnectorEditorOpen, setIsConnectorEditorOpen] = useState(false);
   const [draft, setDraft] = useState<ConnectorDraft>(() => createEmptyDraft());
-  const [tableKey, setTableKey] = useState('');
-  const [columnName, setColumnName] = useState('');
-  const [writeMode, setWriteMode] = useState<DatabaseWriteMode>('insert');
-  const [timestampColumn, setTimestampColumn] = useState('');
   const [clearSavedPassword, setClearSavedPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [isBusy, setIsBusy] = useState(true);
+
+  const selectedConnectorId = scope.connectorId;
+  const tableKey = scope.tableKey;
+  const columnName = scope.columnName;
+  const writeMode = scope.writeMode;
+  const timestampColumn = scope.timestampColumn;
 
   const selectedConnector =
     connectors.find((connector) => connector.id === selectedConnectorId) ?? null;
@@ -189,11 +197,19 @@ export function DatabaseTargetBoard({
       ]);
       setConnectors(nextConnectors);
       setMappings(nextMappings);
-      setSelectedConnectorId((previous) => {
-        if (previous && nextConnectors.some((connector) => connector.id === previous)) {
+      setScope((previous) => {
+        const nextConnectorId =
+          previous.connectorId
+          && nextConnectors.some((connector) => connector.id === previous.connectorId)
+            ? previous.connectorId
+            : (nextConnectors[0]?.id ?? '');
+        if (nextConnectorId === previous.connectorId) {
           return previous;
         }
-        return nextConnectors[0]?.id ?? '';
+        return {
+          ...DATABASE_OUTPUT_SCOPE_INITIAL,
+          connectorId: nextConnectorId,
+        };
       });
       setMessage('');
     } catch (error) {
@@ -248,75 +264,98 @@ export function DatabaseTargetBoard({
   }, [clearSavedPassword, draft.kind]);
 
   useEffect(() => {
-    if (!selectedConnectorId) {
-      setTableKey('');
-      setColumnName('');
-      setWriteMode('insert');
-      setTimestampColumn('');
+    if (!selectedMapping) {
       return;
     }
 
-    if (selectedMapping) {
-      setTableKey(`${selectedMapping.table_schema}.${selectedMapping.table_name}`);
-      setColumnName(selectedMapping.column_name);
-      setWriteMode(selectedMapping.write_mode);
-      setTimestampColumn(selectedMapping.timestamp_column ?? '');
-      return;
-    }
+    const nextTableKey = `${selectedMapping.table_schema}.${selectedMapping.table_name}`;
+    const nextWriteMode = selectedMapping.write_mode;
+    const nextTimestampColumn =
+      nextWriteMode === 'upsert'
+        ? (selectedMapping.timestamp_column ?? '')
+        : '';
 
-    const firstTable = tables[0];
-    if (!firstTable) {
-      setTableKey('');
-      setColumnName('');
-      setWriteMode('insert');
-      setTimestampColumn('');
-      return;
-    }
-
-    const nextValueColumn = defaultValueColumn(firstTable.columns);
-    const nextTimestampColumn = defaultTimestampColumn(firstTable.columns);
-    setTableKey(buildTableKey(firstTable));
-    setColumnName(nextValueColumn?.name ?? '');
-    setWriteMode('insert');
-    setTimestampColumn(nextTimestampColumn?.name ?? '');
-  }, [selectedConnectorId, selectedMapping, tables]);
-
-  useEffect(() => {
-    if (!selectedTable) {
-      return;
-    }
-
-    if (columnName && selectedTable.columns.some((column) => column.name === columnName)) {
-      return;
-    }
-
-    const nextValueColumn = defaultValueColumn(selectedTable.columns);
-    setColumnName(nextValueColumn?.name ?? '');
-  }, [columnName, selectedTable]);
-
-  useEffect(() => {
-    if (writeMode !== 'upsert') {
-      if (timestampColumn !== '') {
-        setTimestampColumn('');
+    setScope((previous) => {
+      if (
+        previous.tableKey === nextTableKey
+        && previous.columnName === selectedMapping.column_name
+        && previous.writeMode === nextWriteMode
+        && previous.timestampColumn === nextTimestampColumn
+      ) {
+        return previous;
       }
-      return;
-    }
-    if (!selectedTable) {
-      return;
-    }
-    if (
-      timestampColumn &&
-      selectedTable.columns.some((column) => column.name === timestampColumn)
-    ) {
-      return;
-    }
+      return {
+        ...previous,
+        tableKey: nextTableKey,
+        columnName: selectedMapping.column_name,
+        writeMode: nextWriteMode,
+        timestampColumn: nextTimestampColumn,
+      };
+    });
+  }, [selectedMapping]);
 
-    const nextTimestampColumn = defaultTimestampColumn(selectedTable.columns);
-    setTimestampColumn(nextTimestampColumn?.name ?? '');
-  }, [selectedTable, timestampColumn, writeMode]);
+  useEffect(() => {
+    setScope((previous) => {
+      if (!selectedConnectorId) {
+        if (
+          previous.tableKey === ''
+          && previous.columnName === ''
+          && previous.writeMode === 'insert'
+          && previous.timestampColumn === ''
+        ) {
+          return previous;
+        }
+        return {
+          ...previous,
+          tableKey: '',
+          columnName: '',
+          writeMode: 'insert',
+          timestampColumn: '',
+        };
+      }
+
+      if (selectedMapping) {
+        return previous;
+      }
+
+      const nextTable =
+        tables.find((table) => buildTableKey(table) === previous.tableKey) ?? tables[0] ?? null;
+      const nextTableKey = nextTable ? buildTableKey(nextTable) : '';
+      const nextColumnName = nextTable
+        ? (previous.columnName
+            && nextTable.columns.some((column) => column.name === previous.columnName)
+            ? previous.columnName
+            : (defaultValueColumn(nextTable.columns)?.name ?? ''))
+        : '';
+      const nextTimestampColumn =
+        previous.writeMode === 'upsert'
+          ? (nextTable
+              ? (previous.timestampColumn
+                  && nextTable.columns.some((column) => column.name === previous.timestampColumn)
+                  ? previous.timestampColumn
+                  : (defaultTimestampColumn(nextTable.columns)?.name ?? ''))
+              : '')
+          : '';
+
+      if (
+        previous.tableKey === nextTableKey
+        && previous.columnName === nextColumnName
+        && previous.timestampColumn === nextTimestampColumn
+      ) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        tableKey: nextTableKey,
+        columnName: nextColumnName,
+        timestampColumn: nextTimestampColumn,
+      };
+    });
+  }, [columnName, selectedConnectorId, selectedMapping, tableKey, tables, timestampColumn, writeMode]);
 
   const handleNewConnector = useCallback(() => {
-    setSelectedConnectorId('');
+    setScope(DATABASE_OUTPUT_SCOPE_INITIAL);
     setIsConnectorEditorOpen(true);
     setDraft(createEmptyDraft());
     setClearSavedPassword(false);
@@ -362,7 +401,10 @@ export function DatabaseTargetBoard({
           })
         : await dbTargetAPI.createConnector(payload);
 
-      setSelectedConnectorId(connector.id);
+      setScope(() => ({
+        ...DATABASE_OUTPUT_SCOPE_INITIAL,
+        connectorId: connector.id,
+      }));
       await loadData();
       setMessage(
         t('workbench.output.database.results.connectorSaved', {
@@ -387,7 +429,10 @@ export function DatabaseTargetBoard({
     setIsBusy(true);
     try {
       const connector = await dbTargetAPI.testConnector(selectedConnectorId);
-      setSelectedConnectorId(connector.id);
+      setScope(() => ({
+        ...DATABASE_OUTPUT_SCOPE_INITIAL,
+        connectorId: connector.id,
+      }));
       await loadData();
       setMessage(
         t('workbench.output.database.results.connectorTested', {
@@ -617,12 +662,18 @@ export function DatabaseTargetBoard({
                   return (
                      <button
                        key={connector.id}
-                       type="button"
-                       aria-pressed={active}
-                       onClick={() => {
-                         setSelectedConnectorId(connector.id);
-                         setIsConnectorEditorOpen(true);
-                       }}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          setScope((previous) =>
+                            previous.connectorId === connector.id
+                              ? previous
+                              : {
+                                  ...DATABASE_OUTPUT_SCOPE_INITIAL,
+                                  connectorId: connector.id,
+                                });
+                          setIsConnectorEditorOpen(true);
+                        }}
                        className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left ${
                          active
                            ? 'border-violet-500/40 bg-violet-500/5'
@@ -870,13 +921,20 @@ export function DatabaseTargetBoard({
 
           <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 lg:grid-cols-2">
             <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.output.database.mapping.table')}</span>
-              <select
-                aria-label={t('workbench.output.database.mapping.table')}
-                value={tableKey}
-                onChange={(event) => setTableKey(event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-              >
+                <span>{t('workbench.output.database.mapping.table')}</span>
+                <select
+                  aria-label={t('workbench.output.database.mapping.table')}
+                  value={tableKey}
+                  onChange={(event) =>
+                    setScope((previous) => ({
+                      ...previous,
+                      tableKey: event.target.value,
+                      columnName: '',
+                      timestampColumn: '',
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                >
                 <option value="">{t('workbench.output.database.mapping.tablePlaceholder')}</option>
                 {tables.map((table) => (
                   <option key={buildTableKey(table)} value={buildTableKey(table)}>
@@ -888,14 +946,18 @@ export function DatabaseTargetBoard({
 
             <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
               <span>{t('workbench.output.database.mapping.writeMode')}</span>
-              <select
-                aria-label={t('workbench.output.database.mapping.writeMode')}
-                value={writeMode}
-                onChange={(event) =>
-                  setWriteMode(event.target.value as DatabaseWriteMode)
-                }
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-              >
+                <select
+                  aria-label={t('workbench.output.database.mapping.writeMode')}
+                  value={writeMode}
+                  onChange={(event) =>
+                    setScope((previous) => ({
+                      ...previous,
+                      writeMode: event.target.value as DatabaseWriteMode,
+                      timestampColumn: '',
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                >
                 <option value="insert">
                   {t('workbench.output.database.writeMode.insert')}
                 </option>
@@ -911,7 +973,12 @@ export function DatabaseTargetBoard({
                 <select
                   aria-label={t('workbench.output.database.mapping.timestampColumn')}
                   value={timestampColumn}
-                  onChange={(event) => setTimestampColumn(event.target.value)}
+                  onChange={(event) =>
+                    setScope((previous) => ({
+                      ...previous,
+                      timestampColumn: event.target.value,
+                    }))
+                  }
                   className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                 >
                   <option value="">

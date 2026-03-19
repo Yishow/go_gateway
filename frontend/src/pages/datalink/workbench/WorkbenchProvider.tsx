@@ -13,11 +13,13 @@ import {
   type DeviceTestHistoryEntry,
   INSPECTOR_SELECTION_NONE,
   WORKBENCH_CROSS_STEP_CONTEXT_INITIAL,
+  WORKBENCH_OUTPUT_SELECTION_INITIAL,
   WORKBENCH_SOURCE_PLANNING_INITIAL,
   WORKBENCH_STEPS,
   type InspectorSelection,
   type OutputTarget,
   type WorkbenchCrossStepContext,
+  type WorkbenchOutputSelectionState,
   type WorkbenchSourcePlanningState,
   type WorkbenchStep,
 } from './workbenchTypes';
@@ -40,6 +42,10 @@ type WorkbenchContextValue = {
   // Output target (Step 4)
   activeOutputTarget: OutputTarget;
   setActiveOutputTarget: (target: OutputTarget) => void;
+  outputSelectionState: WorkbenchOutputSelectionState;
+  setOutputSelectionState: Dispatch<SetStateAction<WorkbenchOutputSelectionState>>;
+  setSelectedOutputTagId: (target: OutputTarget, tagId: string) => void;
+  clearOutputSelectionState: () => void;
 
   // Cross-step traceability context — persists across step navigation (spec §8.1)
   crossStepContext: WorkbenchCrossStepContext;
@@ -75,6 +81,9 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     INSPECTOR_SELECTION_NONE,
   );
   const [activeOutputTarget, setActiveOutputTarget] = useState<OutputTarget>('modbus');
+  const [outputSelectionState, setOutputSelectionState] = useState<WorkbenchOutputSelectionState>(
+    WORKBENCH_OUTPUT_SELECTION_INITIAL,
+  );
   const [crossStepContext, setCrossStepContext] = useState<WorkbenchCrossStepContext>(
     WORKBENCH_CROSS_STEP_CONTEXT_INITIAL,
   );
@@ -96,6 +105,17 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
 
   const clearCrossStepContext = useCallback(() => {
     setCrossStepContext(WORKBENCH_CROSS_STEP_CONTEXT_INITIAL);
+  }, []);
+
+  const clearOutputSelectionState = useCallback(() => {
+    setOutputSelectionState(WORKBENCH_OUTPUT_SELECTION_INITIAL);
+  }, []);
+
+  const setSelectedOutputTagId = useCallback((target: OutputTarget, tagId: string) => {
+    setOutputSelectionState((currentState) => ({
+      ...currentState,
+      [target]: tagId,
+    }));
   }, []);
 
   const clearSourcePlanningState = useCallback(() => {
@@ -134,10 +154,11 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     (deviceId: string | null) => {
       setSelectedDeviceIdRaw(deviceId);
       clearCrossStepContext();
+      clearOutputSelectionState();
       clearSourcePlanningState();
       closeDevicePanel();
     },
-    [clearCrossStepContext, clearSourcePlanningState, closeDevicePanel],
+    [clearCrossStepContext, clearOutputSelectionState, clearSourcePlanningState, closeDevicePanel],
   );
 
   const setFocusedRuleId = useCallback((ruleId: string | null) => {
@@ -189,6 +210,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       clearInspectorSelection,
       activeOutputTarget,
       setActiveOutputTarget,
+      outputSelectionState,
+      setOutputSelectionState,
+      setSelectedOutputTagId,
+      clearOutputSelectionState,
       crossStepContext,
       setFocusedRuleId,
       setFocusedTagIds,
@@ -213,6 +238,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       inspectorSelection,
       clearInspectorSelection,
       activeOutputTarget,
+      outputSelectionState,
+      setOutputSelectionState,
+      setSelectedOutputTagId,
+      clearOutputSelectionState,
       crossStepContext,
       setFocusedRuleId,
       setFocusedTagIds,

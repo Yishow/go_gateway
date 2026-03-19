@@ -85,6 +85,13 @@ export function tagStatusToReadiness(
 
 export type OutputTarget = 'modbus' | 'database';
 
+export type WorkbenchOutputSelectionState = Readonly<Record<OutputTarget, string>>;
+
+export const WORKBENCH_OUTPUT_SELECTION_INITIAL: WorkbenchOutputSelectionState = {
+  modbus: '',
+  database: '',
+} as const;
+
 // ---------------------------------------------------------------------------
 // Inspector selection context  (spec §8.1)
 // ---------------------------------------------------------------------------

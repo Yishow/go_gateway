@@ -311,8 +311,12 @@ export function LocalModbusBoard() {
   tRef.current = t;
   const {
     activeOutputTarget,
+    clearOutputSelectionState,
     crossStepContext,
+    outputSelectionState,
     setInspectorSelection,
+    setOutputSelectionState,
+    setSelectedOutputTagId,
     selectedDeviceId,
     setActiveOutputTarget,
     setSelectedDeviceId,
@@ -327,7 +331,6 @@ export function LocalModbusBoard() {
   const [status, setStatus] = useState<ModbusShareStatus | null>(null);
   const [shareMappings, setShareMappings] = useState<ModbusShareMapping[]>([]);
   const [dbTargetMappings, setDBTargetMappings] = useState<DatabaseTargetMapping[]>([]);
-  const [selectedTagId, setSelectedTagId] = useState('');
   const [registerInput, setRegisterInput] = useState(String(modbusDisplayRegisterMin));
   const [serverPortInput, setServerPortInput] = useState('5020');
   const [message, setMessage] = useState('');
@@ -422,9 +425,14 @@ export function LocalModbusBoard() {
   }, [dbTargetMappings, mappings, pointById, points, shareMappings, tagById]);
 
   const candidateKey = candidates.map((candidate) => candidate.tagId).join('|');
+  const modbusSelectedTagId = outputSelectionState.modbus;
+  const databaseSelectedTagId = outputSelectionState.database;
+  const selectedTagId = outputSelectionState[activeOutputTarget];
   const selectedCandidate =
     candidates.find((candidate) => candidate.tagId === selectedTagId) ?? null;
-  const selectedCandidateRegister = selectedCandidate?.register ?? null;
+  const selectedModbusCandidate =
+    candidates.find((candidate) => candidate.tagId === modbusSelectedTagId) ?? null;
+  const selectedModbusCandidateRegister = selectedModbusCandidate?.register ?? null;
   const requestedDisplayRegister = Number(registerInput);
   const requestedRegister = Number.isInteger(requestedDisplayRegister) &&
     requestedDisplayRegister >= modbusDisplayRegisterMin &&
@@ -435,39 +443,63 @@ export function LocalModbusBoard() {
     () => shareMappings.reduce((max, mapping) => Math.max(max, mapping.register), 0),
     [shareMappings],
   );
-  const viewportAnchorRegister = requestedRegister ?? selectedCandidateRegister ?? highestMappedRegister;
+  const viewportAnchorRegister = requestedRegister ?? selectedModbusCandidateRegister ?? highestMappedRegister;
 
   const { focusedTagIds } = crossStepContext;
 
   useEffect(() => {
     if (candidates.length === 0) {
-      setSelectedTagId('');
+      clearOutputSelectionState();
       setRegisterInput(String(modbusDisplayRegisterMin));
       return;
     }
 
-    setSelectedTagId((previous) => {
-      if (candidates.some((candidate) => candidate.tagId === previous)) {
-        return previous;
-      }
-      const focused = focusedTagIds.find((id) =>
-        candidates.some((candidate) => candidate.tagId === id),
-      );
-      return focused ?? candidates[0].tagId;
+    const fallbackSelectedTagId = focusedTagIds.find((id) =>
+      candidates.some((candidate) => candidate.tagId === id),
+    ) ?? candidates[0].tagId;
+    const hasFocusedCandidate = focusedTagIds.some((id) =>
+      candidates.some((candidate) => candidate.tagId === id),
+    );
+
+    setOutputSelectionState((currentSelection) => {
+      let didChange = false;
+      const nextSelection = { ...currentSelection };
+
+      (['modbus', 'database'] as const).forEach((target) => {
+        if (hasFocusedCandidate) {
+          if (nextSelection[target] === fallbackSelectedTagId) {
+            return;
+          }
+          nextSelection[target] = fallbackSelectedTagId;
+          didChange = true;
+          return;
+        }
+
+        if (candidates.some((candidate) => candidate.tagId === currentSelection[target])) {
+          return;
+        }
+        if (nextSelection[target] === fallbackSelectedTagId) {
+          return;
+        }
+        nextSelection[target] = fallbackSelectedTagId;
+        didChange = true;
+      });
+
+      return didChange ? nextSelection : currentSelection;
     });
-  }, [candidateKey, candidates, focusedTagIds]);
+  }, [candidateKey, candidates, clearOutputSelectionState, focusedTagIds, setOutputSelectionState]);
 
   useEffect(() => {
-    if (!selectedTagId) {
+    if (!modbusSelectedTagId) {
       return;
     }
 
     setRegisterInput(
-      selectedCandidateRegister !== null
-        ? String(toModbusDisplayRegister(selectedCandidateRegister))
+      selectedModbusCandidateRegister !== null
+        ? String(toModbusDisplayRegister(selectedModbusCandidateRegister))
         : String(modbusDisplayRegisterMin),
     );
-  }, [selectedCandidateRegister, selectedTagId]);
+  }, [modbusSelectedTagId, selectedModbusCandidateRegister]);
 
   const conflicts = useMemo<MappingConflict[]>(() => {
     return Array.from(buildRegisterUsage(shareMappings).entries())
@@ -517,7 +549,7 @@ export function LocalModbusBoard() {
   }, [loadData, t]);
 
   const handleBind = useCallback(async () => {
-    if (!selectedCandidate) {
+    if (!selectedModbusCandidate) {
       setMessage(t('workbench.output.results.noTagSelected'));
       return;
     }
@@ -536,11 +568,11 @@ export function LocalModbusBoard() {
     setIsBusy(true);
 
     try {
-      await modbusShareAPI.upsertMapping(selectedCandidate.tagId, register);
+      await modbusShareAPI.upsertMapping(selectedModbusCandidate.tagId, register);
       await loadData();
       setMessage(
         t('workbench.output.results.mappingUpdated', {
-          key: selectedCandidate.tagKey,
+          key: selectedModbusCandidate.tagKey,
           register: toModbusDisplayRegister(register),
         }),
       );
@@ -551,10 +583,10 @@ export function LocalModbusBoard() {
     } finally {
       setIsBusy(false);
     }
-  }, [loadData, registerInput, selectedCandidate, t]);
+  }, [loadData, registerInput, selectedModbusCandidate, t]);
 
   const handleDelete = useCallback(async () => {
-    if (!selectedCandidate) {
+    if (!selectedModbusCandidate) {
       setMessage(t('workbench.output.results.noTagSelected'));
       return;
     }
@@ -562,11 +594,11 @@ export function LocalModbusBoard() {
     setIsBusy(true);
 
     try {
-      await modbusShareAPI.deleteMapping(selectedCandidate.tagId);
+      await modbusShareAPI.deleteMapping(selectedModbusCandidate.tagId);
       await loadData();
       setMessage(
         t('workbench.output.results.mappingDeleted', {
-          key: selectedCandidate.tagKey,
+          key: selectedModbusCandidate.tagKey,
         }),
       );
     } catch (error) {
@@ -576,7 +608,7 @@ export function LocalModbusBoard() {
     } finally {
       setIsBusy(false);
     }
-  }, [loadData, selectedCandidate, t]);
+  }, [loadData, selectedModbusCandidate, t]);
 
   const handleSlotClick = useCallback(async (slotIndex: number, occupant: OutputCandidate | null) => {
     if (occupant) {
@@ -600,19 +632,19 @@ export function LocalModbusBoard() {
       return;
     }
 
-    if (!selectedTagId) {
+    if (!modbusSelectedTagId) {
       setMessage(t('workbench.output.results.noTagSelected'));
       return;
     }
 
     setIsBusy(true);
     try {
-      await modbusShareAPI.upsertMapping(selectedTagId, slotIndex);
+      await modbusShareAPI.upsertMapping(modbusSelectedTagId, slotIndex);
       await loadData();
-      const boundTag = candidates.find((c) => c.tagId === selectedTagId);
+      const boundTag = candidates.find((c) => c.tagId === modbusSelectedTagId);
       setMessage(
         t('workbench.output.results.slotBound', {
-          key: boundTag?.tagKey ?? selectedTagId,
+          key: boundTag?.tagKey ?? modbusSelectedTagId,
           register: toModbusDisplayRegister(slotIndex),
         }),
       );
@@ -623,7 +655,7 @@ export function LocalModbusBoard() {
     } finally {
       setIsBusy(false);
     }
-  }, [candidates, loadData, selectedTagId, t]);
+  }, [candidates, loadData, modbusSelectedTagId, t]);
 
   const handleSync = useCallback(async () => {
     if (!canSync) {
@@ -651,12 +683,12 @@ export function LocalModbusBoard() {
   }, [canSync, loadData, t]);
 
   const handlePushValue = useCallback(async () => {
-    if (!selectedCandidate) {
+    if (!selectedModbusCandidate) {
       setMessage(t('workbench.output.results.noTagSelected'));
       return;
     }
 
-    if (selectedCandidate.lastValue === null || selectedCandidate.lastValue === undefined) {
+    if (selectedModbusCandidate.lastValue === null || selectedModbusCandidate.lastValue === undefined) {
       setMessage(t('workbench.output.results.noPointValue'));
       return;
     }
@@ -664,10 +696,13 @@ export function LocalModbusBoard() {
     setIsBusy(true);
 
     try {
-      await modbusShareAPI.writeTagValue(selectedCandidate.tagId, selectedCandidate.lastValue);
+      await modbusShareAPI.writeTagValue(
+        selectedModbusCandidate.tagId,
+        selectedModbusCandidate.lastValue,
+      );
       setMessage(
         t('workbench.output.results.valuePushed', {
-          key: selectedCandidate.tagKey,
+          key: selectedModbusCandidate.tagKey,
         }),
       );
     } catch (error) {
@@ -677,7 +712,7 @@ export function LocalModbusBoard() {
     } finally {
       setIsBusy(false);
     }
-  }, [selectedCandidate, t]);
+  }, [selectedModbusCandidate, t]);
 
   const handleAutoMap = useCallback(
     async (strategy: AutoMapStrategy) => {
@@ -827,7 +862,7 @@ export function LocalModbusBoard() {
                 data-testid={`output-candidate-${c.tagId}`}
                 aria-pressed={isActive}
                 onClick={() => {
-                  setSelectedTagId(c.tagId);
+                  setSelectedOutputTagId(activeOutputTarget, c.tagId);
                   setInspectorSelection({
                     kind: 'outputCandidate',
                     tagId: c.tagId,
@@ -963,7 +998,7 @@ export function LocalModbusBoard() {
                   {t('workbench.output.mapping.selectedTag')}
                 </p>
                 <p className="mt-2 text-sm font-semibold text-slate-50">
-                  {selectedCandidate?.tagKey ?? '—'}
+                  {selectedModbusCandidate?.tagKey ?? '—'}
                 </p>
               </div>
 
@@ -979,27 +1014,27 @@ export function LocalModbusBoard() {
 
               <div className="flex flex-wrap gap-2">
                 <button
-                  type="button"
-                  onClick={() => void handleBind()}
-                  disabled={isBusy || !selectedCandidate}
-                  className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
-                >
+                   type="button"
+                   onClick={() => void handleBind()}
+                   disabled={isBusy || !selectedModbusCandidate}
+                   className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+                 >
                   {t('workbench.output.actions.bind')}
                 </button>
                 <button
-                  type="button"
-                  onClick={() => void handleDelete()}
-                  disabled={isBusy || !selectedCandidate || selectedCandidate.register === null}
-                  className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
-                >
+                   type="button"
+                   onClick={() => void handleDelete()}
+                   disabled={isBusy || !selectedModbusCandidate || selectedModbusCandidate.register === null}
+                   className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
+                 >
                   {t('workbench.output.actions.delete')}
                 </button>
                 <button
-                  type="button"
-                  onClick={() => void handlePushValue()}
-                  disabled={isBusy || !selectedCandidate}
-                  className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
-                >
+                   type="button"
+                   onClick={() => void handlePushValue()}
+                   disabled={isBusy || !selectedModbusCandidate}
+                   className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
+                 >
                   {t('workbench.output.actions.pushValue')}
                 </button>
               </div>
@@ -1041,7 +1076,7 @@ export function LocalModbusBoard() {
       {activeOutputTarget === 'database' ? (
         <DatabaseTargetBoard
           candidates={candidates}
-          selectedTagId={selectedTagId}
+          selectedTagId={databaseSelectedTagId}
         />
       ) : null}
     </div>
