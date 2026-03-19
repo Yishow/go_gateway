@@ -16,6 +16,9 @@ import (
 
 // Create 建立新映射
 func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema.Mapping, error) {
+	if err := s.validateCardinality(ctx, req.PointID, req.TagID, ""); err != nil {
+		return nil, err
+	}
 	if err := ValidateTransformPipeline(req.TransformPipeline); err != nil {
 		return nil, fmt.Errorf("轉換管線無效: %w", err)
 	}
@@ -42,6 +45,9 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}
+	if req.Enabled != nil {
+		mapping.Enabled = *req.Enabled
+	}
 
 	if err := s.repo.Create(ctx, mapping); err != nil {
 		return nil, fmt.Errorf("建立映射失敗: %w", err)
@@ -54,6 +60,7 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 type CreateMappingRequest struct {
 	PointID           string                 `json:"point_id"`
 	TagID             string                 `json:"tag_id"`
+	Enabled           *bool                  `json:"enabled,omitempty"`
 	TransformPipeline []schema.TransformStep `json:"transform_pipeline"`
 	PreviewRawValue   interface{}            `json:"preview_raw_value,omitempty"`
 }
@@ -131,4 +138,30 @@ func (s *Service) List(ctx context.Context, filter ListFilter) ([]*schema.Mappin
 		return nil, fmt.Errorf("列出映射失敗: %w", err)
 	}
 	return mappings, nil
+}
+
+func (s *Service) validateCardinality(ctx context.Context, pointID, tagID, ignoreMappingID string) error {
+	pointMappings, err := s.repo.GetByPointID(ctx, pointID)
+	if err != nil {
+		return fmt.Errorf("檢查 point 既有映射失敗: %w", err)
+	}
+	for _, existing := range pointMappings {
+		if existing.ID == ignoreMappingID {
+			continue
+		}
+		return fmt.Errorf("point %s 已綁定其他 tag", pointID)
+	}
+
+	tagMappings, err := s.repo.GetByTagID(ctx, tagID)
+	if err != nil {
+		return fmt.Errorf("檢查 tag 既有映射失敗: %w", err)
+	}
+	for _, existing := range tagMappings {
+		if existing.ID == ignoreMappingID {
+			continue
+		}
+		return fmt.Errorf("tag %s 已綁定其他 point", tagID)
+	}
+
+	return nil
 }

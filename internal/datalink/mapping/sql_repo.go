@@ -82,7 +82,7 @@ func (r *SQLRepository) Update(ctx context.Context, mapping *schema.Mapping) err
 		return fmt.Errorf("取得更新影響列數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("映射不存在: %s", mapping.ID)
+		return fmt.Errorf("%w: %s", ErrMappingNotFound, mapping.ID)
 	}
 
 	return nil
@@ -102,7 +102,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("取得刪除影響列數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("映射不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrMappingNotFound, id)
 	}
 
 	return nil
@@ -209,7 +209,7 @@ func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("映射不存在")
+		return nil, fmt.Errorf("%w", ErrMappingNotFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("掃描映射失敗: %w", err)

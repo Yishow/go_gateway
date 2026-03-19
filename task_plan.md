@@ -50,7 +50,6 @@
    - `2.1 ~ 2.2` Step 1 connect / probe diagnostics
    - `3.1 ~ 3.3` Step 2 persisted rule + unmanaged/live state
 3. 當前主線待辦：
-   - `4.1` auto-create / sync Tag + Mapping，strict `1 Point : 1 Tag`
    - `4.2` Step 3 改成 review / verification + exception handling
    - `5.1 ~ 5.3` Output / Database authoritative state model
 4. rollout / embedded static / 主入口切換先暫緩
@@ -60,7 +59,7 @@
 1. 完成 `4.1`，讓 rule-derived Point / Tag / Mapping 自動串接
 2. 完成 `4.2`，把 Step 3 從手動綁定改成 review-first surface
 3. 再進 `5.x` output / database state model
-4. 完成 OpenSpec regression / docs 後，再回頭決定 rollout / 入口切換 / embedded static
+4. 完成 OpenSpec docs 後，再回頭決定 rollout / 入口切換 / embedded static
 
 ## 精簡里程碑歸檔
 
@@ -94,3 +93,10 @@
   - Step 3 要降低重複綁定感，且綁定後可取消。
   - Step 4 要拿掉大型候選區，改成直接點表面綁定，並加強資料庫頁面。
 - 目前已完成 Step 1 / Step 2 / Step 3 / Step 4 / regression。
+
+### 2026-03-19：OpenSpec 4.1 完成
+- `SourceRule` 現在會在 create / update / enable / disable / restart restoration 時自動建立或同步 rule-derived `Tag + Mapping`。
+- `mapping.Service.Create` 已改成 strict `1 Point : 1 Tag` gate，並支援建立 disabled mapping，供 disabled rule 預先持有關聯。
+- `source_rule_links.tag_id / mapping_id` 會回填，legacy rule link 也會在 `SyncDerivedPointState()` 啟動時補齊。
+- rule shrink / delete 會清除 auto-managed orphan tags；tag / mapping not-found 都已改成 sentinel error，避免 string matching drift。
+- `useSourceRules` 會在 source-rule mutations 後同步 invalidates `tagKeys` / `mappingKeys`，讓 Step 3/4 即時看到自動產生的關聯。

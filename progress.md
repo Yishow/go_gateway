@@ -129,6 +129,27 @@
   - `4.1` auto-create / sync Tag + Mapping（strict `1 Point : 1 Tag`）
   - `4.2` Step 3 review / verification flow
 
+## 2026-03-19 Rule-derived Tag/Mapping slice
+- 已完成 OpenSpec `4.1`，並同步補齊 `6.1` auto-generated tag mapping regression coverage：
+  - `SourceRule` create / update / enable / disable / restart restoration 都會自動建立或同步 rule-derived `Tag + Mapping`
+  - `source_rule_links.tag_id / mapping_id` 會持久化回填，舊 rule link 也會在 `SyncDerivedPointState()` 補齊
+  - `mapping.Service.Create` 現在會做 strict `1 Point : 1 Tag` cardinality gate，並支援 disabled mapping create
+  - auto-generated tag 會寫入 rule-managed labels，rule shrink / delete 後會清理 orphan tags，不再留下無主 tag
+  - `tag` / `mapping` not-found 都已改用 sentinel error，移除 fragile string matching
+  - `useSourceRules` 在 source-rule mutations 後會 invalidate `tagKeys` / `mappingKeys`
+- 本輪驗證已通過：
+  - `go test ./internal/datalink/tag ./internal/datalink/mapping ./internal/datalink/sourcerule ./internal/api/handlers -count=1`
+  - `go build ./cmd/test_ui`
+  - `cd frontend && npm run test -- --run tests/unit/hooks/useSourceRules.test.tsx src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx src/pages/datalink/workbench/__tests__/DatalinkWorkbenchTagStep.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - `git diff --check`
+- review 狀態：
+  - focused code review：`No significant issues found`
+- 下一個主題：
+  - `4.2` Step 3 改成 review / verification-first + exception handling
+
 ## 精簡歷史里程碑
 
 ### 2026-03-15

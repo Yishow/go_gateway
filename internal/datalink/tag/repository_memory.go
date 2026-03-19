@@ -76,7 +76,7 @@ func (r *MemoryRepository) Update(ctx context.Context, tag *schema.Tag) error {
 	defer r.mu.Unlock()
 
 	if _, exists := r.tags[tag.ID]; !exists {
-		return fmt.Errorf("標籤不存在: %s", tag.ID)
+		return fmt.Errorf("%w: %s", ErrTagNotFound, tag.ID)
 	}
 
 	tagCopy := *tag
@@ -91,7 +91,7 @@ func (r *MemoryRepository) Delete(ctx context.Context, id string) error {
 	defer r.mu.Unlock()
 
 	if _, exists := r.tags[id]; !exists {
-		return fmt.Errorf("標籤不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	}
 
 	delete(r.tags, id)
@@ -105,7 +105,7 @@ func (r *MemoryRepository) GetByID(ctx context.Context, id string) (*schema.Tag,
 
 	tag, exists := r.tags[id]
 	if !exists {
-		return nil, fmt.Errorf("標籤不存在: %s", id)
+		return nil, fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	}
 
 	tagCopy := *tag
@@ -125,7 +125,7 @@ func (r *MemoryRepository) GetByKey(ctx context.Context, key string) (*schema.Ta
 		}
 	}
 
-	return nil, fmt.Errorf("標籤不存在: %s", key)
+	return nil, fmt.Errorf("%w: %s", ErrTagNotFound, key)
 }
 
 // List 列出所有標籤
@@ -189,7 +189,7 @@ func (r *MemoryRepository) UpdateStatus(ctx context.Context, id string, status s
 
 	tag, exists := r.tags[id]
 	if !exists {
-		return fmt.Errorf("標籤不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	}
 
 	tag.Status = status

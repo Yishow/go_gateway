@@ -182,6 +182,7 @@ func main() {
 		log.Fatalf("建立 datalink runtime 失敗: %v", err)
 	}
 	sourceRuleSvc := sourcerule.NewService(sourceRuleRepo, devSvc, pointSvc, runtimeSvc)
+	sourceRuleSvc.SetTagMappingServices(tagSvc, mappingSvc)
 	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
 		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
 	}

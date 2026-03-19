@@ -201,6 +201,64 @@ func TestService_Create_ReturnsErrorWhenResolverMissing(t *testing.T) {
 	assert.ErrorIs(t, err, ErrTagResolverNotConfigured)
 }
 
+func TestService_Create_RejectsSecondMappingForSamePoint(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := newServiceWithDefaultTagResolver(repo)
+	ctx := context.Background()
+
+	_, err := svc.Create(ctx, CreateMappingRequest{
+		PointID:           "point-unique",
+		TagID:             "tag-unique-a",
+		TransformPipeline: []schema.TransformStep{},
+	})
+	require.NoError(t, err)
+
+	_, err = svc.Create(ctx, CreateMappingRequest{
+		PointID:           "point-unique",
+		TagID:             "tag-unique-b",
+		TransformPipeline: []schema.TransformStep{},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "point point-unique 已綁定其他 tag")
+}
+
+func TestService_Create_RejectsSecondMappingForSameTag(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := newServiceWithDefaultTagResolver(repo)
+	ctx := context.Background()
+
+	_, err := svc.Create(ctx, CreateMappingRequest{
+		PointID:           "point-unique-a",
+		TagID:             "tag-unique",
+		TransformPipeline: []schema.TransformStep{},
+	})
+	require.NoError(t, err)
+
+	_, err = svc.Create(ctx, CreateMappingRequest{
+		PointID:           "point-unique-b",
+		TagID:             "tag-unique",
+		TransformPipeline: []schema.TransformStep{},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag tag-unique 已綁定其他 point")
+}
+
+func TestService_Create_RespectsDisabledFlag(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := newServiceWithDefaultTagResolver(repo)
+	ctx := context.Background()
+
+	enabled := false
+	created, err := svc.Create(ctx, CreateMappingRequest{
+		PointID:           "point-disabled",
+		TagID:             "tag-disabled",
+		Enabled:           &enabled,
+		TransformPipeline: []schema.TransformStep{},
+	})
+	require.NoError(t, err)
+	assert.False(t, created.Enabled)
+}
+
 func TestService_UpdateEnable_ReturnsErrorWhenResolverMissing(t *testing.T) {
 	repo := NewMemoryRepository()
 	svc := NewService(repo)

@@ -43,7 +43,7 @@ func (r *MemoryRepository) Update(ctx context.Context, mapping *schema.Mapping) 
 	defer r.mu.Unlock()
 
 	if _, exists := r.mappings[mapping.ID]; !exists {
-		return fmt.Errorf("映射不存在: %s", mapping.ID)
+		return fmt.Errorf("%w: %s", ErrMappingNotFound, mapping.ID)
 	}
 
 	mappingCopy := *mapping
@@ -56,7 +56,7 @@ func (r *MemoryRepository) Delete(ctx context.Context, id string) error {
 	defer r.mu.Unlock()
 
 	if _, exists := r.mappings[id]; !exists {
-		return fmt.Errorf("映射不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrMappingNotFound, id)
 	}
 
 	delete(r.mappings, id)
@@ -69,7 +69,7 @@ func (r *MemoryRepository) GetByID(ctx context.Context, id string) (*schema.Mapp
 
 	mapping, exists := r.mappings[id]
 	if !exists {
-		return nil, fmt.Errorf("映射不存在: %s", id)
+		return nil, fmt.Errorf("%w: %s", ErrMappingNotFound, id)
 	}
 
 	mappingCopy := *mapping

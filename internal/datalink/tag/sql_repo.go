@@ -30,8 +30,8 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 // Create 建立標籤
 func (r *SQLRepository) Create(ctx context.Context, tag *schema.Tag) error {
 	query := `
-		INSERT INTO tags (id, key, key_lower, display_name, data_type, unit, description, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tags (id, key, key_lower, display_name, data_type, unit, description, status, labels, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -43,6 +43,7 @@ func (r *SQLRepository) Create(ctx context.Context, tag *schema.Tag) error {
 		tag.Unit,
 		tag.Description,
 		tag.Status,
+		tag.Labels,
 		tag.CreatedAt,
 		tag.UpdatedAt,
 	)
@@ -71,8 +72,8 @@ func (r *SQLRepository) BatchCreate(ctx context.Context, tags []*schema.Tag) err
 	}()
 
 	query := `
-		INSERT INTO tags (id, key, key_lower, display_name, data_type, unit, description, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tags (id, key, key_lower, display_name, data_type, unit, description, status, labels, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	stmt, err := tx.PrepareContext(ctx, query)
 	if err != nil {
@@ -90,6 +91,7 @@ func (r *SQLRepository) BatchCreate(ctx context.Context, tags []*schema.Tag) err
 			tag.Unit,
 			tag.Description,
 			tag.Status,
+			tag.Labels,
 			tag.CreatedAt,
 			tag.UpdatedAt,
 		)
@@ -110,7 +112,7 @@ func (r *SQLRepository) Update(ctx context.Context, tag *schema.Tag) error {
 	query := `
 		UPDATE tags 
 		SET display_name = ?, data_type = ?, unit = ?, description = ?, 
-		    status = ?, updated_at = ?
+		    status = ?, labels = ?, updated_at = ?
 		WHERE id = ?
 	`
 
@@ -120,6 +122,7 @@ func (r *SQLRepository) Update(ctx context.Context, tag *schema.Tag) error {
 		tag.Unit,
 		tag.Description,
 		tag.Status,
+		tag.Labels,
 		time.Now(),
 		tag.ID,
 	)
@@ -133,7 +136,7 @@ func (r *SQLRepository) Update(ctx context.Context, tag *schema.Tag) error {
 		return fmt.Errorf("取得更新影響列數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("標籤不存在: %s", tag.ID)
+		return fmt.Errorf("%w: %s", ErrTagNotFound, tag.ID)
 	}
 
 	return nil
@@ -153,7 +156,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("取得刪除影響列數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("標籤不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	}
 
 	return nil
@@ -162,7 +165,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 // GetByID 根據 ID 取得標籤
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Tag, error) {
 	query := `
-		SELECT id, key, display_name, data_type, unit, description, status, created_at, updated_at
+		SELECT id, key, display_name, data_type, unit, description, status, labels, created_at, updated_at
 		FROM tags WHERE id = ?
 	`
 
@@ -173,7 +176,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Tag, er
 // GetByKey 根據 Key 取得標籤
 func (r *SQLRepository) GetByKey(ctx context.Context, key string) (*schema.Tag, error) {
 	query := `
-		SELECT id, key, display_name, data_type, unit, description, status, created_at, updated_at
+		SELECT id, key, display_name, data_type, unit, description, status, labels, created_at, updated_at
 		FROM tags WHERE key_lower = ?
 	`
 
@@ -184,7 +187,7 @@ func (r *SQLRepository) GetByKey(ctx context.Context, key string) (*schema.Tag, 
 // List 列出標籤
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.Tag, error) {
 	query := `
-		SELECT id, key, display_name, data_type, unit, description, status, created_at, updated_at
+		SELECT id, key, display_name, data_type, unit, description, status, labels, created_at, updated_at
 		FROM tags
 		WHERE 1=1
 	`
@@ -243,7 +246,7 @@ func (r *SQLRepository) Count(ctx context.Context) (int64, error) {
 // scanTag 從單一行掃描標籤
 func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 	var tag schema.Tag
-	var displayName, unit, description sql.NullString
+	var displayName, unit, description, labels sql.NullString
 	var createdAt, updatedAt string
 
 	err := row.Scan(
@@ -254,12 +257,13 @@ func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 		&unit,
 		&description,
 		&tag.Status,
+		&labels,
 		&createdAt,
 		&updatedAt,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("標籤不存在")
+		return nil, fmt.Errorf("%w", ErrTagNotFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("掃描標籤失敗: %w", err)
@@ -273,6 +277,9 @@ func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 	}
 	if description.Valid {
 		tag.Description = description.String
+	}
+	if labels.Valid {
+		tag.Labels = labels.String
 	}
 
 	parsedCreatedAt, err := common.ParseTimeString(createdAt)
@@ -292,7 +299,7 @@ func (r *SQLRepository) scanTag(row *sql.Row) (*schema.Tag, error) {
 // scanTagFromRows 從多行結果掃描標籤
 func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 	var tag schema.Tag
-	var displayName, unit, description sql.NullString
+	var displayName, unit, description, labels sql.NullString
 	var createdAt, updatedAt string
 
 	err := rows.Scan(
@@ -303,6 +310,7 @@ func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 		&unit,
 		&description,
 		&tag.Status,
+		&labels,
 		&createdAt,
 		&updatedAt,
 	)
@@ -319,6 +327,9 @@ func (r *SQLRepository) scanTagFromRows(rows *sql.Rows) (*schema.Tag, error) {
 	}
 	if description.Valid {
 		tag.Description = description.String
+	}
+	if labels.Valid {
+		tag.Labels = labels.String
 	}
 
 	parsedCreatedAt, err := common.ParseTimeString(createdAt)
@@ -366,7 +377,7 @@ func (r *SQLRepository) UpdateStatus(ctx context.Context, id string, status sche
 		return fmt.Errorf("取得狀態更新影響列數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("標籤不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	}
 
 	return nil

@@ -66,6 +66,13 @@
   - `Create selected points` = manual / unmanaged exception path
 - runtime live values 與 restart restoration 只有在 Step 2 直接吃 persisted rule + derived point 狀態時，grid / inspector 才不會和 backend lifecycle drift。
 
+## 2026-03-19 4.1 新發現
+- `source_rule_links.tag_id / mapping_id` 不能只當預留欄位；一旦 rule-driven flow 改成自動建 Tag/Mapping，它們就必須成為 rule-derived relationship 的 authoritative anchor，不然 Step 3/4 仍會 drift。
+- strict `1 Point : 1 Tag` 不能只靠前端 candidate filtering；至少要在 `mapping.Service.Create` 做 service-level gate，不然 manual path 或 race condition 仍會灌出重複關聯。
+- rule delete / shrink 如果只靠 `points -> mappings ON DELETE CASCADE`，會留下 orphan tags；auto-generated tag 必須帶 rule-managed metadata，後續 cleanup 才能安全判斷哪些 tag 可以跟著移除。
+- `tag` / `mapping` 的 not-found 判斷若只靠錯誤字串比對，很容易在 rollback / cleanup path 漂移；這類 lifecycle-sensitive domain 最好直接用 sentinel error + `errors.Is`。
+- source-rule mutation 只 invalidate `points` 不夠；一旦 backend 自動建立 Tag/Mapping，前端 cache 也必須同步 invalidates `tags` / `mappings`，不然 Step 3 review surface 會短暫顯示舊狀態。
+
 ## round 2 已確認有效的收斂方向
 - Step 1：editor 進中央區，不再用 modal。
 - Step 2：

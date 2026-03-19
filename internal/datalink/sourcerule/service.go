@@ -3,6 +3,7 @@ package sourcerule
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,8 +11,10 @@ import (
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/tag"
 )
 
 type Repository interface {
@@ -39,6 +42,19 @@ type pointUpdatePlan struct {
 	name  string
 	point *schema.Point
 }
+
+type tagMappingSyncResult struct {
+	createdTagIDs       []string
+	createdMappingIDs   []string
+	updatedMappingState map[string]bool
+}
+
+const (
+	ruleManagedTagLabelSource  = "source"
+	ruleManagedTagLabelRuleID  = "source_rule_id"
+	ruleManagedTagLabelAddress = "source_rule_address"
+	ruleManagedTagLabelValue   = "source-rule"
+)
 
 type CreateRuleRequest struct {
 	ID               string          `json:"id,omitempty"`
@@ -69,6 +85,8 @@ type Service struct {
 	repo        Repository
 	deviceSvc   *device.Service
 	pointSvc    *point.Service
+	tagSvc      *tag.Service
+	mappingSvc  *mapping.Service
 	runtimeSync RuntimeSyncer
 }
 
@@ -79,6 +97,11 @@ func NewService(repo Repository, deviceSvc *device.Service, pointSvc *point.Serv
 		pointSvc:    pointSvc,
 		runtimeSync: runtimeSync,
 	}
+}
+
+func (s *Service) SetTagMappingServices(tagSvc *tag.Service, mappingSvc *mapping.Service) {
+	s.tagSvc = tagSvc
+	s.mappingSvc = mappingSvc
 }
 
 func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.SourceRule, error) {
@@ -179,8 +202,17 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		})
 	}
 
+	syncResult, err := s.syncRuleTagMappings(ctx, rule, links, rule.Enabled)
+	if err != nil {
+		s.rollbackTagMappingSync(ctx, syncResult)
+		s.rollbackCreatedPoints(ctx, createdPointIDs)
+		_ = s.repo.Delete(ctx, rule.ID)
+		return nil, fmt.Errorf("同步來源規則標籤映射失敗: %w", err)
+	}
+
 	if len(links) > 0 {
 		if err := s.repo.CreateLinks(ctx, links); err != nil {
+			s.rollbackTagMappingSync(ctx, syncResult)
 			s.rollbackCreatedPoints(ctx, createdPointIDs)
 			_ = s.repo.Delete(ctx, rule.ID)
 			return nil, fmt.Errorf("建立來源規則連結失敗: %w", err)
@@ -420,7 +452,17 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		}
 	}
 
+	syncResult, err := s.syncRuleTagMappings(ctx, &next, newLinks, effectiveEnabled)
+	if err != nil {
+		s.rollbackTagMappingSync(ctx, syncResult)
+		s.rollbackUpdatedPoints(ctx, appliedUpdatePlans)
+		s.rollbackRuleState(ctx, rule, links)
+		s.rollbackCreatedPoints(ctx, createdPointIDs)
+		return nil, fmt.Errorf("同步來源規則標籤映射失敗: %w", err)
+	}
+
 	if err := s.repo.DeleteLinks(ctx, next.ID); err != nil {
+		s.rollbackTagMappingSync(ctx, syncResult)
 		s.rollbackUpdatedPoints(ctx, appliedUpdatePlans)
 		s.rollbackRuleState(ctx, rule, links)
 		s.rollbackCreatedPoints(ctx, createdPointIDs)
@@ -428,6 +470,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 	if len(newLinks) > 0 {
 		if err := s.repo.CreateLinks(ctx, newLinks); err != nil {
+			s.rollbackTagMappingSync(ctx, syncResult)
 			s.rollbackUpdatedPoints(ctx, appliedUpdatePlans)
 			s.rollbackRuleState(ctx, rule, links)
 			s.rollbackCreatedPoints(ctx, createdPointIDs)
@@ -436,11 +479,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 
 	for _, link := range removedLinks {
-		if err := s.pointSvc.Delete(ctx, link.PointID); err != nil {
+		if err := s.cleanupRuleLinkResources(ctx, &next, link); err != nil {
 			return nil, fmt.Errorf("刪除已移除衍生點位失敗: %w", err)
-		}
-		if s.runtimeSync != nil {
-			s.runtimeSync.RemovePoint(link.PointID)
 		}
 	}
 
@@ -448,16 +488,17 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {
+	rule, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("取得來源規則失敗: %w", err)
+	}
 	links, err := s.repo.ListLinks(ctx, id)
 	if err != nil {
 		return fmt.Errorf("取得來源規則連結失敗: %w", err)
 	}
 	for _, link := range links {
-		if err := s.pointSvc.Delete(ctx, link.PointID); err != nil {
+		if err := s.cleanupRuleLinkResources(ctx, rule, link); err != nil {
 			return fmt.Errorf("刪除衍生點位失敗: %w", err)
-		}
-		if s.runtimeSync != nil {
-			s.runtimeSync.RemovePoint(link.PointID)
 		}
 	}
 	if err := s.repo.DeleteLinks(ctx, id); err != nil {
@@ -490,6 +531,20 @@ func (s *Service) SyncDerivedPointState(ctx context.Context) error {
 		}
 		enabled := rule.Enabled && deviceRecord.Status == schema.DeviceStatusActive
 		if err := s.syncRuleLinksEnabled(ctx, rule.ID, enabled); err != nil {
+			return err
+		}
+		currentLinks, linkErr := s.repo.ListLinks(ctx, rule.ID)
+		if linkErr != nil {
+			return fmt.Errorf("取得來源規則連結失敗: %w", linkErr)
+		}
+		nextLinks := cloneSourceRuleLinks(currentLinks)
+		syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, nextLinks, enabled)
+		if syncErr != nil {
+			s.rollbackTagMappingSync(ctx, syncResult)
+			return fmt.Errorf("同步來源規則標籤映射失敗: %w", syncErr)
+		}
+		if err := s.replaceRuleLinks(ctx, rule.ID, currentLinks, nextLinks); err != nil {
+			s.rollbackTagMappingSync(ctx, syncResult)
 			return err
 		}
 	}
@@ -548,11 +603,18 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 		return fmt.Errorf("取得來源規則失敗: %w", err)
 	}
 
+	deviceRecord, err := s.deviceSvc.GetByID(ctx, rule.DeviceID)
+	if err != nil {
+		return fmt.Errorf("取得設備失敗: %w", err)
+	}
+	previousRule := *rule
+	previousEffectiveEnabled := rule.Enabled && deviceRecord.Status == schema.DeviceStatusActive
+	previousLinks, err := s.repo.ListLinks(ctx, id)
+	if err != nil {
+		return fmt.Errorf("取得來源規則連結失敗: %w", err)
+	}
+
 	if enabled {
-		deviceRecord, getErr := s.deviceSvc.GetByID(ctx, rule.DeviceID)
-		if getErr != nil {
-			return fmt.Errorf("取得設備失敗: %w", getErr)
-		}
 		if deviceRecord.Status != schema.DeviceStatusActive {
 			return fmt.Errorf("設備尚未通過 probe readiness，不能啟用來源規則")
 		}
@@ -563,7 +625,229 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 	if err := s.repo.Update(ctx, rule); err != nil {
 		return fmt.Errorf("更新來源規則失敗: %w", err)
 	}
-	return s.syncRuleLinksEnabled(ctx, id, enabled)
+	if err := s.syncRuleLinksEnabled(ctx, id, enabled); err != nil {
+		_ = s.repo.Update(ctx, &previousRule)
+		return err
+	}
+
+	nextLinks := cloneSourceRuleLinks(previousLinks)
+	syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, nextLinks, enabled)
+	if syncErr != nil {
+		s.rollbackTagMappingSync(ctx, syncResult)
+		_ = s.syncRuleLinksEnabled(ctx, id, previousEffectiveEnabled)
+		_ = s.repo.Update(ctx, &previousRule)
+		return fmt.Errorf("同步來源規則標籤映射失敗: %w", syncErr)
+	}
+
+	if err := s.replaceRuleLinks(ctx, id, previousLinks, nextLinks); err != nil {
+		s.rollbackTagMappingSync(ctx, syncResult)
+		_ = s.syncRuleLinksEnabled(ctx, id, previousEffectiveEnabled)
+		_ = s.repo.Update(ctx, &previousRule)
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) replaceRuleLinks(ctx context.Context, ruleID string, previousLinks, nextLinks []*schema.SourceRuleLink) error {
+	if err := s.repo.DeleteLinks(ctx, ruleID); err != nil {
+		return fmt.Errorf("清除來源規則連結失敗: %w", err)
+	}
+	if len(nextLinks) == 0 {
+		return nil
+	}
+	if err := s.repo.CreateLinks(ctx, nextLinks); err != nil {
+		_ = s.repo.DeleteLinks(ctx, ruleID)
+		if len(previousLinks) > 0 {
+			_ = s.repo.CreateLinks(ctx, previousLinks)
+		}
+		return fmt.Errorf("重建來源規則連結失敗: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) syncRuleTagMappings(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool) (tagMappingSyncResult, error) {
+	result := tagMappingSyncResult{
+		updatedMappingState: make(map[string]bool),
+	}
+	if s.tagSvc == nil || s.mappingSvc == nil || len(links) == 0 {
+		return result, nil
+	}
+
+	for _, link := range links {
+		pointRecord, err := s.pointSvc.GetByID(ctx, link.PointID)
+		if err != nil {
+			return result, fmt.Errorf("取得衍生點位失敗: %w", err)
+		}
+		tagRecord, mappingRecord, err := s.ensureRuleTagMapping(ctx, rule, pointRecord, link, enabled, &result)
+		if err != nil {
+			return result, err
+		}
+		link.TagID = stringPtr(tagRecord.ID)
+		link.MappingID = stringPtr(mappingRecord.ID)
+		link.UpdatedAt = time.Now()
+	}
+
+	return result, nil
+}
+
+func (s *Service) ensureRuleTagMapping(
+	ctx context.Context,
+	rule *schema.SourceRule,
+	pointRecord *schema.Point,
+	link *schema.SourceRuleLink,
+	enabled bool,
+	result *tagMappingSyncResult,
+) (*schema.Tag, *schema.Mapping, error) {
+	pointID := pointRecord.ID
+	pointMappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{PointID: &pointID})
+	if err != nil {
+		return nil, nil, fmt.Errorf("查詢 point 既有映射失敗: %w", err)
+	}
+	if len(pointMappings) > 1 {
+		return nil, nil, fmt.Errorf("point %s 存在多條映射，無法同步來源規則", pointRecord.ID)
+	}
+	if len(pointMappings) == 1 {
+		tagRecord, getErr := s.tagSvc.GetByID(ctx, pointMappings[0].TagID)
+		if getErr != nil {
+			return nil, nil, fmt.Errorf("取得既有映射標籤失敗: %w", getErr)
+		}
+		mappingRecord, syncErr := s.ensureMappingEnabled(ctx, pointMappings[0], enabled, result)
+		if syncErr != nil {
+			return nil, nil, syncErr
+		}
+		return tagRecord, mappingRecord, nil
+	}
+
+	tagRecord, createdTag, err := s.resolveRuleTag(ctx, rule, pointRecord, link)
+	if err != nil {
+		return nil, nil, err
+	}
+	if createdTag {
+		result.createdTagIDs = append(result.createdTagIDs, tagRecord.ID)
+	}
+	if err := s.validateTagAvailability(ctx, tagRecord, pointRecord.ID); err != nil {
+		return nil, nil, err
+	}
+
+	tagID := tagRecord.ID
+	tagMappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{TagID: &tagID})
+	if err != nil {
+		return nil, nil, fmt.Errorf("查詢 tag 既有映射失敗: %w", err)
+	}
+	if len(tagMappings) > 1 {
+		return nil, nil, fmt.Errorf("tag %s 存在多條映射，無法同步來源規則", tagRecord.Key)
+	}
+	if len(tagMappings) == 1 {
+		if tagMappings[0].PointID != pointRecord.ID {
+			return nil, nil, fmt.Errorf("tag %s 已綁定其他 point", tagRecord.Key)
+		}
+		mappingRecord, syncErr := s.ensureMappingEnabled(ctx, tagMappings[0], enabled, result)
+		if syncErr != nil {
+			return nil, nil, syncErr
+		}
+		return tagRecord, mappingRecord, nil
+	}
+
+	mappingEnabled := enabled
+	mappingRecord, err := s.mappingSvc.Create(ctx, mapping.CreateMappingRequest{
+		PointID:           pointRecord.ID,
+		TagID:             tagRecord.ID,
+		Enabled:           &mappingEnabled,
+		TransformPipeline: []schema.TransformStep{},
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("建立來源規則映射失敗: %w", err)
+	}
+	result.createdMappingIDs = append(result.createdMappingIDs, mappingRecord.ID)
+	return tagRecord, mappingRecord, nil
+}
+
+func (s *Service) resolveRuleTag(ctx context.Context, rule *schema.SourceRule, pointRecord *schema.Point, link *schema.SourceRuleLink) (*schema.Tag, bool, error) {
+	if link.TagID != nil && strings.TrimSpace(*link.TagID) != "" {
+		tagRecord, err := s.tagSvc.GetByID(ctx, *link.TagID)
+		if err == nil {
+			if tagRecord.DataType != pointRecord.DataType {
+				return nil, false, fmt.Errorf("來源規則衍生標籤資料型別不一致: tag=%s point=%s", tagRecord.DataType, pointRecord.DataType)
+			}
+			return tagRecord, false, nil
+		}
+		if !errors.Is(err, tag.ErrTagNotFound) {
+			return nil, false, fmt.Errorf("取得來源規則既有標籤失敗: %w", err)
+		}
+	}
+
+	expectedKey := buildPointName(rule.NamingPrefix, link.Address)
+	tagRecord, err := s.tagSvc.GetByKey(ctx, expectedKey)
+	if err == nil {
+		if tagRecord.Status == schema.TagStatusRetired {
+			return nil, false, fmt.Errorf("自動產生的標籤鍵已被 retired tag 佔用: %s", expectedKey)
+		}
+		if tagRecord.DataType != pointRecord.DataType {
+			return nil, false, fmt.Errorf("自動產生的標籤鍵 %s 與既有標籤資料型別衝突", expectedKey)
+		}
+		return tagRecord, false, nil
+	}
+	if !errors.Is(err, tag.ErrTagNotFound) {
+		return nil, false, fmt.Errorf("查詢來源規則標籤失敗: %w", err)
+	}
+
+	created, err := s.tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         expectedKey,
+		DisplayName: pointRecord.Name,
+		DataType:    pointRecord.DataType,
+		Labels: map[string]string{
+			ruleManagedTagLabelSource:  ruleManagedTagLabelValue,
+			ruleManagedTagLabelRuleID:  rule.ID,
+			ruleManagedTagLabelAddress: normalizeAddressKey(link.Address),
+		},
+	})
+	if err != nil {
+		return nil, false, fmt.Errorf("建立來源規則標籤失敗: %w", err)
+	}
+	return created, true, nil
+}
+
+func (s *Service) validateTagAvailability(ctx context.Context, tagRecord *schema.Tag, pointID string) error {
+	if tagRecord == nil {
+		return fmt.Errorf("來源規則標籤不存在")
+	}
+	tagID := tagRecord.ID
+	tagMappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{TagID: &tagID})
+	if err != nil {
+		return fmt.Errorf("查詢 tag 既有映射失敗: %w", err)
+	}
+	if len(tagMappings) > 1 {
+		return fmt.Errorf("tag %s 存在多條映射，無法同步來源規則", tagRecord.Key)
+	}
+	if len(tagMappings) == 1 && tagMappings[0].PointID != pointID {
+		return fmt.Errorf("tag %s 已綁定其他 point", tagRecord.Key)
+	}
+	return nil
+}
+
+func (s *Service) ensureMappingEnabled(
+	ctx context.Context,
+	mappingRecord *schema.Mapping,
+	enabled bool,
+	result *tagMappingSyncResult,
+) (*schema.Mapping, error) {
+	if mappingRecord.Enabled == enabled {
+		return mappingRecord, nil
+	}
+	if result.updatedMappingState == nil {
+		result.updatedMappingState = make(map[string]bool)
+	}
+	if _, exists := result.updatedMappingState[mappingRecord.ID]; !exists {
+		result.updatedMappingState[mappingRecord.ID] = mappingRecord.Enabled
+	}
+	updated, err := s.mappingSvc.Update(ctx, mappingRecord.ID, mapping.UpdateMappingRequest{
+		Enabled: &enabled,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("同步來源規則映射狀態失敗: %w", err)
+	}
+	return updated, nil
 }
 
 func validateCreateRequest(req CreateRuleRequest) error {
@@ -820,4 +1104,105 @@ func (s *Service) rollbackRuleState(ctx context.Context, rule *schema.SourceRule
 	if len(links) > 0 {
 		_ = s.repo.CreateLinks(ctx, links)
 	}
+}
+
+func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingSyncResult) {
+	if s.mappingSvc != nil {
+		for mappingID, enabled := range result.updatedMappingState {
+			_, _ = s.mappingSvc.Update(ctx, mappingID, mapping.UpdateMappingRequest{
+				Enabled: &enabled,
+			})
+		}
+		for _, mappingID := range result.createdMappingIDs {
+			_ = s.mappingSvc.Delete(ctx, mappingID)
+		}
+	}
+	if s.tagSvc != nil {
+		for _, tagID := range result.createdTagIDs {
+			_ = s.tagSvc.Delete(ctx, tagID)
+		}
+	}
+}
+
+func cloneSourceRuleLinks(links []*schema.SourceRuleLink) []*schema.SourceRuleLink {
+	if len(links) == 0 {
+		return nil
+	}
+	cloned := make([]*schema.SourceRuleLink, 0, len(links))
+	for _, link := range links {
+		if link == nil {
+			continue
+		}
+		copyLink := *link
+		if link.TagID != nil {
+			copyLink.TagID = stringPtr(*link.TagID)
+		}
+		if link.MappingID != nil {
+			copyLink.MappingID = stringPtr(*link.MappingID)
+		}
+		cloned = append(cloned, &copyLink)
+	}
+	return cloned
+}
+
+func stringPtr(value string) *string {
+	copyValue := value
+	return &copyValue
+}
+
+func (s *Service) cleanupRuleLinkResources(ctx context.Context, rule *schema.SourceRule, link *schema.SourceRuleLink) error {
+	if s.mappingSvc != nil && link.MappingID != nil {
+		if err := s.mappingSvc.Delete(ctx, *link.MappingID); err != nil && !errors.Is(err, mapping.ErrMappingNotFound) {
+			return fmt.Errorf("刪除來源規則映射失敗: %w", err)
+		}
+	}
+	if err := s.pointSvc.Delete(ctx, link.PointID); err != nil {
+		return err
+	}
+	if s.runtimeSync != nil {
+		s.runtimeSync.RemovePoint(link.PointID)
+	}
+	if s.tagSvc == nil || s.mappingSvc == nil || link.TagID == nil {
+		return nil
+	}
+	return s.deleteRuleManagedTagIfOrphan(ctx, rule, link)
+}
+
+func (s *Service) deleteRuleManagedTagIfOrphan(ctx context.Context, rule *schema.SourceRule, link *schema.SourceRuleLink) error {
+	tagRecord, err := s.tagSvc.GetByID(ctx, *link.TagID)
+	if errors.Is(err, tag.ErrTagNotFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("取得來源規則標籤失敗: %w", err)
+	}
+	if !isRuleManagedTag(tagRecord, rule.ID, link.Address) {
+		return nil
+	}
+
+	tagID := tagRecord.ID
+	mappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{TagID: &tagID})
+	if err != nil {
+		return fmt.Errorf("查詢來源規則標籤映射失敗: %w", err)
+	}
+	if len(mappings) > 0 {
+		return nil
+	}
+	if err := s.tagSvc.Delete(ctx, tagID); err != nil && !errors.Is(err, tag.ErrTagNotFound) {
+		return fmt.Errorf("刪除來源規則標籤失敗: %w", err)
+	}
+	return nil
+}
+
+func isRuleManagedTag(tagRecord *schema.Tag, ruleID, address string) bool {
+	if tagRecord == nil || strings.TrimSpace(tagRecord.Labels) == "" {
+		return false
+	}
+	var labels map[string]string
+	if err := json.Unmarshal([]byte(tagRecord.Labels), &labels); err != nil {
+		return false
+	}
+	return labels[ruleManagedTagLabelSource] == ruleManagedTagLabelValue &&
+		labels[ruleManagedTagLabelRuleID] == ruleID &&
+		labels[ruleManagedTagLabelAddress] == normalizeAddressKey(address)
 }

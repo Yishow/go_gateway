@@ -17,7 +17,7 @@
 
 ## 4. Step 3 Point/Tag review flow
 
-- [ ] 4.1 Auto-create or synchronize rule-derived Tag and Mapping records with strict `1 Point : 1 Tag` enforcement
+- [x] 4.1 Auto-create or synchronize rule-derived Tag and Mapping records with strict `1 Point : 1 Tag` enforcement
 - [ ] 4.2 Convert Step 3 from manual first-pass binding into review/verification plus exception handling
 
 ## 5. Output and database state model
@@ -28,6 +28,6 @@
 
 ## 6. Validation and migration
 
-- [ ] 6.1 Add regression coverage for connect/probe gating, rule persistence, restart restoration, and auto-generated tag mappings
+- [x] 6.1 Add regression coverage for connect/probe gating, rule persistence, restart restoration, and auto-generated tag mappings
 - [ ] 6.2 Add migration and UX coverage for unmanaged legacy points, output-state drift, and layered database mapping flows
 - [ ] 6.3 Update operator-facing docs and OpenSpec-linked guidance for the new rule-driven workflow
