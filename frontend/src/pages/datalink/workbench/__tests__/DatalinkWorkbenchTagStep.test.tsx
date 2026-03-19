@@ -10,6 +10,7 @@ const {
   mockTags,
   mockMappings,
   mockCreateTagMutation,
+  mockDeleteTagMutation,
   mockCreateMappingMutation,
   mockDeleteMappingMutation,
   mockBatchCreate,
@@ -19,6 +20,10 @@ const {
   mockTags: [] as Tag[],
   mockMappings: [] as Mapping[],
   mockCreateTagMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockDeleteTagMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
   },
@@ -53,6 +58,10 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
     isPending: false,
   }),
   useTestConnectionMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useTestDraftConnectionMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
@@ -110,6 +119,7 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
     refetch: vi.fn().mockResolvedValue({ data: mockTags }),
   }),
   useCreateTagMutation: () => mockCreateTagMutation,
+  useDeleteTagMutation: () => mockDeleteTagMutation,
 }));
 
 vi.mock('../../../../services/datalink', () => ({
@@ -231,6 +241,7 @@ describe('DatalinkWorkbench tag step', () => {
       created_at: '',
       updated_at: '',
     }));
+    mockDeleteTagMutation.mutateAsync.mockResolvedValue(undefined);
     mockCreateMappingMutation.mutateAsync.mockResolvedValue({
       id: 'mapping-created',
       point_id: 'point-1',
@@ -435,6 +446,105 @@ describe('DatalinkWorkbench tag step', () => {
 
     expect(screen.queryByTestId('tag-candidate-point-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('tag-candidate-point-2')).toBeInTheDocument();
+  });
+
+  it('shows a tag master overview with linked and unused counts', () => {
+    mockTags.push(
+      {
+        id: 'tag-free',
+        key: 'FREE_TAG',
+        display_name: 'Free Tag',
+        description: '',
+        data_type: 'int16',
+        unit: '',
+        labels: null,
+        status: 'draft',
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'tag-bound',
+        key: 'BOUND_TAG',
+        display_name: 'Bound Tag',
+        description: '',
+        data_type: 'int16',
+        unit: '',
+        labels: null,
+        status: 'active',
+        created_at: '',
+        updated_at: '',
+      },
+    );
+    mockMappings.push({
+      id: 'mapping-bound-tag',
+      point_id: 'point-1',
+      tag_id: 'tag-bound',
+      enabled: true,
+      transform_pipeline: '',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('tag-master-surface')).toBeInTheDocument();
+    expect(screen.getByTestId('tag-master-total')).toHaveTextContent('2');
+    expect(screen.getByTestId('tag-master-linked')).toHaveTextContent('1');
+    expect(screen.getByTestId('tag-master-unused')).toHaveTextContent('1');
+    expect(screen.getByTestId('tag-master-delete-tag-bound')).toBeDisabled();
+    expect(screen.getByTestId('tag-master-delete-tag-free')).toBeEnabled();
+  });
+
+  it('creates and deletes standalone tags from the tag master surface', async () => {
+    mockTags.push({
+      id: 'tag-free',
+      key: 'FREE_TAG',
+      display_name: 'Free Tag',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'draft',
+      created_at: '',
+      updated_at: '',
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.tag.master.fields.key'), {
+      target: { value: 'MANUAL_TAG' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.tag.master.fields.displayName'), {
+      target: { value: 'Manual Tag' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.tag.master.fields.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.click(screen.getByTestId('tag-master-create'));
+
+    await waitFor(() => {
+      expect(mockCreateTagMutation.mutateAsync).toHaveBeenCalledWith({
+        key: 'MANUAL_TAG',
+        display_name: 'Manual Tag',
+        data_type: 'float32',
+      });
+    });
+
+    fireEvent.click(screen.getByTestId('tag-master-delete-tag-free'));
+
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockDeleteTagMutation.mutateAsync).toHaveBeenCalledWith('tag-free');
+    });
+
+    vi.restoreAllMocks();
   });
 
   it('supports binding selected points to an existing tag', async () => {
@@ -702,6 +812,78 @@ describe('DatalinkWorkbench tag step', () => {
 
     expect(window.confirm).toHaveBeenCalled();
     expect(mockDeleteMappingMutation.mutateAsync).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+
+  it('shows a batch unbind action for selected bound rows and removes every selected mapping', async () => {
+    mockTags.push(
+      {
+        id: 'tag-bound-1',
+        key: 'TAG_40001',
+        display_name: 'TAG 40001',
+        description: '',
+        data_type: 'int16',
+        unit: '',
+        labels: null,
+        status: 'active',
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'tag-bound-2',
+        key: 'TAG_40002',
+        display_name: 'TAG 40002',
+        description: '',
+        data_type: 'int16',
+        unit: '',
+        labels: null,
+        status: 'active',
+        created_at: '',
+        updated_at: '',
+      },
+    );
+    mockMappings.push(
+      {
+        id: 'mapping-bound-1',
+        point_id: 'point-1',
+        tag_id: 'tag-bound-1',
+        enabled: true,
+        transform_pipeline: '',
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'mapping-bound-2',
+        point_id: 'point-2',
+        tag_id: 'tag-bound-2',
+        enabled: true,
+        transform_pipeline: '',
+        created_at: '',
+        updated_at: '',
+      },
+    );
+    mockDeleteMappingMutation.mutateAsync.mockResolvedValue(undefined);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.click(screen.getByLabelText('Flow Sensor'));
+    fireEvent.click(screen.getByLabelText('Pressure Sensor'));
+
+    const batchUnbindButton = await screen.findByTestId('tag-batch-unbind');
+    expect(batchUnbindButton).toBeInTheDocument();
+
+    fireEvent.click(batchUnbindButton);
+
+    await waitFor(() => {
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockDeleteMappingMutation.mutateAsync).toHaveBeenCalledWith('mapping-bound-1');
+      expect(mockDeleteMappingMutation.mutateAsync).toHaveBeenCalledWith('mapping-bound-2');
+    });
 
     vi.restoreAllMocks();
   });

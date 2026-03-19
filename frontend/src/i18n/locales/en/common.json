@@ -796,6 +796,34 @@
         },
         "toggle": "Template settings"
       },
+      "master": {
+        "eyebrow": "Tag master",
+        "title": "Tag overview",
+        "description": "Review all current tags, create standby tags, and clean up unused tag records.",
+        "search": "Search tags",
+        "quickCreate": "Quick create",
+        "createAction": "Create tag",
+        "createSuccess": "Created tag: {{key}}",
+        "createFailed": "Failed to create tag",
+        "deleteAction": "Delete",
+        "deleteConfirm": "Delete tag {{key}}?",
+        "deleteSuccess": "Deleted tag: {{key}}",
+        "deleteFailed": "Failed to delete tag",
+        "displayNameFallback": "No display name",
+        "bindingCount": "{{count}} bindings",
+        "inUse": "In use",
+        "empty": "No tags match the current search.",
+        "metrics": {
+          "total": "Total",
+          "linked": "Linked",
+          "unused": "Unused"
+        },
+        "fields": {
+          "key": "Tag key",
+          "displayName": "Display name",
+          "dataType": "Data type"
+        }
+      },
       "metrics": {
         "selected": "Selected points",
         "ready": "Ready to bind",
@@ -815,7 +843,9 @@
         "clearSelection": "Clear",
         "bind": "Create tags and bind",
         "unbind": "Unbind",
-        "unbindConfirm": "Unbind this point?"
+        "unbindConfirm": "Unbind this point?",
+        "unbindSelected": "Batch unbind",
+        "unbindSelectedConfirm": "Unbind the {{count}} selected bindings?"
       },
       "diff": {
         "title": "Batch diff preview",
@@ -835,6 +865,7 @@
         "summary": "{{successCount}} succeeded, {{failureCount}} failed.",
         "created": "Created",
         "linked": "Linked",
+        "unbound": "Unbound",
         "failedLabel": "Failed",
         "skippedLabel": "Skipped",
         "tagFallback": "Failed to create tag",

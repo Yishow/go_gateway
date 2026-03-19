@@ -156,6 +156,7 @@ function buildTemplateCapabilitySnapshot(
 function mapPersistedRuleToPlannerRule(rule: SourceRuleRecord): SourceRule {
   return {
     id: rule.id,
+    deviceId: rule.device_id,
     startAddress: rule.start_address,
     count: rule.count,
     dataType: rule.data_type,
@@ -179,6 +180,7 @@ function areRulesEqual(left: ReadonlyArray<SourceRule>, right: ReadonlyArray<Sou
     const candidate = right[index];
     return (
       rule.id === candidate.id &&
+      rule.deviceId === candidate.deviceId &&
       rule.startAddress === candidate.startAddress &&
       rule.count === candidate.count &&
       rule.dataType === candidate.dataType &&
@@ -339,7 +341,15 @@ export function SourceCanvasSection() {
     id: string;
     name: string;
   } | null>(null);
-  const rules = sourcePlanningState.rules;
+  const currentDeviceRules = useMemo(
+    () => (
+      selectedDeviceId
+        ? sourcePlanningState.rules.filter((rule) => rule.deviceId === selectedDeviceId)
+        : []
+    ),
+    [selectedDeviceId, sourcePlanningState.rules],
+  );
+  const rules = currentDeviceRules;
   const selectedRuleId = sourcePlanningState.selectedRuleId;
   const selectedAddress = sourcePlanningState.selectedAddress;
   const rememberedStartAddress = selectedDeviceId
@@ -395,9 +405,11 @@ export function SourceCanvasSection() {
     }
 
     setSourcePlanningState((currentState) => {
-      const draftRules = currentState.rules.filter((rule) => !rule.persisted);
+      const deviceRules = currentState.rules.filter((rule) => rule.deviceId === selectedDeviceId);
+      const otherRules = currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId);
+      const draftRules = deviceRules.filter((rule) => !rule.persisted);
       const nextRules = [...persistedRules, ...draftRules];
-      if (areRulesEqual(currentState.rules, nextRules)) {
+      if (areRulesEqual(deviceRules, nextRules)) {
         return currentState;
       }
 
@@ -409,7 +421,7 @@ export function SourceCanvasSection() {
 
       return {
         ...currentState,
-        rules: nextRules,
+        rules: [...otherRules, ...nextRules],
         selectedRuleId: nextSelectedRuleId,
         selectedAddress: nextSelectedRuleId ? currentState.selectedAddress : null,
       };
@@ -544,6 +556,7 @@ export function SourceCanvasSection() {
     const ruleId = getNextRuleId(rules);
     const nextRule: SourceRule = {
       id: ruleId,
+      deviceId: selectedDevice.id,
       startAddress: startAddress.trim(),
       count,
       dataType,
@@ -558,7 +571,11 @@ export function SourceCanvasSection() {
 
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: [...currentState.rules, nextRule],
+      rules: [
+        ...currentState.rules.filter((rule) => rule.deviceId !== selectedDevice.id),
+        ...currentState.rules.filter((rule) => rule.deviceId === selectedDevice.id),
+        nextRule,
+      ],
       selectedRuleId: ruleId,
       selectedAddress: null,
     }));
@@ -577,7 +594,12 @@ export function SourceCanvasSection() {
       await deleteSourceRuleMutation.mutateAsync(ruleId);
       setSourcePlanningState((currentState) => ({
         ...currentState,
-        rules: currentState.rules.filter((candidate) => candidate.id !== ruleId),
+        rules: [
+          ...currentState.rules.filter((candidate) => candidate.deviceId !== selectedDeviceId),
+          ...currentState.rules.filter(
+            (candidate) => candidate.deviceId === selectedDeviceId && candidate.id !== ruleId,
+          ),
+        ],
         selectedRuleId:
           currentState.selectedRuleId === ruleId ? null : currentState.selectedRuleId,
         selectedAddress:
@@ -609,7 +631,12 @@ export function SourceCanvasSection() {
 
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.filter((r) => r.id !== ruleId),
+      rules: [
+        ...currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId),
+        ...currentState.rules.filter(
+          (candidate) => candidate.deviceId === selectedDeviceId && candidate.id !== ruleId,
+        ),
+      ],
       selectedRuleId:
         currentState.selectedRuleId === ruleId ? null : currentState.selectedRuleId,
       selectedAddress:
@@ -682,9 +709,14 @@ export function SourceCanvasSection() {
 
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.map((candidate) =>
-        candidate.id === ruleId ? { ...candidate, enabled: !candidate.enabled } : candidate,
-      ),
+      rules: [
+        ...currentState.rules.filter((candidate) => candidate.deviceId !== selectedDeviceId),
+        ...currentState.rules
+          .filter((candidate) => candidate.deviceId === selectedDeviceId)
+          .map((candidate) =>
+            candidate.id === ruleId ? { ...candidate, enabled: !candidate.enabled } : candidate,
+          ),
+      ],
     }));
   };
 
@@ -693,7 +725,11 @@ export function SourceCanvasSection() {
 
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.map((rule) => {
+      rules: [
+        ...currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId),
+        ...currentState.rules
+          .filter((rule) => rule.deviceId === selectedDeviceId)
+          .map((rule) => {
         if (rule.id !== ruleId) return rule;
 
         const plannedAddresses = buildPlannedPointAddresses({
@@ -718,7 +754,8 @@ export function SourceCanvasSection() {
           ...rule,
           skippedAddresses: [...(rule.skippedAddresses ?? []), spanRoot],
         };
-      }),
+          }),
+      ],
     }));
     setBatchCreateSummary(null);
   };
@@ -726,16 +763,26 @@ export function SourceCanvasSection() {
   const handleToggleRuleLocked = (ruleId: string) => {
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.map((rule) =>
-        rule.id === ruleId ? { ...rule, locked: !rule.locked } : rule,
-      ),
+      rules: [
+        ...currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId),
+        ...currentState.rules
+          .filter((rule) => rule.deviceId === selectedDeviceId)
+          .map((rule) => (rule.id === ruleId ? { ...rule, locked: !rule.locked } : rule)),
+      ],
     }));
   };
 
   const handleMoveRule = (ruleId: string, direction: -1 | 1) => {
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: moveRule(currentState.rules, ruleId, direction),
+      rules: [
+        ...currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId),
+        ...moveRule(
+          currentState.rules.filter((rule) => rule.deviceId === selectedDeviceId),
+          ruleId,
+          direction,
+        ),
+      ],
     }));
   };
 
@@ -806,17 +853,22 @@ export function SourceCanvasSection() {
 
     setSourcePlanningState((currentState) => ({
       ...currentState,
-      rules: currentState.rules.map((rule) =>
-        rule.id === ruleId
-          ? {
-              ...rule,
-              startAddress: editDraft.startAddress.trim(),
-              count: editDraft.count,
-              dataType: editDraft.dataType,
-              skippedAddresses: editDraft.skippedAddresses,
-            }
-          : rule,
-      ),
+      rules: [
+        ...currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId),
+        ...currentState.rules
+          .filter((rule) => rule.deviceId === selectedDeviceId)
+          .map((rule) =>
+            rule.id === ruleId
+              ? {
+                  ...rule,
+                  startAddress: editDraft.startAddress.trim(),
+                  count: editDraft.count,
+                  dataType: editDraft.dataType,
+                  skippedAddresses: editDraft.skippedAddresses,
+                }
+              : rule,
+          ),
+      ],
       selectedAddress: null,
     }));
     setEditingRuleId(null);
@@ -978,9 +1030,14 @@ export function SourceCanvasSection() {
     if (succeededRuleIds.length > 0) {
       setSourcePlanningState((currentState) => ({
         ...currentState,
-        rules: currentState.rules.filter(
-          (rule) => rule.persisted || !succeededRuleIds.includes(rule.id),
-        ),
+        rules: [
+          ...currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId),
+          ...currentState.rules.filter(
+            (rule) =>
+              rule.deviceId === selectedDeviceId &&
+              (rule.persisted || !succeededRuleIds.includes(rule.id)),
+          ),
+        ],
         selectedRuleId:
           currentState.selectedRuleId && succeededRuleIds.includes(currentState.selectedRuleId)
             ? null

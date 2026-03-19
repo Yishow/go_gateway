@@ -215,6 +215,47 @@
   - `cd frontend && npm run build`
   - focused code review：已補上 bounded viewport，避免高位址造成 DOM freeze
 
+## 2026-03-19 Step 2 / Step 3 實機回饋續修
+- 已完成 Step 2 per-device draft rule persistence：
+  - `SourceRule` 補 `deviceId`，切換設備時草稿規則不再被 `clearSourcePlanningState()` 清空
+  - `SourceCanvasSection` 改成只讀 / 只寫目前設備的規則切片，再 merge 回全域 planning state
+  - persisted rules 載回時會保留 `device_id`，device-1 / device-2 的規則草稿彼此隔離
+- 已完成 Step 3 batch unbind，打通 bound-row rebind dead-end：
+  - 選取多筆已綁定 row 時，會出現 `批次解除綁定`
+  - 批次解除後會逐筆呼叫 delete mapping mutation，並保留成功/失敗摘要
+  - results summary 新增 `已解除` 指標，單筆 / 批次解綁共用同一套 summary 語意
+- 新增 / 更新測試：
+  - `DatalinkWorkbenchSourceStep.test.tsx`：切設備後保留各自 draft rules
+  - `DatalinkWorkbenchTagStep.test.tsx`：選取多筆 bound rows 後可批次解綁
+- 驗證已通過：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- 下一個主題：
+  - `step3-tag-master-surface`
+  - 再往下處理 Database / Step 4 其餘收斂
+
+## 2026-03-19 Step 3 Tag master surface
+- 已完成 Step 3 的 visible Tag master surface：
+  - `TagBindingStudio` 右側新增 `Tag overview / quick create / tag list` 區塊
+  - 可直接查看 `總數 / 已綁定 / 未使用` 統計
+  - 可快速建立 standalone Tag（key / display name / data type）
+  - 可刪除未使用 Tag；已綁定 Tag 會顯示 `使用中` 並停用刪除
+- 同步補齊 Step 3 review 修正：
+  - `bind` / `unbind` 在 batch unbind 期間不會再同時可點
+  - `selectionHintKey` 已納入 `unboundCount`，成功批次解綁後不會落成錯誤 hint
+  - `isBatchUnbinding` 本地旗標已防止 batch unbind 連點重入
+- 新增 / 更新測試：
+  - `DatalinkWorkbenchTagStep.test.tsx`：Tag master overview、quick create、delete unused tag
+  - `DatalinkWorkbenchSourceStep.test.tsx`：persisted + draft rules 在 device 間來回切換仍保持隔離
+  - 補齊相關 workbench 測試 mock drift（`useDeleteTagMutation` / `useTestDraftConnectionMutation`）
+- 驗證已通過：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-shell-ui.test.tsx tests/unit/pages/datalink/workbench-runtime-phase.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+
 ## 精簡歷史里程碑
 
 ### 2026-03-15

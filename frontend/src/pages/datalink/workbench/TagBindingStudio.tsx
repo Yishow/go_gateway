@@ -9,10 +9,11 @@ import {
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
 import {
   useCreateTagMutation,
+  useDeleteTagMutation,
   useTagsQuery,
 } from '../../../hooks/datalink/useTags';
 import { tagAPI } from '../../../services/datalink';
-import type { Device } from '../../../types/datalink';
+import type { DataType, Device, Tag } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
 import { countEligibleSpans } from './sourceCanvasModel';
 import {
@@ -31,8 +32,10 @@ type TagBindingFailure = {
 };
 
 type TagBindingBatchSummary = {
+  mode: 'bind' | 'unbind';
   createdCount: number;
   linkedCount: number;
+  unboundCount: number;
   skippedCount: number;
   failureCount: number;
   failures: TagBindingFailure[];
@@ -40,6 +43,23 @@ type TagBindingBatchSummary = {
 
 type TagBindingFlowMode = 'create' | 'existing';
 type TagBindingStatusFilter = 'all' | 'unbound' | 'partial' | 'bound';
+type TagLibraryFeedback = {
+  tone: 'success' | 'error';
+  message: string;
+};
+
+const tagDataTypeOptions: DataType[] = [
+  'bool',
+  'int16',
+  'int32',
+  'int64',
+  'uint16',
+  'uint32',
+  'uint64',
+  'float32',
+  'float64',
+  'string',
+];
 
 function getSelectedDevice(devices: Device[], selectedDeviceId: string | null) {
   return devices.find((device) => device.id === selectedDeviceId) ?? null;
@@ -80,6 +100,7 @@ export function TagBindingStudio() {
     selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
   );
   const createTagMutation = useCreateTagMutation();
+  const deleteTagMutation = useDeleteTagMutation();
   const createMappingMutation = useCreateMappingMutation();
   const deleteMappingMutation = useDeleteMappingMutation();
 
@@ -103,6 +124,12 @@ export function TagBindingStudio() {
   );
   const [batchSummary, setBatchSummary] = useState<TagBindingBatchSummary | null>(null);
   const [templateExpanded, setTemplateExpanded] = useState(false);
+  const [tagLibraryQuery, setTagLibraryQuery] = useState('');
+  const [tagDraftKey, setTagDraftKey] = useState('');
+  const [tagDraftDisplayName, setTagDraftDisplayName] = useState('');
+  const [tagDraftDataType, setTagDraftDataType] = useState<DataType>('int16');
+  const [tagLibraryFeedback, setTagLibraryFeedback] = useState<TagLibraryFeedback | null>(null);
+  const [isBatchUnbinding, setIsBatchUnbinding] = useState(false);
 
   const pointIdsKey = useMemo(() => points.map((point) => point.id).join('|'), [points]);
 
@@ -151,6 +178,30 @@ export function TagBindingStudio() {
       return matchesSearch && matchesStatus;
     });
   }, [candidates, searchQuery, statusFilter]);
+  const mappingCountByTagId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const mapping of mappings) {
+      counts.set(mapping.tag_id, (counts.get(mapping.tag_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [mappings]);
+  const filteredTagLibrary = useMemo(() => {
+    const normalizedQuery = tagLibraryQuery.trim().toLowerCase();
+    const sortedTags = [...tags].sort((left, right) => left.key.localeCompare(right.key));
+
+    if (normalizedQuery === '') {
+      return sortedTags;
+    }
+
+    return sortedTags.filter((tag) =>
+      `${tag.key} ${tag.display_name} ${tag.data_type}`.toLowerCase().includes(normalizedQuery),
+    );
+  }, [tagLibraryQuery, tags]);
+  const linkedTagCount = useMemo(
+    () => tags.filter((tag) => (mappingCountByTagId.get(tag.id) ?? 0) > 0).length,
+    [mappingCountByTagId, tags],
+  );
+  const unusedTagCount = tags.length - linkedTagCount;
 
   const selectedCandidates = useMemo(
     () =>
@@ -203,9 +254,34 @@ export function TagBindingStudio() {
   const readyCount = flowMode === 'create'
     ? createRequests.length
     : existingRequests.length;
+  const selectedBoundItems = useMemo(
+    () =>
+      selectedCandidates
+        .map((candidate) => ({
+          candidate,
+          mapping: mappingByPointId.get(candidate.pointId) ?? null,
+          boundTag: (() => {
+            const mapping = mappingByPointId.get(candidate.pointId);
+            return mapping ? tagById.get(mapping.tag_id) ?? null : null;
+          })(),
+        }))
+        .filter(
+          (item): item is {
+            candidate: TagBindingCandidate;
+            mapping: NonNullable<ReturnType<typeof mappingByPointId.get>>;
+            boundTag: Tag | null;
+          } => Boolean(item.mapping),
+        ),
+    [mappingByPointId, selectedCandidates, tagById],
+  );
+  const isAnyUnbindPending = deleteMappingMutation.isPending || isBatchUnbinding;
   const selectionHintKey = batchSummary
     && batchSummary.failureCount === 0
-    && (batchSummary.createdCount > 0 || batchSummary.linkedCount > 0)
+    && (
+      batchSummary.createdCount > 0
+      || batchSummary.linkedCount > 0
+      || batchSummary.unboundCount > 0
+    )
     ? 'workbench.tag.board.selectionHint.done'
     : selectedCandidates.length === 0
       ? 'workbench.tag.board.selectionHint.none'
@@ -254,6 +330,51 @@ export function TagBindingStudio() {
       [pointId]: tagId,
     }));
     setBatchSummary(null);
+  };
+
+  const handleCreateStandaloneTag = async () => {
+    if (!tagDraftKey.trim()) {
+      return;
+    }
+
+    try {
+      const createdTag = await createTagMutation.mutateAsync({
+        key: tagDraftKey.trim(),
+        display_name: tagDraftDisplayName.trim() || undefined,
+        data_type: tagDraftDataType,
+      });
+      setTagDraftKey('');
+      setTagDraftDisplayName('');
+      setFocusedTagIds([createdTag.id]);
+      setTagLibraryFeedback({
+        tone: 'success',
+        message: t('workbench.tag.master.createSuccess', { key: createdTag.key }),
+      });
+    } catch (error) {
+      setTagLibraryFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, t('workbench.tag.master.createFailed')),
+      });
+    }
+  };
+
+  const handleDeleteStandaloneTag = async (tag: Tag) => {
+    if (!window.confirm(t('workbench.tag.master.deleteConfirm', { key: tag.key }))) {
+      return;
+    }
+
+    try {
+      await deleteTagMutation.mutateAsync(tag.id);
+      setTagLibraryFeedback({
+        tone: 'success',
+        message: t('workbench.tag.master.deleteSuccess', { key: tag.key }),
+      });
+    } catch (error) {
+      setTagLibraryFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, t('workbench.tag.master.deleteFailed')),
+      });
+    }
   };
 
   const handleBatchBind = async () => {
@@ -350,8 +471,10 @@ export function TagBindingStudio() {
       }
 
       setBatchSummary({
+        mode: 'bind',
         createdCount: createRequests.length - failures.length,
         linkedCount: 0,
+        unboundCount: 0,
         skippedCount: batchDiffPreview.skipped.length,
         failureCount: failures.length,
         failures,
@@ -390,8 +513,10 @@ export function TagBindingStudio() {
     }
 
     setBatchSummary({
+      mode: 'bind',
       createdCount: 0,
       linkedCount: existingRequests.length - existingFailures.length,
+      unboundCount: 0,
       skippedCount: batchDiffPreview.skipped.length,
       failureCount: existingFailures.length,
       failures: existingFailures,
@@ -412,12 +537,22 @@ export function TagBindingStudio() {
 
     try {
       await deleteMappingMutation.mutateAsync(mapping.id);
-      setBatchSummary(null);
+      setBatchSummary({
+        mode: 'unbind',
+        createdCount: 0,
+        linkedCount: 0,
+        unboundCount: 1,
+        skippedCount: 0,
+        failureCount: 0,
+        failures: [],
+      });
       setSelectedPointIds((previous) => previous.filter((id) => id !== pointId));
     } catch {
       setBatchSummary({
+        mode: 'unbind',
         createdCount: 0,
         linkedCount: 0,
+        unboundCount: 0,
         skippedCount: 0,
         failureCount: 1,
         failures: [
@@ -429,6 +564,55 @@ export function TagBindingStudio() {
           },
         ],
       });
+    }
+  };
+
+  const handleBatchUnbind = async () => {
+    if (selectedBoundItems.length === 0 || isBatchUnbinding) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        t('workbench.tag.actions.unbindSelectedConfirm', {
+          count: selectedBoundItems.length,
+        }),
+      )
+    ) {
+      return;
+    }
+
+    const failures: TagBindingFailure[] = [];
+    const succeededPointIds: string[] = [];
+    setIsBatchUnbinding(true);
+
+    try {
+      for (const item of selectedBoundItems) {
+        try {
+          await deleteMappingMutation.mutateAsync(item.mapping.id);
+          succeededPointIds.push(item.candidate.pointId);
+        } catch {
+          failures.push({
+            pointId: item.candidate.pointId,
+            tagKey: item.boundTag?.key ?? item.candidate.previewKey,
+            stage: 'mapping',
+            error: t('workbench.tag.results.unbindFailed'),
+          });
+        }
+      }
+
+      setBatchSummary({
+        mode: 'unbind',
+        createdCount: 0,
+        linkedCount: 0,
+        unboundCount: succeededPointIds.length,
+        skippedCount: 0,
+        failureCount: failures.length,
+        failures,
+      });
+      setSelectedPointIds((previous) => previous.filter((id) => !succeededPointIds.includes(id)));
+    } finally {
+      setIsBatchUnbinding(false);
     }
   };
 
@@ -738,7 +922,7 @@ export function TagBindingStudio() {
                               event.stopPropagation();
                               void handleUnbind(candidate.pointId);
                             }}
-                            disabled={deleteMappingMutation.isPending}
+                            disabled={isAnyUnbindPending}
                             className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-50"
                           >
                             {t('workbench.tag.actions.unbind')}
@@ -847,6 +1031,173 @@ export function TagBindingStudio() {
               </label>
             </div>
           ) : null}
+        </div>
+
+        <div
+          className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+          data-testid="tag-master-surface"
+        >
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+              {t('workbench.tag.master.eyebrow')}
+            </p>
+            <h3 className="text-xl font-semibold text-slate-50">
+              {t('workbench.tag.master.title')}
+            </h3>
+            <p className="text-sm text-slate-300">
+              {t('workbench.tag.master.description')}
+            </p>
+          </div>
+
+          <dl className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
+              <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+                {t('workbench.tag.master.metrics.total')}
+              </dt>
+              <dd className="mt-1 text-lg font-semibold text-slate-50" data-testid="tag-master-total">
+                {tags.length}
+              </dd>
+            </div>
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <dt className="text-[11px] uppercase tracking-[0.16em] text-emerald-300">
+                {t('workbench.tag.master.metrics.linked')}
+              </dt>
+              <dd className="mt-1 text-lg font-semibold text-emerald-100" data-testid="tag-master-linked">
+                {linkedTagCount}
+              </dd>
+            </div>
+            <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
+              <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                {t('workbench.tag.master.metrics.unused')}
+              </dt>
+              <dd className="mt-1 text-lg font-semibold text-slate-100" data-testid="tag-master-unused">
+                {unusedTagCount}
+              </dd>
+            </div>
+          </dl>
+
+          <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+            <span>{t('workbench.tag.master.search')}</span>
+            <input
+              aria-label={t('workbench.tag.master.search')}
+              value={tagLibraryQuery}
+              onChange={(event) => setTagLibraryQuery(event.target.value)}
+              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+            />
+          </label>
+
+          <div className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+              {t('workbench.tag.master.quickCreate')}
+            </p>
+            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+              <span>{t('workbench.tag.master.fields.key')}</span>
+              <input
+                aria-label={t('workbench.tag.master.fields.key')}
+                value={tagDraftKey}
+                onChange={(event) => setTagDraftKey(event.target.value)}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+              <span>{t('workbench.tag.master.fields.displayName')}</span>
+              <input
+                aria-label={t('workbench.tag.master.fields.displayName')}
+                value={tagDraftDisplayName}
+                onChange={(event) => setTagDraftDisplayName(event.target.value)}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+              <span>{t('workbench.tag.master.fields.dataType')}</span>
+              <select
+                aria-label={t('workbench.tag.master.fields.dataType')}
+                value={tagDraftDataType}
+                onChange={(event) => setTagDraftDataType(event.target.value as DataType)}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+              >
+                {tagDataTypeOptions.map((dataType) => (
+                  <option key={dataType} value={dataType}>
+                    {dataType}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              data-testid="tag-master-create"
+              onClick={() => void handleCreateStandaloneTag()}
+              disabled={!tagDraftKey.trim() || createTagMutation.isPending}
+              className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('workbench.tag.master.createAction')}
+            </button>
+          </div>
+
+          {tagLibraryFeedback ? (
+            <p
+              role="status"
+              className={`rounded-xl px-3 py-2 text-sm ${
+                tagLibraryFeedback.tone === 'success'
+                  ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
+                  : 'border border-rose-500/30 bg-rose-500/10 text-rose-100'
+              }`}
+            >
+              {tagLibraryFeedback.message}
+            </p>
+          ) : null}
+
+          <div className="space-y-2" data-testid="tag-master-list">
+            {filteredTagLibrary.length > 0 ? (
+              filteredTagLibrary.map((tag) => {
+                const bindingCount = mappingCountByTagId.get(tag.id) ?? 0;
+                const canDelete = bindingCount === 0;
+
+                return (
+                  <article
+                    key={tag.id}
+                    data-testid={`tag-master-row-${tag.id}`}
+                    className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <p className="truncate text-sm font-semibold text-slate-50">{tag.key}</p>
+                        <p className="truncate text-xs text-slate-400">
+                          {tag.display_name || t('workbench.tag.master.displayNameFallback')}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        data-testid={`tag-master-delete-${tag.id}`}
+                        onClick={() => void handleDeleteStandaloneTag(tag)}
+                        disabled={!canDelete || deleteTagMutation.isPending}
+                        className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-950/40 disabled:text-slate-500"
+                      >
+                        {t('workbench.tag.master.deleteAction')}
+                      </button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">
+                        {tag.data_type}
+                      </span>
+                      <span className="rounded-full border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">
+                        {t('workbench.tag.master.bindingCount', { count: bindingCount })}
+                      </span>
+                      {!canDelete ? (
+                        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-200">
+                          {t('workbench.tag.master.inUse')}
+                        </span>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-3 py-4 text-sm text-slate-400">
+                {t('workbench.tag.master.empty')}
+              </div>
+            )}
+          </div>
         </div>
 
         <dl className="grid gap-2 sm:grid-cols-3 xl:grid-cols-3">
@@ -978,19 +1329,33 @@ export function TagBindingStudio() {
         ) : null}
 
         {selectedCandidates.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => void handleBatchBind()}
-            disabled={
-              readyCount === 0
-              || blockedSelectionCount > 0
-              || createTagMutation.isPending
-              || createMappingMutation.isPending
-            }
-            className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {t('workbench.tag.actions.bind')}
-          </button>
+          <div className="space-y-2">
+            {selectedBoundItems.length > 0 ? (
+                <button
+                  type="button"
+                  data-testid="tag-batch-unbind"
+                  onClick={() => void handleBatchUnbind()}
+                  disabled={isAnyUnbindPending}
+                  className="w-full rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t('workbench.tag.actions.unbindSelected')}
+                </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void handleBatchBind()}
+                disabled={
+                  readyCount === 0
+                  || blockedSelectionCount > 0
+                  || isAnyUnbindPending
+                  || createTagMutation.isPending
+                  || createMappingMutation.isPending
+                }
+              className="w-full rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('workbench.tag.actions.bind')}
+            </button>
+          </div>
         ) : null}
 
         {batchSummary ? (
@@ -1008,15 +1373,21 @@ export function TagBindingStudio() {
             <dl className="grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2">
                 <dt className="text-emerald-300">
-                  {flowMode === 'existing'
-                    ? t('workbench.tag.results.linked')
-                    : t('workbench.tag.results.created')}
+                  {batchSummary.mode === 'unbind'
+                    ? t('workbench.tag.results.unbound')
+                    : flowMode === 'existing'
+                      ? t('workbench.tag.results.linked')
+                      : t('workbench.tag.results.created')}
                 </dt>
                 <dd
                   className="mt-1 text-lg font-semibold text-emerald-100"
                   data-testid={flowMode === 'existing' ? 'result-linked-count' : 'result-created-count'}
                 >
-                  {flowMode === 'existing' ? batchSummary.linkedCount : batchSummary.createdCount}
+                  {batchSummary.mode === 'unbind'
+                    ? batchSummary.unboundCount
+                    : flowMode === 'existing'
+                      ? batchSummary.linkedCount
+                      : batchSummary.createdCount}
                 </dd>
               </div>
               <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2">

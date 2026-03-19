@@ -84,6 +84,10 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useTestDraftConnectionMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/usePoints', () => ({
@@ -134,6 +138,10 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
     isLoading: false,
   }),
   useCreateTagMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteTagMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
@@ -309,6 +317,126 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByText('workbench.source.ruleLayer.persistedBadge')).toBeInTheDocument();
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'planned');
+  });
+
+  it('preserves draft rules per device when switching the selected device', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fatek Cell' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('source-rule-rule-1')).not.toBeInTheDocument();
+    });
+    expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('D0');
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+    expect(screen.getByTestId('address-cell-D0')).toHaveAttribute('data-status', 'planned');
+    expect(screen.queryByTestId('address-cell-40001')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.queryByTestId('address-cell-D0')).not.toBeInTheDocument();
+  });
+
+  it('keeps each device persisted and draft rules isolated when switching back and forth', async () => {
+    mockSourceRules.splice(
+      0,
+      mockSourceRules.length,
+      {
+        id: 'shared-rule',
+        device_id: 'device-1',
+        start_address: '40011',
+        count: 2,
+        data_type: 'int16',
+        naming_prefix: 'SRC_A',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        template_name: '',
+        skipped_addresses: [],
+        created_at: '',
+        updated_at: '2026-03-19T00:00:00Z',
+      },
+      {
+        id: 'shared-rule',
+        device_id: 'device-2',
+        start_address: 'D10',
+        count: 1,
+        data_type: 'int16',
+        naming_prefix: 'SRC_B',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        template_name: '',
+        skipped_addresses: [],
+        created_at: '',
+        updated_at: '2026-03-19T00:00:00Z',
+      },
+    );
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('address-cell-40011')).toHaveAttribute('data-status', 'planned');
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fatek Cell' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('address-cell-D10')).toHaveAttribute('data-status', 'planned');
+    });
+    expect(screen.queryByTestId('address-cell-40011')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('address-cell-40001')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('address-cell-40011')).toHaveAttribute('data-status', 'planned');
+    });
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.queryByTestId('address-cell-D10')).not.toBeInTheDocument();
   });
 
   it('explains unmanaged existing points in the inspector', () => {

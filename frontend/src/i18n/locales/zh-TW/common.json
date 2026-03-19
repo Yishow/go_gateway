@@ -796,6 +796,34 @@
         },
         "toggle": "模板設定"
       },
+      "master": {
+        "eyebrow": "Tag master",
+        "title": "Tag 總覽",
+        "description": "直接查看目前所有 Tag，補建未使用 Tag，或先整理尚未掛載的舊 Tag。",
+        "search": "搜尋 Tag",
+        "quickCreate": "快速建立",
+        "createAction": "建立 Tag",
+        "createSuccess": "已建立 Tag：{{key}}",
+        "createFailed": "建立 Tag 失敗",
+        "deleteAction": "刪除",
+        "deleteConfirm": "確定刪除 Tag {{key}}？",
+        "deleteSuccess": "已刪除 Tag：{{key}}",
+        "deleteFailed": "刪除 Tag 失敗",
+        "displayNameFallback": "未設定顯示名稱",
+        "bindingCount": "綁定 {{count}} 筆",
+        "inUse": "使用中",
+        "empty": "目前沒有符合搜尋條件的 Tag。",
+        "metrics": {
+          "total": "總數",
+          "linked": "已綁定",
+          "unused": "未使用"
+        },
+        "fields": {
+          "key": "Tag key",
+          "displayName": "Display name",
+          "dataType": "Data type"
+        }
+      },
       "metrics": {
         "selected": "已選 point",
         "ready": "可直接綁定",
@@ -815,7 +843,9 @@
         "clearSelection": "清空",
         "bind": "批次建立 Tag 並綁定",
         "unbind": "解除綁定",
-        "unbindConfirm": "確定解除此點位的綁定？"
+        "unbindConfirm": "確定解除此點位的綁定？",
+        "unbindSelected": "批次解除綁定",
+        "unbindSelectedConfirm": "確定解除目前選取的 {{count}} 筆綁定？"
       },
       "diff": {
         "title": "批次差異預覽",
@@ -835,6 +865,7 @@
         "summary": "成功 {{successCount}} 筆，失敗 {{failureCount}} 筆。",
         "created": "已建立",
         "linked": "已綁定",
+        "unbound": "已解除",
         "failedLabel": "失敗",
         "skippedLabel": "略過",
         "tagFallback": "建立 Tag 失敗",

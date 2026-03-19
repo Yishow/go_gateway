@@ -103,6 +103,10 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useDeleteTagMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/useMappings', () => ({

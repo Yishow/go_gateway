@@ -39,6 +39,10 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useTestDraftConnectionMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/usePoints', () => ({
@@ -65,6 +69,10 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
     refetch: vi.fn().mockResolvedValue({ data: mockTags }),
   }),
   useCreateTagMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteTagMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),

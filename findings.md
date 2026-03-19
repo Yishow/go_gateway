@@ -113,6 +113,19 @@
   - workbench surface 全面改成 1-based 顯示與輸入，再於 bind 時做轉換
   - canvas 改成 bounded viewport，並以目前選取 / 輸入 register 作為 anchor，因此 `HR200` 可見，但高位址也不會炸 DOM
 
+## 2026-03-19 Step 2 / Step 3 新發現
+- Step 2 的 draft rule state 若不帶 `deviceId`，只靠 `selectedDeviceId` 切畫面，切設備時很容易把 device-local 草稿誤當成全域草稿清掉。
+- `clearSourcePlanningState()` 若同時負責清 selection 與清 rules，很容易在「切設備」和「重置目前畫布」兩種語意之間漂移；這次證實兩者必須拆開，至少 rules 要能跨 device 切換保留。
+- Step 3 現有單筆 unbind 雖然存在，但只要使用者一次選到多筆已綁定 row，主 CTA 就會停在 blocked/conflicts，形成實際上的 rebind dead-end。
+- 對這種 dead-end，解法不是放寬 `bind` gate，而是補一條 selection-aware escape hatch：讓使用者能直接對目前 selection 做 batch unbind，再回到正常 bind 流。
+- unbind 成功摘要若仍沿用 `created / linked` 語彙，會讓 Step 3 lifecycle 語意變混亂；因此結果摘要至少要能區分 `bind` 與 `unbind` 兩種 action mode。
+- Step 3 若沒有一個 visible tag master surface，使用者會被迫在「綁定流程」中順手做資料管理，結果就是找不到全域 Tag、也無法先整理舊 Tag 再回來綁定。
+- 這次驗證後比較安全的 `Tag master` 邊界是：
+  - 允許快速建立 standalone Tag
+  - 允許刪除未使用 Tag
+  - 對已綁定 Tag 先顯示 `使用中` 並停用刪除，避免在 review flow 直接拆壞既有 mapping
+- batch unbind 這種多步 mutation 不能只依賴 React Query 單一 mutation 的 `isPending`；若沒有本地 in-flight guard，按鈕會在迴圈間短暫重新啟用，造成重入。
+
 ## round 2 已確認有效的收斂方向
 - Step 1：editor 進中央區，不再用 modal。
 - Step 2：

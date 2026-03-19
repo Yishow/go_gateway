@@ -13,6 +13,7 @@ export type SourceValueFormat = 'decimal' | 'hex' | 'binary' | 'float';
 
 export type SourceRule = {
   id: string;
+  deviceId?: string;
   startAddress: string;
   count: number;
   dataType: DataType;

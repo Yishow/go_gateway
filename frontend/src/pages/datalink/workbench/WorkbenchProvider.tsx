@@ -101,6 +101,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const clearSourcePlanningState = useCallback(() => {
     setSourcePlanningState((currentState) => ({
       ...WORKBENCH_SOURCE_PLANNING_INITIAL,
+      rules: currentState.rules,
       plannerStartAddressByDeviceId: currentState.plannerStartAddressByDeviceId,
     }));
   }, []);
