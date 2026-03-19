@@ -150,6 +150,40 @@
 - 下一個主題：
   - `4.2` Step 3 改成 review / verification-first + exception handling
 
+## 2026-03-19 Step1 / Step2 bug trace（進行中）
+- 已先定位兩個高機率根因：
+  - Step 1 測試連線只會測已存檔 `selectedDevice`，不會測 inline editor 裡尚未儲存的 draft config
+  - Step 2 起始位址目前硬編 `40001`，沒有依協議切換預設 address baseline
+- 另有一個待驗證來源：
+  - 使用者在 Step 1 改 draft 後若未 save 就進 Step 2，畫面仍會顯示舊 selectedDevice 的 persisted rule/point 狀態，看起來像「還沒規劃前就有被規劃的點位」
+- 新增實機網路驗證：
+  - `ping 192.168.31.62` 成功
+  - 直接 TCP connect `192.168.31.62:502` 在目前執行環境同樣失敗，錯誤為 `Errno 65 No route to host`
+  - 代表當前 Step 1 顯示的 connect failure 至少在這組 IP/port 上與真實網路 reachability 一致，非單純 UI 假錯
+
+## 2026-03-19 Step 2 Tag-first / baseline 修正
+- 已完成 Step 2 這輪落地與 reviewer 收斂：
+  - `WorkbenchProvider` 新增 per-device `plannerStartAddressByDeviceId`
+  - `SourceCanvasSection` 會優先恢復每台設備最後規劃起點，否則 fallback 到協議預設
+  - `addressParser.ts` 新增 `getDefaultPlannerStartAddress()`（Modbus=`40001`、FATEK=`D0`、MC3E=`D0`）
+  - `addressParser.offset()` 已依協議調整 lower bound，修正 FATEK / MC3E 的 `D0` 規劃被誤偏成 `D1`
+  - `AddressCanvas` / `AddressLedger` 主標題改成 tag display 優先，但仍保留 `point.name` fallback，避免未綁 Tag 的既有點位失去辨識度
+  - source rule 卡片新增 `既有規則 / 草稿規則` badge
+  - 主畫面中 summary / action / canvas / ledger 文案已改成較中性的 rule/source 語氣，避免 UI overclaim，但整體資訊排序仍維持 Tag-first
+- 新增測試：
+  - `WorkbenchProvider.test.tsx`：切設備後仍保留 per-device planner 起點記憶
+  - `DatalinkWorkbenchSourceStep.test.tsx`：device-1 / device-2 切換時會恢復個別起始位址並套協議預設
+  - `frontend/tests/unit/pages/datalink/workbench-provider.test.tsx`：新增正式 wrapper 入口
+- 驗證已通過：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-provider.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - focused code review second pass：`No significant issues found`
+- Step 1 目前尚未收尾；下一步需回頭判讀：
+  - UI / draft 測試行為
+  - backend host / LAN routing 差異
+
 ## 精簡歷史里程碑
 
 ### 2026-03-15

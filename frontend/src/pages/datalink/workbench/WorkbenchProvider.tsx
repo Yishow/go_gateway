@@ -50,6 +50,7 @@ type WorkbenchContextValue = {
   // Step 2 shared source planning state — persists across step navigation
   sourcePlanningState: WorkbenchSourcePlanningState;
   setSourcePlanningState: Dispatch<SetStateAction<WorkbenchSourcePlanningState>>;
+  setSourcePlannerStartAddress: (deviceId: string, startAddress: string) => void;
   clearSourcePlanningState: () => void;
 
   // Step 1 shared UI state
@@ -98,7 +99,20 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearSourcePlanningState = useCallback(() => {
-    setSourcePlanningState(WORKBENCH_SOURCE_PLANNING_INITIAL);
+    setSourcePlanningState((currentState) => ({
+      ...WORKBENCH_SOURCE_PLANNING_INITIAL,
+      plannerStartAddressByDeviceId: currentState.plannerStartAddressByDeviceId,
+    }));
+  }, []);
+
+  const setSourcePlannerStartAddress = useCallback((deviceId: string, startAddress: string) => {
+    setSourcePlanningState((currentState) => ({
+      ...currentState,
+      plannerStartAddressByDeviceId: {
+        ...currentState.plannerStartAddressByDeviceId,
+        [deviceId]: startAddress,
+      },
+    }));
   }, []);
 
   // Clear inspector selection when switching steps so stale context
@@ -180,6 +194,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       clearCrossStepContext,
       sourcePlanningState,
       setSourcePlanningState,
+      setSourcePlannerStartAddress,
       clearSourcePlanningState,
       devicePanelState,
       openCreateDevicePanel,
@@ -203,6 +218,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       clearCrossStepContext,
       sourcePlanningState,
       setSourcePlanningState,
+      setSourcePlannerStartAddress,
       clearSourcePlanningState,
       devicePanelState,
       openCreateDevicePanel,

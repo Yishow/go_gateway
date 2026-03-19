@@ -10,6 +10,7 @@ function WorkbenchProbe() {
     inspectorSelection,
     activeOutputTarget,
     crossStepContext,
+    sourcePlanningState,
     setActiveStep,
     setSelectedDeviceId,
     setInspectorSelection,
@@ -17,6 +18,7 @@ function WorkbenchProbe() {
     setActiveOutputTarget,
     setFocusedRuleId,
     setFocusedTagIds,
+    setSourcePlannerStartAddress,
     clearCrossStepContext,
   } = useWorkbench();
 
@@ -29,6 +31,12 @@ function WorkbenchProbe() {
       <p data-testid="output-target">{activeOutputTarget}</p>
       <p data-testid="focused-rule-id">{crossStepContext.focusedRuleId ?? 'none'}</p>
       <p data-testid="focused-tag-ids">{crossStepContext.focusedTagIds.join(',') || 'none'}</p>
+      <p data-testid="device-42-start-address">
+        {sourcePlanningState.plannerStartAddressByDeviceId['device-42'] ?? 'none'}
+      </p>
+      <p data-testid="device-99-start-address">
+        {sourcePlanningState.plannerStartAddressByDeviceId['device-99'] ?? 'none'}
+      </p>
       <button type="button" onClick={() => setActiveStep('output')}>
         go-output
       </button>
@@ -78,6 +86,18 @@ function WorkbenchProbe() {
       </button>
       <button type="button" onClick={() => setFocusedTagIds(['tag-1', 'tag-2'])}>
         focus-tags
+      </button>
+      <button
+        type="button"
+        onClick={() => setSourcePlannerStartAddress('device-42', '40011')}
+      >
+        set-device-42-start
+      </button>
+      <button
+        type="button"
+        onClick={() => setSourcePlannerStartAddress('device-99', 'D20')}
+      >
+        set-device-99-start
       </button>
       <button type="button" onClick={clearCrossStepContext}>
         clear-cross-step
@@ -313,6 +333,22 @@ describe('WorkbenchProvider', () => {
       expect(screen.getByTestId('selected-device')).toHaveTextContent('device-99');
       expect(screen.getByTestId('focused-rule-id')).toHaveTextContent('none');
       expect(screen.getByTestId('focused-tag-ids')).toHaveTextContent('none');
+    });
+
+    it('preserves remembered planner start addresses when switching devices', () => {
+      render(
+        <WorkbenchProvider>
+          <WorkbenchProbe />
+        </WorkbenchProvider>,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'set-device-42-start' }));
+      fireEvent.click(screen.getByRole('button', { name: 'set-device-99-start' }));
+      fireEvent.click(screen.getByRole('button', { name: 'select-device' }));
+      fireEvent.click(screen.getByRole('button', { name: 'select-device-99' }));
+
+      expect(screen.getByTestId('device-42-start-address')).toHaveTextContent('40011');
+      expect(screen.getByTestId('device-99-start-address')).toHaveTextContent('D20');
     });
   });
 });

@@ -39,6 +39,17 @@ describe('sourceCanvasModel', () => {
     ).toEqual(['40001', '40003']);
   });
 
+  it('preserves zero-based D registers for fatek planners', () => {
+    expect(
+      buildPlannedPointAddresses({
+        startAddress: 'D0',
+        count: 3,
+        dataType: 'int16',
+        protocol: 'fatek_fbs',
+      }),
+    ).toEqual(['D0', 'D1', 'D2']);
+  });
+
   it('expands existing wide points across all occupied cells', () => {
     const items = buildAddressCanvasItems({
       points: [createPoint({ address: '40005', data_type: 'int32' })],
@@ -47,8 +58,8 @@ describe('sourceCanvasModel', () => {
       protocol: 'modbus_tcp',
     });
 
-    expect(items.find((item) => item.address === '40005')?.status).toBe('used');
-    expect(items.find((item) => item.address === '40006')?.status).toBe('used');
+    expect(items.find((item) => item.address === '40005')?.status).toBe('unmanaged');
+    expect(items.find((item) => item.address === '40006')?.status).toBe('unmanaged');
   });
 
   it('marks overlapping planned cells as conflict', () => {
@@ -239,10 +250,10 @@ describe('sourceCanvasModel', () => {
 
       expect(root?.mergeSpan).toBe(2);
       expect(root?.mergeOffset).toBe(0);
-      expect(root?.status).toBe('used');
+      expect(root?.status).toBe('unmanaged');
       expect(cont?.mergeSpan).toBe(2);
       expect(cont?.mergeOffset).toBe(1);
-      expect(cont?.status).toBe('used');
+      expect(cont?.status).toBe('unmanaged');
     });
 
     it('assigns mergeSpan=4 for int64 rules', () => {

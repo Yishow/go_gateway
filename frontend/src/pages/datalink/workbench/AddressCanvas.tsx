@@ -58,11 +58,11 @@ function getPrimaryLabel(item: AddressCanvasItem, t: (key: string) => string) {
     case 'gap':
       return t('workbench.source.canvas.gapLabel');
     case 'planned':
-      return item.point?.name ?? t('workbench.source.canvas.plannedLabel');
+      return item.tagDisplayName ?? item.tagKey ?? t('workbench.source.canvas.plannedLabel');
     case 'unmanaged':
-      return item.point?.name ?? t('workbench.source.canvas.unmanagedLabel');
+      return item.tagDisplayName ?? item.tagKey ?? item.point?.name ?? t('workbench.source.canvas.unmanagedLabel');
     case 'used':
-      return item.point?.name ?? t('workbench.source.canvas.usedLabel');
+      return item.tagDisplayName ?? item.tagKey ?? item.point?.name ?? t('workbench.source.canvas.usedLabel');
   }
 }
 

@@ -170,6 +170,18 @@ describe('DatalinkWorkbench source step', () => {
       last_test_error: '',
       created_at: '',
       updated_at: '',
+    }, {
+      id: 'device-2',
+      name: 'Fatek Cell',
+      description: 'Line B fatek',
+      protocol: 'fatek_fbs',
+      status: 'active',
+      connection_config: '{}',
+      last_test_at: null,
+      last_test_success: null,
+      last_test_error: '',
+      created_at: '',
+      updated_at: '',
     });
 
     mockPoints.splice(0, mockPoints.length, {
@@ -211,6 +223,42 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeInTheDocument();
     expect(screen.getByLabelText('workbench.source.planner.count')).toBeInTheDocument();
+  });
+
+  it('remembers the last planner start address per device and falls back to protocol defaults', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const startAddressInput = screen.getByLabelText('workbench.source.planner.startAddress');
+    fireEvent.change(startAddressInput, { target: { value: '40010' } });
+    expect(startAddressInput).toHaveValue('40010');
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fatek Cell' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    await waitFor(() => {
+      expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('D0');
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    expect(screen.getByTestId('address-cell-D0')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-D2')).toHaveAttribute('data-status', 'planned');
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: 'D20' },
+    });
+    expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('D20');
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    await waitFor(() => {
+      expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('40010');
+    });
   });
 
   it('renders a source rule layer and continuous gap cells after applying a rule', () => {
@@ -258,6 +306,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('source-rule-persisted-rule-1')).toBeInTheDocument();
+    expect(screen.getByText('workbench.source.ruleLayer.persistedBadge')).toBeInTheDocument();
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'planned');
   });

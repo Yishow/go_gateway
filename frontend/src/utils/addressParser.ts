@@ -13,6 +13,22 @@ export interface ValidationResult {
   error?: string;
 }
 
+export function getDefaultPlannerStartAddress(
+  protocol: ProtocolType = 'modbus_tcp',
+): string {
+  switch (protocol) {
+    case 'fatek_fbs':
+    case 'mc_3e':
+      return 'D0';
+    case 'modbus_tcp':
+    case 'modbus_rtu':
+    case 'modbus_udp':
+    case 'mqtt':
+    default:
+      return '40001';
+  }
+}
+
 export class AddressParser {
   /**
    * Parse an address string based on protocol
@@ -149,12 +165,16 @@ export class AddressParser {
 
   /**
    * 將位址依協議偏移 delta 格，回傳新位址字串。
-   * 若偏移後數字小於 1 則箝制為 1。
+   * Modbus 位址最小維持 1；FATEK / MC3E 則允許從 0 起算。
    */
   offset(address: string, delta: number, protocol: ProtocolType = 'modbus_tcp'): string {
     try {
       const parsed = this.parse(address, protocol);
-      const newNumber = Math.max(1, parsed.startNumber + delta);
+      const minNumber =
+        protocol === 'fatek_fbs' || protocol === 'mc_3e'
+          ? 0
+          : 1;
+      const newNumber = Math.max(minNumber, parsed.startNumber + delta);
       return this.format(parsed.area, newNumber, protocol, parsed.raw);
     } catch {
       return address;

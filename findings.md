@@ -73,6 +73,29 @@
 - `tag` / `mapping` 的 not-found 判斷若只靠錯誤字串比對，很容易在 rollback / cleanup path 漂移；這類 lifecycle-sensitive domain 最好直接用 sentinel error + `errors.Is`。
 - source-rule mutation 只 invalidate `points` 不夠；一旦 backend 自動建立 Tag/Mapping，前端 cache 也必須同步 invalidates `tags` / `mappings`，不然 Step 3 review surface 會短暫顯示舊狀態。
 
+## 2026-03-19 Step1 / Step2 bug trace
+- Step 1 的 `Test connection` 目前從 `WorkbenchInspectorPanel` 直接呼叫 `useTestConnectionMutation(deviceId)`，只測 **已存檔的 selectedDevice**，不會吃 `WorkbenchDeviceStep` inline editor 裡尚未儲存的 draft config。
+- Step 2 的 capability context 也只看 `selectedDevice.connection_config`；如果使用者剛在 Step 1 改了 protocol / host / address-related config 但還沒 save，Step 2 仍會沿用舊設備上下文。
+- `SourceCanvasSection` 的起始位址 state 目前直接 `useState('40001')`，沒有依協議切換預設基準；這會讓 FATEK / MC3E 之類的裝置看起來仍像 Modbus 規劃。
+- 「尚未規畫前已有被規畫的點位」的高機率來源有兩種：
+  1. 使用者其實仍停留在舊的 selectedDevice context（草稿未存，Step2 仍看舊設備）；
+  2. 該 device 已有 persisted source rules，Step2 會依設計載回它們，但目前 UI 對「這是既有 persisted rule，不是你剛新增的草稿」說明還不夠強。
+- 2026-03-19 實測 `192.168.31.62`：
+  - `ping 192.168.31.62` 成功，代表 ICMP reachability 正常。
+  - 直接從目前執行環境用 Python `socket.connect(('192.168.31.62', 502))` 會得到 `OSError: [Errno 65] No route to host`，與 workbench 回報一致。
+  - `127.0.0.1:502` / `localhost:502` 在目前機器上則是 `Connection refused`，表示此刻本機沒有服務在 502 上 listening。
+  - 因此至少目前這個錯誤不是前端捏造；更像目標主機 / 防火牆 / port bind 問題，或使用者所測的「本機可連」不是同一個 IP/port 組合。
+- 2026-03-19 Step 2 實作決策已落地：
+  - `startAddress` 不再只是 `SourceCanvasSection` 本地 state；每台設備的最後規劃起點會記在 `WorkbenchSourcePlanningState.plannerStartAddressByDeviceId`。
+  - 切設備時，Step 2 會先恢復該設備上次的起點；若沒有記憶值，則透過 `getDefaultPlannerStartAddress(protocol)` fallback 到協議預設（目前 Modbus=`40001`、FATEK=`D0`、MC3E=`D0`）。
+  - `clearSourcePlanningState()` 現在只清規則/選取，不會把 per-device 起點記憶一併抹掉。
+- 2026-03-19 Step 2 主畫面已開始 Tag-first 化：
+  - `AddressCanvas` / `AddressLedger` 主標題改為 `tagDisplayName -> tagKey -> point.name -> generic label`，讓主畫面優先講 Tag，但未綁 Tag 的既有點位仍可辨識。
+  - source rule 卡片會顯示 `既有規則 / 草稿規則` badge，降低 persisted state 被誤認成新規劃的風險。
+  - 主畫面文案（summary / actions / canvas / ledger）已回拉到中性 `rule/source` 語氣，避免在 UI 端過度宣稱「已直接建立 Tag」，但 Point 仍只保留在 inspector/debug 細節，符合使用者選擇的 `B`。
+  - `addressParser.offset()` 已補 protocol-aware lower bound：Modbus 維持從 `1` 起算，FATEK / MC3E 改為允許 `D0`，避免規劃器把 `D0` 錯誤偏移成 `D1`。
+  - review 第二輪已確認上述三項修正後沒有新的實質問題。
+
 ## round 2 已確認有效的收斂方向
 - Step 1：editor 進中央區，不再用 modal。
 - Step 2：

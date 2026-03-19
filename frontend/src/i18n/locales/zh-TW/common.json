@@ -574,7 +574,7 @@
       },
       "planner": {
         "title": "規則建立器",
-        "helper": "一次定義一條位址規則，主要檢視重心留給下方畫布。",
+        "helper": "一次定義一條來源規則，主要檢視重心留給下方畫布。",
         "startAddress": "起始位址",
         "dataType": "資料型態",
         "count": "數量",
@@ -583,7 +583,7 @@
         "addRule": "新增規則",
         "batchCreate": "批次建立",
         "conflictHint": "請先排除位址衝突，再進行批次建立。",
-        "batchSummary": "已建立 {{successCount}} 筆 point，失敗 {{failureCount}} 筆。",
+        "batchSummary": "已套用 {{successCount}} 條規則，失敗 {{failureCount}} 條。",
         "import": "匯入",
         "export": "匯出",
         "dataTypeGroup": {
@@ -594,14 +594,14 @@
         "dataTypeUnsupported": "目前環境尚未支援"
       },
       "summary": {
-        "title": "來源 point 建立摘要",
-        "readyToCreate": "可建立",
+        "title": "來源規則套用摘要",
+        "readyToCreate": "可套用",
         "inConflict": "衝突中",
         "protected": "已保護"
       },
       "actions": {
-        "createSelectedPoints": "建立選取點位",
-        "createRulePoints": "建立規則點位"
+        "createSelectedPoints": "建立選取來源",
+        "createRulePoints": "套用規則"
       },
       "toolbar": {
         "valueFormat": "數值格式",
@@ -636,9 +636,11 @@
       "ruleLayer": {
         "eyebrow": "規劃規則層",
         "title": "管理來源規劃規則",
-        "description": "讓多條位址規則能同時可見、聚焦、切換與重排。",
-        "empty": "先套用一條規劃規則，才能開始建立共享位址 lattice。",
+        "description": "讓多條來源規則能同時可見、聚焦、切換與重排。",
+        "empty": "先套用一條來源規劃規則，才能開始建立共享位址 lattice。",
         "meta": "{{bitWidth}} 位元 · {{count}} 筆 · {{cells}} 格",
+        "persistedBadge": "既有規則",
+        "draftBadge": "草稿規則",
         "enable": "啟用",
         "disable": "停用",
         "moveUp": "上移",
@@ -658,20 +660,20 @@
         "cells": "{{count}} 格",
         "status": {
           "planned": "規劃中",
-          "unmanaged": "未納管",
-          "used": "既有點位",
+          "unmanaged": "既有來源",
+          "used": "規則已管理",
           "conflict": "衝突",
           "gap": "空白區"
         }
       },
       "canvas": {
-        "empty": "目前還沒有規劃範圍或既有點位。",
+        "empty": "目前還沒有規劃範圍或既有來源。",
         "plannedLabel": "規劃範圍",
         "plannedState": "規劃中",
-        "unmanagedLabel": "未納管點位",
-        "unmanagedState": "只有 point、尚無規則",
-        "usedLabel": "既有點位",
-        "usedState": "規則已建立 point",
+        "unmanagedLabel": "既有來源",
+        "unmanagedState": "既有來源，尚未對齊規則",
+        "usedLabel": "規則已管理",
+        "usedState": "規則已納管",
         "conflictLabel": "衝突",
         "conflictState": "位址重疊",
         "gapLabel": "空白區",
@@ -689,10 +691,10 @@
         "noState": "尚無下游狀態"
       },
       "ledger": {
-        "empty": "請先選擇設備並套用規劃，才能檢視位址清單。",
+        "empty": "請先選擇設備並套用規劃，才能檢視 Tag 位址清單。",
         "columns": {
           "address": "位址",
-          "name": "名稱",
+          "name": "Tag / 標示",
           "status": "狀態"
         }
       },
@@ -716,7 +718,7 @@
         }
       },
       "selectionToolbar": {
-        "createPoints": "建立點位",
+        "createPoints": "建立選取來源",
         "addToRule": "加入規則",
         "skip": "略過"
       },

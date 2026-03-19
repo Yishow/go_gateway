@@ -40,7 +40,10 @@ import type {
   ProtocolType,
   SourceRuleRecord,
 } from '../../../types/datalink';
-import { addressParser } from '../../../utils/addressParser';
+import {
+  addressParser,
+  getDefaultPlannerStartAddress,
+} from '../../../utils/addressParser';
 import { AddressCanvas } from './AddressCanvas';
 import { AddressLedger } from './AddressLedger';
 import { useWorkbench } from './WorkbenchProvider';
@@ -273,6 +276,7 @@ export function SourceCanvasSection() {
     setSelectedDeviceId,
     sourcePlanningState,
     setSourcePlanningState,
+    setSourcePlannerStartAddress,
   } = useWorkbench();
   const { data: devices = [] } = useDevicesQuery();
   const { data: points = [] } = usePointsQuery(
@@ -338,6 +342,9 @@ export function SourceCanvasSection() {
   const rules = sourcePlanningState.rules;
   const selectedRuleId = sourcePlanningState.selectedRuleId;
   const selectedAddress = sourcePlanningState.selectedAddress;
+  const rememberedStartAddress = selectedDeviceId
+    ? sourcePlanningState.plannerStartAddressByDeviceId[selectedDeviceId] ?? null
+    : null;
   const currentCapability = useMemo(
     () => buildTemplateCapabilitySnapshot(selectedDevice),
     [selectedDevice],
@@ -369,6 +376,18 @@ export function SourceCanvasSection() {
     setTemplateWarning(null);
     setAppliedTemplate(null);
   }, [selectedDeviceId]);
+
+  useEffect(() => {
+    if (!selectedDevice) {
+      return;
+    }
+
+    const nextStartAddress =
+      rememberedStartAddress && rememberedStartAddress.trim().length > 0
+        ? rememberedStartAddress
+        : getDefaultPlannerStartAddress(selectedDevice.protocol);
+    setStartAddress(nextStartAddress);
+  }, [rememberedStartAddress, selectedDevice]);
 
   useEffect(() => {
     if (!selectedDeviceId || !sourceRulesQuery.isSuccess) {
@@ -882,6 +901,9 @@ export function SourceCanvasSection() {
     const nextTemplates = sortTemplates(upsertTemplateRecord(templates, nextTemplate));
 
     setStartAddress(plannerDraft.startAddress);
+    if (selectedDeviceId) {
+      setSourcePlannerStartAddress(selectedDeviceId, plannerDraft.startAddress);
+    }
     setCount(plannerDraft.count);
     setDataType(plannerDraft.dataType);
     setViewMode(template.preferredViewMode ?? 'plan');
@@ -1106,7 +1128,11 @@ export function SourceCanvasSection() {
                     value={startAddress}
                     onChange={(event) => {
                       clearAppliedTemplate();
-                      setStartAddress(event.target.value);
+                      const nextValue = event.target.value;
+                      setStartAddress(nextValue);
+                      if (selectedDeviceId) {
+                        setSourcePlannerStartAddress(selectedDeviceId, nextValue);
+                      }
                     }}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                   />
@@ -1201,9 +1227,23 @@ export function SourceCanvasSection() {
                         type="button"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-semibold text-slate-100">
-                            {rule.id}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-100">
+                              {rule.id}
+                            </span>
+                            <span
+                              className={[
+                                'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]',
+                                rule.persisted
+                                  ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                                  : 'border border-slate-700/70 bg-slate-900/70 text-slate-300',
+                              ].join(' ')}
+                            >
+                              {rule.persisted
+                                ? t('workbench.source.ruleLayer.persistedBadge')
+                                : t('workbench.source.ruleLayer.draftBadge')}
+                            </span>
+                          </div>
                           <span className="text-xs text-slate-400">
                             {coverage.startAddress} → {coverage.endAddress}
                           </span>

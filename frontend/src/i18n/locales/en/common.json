@@ -574,7 +574,7 @@
       },
       "planner": {
         "title": "Rule builder",
-        "helper": "Define one address rule at a time, then keep the canvas as the main review surface.",
+        "helper": "Define one source rule at a time, then keep the canvas as the main review surface.",
         "startAddress": "Start address",
         "dataType": "Data type",
         "count": "Count",
@@ -582,8 +582,8 @@
         "apply": "Apply plan",
         "addRule": "Add rule",
         "batchCreate": "Batch create",
-        "conflictHint": "Resolve address conflicts before batch creating points.",
-        "batchSummary": "Created {{successCount}} point(s), {{failureCount}} failed.",
+        "conflictHint": "Resolve address conflicts before applying rules.",
+        "batchSummary": "Applied {{successCount}} rule(s), {{failureCount}} failed.",
         "import": "Import",
         "export": "Export",
         "dataTypeGroup": {
@@ -594,14 +594,14 @@
         "dataTypeUnsupported": "Not yet supported"
       },
       "summary": {
-        "title": "Source point creation summary",
-        "readyToCreate": "Ready to create",
+        "title": "Source rule apply summary",
+        "readyToCreate": "Ready to apply",
         "inConflict": "In conflict",
         "protected": "Protected"
       },
       "actions": {
-        "createSelectedPoints": "Create selected points",
-        "createRulePoints": "Create rule points"
+        "createSelectedPoints": "Create selected source",
+        "createRulePoints": "Apply rules"
       },
       "toolbar": {
         "valueFormat": "Value format",
@@ -635,10 +635,12 @@
       },
       "ruleLayer": {
         "eyebrow": "Rule layer",
-        "title": "Manage planning directives",
-        "description": "Keep multiple address rules visible, focusable, and reorderable.",
-        "empty": "Apply a planning rule to start building the shared source lattice.",
+        "title": "Manage source planning directives",
+        "description": "Keep multiple source rules visible, focusable, and reorderable.",
+        "empty": "Apply a source planning rule to start building the shared source lattice.",
         "meta": "{{bitWidth}}-bit · {{count}} item(s) · {{cells}} cells",
+        "persistedBadge": "Existing rule",
+        "draftBadge": "Draft rule",
         "enable": "Enable",
         "disable": "Disable",
         "moveUp": "Move up",
@@ -658,20 +660,20 @@
         "cells": "{{count}} cells",
         "status": {
           "planned": "Planned",
-          "unmanaged": "Unmanaged",
-          "used": "Used",
+          "unmanaged": "Existing source",
+          "used": "Rule managed",
           "conflict": "Conflict",
           "gap": "Gap"
         }
       },
       "canvas": {
-        "empty": "No planned range or existing points yet.",
+        "empty": "No planned range or existing source yet.",
         "plannedLabel": "Planned range",
         "plannedState": "Planned",
-        "unmanagedLabel": "Unmanaged point",
-        "unmanagedState": "Point without rule",
-        "usedLabel": "Existing point",
-        "usedState": "Rule-created point",
+        "unmanagedLabel": "Existing source",
+        "unmanagedState": "Existing source without a matching rule",
+        "usedLabel": "Rule managed",
+        "usedState": "Rule-managed source",
         "conflictLabel": "Conflict",
         "conflictState": "Address overlap",
         "gapLabel": "Gap",
@@ -689,10 +691,10 @@
         "noState": "No downstream state"
       },
       "ledger": {
-        "empty": "Switch a device and apply a plan to inspect address rows.",
+        "empty": "Switch a device and apply a plan to inspect tag address rows.",
         "columns": {
           "address": "Address",
-          "name": "Name",
+          "name": "Tag / Label",
           "status": "Status"
         }
       },
@@ -716,7 +718,7 @@
         }
       },
       "selectionToolbar": {
-        "createPoints": "Create points",
+        "createPoints": "Create selected source",
         "addToRule": "Add to rule",
         "skip": "Skip"
       },

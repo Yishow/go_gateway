@@ -147,12 +147,14 @@ export type WorkbenchSourcePlanningState = {
   rules: ReadonlyArray<SourceRule>;
   selectedRuleId: string | null;
   selectedAddress: string | null;
+  plannerStartAddressByDeviceId: Readonly<Record<string, string>>;
 };
 
 export const WORKBENCH_SOURCE_PLANNING_INITIAL: WorkbenchSourcePlanningState = {
   rules: [],
   selectedRuleId: null,
   selectedAddress: null,
+  plannerStartAddressByDeviceId: {},
 } as const;
 
 export type DevicePanelState =

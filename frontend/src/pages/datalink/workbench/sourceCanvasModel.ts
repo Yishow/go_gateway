@@ -34,6 +34,8 @@ export type AddressCanvasItem = {
   address: string;
   status: AddressCanvasStatus;
   point?: Point;
+  tagDisplayName?: string | null;
+  tagKey?: string | null;
   ruleIds: ReadonlyArray<string>;
   primaryRuleId: string | null;
   mergeSpan: number;
@@ -150,6 +152,16 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
         );
   const mappings = input.mappings ?? [];
   const tags = input.tags ?? [];
+  const primaryTagByPointId = new Map<string, Tag>();
+  for (const mapping of mappings) {
+    if (primaryTagByPointId.has(mapping.point_id)) {
+      continue;
+    }
+    const tag = tags.find((candidate) => candidate.id === mapping.tag_id);
+    if (tag) {
+      primaryTagByPointId.set(mapping.point_id, tag);
+    }
+  }
   const occupiedAddresses = new Set<string>([
     ...pointOccupancy.keys(),
     ...ruleOccupancy.keys(),
@@ -170,6 +182,7 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
     const address = addressParser.offset(minAddress, offset, input.protocol);
     const pointMeta = pointOccupancy.get(address);
     const ruleMeta = ruleOccupancy.get(address);
+    const primaryTag = pointMeta?.point ? primaryTagByPointId.get(pointMeta.point.id) : undefined;
     const hasRuleConflict = (ruleMeta?.ruleIds.length ?? 0) > 1;
 
     let status: AddressCanvasStatus = 'gap';
@@ -201,6 +214,8 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
       address,
       status,
       point: pointMeta?.point,
+      tagDisplayName: primaryTag?.display_name ?? null,
+      tagKey: primaryTag?.key ?? null,
       ruleIds: ruleMeta?.ruleIds ?? [],
       primaryRuleId: ruleMeta?.primaryRuleId ?? null,
       mergeSpan: pointMeta?.mergeSpan ?? ruleMeta?.mergeSpan ?? 1,
