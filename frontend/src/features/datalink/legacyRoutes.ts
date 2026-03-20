@@ -62,7 +62,7 @@ export function buildWorkbenchRedirect(options?: {
     params.set('section', options.section);
   }
   const query = params.toString();
-  return query ? `/datalink/workbench?${query}` : '/datalink/workbench';
+  return query ? `/studio?${query}` : '/studio';
 }
 
 export function buildLocalModbusCompatRedirect(section?: string | null): string {

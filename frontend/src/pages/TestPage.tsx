@@ -311,7 +311,7 @@ export default function TestPage() {
   }, [connectionMode, config])
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 rounded-2xl bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] p-4 pb-40 text-slate-100 sm:p-6">
+    <div className="mx-auto max-w-[1760px] space-y-6 rounded-2xl bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] p-4 pb-40 text-slate-100 sm:p-6 xl:p-8">
       {/* 最小化 Card Bar */}
       <MinimizedCardsBar />
       {/* 頂部：協議選擇器和 Profile 選擇器 */}

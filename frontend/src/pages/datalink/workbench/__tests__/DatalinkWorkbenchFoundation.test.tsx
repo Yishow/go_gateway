@@ -60,36 +60,8 @@ vi.mock('@/components/CardMinimizeProvider', () => ({
   CardMinimizeProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('@/components/Layout', () => ({
-  default: ({ children }: { children: ReactNode }) => <div data-testid="layout-mock">{children}</div>,
-}));
-
 vi.mock('@/pages/TestPage', () => ({
   default: () => <div data-testid="test-page-mock">test-page</div>,
-}));
-
-vi.mock('@/pages/TemplatesPage', () => ({
-  default: () => <div data-testid="templates-page-mock">templates-page</div>,
-}));
-
-vi.mock('@/pages/HistoryPage', () => ({
-  default: () => <div data-testid="history-page-mock">history-page</div>,
-}));
-
-vi.mock('@/pages/ComparePage', () => ({
-  default: () => <div data-testid="compare-page-mock">compare-page</div>,
-}));
-
-vi.mock('@/pages/AnalyzerPage', () => ({
-  default: () => <div data-testid="analyzer-page-mock">analyzer-page</div>,
-}));
-
-vi.mock('@/pages/datalink/SmartDashboard', () => ({
-  default: () => <div data-testid="smart-dashboard-mock">smart-dashboard</div>,
-}));
-
-vi.mock('@/pages/datalink/LocalModbusWorkbenchPage', () => ({
-  default: () => <div data-testid="local-modbus-workbench-mock">local-modbus-workbench</div>,
 }));
 
 vi.mock('@/hooks/datalink/useDevices', () => ({
@@ -129,7 +101,7 @@ vi.mock('@/features/datalink/legacyRoutes', () => ({
   buildDashboardModalRedirect: (intent: string) => `/mock/dashboard/${intent}`,
   buildLegacyMigrationRedirect: (intent: string) => `/mock/legacy/${intent}`,
   buildLocalModbusCompatRedirect: (section?: string | null) =>
-    `/datalink/workbench?step=output&target=modbus${section ? `&section=${section}` : ''}`,
+    `/studio?step=output&target=modbus${section ? `&section=${section}` : ''}`,
 }));
 
 vi.mock('@/services/datalink', async () => {
@@ -382,10 +354,61 @@ describe('DatalinkWorkbench foundation route', () => {
         screen.getByRole('button', { name: /workbench\.steps\.output/ }),
       ).toHaveAttribute('aria-current', 'step');
     });
-    expect(screen.queryByTestId('local-modbus-workbench-mock')).not.toBeInTheDocument();
     expect(screen.getByTestId('active-output-target')).toHaveTextContent(
       'workbench.bottomSummary.targets.modbus',
     );
+    expect(window.location.pathname).toBe('/studio');
+    expect(window.location.search).toContain('step=output');
+  });
+
+  it('renders the main operator flow through /studio', async () => {
+    window.history.pushState({}, '', '/studio');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.device/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+
+    expect(screen.getByText('Mixer PLC')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/studio');
+  });
+
+  it('redirects /datalink into /studio', async () => {
+    window.history.pushState({}, '', '/datalink');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.device/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+
+    expect(window.location.pathname).toBe('/studio');
+  });
+
+  it('renders /test without the legacy sidebar layout shell', () => {
+    window.history.pushState({}, '', '/test');
+
+    renderApp();
+
+    expect(screen.getByTestId('test-page-mock')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/test');
+  });
+
+  it('redirects legacy test utility routes into /test', async () => {
+    window.history.pushState({}, '', '/templates');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('test-page-mock')).toBeInTheDocument();
+    });
+
+    expect(window.location.pathname).toBe('/test');
   });
 
   it('selects a device from the device step and advances to source planning', () => {
