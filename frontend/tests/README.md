@@ -21,9 +21,8 @@
 
 仍以 wrapper 匯入 `src/pages/.../__tests__/` 的頁面測試：
 - Gateway（QuickSetupPage、ExpertWorkbenchPage）
-- SmartDashboard（interaction、grid-overlays、state hooks）、LocalModbusWorkbenchPage
 
-上述頁面測試後續可視需要做實體搬遷；新增測試一律放在 `frontend/tests/` 對應分類。
+SmartDashboard / LocalModbusWorkbenchPage 舊頁測試已隨 legacy cleanup 移除。新增測試一律放在 `frontend/tests/` 對應分類。
 
 ## 分類原則
 

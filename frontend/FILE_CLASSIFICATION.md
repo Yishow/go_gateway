@@ -1,30 +1,27 @@
 # Frontend 檔案分類
 
-更新時間：2026-02-13
+更新時間：2026-03-20
 
 ## 1) 路由與頁面分類
 
 ### 核心產品頁（現行）
-- `src/pages/datalink/SmartDashboard.tsx`
-- `src/pages/datalink/SmartDashboardPage.tsx`（SmartDashboard 實作）
-- `src/pages/datalink/LocalModbusWorkbenchPage.tsx`
+- `src/pages/datalink/workbench/DatalinkWorkbenchPage.tsx`（對外主入口對應 `/studio`）
 
 ### 相容/過渡路由（Legacy Redirect）
-- `/datalink/dashboard-legacy`：redirect 到 `/datalink`
-- `/datalink/devices-legacy`：redirect 到 `/datalink?modal=devices`
+- `/datalink`：redirect 到 `/studio`
+- `/datalink/workbench`：redirect 到 `/studio`
+- `/datalink/dashboard-legacy`：redirect 到 `/studio`
+- `/datalink/devices-legacy`：redirect 到 legacy intent 對應的新主線
 
 ### 協議測試工具頁（獨立於 Datalink 主流程）
 - `src/pages/TestPage.tsx`
-
-### 佔位工具頁（目前為 Coming Soon 樣板）
-- `src/pages/TemplatesPage.tsx`
-- `src/pages/HistoryPage.tsx`
-- `src/pages/ComparePage.tsx`
-- `src/pages/AnalyzerPage.tsx`
+- `src/pages/TestPageShell.tsx`
 
 ### 頁面測試
-- `src/pages/datalink/__tests__/SmartDashboard.interaction.test.tsx`
-- `src/pages/datalink/__tests__/LocalModbusWorkbenchPage.test.tsx`
+- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchFoundation.test.tsx`
+- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx`
+- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchTagStep.test.tsx`
+- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx`
 
 ## 2) UI 與元件分類
 
@@ -36,7 +33,7 @@
 - 檔案：`src/components/ProtocolSelector.tsx`、`src/components/ConfigForm.tsx`、`src/components/TestOperations.tsx`、`src/components/DeviceScanner.tsx`、`src/components/MonitorControl.tsx`、`src/components/RTUPollingCard.tsx` 等。
 
 ### 共用基礎元件
-- 檔案：`src/components/Layout.tsx`、`src/components/Toast.tsx`、`src/components/ThemeToggle.tsx`、`src/components/ui/*`
+- 檔案：`src/components/Toast.tsx`、`src/components/ThemeToggle.tsx`、`src/components/ui/*`
 
 ## 3) 狀態與領域邏輯分類
 
@@ -87,3 +84,11 @@
 - `src/pages/datalink/SettingsPage.tsx`
 - `src/pages/datalink/Dashboard.tsx`
 - `src/pages/datalink/DevicesPage.tsx`
+- `src/pages/datalink/SmartDashboard.tsx`
+- `src/pages/datalink/SmartDashboardPage.tsx`
+- `src/pages/datalink/LocalModbusWorkbenchPage.tsx`
+- `src/pages/TemplatesPage.tsx`
+- `src/pages/HistoryPage.tsx`
+- `src/pages/ComparePage.tsx`
+- `src/pages/AnalyzerPage.tsx`
+- `src/components/Layout.tsx`

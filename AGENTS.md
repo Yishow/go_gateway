@@ -38,12 +38,12 @@
 - 前端使用 Vitest + Testing Library（`frontend/src/setupTests.ts`）。
 - 任何行為變更都要同步新增或調整測試，尤其是協議解析、映射流程、排程邏輯。
 - 先補精準單元測試，再補資料庫/協議邊界的整合測試。
-- 前端 UI/UX 調整採 TDD 先行：先補測試，再改介面；至少覆蓋 `SmartDashboard`、`LocalModbusWorkbenchPage`、`TestPage` 的主要互動流程。
+- 前端 UI/UX 調整採 TDD 先行：先補測試，再改介面；至少覆蓋 `Studio` 主流程（`device -> source -> tag -> output`）與 `TestPage` 的主要互動流程。
 - 前端測試統一由 `frontend/tests/` 作為正式入口並分類管理：
   - `frontend/tests/unit/`：Vitest 單元與頁面互動測試
   - `frontend/tests/integration/`：Vitest 跨模組整合測試
   - `frontend/tests/e2e/`：Playwright 端對端測試
-- 新增前端測試時，一律放在 `frontend/tests/` 對應分類；utils、hooks、features、components 已完成實體遷移，頁面測試（Gateway、SmartDashboard）仍部分保留於 `src/pages/.../__tests__/` 由 root wrapper 匯入。
+- 新增前端測試時，一律放在 `frontend/tests/` 對應分類；utils、hooks、features、components 已完成實體遷移，頁面測試以 `frontend/tests/` 為正式入口；目前 Gateway 仍有部分 wrapper 匯入 `src/pages/.../__tests__/`。
 - Go `*_test.go` 維持與實作檔相鄰，不搬到 root `tests/`，以符合 Go 工具鏈與 package 慣例。
 
 ## Commit 與 Pull Request 規範
@@ -52,10 +52,10 @@
 - PR 請附：變更摘要、影響模組、測試證據（`go test ./...`、`npm run test`）、相關 OpenSpec 連結；前端變更需附截圖。
 
 ## 前端 UI/UX 專案目標
-- `SmartDashboard` 是目前 datalink 主產品介面，設計與重構都要優先對齊單人操作情境：`建立/選擇資料來源 -> 在格子上看到資料 -> 簡單設定 Tag -> 對應本地 Modbus -> 寫入資料庫供其他 UI 專案使用`。
-- `LocalModbusWorkbenchPage` 是 `SmartDashboard` 後段工作台，應強化與主流程的接力關係，而不是發展成另一套獨立心智模型。
+- `/studio` 是目前 datalink 主產品介面，設計與重構都要優先對齊單人操作情境：`建立/選擇資料來源 -> 在格子上看到資料 -> 簡單設定 Tag -> 對應本地 Modbus -> 寫入資料庫供其他 UI 專案使用`。
+- `Studio` 內的 `device -> source -> tag -> output` 四步驟是唯一主流程；不再維持 `SmartDashboard` / `LocalModbusWorkbenchPage` 這類舊頁面的平行心智模型。
 - `TestPage` 是專用工程測試工具；其核心用途與操作行為應保持穩定，僅做 UI 風格一致化，不作產品主流程承載。
-- 前端改版前需先盤查 `SmartDashboard` 相關 legacy 結構、舊 redirect、未引用元件與過時設計，避免新設計疊在舊相容層上。
+- 前端改版與 cleanup 時，應優先盤查並清除舊 datalink legacy 結構、舊 redirect、未引用元件與過時設計，避免新主線旁再殘留第二套產品入口。
 
 ## 文件化工作流
 - 多步驟 UI/UX、架構整理或大型重構任務，預設採 SKILL `planning-with-files` 工作法。

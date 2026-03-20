@@ -22,11 +22,11 @@
 - 關鍵協議：Modbus、FATEK、MC Protocol；對應實作位於 `internal/protocol/*` 與 `internal/datalink/connector/adapters/*`。
 
 ## 前端 UI/UX 目前主線
-- `SmartDashboard` 是 datalink 主產品介面，應優先對齊單人操作情境：
+- `/studio` 是 datalink 主產品介面，應優先對齊單人操作情境：
   `建立/選擇資料來源 -> 在格子上看到資料 -> 設定 Tag -> 對應本地 Modbus -> 寫入資料庫供其他 UI 專案使用`
-- `LocalModbusWorkbenchPage` 是後段工作台，應與 `SmartDashboard` 形成清楚接力。
+- `Studio` 內的 `device -> source -> tag -> output` 是唯一主流程，不再維持 `SmartDashboard` / `LocalModbusWorkbenchPage` 的平行產品入口。
 - `TestPage` 是專用工程測試工具，只做風格一致化，不承載產品主流程。
-- UI/UX 改造前需先盤查 `SmartDashboard` 的 legacy 結構、舊 redirect、未引用元件與過時設計。
+- UI/UX cleanup 時需優先盤查並清除舊 datalink legacy 結構、舊 redirect、未引用元件與過時設計。
 
 ## Gemini 工作流程
 1. 先確認本次任務涉及的規範來源：`AGENTS.md`、`.github/instructions/`、必要時 `openspec/specs/*`。
