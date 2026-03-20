@@ -26,6 +26,7 @@ export default function TestPage() {
   const { isMinimized, minimizeCardsBatch } = useCardMinimize()
   const isProfileLoadingRef = useRef(false)
   const isInitializedRef = useRef(false)
+  const lastSyncedProfileIdRef = useRef<string | null>(null)
   
   /**
    * 從 Profile 的配置中獲取當前模式的配置
@@ -53,24 +54,36 @@ export default function TestPage() {
    * 當 Profile 切換時，載入 Profile 的配置
    */
   useEffect(() => {
-    if (currentProfile && !isProfileLoadingRef.current) {
-      isProfileLoadingRef.current = true
-      setSelectedProtocol(currentProfile.protocol)
-      setConnectionMode(currentProfile.connectionMode)
-      // 從 Profile 的配置中獲取當前模式的配置
-      const modeConfig = getConfigForMode(currentProfile.config, currentProfile.connectionMode)
-      setConfig(modeConfig)
-      // 如果已連線，先斷線（因為配置變更了）
-      setConnectionId((prevId) => {
-        if (prevId) {
-          return null
-        }
-        return prevId
-      })
-      // 重置標記
-      setTimeout(() => {
-        isProfileLoadingRef.current = false
-      }, 100)
+    if (!currentProfile) {
+      lastSyncedProfileIdRef.current = null
+      return
+    }
+
+    if (isProfileLoadingRef.current || lastSyncedProfileIdRef.current === currentProfile.id) {
+      return
+    }
+
+    lastSyncedProfileIdRef.current = currentProfile.id
+    isProfileLoadingRef.current = true
+    setSelectedProtocol(currentProfile.protocol)
+    setConnectionMode(currentProfile.connectionMode)
+    // 從 Profile 的配置中獲取當前模式的配置
+    const modeConfig = getConfigForMode(currentProfile.config, currentProfile.connectionMode)
+    setConfig(modeConfig)
+    // 只有真正切換到另一個 profile 時才清掉既有連線，避免 auto-save 回寫把前端連線狀態抹掉
+    setConnectionId((prevId) => {
+      if (prevId) {
+        return null
+      }
+      return prevId
+    })
+
+    const timer = setTimeout(() => {
+      isProfileLoadingRef.current = false
+    }, 100)
+
+    return () => {
+      clearTimeout(timer)
     }
   }, [currentProfile]) // 只在 profile 變更時觸發
 
@@ -251,12 +264,6 @@ export default function TestPage() {
           status: connectionId ? 'monitoring' : 'idle',
         },
         {
-          type: 'rtu-polling',
-          title: 'RTU Polling',
-          summary: `${config.baudRate || 9600} baud`,
-          status: connectionId ? 'connected' : 'disconnected',
-        },
-        {
           type: 'debug',
           title: '調試面板',
           summary: connectionId && connectionId.length > 0 ? `連線: ${connectionId.slice(0, 8)}...` : '未連線',
@@ -311,7 +318,7 @@ export default function TestPage() {
   }, [connectionMode, config])
 
   return (
-    <div className="mx-auto max-w-[1760px] space-y-6 rounded-2xl bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] p-4 pb-40 text-slate-100 sm:p-6 xl:p-8">
+    <div className="w-full space-y-6 rounded-2xl bg-gradient-to-br from-[#0B1220] via-[#0F172A] to-[#111827] p-4 pb-40 text-slate-100 sm:p-6 xl:p-8">
       {/* 最小化 Card Bar */}
       <MinimizedCardsBar />
       {/* 頂部：協議選擇器和 Profile 選擇器 */}

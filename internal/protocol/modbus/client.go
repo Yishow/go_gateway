@@ -13,6 +13,10 @@ type ModbusClient struct {
 	mu        sync.Mutex
 }
 
+type transportUnwrapper interface {
+	GetOriginalTransport() interface{}
+}
+
 // NewClient 建立新的 Modbus 客戶端
 func NewClient(transport Transport, unitID byte) *ModbusClient {
 	if unitID == 0 {
@@ -22,6 +26,11 @@ func NewClient(transport Transport, unitID byte) *ModbusClient {
 		transport: transport,
 		unitID:    unitID,
 	}
+}
+
+// WithUnitID returns a client that reuses the same transport with a different unit ID.
+func (c *ModbusClient) WithUnitID(unitID byte) *ModbusClient {
+	return NewClient(c.transport, unitID)
 }
 
 // Connect 建立連線
@@ -122,6 +131,15 @@ func (c *ModbusClient) sendRTURequest(functionCode byte, data []byte) ([]byte, e
 
 // sendRequest 根據傳輸類型選擇適當的發送方法
 func (c *ModbusClient) sendRequest(functionCode byte, data []byte) ([]byte, error) {
+	if transportWithOriginal, ok := c.transport.(transportUnwrapper); ok {
+		switch transportWithOriginal.GetOriginalTransport().(type) {
+		case *RTUTransport:
+			return c.sendRTURequest(functionCode, data)
+		case *TCPTransport, *UDPTransport:
+			return c.sendTCPRequest(functionCode, data)
+		}
+	}
+
 	// 檢查是否支持 GetNextTransactionID（TCP/UDP）或直接是 RTU
 	_, hasTransactionID := c.transport.(interface{ GetNextTransactionID() uint16 })
 	_, isRTU := c.transport.(*RTUTransport)

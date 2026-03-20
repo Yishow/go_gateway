@@ -320,6 +320,7 @@ export default function PollingOperationCard({
             </span>
           )}
           <button
+            type="button"
             onClick={onDelete}
             className="px-1.5 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
             title="刪除操作"
@@ -523,6 +524,7 @@ export default function PollingOperationCard({
       <div className="flex items-center gap-2">
         {!operation.enabled ? (
           <button
+            type="button"
             onClick={handleStart}
             disabled={!connectionId}
             className="bg-purple-600 text-white px-3 py-1 rounded-md font-semibold shadow-md shadow-purple-500/30 hover:bg-purple-700 hover:shadow-purple-500/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs"
@@ -531,6 +533,7 @@ export default function PollingOperationCard({
           </button>
         ) : (
           <button
+            type="button"
             onClick={handleStop}
             className="bg-red-600 text-white px-3 py-1 rounded-md font-semibold shadow-md shadow-red-500/30 hover:bg-red-700 hover:shadow-red-500/40 active:scale-[0.98] transition-all flex items-center gap-1.5 text-xs"
           >
@@ -539,6 +542,7 @@ export default function PollingOperationCard({
           </button>
         )}
         <button
+          type="button"
           onClick={handleClearRecords}
           disabled={records.length === 0}
           className="px-2 py-1 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
