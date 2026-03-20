@@ -136,6 +136,18 @@
   - `upsert` / `insert` 切換不會留下失效的 timestamp column
 - 這次也證實：Database flow 若要做 `Connector / Schema / Mapping` 分層，最小安全做法不是先重做 UI，而是先把 scope model 顯性化，再讓 UI 反映該 scope。
 
+## 2026-03-20 Step 3 / Output 收尾新發現
+- Step 3 若要真正符合「建立規則後自動建立 Tag + Mapping」，不能只留原功能再換標題；必須把主畫面資訊排序改成：
+  - 先看 generated / needs review
+  - 再把 create / existing / unbind 放進 exception handling
+  這樣操作員才不會誤解為「還要再手動綁一次才算完成」。
+- `5.3` 這類 output feedback 類需求，不一定需要再重寫 UI；若現有行為已正確，補上 bind / unbind / delete mapping 的 inline feedback regression，反而是更安全的完成方式。
+- `6.2` 的「migration and UX coverage」可以由三條 seam 組成：
+  - Step 2 unmanaged legacy point 顯示與 inspector 說明
+  - Step 4 per-target output selection drift contract
+  - Database layered connector/schema/mapping scope regression
+  三者一起成立，才足以證明新 flow 不會把 legacy state、output state、database scope 混在一起。
+
 ## round 2 已確認有效的收斂方向
 - Step 1：editor 進中央區，不再用 modal。
 - Step 2：

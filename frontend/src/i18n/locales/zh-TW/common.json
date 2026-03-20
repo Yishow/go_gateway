@@ -744,10 +744,20 @@
         "goToSource": "前往來源規劃"
       },
       "selection": {
-        "eyebrow": "選擇來源 point",
-        "title": "批次挑選要綁定的 point",
-        "description": "這裡只做來源到 Tag 的綁定，先把要推進的點位圈起來，再決定 key 模板。",
+        "eyebrow": "檢查自動建立的 Tag 映射",
+        "title": "先覆核 rule-derived Tag，再決定是否需要人工修正",
+        "description": "Step 3 會先載入規則自動建立的 Tag 與 mapping 狀態。只有在自動建立失敗或需要校正時，才使用例外處理工具。",
         "pointMeta": "位址 {{address}} · {{dataType}}"
+      },
+      "review": {
+        "eyebrow": "Review-first",
+        "title": "先確認主流程已經自動建立了哪些 Tag",
+        "description": "這塊板面優先用來檢查哪些 point 已有 rule-derived Tag/mapping，哪些列還需要人工注意。",
+        "metrics": {
+          "generated": "已自動建立並連結",
+          "needsReview": "需要複查",
+          "selectedExceptions": "目前選取的例外項"
+        }
       },
       "board": {
         "search": "搜尋候選項",
@@ -783,6 +793,11 @@
           "partial": "部分完成"
         },
         "boundTag": "已綁定至 {{tag}}"
+      },
+      "exception": {
+        "eyebrow": "例外處理",
+        "title": "只在需要人工介入時才使用這些工具",
+        "description": "正常的 rule-derived 綁定會停留在 review 狀態。只有遇到失敗、補綁既有 Tag，或要做修正重綁時，才使用這一區。"
       },
       "template": {
         "eyebrow": "Tag key 模板",

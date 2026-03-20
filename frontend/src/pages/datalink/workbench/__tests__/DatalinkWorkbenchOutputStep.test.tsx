@@ -623,6 +623,47 @@ describe('DatalinkWorkbench output step', () => {
         }),
       );
     });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'workbench.output.database.results.mappingSaved',
+    );
+  });
+
+  it('removes a database mapping with inline feedback when clicking a bound column', async () => {
+    mockDBTargetAPI.listMappings.mockResolvedValue([
+      {
+        id: 'db-mapping-1',
+        tag_id: 'tag-1',
+        connector_id: 'connector-1',
+        table_schema: 'main',
+        table_name: 'sensor_values',
+        column_name: 'value',
+        write_mode: 'insert',
+        timestamp_column: null,
+        enabled: true,
+        created_at: '',
+        updated_at: '',
+      },
+    ]);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'workbench.output.targetSwitcher.database',
+      }),
+    );
+
+    await screen.findByTestId('schema-column-value');
+    fireEvent.click(screen.getByTestId('schema-column-value'));
+
+    await waitFor(() => {
+      expect(mockDBTargetAPI.deleteMapping).toHaveBeenCalledWith('db-mapping-1');
+    });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'workbench.output.database.results.mappingDeleted',
+    );
   });
 
   it('keeps the database selected-tag display aligned with the tag chips', async () => {
@@ -725,6 +766,7 @@ describe('DatalinkWorkbench output step', () => {
       await waitFor(() => {
         expect(mockModbusShareAPI.deleteMapping).toHaveBeenCalledWith('tag-1');
       });
+      expect(screen.getByRole('status')).toHaveTextContent('workbench.output.results.slotUnbound');
     });
 
     it('binds the selected tag by clicking an empty register slot', async () => {
@@ -739,6 +781,7 @@ describe('DatalinkWorkbench output step', () => {
       await waitFor(() => {
         expect(mockModbusShareAPI.upsertMapping).toHaveBeenCalledWith('tag-1', 4);
       });
+      expect(screen.getByRole('status')).toHaveTextContent('workbench.output.results.slotBound');
     });
 
     it('renders auto-map strategy selector with three strategies', async () => {

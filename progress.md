@@ -3,12 +3,40 @@
 ## 當前狀態摘要
 - `task_plan.md`、`findings.md`、`progress.md` 已重構為精簡續作版本。
 - 原始需求已保留：datalink UI 仍以「來源設定 -> 可視化 -> Tag -> Local Modbus / Database」為唯一主線。
+- OpenSpec `rework-datalink-rule-persistence-and-point-tag-flow` 本輪剩餘的 `4.2 / 5.3 / 6.2 / 6.3` 已完成收斂與文件同步。
 - 目前最新狀態：
   - Step 1 round 2 polish：完成
   - Step 2 round 2 polish：完成
   - Step 3 round 2 polish：完成
   - Step 4 round 2 polish：完成
   - final regression / review：完成
+
+## 2026-03-20 Step 3 / Output / docs 收尾
+- 已完成 OpenSpec `4.2 / 5.3 / 6.2 / 6.3`：
+  - `TagBindingStudio.tsx`
+    - Step 3 主敘事改成 review-first。
+    - 新增 generated / needs review / selected exception summary。
+    - create / existing / unbind 等修正動作改收斂到 exception-handling 區塊，不再佔據主畫面語意。
+  - `DatalinkWorkbenchTagStep.test.tsx`
+    - 補 review-first summary 與 exception tools grouping regression。
+  - `DatalinkWorkbenchOutputStep.test.tsx`
+    - 補 Local Modbus bind / unbind inline feedback regression。
+    - 補 Database create / delete mapping inline feedback regression。
+    - 與既有 connector stale-scope / write-mode sync / per-target selection tests 一起形成 `5.3 + 6.2` coverage seam。
+  - `README.md`
+    - 新增目前 workbench 主線操作說明。
+  - `openspec/.../design.md`
+    - 新增 `Operator Workflow Guidance`，把 Step 1~4 的新語意寫回 OpenSpec 設計說明。
+  - `openspec/.../tasks.md`
+    - `4.2`、`5.3`、`6.2`、`6.3` 全部勾為完成。
+- 本輪驗證已通過：
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-provider.test.tsx tests/unit/pages/datalink/workbench-source-step.test.tsx tests/unit/pages/datalink/workbench-tag-step.test.tsx tests/unit/pages/datalink/workbench-output-step.test.tsx`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+- 結果：
+  - OpenSpec tasks 目前為 `16/16` 完成
+  - 下一步可進入 final code review / commit / archive decision
 
 ## 最新一輪已完成事項
 

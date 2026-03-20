@@ -317,6 +317,40 @@ describe('DatalinkWorkbench tag step', () => {
     );
   });
 
+  it('shows review-first summary metrics for generated and pending rows', () => {
+    mockTags.push({
+      id: 'tag-bound',
+      key: 'TAG_40001',
+      display_name: 'Flow Tag',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'active',
+      created_at: '',
+      updated_at: '',
+    });
+    mockMappings.push({
+      id: 'mapping-bound',
+      point_id: 'point-1',
+      tag_id: 'tag-bound',
+      enabled: true,
+      transform_pipeline: '',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('tag-review-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('tag-review-generated')).toHaveTextContent('1');
+    expect(screen.getByTestId('tag-review-needs-review')).toHaveTextContent('1');
+    expect(screen.getByTestId('tag-review-selected-exceptions')).toHaveTextContent('0');
+  });
+
   it('shows adaptive board guidance and flow hints as selection state changes', () => {
     renderPage();
 
@@ -333,6 +367,18 @@ describe('DatalinkWorkbench tag step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
 
     expect(screen.getByText('workbench.tag.board.flowModeHint.existing')).toBeInTheDocument();
+  });
+
+  it('groups manual correction tools under an exception-handling section', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    expect(screen.getByTestId('tag-exception-tools')).toBeInTheDocument();
+    expect(screen.getByText('workbench.tag.exception.title')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'workbench.tag.board.flow.create' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' })).toBeInTheDocument();
   });
 
   it('replaces preview keys with existing-tag selectors in existing flow rows', () => {

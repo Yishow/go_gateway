@@ -116,6 +116,29 @@ The current Database page couples connector choice, schema fetch, table selectio
 6. Treat legacy unmanaged points as visible but distinct until operators migrate them into persisted rules.
 7. Roll forward by enabling the new rule-driven flow in workbench; roll back by disabling rule activation while keeping underlying points/tags intact.
 
+## Operator Workflow Guidance
+
+The intended operator flow for this change is now:
+
+1. **Step 1 — Device setup and diagnostics**
+   - Show `connect` and `probe` as separate results.
+   - Allow saving the device when transport connectivity succeeds even if protocol probe still fails.
+   - Block rule activation and collection until probe succeeds.
+
+2. **Step 2 — Rule-driven source planning**
+   - Treat `SourceRule` as the primary operator-managed object.
+   - Render `planned`, `used`, `unmanaged`, and `conflict` states explicitly in the grid and inspector.
+   - Restore persisted rules and their enabled state after restart so the grid reflects actual runtime behavior.
+
+3. **Step 3 — Review-first tag verification**
+   - Load rule-derived Tag and Mapping state automatically instead of requiring manual first-pass binding.
+   - Keep corrective actions available, but present them as exception handling rather than the default path.
+
+4. **Step 4 — Direct output binding**
+   - Keep Local Modbus and Database target selection state isolated per target.
+   - Perform bind/unbind actions directly on the output surface with inline success, conflict, or failure feedback.
+   - Model Database output as `Connector -> Schema/Table context -> Mapping` so actions always use the current layer context.
+
 ## Open Questions
 
 - Should disabling a rule freeze the last displayed live value, or clearly mark it as stale/inactive in the grid?

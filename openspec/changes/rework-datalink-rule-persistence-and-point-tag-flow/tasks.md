@@ -18,16 +18,16 @@
 ## 4. Step 3 Point/Tag review flow
 
 - [x] 4.1 Auto-create or synchronize rule-derived Tag and Mapping records with strict `1 Point : 1 Tag` enforcement
-- [ ] 4.2 Convert Step 3 from manual first-pass binding into review/verification plus exception handling
+- [x] 4.2 Convert Step 3 from manual first-pass binding into review/verification plus exception handling
 
 ## 5. Output and database state model
 
 - [x] 5.1 Refactor Local Modbus output state so each target keeps isolated selection state and one authoritative bind/unbind model
 - [x] 5.2 Rebuild Database output flow into explicit Connector / Schema / Mapping layers for SQLite and PostgreSQL
-- [ ] 5.3 Preserve direct binding feedback, conflict handling, and compatibility behavior across Output targets
+- [x] 5.3 Preserve direct binding feedback, conflict handling, and compatibility behavior across Output targets
 
 ## 6. Validation and migration
 
 - [x] 6.1 Add regression coverage for connect/probe gating, rule persistence, restart restoration, and auto-generated tag mappings
-- [ ] 6.2 Add migration and UX coverage for unmanaged legacy points, output-state drift, and layered database mapping flows
-- [ ] 6.3 Update operator-facing docs and OpenSpec-linked guidance for the new rule-driven workflow
+- [x] 6.2 Add migration and UX coverage for unmanaged legacy points, output-state drift, and layered database mapping flows
+- [x] 6.3 Update operator-facing docs and OpenSpec-linked guidance for the new rule-driven workflow

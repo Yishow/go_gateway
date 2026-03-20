@@ -254,6 +254,18 @@ export function TagBindingStudio() {
   const readyCount = flowMode === 'create'
     ? createRequests.length
     : existingRequests.length;
+  const generatedReviewCount = useMemo(
+    () => candidates.filter((candidate) => candidate.alreadyLinked).length,
+    [candidates],
+  );
+  const needsReviewCount = useMemo(
+    () => candidates.filter((candidate) => candidate.bindingStatus !== 'bound').length,
+    [candidates],
+  );
+  const selectedExceptionCount = useMemo(
+    () => selectedCandidates.filter((candidate) => !candidate.alreadyLinked).length,
+    [selectedCandidates],
+  );
   const selectedBoundItems = useMemo(
     () =>
       selectedCandidates
@@ -700,48 +712,60 @@ export function TagBindingStudio() {
     <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.95fr)]">
       <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
         <div className="space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-                {t('workbench.tag.selection.eyebrow')}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+              {t('workbench.tag.selection.eyebrow')}
+            </p>
+            <div>
+              <h2 className="text-2xl font-semibold text-slate-50">
+                {t('workbench.tag.selection.title')}
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-300">
+                {t('workbench.tag.selection.description')}
               </p>
-              <div>
-                <h2 className="text-2xl font-semibold text-slate-50">
-                  {t('workbench.tag.selection.title')}
-                </h2>
-                <p className="mt-1 max-w-2xl text-sm text-slate-300">
-                  {t('workbench.tag.selection.description')}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setFlowMode('create')}
-                className={
-                  flowMode === 'create'
-                    ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
-                    : 'rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300'
-                }
-              >
-                {t('workbench.tag.board.flow.create')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFlowMode('existing')}
-                className={
-                  flowMode === 'existing'
-                    ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
-                    : 'rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300'
-                }
-              >
-                {t('workbench.tag.board.flow.existing')}
-              </button>
             </div>
           </div>
 
-          <p className="text-sm text-slate-300">{t(flowModeHintKey)}</p>
+          <div
+            className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.6fr))]"
+            data-testid="tag-review-summary"
+          >
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                {t('workbench.tag.review.eyebrow')}
+              </p>
+              <h3 className="text-lg font-semibold text-slate-50">
+                {t('workbench.tag.review.title')}
+              </h3>
+              <p className="text-sm text-slate-300">
+                {t('workbench.tag.review.description')}
+              </p>
+            </div>
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-300">
+                {t('workbench.tag.review.metrics.generated')}
+              </p>
+              <p className="mt-1 text-xl font-semibold text-emerald-100" data-testid="tag-review-generated">
+                {generatedReviewCount}
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-amber-300">
+                {t('workbench.tag.review.metrics.needsReview')}
+              </p>
+              <p className="mt-1 text-xl font-semibold text-amber-100" data-testid="tag-review-needs-review">
+                {needsReviewCount}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                {t('workbench.tag.review.metrics.selectedExceptions')}
+              </p>
+              <p className="mt-1 text-xl font-semibold text-slate-50" data-testid="tag-review-selected-exceptions">
+                {selectedExceptionCount}
+              </p>
+            </div>
+          </div>
 
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
             <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
@@ -978,6 +1002,50 @@ export function TagBindingStudio() {
       </div>
 
       <aside className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+        <div
+          className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+          data-testid="tag-exception-tools"
+        >
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+              {t('workbench.tag.exception.eyebrow')}
+            </p>
+            <h3 className="text-xl font-semibold text-slate-50">
+              {t('workbench.tag.exception.title')}
+            </h3>
+            <p className="text-sm text-slate-300">
+              {t('workbench.tag.exception.description')}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setFlowMode('create')}
+              className={
+                flowMode === 'create'
+                  ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
+                  : 'rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300'
+              }
+            >
+              {t('workbench.tag.board.flow.create')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFlowMode('existing')}
+              className={
+                flowMode === 'existing'
+                  ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
+                  : 'rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300'
+              }
+            >
+              {t('workbench.tag.board.flow.existing')}
+            </button>
+          </div>
+
+          <p className="text-sm text-slate-300">{t(flowModeHintKey)}</p>
+        </div>
+
         <div className="space-y-4">
           <button
             type="button"

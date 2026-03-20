@@ -744,10 +744,20 @@
         "goToSource": "Go to Source Planning"
       },
       "selection": {
-        "eyebrow": "Choose source points",
-        "title": "Select the points to bind in batch",
-        "description": "This step only handles source-to-tag binding. Select the target points first, then decide the key template.",
+        "eyebrow": "Review generated tag mappings",
+        "title": "Verify rule-derived tags before publishing them downstream",
+        "description": "Step 3 now loads the generated tag identity and mapping status first. Use the exception tools only when automatic generation needs correction.",
         "pointMeta": "Address {{address}} · {{dataType}}"
+      },
+      "review": {
+        "eyebrow": "Review-first",
+        "title": "Check what the rule flow already generated",
+        "description": "Use this board to verify which points already have rule-derived tag mappings and which rows still need operator attention.",
+        "metrics": {
+          "generated": "Generated and linked",
+          "needsReview": "Needs review",
+          "selectedExceptions": "Selected exceptions"
+        }
       },
       "board": {
         "search": "Search candidates",
@@ -783,6 +793,11 @@
           "partial": "Partial"
         },
         "boundTag": "Bound to {{tag}}"
+      },
+      "exception": {
+        "eyebrow": "Exception handling",
+        "title": "Correct rows that still need manual intervention",
+        "description": "Auto-generated mappings stay review-only. Use these tools only when a row needs a new tag, an existing tag, or a corrective rebind."
       },
       "template": {
         "eyebrow": "Tag key template",
