@@ -151,11 +151,13 @@ export default function ConfigForm({
   const handleDisconnect = async () => {
     if (!connectionId) return;
 
+    const activeConnectionId = connectionId;
     setLoading(true);
+    onConnectionChange(null);
     try {
-      await disconnect(connectionId);
-      onConnectionChange(null);
+      await disconnect(activeConnectionId);
     } catch (error: unknown) {
+      onConnectionChange(activeConnectionId);
       const message =
         typeof error === "object" && error !== null && "message" in error
           ? String((error as { message?: string }).message ?? "斷線失敗")

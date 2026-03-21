@@ -33,6 +33,19 @@ export default function RTUPollingCard({
   const isFatek = useMemo(() => protocol.includes('fatek'), [protocol])
   const isMCProtocol = useMemo(() => protocol.includes('mcprotocol'), [protocol])
 
+  const getDefaultOperation = () => {
+    const operationsList = getOperations()
+    if (operationsList.length === 0) {
+      return null
+    }
+
+    if (isModbus) {
+      return operationsList.find((operation) => operation.value === 'read_holding_registers') ?? operationsList[0]
+    }
+
+    return operationsList.find((operation) => operation.type === 'read') ?? operationsList[0]
+  }
+
   /**
    * 獲取可用的操作選項
    */
@@ -80,13 +93,12 @@ export default function RTUPollingCard({
    * 新增操作
    */
   const handleAddOperation = () => {
-    const operationsList = getOperations()
-    if (operationsList.length === 0) return
-    
-    const firstOp = operationsList[0]
+    const defaultOperation = getDefaultOperation()
+    if (!defaultOperation) return
+
     const newOperation: PollingOperation = {
       id: `op-${nextId}`,
-      operation: firstOp.value,
+      operation: defaultOperation.value,
       address: 0,
       count: 10,
       values: '',
@@ -119,12 +131,11 @@ export default function RTUPollingCard({
    * 協議切換時重置操作類型
    */
   useEffect(() => {
-    const operationsList = getOperations()
-    if (operationsList.length === 0) return
-    
-    const firstOp = operationsList[0]
+    const defaultOperation = getDefaultOperation()
+    if (!defaultOperation) return
+
     setOperations(prev => 
-      prev.map(op => ({ ...op, operation: firstOp.value }))
+      prev.map(op => ({ ...op, operation: defaultOperation.value }))
     )
   }, [protocol]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -134,12 +145,11 @@ export default function RTUPollingCard({
    */
   useEffect(() => {
     if (operations.length === 0) {
-      const operationsList = getOperations()
-      if (operationsList.length > 0) {
-        const firstOp = operationsList[0]
-        const defaultOperation: PollingOperation = {
+      const defaultOperationOption = getDefaultOperation()
+      if (defaultOperationOption) {
+        const initialOperation: PollingOperation = {
           id: 'op-1',
-          operation: firstOp.value,
+          operation: defaultOperationOption.value,
           address: 0,
           count: 10,
           values: '',
@@ -147,7 +157,7 @@ export default function RTUPollingCard({
           baudRate: Number.isNaN(baudRate) ? 9600 : baudRate,
           enabled: false,
         }
-        setOperations([defaultOperation])
+        setOperations([initialOperation])
         setNextId(2)
       }
     }

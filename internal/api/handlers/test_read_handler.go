@@ -48,42 +48,19 @@ func (h *TestHandler) Read(c *gin.Context) {
 	var clientToUse interface{} = state.Client
 	var tempClient interface{} = nil
 	if req.UnitID != nil || req.Station != nil {
-		// 創建臨時客戶端配置
-		tempConfig := make(map[string]interface{})
-		for k, v := range state.Config {
-			tempConfig[k] = v
-		}
-		// 覆蓋站號
-		if req.UnitID != nil {
-			tempConfig["unitID"] = int(*req.UnitID)
-		}
-		if req.Station != nil {
-			tempConfig["station"] = *req.Station
-		}
-		// 創建臨時客戶端並連線
-		tempClient, err := h.createClientWithDebug(state.Protocol, tempConfig, state.ID+"_temp")
+		var err error
+		clientToUse, tempClient, err = h.prepareOverrideClient(state, req.UnitID, req.Station, "_temp")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("創建臨時客戶端失敗: %v", err)})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		// 連線臨時客戶端
-		if err := h.connectClient(tempClient, state.Protocol); err != nil {
-			if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
-				fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("連線臨時客戶端失敗: %v", err)})
-			return
-		}
-		clientToUse = tempClient
 	}
 
 	result, err := h.executeRead(clientToUse, state.Protocol, req)
 
 	// 如果使用了臨時客戶端，關閉它
 	if tempClient != nil {
-		if closeErr := h.closeClient(tempClient, state.Protocol); closeErr != nil {
-			fmt.Printf("關閉臨時客戶端失敗: %v\n", closeErr)
-		}
+		h.closeTempClient(tempClient, state.Protocol)
 	}
 	if err != nil {
 		// 記錄錯誤日誌
