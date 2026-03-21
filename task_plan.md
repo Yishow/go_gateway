@@ -1,5 +1,77 @@
 # UI/UX 收斂任務計畫
 
+## 2026-03-20 `/test` 精簡改造
+
+### Goal
+- 把 `/test` 收斂成單一測試頁入口：保留 `TestPage` 主功能、移除舊 `Layout` 側邊欄、調整頁面寬度與 spacing 以適合 1920 桌面與一般 RWD，並清掉這條測試工具流中已不再使用的舊頁面與其路由殘留。
+
+### Current Phase
+- Phase 1：Requirements & Discovery
+
+### Phases
+
+#### Phase 1：Requirements & Discovery
+- [x] 盤查 `/test` 路由與包裹 layout
+- [x] 確認寬度限制與側邊欄來源
+- [x] 與使用者確認「移除用不到的頁面」的實際範圍
+- **Status:** complete
+
+#### Phase 2：Design & Scope Lock
+- [x] 定義 `/test` 單頁殼層
+- [x] 決定保留/移除的 legacy routes 與 page files
+- [x] 補齊測試調整範圍
+- **Status:** complete
+
+#### Phase 3：Implementation
+- [x] 先補/改前端測試，固定 `/test` 只保留測試頁的行為
+- [x] 移除 sidebar 與不需要的 navigation shell
+- [x] 調整 1920 / RWD 寬度與內容容器
+- [x] 清理未使用頁面、imports 與 route 殘留
+- **Status:** complete
+
+#### Phase 4：Verification
+- [x] 執行受影響前端測試
+- [x] 執行 `npm run lint`
+- [x] 執行 `npx tsc --noEmit`
+- [x] 執行 `npm run build`
+- **Status:** complete
+
+#### Phase 5：Delivery
+- [x] 更新 findings / progress
+- [x] 回報變更、風險與後續建議
+- **Status:** complete
+
+### Decisions Made
+| Decision | Rationale |
+|----------|-----------|
+| 先從 `/test` 路由、`Layout.tsx` 與 `TestPage.tsx` 下手 | 這三者直接決定側邊欄、寬度上限與頁面保留方式，是最小且完整的切入面 |
+| datalink 主入口改為 `/datalink -> /datalink/workbench` | 使用者明確要求連同舊 datalink 頁一起盤掉，且現行主線已是 workbench，應讓入口與主流程一致 |
+| 新主線路由命名為 `/studio` | 使用者不想保留 `datalink` 字樣，且 `studio` 已與現有設計語意一致、也不與既有 `/gateway`、`/test` 衝突 |
+
+### Errors Encountered
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| `python` not found when running planning catchup script | 1 | 改用 `python3` 重新執行 |
+| `rg` 驗證時誤用 brace path，導致 path 不存在 | 1 | 改為對 `openspec/specs` 根目錄搜尋並用 `glob` 限縮目標檔 |
+| `rg` 誤把多個 path 串成單一字串參數 | 1 | 改為分開搜尋，或直接以共同根目錄為 path |
+| `git commit --only` 無法直接納入未追蹤新檔 | 1 | 先對目標新檔做定向 `git add`，再重跑 dry-run / commit |
+
+## 2026-03-20 OpenSpec archive follow-up
+- 針對這輪 `rework-datalink-rule-persistence-and-point-tag-flow` archive 後留下的 canonical spec placeholder 做最小收尾。
+- 本輪只補齊與這次 archive 直接相關的兩份 `Purpose`：
+  - `openspec/specs/database-target-workbench/spec.md`
+  - `openspec/specs/source-rule-runtime/spec.md`
+- 不擴大處理其他歷史 `TBD Purpose`，避免把 unrelated spec debt 混進這次交付。
+
+## 2026-03-20 SmartDashboard legacy cleanup
+- 已依使用者確認採 repo 層完整移除，並以「能證明沒用就刪」為邊界。
+- 已完成：
+  - 刪除 `SmartDashboard` page / 子元件 / page tests / wrapper tests / integration regression
+  - 刪除 `frontend/src/styles/dashboard.ts`
+  - 刪除 `useSmartDashboardShortcuts` 舊專用 hook export 與其測試
+  - 更新 active docs，使 `/studio` 與 `/test` 成為唯一現行入口敘事
+- 下一步：第三個 OpenSpec commit 也已建立；目前只剩 planning files（`findings.md`、`progress.md`、`task_plan.md`）留在工作樹，待決定是否整理 index 狀態
+
 ## 原始需求
 - 以單人操作情境重整 datalink UI，讓主流程回到：
   1. 設定資料來源。

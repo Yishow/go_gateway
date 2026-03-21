@@ -1,9 +1,70 @@
 # Findings
 
+## 2026-03-20 `/test` 精簡改造新發現
+- `frontend/src/App.tsx` 目前仍把 `/test`、`/templates`、`/history`、`/compare`、`/analyzer` 一起掛在舊 `Layout` 下，代表「只保留測試頁」至少會涉及 legacy 測試工具 routes 清理。
+- `frontend/src/components/Layout.tsx` 的側邊欄與 `max-w-7xl mx-auto` 是 `/test` 現在看起來像多頁後台、且在 1920 螢幕下內容偏窄的直接來源。
+- `TestPage.tsx` 本身已經是完整的單頁工具集合，若改成 page-owned shell，大多數精簡需求不需要動它的核心操作流程，只需處理容器與入口層。
+- 目前「移除用不到的頁面」最明顯的候選是 `/templates`、`/history`、`/compare`、`/analyzer`，但是否連同對應 page 檔與測試一起刪除，仍需先向使用者鎖定範圍。
+- 使用者已確認：
+  - 清理範圍不只 `/test`，還包含舊 datalink 頁。
+  - datalink 主入口應改為 `/datalink` 直接進 `/datalink/workbench`。
+  - 最終主線命名不保留 `datalink`，改採 `/studio`。
+- `frontend/src/features/datalink/legacyRoutes.ts` 已經提供多條 compat redirect helper，代表這輪更適合採「入口切換 + legacy redirect 收斂」而不是只刪檔不處理舊連結。
+- `SmartDashboard.tsx` 目前只是 `SmartDashboardPage.tsx` 的薄 wrapper；若要盤掉舊 datalink 頁，實際待處理的重量級 legacy surface 仍是 `SmartDashboardPage.tsx` 與 `LocalModbusWorkbenchPage.tsx`。
+- `LocalModbusWorkbenchPage.test.tsx` 仍在測舊 page 行為，若移除 legacy page，測試也要一起轉向 redirect 或 compat contract。
+- 這輪最安全的落地方式不是暴力刪掉整個 SmartDashboard implementation tree，而是：
+  - 對外主入口先改成 `/studio`
+  - 舊 `datalink` 路由改走 redirect
+  - 明確無用的 test-tool pages 與舊 local modbus page 再實體刪除
+- `buildWorkbenchRedirect()` 改成直接產生 `/studio` 後，原本從 SmartDashboard 內部導向 workbench 的操作也會自然落到新主線，不需要額外再補一層 route glue。
+- 2026-03-20 續查 `openspec/` 時發現：
+  - `openspec/specs/` 底下其實有多份歷史 `TBD - created by archiving change ...` Purpose placeholder。
+  - 但和這輪 archive 直接新增/變動強相關、且最適合立即收尾的是：
+    - `openspec/specs/database-target-workbench/spec.md`
+    - `openspec/specs/source-rule-runtime/spec.md`
+  - 因此這輪 follow-up 採 **最小收尾**：只補這兩份的 Purpose，不順手擴大整理整個 openspec 舊債。
+- 2026-03-20 下一輪 legacy cleanup 盤查結果：
+  - `SmartDashboard.tsx` 只是 `SmartDashboardPage.tsx` wrapper。
+  - `SmartDashboardPage.tsx` 仍直接依賴 `frontend/src/pages/datalink/smart-dashboard/` 整個子樹。
+  - 已確認的 SmartDashboard page-level tests 至少包含：
+    - `SmartDashboard.interaction.test.tsx`
+    - `SmartDashboardGridOverlaysSection.test.tsx`
+    - `useSmartDashboardWorkspaceContentState.test.tsx`
+    - `useSmartDashboardWorkspaceState.test.ts`
+    - `useSmartDashboardCommitFlow.test.ts`
+    - `useSmartDashboardPanelsState.test.ts`
+  - `frontend/tests/integration/ui/smart-dashboard-regression.test.tsx` 仍直接 import `@/pages/datalink/SmartDashboard`，若 repo 層完整移除 legacy UI，這支 integration test 也應一起移除。
+  - `frontend/src/styles/dashboard.ts` 初步搜尋無任何引用，傾向視為 orphan 一併刪除。
+  - 這輪 docs 邊界已由使用者鎖定為：**只更新 active docs，保留 historical docs / archived specs**。
+  - `useSmartDashboardShortcuts` 僅剩 SmartDashboard 舊頁與其專屬測試使用；在刪除 legacy page 後，保留它只會留下無主 API，因此應連同 export 與測試一起收掉。
+  - `frontend/FILE_CLASSIFICATION.md` 與 `frontend/tests/README.md` 屬於 active docs，若不一起更新，repo 說明會與實際檔案狀態衝突。
+
 ## 核心結論
 - 原始需求始終沒有改變：datalink UI 要回到單純主線，而不是讓使用者在 SmartDashboard、Tag、Local Modbus、資料庫之間切頁與切心智模型。
 - 最適合的實作路徑仍是 **混合式過渡**：新 workbench 承接主線，舊頁只做 fallback / compat。
 - 真正該重用的是 domain 與 hooks / services / types，不是舊 UI 外觀本身。
+
+## 2026-03-20 剩餘 canonical OpenSpec staged 變更盤點
+- 目前尚未提交的 5 份 canonical spec 不是純格式調整，而是補入一整組與這輪 workbench / runtime 收斂相符的 requirement：
+  - `datalink-workbench-desktop`
+    - 補 Step 1 `connect` / `probe` 分段診斷
+    - 補 Step 2 device capability / persisted rule state 語意
+    - 補 Step 3 review-first / exception-handling requirement
+  - `local-modbus-memory-workbench`
+    - 補 per-target isolated selection state
+    - 補單一 authoritative binding state model
+    - 補 bind / unbind inline feedback requirement
+  - `point-catalog`
+    - 補 rule-derived point 是 primary runtime asset
+    - 補 unmanaged / legacy point 仍需可辨識
+    - 補 point collection 跟隨 rule lifecycle 啟停
+  - `protocol-connectors`
+    - 補 connector test 的 connect-stage / probe-stage 分段診斷
+    - 補 protocol-specific probe configuration requirement
+  - `tag-dictionary`
+    - 把 Tag/Point cardinality 收斂成 `1 Point : 1 Tag`
+    - 補 source rule 自動建立 Tag + Mapping requirement
+- 結論：這 5 份不是單純補 `Purpose`，而是把最近一輪 workbench / runtime / mapping 決策正式寫回 canonical spec。
 
 ## 仍有效的重要發現
 

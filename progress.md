@@ -1,5 +1,201 @@
 # Progress
 
+## 2026-03-20 `/test` 精簡改造
+- **Status:** complete
+- Actions taken:
+  - 依 `pi-planning-with-files` 先讀取既有 `task_plan.md`、`findings.md`、`progress.md` 與模板。
+  - 盤查 `/test` 相關前端路由與殼層：
+    - `App.tsx` 仍保留 `/test`、`/templates`、`/history`、`/compare`、`/analyzer` 五個 legacy 測試工具 route。
+    - `Layout.tsx` 提供側邊欄與 `max-w-7xl` 內容容器。
+    - `TestPage.tsx` 是目前唯一仍有明確功能的測試頁本體。
+  - 補寫本輪 task-specific 計畫與發現，準備進入 scope lock。
+  - 透過 `ask_user` 鎖定兩個關鍵範圍決策：
+    - 不只清 `/test` legacy 測試工具頁，也要連同舊 datalink 頁一起盤。
+    - datalink 主入口改為 `/datalink -> /datalink/workbench`。
+    - 最終對外主路由命名改為 `/studio`。
+  - 進一步盤查 legacy 依賴：
+    - `TemplatesPage`、`HistoryPage`、`ComparePage`、`AnalyzerPage` 幾乎只被 `App.tsx` 與 route foundation 測試引用。
+    - `SmartDashboard.tsx` 是 `SmartDashboardPage.tsx` wrapper。
+    - `LocalModbusWorkbenchPage` 仍有專屬舊頁測試，代表 cleanup 需一併處理測試與 compat 行為。
+  - 依 TDD 先在 `DatalinkWorkbenchFoundation.test.tsx` 補紅燈：
+    - `/studio` 應成為主產品入口
+    - `/datalink` 應 redirect 到 `/studio`
+    - `/test` 不再包 legacy sidebar shell
+    - `/templates` 等舊測試頁應 redirect 到 `/test`
+  - 最小實作讓紅燈轉綠：
+    - `App.tsx` 改為 `/ -> /studio`，`/studio` 直出 `DatalinkWorkbenchPage`
+    - `/datalink`、`/datalink/workbench`、`/datalink/local-modbus*` 改走 compat redirect
+    - `/test` 改成 `TestPageShell + TestPage`
+    - `buildWorkbenchRedirect()` 改為產生 `/studio`
+    - `TestPage` 內容寬度從 `1600` 放寬到 `1760`
+  - cleanup：
+    - 刪除 `Layout.tsx`
+    - 刪除 `TemplatesPage.tsx`、`HistoryPage.tsx`、`ComparePage.tsx`、`AnalyzerPage.tsx`
+    - 刪除 `LocalModbusWorkbenchPage.tsx` 與其 page test
+    - 新增設計文件 `docs/superpowers/specs/2026-03-20-studio-route-and-test-shell-cleanup-design.md`
+  - 同步更新 `README.md` 為 `/studio` 主線說明。
+- Files created/modified:
+  - `task_plan.md` (updated)
+  - `findings.md` (updated)
+  - `progress.md` (updated)
+  - `frontend/src/App.tsx` (updated)
+  - `frontend/src/features/datalink/legacyRoutes.ts` (updated)
+  - `frontend/src/pages/TestPage.tsx` (updated)
+  - `frontend/src/pages/TestPageShell.tsx` (created)
+  - `frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchFoundation.test.tsx` (updated)
+  - `README.md` (updated)
+
+## Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Workbench foundation (RED) | `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx` | `/studio` / `/test` 新契約先失敗 | 5 個新契約如預期失敗 | ✓ |
+| Targeted frontend tests | `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/test-page.test.tsx` | route cleanup 與 TestPage 行為通過 | 33/33 passed | ✓ |
+| Frontend lint | `cd frontend && npm run lint` | 無 lint 錯誤 | passed | ✓ |
+| Frontend typecheck | `cd frontend && npx tsc --noEmit` | 無型別錯誤 | passed | ✓ |
+| Frontend build | `cd frontend && npm run build` | build 成功 | passed（保留既有 chunk size warning） | ✓ |
+
+## 2026-03-20 OpenSpec archive follow-up
+- **Status:** complete
+- Actions taken:
+  - 重新跑 `session-catchup`，確認 `/studio` / `/test` cleanup 已完成，下一步轉為檢查 `openspec/` 異動品質。
+  - 讀取 `openspec/specs/database-target-workbench/spec.md` 與 `openspec/specs/source-rule-runtime/spec.md`，確認兩者仍保留 archive 後的 `TBD Purpose`。
+  - 同時盤查 `openspec/specs/` 內其他 placeholder，確認這不是只發生在這兩份；因此本輪只做與最新 archive 直接相關的最小收尾，不擴大修舊 spec debt。
+  - 補上兩份 canonical spec 的正式 Purpose：
+    - `database-target-workbench`：明確界定 Studio 內 database output workflow 的 connector/schema/mapping 分層與 SQLite/PostgreSQL 支援邊界。
+    - `source-rule-runtime`：明確界定 persisted source rule 的 runtime lifecycle、probe gate、derived relationship preservation 與 live value 回灌。
+  - 驗證時第一次誤用 `rg` brace path，已改以 `openspec/specs` 根目錄 + `glob` 重跑。
+- Files created/modified:
+  - `openspec/specs/database-target-workbench/spec.md` (updated)
+  - `openspec/specs/source-rule-runtime/spec.md` (updated)
+  - `task_plan.md` (updated)
+  - `findings.md` (updated)
+  - `progress.md` (updated)
+- Test / verification:
+  - docs-only change；以內容檢查確認兩份最新 spec 不再保留 `TBD Purpose`
+
+## 2026-03-20 SmartDashboard legacy cleanup pre-audit
+- **Status:** in_progress
+- Actions taken:
+  - 與使用者重新對齊「完完全全達成原始需求」的定義，確認下一步應先清 SmartDashboard／舊 datalink repo 殘留，而不是先掃 OpenSpec 舊債。
+  - 鎖定 cleanup 方針：
+    - repo 層完整移除
+    - 風險偏好為「能證明沒用就刪」
+    - docs 採 `active docs 更新、historical docs 保留`
+  - 初步盤查到的 runtime / test 候選：
+    - `frontend/src/pages/datalink/SmartDashboard.tsx`
+    - `frontend/src/pages/datalink/SmartDashboardPage.tsx`
+    - `frontend/src/pages/datalink/smart-dashboard/` 子樹
+    - `frontend/src/pages/datalink/__tests__/SmartDashboard*.test.tsx`
+    - `frontend/src/pages/datalink/__tests__/useSmartDashboard*.test.ts(x)`
+    - `frontend/tests/integration/ui/smart-dashboard-regression.test.tsx`
+    - `frontend/src/styles/dashboard.ts`（初步確認無引用）
+  - 使用者要求：先列出預計刪除 / 修改清單，再開始實作。
+- Files created/modified:
+  - `plan.md` (updated)
+  - `findings.md` (updated)
+  - `progress.md` (updated)
+
+## 2026-03-20 SmartDashboard legacy cleanup implementation
+- **Status:** complete
+- Actions taken:
+  - 實際刪除：
+    - `frontend/src/pages/datalink/SmartDashboard.tsx`
+    - `frontend/src/pages/datalink/SmartDashboardPage.tsx`
+    - `frontend/src/pages/datalink/smart-dashboard/` 子樹
+    - `frontend/src/pages/datalink/__tests__/SmartDashboard*.test.tsx`
+    - `frontend/src/pages/datalink/__tests__/useSmartDashboard*.test.ts(x)`
+    - `frontend/tests/unit/pages/datalink/smart-dashboard-*.test.ts`
+    - `frontend/tests/unit/pages/datalink/local-modbus-workbench.test.ts`
+    - `frontend/tests/integration/ui/smart-dashboard-regression.test.tsx`
+    - `frontend/tests/unit/hooks/useSmartDashboardShortcuts.test.ts`
+    - `frontend/src/styles/dashboard.ts`
+  - `frontend/src/hooks/useKeyboardShortcuts.ts` 移除 `useSmartDashboardShortcuts` export，保留泛用快捷鍵 hook。
+  - 更新 active docs：
+    - `README.md`
+    - `AGENTS.md`
+    - `GEMINI.md`
+    - `frontend/FILE_CLASSIFICATION.md`
+    - `frontend/tests/README.md`
+    - `docs/superpowers/specs/2026-03-20-studio-route-and-test-shell-cleanup-design.md`
+  - 殘留掃描確認：
+    - frontend runtime 不再有 `SmartDashboardPage` / `smart-dashboard/` / `useSmartDashboardShortcuts` 依賴
+    - README 與 agent docs 已改成 `/studio` 為唯一主流程、`/test` 為工程頁
+- Files created/modified:
+  - `frontend/src/hooks/useKeyboardShortcuts.ts` (updated)
+  - `AGENTS.md` (updated)
+  - `GEMINI.md` (updated)
+  - `README.md` (updated)
+  - `frontend/FILE_CLASSIFICATION.md` (updated)
+  - `frontend/tests/README.md` (updated)
+  - `docs/superpowers/specs/2026-03-20-studio-route-and-test-shell-cleanup-design.md` (updated)
+- Test / verification:
+  - `cd frontend && npm run test -- --run tests/unit/pages/datalink/workbench-foundation.test.tsx tests/unit/pages/test-page.test.tsx tests/unit/hooks/useKeyboardShortcuts.test.ts`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npm run build`
+  - 結果：42/42 targeted tests pass，lint/typecheck/build 全通過（保留既有 chunk size warning）
+
+## 2026-03-20 pre-commit code review kickoff
+- **Status:** in_progress
+- Actions taken:
+  - 依使用者最新決策，先不討論 commit 拆法，改先進行 **標準 pre-commit code review**。
+  - review 目標鎖定為：
+    - 是否存在會擋 commit 的實質問題
+    - 是否還有重要風險沒有被目前 targeted validation 覆蓋
+    - 是否需要在 commit 前補更大範圍測試
+  - SQL todo 已把誤標為進行中的 `openspec-purpose-sweep` 重設回 `pending`，避免混淆這輪主線。
+
+## 2026-03-20 pre-commit code review result
+- **Status:** complete
+- Review outcome:
+  - `No significant issues found`
+  - route / redirect 契約與 legacy cleanup 沒發現會擋 commit 的實質問題
+  - active docs 與 canonical OpenSpec Purpose 補寫內容整體一致
+  - 目前 targeted frontend tests + lint + typecheck + build，對這輪變更已足夠
+- Minor follow-up:
+  - commit 時要記得一併納入兩個新檔：
+    - `frontend/src/pages/TestPageShell.tsx`
+    - `docs/superpowers/specs/2026-03-20-studio-route-and-test-shell-cleanup-design.md`
+  - 某些 legacy route 仍保留兩段 redirect chain，但屬有意保留的 compat 技術債，非 blocker
+
+## 2026-03-20 two-commit delivery
+- **Status:** complete
+- Commits created:
+  - `4af3545 收斂 /studio 與 /test 路由並移除舊 datalink 頁`
+  - `c2a887d 更新 Studio 文件並補齊 OpenSpec Purpose`
+- Scope control:
+  - 第 1 個 commit 只納入 `/studio` / `/test` route、frontend cleanup、legacy SmartDashboard / old datalink runtime+tests 移除
+  - 第 2 個 commit 只納入 active docs、cleanup design doc，以及兩份 canonical OpenSpec Purpose 補寫
+  - 其他 `openspec` archive/promotion 異動與 planning files 仍保留在工作樹，未混入上述兩個 commit
+
+## 2026-03-20 remaining OpenSpec bundle assessment
+- **Status:** complete
+- Verdict:
+  - 剩餘 staged 的 OpenSpec 變更值得另外做一個 commit。
+  - 其語意完整，屬於標準的「封存完成 change + 提升需求到 canonical specs」流程，不是混雜半成品。
+- Included scope:
+  - `openspec/changes/rework-datalink-rule-persistence-and-point-tag-flow/` → `openspec/changes/archive/2026-03-20-rework-datalink-rule-persistence-and-point-tag-flow/` 的 archive rename
+  - 五份 canonical spec requirement 補強：
+    - `datalink-workbench-desktop`
+    - `local-modbus-memory-workbench`
+    - `point-catalog`
+    - `protocol-connectors`
+    - `tag-dictionary`
+- Note:
+  - `findings.md`、`progress.md`、`task_plan.md` 仍應排除在這個候選 OpenSpec commit 之外。
+
+## 2026-03-20 OpenSpec archive promotion delivery
+- **Status:** complete
+- Commit created:
+  - `a3c57f2 封存 OpenSpec 變更並提升 canonical 規範`
+- Result:
+  - `rework-datalink-rule-persistence-and-point-tag-flow` 已封存至 `openspec/changes/archive/2026-03-20-...`
+  - 五份 canonical spec requirement 補強已一併納入 commit
+  - commit 後工作樹只剩 planning files：
+    - `findings.md`
+    - `progress.md`
+    - `task_plan.md`
+
 ## 當前狀態摘要
 - `task_plan.md`、`findings.md`、`progress.md` 已重構為精簡續作版本。
 - 原始需求已保留：datalink UI 仍以「來源設定 -> 可視化 -> Tag -> Local Modbus / Database」為唯一主線。
