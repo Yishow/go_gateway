@@ -31,6 +31,7 @@ import {
   createEmptyDeviceDraft,
   getWorkbenchDeviceStatusLabelKey,
   getWorkbenchProtocolLabelKey,
+  normalizeMc3eDataFormatValue,
   parseDeviceConnectionConfig,
   sanitizeDeviceConnectionConfig,
   WORKBENCH_DEVICE_STATUSES,
@@ -875,6 +876,28 @@ export function WorkbenchDeviceStep() {
               id="device-fatek-mode"
               label={t('workbench.device.connection.mode')}
               onChange={(value) => {
+                if (value === 'tcp') {
+                  setDraft((currentDraft) => {
+                    const {
+                      serial_port: _serialPort,
+                      baud_rate: _baudRate,
+                      data_bits: _dataBits,
+                      stop_bits: _stopBits,
+                      parity: _parity,
+                      ...rest
+                    } = currentDraft.connectionConfig;
+                    const base = createDefaultDeviceConnectionConfig('fatek_fbs');
+                    return {
+                      ...currentDraft,
+                      connectionConfig: {
+                        ...base,
+                        ...rest,
+                        mode: 'tcp',
+                      },
+                    };
+                  });
+                  return;
+                }
                 setConnectionValue('mode', value);
                 if (value === 'serial') {
                   setDraft((currentDraft) => ({
@@ -890,6 +913,18 @@ export function WorkbenchDeviceStep() {
                         typeof currentDraft.connectionConfig.baud_rate === 'number'
                           ? currentDraft.connectionConfig.baud_rate
                           : 9600,
+                      data_bits:
+                        typeof currentDraft.connectionConfig.data_bits === 'number'
+                          ? currentDraft.connectionConfig.data_bits
+                          : 7,
+                      stop_bits:
+                        typeof currentDraft.connectionConfig.stop_bits === 'number'
+                          ? currentDraft.connectionConfig.stop_bits
+                          : 1,
+                      parity:
+                        typeof currentDraft.connectionConfig.parity === 'string'
+                          ? currentDraft.connectionConfig.parity
+                          : 'even',
                     },
                   }));
                 }
@@ -901,28 +936,67 @@ export function WorkbenchDeviceStep() {
               value={mode}
             />
             {mode === 'serial' ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <TextField
-                  id="device-fatek-serial-port"
-                  label={t('workbench.device.connection.serialPort')}
-                  onChange={(value) => setConnectionValue('serial_port', value)}
-                  placeholder="/dev/ttyUSB0"
-                  value={connectionValueAsString('serial_port')}
-                  error={fieldErrors.serial_port}
-                />
-                <SelectField
-                  id="device-fatek-baud-rate"
-                  label={t('workbench.device.connection.baudRate')}
-                  onChange={(value) =>
-                    setConnectionValue('baud_rate', Number.parseInt(value, 10))
-                  }
-                  options={[9600, 19200, 38400, 57600, 115200].map((baudRate) => ({
-                    value: String(baudRate),
-                    label: String(baudRate),
-                  }))}
-                  value={connectionValueAsString('baud_rate') || '9600'}
-                />
-              </div>
+              <>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <TextField
+                    id="device-fatek-serial-port"
+                    label={t('workbench.device.connection.serialPort')}
+                    onChange={(value) => setConnectionValue('serial_port', value)}
+                    placeholder="/dev/ttyUSB0"
+                    value={connectionValueAsString('serial_port')}
+                    error={fieldErrors.serial_port}
+                  />
+                  <SelectField
+                    id="device-fatek-baud-rate"
+                    label={t('workbench.device.connection.baudRate')}
+                    onChange={(value) =>
+                      setConnectionValue('baud_rate', Number.parseInt(value, 10))
+                    }
+                    options={[9600, 19200, 38400, 57600, 115200].map((baudRate) => ({
+                      value: String(baudRate),
+                      label: String(baudRate),
+                    }))}
+                    value={connectionValueAsString('baud_rate') || '9600'}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <SelectField
+                    id="device-fatek-data-bits"
+                    label={t('workbench.device.connection.dataBits')}
+                    onChange={(value) =>
+                      setConnectionValue('data_bits', Number.parseInt(value, 10))
+                    }
+                    options={[
+                      { value: '7', label: '7' },
+                      { value: '8', label: '8' },
+                    ]}
+                    value={connectionValueAsString('data_bits') || '7'}
+                  />
+                  <SelectField
+                    id="device-fatek-stop-bits"
+                    label={t('workbench.device.connection.stopBits')}
+                    onChange={(value) =>
+                      setConnectionValue('stop_bits', Number.parseInt(value, 10))
+                    }
+                    options={[
+                      { value: '1', label: '1' },
+                      { value: '2', label: '2' },
+                    ]}
+                    value={connectionValueAsString('stop_bits') || '1'}
+                  />
+                  <SelectField
+                    id="device-fatek-parity"
+                    label={t('workbench.device.connection.parity')}
+                    onChange={(value) => setConnectionValue('parity', value)}
+                    options={[
+                      { value: 'none', label: t('device.parityNone') },
+                      { value: 'even', label: t('device.parityEven') },
+                      { value: 'odd', label: t('device.parityOdd') },
+                    ]}
+                    value={connectionValueAsString('parity') || 'even'}
+                  />
+                </div>
+              </>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 <TextField
@@ -993,7 +1067,7 @@ export function WorkbenchDeviceStep() {
                 id="device-mc-network"
                 label={t('workbench.device.connection.networkNo')}
                 onChange={(value) => setConnectionNumber('network_no', value)}
-                placeholder="1"
+                placeholder="0"
                 value={connectionValueAsString('network_no')}
                 inputMode="numeric"
               />
@@ -1037,15 +1111,25 @@ export function WorkbenchDeviceStep() {
                 onChange={(value) => setConnectionValue('data_format', value)}
                 options={[
                   {
-                    value: 'binary',
-                    label: t('workbench.device.connection.dataFormats.binary'),
+                    value: 'ABCD',
+                    label: t('workbench.device.connection.dataFormats.abcd'),
                   },
                   {
-                    value: 'ascii',
-                    label: t('workbench.device.connection.dataFormats.ascii'),
+                    value: 'BADC',
+                    label: t('workbench.device.connection.dataFormats.badc'),
+                  },
+                  {
+                    value: 'CDAB',
+                    label: t('workbench.device.connection.dataFormats.cdab'),
+                  },
+                  {
+                    value: 'DCBA',
+                    label: t('workbench.device.connection.dataFormats.dcba'),
                   },
                 ]}
-                value={connectionValueAsString('data_format') || 'binary'}
+                value={normalizeMc3eDataFormatValue(
+                  draft.connectionConfig.data_format,
+                )}
               />
             </div>
           </>
@@ -1427,7 +1511,7 @@ export function WorkbenchDeviceStep() {
       ) : null}
 
       {!isLoading && filteredDevices.length > 0 ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.78fr)_minmax(0,1.22fr)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(380px,0.78fr)_minmax(0,1.22fr)]">
           <div className="space-y-3">
             {filteredDevices.map((device) => {
               const isSelected = device.id === selectedDeviceId;
@@ -1449,7 +1533,7 @@ export function WorkbenchDeviceStep() {
                   aria-label={device.name}
                   aria-pressed={isSelected}
                   className={joinClasses(
-                    'grid w-full gap-3 rounded-2xl border px-4 py-3 text-left transition lg:grid-cols-[minmax(220px,1fr)_auto_auto] lg:items-center',
+                    'flex w-full flex-col gap-3 rounded-2xl border px-4 py-3 text-left transition',
                     isSelected
                       ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-950/20'
                       : 'border-slate-800 bg-slate-950/40 hover:border-slate-600 hover:bg-slate-900/70',
@@ -1479,42 +1563,43 @@ export function WorkbenchDeviceStep() {
                   </div>
 
                   <div
-                    className="flex flex-wrap items-center gap-2"
+                    className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-between"
                     data-testid={`device-capability-strip-${device.id}`}
                   >
-                    {capabilityHints.map((item) => (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      {capabilityHints.map((item) => (
+                        <span
+                          className="inline-flex shrink-0 items-center gap-x-2 gap-y-0.5 rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs text-slate-300"
+                          key={`${device.id}-${item.id}`}
+                        >
+                          <span className="whitespace-nowrap uppercase tracking-[0.18em] text-slate-500">
+                            {t(item.labelKey)}
+                          </span>
+                          <span className="font-medium whitespace-nowrap text-slate-100">
+                            {item.value}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                       <span
-                        className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1 text-xs text-slate-300"
-                        key={`${device.id}-${item.id}`}
+                        className={joinClasses(
+                          'shrink-0 rounded-full border px-2 py-1 text-xs font-medium whitespace-nowrap',
+                          getStatusClasses(device.status),
+                        )}
                       >
-                        <span className="uppercase tracking-[0.18em] text-slate-500">
-                          {t(item.labelKey)}
-                        </span>
-                        <span className="font-medium text-slate-100">
-                          {item.value}
-                        </span>
+                        {t(getWorkbenchDeviceStatusLabelKey(device.status))}
                       </span>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                    <span
-                      className={joinClasses(
-                        'rounded-full border px-2 py-1 text-xs font-medium',
-                        getStatusClasses(device.status),
-                      )}
-                    >
-                      {t(getWorkbenchDeviceStatusLabelKey(device.status))}
-                    </span>
-                    <span
-                      className={joinClasses(
-                        'rounded-full border px-2.5 py-1 text-[11px] font-medium',
-                        getDeviceHealthClasses(device.last_test_success),
-                      )}
-                      data-testid={`device-health-${device.id}`}
-                    >
-                      {getDeviceHealthLabel(t, device)}
-                    </span>
+                      <span
+                        className={joinClasses(
+                          'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap',
+                          getDeviceHealthClasses(device.last_test_success),
+                        )}
+                        data-testid={`device-health-${device.id}`}
+                      >
+                        {getDeviceHealthLabel(t, device)}
+                      </span>
+                    </div>
                   </div>
                 </button>
               );
@@ -1558,27 +1643,29 @@ export function WorkbenchDeviceStep() {
                     ) : null}
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-                    <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                  <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-stretch">
+                    <div className="w-full min-w-0 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 xl:flex-1">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                         {t('workbench.device.inspector.capabilitySummary')}
                       </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-3">
                         {selectedDeviceCapabilitySummary.map((item) => (
                           <div
-                            className="rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3"
+                            className="min-w-0 rounded-2xl border border-slate-800 bg-slate-950/50 px-4 py-3"
                             key={`selected-${item.id}`}
                           >
-                            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 break-words">
                               {t(item.labelKey)}
                             </p>
-                            <p className="mt-2 text-sm font-medium text-slate-100">{item.value}</p>
+                            <p className="mt-2 break-words text-sm font-medium text-slate-100">
+                              {item.value}
+                            </p>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                    <div className="w-full shrink-0 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 xl:w-64 xl:max-w-sm">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                         {t('workbench.device.card.lastTest')}
                       </p>

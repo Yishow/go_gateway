@@ -55,12 +55,24 @@ func (c *FatekConnector) Connect(ctx context.Context, configJSON string) error {
 		if c.config.BaudRate == 0 {
 			c.config.BaudRate = 9600
 		}
+		dataBits := c.config.DataBits
+		if dataBits == 0 {
+			dataBits = 7
+		}
+		stopBits := c.config.StopBits
+		if stopBits == 0 {
+			stopBits = 1
+		}
+		parity := strings.TrimSpace(strings.ToLower(c.config.Parity))
+		if parity == "" {
+			parity = "even"
+		}
 		c.transport = fatek.NewSerialTransport(
 			c.config.SerialPort,
 			c.config.BaudRate,
-			7,      // DataBits (FATEK 預設 7)
-			1,      // StopBits
-			"even", // Parity (FATEK 預設 Even)
+			dataBits,
+			stopBits,
+			parity,
 			time.Duration(c.config.Timeout)*time.Second,
 		)
 	default:

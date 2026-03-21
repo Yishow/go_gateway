@@ -394,6 +394,9 @@ func TestProtocolHandler_List_ConfigSchema_FatekFBs(t *testing.T) {
 	// 驗證 properties
 	properties := schema["properties"].(map[string]interface{})
 	assert.Contains(t, properties, "mode")
+	assert.Contains(t, properties, "data_bits")
+	assert.Contains(t, properties, "stop_bits")
+	assert.Contains(t, properties, "parity")
 	assert.Contains(t, properties, "station_no")
 
 	// 驗證 mode 屬性
@@ -402,6 +405,47 @@ func TestProtocolHandler_List_ConfigSchema_FatekFBs(t *testing.T) {
 	modeEnum := mode["enum"].([]interface{})
 	assert.Contains(t, modeEnum, "tcp")
 	assert.Contains(t, modeEnum, "serial")
+}
+
+/**
+ * TestProtocolHandler_List_ConfigSchema_MC3E 測試 MC 3E Config Schema
+ */
+func TestProtocolHandler_List_ConfigSchema_MC3E(t *testing.T) {
+	r := setupProtocolRouter()
+
+	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	var response map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &response)
+	data := response["data"].([]interface{})
+
+	var mc3e map[string]interface{}
+	for _, item := range data {
+		protocol := item.(map[string]interface{})
+		if protocol["type"] == "mc_3e" {
+			mc3e = protocol
+			break
+		}
+	}
+	require.NotNil(t, mc3e)
+
+	configSchema := mc3e["config_schema"].(string)
+	var schema map[string]interface{}
+	json.Unmarshal([]byte(configSchema), &schema)
+
+	properties := schema["properties"].(map[string]interface{})
+	dataFormatValue, ok := properties["data_format"]
+	require.True(t, ok, "MC 3E schema should expose data_format")
+
+	dataFormat := dataFormatValue.(map[string]interface{})
+	assert.Equal(t, "string", dataFormat["type"])
+	dataFormatEnum := dataFormat["enum"].([]interface{})
+	assert.Contains(t, dataFormatEnum, "ABCD")
+	assert.Contains(t, dataFormatEnum, "BADC")
+	assert.Contains(t, dataFormatEnum, "CDAB")
+	assert.Contains(t, dataFormatEnum, "DCBA")
 }
 
 /**

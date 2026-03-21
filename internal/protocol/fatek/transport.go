@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -131,14 +132,15 @@ func NewSerialTransport(port string, baudRate, dataBits, stopBits int, parity st
 		timeout = 1 * time.Second
 	}
 
-	// 轉換 Parity
+	// 轉換 Parity（支援單字 N/E/O 與 none/even/odd，與前端連線設定一致）
+	parityKey := strings.ToLower(strings.TrimSpace(parity))
 	var p serial.Parity
-	switch parity {
-	case "N", "n":
+	switch parityKey {
+	case "n", "none":
 		p = serial.NoParity
-	case "E", "e":
+	case "e", "even":
 		p = serial.EvenParity
-	case "O", "o":
+	case "o", "odd":
 		p = serial.OddParity
 	default:
 		p = serial.EvenParity

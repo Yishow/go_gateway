@@ -127,6 +127,9 @@ export function createDefaultDeviceConnectionConfig(
         port: 500,
         serial_port: '',
         baud_rate: 9600,
+        data_bits: 7,
+        stop_bits: 1,
+        parity: 'even',
         station_no: 1,
         timeout: 5,
       };
@@ -134,12 +137,12 @@ export function createDefaultDeviceConnectionConfig(
       return {
         host: '',
         port: 5000,
-        network_no: 1,
+        network_no: 0,
         pc_no: 255,
         io_no: 1023,
         station_no: 0,
         timeout: 5,
-        data_format: 'binary',
+        data_format: 'CDAB',
       };
     case 'mqtt':
       return {
@@ -165,6 +168,27 @@ export function createEmptyDeviceDraft(
   };
 }
 
+/** 後端 MC 3E 支援的 data_format（hsllogic 字節序枚舉） */
+const MC_3E_DATA_FORMATS = new Set(['ABCD', 'BADC', 'CDAB', 'DCBA']);
+
+/**
+ * 將 MC 3E 連線設定中的 data_format 正規化為後端可解讀的字節序字串。
+ * 舊版 Workbench 曾送出 binary／ascii，一律對應為預設 CDAB。
+ *
+ * @param value 來自表單或 API 的原始值
+ * @returns ABCD、BADC、CDAB、DCBA 之一
+ */
+export function normalizeMc3eDataFormatValue(value: unknown): string {
+  if (typeof value !== 'string') {
+    return 'CDAB';
+  }
+  const upper = value.trim().toUpperCase();
+  if (MC_3E_DATA_FORMATS.has(upper)) {
+    return upper;
+  }
+  return 'CDAB';
+}
+
 export function parseDeviceConnectionConfig(
   rawConnectionConfig: string,
 ): DeviceConnectionConfig {
@@ -185,14 +209,20 @@ export function parseDeviceConnectionConfig(
 }
 
 export function buildDeviceDraftFromDevice(device: Device): DeviceDraft {
+  const connectionConfig: DeviceConnectionConfig = {
+    ...createDefaultDeviceConnectionConfig(device.protocol),
+    ...parseDeviceConnectionConfig(device.connection_config),
+  };
+  if (device.protocol === 'mc_3e') {
+    connectionConfig.data_format = normalizeMc3eDataFormatValue(
+      connectionConfig.data_format,
+    );
+  }
   return {
     name: device.name,
     description: device.description ?? '',
     protocol: device.protocol,
-    connectionConfig: {
-      ...createDefaultDeviceConnectionConfig(device.protocol),
-      ...parseDeviceConnectionConfig(device.connection_config),
-    },
+    connectionConfig,
   };
 }
 
@@ -429,37 +459,56 @@ export function buildDeviceConnectionSummary(
           value: readConnectionValueAsString(connectionConfig, 'slave_id') ?? '—',
         },
       ];
-    case 'fatek_fbs':
-      return [
+    case 'fatek_fbs': {
+      const mode = readConnectionValueAsString(connectionConfig, 'mode') ?? 'tcp';
+      const rows: Array<{ labelKey: string; value: string }> = [
         {
           labelKey: 'workbench.device.connection.mode',
-          value: readConnectionValueAsString(connectionConfig, 'mode') ?? '—',
+          value: mode,
         },
         {
           labelKey:
-            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
+            mode === 'serial'
               ? 'workbench.device.connection.serialPort'
               : 'workbench.device.connection.host',
           value:
-            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
+            mode === 'serial'
               ? readConnectionValueAsString(connectionConfig, 'serial_port') ?? '—'
               : readConnectionValueAsString(connectionConfig, 'host') ?? '—',
         },
         {
           labelKey:
-            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
+            mode === 'serial'
               ? 'workbench.device.connection.baudRate'
               : 'workbench.device.connection.port',
           value:
-            readConnectionValueAsString(connectionConfig, 'mode') === 'serial'
+            mode === 'serial'
               ? readConnectionValueAsString(connectionConfig, 'baud_rate') ?? '—'
               : readConnectionValueAsString(connectionConfig, 'port') ?? '—',
         },
-        {
-          labelKey: 'workbench.device.connection.stationNo',
-          value: readConnectionValueAsString(connectionConfig, 'station_no') ?? '—',
-        },
       ];
+      if (mode === 'serial') {
+        rows.push(
+          {
+            labelKey: 'workbench.device.connection.dataBits',
+            value: readConnectionValueAsString(connectionConfig, 'data_bits') ?? '—',
+          },
+          {
+            labelKey: 'workbench.device.connection.stopBits',
+            value: readConnectionValueAsString(connectionConfig, 'stop_bits') ?? '—',
+          },
+          {
+            labelKey: 'workbench.device.connection.parity',
+            value: readConnectionValueAsString(connectionConfig, 'parity') ?? '—',
+          },
+        );
+      }
+      rows.push({
+        labelKey: 'workbench.device.connection.stationNo',
+        value: readConnectionValueAsString(connectionConfig, 'station_no') ?? '—',
+      });
+      return rows;
+    }
     case 'mc_3e':
       return [
         { labelKey: 'workbench.device.connection.host', value: readConnectionValueAsString(connectionConfig, 'host') ?? '—' },

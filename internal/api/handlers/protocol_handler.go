@@ -18,9 +18,9 @@ func NewProtocolHandler() *ProtocolHandler {
 
 // ProtocolInfo 協議資訊
 type ProtocolInfo struct {
-	Type        string `json:"type"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Type         string `json:"type"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
 	ConfigSchema string `json:"config_schema"`
 }
 
@@ -88,6 +88,9 @@ func (h *ProtocolHandler) List(c *gin.Context) {
 					"port": {"type": "integer", "default": 500, "description": "埠號 (TCP 模式)"},
 					"serial_port": {"type": "string", "description": "串列埠 (Serial 模式)"},
 					"baud_rate": {"type": "integer", "default": 9600, "description": "鮑率 (Serial 模式)"},
+					"data_bits": {"type": "integer", "enum": [7, 8], "default": 7, "description": "資料位元 (Serial 模式)"},
+					"stop_bits": {"type": "integer", "enum": [1, 2], "default": 1, "description": "停止位元 (Serial 模式)"},
+					"parity": {"type": "string", "enum": ["none", "odd", "even"], "default": "even", "description": "同位檢查 (Serial 模式)"},
 					"station_no": {"type": "integer", "minimum": 0, "maximum": 255, "description": "站號"},
 					"timeout": {"type": "integer", "default": 3000, "description": "逾時 (ms)"}
 				},
@@ -107,6 +110,7 @@ func (h *ProtocolHandler) List(c *gin.Context) {
 					"pc_no": {"type": "integer", "default": 255, "description": "PC 號"},
 					"io_no": {"type": "integer", "default": 1023, "description": "IO 號"},
 					"station_no": {"type": "integer", "default": 0, "description": "站號"},
+					"data_format": {"type": "string", "enum": ["ABCD", "BADC", "CDAB", "DCBA"], "default": "CDAB", "description": "字節序格式"},
 					"timeout": {"type": "integer", "default": 3000, "description": "逾時 (ms)"}
 				},
 				"required": ["host"]

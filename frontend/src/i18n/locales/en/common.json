@@ -1252,8 +1252,10 @@
         "ioNo": "I/O No",
         "dataFormat": "Data format",
         "dataFormats": {
-          "binary": "Binary",
-          "ascii": "ASCII"
+          "abcd": "ABCD (Big-Endian)",
+          "badc": "BADC",
+          "cdab": "CDAB (Mitsubishi common)",
+          "dcba": "DCBA (Little-Endian)"
         },
         "brokerUrl": "Broker URL",
         "clientId": "Client ID",

@@ -128,6 +128,12 @@ type ConnectionConfigFatekFBs struct {
 	SerialPort string `json:"serial_port,omitempty"`
 	// BaudRate 串列模式的鮑率
 	BaudRate int `json:"baud_rate,omitempty"`
+	// DataBits 串列模式資料位元（7 或 8；預設 7，符合 FATEK ASCII 常見設定）
+	DataBits int `json:"data_bits,omitempty"`
+	// StopBits 串列模式停止位元（1 或 2；預設 1）
+	StopBits int `json:"stop_bits,omitempty"`
+	// Parity 串列模式同位：none / odd / even（預設 even）
+	Parity string `json:"parity,omitempty"`
 	// StationNo 站號 (0-255)
 	StationNo byte `json:"station_no"`
 	// Timeout 通訊逾時秒數

@@ -184,7 +184,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
         );
 
       // ─────────────────────────────────────────────────────────────────────────
-      // FATEK FBs — mode(tcp|serial), host/port 或 serial_port/baud_rate, station_no, timeout
+      // FATEK FBs — mode(tcp|serial), host/port 或 serial_port/baud_rate/data_bits/stop_bits/parity, station_no, timeout
       // ─────────────────────────────────────────────────────────────────────────
       case 'fatek_fbs': {
         const mode = String(config.mode ?? 'tcp');
@@ -220,6 +220,34 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                       {[9600, 19200, 38400, 57600, 115200].map(br => (
                         <option key={br} value={br}>{br}</option>
                       ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={fieldId('data-bits')} className="label">資料位元 (Data bits)</label>
+                    <select id={fieldId('data-bits')} value={Number(config.data_bits ?? 7)}
+                      onChange={e => handleChange('data_bits', parseInt(e.target.value))}
+                      className="input">
+                      <option value={7}>7</option>
+                      <option value={8}>8</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={fieldId('stop-bits')} className="label">停止位元 (Stop bits)</label>
+                    <select id={fieldId('stop-bits')} value={Number(config.stop_bits ?? 1)}
+                      onChange={e => handleChange('stop_bits', parseInt(e.target.value))}
+                      className="input">
+                      <option value={1}>1</option>
+                      <option value={2}>2</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={fieldId('parity')} className="label">同位 (Parity)</label>
+                    <select id={fieldId('parity')} value={String(config.parity ?? 'even')}
+                      onChange={e => handleChange('parity', e.target.value)}
+                      className="input">
+                      <option value="none">None（無）</option>
+                      <option value="even">Even（偶）</option>
+                      <option value="odd">Odd（奇）</option>
                     </select>
                   </div>
                 </div>
@@ -279,7 +307,7 @@ export default function DeviceConnectionStep({ protocol, config, onChange, error
                 <input id={fieldId('port')} type="text" inputMode="numeric"
                   value={config.port !== undefined ? String(config.port) : ''}
                   onChange={e => handleNumber('port', e.target.value)}
-                  className="input" placeholder="3000" />
+                  className="input" placeholder="5000" />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

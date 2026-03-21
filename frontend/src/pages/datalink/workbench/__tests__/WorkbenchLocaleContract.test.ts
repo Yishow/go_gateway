@@ -102,11 +102,11 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.device.capability.labels.protocolTraits).not.toBe(
       enCommon.workbench.device.capability.labels.protocolTraits,
     );
-    expect(zhTWCommon.workbench.device.connection.dataFormats.binary).not.toBe(
-      enCommon.workbench.device.connection.dataFormats.binary,
+    expect(zhTWCommon.workbench.device.connection.dataFormats.abcd).not.toBe(
+      enCommon.workbench.device.connection.dataFormats.abcd,
     );
-    expect(zhTWCommon.workbench.device.connection.dataFormats.ascii).toBeTruthy();
-    expect(enCommon.workbench.device.connection.dataFormats.ascii).toBeTruthy();
+    expect(zhTWCommon.workbench.device.connection.dataFormats.cdab).toBeTruthy();
+    expect(enCommon.workbench.device.connection.dataFormats.cdab).toBeTruthy();
   });
 
   it('ships localized zh-TW strings for the compact source, tag, and output guidance additions', () => {

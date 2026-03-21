@@ -16,6 +16,56 @@ interface DeviceFormProps {
  * 根據協議類型獲取默認配置值
  * 必須在組件外部定義，以便在 useState 初始化時使用
  */
+/**
+ * 安全解析設備 connection_config JSON 字串；失敗時回傳該協議預設欄位，避免表單初始化拋錯。
+ *
+ * @param raw JSON 字串
+ * @param protocol 用於決定後備預設值
+ */
+function parseConnectionConfigString(
+  raw: string,
+  protocol: ProtocolType,
+): DeviceConfig {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return normalizeConfigForProtocol(parsed as DeviceConfig, protocol);
+    }
+  } catch {
+    // 毀損或非 JSON：交由預設值
+  }
+  return getDefaultConfigForProtocol(protocol);
+}
+
+const mc3eDataFormats = new Set(['ABCD', 'BADC', 'CDAB', 'DCBA']);
+
+function normalizeMc3eDataFormatValue(value: unknown): string {
+  if (typeof value !== 'string') {
+    return 'CDAB';
+  }
+
+  const upper = value.trim().toUpperCase();
+  if (mc3eDataFormats.has(upper)) {
+    return upper;
+  }
+
+  return 'CDAB';
+}
+
+function normalizeConfigForProtocol(
+  config: DeviceConfig,
+  protocol: ProtocolType,
+): DeviceConfig {
+  if (protocol !== 'mc_3e') {
+    return config;
+  }
+
+  return {
+    ...config,
+    data_format: normalizeMc3eDataFormatValue(config.data_format),
+  };
+}
+
 function getDefaultConfigForProtocol(proto: ProtocolType): DeviceConfig {
   switch (proto) {
     case 'modbus_tcp':
@@ -27,7 +77,7 @@ function getDefaultConfigForProtocol(proto: ProtocolType): DeviceConfig {
     case 'fatek_fbs':
       return { mode: 'tcp', port: 500, station_no: 1, timeout: 5 };
     case 'mc_3e':
-      return { port: 3000, network_no: 0, pc_no: 255, io_no: 1023, station_no: 0, timeout: 5, data_format: 'CDAB' };
+      return { port: 5000, network_no: 0, pc_no: 255, io_no: 1023, station_no: 0, timeout: 5, data_format: 'CDAB' };
     case 'mqtt':
       return { qos: 0, use_tls: false };
     default:
@@ -47,13 +97,15 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
   
   // Dynamic Configuration
   const [config, setConfig] = useState<DeviceConfig>(() => {
-    if (device?.connection_config) {
-      return typeof device.connection_config === 'string' 
-        ? (JSON.parse(device.connection_config) as DeviceConfig)
-        : device.connection_config;
-    }
-    // 新建設備時，根據協議設置默認值
     const initialProtocol = device?.protocol || 'modbus_tcp';
+    if (device?.connection_config) {
+      return typeof device.connection_config === 'string'
+        ? parseConnectionConfigString(device.connection_config, initialProtocol)
+        : normalizeConfigForProtocol(
+            device.connection_config as DeviceConfig,
+            initialProtocol,
+          );
+    }
     return getDefaultConfigForProtocol(initialProtocol);
   });
 
@@ -103,8 +155,8 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
         finalConfig[key] = value;
       }
     }
-    
-    return finalConfig;
+
+    return normalizeConfigForProtocol(finalConfig, protocol);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -326,6 +378,34 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label htmlFor={fieldId('data-bits')} className={lbl}>資料位元 (Data bits)</label>
+                  <select id={fieldId('data-bits')} value={Number(config.data_bits ?? 7)}
+                    onChange={e => setConfig({ ...config, data_bits: parseInt(e.target.value) })}
+                    className={inp}>
+                    <option value={7}>7</option>
+                    <option value={8}>8</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor={fieldId('stop-bits')} className={lbl}>停止位元 (Stop bits)</label>
+                  <select id={fieldId('stop-bits')} value={Number(config.stop_bits ?? 1)}
+                    onChange={e => setConfig({ ...config, stop_bits: parseInt(e.target.value) })}
+                    className={inp}>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                  </select>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor={fieldId('parity')} className={lbl}>同位 (Parity)</label>
+                  <select id={fieldId('parity')} value={String(config.parity ?? 'even')}
+                    onChange={e => setConfig({ ...config, parity: e.target.value })}
+                    className={inp}>
+                    <option value="none">None（無）</option>
+                    <option value="even">Even（偶）</option>
+                    <option value="odd">Odd（奇）</option>
+                  </select>
+                </div>
               </div>
             ) : (
               <div className="col-span-2 grid grid-cols-2 gap-4">
@@ -371,7 +451,7 @@ export default function DeviceForm({ device, onSubmit, onCancel }: DeviceFormPro
               </div>
               <div>
                 <label htmlFor={fieldId('port')} className={lbl}>連接埠 (Port)</label>
-                <input id={fieldId('port')} type="number" value={Number(config.port ?? 3000)}
+                <input id={fieldId('port')} type="number" value={Number(config.port ?? 5000)}
                   onChange={setNum('port')} className={inp} min={1} max={65535} />
               </div>
             </div>

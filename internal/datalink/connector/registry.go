@@ -216,6 +216,9 @@ var protocolInfos = map[schema.ProtocolType]ProtocolInfo{
 				"port": {"type": "integer", "title": "埠號", "default": 500, "description": "TCP 模式使用"},
 				"serial_port": {"type": "string", "title": "串列埠", "description": "Serial 模式使用"},
 				"baud_rate": {"type": "integer", "title": "鮑率", "default": 9600, "description": "Serial 模式使用"},
+				"data_bits": {"type": "integer", "title": "資料位元", "enum": [7, 8], "default": 7, "description": "Serial 模式使用"},
+				"stop_bits": {"type": "integer", "title": "停止位元", "enum": [1, 2], "default": 1, "description": "Serial 模式使用"},
+				"parity": {"type": "string", "title": "同位檢查", "enum": ["none", "odd", "even"], "default": "even", "description": "Serial 模式使用"},
 				"station_no": {"type": "integer", "title": "站號", "default": 1, "minimum": 0, "maximum": 255},
 				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5}
 			},
@@ -235,7 +238,8 @@ var protocolInfos = map[schema.ProtocolType]ProtocolInfo{
 				"pc_no": {"type": "integer", "title": "PC 編號", "default": 255},
 				"io_no": {"type": "integer", "title": "I/O 編號", "default": 1023},
 				"station_no": {"type": "integer", "title": "站號", "default": 0},
-				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5}
+				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5},
+				"data_format": {"type": "string", "title": "資料格式（字節序）", "enum": ["ABCD", "BADC", "CDAB", "DCBA"], "default": "CDAB", "description": "對應 hsllogic 浮點／多暫存器解碼字節序"}
 			},
 			"required": ["host", "port"]
 		}`),

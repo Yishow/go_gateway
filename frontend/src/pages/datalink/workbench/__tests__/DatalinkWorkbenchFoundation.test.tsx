@@ -495,12 +495,12 @@ describe('DatalinkWorkbench foundation route', () => {
     const dataFormatSelect = screen.getByLabelText('workbench.device.connection.dataFormat');
     expect(
       within(dataFormatSelect).getByRole('option', {
-        name: 'workbench.device.connection.dataFormats.binary',
+        name: 'workbench.device.connection.dataFormats.abcd',
       }),
     ).toBeInTheDocument();
     expect(
       within(dataFormatSelect).getByRole('option', {
-        name: 'workbench.device.connection.dataFormats.ascii',
+        name: 'workbench.device.connection.dataFormats.cdab',
       }),
     ).toBeInTheDocument();
   });
