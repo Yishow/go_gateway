@@ -856,6 +856,8 @@
         "selectAll": "Select all",
         "selectBindable": "Select bindable only",
         "clearSelection": "Clear",
+        "deleteSelected": "Delete selected points",
+        "deleteSelectedConfirm": "Delete the {{count}} selected points? Their mappings will be removed (database CASCADE).",
         "bind": "Create tags and bind",
         "unbind": "Unbind",
         "unbindConfirm": "Unbind this point?",
@@ -886,7 +888,9 @@
         "tagFallback": "Failed to create tag",
         "mappingFallback": "Failed to create mapping",
         "unbindSuccess": "Removed binding for {{name}}",
-        "unbindFailed": "Failed to unbind mapping"
+        "unbindFailed": "Failed to unbind mapping",
+        "deletedPoints": "Points deleted",
+        "deletePointFailed": "Failed to delete point"
       },
       "inspector": {
         "heading": "Tag detail",

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } 
 import { CardMinimizeProvider } from './components/CardMinimizeProvider'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import TestPage from './pages/TestPage'
 import TestPageShell from './pages/TestPageShell'
 import {
@@ -90,15 +91,17 @@ function AppRoutes() {
  */
 function App() {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <CardMinimizeProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </CardMinimizeProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ToastProvider>
+          <CardMinimizeProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </CardMinimizeProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   )
 }
 

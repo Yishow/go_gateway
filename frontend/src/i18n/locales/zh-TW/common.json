@@ -856,6 +856,8 @@
         "selectAll": "全選",
         "selectBindable": "只選可綁定",
         "clearSelection": "清空",
+        "deleteSelected": "刪除選取點位",
+        "deleteSelectedConfirm": "確定刪除已選取的 {{count}} 個點位？對應的 mapping 將一併移除（資料庫 CASCADE）。",
         "bind": "批次建立 Tag 並綁定",
         "unbind": "解除綁定",
         "unbindConfirm": "確定解除此點位的綁定？",
@@ -886,7 +888,9 @@
         "tagFallback": "建立 Tag 失敗",
         "mappingFallback": "建立 mapping 失敗",
         "unbindSuccess": "已移除 {{name}} 的綁定",
-        "unbindFailed": "解除綁定失敗"
+        "unbindFailed": "解除綁定失敗",
+        "deletedPoints": "已刪除點位",
+        "deletePointFailed": "刪除點位失敗"
       },
       "inspector": {
         "heading": "Tag 明細",

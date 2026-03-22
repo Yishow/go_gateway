@@ -11,5 +11,6 @@
         "editor.codeActionsOnSave": {
             "source.organizeImports": "explicit"
         }
-    }
+    },
+    "kiroAgent.configureMCP": "Disabled"
 }

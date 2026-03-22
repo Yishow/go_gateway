@@ -22,6 +22,7 @@ import type {
   DeviceStatus,
   ProtocolType,
 } from '../../../types/datalink';
+import { Spinner } from '../../../components/ui/spinner';
 import { useWorkbench } from './WorkbenchProvider';
 import {
   buildDeviceCapabilitySummary,
@@ -1466,8 +1467,9 @@ export function WorkbenchDeviceStep() {
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/40 p-8 text-sm text-slate-400">
-          {t('workbench.device.loading')}
+        <div className="flex items-center justify-center gap-3 rounded-3xl border border-slate-800 bg-slate-950/40 p-8">
+          <Spinner size="lg" />
+          <span className="text-sm text-slate-400">{t('workbench.device.loading')}</span>
         </div>
       ) : null}
 

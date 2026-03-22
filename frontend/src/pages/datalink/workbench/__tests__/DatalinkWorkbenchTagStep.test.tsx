@@ -13,6 +13,7 @@ const {
   mockDeleteTagMutation,
   mockCreateMappingMutation,
   mockDeleteMappingMutation,
+  mockDeletePointMutation,
   mockBatchCreate,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
@@ -32,6 +33,10 @@ const {
     isPending: false,
   },
   mockDeleteMappingMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
+  mockDeletePointMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
   },
@@ -78,10 +83,7 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
-  useDeletePointMutation: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
+  useDeletePointMutation: () => mockDeletePointMutation,
 }));
 
 vi.mock('../../../../hooks/datalink/useSourceRules', () => ({
@@ -251,6 +253,7 @@ describe('DatalinkWorkbench tag step', () => {
       created_at: '',
       updated_at: '',
     });
+    mockDeletePointMutation.mutateAsync.mockResolvedValue(undefined);
   });
 
   it('shows an empty state when the selected device has no points', () => {
@@ -422,6 +425,30 @@ describe('DatalinkWorkbench tag step', () => {
 
     expect(screen.getByTestId('batch-diff-preview')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'workbench.tag.actions.bind' })).toBeInTheDocument();
+  });
+
+  it('deletes selected points from the toolbar after confirm', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const deleteBtn = screen.getByTestId('tag-delete-selected-points');
+    expect(deleteBtn).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText('Flow Sensor'));
+
+    expect(deleteBtn).not.toBeDisabled();
+
+    fireEvent.click(deleteBtn);
+
+    await waitFor(() => {
+      expect(mockDeletePointMutation.mutateAsync).toHaveBeenCalledWith('point-1');
+    });
+
+    confirmSpy.mockRestore();
   });
 
   it('keeps conflict detail out of the row and surfaces it in the inspector', () => {

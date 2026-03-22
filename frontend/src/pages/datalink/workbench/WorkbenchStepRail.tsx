@@ -59,6 +59,7 @@ export function WorkbenchStepRail() {
                 type="button"
                 onClick={() => setActiveStep(step)}
                 aria-current={isActive ? 'step' : undefined}
+                aria-label={`${t(WORKBENCH_STEP_META[step].labelKey)} - ${t(`workbench.readiness.${readiness.status}`)}`}
                 data-readiness={readiness.status}
                 className={[
                   'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all',

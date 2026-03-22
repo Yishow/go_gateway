@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
+import { mappingKeys } from '../../../hooks/datalink/keys';
 import {
   useCreateMappingMutation,
   useDeleteMappingMutation,
   useMappingsQuery,
 } from '../../../hooks/datalink/useMappings';
-import { usePointsQuery } from '../../../hooks/datalink/usePoints';
+import { useDeletePointMutation, usePointsQuery } from '../../../hooks/datalink/usePoints';
 import {
   useCreateTagMutation,
   useDeleteTagMutation,
@@ -27,15 +29,16 @@ import {
 type TagBindingFailure = {
   pointId: string;
   tagKey: string;
-  stage: 'tag' | 'mapping';
+  stage: 'tag' | 'mapping' | 'point';
   error: string;
 };
 
 type TagBindingBatchSummary = {
-  mode: 'bind' | 'unbind';
+  mode: 'bind' | 'unbind' | 'deletePoints';
   createdCount: number;
   linkedCount: number;
   unboundCount: number;
+  deletedPointCount: number;
   skippedCount: number;
   failureCount: number;
   failures: TagBindingFailure[];
@@ -90,6 +93,7 @@ function getStatusToneClass(status: TagBindingCandidate['bindingStatus']) {
 
 export function TagBindingStudio() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { selectedDeviceId, setActiveStep, setFocusedTagIds, setInspectorSelection, setSelectedDeviceId, sourcePlanningState } = useWorkbench();
   const { data: devices = [] } = useDevicesQuery();
   const tagsQuery = useTagsQuery();
@@ -103,6 +107,7 @@ export function TagBindingStudio() {
   const deleteTagMutation = useDeleteTagMutation();
   const createMappingMutation = useCreateMappingMutation();
   const deleteMappingMutation = useDeleteMappingMutation();
+  const deletePointMutation = useDeletePointMutation();
 
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
   const mappingByPointId = useMemo(
@@ -130,6 +135,7 @@ export function TagBindingStudio() {
   const [tagDraftDataType, setTagDraftDataType] = useState<DataType>('int16');
   const [tagLibraryFeedback, setTagLibraryFeedback] = useState<TagLibraryFeedback | null>(null);
   const [isBatchUnbinding, setIsBatchUnbinding] = useState(false);
+  const [isBatchDeletingPoints, setIsBatchDeletingPoints] = useState(false);
 
   const pointIdsKey = useMemo(() => points.map((point) => point.id).join('|'), [points]);
 
@@ -287,12 +293,15 @@ export function TagBindingStudio() {
     [mappingByPointId, selectedCandidates, tagById],
   );
   const isAnyUnbindPending = deleteMappingMutation.isPending || isBatchUnbinding;
+  const isPointDeleteBusy = deletePointMutation.isPending || isBatchDeletingPoints;
+  const isTagBoardBusy = isAnyUnbindPending || isPointDeleteBusy;
   const selectionHintKey = batchSummary
     && batchSummary.failureCount === 0
     && (
       batchSummary.createdCount > 0
       || batchSummary.linkedCount > 0
       || batchSummary.unboundCount > 0
+      || batchSummary.deletedPointCount > 0
     )
     ? 'workbench.tag.board.selectionHint.done'
     : selectedCandidates.length === 0
@@ -487,6 +496,7 @@ export function TagBindingStudio() {
         createdCount: createRequests.length - failures.length,
         linkedCount: 0,
         unboundCount: 0,
+        deletedPointCount: 0,
         skippedCount: batchDiffPreview.skipped.length,
         failureCount: failures.length,
         failures,
@@ -529,6 +539,7 @@ export function TagBindingStudio() {
       createdCount: 0,
       linkedCount: existingRequests.length - existingFailures.length,
       unboundCount: 0,
+      deletedPointCount: 0,
       skippedCount: batchDiffPreview.skipped.length,
       failureCount: existingFailures.length,
       failures: existingFailures,
@@ -554,6 +565,7 @@ export function TagBindingStudio() {
         createdCount: 0,
         linkedCount: 0,
         unboundCount: 1,
+        deletedPointCount: 0,
         skippedCount: 0,
         failureCount: 0,
         failures: [],
@@ -565,6 +577,7 @@ export function TagBindingStudio() {
         createdCount: 0,
         linkedCount: 0,
         unboundCount: 0,
+        deletedPointCount: 0,
         skippedCount: 0,
         failureCount: 1,
         failures: [
@@ -580,7 +593,7 @@ export function TagBindingStudio() {
   };
 
   const handleBatchUnbind = async () => {
-    if (selectedBoundItems.length === 0 || isBatchUnbinding) {
+    if (selectedBoundItems.length === 0 || isBatchUnbinding || isPointDeleteBusy) {
       return;
     }
 
@@ -618,6 +631,7 @@ export function TagBindingStudio() {
         createdCount: 0,
         linkedCount: 0,
         unboundCount: succeededPointIds.length,
+        deletedPointCount: 0,
         skippedCount: 0,
         failureCount: failures.length,
         failures,
@@ -625,6 +639,60 @@ export function TagBindingStudio() {
       setSelectedPointIds((previous) => previous.filter((id) => !succeededPointIds.includes(id)));
     } finally {
       setIsBatchUnbinding(false);
+    }
+  };
+
+  /**
+   * 批次刪除目前勾選的 point；資料庫會 CASCADE 移除對應 mapping，並同步刷新快取。
+   */
+  const handleDeleteSelectedPoints = async () => {
+    if (selectedPointIds.length === 0 || isBatchDeletingPoints) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        t('workbench.tag.actions.deleteSelectedConfirm', { count: selectedPointIds.length }),
+      )
+    ) {
+      return;
+    }
+
+    const failures: TagBindingFailure[] = [];
+    const succeededPointIds: string[] = [];
+    setIsBatchDeletingPoints(true);
+
+    try {
+      for (const pointId of selectedPointIds) {
+        const point = points.find((p) => p.id === pointId);
+        try {
+          await deletePointMutation.mutateAsync(pointId);
+          succeededPointIds.push(pointId);
+        } catch (error) {
+          failures.push({
+            pointId,
+            tagKey: point?.name ?? pointId,
+            stage: 'point',
+            error: getErrorMessage(error, t('workbench.tag.results.deletePointFailed')),
+          });
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: mappingKeys.lists() });
+
+      setBatchSummary({
+        mode: 'deletePoints',
+        createdCount: 0,
+        linkedCount: 0,
+        unboundCount: 0,
+        deletedPointCount: succeededPointIds.length,
+        skippedCount: 0,
+        failureCount: failures.length,
+        failures,
+      });
+      setSelectedPointIds((previous) => previous.filter((id) => !succeededPointIds.includes(id)));
+    } finally {
+      setIsBatchDeletingPoints(false);
     }
   };
 
@@ -821,6 +889,15 @@ export function TagBindingStudio() {
             >
               {t('workbench.tag.actions.clearSelection')}
             </button>
+            <button
+              type="button"
+              data-testid="tag-delete-selected-points"
+              onClick={() => void handleDeleteSelectedPoints()}
+              disabled={selectedPointIds.length === 0 || isTagBoardBusy}
+              className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('workbench.tag.actions.deleteSelected')}
+            </button>
           </div>
 
           <p className="text-sm text-slate-300">{t(selectionHintKey)}</p>
@@ -946,7 +1023,7 @@ export function TagBindingStudio() {
                               event.stopPropagation();
                               void handleUnbind(candidate.pointId);
                             }}
-                            disabled={isAnyUnbindPending}
+                            disabled={isTagBoardBusy}
                             className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-50"
                           >
                             {t('workbench.tag.actions.unbind')}
@@ -1403,7 +1480,7 @@ export function TagBindingStudio() {
                   type="button"
                   data-testid="tag-batch-unbind"
                   onClick={() => void handleBatchUnbind()}
-                  disabled={isAnyUnbindPending}
+                  disabled={isTagBoardBusy}
                   className="w-full rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {t('workbench.tag.actions.unbindSelected')}
@@ -1415,7 +1492,7 @@ export function TagBindingStudio() {
                 disabled={
                   readyCount === 0
                   || blockedSelectionCount > 0
-                  || isAnyUnbindPending
+                  || isTagBoardBusy
                   || createTagMutation.isPending
                   || createMappingMutation.isPending
                 }
@@ -1441,21 +1518,31 @@ export function TagBindingStudio() {
             <dl className="grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2">
                 <dt className="text-emerald-300">
-                  {batchSummary.mode === 'unbind'
-                    ? t('workbench.tag.results.unbound')
-                    : flowMode === 'existing'
-                      ? t('workbench.tag.results.linked')
-                      : t('workbench.tag.results.created')}
+                  {batchSummary.mode === 'deletePoints'
+                    ? t('workbench.tag.results.deletedPoints')
+                    : batchSummary.mode === 'unbind'
+                      ? t('workbench.tag.results.unbound')
+                      : flowMode === 'existing'
+                        ? t('workbench.tag.results.linked')
+                        : t('workbench.tag.results.created')}
                 </dt>
                 <dd
                   className="mt-1 text-lg font-semibold text-emerald-100"
-                  data-testid={flowMode === 'existing' ? 'result-linked-count' : 'result-created-count'}
+                  data-testid={
+                    batchSummary.mode === 'deletePoints'
+                      ? 'result-deleted-points-count'
+                      : flowMode === 'existing'
+                        ? 'result-linked-count'
+                        : 'result-created-count'
+                  }
                 >
-                  {batchSummary.mode === 'unbind'
-                    ? batchSummary.unboundCount
-                    : flowMode === 'existing'
-                      ? batchSummary.linkedCount
-                      : batchSummary.createdCount}
+                  {batchSummary.mode === 'deletePoints'
+                    ? batchSummary.deletedPointCount
+                    : batchSummary.mode === 'unbind'
+                      ? batchSummary.unboundCount
+                      : flowMode === 'existing'
+                        ? batchSummary.linkedCount
+                        : batchSummary.createdCount}
                 </dd>
               </div>
               <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2">
