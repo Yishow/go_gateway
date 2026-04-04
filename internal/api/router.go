@@ -180,7 +180,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.DELETE("/polling-groups/:id", pollingGroupHandler.Delete)
 
 			// Devices
-			deviceHandler := handlers.NewDeviceHandler(datalinkServices.Device)
+			deviceHandler := handlers.NewDeviceHandler(datalinkServices.Device, datalinkServices.Runtime)
 			datalinkGroup.GET("/devices", deviceHandler.List)
 			datalinkGroup.POST("/devices", deviceHandler.Create)
 			datalinkGroup.POST("/devices/test-draft", deviceHandler.TestDraftConnection)

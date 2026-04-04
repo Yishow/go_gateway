@@ -1403,7 +1403,8 @@ export function WorkbenchDeviceStep() {
   };
 
   return (
-    <section className="space-y-4">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain">
       {devices.length > 0 ? (
         <div
           className="grid gap-3 rounded-3xl border border-slate-800 bg-slate-950/40 p-4 xl:grid-cols-[minmax(0,1fr)_180px_180px_auto] xl:items-end"
@@ -1706,6 +1707,7 @@ export function WorkbenchDeviceStep() {
           )}
         </div>
       ) : null}
+      </div>
     </section>
   );
 }

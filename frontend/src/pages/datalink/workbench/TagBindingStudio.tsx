@@ -72,6 +72,12 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+/**
+ * 將候選點位即時值格式化為顯示字串；空值統一為 em dash。
+ *
+ * @param value 原始或轉換後數值
+ * @returns 顯示用字串
+ */
 function formatCandidateValue(value: unknown) {
   if (value === null || value === undefined || value === '') {
     return '—';
@@ -80,14 +86,20 @@ function formatCandidateValue(value: unknown) {
   return String(value);
 }
 
+/**
+ * 候選列狀態徽章：柔和對比、內高光，與整體深色介面一致。
+ *
+ * @param status 綁定狀態
+ * @returns Tailwind 類別字串
+ */
 function getStatusToneClass(status: TagBindingCandidate['bindingStatus']) {
   switch (status) {
     case 'bound':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200';
+      return 'border-emerald-400/20 bg-emerald-500/[0.14] text-emerald-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]';
     case 'partial':
-      return 'border-amber-500/40 bg-amber-500/10 text-amber-200';
+      return 'border-amber-400/20 bg-amber-500/[0.14] text-amber-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]';
     case 'unbound':
-      return 'border-slate-700 bg-slate-950/70 text-slate-300';
+      return 'border-slate-500/25 bg-slate-950/55 text-slate-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]';
   }
 }
 
@@ -698,7 +710,7 @@ export function TagBindingStudio() {
 
   if (!selectedDevice) {
     return (
-      <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
+      <section className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
             {t('workbench.tag.empty.eyebrow')}
@@ -739,7 +751,7 @@ export function TagBindingStudio() {
       : 0;
 
     return (
-      <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
+      <section className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
             {t('workbench.tag.empty.eyebrow')}
@@ -777,133 +789,168 @@ export function TagBindingStudio() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.95fr)]">
-      <div className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+    <section className="grid h-full min-h-0 gap-6 xl:grid-rows-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.95fr)]">
+      <div
+        className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-b from-slate-900/95 to-slate-950 shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
+        data-testid="tag-board-surface"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/35 to-transparent"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-20 -top-28 h-56 w-56 rounded-full bg-cyan-500/[0.07] blur-3xl"
+        />
+        <div className="relative flex min-h-0 flex-1 flex-col divide-y divide-slate-800/70">
+          <header className="shrink-0 space-y-1 px-4 pb-3 pt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-400/85">
               {t('workbench.tag.selection.eyebrow')}
             </p>
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-50">
-                {t('workbench.tag.selection.title')}
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm text-slate-300">
-                {t('workbench.tag.selection.description')}
-              </p>
-            </div>
-          </div>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-50">
+              {t('workbench.tag.selection.title')}
+            </h2>
+            <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">
+              {t('workbench.tag.selection.description')}
+            </p>
+          </header>
 
-          <div
-            className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 lg:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.6fr))]"
-            data-testid="tag-review-summary"
-          >
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+          <div className="flex shrink-0 flex-col" data-testid="tag-review-summary">
+            <div className="space-y-1 px-4 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-400/80">
                 {t('workbench.tag.review.eyebrow')}
               </p>
-              <h3 className="text-lg font-semibold text-slate-50">
+              <h3 className="text-base font-semibold text-slate-50">
                 {t('workbench.tag.review.title')}
               </h3>
-              <p className="text-sm text-slate-300">
+              <p className="line-clamp-2 text-xs text-slate-500">
                 {t('workbench.tag.review.description')}
               </p>
             </div>
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-300">
-                {t('workbench.tag.review.metrics.generated')}
-              </p>
-              <p className="mt-1 text-xl font-semibold text-emerald-100" data-testid="tag-review-generated">
-                {generatedReviewCount}
-              </p>
-            </div>
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-amber-300">
-                {t('workbench.tag.review.metrics.needsReview')}
-              </p>
-              <p className="mt-1 text-xl font-semibold text-amber-100" data-testid="tag-review-needs-review">
-                {needsReviewCount}
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                {t('workbench.tag.review.metrics.selectedExceptions')}
-              </p>
-              <p className="mt-1 text-xl font-semibold text-slate-50" data-testid="tag-review-selected-exceptions">
-                {selectedExceptionCount}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.tag.board.search')}</span>
-              <input
-                aria-label={t('workbench.tag.board.search')}
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+            <dl className="flex min-h-[4.25rem] items-stretch border-t border-slate-800/60 bg-slate-950/40">
+              <div className="flex min-w-0 flex-1 flex-col justify-center bg-emerald-500/[0.06] px-3 py-2 text-center sm:px-4">
+                <dt className="text-[9px] font-medium uppercase tracking-[0.12em] text-emerald-400/90">
+                  {t('workbench.tag.review.metrics.generated')}
+                </dt>
+                <dd className="mt-0.5">
+                  <span
+                    className="font-mono text-xl font-semibold tabular-nums text-emerald-100"
+                    data-testid="tag-review-generated"
+                    title={t('workbench.tag.review.metrics.generatedFootnote')}
+                  >
+                    {generatedReviewCount}
+                  </span>
+                </dd>
+              </div>
+              <div
+                aria-hidden="true"
+                className="w-px shrink-0 bg-gradient-to-b from-transparent via-slate-600/50 to-transparent"
               />
+              <div className="flex min-w-0 flex-1 flex-col justify-center px-3 py-2 text-center sm:px-4">
+                <dt className="text-[9px] font-medium uppercase tracking-[0.12em] text-amber-400/85">
+                  {t('workbench.tag.review.metrics.needsReview')}
+                </dt>
+                <dd className="mt-0.5">
+                  <span
+                    className="font-mono text-xl font-semibold tabular-nums text-amber-100"
+                    data-testid="tag-review-needs-review"
+                  >
+                    {needsReviewCount}
+                  </span>
+                </dd>
+              </div>
+              <div
+                aria-hidden="true"
+                className="w-px shrink-0 bg-gradient-to-b from-transparent via-slate-600/50 to-transparent"
+              />
+              <div className="flex min-w-0 flex-1 flex-col justify-center px-3 py-2 text-center sm:px-4">
+                <dt className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">
+                  {t('workbench.tag.review.metrics.selectedExceptions')}
+                </dt>
+                <dd className="mt-0.5">
+                  <span
+                    className="font-mono text-xl font-semibold tabular-nums text-slate-100"
+                    data-testid="tag-review-selected-exceptions"
+                  >
+                    {selectedExceptionCount}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="flex shrink-0 flex-col gap-2 bg-slate-950/20 px-4 py-3 sm:flex-row sm:items-center">
+            <input
+              aria-label={t('workbench.tag.board.search')}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t('workbench.tag.board.search')}
+              className="min-w-0 flex-1 rounded-xl border-0 bg-slate-900/50 px-3.5 py-2.5 text-sm text-slate-100 shadow-inner shadow-black/20 placeholder:text-slate-500 ring-1 ring-slate-700/40 transition-[box-shadow,ring-color] focus:outline-none focus:ring-2 focus:ring-cyan-400/35"
+            />
+            <label className="sr-only" htmlFor="tag-board-status-filter">
+              {t('workbench.tag.board.statusFilter')}
             </label>
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.tag.board.statusFilter')}</span>
-              <select
-                aria-label={t('workbench.tag.board.statusFilter')}
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value as TagBindingStatusFilter)
-                }
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+            <select
+              id="tag-board-status-filter"
+              aria-label={t('workbench.tag.board.statusFilter')}
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as TagBindingStatusFilter)
+              }
+              className="h-[42px] w-full shrink-0 rounded-xl border-0 bg-slate-900/50 px-3.5 text-sm text-slate-100 shadow-inner shadow-black/15 ring-1 ring-slate-700/40 sm:w-[200px] focus:outline-none focus:ring-2 focus:ring-cyan-400/35"
+            >
+              <option value="all">{t('workbench.tag.board.statusFilters.all')}</option>
+              <option value="unbound">
+                {t('workbench.tag.board.statusFilters.unbound')}
+              </option>
+              <option value="partial">
+                {t('workbench.tag.board.statusFilters.partial')}
+              </option>
+              <option value="bound">{t('workbench.tag.board.statusFilters.bound')}</option>
+            </select>
+          </div>
+
+          <div className="shrink-0 space-y-2 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="rounded-xl bg-slate-800/70 px-3.5 py-2 text-sm text-slate-200 shadow-sm shadow-black/20 ring-1 ring-slate-700/45 transition hover:bg-slate-800 hover:ring-slate-600/55"
               >
-                <option value="all">{t('workbench.tag.board.statusFilters.all')}</option>
-                <option value="unbound">
-                  {t('workbench.tag.board.statusFilters.unbound')}
-                </option>
-                <option value="partial">
-                  {t('workbench.tag.board.statusFilters.partial')}
-                </option>
-                <option value="bound">{t('workbench.tag.board.statusFilters.bound')}</option>
-              </select>
-            </label>
+                {t('workbench.tag.actions.selectAll')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSelectBindable}
+                className="rounded-xl bg-slate-800/70 px-3.5 py-2 text-sm text-slate-200 shadow-sm shadow-black/20 ring-1 ring-slate-700/45 transition hover:bg-slate-800 hover:ring-slate-600/55"
+              >
+                {t('workbench.tag.actions.selectBindable')}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="rounded-xl bg-slate-800/70 px-3.5 py-2 text-sm text-slate-200 shadow-sm shadow-black/20 ring-1 ring-slate-700/45 transition hover:bg-slate-800 hover:ring-slate-600/55"
+              >
+                {t('workbench.tag.actions.clearSelection')}
+              </button>
+              <button
+                type="button"
+                data-testid="tag-delete-selected-points"
+                onClick={() => void handleDeleteSelectedPoints()}
+                disabled={selectedPointIds.length === 0 || isTagBoardBusy}
+                className="rounded-xl bg-rose-500/[0.12] px-3.5 py-2 text-sm font-medium text-rose-100 ring-1 ring-rose-400/25 transition hover:bg-rose-500/20 hover:ring-rose-400/35 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('workbench.tag.actions.deleteSelected')}
+              </button>
+            </div>
+            <p className="text-xs leading-relaxed text-slate-500">{t(selectionHintKey)}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-            >
-              {t('workbench.tag.actions.selectAll')}
-            </button>
-            <button
-              type="button"
-              onClick={handleSelectBindable}
-              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-            >
-              {t('workbench.tag.actions.selectBindable')}
-            </button>
-            <button
-              type="button"
-              onClick={handleClearSelection}
-              className="rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300"
-            >
-              {t('workbench.tag.actions.clearSelection')}
-            </button>
-            <button
-              type="button"
-              data-testid="tag-delete-selected-points"
-              onClick={() => void handleDeleteSelectedPoints()}
-              disabled={selectedPointIds.length === 0 || isTagBoardBusy}
-              className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {t('workbench.tag.actions.deleteSelected')}
-            </button>
-          </div>
-
-          <p className="text-sm text-slate-300">{t(selectionHintKey)}</p>
-        </div>
-
-        <div className="space-y-2" data-testid="tag-candidate-board" data-layout="row-board">
+          <div
+            className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2 sm:p-3 sm:pt-2"
+            data-testid="tag-candidate-board"
+            data-layout="two-line-board"
+          >
           {filteredCandidates.map((candidate) => {
             const selected = selectedPointIds.includes(candidate.pointId);
             const boundMapping = mappingByPointId.get(candidate.pointId);
@@ -916,7 +963,7 @@ export function TagBindingStudio() {
             return (
               <article
                 key={candidate.pointId}
-                data-layout="row"
+                data-layout="two-line"
                 data-testid={`tag-candidate-${candidate.pointId}`}
                 onClick={() => {
                   if (boundMapping) {
@@ -941,146 +988,153 @@ export function TagBindingStudio() {
                     existingTagLabel: selectedExistingTag?.displayName ?? null,
                     });
                 }}
-                className={`rounded-xl border px-4 py-3 transition ${
+                className={[
+                  'group/tag-card relative grid cursor-pointer grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0 rounded-xl px-3 py-2.5 ring-1 ring-slate-800/70 transition-[background-color,box-shadow,ring-color] duration-200',
                   selected
-                    ? 'border-cyan-500/40 bg-cyan-500/5'
-                    : 'border-slate-800 bg-slate-900/70'
-                }`}
+                    ? 'bg-cyan-500/[0.07] ring-cyan-400/30 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.55),inset_3px_0_0_0_rgba(34,211,238,0.65)]'
+                    : candidate.alreadyLinked
+                      ? 'bg-emerald-950/[0.22] ring-emerald-500/15 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.5),inset_3px_0_0_0_rgba(52,211,153,0.55)] hover:bg-emerald-950/[0.32] hover:ring-emerald-400/25'
+                      : 'bg-slate-900/40 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.45),inset_3px_0_0_0_rgba(71,85,105,0.55)] hover:bg-slate-900/65 hover:ring-slate-600/50',
+                ].join(' ')}
               >
-                <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1.2fr)_minmax(96px,0.45fr)_minmax(96px,0.45fr)_minmax(220px,0.9fr)] lg:items-center">
-                  <span className="pt-1">
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={() => handleTogglePoint(candidate.pointId)}
-                      aria-label={candidate.pointName}
-                      className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-cyan-400"
-                    />
-                  </span>
+                <div className="row-span-2 flex min-h-9 min-w-9 shrink-0 items-start justify-center pt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={() => handleTogglePoint(candidate.pointId)}
+                    aria-label={candidate.pointName}
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-950/80 text-cyan-400 shadow-inner shadow-black/30 ring-offset-2 ring-offset-slate-900 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+                  />
+                </div>
 
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-sm font-semibold text-slate-50">
+                <div className="flex min-w-0 gap-2.5">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="truncate text-[0.9375rem] font-semibold leading-tight tracking-tight text-slate-50">
                       {candidate.pointName}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="line-clamp-2 text-[11px] leading-snug text-slate-400 sm:line-clamp-1">
                       {t('workbench.tag.selection.pointMeta', {
                         address: candidate.pointAddress,
                         dataType: candidate.dataType,
                       })}
-                    </p>
-                    <p className="text-xs text-slate-500">
+                      <span className="mx-1 text-slate-600" aria-hidden>
+                        ·
+                      </span>
                       {t('workbench.tag.board.span', {
                         cells: candidate.cellSpan,
                         bitWidth: candidate.bitWidth,
                       })}
                     </p>
                   </div>
+                  <span
+                    className={`shrink-0 self-start rounded-md border px-2 py-1 text-[10px] font-semibold tracking-wide ${getStatusToneClass(
+                      candidate.bindingStatus,
+                    )}`}
+                    data-testid={`tag-status-${candidate.pointId}`}
+                  >
+                    {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
+                  </span>
+                </div>
 
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                      {t('workbench.tag.board.rawValue')}
-                    </p>
-                    <p
-                      className="text-sm font-medium text-slate-100"
-                      data-testid={`tag-raw-${candidate.pointId}`}
-                    >
-                      {formatCandidateValue(candidate.rawValue)}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                      {t('workbench.tag.board.transformedValue')}
-                    </p>
-                    <p className="text-sm font-medium text-slate-100">
-                      {formatCandidateValue(candidate.transformedValue)}
-                    </p>
-                  </div>
-
-                  <div className="min-w-0 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getStatusToneClass(
-                          candidate.bindingStatus,
-                        )}`}
-                        data-testid={`tag-status-${candidate.pointId}`}
-                      >
-                        {t(`workbench.tag.board.status.${candidate.bindingStatus}`)}
-                      </span>
-
-                      {candidate.alreadyLinked && boundTag ? (
-                        <div className="flex items-center gap-2">
-                          <span
-                            data-testid={`tag-bound-label-${candidate.pointId}`}
-                            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-200"
-                          >
-                            {t('workbench.tag.board.boundTag', { tag: boundTag.key })}
+                <div className="col-start-2 mt-2 min-w-0">
+                  <div className="rounded-lg bg-slate-950/35 p-2 ring-1 ring-slate-800/60 backdrop-blur-[2px]">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-stretch sm:gap-3">
+                      <div className="flex min-w-0 flex-1 flex-col gap-2.5 text-[11px] leading-snug sm:flex-row sm:gap-0 sm:divide-x sm:divide-slate-700/50">
+                        <span className="min-w-0 sm:pr-3">
+                          <span className="block text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            {t('workbench.tag.board.rawValue')}
                           </span>
-                          <button
-                            type="button"
-                            data-testid={`tag-unbind-${candidate.pointId}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleUnbind(candidate.pointId);
-                            }}
-                            disabled={isTagBoardBusy}
-                            className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-50"
+                          <span
+                            className="mt-0.5 block break-all font-mono text-[13px] tabular-nums text-slate-100"
+                            data-testid={`tag-raw-${candidate.pointId}`}
                           >
-                            {t('workbench.tag.actions.unbind')}
-                          </button>
-                        </div>
-                      ) : flowMode === 'create' ? (
-                        <div
-                          data-testid={`tag-preview-${candidate.pointId}`}
-                          data-conflict={candidate.conflict ? 'true' : 'false'}
-                          className={`rounded-lg border px-3 py-2 text-sm font-medium ${
-                            candidate.conflict
-                              ? 'border-rose-500/40 bg-rose-500/10 text-rose-100'
-                              : 'border-slate-800 bg-slate-950/80 text-cyan-100'
-                          }`}
-                        >
-                          {candidate.previewKey}
-                        </div>
-                      ) : null}
-                    </div>
+                            {formatCandidateValue(candidate.rawValue)}
+                          </span>
+                        </span>
+                        <span className="min-w-0 sm:pl-3">
+                          <span className="block text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                            {t('workbench.tag.board.transformedValue')}
+                          </span>
+                          <span className="mt-0.5 block break-all font-mono text-[13px] tabular-nums text-slate-100">
+                            {formatCandidateValue(candidate.transformedValue)}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="min-w-0 shrink-0 sm:w-[min(100%,13.5rem)]">
+                        {candidate.alreadyLinked && boundTag ? (
+                          <div className="flex items-center justify-end gap-2 sm:justify-start">
+                            <span
+                              data-testid={`tag-bound-label-${candidate.pointId}`}
+                              className="min-w-0 truncate text-left text-[11px] font-medium text-emerald-200/95"
+                            >
+                              {t('workbench.tag.board.boundTag', { tag: boundTag.key })}
+                            </span>
+                            <button
+                              type="button"
+                              data-testid={`tag-unbind-${candidate.pointId}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleUnbind(candidate.pointId);
+                              }}
+                              disabled={isTagBoardBusy}
+                              className="min-h-8 shrink-0 rounded-lg bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-100 ring-1 ring-rose-400/20 transition hover:bg-rose-500/20 hover:ring-rose-400/35 disabled:opacity-50"
+                            >
+                              {t('workbench.tag.actions.unbind')}
+                            </button>
+                          </div>
+                        ) : flowMode === 'create' ? (
+                          <div
+                            data-testid={`tag-preview-${candidate.pointId}`}
+                            data-conflict={candidate.conflict ? 'true' : 'false'}
+                            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold leading-snug ring-1 ${
+                              candidate.conflict
+                                ? 'bg-rose-500/15 text-rose-50 ring-rose-400/25'
+                                : 'bg-gradient-to-br from-slate-900/90 to-slate-950 font-mono text-cyan-100 ring-cyan-500/15 shadow-inner shadow-black/20'
+                            }`}
+                          >
+                            <span className="break-all">{candidate.previewKey}</span>
+                          </div>
+                        ) : null}
 
-                    {flowMode === 'existing' && !candidate.alreadyLinked ? (
-                      <label className="block space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                        <span>{t('workbench.tag.board.existingTag')}</span>
-                        <select
-                          data-testid={`existing-tag-select-${candidate.pointId}`}
-                          value={existingTagSelections[candidate.pointId] ?? ''}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) =>
-                            handleExistingTagSelection(
-                              candidate.pointId,
-                              event.target.value,
-                            )
-                          }
-                          className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                        >
-                          <option value="">
-                            {t('workbench.tag.board.noExistingTag')}
-                          </option>
-                          {candidate.existingTagOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.displayName}
+                        {flowMode === 'existing' && !candidate.alreadyLinked ? (
+                          <select
+                            aria-label={t('workbench.tag.board.existingTag')}
+                            data-testid={`existing-tag-select-${candidate.pointId}`}
+                            value={existingTagSelections[candidate.pointId] ?? ''}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) =>
+                              handleExistingTagSelection(
+                                candidate.pointId,
+                                event.target.value,
+                              )
+                            }
+                            className="min-h-9 w-full rounded-lg border-0 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-100 shadow-inner shadow-black/15 ring-1 ring-slate-700/45 focus:outline-none focus:ring-2 focus:ring-cyan-400/35"
+                          >
+                            <option value="">
+                              {t('workbench.tag.board.noExistingTag')}
                             </option>
-                          ))}
-                        </select>
-                      </label>
-                    ) : null}
+                            {candidate.existingTagOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.displayName}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </article>
             );
           })}
+          </div>
         </div>
       </div>
 
-      <aside className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+      <aside className="flex h-full min-h-0 flex-col gap-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
         <div
-          className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+          className="shrink-0 space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
           data-testid="tag-exception-tools"
         >
           <div className="space-y-1">
@@ -1123,7 +1177,7 @@ export function TagBindingStudio() {
           <p className="text-sm text-slate-300">{t(flowModeHintKey)}</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="shrink-0 space-y-4">
           <button
             type="button"
             onClick={() => setTemplateExpanded((v) => !v)}
@@ -1179,173 +1233,254 @@ export function TagBindingStudio() {
         </div>
 
         <div
-          className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-b from-slate-900/95 to-slate-950 shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset]"
           data-testid="tag-master-surface"
         >
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-              {t('workbench.tag.master.eyebrow')}
-            </p>
-            <h3 className="text-xl font-semibold text-slate-50">
-              {t('workbench.tag.master.title')}
-            </h3>
-            <p className="text-sm text-slate-300">
-              {t('workbench.tag.master.description')}
-            </p>
-          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/35 to-transparent"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-20 -top-28 h-56 w-56 rounded-full bg-cyan-500/[0.07] blur-3xl"
+          />
+          <div className="relative flex min-h-0 flex-1 flex-col divide-y divide-slate-800/70">
+            <header className="shrink-0 space-y-1 px-4 pb-3 pt-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-400/85">
+                {t('workbench.tag.master.eyebrow')}
+              </p>
+              <h3 className="text-lg font-semibold tracking-tight text-slate-50">
+                {t('workbench.tag.master.title')}
+              </h3>
+              <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">
+                {t('workbench.tag.master.description')}
+              </p>
+            </header>
 
-          <dl className="grid grid-cols-3 gap-2">
-            <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
-              <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                {t('workbench.tag.master.metrics.total')}
-              </dt>
-              <dd className="mt-1 text-lg font-semibold text-slate-50" data-testid="tag-master-total">
-                {tags.length}
-              </dd>
-            </div>
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-              <dt className="text-[11px] uppercase tracking-[0.16em] text-emerald-300">
-                {t('workbench.tag.master.metrics.linked')}
-              </dt>
-              <dd className="mt-1 text-lg font-semibold text-emerald-100" data-testid="tag-master-linked">
-                {linkedTagCount}
-              </dd>
-            </div>
-            <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-3">
-              <dt className="text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                {t('workbench.tag.master.metrics.unused')}
-              </dt>
-              <dd className="mt-1 text-lg font-semibold text-slate-100" data-testid="tag-master-unused">
-                {unusedTagCount}
-              </dd>
-            </div>
-          </dl>
-
-          <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-            <span>{t('workbench.tag.master.search')}</span>
-            <input
-              aria-label={t('workbench.tag.master.search')}
-              value={tagLibraryQuery}
-              onChange={(event) => setTagLibraryQuery(event.target.value)}
-              className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-            />
-          </label>
-
-          <div className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-              {t('workbench.tag.master.quickCreate')}
-            </p>
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.tag.master.fields.key')}</span>
-              <input
-                aria-label={t('workbench.tag.master.fields.key')}
-                value={tagDraftKey}
-                onChange={(event) => setTagDraftKey(event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              />
-            </label>
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.tag.master.fields.displayName')}</span>
-              <input
-                aria-label={t('workbench.tag.master.fields.displayName')}
-                value={tagDraftDisplayName}
-                onChange={(event) => setTagDraftDisplayName(event.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              />
-            </label>
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.tag.master.fields.dataType')}</span>
-              <select
-                aria-label={t('workbench.tag.master.fields.dataType')}
-                value={tagDraftDataType}
-                onChange={(event) => setTagDraftDataType(event.target.value as DataType)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              >
-                {tagDataTypeOptions.map((dataType) => (
-                  <option key={dataType} value={dataType}>
-                    {dataType}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              data-testid="tag-master-create"
-              onClick={() => void handleCreateStandaloneTag()}
-              disabled={!tagDraftKey.trim() || createTagMutation.isPending}
-              className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {t('workbench.tag.master.createAction')}
-            </button>
-          </div>
-
-          {tagLibraryFeedback ? (
-            <p
-              role="status"
-              className={`rounded-xl px-3 py-2 text-sm ${
-                tagLibraryFeedback.tone === 'success'
-                  ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-                  : 'border border-rose-500/30 bg-rose-500/10 text-rose-100'
-              }`}
-            >
-              {tagLibraryFeedback.message}
-            </p>
-          ) : null}
-
-          <div className="space-y-2" data-testid="tag-master-list">
-            {filteredTagLibrary.length > 0 ? (
-              filteredTagLibrary.map((tag) => {
-                const bindingCount = mappingCountByTagId.get(tag.id) ?? 0;
-                const canDelete = bindingCount === 0;
-
-                return (
-                  <article
-                    key={tag.id}
-                    data-testid={`tag-master-row-${tag.id}`}
-                    className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-3"
+            <dl className="flex min-h-[4.5rem] shrink-0 items-stretch bg-slate-950/40">
+              <div className="flex min-w-0 flex-1 flex-col justify-center px-3 py-2.5 text-center sm:px-4">
+                <dt className="text-[9px] font-medium uppercase tracking-[0.12em] text-slate-500">
+                  {t('workbench.tag.master.metrics.total')}
+                </dt>
+                <dd className="mt-0.5">
+                  <span
+                    className="font-mono text-xl font-semibold tabular-nums text-slate-50"
+                    data-testid="tag-master-total"
+                    title={t('workbench.tag.master.metrics.totalFootnote')}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-1">
-                        <p className="truncate text-sm font-semibold text-slate-50">{tag.key}</p>
-                        <p className="truncate text-xs text-slate-400">
-                          {tag.display_name || t('workbench.tag.master.displayNameFallback')}
+                    {tags.length}
+                  </span>
+                </dd>
+              </div>
+              <div
+                aria-hidden="true"
+                className="w-px shrink-0 bg-gradient-to-b from-transparent via-slate-600/50 to-transparent"
+              />
+              <div className="flex min-w-0 flex-1 flex-col justify-center bg-emerald-500/[0.06] px-3 py-2.5 text-center sm:px-4">
+                <dt className="text-[9px] font-medium uppercase tracking-[0.12em] text-emerald-400/90">
+                  {t('workbench.tag.master.metrics.linked')}
+                </dt>
+                <dd className="mt-0.5">
+                  <span
+                    className="font-mono text-xl font-semibold tabular-nums text-emerald-100"
+                    data-testid="tag-master-linked"
+                    title={t('workbench.tag.master.metrics.linkedFootnote')}
+                  >
+                    {linkedTagCount}
+                  </span>
+                </dd>
+              </div>
+              <div
+                aria-hidden="true"
+                className="w-px shrink-0 bg-gradient-to-b from-transparent via-slate-600/50 to-transparent"
+              />
+              <div className="flex min-w-0 flex-1 flex-col justify-center px-3 py-2.5 text-center sm:px-4">
+                <dt className="text-[9px] font-medium uppercase tracking-[0.12em] text-violet-300/75">
+                  {t('workbench.tag.master.metrics.unused')}
+                </dt>
+                <dd className="mt-0.5">
+                  <span
+                    className="font-mono text-xl font-semibold tabular-nums text-slate-100"
+                    data-testid="tag-master-unused"
+                    title={t('workbench.tag.master.metrics.unusedFootnote')}
+                  >
+                    {unusedTagCount}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+
+            <div className="shrink-0 bg-slate-950/25 px-4 py-3">
+              <input
+                aria-label={t('workbench.tag.master.search')}
+                value={tagLibraryQuery}
+                onChange={(event) => setTagLibraryQuery(event.target.value)}
+                placeholder={t('workbench.tag.master.searchPlaceholder')}
+                className="w-full rounded-lg border-0 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 ring-1 ring-slate-700/60 transition focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+              />
+            </div>
+
+            <div className="shrink-0 space-y-2 bg-gradient-to-r from-cyan-950/25 via-slate-950/40 to-slate-950/50 px-4 py-3">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-300/85">
+                {t('workbench.tag.master.quickCreate')}
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <label className="min-w-0 flex-1 space-y-1">
+                  <span className="sr-only">{t('workbench.tag.master.fields.key')}</span>
+                  <input
+                    aria-label={t('workbench.tag.master.fields.key')}
+                    value={tagDraftKey}
+                    onChange={(event) => setTagDraftKey(event.target.value)}
+                    placeholder={t('workbench.tag.master.fields.key')}
+                    className="w-full rounded-lg border-0 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 placeholder:text-slate-600 ring-1 ring-slate-700/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                  />
+                </label>
+                <label className="min-w-0 flex-1 space-y-1">
+                  <span className="sr-only">{t('workbench.tag.master.fields.displayName')}</span>
+                  <input
+                    aria-label={t('workbench.tag.master.fields.displayName')}
+                    value={tagDraftDisplayName}
+                    onChange={(event) => setTagDraftDisplayName(event.target.value)}
+                    placeholder={t('workbench.tag.master.fields.displayName')}
+                    className="w-full rounded-lg border-0 bg-slate-900/80 px-2.5 py-2 text-sm text-slate-100 placeholder:text-slate-600 ring-1 ring-slate-700/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                  />
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <label className="min-w-0 flex-1">
+                  <span className="sr-only">{t('workbench.tag.master.fields.dataType')}</span>
+                  <select
+                    aria-label={t('workbench.tag.master.fields.dataType')}
+                    value={tagDraftDataType}
+                    onChange={(event) => setTagDraftDataType(event.target.value as DataType)}
+                    className="h-[38px] w-full rounded-lg border-0 bg-slate-900/80 px-2.5 text-sm text-slate-100 ring-1 ring-slate-700/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/25"
+                  >
+                    {tagDataTypeOptions.map((dataType) => (
+                      <option key={dataType} value={dataType}>
+                        {dataType}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  data-testid="tag-master-create"
+                  onClick={() => void handleCreateStandaloneTag()}
+                  disabled={!tagDraftKey.trim() || createTagMutation.isPending}
+                  className="h-[38px] shrink-0 rounded-lg bg-gradient-to-r from-cyan-500 to-cyan-400 px-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:from-cyan-400 hover:to-cyan-300 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 disabled:shadow-none"
+                >
+                  {t('workbench.tag.master.createAction')}
+                </button>
+              </div>
+            </div>
+
+            {tagLibraryFeedback ? (
+              <p
+                role="status"
+                className={`shrink-0 px-4 py-2.5 text-sm ${
+                  tagLibraryFeedback.tone === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-100'
+                    : 'bg-rose-500/10 text-rose-100'
+                }`}
+              >
+                {tagLibraryFeedback.message}
+              </p>
+            ) : null}
+
+            <div
+              className="min-h-0 flex-1 divide-y divide-slate-800/60 overflow-y-auto overscroll-contain"
+              data-testid="tag-master-list"
+            >
+              {filteredTagLibrary.length > 0 ? (
+                filteredTagLibrary.map((tag) => {
+                  const bindingCount = mappingCountByTagId.get(tag.id) ?? 0;
+                  const canDelete = bindingCount === 0;
+                  const isLinked = bindingCount > 0;
+                  const displayNameTrimmed = tag.display_name?.trim() ?? '';
+                  const showSecondaryLabel =
+                    displayNameTrimmed.length > 0 &&
+                    displayNameTrimmed !== tag.key;
+
+                  return (
+                    <article
+                      key={tag.id}
+                      data-testid={`tag-master-row-${tag.id}`}
+                      title={[tag.key, showSecondaryLabel ? displayNameTrimmed : '']
+                        .filter(Boolean)
+                        .join(' · ')}
+                      className={[
+                        'group/tag-master-row flex min-h-11 flex-nowrap items-center gap-2.5 px-4 py-2 transition-colors duration-150',
+                        'hover:bg-slate-800/35',
+                        isLinked ? 'border-l-[3px] border-l-emerald-500/50' : 'border-l-[3px] border-l-transparent',
+                      ].join(' ')}
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <p className="shrink-0 truncate font-mono text-sm font-medium tabular-nums text-slate-100">
+                          {tag.key}
                         </p>
+                        {showSecondaryLabel ? (
+                          <>
+                            <span
+                              className="shrink-0 text-slate-600"
+                              aria-hidden
+                            >
+                              ·
+                            </span>
+                            <p className="min-w-0 truncate text-xs text-slate-500">
+                              {displayNameTrimmed}
+                            </p>
+                          </>
+                        ) : null}
                       </div>
+
+                      <div
+                        aria-hidden
+                        className="hidden h-5 w-px shrink-0 bg-gradient-to-b from-transparent via-slate-600/45 to-transparent sm:block"
+                      />
+
+                      <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
+                        <span className="rounded-md bg-slate-800/90 px-1.5 py-0.5 font-mono text-[10px] font-medium text-slate-400">
+                          {tag.data_type}
+                        </span>
+                        <span
+                          className={[
+                            'whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums',
+                            isLinked
+                              ? 'bg-emerald-500/15 text-emerald-200/90 ring-1 ring-emerald-500/20'
+                              : 'bg-slate-800/60 text-slate-500',
+                          ].join(' ')}
+                        >
+                          {t('workbench.tag.master.bindingCount', { count: bindingCount })}
+                        </span>
+                        {!canDelete ? (
+                          <span className="whitespace-nowrap rounded-md border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-200/90">
+                            {t('workbench.tag.master.inUse')}
+                          </span>
+                        ) : null}
+                      </div>
+
                       <button
                         type="button"
                         data-testid={`tag-master-delete-${tag.id}`}
                         onClick={() => void handleDeleteStandaloneTag(tag)}
                         disabled={!canDelete || deleteTagMutation.isPending}
-                        className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-medium text-rose-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-950/40 disabled:text-slate-500"
+                        className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-rose-300/90 opacity-90 transition hover:bg-rose-500/15 hover:text-rose-200 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent sm:opacity-70 sm:group-hover/tag-master-row:opacity-100"
                       >
                         {t('workbench.tag.master.deleteAction')}
                       </button>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded-full border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">
-                        {tag.data_type}
-                      </span>
-                      <span className="rounded-full border border-slate-700 bg-slate-900 px-2 py-1 text-slate-300">
-                        {t('workbench.tag.master.bindingCount', { count: bindingCount })}
-                      </span>
-                      {!canDelete ? (
-                        <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-200">
-                          {t('workbench.tag.master.inUse')}
-                        </span>
-                      ) : null}
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/40 px-3 py-4 text-sm text-slate-400">
-                {t('workbench.tag.master.empty')}
-              </div>
-            )}
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="px-4 py-10 text-center text-sm text-slate-500">
+                  {t('workbench.tag.master.empty')}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <dl className="grid gap-2 sm:grid-cols-3 xl:grid-cols-3">
+        <dl className="grid shrink-0 gap-2 sm:grid-cols-3 xl:grid-cols-3">
           <div className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
             <dt className="text-xs uppercase tracking-[0.18em] text-slate-400">
               {t('workbench.tag.metrics.selected')}
@@ -1375,7 +1510,7 @@ export function TagBindingStudio() {
         {selectedCandidates.length > 0 ? (
           <div
             data-testid="batch-diff-preview"
-            className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+            className="shrink-0 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
           >
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
               {t('workbench.tag.diff.title')}
@@ -1467,14 +1602,14 @@ export function TagBindingStudio() {
           <p
             role="status"
             aria-live="polite"
-            className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100"
+            className="shrink-0 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100"
           >
             {t('workbench.tag.conflicts.summary')}
           </p>
         ) : null}
 
         {selectedCandidates.length > 0 ? (
-          <div className="space-y-2">
+          <div className="shrink-0 space-y-2">
             {selectedBoundItems.length > 0 ? (
                 <button
                   type="button"
@@ -1507,7 +1642,7 @@ export function TagBindingStudio() {
           <div
             role="status"
             aria-live="polite"
-            className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
+            className="shrink-0 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4"
           >
             <p className="text-sm font-semibold text-slate-50">
               {batchSummary.failureCount > 0

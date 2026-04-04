@@ -6,6 +6,20 @@
 
 ---
 
+## 臨時任務：2026-03-23 規範文件對齊 ✅
+
+- [x] 深度盤點 `README.md`、`Makefile`、`frontend/package.json`、`scripts/build.ps1`、`frontend/tsconfig.json`、`frontend/eslint.config.js`、`.golangci.yml`
+- [x] 對齊 `AGENTS.md` 的專案總覽、建置與測試指令、程式碼樣式、測試規範、安全考量與 repo 特定規則
+- [x] 對齊 `CLAUDE.md` 的專案總覽、常用命令、樣式 / 測試 / 安全摘要與工作流程
+- [x] 修正兩份文件對規範優先順序的描述，使其一致為：`AGENTS.md -> Agent 專屬文件 -> .github/instructions/`
+- [x] 以 `git diff --check -- AGENTS.md CLAUDE.md` 驗證文件 patch 無 whitespace / 格式錯誤
+
+**備註**：
+- 本次僅更新文件與 planning records，未碰其他進行中的程式碼變更。
+- 由於屬文件對齊任務，未額外執行 build / test；驗證以來源盤點與 diff 檢查為主。
+
+---
+
 ## Phase 1: P0 高優先級改善（影響可用性）
 
 ### 1.1 統一載入狀態與錯誤處理 ✅

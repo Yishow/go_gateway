@@ -355,7 +355,7 @@ describe('DatalinkWorkbench output step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(await screen.findByText('workbench.output.empty.title')).toBeInTheDocument();
@@ -364,7 +364,7 @@ describe('DatalinkWorkbench output step', () => {
   it('starts the local modbus server with the specified port', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     await screen.findByLabelText('workbench.output.mapping.register');
@@ -411,7 +411,7 @@ describe('DatalinkWorkbench output step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(
@@ -457,7 +457,7 @@ describe('DatalinkWorkbench output step', () => {
   it('marks modbus operational panels as supporting sections', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(await screen.findByTestId('modbus-secondary-panels')).toHaveAttribute(
@@ -469,7 +469,7 @@ describe('DatalinkWorkbench output step', () => {
   it('uses the tag chips as the unified selection surface for both targets', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     await screen.findByTestId('output-tag-chips');
@@ -495,7 +495,7 @@ describe('DatalinkWorkbench output step', () => {
   it('binds a linked tag to a local modbus register', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     await screen.findByLabelText('workbench.output.mapping.register');
@@ -533,7 +533,7 @@ describe('DatalinkWorkbench output step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     await screen.findByLabelText('workbench.output.mapping.register');
@@ -578,7 +578,7 @@ describe('DatalinkWorkbench output step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(await screen.findByRole('button', { name: 'workbench.output.actions.sync' })).toBeDisabled();
@@ -588,7 +588,7 @@ describe('DatalinkWorkbench output step', () => {
   it('binds a linked tag to a database column via direct surface click', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(
       await screen.findByRole('button', {
@@ -647,7 +647,7 @@ describe('DatalinkWorkbench output step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(
       await screen.findByRole('button', {
@@ -669,7 +669,7 @@ describe('DatalinkWorkbench output step', () => {
   it('keeps the database selected-tag display aligned with the tag chips', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(
       await screen.findByRole('button', {
@@ -698,7 +698,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       expect(
@@ -716,7 +716,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       const conflictSlot = await screen.findByTestId('register-slot-11');
@@ -731,7 +731,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       const overlapSlot = await screen.findByTestId('register-slot-12');
@@ -745,7 +745,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       expect(await screen.findByTestId('register-slot-200')).toHaveTextContent('TAG_40002');
@@ -758,7 +758,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       fireEvent.click(await screen.findByTestId('register-slot-1'));
@@ -772,7 +772,7 @@ describe('DatalinkWorkbench output step', () => {
     it('binds the selected tag by clicking an empty register slot', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       const targetSlot = await screen.findByTestId('register-slot-5');
@@ -787,7 +787,7 @@ describe('DatalinkWorkbench output step', () => {
     it('renders auto-map strategy selector with three strategies', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('register-map-canvas');
@@ -810,7 +810,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('register-map-canvas');
@@ -833,7 +833,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('register-map-canvas');
@@ -917,7 +917,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -946,7 +946,7 @@ describe('DatalinkWorkbench output step', () => {
     it('keeps write-mode and timestamp scope synchronized', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -997,7 +997,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -1034,7 +1034,7 @@ describe('DatalinkWorkbench output step', () => {
     it('collapses connector fields until the operator expands connector setup', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -1060,7 +1060,7 @@ describe('DatalinkWorkbench output step', () => {
     it('groups schema snapshot and write preview into supporting secondary panels', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -1077,7 +1077,7 @@ describe('DatalinkWorkbench output step', () => {
     it('renders a schema snapshot with column type badges', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -1095,7 +1095,7 @@ describe('DatalinkWorkbench output step', () => {
     it('marks primary key columns with a PK badge', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -1110,7 +1110,7 @@ describe('DatalinkWorkbench output step', () => {
     it('renders a write-row preview panel', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -1139,7 +1139,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(
         await screen.findByRole('button', {
@@ -1164,7 +1164,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('output-tag-chips');
@@ -1187,7 +1187,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('output-tag-chips');
@@ -1224,7 +1224,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('output-tag-chips');
@@ -1258,7 +1258,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('output-tag-chips');
@@ -1279,7 +1279,7 @@ describe('DatalinkWorkbench output step', () => {
 
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('output-tag-chips');
@@ -1297,15 +1297,15 @@ describe('DatalinkWorkbench output step', () => {
     it('pre-selects the focused tag from Step 3 when entering Step 4', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       await screen.findByTestId('output-tag-chips');
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
       const boundRow = await screen.findByTestId('tag-candidate-point-2');
       fireEvent.click(boundRow);
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       await screen.findByTestId('output-tag-chips');
 
       await waitFor(() => {
@@ -1316,7 +1316,7 @@ describe('DatalinkWorkbench output step', () => {
     it('falls back to the first candidate when focusedTagIds do not match', async () => {
       renderPage();
 
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.output' }));
+      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.output/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       await screen.findByTestId('output-tag-chips');

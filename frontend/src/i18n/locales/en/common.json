@@ -633,16 +633,27 @@
           "wordOrder": "word order"
         }
       },
+      "collection": {
+        "eyebrow": "Device polling",
+        "hintShort": "Start/stop polling for this device (separate from rule enable/disable). Hover for details.",
+        "hint": "Controls whether the selected device is polled by the runtime (active = connect and read points; disabled = close connection and pause that device). This is separate from each rule's enable/disable on the left.",
+        "start": "Start collection",
+        "stop": "Stop collection",
+        "started": "Collection start requested for this device.",
+        "stopped": "Collection stopped for this device.",
+        "error": "Could not toggle collection for this device.",
+        "toggleRuleError": "Could not update rule enabled state."
+      },
       "ruleLayer": {
         "eyebrow": "Rule layer",
         "title": "Manage source planning directives",
-        "description": "Keep multiple source rules visible, focusable, and reorderable.",
+        "description": "Keep multiple source rules visible, focusable, and reorderable. \"Disable/enable rule\" only toggles whether that rule is managed (derived points/scheduling); it does not start or stop device polling—use \"Start/Stop collection\" above for that.",
         "empty": "Apply a source planning rule to start building the shared source lattice.",
         "meta": "{{bitWidth}}-bit · {{count}} item(s) · {{cells}} cells",
         "persistedBadge": "Existing rule",
         "draftBadge": "Draft rule",
-        "enable": "Enable",
-        "disable": "Disable",
+        "enable": "Enable rule",
+        "disable": "Disable rule",
         "moveUp": "Move up",
         "moveDown": "Move down",
         "delete": "Delete rule",
@@ -667,6 +678,7 @@
         }
       },
       "canvas": {
+        "scrollRegion": "Source address memory grid",
         "empty": "No planned range or existing source yet.",
         "plannedLabel": "Planned range",
         "plannedState": "Planned",
@@ -744,17 +756,18 @@
         "goToSource": "Go to Source Planning"
       },
       "selection": {
-        "eyebrow": "Review generated tag mappings",
-        "title": "Verify rule-derived tags before publishing them downstream",
-        "description": "Step 3 now loads the generated tag identity and mapping status first. Use the exception tools only when automatic generation needs correction.",
+        "eyebrow": "Step 3 · Tag binding",
+        "title": "Device points → tags",
+        "description": "Use the left board for the live candidate list. After selecting rows, pick a binding mode on the right, adjust the template if needed, then run the batch action.",
         "pointMeta": "Address {{address}} · {{dataType}}"
       },
       "review": {
-        "eyebrow": "Review-first",
-        "title": "Check what the rule flow already generated",
-        "description": "Use this board to verify which points already have rule-derived tag mappings and which rows still need operator attention.",
+        "eyebrow": "Summary",
+        "title": "Binding status",
+        "description": "Counts mirror the left list: bound points, rows that still need review, and selected rows that count as exceptions / pending work.",
         "metrics": {
-          "generated": "Generated and linked",
+          "generated": "Bound points (this device)",
+          "generatedFootnote": "Points on the selected device that already have a mapping (one row per point).",
           "needsReview": "Needs review",
           "selectedExceptions": "Selected exceptions"
         }
@@ -795,9 +808,9 @@
         "boundTag": "Bound to {{tag}}"
       },
       "exception": {
-        "eyebrow": "Exception handling",
-        "title": "Correct rows that still need manual intervention",
-        "description": "Auto-generated mappings stay review-only. Use these tools only when a row needs a new tag, an existing tag, or a corrective rebind."
+        "eyebrow": "Right column",
+        "title": "Mode, template, and actions",
+        "description": "Switch create vs bind-existing, edit the key template, browse the tag library, then confirm with the batch buttons below."
       },
       "template": {
         "eyebrow": "Tag key template",
@@ -816,6 +829,7 @@
         "title": "Tag overview",
         "description": "Review all current tags, create standby tags, and clean up unused tag records.",
         "search": "Search tags",
+        "searchPlaceholder": "Filter by key, name, or type…",
         "quickCreate": "Quick create",
         "createAction": "Create tag",
         "createSuccess": "Created tag: {{key}}",
@@ -829,9 +843,12 @@
         "inUse": "In use",
         "empty": "No tags match the current search.",
         "metrics": {
-          "total": "Total",
-          "linked": "Linked",
-          "unused": "Unused"
+          "total": "Total tags",
+          "totalFootnote": "Across the whole project.",
+          "linked": "Linked tags",
+          "linkedFootnote": "Distinct tags with at least one mapping (including other devices).",
+          "unused": "Unused",
+          "unusedFootnote": "Tags with no mappings yet."
         },
         "fields": {
           "key": "Tag key",

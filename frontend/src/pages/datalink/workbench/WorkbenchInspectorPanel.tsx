@@ -31,10 +31,21 @@ import {
   type DeviceTestHistoryEntry,
   type InspectorSelection,
 } from './workbenchTypes';
+import { WB_SHELL_SURFACE } from './workbenchShellTokens';
 
 function joinClasses(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
 }
+
+/**
+ * 檢查面板內卡片：比外殼略深一階，單一邊線即可，不另加 ring 以免與外殼 `WB_SHELL_SURFACE` 疊加發糊。
+ */
+const INSPECTOR_CARD_CLASS =
+  'rounded-xl border border-slate-800/65 bg-slate-950/70 p-4 shadow-sm shadow-black/25';
+
+/** 檢查面板區塊標題（eyebrow）字重與字距，維持階層一致。 */
+const INSPECTOR_SECTION_EYEBROW_CLASS =
+  'text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500';
 
 function getDeviceStatusClasses(status: 'draft' | 'active' | 'disabled') {
   switch (status) {
@@ -126,7 +137,7 @@ function DeviceInspectorContent() {
 
   if (!selectedDevice) {
     return (
-      <div className="flex flex-1 flex-col justify-center gap-4 rounded-xl border border-dashed border-slate-700/60 bg-slate-950/30 p-6">
+      <div className="flex flex-1 flex-col justify-center gap-4 rounded-xl border border-dashed border-slate-700/50 bg-slate-950/25 p-6 ring-1 ring-white/[0.03]">
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-slate-200">
           {t('workbench.device.inspector.emptyTitle')}
@@ -218,8 +229,8 @@ function DeviceInspectorContent() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      <div className="space-y-3 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className={joinClasses('space-y-3', INSPECTOR_CARD_CLASS)}>
         <div className="space-y-2">
           <h3 className="text-lg font-semibold text-slate-50">{selectedDevice.name}</h3>
           <p className="text-xs text-slate-400">
@@ -241,8 +252,8 @@ function DeviceInspectorContent() {
         </div>
       </div>
 
-      <section className="space-y-3 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section className={joinClasses('space-y-3', INSPECTOR_CARD_CLASS)}>
+        <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
           {t('workbench.device.inspector.capabilitySummary')}
         </p>
         <dl className="space-y-3 text-sm text-slate-200">
@@ -257,8 +268,8 @@ function DeviceInspectorContent() {
         </dl>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section className={joinClasses('space-y-3', INSPECTOR_CARD_CLASS)}>
+        <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
           {t('workbench.device.inspector.connectionSummary')}
         </p>
         <dl className="space-y-3 text-sm text-slate-200">
@@ -271,8 +282,8 @@ function DeviceInspectorContent() {
         </dl>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+      <section className={joinClasses('space-y-3', INSPECTOR_CARD_CLASS)}>
+        <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
           {t('workbench.device.inspector.recentTests')}
         </p>
         {recentHistory.length > 0 ? (
@@ -307,7 +318,7 @@ function DeviceInspectorContent() {
                           key={phaseKey}
                         >
                           <div className="space-y-1">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                            <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
                               {t(`workbench.device.inspector.phases.${phaseKey}`)}
                             </p>
                             <p className="text-xs text-slate-300">
@@ -423,10 +434,10 @@ function SourceInspectorContent() {
     return (
       <div
         data-testid="source-rule-inspector"
-        className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+        className={joinClasses('space-y-4', INSPECTOR_CARD_CLASS)}
       >
         <div className="space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
             {t('workbench.source.inspector.rule.heading')}
           </p>
           <h3 className="text-sm font-semibold text-slate-100">{rule.namingPrefix}</h3>
@@ -546,10 +557,10 @@ function SourceInspectorContent() {
     return (
       <div
         data-testid="source-span-inspector"
-        className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+        className={joinClasses('space-y-4', INSPECTOR_CARD_CLASS)}
       >
         <div className="space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+          <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
             {t('workbench.source.inspector.span.heading')}
           </p>
           <h3 className="text-sm font-semibold text-slate-100">
@@ -610,11 +621,11 @@ function SourceInspectorContent() {
 function getTagBindingClasses(status: 'bound' | 'unbound' | 'partial') {
   switch (status) {
     case 'bound':
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200';
+      return 'border-emerald-400/20 bg-emerald-500/[0.14] text-emerald-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]';
     case 'partial':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-200';
+      return 'border-amber-400/20 bg-amber-500/[0.14] text-amber-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]';
     case 'unbound':
-      return 'border-slate-700 bg-slate-900/80 text-slate-300';
+      return 'border-slate-600/45 bg-slate-950/55 text-slate-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]';
   }
 }
 
@@ -650,14 +661,14 @@ function TagInspectorContent() {
   return (
     <div
       data-testid="tag-inspector-panel"
-      className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+      className={joinClasses('space-y-4', INSPECTOR_CARD_CLASS)}
     >
       <div className="space-y-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
           {t('workbench.tag.inspector.heading')}
         </p>
         <h3
-          className="text-sm font-semibold text-slate-100"
+          className="text-base font-semibold tracking-tight text-slate-50"
           data-testid="tag-inspector-tag-key"
         >
           {displayTagKey}
@@ -665,7 +676,7 @@ function TagInspectorContent() {
       </div>
 
       <span
-        className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${getTagBindingClasses(
+        className={`inline-flex rounded-md border px-2.5 py-1 text-[11px] font-semibold ${getTagBindingClasses(
           bindingStatus,
         )}`}
         data-testid="tag-inspector-binding-status"
@@ -673,58 +684,58 @@ function TagInspectorContent() {
         {t(`workbench.tag.board.status.${bindingStatus}`)}
       </span>
 
-      <dl className="space-y-3 text-sm">
-        <div className="space-y-1">
-          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+      <dl className="space-y-0 divide-y divide-slate-800/50 rounded-lg border border-slate-800/50 bg-slate-900/25 p-1 text-sm ring-1 ring-white/[0.03]">
+        <div className="space-y-1 px-3 py-2.5">
+          <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             {t('workbench.tag.inspector.pointName')}
           </dt>
           <dd className="font-medium text-slate-100">
             {inspectorSelection.pointName ?? point?.name ?? '—'}
           </dd>
         </div>
-        <div className="space-y-1">
-          <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+        <div className="space-y-1 px-3 py-2.5">
+          <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             {t('workbench.tag.inspector.sourceAddress')}
           </dt>
           <dd
-            className="font-medium text-slate-100"
+            className="font-mono text-sm font-medium text-slate-100"
             data-testid="tag-inspector-point-address"
           >
             {inspectorSelection.pointAddress ?? point?.address ?? '—'}
           </dd>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+        <div className="grid gap-0 sm:grid-cols-2 sm:divide-x sm:divide-slate-800/50">
+          <div className="space-y-1 px-3 py-2.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
               {t('workbench.tag.board.rawValue')}
             </dt>
-            <dd className="font-medium text-slate-100">
+            <dd className="break-all font-mono text-sm tabular-nums text-slate-100">
               {formatInspectorValue(inspectorSelection.rawValue ?? point?.last_value)}
             </dd>
           </div>
-          <div className="space-y-1">
-            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+          <div className="space-y-1 px-3 py-2.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
               {t('workbench.tag.board.transformedValue')}
             </dt>
-            <dd className="font-medium text-slate-100">
+            <dd className="break-all font-mono text-sm tabular-nums text-slate-100">
               {formatInspectorValue(inspectorSelection.transformedValue)}
             </dd>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+        <div className="grid gap-0 sm:grid-cols-2 sm:divide-x sm:divide-slate-800/50">
+          <div className="space-y-1 px-3 py-2.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
               {t('workbench.tag.inspector.span')}
             </dt>
-            <dd className="font-medium text-slate-100">
+            <dd className="font-mono text-sm tabular-nums font-medium text-slate-100">
               {inspectorSelection.cellSpan ?? '—'}
             </dd>
           </div>
-          <div className="space-y-1">
-            <dt className="text-xs uppercase tracking-[0.14em] text-slate-500">
+          <div className="space-y-1 px-3 py-2.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
               {t('workbench.tag.inspector.bitWidth')}
             </dt>
-            <dd className="font-medium text-slate-100">
+            <dd className="font-mono text-sm tabular-nums font-medium text-slate-100">
               {inspectorSelection.bitWidth ?? '—'}
             </dd>
           </div>
@@ -732,13 +743,13 @@ function TagInspectorContent() {
       </dl>
 
       {inspectorSelection.conflictReason ? (
-        <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+        <div className="rounded-xl border border-rose-500/25 bg-rose-500/[0.12] px-3 py-2.5 text-xs leading-relaxed text-rose-100 ring-1 ring-rose-400/15">
           {t(`workbench.tag.inspector.conflict.${inspectorSelection.conflictReason}`)}
         </div>
       ) : null}
 
       {inspectorSelection.alreadyLinked ? (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.12] px-3 py-2.5 text-xs leading-relaxed text-amber-100 ring-1 ring-amber-400/15">
           {t('workbench.tag.inspector.alreadyLinked')}
         </div>
       ) : null}
@@ -811,10 +822,10 @@ function OutputInspectorContent() {
   return (
     <div
       data-testid="inspector-trace-panel"
-      className="space-y-4 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
+      className={joinClasses('space-y-4', INSPECTOR_CARD_CLASS)}
     >
       <div className="space-y-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+        <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
           {t('workbench.output.inspector.heading')}
         </p>
         <p
@@ -893,51 +904,56 @@ export function WorkbenchInspectorPanel() {
   return (
     <aside
       aria-label={t('workbench.inspector.ariaLabel')}
-      className="flex flex-col gap-4 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/80 p-4"
+      className={joinClasses(
+        'flex min-h-0 flex-col gap-4 overflow-y-auto p-5',
+        WB_SHELL_SURFACE,
+      )}
       data-testid="workbench-inspector-panel"
     >
-      <div className="space-y-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+      <div className="shrink-0 space-y-1 border-b border-slate-800/55 pb-4">
+        <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
           {t('workbench.inspector.heading')}
         </p>
-        <h3 className="text-sm font-semibold text-slate-200">
+        <h3 className="text-base font-semibold tracking-tight text-slate-100">
           {t(stepMeta.labelKey)}
         </h3>
       </div>
 
-      {activeStep === 'device' ? (
-        <DeviceInspectorContent />
-      ) : activeStep === 'source' &&
-        (inspectorSelection.kind === 'rule' || inspectorSelection.kind === 'span') ? (
-        <SourceInspectorContent />
-      ) : activeStep === 'tag' && inspectorSelection.kind === 'tag' ? (
-        <TagInspectorContent />
-      ) : activeStep === 'output' && inspectorSelection.kind === 'outputCandidate' ? (
-        <OutputInspectorContent />
-      ) : hasSelection ? (
-        <div
-          className="space-y-2 rounded-xl border border-slate-700/40 bg-slate-950/40 p-4"
-          data-testid="inspector-selection-context"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-            {t(getSelectionLabelKey(inspectorSelection))}
-          </p>
-          {selectionId ? (
-            <p
-              className="truncate text-xs font-medium text-slate-200"
-              data-testid="inspector-selection-id"
-            >
-              {selectionId}
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {activeStep === 'device' ? (
+          <DeviceInspectorContent />
+        ) : activeStep === 'source' &&
+          (inspectorSelection.kind === 'rule' || inspectorSelection.kind === 'span') ? (
+          <SourceInspectorContent />
+        ) : activeStep === 'tag' && inspectorSelection.kind === 'tag' ? (
+          <TagInspectorContent />
+        ) : activeStep === 'output' && inspectorSelection.kind === 'outputCandidate' ? (
+          <OutputInspectorContent />
+        ) : hasSelection ? (
+          <div
+            className={joinClasses('space-y-2', INSPECTOR_CARD_CLASS)}
+            data-testid="inspector-selection-context"
+          >
+            <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
+              {t(getSelectionLabelKey(inspectorSelection))}
             </p>
-          ) : null}
-        </div>
-      ) : (
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-700/60 bg-slate-950/30 p-6">
-          <p className="text-center text-xs text-slate-500" data-testid="inspector-placeholder">
-            {t('workbench.inspector.placeholder')}
-          </p>
-        </div>
-      )}
+            {selectionId ? (
+              <p
+                className="truncate text-xs font-medium text-slate-200"
+                data-testid="inspector-selection-id"
+              >
+                {selectionId}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-700/50 bg-slate-950/25 p-6 ring-1 ring-white/[0.03]">
+            <p className="text-center text-xs leading-relaxed text-slate-500" data-testid="inspector-placeholder">
+              {t('workbench.inspector.placeholder')}
+            </p>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

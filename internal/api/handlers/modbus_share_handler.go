@@ -27,8 +27,9 @@ func NewModbusShareHandler(svc *modbusshare.Service, pointSvc *point.Service, ma
 	}
 }
 
+// Register 使用指標：若為值型別 uint16，validator 的 required 會把合法位址 0（對應顯示 40001）當成零值而拒絕。
 type UpsertMirrorMappingRequest struct {
-	Register uint16 `json:"register" binding:"required"`
+	Register *uint16 `json:"register" binding:"required"`
 }
 
 type WriteTagValueRequest struct {
@@ -95,7 +96,7 @@ func (h *ModbusShareHandler) UpsertMapping(c *gin.Context) {
 		return
 	}
 
-	m, err := h.svc.UpsertMapping(c.Request.Context(), tagID, req.Register)
+	m, err := h.svc.UpsertMapping(c.Request.Context(), tagID, *req.Register)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return

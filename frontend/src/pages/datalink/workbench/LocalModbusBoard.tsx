@@ -752,7 +752,7 @@ export function LocalModbusBoard() {
 
   if (!selectedDevice) {
     return (
-      <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
+      <section className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
             {t('workbench.output.empty.eyebrow')}
@@ -785,7 +785,7 @@ export function LocalModbusBoard() {
 
   if (candidates.length === 0) {
     return (
-      <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
+      <section className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
             {t('workbench.output.empty.eyebrow')}
@@ -802,7 +802,7 @@ export function LocalModbusBoard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full min-h-0 space-y-6 overflow-y-auto overscroll-contain">
       <section
         className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
         data-testid="output-primary-anchor"

@@ -24,6 +24,7 @@ const {
   mockDeleteSourceRuleMutation,
   mockEnableSourceRuleMutation,
   mockDisableSourceRuleMutation,
+  mockToggleDeviceStatusMutation,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
@@ -59,6 +60,10 @@ const {
     mutateAsync: vi.fn(),
     isPending: false,
   },
+  mockToggleDeviceStatusMutation: {
+    mutateAsync: vi.fn(),
+    isPending: false,
+  },
 }));
 
 vi.mock('react-i18next', () => ({
@@ -87,6 +92,10 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
   useTestDraftConnectionMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
+  }),
+  useToggleDeviceStatusMutation: () => ({
+    mutateAsync: mockToggleDeviceStatusMutation.mutateAsync,
+    isPending: mockToggleDeviceStatusMutation.isPending,
   }),
 }));
 
@@ -214,6 +223,8 @@ describe('DatalinkWorkbench source step', () => {
     mockDeleteSourceRuleMutation.mutateAsync.mockResolvedValue(undefined);
     mockEnableSourceRuleMutation.mutateAsync.mockResolvedValue(undefined);
     mockDisableSourceRuleMutation.mutateAsync.mockResolvedValue(undefined);
+    mockToggleDeviceStatusMutation.mutateAsync.mockResolvedValue(undefined);
+    mockToggleDeviceStatusMutation.isPending = false;
     mockMappings.splice(0, mockMappings.length);
     mockTags.splice(0, mockTags.length);
     mockSourceRules.splice(0, mockSourceRules.length);
@@ -222,7 +233,7 @@ describe('DatalinkWorkbench source step', () => {
   it('gates source planning behind device selection', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
 
     expect(screen.getByText('workbench.source.empty.title')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mixer PLC' })).toBeInTheDocument();
@@ -236,16 +247,16 @@ describe('DatalinkWorkbench source step', () => {
   it('remembers the last planner start address per device and falls back to protocol defaults', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const startAddressInput = screen.getByLabelText('workbench.source.planner.startAddress');
     fireEvent.change(startAddressInput, { target: { value: '40010' } });
     expect(startAddressInput).toHaveValue('40010');
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Fatek Cell' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     await waitFor(() => {
       expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('D0');
     });
@@ -261,9 +272,9 @@ describe('DatalinkWorkbench source step', () => {
     });
     expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('D20');
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     await waitFor(() => {
       expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('40010');
     });
@@ -272,7 +283,7 @@ describe('DatalinkWorkbench source step', () => {
   it('renders a source rule layer and continuous gap cells after applying a rule', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
@@ -310,7 +321,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('source-rule-persisted-rule-1')).toBeInTheDocument();
@@ -319,10 +330,29 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'planned');
   });
 
+  it('toggles device collection from the source runtime card and shows a result notice', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.click(screen.getByTestId('source-device-collection-toggle'));
+
+    await waitFor(() => {
+      expect(mockToggleDeviceStatusMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'device-1',
+        currentStatus: 'active',
+      });
+    });
+    expect(screen.getByTestId('source-step-notice')).toHaveTextContent(
+      'workbench.source.collection.stopped',
+    );
+  });
+
   it('preserves draft rules per device when switching the selected device', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
@@ -336,9 +366,9 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Fatek Cell' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
 
     await waitFor(() => {
       expect(screen.queryByTestId('source-rule-rule-1')).not.toBeInTheDocument();
@@ -354,9 +384,9 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('address-cell-D0')).toHaveAttribute('data-status', 'planned');
     expect(screen.queryByTestId('address-cell-40001')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
 
     await waitFor(() => {
       expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
@@ -403,7 +433,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('address-cell-40011')).toHaveAttribute('data-status', 'planned');
@@ -418,9 +448,9 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Fatek Cell' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
 
     await waitFor(() => {
       expect(screen.getByTestId('address-cell-D10')).toHaveAttribute('data-status', 'planned');
@@ -428,9 +458,9 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.queryByTestId('address-cell-40011')).not.toBeInTheDocument();
     expect(screen.queryByTestId('address-cell-40001')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.device' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
 
     await waitFor(() => {
       expect(screen.getByTestId('address-cell-40011')).toHaveAttribute('data-status', 'planned');
@@ -442,7 +472,7 @@ describe('DatalinkWorkbench source step', () => {
   it('explains unmanaged existing points in the inspector', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByTestId('address-cell-40005'));
 
@@ -469,7 +499,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }));
     fireEvent.change(screen.getAllByDisplayValue('40001').at(-1)!, {
@@ -491,7 +521,7 @@ describe('DatalinkWorkbench source step', () => {
   it('renders the source canvas as fixed 16-bit lattice rows', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
@@ -512,7 +542,7 @@ describe('DatalinkWorkbench source step', () => {
   it('shows all utility tools directly in the secondary controls without a toggle', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const primaryToolbar = screen.getByTestId('source-primary-toolbar');
@@ -561,7 +591,7 @@ describe('DatalinkWorkbench source step', () => {
   it('shows a step-local health summary with dual point-creation actions', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
@@ -592,7 +622,7 @@ describe('DatalinkWorkbench source step', () => {
   it('creates the selected logical span from the summary action', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
@@ -623,7 +653,7 @@ describe('DatalinkWorkbench source step', () => {
   it('persists rule points through the source-rule API when applying the rule batch action', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
@@ -661,7 +691,7 @@ describe('DatalinkWorkbench source step', () => {
   it('adds and deletes rules directly from the rule layer workflow', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const ruleLayer = screen.getByTestId('source-rule-layer');
@@ -689,7 +719,7 @@ describe('DatalinkWorkbench source step', () => {
   it('treats the address canvas as the primary workspace and the rule layer as supporting context', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('source-canvas-workspace')).toHaveAttribute(
@@ -710,7 +740,7 @@ describe('DatalinkWorkbench source step', () => {
   it('preserves merged spans and gap cells across multiple source rules', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
@@ -745,7 +775,7 @@ describe('DatalinkWorkbench source step', () => {
   it('switches plan, live, and link overlays without changing the lattice addresses', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
@@ -765,7 +795,7 @@ describe('DatalinkWorkbench source step', () => {
   it('shows rule inspector details when a source rule is selected', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -784,7 +814,7 @@ describe('DatalinkWorkbench source step', () => {
   it('shows span inspector details when an address cell is selected', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
@@ -802,7 +832,7 @@ describe('DatalinkWorkbench source step', () => {
   it('marks the selected address cell with aria-pressed', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '1' },
@@ -821,7 +851,7 @@ describe('DatalinkWorkbench source step', () => {
   it('persists applied source rules when navigating away from and back to the source step', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -833,8 +863,8 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.tag' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
@@ -843,7 +873,7 @@ describe('DatalinkWorkbench source step', () => {
   it('saves a source template locally and reapplies it to the planner inputs', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
@@ -899,7 +929,7 @@ describe('DatalinkWorkbench source step', () => {
   it('batch persists eligible source rules from the planned address range', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -940,7 +970,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -964,7 +994,7 @@ describe('DatalinkWorkbench source step', () => {
   it('shows a selection toolbar when a planned address cell is clicked', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1000,7 +1030,7 @@ describe('DatalinkWorkbench source step', () => {
   it('creates a point via the selection toolbar create action', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1034,7 +1064,7 @@ describe('DatalinkWorkbench source step', () => {
   it('clears the selected address when skip is clicked in the selection toolbar', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '2' },
@@ -1054,7 +1084,7 @@ describe('DatalinkWorkbench source step', () => {
   it('supports inline editing of rule start address, count, and data type', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1089,7 +1119,7 @@ describe('DatalinkWorkbench source step', () => {
   it('cancels inline rule editing without modifying the rule', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1121,7 +1151,7 @@ describe('DatalinkWorkbench source step', () => {
   it('immediately updates the canvas when a rule is inline-edited', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1152,7 +1182,7 @@ describe('DatalinkWorkbench source step', () => {
   it('does not show selection toolbar for non-planned cells', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1170,7 +1200,7 @@ describe('DatalinkWorkbench source step', () => {
   it('retargets the inspector to the edited rule after inline save', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1204,7 +1234,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1238,7 +1268,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1263,7 +1293,7 @@ describe('DatalinkWorkbench source step', () => {
   it('renders data type selector with grouped optgroups and disabled unsupported types', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const dataTypeSelect = screen.getByLabelText('workbench.source.planner.dataType');
@@ -1287,7 +1317,7 @@ describe('DatalinkWorkbench source step', () => {
   it('uses protect plan wording instead of lock/unlock', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40001' },
@@ -1316,7 +1346,7 @@ describe('DatalinkWorkbench source step', () => {
   it('snaps selection to the root cell when clicking a merge continuation', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1339,7 +1369,7 @@ describe('DatalinkWorkbench source step', () => {
   it('highlights the root cell of a selected logical span (continuations are visually merged)', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1367,7 +1397,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1391,7 +1421,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1425,7 +1455,7 @@ describe('DatalinkWorkbench source step', () => {
   it('aria-pressed is true for all cells of a selected logical span', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1450,7 +1480,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     // Add Rule A: int32 at 40001
@@ -1511,7 +1541,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1554,7 +1584,7 @@ describe('DatalinkWorkbench source step', () => {
   it('visually merges 32-bit cells with gridColumn span on root and hides continuations', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
       target: { value: 'float32' },
@@ -1596,7 +1626,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     // Rule 1: int16 at 40001, count=3 → plans 40001, 40002, 40003
@@ -1663,7 +1693,7 @@ describe('DatalinkWorkbench source step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.steps.source' }));
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {

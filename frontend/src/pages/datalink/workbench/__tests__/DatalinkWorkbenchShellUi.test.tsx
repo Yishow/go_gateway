@@ -43,6 +43,10 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useToggleDeviceStatusMutation: () => ({
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/usePoints', () => ({
@@ -210,18 +214,20 @@ describe('DatalinkWorkbench five-region shell', () => {
   });
 
   describe('WorkbenchFrame layout', () => {
-    it('renders all five shell regions', () => {
+    it('renders shell regions (step rail embedded in context bar)', () => {
       renderPage();
 
       expect(screen.getByTestId('workbench-frame')).toBeInTheDocument();
       expect(screen.getByTestId('workbench-context-bar')).toBeInTheDocument();
-      expect(screen.getByTestId('workbench-step-rail')).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('workbench-context-bar')).getByTestId('workbench-step-rail'),
+      ).toBeInTheDocument();
       expect(screen.getByTestId('workbench-primary-work-area')).toBeInTheDocument();
       expect(screen.getByTestId('workbench-inspector-panel')).toBeInTheDocument();
       expect(screen.getByTestId('workbench-bottom-summary-bar')).toBeInTheDocument();
     });
 
-    it('locks desktop layout sizing and keeps overflow inside the work area', () => {
+    it('locks desktop layout sizing and keeps main column from scrolling (overflow in step content)', () => {
       renderPage();
 
       const frame = screen.getByTestId('workbench-frame');
@@ -229,10 +235,10 @@ describe('DatalinkWorkbench five-region shell', () => {
 
       expect(frame).toHaveStyle({
         gridTemplateRows: 'auto 1fr auto',
-        gridTemplateColumns: '200px 1fr 280px',
+        gridTemplateColumns: '1fr 280px',
       });
       expect(frame).toHaveClass('overflow-hidden');
-      expect(workArea).toHaveClass('overflow-auto');
+      expect(workArea).toHaveClass('overflow-hidden');
     });
 
     it('does not render the old ActionDock or HeaderBar', () => {
@@ -283,7 +289,7 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       const summary = screen.getByTestId('context-bar-step-summary');
-      expect(summary).toHaveTextContent('workbench.steps.device');
+      expect(summary).toHaveAttribute('data-active-step', 'device');
       expect(summary).toHaveTextContent('Mixer PLC');
       expect(screen.queryByTestId('context-bar-capability-unit-id')).not.toBeInTheDocument();
       expect(screen.queryByTestId('context-bar-capability-address-base')).not.toBeInTheDocument();
@@ -305,10 +311,12 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       const contextBar = screen.getByTestId('workbench-context-bar');
-      const actions = within(contextBar).getAllByRole('button');
-
-      expect(actions).toHaveLength(1);
-      expect(actions[0]).toHaveTextContent('workbench.contextBar.actions.gotoSource');
+      expect(within(contextBar).getAllByRole('button').length).toBeGreaterThanOrEqual(5);
+      expect(
+        within(contextBar).getByRole('button', {
+          name: 'workbench.contextBar.actions.gotoSource',
+        }),
+      ).toBeInTheDocument();
     });
 
     it('keeps the primary action aligned with the next step instead of skipping from source to output', () => {
@@ -318,11 +326,11 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
 
       const contextBar = screen.getByTestId('workbench-context-bar');
-      const actions = within(contextBar).getAllByRole('button');
-
-      expect(screen.getByTestId('context-bar-step-summary')).toHaveTextContent('workbench.steps.source');
-      expect(actions).toHaveLength(1);
-      expect(actions[0]).toHaveTextContent('workbench.contextBar.actions.gotoTag');
+      expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'source');
+      expect(within(contextBar).getAllByRole('button').length).toBeGreaterThanOrEqual(5);
+      expect(
+        within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }),
+      ).toBeInTheDocument();
     });
 
     it('disables the source-step primary action until source points exist', () => {
@@ -332,7 +340,7 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
 
-      expect(screen.getByTestId('context-bar-step-summary')).toHaveTextContent('workbench.steps.source');
+      expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'source');
       expect(
         within(screen.getByTestId('workbench-context-bar')).getByRole('button', {
           name: 'workbench.contextBar.actions.gotoTag',
@@ -349,12 +357,13 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
 
       const contextBar = screen.getByTestId('workbench-context-bar');
-      const actions = within(contextBar).getAllByRole('button');
-
-      expect(screen.getByTestId('context-bar-step-summary')).toHaveTextContent('workbench.steps.output');
-      expect(actions).toHaveLength(1);
-      expect(actions[0]).toHaveTextContent('workbench.actionDock.nextAction.configureOutput');
-      expect(actions[0]).not.toHaveTextContent('workbench.contextBar.actions.switchDevice');
+      expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'output');
+      expect(within(contextBar).getAllByRole('button').length).toBeGreaterThanOrEqual(5);
+      const outputCta = within(contextBar).getByRole('button', {
+        name: 'workbench.actionDock.nextAction.configureOutput',
+      });
+      expect(outputCta).toBeInTheDocument();
+      expect(outputCta).not.toHaveTextContent('workbench.contextBar.actions.switchDevice');
     });
 
     it('focuses the output primary anchor when the output CTA is pressed', () => {

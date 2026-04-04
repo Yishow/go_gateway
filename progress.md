@@ -7,6 +7,28 @@
 
 ## 執行記錄
 
+### 2026-03-23
+
+#### Session 2: AGENTS / CLAUDE 規範文件對齊 ✅
+- ✅ 深度盤點 `README.md`、`Makefile`、`frontend/package.json`、`scripts/build.ps1`、`frontend/tsconfig.json`、`frontend/eslint.config.js`、`.golangci.yml`
+- ✅ 更新 `AGENTS.md`，補齊專案總覽、完整建置 / 測試命令、程式碼樣式、測試規範、安全考量與 repo 特定規則
+- ✅ 更新 `CLAUDE.md`，對齊 `AGENTS.md` 並補齊命令、樣式 / 測試 / 安全摘要與 agent 工作流程
+- ✅ 收斂兩份文件的規範優先順序描述
+- ✅ 補寫 planning records（`task_plan.md`、`findings.md`、`progress.md`）
+
+**驗證結果**：
+```bash
+git --no-pager diff --check -- AGENTS.md CLAUDE.md
+```
+- 結果：通過，無 whitespace / patch 格式錯誤
+
+**修改檔案**：
+- AGENTS.md
+- CLAUDE.md
+- task_plan.md
+- findings.md
+- progress.md
+
 ### 2026-03-22
 
 #### Session 1: Phase 1.1 統一載入狀態與錯誤處理 ✅
@@ -44,4 +66,3 @@
 - ⏳ 補充測試（待續）
 
 **下一步**：繼續 Phase 1.2 - MemoryGrid ARIA 屬性
-

@@ -446,7 +446,7 @@ describe('DatalinkWorkbench foundation route', () => {
     ).toBeInTheDocument();
   });
 
-  it('context bar keeps a single primary action after selecting a device on step 1', () => {
+  it('context bar includes step rail plus primary CTA after selecting a device on step 1', () => {
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
@@ -454,8 +454,13 @@ describe('DatalinkWorkbench foundation route', () => {
     const contextBar = screen.getByTestId('workbench-context-bar');
     const actions = within(contextBar).getAllByRole('button');
 
-    expect(actions).toHaveLength(1);
-    expect(actions[0]).toHaveTextContent('workbench.contextBar.actions.gotoSource');
+    // 四個步驟按鈕 + 一個主 CTA（前往來源）
+    expect(actions.length).toBeGreaterThanOrEqual(5);
+    expect(
+      within(contextBar).getByRole('button', {
+        name: 'workbench.contextBar.actions.gotoSource',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('opens the create device form inline when there are no devices yet', () => {

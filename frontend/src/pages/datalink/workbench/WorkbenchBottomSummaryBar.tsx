@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkbench } from './WorkbenchProvider';
+import { WB_SHELL_SURFACE } from './workbenchShellTokens';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
 import type { StepReadinessState, WorkbenchReadiness, WorkbenchStep } from './workbenchTypes';
 
@@ -58,7 +59,7 @@ export function WorkbenchBottomSummaryBar() {
   return (
     <footer
       aria-label={t('workbench.bottomSummary.ariaLabel')}
-      className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-xs text-slate-300"
+      className={`flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-2.5 text-xs text-slate-300 ${WB_SHELL_SURFACE}`}
       data-testid="workbench-bottom-summary-bar"
     >
       {/* Metric counters */}

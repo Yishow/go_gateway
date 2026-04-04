@@ -1,5 +1,12 @@
 # Findings
 
+## 2026-03-23 AGENTS / CLAUDE 文件對齊新發現
+- `AGENTS.md` 原本已涵蓋結構、測試、UI 主線與文件工作流，但缺少獨立的「安全考量」區塊，無法完整承接 repo 對輸入驗證、secret 管理、參數化查詢與 `gosec` 的要求。
+- `CLAUDE.md` 與 `AGENTS.md` 原本在規範優先順序上存在描述差異；本輪已收斂為同一套規則：`AGENTS.md -> Agent 專屬文件 -> .github/instructions/`。
+- repo 的建置與驗證命令不只 `make build` / `go test` / `npm run test`，還包含 `make gen-docs`、`go vet ./...`、前端 `test:e2e` / `test:gateway:*` 與 Makefile 裡的 gate / migration scripts，文件應視情況明確列出。
+- `/studio`、`/test`、`SQLite + PostgreSQL` 與 `cmd/test_ui/static` embed 流程，已是 repo 現況的一部分；若文件只描述舊的高層概念，容易和實際操作脫節。
+- 本次文件對齊屬 active docs 更新，不涉及其他使用者正在修改的程式碼面。
+
 ## 2026-03-20 `/test` 精簡改造新發現
 - `frontend/src/App.tsx` 目前仍把 `/test`、`/templates`、`/history`、`/compare`、`/analyzer` 一起掛在舊 `Layout` 下，代表「只保留測試頁」至少會涉及 legacy 測試工具 routes 清理。
 - `frontend/src/components/Layout.tsx` 的側邊欄與 `max-w-7xl mx-auto` 是 `/test` 現在看起來像多頁後台、且在 1920 螢幕下內容偏窄的直接來源。

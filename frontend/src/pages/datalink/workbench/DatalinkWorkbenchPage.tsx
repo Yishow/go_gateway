@@ -98,11 +98,17 @@ function WorkbenchRouteStateSync() {
   return <WorkbenchRouteStateSyncWithRouter />;
 }
 
+/**
+ * 將步驟內容包在可伸縮欄位中，配合 {@link WorkbenchFrame} 主欄 `overflow-hidden`，
+ * 由各步驟自行決定內部捲動（例如來源步驟僅記憶體格區捲動）。
+ */
 function WorkbenchShell() {
   return (
     <WorkbenchFrame>
       <WorkbenchRouteStateSync />
-      <StepContent />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <StepContent />
+      </div>
     </WorkbenchFrame>
   );
 }

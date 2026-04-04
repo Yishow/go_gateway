@@ -633,16 +633,27 @@
           "wordOrder": "字組順序"
         }
       },
+      "collection": {
+        "eyebrow": "設備輪詢收集",
+        "hintShort": "啟停目前設備輪詢（與左側「規則啟用／停用」無關）。詳情請見提示。",
+        "hint": "控制「目前選擇的設備」是否由 Runtime 輪詢（啟用＝連線並讀取點位；停用＝關閉連線並暫停該設備收集）。與左側單條規則的啟用／停用無關。",
+        "start": "開始收集",
+        "stop": "停止收集",
+        "started": "已請求開始收集此設備。",
+        "stopped": "已停止收集此設備。",
+        "error": "切換收集狀態失敗。",
+        "toggleRuleError": "更新規則啟用狀態失敗。"
+      },
       "ruleLayer": {
         "eyebrow": "規劃規則層",
         "title": "管理來源規劃規則",
-        "description": "讓多條來源規則能同時可見、聚焦、切換與重排。",
+        "description": "讓多條來源規則能同時可見、聚焦、切換與重排。下方「規則停用／啟用」只影響該條規則是否納管（衍生 point／排程），不會開關整台設備的輪詢；要開始或暫停讀取設備請用上方「開始收集／停止收集」。",
         "empty": "先套用一條來源規劃規則，才能開始建立共享位址 lattice。",
         "meta": "{{bitWidth}} 位元 · {{count}} 筆 · {{cells}} 格",
         "persistedBadge": "既有規則",
         "draftBadge": "草稿規則",
-        "enable": "啟用",
-        "disable": "停用",
+        "enable": "規則啟用",
+        "disable": "規則停用",
         "moveUp": "上移",
         "moveDown": "下移",
         "delete": "刪除規則",
@@ -667,6 +678,7 @@
         }
       },
       "canvas": {
+        "scrollRegion": "來源位址記憶體格",
         "empty": "目前還沒有規劃範圍或既有來源。",
         "plannedLabel": "規劃範圍",
         "plannedState": "規劃中",
@@ -744,17 +756,18 @@
         "goToSource": "前往來源規劃"
       },
       "selection": {
-        "eyebrow": "檢查自動建立的 Tag 映射",
-        "title": "先覆核 rule-derived Tag，再決定是否需要人工修正",
-        "description": "Step 3 會先載入規則自動建立的 Tag 與 mapping 狀態。只有在自動建立失敗或需要校正時，才使用例外處理工具。",
+        "eyebrow": "Step 3 · Tag 綁定",
+        "title": "本裝置 point → Tag",
+        "description": "左側為候選清單（含即時值）；勾選列之後，於右欄選擇綁定模式、必要時調整模板，再批次送出。",
         "pointMeta": "位址 {{address}} · {{dataType}}"
       },
       "review": {
-        "eyebrow": "Review-first",
-        "title": "先確認主流程已經自動建立了哪些 Tag",
-        "description": "這塊板面優先用來檢查哪些 point 已有 rule-derived Tag/mapping，哪些列還需要人工注意。",
+        "eyebrow": "摘要",
+        "title": "綁定狀態一覽",
+        "description": "以下數字對應左側清單：已連結點位、仍需複查的列，以及目前勾選中且屬「例外／待處理」的筆數。",
         "metrics": {
-          "generated": "已自動建立並連結",
+          "generated": "本裝置已連結點位",
+          "generatedFootnote": "目前裝置上已有 mapping 的 point 數（一點算一筆）。",
           "needsReview": "需要複查",
           "selectedExceptions": "目前選取的例外項"
         }
@@ -795,9 +808,9 @@
         "boundTag": "已綁定至 {{tag}}"
       },
       "exception": {
-        "eyebrow": "例外處理",
-        "title": "只在需要人工介入時才使用這些工具",
-        "description": "正常的 rule-derived 綁定會停留在 review 狀態。只有遇到失敗、補綁既有 Tag，或要做修正重綁時，才使用這一區。"
+        "eyebrow": "右欄操作",
+        "title": "模式、模板與送出",
+        "description": "切換「建立新 Tag／綁定既有 Tag」、編輯鍵名模板、查 Tag 總覽；完成勾選與預覽後，於下方按鈕送出批次動作。"
       },
       "template": {
         "eyebrow": "Tag key 模板",
@@ -816,6 +829,7 @@
         "title": "Tag 總覽",
         "description": "直接查看目前所有 Tag，補建未使用 Tag，或先整理尚未掛載的舊 Tag。",
         "search": "搜尋 Tag",
+        "searchPlaceholder": "依 key、顯示名稱或型別篩選…",
         "quickCreate": "快速建立",
         "createAction": "建立 Tag",
         "createSuccess": "已建立 Tag：{{key}}",
@@ -829,9 +843,12 @@
         "inUse": "使用中",
         "empty": "目前沒有符合搜尋條件的 Tag。",
         "metrics": {
-          "total": "總數",
-          "linked": "已綁定",
-          "unused": "未使用"
+          "total": "Tag 總數",
+          "totalFootnote": "全專案標籤庫筆數。",
+          "linked": "已掛載 Tag",
+          "linkedFootnote": "至少一筆 mapping 的不同 Tag 數（含其他裝置的 point）。",
+          "unused": "未使用",
+          "unusedFootnote": "目前沒有任何 mapping 的 Tag。"
         },
         "fields": {
           "key": "Tag key",

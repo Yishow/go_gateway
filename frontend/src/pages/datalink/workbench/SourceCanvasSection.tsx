@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   applyTemplateToPlanner,
   createTemplateFromPlanner,
@@ -16,7 +16,7 @@ import {
   type SourceTemplateCapabilitySnapshot,
   type SourceTemplateRecord,
 } from '../../../features/datalink/sourceTemplateStorage';
-import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
+import { useDevicesQuery, useToggleDeviceStatusMutation } from '../../../hooks/datalink/useDevices';
 import { useMappingsQuery } from '../../../hooks/datalink/useMappings';
 import {
   useCreatePointMutation,
@@ -62,6 +62,10 @@ import {
 
 function getSelectedDevice(devices: Device[], selectedDeviceId: string | null) {
   return devices.find((device) => device.id === selectedDeviceId) ?? null;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function getNextRuleId(rules: ReadonlyArray<SourceRule>) {
@@ -196,6 +200,54 @@ function areRulesEqual(left: ReadonlyArray<SourceRule>, right: ReadonlyArray<Sou
   });
 }
 
+/**
+ * 合併遠端持久化規則與本地草稿，避免相同 `id` 造成 React key 重複或狀態分裂。
+ * 優先採用持久化列；草稿僅在該 `id` 尚未存在於持久化集合時才納入；兩側各自再依 id 去重。
+ *
+ * @param persistedRules - 後端同步的規則（可含重複 id，僅保留第一筆）
+ * @param draftRules - 僅 `persisted === false` 的裝置內草稿
+ * @returns 合併後、id 唯一的規則陣列（先持久化、後草稿）
+ */
+function mergePersistedRulesWithDrafts(
+  persistedRules: ReadonlyArray<SourceRule>,
+  draftRules: ReadonlyArray<SourceRule>,
+): SourceRule[] {
+  const uniquePersisted = [...new Map(persistedRules.map((rule) => [rule.id, rule])).values()];
+  const persistedIds = new Set(uniquePersisted.map((rule) => rule.id));
+  const draftsWithoutPersistedId = draftRules.filter((rule) => !persistedIds.has(rule.id));
+  const uniqueDrafts = [
+    ...new Map(draftsWithoutPersistedId.map((rule) => [rule.id, rule])).values(),
+  ];
+  return [...uniquePersisted, ...uniqueDrafts];
+}
+
+/**
+ * 依列表順序去重相同 `id`，若同 id 多筆則優先保留已持久化（`persisted`）的那一筆。
+ *
+ * @param rules - 單一裝置下的規則列
+ * @returns id 唯一且順序與首次出現一致（內容可能替換為持久化版本）
+ */
+function dedupeDeviceRulesPreferPersisted(rules: ReadonlyArray<SourceRule>): SourceRule[] {
+  const indexById = new Map<string, number>();
+  const out: SourceRule[] = [];
+
+  for (const rule of rules) {
+    const existingIndex = indexById.get(rule.id);
+    if (existingIndex === undefined) {
+      indexById.set(rule.id, out.length);
+      out.push(rule);
+      continue;
+    }
+
+    const previous = out[existingIndex]!;
+    const next =
+      rule.persisted && !previous.persisted ? rule : previous.persisted && !rule.persisted ? previous : rule;
+    out[existingIndex] = next;
+  }
+
+  return out;
+}
+
 function buildTemplateWarning(
   template: SourceTemplateRecord,
   currentCapability: SourceTemplateCapabilitySnapshot | null,
@@ -271,6 +323,7 @@ function buildRulePointDefinitions(input: {
 
 export function SourceCanvasSection() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const {
     selectedDeviceId,
     setFocusedRuleId,
@@ -296,6 +349,7 @@ export function SourceCanvasSection() {
   const deleteSourceRuleMutation = useDeleteSourceRuleMutation();
   const enableSourceRuleMutation = useEnableSourceRuleMutation();
   const disableSourceRuleMutation = useDisableSourceRuleMutation();
+  const toggleDeviceCollectionMutation = useToggleDeviceStatusMutation();
   const runtimeStatusQuery = useQuery({
     queryKey: ['runtime-status', selectedDeviceId],
     queryFn: () => runtimeAPI.getStatus(selectedDeviceId ?? undefined),
@@ -337,18 +391,24 @@ export function SourceCanvasSection() {
   const [isLoadTemplateOpen, setIsLoadTemplateOpen] = useState(false);
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   const [templateWarning, setTemplateWarning] = useState<string | null>(null);
+  /** 來源步驟表面訊息（規則 API 錯誤、設備收集開關結果等）。 */
+  const [sourceStepNotice, setSourceStepNotice] = useState<string | null>(null);
   const [appliedTemplate, setAppliedTemplate] = useState<{
     id: string;
     name: string;
   } | null>(null);
-  const currentDeviceRules = useMemo(
-    () => (
-      selectedDeviceId
-        ? sourcePlanningState.rules.filter((rule) => rule.deviceId === selectedDeviceId)
-        : []
-    ),
-    [selectedDeviceId, sourcePlanningState.rules],
-  );
+  /** 來源步驟右側「覆蓋總覽／工具列」捲動區，用於攔截 wheel 避免傳到外層造成整塊版面微幅跟動。 */
+  const sourceWorkspaceSecondaryScrollRef = useRef<HTMLDivElement>(null);
+  const currentDeviceRules = useMemo(() => {
+    if (!selectedDeviceId) {
+      return [];
+    }
+
+    const forDevice = sourcePlanningState.rules.filter(
+      (rule) => rule.deviceId === selectedDeviceId,
+    );
+    return dedupeDeviceRulesPreferPersisted(forDevice);
+  }, [selectedDeviceId, sourcePlanningState.rules]);
   const rules = currentDeviceRules;
   const selectedRuleId = sourcePlanningState.selectedRuleId;
   const selectedAddress = sourcePlanningState.selectedAddress;
@@ -385,6 +445,40 @@ export function SourceCanvasSection() {
   useEffect(() => {
     setTemplateWarning(null);
     setAppliedTemplate(null);
+    setSourceStepNotice(null);
+  }, [selectedDeviceId]);
+
+  /**
+   * 在捲動區已抵頂或抵底時阻斷 wheel 的預設行為，避免捲動鏈把剩餘位移傳給祖先節點（外層 flex 版面會「微微跟著動」）。
+   *
+   * 須使用 `{ passive: false }` 才能於邊界呼叫 `preventDefault`；僅在頂／底過捲時觸發，不影響區塊內正常捲動。
+   */
+  useEffect(() => {
+    if (!selectedDeviceId) {
+      return undefined;
+    }
+
+    const el = sourceWorkspaceSecondaryScrollRef.current;
+    if (!el) {
+      return undefined;
+    }
+
+    const onWheel = (event: WheelEvent) => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      const { deltaY } = event;
+      const edgeSlack = 2;
+      const atTop = scrollTop <= edgeSlack;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - edgeSlack;
+
+      if ((atTop && deltaY < 0) || (atBottom && deltaY > 0)) {
+        event.preventDefault();
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+    };
   }, [selectedDeviceId]);
 
   useEffect(() => {
@@ -408,7 +502,7 @@ export function SourceCanvasSection() {
       const deviceRules = currentState.rules.filter((rule) => rule.deviceId === selectedDeviceId);
       const otherRules = currentState.rules.filter((rule) => rule.deviceId !== selectedDeviceId);
       const draftRules = deviceRules.filter((rule) => !rule.persisted);
-      const nextRules = [...persistedRules, ...draftRules];
+      const nextRules = mergePersistedRulesWithDrafts(persistedRules, draftRules);
       if (areRulesEqual(deviceRules, nextRules)) {
         return currentState;
       }
@@ -692,17 +786,28 @@ export function SourceCanvasSection() {
     });
   };
 
-  const handleToggleRuleEnabled = (ruleId: string) => {
+  /**
+   * 切換單一來源規則的 `enabled`（後端已持久化規則走 enable/disable API；草稿僅改本地狀態）。
+   * 此開關不控制設備輪詢，僅影響該規則是否納管。
+   */
+  const handleToggleRuleEnabled = async (ruleId: string) => {
     const rule = rules.find((candidate) => candidate.id === ruleId);
     if (!rule) {
       return;
     }
 
     if (rule.persisted) {
-      if (rule.enabled) {
-        void disableSourceRuleMutation.mutateAsync(ruleId);
-      } else {
-        void enableSourceRuleMutation.mutateAsync(ruleId);
+      try {
+        if (rule.enabled) {
+          await disableSourceRuleMutation.mutateAsync(ruleId);
+        } else {
+          await enableSourceRuleMutation.mutateAsync(ruleId);
+        }
+        setSourceStepNotice(null);
+      } catch (error) {
+        setSourceStepNotice(
+          getErrorMessage(error, t('workbench.source.collection.toggleRuleError')),
+        );
       }
       return;
     }
@@ -719,6 +824,33 @@ export function SourceCanvasSection() {
       ],
     }));
   };
+
+  /**
+   * 依目前選擇的設備切換「是否由 Runtime 輪詢收集」（啟用設備 / 停用設備 API）。
+   */
+  const handleDeviceCollectionToggle = async () => {
+    if (!selectedDevice) {
+      return;
+    }
+
+    const wasActive = selectedDevice.status === 'active';
+
+    try {
+      await toggleDeviceCollectionMutation.mutateAsync({
+        id: selectedDevice.id,
+        currentStatus: selectedDevice.status,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['runtime-status', selectedDeviceId] });
+      setSourceStepNotice(
+        wasActive ? t('workbench.source.collection.stopped') : t('workbench.source.collection.started'),
+      );
+    } catch (error) {
+      setSourceStepNotice(getErrorMessage(error, t('workbench.source.collection.error')));
+    }
+  };
+
+  const isRuleEnableMutating =
+    disableSourceRuleMutation.isPending || enableSourceRuleMutation.isPending;
 
   const handleSkipConflictSpan = (ruleId: string, conflictCellAddress: string) => {
     if (!selectedDevice) return;
@@ -1072,7 +1204,7 @@ export function SourceCanvasSection() {
 
   if (!selectedDevice) {
     return (
-      <section className="space-y-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
+      <section className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
             {t('workbench.source.empty.eyebrow')}
@@ -1104,58 +1236,100 @@ export function SourceCanvasSection() {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/30 p-4 xl:grid-cols-[minmax(0,1fr)_180px_180px]">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-            {t('workbench.runtime.summary.title')}
-          </p>
-          <p
-            className="text-sm font-medium text-slate-50"
-            data-testid="workbench-runtime-status"
-          >
-            {runtimeStatusQuery.data?.collectors[0]?.status === 'running'
-              ? t('workbench.runtime.summary.running')
-              : runtimeStatusQuery.data?.collectors[0]?.status === 'warning'
-                ? t('workbench.runtime.summary.warning')
-                : runtimeStatusQuery.data?.collectors[0]?.status === 'error'
-                  ? t('workbench.runtime.summary.error')
-                  : t('workbench.runtime.summary.idle')}
-          </p>
-          <p className="text-xs text-slate-400">
-            {t('workbench.runtime.summary.uptime', {
-              seconds: runtimeStatusQuery.data?.uptime_seconds ?? 0,
-            })}
-          </p>
+    <section className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
+      <div
+        className="shrink-0 rounded-2xl border border-slate-800 bg-slate-950/30 p-4"
+        data-testid="source-runtime-collection-panel"
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-between lg:gap-6">
+          <div className="min-w-0 flex-1 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+              {t('workbench.runtime.summary.title')}
+            </p>
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              <div className="min-w-0 space-y-1">
+                <p
+                  className="text-sm font-medium text-slate-50"
+                  data-testid="workbench-runtime-status"
+                >
+                  {runtimeStatusQuery.data?.collectors[0]?.status === 'running'
+                    ? t('workbench.runtime.summary.running')
+                    : runtimeStatusQuery.data?.collectors[0]?.status === 'warning'
+                      ? t('workbench.runtime.summary.warning')
+                      : runtimeStatusQuery.data?.collectors[0]?.status === 'error'
+                        ? t('workbench.runtime.summary.error')
+                        : t('workbench.runtime.summary.idle')}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {t('workbench.runtime.summary.uptime', {
+                    seconds: runtimeStatusQuery.data?.uptime_seconds ?? 0,
+                  })}
+                </p>
+              </div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2 border-slate-800/70 lg:border-l lg:pl-4">
+                <span className="text-xs font-medium text-slate-200">{selectedDevice.name}</span>
+                <span className="rounded-full border border-slate-700/80 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-400">
+                  {selectedDevice.status}
+                </span>
+                <button
+                  type="button"
+                  data-testid="source-device-collection-toggle"
+                  disabled={toggleDeviceCollectionMutation.isPending}
+                  onClick={() => void handleDeviceCollectionToggle()}
+                  className={
+                    selectedDevice.status === 'active'
+                      ? 'rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-100 disabled:cursor-not-allowed disabled:opacity-50'
+                      : 'rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50'
+                  }
+                >
+                  {selectedDevice.status === 'active'
+                    ? t('workbench.source.collection.stop')
+                    : t('workbench.source.collection.start')}
+                </button>
+              </div>
+            </div>
+            <p
+              className="text-[11px] leading-relaxed text-slate-500"
+              title={t('workbench.source.collection.hint')}
+            >
+              {t('workbench.source.collection.hintShort')}
+            </p>
+            {sourceStepNotice ? (
+              <p className="text-xs text-amber-200" data-testid="source-step-notice">
+                {sourceStepNotice}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 flex-row gap-3 sm:gap-4">
+            <article className="min-w-[140px] flex-1 rounded-xl border border-slate-800/70 bg-slate-900/60 p-3 sm:min-w-[160px]">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                {t('workbench.runtime.summary.pointsHealthy')}
+              </p>
+              <p className="mt-2 text-lg font-semibold text-slate-50">
+                {runtimeStatusQuery.data?.collectors[0]?.points_healthy ?? 0}
+              </p>
+            </article>
+            <article className="min-w-[140px] flex-1 rounded-xl border border-slate-800/70 bg-slate-900/60 p-3 sm:min-w-[160px]">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                {t('workbench.runtime.summary.pointsStale')}
+              </p>
+              <p className="mt-2 text-lg font-semibold text-slate-50">
+                {runtimeStatusQuery.data?.collectors[0]?.points_stale ?? 0}
+              </p>
+            </article>
+          </div>
         </div>
-
-        <article className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-3">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-            {t('workbench.runtime.summary.pointsHealthy')}
-          </p>
-          <p className="mt-2 text-lg font-semibold text-slate-50">
-            {runtimeStatusQuery.data?.collectors[0]?.points_healthy ?? 0}
-          </p>
-        </article>
-
-        <article className="rounded-xl border border-slate-800/70 bg-slate-900/60 p-3">
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-            {t('workbench.runtime.summary.pointsStale')}
-          </p>
-          <p className="mt-2 text-lg font-semibold text-slate-50">
-            {runtimeStatusQuery.data?.collectors[0]?.points_stale ?? 0}
-          </p>
-        </article>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="space-y-4">
+      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <section
-            className="space-y-3 rounded-2xl border border-slate-800/70 bg-slate-950/25 p-4"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/25 p-4"
             data-emphasis="supporting"
             data-testid="source-rule-layer"
           >
-            <div className="space-y-1">
+            <div className="shrink-0 space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
                 {t('workbench.source.ruleLayer.eyebrow')}
               </p>
@@ -1167,7 +1341,7 @@ export function SourceCanvasSection() {
               </p>
             </div>
 
-            <div className="space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/70 p-3">
+            <div className="shrink-0 space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/70 p-3">
               <div className="space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
                   {t('workbench.source.planner.title')}
@@ -1257,6 +1431,7 @@ export function SourceCanvasSection() {
               </button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 scrollbar-auto-hide">
             {rules.length === 0 ? (
               <p className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 px-3 py-4 text-xs text-slate-400">
                 {t('workbench.source.ruleLayer.empty')}
@@ -1402,8 +1577,9 @@ export function SourceCanvasSection() {
 
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <button
-                          className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-300"
-                          onClick={() => handleToggleRuleEnabled(rule.id)}
+                          className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={isRuleEnableMutating}
+                          onClick={() => void handleToggleRuleEnabled(rule.id)}
                           type="button"
                         >
                           {rule.enabled
@@ -1461,16 +1637,17 @@ export function SourceCanvasSection() {
                 })}
               </div>
             )}
+            </div>
           </section>
         </aside>
 
         <section
-          className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
+          className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
           data-emphasis="primary"
           data-testid="source-canvas-workspace"
         >
           <div
-            className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between"
+            className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between"
             data-testid="source-primary-toolbar"
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -1504,14 +1681,25 @@ export function SourceCanvasSection() {
             </div>
           </div>
 
-          <AddressCanvas
-            items={items}
-            onSelectAddress={handleSelectAddress}
-            selectedAddress={selectedAddress}
-            valueFormat={valueFormat}
-            viewMode={viewMode}
-          />
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+            <div
+              aria-label={t('workbench.source.canvas.scrollRegion')}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-xl border border-slate-800/50 bg-slate-950/30 px-2 py-3 scrollbar-auto-hide"
+              data-testid="source-memory-scroll-region"
+            >
+              <AddressCanvas
+                items={items}
+                onSelectAddress={handleSelectAddress}
+                selectedAddress={selectedAddress}
+                valueFormat={valueFormat}
+                viewMode={viewMode}
+              />
+            </div>
 
+            <div
+              ref={sourceWorkspaceSecondaryScrollRef}
+              className="min-h-0 max-h-[min(46vh,26rem)] touch-pan-y space-y-4 overflow-y-auto overscroll-contain pb-4 scrollbar-none"
+            >
           {selectedPointDefinition ? (
             <div
               className="flex flex-wrap items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-3 py-2"
@@ -1895,6 +2083,8 @@ export function SourceCanvasSection() {
               />
             </div>
           ) : null}
+            </div>
+          </div>
         </section>
       </div>
     </section>

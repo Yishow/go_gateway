@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { WorkbenchContextBar } from './WorkbenchContextBar';
-import { WorkbenchStepRail } from './WorkbenchStepRail';
-import { WorkbenchInspectorPanel } from './WorkbenchInspectorPanel';
 import { WorkbenchBottomSummaryBar } from './WorkbenchBottomSummaryBar';
+import { WorkbenchContextBar } from './WorkbenchContextBar';
+import { WorkbenchInspectorPanel } from './WorkbenchInspectorPanel';
+import { WB_SHELL_SURFACE } from './workbenchShellTokens';
 
 type WorkbenchFrameProps = {
   children: ReactNode;
@@ -11,29 +11,33 @@ type WorkbenchFrameProps = {
 /**
  * Five-region desktop shell for the Datalink Workbench.
  *
- * Layout (1920×1080 optimized):
+ * 外層使用 `h-dvh` 鎖定視窗高度，讓中列 `1fr` 有明確剩餘空間；否則在 `min-h-screen` 下
+ * Grid 會依內容伸長，`main` 會跟著被撐高而不在區塊內捲動。
+ *
+ * 主工作區與頂／右／底外殼共用 `WB_SHELL_SURFACE`（見 workbenchShellTokens），實心面板統一層次。
+ * 主欄位預設 **不捲動**（`overflow-hidden`），由各步驟內部決定捲動容器（例如來源步驟僅記憶體格區捲動）。
+ *
+ * Layout（步驟導覽已併入 ContextBar 頂列）：
  * ┌──────────────────────────────────────────────────────┐
- * │                    ContextBar                        │
- * ├──────┬──────────────────────────────┬────────────────┤
- * │ Step │                              │   Inspector    │
- * │ Rail │       PrimaryWorkArea        │     Panel      │
- * │      │                              │                │
- * ├──────┴──────────────────────────────┴────────────────┤
- * │                  BottomSummaryBar                    │
+ * │              ContextBar（含水平步驟）                 │
+ * ├──────────────────────────────┬─────────────────────┤
+ * │       PrimaryWorkArea        │     Inspector       │
+ * ├──────────────────────────────┴─────────────────────┤
+ * │                  BottomSummaryBar                  │
  * └──────────────────────────────────────────────────────┘
  */
 export function WorkbenchFrame({ children }: WorkbenchFrameProps) {
   return (
     <div
-      className="grid min-h-screen gap-2 overflow-hidden bg-slate-950 p-3 text-slate-100"
+      className="grid h-dvh min-h-0 max-h-dvh gap-3 overflow-hidden bg-slate-950 p-3 text-slate-100"
       data-testid="workbench-frame"
       style={{
         gridTemplateRows: 'auto 1fr auto',
-        gridTemplateColumns: '200px 1fr 280px',
+        gridTemplateColumns: '1fr 280px',
         gridTemplateAreas: `
-          "context  context   context"
-          "rail     main      inspector"
-          "summary  summary   summary"
+          "context    context"
+          "main       inspector"
+          "summary    summary"
         `,
       }}
       >
@@ -42,14 +46,9 @@ export function WorkbenchFrame({ children }: WorkbenchFrameProps) {
           <WorkbenchContextBar />
         </div>
 
-      {/* Row 2 col 1: StepRail */}
-      <div className="min-h-0" style={{ gridArea: 'rail' }}>
-        <WorkbenchStepRail />
-      </div>
-
-      {/* Row 2 col 2: PrimaryWorkArea */}
+      {/* Row 2 col 1: PrimaryWorkArea */}
       <main
-        className="min-h-0 overflow-auto rounded-2xl border border-slate-800 bg-slate-900/70 p-5"
+        className={`flex h-full min-h-0 flex-col overflow-hidden p-6 ${WB_SHELL_SURFACE}`}
         style={{ gridArea: 'main' }}
         data-testid="workbench-primary-work-area"
       >
