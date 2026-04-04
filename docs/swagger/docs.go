@@ -32,7 +32,7 @@ const docTemplate = `{
                     "200": {
                         "description": "健康狀態",
                         "schema": {
-                            "$ref": "#/definitions/handlers.HealthStatus"
+                            "$ref": "#/definitions/internal_api_handlers.HealthStatus"
                         }
                     }
                 }
@@ -40,7 +40,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "handlers.HealthStatus": {
+        "internal_api_handlers.HealthStatus": {
             "type": "object",
             "properties": {
                 "service": {
@@ -66,12 +66,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/api",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Go Gateway API",
-	Description:      "工業數據採集閘道系統 API 文檔",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

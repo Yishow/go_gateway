@@ -30,6 +30,12 @@ type sourceRuleResponse struct {
 	SkippedAddresses []string `json:"skipped_addresses"`
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
+	// TargetDataType 目標資料型態（可空）
+	TargetDataType *string `json:"target_data_type,omitempty"`
+	// ScaleMultiplier 縮放倍率（可空）
+	ScaleMultiplier *float64 `json:"scale_multiplier,omitempty"`
+	// ScaleOffset 偏移量（可空）
+	ScaleOffset *float64 `json:"scale_offset,omitempty"`
 }
 
 func NewSourceRuleHandler(svc *sourcerule.Service) *SourceRuleHandler {
@@ -83,11 +89,26 @@ func (h *SourceRuleHandler) Create(c *gin.Context) {
 }
 
 func (h *SourceRuleHandler) Update(c *gin.Context) {
-	var req sourcerule.UpdateRuleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	body, err := c.GetRawData()
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
+
+	var req sourcerule.UpdateRuleRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		return
+	}
+	_, req.TargetDataTypeSet = raw["target_data_type"]
+	_, req.ScaleMultiplierSet = raw["scale_multiplier"]
+	_, req.ScaleOffsetSet = raw["scale_offset"]
 
 	rule, err := h.svc.Update(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
@@ -139,6 +160,12 @@ func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 		_ = json.Unmarshal([]byte(rule.SkippedAddresses), &skipped)
 	}
 
+	var targetDataType *string
+	if rule.TargetDataType != nil {
+		value := string(*rule.TargetDataType)
+		targetDataType = &value
+	}
+
 	return sourceRuleResponse{
 		ID:               rule.ID,
 		DeviceID:         rule.DeviceID,
@@ -153,5 +180,8 @@ func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 		SkippedAddresses: skipped,
 		CreatedAt:        rule.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:        rule.UpdatedAt.Format(time.RFC3339Nano),
+		TargetDataType:   targetDataType,
+		ScaleMultiplier:  rule.ScaleMultiplier,
+		ScaleOffset:      rule.ScaleOffset,
 	}
 }

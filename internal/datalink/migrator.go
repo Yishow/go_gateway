@@ -69,6 +69,11 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", sqliteSourceRuleMigration, err)
 		}
+
+		if err := ensureSQLiteSourceRuleTargetDatatypeColumns(db); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -123,4 +128,72 @@ func needsSQLitePointUniqueMigration(db *sql.DB) (bool, error) {
 		return false, nil
 	}
 	return strings.Contains(normalized, "unique (device_id, address)"), nil
+}
+
+func ensureSQLiteSourceRuleTargetDatatypeColumns(db *sql.DB) error {
+	const migrationName = "006_source_rule_target_datatype_sqlite.up.sql"
+
+	columns := []struct {
+		name string
+		ddl  string
+	}{
+		{
+			name: "target_data_type",
+			ddl:  "ALTER TABLE source_rules ADD COLUMN target_data_type TEXT",
+		},
+		{
+			name: "scale_multiplier",
+			ddl:  "ALTER TABLE source_rules ADD COLUMN scale_multiplier REAL",
+		},
+		{
+			name: "scale_offset",
+			ddl:  "ALTER TABLE source_rules ADD COLUMN scale_offset REAL",
+		},
+	}
+
+	for _, column := range columns {
+		exists, err := sqliteColumnExists(db, "source_rules", column.name)
+		if err != nil {
+			return fmt.Errorf("failed to inspect sqlite column %s for migration %s: %w", column.name, migrationName, err)
+		}
+		if exists {
+			continue
+		}
+		log.Printf("Executing SQLite migration: %s (%s)", migrationName, column.name)
+		if _, err := db.ExecContext(context.Background(), column.ddl); err != nil {
+			return fmt.Errorf("failed to execute migration %s for column %s: %w", migrationName, column.name, err)
+		}
+	}
+
+	return nil
+}
+
+func sqliteColumnExists(db *sql.DB, tableName, columnName string) (bool, error) {
+	rows, err := db.QueryContext(context.Background(), fmt.Sprintf("PRAGMA table_info(%s)", tableName))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			columnType string
+			notNull    int
+			defaultVal sql.NullString
+			pk         int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultVal, &pk); err != nil {
+			return false, err
+		}
+		if strings.EqualFold(name, columnName) {
+			return true, nil
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
 }

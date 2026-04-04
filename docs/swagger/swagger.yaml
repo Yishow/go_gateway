@@ -1,6 +1,5 @@
-basePath: /api
 definitions:
-  handlers.HealthStatus:
+  internal_api_handlers.HealthStatus:
     properties:
       service:
         example: datalink
@@ -15,12 +14,8 @@ definitions:
         example: 1.0.0
         type: string
     type: object
-host: localhost:8080
 info:
   contact: {}
-  description: 工業數據採集閘道系統 API 文檔
-  title: Go Gateway API
-  version: "1.0"
 paths:
   /datalink/health:
     get:
@@ -33,7 +28,7 @@ paths:
         "200":
           description: 健康狀態
           schema:
-            $ref: '#/definitions/handlers.HealthStatus'
+            $ref: '#/definitions/internal_api_handlers.HealthStatus'
       summary: 健康檢查
       tags:
       - datalink

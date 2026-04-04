@@ -9,6 +9,7 @@ import {
 
 const LATTICE_COLUMNS = 16;
 
+/** 依狀態套用格位底色與邊框色；`used` 之語意主要由此視覺區分。 */
 const statusClassName: Record<AddressCanvasItem['status'], string> = {
   conflict: 'border-rose-500/50 bg-rose-900/30 text-rose-100',
   gap: 'border-slate-800 bg-slate-950/40 text-slate-500',
@@ -21,6 +22,9 @@ type CanvasRowItem =
   | { kind: 'cell'; item: AddressCanvasItem; colSpan: number }
   | { kind: 'hidden'; item: AddressCanvasItem };
 
+/**
+ * 將同一列地址項目轉成可置於 CSS grid 的 cell／隱藏延續格配置。
+ */
 function buildRowLayout(
   rowItems: ReadonlyArray<AddressCanvasItem>,
 ): CanvasRowItem[] {
@@ -41,6 +45,9 @@ function buildRowLayout(
   return layout;
 }
 
+/**
+ * 將平面地址清單切成每列固定欄數的列，供畫布網格使用。
+ */
 function chunkItems(items: ReadonlyArray<AddressCanvasItem>, size: number) {
   const rows: AddressCanvasItem[][] = [];
 
@@ -51,6 +58,9 @@ function chunkItems(items: ReadonlyArray<AddressCanvasItem>, size: number) {
   return rows;
 }
 
+/**
+ * 格位主標題：依狀態顯示衝突／空隙說明或 Tag／Point 名稱。
+ */
 function getPrimaryLabel(item: AddressCanvasItem, t: (key: string) => string) {
   switch (item.status) {
     case 'conflict':
@@ -66,6 +76,7 @@ function getPrimaryLabel(item: AddressCanvasItem, t: (key: string) => string) {
   }
 }
 
+/** plan 檢視下覆蓋層的狀態短句（`used` 改在 getOverlayValue 顯示原始值）。 */
 function getPlanStateLabel(item: AddressCanvasItem, t: (key: string) => string) {
   switch (item.status) {
     case 'conflict':
@@ -81,6 +92,9 @@ function getPlanStateLabel(item: AddressCanvasItem, t: (key: string) => string) 
   }
 }
 
+/**
+ * 依檢視模式決定格位覆蓋層文字；plan + `used` 時顯示格式化後的原始值（與底色語意不重複）。
+ */
 function getOverlayValue(input: {
   item: AddressCanvasItem;
   t: (key: string) => string;
@@ -91,6 +105,9 @@ function getOverlayValue(input: {
 
   switch (viewMode) {
     case 'plan':
+      if (item.status === 'used') {
+        return formatSourceValue(item.liveValue, valueFormat);
+      }
       return getPlanStateLabel(item, t);
     case 'live':
       return formatSourceValue(item.liveValue, valueFormat);
@@ -99,6 +116,9 @@ function getOverlayValue(input: {
   }
 }
 
+/**
+ * 來源規則地址格狀畫布：以狀態色塊與多行文字呈現每個邏輯位址，支援 plan／live／link 三種覆蓋層。
+ */
 export function AddressCanvas({
   items,
   onSelectAddress,
@@ -177,6 +197,12 @@ export function AddressCanvas({
               }
 
               const { item, colSpan } = entry;
+              const overlayText = getOverlayValue({ item, t, valueFormat, viewMode });
+              const primaryText = getPrimaryLabel(item, t);
+              const hoverTitle = [item.address, primaryText, overlayText]
+                .filter((line) => line.length > 0)
+                .join('\n');
+
               return (
                 <button
                   aria-pressed={selectedLogicalAddresses.has(item.address)}
@@ -185,8 +211,10 @@ export function AddressCanvas({
                   data-merge-span={String(item.mergeSpan)}
                   data-status={item.status}
                   data-testid={`address-cell-${item.address}`}
+                  title={hoverTitle}
                   className={[
-                    'min-h-28 rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60',
+                    'flex min-h-28 min-w-0 flex-col items-stretch overflow-hidden rounded-xl border p-2 text-left transition',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60',
                     statusClassName[item.status],
                     selectedLogicalAddresses.has(item.address) ? 'ring-2 ring-cyan-400/60' : '',
                   ].join(' ')}
@@ -194,26 +222,26 @@ export function AddressCanvas({
                   style={colSpan > 1 ? { gridColumn: `span ${colSpan}` } : undefined}
                   type="button"
                 >
-                  <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-300">
+                  <p className="break-all font-mono text-[10px] uppercase leading-snug tracking-[0.12em] text-slate-300/90 line-clamp-2">
                     {item.address}
                   </p>
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs font-semibold text-white">
-                      {getPrimaryLabel(item, t)}
+                  <div className="mt-1.5 flex min-h-0 min-w-0 flex-1 flex-col gap-1 overflow-hidden">
+                    <p className="min-w-0 break-words text-xs font-semibold leading-snug text-white line-clamp-2">
+                      {primaryText}
                     </p>
-                    <p className="text-[11px] text-slate-300">
-                      {getOverlayValue({ item, t, valueFormat, viewMode })}
+                    <p className="min-w-0 break-all text-[11px] leading-snug text-slate-300 line-clamp-2">
+                      {overlayText}
                     </p>
                     {viewMode === 'plan' && colSpan > 1 ? (
-                      <p className="text-[11px] text-cyan-100">
+                      <p className="min-w-0 truncate text-[10px] leading-snug text-cyan-100/90">
                         {t('workbench.source.canvas.mergeState', { cells: item.mergeSpan })}
                       </p>
                     ) : null}
                     {viewMode === 'live' && item.liveTimestamp ? (
-                      <p className="text-[11px] text-slate-400">{item.liveTimestamp}</p>
+                      <p className="min-w-0 truncate text-[10px] text-slate-500">{item.liveTimestamp}</p>
                     ) : null}
                     {item.primaryRuleId ? (
-                      <p className="text-[11px] text-slate-400">{item.primaryRuleId}</p>
+                      <p className="min-w-0 truncate font-mono text-[10px] text-slate-500">{item.primaryRuleId}</p>
                     ) : null}
                   </div>
                 </button>

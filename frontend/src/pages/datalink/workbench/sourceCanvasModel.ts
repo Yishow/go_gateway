@@ -25,6 +25,12 @@ export type SourceRule = {
   skippedAddresses: string[];
   persisted?: boolean;
   updatedAt?: string;
+  /** 目標資料型態（可空）。預設與 dataType 相同。 */
+  targetDataType?: DataType;
+  /** 縮放倍率（可空）。 */
+  scaleMultiplier?: number;
+  /** 偏移量（可空）。 */
+  scaleOffset?: number;
 };
 
 export type AddressCanvasStatus = 'gap' | 'planned' | 'used' | 'unmanaged' | 'conflict';

@@ -132,6 +132,19 @@ func cloneRule(rule *schema.SourceRule) *schema.SourceRule {
 		return nil
 	}
 	copy := *rule
+	// 深拷貝可空指標欄位
+	if rule.TargetDataType != nil {
+		value := *rule.TargetDataType
+		copy.TargetDataType = &value
+	}
+	if rule.ScaleMultiplier != nil {
+		value := *rule.ScaleMultiplier
+		copy.ScaleMultiplier = &value
+	}
+	if rule.ScaleOffset != nil {
+		value := *rule.ScaleOffset
+		copy.ScaleOffset = &value
+	}
 	return &copy
 }
 

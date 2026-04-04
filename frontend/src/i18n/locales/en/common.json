@@ -586,6 +586,14 @@
         "batchSummary": "Applied {{successCount}} rule(s), {{failureCount}} failed.",
         "import": "Import",
         "export": "Export",
+        "targetDataType": "Target type",
+        "sameAsReadType": "Same as read type",
+        "scaleMultiplier": "Scale multiplier",
+        "scaleOffset": "Offset",
+        "advanced": {
+          "show": "Show advanced settings",
+          "hide": "Hide advanced settings"
+        },
         "dataTypeGroup": {
           "singleWord": "Single-word (16-bit)",
           "32bit": "32-bit",

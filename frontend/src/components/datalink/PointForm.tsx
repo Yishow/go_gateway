@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Point, CreatePointRequest, UpdatePointRequest, DataType } from '../../types/datalink';
+import { DATALINK_DATA_TYPES, type Point, type CreatePointRequest, type UpdatePointRequest, type DataType } from '../../types/datalink';
 import { useDevicesQuery } from '../../hooks/datalink/useDevices';
 import { usePollingGroupsQuery } from '../../hooks/datalink/usePollingGroups';
 
@@ -11,7 +11,7 @@ interface PointFormProps {
   onCancel: () => void;
 }
 
-const DATA_TYPES: DataType[] = ['bool', 'int16', 'int32', 'int64', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'string'];
+const DATA_TYPES: DataType[] = [...DATALINK_DATA_TYPES];
 
 export default function PointForm({ point, onSubmit, onCancel }: PointFormProps) {
   const navigate = useNavigate();

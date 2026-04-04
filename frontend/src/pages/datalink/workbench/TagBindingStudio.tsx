@@ -15,7 +15,7 @@ import {
   useTagsQuery,
 } from '../../../hooks/datalink/useTags';
 import { tagAPI } from '../../../services/datalink';
-import type { DataType, Device, Tag } from '../../../types/datalink';
+import { DATALINK_DATA_TYPES, type DataType, type Device, type Tag } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
 import { countEligibleSpans } from './sourceCanvasModel';
 import {
@@ -51,18 +51,7 @@ type TagLibraryFeedback = {
   message: string;
 };
 
-const tagDataTypeOptions: DataType[] = [
-  'bool',
-  'int16',
-  'int32',
-  'int64',
-  'uint16',
-  'uint32',
-  'uint64',
-  'float32',
-  'float64',
-  'string',
-];
+const tagDataTypeOptions: DataType[] = [...DATALINK_DATA_TYPES];
 
 function getSelectedDevice(devices: Device[], selectedDeviceId: string | null) {
   return devices.find((device) => device.id === selectedDeviceId) ?? null;

@@ -1,4 +1,4 @@
-import type { DataType } from '../../types/datalink';
+import { DATALINK_DATA_TYPES, type DataType } from '../../types/datalink';
 import {
   SOURCE_TEMPLATE_SCHEMA_VERSION,
   type SourceTemplateCapabilitySnapshot,
@@ -6,7 +6,8 @@ import {
   type SourceTemplateViewMode,
 } from './sourceTemplateStorage';
 
-export const SOURCE_PLANNER_ALLOWED_DATA_TYPES = ['int16', 'int32', 'float32'] as const;
+/** 來源規劃／範本允許之資料型態（與 Point CRUD 一致）。 */
+export const SOURCE_PLANNER_ALLOWED_DATA_TYPES = DATALINK_DATA_TYPES;
 
 export type DataTypeGroupEntry = {
   value: DataType;
@@ -23,26 +24,26 @@ export const SOURCE_PLANNER_DATA_TYPE_GROUPS: DataTypeGroup[] = [
   {
     labelKey: 'workbench.source.planner.dataTypeGroup.singleWord',
     types: [
-      { value: 'bool', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'bool', supported: true },
       { value: 'int16', supported: true },
-      { value: 'uint16', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
-      { value: 'string', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'uint16', supported: true },
+      { value: 'string', supported: true },
     ],
   },
   {
     labelKey: 'workbench.source.planner.dataTypeGroup.32bit',
     types: [
       { value: 'int32', supported: true },
-      { value: 'uint32', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'uint32', supported: true },
       { value: 'float32', supported: true },
     ],
   },
   {
     labelKey: 'workbench.source.planner.dataTypeGroup.64bit',
     types: [
-      { value: 'int64', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
-      { value: 'uint64', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
-      { value: 'float64', supported: false, disabledReasonKey: 'workbench.source.planner.dataTypeUnsupported' },
+      { value: 'int64', supported: true },
+      { value: 'uint64', supported: true },
+      { value: 'float64', supported: true },
     ],
   },
 ];
@@ -120,7 +121,7 @@ export function isTemplateRecordContractValid(template: SourceTemplateRecord): b
   ) {
     return false;
   }
-  if (!SOURCE_PLANNER_ALLOWED_DATA_TYPES.includes(template.dataType as (typeof SOURCE_PLANNER_ALLOWED_DATA_TYPES)[number])) {
+  if (!(SOURCE_PLANNER_ALLOWED_DATA_TYPES as readonly DataType[]).includes(template.dataType)) {
     return false;
   }
   return true;

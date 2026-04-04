@@ -43,6 +43,19 @@ describe('sourcePlannerContract', () => {
     });
   });
 
+  it('accepts template records for any DATALINK-aligned data type', () => {
+    const template = createTemplateFromPlanner({
+      templateName: 'Wide Uint',
+      draft: {
+        dataType: 'uint64',
+        count: 2,
+        startAddress: '40020',
+      },
+      now: '2026-04-04T00:00:00.000Z',
+    });
+    expect(isTemplateRecordContractValid(template)).toBe(true);
+  });
+
   it('supports planner-template persistence round trip', () => {
     const created = createTemplateFromPlanner({
       templateName: 'Line A Int',

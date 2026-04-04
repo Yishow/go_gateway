@@ -7,6 +7,7 @@
  */
 
 import type { Point, CreatePointRequest } from '../types/datalink';
+import { DATALINK_DATA_TYPES } from '../types/datalink';
 
 // =============================================================================
 // CSV 匯入
@@ -95,10 +96,9 @@ export function parseCSV(
       continue;
     }
 
-    // 驗證資料類型
-    const validDataTypes = ['bool', 'int16', 'int32', 'int64', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'string'];
+    // 驗證資料類型（與 DATALINK_DATA_TYPES 一致）
     const dataType = row.data_type || 'uint16';
-    if (!validDataTypes.includes(dataType)) {
+    if (!(DATALINK_DATA_TYPES as readonly string[]).includes(dataType)) {
       result.errors.push({ row: rowNum, column: 'data_type', message: `無效的資料類型: ${dataType}` });
       continue;
     }

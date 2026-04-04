@@ -172,6 +172,9 @@ function mapPersistedRuleToPlannerRule(rule: SourceRuleRecord): SourceRule {
     skippedAddresses: rule.skipped_addresses ?? [],
     persisted: true,
     updatedAt: rule.updated_at,
+    targetDataType: rule.target_data_type,
+    scaleMultiplier: rule.scale_multiplier,
+    scaleOffset: rule.scale_offset,
   };
 }
 
@@ -195,7 +198,10 @@ function areRulesEqual(left: ReadonlyArray<SourceRule>, right: ReadonlyArray<Sou
       rule.templateName === candidate.templateName &&
       rule.persisted === candidate.persisted &&
       rule.updatedAt === candidate.updatedAt &&
-      rule.skippedAddresses.join(',') === candidate.skippedAddresses.join(',')
+      rule.skippedAddresses.join(',') === candidate.skippedAddresses.join(',') &&
+      rule.targetDataType === candidate.targetDataType &&
+      rule.scaleMultiplier === candidate.scaleMultiplier &&
+      rule.scaleOffset === candidate.scaleOffset
     );
   });
 }
@@ -373,6 +379,9 @@ export function SourceCanvasSection() {
   const [dataType, setDataType] = useState<DataType>('int16');
   const [count, setCount] = useState(4);
   const [namingPrefix, setNamingPrefix] = useState('SRC');
+  const [targetDataType, setTargetDataType] = useState<DataType | ''>('');
+  const [scaleMultiplier, setScaleMultiplier] = useState<string>('');
+  const [scaleOffset, setScaleOffset] = useState<string>('');
   const [jumpAddress, setJumpAddress] = useState('');
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
@@ -661,6 +670,9 @@ export function SourceCanvasSection() {
       templateName: appliedTemplate?.name,
       skippedAddresses: [],
       persisted: false,
+      targetDataType: targetDataType || undefined,
+      scaleMultiplier: scaleMultiplier ? Number(scaleMultiplier) : undefined,
+      scaleOffset: scaleOffset ? Number(scaleOffset) : undefined,
     };
 
     setSourcePlanningState((currentState) => ({
@@ -1151,6 +1163,9 @@ export function SourceCanvasSection() {
           origin: rule.origin,
           template_name: rule.templateName,
           skipped_addresses: skippedAddresses,
+          target_data_type: rule.targetDataType,
+          scale_multiplier: rule.scaleMultiplier,
+          scale_offset: rule.scaleOffset,
         }),
       ),
     );
@@ -1421,6 +1436,63 @@ export function SourceCanvasSection() {
                   />
                 </label>
               </div>
+
+              {/* 進階設定：目標型別與縮放 */}
+              <details className="group space-y-3">
+                <summary className="cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-200">
+                  <span className="group-open:hidden">{t('workbench.source.planner.advanced.show')}</span>
+                  <span className="hidden group-open:inline">{t('workbench.source.planner.advanced.hide')}</span>
+                </summary>
+                <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-3">
+                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                    <span>{t('workbench.source.planner.targetDataType')}</span>
+                    <select
+                      aria-label={t('workbench.source.planner.targetDataType')}
+                      value={targetDataType}
+                      onChange={(event) => {
+                        clearAppliedTemplate();
+                        setTargetDataType(event.target.value as DataType | '');
+                      }}
+                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    >
+                      <option value="">{t('workbench.source.planner.sameAsReadType')}</option>
+                      {SOURCE_PLANNER_DATA_TYPE_GROUPS.flatMap((group) =>
+                        group.types
+                          .filter((entry) => entry.supported)
+                          .map((entry) => (
+                            <option key={entry.value} value={entry.value}>
+                              {entry.value}
+                            </option>
+                          )),
+                      )}
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                    <span>{t('workbench.source.planner.scaleMultiplier')}</span>
+                    <input
+                      aria-label={t('workbench.source.planner.scaleMultiplier')}
+                      type="number"
+                      step="any"
+                      placeholder="1.0"
+                      value={scaleMultiplier}
+                      onChange={(event) => setScaleMultiplier(event.target.value)}
+                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                    <span>{t('workbench.source.planner.scaleOffset')}</span>
+                    <input
+                      aria-label={t('workbench.source.planner.scaleOffset')}
+                      type="number"
+                      step="any"
+                      placeholder="0.0"
+                      value={scaleOffset}
+                      onChange={(event) => setScaleOffset(event.target.value)}
+                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </label>
+                </div>
+              </details>
 
               <button
                 type="button"

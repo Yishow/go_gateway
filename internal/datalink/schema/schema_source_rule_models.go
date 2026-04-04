@@ -17,6 +17,15 @@ type SourceRule struct {
 	SkippedAddresses string    `json:"skipped_addresses,omitempty" db:"skipped_addresses"`
 	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	// TargetDataType 目標資料型態（可空）。當與 DataType 不同時，自動建立 cast 步驟。
+	// NULL 表示與 Point 讀取型別相同（即 DataType）。
+	TargetDataType *DataType `json:"target_data_type,omitempty" db:"target_data_type"`
+	// ScaleMultiplier 縮放倍率（可空）。與 ScaleOffset 構成線性縮放公式：value * multiplier + offset。
+	// NULL 表示不進行縮放。
+	ScaleMultiplier *float64 `json:"scale_multiplier,omitempty" db:"scale_multiplier"`
+	// ScaleOffset 偏移量（可空）。與 ScaleMultiplier 構成線性縮放。
+	// NULL 表示偏移量為 0（若 ScaleMultiplier 非 NULL）。
+	ScaleOffset *float64 `json:"scale_offset,omitempty" db:"scale_offset"`
 }
 
 // SourceRuleLink 記錄來源規則衍生出的下游實體關聯。

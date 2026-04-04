@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Tag, CreateTagRequest, UpdateTagRequest, DataType } from '../../types/datalink';
+import { DATALINK_DATA_TYPES, type Tag, type CreateTagRequest, type UpdateTagRequest, type DataType } from '../../types/datalink';
 import { tagAPI } from '../../services/datalink';
 import { logger } from '../../utils/logger';
 
@@ -10,7 +10,7 @@ interface TagFormProps {
   onCancel: () => void;
 }
 
-const DATA_TYPES: DataType[] = ['bool', 'int16', 'int32', 'int64', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'string'];
+const DATA_TYPES: DataType[] = [...DATALINK_DATA_TYPES];
 
 export default function TagForm({ tag, onSubmit, onCancel }: TagFormProps) {
   const { t } = useTranslation();

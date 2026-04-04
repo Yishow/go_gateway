@@ -22,9 +22,26 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 	query := `
 		INSERT INTO source_rules (
 			id, device_id, start_address, count, data_type, naming_prefix,
-			enabled, locked, origin, template_name, skipped_addresses, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			enabled, locked, origin, template_name, skipped_addresses,
+			target_data_type, scale_multiplier, scale_offset,
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
+
+	var targetDataType interface{}
+	if rule.TargetDataType != nil {
+		targetDataType = *rule.TargetDataType
+	}
+
+	var scaleMultiplier interface{}
+	if rule.ScaleMultiplier != nil {
+		scaleMultiplier = *rule.ScaleMultiplier
+	}
+
+	var scaleOffset interface{}
+	if rule.ScaleOffset != nil {
+		scaleOffset = *rule.ScaleOffset
+	}
 
 	_, err := r.db.ExecContext(ctx, query,
 		rule.ID,
@@ -38,6 +55,9 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 		rule.Origin,
 		rule.TemplateName,
 		rule.SkippedAddresses,
+		targetDataType,
+		scaleMultiplier,
+		scaleOffset,
 		rule.CreatedAt,
 		rule.UpdatedAt,
 	)
@@ -51,9 +71,26 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 	query := `
 		UPDATE source_rules
 		SET start_address = ?, count = ?, data_type = ?, naming_prefix = ?,
-		    enabled = ?, locked = ?, origin = ?, template_name = ?, skipped_addresses = ?, updated_at = ?
+		    enabled = ?, locked = ?, origin = ?, template_name = ?, skipped_addresses = ?,
+		    target_data_type = ?, scale_multiplier = ?, scale_offset = ?,
+		    updated_at = ?
 		WHERE id = ?
 	`
+
+	var targetDataType interface{}
+	if rule.TargetDataType != nil {
+		targetDataType = *rule.TargetDataType
+	}
+
+	var scaleMultiplier interface{}
+	if rule.ScaleMultiplier != nil {
+		scaleMultiplier = *rule.ScaleMultiplier
+	}
+
+	var scaleOffset interface{}
+	if rule.ScaleOffset != nil {
+		scaleOffset = *rule.ScaleOffset
+	}
 
 	result, err := r.db.ExecContext(ctx, query,
 		rule.StartAddress,
@@ -65,6 +102,9 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		rule.Origin,
 		rule.TemplateName,
 		rule.SkippedAddresses,
+		targetDataType,
+		scaleMultiplier,
+		scaleOffset,
 		rule.UpdatedAt,
 		rule.ID,
 	)
@@ -99,7 +139,9 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.SourceRule, error) {
 	row := r.db.QueryRowContext(ctx, `
 		SELECT id, device_id, start_address, count, data_type, naming_prefix,
-		       enabled, locked, origin, template_name, skipped_addresses, created_at, updated_at
+		       enabled, locked, origin, template_name, skipped_addresses,
+		       target_data_type, scale_multiplier, scale_offset,
+		       created_at, updated_at
 		FROM source_rules WHERE id = ?
 	`, id)
 	return scanRule(row)
@@ -108,7 +150,9 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.SourceR
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.SourceRule, error) {
 	query := `
 		SELECT id, device_id, start_address, count, data_type, naming_prefix,
-		       enabled, locked, origin, template_name, skipped_addresses, created_at, updated_at
+		       enabled, locked, origin, template_name, skipped_addresses,
+		       target_data_type, scale_multiplier, scale_offset,
+		       created_at, updated_at
 		FROM source_rules
 		WHERE 1 = 1
 	`
@@ -229,6 +273,9 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 	var rule schema.SourceRule
 	var templateName sql.NullString
 	var skipped sql.NullString
+	var targetDataType sql.NullString
+	var scaleMultiplier sql.NullFloat64
+	var scaleOffset sql.NullFloat64
 	var createdAt string
 	var updatedAt string
 	err := row.Scan(
@@ -243,6 +290,9 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 		&rule.Origin,
 		&templateName,
 		&skipped,
+		&targetDataType,
+		&scaleMultiplier,
+		&scaleOffset,
 		&createdAt,
 		&updatedAt,
 	)
@@ -255,6 +305,18 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 
 	rule.TemplateName = strings.TrimSpace(templateName.String)
 	rule.SkippedAddresses = skipped.String
+
+	if targetDataType.Valid {
+		dt := schema.DataType(targetDataType.String)
+		rule.TargetDataType = &dt
+	}
+	if scaleMultiplier.Valid {
+		rule.ScaleMultiplier = &scaleMultiplier.Float64
+	}
+	if scaleOffset.Valid {
+		rule.ScaleOffset = &scaleOffset.Float64
+	}
+
 	rule.CreatedAt, err = common.ParseTimeString(createdAt)
 	if err != nil {
 		return nil, fmt.Errorf("解析來源規則建立時間失敗: %w", err)

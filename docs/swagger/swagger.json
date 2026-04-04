@@ -1,13 +1,8 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "工業數據採集閘道系統 API 文檔",
-        "title": "Go Gateway API",
-        "contact": {},
-        "version": "1.0"
+        "contact": {}
     },
-    "host": "localhost:8080",
-    "basePath": "/api",
     "paths": {
         "/datalink/health": {
             "get": {
@@ -26,7 +21,7 @@
                     "200": {
                         "description": "健康狀態",
                         "schema": {
-                            "$ref": "#/definitions/handlers.HealthStatus"
+                            "$ref": "#/definitions/internal_api_handlers.HealthStatus"
                         }
                     }
                 }
@@ -34,7 +29,7 @@
         }
     },
     "definitions": {
-        "handlers.HealthStatus": {
+        "internal_api_handlers.HealthStatus": {
             "type": "object",
             "properties": {
                 "service": {

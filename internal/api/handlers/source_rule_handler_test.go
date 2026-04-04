@@ -139,6 +139,67 @@ func TestSourceRuleHandler_Get_NotFound(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, resp.Code)
 }
 
+func TestSourceRuleHandler_Update_ClearsOptionalConversionSettings(t *testing.T) {
+	router, _ := setupSourceRuleRouter(t)
+
+	targetType := schema.DataTypeFloat64
+	multiplier := 0.25
+	offset := -5.0
+	createBody, err := json.Marshal(sourcerule.CreateRuleRequest{
+		ID:              "rule-clear-conversion",
+		DeviceID:        "device-1",
+		StartAddress:    "40001",
+		Count:           1,
+		DataType:        schema.DataTypeUint16,
+		NamingPrefix:    "SRC",
+		Enabled:         true,
+		TargetDataType:  &targetType,
+		ScaleMultiplier: &multiplier,
+		ScaleOffset:     &offset,
+	})
+	require.NoError(t, err)
+
+	createReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
+	require.NoError(t, err)
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp := httptest.NewRecorder()
+	router.ServeHTTP(createResp, createReq)
+	require.Equal(t, http.StatusCreated, createResp.Code)
+
+	updateReq, err := http.NewRequest(http.MethodPut, "/datalink/source-rules/rule-clear-conversion", bytes.NewBufferString(`{"target_data_type":null,"scale_multiplier":null,"scale_offset":null}`))
+	require.NoError(t, err)
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateResp := httptest.NewRecorder()
+	router.ServeHTTP(updateResp, updateReq)
+	require.Equal(t, http.StatusOK, updateResp.Code)
+
+	var updatePayload map[string]any
+	require.NoError(t, json.Unmarshal(updateResp.Body.Bytes(), &updatePayload))
+	data := updatePayload["data"].(map[string]any)
+	_, hasTargetDataType := data["target_data_type"]
+	_, hasScaleMultiplier := data["scale_multiplier"]
+	_, hasScaleOffset := data["scale_offset"]
+	assert.False(t, hasTargetDataType)
+	assert.False(t, hasScaleMultiplier)
+	assert.False(t, hasScaleOffset)
+
+	getReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-clear-conversion", nil)
+	require.NoError(t, err)
+	getResp := httptest.NewRecorder()
+	router.ServeHTTP(getResp, getReq)
+	require.Equal(t, http.StatusOK, getResp.Code)
+
+	var getPayload map[string]any
+	require.NoError(t, json.Unmarshal(getResp.Body.Bytes(), &getPayload))
+	getData := getPayload["data"].(map[string]any)
+	_, hasPersistedTargetDataType := getData["target_data_type"]
+	_, hasPersistedScaleMultiplier := getData["scale_multiplier"]
+	_, hasPersistedScaleOffset := getData["scale_offset"]
+	assert.False(t, hasPersistedTargetDataType)
+	assert.False(t, hasPersistedScaleMultiplier)
+	assert.False(t, hasPersistedScaleOffset)
+}
+
 func seedSourceRuleDevice(ctx context.Context, repo *device.MemoryRepository, id string) error {
 	return repo.Create(ctx, &schema.Device{
 		ID:               id,

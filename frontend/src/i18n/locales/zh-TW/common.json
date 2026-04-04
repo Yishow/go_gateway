@@ -586,6 +586,14 @@
         "batchSummary": "已套用 {{successCount}} 條規則，失敗 {{failureCount}} 條。",
         "import": "匯入",
         "export": "匯出",
+        "targetDataType": "目標型態",
+        "sameAsReadType": "與讀取型態相同",
+        "scaleMultiplier": "縮放倍率",
+        "scaleOffset": "偏移量",
+        "advanced": {
+          "show": "顯示進階設定",
+          "hide": "隱藏進階設定"
+        },
         "dataTypeGroup": {
           "singleWord": "單字組 (16-bit)",
           "32bit": "32 位元",

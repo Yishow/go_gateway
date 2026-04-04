@@ -33,6 +33,22 @@ export type DataType =
   | "float64"
   | "string";
 
+/**
+ * 與後端 `schema.DataType` 一致之完整列舉，供表單、匯入與來源規劃器共用，避免各處清單漂移。
+ */
+export const DATALINK_DATA_TYPES = [
+  "bool",
+  "int16",
+  "int32",
+  "int64",
+  "uint16",
+  "uint32",
+  "uint64",
+  "float32",
+  "float64",
+  "string",
+] as const satisfies readonly DataType[];
+
 /** 標籤狀態 */
 export type TagStatus = "draft" | "active" | "retired";
 
@@ -177,6 +193,12 @@ export interface SourceRuleRecord {
   skipped_addresses: string[];
   created_at: string;
   updated_at: string;
+  /** 目標資料型態（可空）。預設與 data_type 相同。 */
+  target_data_type?: DataType;
+  /** 縮放倍率（可空）。與 scale_offset 構成線性縮放。 */
+  scale_multiplier?: number;
+  /** 偏移量（可空）。 */
+  scale_offset?: number;
 }
 
 /** 建立來源規則請求 */
@@ -192,6 +214,12 @@ export interface CreateSourceRuleRequest {
   origin?: 'manual' | 'template';
   template_name?: string;
   skipped_addresses?: string[];
+  /** 目標資料型態（可空）。預設與 data_type 相同。 */
+  target_data_type?: DataType;
+  /** 縮放倍率（可空）。 */
+  scale_multiplier?: number;
+  /** 偏移量（可空）。 */
+  scale_offset?: number;
 }
 
 /** 更新來源規則請求 */
@@ -204,6 +232,12 @@ export interface UpdateSourceRuleRequest {
   locked?: boolean;
   template_name?: string;
   skipped_addresses?: string[];
+  /** 目標資料型態（可空）。 */
+  target_data_type?: DataType;
+  /** 縮放倍率（可空）。 */
+  scale_multiplier?: number;
+  /** 偏移量（可空）。 */
+  scale_offset?: number;
 }
 
 /** 輪詢群組 */

@@ -1290,7 +1290,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(within(ruleCard).getByTestId('rule-inline-edit-form')).toBeInTheDocument();
   });
 
-  it('renders data type selector with grouped optgroups and disabled unsupported types', () => {
+  it('renders data type selector with grouped optgroups and all backend-aligned types enabled', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
@@ -1302,15 +1302,12 @@ describe('DatalinkWorkbench source step', () => {
     const supportedOptions = options.filter((opt) => !(opt as HTMLOptionElement).disabled);
     const disabledOptions = options.filter((opt) => (opt as HTMLOptionElement).disabled);
 
-    expect(supportedOptions.length).toBe(3);
-    expect(disabledOptions.length).toBe(7);
+    expect(supportedOptions.length).toBe(10);
+    expect(disabledOptions.length).toBe(0);
 
     const supportedValues = supportedOptions.map((opt) => (opt as HTMLOptionElement).value);
-    expect(supportedValues).toEqual(expect.arrayContaining(['int16', 'int32', 'float32']));
-
-    const disabledValues = disabledOptions.map((opt) => (opt as HTMLOptionElement).value);
-    expect(disabledValues).toEqual(
-      expect.arrayContaining(['bool', 'uint16', 'string', 'uint32', 'int64', 'uint64', 'float64']),
+    expect(supportedValues.sort()).toEqual(
+      ['bool', 'float32', 'float64', 'int16', 'int32', 'int64', 'string', 'uint16', 'uint32', 'uint64'].sort(),
     );
   });
 

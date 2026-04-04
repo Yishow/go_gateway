@@ -20,6 +20,8 @@ func TestMigrator_Migrate(t *testing.T) {
 	// Act
 	err = migrator.Migrate(db)
 	require.NoError(t, err)
+	err = migrator.Migrate(db)
+	require.NoError(t, err)
 
 	// Assert: Check if tables exist
 	tables := []string{
