@@ -152,6 +152,10 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 	createdPointIDs := make([]string, 0, req.Count)
 	links := make([]*schema.SourceRuleLink, 0, req.Count)
 	createdPoints := make([]*schema.Point, 0, req.Count)
+	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, address := range buildPlannedPointAddresses(rule.StartAddress, rule.Count, rule.DataType, deviceRecord.Protocol) {
 		if containsAddress(req.SkippedAddresses, address) {
@@ -159,13 +163,14 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		}
 
 		pointRecord, createErr := s.pointSvc.Create(ctx, point.CreatePointRequest{
-			DeviceID:    rule.DeviceID,
-			Name:        buildPointName(rule.NamingPrefix, address),
-			Address:     address,
-			DataType:    rule.DataType,
-			Mode:        schema.PointModeReadOnly,
-			Function:    "",
-			Description: "",
+			DeviceID:       rule.DeviceID,
+			Name:           buildPointName(rule.NamingPrefix, address),
+			Address:        address,
+			DataType:       rule.DataType,
+			Mode:           schema.PointModeReadOnly,
+			Function:       "",
+			Description:    "",
+			PollingGroupID: defaultPollingGroupID,
 		})
 		if createErr != nil {
 			s.rollbackCreatedPoints(ctx, createdPointIDs)
@@ -393,13 +398,21 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 
 	appliedUpdatePlans := make([]pointUpdatePlan, 0, len(updatePlans))
+	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	for _, plan := range updatePlans {
 		dataType := next.DataType
-		pointRecord, updateErr := s.pointSvc.Update(ctx, plan.point.ID, point.UpdatePointRequest{
+		updateReq := point.UpdatePointRequest{
 			Name:     &plan.name,
 			DataType: &dataType,
 			Enabled:  &effectiveEnabled,
-		})
+		}
+		if plan.point.PollingGroupID == nil && defaultPollingGroupID != nil {
+			updateReq.PollingGroupID = defaultPollingGroupID
+		}
+		pointRecord, updateErr := s.pointSvc.Update(ctx, plan.point.ID, updateReq)
 		if updateErr != nil {
 			s.rollbackUpdatedPoints(ctx, appliedUpdatePlans)
 			s.rollbackRuleState(ctx, rule, links)
@@ -413,11 +426,12 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	createdLinkMap := make(map[string]*schema.SourceRuleLink, len(createPlans))
 	for _, plan := range createPlans {
 		pointRecord, createErr := s.pointSvc.Create(ctx, point.CreatePointRequest{
-			DeviceID: next.DeviceID,
-			Name:     buildPointName(next.NamingPrefix, plan.address),
-			Address:  plan.address,
-			DataType: next.DataType,
-			Mode:     schema.PointModeReadOnly,
+			DeviceID:       next.DeviceID,
+			Name:           buildPointName(next.NamingPrefix, plan.address),
+			Address:        plan.address,
+			DataType:       next.DataType,
+			Mode:           schema.PointModeReadOnly,
+			PollingGroupID: defaultPollingGroupID,
 		})
 		if createErr != nil {
 			s.rollbackUpdatedPoints(ctx, appliedUpdatePlans)
@@ -530,7 +544,7 @@ func (s *Service) SyncDerivedPointState(ctx context.Context) error {
 			return fmt.Errorf("取得來源規則設備失敗: %w", getErr)
 		}
 		enabled := rule.Enabled && deviceRecord.Status == schema.DeviceStatusActive
-		if err := s.syncRuleLinksEnabled(ctx, rule.ID, enabled); err != nil {
+		if _, err := s.syncRuleLinksEnabled(ctx, rule.ID, enabled); err != nil {
 			return err
 		}
 		currentLinks, linkErr := s.repo.ListLinks(ctx, rule.ID)
@@ -575,26 +589,46 @@ func (s *Service) validatePointAddresses(ctx context.Context, deviceID string, k
 	return nil
 }
 
-func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabled bool) error {
+func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabled bool) ([]pointUpdatePlan, error) {
 	links, err := s.repo.ListLinks(ctx, ruleID)
 	if err != nil {
-		return fmt.Errorf("取得來源規則連結失敗: %w", err)
+		return nil, fmt.Errorf("取得來源規則連結失敗: %w", err)
+	}
+	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
+	if err != nil {
+		return nil, err
 	}
 
+	appliedPlans := make([]pointUpdatePlan, 0, len(links))
 	for _, link := range links {
 		pointRecord, getErr := s.pointSvc.GetByID(ctx, link.PointID)
 		if getErr != nil {
-			return fmt.Errorf("取得衍生點位失敗: %w", getErr)
+			s.rollbackUpdatedPoints(ctx, appliedPlans)
+			return nil, fmt.Errorf("取得衍生點位失敗: %w", getErr)
+		}
+		original := pointRecord
+		updateReq := point.UpdatePointRequest{
+			Enabled: &enabled,
+		}
+		if enabled && pointRecord.PollingGroupID == nil && defaultPollingGroupID != nil {
+			updateReq.PollingGroupID = defaultPollingGroupID
 		}
 		pointRecord, getErr = s.pointSvc.Update(ctx, link.PointID, point.UpdatePointRequest{
-			Enabled: &enabled,
+			Enabled:             updateReq.Enabled,
+			PollingGroupID:      updateReq.PollingGroupID,
+			ReplacePollingGroup: updateReq.ReplacePollingGroup,
 		})
 		if getErr != nil {
-			return fmt.Errorf("更新衍生點位狀態失敗: %w", getErr)
+			s.rollbackUpdatedPoints(ctx, appliedPlans)
+			return nil, fmt.Errorf("更新衍生點位狀態失敗: %w", getErr)
 		}
+		appliedPlans = append(appliedPlans, pointUpdatePlan{
+			name:  original.Name,
+			point: original,
+		})
 		s.syncPoints([]*schema.Point{pointRecord})
 	}
-	return nil
+	return appliedPlans, nil
 }
 
 func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error {
@@ -608,7 +642,6 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 		return fmt.Errorf("取得設備失敗: %w", err)
 	}
 	previousRule := *rule
-	previousEffectiveEnabled := rule.Enabled && deviceRecord.Status == schema.DeviceStatusActive
 	previousLinks, err := s.repo.ListLinks(ctx, id)
 	if err != nil {
 		return fmt.Errorf("取得來源規則連結失敗: %w", err)
@@ -625,7 +658,8 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 	if err := s.repo.Update(ctx, rule); err != nil {
 		return fmt.Errorf("更新來源規則失敗: %w", err)
 	}
-	if err := s.syncRuleLinksEnabled(ctx, id, enabled); err != nil {
+	appliedPointPlans, err := s.syncRuleLinksEnabled(ctx, id, enabled)
+	if err != nil {
 		_ = s.repo.Update(ctx, &previousRule)
 		return err
 	}
@@ -634,19 +668,37 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 	syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, nextLinks, enabled)
 	if syncErr != nil {
 		s.rollbackTagMappingSync(ctx, syncResult)
-		_ = s.syncRuleLinksEnabled(ctx, id, previousEffectiveEnabled)
+		s.rollbackUpdatedPoints(ctx, appliedPointPlans)
 		_ = s.repo.Update(ctx, &previousRule)
 		return fmt.Errorf("同步來源規則標籤映射失敗: %w", syncErr)
 	}
 
 	if err := s.replaceRuleLinks(ctx, id, previousLinks, nextLinks); err != nil {
 		s.rollbackTagMappingSync(ctx, syncResult)
-		_ = s.syncRuleLinksEnabled(ctx, id, previousEffectiveEnabled)
+		s.rollbackUpdatedPoints(ctx, appliedPointPlans)
 		_ = s.repo.Update(ctx, &previousRule)
 		return err
 	}
 
 	return nil
+}
+
+// resolveDerivedPointPollingGroupID 取得來源規則衍生點位應使用的預設輪詢群組。
+func (s *Service) resolveDerivedPointPollingGroupID(ctx context.Context) (*string, error) {
+	if s.pointSvc == nil {
+		return nil, nil
+	}
+
+	group, err := s.pointSvc.EnsureDefaultPollingGroup(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("確保預設輪詢群組失敗: %w", err)
+	}
+	if group == nil {
+		return nil, nil
+	}
+
+	groupID := group.ID
+	return &groupID, nil
 }
 
 func (s *Service) replaceRuleLinks(ctx context.Context, ruleID string, previousLinks, nextLinks []*schema.SourceRuleLink) error {
@@ -1087,9 +1139,11 @@ func (s *Service) rollbackUpdatedPoints(ctx context.Context, plans []pointUpdate
 		dataType := plan.point.DataType
 		enabled := plan.point.Enabled
 		_, _ = s.pointSvc.Update(ctx, plan.point.ID, point.UpdatePointRequest{
-			Name:     &name,
-			DataType: &dataType,
-			Enabled:  &enabled,
+			Name:                &name,
+			DataType:            &dataType,
+			PollingGroupID:      plan.point.PollingGroupID,
+			ReplacePollingGroup: true,
+			Enabled:             &enabled,
 		})
 		s.syncPoints([]*schema.Point{plan.point})
 	}

@@ -2,12 +2,14 @@ package sourcerule
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
+	"go-gateway/internal/datalink/pollinggroup"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 
@@ -18,6 +20,19 @@ import (
 type stubRuntimeSync struct {
 	upserted []string
 	removed  []string
+}
+
+type failingLinkRepository struct {
+	*MemoryRepository
+	failCreateLinks bool
+}
+
+func (r *failingLinkRepository) CreateLinks(ctx context.Context, links []*schema.SourceRuleLink) error {
+	if r.failCreateLinks {
+		r.failCreateLinks = false
+		return errors.New("create links failed")
+	}
+	return r.MemoryRepository.CreateLinks(ctx, links)
 }
 
 func (s *stubRuntimeSync) UpsertPoint(point *schema.Point) {
@@ -73,6 +88,38 @@ func TestService_Create_PersistsRuleAndDerivedPoints(t *testing.T) {
 	assert.True(t, points[0].Enabled)
 	assert.True(t, points[1].Enabled)
 	assert.NotEmpty(t, runtimeSync.upserted)
+}
+
+func TestService_Create_AssignsDefaultPollingGroupToDerivedPoints(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	groupRepo := pollinggroup.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, groupRepo)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-1")
+	require.NoError(t, err)
+
+	_, err = svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-1",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        2,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "MIXER",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	points, err := pointSvc.List(ctx, point.ListFilter{DeviceID: &dev.ID})
+	require.NoError(t, err)
+	require.Len(t, points, 2)
+	require.NotNil(t, points[0].PollingGroupID)
+	require.NotNil(t, points[1].PollingGroupID)
+	assert.Equal(t, *points[0].PollingGroupID, *points[1].PollingGroupID)
 }
 
 func TestService_Disable_PreservesDerivedPointsButStopsCollection(t *testing.T) {
@@ -458,6 +505,98 @@ func TestService_Update_RemovesOrphanedAutoTagsForShrunkRange(t *testing.T) {
 	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
 	require.NoError(t, err)
 	require.Len(t, mappings, 1)
+}
+
+func TestService_Update_RollsBackBackfilledPollingGroupOnFailure(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	deviceSvc := device.NewService(deviceRepo, nil)
+	legacyPointSvc := point.NewService(pointRepo, nil)
+	baseRepo := NewMemoryRepository()
+	legacySvc := NewService(baseRepo, deviceSvc, legacyPointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-rollback-update")
+	require.NoError(t, err)
+
+	rule, err := legacySvc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-rollback-update",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	links, err := legacySvc.ListLinks(ctx, rule.ID)
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+
+	legacyPoint, err := legacyPointSvc.GetByID(ctx, links[0].PointID)
+	require.NoError(t, err)
+	require.Nil(t, legacyPoint.PollingGroupID)
+
+	groupRepo := pollinggroup.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, groupRepo)
+	repo := &failingLinkRepository{MemoryRepository: baseRepo, failCreateLinks: true}
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+
+	namingPrefix := "MIXER"
+	_, err = svc.Update(ctx, rule.ID, UpdateRuleRequest{NamingPrefix: &namingPrefix})
+	require.Error(t, err)
+
+	rolledBackPoint, err := pointSvc.GetByID(ctx, links[0].PointID)
+	require.NoError(t, err)
+	assert.Equal(t, "SRC_40001", rolledBackPoint.Name)
+	assert.Nil(t, rolledBackPoint.PollingGroupID)
+}
+
+func TestService_Enable_RollsBackBackfilledPollingGroupOnFailure(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	deviceSvc := device.NewService(deviceRepo, nil)
+	legacyPointSvc := point.NewService(pointRepo, nil)
+	baseRepo := NewMemoryRepository()
+	legacySvc := NewService(baseRepo, deviceSvc, legacyPointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-rollback-enable")
+	require.NoError(t, err)
+
+	rule, err := legacySvc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-rollback-enable",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      false,
+	})
+	require.NoError(t, err)
+
+	links, err := legacySvc.ListLinks(ctx, rule.ID)
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+
+	legacyPoint, err := legacyPointSvc.GetByID(ctx, links[0].PointID)
+	require.NoError(t, err)
+	require.False(t, legacyPoint.Enabled)
+	require.Nil(t, legacyPoint.PollingGroupID)
+
+	groupRepo := pollinggroup.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, groupRepo)
+	repo := &failingLinkRepository{MemoryRepository: baseRepo, failCreateLinks: true}
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+
+	err = svc.Enable(ctx, rule.ID)
+	require.Error(t, err)
+
+	rolledBackPoint, err := pointSvc.GetByID(ctx, links[0].PointID)
+	require.NoError(t, err)
+	assert.False(t, rolledBackPoint.Enabled)
+	assert.Nil(t, rolledBackPoint.PollingGroupID)
 }
 
 func TestService_Delete_RemovesOrphanedAutoTags(t *testing.T) {

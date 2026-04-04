@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -12,7 +14,16 @@ import (
 )
 
 type DeviceHandler struct {
-	svc *device.Service
+	svc         *device.Service
+	runtimeSync deviceRuntimeSyncer
+}
+
+// deviceRuntimeSyncer 定義 Device 啟停後需同步到 Runtime 的最小能力。
+type deviceRuntimeSyncer interface {
+	// UpsertDevice 會把啟用中的設備與其可輪詢點位同步進 Runtime。
+	UpsertDevice(ctx context.Context, device *schema.Device) error
+	// RemoveDevice 會把設備與其點位從 Runtime 移除。
+	RemoveDevice(deviceID string)
 }
 
 type TestDraftConnectionRequest struct {
@@ -20,8 +31,15 @@ type TestDraftConnectionRequest struct {
 	ConnectionConfig map[string]interface{} `json:"connection_config"`
 }
 
-func NewDeviceHandler(svc *device.Service) *DeviceHandler {
-	return &DeviceHandler{svc: svc}
+func NewDeviceHandler(svc *device.Service, runtimeSync ...deviceRuntimeSyncer) *DeviceHandler {
+	var syncer deviceRuntimeSyncer
+	if len(runtimeSync) > 0 {
+		syncer = runtimeSync[0]
+	}
+	return &DeviceHandler{
+		svc:         svc,
+		runtimeSync: syncer,
+	}
 }
 
 func (h *DeviceHandler) List(c *gin.Context) {
@@ -140,7 +158,14 @@ func (h *DeviceHandler) TestDraftConnection(c *gin.Context) {
 
 func (h *DeviceHandler) Activate(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.svc.Activate(c.Request.Context(), id); err != nil {
+	ctx := c.Request.Context()
+
+	wasActive := false
+	if existing, err := h.svc.GetByID(ctx, id); err == nil && existing != nil {
+		wasActive = existing.Status == schema.DeviceStatusActive
+	}
+
+	if err := h.svc.Activate(ctx, id); err != nil {
 		// 區分錯誤類型
 		if strings.Contains(err.Error(), "不存在") || strings.Contains(err.Error(), "not found") {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
@@ -150,10 +175,25 @@ func (h *DeviceHandler) Activate(c *gin.Context) {
 		return
 	}
 
-	dev, err := h.svc.GetByID(c.Request.Context(), id)
+	dev, err := h.svc.GetByID(ctx, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
 		return
+	}
+	if h.runtimeSync != nil {
+		if err := h.runtimeSync.UpsertDevice(ctx, dev); err != nil {
+			h.runtimeSync.RemoveDevice(id)
+
+			message := err.Error()
+			if !wasActive {
+				if disableErr := h.svc.Disable(ctx, id); disableErr != nil {
+					message = fmt.Sprintf("%s; 回滾設備狀態失敗: %v", message, disableErr)
+				}
+			}
+
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": message}})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
@@ -164,6 +204,9 @@ func (h *DeviceHandler) Disable(c *gin.Context) {
 	if err := h.svc.Disable(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
 		return
+	}
+	if h.runtimeSync != nil {
+		h.runtimeSync.RemoveDevice(id)
 	}
 
 	dev, err := h.svc.GetByID(c.Request.Context(), id)

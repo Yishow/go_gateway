@@ -136,6 +136,7 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		s.mappingSvc = deps.MappingService
 		s.tagSvc = deps.TagService
 		s.groupSvc = deps.PollingGroupService
+		s.pointSvc.SetPollingGroupSyncer(s.scheduler)
 		return s, nil
 	}
 

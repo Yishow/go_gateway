@@ -10,6 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type stubPollingGroupSyncer struct {
+	groups []*schema.PollingGroup
+}
+
+func (s *stubPollingGroupSyncer) AddPollingGroup(group *schema.PollingGroup) {
+	if group == nil {
+		return
+	}
+	s.groups = append(s.groups, group)
+}
+
 func TestServiceCreateSetsDefaultMode(t *testing.T) {
 	repo := NewMemoryRepository()
 	groupRepo := NewMemoryPollingGroupRepository()
@@ -39,6 +50,48 @@ func TestCreatePollingGroupValidatesInterval(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "輪詢間隔不能小於 100ms")
+}
+
+func TestEnsureDefaultPollingGroupSyncsAutoCreatedGroup(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	syncer := &stubPollingGroupSyncer{}
+	svc.SetPollingGroupSyncer(syncer)
+	ctx := context.Background()
+
+	group, err := svc.EnsureDefaultPollingGroup(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, group)
+	require.Len(t, syncer.groups, 1)
+	assert.Equal(t, group.ID, syncer.groups[0].ID)
+}
+
+func TestEnsureDefaultPollingGroupSyncsReenabledGroup(t *testing.T) {
+	repo := NewMemoryRepository()
+	groupRepo := NewMemoryPollingGroupRepository()
+	svc := NewService(repo, groupRepo)
+	ctx := context.Background()
+
+	group, err := svc.CreatePollingGroup(ctx, CreatePollingGroupRequest{
+		Name:       "legacy",
+		IntervalMs: 1000,
+	})
+	require.NoError(t, err)
+
+	disabled := false
+	_, err = svc.UpdatePollingGroup(ctx, group.ID, UpdatePollingGroupRequest{Enabled: &disabled})
+	require.NoError(t, err)
+
+	syncer := &stubPollingGroupSyncer{}
+	svc.SetPollingGroupSyncer(syncer)
+
+	ensured, err := svc.EnsureDefaultPollingGroup(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, ensured)
+	require.Len(t, syncer.groups, 1)
+	assert.Equal(t, group.ID, syncer.groups[0].ID)
+	assert.True(t, ensured.Enabled)
 }
 
 func TestGetLastValueReturnsRawStringOnInvalidJSON(t *testing.T) {

@@ -196,7 +196,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 	if req.Mode != nil {
 		point.Mode = *req.Mode
 	}
-	if req.PollingGroupID != nil {
+	if req.PollingGroupID != nil || req.ReplacePollingGroup {
 		point.PollingGroupID = req.PollingGroupID
 	}
 	if req.Enabled != nil {
@@ -214,14 +214,15 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 
 // UpdatePointRequest 更新點位請求
 type UpdatePointRequest struct {
-	Name           *string           `json:"name,omitempty"`
-	Description    *string           `json:"description,omitempty"`
-	Address        *string           `json:"address,omitempty"`
-	Function       *string           `json:"function,omitempty"`
-	DataType       *schema.DataType  `json:"data_type,omitempty"`
-	Mode           *schema.PointMode `json:"mode,omitempty"`
-	PollingGroupID *string           `json:"polling_group_id,omitempty"`
-	Enabled        *bool             `json:"enabled,omitempty"`
+	Name                *string           `json:"name,omitempty"`
+	Description         *string           `json:"description,omitempty"`
+	Address             *string           `json:"address,omitempty"`
+	Function            *string           `json:"function,omitempty"`
+	DataType            *schema.DataType  `json:"data_type,omitempty"`
+	Mode                *schema.PointMode `json:"mode,omitempty"`
+	PollingGroupID      *string           `json:"polling_group_id,omitempty"`
+	ReplacePollingGroup bool              `json:"-"`
+	Enabled             *bool             `json:"enabled,omitempty"`
 }
 
 // Delete 刪除點位

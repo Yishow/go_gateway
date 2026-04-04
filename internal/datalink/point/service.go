@@ -74,15 +74,21 @@ type PollingGroupRepository interface {
 	List(ctx context.Context) ([]*schema.PollingGroup, error)
 }
 
+// PollingGroupSyncer lets point service register auto-created groups with a running scheduler.
+type PollingGroupSyncer interface {
+	AddPollingGroup(group *schema.PollingGroup)
+}
+
 // =============================================================================
 // Service 服務層
 // =============================================================================
 
 // Service 點位管理服務
 type Service struct {
-	repo      Repository
-	groupRepo PollingGroupRepository
-	mu        sync.RWMutex
+	repo               Repository
+	groupRepo          PollingGroupRepository
+	pollingGroupSyncer PollingGroupSyncer
+	mu                 sync.RWMutex
 }
 
 // NewService 建立新的點位服務
@@ -91,4 +97,12 @@ func NewService(repo Repository, groupRepo PollingGroupRepository) *Service {
 		repo:      repo,
 		groupRepo: groupRepo,
 	}
+}
+
+// SetPollingGroupSyncer sets the runtime syncer used for auto-created polling groups.
+func (s *Service) SetPollingGroupSyncer(syncer PollingGroupSyncer) {
+	if s == nil {
+		return
+	}
+	s.pollingGroupSyncer = syncer
 }

@@ -3,11 +3,84 @@ package point
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
+
+const (
+	defaultPollingGroupName       = "Auto Polling"
+	defaultPollingGroupDesc       = "系統自動建立的預設輪詢群組"
+	defaultPollingGroupIntervalMs = 1000
+	defaultPollingGroupPriority   = 50
+)
+
+// EnsureDefaultPollingGroup 取得可用的預設輪詢群組。
+//
+// 規則如下：
+// 1. 若已存在啟用中的群組，優先回傳排序後第一個。
+// 2. 若有群組但全部停用，則啟用排序後第一個並回傳。
+// 3. 若完全沒有群組，則建立一個系統預設群組。
+// 4. 若 Service 未注入 groupRepo，回傳 nil 代表目前無法自動指派。
+func (s *Service) EnsureDefaultPollingGroup(ctx context.Context) (*schema.PollingGroup, error) {
+	if s.groupRepo == nil {
+		return nil, nil
+	}
+
+	groups, err := s.groupRepo.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("列出輪詢群組失敗: %w", err)
+	}
+	if len(groups) == 0 {
+		group, err := s.CreatePollingGroup(ctx, CreatePollingGroupRequest{
+			Name:        defaultPollingGroupName,
+			Description: defaultPollingGroupDesc,
+			IntervalMs:  defaultPollingGroupIntervalMs,
+			Priority:    defaultPollingGroupPriority,
+		})
+		if err != nil {
+			return nil, err
+		}
+		s.syncAutoPollingGroup(group)
+		return group, nil
+	}
+
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].Enabled != groups[j].Enabled {
+			return groups[i].Enabled
+		}
+		if groups[i].Priority != groups[j].Priority {
+			return groups[i].Priority < groups[j].Priority
+		}
+		if groups[i].IntervalMs != groups[j].IntervalMs {
+			return groups[i].IntervalMs < groups[j].IntervalMs
+		}
+		return groups[i].ID < groups[j].ID
+	})
+
+	if groups[0].Enabled {
+		return groups[0], nil
+	}
+
+	enabled := true
+	group, err := s.UpdatePollingGroup(ctx, groups[0].ID, UpdatePollingGroupRequest{
+		Enabled: &enabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.syncAutoPollingGroup(group)
+	return group, nil
+}
+
+func (s *Service) syncAutoPollingGroup(group *schema.PollingGroup) {
+	if s == nil || s.pollingGroupSyncer == nil || group == nil || !group.Enabled {
+		return
+	}
+	s.pollingGroupSyncer.AddPollingGroup(group)
+}
 
 // CreatePollingGroup 建立輪詢群組
 func (s *Service) CreatePollingGroup(ctx context.Context, req CreatePollingGroupRequest) (*schema.PollingGroup, error) {
