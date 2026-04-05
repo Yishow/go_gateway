@@ -73,6 +73,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteSourceRuleTargetDatatypeColumns(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteSourceRuleRevisionColumn(db); err != nil {
+			return err
+		}
 
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err
@@ -190,6 +193,30 @@ func ensureSQLitePointsDataFormatColumn(db *sql.DB) error {
 
 	log.Printf("Executing SQLite migration: %s", migrationName)
 	if _, err := db.ExecContext(context.Background(), `ALTER TABLE points ADD COLUMN data_format TEXT`); err != nil {
+		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
+	}
+
+	return nil
+}
+
+func ensureSQLiteSourceRuleRevisionColumn(db *sql.DB) error {
+	const migrationName = "009_source_rule_revision_sqlite.up.sql"
+
+	exists, err := sqliteColumnExists(db, "source_rules", "revision_id")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite column revision_id for migration %s: %w", migrationName, err)
+	}
+	if exists {
+		return nil
+	}
+
+	content, err := migrations.FS.ReadFile(migrationName)
+	if err != nil {
+		return fmt.Errorf("failed to read migration file %s: %w", migrationName, err)
+	}
+
+	log.Printf("Executing SQLite migration: %s", migrationName)
+	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
 	}
 

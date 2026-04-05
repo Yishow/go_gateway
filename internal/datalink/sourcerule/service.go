@@ -128,7 +128,6 @@ func NewService(repo Repository, deviceSvc *device.Service, pointSvc *point.Serv
 		runtimeSync: runtimeSync,
 	}
 }
-
 func (s *Service) SetTagMappingServices(tagSvc *tag.Service, mappingSvc *mapping.Service) {
 	s.tagSvc = tagSvc
 	s.mappingSvc = mappingSvc
@@ -157,7 +156,6 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 	if err != nil {
 		return nil, err
 	}
-
 	now := time.Now()
 	rule := &schema.SourceRule{
 		ID:               id,
@@ -178,11 +176,12 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-
+	if err := assignRuleRevisionID(rule); err != nil {
+		return nil, err
+	}
 	if err := s.repo.Create(ctx, rule); err != nil {
 		return nil, fmt.Errorf("建立來源規則失敗: %w", err)
 	}
-
 	createdPointIDs := make([]string, 0, req.Count)
 	links := make([]*schema.SourceRuleLink, 0, req.Count)
 	createdPoints := make([]*schema.Point, 0, req.Count)
@@ -468,10 +467,12 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 
 	next.UpdatedAt = time.Now()
+	if err := assignRuleRevisionID(&next); err != nil {
+		return nil, err
+	}
 	if err := s.repo.Update(ctx, &next); err != nil {
 		return nil, fmt.Errorf("更新來源規則失敗: %w", err)
 	}
-
 	appliedUpdatePlans := make([]pointUpdatePlan, 0, len(updatePlans))
 	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
 	if err != nil {
@@ -724,13 +725,9 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 	if err != nil {
 		return fmt.Errorf("取得來源規則連結失敗: %w", err)
 	}
-
-	if enabled {
-		if deviceRecord.Status != schema.DeviceStatusActive {
-			return fmt.Errorf("設備尚未通過 probe readiness，不能啟用來源規則")
-		}
+	if enabled && deviceRecord.Status != schema.DeviceStatusActive {
+		return fmt.Errorf("設備尚未通過 probe readiness，不能啟用來源規則")
 	}
-
 	rule.Enabled = enabled
 	rule.UpdatedAt = time.Now()
 	if err := s.repo.Update(ctx, rule); err != nil {

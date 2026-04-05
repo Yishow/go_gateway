@@ -30,6 +30,7 @@ type sourceRuleResponse struct {
 	SkippedAddresses []string `json:"skipped_addresses"`
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
+	RevisionID       string   `json:"revision_id"`
 	// TargetDataType 目標資料型態（可空）
 	TargetDataType *string `json:"target_data_type,omitempty"`
 	// ScaleMultiplier 縮放倍率（可空）
@@ -183,6 +184,7 @@ func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 		SkippedAddresses: skipped,
 		CreatedAt:        rule.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt:        rule.UpdatedAt.Format(time.RFC3339Nano),
+		RevisionID:       rule.RevisionID,
 		TargetDataType:   targetDataType,
 		ScaleMultiplier:  rule.ScaleMultiplier,
 		ScaleOffset:      rule.ScaleOffset,

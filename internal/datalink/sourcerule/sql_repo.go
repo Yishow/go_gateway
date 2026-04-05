@@ -23,9 +23,9 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 		INSERT INTO source_rules (
 			id, device_id, start_address, count, data_type, naming_prefix,
 			enabled, locked, origin, template_name, skipped_addresses,
-			target_data_type, scale_multiplier, scale_offset, data_format,
+			target_data_type, scale_multiplier, scale_offset, data_format, revision_id,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var targetDataType interface{}
@@ -59,6 +59,7 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 		scaleMultiplier,
 		scaleOffset,
 		rule.DataFormat,
+		rule.RevisionID,
 		rule.CreatedAt,
 		rule.UpdatedAt,
 	)
@@ -74,7 +75,7 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		SET start_address = ?, count = ?, data_type = ?, naming_prefix = ?,
 		    enabled = ?, locked = ?, origin = ?, template_name = ?, skipped_addresses = ?,
 		    target_data_type = ?, scale_multiplier = ?, scale_offset = ?, data_format = ?,
-		    updated_at = ?
+		    updated_at = ?, revision_id = ?
 		WHERE id = ?
 	`
 
@@ -108,6 +109,7 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		scaleOffset,
 		rule.DataFormat,
 		rule.UpdatedAt,
+		rule.RevisionID,
 		rule.ID,
 	)
 	if err != nil {
@@ -143,7 +145,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.SourceR
 		SELECT id, device_id, start_address, count, data_type, naming_prefix,
 		       enabled, locked, origin, template_name, skipped_addresses,
 		       target_data_type, scale_multiplier, scale_offset, data_format,
-		       created_at, updated_at
+		       created_at, updated_at, revision_id
 		FROM source_rules WHERE id = ?
 	`, id)
 	return scanRule(row)
@@ -154,7 +156,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		SELECT id, device_id, start_address, count, data_type, naming_prefix,
 		       enabled, locked, origin, template_name, skipped_addresses,
 		       target_data_type, scale_multiplier, scale_offset, data_format,
-		       created_at, updated_at
+		       created_at, updated_at, revision_id
 		FROM source_rules
 		WHERE 1 = 1
 	`
@@ -299,6 +301,7 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 		&dataFormat,
 		&createdAt,
 		&updatedAt,
+		&rule.RevisionID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

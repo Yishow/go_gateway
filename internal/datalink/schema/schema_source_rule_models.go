@@ -17,6 +17,7 @@ type SourceRule struct {
 	SkippedAddresses string    `json:"skipped_addresses,omitempty" db:"skipped_addresses"`
 	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	RevisionID       string    `json:"revision_id" db:"revision_id"`
 	// TargetDataType 目標資料型態（可空）。當與 DataType 不同時，自動建立 cast 步驟。
 	// NULL 表示與 Point 讀取型別相同（即 DataType）。
 	TargetDataType *DataType `json:"target_data_type,omitempty" db:"target_data_type"`
