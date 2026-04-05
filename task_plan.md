@@ -103,3 +103,21 @@
 **備註**：
 - 本輪以 review staged 變更為主，未擴大處理 repo 內既有、與本次 diff 無關的 MQTT 資料模型舊債。
 - Source planner 的 MQTT topic-based 位址支援先回收，避免前端接受 topic 但後端與畫布模型無法正確處理。
+
+---
+
+## 臨時任務：2026-04-06 uncommitted review / bugfix（本輪）
+
+- [x] 重新盤點目前 staged 變更，確認實際範圍為 `point`、`sourcerule` 與 `sourceCanvasModel`
+- [x] 審查並確認一個前端顯示 regression：
+  - `formatSourceValue()` 新增 object/array/JSON 支援後，numeric string 不再套用 `hex` / `binary` / `float` 格式
+- [x] 修正 formatter，讓 `point.last_value` / JSON payload 內的 numeric string 仍遵守數值顯示模式
+- [x] 補上 regression test case（numeric string 與 JSON 內包 numeric string）
+- [x] 執行可在目前環境完成的驗證：
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npx eslint src/pages/datalink/workbench/sourceCanvasModel.ts src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts`
+  - `GOCACHE/TEMP/TMP` 指向 workspace 後執行 `go test ./internal/datalink/point ./internal/datalink/sourcerule`
+- [ ] 建立繁中詳細 commit
+
+**備註**：
+- `vitest` 在目前 sandbox 仍會因 `esbuild` 啟動子行程遭 `spawn EPERM` 阻擋，因此本輪以前端型別檢查、ESLint 與新增 regression test 內容作為最小可驗證證據。

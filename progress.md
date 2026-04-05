@@ -95,3 +95,37 @@ go test ./internal/datalink ./cmd/test_ui
 - task_plan.md
 - findings.md
 - progress.md
+
+#### Session 4: uncommitted review / bugfix（本輪）
+- ? 重新確認目前 staged 變更實際集中於：
+  - `internal/datalink/point/*`
+  - `internal/datalink/sourcerule/*`
+  - `frontend/src/pages/datalink/workbench/sourceCanvasModel.ts`
+- ? 發現並修正前端 formatter regression：
+  - `formatSourceValue()` 對 numeric string 未套用 `hex` / `binary` / `float` 格式
+  - 補強後會先將可解析字串轉成 number，再沿用既有格式化邏輯
+- ? 補上 regression tests：
+  - numeric string 直接輸入
+  - JSON payload 內包 numeric string
+- ? 執行驗證：
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npx eslint src/pages/datalink/workbench/sourceCanvasModel.ts src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts`
+  - `$env:GOCACHE='C:\\AIProject\\go_gateway\\.gocache'; $env:TEMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; $env:TMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; go test ./internal/datalink/point ./internal/datalink/sourcerule`
+
+**驗證結果**：
+```bash
+cd frontend && npx tsc --noEmit
+cd frontend && npx eslint src/pages/datalink/workbench/sourceCanvasModel.ts src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts
+$env:GOCACHE='C:\\AIProject\\go_gateway\\.gocache'; $env:TEMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; $env:TMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; go test ./internal/datalink/point ./internal/datalink/sourcerule
+```
+- 結果：通過
+
+**額外限制**：
+- `cd frontend && npm run test -- src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts` 在目前 sandbox 會因 `esbuild` 啟動子行程失敗而回報 `spawn EPERM`，因此本輪未能取得 Vitest 執行證據。
+
+**修改檔案**：
+- frontend/src/pages/datalink/workbench/sourceCanvasModel.ts
+- frontend/src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts
+- task_plan.md
+- findings.md
+- progress.md

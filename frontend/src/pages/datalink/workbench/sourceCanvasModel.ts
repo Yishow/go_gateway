@@ -328,25 +328,88 @@ function applyRuleLinearDisplayScale(value: unknown, rule: SourceRule | undefine
   return n * scale + offset;
 }
 
+/**
+ * 格式化來源值以供畫布顯示；處理多種後端回傳格式。
+ *
+ * 支援格式：
+ * - number：直接格式化
+ * - boolean：顯示 true/false
+ * - string：嘗試解析 JSON（後端可能傳 `{"value":...,"raw_bytes":...}`）
+ * - array：取第一個元素再格式化（一格一個邏輯值；MC／部分驅動可能回傳單元素或多餘欄位陣列）
+ * - object：嘗試提取 `.value` 或轉成 JSON
+ *
+ * @param value - 來源值（來自 SSE `raw_value` 或 `point.last_value`）
+ * @param format - 數值格式化模式
+ * @returns 格式化後的字串，供格位覆蓋層顯示
+ */
 export function formatSourceValue(value: unknown, format: SourceValueFormat): string {
   if (value === null || value === undefined || value === '') {
     return '—';
   }
 
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return String(value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return 'NaN';
+    }
+    switch (format) {
+      case 'hex':
+        return `0x${Math.trunc(value).toString(16).toUpperCase()}`;
+      case 'binary':
+        return `0b${Math.trunc(value).toString(2)}`;
+      case 'float':
+        return value.toFixed(3).replace(/\.?0+$/, '');
+      case 'decimal':
+        return String(value);
+    }
   }
 
-  switch (format) {
-    case 'hex':
-      return `0x${Math.trunc(value).toString(16).toUpperCase()}`;
-    case 'binary':
-      return `0b${Math.trunc(value).toString(2)}`;
-    case 'float':
-      return value.toFixed(3).replace(/\.?0+$/, '');
-    case 'decimal':
-      return String(value);
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
   }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return '—';
+    }
+    return formatSourceValue(value[0], format);
+  }
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if ('value' in record) {
+      return formatSourceValue(record.value, format);
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return '—';
+    }
+
+    const direct = Number(trimmed);
+    if (Number.isFinite(direct)) {
+      return formatSourceValue(direct, format);
+    }
+
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        return formatSourceValue(parsed, format);
+      } catch {
+        // 無法解析，回傳原始字串
+      }
+    }
+
+    return trimmed;
+  }
+
+  return String(value);
 }
 
 function buildPointOccupancyMap(points: Point[], protocol: ProtocolType) {

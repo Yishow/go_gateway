@@ -4,6 +4,7 @@ import {
   buildAddressCanvasItems,
   buildPlannedPointAddresses,
   countEligibleSpans,
+  formatSourceValue,
 } from '../sourceCanvasModel';
 import type { SourceRule } from '../sourceCanvasModel';
 
@@ -26,6 +27,67 @@ function createPoint(overrides: Partial<Point>): Point {
     ...overrides,
   };
 }
+
+describe('formatSourceValue', () => {
+  it('formats simple numbers in decimal mode', () => {
+    expect(formatSourceValue(42, 'decimal')).toBe('42');
+    expect(formatSourceValue(3.14159, 'float')).toBe('3.142');
+    expect(formatSourceValue(255, 'hex')).toBe('0xFF');
+    expect(formatSourceValue(5, 'binary')).toBe('0b101');
+  });
+
+  it('handles null, undefined, and empty string', () => {
+    expect(formatSourceValue(null, 'decimal')).toBe('—');
+    expect(formatSourceValue(undefined, 'decimal')).toBe('—');
+    expect(formatSourceValue('', 'decimal')).toBe('—');
+  });
+
+  it('formats booleans', () => {
+    expect(formatSourceValue(true, 'decimal')).toBe('true');
+    expect(formatSourceValue(false, 'decimal')).toBe('false');
+  });
+
+  it('formats numeric strings using the selected number mode', () => {
+    expect(formatSourceValue('255', 'hex')).toBe('0xFF');
+    expect(formatSourceValue('5', 'binary')).toBe('0b101');
+    expect(formatSourceValue('3.14159', 'float')).toBe('3.142');
+  });
+
+  it('extracts value from MC protocol JSON payload with raw_bytes', () => {
+    const mcPayload = '{"value":123.45,"raw_bytes":"AEC3D3"}';
+    expect(formatSourceValue(mcPayload, 'decimal')).toBe('123.45');
+  });
+
+  it('formats numeric strings nested inside JSON payloads', () => {
+    const mcPayload = '{"value":"255","raw_bytes":"00FF"}';
+    expect(formatSourceValue(mcPayload, 'hex')).toBe('0xFF');
+  });
+
+  it('handles nested JSON object with value key', () => {
+    const nested = { value: { nested: true }, extra: 'ignored' };
+    expect(formatSourceValue(nested, 'decimal')).toBe('{"nested":true}');
+  });
+
+  it('uses first element when value is an array (one logical value per canvas cell)', () => {
+    expect(formatSourceValue([1, 2, 3], 'decimal')).toBe('1');
+    expect(formatSourceValue([true, false], 'decimal')).toBe('true');
+    expect(formatSourceValue([99.9, 123.12], 'decimal')).toBe('99.9');
+  });
+
+  it('handles JSON string arrays by taking the first element', () => {
+    const arrayJson = '[10, 20, 30]';
+    expect(formatSourceValue(arrayJson, 'decimal')).toBe('10');
+  });
+
+  it('returns raw string when JSON parsing fails', () => {
+    expect(formatSourceValue('not-json', 'decimal')).toBe('not-json');
+  });
+
+  it('formats NaN as string', () => {
+    expect(formatSourceValue(NaN, 'decimal')).toBe('NaN');
+    expect(formatSourceValue(Infinity, 'decimal')).toBe('NaN');
+  });
+});
 
 describe('sourceCanvasModel', () => {
   it('builds logical base addresses for wide data types', () => {

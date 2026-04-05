@@ -54,6 +54,16 @@
   - backend point address validation 仍不接受 MQTT topic（例如 `/`）格式
 - 結論：這不是單點 parser bug，而是 staged 變更提前暴露了尚未真正打通的 MQTT source planner contract；最安全的修補是先回收 topic-based planner support，而不是讓 UI 接受 topic 後在 runtime / point create 才失敗。
 
+## 2026-04-06 uncommitted review 新發現（本輪）
+- `frontend/src/pages/datalink/workbench/sourceCanvasModel.ts` 的 `formatSourceValue()` 雖然新增了 object / array / JSON payload 支援，但 numeric string 走到 `string` 分支時會直接回傳原字串：
+  - `point.last_value` 在前端型別上是 `unknown`，實際上常以字串形式出現
+  - `SourceCanvasSection` 的 value format toolbar 允許 `decimal / hex / binary / float`
+  - 結果是同一筆數值若以字串傳入，切到 `hex` / `binary` / `float` 會失去格式化，形成 UI regression
+- 最小且正確的修補不是回退新 formatter，而是在字串分支先做 `Number(trimmed)` 正規化；這樣：
+  - 純數字字串可延續既有格式模式
+  - JSON 物件內的 `value: "255"` 也能透過遞迴套用相同邏輯
+  - 非數值字串仍保持原樣，不會誤傷一般文字 payload
+
 ## 核心結論
 - 原始需求始終沒有改變：datalink UI 要回到單純主線，而不是讓使用者在 SmartDashboard、Tag、Local Modbus、資料庫之間切頁與切心智模型。
 - 最適合的實作路徑仍是 **混合式過渡**：新 workbench 承接主線，舊頁只做 fallback / compat。

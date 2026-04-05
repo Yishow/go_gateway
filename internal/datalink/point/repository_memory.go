@@ -48,7 +48,7 @@ func (r *MemoryRepository) Update(ctx context.Context, point *schema.Point) erro
 	defer r.mu.Unlock()
 
 	if _, exists := r.points[point.ID]; !exists {
-		return fmt.Errorf("點位不存在: %s", point.ID)
+		return fmt.Errorf("%w: %s", ErrPointNotFound, point.ID)
 	}
 
 	pointCopy := *point
@@ -63,7 +63,7 @@ func (r *MemoryRepository) Delete(ctx context.Context, id string) error {
 	defer r.mu.Unlock()
 
 	if _, exists := r.points[id]; !exists {
-		return fmt.Errorf("點位不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrPointNotFound, id)
 	}
 
 	delete(r.points, id)
@@ -77,7 +77,7 @@ func (r *MemoryRepository) GetByID(ctx context.Context, id string) (*schema.Poin
 
 	point, exists := r.points[id]
 	if !exists {
-		return nil, fmt.Errorf("點位不存在: %s", id)
+		return nil, fmt.Errorf("%w: %s", ErrPointNotFound, id)
 	}
 
 	pointCopy := *point
@@ -165,7 +165,7 @@ func (r *MemoryRepository) UpdateReadResult(ctx context.Context, id string, valu
 
 	point, exists := r.points[id]
 	if !exists {
-		return fmt.Errorf("點位不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrPointNotFound, id)
 	}
 
 	now := time.Now()

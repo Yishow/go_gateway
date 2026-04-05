@@ -37,7 +37,7 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("點位不存在")
+		return nil, fmt.Errorf("%w", ErrPointNotFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("掃描點位失敗: %w", err)

@@ -249,6 +249,51 @@ func TestService_Update_ReconcilesDerivedPoints(t *testing.T) {
 	assert.ElementsMatch(t, []string{"40003", "40005", "40007"}, addresses)
 }
 
+func TestService_Update_RecreatesWhenDerivedPointManuallyDeleted(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-1")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-1",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	links, err := svc.ListLinks(ctx, rule.ID)
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+	deadPointID := links[0].PointID
+
+	require.NoError(t, pointSvc.Delete(ctx, deadPointID))
+
+	namingPrefix := "NEW"
+	updated, err := svc.Update(ctx, rule.ID, UpdateRuleRequest{NamingPrefix: &namingPrefix})
+	require.NoError(t, err)
+	assert.Equal(t, "NEW", updated.NamingPrefix)
+
+	links2, err := svc.ListLinks(ctx, rule.ID)
+	require.NoError(t, err)
+	require.Len(t, links2, 1)
+	assert.NotEqual(t, deadPointID, links2[0].PointID)
+
+	p, err := pointSvc.GetByID(ctx, links2[0].PointID)
+	require.NoError(t, err)
+	assert.Equal(t, "NEW_40001", p.Name)
+}
+
 func TestService_Enable_BlocksWhenDeviceNotActive(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()

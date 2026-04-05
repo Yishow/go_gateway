@@ -386,6 +386,27 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		keepPointIDs[link.PointID] = struct{}{}
 	}
 
+	// 連結仍指向已手動刪除的 point 時，先清關聯並改走下方「新建衍生點」路徑，避免儲存規則時 GetByID 失敗。
+	for _, address := range filteredAddresses {
+		key := normalizeAddressKey(address)
+		existingLink, ok := linkByAddress[key]
+		if !ok {
+			continue
+		}
+		_, getErr := s.pointSvc.GetByID(ctx, existingLink.PointID)
+		if getErr == nil {
+			continue
+		}
+		if !errors.Is(getErr, point.ErrPointNotFound) {
+			return nil, fmt.Errorf("取得衍生點位失敗: %w", getErr)
+		}
+		if err := s.cleanupRuleLinkResources(ctx, rule, existingLink); err != nil {
+			return nil, fmt.Errorf("清理孤立來源規則連結資源失敗: %w", err)
+		}
+		delete(linkByAddress, key)
+		delete(keepPointIDs, existingLink.PointID)
+	}
+
 	addedAddresses := make([]string, 0)
 	for _, address := range filteredAddresses {
 		if _, exists := linkByAddress[normalizeAddressKey(address)]; !exists {

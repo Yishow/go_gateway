@@ -82,7 +82,7 @@ func (r *SQLRepository) Update(ctx context.Context, point *schema.Point) error {
 		return fmt.Errorf("取得更新筆數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("點位不存在: %s", point.ID)
+		return fmt.Errorf("%w: %s", ErrPointNotFound, point.ID)
 	}
 
 	return nil
@@ -102,7 +102,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("取得刪除筆數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("點位不存在: %s", id)
+		return fmt.Errorf("%w: %s", ErrPointNotFound, id)
 	}
 
 	return nil

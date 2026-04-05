@@ -4,6 +4,7 @@ package point
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -191,7 +192,7 @@ func TestSQLRepository_Update_NotFound(t *testing.T) {
 
 	err := repo.Update(ctx, point)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "點位不存在")
+	assert.True(t, errors.Is(err, ErrPointNotFound))
 }
 
 /**
@@ -216,7 +217,7 @@ func TestSQLRepository_Delete(t *testing.T) {
 	// 驗證點位已刪除
 	_, err = repo.GetByID(ctx, point.ID)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "點位不存在")
+	assert.True(t, errors.Is(err, ErrPointNotFound))
 }
 
 /**
@@ -231,7 +232,7 @@ func TestSQLRepository_Delete_NotFound(t *testing.T) {
 
 	err := repo.Delete(ctx, "non-existent-id")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "點位不存在")
+	assert.True(t, errors.Is(err, ErrPointNotFound))
 }
 
 /**
@@ -269,7 +270,7 @@ func TestSQLRepository_GetByID_NotFound(t *testing.T) {
 
 	_, err := repo.GetByID(ctx, "non-existent-id")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "點位不存在")
+	assert.True(t, errors.Is(err, ErrPointNotFound))
 }
 
 /**

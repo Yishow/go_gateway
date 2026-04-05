@@ -2,6 +2,7 @@ package point
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -237,9 +238,12 @@ type UpdatePointRequest struct {
 	Enabled             *bool             `json:"enabled,omitempty"`
 }
 
-// Delete 刪除點位
+// Delete 刪除點位（若 ID 已不存在則視為成功，便於清理孤立關聯）。
 func (s *Service) Delete(ctx context.Context, id string) error {
 	if err := s.repo.Delete(ctx, id); err != nil {
+		if errors.Is(err, ErrPointNotFound) {
+			return nil
+		}
 		return fmt.Errorf("刪除點位失敗: %w", err)
 	}
 	return nil
