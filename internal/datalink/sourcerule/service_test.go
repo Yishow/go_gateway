@@ -320,7 +320,7 @@ func TestService_Enable_BlocksWhenDeviceNotActive(t *testing.T) {
 
 	err = svc.Enable(ctx, rule.ID)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "probe readiness")
+	assert.Contains(t, err.Error(), "activation readiness")
 }
 
 func TestService_Create_AutoCreatesTagAndMappingLinks(t *testing.T) {
@@ -683,7 +683,7 @@ func TestService_Delete_RemovesOrphanedAutoTags(t *testing.T) {
 }
 
 func seedActiveDevice(ctx context.Context, repo *device.MemoryRepository, id string) (*schema.Device, error) {
-	return seedDeviceWithStatus(ctx, repo, id, schema.DeviceStatusActive)
+	return seedActivationReadyDevice(ctx, repo, id)
 }
 
 func seedDeviceWithStatus(ctx context.Context, repo *device.MemoryRepository, id string, status schema.DeviceStatus) (*schema.Device, error) {

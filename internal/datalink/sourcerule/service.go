@@ -130,7 +130,10 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		}
 	}
 
-	enabled := req.Enabled && deviceRecord.Status == schema.DeviceStatusActive
+	enabled, err := s.initialRuleEnabled(ctx, req.Enabled, req.DeviceID)
+	if err != nil {
+		return nil, err
+	}
 	skippedJSON, err := marshalSkippedAddresses(req.SkippedAddresses)
 	if err != nil {
 		return nil, err
@@ -323,8 +326,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		}
 	}
 	if req.Enabled != nil {
-		if *req.Enabled && deviceRecord.Status != schema.DeviceStatusActive {
-			return nil, fmt.Errorf("設備尚未通過 probe readiness，不能啟用來源規則")
+		if err := s.ensureRuleActivationAllowed(ctx, rule.DeviceID, *req.Enabled); err != nil {
+			return nil, err
 		}
 		next.Enabled = *req.Enabled
 	}
@@ -609,11 +612,10 @@ func (s *Service) SyncDerivedPointState(ctx context.Context) error {
 	}
 
 	for _, rule := range rules {
-		deviceRecord, getErr := s.deviceSvc.GetByID(ctx, rule.DeviceID)
-		if getErr != nil {
-			return fmt.Errorf("取得來源規則設備失敗: %w", getErr)
+		enabled, err := s.runtimeRuleEnabled(ctx, rule)
+		if err != nil {
+			return err
 		}
-		enabled := rule.Enabled && deviceRecord.Status == schema.DeviceStatusActive
 		if _, err := s.syncRuleLinksEnabled(ctx, rule.ID, enabled); err != nil {
 			return err
 		}
@@ -707,17 +709,13 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 		return fmt.Errorf("取得來源規則失敗: %w", err)
 	}
 
-	deviceRecord, err := s.deviceSvc.GetByID(ctx, rule.DeviceID)
-	if err != nil {
-		return fmt.Errorf("取得設備失敗: %w", err)
-	}
 	previousRule := *rule
 	previousLinks, err := s.repo.ListLinks(ctx, id)
 	if err != nil {
 		return fmt.Errorf("取得來源規則連結失敗: %w", err)
 	}
-	if enabled && deviceRecord.Status != schema.DeviceStatusActive {
-		return fmt.Errorf("設備尚未通過 probe readiness，不能啟用來源規則")
+	if err := s.ensureRuleActivationAllowed(ctx, rule.DeviceID, enabled); err != nil {
+		return err
 	}
 	rule.Enabled = enabled
 	rule.UpdatedAt = time.Now()
