@@ -1,0 +1,162 @@
+package sourcerule
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"go-gateway/internal/datalink/schema"
+)
+
+const (
+	databaseOutputsDeferredReason    = "database output review flow is deferred until the output phase is configured"
+	localModbusOutputsDeferredReason = "local modbus output review flow is deferred until the output phase is configured"
+)
+
+type candidateSnapshotPayload struct {
+	Candidates any `json:"candidates"`
+}
+
+func (s *Service) ListCandidateSnapshots(ctx context.Context, ruleID string) ([]*schema.SourceRuleCandidateSnapshot, error) {
+	rule, err := s.repo.GetByID(ctx, ruleID)
+	if err != nil {
+		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
+	}
+	return s.ListCandidateSnapshotsByRevision(ctx, rule.ID, rule.RevisionID)
+}
+
+func (s *Service) ListCandidateSnapshotsByRevision(ctx context.Context, ruleID, revisionID string) ([]*schema.SourceRuleCandidateSnapshot, error) {
+	snapshots, err := s.repo.ListCandidateSnapshots(ctx, ruleID, revisionID)
+	if err != nil {
+		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
+	}
+	return snapshots, nil
+}
+
+func (s *Service) persistCandidateSnapshots(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) error {
+	snapshots, err := s.buildCandidateSnapshots(ctx, rule, links)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.ReplaceCandidateSnapshots(ctx, snapshots); err != nil {
+		return fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) ([]*schema.SourceRuleCandidateSnapshot, error) {
+	if rule == nil {
+		return nil, fmt.Errorf("source rule is nil")
+	}
+	if strings.TrimSpace(rule.RevisionID) == "" {
+		return nil, fmt.Errorf("source rule revision id is empty")
+	}
+
+	tagCandidates, err := s.buildTagCandidates(ctx, rule, links)
+	if err != nil {
+		return nil, err
+	}
+	tagPayload, err := marshalCandidateSnapshotPayload(tagCandidates)
+	if err != nil {
+		return nil, err
+	}
+	deferredPayload, err := marshalCandidateSnapshotPayload([]struct{}{})
+	if err != nil {
+		return nil, err
+	}
+
+	generatedAt := time.Now().UTC()
+	return []*schema.SourceRuleCandidateSnapshot{
+		{
+			SourceRuleID:  rule.ID,
+			RevisionID:    rule.RevisionID,
+			CandidateType: schema.SourceRuleCandidateTypeTags,
+			Payload:       tagPayload,
+			Status:        schema.SourceRuleCandidateStatusReady,
+			GeneratedAt:   generatedAt,
+		},
+		{
+			SourceRuleID:  rule.ID,
+			RevisionID:    rule.RevisionID,
+			CandidateType: schema.SourceRuleCandidateTypeDatabaseOutputs,
+			Payload:       deferredPayload,
+			Status:        schema.SourceRuleCandidateStatusDeferred,
+			Reason:        databaseOutputsDeferredReason,
+			GeneratedAt:   generatedAt,
+		},
+		{
+			SourceRuleID:  rule.ID,
+			RevisionID:    rule.RevisionID,
+			CandidateType: schema.SourceRuleCandidateTypeLocalModbusOutputs,
+			Payload:       deferredPayload,
+			Status:        schema.SourceRuleCandidateStatusDeferred,
+			Reason:        localModbusOutputsDeferredReason,
+			GeneratedAt:   generatedAt,
+		},
+	}, nil
+}
+
+func (s *Service) buildTagCandidates(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) ([]schema.SourceRuleTagCandidate, error) {
+	candidates := make([]schema.SourceRuleTagCandidate, 0, len(links))
+	for _, link := range links {
+		if link == nil {
+			continue
+		}
+
+		tagKey := buildPointName(rule.NamingPrefix, link.Address)
+		displayName := tagKey
+		dataType := snapshotCandidateDataType(rule)
+		tagID := cloneOptionalString(link.TagID)
+		mappingID := cloneOptionalString(link.MappingID)
+
+		if s.tagSvc != nil && link.TagID != nil {
+			tagRecord, err := s.tagSvc.GetByID(ctx, *link.TagID)
+			if err != nil {
+				return nil, fmt.Errorf("取得來源規則候選標籤失敗: %w", err)
+			}
+			tagKey = tagRecord.Key
+			displayName = tagRecord.DisplayName
+			dataType = tagRecord.DataType
+		}
+
+		candidates = append(candidates, schema.SourceRuleTagCandidate{
+			Address:     link.Address,
+			PointID:     link.PointID,
+			TagID:       tagID,
+			MappingID:   mappingID,
+			TagKey:      tagKey,
+			DisplayName: displayName,
+			DataType:    dataType,
+		})
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Address < candidates[j].Address
+	})
+	return candidates, nil
+}
+
+func snapshotCandidateDataType(rule *schema.SourceRule) schema.DataType {
+	if rule.TargetDataType != nil {
+		return *rule.TargetDataType
+	}
+	return rule.DataType
+}
+
+func marshalCandidateSnapshotPayload(candidates any) (string, error) {
+	payload, err := json.Marshal(candidateSnapshotPayload{Candidates: candidates})
+	if err != nil {
+		return "", fmt.Errorf("序列化來源規則候選快照失敗: %w", err)
+	}
+	return string(payload), nil
+}
+
+func cloneOptionalString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	return stringPtr(*value)
+}

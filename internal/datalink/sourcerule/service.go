@@ -17,27 +17,6 @@ import (
 	"go-gateway/internal/datalink/tag"
 )
 
-type Repository interface {
-	Create(ctx context.Context, rule *schema.SourceRule) error
-	Update(ctx context.Context, rule *schema.SourceRule) error
-	Delete(ctx context.Context, id string) error
-	GetByID(ctx context.Context, id string) (*schema.SourceRule, error)
-	List(ctx context.Context, filter ListFilter) ([]*schema.SourceRule, error)
-	CreateLinks(ctx context.Context, links []*schema.SourceRuleLink) error
-	ListLinks(ctx context.Context, ruleID string) ([]*schema.SourceRuleLink, error)
-	DeleteLinks(ctx context.Context, ruleID string) error
-}
-
-type RuntimeSyncer interface {
-	UpsertPoint(point *schema.Point)
-	RemovePoint(pointID string)
-}
-
-type ListFilter struct {
-	DeviceID *string
-	Enabled  *bool
-}
-
 type pointUpdatePlan struct {
 	name  string
 	point *schema.Point
@@ -240,7 +219,6 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 			UpdatedAt: now,
 		})
 	}
-
 	syncResult, err := s.syncRuleTagMappings(ctx, nil, rule, links, rule.Enabled)
 	if err != nil {
 		s.rollbackTagMappingSync(ctx, syncResult)
@@ -257,8 +235,13 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 			return nil, fmt.Errorf("建立來源規則連結失敗: %w", err)
 		}
 	}
-
 	s.syncPoints(createdPoints)
+	if err := s.persistCandidateSnapshots(ctx, rule, links); err != nil {
+		s.rollbackTagMappingSync(ctx, syncResult)
+		s.rollbackCreatedPoints(ctx, createdPointIDs)
+		_ = s.repo.Delete(ctx, rule.ID)
+		return nil, fmt.Errorf("持久化來源規則候選快照失敗: %w", err)
+	}
 	return rule, nil
 }
 
@@ -570,9 +553,17 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 			return nil, fmt.Errorf("重建來源規則連結失敗: %w", err)
 		}
 	}
+	if err := s.persistCandidateSnapshots(ctx, &next, newLinks); err != nil {
+		s.rollbackTagMappingSync(ctx, syncResult)
+		s.rollbackUpdatedPoints(ctx, appliedUpdatePlans)
+		s.rollbackRuleState(ctx, rule, links)
+		s.rollbackCreatedPoints(ctx, createdPointIDs)
+		return nil, fmt.Errorf("持久化來源規則候選快照失敗: %w", err)
+	}
 
 	for _, link := range removedLinks {
 		if err := s.cleanupRuleLinkResources(ctx, &next, link); err != nil {
+			_ = s.repo.DeleteCandidateSnapshots(ctx, next.ID, next.RevisionID)
 			return nil, fmt.Errorf("刪除已移除衍生點位失敗: %w", err)
 		}
 	}

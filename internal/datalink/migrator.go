@@ -76,6 +76,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteSourceRuleRevisionColumn(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteSourceRuleCandidateSnapshotsTable(db); err != nil {
+			return err
+		}
 
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err
@@ -223,6 +226,30 @@ func ensureSQLiteSourceRuleRevisionColumn(db *sql.DB) error {
 	return nil
 }
 
+func ensureSQLiteSourceRuleCandidateSnapshotsTable(db *sql.DB) error {
+	const migrationName = "010_source_rule_candidate_snapshot_sqlite.up.sql"
+
+	exists, err := sqliteTableExists(db, "source_rule_candidate_snapshots")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite table source_rule_candidate_snapshots for migration %s: %w", migrationName, err)
+	}
+	if exists {
+		return nil
+	}
+
+	content, err := migrations.FS.ReadFile(migrationName)
+	if err != nil {
+		return fmt.Errorf("failed to read migration file %s: %w", migrationName, err)
+	}
+
+	log.Printf("Executing SQLite migration: %s", migrationName)
+	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
+		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
+	}
+
+	return nil
+}
+
 func sqliteColumnExists(db *sql.DB, tableName, columnName string) (bool, error) {
 	rows, err := db.QueryContext(context.Background(), fmt.Sprintf("PRAGMA table_info(%s)", tableName))
 	if err != nil {
@@ -251,4 +278,20 @@ func sqliteColumnExists(db *sql.DB, tableName, columnName string) (bool, error) 
 		return false, err
 	}
 	return false, nil
+}
+
+func sqliteTableExists(db *sql.DB, tableName string) (bool, error) {
+	var name sql.NullString
+	err := db.QueryRowContext(context.Background(), `
+		SELECT name
+		FROM sqlite_master
+		WHERE type = 'table' AND name = ?
+	`, tableName).Scan(&name)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return name.Valid, nil
 }

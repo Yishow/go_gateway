@@ -4,21 +4,24 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"go-gateway/internal/datalink/schema"
 )
 
 type MemoryRepository struct {
-	mu    sync.RWMutex
-	rules map[string]*schema.SourceRule
-	links map[string][]*schema.SourceRuleLink
+	mu        sync.RWMutex
+	rules     map[string]*schema.SourceRule
+	links     map[string][]*schema.SourceRuleLink
+	snapshots map[string][]*schema.SourceRuleCandidateSnapshot
 }
 
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		rules: make(map[string]*schema.SourceRule),
-		links: make(map[string][]*schema.SourceRuleLink),
+		rules:     make(map[string]*schema.SourceRule),
+		links:     make(map[string][]*schema.SourceRuleLink),
+		snapshots: make(map[string][]*schema.SourceRuleCandidateSnapshot),
 	}
 }
 
@@ -50,6 +53,12 @@ func (r *MemoryRepository) Delete(_ context.Context, id string) error {
 
 	delete(r.rules, id)
 	delete(r.links, id)
+	delete(r.snapshots, id)
+	for key := range r.snapshots {
+		if strings.HasPrefix(key, id+":") {
+			delete(r.snapshots, key)
+		}
+	}
 	return nil
 }
 
@@ -127,6 +136,54 @@ func (r *MemoryRepository) DeleteLinks(_ context.Context, ruleID string) error {
 	return nil
 }
 
+func (r *MemoryRepository) ReplaceCandidateSnapshots(_ context.Context, snapshots []*schema.SourceRuleCandidateSnapshot) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if len(snapshots) == 0 {
+		return nil
+	}
+
+	key := candidateSnapshotKey(snapshots[0].SourceRuleID, snapshots[0].RevisionID)
+	cloned := make([]*schema.SourceRuleCandidateSnapshot, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		if snapshot == nil {
+			continue
+		}
+		if candidateSnapshotKey(snapshot.SourceRuleID, snapshot.RevisionID) != key {
+			return fmt.Errorf("candidate snapshots must share the same source rule revision")
+		}
+		cloned = append(cloned, cloneCandidateSnapshot(snapshot))
+	}
+
+	sort.Slice(cloned, func(i, j int) bool {
+		return cloned[i].CandidateType < cloned[j].CandidateType
+	})
+	r.snapshots[key] = cloned
+	return nil
+}
+
+func (r *MemoryRepository) ListCandidateSnapshots(_ context.Context, ruleID, revisionID string) ([]*schema.SourceRuleCandidateSnapshot, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	key := candidateSnapshotKey(ruleID, revisionID)
+	items := r.snapshots[key]
+	result := make([]*schema.SourceRuleCandidateSnapshot, 0, len(items))
+	for _, snapshot := range items {
+		result = append(result, cloneCandidateSnapshot(snapshot))
+	}
+	return result, nil
+}
+
+func (r *MemoryRepository) DeleteCandidateSnapshots(_ context.Context, ruleID, revisionID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.snapshots, candidateSnapshotKey(ruleID, revisionID))
+	return nil
+}
+
 func cloneRule(rule *schema.SourceRule) *schema.SourceRule {
 	if rule == nil {
 		return nil
@@ -162,4 +219,16 @@ func cloneLink(link *schema.SourceRuleLink) *schema.SourceRuleLink {
 		copy.MappingID = &value
 	}
 	return &copy
+}
+
+func cloneCandidateSnapshot(snapshot *schema.SourceRuleCandidateSnapshot) *schema.SourceRuleCandidateSnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	copy := *snapshot
+	return &copy
+}
+
+func candidateSnapshotKey(ruleID, revisionID string) string {
+	return ruleID + ":" + revisionID
 }

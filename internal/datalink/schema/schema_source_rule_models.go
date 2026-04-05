@@ -42,3 +42,41 @@ type SourceRuleLink struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
+
+type SourceRuleCandidateType string
+
+const (
+	SourceRuleCandidateTypeTags               SourceRuleCandidateType = "tags"
+	SourceRuleCandidateTypeDatabaseOutputs    SourceRuleCandidateType = "database_outputs"
+	SourceRuleCandidateTypeLocalModbusOutputs SourceRuleCandidateType = "local_modbus_outputs"
+)
+
+type SourceRuleCandidateStatus string
+
+const (
+	SourceRuleCandidateStatusReady    SourceRuleCandidateStatus = "ready"
+	SourceRuleCandidateStatusBlocked  SourceRuleCandidateStatus = "blocked"
+	SourceRuleCandidateStatusDeferred SourceRuleCandidateStatus = "deferred"
+)
+
+// SourceRuleCandidateSnapshot persists one candidate set for a rule revision.
+type SourceRuleCandidateSnapshot struct {
+	SourceRuleID  string                    `json:"source_rule_id" db:"source_rule_id"`
+	RevisionID    string                    `json:"revision_id" db:"revision_id"`
+	CandidateType SourceRuleCandidateType   `json:"candidate_type" db:"candidate_type"`
+	Payload       string                    `json:"payload" db:"payload"`
+	Status        SourceRuleCandidateStatus `json:"status" db:"status"`
+	Reason        string                    `json:"reason,omitempty" db:"reason"`
+	GeneratedAt   time.Time                 `json:"generated_at" db:"generated_at"`
+}
+
+// SourceRuleTagCandidate describes one rule-derived tag candidate snapshot entry.
+type SourceRuleTagCandidate struct {
+	Address     string   `json:"address"`
+	PointID     string   `json:"point_id"`
+	TagID       *string  `json:"tag_id,omitempty"`
+	MappingID   *string  `json:"mapping_id,omitempty"`
+	TagKey      string   `json:"tag_key,omitempty"`
+	DisplayName string   `json:"display_name,omitempty"`
+	DataType    DataType `json:"data_type"`
+}

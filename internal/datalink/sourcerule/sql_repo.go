@@ -269,6 +269,100 @@ func (r *SQLRepository) DeleteLinks(ctx context.Context, ruleID string) error {
 	return nil
 }
 
+func (r *SQLRepository) ReplaceCandidateSnapshots(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot) error {
+	if len(snapshots) == 0 {
+		return nil
+	}
+
+	ruleID := snapshots[0].SourceRuleID
+	revisionID := snapshots[0].RevisionID
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("開啟候選快照交易失敗: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM source_rule_candidate_snapshots
+		WHERE source_rule_id = ? AND revision_id = ?
+	`, ruleID, revisionID); err != nil {
+		return fmt.Errorf("清除既有候選快照失敗: %w", err)
+	}
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO source_rule_candidate_snapshots (
+			source_rule_id, revision_id, candidate_type, payload, status, reason, generated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		return fmt.Errorf("準備候選快照語句失敗: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, snapshot := range snapshots {
+		if snapshot == nil {
+			continue
+		}
+		if snapshot.SourceRuleID != ruleID || snapshot.RevisionID != revisionID {
+			return fmt.Errorf("candidate snapshots must share the same source rule revision")
+		}
+		if _, err := stmt.ExecContext(
+			ctx,
+			snapshot.SourceRuleID,
+			snapshot.RevisionID,
+			snapshot.CandidateType,
+			snapshot.Payload,
+			snapshot.Status,
+			snapshot.Reason,
+			snapshot.GeneratedAt,
+		); err != nil {
+			return fmt.Errorf("建立候選快照失敗: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("提交候選快照交易失敗: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) ListCandidateSnapshots(ctx context.Context, ruleID, revisionID string) ([]*schema.SourceRuleCandidateSnapshot, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT source_rule_id, revision_id, candidate_type, payload, status, reason, generated_at
+		FROM source_rule_candidate_snapshots
+		WHERE source_rule_id = ? AND revision_id = ?
+		ORDER BY candidate_type ASC
+	`, ruleID, revisionID)
+	if err != nil {
+		return nil, fmt.Errorf("查詢候選快照失敗: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]*schema.SourceRuleCandidateSnapshot, 0)
+	for rows.Next() {
+		snapshot, scanErr := scanCandidateSnapshot(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, snapshot)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("讀取候選快照結果失敗: %w", err)
+	}
+	return items, nil
+}
+
+func (r *SQLRepository) DeleteCandidateSnapshots(ctx context.Context, ruleID, revisionID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM source_rule_candidate_snapshots
+		WHERE source_rule_id = ? AND revision_id = ?
+	`, ruleID, revisionID)
+	if err != nil {
+		return fmt.Errorf("刪除候選快照失敗: %w", err)
+	}
+	return nil
+}
+
 type rowScanner interface {
 	Scan(dest ...interface{}) error
 }
@@ -378,4 +472,27 @@ func scanLinkRows(rows *sql.Rows) (*schema.SourceRuleLink, error) {
 		return nil, fmt.Errorf("解析來源規則連結更新時間失敗: %w", err)
 	}
 	return &link, nil
+}
+
+func scanCandidateSnapshot(rows *sql.Rows) (*schema.SourceRuleCandidateSnapshot, error) {
+	var snapshot schema.SourceRuleCandidateSnapshot
+	var generatedAt string
+	if err := rows.Scan(
+		&snapshot.SourceRuleID,
+		&snapshot.RevisionID,
+		&snapshot.CandidateType,
+		&snapshot.Payload,
+		&snapshot.Status,
+		&snapshot.Reason,
+		&generatedAt,
+	); err != nil {
+		return nil, fmt.Errorf("掃描候選快照失敗: %w", err)
+	}
+
+	parsedTime, err := common.ParseTimeString(generatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("解析候選快照建立時間失敗: %w", err)
+	}
+	snapshot.GeneratedAt = parsedTime
+	return &snapshot, nil
 }
