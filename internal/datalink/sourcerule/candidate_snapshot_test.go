@@ -30,7 +30,7 @@ func TestService_SQLCandidateSnapshotsPersistAndRestoreAfterRestart(t *testing.T
 	groupRepo := pollinggroup.NewSQLRepository(db)
 	tagRepo := tag.NewSQLRepository(db)
 	mappingRepo := mapping.NewSQLRepository(db)
-	require.NoError(t, seedSQLSourceRuleDevice(ctx, deviceRepo, "device-1"))
+	require.NoError(t, seedSQLSourceRuleDevice(ctx, deviceRepo, "device-snapshot"))
 
 	deviceSvc := device.NewService(deviceRepo, nil)
 	pointSvc := point.NewService(pointRepo, groupRepo)
@@ -41,7 +41,7 @@ func TestService_SQLCandidateSnapshotsPersistAndRestoreAfterRestart(t *testing.T
 
 	created, err := svc.Create(ctx, CreateRuleRequest{
 		ID:           "rule-snapshot",
-		DeviceID:     "device-1",
+		DeviceID:     "device-snapshot",
 		StartAddress: "40001",
 		Count:        2,
 		DataType:     schema.DataTypeInt16,
@@ -71,7 +71,7 @@ func TestService_SQLCandidateSnapshotsPersistPerRevision(t *testing.T) {
 	groupRepo := pollinggroup.NewSQLRepository(db)
 	tagRepo := tag.NewSQLRepository(db)
 	mappingRepo := mapping.NewSQLRepository(db)
-	require.NoError(t, seedSQLSourceRuleDevice(ctx, deviceRepo, "device-1"))
+	require.NoError(t, seedSQLSourceRuleDevice(ctx, deviceRepo, "device-history"))
 
 	repo := NewSQLRepository(db)
 	tagSvc := tag.NewService(tagRepo)
@@ -81,7 +81,7 @@ func TestService_SQLCandidateSnapshotsPersistPerRevision(t *testing.T) {
 
 	created, err := svc.Create(ctx, CreateRuleRequest{
 		ID:           "rule-history",
-		DeviceID:     "device-1",
+		DeviceID:     "device-history",
 		StartAddress: "40001",
 		Count:        1,
 		DataType:     schema.DataTypeInt16,
@@ -105,6 +105,95 @@ func TestService_SQLCandidateSnapshotsPersistPerRevision(t *testing.T) {
 	assertSnapshotSet(t, updatedSnapshots, updated.RevisionID, 2)
 }
 
+func TestService_SQLCandidateSnapshotsKeepIdentityWhenPayloadChanges(t *testing.T) {
+	ctx := context.Background()
+	db := setupSQLRepoDB(t)
+	defer db.Close()
+
+	deviceRepo := device.NewSQLRepository(db)
+	pointRepo := point.NewSQLRepository(db)
+	groupRepo := pollinggroup.NewSQLRepository(db)
+	tagRepo := tag.NewSQLRepository(db)
+	mappingRepo := mapping.NewSQLRepository(db)
+	require.NoError(t, seedSQLSourceRuleDevice(ctx, deviceRepo, "device-signature"))
+
+	repo := NewSQLRepository(db)
+	tagSvc := tag.NewService(tagRepo)
+	mappingSvc := mapping.NewServiceWithTagResolver(mappingRepo, tagSvc.GetByID)
+	svc := NewService(repo, device.NewService(deviceRepo, nil), point.NewService(pointRepo, groupRepo), nil)
+	svc.SetTagMappingServices(tagSvc, mappingSvc)
+
+	created, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-signature",
+		DeviceID:     "device-signature",
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	initialTag := firstTagCandidate(t, repo, created.ID, created.RevisionID)
+
+	multiplier := 2.5
+	updated, err := svc.Update(ctx, created.ID, UpdateRuleRequest{ScaleMultiplier: &multiplier})
+	require.NoError(t, err)
+
+	updatedTag := firstTagCandidate(t, repo, created.ID, updated.RevisionID)
+	assert.Equal(t, initialTag.ID, updatedTag.ID)
+	assert.Equal(t, initialTag.Identity, updatedTag.Identity)
+	assert.NotEqual(t, initialTag.ProposedSignature, updatedTag.ProposedSignature)
+	assert.Empty(t, initialTag.TransformPipeline)
+	require.Len(t, updatedTag.TransformPipeline, 1)
+	assert.Equal(t, schema.TransformScale, updatedTag.TransformPipeline[0].Type)
+}
+
+func TestService_SQLCandidateSnapshotsChangeIdentityWhenDerivedTargetDataTypeChanges(t *testing.T) {
+	ctx := context.Background()
+	db := setupSQLRepoDB(t)
+	defer db.Close()
+
+	deviceRepo := device.NewSQLRepository(db)
+	pointRepo := point.NewSQLRepository(db)
+	groupRepo := pollinggroup.NewSQLRepository(db)
+	tagRepo := tag.NewSQLRepository(db)
+	mappingRepo := mapping.NewSQLRepository(db)
+	require.NoError(t, seedSQLSourceRuleDevice(ctx, deviceRepo, "device-identity"))
+
+	repo := NewSQLRepository(db)
+	tagSvc := tag.NewService(tagRepo)
+	mappingSvc := mapping.NewServiceWithTagResolver(mappingRepo, tagSvc.GetByID)
+	svc := NewService(repo, device.NewService(deviceRepo, nil), point.NewService(pointRepo, groupRepo), nil)
+	svc.SetTagMappingServices(tagSvc, mappingSvc)
+
+	created, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-identity",
+		DeviceID:     "device-identity",
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	initialTag := firstTagCandidate(t, repo, created.ID, created.RevisionID)
+	require.Len(t, initialTag.Identity.TargetBindingScope, 1)
+	assert.Equal(t, "int16", initialTag.Identity.TargetBindingScope[0].Value)
+
+	targetType := schema.DataTypeFloat64
+	updated, err := svc.Update(ctx, created.ID, UpdateRuleRequest{TargetDataType: &targetType})
+	require.NoError(t, err)
+
+	updatedTag := firstTagCandidate(t, repo, created.ID, updated.RevisionID)
+	require.Len(t, updatedTag.Identity.TargetBindingScope, 1)
+	assert.Equal(t, "float64", updatedTag.Identity.TargetBindingScope[0].Value)
+	assert.NotEqual(t, initialTag.ID, updatedTag.ID)
+	assert.NotEqual(t, initialTag.Identity, updatedTag.Identity)
+	assert.NotEqual(t, initialTag.ProposedSignature, updatedTag.ProposedSignature)
+}
+
 func assertSnapshotSet(t *testing.T, snapshots []*schema.SourceRuleCandidateSnapshot, revisionID string, expectedTagCount int) {
 	t.Helper()
 
@@ -124,6 +213,9 @@ func assertSnapshotSet(t *testing.T, snapshots []*schema.SourceRuleCandidateSnap
 	require.NoError(t, json.Unmarshal([]byte(tagSnapshot.Payload), &tags))
 	require.Len(t, tags.Candidates, expectedTagCount)
 	if expectedTagCount > 0 {
+		assert.NotEmpty(t, tags.Candidates[0].ID)
+		assert.Equal(t, schema.SourceRuleCandidateKindTag, tags.Candidates[0].Identity.CandidateKind)
+		assert.NotEmpty(t, tags.Candidates[0].ProposedSignature)
 		assert.NotNil(t, tags.Candidates[0].TagID)
 		assert.NotNil(t, tags.Candidates[0].MappingID)
 	}
@@ -137,4 +229,24 @@ func assertSnapshotSet(t *testing.T, snapshots []*schema.SourceRuleCandidateSnap
 	require.NotNil(t, localModbusSnapshot)
 	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, localModbusSnapshot.Status)
 	assert.NotEmpty(t, localModbusSnapshot.Reason)
+}
+
+func firstTagCandidate(t *testing.T, repo *SQLRepository, ruleID, revisionID string) schema.SourceRuleTagCandidate {
+	t.Helper()
+
+	snapshots, err := repo.ListCandidateSnapshots(context.Background(), ruleID, revisionID)
+	require.NoError(t, err)
+
+	byType := make(map[schema.SourceRuleCandidateType]*schema.SourceRuleCandidateSnapshot, len(snapshots))
+	for _, snapshot := range snapshots {
+		byType[snapshot.CandidateType] = snapshot
+	}
+
+	tagSnapshot := byType[schema.SourceRuleCandidateTypeTags]
+	require.NotNil(t, tagSnapshot)
+
+	var payload tagSnapshotPayload
+	require.NoError(t, json.Unmarshal([]byte(tagSnapshot.Payload), &payload))
+	require.NotEmpty(t, payload.Candidates)
+	return payload.Candidates[0]
 }

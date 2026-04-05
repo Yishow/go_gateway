@@ -106,44 +106,44 @@ func (s *Service) buildTagCandidates(ctx context.Context, rule *schema.SourceRul
 			continue
 		}
 
-		tagKey := buildPointName(rule.NamingPrefix, link.Address)
-		displayName := tagKey
-		dataType := snapshotCandidateDataType(rule)
-		tagID := cloneOptionalString(link.TagID)
-		mappingID := cloneOptionalString(link.MappingID)
-
-		if s.tagSvc != nil && link.TagID != nil {
-			tagRecord, err := s.tagSvc.GetByID(ctx, *link.TagID)
-			if err != nil {
-				return nil, fmt.Errorf("取得來源規則候選標籤失敗: %w", err)
-			}
-			tagKey = tagRecord.Key
-			displayName = tagRecord.DisplayName
-			dataType = tagRecord.DataType
+		pointRecord, err := s.pointSvc.GetByID(ctx, link.PointID)
+		if err != nil {
+			return nil, fmt.Errorf("取得來源規則候選點位失敗: %w", err)
 		}
 
-		candidates = append(candidates, schema.SourceRuleTagCandidate{
-			Address:     link.Address,
-			PointID:     link.PointID,
-			TagID:       tagID,
-			MappingID:   mappingID,
-			TagKey:      tagKey,
-			DisplayName: displayName,
-			DataType:    dataType,
-		})
+		tagKey := buildPointName(rule.NamingPrefix, link.Address)
+		displayName := pointRecord.Name
+		dataType := desiredRuleTargetDataType(rule, pointRecord)
+		transformPipeline := s.buildRuleTransformPipeline(rule, pointRecord)
+		tagID := cloneOptionalString(link.TagID)
+		mappingID := cloneOptionalString(link.MappingID)
+		candidate := schema.SourceRuleTagCandidate{
+			Identity:          buildTagCandidateIdentity(rule.ID, link.Address, dataType),
+			Address:           link.Address,
+			PointID:           link.PointID,
+			TagID:             tagID,
+			MappingID:         mappingID,
+			TagKey:            tagKey,
+			DisplayName:       displayName,
+			DataType:          dataType,
+			TransformPipeline: transformPipeline,
+		}
+		candidate.ID, err = candidateID(candidate.Identity)
+		if err != nil {
+			return nil, err
+		}
+		candidate.ProposedSignature, err = tagCandidateSignature(candidate)
+		if err != nil {
+			return nil, err
+		}
+
+		candidates = append(candidates, candidate)
 	}
 
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].Address < candidates[j].Address
 	})
 	return candidates, nil
-}
-
-func snapshotCandidateDataType(rule *schema.SourceRule) schema.DataType {
-	if rule.TargetDataType != nil {
-		return *rule.TargetDataType
-	}
-	return rule.DataType
 }
 
 func marshalCandidateSnapshotPayload(candidates any) (string, error) {

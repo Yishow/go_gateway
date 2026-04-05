@@ -59,6 +59,29 @@ const (
 	SourceRuleCandidateStatusDeferred SourceRuleCandidateStatus = "deferred"
 )
 
+// SourceRuleCandidateKind identifies one downstream object kind within a candidate type.
+type SourceRuleCandidateKind string
+
+const (
+	// SourceRuleCandidateKindTag identifies a rule-derived tag candidate and its pending mapping intent.
+	SourceRuleCandidateKindTag SourceRuleCandidateKind = "tag"
+)
+
+// SourceRuleCandidateScopeField records one canonical binding-scope discriminator.
+type SourceRuleCandidateScopeField struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// SourceRuleCandidateIdentity is the canonical identity contract for one rule-derived candidate.
+type SourceRuleCandidateIdentity struct {
+	SourceRuleID           string                          `json:"source_rule_id"`
+	CandidateType          SourceRuleCandidateType         `json:"candidate_type"`
+	CandidateKind          SourceRuleCandidateKind         `json:"candidate_kind"`
+	DerivedFromRuleAddress string                          `json:"derived_from_rule_address"`
+	TargetBindingScope     []SourceRuleCandidateScopeField `json:"target_binding_scope,omitempty"`
+}
+
 // SourceRuleCandidateSnapshot persists one candidate set for a rule revision.
 type SourceRuleCandidateSnapshot struct {
 	SourceRuleID  string                    `json:"source_rule_id" db:"source_rule_id"`
@@ -72,11 +95,15 @@ type SourceRuleCandidateSnapshot struct {
 
 // SourceRuleTagCandidate describes one rule-derived tag candidate snapshot entry.
 type SourceRuleTagCandidate struct {
-	Address     string   `json:"address"`
-	PointID     string   `json:"point_id"`
-	TagID       *string  `json:"tag_id,omitempty"`
-	MappingID   *string  `json:"mapping_id,omitempty"`
-	TagKey      string   `json:"tag_key,omitempty"`
-	DisplayName string   `json:"display_name,omitempty"`
-	DataType    DataType `json:"data_type"`
+	ID                string                      `json:"id"`
+	Identity          SourceRuleCandidateIdentity `json:"identity"`
+	ProposedSignature string                      `json:"proposed_signature"`
+	Address           string                      `json:"address"`
+	PointID           string                      `json:"point_id"`
+	TagID             *string                     `json:"tag_id,omitempty"`
+	MappingID         *string                     `json:"mapping_id,omitempty"`
+	TagKey            string                      `json:"tag_key,omitempty"`
+	DisplayName       string                      `json:"display_name,omitempty"`
+	DataType          DataType                    `json:"data_type"`
+	TransformPipeline []TransformStep             `json:"transform_pipeline,omitempty"`
 }

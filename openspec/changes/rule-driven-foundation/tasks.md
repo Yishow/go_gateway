@@ -2,7 +2,7 @@
 
 - [x] 1.1 Add source-rule revision persistence and ensure each saved rule writes a new revision id
 - [x] 1.2 Persist candidate snapshots with explicit target states and restore them after restart
-- [ ] 1.3 Implement canonical rule-owned identity and proposed-signature generation for rule-derived candidates
+- [x] 1.3 Implement canonical rule-owned identity and proposed-signature generation for rule-derived candidates
 
 ## 2. Shared readiness and diagnostics contracts
 
