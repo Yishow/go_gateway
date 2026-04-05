@@ -129,6 +129,8 @@ else
     rm -f "$tmp_paths"
     if [[ ${#changed_files[@]} -eq 0 ]] && git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
       mapfile -t changed_files < <(git diff --name-only --diff-filter=ACMR HEAD~1...HEAD)
+      # CI fallback: when comparing the latest commit, use HEAD~1 as legacy baseline.
+      comparison_base="HEAD~1"
     fi
   fi
 fi
