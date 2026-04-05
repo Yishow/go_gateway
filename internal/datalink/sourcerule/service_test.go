@@ -883,7 +883,6 @@ func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
 	dev, err := seedActiveDevice(ctx, deviceRepo, "device-update-target")
 	require.NoError(t, err)
 
-	// 先建立無 target_data_type 的規則
 	rule, err := svc.Create(ctx, CreateRuleRequest{
 		ID:           "rule-update-target",
 		DeviceID:     dev.ID,
@@ -894,18 +893,14 @@ func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
 		Enabled:      true,
 	})
 	require.NoError(t, err)
-
-	// 驗證初始 Tag 型別為 uint16
 	links, err := svc.ListLinks(ctx, rule.ID)
 	require.NoError(t, err)
 	tagRecord, err := tagSvc.GetByID(ctx, *links[0].TagID)
 	require.NoError(t, err)
 	assert.Equal(t, schema.DataTypeUint16, tagRecord.DataType)
-
-	// 更新規則，新增 target_data_type
-	// 注意：目前 Update 不會自動更新既有 Tag 的型別
-	// 這是為了避免破壞手動建立的 Tag
-	// 未來可考慮在 Update 中加入 force/sync 選項
+	initialMapping, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
+	require.NoError(t, err)
+	initialSignature := initialMapping.ProposedSignature
 	targetType := schema.DataTypeFloat64
 	updatedRule, err := svc.Update(ctx, rule.ID, UpdateRuleRequest{
 		TargetDataType: &targetType,
@@ -913,26 +908,22 @@ func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updatedRule.TargetDataType)
 	assert.Equal(t, schema.DataTypeFloat64, *updatedRule.TargetDataType)
-
-	// 驗證規則本身已更新
 	savedRule, err := svc.GetByID(ctx, rule.ID)
 	require.NoError(t, err)
 	require.NotNil(t, savedRule.TargetDataType)
 	assert.Equal(t, schema.DataTypeFloat64, *savedRule.TargetDataType)
-
-	// 驗證既有 Tag 型別與 Mapping pipeline 也同步更新
 	tagRecord, err = tagSvc.GetByID(ctx, *links[0].TagID)
 	require.NoError(t, err)
 	assert.Equal(t, schema.DataTypeFloat64, tagRecord.DataType)
-
 	mappingRecord, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
 	require.NoError(t, err)
-
 	var steps []schema.TransformStep
 	require.NoError(t, json.Unmarshal([]byte(mappingRecord.TransformPipeline), &steps))
-	require.Len(t, steps, 1)
-	assert.Equal(t, schema.TransformCast, steps[0].Type)
-	assert.Equal(t, "float64", steps[0].Params["target_type"])
+	assert.Empty(t, steps)
+	assert.Equal(t, schema.MappingStatusOutOfSync, mappingRecord.Status)
+	assert.Equal(t, initialSignature, mappingRecord.LastAppliedSignature)
+	assert.NotEqual(t, initialSignature, mappingRecord.ProposedSignature)
+	assert.NotEmpty(t, mappingRecord.BlockingReason)
 }
 
 func TestService_Update_ClearConversionSettings_RemovesTagCastAndScale(t *testing.T) {
@@ -967,11 +958,13 @@ func TestService_Update_ClearConversionSettings_RemovesTagCastAndScale(t *testin
 		ScaleOffset:     &offset,
 	})
 	require.NoError(t, err)
-
 	links, err := svc.ListLinks(ctx, rule.ID)
 	require.NoError(t, err)
 	require.Len(t, links, 1)
-
+	initialMapping, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
+	require.NoError(t, err)
+	initialPipeline := initialMapping.TransformPipeline
+	initialSignature := initialMapping.ProposedSignature
 	updatedRule, err := svc.Update(ctx, rule.ID, UpdateRuleRequest{
 		TargetDataTypeSet:  true,
 		ScaleMultiplierSet: true,
@@ -981,21 +974,19 @@ func TestService_Update_ClearConversionSettings_RemovesTagCastAndScale(t *testin
 	assert.Nil(t, updatedRule.TargetDataType)
 	assert.Nil(t, updatedRule.ScaleMultiplier)
 	assert.Nil(t, updatedRule.ScaleOffset)
-
 	savedRule, err := svc.GetByID(ctx, rule.ID)
 	require.NoError(t, err)
 	assert.Nil(t, savedRule.TargetDataType)
 	assert.Nil(t, savedRule.ScaleMultiplier)
 	assert.Nil(t, savedRule.ScaleOffset)
-
 	tagRecord, err := tagSvc.GetByID(ctx, *links[0].TagID)
 	require.NoError(t, err)
 	assert.Equal(t, schema.DataTypeUint16, tagRecord.DataType)
-
 	mappingRecord, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
 	require.NoError(t, err)
-
-	var steps []schema.TransformStep
-	require.NoError(t, json.Unmarshal([]byte(mappingRecord.TransformPipeline), &steps))
-	assert.Empty(t, steps)
+	assert.Equal(t, initialPipeline, mappingRecord.TransformPipeline)
+	assert.Equal(t, schema.MappingStatusOutOfSync, mappingRecord.Status)
+	assert.Equal(t, initialSignature, mappingRecord.LastAppliedSignature)
+	assert.NotEqual(t, initialSignature, mappingRecord.ProposedSignature)
+	assert.NotEmpty(t, mappingRecord.BlockingReason)
 }

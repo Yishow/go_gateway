@@ -150,6 +150,11 @@ CREATE TABLE IF NOT EXISTS mappings (
     point_id            UUID NOT NULL REFERENCES points(id) ON DELETE CASCADE,
     tag_id              UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     transform_pipeline  JSONB NOT NULL DEFAULT '[]',
+    status              TEXT NOT NULL DEFAULT 'active',
+    rule_candidate_id   TEXT,
+    proposed_signature  TEXT,
+    last_applied_signature TEXT,
+    blocking_reason     TEXT,
     enabled             BOOLEAN NOT NULL DEFAULT true,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -160,6 +165,7 @@ CREATE TABLE IF NOT EXISTS mappings (
 CREATE INDEX idx_mappings_point_id ON mappings(point_id);
 CREATE INDEX idx_mappings_tag_id ON mappings(tag_id);
 CREATE INDEX idx_mappings_enabled ON mappings(enabled);
+CREATE INDEX idx_mappings_rule_candidate_id ON mappings(rule_candidate_id);
 
 COMMENT ON TABLE mappings IS '點位到標籤的映射關係';
 COMMENT ON COLUMN mappings.transform_pipeline IS '轉換管線步驟 (JSON 陣列)';

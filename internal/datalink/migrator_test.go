@@ -54,6 +54,18 @@ func TestMigrator_Migrate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "revision_id", colName)
 
+	for _, column := range []string{
+		"status",
+		"rule_candidate_id",
+		"proposed_signature",
+		"last_applied_signature",
+		"blocking_reason",
+	} {
+		err = db.QueryRow(`SELECT name FROM pragma_table_info('mappings') WHERE name = ?`, column).Scan(&colName)
+		require.NoError(t, err)
+		assert.Equal(t, column, colName)
+	}
+
 	// Assert: Check a specific column to ensure schema is correct (e.g., devices.protocol)
 	// var protocol string // Unused for now
 	// Insert a dummy row to check constraints (optional, but good for deeper verification)

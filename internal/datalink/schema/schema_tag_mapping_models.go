@@ -60,6 +60,17 @@ type Tag struct {
 // 映射模型 (Mapping)
 // =============================================================================
 
+// MappingStatus 映射生命週期狀態。
+type MappingStatus string
+
+const (
+	MappingStatusDraft     MappingStatus = "draft"
+	MappingStatusValidated MappingStatus = "validated"
+	MappingStatusActive    MappingStatus = "active"
+	MappingStatusOutOfSync MappingStatus = "out_of_sync"
+	MappingStatusError     MappingStatus = "error"
+)
+
 // Mapping 點位到標籤的映射關係
 type Mapping struct {
 	// ID 主鍵，UUID 格式
@@ -74,6 +85,21 @@ type Mapping struct {
 	// TransformPipeline 轉換管線步驟 (JSON 陣列)
 	// 詳見 TransformStep 類型定義
 	TransformPipeline string `json:"transform_pipeline" db:"transform_pipeline"`
+
+	// Status 映射生命週期狀態
+	Status MappingStatus `json:"status" db:"status"`
+
+	// RuleCandidateID 規則擁有的 canonical candidate identity hash
+	RuleCandidateID string `json:"rule_candidate_id,omitempty" db:"rule_candidate_id"`
+
+	// ProposedSignature 目前規則計算出的候選簽章
+	ProposedSignature string `json:"proposed_signature,omitempty" db:"proposed_signature"`
+
+	// LastAppliedSignature 最後一次實際套用的簽章
+	LastAppliedSignature string `json:"last_applied_signature,omitempty" db:"last_applied_signature"`
+
+	// BlockingReason 映射目前不可自動覆蓋的原因
+	BlockingReason string `json:"blocking_reason,omitempty" db:"blocking_reason"`
 
 	// Enabled 是否啟用
 	Enabled bool `json:"enabled" db:"enabled"`

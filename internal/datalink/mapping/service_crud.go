@@ -37,16 +37,27 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 	}
 
 	mapping := &schema.Mapping{
-		ID:                id,
-		PointID:           req.PointID,
-		TagID:             req.TagID,
-		TransformPipeline: string(pipelineJSON),
-		Enabled:           true,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		ID:                   id,
+		PointID:              req.PointID,
+		TagID:                req.TagID,
+		TransformPipeline:    string(pipelineJSON),
+		Status:               schema.MappingStatusActive,
+		RuleCandidateID:      req.RuleCandidateID,
+		ProposedSignature:    req.ProposedSignature,
+		LastAppliedSignature: req.LastAppliedSignature,
+		BlockingReason:       req.BlockingReason,
+		Enabled:              true,
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
 	}
 	if req.Enabled != nil {
 		mapping.Enabled = *req.Enabled
+	}
+	if !mapping.Enabled {
+		mapping.Status = schema.MappingStatusDraft
+	}
+	if req.Status != nil {
+		mapping.Status = *req.Status
 	}
 
 	if err := s.repo.Create(ctx, mapping); err != nil {
@@ -58,11 +69,16 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 
 // CreateMappingRequest 建立映射請求
 type CreateMappingRequest struct {
-	PointID           string                 `json:"point_id"`
-	TagID             string                 `json:"tag_id"`
-	Enabled           *bool                  `json:"enabled,omitempty"`
-	TransformPipeline []schema.TransformStep `json:"transform_pipeline"`
-	PreviewRawValue   interface{}            `json:"preview_raw_value,omitempty"`
+	PointID              string                 `json:"point_id"`
+	TagID                string                 `json:"tag_id"`
+	Enabled              *bool                  `json:"enabled,omitempty"`
+	TransformPipeline    []schema.TransformStep `json:"transform_pipeline"`
+	Status               *schema.MappingStatus  `json:"status,omitempty"`
+	RuleCandidateID      string                 `json:"rule_candidate_id,omitempty"`
+	ProposedSignature    string                 `json:"proposed_signature,omitempty"`
+	LastAppliedSignature string                 `json:"last_applied_signature,omitempty"`
+	BlockingReason       string                 `json:"blocking_reason,omitempty"`
+	PreviewRawValue      interface{}            `json:"preview_raw_value,omitempty"`
 }
 
 // Update 更新映射
@@ -97,6 +113,21 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 		}
 	}
 	mapping.Enabled = nextEnabled
+	if req.Status != nil {
+		mapping.Status = *req.Status
+	}
+	if req.RuleCandidateID != nil {
+		mapping.RuleCandidateID = *req.RuleCandidateID
+	}
+	if req.ProposedSignature != nil {
+		mapping.ProposedSignature = *req.ProposedSignature
+	}
+	if req.LastAppliedSignature != nil {
+		mapping.LastAppliedSignature = *req.LastAppliedSignature
+	}
+	if req.BlockingReason != nil {
+		mapping.BlockingReason = *req.BlockingReason
+	}
 
 	mapping.UpdatedAt = time.Now()
 
@@ -109,9 +140,14 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 
 // UpdateMappingRequest 更新映射請求
 type UpdateMappingRequest struct {
-	TransformPipeline []schema.TransformStep `json:"transform_pipeline,omitempty"`
-	Enabled           *bool                  `json:"enabled,omitempty"`
-	PreviewRawValue   interface{}            `json:"preview_raw_value,omitempty"`
+	TransformPipeline    []schema.TransformStep `json:"transform_pipeline,omitempty"`
+	Enabled              *bool                  `json:"enabled,omitempty"`
+	Status               *schema.MappingStatus  `json:"status,omitempty"`
+	RuleCandidateID      *string                `json:"rule_candidate_id,omitempty"`
+	ProposedSignature    *string                `json:"proposed_signature,omitempty"`
+	LastAppliedSignature *string                `json:"last_applied_signature,omitempty"`
+	BlockingReason       *string                `json:"blocking_reason,omitempty"`
+	PreviewRawValue      interface{}            `json:"preview_raw_value,omitempty"`
 }
 
 // Delete 刪除映射

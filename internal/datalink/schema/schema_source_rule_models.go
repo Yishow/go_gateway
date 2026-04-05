@@ -47,6 +47,7 @@ type SourceRuleCandidateType string
 
 const (
 	SourceRuleCandidateTypeTags               SourceRuleCandidateType = "tags"
+	SourceRuleCandidateTypeMappings           SourceRuleCandidateType = "mappings"
 	SourceRuleCandidateTypeDatabaseOutputs    SourceRuleCandidateType = "database_outputs"
 	SourceRuleCandidateTypeLocalModbusOutputs SourceRuleCandidateType = "local_modbus_outputs"
 )
@@ -64,7 +65,8 @@ type SourceRuleCandidateKind string
 
 const (
 	// SourceRuleCandidateKindTag identifies a rule-derived tag candidate and its pending mapping intent.
-	SourceRuleCandidateKindTag SourceRuleCandidateKind = "tag"
+	SourceRuleCandidateKindTag     SourceRuleCandidateKind = "tag"
+	SourceRuleCandidateKindMapping SourceRuleCandidateKind = "mapping"
 )
 
 // SourceRuleCandidateScopeField records one canonical binding-scope discriminator.

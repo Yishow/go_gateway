@@ -79,6 +79,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteSourceRuleCandidateSnapshotsTable(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteMappingLifecycleColumns(db); err != nil {
+			return err
+		}
 
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err

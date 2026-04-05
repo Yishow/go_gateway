@@ -32,6 +32,13 @@ func (r *MemoryRepository) Create(ctx context.Context, mapping *schema.Mapping) 
 	if _, exists := r.mappings[mapping.ID]; exists {
 		return fmt.Errorf("映射 ID 已存在: %s", mapping.ID)
 	}
+	if mapping.Status == "" {
+		if mapping.Enabled {
+			mapping.Status = schema.MappingStatusActive
+		} else {
+			mapping.Status = schema.MappingStatusDraft
+		}
+	}
 
 	mappingCopy := *mapping
 	r.mappings[mapping.ID] = &mappingCopy

@@ -23,8 +23,13 @@ type pointUpdatePlan struct {
 }
 
 type mappingRollbackState struct {
-	enabled           bool
-	transformPipeline []schema.TransformStep
+	enabled              bool
+	transformPipeline    []schema.TransformStep
+	status               schema.MappingStatus
+	ruleCandidateID      string
+	proposedSignature    string
+	lastAppliedSignature string
+	blockingReason       string
 }
 
 type tagRollbackState struct {
@@ -818,12 +823,6 @@ func (s *Service) ensureRuleTagMapping(
 	result *tagMappingSyncResult,
 ) (*schema.Tag, *schema.Mapping, error) {
 	transformPipeline := s.buildRuleTransformPipeline(rule, pointRecord)
-	var oldTransformPipeline []schema.TransformStep
-	if oldRule != nil {
-		oldTransformPipeline = s.buildRuleTransformPipeline(oldRule, &schema.Point{DataType: oldRule.DataType})
-	} else {
-		oldTransformPipeline = []schema.TransformStep{}
-	}
 	targetDataType := desiredRuleTargetDataType(rule, pointRecord)
 
 	pointID := pointRecord.ID
@@ -843,7 +842,7 @@ func (s *Service) ensureRuleTagMapping(
 		if syncErr != nil {
 			return nil, nil, syncErr
 		}
-		mappingRecord, syncErr := s.syncRuleMapping(ctx, pointMappings[0], enabled, oldTransformPipeline, transformPipeline, result)
+		mappingRecord, syncErr := s.syncRuleManagedMapping(ctx, oldRule, rule, pointRecord, link, pointMappings[0], enabled, transformPipeline, result)
 		if syncErr != nil {
 			return nil, nil, syncErr
 		}
@@ -873,19 +872,31 @@ func (s *Service) ensureRuleTagMapping(
 		if tagMappings[0].PointID != pointRecord.ID {
 			return nil, nil, fmt.Errorf("tag %s 已綁定其他 point", tagRecord.Key)
 		}
-		mappingRecord, syncErr := s.syncRuleMapping(ctx, tagMappings[0], enabled, oldTransformPipeline, transformPipeline, result)
+		mappingRecord, syncErr := s.syncRuleManagedMapping(ctx, oldRule, rule, pointRecord, link, tagMappings[0], enabled, transformPipeline, result)
 		if syncErr != nil {
 			return nil, nil, syncErr
 		}
 		return tagRecord, mappingRecord, nil
 	}
 
+	ruleCandidateID, proposedSignature, err := ruleManagedMappingMetadata(rule, pointRecord, link, transformPipeline)
+	if err != nil {
+		return nil, nil, err
+	}
 	mappingEnabled := enabled
+	mappingStatus := schema.MappingStatusActive
+	if !mappingEnabled {
+		mappingStatus = schema.MappingStatusDraft
+	}
 	mappingRecord, err := s.mappingSvc.Create(ctx, mapping.CreateMappingRequest{
-		PointID:           pointRecord.ID,
-		TagID:             tagRecord.ID,
-		Enabled:           &mappingEnabled,
-		TransformPipeline: transformPipeline,
+		PointID:              pointRecord.ID,
+		TagID:                tagRecord.ID,
+		Enabled:              &mappingEnabled,
+		TransformPipeline:    transformPipeline,
+		Status:               &mappingStatus,
+		RuleCandidateID:      ruleCandidateID,
+		ProposedSignature:    proposedSignature,
+		LastAppliedSignature: proposedSignature,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("建立來源規則映射失敗: %w", err)
@@ -998,58 +1009,6 @@ func (s *Service) validateTagAvailability(ctx context.Context, tagRecord *schema
 		return fmt.Errorf("tag %s 已綁定其他 point", tagRecord.Key)
 	}
 	return nil
-}
-
-func (s *Service) syncRuleMapping(
-	ctx context.Context,
-	mappingRecord *schema.Mapping,
-	enabled bool,
-	oldTransformPipeline []schema.TransformStep,
-	transformPipeline []schema.TransformStep,
-	result *tagMappingSyncResult,
-) (*schema.Mapping, error) {
-	nextPipelineJSON, err := encodeTransformPipeline(transformPipeline)
-	if err != nil {
-		return nil, fmt.Errorf("序列化來源規則映射轉換管線失敗: %w", err)
-	}
-	if mappingRecord.Enabled == enabled && mappingRecord.TransformPipeline == nextPipelineJSON {
-		return mappingRecord, nil
-	}
-	if result.updatedMappings == nil {
-		result.updatedMappings = make(map[string]mappingRollbackState)
-	}
-	if _, exists := result.updatedMappings[mappingRecord.ID]; !exists {
-		previousPipeline, err := decodeTransformPipeline(mappingRecord.TransformPipeline)
-		if err != nil {
-			return nil, fmt.Errorf("解析既有來源規則映射轉換管線失敗: %w", err)
-		}
-		result.updatedMappings[mappingRecord.ID] = mappingRollbackState{
-			enabled:           mappingRecord.Enabled,
-			transformPipeline: previousPipeline,
-		}
-	}
-
-	updateReq := mapping.UpdateMappingRequest{}
-	if mappingRecord.Enabled != enabled {
-		updateReq.Enabled = &enabled
-	}
-
-	if mappingRecord.TransformPipeline != nextPipelineJSON {
-		oldPipelineJSON, err := encodeTransformPipeline(oldTransformPipeline)
-		if err != nil {
-			return nil, fmt.Errorf("序列化既有來源規則映射轉換管線失敗: %w", err)
-		}
-		if mappingRecord.TransformPipeline != oldPipelineJSON {
-			return nil, fmt.Errorf("映射存在手動編輯的轉換管線，無法自動覆蓋")
-		}
-		updateReq.TransformPipeline = transformPipeline
-	}
-
-	updated, err := s.mappingSvc.Update(ctx, mappingRecord.ID, updateReq)
-	if err != nil {
-		return nil, fmt.Errorf("同步來源規則映射設定失敗: %w", err)
-	}
-	return updated, nil
 }
 
 func validateCreateRequest(req CreateRuleRequest) error {
@@ -1335,8 +1294,13 @@ func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingS
 		for mappingID, state := range result.updatedMappings {
 			enabled := state.enabled
 			_, _ = s.mappingSvc.Update(ctx, mappingID, mapping.UpdateMappingRequest{
-				Enabled:           &enabled,
-				TransformPipeline: state.transformPipeline,
+				Enabled:              &enabled,
+				TransformPipeline:    state.transformPipeline,
+				Status:               &state.status,
+				RuleCandidateID:      &state.ruleCandidateID,
+				ProposedSignature:    &state.proposedSignature,
+				LastAppliedSignature: &state.lastAppliedSignature,
+				BlockingReason:       &state.blockingReason,
 			})
 		}
 		for _, mappingID := range result.createdMappingIDs {

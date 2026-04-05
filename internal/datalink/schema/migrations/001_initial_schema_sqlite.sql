@@ -100,6 +100,11 @@ CREATE TABLE IF NOT EXISTS mappings (
     point_id            TEXT NOT NULL REFERENCES points(id) ON DELETE CASCADE,
     tag_id              TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     transform_pipeline  TEXT NOT NULL DEFAULT '[]',
+    status              TEXT NOT NULL DEFAULT 'active',
+    rule_candidate_id   TEXT,
+    proposed_signature  TEXT,
+    last_applied_signature TEXT,
+    blocking_reason     TEXT,
     enabled             INTEGER NOT NULL DEFAULT 1,
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
@@ -109,6 +114,7 @@ CREATE TABLE IF NOT EXISTS mappings (
 CREATE INDEX IF NOT EXISTS idx_mappings_point_id ON mappings(point_id);
 CREATE INDEX IF NOT EXISTS idx_mappings_tag_id ON mappings(tag_id);
 CREATE INDEX IF NOT EXISTS idx_mappings_enabled ON mappings(enabled);
+CREATE INDEX IF NOT EXISTS idx_mappings_rule_candidate_id ON mappings(rule_candidate_id);
 
 -- -----------------------------------------------------------------------------
 -- 時序資料表 (timeseries) - 非分區

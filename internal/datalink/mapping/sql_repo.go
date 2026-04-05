@@ -35,10 +35,20 @@ func (r *SQLRepository) Create(ctx context.Context, mapping *schema.Mapping) err
 		}
 		mapping.ID = id
 	}
+	if mapping.Status == "" {
+		if mapping.Enabled {
+			mapping.Status = schema.MappingStatusActive
+		} else {
+			mapping.Status = schema.MappingStatusDraft
+		}
+	}
 
 	query := `
-		INSERT INTO mappings (id, point_id, tag_id, transform_pipeline, enabled, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO mappings (
+			id, point_id, tag_id, transform_pipeline, status, rule_candidate_id,
+			proposed_signature, last_applied_signature, blocking_reason, enabled, created_at, updated_at
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -46,6 +56,11 @@ func (r *SQLRepository) Create(ctx context.Context, mapping *schema.Mapping) err
 		mapping.PointID,
 		mapping.TagID,
 		mapping.TransformPipeline,
+		mapping.Status,
+		mapping.RuleCandidateID,
+		mapping.ProposedSignature,
+		mapping.LastAppliedSignature,
+		mapping.BlockingReason,
 		mapping.Enabled,
 		mapping.CreatedAt,
 		mapping.UpdatedAt,
@@ -62,12 +77,18 @@ func (r *SQLRepository) Create(ctx context.Context, mapping *schema.Mapping) err
 func (r *SQLRepository) Update(ctx context.Context, mapping *schema.Mapping) error {
 	query := `
 		UPDATE mappings 
-		SET transform_pipeline = ?, enabled = ?, updated_at = ?
+		SET transform_pipeline = ?, status = ?, rule_candidate_id = ?, proposed_signature = ?,
+		    last_applied_signature = ?, blocking_reason = ?, enabled = ?, updated_at = ?
 		WHERE id = ?
 	`
 
 	result, err := r.db.ExecContext(ctx, query,
 		mapping.TransformPipeline,
+		mapping.Status,
+		mapping.RuleCandidateID,
+		mapping.ProposedSignature,
+		mapping.LastAppliedSignature,
+		mapping.BlockingReason,
 		mapping.Enabled,
 		time.Now(),
 		mapping.ID,
@@ -111,7 +132,8 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 // GetByID 根據 ID 取得映射
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Mapping, error) {
 	query := `
-		SELECT id, point_id, tag_id, transform_pipeline, enabled, created_at, updated_at
+		SELECT id, point_id, tag_id, transform_pipeline, status, rule_candidate_id,
+		       proposed_signature, last_applied_signature, blocking_reason, enabled, created_at, updated_at
 		FROM mappings WHERE id = ?
 	`
 
@@ -122,7 +144,8 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Mapping
 // GetByPointID 根據點位 ID 取得映射列表
 func (r *SQLRepository) GetByPointID(ctx context.Context, pointID string) ([]*schema.Mapping, error) {
 	query := `
-		SELECT id, point_id, tag_id, transform_pipeline, enabled, created_at, updated_at
+		SELECT id, point_id, tag_id, transform_pipeline, status, rule_candidate_id,
+		       proposed_signature, last_applied_signature, blocking_reason, enabled, created_at, updated_at
 		FROM mappings WHERE point_id = ?
 	`
 
@@ -138,7 +161,8 @@ func (r *SQLRepository) GetByPointID(ctx context.Context, pointID string) ([]*sc
 // GetByTagID 根據標籤 ID 取得映射列表
 func (r *SQLRepository) GetByTagID(ctx context.Context, tagID string) ([]*schema.Mapping, error) {
 	query := `
-		SELECT id, point_id, tag_id, transform_pipeline, enabled, created_at, updated_at
+		SELECT id, point_id, tag_id, transform_pipeline, status, rule_candidate_id,
+		       proposed_signature, last_applied_signature, blocking_reason, enabled, created_at, updated_at
 		FROM mappings WHERE tag_id = ?
 	`
 
@@ -154,7 +178,8 @@ func (r *SQLRepository) GetByTagID(ctx context.Context, tagID string) ([]*schema
 // List 列出映射
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.Mapping, error) {
 	query := `
-		SELECT id, point_id, tag_id, transform_pipeline, enabled, created_at, updated_at
+		SELECT id, point_id, tag_id, transform_pipeline, status, rule_candidate_id,
+		       proposed_signature, last_applied_signature, blocking_reason, enabled, created_at, updated_at
 		FROM mappings
 		WHERE 1=1
 	`
@@ -203,6 +228,11 @@ func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 		&mapping.PointID,
 		&mapping.TagID,
 		&mapping.TransformPipeline,
+		&mapping.Status,
+		&mapping.RuleCandidateID,
+		&mapping.ProposedSignature,
+		&mapping.LastAppliedSignature,
+		&mapping.BlockingReason,
 		&mapping.Enabled,
 		&createdAt,
 		&updatedAt,
@@ -242,6 +272,11 @@ func (r *SQLRepository) scanMappings(rows *sql.Rows) ([]*schema.Mapping, error) 
 			&mapping.PointID,
 			&mapping.TagID,
 			&mapping.TransformPipeline,
+			&mapping.Status,
+			&mapping.RuleCandidateID,
+			&mapping.ProposedSignature,
+			&mapping.LastAppliedSignature,
+			&mapping.BlockingReason,
 			&mapping.Enabled,
 			&createdAt,
 			&updatedAt,

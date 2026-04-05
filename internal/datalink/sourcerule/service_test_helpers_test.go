@@ -20,3 +20,7 @@ func seedActivationReadyDevice(ctx context.Context, repo *device.MemoryRepositor
 	}
 	return repo.GetByID(ctx, id)
 }
+
+func float64Ptr(value float64) *float64 {
+	return &value
+}
