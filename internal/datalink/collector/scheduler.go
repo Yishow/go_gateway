@@ -134,6 +134,7 @@ type pointInfo struct {
 	Address        string
 	Function       string
 	DataType       schema.DataType
+	DataFormat     string
 	PollingGroupID string
 }
 

@@ -3,11 +3,11 @@ package adapters
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/lib/hsllogic"
 )
 
 // =============================================================================
@@ -71,53 +71,29 @@ func parseModbusAddress(addressStr, function string) (uint16, string, error) {
 	return uint16(addr), function, nil
 }
 
-// convertModbusValue 將 Modbus 暫存器值轉換為指定型別
-func convertModbusValue(registers []uint16, dataType schema.DataType) interface{} {
+// parseModbusDataFormat 將字串規格化為 hsllogic 字節序；空字串或未知值沿用歷史 Modbus 行為（ABCD）。
+func parseModbusDataFormat(format string) hsllogic.DataFormat {
+	switch strings.ToUpper(strings.TrimSpace(format)) {
+	case string(hsllogic.DataFormatABCD):
+		return hsllogic.DataFormatABCD
+	case string(hsllogic.DataFormatBADC):
+		return hsllogic.DataFormatBADC
+	case string(hsllogic.DataFormatCDAB):
+		return hsllogic.DataFormatCDAB
+	case string(hsllogic.DataFormatDCBA):
+		return hsllogic.DataFormatDCBA
+	default:
+		return hsllogic.DataFormatABCD
+	}
+}
+
+// convertModbusValue 將 Modbus 暫存器值轉換為指定型別（依 dataFormat 解多暫存器數值）。
+func convertModbusValue(registers []uint16, dataType schema.DataType, dataFormat string) interface{} {
 	if len(registers) == 0 {
 		return nil
 	}
-
-	switch dataType {
-	case schema.DataTypeBool:
-		return registers[0] != 0
-	case schema.DataTypeInt16:
-		return int16(registers[0])
-	case schema.DataTypeUint16:
-		return registers[0]
-	case schema.DataTypeInt32:
-		if len(registers) >= 2 {
-			return int32(uint32(registers[0])<<16 | uint32(registers[1]))
-		}
-	case schema.DataTypeUint32:
-		if len(registers) >= 2 {
-			return uint32(registers[0])<<16 | uint32(registers[1])
-		}
-	case schema.DataTypeFloat32:
-		if len(registers) >= 2 {
-			bits := uint32(registers[0])<<16 | uint32(registers[1])
-			return math.Float32frombits(bits)
-		}
-	case schema.DataTypeInt64:
-		if len(registers) >= 4 {
-			val := uint64(registers[0])<<48 | uint64(registers[1])<<32 |
-				uint64(registers[2])<<16 | uint64(registers[3])
-			return int64(val)
-		}
-	case schema.DataTypeUint64:
-		if len(registers) >= 4 {
-			return uint64(registers[0])<<48 | uint64(registers[1])<<32 |
-				uint64(registers[2])<<16 | uint64(registers[3])
-		}
-	case schema.DataTypeFloat64:
-		if len(registers) >= 4 {
-			bits := uint64(registers[0])<<48 | uint64(registers[1])<<32 |
-				uint64(registers[2])<<16 | uint64(registers[3])
-			return math.Float64frombits(bits)
-		}
-	}
-
-	// 預設返回第一個暫存器值
-	return registers[0]
+	converter := hsllogic.NewDataConverter(parseModbusDataFormat(dataFormat))
+	return converter.RegistersToValue(registers, hsllogic.DataType(dataType))
 }
 
 // uint16SliceToBytes 將 uint16 切片轉換為位元組切片

@@ -74,6 +74,10 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 			return err
 		}
 
+		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -149,6 +153,10 @@ func ensureSQLiteSourceRuleTargetDatatypeColumns(db *sql.DB) error {
 			name: "scale_offset",
 			ddl:  "ALTER TABLE source_rules ADD COLUMN scale_offset REAL",
 		},
+		{
+			name: "data_format",
+			ddl:  "ALTER TABLE source_rules ADD COLUMN data_format TEXT",
+		},
 	}
 
 	for _, column := range columns {
@@ -163,6 +171,26 @@ func ensureSQLiteSourceRuleTargetDatatypeColumns(db *sql.DB) error {
 		if _, err := db.ExecContext(context.Background(), column.ddl); err != nil {
 			return fmt.Errorf("failed to execute migration %s for column %s: %w", migrationName, column.name, err)
 		}
+	}
+
+	return nil
+}
+
+// ensureSQLitePointsDataFormatColumn 為 SQLite points 表補上 data_format 欄位（與 PostgreSQL 008 對齊）。
+func ensureSQLitePointsDataFormatColumn(db *sql.DB) error {
+	const migrationName = "008_point_data_format_sqlite"
+
+	exists, err := sqliteColumnExists(db, "points", "data_format")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite column data_format for migration %s: %w", migrationName, err)
+	}
+	if exists {
+		return nil
+	}
+
+	log.Printf("Executing SQLite migration: %s", migrationName)
+	if _, err := db.ExecContext(context.Background(), `ALTER TABLE points ADD COLUMN data_format TEXT`); err != nil {
+		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
 	}
 
 	return nil

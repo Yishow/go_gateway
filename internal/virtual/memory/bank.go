@@ -55,8 +55,8 @@ func NewMemoryBankWithOrder(size int, order ByteOrder) *MemoryBank {
 // 基礎 Byte 操作
 // =============================================================================
 
-// ReadByte 讀取單個字節
-func (m *MemoryBank) ReadByte(offset int) (byte, error) {
+// ReadByteAt 在指定偏移位置讀取單個字節
+func (m *MemoryBank) ReadByteAt(offset int) (byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -66,8 +66,8 @@ func (m *MemoryBank) ReadByte(offset int) (byte, error) {
 	return m.data[offset], nil
 }
 
-// WriteByte 寫入單個字節
-func (m *MemoryBank) WriteByte(offset int, value byte) error {
+// WriteByteAt 在指定偏移位置寫入單個字節
+func (m *MemoryBank) WriteByteAt(offset int, value byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

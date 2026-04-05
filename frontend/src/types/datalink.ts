@@ -146,6 +146,8 @@ export interface Point {
   name: string;
   description: string;
   data_type: DataType;
+  /** Modbus 等多暫存器讀值的字節序；空字串表示後端歷史預設（ABCD）。 */
+  data_format?: string;
   address: string;
   enabled: boolean;
   polling_group_id: string;
@@ -163,6 +165,7 @@ export interface CreatePointRequest {
   name: string;
   description?: string;
   data_type: DataType;
+  data_format?: string;
   address: string;
   enabled?: boolean;
   polling_group_id?: string;
@@ -173,6 +176,7 @@ export interface UpdatePointRequest {
   name?: string;
   description?: string;
   data_type?: DataType;
+  data_format?: string;
   address?: string;
   enabled?: boolean;
   polling_group_id?: string;
@@ -199,6 +203,8 @@ export interface SourceRuleRecord {
   scale_multiplier?: number;
   /** 偏移量（可空）。 */
   scale_offset?: number;
+  /** 多暫存器／浮點解碼字節序（可空）。空字串表示使用連線預設。 */
+  data_format?: string;
 }
 
 /** 建立來源規則請求 */
@@ -220,6 +226,8 @@ export interface CreateSourceRuleRequest {
   scale_multiplier?: number;
   /** 偏移量（可空）。 */
   scale_offset?: number;
+  /** 字節序格式（可空）。 */
+  data_format?: string;
 }
 
 /** 更新來源規則請求 */
@@ -233,11 +241,15 @@ export interface UpdateSourceRuleRequest {
   template_name?: string;
   skipped_addresses?: string[];
   /** 目標資料型態（可空）。 */
-  target_data_type?: DataType;
+  target_data_type?: DataType | null;
   /** 縮放倍率（可空）。 */
-  scale_multiplier?: number;
+  scale_multiplier?: number | null;
   /** 偏移量（可空）。 */
-  scale_offset?: number;
+  scale_offset?: number | null;
+  /**
+   * 字節序格式；傳 `null` 可清空為連線預設（須與其他欄位一併送出以觸發後端更新）。
+   */
+  data_format?: string | null;
 }
 
 /** 輪詢群組 */

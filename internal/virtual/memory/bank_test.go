@@ -12,13 +12,13 @@ func TestMemoryBank_ByteReadWrite(t *testing.T) {
 	bank := NewMemoryBank(1024)
 
 	// 寫入 0xFF 到偏移量 0
-	err := bank.WriteByte(0, 0xFF)
+	err := bank.WriteByteAt(0, 0xFF)
 	if err != nil {
 		t.Fatalf("WriteByte 失敗: %v", err)
 	}
 
 	// 讀取並驗證
-	val, err := bank.ReadByte(0)
+	val, err := bank.ReadByteAt(0)
 	if err != nil {
 		t.Fatalf("ReadByte 失敗: %v", err)
 	}
@@ -37,8 +37,8 @@ func TestMemoryBank_WordReadWrite_BigEndian(t *testing.T) {
 	}
 
 	// BigEndian: 高字節在低地址
-	high, _ := bank.ReadByte(0)
-	low, _ := bank.ReadByte(1)
+	high, _ := bank.ReadByteAt(0)
+	low, _ := bank.ReadByteAt(1)
 
 	if high != 0x12 {
 		t.Errorf("高字節預期 0x12，實際 0x%X", high)
@@ -64,8 +64,8 @@ func TestMemoryBank_WordReadWrite_LittleEndian(t *testing.T) {
 	}
 
 	// LittleEndian: 低字節在低地址
-	low, _ := bank.ReadByte(0)
-	high, _ := bank.ReadByte(1)
+	low, _ := bank.ReadByteAt(0)
+	high, _ := bank.ReadByteAt(1)
 
 	if low != 0x34 {
 		t.Errorf("低字節預期 0x34，實際 0x%X", low)
@@ -94,13 +94,13 @@ func TestMemoryBank_OutOfBounds(t *testing.T) {
 	bank := NewMemoryBank(100)
 
 	// 超出範圍的寫入
-	err := bank.WriteByte(100, 0xFF)
+	err := bank.WriteByteAt(100, 0xFF)
 	if err == nil {
 		t.Error("預期越界錯誤，但沒有返回錯誤")
 	}
 
 	// 超出範圍的讀取
-	_, err = bank.ReadByte(100)
+	_, err = bank.ReadByteAt(100)
 	if err == nil {
 		t.Error("預期越界錯誤，但沒有返回錯誤")
 	}
@@ -117,7 +117,7 @@ func TestMemoryBank_ReadSlice(t *testing.T) {
 
 	// 寫入連續數據
 	for i := 0; i < 10; i++ {
-		bank.WriteByte(i, byte(i))
+		bank.WriteByteAt(i, byte(i))
 	}
 
 	// 讀取 slice
@@ -144,7 +144,7 @@ func TestMemoryBank_WriteSlice(t *testing.T) {
 
 	// 驗證
 	for i, expected := range data {
-		val, _ := bank.ReadByte(10 + i)
+		val, _ := bank.ReadByteAt(10 + i)
 		if val != expected {
 			t.Errorf("索引 %d: 預期 0x%X，實際 0x%X", i, expected, val)
 		}
@@ -154,8 +154,8 @@ func TestMemoryBank_WriteSlice(t *testing.T) {
 func TestMemoryBank_Dump(t *testing.T) {
 	bank := NewMemoryBank(100)
 
-	bank.WriteByte(0, 0xAB)
-	bank.WriteByte(99, 0xCD)
+	bank.WriteByteAt(0, 0xAB)
+	bank.WriteByteAt(99, 0xCD)
 
 	dump := bank.Dump()
 

@@ -44,6 +44,11 @@ func TestMigrator_Migrate(t *testing.T) {
 		assert.Equal(t, table, name)
 	}
 
+	var colName string
+	err = db.QueryRow(`SELECT name FROM pragma_table_info('points') WHERE name = 'data_format'`).Scan(&colName)
+	require.NoError(t, err)
+	assert.Equal(t, "data_format", colName)
+
 	// Assert: Check a specific column to ensure schema is correct (e.g., devices.protocol)
 	// var protocol string // Unused for now
 	// Insert a dummy row to check constraints (optional, but good for deeper verification)

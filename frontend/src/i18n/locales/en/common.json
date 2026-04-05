@@ -575,6 +575,9 @@
       "planner": {
         "title": "Rule builder",
         "helper": "Define one source rule at a time, then keep the canvas as the main review surface.",
+        "collapsedHint": "Form collapsed. Click the title to expand.",
+        "expandSection": "Expand rule builder",
+        "collapseSection": "Collapse rule builder",
         "startAddress": "Start address",
         "dataType": "Data type",
         "count": "Count",
@@ -590,7 +593,10 @@
         "sameAsReadType": "Same as read type",
         "scaleMultiplier": "Scale multiplier",
         "scaleOffset": "Offset",
+        "dataFormat": "Byte order",
+        "dataFormatDefault": "Use connection default",
         "advanced": {
+          "heading": "Advanced settings",
           "show": "Show advanced settings",
           "hide": "Hide advanced settings"
         },
@@ -654,7 +660,10 @@
       },
       "ruleLayer": {
         "eyebrow": "Rule layer",
+        "expandCard": "Expand this rule's actions and editor",
+        "collapseCard": "Collapse this rule's actions and editor",
         "title": "Manage source planning directives",
+        "descriptionHint": "Rule layer help",
         "description": "Keep multiple source rules visible, focusable, and reorderable. \"Disable/enable rule\" only toggles whether that rule is managed (derived points/scheduling); it does not start or stop device polling—use \"Start/Stop collection\" above for that.",
         "empty": "Apply a source planning rule to start building the shared source lattice.",
         "meta": "{{bitWidth}}-bit · {{count}} item(s) · {{cells}} cells",

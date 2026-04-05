@@ -79,6 +79,9 @@ type Point struct {
 	// DataType 資料型別
 	DataType DataType `json:"data_type" db:"data_type"`
 
+	// DataFormat Modbus 等多暫存器型別的字節序（ABCD/BADC/CDAB/DCBA）；空字串表示與歷史行為相同（等同 ABCD）。
+	DataFormat string `json:"data_format,omitempty" db:"data_format"`
+
 	// Mode 讀寫模式
 	Mode PointMode `json:"mode" db:"mode"`
 

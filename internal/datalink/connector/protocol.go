@@ -73,6 +73,9 @@ type ReadRequest struct {
 	// DataType 預期的資料型別
 	DataType schema.DataType
 
+	// DataFormat Modbus 多暫存器數值的字節序（ABCD/BADC/CDAB/DCBA）；空字串表示歷史預設（等同 ABCD）。
+	DataFormat string
+
 	// Count 讀取數量 (用於批次讀取)
 	Count int
 }

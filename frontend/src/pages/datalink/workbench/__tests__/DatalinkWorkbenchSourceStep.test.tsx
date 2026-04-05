@@ -344,9 +344,11 @@ describe('DatalinkWorkbench source step', () => {
         currentStatus: 'active',
       });
     });
-    expect(screen.getByTestId('source-step-notice')).toHaveTextContent(
-      'workbench.source.collection.stopped',
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId('source-step-notice')).toHaveTextContent(
+        'workbench.source.collection.stopped',
+      );
+    });
   });
 
   it('preserves draft rules per device when switching the selected device', async () => {
@@ -706,7 +708,7 @@ describe('DatalinkWorkbench source step', () => {
       within(ruleLayer).getByRole('button', { name: 'workbench.source.planner.addRule' }),
     );
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     expect(ruleCard).toBeInTheDocument();
 
     fireEvent.click(
@@ -1094,7 +1096,7 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1129,7 +1131,7 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1163,7 +1165,7 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1213,7 +1215,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByTestId('address-cell-40001'));
     expect(screen.getByTestId('source-span-inspector')).toBeInTheDocument();
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1286,7 +1288,7 @@ describe('DatalinkWorkbench source step', () => {
       within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.editRule' }),
     );
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     expect(within(ruleCard).getByTestId('rule-inline-edit-form')).toBeInTheDocument();
   });
 
@@ -1324,7 +1326,7 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     const protectButton = within(ruleCard).getByRole('button', {
       name: 'workbench.source.ruleLayer.protectPlan',
     });
@@ -1560,7 +1562,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('1');
 
     // Inline-edit rule to move start address
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1701,7 +1703,7 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    const ruleCard = screen.getByTestId('source-rule-rule-1');
+    const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.delete' }),
     );

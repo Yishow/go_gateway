@@ -12,7 +12,7 @@ import (
 // scanPoint 從單一行掃描點位
 func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 	var point schema.Point
-	var description, function, lastValue, lastError sql.NullString
+	var description, function, dataFormat, lastValue, lastError sql.NullString
 	var pollingGroupID sql.NullString
 	var lastReadAt sql.NullString
 	var createdAt, updatedAt string
@@ -25,6 +25,7 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 		&point.Address,
 		&function,
 		&point.DataType,
+		&dataFormat,
 		&point.Mode,
 		&pollingGroupID,
 		&lastReadAt,
@@ -47,6 +48,9 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 	}
 	if function.Valid {
 		point.Function = function.String
+	}
+	if dataFormat.Valid {
+		point.DataFormat = dataFormat.String
 	}
 	if pollingGroupID.Valid {
 		point.PollingGroupID = &pollingGroupID.String
@@ -86,7 +90,7 @@ func (r *SQLRepository) scanPoint(row *sql.Row) (*schema.Point, error) {
 // scanPointFromRows 從多行結果掃描點位
 func (r *SQLRepository) scanPointFromRows(rows *sql.Rows) (*schema.Point, error) {
 	var point schema.Point
-	var description, function, lastValue, lastError sql.NullString
+	var description, function, dataFormat, lastValue, lastError sql.NullString
 	var pollingGroupID sql.NullString
 	var lastReadAt sql.NullString
 	var createdAt, updatedAt string
@@ -99,6 +103,7 @@ func (r *SQLRepository) scanPointFromRows(rows *sql.Rows) (*schema.Point, error)
 		&point.Address,
 		&function,
 		&point.DataType,
+		&dataFormat,
 		&point.Mode,
 		&pollingGroupID,
 		&lastReadAt,
@@ -118,6 +123,9 @@ func (r *SQLRepository) scanPointFromRows(rows *sql.Rows) (*schema.Point, error)
 	}
 	if function.Valid {
 		point.Function = function.String
+	}
+	if dataFormat.Valid {
+		point.DataFormat = dataFormat.String
 	}
 	if pollingGroupID.Valid {
 		point.PollingGroupID = &pollingGroupID.String

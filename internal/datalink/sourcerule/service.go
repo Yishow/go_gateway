@@ -84,6 +84,8 @@ type CreateRuleRequest struct {
 	ScaleMultiplier *float64 `json:"scale_multiplier,omitempty"`
 	// ScaleOffset 偏移量（可空）。
 	ScaleOffset *float64 `json:"scale_offset,omitempty"`
+	// DataFormat 字節序格式（可空）。空字串表示使用設備連線預設。
+	DataFormat string `json:"data_format,omitempty"`
 }
 
 type UpdateRuleRequest struct {
@@ -104,6 +106,9 @@ type UpdateRuleRequest struct {
 	// ScaleOffset 偏移量（可空）。
 	ScaleOffset    *float64 `json:"scale_offset,omitempty"`
 	ScaleOffsetSet bool     `json:"-"`
+	// DataFormat 字節序格式（可空）；傳 null 並搭配 DataFormatSet 可清空為連線預設。
+	DataFormat    *string `json:"data_format,omitempty"`
+	DataFormatSet bool    `json:"-"`
 }
 
 type Service struct {
@@ -169,6 +174,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		TargetDataType:   req.TargetDataType,
 		ScaleMultiplier:  req.ScaleMultiplier,
 		ScaleOffset:      req.ScaleOffset,
+		DataFormat:       normalizeDataFormat(req.DataFormat),
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
@@ -195,6 +201,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 			Name:           buildPointName(rule.NamingPrefix, address),
 			Address:        address,
 			DataType:       rule.DataType,
+			DataFormat:     rule.DataFormat,
 			Mode:           schema.PointModeReadOnly,
 			Function:       "",
 			Description:    "",
@@ -235,7 +242,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		})
 	}
 
-	syncResult, err := s.syncRuleTagMappings(ctx, rule, links, rule.Enabled)
+	syncResult, err := s.syncRuleTagMappings(ctx, nil, rule, links, rule.Enabled)
 	if err != nil {
 		s.rollbackTagMappingSync(ctx, syncResult)
 		s.rollbackCreatedPoints(ctx, createdPointIDs)
@@ -326,6 +333,13 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	if req.ScaleOffset != nil || req.ScaleOffsetSet {
 		next.ScaleOffset = cloneFloat64Ptr(req.ScaleOffset)
 	}
+	if req.DataFormat != nil || req.DataFormatSet {
+		if req.DataFormat != nil {
+			next.DataFormat = normalizeDataFormat(*req.DataFormat)
+		} else {
+			next.DataFormat = ""
+		}
+	}
 	if req.Enabled != nil {
 		if *req.Enabled && deviceRecord.Status != schema.DeviceStatusActive {
 			return nil, fmt.Errorf("設備尚未通過 probe readiness，不能啟用來源規則")
@@ -340,6 +354,9 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		DataType:     next.DataType,
 		NamingPrefix: next.NamingPrefix,
 	}); err != nil {
+		return nil, err
+	}
+	if err := validateRuleDataFormat(next.DataFormat); err != nil {
 		return nil, err
 	}
 
@@ -441,10 +458,12 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 	for _, plan := range updatePlans {
 		dataType := next.DataType
+		df := next.DataFormat
 		updateReq := point.UpdatePointRequest{
-			Name:     &plan.name,
-			DataType: &dataType,
-			Enabled:  &effectiveEnabled,
+			Name:       &plan.name,
+			DataType:   &dataType,
+			DataFormat: &df,
+			Enabled:    &effectiveEnabled,
 		}
 		if plan.point.PollingGroupID == nil && defaultPollingGroupID != nil {
 			updateReq.PollingGroupID = defaultPollingGroupID
@@ -467,6 +486,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 			Name:           buildPointName(next.NamingPrefix, plan.address),
 			Address:        plan.address,
 			DataType:       next.DataType,
+			DataFormat:     next.DataFormat,
 			Mode:           schema.PointModeReadOnly,
 			PollingGroupID: defaultPollingGroupID,
 		})
@@ -503,7 +523,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		}
 	}
 
-	syncResult, err := s.syncRuleTagMappings(ctx, &next, newLinks, effectiveEnabled)
+	syncResult, err := s.syncRuleTagMappings(ctx, rule, &next, newLinks, effectiveEnabled)
 	if err != nil {
 		s.rollbackTagMappingSync(ctx, syncResult)
 		s.rollbackUpdatedPoints(ctx, appliedUpdatePlans)
@@ -589,7 +609,7 @@ func (s *Service) SyncDerivedPointState(ctx context.Context) error {
 			return fmt.Errorf("取得來源規則連結失敗: %w", linkErr)
 		}
 		nextLinks := cloneSourceRuleLinks(currentLinks)
-		syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, nextLinks, enabled)
+		syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, rule, nextLinks, enabled)
 		if syncErr != nil {
 			s.rollbackTagMappingSync(ctx, syncResult)
 			return fmt.Errorf("同步來源規則標籤映射失敗: %w", syncErr)
@@ -702,7 +722,7 @@ func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error
 	}
 
 	nextLinks := cloneSourceRuleLinks(previousLinks)
-	syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, nextLinks, enabled)
+	syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, rule, nextLinks, enabled)
 	if syncErr != nil {
 		s.rollbackTagMappingSync(ctx, syncResult)
 		s.rollbackUpdatedPoints(ctx, appliedPointPlans)
@@ -755,7 +775,7 @@ func (s *Service) replaceRuleLinks(ctx context.Context, ruleID string, previousL
 	return nil
 }
 
-func (s *Service) syncRuleTagMappings(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool) (tagMappingSyncResult, error) {
+func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule *schema.SourceRule, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool) (tagMappingSyncResult, error) {
 	result := tagMappingSyncResult{
 		updatedMappings: make(map[string]mappingRollbackState),
 		updatedTags:     make(map[string]tagRollbackState),
@@ -769,7 +789,7 @@ func (s *Service) syncRuleTagMappings(ctx context.Context, rule *schema.SourceRu
 		if err != nil {
 			return result, fmt.Errorf("取得衍生點位失敗: %w", err)
 		}
-		tagRecord, mappingRecord, err := s.ensureRuleTagMapping(ctx, rule, pointRecord, link, enabled, &result)
+		tagRecord, mappingRecord, err := s.ensureRuleTagMapping(ctx, oldRule, rule, pointRecord, link, enabled, &result)
 		if err != nil {
 			return result, err
 		}
@@ -783,6 +803,7 @@ func (s *Service) syncRuleTagMappings(ctx context.Context, rule *schema.SourceRu
 
 func (s *Service) ensureRuleTagMapping(
 	ctx context.Context,
+	oldRule *schema.SourceRule,
 	rule *schema.SourceRule,
 	pointRecord *schema.Point,
 	link *schema.SourceRuleLink,
@@ -790,6 +811,12 @@ func (s *Service) ensureRuleTagMapping(
 	result *tagMappingSyncResult,
 ) (*schema.Tag, *schema.Mapping, error) {
 	transformPipeline := s.buildRuleTransformPipeline(rule, pointRecord)
+	var oldTransformPipeline []schema.TransformStep
+	if oldRule != nil {
+		oldTransformPipeline = s.buildRuleTransformPipeline(oldRule, &schema.Point{DataType: oldRule.DataType})
+	} else {
+		oldTransformPipeline = []schema.TransformStep{}
+	}
 	targetDataType := desiredRuleTargetDataType(rule, pointRecord)
 
 	pointID := pointRecord.ID
@@ -809,7 +836,7 @@ func (s *Service) ensureRuleTagMapping(
 		if syncErr != nil {
 			return nil, nil, syncErr
 		}
-		mappingRecord, syncErr := s.syncRuleMapping(ctx, pointMappings[0], enabled, transformPipeline, result)
+		mappingRecord, syncErr := s.syncRuleMapping(ctx, pointMappings[0], enabled, oldTransformPipeline, transformPipeline, result)
 		if syncErr != nil {
 			return nil, nil, syncErr
 		}
@@ -839,7 +866,7 @@ func (s *Service) ensureRuleTagMapping(
 		if tagMappings[0].PointID != pointRecord.ID {
 			return nil, nil, fmt.Errorf("tag %s 已綁定其他 point", tagRecord.Key)
 		}
-		mappingRecord, syncErr := s.syncRuleMapping(ctx, tagMappings[0], enabled, transformPipeline, result)
+		mappingRecord, syncErr := s.syncRuleMapping(ctx, tagMappings[0], enabled, oldTransformPipeline, transformPipeline, result)
 		if syncErr != nil {
 			return nil, nil, syncErr
 		}
@@ -970,6 +997,7 @@ func (s *Service) syncRuleMapping(
 	ctx context.Context,
 	mappingRecord *schema.Mapping,
 	enabled bool,
+	oldTransformPipeline []schema.TransformStep,
 	transformPipeline []schema.TransformStep,
 	result *tagMappingSyncResult,
 ) (*schema.Mapping, error) {
@@ -998,7 +1026,15 @@ func (s *Service) syncRuleMapping(
 	if mappingRecord.Enabled != enabled {
 		updateReq.Enabled = &enabled
 	}
+
 	if mappingRecord.TransformPipeline != nextPipelineJSON {
+		oldPipelineJSON, err := encodeTransformPipeline(oldTransformPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("序列化既有來源規則映射轉換管線失敗: %w", err)
+		}
+		if mappingRecord.TransformPipeline != oldPipelineJSON {
+			return nil, fmt.Errorf("映射存在手動編輯的轉換管線，無法自動覆蓋")
+		}
 		updateReq.TransformPipeline = transformPipeline
 	}
 
@@ -1022,7 +1058,27 @@ func validateCreateRequest(req CreateRuleRequest) error {
 	if err := validateRuleDataType(req.DataType); err != nil {
 		return err
 	}
+	if err := validateRuleDataFormat(req.DataFormat); err != nil {
+		return err
+	}
 	return nil
+}
+
+func normalizeDataFormat(value string) string {
+	return strings.ToUpper(strings.TrimSpace(value))
+}
+
+func validateRuleDataFormat(dataFormat string) error {
+	normalized := normalizeDataFormat(dataFormat)
+	if normalized == "" {
+		return nil
+	}
+	switch normalized {
+	case "ABCD", "BADC", "CDAB", "DCBA":
+		return nil
+	default:
+		return fmt.Errorf("unsupported data_format: %s", dataFormat)
+	}
 }
 
 func validateRuleDataType(dataType schema.DataType) error {

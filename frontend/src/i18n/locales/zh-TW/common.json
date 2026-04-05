@@ -575,6 +575,9 @@
       "planner": {
         "title": "規則建立器",
         "helper": "一次定義一條來源規則，主要檢視重心留給下方畫布。",
+        "collapsedHint": "已收合表單，點標題可再次展開。",
+        "expandSection": "展開規則建立器",
+        "collapseSection": "收合規則建立器",
         "startAddress": "起始位址",
         "dataType": "資料型態",
         "count": "數量",
@@ -587,10 +590,13 @@
         "import": "匯入",
         "export": "匯出",
         "targetDataType": "目標型態",
-        "sameAsReadType": "與讀取型態相同",
+        "sameAsReadType": "預設",
         "scaleMultiplier": "縮放倍率",
         "scaleOffset": "偏移量",
+        "dataFormat": "字節序格式",
+        "dataFormatDefault": "預設",
         "advanced": {
+          "heading": "進階設定",
           "show": "顯示進階設定",
           "hide": "隱藏進階設定"
         },
@@ -654,7 +660,10 @@
       },
       "ruleLayer": {
         "eyebrow": "規劃規則層",
+        "expandCard": "展開此規則的操作與編輯區",
+        "collapseCard": "收合此規則的操作與編輯區",
         "title": "管理來源規劃規則",
+        "descriptionHint": "規則層功能說明",
         "description": "讓多條來源規則能同時可見、聚焦、切換與重排。下方「規則停用／啟用」只影響該條規則是否納管（衍生 point／排程），不會開關整台設備的輪詢；要開始或暫停讀取設備請用上方「開始收集／停止收集」。",
         "empty": "先套用一條來源規劃規則，才能開始建立共享位址 lattice。",
         "meta": "{{bitWidth}} 位元 · {{count}} 筆 · {{cells}} 格",

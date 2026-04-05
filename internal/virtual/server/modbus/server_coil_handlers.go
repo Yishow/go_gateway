@@ -24,7 +24,7 @@ func (s *Server) handleReadCoils(pdu []byte) []byte {
 		byteOffset := int(bitAddr / 8)
 		bitOffset := bitAddr % 8
 
-		val, err := s.bank.ReadByte(byteOffset)
+		val, err := s.bank.ReadByteAt(byteOffset)
 		if err != nil {
 			return s.exceptionResponse(FuncReadCoils, ExceptionIllegalDataAddress)
 		}
@@ -55,7 +55,7 @@ func (s *Server) handleWriteSingleCoil(pdu []byte) []byte {
 	byteOffset := int(coilAddr / 8)
 	bitOffset := coilAddr % 8
 
-	currentVal, err := s.bank.ReadByte(byteOffset)
+	currentVal, err := s.bank.ReadByteAt(byteOffset)
 	if err != nil {
 		return s.exceptionResponse(FuncWriteSingleCoil, ExceptionIllegalDataAddress)
 	}
@@ -66,7 +66,7 @@ func (s *Server) handleWriteSingleCoil(pdu []byte) []byte {
 		currentVal &^= 1 << bitOffset
 	}
 
-	err = s.bank.WriteByte(byteOffset, currentVal)
+	err = s.bank.WriteByteAt(byteOffset, currentVal)
 	if err != nil {
 		return s.exceptionResponse(FuncWriteSingleCoil, ExceptionIllegalDataAddress)
 	}

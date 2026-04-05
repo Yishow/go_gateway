@@ -75,6 +75,10 @@ vi.mock('../../../../hooks/datalink/useDevices', () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useToggleDeviceStatusMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 vi.mock('../../../../hooks/datalink/usePoints', () => ({

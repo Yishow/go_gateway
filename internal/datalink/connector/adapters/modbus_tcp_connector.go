@@ -180,7 +180,7 @@ func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest
 			return result, err
 		}
 		result.RawBytes = uint16SliceToBytes(values)
-		result.Value = convertModbusValue(values, req.DataType)
+		result.Value = convertModbusValue(values, req.DataType, req.DataFormat)
 
 	case "04", "input", "FC04":
 		// 讀取輸入暫存器
@@ -191,7 +191,7 @@ func (c *ModbusTCPConnector) Read(ctx context.Context, req connector.ReadRequest
 			return result, err
 		}
 		result.RawBytes = uint16SliceToBytes(values)
-		result.Value = convertModbusValue(values, req.DataType)
+		result.Value = convertModbusValue(values, req.DataType, req.DataFormat)
 
 	default:
 		result.Quality = schema.QualityBad

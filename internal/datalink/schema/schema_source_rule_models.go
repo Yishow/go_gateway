@@ -26,6 +26,8 @@ type SourceRule struct {
 	// ScaleOffset 偏移量（可空）。與 ScaleMultiplier 構成線性縮放。
 	// NULL 表示偏移量為 0（若 ScaleMultiplier 非 NULL）。
 	ScaleOffset *float64 `json:"scale_offset,omitempty" db:"scale_offset"`
+	// DataFormat 多暫存器／浮點解碼字節序（ABCD、BADC、CDAB、DCBA）；空字串表示使用設備連線預設。
+	DataFormat string `json:"data_format,omitempty" db:"data_format"`
 }
 
 // SourceRuleLink 記錄來源規則衍生出的下游實體關聯。

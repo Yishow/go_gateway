@@ -108,9 +108,10 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 
 			for _, pt := range pts {
 				req := connector.ReadRequest{
-					Address:  pt.Address,
-					Function: pt.Function,
-					DataType: pt.DataType,
+					Address:    pt.Address,
+					Function:   pt.Function,
+					DataType:   pt.DataType,
+					DataFormat: pt.DataFormat,
 				}
 				req.Count = schema.RegisterCountForDataType(pt.DataType)
 

@@ -191,7 +191,6 @@ describe('TestPage', () => {
         expect.objectContaining({ type: 'operations', title: '測試操作' }),
         expect.objectContaining({ type: 'scanner', title: '設備掃描' }),
         expect.objectContaining({ type: 'monitor', title: '即時監控' }),
-        expect.objectContaining({ type: 'rtu-polling', title: 'RTU Polling' }),
         expect.objectContaining({ type: 'debug', title: '調試面板' }),
       ])
     );

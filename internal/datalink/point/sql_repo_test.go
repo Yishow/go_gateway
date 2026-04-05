@@ -33,6 +33,9 @@ func setupTestDB(t *testing.T) *sql.DB {
 	_, err = db.Exec(string(migrationContent))
 	require.NoError(t, err)
 
+	_, err = db.Exec(`ALTER TABLE points ADD COLUMN data_format TEXT`)
+	require.NoError(t, err)
+
 	return db
 }
 

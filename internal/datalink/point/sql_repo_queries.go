@@ -10,7 +10,7 @@ import (
 // GetByID 根據 ID 取得點位
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Point, error) {
 	query := `
-		SELECT id, device_id, name, description, address, function, data_type, mode, 
+		SELECT id, device_id, name, description, address, function, data_type, data_format, mode, 
 		       polling_group_id, last_read_at, last_value, last_error, enabled, created_at, updated_at
 		FROM points WHERE id = ?
 	`
@@ -22,7 +22,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Point, 
 // ListByDevice 根據設備 ID 取得點位列表
 func (r *SQLRepository) ListByDevice(ctx context.Context, deviceID string) ([]*schema.Point, error) {
 	query := `
-		SELECT id, device_id, name, description, address, function, data_type, mode,
+		SELECT id, device_id, name, description, address, function, data_type, data_format, mode,
 		       polling_group_id, last_read_at, last_value, last_error, enabled, created_at, updated_at
 		FROM points WHERE device_id = ?
 		ORDER BY name ASC
@@ -49,7 +49,7 @@ func (r *SQLRepository) ListByDevice(ctx context.Context, deviceID string) ([]*s
 // ListByPollingGroup 根據輪詢群組 ID 取得點位列表
 func (r *SQLRepository) ListByPollingGroup(ctx context.Context, groupID string) ([]*schema.Point, error) {
 	query := `
-		SELECT id, device_id, name, description, address, function, data_type, mode,
+		SELECT id, device_id, name, description, address, function, data_type, data_format, mode,
 		       polling_group_id, last_read_at, last_value, last_error, enabled, created_at, updated_at
 		FROM points WHERE polling_group_id = ?
 		ORDER BY name ASC
@@ -76,7 +76,7 @@ func (r *SQLRepository) ListByPollingGroup(ctx context.Context, groupID string) 
 // List 列出點位
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.Point, error) {
 	query := `
-		SELECT id, device_id, name, description, address, function, data_type, mode,
+		SELECT id, device_id, name, description, address, function, data_type, data_format, mode,
 		       polling_group_id, last_read_at, last_value, last_error, enabled, created_at, updated_at
 		FROM points
 		WHERE 1=1

@@ -31,6 +31,8 @@ export type SourceRule = {
   scaleMultiplier?: number;
   /** 偏移量（可空）。 */
   scaleOffset?: number;
+  /** 字節序格式（可空）。 */
+  dataFormat?: string;
 };
 
 export type AddressCanvasStatus = 'gap' | 'planned' | 'used' | 'unmanaged' | 'conflict';
@@ -185,6 +187,9 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
   const maxAddress = sortedOccupiedAddresses[sortedOccupiedAddresses.length - 1]!;
   const cellCount = getSequentialCellCount(minAddress, maxAddress, input.protocol);
 
+  const rulesList = 'rules' in input ? input.rules : [];
+  const ruleById = new Map(rulesList.map((r) => [r.id, r] as const));
+
   return Array.from({ length: cellCount }, (_, offset) => {
     const address = addressParser.offset(minAddress, offset, input.protocol);
     const pointMeta = pointOccupancy.get(address);
@@ -217,6 +222,13 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
     });
     const liveSnapshot = pointMeta?.point ? input.liveValues?.[pointMeta.point.id] : undefined;
 
+    let liveValue: unknown = liveSnapshot?.raw_value ?? pointMeta?.point?.last_value;
+    const primaryId = ruleMeta?.primaryRuleId ?? null;
+    if (primaryId) {
+      const ruleForCell = ruleById.get(primaryId);
+      liveValue = applyRuleLinearDisplayScale(liveValue, ruleForCell);
+    }
+
     return {
       address,
       status,
@@ -230,7 +242,7 @@ export function buildAddressCanvasItems(input: BuildAddressCanvasItemsInput): Ad
       ruleMergeOffset: ruleMeta?.mergeOffset ?? 0,
       linkState: link.state,
       linkLabelKey: link.labelKey,
-      liveValue: liveSnapshot?.raw_value ?? pointMeta?.point?.last_value,
+      liveValue,
       liveTimestamp:
         liveSnapshot?.timestamp ?? pointMeta?.point?.last_read_at ?? null,
     };
@@ -260,6 +272,60 @@ export function buildCoverageOverviewSegments(
   }
 
   return segments;
+}
+
+/**
+ * 將即時讀值轉成有限數字，供畫布縮放顯示；無法解析時回傳 `null`。
+ *
+ * @param value - point.last_value、SSE `raw_value` 或 JSON 字串
+ * @returns 可參與線性縮放的數字，否則 `null`
+ */
+function parseLiveNumericForCanvas(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return null;
+    }
+    const direct = Number(trimmed);
+    if (Number.isFinite(direct)) {
+      return direct;
+    }
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (typeof parsed === 'number' && Number.isFinite(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * 套用來源規則的線性縮放於畫布顯示（與後端 mapping `scale` 步驟一致；point 仍存原始採集值）。
+ *
+ * @param value - 顯示前的即時值
+ * @param rule - 該格所屬之主要規則（可空）
+ * @returns 縮放後數字，或無法／無需縮放時回傳原值
+ */
+function applyRuleLinearDisplayScale(value: unknown, rule: SourceRule | undefined): unknown {
+  if (!rule || (rule.scaleMultiplier === undefined && rule.scaleOffset === undefined)) {
+    return value;
+  }
+  const n = parseLiveNumericForCanvas(value);
+  if (n === null) {
+    return value;
+  }
+  const scale = rule.scaleMultiplier ?? 1;
+  const offset = rule.scaleOffset ?? 0;
+  return n * scale + offset;
 }
 
 export function formatSourceValue(value: unknown, format: SourceValueFormat): string {

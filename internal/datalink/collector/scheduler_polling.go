@@ -12,9 +12,10 @@ import (
 // pollPoint 輪詢單一點位，返回錯誤用於熔斷器報告
 func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo, breaker *health.CircuitBreaker) error {
 	req := connector.ReadRequest{
-		Address:  pt.Address,
-		Function: pt.Function,
-		DataType: pt.DataType,
+		Address:    pt.Address,
+		Function:   pt.Function,
+		DataType:   pt.DataType,
+		DataFormat: pt.DataFormat,
 	}
 
 	req.Count = schema.RegisterCountForDataType(pt.DataType)

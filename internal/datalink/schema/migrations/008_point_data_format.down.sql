@@ -1,0 +1,1 @@
+ALTER TABLE points DROP COLUMN IF EXISTS data_format;

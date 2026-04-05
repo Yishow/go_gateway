@@ -36,6 +36,8 @@ type sourceRuleResponse struct {
 	ScaleMultiplier *float64 `json:"scale_multiplier,omitempty"`
 	// ScaleOffset 偏移量（可空）
 	ScaleOffset *float64 `json:"scale_offset,omitempty"`
+	// DataFormat 字節序格式（可空）
+	DataFormat string `json:"data_format,omitempty"`
 }
 
 func NewSourceRuleHandler(svc *sourcerule.Service) *SourceRuleHandler {
@@ -109,6 +111,7 @@ func (h *SourceRuleHandler) Update(c *gin.Context) {
 	_, req.TargetDataTypeSet = raw["target_data_type"]
 	_, req.ScaleMultiplierSet = raw["scale_multiplier"]
 	_, req.ScaleOffsetSet = raw["scale_offset"]
+	_, req.DataFormatSet = raw["data_format"]
 
 	rule, err := h.svc.Update(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
@@ -183,5 +186,6 @@ func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 		TargetDataType:   targetDataType,
 		ScaleMultiplier:  rule.ScaleMultiplier,
 		ScaleOffset:      rule.ScaleOffset,
+		DataFormat:       rule.DataFormat,
 	}
 }

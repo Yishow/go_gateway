@@ -15,6 +15,9 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 	if err := validatePointDataType(req.DataType); err != nil {
 		return nil, err
 	}
+	if err := validatePointDataFormat(req.DataFormat); err != nil {
+		return nil, err
+	}
 
 	normalizedAddress, err := validateAndNormalizeAddress(req.Address)
 	if err != nil {
@@ -43,6 +46,7 @@ func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.P
 		Address:        normalizedAddress,
 		Function:       normalizedFunction,
 		DataType:       req.DataType,
+		DataFormat:     normalizePointDataFormat(req.DataFormat),
 		Mode:           req.Mode,
 		PollingGroupID: req.PollingGroupID,
 		Enabled:        true,
@@ -156,6 +160,7 @@ type CreatePointRequest struct {
 	Address        string           `json:"address"`
 	Function       string           `json:"function,omitempty"`
 	DataType       schema.DataType  `json:"data_type"`
+	DataFormat     string           `json:"data_format,omitempty"`
 	Mode           schema.PointMode `json:"mode,omitempty"`
 	PollingGroupID *string          `json:"polling_group_id,omitempty"`
 }
@@ -193,6 +198,12 @@ func (s *Service) Update(ctx context.Context, id string, req UpdatePointRequest)
 		}
 		point.DataType = *req.DataType
 	}
+	if req.DataFormat != nil {
+		if err := validatePointDataFormat(*req.DataFormat); err != nil {
+			return nil, err
+		}
+		point.DataFormat = normalizePointDataFormat(*req.DataFormat)
+	}
 	if req.Mode != nil {
 		point.Mode = *req.Mode
 	}
@@ -219,6 +230,7 @@ type UpdatePointRequest struct {
 	Address             *string           `json:"address,omitempty"`
 	Function            *string           `json:"function,omitempty"`
 	DataType            *schema.DataType  `json:"data_type,omitempty"`
+	DataFormat          *string           `json:"data_format,omitempty"`
 	Mode                *schema.PointMode `json:"mode,omitempty"`
 	PollingGroupID      *string           `json:"polling_group_id,omitempty"`
 	ReplacePollingGroup bool              `json:"-"`

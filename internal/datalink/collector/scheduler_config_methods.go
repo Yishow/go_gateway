@@ -65,6 +65,7 @@ func (s *Scheduler) AddPoint(point *schema.Point) {
 		Address:        point.Address,
 		Function:       point.Function,
 		DataType:       point.DataType,
+		DataFormat:     point.DataFormat,
 		PollingGroupID: groupID,
 	}
 }

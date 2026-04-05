@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronRight, CircleHelp } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -175,6 +176,7 @@ function mapPersistedRuleToPlannerRule(rule: SourceRuleRecord): SourceRule {
     targetDataType: rule.target_data_type,
     scaleMultiplier: rule.scale_multiplier,
     scaleOffset: rule.scale_offset,
+    dataFormat: rule.data_format,
   };
 }
 
@@ -201,7 +203,8 @@ function areRulesEqual(left: ReadonlyArray<SourceRule>, right: ReadonlyArray<Sou
       rule.skippedAddresses.join(',') === candidate.skippedAddresses.join(',') &&
       rule.targetDataType === candidate.targetDataType &&
       rule.scaleMultiplier === candidate.scaleMultiplier &&
-      rule.scaleOffset === candidate.scaleOffset
+      rule.scaleOffset === candidate.scaleOffset &&
+      rule.dataFormat === candidate.dataFormat
     );
   });
 }
@@ -382,13 +385,22 @@ export function SourceCanvasSection() {
   const [targetDataType, setTargetDataType] = useState<DataType | ''>('');
   const [scaleMultiplier, setScaleMultiplier] = useState<string>('');
   const [scaleOffset, setScaleOffset] = useState<string>('');
+  const [dataFormat, setDataFormat] = useState<string>('');
   const [jumpAddress, setJumpAddress] = useState('');
+  /** 規則建立器表單區是否展開（收合時僅顯示標題列）。 */
+  const [plannerSectionOpen, setPlannerSectionOpen] = useState(true);
+  /** 已收合的規則卡片 id（Set 內表示該卡操作區／編輯區隱藏）。 */
+  const [collapsedRuleCardIds, setCollapsedRuleCardIds] = useState(() => new Set<string>());
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     startAddress: string;
     count: number;
     dataType: DataType;
     skippedAddresses: string[];
+    targetDataType: DataType | '';
+    scaleMultiplier: string;
+    scaleOffset: string;
+    dataFormat: string;
   } | null>(null);
   const [batchCreateSummary, setBatchCreateSummary] = useState<{
     successCount: number;
@@ -673,6 +685,7 @@ export function SourceCanvasSection() {
       targetDataType: targetDataType || undefined,
       scaleMultiplier: scaleMultiplier ? Number(scaleMultiplier) : undefined,
       scaleOffset: scaleOffset ? Number(scaleOffset) : undefined,
+      dataFormat: dataFormat || undefined,
     };
 
     setSourcePlanningState((currentState) => ({
@@ -764,6 +777,21 @@ export function SourceCanvasSection() {
     }));
     setFocusedRuleId(ruleId);
     setInspectorSelection({ kind: 'rule', ruleId });
+  };
+
+  /**
+   * 切換左欄單一規則卡片的展開／收合（不影響選取狀態）。
+   */
+  const toggleRuleCardCollapsed = (ruleId: string) => {
+    setCollapsedRuleCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(ruleId)) {
+        next.delete(ruleId);
+      } else {
+        next.add(ruleId);
+      }
+      return next;
+    });
   };
 
   const handleSelectAddress = (address: string) => {
@@ -964,6 +992,10 @@ export function SourceCanvasSection() {
       count: rule.count,
       dataType: rule.dataType,
       skippedAddresses: [...rule.skippedAddresses],
+      targetDataType: rule.targetDataType ?? '',
+      scaleMultiplier: rule.scaleMultiplier?.toString() ?? '',
+      scaleOffset: rule.scaleOffset?.toString() ?? '',
+      dataFormat: rule.dataFormat ?? '',
     });
   };
 
@@ -985,6 +1017,13 @@ export function SourceCanvasSection() {
           count: editDraft.count,
           data_type: editDraft.dataType,
           skipped_addresses: editDraft.skippedAddresses,
+          target_data_type: editDraft.targetDataType || null,
+          scale_multiplier: editDraft.scaleMultiplier ? Number(editDraft.scaleMultiplier) : null,
+          scale_offset: editDraft.scaleOffset ? Number(editDraft.scaleOffset) : null,
+          data_format:
+            editDraft.dataFormat.trim() === ''
+              ? null
+              : editDraft.dataFormat.trim().toUpperCase(),
         },
       });
       setEditingRuleId(null);
@@ -1009,6 +1048,10 @@ export function SourceCanvasSection() {
                   count: editDraft.count,
                   dataType: editDraft.dataType,
                   skippedAddresses: editDraft.skippedAddresses,
+                  targetDataType: editDraft.targetDataType || undefined,
+                  scaleMultiplier: editDraft.scaleMultiplier ? Number(editDraft.scaleMultiplier) : undefined,
+                  scaleOffset: editDraft.scaleOffset ? Number(editDraft.scaleOffset) : undefined,
+                  dataFormat: editDraft.dataFormat || undefined,
                 }
               : rule,
           ),
@@ -1166,6 +1209,7 @@ export function SourceCanvasSection() {
           target_data_type: rule.targetDataType,
           scale_multiplier: rule.scaleMultiplier,
           scale_offset: rule.scaleOffset,
+          data_format: rule.dataFormat,
         }),
       ),
     );
@@ -1221,7 +1265,7 @@ export function SourceCanvasSection() {
     return (
       <section className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
             {t('workbench.source.empty.eyebrow')}
           </p>
           <h2 className="text-2xl font-semibold text-slate-50">
@@ -1345,28 +1389,64 @@ export function SourceCanvasSection() {
             data-testid="source-rule-layer"
           >
             <div className="shrink-0 space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
                 {t('workbench.source.ruleLayer.eyebrow')}
               </p>
-              <h3 className="text-sm font-semibold text-slate-100">
-                {t('workbench.source.ruleLayer.title')}
-              </h3>
-              <p className="text-xs text-slate-400">
-                {t('workbench.source.ruleLayer.description')}
-              </p>
+              <div className="flex items-start gap-2">
+                <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-100">
+                  {t('workbench.source.ruleLayer.title')}
+                </h3>
+                <button
+                  type="button"
+                  data-testid="source-rule-layer-description-hint"
+                  className="mt-0.5 shrink-0 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+                  aria-label={t('workbench.source.ruleLayer.descriptionHint')}
+                  title={t('workbench.source.ruleLayer.description')}
+                >
+                  <CircleHelp className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
             </div>
 
             <div className="shrink-0 space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/70 p-3">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
-                  {t('workbench.source.planner.title')}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {t('workbench.source.planner.helper')}
-                </p>
-              </div>
+              <button
+                type="button"
+                data-testid="source-planner-section-toggle"
+                aria-expanded={plannerSectionOpen}
+                aria-label={
+                  plannerSectionOpen
+                    ? t('workbench.source.planner.collapseSection')
+                    : t('workbench.source.planner.expandSection')
+                }
+                onClick={() => setPlannerSectionOpen((open) => !open)}
+                className="flex w-full items-start gap-2 rounded-lg text-left transition-colors hover:bg-slate-800/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+              >
+                <span className="mt-0.5 shrink-0 text-slate-400" aria-hidden>
+                  {plannerSectionOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1 space-y-1">
+                  <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                    {t('workbench.source.planner.title')}
+                  </span>
+                  {plannerSectionOpen ? (
+                    <span className="block text-xs text-slate-400">
+                      {t('workbench.source.planner.helper')}
+                    </span>
+                  ) : (
+                    <span className="block text-[11px] text-slate-500">
+                      {t('workbench.source.planner.collapsedHint')}
+                    </span>
+                  )}
+                </span>
+              </button>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              {plannerSectionOpen ? (
+              <>
+              <div className="grid gap-3 sm:grid-cols-2">
                 <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
                   <span>{t('workbench.source.planner.startAddress')}</span>
                   <input
@@ -1380,6 +1460,20 @@ export function SourceCanvasSection() {
                         setSourcePlannerStartAddress(selectedDeviceId, nextValue);
                       }
                     }}
+                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  />
+                </label>
+                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                  <span>{t('workbench.source.planner.count')}</span>
+                  <input
+                    aria-label={t('workbench.source.planner.count')}
+                    min={1}
+                    onChange={(event) => {
+                      clearAppliedTemplate();
+                      setCount(Number(event.target.value) || 0);
+                    }}
+                    type="number"
+                    value={count}
                     className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                   />
                 </label>
@@ -1413,20 +1507,6 @@ export function SourceCanvasSection() {
                   </select>
                 </label>
                 <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                  <span>{t('workbench.source.planner.count')}</span>
-                  <input
-                    aria-label={t('workbench.source.planner.count')}
-                    min={1}
-                    onChange={(event) => {
-                      clearAppliedTemplate();
-                      setCount(Number(event.target.value) || 0);
-                    }}
-                    type="number"
-                    value={count}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                  />
-                </label>
-                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
                   <span>{t('workbench.source.planner.namingPrefix')}</span>
                   <input
                     aria-label={t('workbench.source.planner.namingPrefix')}
@@ -1437,13 +1517,12 @@ export function SourceCanvasSection() {
                 </label>
               </div>
 
-              {/* 進階設定：目標型別與縮放 */}
-              <details className="group space-y-3">
-                <summary className="cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-200">
-                  <span className="group-open:hidden">{t('workbench.source.planner.advanced.show')}</span>
-                  <span className="hidden group-open:inline">{t('workbench.source.planner.advanced.hide')}</span>
-                </summary>
-                <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-3">
+              {/* 進階設定：目標型態／字節序、偏移／倍率（2×2 網格） */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                  {t('workbench.source.planner.advanced.heading')}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
                   <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
                     <span>{t('workbench.source.planner.targetDataType')}</span>
                     <select
@@ -1468,16 +1547,22 @@ export function SourceCanvasSection() {
                     </select>
                   </label>
                   <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                    <span>{t('workbench.source.planner.scaleMultiplier')}</span>
-                    <input
-                      aria-label={t('workbench.source.planner.scaleMultiplier')}
-                      type="number"
-                      step="any"
-                      placeholder="1.0"
-                      value={scaleMultiplier}
-                      onChange={(event) => setScaleMultiplier(event.target.value)}
+                    <span>{t('workbench.source.planner.dataFormat')}</span>
+                    <select
+                      aria-label={t('workbench.source.planner.dataFormat')}
+                      value={dataFormat}
+                      onChange={(event) => {
+                        clearAppliedTemplate();
+                        setDataFormat(event.target.value);
+                      }}
                       className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                    />
+                    >
+                      <option value="">{t('workbench.source.planner.dataFormatDefault')}</option>
+                      <option value="CDAB">CDAB</option>
+                      <option value="ABCD">ABCD</option>
+                      <option value="BADC">BADC</option>
+                      <option value="DCBA">DCBA</option>
+                    </select>
                   </label>
                   <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
                     <span>{t('workbench.source.planner.scaleOffset')}</span>
@@ -1491,8 +1576,20 @@ export function SourceCanvasSection() {
                       className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                     />
                   </label>
+                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                    <span>{t('workbench.source.planner.scaleMultiplier')}</span>
+                    <input
+                      aria-label={t('workbench.source.planner.scaleMultiplier')}
+                      type="number"
+                      step="any"
+                      placeholder="1.0"
+                      value={scaleMultiplier}
+                      onChange={(event) => setScaleMultiplier(event.target.value)}
+                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </label>
                 </div>
-              </details>
+              </div>
 
               <button
                 type="button"
@@ -1501,6 +1598,8 @@ export function SourceCanvasSection() {
               >
                 {t('workbench.source.planner.addRule')}
               </button>
+              </>
+              ) : null}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 scrollbar-auto-hide">
@@ -1514,6 +1613,7 @@ export function SourceCanvasSection() {
                   const coverage = buildSourceRuleCoverage(rule, selectedDevice.protocol);
                   const isSelected = rule.id === selectedRuleId;
                   const isEditing = editingRuleId === rule.id;
+                  const isRuleCardCollapsed = collapsedRuleCardIds.has(rule.id);
                   return (
                     <article
                       className={[
@@ -1522,112 +1622,229 @@ export function SourceCanvasSection() {
                           ? 'border-cyan-500/40 bg-cyan-500/10'
                           : 'border-slate-800/70 bg-slate-900/50',
                       ].join(' ')}
-                      data-testid={`source-rule-${rule.id}`}
+                      data-testid={`source-rule-${rule.id}-card`}
                       key={rule.id}
                     >
-                      <button
-                        className="block w-full space-y-2 text-left"
-                        onClick={() => handleSelectRule(rule.id)}
-                        type="button"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-slate-100">
-                              {rule.id}
-                            </span>
-                            <span
-                              className={[
-                                'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]',
-                                rule.persisted
-                                  ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                                  : 'border border-slate-700/70 bg-slate-900/70 text-slate-300',
-                              ].join(' ')}
-                            >
-                              {rule.persisted
-                                ? t('workbench.source.ruleLayer.persistedBadge')
-                                : t('workbench.source.ruleLayer.draftBadge')}
+                      <div className="flex items-start gap-1">
+                        <button
+                          type="button"
+                          className="mt-0.5 shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+                          aria-expanded={!isRuleCardCollapsed}
+                          aria-label={
+                            isRuleCardCollapsed
+                              ? t('workbench.source.ruleLayer.expandCard')
+                              : t('workbench.source.ruleLayer.collapseCard')
+                          }
+                          data-testid={`source-rule-${rule.id}-collapse`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleRuleCardCollapsed(rule.id);
+                          }}
+                        >
+                          {isRuleCardCollapsed ? (
+                            <ChevronRight className="h-4 w-4" aria-hidden />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" aria-hidden />
+                          )}
+                        </button>
+                        <button
+                          className="min-w-0 flex-1 space-y-2 text-left"
+                          data-testid={`source-rule-${rule.id}`}
+                          onClick={() => handleSelectRule(rule.id)}
+                          type="button"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-slate-100">
+                                {rule.id}
+                              </span>
+                              <span
+                                className={[
+                                  'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]',
+                                  rule.persisted
+                                    ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                                    : 'border border-slate-700/70 bg-slate-900/70 text-slate-300',
+                                ].join(' ')}
+                              >
+                                {rule.persisted
+                                  ? t('workbench.source.ruleLayer.persistedBadge')
+                                  : t('workbench.source.ruleLayer.draftBadge')}
+                              </span>
+                            </div>
+                            <span className="text-xs text-slate-400">
+                              {coverage.startAddress} → {coverage.endAddress}
                             </span>
                           </div>
-                          <span className="text-xs text-slate-400">
-                            {coverage.startAddress} → {coverage.endAddress}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-400">
-                          {t('workbench.source.ruleLayer.meta', {
-                            bitWidth: coverage.bitWidth,
-                            count: rule.count,
-                            cells: coverage.cellCount,
-                          })}
-                        </p>
-                      </button>
+                          <p className="text-xs text-slate-400">
+                            {t('workbench.source.ruleLayer.meta', {
+                              bitWidth: coverage.bitWidth,
+                              count: rule.count,
+                              cells: coverage.cellCount,
+                            })}
+                          </p>
+                        </button>
+                      </div>
 
-                      {isEditing && editDraft ? (
+                      {!isRuleCardCollapsed && isEditing && editDraft ? (
                         <div
-                          className="space-y-2 rounded-lg border border-cyan-500/20 bg-slate-950/60 p-2"
+                          className="space-y-2 rounded-lg border border-cyan-500/20 bg-slate-950/60 p-2 text-[11px] text-slate-300"
                           data-testid="rule-inline-edit-form"
                         >
-                          <label className="block space-y-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                            <span>{t('workbench.source.planner.startAddress')}</span>
-                            <input
-                              aria-label={t('workbench.source.planner.startAddress')}
-                              value={editDraft.startAddress}
-                              onChange={(event) =>
-                                setEditDraft((draft) =>
-                                  draft ? { ...draft, startAddress: event.target.value } : draft,
-                                )
-                              }
-                              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                            />
-                          </label>
-                          <label className="block space-y-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                            <span>{t('workbench.source.planner.count')}</span>
-                            <input
-                              aria-label={t('workbench.source.planner.count')}
-                              min={1}
-                              type="number"
-                              value={editDraft.count}
-                              onChange={(event) =>
-                                setEditDraft((draft) =>
-                                  draft
-                                    ? { ...draft, count: Number(event.target.value) || 0 }
-                                    : draft,
-                                )
-                              }
-                              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                            />
-                          </label>
-                          <label className="block space-y-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                            <span>{t('workbench.source.planner.dataType')}</span>
-                            <select
-                              aria-label={t('workbench.source.planner.dataType')}
-                              value={editDraft.dataType}
-                              onChange={(event) =>
-                                setEditDraft((draft) =>
-                                  draft
-                                    ? { ...draft, dataType: event.target.value as DataType }
-                                    : draft,
-                                )
-                              }
-                              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-xs text-slate-100"
-                            >
-                              {SOURCE_PLANNER_DATA_TYPE_GROUPS.map((group) => (
-                                <optgroup key={group.labelKey} label={t(group.labelKey)}>
-                                  {group.types.map((entry) => (
-                                    <option
-                                      key={entry.value}
-                                      value={entry.value}
-                                      disabled={!entry.supported}
-                                    >
-                                      {entry.value}
-                                      {!entry.supported && entry.disabledReasonKey
-                                        ? ` — ${t(entry.disabledReasonKey)}`
-                                        : ''}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
-                          </label>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                              <span>{t('workbench.source.planner.startAddress')}</span>
+                              <input
+                                aria-label={t('workbench.source.planner.startAddress')}
+                                value={editDraft.startAddress}
+                                onChange={(event) =>
+                                  setEditDraft((draft) =>
+                                    draft ? { ...draft, startAddress: event.target.value } : draft,
+                                  )
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                              />
+                            </label>
+                            <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                              <span>{t('workbench.source.planner.count')}</span>
+                              <input
+                                aria-label={t('workbench.source.planner.count')}
+                                min={1}
+                                type="number"
+                                value={editDraft.count}
+                                onChange={(event) =>
+                                  setEditDraft((draft) =>
+                                    draft
+                                      ? { ...draft, count: Number(event.target.value) || 0 }
+                                      : draft,
+                                  )
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                              />
+                            </label>
+                            <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400 sm:col-span-2">
+                              <span>{t('workbench.source.planner.dataType')}</span>
+                              <select
+                                aria-label={t('workbench.source.planner.dataType')}
+                                value={editDraft.dataType}
+                                onChange={(event) =>
+                                  setEditDraft((draft) =>
+                                    draft
+                                      ? { ...draft, dataType: event.target.value as DataType }
+                                      : draft,
+                                  )
+                                }
+                                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                              >
+                                {SOURCE_PLANNER_DATA_TYPE_GROUPS.map((group) => (
+                                  <optgroup key={group.labelKey} label={t(group.labelKey)}>
+                                    {group.types.map((entry) => (
+                                      <option
+                                        key={entry.value}
+                                        value={entry.value}
+                                        disabled={!entry.supported}
+                                      >
+                                        {entry.value}
+                                        {!entry.supported && entry.disabledReasonKey
+                                          ? ` — ${t(entry.disabledReasonKey)}`
+                                          : ''}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          {/* 進階設定：與規則建立器同樣為常駐雙欄；字級與同卡按鈕列 text-[11px] 對齊 */}
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                              {t('workbench.source.planner.advanced.heading')}
+                            </p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                                <span>{t('workbench.source.planner.targetDataType')}</span>
+                                <select
+                                  aria-label={t('workbench.source.planner.targetDataType')}
+                                  value={editDraft.targetDataType}
+                                  onChange={(event) =>
+                                    setEditDraft((draft) =>
+                                      draft
+                                        ? { ...draft, targetDataType: event.target.value as DataType | '' }
+                                        : draft,
+                                    )
+                                  }
+                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                >
+                                  <option value="">{t('workbench.source.planner.sameAsReadType')}</option>
+                                  {SOURCE_PLANNER_DATA_TYPE_GROUPS.flatMap((group) =>
+                                    group.types
+                                      .filter((entry) => entry.supported)
+                                      .map((entry) => (
+                                        <option key={entry.value} value={entry.value}>
+                                          {entry.value}
+                                        </option>
+                                      )),
+                                  )}
+                                </select>
+                              </label>
+                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                                <span>{t('workbench.source.planner.dataFormat')}</span>
+                                <select
+                                  aria-label={t('workbench.source.planner.dataFormat')}
+                                  value={editDraft.dataFormat}
+                                  onChange={(event) =>
+                                    setEditDraft((draft) =>
+                                      draft
+                                        ? { ...draft, dataFormat: event.target.value }
+                                        : draft,
+                                    )
+                                  }
+                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                >
+                                  <option value="">{t('workbench.source.planner.dataFormatDefault')}</option>
+                                  <option value="CDAB">CDAB</option>
+                                  <option value="ABCD">ABCD</option>
+                                  <option value="BADC">BADC</option>
+                                  <option value="DCBA">DCBA</option>
+                                </select>
+                              </label>
+                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                                <span>{t('workbench.source.planner.scaleOffset')}</span>
+                                <input
+                                  aria-label={t('workbench.source.planner.scaleOffset')}
+                                  type="number"
+                                  step="any"
+                                  placeholder="0.0"
+                                  value={editDraft.scaleOffset}
+                                  onChange={(event) =>
+                                    setEditDraft((draft) =>
+                                      draft
+                                        ? { ...draft, scaleOffset: event.target.value }
+                                        : draft,
+                                    )
+                                  }
+                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                />
+                              </label>
+                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
+                                <span>{t('workbench.source.planner.scaleMultiplier')}</span>
+                                <input
+                                  aria-label={t('workbench.source.planner.scaleMultiplier')}
+                                  type="number"
+                                  step="any"
+                                  placeholder="1.0"
+                                  value={editDraft.scaleMultiplier}
+                                  onChange={(event) =>
+                                    setEditDraft((draft) =>
+                                      draft
+                                        ? { ...draft, scaleMultiplier: event.target.value }
+                                        : draft,
+                                    )
+                                  }
+                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                />
+                              </label>
+                            </div>
+                          </div>
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -1647,6 +1864,7 @@ export function SourceCanvasSection() {
                         </div>
                       ) : null}
 
+                      {!isRuleCardCollapsed ? (
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <button
                           className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1704,6 +1922,7 @@ export function SourceCanvasSection() {
                           {t('workbench.source.ruleLayer.delete')}
                         </button>
                       </div>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -1813,7 +2032,7 @@ export function SourceCanvasSection() {
           >
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
                   {t('workbench.source.coverage.eyebrow')}
                 </p>
                 <h3 className="text-sm font-semibold text-slate-100">

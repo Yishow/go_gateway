@@ -116,6 +116,9 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.source.ruleLayer.delete).not.toBe(
       enCommon.workbench.source.ruleLayer.delete,
     );
+    expect(zhTWCommon.workbench.source.ruleLayer.descriptionHint).not.toBe(
+      enCommon.workbench.source.ruleLayer.descriptionHint,
+    );
     expect(zhTWCommon.workbench.source.toolbar.moreTools).not.toBe(
       enCommon.workbench.source.toolbar.moreTools,
     );
@@ -136,6 +139,18 @@ describe('Workbench locale contract', () => {
     );
     expect(zhTWCommon.workbench.source.planner.dataTypeUnsupported).not.toBe(
       enCommon.workbench.source.planner.dataTypeUnsupported,
+    );
+    expect(zhTWCommon.workbench.source.planner.advanced.heading).not.toBe(
+      enCommon.workbench.source.planner.advanced.heading,
+    );
+    expect(zhTWCommon.workbench.source.planner.collapsedHint).not.toBe(
+      enCommon.workbench.source.planner.collapsedHint,
+    );
+    expect(zhTWCommon.workbench.source.planner.expandSection).not.toBe(
+      enCommon.workbench.source.planner.expandSection,
+    );
+    expect(zhTWCommon.workbench.source.ruleLayer.expandCard).not.toBe(
+      enCommon.workbench.source.ruleLayer.expandCard,
     );
     expect(zhTWCommon.workbench.tag.board.flowModeHint.create).not.toBe(
       enCommon.workbench.tag.board.flowModeHint.create,
