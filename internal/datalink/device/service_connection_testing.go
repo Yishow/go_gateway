@@ -63,16 +63,24 @@ type TestConnectionStageResult struct {
 	LatencyMs int64                     `json:"latency_ms"`
 }
 
+// TestConnectionPlanningHints 提供 rule-driven planning 所需的協議能力提示。
+type TestConnectionPlanningHints struct {
+	SourceRulePlanningSupported bool   `json:"source_rule_planning_supported"`
+	ProbeSupported              bool   `json:"probe_supported"`
+	PlanningBlockedReason       string `json:"planning_blocked_reason,omitempty"`
+}
+
 // TestConnectionResult 連線測試結果
 type TestConnectionResult struct {
-	Success     bool                      `json:"success"`
-	Error       string                    `json:"error,omitempty"`
-	Timestamp   time.Time                 `json:"timestamp"`
-	LatencyMs   int64                     `json:"latency_ms"`
-	Connect     TestConnectionStageResult `json:"connect"`
-	Probe       TestConnectionStageResult `json:"probe"`
-	CanActivate bool                      `json:"can_activate"`
-	CanCollect  bool                      `json:"can_collect"`
+	Success       bool                         `json:"success"`
+	Error         string                       `json:"error,omitempty"`
+	Timestamp     time.Time                    `json:"timestamp"`
+	LatencyMs     int64                        `json:"latency_ms"`
+	Connect       TestConnectionStageResult    `json:"connect"`
+	Probe         TestConnectionStageResult    `json:"probe"`
+	PlanningHints *TestConnectionPlanningHints `json:"planning_hints,omitempty"`
+	CanActivate   bool                         `json:"can_activate"`
+	CanCollect    bool                         `json:"can_collect"`
 }
 
 // DraftTestConnectionRequest 代表尚未儲存的設備草稿連線測試請求。
@@ -83,6 +91,26 @@ type DraftTestConnectionRequest struct {
 
 // testConnectionTimeout 連線測試的整體逾時上限
 const testConnectionTimeout = 15 * time.Second
+
+func buildPlanningCapabilityHints(protocol schema.ProtocolType) *TestConnectionPlanningHints {
+	switch protocol {
+	case schema.ProtocolModbusTCP,
+		schema.ProtocolModbusUDP,
+		schema.ProtocolModbusRTU,
+		schema.ProtocolFatekFBs,
+		schema.ProtocolMC3E:
+		return &TestConnectionPlanningHints{
+			SourceRulePlanningSupported: true,
+			ProbeSupported:              true,
+		}
+	default:
+		return &TestConnectionPlanningHints{
+			SourceRulePlanningSupported: false,
+			ProbeSupported:              false,
+			PlanningBlockedReason:       "protocol does not expose addressed source-rule planning",
+		}
+	}
+}
 
 // TestConnectionWithResult 測試設備連線並返回詳細結果
 func (s *Service) TestConnectionWithResult(ctx context.Context, id string) (*TestConnectionResult, error) {
@@ -133,7 +161,8 @@ func (s *Service) runConnectionTest(
 
 	start := time.Now()
 	result := &TestConnectionResult{
-		Timestamp: start,
+		Timestamp:     start,
+		PlanningHints: buildPlanningCapabilityHints(device.Protocol),
 		Connect: TestConnectionStageResult{
 			Status: TestConnectionStageSkipped,
 		},

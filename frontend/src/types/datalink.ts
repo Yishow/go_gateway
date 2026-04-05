@@ -106,16 +106,14 @@ export interface UpdateDeviceRequest {
   description?: string;
   connection_config?: Record<string, unknown>;
 }
-
 export type ConnectionTestStageStatus = 'success' | 'failed' | 'skipped';
-
 export interface ConnectionTestStageResult {
   status: ConnectionTestStageStatus;
   message?: string;
   error?: string;
   latency_ms: number;
 }
-
+export type ConnectionPlanningHints = { source_rule_planning_supported: boolean; probe_supported: boolean; planning_blocked_reason?: string };
 /** 連線測試結果 */
 export interface ConnectionTestResult {
   success: boolean;
@@ -123,6 +121,7 @@ export interface ConnectionTestResult {
   latency_ms: number;
   connect?: ConnectionTestStageResult;
   probe?: ConnectionTestStageResult;
+  planning_hints?: ConnectionPlanningHints;
   can_activate?: boolean;
   can_collect?: boolean;
 }
