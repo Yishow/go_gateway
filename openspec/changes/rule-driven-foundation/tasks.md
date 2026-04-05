@@ -14,7 +14,7 @@
 
 - [x] 3.1 Add `out_of_sync` lifecycle handling for rule-derived mappings using the shared identity/signature contract
 - [x] 3.2 Add rule-scoped candidate query and recompute endpoints with revision-aware responses
-- [ ] 3.3 Ensure recompute updates the active candidate snapshot without inventing target-specific apply semantics
+- [x] 3.3 Ensure recompute updates the active candidate snapshot without inventing target-specific apply semantics
 
 ## 4. Validation
 

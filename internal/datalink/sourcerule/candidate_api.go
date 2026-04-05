@@ -54,6 +54,9 @@ func (s *Service) RecomputeCandidateView(ctx context.Context, ruleID string) (*C
 	if err != nil {
 		return nil, err
 	}
+	if err := s.repo.ReplaceCandidateSnapshots(ctx, snapshots); err != nil {
+		return nil, fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
+	}
 	return s.composeCandidateView(ctx, rule, snapshots)
 }
 
