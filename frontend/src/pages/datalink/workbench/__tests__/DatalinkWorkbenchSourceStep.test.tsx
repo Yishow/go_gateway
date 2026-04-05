@@ -172,6 +172,14 @@ function renderPage() {
 }
 
 describe('DatalinkWorkbench source step', () => {
+  /**
+   * 規則層側欄預設為「規則建立器」分頁；操作規則卡片前須切至「已新增規則」分頁。
+   * 隱藏面板內的按鈕不會出現在預設的 getByRole 無障礙樹中。
+   */
+  function openSourceRuleLayerRulesTab() {
+    fireEvent.click(screen.getByTestId('source-rule-layer-tab-rules'));
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -241,7 +249,30 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeInTheDocument();
-    expect(screen.getByLabelText('workbench.source.planner.count')).toBeInTheDocument();
+    expect(screen.getByLabelText('workbench.source.planner.count')).toHaveValue(4);
+    expect(screen.getByLabelText('workbench.source.planner.namingPrefix')).toHaveValue('MBT');
+  });
+
+  it('switches rule layer sidebar between planner and added-rules tabs', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const tabPlanner = screen.getByTestId('source-rule-layer-tab-planner');
+    const tabRules = screen.getByTestId('source-rule-layer-tab-rules');
+    expect(tabPlanner).toHaveAttribute('aria-selected', 'true');
+    expect(tabRules).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeVisible();
+
+    fireEvent.click(tabRules);
+    expect(tabPlanner).toHaveAttribute('aria-selected', 'false');
+    expect(tabRules).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('workbench.source.ruleLayer.empty')).toBeVisible();
+
+    fireEvent.click(tabPlanner);
+    expect(tabPlanner).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeVisible();
   });
 
   it('remembers the last planner start address per device and falls back to protocol defaults', async () => {
@@ -278,6 +309,23 @@ describe('DatalinkWorkbench source step', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('40010');
     });
+  });
+
+  it('allows clearing planner count and disables add rule until count is valid', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    const countInput = screen.getByLabelText('workbench.source.planner.count');
+    fireEvent.change(countInput, { target: { value: '' } });
+    expect(countInput).toHaveValue(null);
+
+    const addRule = screen.getByRole('button', { name: 'workbench.source.planner.addRule' });
+    expect(addRule).toBeDisabled();
+
+    fireEvent.change(countInput, { target: { value: '2' } });
+    expect(addRule).not.toBeDisabled();
   });
 
   it('renders a source rule layer and continuous gap cells after applying a rule', () => {
@@ -503,7 +551,7 @@ describe('DatalinkWorkbench source step', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    fireEvent.click(screen.getByTestId('source-rule-persisted-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }));
     fireEvent.change(screen.getAllByDisplayValue('40001').at(-1)!, {
       target: { value: '40005' },
@@ -660,7 +708,7 @@ describe('DatalinkWorkbench source step', () => {
       device_id: 'device-1',
       address: '40001',
       data_type: 'float32',
-      name: 'SRC_40001',
+      name: 'MBT_40001',
     });
   });
 
@@ -686,8 +734,28 @@ describe('DatalinkWorkbench source step', () => {
       expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith({
-      id: 'rule-1',
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.not.objectContaining({ id: expect.anything() }),
+    );
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        device_id: 'device-1',
+        start_address: '40001',
+        count: 2,
+        data_type: 'int16',
+        naming_prefix: 'MBT',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        skipped_addresses: [],
+      }),
+    );
+    expect(mockCreatePointMutation.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('reconciles persisted rules via update API when applying the rule batch action', async () => {
+    mockSourceRules.splice(0, mockSourceRules.length, {
+      id: 'persisted-rule-1',
       device_id: 'device-1',
       start_address: '40001',
       count: 2,
@@ -696,9 +764,30 @@ describe('DatalinkWorkbench source step', () => {
       enabled: true,
       locked: false,
       origin: 'manual',
-      template_name: undefined,
+      template_name: '',
       skipped_addresses: [],
+      created_at: '',
+      updated_at: '2026-03-19T00:00:00Z',
     });
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
+    );
+
+    await waitFor(() => {
+      expect(mockUpdateSourceRuleMutation.mutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockUpdateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith({
+      id: 'persisted-rule-1',
+      data: { skipped_addresses: [] },
+    });
+    expect(mockCreateSourceRuleMutation.mutateAsync).not.toHaveBeenCalled();
     expect(mockCreatePointMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
@@ -723,7 +812,7 @@ describe('DatalinkWorkbench source step', () => {
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     expect(ruleCard).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.delete' }),
     );
@@ -974,19 +1063,22 @@ describe('DatalinkWorkbench source step', () => {
       expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith({
-      id: 'rule-1',
-      device_id: 'device-1',
-      start_address: '40001',
-      count: 2,
-      data_type: 'float32',
-      naming_prefix: 'SRC',
-      enabled: true,
-      locked: false,
-      origin: 'manual',
-      template_name: undefined,
-      skipped_addresses: [],
-    });
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.not.objectContaining({ id: expect.anything() }),
+    );
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        device_id: 'device-1',
+        start_address: '40001',
+        count: 2,
+        data_type: 'float32',
+        naming_prefix: 'MBT',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        skipped_addresses: [],
+      }),
+    );
     expect(mockCreatePointMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
@@ -1082,7 +1174,7 @@ describe('DatalinkWorkbench source step', () => {
       device_id: 'device-1',
       address: '40001',
       data_type: 'int16',
-      name: 'SRC_40001',
+      name: 'MBT_40001',
     });
   });
 
@@ -1120,7 +1212,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1156,7 +1248,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1191,7 +1283,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1242,7 +1334,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-span-inspector')).toBeInTheDocument();
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1354,7 +1446,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     const protectButton = within(ruleCard).getByRole('button', {
       name: 'workbench.source.ruleLayer.protectPlan',
     });
@@ -1591,7 +1683,7 @@ describe('DatalinkWorkbench source step', () => {
 
     // Inline-edit rule to move start address
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1691,8 +1783,10 @@ describe('DatalinkWorkbench source step', () => {
     });
 
     expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith(
+      expect.not.objectContaining({ id: expect.anything() }),
+    );
+    expect(mockCreateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'rule-1',
         start_address: '40001',
         skipped_addresses: ['40003'],
       }),
@@ -1705,7 +1799,7 @@ describe('DatalinkWorkbench source step', () => {
     mockPoints.splice(0, mockPoints.length, {
       id: 'point-rule-1',
       device_id: 'device-1',
-      name: 'SRC_40001',
+      name: 'MBT_40001',
       description: '',
       data_type: 'int16',
       address: '40001',
@@ -1733,7 +1827,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
+    openSourceRuleLayerRulesTab();
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.delete' }),
     );

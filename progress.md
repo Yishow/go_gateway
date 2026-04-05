@@ -66,3 +66,32 @@ git --no-pager diff --check -- AGENTS.md CLAUDE.md
 - ⏳ 補充測試（待續）
 
 **下一步**：繼續 Phase 1.2 - MemoryGrid ARIA 屬性
+
+### 2026-04-06
+
+#### Session 3: staged code review / bugfix
+- ? 盤點 staged 變更 10 檔，確認主要集中在 Source planner / address parser / SQLite DSN
+- ? 執行 review 驗證：
+  - `cd frontend && npm run test -- tests/unit/utils/addressParser.test.ts tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/pages/datalink/workbench-source-canvas-model.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx`
+  - `cd frontend && npm run build`
+  - `go test ./internal/datalink ./cmd/test_ui`
+- ? 修正兩個 review findings：
+  - `.gitignore` 補上 `datalink.db-wal` / `datalink.db-shm`
+  - 回收 staged diff 中不完整的 MQTT topic-based source planner 位址支援，避免前端接受 topic 但現有 canvas / backend point model 無法正確處理
+- ? 同步更新 `frontend/tests/unit/utils/addressParser.test.ts`，改回驗證目前正式支援的 planner 預設位址 contract
+
+**驗證結果**：
+```bash
+cd frontend && npm run test -- tests/unit/utils/addressParser.test.ts tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/pages/datalink/workbench-source-canvas-model.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx
+cd frontend && npm run build
+go test ./internal/datalink ./cmd/test_ui
+```
+- 結果：通過（frontend 83 tests passed；build 成功；Go target packages 通過）
+
+**修改檔案**：
+- .gitignore
+- frontend/src/utils/addressParser.ts
+- frontend/tests/unit/utils/addressParser.test.ts
+- task_plan.md
+- findings.md
+- progress.md

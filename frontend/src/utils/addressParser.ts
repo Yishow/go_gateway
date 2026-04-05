@@ -23,7 +23,6 @@ export function getDefaultPlannerStartAddress(
     case 'modbus_tcp':
     case 'modbus_rtu':
     case 'modbus_udp':
-    case 'mqtt':
     default:
       return '40001';
   }
@@ -34,16 +33,16 @@ export class AddressParser {
    * Parse an address string based on protocol
    */
   parse(address: string, protocol: ProtocolType = 'modbus_tcp'): ParsedAddress {
-    const cleanAddress = address.trim().toUpperCase();
-    
+    const cleanAddress = address.trim();
+
     if (protocol.startsWith('modbus')) {
-      return this.parseModbus(cleanAddress, protocol);
+      return this.parseModbus(cleanAddress.toUpperCase(), protocol);
     } else if (protocol === 'fatek_fbs') {
-      return this.parseFatek(cleanAddress, protocol);
+      return this.parseFatek(cleanAddress.toUpperCase(), protocol);
     } else if (protocol === 'mc_3e') {
-      return this.parseMC3E(cleanAddress, protocol);
+      return this.parseMC3E(cleanAddress.toUpperCase(), protocol);
     }
-    
+
     throw new Error(`Unsupported protocol: ${protocol}`);
   }
 

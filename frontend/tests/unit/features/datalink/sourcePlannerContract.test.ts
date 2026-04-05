@@ -6,8 +6,10 @@ import {
 import {
   applyTemplateToPlanner,
   createTemplateFromPlanner,
+  getDefaultNamingPrefixForProtocol,
   isTemplateRecordContractValid,
   normalizeNamingPrefix,
+  parsePlannerCountInput,
   upsertTemplateRecord,
 } from '@/features/datalink/sourcePlannerContract';
 
@@ -19,6 +21,26 @@ describe('sourcePlannerContract', () => {
   it('normalizes batch naming prefix by rule', () => {
     expect(normalizeNamingPrefix(' line a temp ')).toBe('LINE-A-TEMP');
     expect(normalizeNamingPrefix('$$$')).toBe('SRC');
+  });
+
+  it('parses planner count input with blank, invalid handling, and numeric state', () => {
+    expect(parsePlannerCountInput('')).toBeNull();
+    expect(parsePlannerCountInput('   ')).toBeNull();
+    expect(parsePlannerCountInput('0')).toBeNull();
+    expect(parsePlannerCountInput('-1')).toBeNull();
+    expect(parsePlannerCountInput('1.5')).toBeNull();
+    expect(parsePlannerCountInput('2')).toBe(2);
+    expect(parsePlannerCountInput('  4  ')).toBe(4);
+    expect(parsePlannerCountInput(4)).toBe(4);
+  });
+
+  it('maps protocol to default source planner naming prefix abbreviations', () => {
+    expect(getDefaultNamingPrefixForProtocol('modbus_tcp')).toBe('MBT');
+    expect(getDefaultNamingPrefixForProtocol('modbus_udp')).toBe('MBT');
+    expect(getDefaultNamingPrefixForProtocol('modbus_rtu')).toBe('MBT');
+    expect(getDefaultNamingPrefixForProtocol('mc_3e')).toBe('MC');
+    expect(getDefaultNamingPrefixForProtocol('fatek_fbs')).toBe('FBS');
+    expect(getDefaultNamingPrefixForProtocol('mqtt')).toBe('MQTT');
   });
 
   it('creates template from planner and applies template back to planner defaults', () => {

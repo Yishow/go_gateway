@@ -582,12 +582,15 @@
         "startAddress": "Start address",
         "dataType": "Data type",
         "count": "Count",
+        "countInvalid": "Enter a whole number count of at least 1.",
         "namingPrefix": "Naming prefix",
         "apply": "Apply plan",
         "addRule": "Add rule",
         "batchCreate": "Batch create",
         "conflictHint": "Resolve address conflicts before applying rules.",
         "batchSummary": "Applied {{successCount}} rule(s), {{failureCount}} failed.",
+        "batchApplyNoEligibleRules": "No unlocked enabled rules match safe cells; ensure rules are enabled, not plan-protected, and addresses parse correctly.",
+        "batchApplyErrorFallback": "Failed to apply source rules (check /api/v1/datalink/source-rules response or network).",
         "import": "Import",
         "export": "Export",
         "targetDataType": "Target type",
@@ -694,7 +697,9 @@
         "editCancel": "Cancel",
         "protectPlan": "Protect plan",
         "unprotectPlan": "Unprotect plan",
-        "protectHint": "Protected spans cannot be casually dragged, overwritten by a new rule, or included in bulk creation."
+        "protectHint": "Protected spans cannot be casually dragged, overwritten by a new rule, or included in bulk creation.",
+        "tabRules": "Added rules",
+        "tabListAria": "Rule layer tabs"
       },
       "coverage": {
         "eyebrow": "Coverage overview",

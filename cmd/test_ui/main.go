@@ -66,22 +66,21 @@ func main() {
 	// =========================================================================
 	// Database Setup (SQLite)
 	// =========================================================================
-	dbPath := "datalink.db" // Default to local file
-	log.Printf("資料庫路徑: %s", dbPath)
+	sqliteDSN := datalink.DefaultEmbeddedSQLiteDSN
+	log.Printf("SQLite DSN: %s", sqliteDSN)
 
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", sqliteDSN)
 	if err != nil {
 		log.Fatalf("無法開啟資料庫: %v", err)
 	}
 	defer db.Close()
+	datalink.ApplySQLitePoolDefaults(db)
 
 	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer pingCancel()
 	if err := db.PingContext(pingCtx); err != nil {
 		log.Fatalf("無法連接資料庫: %v", err)
 	}
-
-	// 此處啟用 WAL journal_mode 等優化可選
 
 	// =========================================================================
 	// Migrations

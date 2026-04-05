@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addressParser } from '@/utils/addressParser';
+import { addressParser, getDefaultPlannerStartAddress } from '@/utils/addressParser';
 
 describe('AddressParser', () => {
   describe('Modbus', () => {
@@ -50,6 +50,16 @@ describe('AddressParser', () => {
         startNumber: 100,
         raw: 'D100',
       });
+    });
+  });
+
+  describe('Planner defaults', () => {
+    it('should return protocol-specific default start addresses', () => {
+      expect(getDefaultPlannerStartAddress('modbus_tcp')).toBe('40001');
+      expect(getDefaultPlannerStartAddress('modbus_rtu')).toBe('40001');
+      expect(getDefaultPlannerStartAddress('modbus_udp')).toBe('40001');
+      expect(getDefaultPlannerStartAddress('fatek_fbs')).toBe('D0');
+      expect(getDefaultPlannerStartAddress('mc_3e')).toBe('D0');
     });
   });
 

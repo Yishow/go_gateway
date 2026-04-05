@@ -582,12 +582,15 @@
         "startAddress": "起始位址",
         "dataType": "資料型態",
         "count": "數量",
+        "countInvalid": "請輸入大於或等於 1 的整數數量。",
         "namingPrefix": "命名前綴",
         "apply": "套用規劃",
         "addRule": "新增規則",
         "batchCreate": "批次建立",
         "conflictHint": "請先排除位址衝突，再進行批次建立。",
         "batchSummary": "已套用 {{successCount}} 條規則，失敗 {{failureCount}} 條。",
+        "batchApplyNoEligibleRules": "沒有可套用的未保護規則與安全格點對應；請確認規則已啟用、非「保護規劃」，且位址格式正確。",
+        "batchApplyErrorFallback": "套用來源規則失敗（請檢查 /api/v1/datalink/source-rules 回應或網路連線）。",
         "import": "匯入",
         "export": "匯出",
         "targetDataType": "目標型態",
@@ -694,7 +697,9 @@
         "editCancel": "取消",
         "protectPlan": "保護規劃",
         "unprotectPlan": "解除保護",
-        "protectHint": "受保護的 span 不能被隨意拖曳、不會被新規則覆蓋、也會排除在批次建立之外。"
+        "protectHint": "受保護的 span 不能被隨意拖曳、不會被新規則覆蓋、也會排除在批次建立之外。",
+        "tabRules": "已新增規則",
+        "tabListAria": "規則層分頁"
       },
       "coverage": {
         "eyebrow": "覆蓋總覽",

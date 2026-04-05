@@ -1,4 +1,4 @@
-import { DATALINK_DATA_TYPES, type DataType } from '../../types/datalink';
+import { DATALINK_DATA_TYPES, type DataType, type ProtocolType } from '../../types/datalink';
 import {
   SOURCE_TEMPLATE_SCHEMA_VERSION,
   type SourceTemplateCapabilitySnapshot,
@@ -55,10 +55,53 @@ export interface SourcePlannerDraft {
   namingPrefix: string;
 }
 
+/**
+ * 解析規劃器「數量」輸入字串或已同步為數字的 state。
+ *
+ * - 空白（含僅空白字元）視為尚未輸入完成，回傳 `null`。
+ * - 僅接受有限且為整數、且 ≥ 1 的數值；否則回傳 `null`。
+ *
+ * @param raw 使用者於輸入框內的文字，或規劃器內以 `number` 保存的數量（與受控 `<input type="number">` 對齊）
+ * @returns 有效整數數量，或表示無效／留空時的 `null`
+ */
+export function parsePlannerCountInput(raw: string | number): number | null {
+  const trimmed = String(raw).trim();
+  if (trimmed === '') {
+    return null;
+  }
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) {
+    return null;
+  }
+  return n;
+}
+
 export function normalizeNamingPrefix(prefix: string): string {
   const compact = prefix.trim().toUpperCase();
   const sanitized = compact.replace(/[^A-Z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
   return sanitized || 'SRC';
+}
+
+/**
+ * 依設備協定回傳來源規劃器「命名前綴」的建議預設值（大寫縮寫）。
+ * 用於切換設備或開啟規則建立器時，讓預設 Point 名稱與協定語意一致（例如 Modbus TCP／RTU／UDP → MBT，三菱 MC Protocol → MC）。
+ *
+ * @param protocol 設備的 {@link ProtocolType}
+ * @returns 建議前綴字串（尚未經 {@link normalizeNamingPrefix} 正規化，通常已符合慣例字元集）
+ */
+export function getDefaultNamingPrefixForProtocol(protocol: ProtocolType): string {
+  switch (protocol) {
+    case 'modbus_tcp':
+    case 'modbus_udp':
+    case 'modbus_rtu':
+      return 'MBT';
+    case 'mc_3e':
+      return 'MC';
+    case 'fatek_fbs':
+      return 'FBS';
+    case 'mqtt':
+      return 'MQTT';
+  }
 }
 
 export function normalizeTemplateId(name: string): string {

@@ -5,7 +5,9 @@ import { useQuery } from '@tanstack/react-query';
 import {
   applyTemplateToPlanner,
   createTemplateFromPlanner,
+  getDefaultNamingPrefixForProtocol,
   normalizeNamingPrefix,
+  parsePlannerCountInput,
   SOURCE_PLANNER_DATA_TYPE_GROUPS,
   upsertTemplateRecord,
 } from '../../../features/datalink/sourcePlannerContract';
@@ -114,6 +116,29 @@ function getCoverageSegmentClass(status: ReturnType<typeof buildCoverageOverview
       return 'bg-emerald-500/80';
   }
 }
+
+/**
+ * 規則建立器／進階設定表單列：左欄位標籤、右輸入控制項（適用窄側欄）。
+ */
+const SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS =
+  'grid grid-cols-[minmax(0,38%)_minmax(0,1fr)] items-center gap-2 text-sm uppercase tracking-[0.16em] text-slate-400';
+
+/**
+ * 規則卡片內嵌編輯表單列：同 {@link SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}，字級較小以配合卡片密度。
+ */
+const SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT =
+  'grid grid-cols-[minmax(0,38%)_minmax(0,1fr)] items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-slate-400';
+
+/**
+ * 規則建立器控制項外觀：與畫布工具列「每列格數」輸入框對齊之 padding、字級與圓角，使高度一致。
+ */
+const SOURCE_PLANNER_FIELD_CONTROL_CLASS =
+  'min-w-0 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100';
+
+/**
+ * 位址／數值欄位用等寬字體；其餘同 {@link SOURCE_PLANNER_FIELD_CONTROL_CLASS}。
+ */
+const SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS = `${SOURCE_PLANNER_FIELD_CONTROL_CLASS} font-mono`;
 
 function sortTemplates(templates: ReadonlyArray<SourceTemplateRecord>) {
   return [...templates].sort((left, right) =>
@@ -378,6 +403,7 @@ export function SourceCanvasSection() {
     pointIds: points.map((point) => point.id),
   });
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
+  const selectedDeviceProtocol = selectedDevice?.protocol;
 
   const [viewMode, setViewMode] = useState<SourceViewMode>('plan');
   const [valueFormat, setValueFormat] = useState<SourceValueFormat>('decimal');
@@ -388,22 +414,22 @@ export function SourceCanvasSection() {
   >(null);
   const [startAddress, setStartAddress] = useState('40001');
   const [dataType, setDataType] = useState<DataType>('int16');
-  const [count, setCount] = useState(4);
-  const [namingPrefix, setNamingPrefix] = useState('SRC');
+  const [count, setCount] = useState('4');
+  const [namingPrefix, setNamingPrefix] = useState('');
   const [targetDataType, setTargetDataType] = useState<DataType | ''>('');
   const [scaleMultiplier, setScaleMultiplier] = useState<string>('');
   const [scaleOffset, setScaleOffset] = useState<string>('');
   const [dataFormat, setDataFormat] = useState<string>('');
-  /** 規則建立器表單區是否展開（收合時僅顯示標題列）。 */
-  const [plannerSectionOpen, setPlannerSectionOpen] = useState(true);
+  /** 規劃規則層側欄：規則建立器與已新增規則清單之分頁。 */
+  const [ruleLayerTab, setRuleLayerTab] = useState<'planner' | 'rules'>('planner');
   /** 右欄「覆蓋總覽」區塊是否展開（收合時僅保留標題列；預設收合）。 */
   const [coverageOverviewOpen, setCoverageOverviewOpen] = useState(false);
-  /** 已展開的規則卡片 id（預設空＝全部收合，僅標題摘要可見）。 */
-  const [ruleCardExpandedIds, setRuleCardExpandedIds] = useState(() => new Set<string>());
+  /** 已收合的規則卡片 id（預設空＝全部展開；使用者可收合以精簡側欄）。 */
+  const [ruleCardCollapsedIds, setRuleCardCollapsedIds] = useState(() => new Set<string>());
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     startAddress: string;
-    count: number;
+    count: string;
     dataType: DataType;
     skippedAddresses: string[];
     targetDataType: DataType | '';
@@ -554,6 +580,17 @@ export function SourceCanvasSection() {
         : getDefaultPlannerStartAddress(selectedDevice.protocol);
     setStartAddress(nextStartAddress);
   }, [rememberedStartAddress, selectedDevice]);
+
+  /**
+   * 切換設備（或設備資料載入完成）時，依協定重設規則建立器的命名前綴預設值。
+   * 僅依 `deviceId` 與 `protocol` 觸發，避免 React Query 重取導致同一台設備下使用者已編輯的前綴被洗回。
+   */
+  useEffect(() => {
+    if (!selectedDeviceId || !selectedDeviceProtocol) {
+      return;
+    }
+    setNamingPrefix(getDefaultNamingPrefixForProtocol(selectedDeviceProtocol));
+  }, [selectedDeviceId, selectedDeviceProtocol]);
 
   useEffect(() => {
     if (!selectedDeviceId || !sourceRulesQuery.isSuccess) {
@@ -801,6 +838,10 @@ export function SourceCanvasSection() {
         span,
         selectedDevice.protocol,
       );
+      /** `expand` 解析失敗時回傳空陣列；`[].every(...)` 會誤判為安全，須拒絕。 */
+      if (occupied.length !== span) {
+        return false;
+      }
       return occupied.every((addr) => {
         const cell = itemMap.get(addr);
         return cell && cell.status === 'planned';
@@ -847,12 +888,17 @@ export function SourceCanvasSection() {
       return;
     }
 
+    const parsedCount = parsePlannerCountInput(count);
+    if (parsedCount === null) {
+      return;
+    }
+
     const ruleId = getNextRuleId(rules);
     const nextRule: SourceRule = {
       id: ruleId,
       deviceId: selectedDevice.id,
       startAddress: startAddress.trim(),
-      count,
+      count: parsedCount,
       dataType,
       namingPrefix,
       enabled: true,
@@ -962,7 +1008,7 @@ export function SourceCanvasSection() {
    * 切換左欄單一規則卡片的展開／收合（不影響選取狀態）。
    */
   const toggleRuleCardCollapsed = (ruleId: string) => {
-    setRuleCardExpandedIds((prev) => {
+    setRuleCardCollapsedIds((prev) => {
       const next = new Set(prev);
       if (next.has(ruleId)) {
         next.delete(ruleId);
@@ -1145,16 +1191,16 @@ export function SourceCanvasSection() {
       return;
     }
 
-    setRuleCardExpandedIds((prev) => {
+    setRuleCardCollapsedIds((prev) => {
       const next = new Set(prev);
-      next.add(ruleId);
+      next.delete(ruleId);
       return next;
     });
 
     setEditingRuleId(ruleId);
     setEditDraft({
       startAddress: rule.startAddress,
-      count: rule.count,
+      count: String(rule.count),
       dataType: rule.dataType,
       skippedAddresses: [...rule.skippedAddresses],
       targetDataType: rule.targetDataType ?? '',
@@ -1174,12 +1220,17 @@ export function SourceCanvasSection() {
       return;
     }
 
+    const parsedEditCount = parsePlannerCountInput(editDraft.count);
+    if (parsedEditCount === null) {
+      return;
+    }
+
     if (rule.persisted) {
       await updateSourceRuleMutation.mutateAsync({
         id: ruleId,
         data: {
           start_address: editDraft.startAddress.trim(),
-          count: editDraft.count,
+          count: parsedEditCount,
           data_type: editDraft.dataType,
           skipped_addresses: editDraft.skippedAddresses,
           target_data_type: editDraft.targetDataType || null,
@@ -1210,7 +1261,7 @@ export function SourceCanvasSection() {
               ? {
                   ...rule,
                   startAddress: editDraft.startAddress.trim(),
-                  count: editDraft.count,
+                  count: parsedEditCount,
                   dataType: editDraft.dataType,
                   skippedAddresses: editDraft.skippedAddresses,
                   targetDataType: editDraft.targetDataType || undefined,
@@ -1265,11 +1316,17 @@ export function SourceCanvasSection() {
       return;
     }
 
+    const parsedTemplateCount = parsePlannerCountInput(count);
+    if (parsedTemplateCount === null) {
+      setTemplateNotice(t('workbench.source.planner.countInvalid'));
+      return;
+    }
+
     const nextTemplate = createTemplateFromPlanner({
       templateName: trimmedName,
       draft: {
         startAddress,
-        count,
+        count: parsedTemplateCount,
         dataType,
       },
       preferredViewMode: viewMode,
@@ -1308,7 +1365,7 @@ export function SourceCanvasSection() {
     if (selectedDeviceId) {
       setSourcePlannerStartAddress(selectedDeviceId, plannerDraft.startAddress);
     }
-    setCount(plannerDraft.count);
+    setCount(String(plannerDraft.count));
     setDataType(plannerDraft.dataType);
     setViewMode(template.preferredViewMode ?? 'plan');
     setAppliedTemplate({
@@ -1326,14 +1383,23 @@ export function SourceCanvasSection() {
     setIsLoadTemplateOpen(false);
   };
 
+  /**
+   * 批次「套用規則」：將畫布上無衝突、可安全建立的規劃根位址送交後端。
+   * - 草稿規則（`persisted === false`）：呼叫建立來源規則 API（後端一併建立 point／連結）。
+   * - 已持久化規則：改以更新 API 帶入合併後的 `skipped_addresses`，由後端 reconcile 並補齊缺漏 point
+   *   （例如 point 曾被刪除、或僅有規則無連結之資料狀態）。
+   *
+   * @returns Promise<void>
+   */
   const handleBatchCreate = async () => {
     if (!selectedDevice || safePointDefinitions.length === 0) {
       return;
     }
 
     const safeAddressSet = new Set(safePointDefinitions.map((definition) => definition.address));
+    /** 與 `plannedPointDefinitions`（僅 `locked === false`）對齊，避免對保護規則送 API。 */
     const eligibleRules = rules
-      .filter((rule) => !rule.persisted && rule.enabled)
+      .filter((rule) => rule.enabled && !rule.locked)
       .map((rule) => {
         const ruleDefinitions = buildRulePointDefinitions({
           rules: [rule],
@@ -1354,33 +1420,44 @@ export function SourceCanvasSection() {
       .filter((candidate) => candidate.safeDefinitionCount > 0);
 
     if (eligibleRules.length === 0) {
+      setSourceStepNotice(t('workbench.source.planner.batchApplyNoEligibleRules'));
       return;
     }
 
     const results = await Promise.allSettled(
       eligibleRules.map(({ rule, skippedAddresses }) =>
-        createSourceRuleMutation.mutateAsync({
-          id: rule.id,
-          device_id: selectedDevice.id,
-          start_address: rule.startAddress,
-          count: rule.count,
-          data_type: rule.dataType,
-          naming_prefix: rule.namingPrefix,
-          enabled: rule.enabled,
-          locked: rule.locked,
-          origin: rule.origin,
-          template_name: rule.templateName,
-          skipped_addresses: skippedAddresses,
-          target_data_type: rule.targetDataType,
-          scale_multiplier: rule.scaleMultiplier,
-          scale_offset: rule.scaleOffset,
-          data_format: rule.dataFormat,
-        }),
+        rule.persisted
+          ? updateSourceRuleMutation.mutateAsync({
+              id: rule.id,
+              data: { skipped_addresses: skippedAddresses },
+            })
+          : // 建立請求不帶 `id`，由後端產生 UUID，避免與既有 `source_rules.id`（如舊版 `rule-1`）UNIQUE 衝突。
+            createSourceRuleMutation.mutateAsync({
+              device_id: selectedDevice.id,
+              start_address: rule.startAddress,
+              count: rule.count,
+              data_type: rule.dataType,
+              naming_prefix: rule.namingPrefix,
+              enabled: rule.enabled,
+              locked: rule.locked,
+              origin: rule.origin,
+              template_name: rule.templateName,
+              skipped_addresses: skippedAddresses,
+              target_data_type: rule.targetDataType,
+              scale_multiplier: rule.scaleMultiplier,
+              scale_offset: rule.scaleOffset,
+              data_format: rule.dataFormat,
+            }),
       ),
     );
 
     const succeededRuleIds = eligibleRules
       .filter((_, index) => results[index]?.status === 'fulfilled')
+      .map(({ rule }) => rule.id);
+
+    const succeededDraftRuleIds = eligibleRules
+      .filter((_, index) => results[index]?.status === 'fulfilled')
+      .filter(({ rule }) => !rule.persisted)
       .map(({ rule }) => rule.id);
 
     if (succeededRuleIds.length > 0) {
@@ -1395,17 +1472,33 @@ export function SourceCanvasSection() {
           ),
         ],
         selectedRuleId:
-          currentState.selectedRuleId && succeededRuleIds.includes(currentState.selectedRuleId)
+          currentState.selectedRuleId &&
+          succeededDraftRuleIds.includes(currentState.selectedRuleId)
             ? null
             : currentState.selectedRuleId,
         selectedAddress: null,
       }));
     }
 
-    setBatchCreateSummary({
-      successCount: results.filter((result) => result.status === 'fulfilled').length,
-      failureCount: results.filter((result) => result.status === 'rejected').length,
-    });
+    const successCount = results.filter((result) => result.status === 'fulfilled').length;
+    const failureCount = results.filter((result) => result.status === 'rejected').length;
+
+    setBatchCreateSummary({ successCount, failureCount });
+
+    if (failureCount > 0) {
+      let rejectReason: unknown;
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          rejectReason = result.reason;
+          break;
+        }
+      }
+      setSourceStepNotice(
+        getErrorMessage(rejectReason, t('workbench.source.planner.batchApplyErrorFallback')),
+      );
+    } else {
+      setSourceStepNotice(null);
+    }
   };
 
   const handleCreateSelectedPoint = async () => {
@@ -1488,54 +1581,77 @@ export function SourceCanvasSection() {
               </div>
             </div>
 
-            <div className="shrink-0 space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/70 p-3">
-              <div className="space-y-1">
-                <div className="flex w-full min-w-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    data-testid="source-planner-section-toggle"
-                    aria-expanded={plannerSectionOpen}
-                    aria-label={
-                      plannerSectionOpen
-                        ? t('workbench.source.planner.collapseSection')
-                        : t('workbench.source.planner.expandSection')
-                    }
-                    onClick={() => setPlannerSectionOpen((open) => !open)}
-                    className="flex min-w-0 max-w-[calc(100%-2rem)] items-center gap-2 rounded-lg py-0.5 text-left transition-colors hover:bg-slate-800/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
-                  >
-                    <span className="shrink-0 text-slate-400" aria-hidden>
-                      {plannerSectionOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+              <div
+                className="flex shrink-0 items-stretch gap-1 rounded-xl border border-slate-800/70 bg-slate-950/70 p-1"
+                role="tablist"
+                aria-label={t('workbench.source.ruleLayer.tabListAria')}
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  id="source-rule-layer-tab-planner"
+                  data-testid="source-rule-layer-tab-planner"
+                  aria-selected={ruleLayerTab === 'planner'}
+                  aria-controls="source-rule-layer-panel-planner"
+                  onClick={() => setRuleLayerTab('planner')}
+                  className={
+                    ruleLayerTab === 'planner'
+                      ? 'flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-cyan-500 px-2 py-2 text-center text-sm font-semibold text-slate-950'
+                      : 'flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-transparent px-2 py-2 text-center text-sm font-medium text-slate-500 transition hover:bg-slate-800/45 hover:text-slate-300'
+                  }
+                >
+                  <span className="min-w-0 truncate">{t('workbench.source.planner.title')}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="source-rule-layer-tab-rules"
+                  data-testid="source-rule-layer-tab-rules"
+                  aria-selected={ruleLayerTab === 'rules'}
+                  aria-controls="source-rule-layer-panel-rules"
+                  aria-label={
+                    rules.length > 0
+                      ? `${t('workbench.source.ruleLayer.tabRules')} (${rules.length})`
+                      : t('workbench.source.ruleLayer.tabRules')
+                  }
+                  onClick={() => setRuleLayerTab('rules')}
+                  className={
+                    ruleLayerTab === 'rules'
+                      ? 'flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg bg-cyan-500 px-2 py-2 text-center text-sm font-semibold text-slate-950'
+                      : 'flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-transparent px-2 py-2 text-center text-sm font-medium text-slate-500 transition hover:bg-slate-800/45 hover:text-slate-300'
+                  }
+                >
+                  <span className="min-w-0 truncate">{t('workbench.source.ruleLayer.tabRules')}</span>
+                  {rules.length > 0 ? (
+                    <span
+                      className={
+                        ruleLayerTab === 'rules'
+                          ? 'shrink-0 rounded-md bg-slate-950/20 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-950'
+                          : 'shrink-0 rounded-md bg-slate-800/55 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-400'
+                      }
+                      aria-hidden
+                    >
+                      {rules.length}
                     </span>
-                    <span className="min-w-0 truncate text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                      {t('workbench.source.planner.title')}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="source-planner-helper-hint"
-                    className="shrink-0 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
-                    aria-label={t('workbench.source.planner.helperHint')}
-                    title={t('workbench.source.planner.helper')}
-                  >
-                    <CircleHelp className="h-4 w-4" aria-hidden />
-                  </button>
-                </div>
-                {plannerSectionOpen ? null : (
-                  <p className="pl-6 text-[11px] leading-snug text-slate-500">
-                    {t('workbench.source.planner.collapsedHint')}
-                  </p>
-                )}
+                  ) : null}
+                </button>
               </div>
 
-              {plannerSectionOpen ? (
-              <>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                  <span>{t('workbench.source.planner.startAddress')}</span>
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+              <div
+                role="tabpanel"
+                id="source-rule-layer-panel-planner"
+                aria-labelledby="source-rule-layer-tab-planner"
+                hidden={ruleLayerTab !== 'planner'}
+                className="absolute inset-0 overflow-y-auto overscroll-contain scrollbar-auto-hide"
+              >
+                  <div className="space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/70 p-3">
+              <div className="flex flex-col gap-3">
+                <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                  <span className="min-w-0 break-words leading-snug">
+                    {t('workbench.source.planner.startAddress')}
+                  </span>
                   <input
                     aria-label={t('workbench.source.planner.startAddress')}
                     value={startAddress}
@@ -1547,25 +1663,24 @@ export function SourceCanvasSection() {
                         setSourcePlannerStartAddress(selectedDeviceId, nextValue);
                       }
                     }}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                   />
                 </label>
-                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                  <span>{t('workbench.source.planner.count')}</span>
+                <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                  <span className="min-w-0 break-words leading-snug">{t('workbench.source.planner.count')}</span>
                   <input
                     aria-label={t('workbench.source.planner.count')}
-                    min={1}
                     onChange={(event) => {
                       clearAppliedTemplate();
-                      setCount(Number(event.target.value) || 0);
+                      setCount(event.target.value);
                     }}
                     type="number"
                     value={count}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                   />
                 </label>
-                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                  <span>{t('workbench.source.planner.dataType')}</span>
+                <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                  <span className="min-w-0 break-words leading-snug">{t('workbench.source.planner.dataType')}</span>
                   <select
                     aria-label={t('workbench.source.planner.dataType')}
                     value={dataType}
@@ -1573,7 +1688,7 @@ export function SourceCanvasSection() {
                       clearAppliedTemplate();
                       setDataType(event.target.value as DataType);
                     }}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                   >
                     {SOURCE_PLANNER_DATA_TYPE_GROUPS.map((group) => (
                       <optgroup key={group.labelKey} label={t(group.labelKey)}>
@@ -1593,25 +1708,28 @@ export function SourceCanvasSection() {
                     ))}
                   </select>
                 </label>
-                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                  <span>{t('workbench.source.planner.namingPrefix')}</span>
+                <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                  <span className="min-w-0 break-words leading-snug">
+                    {t('workbench.source.planner.namingPrefix')}
+                  </span>
                   <input
                     aria-label={t('workbench.source.planner.namingPrefix')}
                     value={namingPrefix}
-                    onChange={(event) => setNamingPrefix(event.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                    onChange={(event) => {
+                      clearAppliedTemplate();
+                      setNamingPrefix(event.target.value);
+                    }}
+                    className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                   />
                 </label>
               </div>
 
-              {/* 進階設定：目標型態／字節序、偏移／倍率（2×2 網格） */}
-              <div className="space-y-3">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                  {t('workbench.source.planner.advanced.heading')}
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                    <span>{t('workbench.source.planner.targetDataType')}</span>
+              {/* 目標型態／字節序、偏移／倍率（各列左標籤、右控制項） */}
+              <div className="flex flex-col gap-3">
+                  <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                    <span className="min-w-0 break-words leading-snug">
+                      {t('workbench.source.planner.targetDataType')}
+                    </span>
                     <select
                       aria-label={t('workbench.source.planner.targetDataType')}
                       value={targetDataType}
@@ -1619,7 +1737,7 @@ export function SourceCanvasSection() {
                         clearAppliedTemplate();
                         setTargetDataType(event.target.value as DataType | '');
                       }}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                      className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                     >
                       <option value="">{t('workbench.source.planner.sameAsReadType')}</option>
                       {SOURCE_PLANNER_DATA_TYPE_GROUPS.flatMap((group) =>
@@ -1633,8 +1751,10 @@ export function SourceCanvasSection() {
                       )}
                     </select>
                   </label>
-                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                    <span>{t('workbench.source.planner.dataFormat')}</span>
+                  <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                    <span className="min-w-0 break-words leading-snug">
+                      {t('workbench.source.planner.dataFormat')}
+                    </span>
                     <select
                       aria-label={t('workbench.source.planner.dataFormat')}
                       value={dataFormat}
@@ -1642,7 +1762,7 @@ export function SourceCanvasSection() {
                         clearAppliedTemplate();
                         setDataFormat(event.target.value);
                       }}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                      className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                     >
                       <option value="">{t('workbench.source.planner.dataFormatDefault')}</option>
                       <option value="CDAB">CDAB</option>
@@ -1651,8 +1771,10 @@ export function SourceCanvasSection() {
                       <option value="DCBA">DCBA</option>
                     </select>
                   </label>
-                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                    <span>{t('workbench.source.planner.scaleOffset')}</span>
+                  <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                    <span className="min-w-0 break-words leading-snug">
+                      {t('workbench.source.planner.scaleOffset')}
+                    </span>
                     <input
                       aria-label={t('workbench.source.planner.scaleOffset')}
                       type="number"
@@ -1660,11 +1782,13 @@ export function SourceCanvasSection() {
                       placeholder="0.0"
                       value={scaleOffset}
                       onChange={(event) => setScaleOffset(event.target.value)}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                      className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                     />
                   </label>
-                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                    <span>{t('workbench.source.planner.scaleMultiplier')}</span>
+                  <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                    <span className="min-w-0 break-words leading-snug">
+                      {t('workbench.source.planner.scaleMultiplier')}
+                    </span>
                     <input
                       aria-label={t('workbench.source.planner.scaleMultiplier')}
                       type="number"
@@ -1672,24 +1796,29 @@ export function SourceCanvasSection() {
                       placeholder="1.0"
                       value={scaleMultiplier}
                       onChange={(event) => setScaleMultiplier(event.target.value)}
-                      className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                      className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                     />
                   </label>
-                </div>
               </div>
 
               <button
                 type="button"
                 onClick={handleApplyPlan}
-                className="w-full rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-slate-950"
+                disabled={parsePlannerCountInput(count) === null}
+                className="w-full rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
               >
                 {t('workbench.source.planner.addRule')}
               </button>
-              </>
-              ) : null}
-            </div>
+                  </div>
+              </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 scrollbar-auto-hide">
+              <div
+                role="tabpanel"
+                id="source-rule-layer-panel-rules"
+                aria-labelledby="source-rule-layer-tab-rules"
+                hidden={ruleLayerTab !== 'rules'}
+                className="absolute inset-0 overflow-y-auto overscroll-contain pr-0.5 scrollbar-auto-hide"
+              >
             {rules.length === 0 ? (
               <p className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 px-3 py-4 text-xs text-slate-400">
                 {t('workbench.source.ruleLayer.empty')}
@@ -1700,7 +1829,7 @@ export function SourceCanvasSection() {
                   const coverage = buildSourceRuleCoverage(rule, selectedDevice.protocol);
                   const isSelected = rule.id === selectedRuleId;
                   const isEditing = editingRuleId === rule.id;
-                  const isRuleCardCollapsed = !ruleCardExpandedIds.has(rule.id);
+                  const isRuleCardCollapsed = ruleCardCollapsedIds.has(rule.id);
                   const canMoveRuleUp = ruleIndex > 0;
                   const canMoveRuleDown = ruleIndex < rules.length - 1;
                   return (
@@ -1823,9 +1952,11 @@ export function SourceCanvasSection() {
                           className="space-y-2 rounded-lg border border-cyan-500/20 bg-slate-950/60 p-2 text-[11px] text-slate-300"
                           data-testid="rule-inline-edit-form"
                         >
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                              <span>{t('workbench.source.planner.startAddress')}</span>
+                          <div className="flex flex-col gap-2">
+                            <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT}>
+                              <span className="min-w-0 break-words leading-snug">
+                                {t('workbench.source.planner.startAddress')}
+                              </span>
                               <input
                                 aria-label={t('workbench.source.planner.startAddress')}
                                 value={editDraft.startAddress}
@@ -1834,28 +1965,29 @@ export function SourceCanvasSection() {
                                     draft ? { ...draft, startAddress: event.target.value } : draft,
                                   )
                                 }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                               />
                             </label>
-                            <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                              <span>{t('workbench.source.planner.count')}</span>
+                            <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT}>
+                              <span className="min-w-0 break-words leading-snug">
+                                {t('workbench.source.planner.count')}
+                              </span>
                               <input
                                 aria-label={t('workbench.source.planner.count')}
-                                min={1}
                                 type="number"
                                 value={editDraft.count}
                                 onChange={(event) =>
                                   setEditDraft((draft) =>
-                                    draft
-                                      ? { ...draft, count: Number(event.target.value) || 0 }
-                                      : draft,
+                                    draft ? { ...draft, count: event.target.value } : draft,
                                   )
                                 }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                               />
                             </label>
-                            <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400 sm:col-span-2">
-                              <span>{t('workbench.source.planner.dataType')}</span>
+                            <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT}>
+                              <span className="min-w-0 break-words leading-snug">
+                                {t('workbench.source.planner.dataType')}
+                              </span>
                               <select
                                 aria-label={t('workbench.source.planner.dataType')}
                                 value={editDraft.dataType}
@@ -1866,7 +1998,7 @@ export function SourceCanvasSection() {
                                       : draft,
                                   )
                                 }
-                                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                               >
                                 {SOURCE_PLANNER_DATA_TYPE_GROUPS.map((group) => (
                                   <optgroup key={group.labelKey} label={t(group.labelKey)}>
@@ -1887,14 +2019,11 @@ export function SourceCanvasSection() {
                               </select>
                             </label>
                           </div>
-                          {/* 進階設定：與規則建立器同樣為常駐雙欄；標題字級與側欄青色 eyebrow 一致 */}
-                          <div className="space-y-2">
-                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                              {t('workbench.source.planner.advanced.heading')}
-                            </p>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                                <span>{t('workbench.source.planner.targetDataType')}</span>
+                          <div className="flex flex-col gap-2">
+                              <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT}>
+                                <span className="min-w-0 break-words leading-snug">
+                                  {t('workbench.source.planner.targetDataType')}
+                                </span>
                                 <select
                                   aria-label={t('workbench.source.planner.targetDataType')}
                                   value={editDraft.targetDataType}
@@ -1905,7 +2034,7 @@ export function SourceCanvasSection() {
                                         : draft,
                                     )
                                   }
-                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                  className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                                 >
                                   <option value="">{t('workbench.source.planner.sameAsReadType')}</option>
                                   {SOURCE_PLANNER_DATA_TYPE_GROUPS.flatMap((group) =>
@@ -1919,8 +2048,10 @@ export function SourceCanvasSection() {
                                   )}
                                 </select>
                               </label>
-                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                                <span>{t('workbench.source.planner.dataFormat')}</span>
+                              <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT}>
+                                <span className="min-w-0 break-words leading-snug">
+                                  {t('workbench.source.planner.dataFormat')}
+                                </span>
                                 <select
                                   aria-label={t('workbench.source.planner.dataFormat')}
                                   value={editDraft.dataFormat}
@@ -1931,7 +2062,7 @@ export function SourceCanvasSection() {
                                         : draft,
                                     )
                                   }
-                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                  className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                                 >
                                   <option value="">{t('workbench.source.planner.dataFormatDefault')}</option>
                                   <option value="CDAB">CDAB</option>
@@ -1940,8 +2071,10 @@ export function SourceCanvasSection() {
                                   <option value="DCBA">DCBA</option>
                                 </select>
                               </label>
-                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                                <span>{t('workbench.source.planner.scaleOffset')}</span>
+                              <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT}>
+                                <span className="min-w-0 break-words leading-snug">
+                                  {t('workbench.source.planner.scaleOffset')}
+                                </span>
                                 <input
                                   aria-label={t('workbench.source.planner.scaleOffset')}
                                   type="number"
@@ -1955,11 +2088,13 @@ export function SourceCanvasSection() {
                                         : draft,
                                     )
                                   }
-                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                  className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                                 />
                               </label>
-                              <label className="space-y-1 text-[11px] uppercase tracking-[0.16em] text-slate-400">
-                                <span>{t('workbench.source.planner.scaleMultiplier')}</span>
+                              <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS_COMPACT}>
+                                <span className="min-w-0 break-words leading-snug">
+                                  {t('workbench.source.planner.scaleMultiplier')}
+                                </span>
                                 <input
                                   aria-label={t('workbench.source.planner.scaleMultiplier')}
                                   type="number"
@@ -1973,16 +2108,16 @@ export function SourceCanvasSection() {
                                         : draft,
                                     )
                                   }
-                                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 text-[11px] text-slate-100"
+                                  className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                                 />
                               </label>
-                            </div>
                           </div>
                           <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => handleSaveRuleEdit(rule.id)}
-                              className="rounded-lg bg-cyan-500 px-2 py-1 text-[11px] font-medium text-slate-950"
+                              disabled={parsePlannerCountInput(editDraft.count) === null}
+                              className="rounded-lg bg-cyan-500 px-2 py-1 text-[11px] font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
                             >
                               {t('workbench.source.ruleLayer.editSave')}
                             </button>
@@ -2047,6 +2182,8 @@ export function SourceCanvasSection() {
                 })}
               </div>
             )}
+              </div>
+              </div>
             </div>
           </section>
         </aside>
@@ -2233,7 +2370,9 @@ export function SourceCanvasSection() {
                 onClick={() => void handleBatchCreate()}
                 disabled={
                   safePointDefinitions.length === 0 ||
-                  createPointMutation.isPending
+                  createPointMutation.isPending ||
+                  createSourceRuleMutation.isPending ||
+                  updateSourceRuleMutation.isPending
                 }
                 title={t('workbench.source.actions.createRulePointsHint')}
                 className="rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 shadow-sm shadow-cyan-900/30 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
@@ -2388,13 +2527,13 @@ export function SourceCanvasSection() {
 
           {isSaveTemplateOpen ? (
             <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                <span>{t('workbench.source.templates.name')}</span>
+              <label className={SOURCE_PLANNER_INLINE_LABEL_ROW_CLASS}>
+                <span className="min-w-0 break-words leading-snug">{t('workbench.source.templates.name')}</span>
                 <input
                   aria-label={t('workbench.source.templates.name')}
                   value={templateName}
                   onChange={(event) => setTemplateName(event.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
                 />
               </label>
               <div className="flex flex-wrap gap-2">

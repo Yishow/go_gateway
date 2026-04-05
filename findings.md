@@ -42,9 +42,17 @@
     - `useSmartDashboardPanelsState.test.ts`
   - `frontend/tests/integration/ui/smart-dashboard-regression.test.tsx` 仍直接 import `@/pages/datalink/SmartDashboard`，若 repo 層完整移除 legacy UI，這支 integration test 也應一起移除。
   - `frontend/src/styles/dashboard.ts` 初步搜尋無任何引用，傾向視為 orphan 一併刪除。
-  - 這輪 docs 邊界已由使用者鎖定為：**只更新 active docs，保留 historical docs / archived specs**。
-  - `useSmartDashboardShortcuts` 僅剩 SmartDashboard 舊頁與其專屬測試使用；在刪除 legacy page 後，保留它只會留下無主 API，因此應連同 export 與測試一起收掉。
-  - `frontend/FILE_CLASSIFICATION.md` 與 `frontend/tests/README.md` 屬於 active docs，若不一起更新，repo 說明會與實際檔案狀態衝突。
+- 這輪 docs 邊界已由使用者鎖定為：**只更新 active docs，保留 historical docs / archived specs**。
+- `useSmartDashboardShortcuts` 僅剩 SmartDashboard 舊頁與其專屬測試使用；在刪除 legacy page 後，保留它只會留下無主 API，因此應連同 export 與測試一起收掉。
+- `frontend/FILE_CLASSIFICATION.md` 與 `frontend/tests/README.md` 屬於 active docs，若不一起更新，repo 說明會與實際檔案狀態衝突。
+
+## 2026-04-06 staged code review 新發現
+- `internal/datalink/db.go` 將內嵌 SQLite DSN 切到 WAL 後，repo root 會額外產生 `datalink.db-wal` / `datalink.db-shm`；若 `.gitignore` 不同步補上，每次啟動 `cmd/test_ui` 都會污染工作樹。
+- 本輪 staged diff 在 `frontend/src/utils/addressParser.ts` 新增 MQTT topic-based 位址解析與 `sensor/data` 預設起點，但現有 source planner / canvas / source rule backend 仍是 sequential-address 模型：
+  - frontend `buildPlannedPointAddresses()` 與 `buildAddressCanvasItems()` 會用 offset / expand 推導連續位址
+  - backend `sourcerule.Service` 會依規則建立衍生 points / links
+  - backend point address validation 仍不接受 MQTT topic（例如 `/`）格式
+- 結論：這不是單點 parser bug，而是 staged 變更提前暴露了尚未真正打通的 MQTT source planner contract；最安全的修補是先回收 topic-based planner support，而不是讓 UI 接受 topic 後在 runtime / point create 才失敗。
 
 ## 核心結論
 - 原始需求始終沒有改變：datalink UI 要回到單純主線，而不是讓使用者在 SmartDashboard、Tag、Local Modbus、資料庫之間切頁與切心智模型。

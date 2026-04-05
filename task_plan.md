@@ -87,3 +87,19 @@
 **Phase**: 1.2 補齊 ARIA 屬性  
 **進度**: 0/6 完成  
 **下一步**: WorkbenchStepRail 補充 aria-current、aria-label
+
+---
+
+## 臨時任務：2026-04-06 staged code review / bugfix
+
+- [x] 盤點所有未提交變更與 staged diff
+- [x] 執行前端 targeted tests、Go targeted tests、frontend build
+- [x] 修正 review findings：
+  - 新 SQLite WAL sidecar 檔未被 `.gitignore` 忽略
+  - staged change 新增的 MQTT topic-based source planner 位址支援與現有 canvas / backend point model 不相容
+- [x] 補寫 planning records
+- [ ] 建立繁中詳細 commit
+
+**備註**：
+- 本輪以 review staged 變更為主，未擴大處理 repo 內既有、與本次 diff 無關的 MQTT 資料模型舊債。
+- Source planner 的 MQTT topic-based 位址支援先回收，避免前端接受 topic 但後端與畫布模型無法正確處理。

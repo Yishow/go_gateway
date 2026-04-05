@@ -44,11 +44,28 @@ type DBConfig struct {
 	MaxIdleConns int `json:"max_idle_conns" yaml:"max_idle_conns"`
 }
 
+// DefaultEmbeddedSQLiteDSN 為內嵌閘道（如 cmd/test_ui）使用的 SQLite URI。
+// - busy_timeout：鎖競爭時等待（毫秒），降低 SQLITE_BUSY。
+// - journal_mode=WAL：讀寫並發較 DELETE 模式友善。
+// - cache=shared、mode=rwc：與 database/sql 連線池共用頁面快取並允許讀寫。
+const DefaultEmbeddedSQLiteDSN = "file:datalink.db?cache=shared&mode=rwc&_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)"
+
+// ApplySQLitePoolDefaults 將 *sql.DB 設為單連線池設定，與單檔 SQLite 鎖行為相容。
+// 在仍使用一個 *sql.DB 實例的前提下，可明顯減少並發連線造成的 database is locked。
+func ApplySQLitePoolDefaults(db *sql.DB) {
+	if db == nil {
+		return
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+}
+
 // DefaultSQLiteConfig 預設 SQLite 配置
 func DefaultSQLiteConfig() DBConfig {
 	return DBConfig{
 		Type:         DBTypeSQLite,
-		DSN:          "file:datalink.db?cache=shared&mode=rwc",
+		DSN:          DefaultEmbeddedSQLiteDSN,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	}
