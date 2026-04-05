@@ -1,6 +1,6 @@
 # Rule-centric Datalink Orchestration Design
 
-- Status: Approved in brainstorming; pending spec review
+- Status: Brainstorming-approved, spec-review passed; pending user review
 - Date: 2026-04-05
 - Scope: `/studio` end-to-end workflow across device readiness, source-rule lifecycle, derived tag review, database target output, and local Modbus output
 
@@ -8,7 +8,7 @@
 
 This design converts the datalink workbench into a rule-centric orchestration flow.
 
-Only `Device` and `SourceRule` remain operator-owned persisted inputs. `Point` stays in the system as a runtime/internal read model for collection and scheduler integration, but it is no longer a primary operator concept. Rule saves persist device/rule state and synchronize runtime points. Tags and output bindings are generated as reviewable candidates and are applied explicitly in Step 3 and Step 4.
+`Device` and `SourceRule` are the only primary workflow objects the operator creates to define the data path. `Point` stays in the system as a runtime/internal read model for collection and scheduler integration, but it is no longer a primary operator concept. `DatabaseConnector` remains a separately persisted environment object that provides output context, but it is not part of the rule-owned workflow chain. Rule saves persist device/rule state and synchronize runtime points. Tags and output bindings are generated as reviewable candidates and are applied explicitly in Step 3 and Step 4.
 
 Database and Local Modbus are equal first-class outputs. The first formal launch of this workflow does not need to preserve a manual point/tag/mapping-first mental model because that legacy flow is not yet a committed public product path.
 
@@ -65,7 +65,7 @@ The result is a split-brain workflow:
 2. Database and Local Modbus are equal first-class outputs.
 3. The design should be an umbrella blueprint with phased delivery, not one oversized implementation slice.
 4. `SourceRule` automatically generates tag candidates, and Step 3 becomes review/rename/exception handling.
-5. Approved tags automatically generate both Database and Local Modbus output candidates, and Step 4 becomes review/apply.
+5. Rule revisions automatically generate both Database and Local Modbus output candidates, and Step 4 becomes review/apply; output apply remains blocked until the related tag candidate is approved or applied.
 6. The activation model is hybrid: devices and rules persist earlier, while tags and outputs are reviewed and applied later.
 7. Rule edits regenerate downstream diffs without silently overwriting already applied state.
 8. The new workflow can be rule-driven only for the first formal launch; no legacy compatibility requirement is needed for manual-first flows.
@@ -93,22 +93,25 @@ The chosen approach is **Rule-centric orchestration** because it matches the app
 
 ### 7.1 Layer model
 
-The workflow is organized into four layers:
+The workflow is organized into five layers:
 
-1. **Operator layer**
+1. **Primary workflow layer**
    - `Device`
    - `SourceRule`
 
-2. **Runtime layer**
+2. **Shared environment layer**
+   - `DatabaseConnector`
+
+3. **Runtime layer**
    - `Point`
    - `PollingGroup`
 
-3. **Review/Apply layer**
+4. **Review/Apply layer**
    - `TagCandidate`
    - `DatabaseOutputCandidate`
    - `LocalModbusOutputCandidate`
 
-4. **Applied layer**
+5. **Applied layer**
    - `Tag`
    - `Point <-> Tag Mapping`
    - `DatabaseTargetMapping`
@@ -119,6 +122,8 @@ The workflow is organized into four layers:
 `Device` owns protocol capability, connect/probe readiness, address semantics, and default data-format behavior.
 
 `SourceRule` owns source planning intent: start address, span count, data type, naming rules, scaling/casting intent, and enabled/disabled state.
+
+`DatabaseConnector` is a persisted environment object. It is configured independently from a rule, but rule-owned database candidates reference it as context. If connector readiness, schema state, or selected table state changes, affected database candidates and applied mappings become `blocked` or `out_of_sync`; they are never silently rebound to a different connector/table.
 
 `Point` remains necessary for scheduler/runtime behavior, but the operator should not manually create it in the primary `/studio` workflow.
 
@@ -137,9 +142,11 @@ Each candidate item must carry enough information to support safe diff calculati
 - `source_rule_id`
 - `rule_revision`
 - `proposed_signature`
+- `effective_signature`
 - `last_applied_signature`
 - `blocking_reason`
 - `override_state`
+- `suppression_state`
 
 This keeps `SourceRule` as the primary aggregate while still enabling review/apply workflows and revision-aware diffs.
 
@@ -169,6 +176,7 @@ This keeps `SourceRule` as the primary aggregate while still enabling review/app
   - conflict state
   - diff against the last applied version
 - The operator can batch approve, rename, skip, or resolve exceptions.
+- Rename, skip, and field overrides are stored as rule-scoped review decisions so they survive later revisions until the operator clears them or the candidate identity changes materially.
 
 ### Step 4: Output review/apply
 
@@ -176,13 +184,14 @@ This keeps `SourceRule` as the primary aggregate while still enabling review/app
   - `Database`
   - `Local Modbus`
 - Both surfaces consume the same rule-derived candidate origin, but each target maintains isolated selection and apply state.
+- Output candidates are generated at rule-recompute time and can be previewed immediately, but apply remains blocked until the related tag candidate is approved or applied.
 - Output apply is target-specific:
   - Database failures do not block Local Modbus apply.
   - Local Modbus conflicts do not block Database apply.
 
 ### Step dependency rule
 
-Output candidates may be visible before final tag apply, but output apply is blocked until the relevant tag is confirmed as usable by the rule-driven flow.
+Output candidates may be visible before final tag apply, but output apply is blocked until the relevant tag is confirmed as usable by the rule-driven flow. Output candidates always derive from the effective tag state for the current revision, not from a stale pre-rename tag proposal.
 
 ## 9. Candidate / Diff / Apply Model
 
@@ -202,7 +211,10 @@ All rule-derived items share one status vocabulary:
 The UI must not infer diffs by comparing ad-hoc visible fields. Diff state must be derived from persisted signatures:
 
 - `proposed_signature`
+- `effective_signature`
 - `last_applied_signature`
+
+`proposed_signature` represents the pure system derivation from the current rule revision. `effective_signature` represents the same candidate after persisted operator decisions such as rename or field override. `last_applied_signature` records what was last accepted into applied state.
 
 This is required to support safe regeneration after rule edits and to avoid hidden partial overwrites.
 
@@ -223,6 +235,23 @@ When a rule changes:
 - affected items become `out_of_sync`
 - manual overrides remain preserved and marked for review
 
+### 9.4 Rename, skip, and override rules
+
+- **Rename / field override**
+  - stored as a rule-scoped operator override on the candidate
+  - updates `effective_signature`
+  - survives later revisions until the operator clears the override or the candidate identity changes materially
+
+- **Skip**
+  - stored as a suppression decision on the candidate
+  - prevents accidental auto-apply for that item
+  - survives later revisions while the candidate still represents the same rule-owned item
+  - becomes `out_of_sync` and requires re-review if the candidate identity changes materially
+
+- **Output regeneration**
+  - output candidates derive from the effective tag state, including approved renames and persisted overrides
+  - changing tag review decisions therefore recomputes downstream output candidates for the same rule revision
+
 This preserves the approved design principle: auto-derive first, then show diff, then let the operator decide whether to apply.
 
 ## 10. Backend Services and Contracts
@@ -237,6 +266,12 @@ Responsibilities:
 - synchronize derived runtime points
 - trigger candidate recomputation
 - enforce probe gating for enable/apply eligibility
+
+Consistency contract:
+
+- rule persistence, derived point synchronization, and revision increment are one orchestration boundary; if that boundary fails, the rule save fails
+- candidate recomputation may complete immediately after the orchestration commit, but it must write one complete snapshot for the new revision before Step 3 or Step 4 apply actions become eligible
+- mixed-revision candidate exposure is not allowed; while recomputation is pending, the rule is visible as `candidate_recompute_pending` and downstream apply remains blocked
 
 ### 10.2 Candidate Projector
 
@@ -298,7 +333,12 @@ The primary connector scope in this design is limited to:
 - `SQLite`
 - `PostgreSQL`
 
-Candidate generation must respect the current connector and table context and must not reuse stale state from previously selected connectors or tables.
+`DatabaseConnector` persists independently from `SourceRule`. Rule-owned database candidates reference connector and table context explicitly. For the MVP:
+
+- connector identity is persisted independently
+- selected schema/table/column context is persisted as part of the rule-owned database candidate and applied mapping state
+- candidate generation must respect the current connector and table context and must not reuse stale state from previously selected connectors or tables
+- if a connector becomes disabled, unreadable, or loses the selected table/column, affected candidates become `blocked` and applied mappings become `out_of_sync`
 
 ### 11.2 Local Modbus
 
@@ -311,6 +351,8 @@ This design therefore requires:
 - register conflict detection
 - dry-run validation
 - allocator strategies such as sequential, gap-aware, or aligned
+
+The MVP allocator strategy is `sequential`. Alternative strategies such as `gap-aware` and `aligned` can remain behind the same allocator interface but are not required for the first implementation slice.
 
 The Local Modbus server lifecycle remains separate from mapping proposal state. Starting or stopping the server must not be the source of truth for whether a mapping exists.
 
@@ -344,6 +386,15 @@ Rule delete is destructive and must show impact before confirmation. The confirm
 - tag candidates to discard
 - applied downstream assets still managed by the rule
 
+On confirmed delete, the system removes:
+
+- the rule record
+- derived runtime points
+- persisted candidate snapshots for that rule
+- applied downstream assets that are still marked as managed by that rule
+
+Delete must fail fast if the system cannot safely remove a still-managed downstream asset. Partial silent cleanup is not allowed.
+
 ### 12.4 Conflict handling
 
 - tag conflicts block only the affected tag apply
@@ -353,6 +404,16 @@ Rule delete is destructive and must show impact before confirmation. The confirm
 ### 12.5 No silent overwrite rule
 
 No rule change may silently replace applied downstream behavior. The system must surface `out_of_sync`, `conflict`, or `overridden` states explicitly and require an operator decision.
+
+### 12.6 Lifecycle matrix
+
+| Event | Immediate system action | Downstream result |
+| --- | --- | --- |
+| Create rule | Persist rule, sync runtime points, compute candidate snapshot | Tag/output candidates appear as `proposed` or `blocked` |
+| Edit rule | Persist new revision, sync runtime points, recompute candidates | Applied downstream items become `out_of_sync` if signatures differ |
+| Disable rule | Stop collection and runtime ingest | Applied tags/outputs remain visible and marked as source inactive |
+| Reprobe success | Clear probe block for the device | Previously blocked rule enable/apply actions become eligible |
+| Connector invalidation | Revalidate database candidate scope | Only database candidates/mappings become `blocked` or `out_of_sync` |
 
 ## 13. Testing Strategy
 
