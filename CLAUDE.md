@@ -14,6 +14,7 @@
 - `AGENTS.md` 是共用規範與專案目標入口。
 - `CLAUDE.md` 補充 AI 需要的上下文、工作流程與執行邊界。
 - `.github/instructions/` 提供語言與框架層的細部實作規範。
+- **不可只讀單一文件**：即使在 Claude Code，也不能只讀 `CLAUDE.md`；必須先讀 `AGENTS.md` 再讀 `CLAUDE.md`。
 
 ## 專案總覽
 - 專案目標：工業資料採集閘道，從 PLC 協議讀取資料，經 Datalink 映射後輸出到資料儲存 / 訊息系統。
@@ -67,6 +68,19 @@ npm run test:e2e
 npm run test:gateway:unit
 npm run test:gateway:e2e
 npm run test:gateway:gate
+
+# Gate / migration / smoke workflows
+make gate-smoke
+make gate-final
+make gate-soak
+make gatev11
+make gatev12
+make points-precheck-up
+make points-precheck-down
+make points-migrate-up
+make points-migrate-down
+make longtask-smoke
+make check-lines
 ```
 
 ## 程式碼樣式與設計準則
@@ -76,12 +90,31 @@ npm run test:gateway:gate
 - Frontend：遵守 ES modules、TypeScript `strict`、既有 ESLint / React Hooks 規則；避免 `any`，必要時以更窄的型別或 guard 取代。
 - 前端資料流：型別放 `frontend/src/types/`，API 呼叫集中在 `frontend/src/services/`，伺服器狀態優先經由 React Query hooks 管理，使用者文字走 i18n 字典。
 
+## 命名規則
+- Go package：小寫單字、單數語意，避免 `util/common/base`。
+- Go 匯出符號：`PascalCase`；非匯出符號：`camelCase`。
+- Go 介面：優先以行為命名（例如 `Reader`、`Writer`）。
+- Frontend 元件：`PascalCase.tsx`；hooks：`useX.ts`。
+- 測試檔：Go `*_test.go`；前端 `*.test.ts` / `*.test.tsx`。
+
+## Error Handling Pattern
+- Go：每次呼叫後立即檢查 `err`；往上傳遞錯誤時用 `fmt.Errorf("...: %w", err)` 包裝上下文。
+- Go：錯誤訊息維持小寫、無句點；需語意判斷時使用 sentinel/custom error + `errors.Is` / `errors.As`。
+- Go：避免同一錯誤在多層重複記錄（`log + return`），應在適當層級單點處理。
+- Frontend：非同步流程必須顯式處理失敗（`try/catch` + error state / fallback），禁止 silent failure。
+- Frontend：user-facing error 文案需可行動，不可暴露敏感資訊（憑證、內網位址、SQL 細節等）。
+
 ## 測試與驗證指引
 - 後端最低驗證基準：`go test ./...`、`go vet ./...`、`golangci-lint run ./...`。
 - 前端最低驗證基準：`cd frontend && npm run lint && npm run test && npm run build`；CI / 非 watch 模式可用 `npm test -- --run`。
 - 任何行為變更都要同步新增或調整測試，尤其是協議解析、映射流程、排程邏輯、runtime lifecycle、output binding。
 - 前端 UI / UX 調整採 TDD 先行：先補測試，再改介面；至少覆蓋 `Studio` 主流程與 `TestPage` 的主要互動。
 - 前端正式測試入口以 `frontend/tests/` 為主；Go 測試檔維持與實作檔相鄰。
+
+## 測試要求（提交前）
+- 行為變更必須附對應測試或明確說明無法補測的技術原因。
+- 文件任務至少執行 `git diff --check`，確認無格式/空白異常。
+- 若未能在當前環境執行完整測試，回報必須明確列出「已執行」與「未執行」項目及風險。
 
 ## 安全考量
 - 不要把真實帳號、密碼、Token、DSN、設備憑證或其他 secrets 寫入程式碼、測試、文件、OpenSpec 或 commit message。
@@ -90,6 +123,30 @@ npm run test:gateway:gate
 - 資料庫與儲存層修改應使用既有 repository / service abstraction 或參數化查詢；避免手刻可注入 SQL。
 - Go 靜態分析以 `golangci-lint run ./...` 為基準，`gosec` 必須維持乾淨；涉及 shell、檔案路徑、網路連線與序列埠時要特別保守。
 - 連線測試 / probe 是由 backend 主機發起；在文件、診斷與 UX 文案中要避免誤導成瀏覽器端直連。
+
+## 禁止事項
+- 禁止把 secrets 寫入任何版本化檔案或 commit message。
+- 禁止在未對齊 OpenSpec 的情況下自行改寫需求語意。
+- 禁止把 lint 警告、未使用 import 或 dead code 直接合入主分支。
+- 禁止新增與 `/studio` 平行的產品主入口；legacy 路由應收斂為 redirect。
+- 禁止以手刻字串 SQL 或繞過 service/repository abstraction 快速上線功能。
+
+## 其他 Repo 特定規則
+- `/studio` 是 datalink 主產品唯一主線；`/test` 是工程工具專區。
+- `cmd/test_ui` 為單一可執行檔入口，前端資產嵌入 `cmd/test_ui/static`。
+- 多步驟任務預設使用 `planning-with-files`，持續維護 `task_plan.md`、`findings.md`、`progress.md`。
+
+## 檔案行數規範（強制）
+- 目標：單檔不超過 300 行；硬上限 500 行。
+- 規則：
+  - `> 300` 行：警告，必須在 PR 提供原因與拆分計畫。
+  - `> 500` 行：CI 阻擋。
+  - 歷史超長檔僅允許不增加行數的變更，應逐步縮減。
+- 工具與落地：
+  - `scripts/check_file_lines.sh`
+  - `.line-limit-ignore`
+  - `.github/workflows/file-line-limit.yml`
+  - `.githooks/pre-commit`（可用 `git config core.hooksPath .githooks` 啟用）
 
 ## AI 實作流程（必遵守）
 1. **Context Check**：先讀 `AGENTS.md`、對應 `.github/instructions/` 與相關 `openspec/specs/*/spec.md`。

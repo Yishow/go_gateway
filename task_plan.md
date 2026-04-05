@@ -121,3 +121,82 @@
 
 **備註**：
 - `vitest` 在目前 sandbox 仍會因 `esbuild` 啟動子行程遭 `spawn EPERM` 阻擋，因此本輪以前端型別檢查、ESLint 與新增 regression test 內容作為最小可驗證證據。
+
+---
+
+## 臨時任務：2026-04-06 README 規範整併（本輪）
+
+- [x] 深度盤點 `AGENTS.md`、`CLAUDE.md`、`.github/instructions/*`、`Makefile`、`go.mod`、`frontend/package.json`、`cmd/test_ui/main.go`、`internal/api/router.go`、`internal/web/embed.go`
+- [x] 對齊並重寫 `README.md`，補齊：
+  - 專案總覽
+  - 建置與測試指令
+  - 程式碼樣式
+  - 測試指引與測試要求
+  - 安全考量
+  - 命名規則
+  - error handling pattern
+  - 禁止事項
+  - repo 特定規則（規範優先序、OpenSpec、planning-with-files、路由主線）
+- [x] 同步更新 `task_plan.md`、`findings.md`、`progress.md`
+- [ ] 建立繁中詳細 commit
+
+**備註**：
+- 本輪為文件整併與規範對齊，不涉及程式行為變更。
+- 路由主線與 legacy redirect 描述以目前 `frontend/src/App.tsx` 現況為準（`/studio` 主線、`/test` 工具、`/datalink/*` compat 收斂）。
+
+---
+
+## 臨時任務：2026-04-06 AGENTS / CLAUDE / README 規範整併（本輪）
+
+- [x] 深度比對 `AGENTS.md`、`CLAUDE.md`、`README.md` 與 repo 現況
+- [x] 在 `AGENTS.md` 補齊與強化：
+  - 命名規則
+  - Error Handling Pattern
+  - 測試指引與測試要求
+  - 禁止事項
+  - build/test 指令補全（gatev11、points down、longtask-smoke）
+- [x] 在 `CLAUDE.md` 補齊與強化：
+  - 命名規則
+  - Error Handling Pattern
+  - 測試要求（提交前）
+  - 禁止事項
+  - 其他 repo 特定規則
+  - 常用命令補全（gate/migration/smoke）
+- [x] 確認 `README.md` 仍與上述規範維持一致（章節結構與內容對齊）
+- [x] 同步更新 `task_plan.md`、`findings.md`、`progress.md`
+- [ ] 建立繁中詳細 commit
+
+**備註**：
+- 本輪以規範文件一致化為目標，未涉及程式邏輯變更。
+
+---
+
+## 臨時任務：2026-04-06 檔案行數規範強制落地（本輪）
+
+- [x] 新增行數檢查腳本 `scripts/check_file_lines.sh`（300 警告 / 500 阻擋）
+- [x] 新增 ignore 清單 `.line-limit-ignore`
+- [x] 新增 CI workflow `.github/workflows/file-line-limit.yml`
+- [x] 新增本機 hook `.githooks/pre-commit`
+- [x] 新增 `make check-lines` 命令
+- [x] 更新 `.github/pull_request_template.md`，加入行數檢查與超過 300 行說明欄位
+- [x] 更新 `AGENTS.md`、`CLAUDE.md`、`README.md`：
+  - 強制聲明 `AGENTS.md` 與 `CLAUDE.md` 必須互相參考，不可只讀一份
+  - 補上行數規範與執行方式
+- [ ] 建立繁中詳細 commit
+
+**備註**：
+- 腳本預設以「本次變更檔案」為檢查範圍，避免一次性阻擋歷史超長檔；歷史超長檔若本次變更未增加行數，允許通過並保留逐步收斂空間。
+
+---
+
+## 臨時任務：2026-04-06 未提交變更 code review / bugfix / commit（本輪）
+
+- [x] review 所有未提交變更（排除使用者指定忽略檔案）
+- [x] 修正一個行數檢查腳本 bug：
+  - 本地模式未涵蓋 untracked 新檔
+  - 改為同時檢查 staged / unstaged / untracked
+- [x] 重新執行驗證：
+  - `bash scripts/check_file_lines.sh`
+  - `make check-lines`
+  - `git diff --check`
+- [x] 建立繁中詳細 commit

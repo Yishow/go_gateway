@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[pre-commit] Running file line limit guard..."
+bash scripts/check_file_lines.sh

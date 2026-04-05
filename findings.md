@@ -1,5 +1,52 @@
 # Findings
 
+## 2026-04-06 未提交變更 code review 新發現
+- `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
+- 修正方式：
+  - fallback 模式改為合併 `git diff --cached`、`git diff`、`git ls-files --others --exclude-standard`
+  - 再 `sort -u` 去重後統一檢查
+- 修正後驗證：
+  - `bash scripts/check_file_lines.sh`
+  - `make check-lines`
+  - 兩者皆能正確涵蓋本次變更檔案並通過門檻檢查（warning 僅反映 >300 行檔案，不阻擋）。
+
+## 2026-04-06 檔案行數規範強制落地新發現
+- repo 內已存在多個 >500 行歷史檔案（前端 workbench 頁、部分 backend service、測試檔、大型 docs/lock 檔）；若直接做「全倉 hard fail」，會立即阻擋幾乎所有實務修改。
+- 可行的強制策略是「只檢查本次變更檔案」並加入 legacy guard：
+  - 新檔或本次修改後 >500 行：阻擋
+  - 歷史 >500 行檔案若本次修改後行數不增加：允許通過（並要求後續逐步縮減）
+- lock files、build artifacts、嵌入式靜態資產與外部匯入 docs 必須有 ignore 清單，否則行數規範會被非程式碼類型檔案干擾。
+- 只靠文件宣告不足以形成約束，需同時落地：
+  - `scripts/check_file_lines.sh`（單一規則實作）
+  - CI workflow（伺服器端強制）
+  - pre-commit hook（本地提早阻擋）
+  - PR 模板（人類審查時補充 >300 行理由與拆分計畫）
+- 「不能只讀一份規範文件」必須在 `AGENTS.md` 與 `CLAUDE.md` 雙向聲明，才能避免 agent 僅讀自身專屬文件（例如只讀 `CLAUDE.md`）而遺漏共通規範。
+
+## 2026-04-06 AGENTS / CLAUDE / README 規範整併新發現
+- `README.md` 已完成完整化，但 `AGENTS.md` 與 `CLAUDE.md` 仍偏向「綜合敘述」，缺少獨立、可快速查閱的章節（尤其是 `Error Handling Pattern` 與 `禁止事項`）。
+- `AGENTS.md` 雖有「程式風格與命名慣例」，但命名規則與錯誤處理規則混在描述中，不利於 code review 或 onboarding 時快速對照。
+- `CLAUDE.md` 原本以工作流程與脈絡為主，對「提交前測試要求」與「禁止事項」缺少明確條列，容易產生執行邊界模糊。
+- `Makefile` 實際支援 `gatev11`、`points-precheck-down`、`points-migrate-down`、`longtask-smoke`，若規範文件未列出，會讓維運與驗證流程被低估。
+- 三份文件一致化的關鍵不是內容完全重複，而是：
+  - `AGENTS.md` 作為共通規範主體（完整、可操作）
+  - `CLAUDE.md` 補 agent 視角下的落地邊界
+  - `README.md` 提供入口層摘要，且欄位名稱能對齊前兩者
+
+## 2026-04-06 README 規範整併新發現
+- 現有 `README.md` 過於精簡，只覆蓋產品入口說明，缺少實際開發/維運會依賴的規範資訊（命令、樣式、測試、安全、禁止事項、OpenSpec 流程）。
+- `AGENTS.md` 與 `CLAUDE.md` 在規範內容上已高度對齊，但 `README.md` 尚未承接這份對齊成果，導致新成員無法從入口文件一次建立正確心智模型。
+- 實際可執行命令需要以 `Makefile`、`frontend/package.json`、`scripts/build.ps1` 為準，而不是只列最常見命令：
+  - Makefile 另含 `gate*`、`points-*`、`longtask-smoke` 等工作流命令
+  - 前端另含 `test:gateway:*` 任務
+- 產品入口與路由收斂已在實作層明確落地（`frontend/src/App.tsx`）：
+  - `/studio` 為主線
+  - `/test` 為測試工具入口
+  - `/datalink/*` 屬 compat redirect 收斂
+- 靜態資源供應與單一可執行檔模型在程式碼層清楚可驗證（`cmd/test_ui/main.go` + `internal/web/embed.go`），README 應明確寫出 embed 與 SPA 路由處理機制，避免誤解部署型態。
+- `.github/instructions/go.instructions.md` 明確要求 error handling pattern（`%w` 包裝、`errors.Is/As`、錯誤訊息風格），原 README 缺漏，這是開發一致性風險點。
+- `openspec/project.md` 仍有部分歷史技術棧描述（如 viper/gorm）與目前 `go.mod` 不完全一致，README 應以 repo 現況（`go.mod` 與實際 import）為主，避免引用歷史描述造成偏差。
+
 ## 2026-03-23 AGENTS / CLAUDE 文件對齊新發現
 - `AGENTS.md` 原本已涵蓋結構、測試、UI 主線與文件工作流，但缺少獨立的「安全考量」區塊，無法完整承接 repo 對輸入驗證、secret 管理、參數化查詢與 `gosec` 的要求。
 - `CLAUDE.md` 與 `AGENTS.md` 原本在規範優先順序上存在描述差異；本輪已收斂為同一套規則：`AGENTS.md -> Agent 專屬文件 -> .github/instructions/`。

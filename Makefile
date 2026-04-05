@@ -1,4 +1,4 @@
-.PHONY: build-frontend build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke
+.PHONY: build-frontend build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke check-lines
 
 GATE_WORKDIR ?= $(CURDIR)
 GATE_SMOKE_DURATION ?= 60s
@@ -93,3 +93,7 @@ points-migrate-down:
 # 長任務提醒機制 smoke test（controller start/finish + reconcile）
 longtask-smoke:
 	bash ./scripts/longtask_smoke.sh
+
+# 檔案行數規範檢查（預設檢查本次變更）
+check-lines:
+	bash ./scripts/check_file_lines.sh

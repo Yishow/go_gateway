@@ -1,0 +1,12 @@
+# Generated / vendored / build artifacts
+frontend/node_modules/*
+frontend/dist/*
+cmd/test_ui/static/*
+docs/swagger/*
+
+# Lock files
+frontend/package-lock.json
+frontend/pnpm-lock.yaml
+
+# Imported external docs
+docs/HslDocs_*

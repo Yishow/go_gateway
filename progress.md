@@ -129,3 +129,117 @@ $env:GOCACHE='C:\\AIProject\\go_gateway\\.gocache'; $env:TEMP='C:\\AIProject\\go
 - task_plan.md
 - findings.md
 - progress.md
+
+#### Session 5: README 規範整併（本輪）
+- ✅ 深度盤點規範與實作來源：
+  - `AGENTS.md`
+  - `CLAUDE.md`
+  - `.github/instructions/go.instructions.md`
+  - `.github/instructions/reactjs.instructions.md`
+  - `.github/instructions/typescript-5-es2022.instructions.md`
+  - `Makefile`
+  - `go.mod`
+  - `frontend/package.json`
+  - `scripts/build.ps1`
+  - `cmd/test_ui/main.go`
+  - `internal/api/router.go`
+  - `internal/web/embed.go`
+  - `frontend/src/App.tsx`
+- ✅ 重寫 `README.md`，補齊：
+  - 專案總覽與模組結構
+  - 完整建置/測試命令（含 gate/migration）
+  - 程式碼樣式與命名規則
+  - error handling pattern
+  - 測試指引與測試要求
+  - 安全考量與禁止事項
+  - repo 特定規則（規範優先序、OpenSpec、planning-with-files）
+- ✅ 同步更新 planning records：`task_plan.md`、`findings.md`、`progress.md`
+
+**驗證結果**：
+```bash
+git --no-pager diff --check -- README.md task_plan.md findings.md progress.md
+```
+- 結果：通過，無 whitespace / patch 格式錯誤
+
+**修改檔案**：
+- README.md
+- task_plan.md
+- findings.md
+- progress.md
+
+#### Session 6: AGENTS / CLAUDE / README 規範整併（本輪）
+- ✅ 重新盤點 `AGENTS.md`、`CLAUDE.md`、`README.md` 與實際 repo 流程，確認缺口集中在：
+  - 命名規則（需獨立章節）
+  - Error Handling Pattern（需獨立章節）
+  - 禁止事項（需可執行條列）
+  - 測試要求（提交前 gate）
+- ✅ 更新 `AGENTS.md`：
+  - 補上 `命名規則`、`Error Handling Pattern`、`測試指引與測試要求`、`禁止事項`
+  - 補全命令清單（`gatev11`、`points-precheck-down`、`points-migrate-down`、`longtask-smoke`）
+- ✅ 更新 `CLAUDE.md`：
+  - 補上 `命名規則`、`Error Handling Pattern`、`測試要求（提交前）`、`禁止事項`、`其他 Repo 特定規則`
+  - 補全命令清單（gate/migration/smoke）
+- ✅ 微調 `README.md`，補齊 `make longtask-smoke`，使命令清單與 `AGENTS.md` / `CLAUDE.md` 完全一致
+- ✅ 同步更新 planning records：`task_plan.md`、`findings.md`、`progress.md`
+
+**驗證結果**：
+```bash
+git --no-pager diff --check -- AGENTS.md CLAUDE.md README.md task_plan.md findings.md progress.md
+```
+- 結果：通過，無 whitespace / patch 格式錯誤
+
+**修改檔案**：
+- AGENTS.md
+- CLAUDE.md
+- README.md
+- task_plan.md
+- findings.md
+- progress.md
+
+#### Session 7: 檔案行數規範強制落地（本輪）
+- ✅ 新增 `scripts/check_file_lines.sh`：
+  - 預設門檻：`>300` 警告、`>500` 阻擋
+  - 預設檢查範圍：本次變更檔案（支援 CI base SHA / staged / working tree）
+  - legacy guard：歷史上已 >500 的檔案僅允許不增加行數
+- ✅ 新增 `.line-limit-ignore`（lock/build/imported docs 等噪音排除）
+- ✅ 新增 CI workflow：`.github/workflows/file-line-limit.yml`
+- ✅ 新增本機 hook：`.githooks/pre-commit`
+- ✅ 新增 `make check-lines` 入口
+- ✅ 更新 `.github/pull_request_template.md`，要求：
+  - 行數檢查通過
+  - 超過 300 行需補 rationale + split plan
+- ✅ 更新 `AGENTS.md` / `CLAUDE.md` / `README.md`：
+  - 強制聲明 `AGENTS.md` 與 `CLAUDE.md` 必須互相參考，不可只讀一份
+  - 補上行數規範與執行方式
+
+**驗證結果**：
+```bash
+bash scripts/check_file_lines.sh
+git --no-pager diff --check -- .github/pull_request_template.md .github/workflows/file-line-limit.yml .line-limit-ignore .githooks/pre-commit Makefile AGENTS.md CLAUDE.md README.md scripts/check_file_lines.sh task_plan.md findings.md progress.md
+```
+- 結果：`check_file_lines.sh` 通過（含 warning）；`diff --check` 通過（無 whitespace / patch 格式錯誤）
+
+**修改檔案**：
+- scripts/check_file_lines.sh（新增）
+- .line-limit-ignore（新增）
+- .github/workflows/file-line-limit.yml（新增）
+- .githooks/pre-commit（新增）
+- Makefile
+- .github/pull_request_template.md
+- AGENTS.md
+- CLAUDE.md
+- README.md
+- task_plan.md
+- findings.md
+- progress.md
+
+#### Session 8: 未提交變更 code review / bugfix / commit（本輪）
+- ✅ 完成未提交變更 code review（以目前工作樹為範圍）
+- ✅ 發現並修正 bug：
+  - `scripts/check_file_lines.sh` 本地 fallback 模式漏檢 untracked 新檔
+  - 已改為 staged / unstaged / untracked 三路合併檢查
+- ✅ 驗證：
+  - `bash scripts/check_file_lines.sh`
+  - `make check-lines`
+  - `git --no-pager diff --check -- .github/pull_request_template.md .github/workflows/file-line-limit.yml .line-limit-ignore .githooks/pre-commit Makefile AGENTS.md CLAUDE.md README.md scripts/check_file_lines.sh task_plan.md findings.md progress.md`
+- ✅ 建立繁中詳細 commit

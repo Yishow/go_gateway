@@ -10,6 +10,8 @@
 - [ ] Unit tests added/updated
 - [ ] Build passed (`npm run build` in `frontend/`)
 - [ ] Flag OFF regression checked (must stay on legacy `/datalink` flow)
+- [ ] File line limit check passed (`bash scripts/check_file_lines.sh`)
+- [ ] If any file exceeds 300 lines, rationale and split plan documented
 
 ## Risks / Rollback
 - [ ] Risks documented
