@@ -19,5 +19,5 @@
 ## 4. Validation
 
 - [x] 4.1 Add tests for source-rule revision persistence and restart restore
-- [ ] 4.2 Add tests for readiness contract transitions across connect/probe outcomes
+- [x] 4.2 Add tests for readiness contract transitions across connect/probe outcomes
 - [ ] 4.3 Add tests for candidate query/recompute APIs and mapping `out_of_sync` transitions
