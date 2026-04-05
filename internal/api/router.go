@@ -202,6 +202,8 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.DELETE("/source-rules/:id", sourceRuleHandler.Delete)
 				datalinkGroup.POST("/source-rules/:id/enable", sourceRuleHandler.Enable)
 				datalinkGroup.POST("/source-rules/:id/disable", sourceRuleHandler.Disable)
+				datalinkGroup.GET("/source-rules/:id/candidates", sourceRuleHandler.Candidates)
+				datalinkGroup.POST("/source-rules/:id/candidates/recompute", sourceRuleHandler.RecomputeCandidates)
 			}
 
 			// Points
