@@ -46,7 +46,7 @@ type Device struct {
 	ErrorCount int64 `json:"error_count" db:"error_count"`
 
 	// ReadinessStatus 設備就緒狀態 (新增欄位)
-	// JSON 儲存: {"status": "ready|warning|error", "details": [...], "missing_steps": [...]}
+	// JSON 儲存多維 readiness contract，至少含 connect/probe 狀態、planning/activation/apply eligibility 與 blocking reasons。
 	ReadinessStatus string `json:"readiness_status,omitempty" db:"readiness_status"`
 
 	// CreatedAt 建立時間
@@ -63,11 +63,31 @@ type ReadinessCheck struct {
 	Message string `json:"message"`
 }
 
+// ReadinessStageStatus describes one diagnostics stage outcome inside the readiness contract.
+type ReadinessStageStatus string
+
+const (
+	// ReadinessStageStatusUnknown means the diagnostics stage has not produced a conclusive result yet.
+	ReadinessStageStatusUnknown ReadinessStageStatus = "unknown"
+	// ReadinessStageStatusSuccess means the diagnostics stage completed successfully.
+	ReadinessStageStatusSuccess ReadinessStageStatus = "success"
+	// ReadinessStageStatusFailed means the diagnostics stage failed.
+	ReadinessStageStatusFailed ReadinessStageStatus = "failed"
+	// ReadinessStageStatusSkipped means the diagnostics stage is unavailable or intentionally skipped.
+	ReadinessStageStatusSkipped ReadinessStageStatus = "skipped"
+)
+
 // DeviceReadiness 設備就緒狀態詳情
 type DeviceReadiness struct {
-	DeviceID string           `json:"device_id"`
-	Status   string           `json:"status"` // ready, warning, error
-	Checks   []ReadinessCheck `json:"checks"`
+	DeviceID          string               `json:"device_id"`
+	Status            string               `json:"status"` // ready, warning, error
+	Checks            []ReadinessCheck     `json:"checks"`
+	ConnectStatus     ReadinessStageStatus `json:"connect_status"`
+	ProbeStatus       ReadinessStageStatus `json:"probe_status"`
+	PlanningAllowed   bool                 `json:"planning_allowed"`
+	ActivationAllowed bool                 `json:"activation_allowed"`
+	ApplyAllowed      bool                 `json:"apply_allowed"`
+	BlockingReasons   []string             `json:"blocking_reasons"`
 }
 
 // =============================================================================

@@ -49,8 +49,8 @@ func (m *MockDeviceRepo) UpdateStatus(ctx context.Context, id string, status sch
 	return args.Error(0)
 }
 func (m *MockDeviceRepo) UpdateTestResult(ctx context.Context, id string, success bool, errMsg string) error {
-    args := m.Called(ctx, id, success, errMsg)
-    return args.Error(0)
+	args := m.Called(ctx, id, success, errMsg)
+	return args.Error(0)
 }
 
 func TestDeviceHandler_CheckReadiness(t *testing.T) {
@@ -64,11 +64,11 @@ func TestDeviceHandler_CheckReadiness(t *testing.T) {
 		Name:             "Test Device",
 		Status:           schema.DeviceStatusActive,
 		ConnectionConfig: `{"host":"localhost","port":502}`,
-        ReadinessStatus:  "",
+		ReadinessStatus:  "",
 	}
 
 	mockRepo.On("GetByID", mock.Anything, "dev-1").Return(testDevice, nil)
-    mockRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+	mockRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// Create Request
 	req, _ := http.NewRequest("POST", "/devices/dev-1/readiness", nil)
@@ -80,21 +80,24 @@ func TestDeviceHandler_CheckReadiness(t *testing.T) {
 	// Assert Response
 	assert.Equal(t, http.StatusOK, rr.Code)
 
-    t.Logf("Response Body: %s", rr.Body.String())
+	t.Logf("Response Body: %s", rr.Body.String())
 
-    type APIResponse struct {
-        Success bool `json:"success"`
-        Data    schema.DeviceReadiness `json:"data"`
-    }
+	type APIResponse struct {
+		Success bool                   `json:"success"`
+		Data    schema.DeviceReadiness `json:"data"`
+	}
 
 	var response APIResponse
 	err := json.Unmarshal(rr.Body.Bytes(), &response)
 	assert.NoError(t, err)
-    
-    result := response.Data
+
+	result := response.Data
 	assert.Equal(t, "dev-1", result.DeviceID)
-	// assert.Equal(t, "ready", result.Status) // Depends on logic
-    
-    // Check if checks are present
-    assert.NotEmpty(t, result.Checks)
+	assert.Equal(t, schema.ReadinessStageStatusUnknown, result.ConnectStatus)
+	assert.Equal(t, schema.ReadinessStageStatusUnknown, result.ProbeStatus)
+	assert.False(t, result.PlanningAllowed)
+	assert.False(t, result.ActivationAllowed)
+	assert.False(t, result.ApplyAllowed)
+	assert.NotEmpty(t, result.BlockingReasons)
+	assert.NotEmpty(t, result.Checks)
 }

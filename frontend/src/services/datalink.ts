@@ -56,6 +56,12 @@ const DATALINK_BASE = `${API_BASE}/datalink`;
 interface DeviceReadinessResult {
   device_id: string;
   status: 'ready' | 'warning' | 'error';
+  connect_status: 'success' | 'failed' | 'skipped' | 'unknown';
+  probe_status: 'success' | 'failed' | 'skipped' | 'unknown';
+  planning_allowed: boolean;
+  activation_allowed: boolean;
+  apply_allowed: boolean;
+  blocking_reasons: string[];
   checks: Array<{
     name: string;
     pass: boolean;

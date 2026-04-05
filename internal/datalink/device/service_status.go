@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-gateway/internal/datalink/schema"
@@ -25,41 +26,18 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 		return nil, fmt.Errorf("取得設備失敗: %w", err)
 	}
 
+	connectStatus, probeStatus, blockingReasons := deriveReadinessDiagnostics(device)
 	readiness := &schema.DeviceReadiness{
-		DeviceID: device.ID,
-		Status:   "ready", // Default to ready, downgrade if issues found
-		Checks:   []schema.ReadinessCheck{},
+		DeviceID:          device.ID,
+		ConnectStatus:     connectStatus,
+		ProbeStatus:       probeStatus,
+		PlanningAllowed:   connectStatus == schema.ReadinessStageStatusSuccess,
+		ActivationAllowed: connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
+		ApplyAllowed:      connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
+		BlockingReasons:   blockingReasons,
 	}
-
-	// 1. Check Device Status
-	statusCheck := schema.ReadinessCheck{
-		Name: "Device Status",
-		Pass: device.Status == schema.DeviceStatusActive,
-	}
-	if !statusCheck.Pass {
-		statusCheck.Message = fmt.Sprintf("Device is in %s state", device.Status)
-		readiness.Status = "warning"
-	} else {
-		statusCheck.Message = "Device is active"
-	}
-	readiness.Checks = append(readiness.Checks, statusCheck)
-
-	// 2. Check Connection Config
-	// Since we validate on create/update, this should be pass if exists, but let's double check
-	connCheck := schema.ReadinessCheck{
-		Name: "Connection Configuration",
-		Pass: device.ConnectionConfig != "",
-	}
-	if !connCheck.Pass {
-		connCheck.Message = "Missing connection configuration"
-		readiness.Status = "error"
-	} else {
-		connCheck.Message = "Configuration present"
-	}
-	readiness.Checks = append(readiness.Checks, connCheck)
-
-	// TODO: 3. Check Points (Need Point Repository)
-	// For now we skip point checks to avoid circular dependencies or need to inject PointRepo
+	readiness.Status = deriveLegacyReadinessStatus(readiness)
+	readiness.Checks = buildReadinessChecks(device, readiness)
 
 	// Update device readiness status in DB
 	readinessJSON, err := json.Marshal(readiness)
@@ -72,6 +50,144 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 	}
 
 	return readiness, nil
+}
+
+func deriveReadinessDiagnostics(device *schema.Device) (
+	schema.ReadinessStageStatus,
+	schema.ReadinessStageStatus,
+	[]string,
+) {
+	if strings.TrimSpace(device.ConnectionConfig) == "" {
+		return schema.ReadinessStageStatusUnknown, schema.ReadinessStageStatusUnknown, []string{
+			"missing connection configuration",
+		}
+	}
+
+	if device.LastTestSuccess == nil {
+		return schema.ReadinessStageStatusUnknown, schema.ReadinessStageStatusUnknown, []string{
+			"connect diagnostics have not succeeded yet",
+		}
+	}
+
+	if *device.LastTestSuccess {
+		probeStatus, reasons := deriveSuccessfulProbeStatus(device)
+		return schema.ReadinessStageStatusSuccess, probeStatus, reasons
+	}
+
+	if isProbeFailure(device.LastTestError) {
+		return schema.ReadinessStageStatusSuccess, schema.ReadinessStageStatusFailed, []string{
+			firstNonEmpty(device.LastTestError, "probe diagnostics failed"),
+		}
+	}
+
+	return schema.ReadinessStageStatusFailed, schema.ReadinessStageStatusUnknown, []string{
+		firstNonEmpty(device.LastTestError, "connect diagnostics failed"),
+	}
+}
+
+func deriveSuccessfulProbeStatus(device *schema.Device) (schema.ReadinessStageStatus, []string) {
+	target, err := buildReadProbeTarget(device)
+	if err != nil {
+		return schema.ReadinessStageStatusUnknown, []string{
+			fmt.Sprintf("probe diagnostics unavailable: %v", err),
+		}
+	}
+	if !target.enabled {
+		return schema.ReadinessStageStatusSkipped, []string{
+			"probe diagnostics are not supported for this device",
+		}
+	}
+	return schema.ReadinessStageStatusSuccess, nil
+}
+
+func deriveLegacyReadinessStatus(readiness *schema.DeviceReadiness) string {
+	switch {
+	case readiness.ApplyAllowed:
+		return "ready"
+	case readiness.PlanningAllowed:
+		return "warning"
+	default:
+		return "error"
+	}
+}
+
+func buildReadinessChecks(device *schema.Device, readiness *schema.DeviceReadiness) []schema.ReadinessCheck {
+	checks := []schema.ReadinessCheck{
+		{
+			Name:    "Connection Configuration",
+			Pass:    strings.TrimSpace(device.ConnectionConfig) != "",
+			Message: readinessConfigurationMessage(device),
+		},
+		{
+			Name:    "Connect Diagnostics",
+			Pass:    readiness.ConnectStatus == schema.ReadinessStageStatusSuccess,
+			Message: readinessStageMessage("connect", readiness.ConnectStatus, device.LastTestError),
+		},
+		{
+			Name:    "Probe Diagnostics",
+			Pass:    readiness.ProbeStatus == schema.ReadinessStageStatusSuccess,
+			Message: readinessStageMessage("probe", readiness.ProbeStatus, device.LastTestError),
+		},
+		{
+			Name:    "Planning Eligibility",
+			Pass:    readiness.PlanningAllowed,
+			Message: readinessEligibilityMessage("planning", readiness.PlanningAllowed, readiness.BlockingReasons),
+		},
+		{
+			Name:    "Activation Eligibility",
+			Pass:    readiness.ActivationAllowed,
+			Message: readinessEligibilityMessage("activation", readiness.ActivationAllowed, readiness.BlockingReasons),
+		},
+		{
+			Name:    "Apply Eligibility",
+			Pass:    readiness.ApplyAllowed,
+			Message: readinessEligibilityMessage("apply", readiness.ApplyAllowed, readiness.BlockingReasons),
+		},
+	}
+	return checks
+}
+
+func readinessConfigurationMessage(device *schema.Device) string {
+	if strings.TrimSpace(device.ConnectionConfig) == "" {
+		return "missing connection configuration"
+	}
+	return "configuration present"
+}
+
+func readinessStageMessage(stage string, status schema.ReadinessStageStatus, failure string) string {
+	switch status {
+	case schema.ReadinessStageStatusSuccess:
+		return stage + " diagnostics succeeded"
+	case schema.ReadinessStageStatusFailed:
+		return firstNonEmpty(failure, stage+" diagnostics failed")
+	case schema.ReadinessStageStatusSkipped:
+		return stage + " diagnostics skipped"
+	default:
+		return stage + " diagnostics not yet successful"
+	}
+}
+
+func readinessEligibilityMessage(stage string, allowed bool, reasons []string) string {
+	if allowed {
+		return stage + " allowed"
+	}
+	if len(reasons) == 0 {
+		return stage + " blocked"
+	}
+	return stage + " blocked: " + reasons[0]
+}
+
+func isProbeFailure(message string) bool {
+	return strings.Contains(message, "讀取探測失敗")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // UpdateCollectionStats 更新設備收集統計

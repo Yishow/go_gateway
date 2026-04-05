@@ -6,7 +6,7 @@
 
 ## 2. Shared readiness and diagnostics contracts
 
-- [ ] 2.1 Update device readiness logic to return planning, activation, and apply eligibility separately
+- [x] 2.1 Update device readiness logic to return planning, activation, and apply eligibility separately
 - [ ] 2.2 Extend connector diagnostics to return planning capability hints alongside connect/probe results
 - [ ] 2.3 Wire source-rule activation checks to the new readiness contract without blocking planning saves
 
