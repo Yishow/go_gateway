@@ -105,6 +105,45 @@ func TestService_SQLCandidateSnapshotsPersistPerRevision(t *testing.T) {
 	assertSnapshotSet(t, updatedSnapshots, updated.RevisionID, 2)
 }
 
+func TestService_SQLCandidateSnapshotsRestoreLatestRevisionAfterRestart(t *testing.T) {
+	ctx := context.Background()
+	db := setupSQLRepoDB(t)
+	defer db.Close()
+
+	deviceRepo := device.NewSQLRepository(db)
+	pointRepo := point.NewSQLRepository(db)
+	groupRepo := pollinggroup.NewSQLRepository(db)
+	tagRepo := tag.NewSQLRepository(db)
+	mappingRepo := mapping.NewSQLRepository(db)
+	require.NoError(t, seedSQLSourceRuleDevice(ctx, deviceRepo, "device-restart-history"))
+
+	repo := NewSQLRepository(db)
+	tagSvc := tag.NewService(tagRepo)
+	mappingSvc := mapping.NewServiceWithTagResolver(mappingRepo, tagSvc.GetByID)
+	svc := NewService(repo, device.NewService(deviceRepo, nil), point.NewService(pointRepo, groupRepo), nil)
+	svc.SetTagMappingServices(tagSvc, mappingSvc)
+
+	created, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-restart-history",
+		DeviceID:     "device-restart-history",
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	count := 2
+	updated, err := svc.Update(ctx, created.ID, UpdateRuleRequest{Count: &count})
+	require.NoError(t, err)
+
+	restartedSvc := NewService(NewSQLRepository(db), device.NewService(device.NewSQLRepository(db), nil), point.NewService(point.NewSQLRepository(db), pollinggroup.NewSQLRepository(db)), nil)
+	restored, err := restartedSvc.ListCandidateSnapshots(ctx, created.ID)
+	require.NoError(t, err)
+	assertSnapshotSet(t, restored, updated.RevisionID, 2)
+}
+
 func TestService_SQLCandidateSnapshotsKeepIdentityWhenPayloadChanges(t *testing.T) {
 	ctx := context.Background()
 	db := setupSQLRepoDB(t)
