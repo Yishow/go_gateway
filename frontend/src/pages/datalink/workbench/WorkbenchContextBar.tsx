@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkbench } from './WorkbenchProvider';
+import { WorkbenchSourceRuntimeCluster } from './WorkbenchSourceRuntimeCluster';
 import { WB_SHELL_SURFACE } from './workbenchShellTokens';
 import {
+  getWorkbenchDeviceStatusChipClasses,
   getWorkbenchDeviceStatusLabelKey,
   getWorkbenchProtocolLabelKey,
 } from './workbenchDeviceFormModel';
@@ -19,26 +21,9 @@ function joinClasses(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
 }
 
-/**
- * 依裝置狀態回傳 chip 邊框／底色／文字色類名。
- *
- * @param status - 草稿、啟用或停用
- * @returns Tailwind 類名字串
- */
-function getStatusClasses(status: 'draft' | 'active' | 'disabled') {
-  switch (status) {
-    case 'active':
-      return 'border-emerald-500/35 bg-emerald-500/[0.12] text-emerald-200';
-    case 'disabled':
-      return 'border-rose-500/35 bg-rose-500/[0.12] text-rose-200';
-    case 'draft':
-      return 'border-amber-500/35 bg-amber-500/[0.12] text-amber-200';
-  }
-}
-
 export function WorkbenchContextBar() {
   const { t } = useTranslation();
-  const { activeStep, selectedDeviceId, setActiveStep } = useWorkbench();
+  const { activeStep, selectedDeviceId, setActiveStep, sourceStepNotice } = useWorkbench();
   const { selectedDevice, sourceReady, tagReady, outputReady } = useWorkbenchSummary();
   const deviceLabel = selectedDevice?.name ?? t('workbench.contextBar.noDevice');
   const primaryAction = getPrimaryAction({
@@ -85,17 +70,29 @@ export function WorkbenchContextBar() {
               <span className="inline-flex h-6 shrink-0 items-center rounded-md border border-slate-700/80 bg-slate-950/60 px-2 text-[11px] font-medium text-slate-300">
                 {t(getWorkbenchProtocolLabelKey(selectedDevice.protocol))}
               </span>
-              <span
-                className={joinClasses(
-                  'inline-flex h-6 shrink-0 items-center rounded-md border px-2 text-[11px] font-semibold',
-                  getStatusClasses(selectedDevice.status),
-                )}
-              >
-                {t(getWorkbenchDeviceStatusLabelKey(selectedDevice.status))}
-              </span>
+              {activeStep !== 'source' ? (
+                <span
+                  className={joinClasses(
+                    'inline-flex h-6 shrink-0 items-center rounded-md border px-2 text-[11px] font-semibold',
+                    getWorkbenchDeviceStatusChipClasses(selectedDevice.status),
+                  )}
+                  data-testid="context-bar-device-status-chip"
+                >
+                  {t(getWorkbenchDeviceStatusLabelKey(selectedDevice.status))}
+                </span>
+              ) : null}
             </>
           ) : null}
+          <WorkbenchSourceRuntimeCluster />
         </div>
+        {activeStep === 'source' && sourceStepNotice ? (
+          <p
+            className="mt-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-2.5 py-1.5 text-xs leading-relaxed text-amber-100"
+            data-testid="source-step-notice"
+          >
+            {sourceStepNotice}
+          </p>
+        ) : null}
       </div>
 
       <button

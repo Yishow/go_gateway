@@ -894,32 +894,49 @@ function OutputInspectorContent() {
   );
 }
 
-export function WorkbenchInspectorPanel() {
+export type WorkbenchInspectorPanelVariant = 'standalone' | 'embedded';
+
+type WorkbenchInspectorPanelProps = {
+  /** `embedded`：已包在外層 `WB_SHELL_SURFACE` 內（例如來源步驟與 Runtime 摘要同欄）。 */
+  variant?: WorkbenchInspectorPanelVariant;
+};
+
+export function WorkbenchInspectorPanel({
+  variant = 'standalone',
+}: WorkbenchInspectorPanelProps) {
   const { t } = useTranslation();
   const { activeStep, inspectorSelection } = useWorkbench();
   const stepMeta = WORKBENCH_STEP_META[activeStep];
   const hasSelection = inspectorSelection.kind !== 'none';
   const selectionId = getSelectionId(inspectorSelection);
+  const isEmbedded = variant === 'embedded';
 
   return (
     <aside
       aria-label={t('workbench.inspector.ariaLabel')}
       className={joinClasses(
-        'flex min-h-0 flex-col gap-4 overflow-y-auto p-5',
-        WB_SHELL_SURFACE,
+        'flex min-h-0 flex-col overflow-y-auto',
+        isEmbedded
+          ? 'min-h-0 flex-1 gap-3 px-4 pb-4 pt-3.5'
+          : joinClasses('gap-4 p-5', WB_SHELL_SURFACE),
       )}
       data-testid="workbench-inspector-panel"
     >
-      <div className="shrink-0 space-y-1 border-b border-slate-800/55 pb-4">
+      <div
+        className={joinClasses(
+          'shrink-0 space-y-1 border-b border-slate-800/50',
+          isEmbedded ? 'pb-3' : 'pb-4',
+        )}
+      >
         <p className={INSPECTOR_SECTION_EYEBROW_CLASS}>
           {t('workbench.inspector.heading')}
         </p>
-        <h3 className="text-base font-semibold tracking-tight text-slate-100">
+        <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-slate-50">
           {t(stepMeta.labelKey)}
         </h3>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
         {activeStep === 'device' ? (
           <DeviceInspectorContent />
         ) : activeStep === 'source' &&
@@ -947,8 +964,11 @@ export function WorkbenchInspectorPanel() {
             ) : null}
           </div>
         ) : (
-          <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-700/50 bg-slate-950/25 p-6 ring-1 ring-white/[0.03]">
-            <p className="text-center text-xs leading-relaxed text-slate-500" data-testid="inspector-placeholder">
+          <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-700/40 bg-slate-950/20 p-5 ring-1 ring-white/[0.02]">
+            <p
+              className="text-center text-[11px] leading-relaxed text-slate-500"
+              data-testid="inspector-placeholder"
+            >
               {t('workbench.inspector.placeholder')}
             </p>
           </div>

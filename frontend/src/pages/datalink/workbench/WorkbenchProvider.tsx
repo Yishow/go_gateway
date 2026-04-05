@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type Dispatch,
@@ -70,6 +71,17 @@ type WorkbenchContextValue = {
     deviceId: string,
     entry: Omit<DeviceTestHistoryEntry, 'id'>,
   ) => void;
+
+  /** 來源步驟表面訊息（規則 API、收集開關等），供 Context Bar 與畫布區共用。 */
+  sourceStepNotice: string | null;
+  setSourceStepNotice: Dispatch<SetStateAction<string | null>>;
+
+  /**
+   * 來源步驟且已選設備時，由來源畫布區註冊至右欄檢查面板上方的 Runtime／規則摘要區；
+   * 離開來源步驟或卸載時應清空。
+   */
+  sourceStepInspectorBanner: ReactNode | null;
+  setSourceStepInspectorBanner: Dispatch<SetStateAction<ReactNode | null>>;
 };
 
 const WorkbenchContext = createContext<WorkbenchContextValue | null>(null);
@@ -94,6 +106,14 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [recentDeviceTests, setRecentDeviceTests] = useState<
     Record<string, ReadonlyArray<DeviceTestHistoryEntry>>
   >({});
+  const [sourceStepNotice, setSourceStepNotice] = useState<string | null>(null);
+  const [sourceStepInspectorBanner, setSourceStepInspectorBanner] = useState<ReactNode | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setSourceStepNotice(null);
+  }, [selectedDeviceId]);
 
   const clearInspectorSelection = useCallback(() => {
     setInspectorSelection(INSPECTOR_SELECTION_NONE);
@@ -142,6 +162,9 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const setActiveStep = useCallback(
     (step: WorkbenchStep) => {
       setActiveStepRaw(step);
+      if (step !== 'source') {
+        setSourceStepInspectorBanner(null);
+      }
       clearInspectorSelection();
       closeDevicePanel();
     },
@@ -229,6 +252,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       closeDevicePanel,
       recentDeviceTests,
       recordDeviceTest,
+      sourceStepNotice,
+      setSourceStepNotice,
+      sourceStepInspectorBanner,
+      setSourceStepInspectorBanner,
     }),
     [
       activeStep,
@@ -257,6 +284,8 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       closeDevicePanel,
       recentDeviceTests,
       recordDeviceTest,
+      sourceStepNotice,
+      sourceStepInspectorBanner,
     ],
   );
 

@@ -503,6 +503,7 @@ describe('DatalinkWorkbench source step', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByTestId('source-rule-persisted-rule-1-collapse'));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }));
     fireEvent.change(screen.getAllByDisplayValue('40001').at(-1)!, {
       target: { value: '40005' },
@@ -541,16 +542,16 @@ describe('DatalinkWorkbench source step', () => {
     expect(firstRow).toHaveAttribute('data-lattice-columns', '16');
   });
 
-  it('shows all utility tools directly in the secondary controls without a toggle', () => {
+  it('groups utility tools in the primary toolbar More menu to the left of point actions', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const primaryToolbar = screen.getByTestId('source-primary-toolbar');
-    const secondaryControls = screen.getByTestId('source-secondary-controls');
     const ruleLayer = screen.getByTestId('source-rule-layer');
 
+    expect(screen.queryByTestId('source-secondary-controls')).not.toBeInTheDocument();
     expect(
       within(primaryToolbar).getByRole('button', { name: 'workbench.source.view.plan' }),
     ).toBeInTheDocument();
@@ -572,21 +573,31 @@ describe('DatalinkWorkbench source step', () => {
       within(ruleLayer).getByRole('button', { name: 'workbench.source.planner.addRule' }),
     ).toBeInTheDocument();
 
-    // No toggle needed — tools are always visible
+    const moreTrigger = screen.getByTestId('source-toolbar-more-trigger');
+    expect(moreTrigger).toBeInTheDocument();
     expect(
-      within(secondaryControls).queryByRole('button', {
-        name: 'workbench.source.toolbar.moreTools',
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(secondaryControls).getByRole('button', {
-        name: 'workbench.source.toolbar.saveTemplate',
+      within(primaryToolbar).getByRole('button', {
+        name: 'workbench.source.actions.createSelectedPoints',
       }),
     ).toBeInTheDocument();
+
+    fireEvent.click(moreTrigger);
+    const menu = screen.getByTestId('source-toolbar-more-menu');
+    expect(menu).toBeInTheDocument();
     expect(
-      within(secondaryControls).getByRole('button', {
-        name: 'workbench.source.toolbar.snapshotCompare',
-      }),
+      within(menu).getByRole('menuitem', { name: 'workbench.source.toolbar.freezeLive' }),
+    ).toBeInTheDocument();
+    expect(
+      within(menu).getByRole('menuitem', { name: 'workbench.source.toolbar.snapshotCompare' }),
+    ).toBeInTheDocument();
+    expect(
+      within(menu).getByRole('menuitem', { name: 'workbench.source.toolbar.showAudit' }),
+    ).toBeInTheDocument();
+    expect(
+      within(menu).getByRole('menuitem', { name: 'workbench.source.toolbar.saveTemplate' }),
+    ).toBeInTheDocument();
+    expect(
+      within(menu).getByRole('menuitem', { name: 'workbench.source.toolbar.loadTemplate' }),
     ).toBeInTheDocument();
   });
 
@@ -605,17 +616,18 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const summary = screen.getByTestId('source-step-summary');
+    const primaryToolbar = screen.getByTestId('source-primary-toolbar');
 
     expect(within(summary).getByTestId('source-summary-ready-count')).toHaveTextContent('2');
     expect(within(summary).getByTestId('source-summary-conflict-count')).toHaveTextContent('0');
     expect(within(summary).getByTestId('source-summary-protected-count')).toHaveTextContent('0');
     expect(
-      within(summary).getByRole('button', {
+      within(primaryToolbar).getByRole('button', {
         name: 'workbench.source.actions.createSelectedPoints',
       }),
     ).toBeDisabled();
     expect(
-      within(summary).getByRole('button', {
+      within(primaryToolbar).getByRole('button', {
         name: 'workbench.source.actions.createRulePoints',
       }),
     ).toBeEnabled();
@@ -711,6 +723,7 @@ describe('DatalinkWorkbench source step', () => {
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     expect(ruleCard).toBeInTheDocument();
 
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.delete' }),
     );
@@ -889,7 +902,12 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.saveTemplate' }));
+    fireEvent.click(screen.getByTestId('source-toolbar-more-trigger'));
+    fireEvent.click(
+      within(screen.getByTestId('source-toolbar-more-menu')).getByRole('menuitem', {
+        name: 'workbench.source.toolbar.saveTemplate',
+      }),
+    );
     fireEvent.change(screen.getByLabelText('workbench.source.templates.name'), {
       target: { value: 'Line Float' },
     });
@@ -919,7 +937,12 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.plan' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.toolbar.loadTemplate' }));
+    fireEvent.click(screen.getByTestId('source-toolbar-more-trigger'));
+    fireEvent.click(
+      within(screen.getByTestId('source-toolbar-more-menu')).getByRole('menuitem', {
+        name: 'workbench.source.toolbar.loadTemplate',
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Line Float' }));
 
     expect(screen.getByLabelText('workbench.source.planner.startAddress')).toHaveValue('40101');
@@ -1097,6 +1120,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1132,6 +1156,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1166,6 +1191,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1216,6 +1242,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-span-inspector')).toBeInTheDocument();
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1327,6 +1354,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     const protectButton = within(ruleCard).getByRole('button', {
       name: 'workbench.source.ruleLayer.protectPlan',
     });
@@ -1563,6 +1591,7 @@ describe('DatalinkWorkbench source step', () => {
 
     // Inline-edit rule to move start address
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
@@ -1704,6 +1733,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
+    fireEvent.click(screen.getByTestId('source-rule-rule-1-collapse'));
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.delete' }),
     );

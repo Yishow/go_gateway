@@ -92,6 +92,23 @@ export function getWorkbenchDeviceStatusLabelKey(status: DeviceStatus): string {
   return statusLabelKeyMap[status];
 }
 
+/**
+ * 頂欄／工作台狀態晶片用的邊框、底色與文字色（與 Context Bar 一致）。
+ *
+ * @param status - 草稿、啟用或停用
+ * @returns Tailwind 類名字串
+ */
+export function getWorkbenchDeviceStatusChipClasses(status: DeviceStatus): string {
+  switch (status) {
+    case 'active':
+      return 'border-emerald-500/35 bg-emerald-500/[0.12] text-emerald-200';
+    case 'disabled':
+      return 'border-rose-500/35 bg-rose-500/[0.12] text-rose-200';
+    case 'draft':
+      return 'border-amber-500/35 bg-amber-500/[0.12] text-amber-200';
+  }
+}
+
 export function createDefaultDeviceConnectionConfig(
   protocol: ProtocolType,
 ): DeviceConnectionConfig {

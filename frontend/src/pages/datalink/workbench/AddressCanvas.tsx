@@ -6,8 +6,13 @@ import {
   type SourceValueFormat,
   type SourceViewMode,
 } from './sourceCanvasModel';
+import {
+  clampLatticeColumns,
+  LATTICE_COLUMNS_DEFAULT,
+} from './sourceCanvasLatticeColumns';
 
-const LATTICE_COLUMNS = 16;
+/** 預設每列格數（與 {@link LATTICE_COLUMNS_DEFAULT} 相同，供外層對齊慣例）。 */
+export const ADDRESS_CANVAS_LATTICE_COLUMNS = LATTICE_COLUMNS_DEFAULT;
 
 /** 依狀態套用格位底色與邊框色；`used` 之語意主要由此視覺區分。 */
 const statusClassName: Record<AddressCanvasItem['status'], string> = {
@@ -125,15 +130,22 @@ export function AddressCanvas({
   selectedAddress,
   valueFormat,
   viewMode,
+  latticeColumns,
 }: {
   items: AddressCanvasItem[];
   onSelectAddress?: (address: string) => void;
   selectedAddress?: string | null;
   valueFormat: SourceValueFormat;
   viewMode: SourceViewMode;
+  /** 每列顯示幾個位址格；未傳則使用 {@link ADDRESS_CANVAS_LATTICE_COLUMNS}。 */
+  latticeColumns?: number;
 }) {
   const { t } = useTranslation();
-  const rows = chunkItems(items, LATTICE_COLUMNS);
+  const columnCount = useMemo(
+    () => clampLatticeColumns(latticeColumns ?? LATTICE_COLUMNS_DEFAULT),
+    [latticeColumns],
+  );
+  const rows = chunkItems(items, columnCount);
 
   const selectedLogicalAddresses = useMemo(() => {
     if (!selectedAddress) return new Set<string>();
@@ -169,11 +181,13 @@ export function AddressCanvas({
           <div
             key={`source-canvas-row-${rowIndex}`}
             className="grid gap-0.5 rounded-2xl border border-slate-800 bg-slate-900/70 p-1"
-            data-lattice-columns={String(LATTICE_COLUMNS)}
+            data-lattice-columns={String(columnCount)}
             data-row-end-address={rowItems.at(-1)?.address ?? ''}
             data-row-start-address={rowItems[0]?.address ?? ''}
             data-testid={`source-canvas-row-${rowIndex}`}
-            style={{ gridTemplateColumns: `repeat(${LATTICE_COLUMNS}, minmax(0, 1fr))` }}
+            style={{
+              gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+            }}
           >
             {layout.map((entry) => {
               if (entry.kind === 'hidden') {

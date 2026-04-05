@@ -575,6 +575,7 @@
       "planner": {
         "title": "規則建立器",
         "helper": "一次定義一條來源規則，主要檢視重心留給下方畫布。",
+        "helperHint": "規則建立器說明",
         "collapsedHint": "已收合表單，點標題可再次展開。",
         "expandSection": "展開規則建立器",
         "collapseSection": "收合規則建立器",
@@ -609,27 +610,40 @@
       },
       "summary": {
         "title": "來源規則套用摘要",
+        "panelHint": "統計目前格點上可批次建立、有衝突、受保護規劃涵蓋的位址數；「建立選取來源／套用規則」按鈕在畫布上方工具列右側。",
         "readyToCreate": "可套用",
         "inConflict": "衝突中",
-        "protected": "已保護"
+        "protected": "已保護",
+        "readyToCreateHint": "格點狀態為規劃中、無合併偏移，且未落在「保護規劃」範圍內的位址數；這些位址可納入「套用規則」批次建立為後端 point。",
+        "inConflictHint": "與其他規則或既有資料重疊、無法直接納入批次建立的格數；請先調整規則、鬆開保護或排除衝突後再套用。",
+        "protectedHint": "落在已「保護規劃」規則涵蓋範圍內的規劃位址數；批次建立會略過這些位址，避免覆寫受保護的規劃。"
       },
       "actions": {
         "createSelectedPoints": "建立選取來源",
-        "createRulePoints": "套用規則"
+        "createRulePoints": "套用規則",
+        "createSelectedPointsHint": "只為目前選取的那一個來源格建立 point；需先在畫布選取有效格，且後端允許建立時才可按。",
+        "createRulePointsHint": "依左側規則與格點狀態，對所有可套用且無衝突的規劃位址批次建立 point。若仍有衝突格，只會建立安全子集；括號內數字為本次預計建立筆數。"
       },
       "toolbar": {
         "valueFormat": "數值格式",
         "freezeLive": "凍結即時值",
         "unfreezeLive": "恢復即時值",
+        "freezeLiveHint": "暫停更新格點上的即時讀值，保留目前畫面中的數值，方便對照或截圖；再點「恢復即時值」可繼續訂閱 Runtime 串流。",
+        "unfreezeLiveHint": "解除凍結，格點數值恢復跟隨後端即時串流更新。",
         "snapshotCompare": "快照比對",
+        "snapshotCompareHint": "立即擷取當下即時讀值並凍結畫面，便於在調整規則前後用肉眼比對格點變化（效果與凍結即時值相同，作為一鍵建立快照）。",
         "showAudit": "顯示稽核清單",
         "hideAudit": "隱藏稽核清單",
+        "showAuditHint": "展開位址稽核清單，以表格檢視各格狀態、規則歸屬與數值摘要，適合核對大範圍覆蓋。",
+        "hideAuditHint": "收合稽核清單以節省垂直空間。",
         "moreTools": "更多工具",
+        "moreMenu": "更多",
+        "moreMenuAria": "更多來源工具選單",
         "hideTools": "收起工具",
-        "jumpToAddress": "跳到位址",
-        "jump": "跳轉",
         "saveTemplate": "儲存模板",
-        "loadTemplate": "載入模板"
+        "saveTemplateHint": "將目前規則建立器的起始位址、數量、資料型態、檢視模式等存成本機模板，之後可載入到同一或其他設備的草稿。",
+        "loadTemplate": "載入模板",
+        "loadTemplateHint": "從本機已儲存的模板選擇一筆，套用到目前規則建立器（若與設備能力假設不一致可能出現提醒）。"
       },
       "templates": {
         "name": "模板名稱",
@@ -650,6 +664,7 @@
       "collection": {
         "eyebrow": "設備輪詢收集",
         "hintShort": "啟停目前設備輪詢（與左側「規則啟用／停用」無關）。詳情請見提示。",
+        "hintHint": "設備輪詢與收集說明",
         "hint": "控制「目前選擇的設備」是否由 Runtime 輪詢（啟用＝連線並讀取點位；停用＝關閉連線並暫停該設備收集）。與左側單條規則的啟用／停用無關。",
         "start": "開始收集",
         "stop": "停止收集",
@@ -684,6 +699,8 @@
       "coverage": {
         "eyebrow": "覆蓋總覽",
         "title": "連續位址覆蓋帶",
+        "expandSection": "展開覆蓋總覽",
+        "collapseSection": "收合覆蓋總覽",
         "empty": "目前還沒有任何位址覆蓋。",
         "cells": "{{count}} 格",
         "status": {
@@ -707,7 +724,9 @@
         "conflictState": "位址重疊",
         "gapLabel": "空白區",
         "gapState": "未使用位址空間",
-        "mergeState": "跨 {{cells}} 格"
+        "mergeState": "跨 {{cells}} 格",
+        "latticeColumnsLabel": "每列格數",
+        "latticeColumnsHint": "每列顯示幾個位址格（例：10 則 40001～40010 為第一列，接著 40011～）。數字愈小單格愈寬、文字較不易擠壓。設定儲存在瀏覽器本機。"
       },
       "link": {
         "needsPoint": "需先建立 point",

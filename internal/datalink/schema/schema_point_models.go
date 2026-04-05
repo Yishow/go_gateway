@@ -42,6 +42,16 @@ const (
 	DataTypeString DataType = "string"
 )
 
+// IsValid 檢查 DataType 是否為有效的型別
+func (d DataType) IsValid() bool {
+	switch d {
+	case DataTypeBool, DataTypeInt16, DataTypeUint16, DataTypeInt32, DataTypeUint32, DataTypeInt64, DataTypeUint64, DataTypeFloat32, DataTypeFloat64, DataTypeString:
+		return true
+	default:
+		return false
+	}
+}
+
 // RegisterCountForDataType returns word count for 16-bit word protocols (Modbus/FATEK).
 func RegisterCountForDataType(dataType DataType) int {
 	switch dataType {

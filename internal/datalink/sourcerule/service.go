@@ -1489,14 +1489,19 @@ func (s *Service) buildRuleTransformPipeline(rule *schema.SourceRule, pointRecor
 
 	// 若目標型別與 Point 型別不同，加入 cast 步驟
 	if targetDataType != pointRecord.DataType {
-		steps = append(steps, schema.TransformStep{
-			Type:  schema.TransformCast,
-			Order: order,
-			Params: map[string]interface{}{
-				"target_type": string(targetDataType),
-			},
-		})
-		order++
+		if !targetDataType.IsValid() {
+			// 如果無效，回退為與 Point 相同型別
+			targetDataType = pointRecord.DataType
+		} else {
+			steps = append(steps, schema.TransformStep{
+				Type:  schema.TransformCast,
+				Order: order,
+				Params: map[string]interface{}{
+					"target_type": string(targetDataType),
+				},
+			})
+			order++
+		}
 	}
 
 	// 若有 scale 設定，加入 scale 步驟

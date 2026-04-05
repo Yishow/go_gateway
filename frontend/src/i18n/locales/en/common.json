@@ -575,6 +575,7 @@
       "planner": {
         "title": "Rule builder",
         "helper": "Define one source rule at a time, then keep the canvas as the main review surface.",
+        "helperHint": "Rule builder help",
         "collapsedHint": "Form collapsed. Click the title to expand.",
         "expandSection": "Expand rule builder",
         "collapseSection": "Collapse rule builder",
@@ -609,27 +610,40 @@
       },
       "summary": {
         "title": "Source rule apply summary",
+        "panelHint": "Counts batch-eligible, conflicting, and protected-plan cells. Create selected / apply rules are on the right side of the canvas toolbar above the grid.",
         "readyToCreate": "Ready to apply",
         "inConflict": "In conflict",
-        "protected": "Protected"
+        "protected": "Protected",
+        "readyToCreateHint": "Cells that are planned, not merge-shifted, and not under a locked/protected rule span—these addresses can be created as backend points when you apply rules in batch.",
+        "inConflictHint": "Cells that overlap other rules or existing data and cannot be batch-created until you adjust rules, unlock protection, or resolve conflicts.",
+        "protectedHint": "Planned addresses covered by rules with “protect plan” enabled; batch create skips them so protected planning is not overwritten."
       },
       "actions": {
         "createSelectedPoints": "Create selected source",
-        "createRulePoints": "Apply rules"
+        "createRulePoints": "Apply rules",
+        "createSelectedPointsHint": "Create a backend point only for the currently selected lattice cell. Requires a valid selection and a successful create request.",
+        "createRulePointsHint": "Batch-create points for all planned, non-conflicting addresses derived from your rules. If conflicts remain, only the safe subset is created; the number in parentheses is how many will be created this run."
       },
       "toolbar": {
         "valueFormat": "Value format",
         "freezeLive": "Freeze live",
         "unfreezeLive": "Resume live",
+        "freezeLiveHint": "Pause live updates on the canvas and keep the current runtime readings visible for comparison or screenshots. Use “Resume live” to follow the stream again.",
+        "unfreezeLiveHint": "Unfreeze so cell values update from the runtime stream again.",
         "snapshotCompare": "Snapshot compare",
+        "snapshotCompareHint": "Capture the current live readings and freeze the grid—handy before/after rule changes for visual comparison (same freeze behavior as “Freeze live”, as a one-click snapshot).",
         "showAudit": "Show audit",
         "hideAudit": "Hide audit",
+        "showAuditHint": "Expand the address audit table: cells, rule ownership, and value summaries across the lattice.",
+        "hideAuditHint": "Collapse the audit table to save vertical space.",
         "moreTools": "More tools",
+        "moreMenu": "More",
+        "moreMenuAria": "More source tools menu",
         "hideTools": "Hide tools",
-        "jumpToAddress": "Jump to address",
-        "jump": "Jump",
         "saveTemplate": "Save template",
-        "loadTemplate": "Load template"
+        "saveTemplateHint": "Save the current planner fields (start address, count, data type, view mode) as a local template for quick reuse.",
+        "loadTemplate": "Load template",
+        "loadTemplateHint": "Pick a saved local template and apply it to the planner (may warn if device capability assumptions differ)."
       },
       "templates": {
         "name": "Template name",
@@ -650,6 +664,7 @@
       "collection": {
         "eyebrow": "Device polling",
         "hintShort": "Start/stop polling for this device (separate from rule enable/disable). Hover for details.",
+        "hintHint": "Device polling help",
         "hint": "Controls whether the selected device is polled by the runtime (active = connect and read points; disabled = close connection and pause that device). This is separate from each rule's enable/disable on the left.",
         "start": "Start collection",
         "stop": "Stop collection",
@@ -684,6 +699,8 @@
       "coverage": {
         "eyebrow": "Coverage overview",
         "title": "Continuous address coverage",
+        "expandSection": "Expand coverage overview",
+        "collapseSection": "Collapse coverage overview",
         "empty": "No address coverage yet.",
         "cells": "{{count}} cells",
         "status": {
@@ -707,7 +724,9 @@
         "conflictState": "Address overlap",
         "gapLabel": "Gap",
         "gapState": "Unused address space",
-        "mergeState": "Span {{cells}} cells"
+        "mergeState": "Span {{cells}} cells",
+        "latticeColumnsLabel": "Cells per row",
+        "latticeColumnsHint": "How many address cells each row shows (e.g. 10 → 40001–40010 on row 1, then 40011–). Fewer columns = wider cells and less cramped text. Saved locally in this browser."
       },
       "link": {
         "needsPoint": "Create point first",

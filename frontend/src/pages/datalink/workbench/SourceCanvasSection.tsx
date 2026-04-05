@@ -1,7 +1,7 @@
-import { ChevronDown, ChevronRight, CircleHelp } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, CircleHelp } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   applyTemplateToPlanner,
   createTemplateFromPlanner,
@@ -17,7 +17,7 @@ import {
   type SourceTemplateCapabilitySnapshot,
   type SourceTemplateRecord,
 } from '../../../features/datalink/sourceTemplateStorage';
-import { useDevicesQuery, useToggleDeviceStatusMutation } from '../../../hooks/datalink/useDevices';
+import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
 import { useMappingsQuery } from '../../../hooks/datalink/useMappings';
 import {
   useCreatePointMutation,
@@ -46,6 +46,14 @@ import {
   getDefaultPlannerStartAddress,
 } from '../../../utils/addressParser';
 import { AddressCanvas } from './AddressCanvas';
+import {
+  clampLatticeColumns,
+  LATTICE_COLUMNS_DEFAULT,
+  LATTICE_COLUMNS_MAX,
+  LATTICE_COLUMNS_MIN,
+  readSourceCanvasLatticeColumns,
+  writeSourceCanvasLatticeColumns,
+} from './sourceCanvasLatticeColumns';
 import { AddressLedger } from './AddressLedger';
 import { useWorkbench } from './WorkbenchProvider';
 import { parseDeviceConnectionConfig } from './workbenchDeviceFormModel';
@@ -332,12 +340,13 @@ function buildRulePointDefinitions(input: {
 
 export function SourceCanvasSection() {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const {
     selectedDeviceId,
     setFocusedRuleId,
     setInspectorSelection,
     setSelectedDeviceId,
+    setSourceStepNotice,
+    setSourceStepInspectorBanner,
     sourcePlanningState,
     setSourcePlanningState,
     setSourcePlannerStartAddress,
@@ -358,7 +367,6 @@ export function SourceCanvasSection() {
   const deleteSourceRuleMutation = useDeleteSourceRuleMutation();
   const enableSourceRuleMutation = useEnableSourceRuleMutation();
   const disableSourceRuleMutation = useDisableSourceRuleMutation();
-  const toggleDeviceCollectionMutation = useToggleDeviceStatusMutation();
   const runtimeStatusQuery = useQuery({
     queryKey: ['runtime-status', selectedDeviceId],
     queryFn: () => runtimeAPI.getStatus(selectedDeviceId ?? undefined),
@@ -386,11 +394,12 @@ export function SourceCanvasSection() {
   const [scaleMultiplier, setScaleMultiplier] = useState<string>('');
   const [scaleOffset, setScaleOffset] = useState<string>('');
   const [dataFormat, setDataFormat] = useState<string>('');
-  const [jumpAddress, setJumpAddress] = useState('');
   /** 規則建立器表單區是否展開（收合時僅顯示標題列）。 */
   const [plannerSectionOpen, setPlannerSectionOpen] = useState(true);
-  /** 已收合的規則卡片 id（Set 內表示該卡操作區／編輯區隱藏）。 */
-  const [collapsedRuleCardIds, setCollapsedRuleCardIds] = useState(() => new Set<string>());
+  /** 右欄「覆蓋總覽」區塊是否展開（收合時僅保留標題列；預設收合）。 */
+  const [coverageOverviewOpen, setCoverageOverviewOpen] = useState(false);
+  /** 已展開的規則卡片 id（預設空＝全部收合，僅標題摘要可見）。 */
+  const [ruleCardExpandedIds, setRuleCardExpandedIds] = useState(() => new Set<string>());
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     startAddress: string;
@@ -410,10 +419,13 @@ export function SourceCanvasSection() {
   const [templateName, setTemplateName] = useState('');
   const [isSaveTemplateOpen, setIsSaveTemplateOpen] = useState(false);
   const [isLoadTemplateOpen, setIsLoadTemplateOpen] = useState(false);
+  /** 主工具列「更多」選單：收合凍結／稽核／模板等次要操作。 */
+  const [sourceToolbarMoreOpen, setSourceToolbarMoreOpen] = useState(false);
+  const sourceToolbarMoreRef = useRef<HTMLDivElement>(null);
+  /** 來源畫布每列顯示幾個位址格（例 10 → 40001～40010 同一列）；自本機 storage 還原。 */
+  const [canvasLatticeColumns, setCanvasLatticeColumns] = useState(LATTICE_COLUMNS_DEFAULT);
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   const [templateWarning, setTemplateWarning] = useState<string | null>(null);
-  /** 來源步驟表面訊息（規則 API 錯誤、設備收集開關結果等）。 */
-  const [sourceStepNotice, setSourceStepNotice] = useState<string | null>(null);
   const [appliedTemplate, setAppliedTemplate] = useState<{
     id: string;
     name: string;
@@ -466,7 +478,6 @@ export function SourceCanvasSection() {
   useEffect(() => {
     setTemplateWarning(null);
     setAppliedTemplate(null);
-    setSourceStepNotice(null);
   }, [selectedDeviceId]);
 
   /**
@@ -501,6 +512,36 @@ export function SourceCanvasSection() {
       el.removeEventListener('wheel', onWheel);
     };
   }, [selectedDeviceId]);
+
+  /**
+   * 「更多」選單開啟時：點擊外區或 Escape 關閉，避免遮擋下層互動。
+   */
+  useEffect(() => {
+    if (!sourceToolbarMoreOpen) {
+      return undefined;
+    }
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (
+        sourceToolbarMoreRef.current &&
+        !sourceToolbarMoreRef.current.contains(event.target as Node)
+      ) {
+        setSourceToolbarMoreOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSourceToolbarMoreOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [sourceToolbarMoreOpen]);
 
   useEffect(() => {
     if (!selectedDevice) {
@@ -562,6 +603,10 @@ export function SourceCanvasSection() {
     });
   }, [effectiveLiveValues, mappings, points, rules, selectedDevice, tags]);
 
+  useEffect(() => {
+    setCanvasLatticeColumns(readSourceCanvasLatticeColumns());
+  }, []);
+
   const coverageSegments = useMemo(
     () => buildCoverageOverviewSegments(items),
     [items],
@@ -609,6 +654,140 @@ export function SourceCanvasSection() {
     () => items.filter((item) => item.status === 'conflict' && item.mergeOffset === 0).length,
     [items],
   );
+
+  const runtimePointsHealthy = runtimeStatusQuery.data?.collectors[0]?.points_healthy ?? 0;
+  const runtimePointsStale = runtimeStatusQuery.data?.collectors[0]?.points_stale ?? 0;
+
+  /** 右欄檢查面板上方的 Runtime／規則套用摘要（僅在有選中設備時註冊至 WorkbenchFrame）。 */
+  const sourceStepInspectorBannerContent = useMemo(() => {
+    if (!selectedDeviceId) {
+      return null;
+    }
+
+    return (
+      <div
+        className="min-w-0 space-y-3.5"
+        data-testid="source-runtime-collection-panel"
+      >
+        <section aria-label={t('workbench.runtime.summary.title')}>
+          <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+            <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-400/95">
+              {t('workbench.runtime.summary.title')}
+            </p>
+            <button
+              type="button"
+              data-testid="source-runtime-collection-hint"
+              className="shrink-0 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-800/90 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400/80"
+              aria-label={t('workbench.source.collection.hintHint')}
+              title={t('workbench.source.collection.hint')}
+            >
+              <CircleHelp className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <article className="min-w-0 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-2.5 py-2 shadow-sm shadow-black/20">
+              <p className="text-[9px] font-semibold uppercase leading-tight tracking-[0.14em] text-emerald-200/75">
+                {t('workbench.runtime.summary.pointsHealthy')}
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-emerald-100">
+                {runtimePointsHealthy}
+              </p>
+            </article>
+            <article className="min-w-0 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-2.5 py-2 shadow-sm shadow-black/20">
+              <p className="text-[9px] font-semibold uppercase leading-tight tracking-[0.14em] text-amber-200/75">
+                {t('workbench.runtime.summary.pointsStale')}
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-amber-100">
+                {runtimePointsStale}
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <div
+          className="h-px w-full bg-gradient-to-r from-transparent via-slate-700/80 to-transparent"
+          aria-hidden
+        />
+
+        <section aria-label={t('workbench.source.summary.title')}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.source.summary.title')}
+          </p>
+          <div
+            className="grid min-w-0 cursor-help grid-cols-3 gap-1.5"
+            data-testid="source-step-summary"
+            title={t('workbench.source.summary.panelHint')}
+          >
+            <div
+              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
+              title={t('workbench.source.summary.readyToCreateHint')}
+            >
+              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('workbench.source.summary.readyToCreate')}
+              </p>
+              <p
+                className="mt-1 text-base font-semibold tabular-nums leading-none text-emerald-300/95"
+                data-testid="source-summary-ready-count"
+              >
+                {readyToCreateCount}
+              </p>
+            </div>
+            <div
+              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
+              title={t('workbench.source.summary.inConflictHint')}
+            >
+              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('workbench.source.summary.inConflict')}
+              </p>
+              <p
+                className="mt-1 text-base font-semibold tabular-nums leading-none text-rose-300/95"
+                data-testid="source-summary-conflict-count"
+              >
+                {conflictCount}
+              </p>
+            </div>
+            <div
+              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
+              title={t('workbench.source.summary.protectedHint')}
+            >
+              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('workbench.source.summary.protected')}
+              </p>
+              <p
+                className="mt-1 text-base font-semibold tabular-nums leading-none text-amber-300/95"
+                data-testid="source-summary-protected-count"
+              >
+                {protectedPointDefinitions.length}
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- t 用於文案；排除不穩定參照以免右欄 slot 重複註冊循環
+  }, [
+    conflictCount,
+    protectedPointDefinitions.length,
+    readyToCreateCount,
+    runtimePointsHealthy,
+    runtimePointsStale,
+    selectedDeviceId,
+  ]);
+
+  /**
+   * 將 Runtime／規則摘要節點註冊到 Workbench 右欄；卸載或內容為空時清空，避免殘留到其他步驟。
+   */
+  useLayoutEffect(() => {
+    if (sourceStepInspectorBannerContent) {
+      setSourceStepInspectorBanner(sourceStepInspectorBannerContent);
+    } else {
+      setSourceStepInspectorBanner(null);
+    }
+    return () => {
+      setSourceStepInspectorBanner(null);
+    };
+  }, [setSourceStepInspectorBanner, sourceStepInspectorBannerContent]);
+
   const conflictQueue = useMemo(() => buildConflictQueue(items), [items]);
 
   const safePointDefinitions = useMemo(() => {
@@ -783,7 +962,7 @@ export function SourceCanvasSection() {
    * 切換左欄單一規則卡片的展開／收合（不影響選取狀態）。
    */
   const toggleRuleCardCollapsed = (ruleId: string) => {
-    setCollapsedRuleCardIds((prev) => {
+    setRuleCardExpandedIds((prev) => {
       const next = new Set(prev);
       if (next.has(ruleId)) {
         next.delete(ruleId);
@@ -865,30 +1044,6 @@ export function SourceCanvasSection() {
     }));
   };
 
-  /**
-   * 依目前選擇的設備切換「是否由 Runtime 輪詢收集」（啟用設備 / 停用設備 API）。
-   */
-  const handleDeviceCollectionToggle = async () => {
-    if (!selectedDevice) {
-      return;
-    }
-
-    const wasActive = selectedDevice.status === 'active';
-
-    try {
-      await toggleDeviceCollectionMutation.mutateAsync({
-        id: selectedDevice.id,
-        currentStatus: selectedDevice.status,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['runtime-status', selectedDeviceId] });
-      setSourceStepNotice(
-        wasActive ? t('workbench.source.collection.stopped') : t('workbench.source.collection.started'),
-      );
-    } catch (error) {
-      setSourceStepNotice(getErrorMessage(error, t('workbench.source.collection.error')));
-    }
-  };
-
   const isRuleEnableMutating =
     disableSourceRuleMutation.isPending || enableSourceRuleMutation.isPending;
 
@@ -958,20 +1113,6 @@ export function SourceCanvasSection() {
     }));
   };
 
-  const handleJumpToAddress = () => {
-    const normalizedAddress = jumpAddress.trim();
-    if (!normalizedAddress) {
-      return;
-    }
-
-    const targetItem = items.find((item) => item.address === normalizedAddress);
-    if (!targetItem) {
-      return;
-    }
-
-    handleSelectAddress(targetItem.address);
-  };
-
   const handleSkipSelection = () => {
     setSourcePlanningState((currentState) => ({
       ...currentState,
@@ -980,11 +1121,35 @@ export function SourceCanvasSection() {
     setInspectorSelection({ kind: 'none' });
   };
 
+  /**
+   * 更新每列格數並寫入本機；空字或無效時還原為預設 16。
+   */
+  const handleCanvasLatticeColumnsChange = (raw: string) => {
+    if (raw === '') {
+      setCanvasLatticeColumns(LATTICE_COLUMNS_DEFAULT);
+      writeSourceCanvasLatticeColumns(LATTICE_COLUMNS_DEFAULT);
+      return;
+    }
+    const parsed = parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+    const next = clampLatticeColumns(parsed);
+    setCanvasLatticeColumns(next);
+    writeSourceCanvasLatticeColumns(next);
+  };
+
   const handleStartRuleEdit = (ruleId: string) => {
     const rule = rules.find((candidate) => candidate.id === ruleId);
     if (!rule) {
       return;
     }
+
+    setRuleCardExpandedIds((prev) => {
+      const next = new Set(prev);
+      next.add(ruleId);
+      return next;
+    });
 
     setEditingRuleId(ruleId);
     setEditDraft({
@@ -1265,7 +1430,7 @@ export function SourceCanvasSection() {
     return (
       <section className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-dashed border-slate-700 bg-slate-950/40 p-6">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
             {t('workbench.source.empty.eyebrow')}
           </p>
           <h2 className="text-2xl font-semibold text-slate-50">
@@ -1296,91 +1461,6 @@ export function SourceCanvasSection() {
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
-      <div
-        className="shrink-0 rounded-2xl border border-slate-800 bg-slate-950/30 p-4"
-        data-testid="source-runtime-collection-panel"
-      >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-between lg:gap-6">
-          <div className="min-w-0 flex-1 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-              {t('workbench.runtime.summary.title')}
-            </p>
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-              <div className="min-w-0 space-y-1">
-                <p
-                  className="text-sm font-medium text-slate-50"
-                  data-testid="workbench-runtime-status"
-                >
-                  {runtimeStatusQuery.data?.collectors[0]?.status === 'running'
-                    ? t('workbench.runtime.summary.running')
-                    : runtimeStatusQuery.data?.collectors[0]?.status === 'warning'
-                      ? t('workbench.runtime.summary.warning')
-                      : runtimeStatusQuery.data?.collectors[0]?.status === 'error'
-                        ? t('workbench.runtime.summary.error')
-                        : t('workbench.runtime.summary.idle')}
-                </p>
-                <p className="text-xs text-slate-400">
-                  {t('workbench.runtime.summary.uptime', {
-                    seconds: runtimeStatusQuery.data?.uptime_seconds ?? 0,
-                  })}
-                </p>
-              </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2 border-slate-800/70 lg:border-l lg:pl-4">
-                <span className="text-xs font-medium text-slate-200">{selectedDevice.name}</span>
-                <span className="rounded-full border border-slate-700/80 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-400">
-                  {selectedDevice.status}
-                </span>
-                <button
-                  type="button"
-                  data-testid="source-device-collection-toggle"
-                  disabled={toggleDeviceCollectionMutation.isPending}
-                  onClick={() => void handleDeviceCollectionToggle()}
-                  className={
-                    selectedDevice.status === 'active'
-                      ? 'rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-100 disabled:cursor-not-allowed disabled:opacity-50'
-                      : 'rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50'
-                  }
-                >
-                  {selectedDevice.status === 'active'
-                    ? t('workbench.source.collection.stop')
-                    : t('workbench.source.collection.start')}
-                </button>
-              </div>
-            </div>
-            <p
-              className="text-[11px] leading-relaxed text-slate-500"
-              title={t('workbench.source.collection.hint')}
-            >
-              {t('workbench.source.collection.hintShort')}
-            </p>
-            {sourceStepNotice ? (
-              <p className="text-xs text-amber-200" data-testid="source-step-notice">
-                {sourceStepNotice}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="flex shrink-0 flex-row gap-3 sm:gap-4">
-            <article className="min-w-[140px] flex-1 rounded-xl border border-slate-800/70 bg-slate-900/60 p-3 sm:min-w-[160px]">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                {t('workbench.runtime.summary.pointsHealthy')}
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-50">
-                {runtimeStatusQuery.data?.collectors[0]?.points_healthy ?? 0}
-              </p>
-            </article>
-            <article className="min-w-[140px] flex-1 rounded-xl border border-slate-800/70 bg-slate-900/60 p-3 sm:min-w-[160px]">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                {t('workbench.runtime.summary.pointsStale')}
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-50">
-                {runtimeStatusQuery.data?.collectors[0]?.points_stale ?? 0}
-              </p>
-            </article>
-          </div>
-        </div>
-      </div>
-
       <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <section
@@ -1389,17 +1469,17 @@ export function SourceCanvasSection() {
             data-testid="source-rule-layer"
           >
             <div className="shrink-0 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
                 {t('workbench.source.ruleLayer.eyebrow')}
               </p>
-              <div className="flex items-start gap-2">
-                <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-100">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h3 className="m-0 min-w-0 text-sm font-semibold leading-snug text-slate-100">
                   {t('workbench.source.ruleLayer.title')}
                 </h3>
                 <button
                   type="button"
                   data-testid="source-rule-layer-description-hint"
-                  className="mt-0.5 shrink-0 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+                  className="shrink-0 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
                   aria-label={t('workbench.source.ruleLayer.descriptionHint')}
                   title={t('workbench.source.ruleLayer.description')}
                 >
@@ -1409,40 +1489,47 @@ export function SourceCanvasSection() {
             </div>
 
             <div className="shrink-0 space-y-3 rounded-xl border border-slate-800/70 bg-slate-950/70 p-3">
-              <button
-                type="button"
-                data-testid="source-planner-section-toggle"
-                aria-expanded={plannerSectionOpen}
-                aria-label={
-                  plannerSectionOpen
-                    ? t('workbench.source.planner.collapseSection')
-                    : t('workbench.source.planner.expandSection')
-                }
-                onClick={() => setPlannerSectionOpen((open) => !open)}
-                className="flex w-full items-start gap-2 rounded-lg text-left transition-colors hover:bg-slate-800/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
-              >
-                <span className="mt-0.5 shrink-0 text-slate-400" aria-hidden>
-                  {plannerSectionOpen ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1 space-y-1">
-                  <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                    {t('workbench.source.planner.title')}
-                  </span>
-                  {plannerSectionOpen ? (
-                    <span className="block text-xs text-slate-400">
-                      {t('workbench.source.planner.helper')}
+              <div className="space-y-1">
+                <div className="flex w-full min-w-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-testid="source-planner-section-toggle"
+                    aria-expanded={plannerSectionOpen}
+                    aria-label={
+                      plannerSectionOpen
+                        ? t('workbench.source.planner.collapseSection')
+                        : t('workbench.source.planner.expandSection')
+                    }
+                    onClick={() => setPlannerSectionOpen((open) => !open)}
+                    className="flex min-w-0 max-w-[calc(100%-2rem)] items-center gap-2 rounded-lg py-0.5 text-left transition-colors hover:bg-slate-800/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+                  >
+                    <span className="shrink-0 text-slate-400" aria-hidden>
+                      {plannerSectionOpen ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                     </span>
-                  ) : (
-                    <span className="block text-[11px] text-slate-500">
-                      {t('workbench.source.planner.collapsedHint')}
+                    <span className="min-w-0 truncate text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                      {t('workbench.source.planner.title')}
                     </span>
-                  )}
-                </span>
-              </button>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="source-planner-helper-hint"
+                    className="shrink-0 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+                    aria-label={t('workbench.source.planner.helperHint')}
+                    title={t('workbench.source.planner.helper')}
+                  >
+                    <CircleHelp className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+                {plannerSectionOpen ? null : (
+                  <p className="pl-6 text-[11px] leading-snug text-slate-500">
+                    {t('workbench.source.planner.collapsedHint')}
+                  </p>
+                )}
+              </div>
 
               {plannerSectionOpen ? (
               <>
@@ -1519,7 +1606,7 @@ export function SourceCanvasSection() {
 
               {/* 進階設定：目標型態／字節序、偏移／倍率（2×2 網格） */}
               <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
                   {t('workbench.source.planner.advanced.heading')}
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1609,11 +1696,13 @@ export function SourceCanvasSection() {
               </p>
             ) : (
               <div className="space-y-2">
-                {rules.map((rule) => {
+                {rules.map((rule, ruleIndex) => {
                   const coverage = buildSourceRuleCoverage(rule, selectedDevice.protocol);
                   const isSelected = rule.id === selectedRuleId;
                   const isEditing = editingRuleId === rule.id;
-                  const isRuleCardCollapsed = collapsedRuleCardIds.has(rule.id);
+                  const isRuleCardCollapsed = !ruleCardExpandedIds.has(rule.id);
+                  const canMoveRuleUp = ruleIndex > 0;
+                  const canMoveRuleDown = ruleIndex < rules.length - 1;
                   return (
                     <article
                       className={[
@@ -1625,45 +1714,85 @@ export function SourceCanvasSection() {
                       data-testid={`source-rule-${rule.id}-card`}
                       key={rule.id}
                     >
-                      <div className="flex items-start gap-1">
+                      <div className="flex gap-2 sm:gap-3">
+                        <div className="flex shrink-0 flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/90 text-slate-400 shadow-sm shadow-black/25 transition hover:border-slate-600/80 hover:bg-slate-800/90 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+                            aria-expanded={!isRuleCardCollapsed}
+                            aria-label={
+                              isRuleCardCollapsed
+                                ? t('workbench.source.ruleLayer.expandCard')
+                                : t('workbench.source.ruleLayer.collapseCard')
+                            }
+                            data-testid={`source-rule-${rule.id}-collapse`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleRuleCardCollapsed(rule.id);
+                            }}
+                          >
+                            {isRuleCardCollapsed ? (
+                              <ChevronRight className="h-4 w-4" aria-hidden />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" aria-hidden />
+                            )}
+                          </button>
+                          {isRuleCardCollapsed ? null : (
+                            <>
+                              <button
+                                type="button"
+                                className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700/70 bg-slate-900/80 text-slate-300 transition hover:border-slate-500/60 hover:bg-slate-800/80 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label={t('workbench.source.ruleLayer.moveUp')}
+                                title={t('workbench.source.ruleLayer.moveUp')}
+                                disabled={!canMoveRuleUp}
+                                data-testid={`source-rule-${rule.id}-move-up`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleMoveRule(rule.id, -1);
+                                }}
+                              >
+                                <ArrowUp className="h-4 w-4" aria-hidden />
+                              </button>
+                              <button
+                                type="button"
+                                className="flex h-8 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700/70 bg-slate-900/80 text-slate-300 transition hover:border-slate-500/60 hover:bg-slate-800/80 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label={t('workbench.source.ruleLayer.moveDown')}
+                                title={t('workbench.source.ruleLayer.moveDown')}
+                                disabled={!canMoveRuleDown}
+                                data-testid={`source-rule-${rule.id}-move-down`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleMoveRule(rule.id, 1);
+                                }}
+                              >
+                                <ArrowDown className="h-4 w-4" aria-hidden />
+                              </button>
+                            </>
+                          )}
+                        </div>
                         <button
                           type="button"
-                          className="mt-0.5 shrink-0 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
-                          aria-expanded={!isRuleCardCollapsed}
-                          aria-label={
-                            isRuleCardCollapsed
-                              ? t('workbench.source.ruleLayer.expandCard')
-                              : t('workbench.source.ruleLayer.collapseCard')
-                          }
-                          data-testid={`source-rule-${rule.id}-collapse`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleRuleCardCollapsed(rule.id);
-                          }}
-                        >
-                          {isRuleCardCollapsed ? (
-                            <ChevronRight className="h-4 w-4" aria-hidden />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" aria-hidden />
-                          )}
-                        </button>
-                        <button
-                          className="min-w-0 flex-1 space-y-2 text-left"
                           data-testid={`source-rule-${rule.id}`}
                           onClick={() => handleSelectRule(rule.id)}
-                          type="button"
+                          className={[
+                            'min-w-0 flex-1 rounded-xl border p-2.5 text-left shadow-inner shadow-black/15 transition',
+                            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400',
+                            isSelected
+                              ? 'border-cyan-500/40 bg-slate-950/50 ring-1 ring-cyan-400/25'
+                              : 'border-slate-800/60 bg-slate-950/40 hover:border-slate-600/50 hover:bg-slate-950/65',
+                          ].join(' ')}
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-slate-100">
+                          <div className="flex min-w-0 flex-col gap-2">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span className="truncate font-mono text-sm font-semibold tracking-tight text-slate-50">
                                 {rule.id}
                               </span>
                               <span
                                 className={[
-                                  'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]',
+                                  'shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]',
                                   rule.persisted
-                                    ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                                    : 'border border-slate-700/70 bg-slate-900/70 text-slate-300',
+                                    ? 'border border-emerald-500/35 bg-emerald-500/[0.12] text-emerald-100'
+                                    : 'border border-slate-600/50 bg-slate-800/60 text-slate-200',
                                 ].join(' ')}
                               >
                                 {rule.persisted
@@ -1671,17 +1800,21 @@ export function SourceCanvasSection() {
                                   : t('workbench.source.ruleLayer.draftBadge')}
                               </span>
                             </div>
-                            <span className="text-xs text-slate-400">
-                              {coverage.startAddress} → {coverage.endAddress}
-                            </span>
+                            <div className="flex min-w-0 items-center gap-2 rounded-lg bg-slate-900/80 px-2 py-1.5 font-mono text-[11px] tabular-nums text-cyan-200/90 ring-1 ring-slate-700/50">
+                              <span className="min-w-0 truncate">{coverage.startAddress}</span>
+                              <span className="shrink-0 text-slate-500" aria-hidden>
+                                →
+                              </span>
+                              <span className="min-w-0 truncate">{coverage.endAddress}</span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed text-slate-500">
+                              {t('workbench.source.ruleLayer.meta', {
+                                bitWidth: coverage.bitWidth,
+                                count: rule.count,
+                                cells: coverage.cellCount,
+                              })}
+                            </p>
                           </div>
-                          <p className="text-xs text-slate-400">
-                            {t('workbench.source.ruleLayer.meta', {
-                              bitWidth: coverage.bitWidth,
-                              count: rule.count,
-                              cells: coverage.cellCount,
-                            })}
-                          </p>
                         </button>
                       </div>
 
@@ -1754,9 +1887,9 @@ export function SourceCanvasSection() {
                               </select>
                             </label>
                           </div>
-                          {/* 進階設定：與規則建立器同樣為常駐雙欄；字級與同卡按鈕列 text-[11px] 對齊 */}
+                          {/* 進階設定：與規則建立器同樣為常駐雙欄；標題字級與側欄青色 eyebrow 一致 */}
                           <div className="space-y-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
                               {t('workbench.source.planner.advanced.heading')}
                             </p>
                             <div className="grid gap-2 sm:grid-cols-2">
@@ -1894,28 +2027,14 @@ export function SourceCanvasSection() {
                           </p>
                         ) : null}
                         <button
-                          className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-2 py-1 text-cyan-200"
+                          className="min-w-0 truncate rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-2 py-1 text-center text-cyan-200"
                           onClick={() => handleStartRuleEdit(rule.id)}
                           type="button"
                         >
                           {t('workbench.source.ruleLayer.editStart')}
                         </button>
                         <button
-                          className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-200"
-                          onClick={() => handleMoveRule(rule.id, -1)}
-                          type="button"
-                        >
-                          {t('workbench.source.ruleLayer.moveUp')}
-                        </button>
-                        <button
-                          className="rounded-lg border border-slate-700/70 px-2 py-1 text-slate-200"
-                          onClick={() => handleMoveRule(rule.id, 1)}
-                          type="button"
-                        >
-                          {t('workbench.source.ruleLayer.moveDown')}
-                        </button>
-                        <button
-                          className="col-span-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-100"
+                          className="min-w-0 truncate rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-center text-rose-100"
                           onClick={() => handleDeleteRule(rule.id)}
                           type="button"
                         >
@@ -1938,7 +2057,7 @@ export function SourceCanvasSection() {
           data-testid="source-canvas-workspace"
         >
           <div
-            className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between"
+            className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"
             data-testid="source-primary-toolbar"
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -1970,6 +2089,163 @@ export function SourceCanvasSection() {
                 <option value="float">{t('workbench.source.formats.float')}</option>
               </select>
             </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+              <label
+                className="inline-flex max-w-[9.5rem] shrink-0 flex-col gap-0.5 sm:max-w-none sm:inline-flex sm:flex-row sm:items-center sm:gap-1.5"
+                title={t('workbench.source.canvas.latticeColumnsHint')}
+              >
+                <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                  {t('workbench.source.canvas.latticeColumnsLabel')}
+                </span>
+                <input
+                  type="number"
+                  min={LATTICE_COLUMNS_MIN}
+                  max={LATTICE_COLUMNS_MAX}
+                  step={1}
+                  inputMode="numeric"
+                  aria-label={t('workbench.source.canvas.latticeColumnsLabel')}
+                  data-testid="source-canvas-lattice-columns"
+                  value={canvasLatticeColumns}
+                  onChange={(event) => handleCanvasLatticeColumnsChange(event.target.value)}
+                  onBlur={() => {
+                    const next = clampLatticeColumns(canvasLatticeColumns);
+                    if (next !== canvasLatticeColumns) {
+                      setCanvasLatticeColumns(next);
+                      writeSourceCanvasLatticeColumns(next);
+                    }
+                  }}
+                  className="w-full min-w-[4.25rem] rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 font-mono text-xs text-slate-100 sm:w-[4.5rem]"
+                />
+              </label>
+              <div ref={sourceToolbarMoreRef} className="relative">
+                <button
+                  type="button"
+                  data-testid="source-toolbar-more-trigger"
+                  aria-expanded={sourceToolbarMoreOpen}
+                  aria-haspopup="menu"
+                  aria-controls="source-toolbar-more-menu"
+                  aria-label={t('workbench.source.toolbar.moreMenuAria')}
+                  title={t('workbench.source.toolbar.moreMenuAria')}
+                  className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800/80"
+                  onClick={() => setSourceToolbarMoreOpen((open) => !open)}
+                >
+                  {t('workbench.source.toolbar.moreMenu')}
+                  <ChevronDown
+                    className={`ml-1 h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${sourceToolbarMoreOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  />
+                </button>
+                {sourceToolbarMoreOpen ? (
+                  <div
+                    id="source-toolbar-more-menu"
+                    role="menu"
+                    aria-label={t('workbench.source.toolbar.moreMenuAria')}
+                    data-testid="source-toolbar-more-menu"
+                    className="absolute right-0 z-50 mt-1 min-w-[13rem] rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-xl shadow-black/50"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-200 transition-colors hover:bg-slate-800 focus-visible:bg-slate-800 focus-visible:outline-none"
+                      onClick={() => {
+                        handleToggleFreezeLive();
+                        setSourceToolbarMoreOpen(false);
+                      }}
+                      title={
+                        freezeLive
+                          ? t('workbench.source.toolbar.unfreezeLiveHint')
+                          : t('workbench.source.toolbar.freezeLiveHint')
+                      }
+                    >
+                      {freezeLive
+                        ? t('workbench.source.toolbar.unfreezeLive')
+                        : t('workbench.source.toolbar.freezeLive')}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-200 transition-colors hover:bg-slate-800 focus-visible:bg-slate-800 focus-visible:outline-none"
+                      onClick={() => {
+                        handleCaptureSnapshot();
+                        setSourceToolbarMoreOpen(false);
+                      }}
+                      title={t('workbench.source.toolbar.snapshotCompareHint')}
+                    >
+                      {t('workbench.source.toolbar.snapshotCompare')}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-200 transition-colors hover:bg-slate-800 focus-visible:bg-slate-800 focus-visible:outline-none"
+                      onClick={() => {
+                        setShowAudit((currentValue) => !currentValue);
+                        setSourceToolbarMoreOpen(false);
+                      }}
+                      title={
+                        showAudit
+                          ? t('workbench.source.toolbar.hideAuditHint')
+                          : t('workbench.source.toolbar.showAuditHint')
+                      }
+                    >
+                      {showAudit
+                        ? t('workbench.source.toolbar.hideAudit')
+                        : t('workbench.source.toolbar.showAudit')}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-200 transition-colors hover:bg-slate-800 focus-visible:bg-slate-800 focus-visible:outline-none"
+                      onClick={() => {
+                        handleOpenSaveTemplate();
+                        setSourceToolbarMoreOpen(false);
+                      }}
+                      title={t('workbench.source.toolbar.saveTemplateHint')}
+                    >
+                      {t('workbench.source.toolbar.saveTemplate')}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={templates.length === 0}
+                      className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-200 transition-colors hover:bg-slate-800 focus-visible:bg-slate-800 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-slate-900"
+                      onClick={() => {
+                        handleOpenLoadTemplate();
+                        setSourceToolbarMoreOpen(false);
+                      }}
+                      title={t('workbench.source.toolbar.loadTemplateHint')}
+                    >
+                      {t('workbench.source.toolbar.loadTemplate')}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleCreateSelectedPoint()}
+                disabled={!selectedPointDefinition || createPointMutation.isPending}
+                title={t('workbench.source.actions.createSelectedPointsHint')}
+                className="rounded-lg border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-950/50 disabled:text-slate-600"
+              >
+                {t('workbench.source.actions.createSelectedPoints')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleBatchCreate()}
+                disabled={
+                  safePointDefinitions.length === 0 ||
+                  createPointMutation.isPending
+                }
+                title={t('workbench.source.actions.createRulePointsHint')}
+                className="rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 shadow-sm shadow-cyan-900/30 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
+              >
+                {t('workbench.source.actions.createRulePoints')}
+                {conflictCount > 0 && safePointDefinitions.length > 0 ? (
+                  <span className="ml-1 font-normal tabular-nums opacity-90">
+                    ({safePointDefinitions.length})
+                  </span>
+                ) : null}
+              </button>
+            </div>
           </div>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -1980,6 +2256,7 @@ export function SourceCanvasSection() {
             >
               <AddressCanvas
                 items={items}
+                latticeColumns={canvasLatticeColumns}
                 onSelectAddress={handleSelectAddress}
                 selectedAddress={selectedAddress}
                 valueFormat={valueFormat}
@@ -2030,17 +2307,37 @@ export function SourceCanvasSection() {
             className="space-y-2 rounded-xl border border-slate-800/60 bg-slate-950/20 p-3"
             data-testid="source-coverage-overview"
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                  {t('workbench.source.coverage.eyebrow')}
-                </p>
-                <h3 className="text-sm font-semibold text-slate-100">
-                  {t('workbench.source.coverage.title')}
-                </h3>
-              </div>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <button
+                type="button"
+                data-testid="source-coverage-overview-toggle"
+                aria-expanded={coverageOverviewOpen}
+                aria-label={
+                  coverageOverviewOpen
+                    ? t('workbench.source.coverage.collapseSection')
+                    : t('workbench.source.coverage.expandSection')
+                }
+                onClick={() => setCoverageOverviewOpen((open) => !open)}
+                className="flex min-w-0 flex-1 items-start gap-2 rounded-lg py-0.5 text-left transition-colors hover:bg-slate-800/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+              >
+                <span className="mt-0.5 shrink-0 text-slate-400" aria-hidden>
+                  {coverageOverviewOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </span>
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                    {t('workbench.source.coverage.eyebrow')}
+                  </p>
+                  <h3 className="text-sm font-semibold text-slate-100">
+                    {t('workbench.source.coverage.title')}
+                  </h3>
+                </div>
+              </button>
               {coverageSegments.length > 0 ? (
-                <p className="text-xs text-slate-400">
+                <p className="shrink-0 text-xs text-slate-400">
                   {t('workbench.source.coverage.cells', {
                     count: coverageSegments.reduce(
                       (total, segment) => total + segment.cellCount,
@@ -2050,175 +2347,44 @@ export function SourceCanvasSection() {
                 </p>
               ) : null}
             </div>
-            {coverageSegments.length > 0 ? (
-              <div className="space-y-3">
-                <div className="flex gap-1">
-                  {coverageSegments.map((segment) => (
-                    <div
-                      key={segment.id}
-                      className={`h-2 rounded-full ${getCoverageSegmentClass(segment.status)}`}
-                      style={{ flex: Math.max(segment.cellCount, 1) }}
-                      title={`${segment.startAddress} → ${segment.endAddress}`}
-                    />
-                  ))}
+            {coverageOverviewOpen ? (
+              coverageSegments.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex gap-1">
+                    {coverageSegments.map((segment) => (
+                      <div
+                        key={segment.id}
+                        className={`h-2 rounded-full ${getCoverageSegmentClass(segment.status)}`}
+                        style={{ flex: Math.max(segment.cellCount, 1) }}
+                        title={`${segment.startAddress} → ${segment.endAddress}`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {coverageSegments.map((segment) => (
+                      <button
+                        key={`${segment.id}-jump`}
+                        className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-left text-[11px] text-slate-300"
+                        onClick={() => handleSelectAddress(segment.startAddress)}
+                        type="button"
+                      >
+                        <p className="font-medium text-slate-100">
+                          {segment.startAddress} → {segment.endAddress}
+                        </p>
+                        <p className="mt-1">
+                          {t(`workbench.source.coverage.status.${segment.status}`)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {coverageSegments.map((segment) => (
-                    <button
-                      key={`${segment.id}-jump`}
-                      className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-left text-[11px] text-slate-300"
-                      onClick={() => handleSelectAddress(segment.startAddress)}
-                      type="button"
-                    >
-                      <p className="font-medium text-slate-100">
-                        {segment.startAddress} → {segment.endAddress}
-                      </p>
-                      <p className="mt-1">
-                        {t(`workbench.source.coverage.status.${segment.status}`)}
-                      </p>
-                </button>
-              ))}
-            </div>
-
-            <section
-              aria-label={t('workbench.source.summary.title')}
-              className="grid gap-3 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-3 xl:min-w-[420px]"
-              data-testid="source-step-summary"
-            >
-              <div className="grid gap-2 sm:grid-cols-3">
-                <article className="rounded-xl border border-slate-800/70 bg-slate-950/60 px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                    {t('workbench.source.summary.readyToCreate')}
-                  </p>
-                  <p
-                    className="mt-2 text-lg font-semibold text-emerald-200"
-                    data-testid="source-summary-ready-count"
-                  >
-                    {readyToCreateCount}
-                  </p>
-                </article>
-                <article className="rounded-xl border border-slate-800/70 bg-slate-950/60 px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                    {t('workbench.source.summary.inConflict')}
-                  </p>
-                  <p
-                    className="mt-2 text-lg font-semibold text-rose-200"
-                    data-testid="source-summary-conflict-count"
-                  >
-                    {conflictCount}
-                  </p>
-                </article>
-                <article className="rounded-xl border border-slate-800/70 bg-slate-950/60 px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                    {t('workbench.source.summary.protected')}
-                  </p>
-                  <p
-                    className="mt-2 text-lg font-semibold text-amber-200"
-                    data-testid="source-summary-protected-count"
-                  >
-                    {protectedPointDefinitions.length}
-                  </p>
-                </article>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleCreateSelectedPoint()}
-                  disabled={!selectedPointDefinition || createPointMutation.isPending}
-                  className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-950/40 disabled:text-slate-500"
-                >
-                  {t('workbench.source.actions.createSelectedPoints')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleBatchCreate()}
-                  disabled={
-                    safePointDefinitions.length === 0 ||
-                    createPointMutation.isPending
-                  }
-                  className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
-                >
-                  {t('workbench.source.actions.createRulePoints')}
-                  {conflictCount > 0 && safePointDefinitions.length > 0 ? (
-                    <span className="ml-1 text-xs font-normal opacity-80">
-                      ({safePointDefinitions.length})
-                    </span>
-                  ) : null}
-                </button>
-              </div>
-            </section>
-          </div>
-            ) : (
-              <p className="text-xs text-slate-400">
-                {t('workbench.source.coverage.empty')}
-              </p>
-            )}
+              ) : (
+                <p className="text-xs text-slate-400">
+                  {t('workbench.source.coverage.empty')}
+                </p>
+              )
+            ) : null}
           </section>
-
-          <div
-            className="space-y-3 rounded-xl border border-slate-800/60 bg-slate-950/20 px-3 py-3"
-            data-testid="source-secondary-controls"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleToggleFreezeLive}
-                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-              >
-                {freezeLive
-                  ? t('workbench.source.toolbar.unfreezeLive')
-                  : t('workbench.source.toolbar.freezeLive')}
-              </button>
-              <button
-                type="button"
-                onClick={handleCaptureSnapshot}
-                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-              >
-                {t('workbench.source.toolbar.snapshotCompare')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAudit((currentValue) => !currentValue)}
-                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-              >
-                {showAudit
-                  ? t('workbench.source.toolbar.hideAudit')
-                  : t('workbench.source.toolbar.showAudit')}
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenSaveTemplate}
-                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
-              >
-                {t('workbench.source.toolbar.saveTemplate')}
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenLoadTemplate}
-                disabled={templates.length === 0}
-                className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300 disabled:opacity-50"
-              >
-                {t('workbench.source.toolbar.loadTemplate')}
-              </button>
-              <label className="flex items-end gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                <input
-                  aria-label={t('workbench.source.toolbar.jumpToAddress')}
-                  value={jumpAddress}
-                  onChange={(event) => setJumpAddress(event.target.value)}
-                  placeholder={t('workbench.source.toolbar.jumpToAddress')}
-                  className="w-28 rounded-lg border border-slate-800 bg-slate-900 px-2 py-2 text-sm text-slate-100"
-                />
-                <button
-                  type="button"
-                  onClick={handleJumpToAddress}
-                  className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300"
-                >
-                  {t('workbench.source.toolbar.jump')}
-                </button>
-              </label>
-            </div>
-          </div>
 
           {isSaveTemplateOpen ? (
             <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4">

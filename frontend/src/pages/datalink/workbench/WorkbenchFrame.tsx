@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { WorkbenchBottomSummaryBar } from './WorkbenchBottomSummaryBar';
 import { WorkbenchContextBar } from './WorkbenchContextBar';
 import { WorkbenchInspectorPanel } from './WorkbenchInspectorPanel';
+import { useWorkbench } from './WorkbenchProvider';
 import { WB_SHELL_SURFACE } from './workbenchShellTokens';
 
 type WorkbenchFrameProps = {
@@ -27,6 +28,8 @@ type WorkbenchFrameProps = {
  * └──────────────────────────────────────────────────────┘
  */
 export function WorkbenchFrame({ children }: WorkbenchFrameProps) {
+  const { sourceStepInspectorBanner } = useWorkbench();
+
   return (
     <div
       className="grid h-dvh min-h-0 max-h-dvh gap-3 overflow-hidden bg-slate-950 p-3 text-slate-100"
@@ -55,9 +58,27 @@ export function WorkbenchFrame({ children }: WorkbenchFrameProps) {
         {children}
       </main>
 
-      {/* Row 2 col 3: InspectorPanel */}
-      <div className="min-h-0" style={{ gridArea: 'inspector' }}>
-        <WorkbenchInspectorPanel />
+      {/* Row 2 col 2：檢查欄；來源步驟時 Runtime 摘要與檢查面板共用單一外殼，層次較乾淨 */}
+      <div
+        className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+        style={{ gridArea: 'inspector' }}
+      >
+        {sourceStepInspectorBanner ? (
+          <div
+            className={`flex min-h-0 flex-1 flex-col overflow-hidden ${WB_SHELL_SURFACE} p-0`}
+          >
+            <div className="shrink-0 border-b border-slate-800/60 bg-gradient-to-b from-slate-950/90 via-slate-950/70 to-slate-900/40 px-4 py-3.5">
+              {sourceStepInspectorBanner}
+            </div>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              <WorkbenchInspectorPanel variant="embedded" />
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <WorkbenchInspectorPanel variant="standalone" />
+          </div>
+        )}
       </div>
 
       {/* Row 3: BottomSummaryBar spans full width */}

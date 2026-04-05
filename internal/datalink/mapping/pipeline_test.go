@@ -203,3 +203,34 @@ func TestExecutePipeline_Chained(t *testing.T) {
 	assert.Equal(t, "scale", ctx.StepResults[0].StepType)
 	assert.Equal(t, "conditional", ctx.StepResults[1].StepType)
 }
+
+func TestValidateTransformPipeline_Integration(t *testing.T) {
+	steps := []schema.TransformStep{
+		{
+			Type:  schema.TransformCast,
+			Order: 0,
+			Params: map[string]interface{}{
+				"target_type": "float64",
+			},
+		},
+		{
+			Type:  schema.TransformScale,
+			Order: 1,
+			Params: map[string]interface{}{
+				"multiplier": 2.5,
+				"offset":     -10.0,
+			},
+		},
+	}
+
+	err := ValidateTransformPipeline(steps)
+	assert.NoError(t, err, "Pipeline with cast and scale should be valid")
+
+	pipelineJSON, _ := json.Marshal(steps)
+	ctx, err := ExecutePipeline(uint16(100), string(pipelineJSON))
+	assert.NoError(t, err, "Execution of cast and scale pipeline should succeed")
+	assert.Equal(t, float64(240.0), ctx.CurrentValue, "100 uint16 -> 100 float64 -> 100*2.5 - 10 = 240")
+	assert.Len(t, ctx.StepResults, 2)
+	assert.Equal(t, "cast", ctx.StepResults[0].StepType)
+	assert.Equal(t, "scale", ctx.StepResults[1].StepType)
+}

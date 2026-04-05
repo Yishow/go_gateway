@@ -52,26 +52,26 @@ export function WorkbenchStepRail() {
   return (
     <nav
       aria-label={t('workbench.stepRail.ariaLabel')}
-      className="flex min-w-0 flex-[1_1_100%] flex-wrap items-stretch gap-2 sm:flex-[1_1_auto] lg:max-w-none"
+      className="flex min-w-0 flex-[1_1_100%] flex-wrap items-stretch gap-1.5 sm:flex-[1_1_auto] lg:max-w-none"
       data-testid="workbench-step-rail"
     >
       <div
         className={[
-          'flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-xl border border-slate-800/60',
-          'bg-slate-950/50 p-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]',
+          'flex min-w-0 flex-1 flex-wrap items-center gap-1 rounded-xl border border-slate-800/60',
+          'bg-slate-950/50 p-0.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]',
           'sm:flex-nowrap sm:gap-0',
         ].join(' ')}
       >
-        <div className="flex shrink-0 items-center gap-2.5 px-2 py-1 sm:border-r sm:border-slate-800/55 sm:py-0 sm:pr-3">
+        <div className="flex shrink-0 items-center gap-1.5 px-1.5 py-0.5 sm:border-r sm:border-slate-800/55 sm:py-0 sm:pr-2">
           <span
             aria-hidden
-            className="hidden h-6 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-cyan-300/90 to-cyan-500/50 sm:block"
+            className="hidden h-5 w-0.5 shrink-0 rounded-full bg-gradient-to-b from-cyan-300/90 to-cyan-500/50 sm:block"
           />
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 sm:text-[10px] sm:tracking-[0.2em]">
             {t('workbench.stepRail.heading')}
           </p>
         </div>
-        <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5 sm:flex-nowrap sm:pl-0.5">
+        <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-px sm:flex-nowrap sm:pl-px">
           {WORKBENCH_STEPS.map((step, index) => {
             const isActive = step === activeStep;
             const readiness = stepReadiness[step];
@@ -84,7 +84,7 @@ export function WorkbenchStepRail() {
                   aria-label={`${t(WORKBENCH_STEP_META[step].labelKey)} - ${t(`workbench.readiness.${readiness.status}`)}`}
                   data-readiness={readiness.status}
                   className={[
-                    'flex min-h-9 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium',
+                    'flex min-h-8 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-medium sm:min-h-9 sm:gap-2 sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-xs',
                     'transition-[color,background-color,border-color,box-shadow] duration-200',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950',
                     isActive
@@ -95,7 +95,7 @@ export function WorkbenchStepRail() {
                   <span
                     aria-hidden="true"
                     className={[
-                      'flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums',
+                      'flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold tabular-nums sm:h-6 sm:w-6 sm:rounded-md sm:text-[11px]',
                       isActive
                         ? 'bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/35'
                         : 'bg-slate-800/90 text-slate-500 ring-1 ring-slate-700/50',
@@ -103,7 +103,7 @@ export function WorkbenchStepRail() {
                   >
                     {index + 1}
                   </span>
-                  <span className="max-w-[10rem] truncate sm:max-w-[7.5rem] lg:max-w-[9rem]">
+                  <span className="max-w-[7rem] truncate sm:max-w-[8rem] md:max-w-[8.5rem] lg:max-w-[9.5rem]">
                     {t(WORKBENCH_STEP_META[step].labelKey)}
                   </span>
                   <span
