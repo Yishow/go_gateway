@@ -77,7 +77,7 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 	if err != nil {
 		return nil, err
 	}
-	localModbusOutputCandidates, err := s.buildLocalModbusOutputCandidates(ctx, rule, links)
+	localModbusOutputCandidates, err := s.buildLocalModbusOutputCandidates(ctx, rule, tagCandidates)
 	if err != nil {
 		return nil, err
 	}

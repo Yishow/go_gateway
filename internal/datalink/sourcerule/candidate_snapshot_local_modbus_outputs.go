@@ -17,67 +17,66 @@ const localModbusLinkedTagNotFoundReason = "linked tag not found"
 func (s *Service) buildLocalModbusOutputCandidates(
 	ctx context.Context,
 	rule *schema.SourceRule,
-	links []*schema.SourceRuleLink,
+	tagCandidates []schema.SourceRuleTagCandidate,
 ) ([]schema.SourceRuleLocalModbusOutputCandidate, error) {
-	if s.tagSvc == nil {
-		return []schema.SourceRuleLocalModbusOutputCandidate{}, nil
+	states, err := s.listEffectiveTagReviewStates(ctx, rule.ID, tagCandidates)
+	if err != nil {
+		return nil, err
 	}
-
 	mappingsByTagID, err := s.listLocalModbusMappingsByTagID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	candidates := make([]schema.SourceRuleLocalModbusOutputCandidate, 0, len(links))
-	for _, link := range links {
-		if link == nil || link.TagID == nil || strings.TrimSpace(*link.TagID) == "" {
+	candidates := make([]schema.SourceRuleLocalModbusOutputCandidate, 0, len(tagCandidates))
+	for _, tagCandidate := range tagCandidates {
+		state, ok := states[tagCandidate.ID]
+		if !ok || !state.Include {
 			continue
 		}
 
-		pointRecord, err := s.pointSvc.GetByID(ctx, link.PointID)
-		if err != nil {
-			return nil, fmt.Errorf("取得 local modbus 候選點位失敗: %w", err)
-		}
-
 		missingTag := false
-		tagRecord, err := s.tagSvc.GetByID(ctx, *link.TagID)
-		if err != nil {
-			if !errors.Is(err, tag.ErrTagNotFound) {
-				return nil, fmt.Errorf("取得 local modbus 候選標籤失敗: %w", err)
-			}
-			missingTag = true
-		}
-
 		candidate := schema.SourceRuleLocalModbusOutputCandidate{
-			Address:        link.Address,
-			PointID:        link.PointID,
-			TagID:          cloneOptionalString(link.TagID),
-			TagKey:         buildPointName(rule.NamingPrefix, link.Address),
-			DisplayName:    pointRecord.Name,
-			DataType:       desiredRuleTargetDataType(rule, pointRecord),
-			RegisterCount:  localModbusRegisterCount(desiredRuleTargetDataType(rule, pointRecord)),
+			Address:        state.Address,
+			PointID:        state.PointID,
+			TagID:          cloneOptionalString(state.TagID),
+			TagKey:         state.TagKey,
+			DisplayName:    state.DisplayName,
+			DataType:       state.DataType,
+			RegisterCount:  localModbusRegisterCount(state.DataType),
 			Status:         schema.SourceRuleLocalModbusOutputStatusDeferred,
 			BlockingReason: "",
 		}
-		if !missingTag {
-			candidate.TagKey = tagRecord.Key
-			candidate.DisplayName = tagRecord.DisplayName
-			candidate.DataType = tagRecord.DataType
-			candidate.RegisterCount = localModbusRegisterCount(tagRecord.DataType)
-		} else {
-			candidate.Status = schema.SourceRuleLocalModbusOutputStatusOutOfSync
-			candidate.BlockingReason = fmt.Sprintf("%s: %s", localModbusLinkedTagNotFoundReason, *link.TagID)
+		if s.tagSvc != nil && state.TagID != nil && strings.TrimSpace(*state.TagID) != "" {
+			tagRecord, err := s.tagSvc.GetByID(ctx, *state.TagID)
+			if err != nil {
+				if !errors.Is(err, tag.ErrTagNotFound) {
+					return nil, fmt.Errorf("取得 local modbus 候選標籤失敗: %w", err)
+				}
+				missingTag = true
+			}
+			if !missingTag {
+				candidate.TagKey = tagRecord.Key
+				candidate.DisplayName = tagRecord.DisplayName
+				candidate.DataType = tagRecord.DataType
+				candidate.RegisterCount = localModbusRegisterCount(tagRecord.DataType)
+			} else {
+				candidate.Status = schema.SourceRuleLocalModbusOutputStatusOutOfSync
+				candidate.BlockingReason = fmt.Sprintf("%s: %s", localModbusLinkedTagNotFoundReason, *state.TagID)
+			}
 		}
-		if mappingRecord, ok := mappingsByTagID[*link.TagID]; ok {
-			candidate.Register = uint16Ptr(mappingRecord.Register)
-			candidate.UpdatedAt = timePtr(mappingRecord.UpdatedAt)
-			if mappingRecord.DataType != "" {
-				candidate.DataType = mappingRecord.DataType
-				candidate.RegisterCount = localModbusRegisterCount(mappingRecord.DataType)
+		if candidate.TagID != nil && strings.TrimSpace(*candidate.TagID) != "" {
+			if mappingRecord, ok := mappingsByTagID[strings.TrimSpace(*candidate.TagID)]; ok {
+				candidate.Register = uint16Ptr(mappingRecord.Register)
+				candidate.UpdatedAt = timePtr(mappingRecord.UpdatedAt)
+				if mappingRecord.DataType != "" {
+					candidate.DataType = mappingRecord.DataType
+					candidate.RegisterCount = localModbusRegisterCount(mappingRecord.DataType)
+				}
 			}
 		}
 
-		candidate.Identity = buildLocalModbusOutputCandidateIdentity(rule.ID, link.Address, candidate.DataType, candidate.Register)
+		candidate.Identity = buildLocalModbusOutputCandidateIdentity(rule.ID, state.Address, candidate.DataType, candidate.Register)
 		candidate.ID, err = candidateID(candidate.Identity)
 		if err != nil {
 			return nil, err
