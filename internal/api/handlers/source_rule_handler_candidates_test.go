@@ -60,6 +60,7 @@ func setupSourceRuleCandidatesFixture(t *testing.T) *sourceRuleCandidatesFixture
 	router.PUT("/datalink/source-rules/:id", handler.Update)
 	router.GET("/datalink/source-rules/:id/candidates", handler.Candidates)
 	router.POST("/datalink/source-rules/:id/candidates/recompute", handler.RecomputeCandidates)
+	router.POST("/datalink/source-rules/:id/tags/apply", handler.ApplyTags)
 	router.GET("/datalink/source-rules/:id/tag-review-decisions", handler.ListTagReviewDecisions)
 	router.POST("/datalink/source-rules/:id/tag-review-decisions", handler.UpsertTagReviewDecision)
 	return &sourceRuleCandidatesFixture{

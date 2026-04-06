@@ -12,7 +12,7 @@
 
 ## 3. Tag apply APIs
 
-- [ ] 3.1 Add rule-scoped tag apply endpoint with revision-aware request validation
+- [x] 3.1 Add rule-scoped tag apply endpoint with revision-aware request validation
 - [ ] 3.2 Return per-item apply results without auto-applying database or Local Modbus outputs
 - [ ] 3.3 Recompute downstream candidate state after successful tag apply without redefining the shared candidate contract
 
