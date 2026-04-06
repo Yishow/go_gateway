@@ -622,9 +622,9 @@
         "protectedHint": "落在已「保護規劃」規則涵蓋範圍內的規劃位址數；批次建立會略過這些位址，避免覆寫受保護的規劃。"
       },
       "actions": {
-        "createSelectedPoints": "建立選取來源",
+        "createSelectedPoints": "工程：建立單一來源",
         "createRulePoints": "套用規則",
-        "createSelectedPointsHint": "只為目前選取的那一個來源格建立 point；需先在畫布選取有效格，且後端允許建立時才可按。",
+        "createSelectedPointsHint": "例外處理用的單格建立捷徑，只會為目前選取的一格建立 point；正常主線仍以「套用規則」批次建立為主。",
         "createRulePointsHint": "依左側規則與格點狀態，對所有可套用且無衝突的規劃位址批次建立 point。若仍有衝突格，只會建立安全子集；括號內數字為本次預計建立筆數。"
       },
       "toolbar": {
@@ -639,10 +639,10 @@
         "hideAudit": "隱藏稽核清單",
         "showAuditHint": "展開位址稽核清單，以表格檢視各格狀態、規則歸屬與數值摘要，適合核對大範圍覆蓋。",
         "hideAuditHint": "收合稽核清單以節省垂直空間。",
-        "moreTools": "更多工具",
-        "moreMenu": "更多",
-        "moreMenuAria": "更多來源工具選單",
-        "hideTools": "收起工具",
+        "moreTools": "工程工具",
+        "moreMenu": "工程工具",
+        "moreMenuAria": "來源工程工具選單",
+        "hideTools": "收起工程工具",
         "saveTemplate": "儲存模板",
         "saveTemplateHint": "將目前規則建立器的起始位址、數量、資料型態、檢視模式等存成本機模板，之後可載入到同一或其他設備的草稿。",
         "loadTemplate": "載入模板",
@@ -771,7 +771,7 @@
         }
       },
       "selectionToolbar": {
-        "createPoints": "建立選取來源",
+        "createPoints": "工程建立這一格",
         "addToRule": "加入規則",
         "skip": "略過"
       },
@@ -822,7 +822,7 @@
         },
         "flowModeHint": {
           "create": "建立模式會保留 preview key，方便你先掃描衝突再批次綁定。",
-          "existing": "既有 Tag 模式會把重點放在幫每個 point 選對目標 Tag。"
+          "existing": "既有 Tag 模式屬於例外處理工具，適合在主線審查後幫少數 point 指定既有 Tag。"
         },
         "statusFilters": {
           "all": "全部",
@@ -832,7 +832,7 @@
         },
         "selectionHint": {
           "none": "先從候選列勾選一筆以上的 point，才能開始下一批綁定。",
-          "ready": "目前選取內容已可執行，確認預覽後即可從右側送出批次綁定。",
+          "ready": "目前選取內容已可執行，確認預覽後即可從右側工程工具區送出批次綁定。",
           "conflicts": "目前選取內容包含受阻項目，請先排除衝突或改用只選可綁定。",
           "done": "上一批已完成，請檢查最新狀態後再繼續下一批。"
         },
@@ -849,9 +849,9 @@
         "boundTag": "已綁定至 {{tag}}"
       },
       "exception": {
-        "eyebrow": "右欄操作",
-        "title": "模式、模板與送出",
-        "description": "切換「建立新 Tag／綁定既有 Tag」、編輯鍵名模板、查 Tag 總覽；完成勾選與預覽後，於下方按鈕送出批次動作。"
+        "eyebrow": "例外／工程工具",
+        "title": "例外處理與工程工具",
+        "description": "正常主線以左側 review-first 候選板為主；只有需要既有 Tag 綁定、模板微調或批次特殊處理時，再使用這組工具。"
       },
       "template": {
         "eyebrow": "Tag key 模板",
@@ -866,9 +866,9 @@
         "toggle": "模板設定"
       },
       "master": {
-        "eyebrow": "Tag master",
-        "title": "Tag 總覽",
-        "description": "直接查看目前所有 Tag，補建未使用 Tag，或先整理尚未掛載的舊 Tag。",
+        "eyebrow": "次要工程工具",
+        "title": "Tag 庫總覽（工程）",
+        "description": "查看全部 Tag、快速補建或整理未使用項目；正常主線不需要離開左側 review-first 清單。",
         "search": "搜尋 Tag",
         "searchPlaceholder": "依 key、顯示名稱或型別篩選…",
         "quickCreate": "快速建立",

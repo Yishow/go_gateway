@@ -181,6 +181,21 @@ describe('Workbench locale contract', () => {
     );
   });
 
+  it('labels lower-level point and tag tooling as secondary engineering surfaces', () => {
+    expect(zhTWCommon.workbench.source.toolbar.moreMenu).toContain('工程');
+    expect(enCommon.workbench.source.toolbar.moreMenu).toContain('Engineering');
+    expect(zhTWCommon.workbench.source.toolbar.moreMenuAria).toContain('工程');
+    expect(enCommon.workbench.source.toolbar.moreMenuAria).toContain('engineering');
+    expect(zhTWCommon.workbench.source.actions.createSelectedPoints).toContain('工程');
+    expect(enCommon.workbench.source.actions.createSelectedPoints).toContain('Engineering');
+    expect(zhTWCommon.workbench.source.selectionToolbar.createPoints).toContain('工程');
+    expect(enCommon.workbench.source.selectionToolbar.createPoints).toContain('Engineering');
+    expect(zhTWCommon.workbench.tag.exception.title).toContain('工程工具');
+    expect(enCommon.workbench.tag.exception.title).toContain('engineering');
+    expect(zhTWCommon.workbench.tag.master.eyebrow).toContain('工程');
+    expect(enCommon.workbench.tag.master.eyebrow).toContain('engineering');
+  });
+
   it('ships localized zh-TW strings for Step 3 empty-state guidance additions', () => {
     expect(zhTWCommon.workbench.tag.empty.eligibleSpans).not.toBe(
       enCommon.workbench.tag.empty.eligibleSpans,

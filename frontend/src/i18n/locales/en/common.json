@@ -622,9 +622,9 @@
         "protectedHint": "Planned addresses covered by rules with “protect plan” enabled; batch create skips them so protected planning is not overwritten."
       },
       "actions": {
-        "createSelectedPoints": "Create selected source",
+        "createSelectedPoints": "Engineering: create selected source",
         "createRulePoints": "Apply rules",
-        "createSelectedPointsHint": "Create a backend point only for the currently selected lattice cell. Requires a valid selection and a successful create request.",
+        "createSelectedPointsHint": "Exception-only shortcut for creating a backend point from the currently selected cell. The normal flow should still use “Apply rules” for batch creation.",
         "createRulePointsHint": "Batch-create points for all planned, non-conflicting addresses derived from your rules. If conflicts remain, only the safe subset is created; the number in parentheses is how many will be created this run."
       },
       "toolbar": {
@@ -639,10 +639,10 @@
         "hideAudit": "Hide audit",
         "showAuditHint": "Expand the address audit table: cells, rule ownership, and value summaries across the lattice.",
         "hideAuditHint": "Collapse the audit table to save vertical space.",
-        "moreTools": "More tools",
-        "moreMenu": "More",
-        "moreMenuAria": "More source tools menu",
-        "hideTools": "Hide tools",
+        "moreTools": "Engineering tools",
+        "moreMenu": "Engineering tools",
+        "moreMenuAria": "Source engineering tools menu",
+        "hideTools": "Hide engineering tools",
         "saveTemplate": "Save template",
         "saveTemplateHint": "Save the current planner fields (start address, count, data type, view mode) as a local template for quick reuse.",
         "loadTemplate": "Load template",
@@ -771,7 +771,7 @@
         }
       },
       "selectionToolbar": {
-        "createPoints": "Create selected source",
+        "createPoints": "Engineering create this cell",
         "addToRule": "Add to rule",
         "skip": "Skip"
       },
@@ -822,7 +822,7 @@
         },
         "flowModeHint": {
           "create": "Create mode keeps the preview key visible so you can scan conflicts before binding.",
-          "existing": "Existing-tag mode focuses on picking the destination tag for each selected point."
+          "existing": "Existing-tag mode is an exception tool for assigning a known tag to a smaller set of selected points after the normal review flow."
         },
         "statusFilters": {
           "all": "All",
@@ -832,7 +832,7 @@
         },
         "selectionHint": {
           "none": "Pick one or more points from the board to start the next binding batch.",
-          "ready": "Current selection is ready. Review the preview and trigger the batch action from the sidebar.",
+          "ready": "Current selection is ready. Review the preview and trigger the batch action from the engineering sidebar.",
           "conflicts": "Some selected rows are blocked. Clear conflicts or switch to bindable-only selection first.",
           "done": "Latest batch completed. Review the updated statuses and continue with the next selection."
         },
@@ -849,9 +849,9 @@
         "boundTag": "Bound to {{tag}}"
       },
       "exception": {
-        "eyebrow": "Right column",
-        "title": "Mode, template, and actions",
-        "description": "Switch create vs bind-existing, edit the key template, browse the tag library, then confirm with the batch buttons below."
+        "eyebrow": "Exception / engineering tools",
+        "title": "Exception handling and engineering tools",
+        "description": "The normal path stays on the left review-first board. Use these tools only when you need bind-existing flows, template tweaks, or special batch handling."
       },
       "template": {
         "eyebrow": "Tag key template",
@@ -866,9 +866,9 @@
         "toggle": "Template settings"
       },
       "master": {
-        "eyebrow": "Tag master",
-        "title": "Tag overview",
-        "description": "Review all current tags, create standby tags, and clean up unused tag records.",
+        "eyebrow": "Secondary engineering surface",
+        "title": "Tag library overview",
+        "description": "Review all tags, create standby records, or clean up unused entries. The normal operator flow should not need to leave the left review-first board.",
         "search": "Search tags",
         "searchPlaceholder": "Filter by key, name, or type…",
         "quickCreate": "Quick create",

@@ -2419,7 +2419,8 @@ export function SourceCanvasSection() {
                 type="button"
                 onClick={() => void handleCreateSelectedPoint()}
                 disabled={createPointMutation.isPending}
-                className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                title={t('workbench.source.actions.createSelectedPointsHint')}
+                className="rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 transition hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-950/40 disabled:text-slate-500"
               >
                 {t('workbench.source.selectionToolbar.createPoints')}
               </button>
