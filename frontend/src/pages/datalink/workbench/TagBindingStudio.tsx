@@ -17,6 +17,7 @@ import {
 import { tagAPI } from '../../../services/datalink';
 import { DATALINK_DATA_TYPES, type DataType, type Device, type Tag } from '../../../types/datalink';
 import { useWorkbench } from './WorkbenchProvider';
+import { SourceRuleTagReviewSurface } from './SourceRuleTagReviewSurface';
 import { countEligibleSpans } from './sourceCanvasModel';
 import {
   buildBatchDiffPreview,
@@ -61,12 +62,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-/**
- * 將候選點位即時值格式化為顯示字串；空值統一為 em dash。
- *
- * @param value 原始或轉換後數值
- * @returns 顯示用字串
- */
 function formatCandidateValue(value: unknown) {
   if (value === null || value === undefined || value === '') {
     return '—';
@@ -75,12 +70,6 @@ function formatCandidateValue(value: unknown) {
   return String(value);
 }
 
-/**
- * 候選列狀態徽章：柔和對比、內高光，與整體深色介面一致。
- *
- * @param status 綁定狀態
- * @returns Tailwind 類別字串
- */
 function getStatusToneClass(status: TagBindingCandidate['bindingStatus']) {
   switch (status) {
     case 'bound':
@@ -803,6 +792,8 @@ export function TagBindingStudio() {
               {t('workbench.tag.selection.description')}
             </p>
           </header>
+
+          <SourceRuleTagReviewSurface />
 
           <div className="flex shrink-0 flex-col" data-testid="tag-review-summary">
             <div className="space-y-1 px-4 py-2.5">

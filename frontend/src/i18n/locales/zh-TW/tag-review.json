@@ -1,0 +1,51 @@
+{
+  "workbench": {
+    "tag": {
+      "reviewSurface": {
+        "eyebrow": "規則審查",
+        "title": "自動產生的 Tag 候選",
+        "description": "Step 3 現在從目前 source rule 的 active revision 起步。先檢查自動產生的 tag 列與待套用 mapping intent，再進入例外處理或 apply。",
+        "activeRule": "目前來源規則",
+        "revision": "Revision",
+        "reason": "原因",
+        "loading": "正在載入自動產生的 Tag 候選…",
+        "loadFailed": "目前規則的審查面板載入失敗。",
+        "empty": {
+          "title": "這條規則目前沒有可審查的 Tag 候選",
+          "description": "請先回到 Step 2，確認 active source rule revision 已經產生候選內容，再繼續往下。"
+        },
+        "metrics": {
+          "generated": "已產生列數",
+          "pendingMappings": "待套用 mapping",
+          "setStatus": "候選集狀態"
+        },
+        "setStatus": {
+          "ready": "可審查",
+          "blocked": "受阻",
+          "deferred": "延後"
+        },
+        "candidateMeta": "位址 {{address}} · {{dataType}} · {{bitWidth}} 位元",
+        "fields": {
+          "tagKey": "Tag key",
+          "pointId": "Point ID",
+          "mappingStatus": "Mapping 狀態"
+        },
+        "status": {
+          "generated": "已產生",
+          "applied": "已套用"
+        },
+        "mappingIntent": {
+          "pending": "待套用 mapping intent",
+          "applied": "已套用 mapping"
+        },
+        "mappingStatus": {
+          "draft": "草稿",
+          "validated": "已驗證",
+          "active": "啟用中",
+          "out_of_sync": "不同步",
+          "error": "錯誤"
+        }
+      }
+    }
+  }
+}

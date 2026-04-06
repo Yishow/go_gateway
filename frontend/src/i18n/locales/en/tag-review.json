@@ -1,0 +1,51 @@
+{
+  "workbench": {
+    "tag": {
+      "reviewSurface": {
+        "eyebrow": "Rule review",
+        "title": "Generated tag candidates",
+        "description": "Step 3 now starts from the active source-rule revision. Review the generated tag rows and their pending mapping intent before exception handling or apply.",
+        "activeRule": "Active source rule",
+        "revision": "Revision",
+        "reason": "Reason",
+        "loading": "Loading generated tag candidates…",
+        "loadFailed": "Failed to load the current rule review surface.",
+        "empty": {
+          "title": "No generated tag candidates for this rule",
+          "description": "Return to Step 2 and confirm the active source-rule revision produced candidates before continuing."
+        },
+        "metrics": {
+          "generated": "Generated rows",
+          "pendingMappings": "Pending mappings",
+          "setStatus": "Candidate set"
+        },
+        "setStatus": {
+          "ready": "Ready",
+          "blocked": "Blocked",
+          "deferred": "Deferred"
+        },
+        "candidateMeta": "Address {{address}} · {{dataType}} · {{bitWidth}}-bit",
+        "fields": {
+          "tagKey": "Tag key",
+          "pointId": "Point ID",
+          "mappingStatus": "Mapping status"
+        },
+        "status": {
+          "generated": "Generated",
+          "applied": "Applied"
+        },
+        "mappingIntent": {
+          "pending": "Pending mapping intent",
+          "applied": "Applied mapping"
+        },
+        "mappingStatus": {
+          "draft": "Draft",
+          "validated": "Validated",
+          "active": "Active",
+          "out_of_sync": "Out of sync",
+          "error": "Error"
+        }
+      }
+    }
+  }
+}

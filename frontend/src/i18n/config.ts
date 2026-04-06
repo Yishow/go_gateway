@@ -2,8 +2,11 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import enTranslations from './locales/en/common.json';
+import enTagReviewTranslations from './locales/en/tag-review.json';
 import zhTWTranslations from './locales/zh-TW/common.json';
+import zhTWTagReviewTranslations from './locales/zh-TW/tag-review.json';
 import { logger } from '../utils/logger';
+import { mergeTranslations } from './mergeTranslations';
 
 /**
  * i18n 國際化配置
@@ -24,10 +27,10 @@ i18n
   .init({
     resources: {
       en: {
-        translation: enTranslations,
+        translation: mergeTranslations(enTranslations, enTagReviewTranslations),
       },
       'zh-TW': {
-        translation: zhTWTranslations,
+        translation: mergeTranslations(zhTWTranslations, zhTWTagReviewTranslations),
       },
     },
     fallbackLng: 'en', // 預設語言為英文
