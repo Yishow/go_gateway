@@ -243,3 +243,58 @@ git --no-pager diff --check -- .github/pull_request_template.md .github/workflow
   - `make check-lines`
   - `git --no-pager diff --check -- .github/pull_request_template.md .github/workflows/file-line-limit.yml .line-limit-ignore .githooks/pre-commit Makefile AGENTS.md CLAUDE.md README.md scripts/check_file_lines.sh task_plan.md findings.md progress.md`
 - ✅ 建立繁中詳細 commit
+
+#### Session 9: Workbench UX Phase -1 API 實作（本輪）
+- ✅ 完成 SourceRule output apply API（無 mock）：
+  - `POST /datalink/source-rules/:id/database-outputs/apply`
+  - `POST /datalink/source-rules/:id/local-modbus/apply`
+- ✅ 完成 DB target tooling API（無 mock）：
+  - `POST /datalink/db-targets/connectors/:id/schema/generate`
+  - `POST /datalink/db-targets/connectors/:id/mappings/dry-run`
+  - `GET /datalink/db-targets/connectors/:id/write-history`
+- ✅ 完成測試（service + handler）：
+  - revision mismatch
+  - per-item partial success
+  - schema_missing / connector_unavailable
+  - local-modbus deferred apply
+- ✅ 更新 OpenSpec：`workbench-ux-operator-efficiency/tasks.md` 之 `-1.2`、`-1.3`、`-1.4` 已標記完成
+
+**驗證結果**：
+```bash
+GOCACHE=$(pwd)/.gocache GOTMPDIR=$(pwd)/.gotmp TMPDIR=$(pwd)/.gotmp \
+go test ./internal/datalink/sourcerule -run 'TestService_Apply(DatabaseOutputCandidates|LocalModbusOutputCandidates)'
+
+GOCACHE=$(pwd)/.gocache GOTMPDIR=$(pwd)/.gotmp TMPDIR=$(pwd)/.gotmp \
+go test ./internal/datalink/dbtarget -run 'Test(MappingService_DryRun|ConnectorService_GenerateSchema|ConnectorService_ListWriteHistory)'
+
+GOCACHE=$(pwd)/.gocache GOTMPDIR=$(pwd)/.gotmp TMPDIR=$(pwd)/.gotmp \
+go test ./internal/api/handlers -run 'TestSourceRuleHandler_Apply(DatabaseOutputs|LocalModbusOutputs)|TestDatabaseTargetHandler_(DryRunMappings|GenerateSchema|ListWriteHistory)'
+
+bash scripts/check_file_lines.sh
+git diff --check
+```
+- 結果：以上命令通過。
+
+**限制**：
+- `go test ./internal/api/handlers` 全量在 sandbox 會因既有測試需要 bind TCP 埠（`listen tcp :0`）而失敗；本輪改用 targeted tests 驗證新增 API 契約。
+
+#### Session 10: Phase -1 完成後可平行 worktree 的就緒檢查（本輪）
+- ✅ 確認 OpenSpec `tasks.md` Phase -1 全數完成（`-1.1 ~ -1.4`）
+- ✅ 確認新 API 路由已掛載於 router：
+  - `source-rules/:id/database-outputs/apply`
+  - `source-rules/:id/local-modbus/apply`
+  - `db-targets/connectors/:id/schema/generate`
+  - `db-targets/connectors/:id/mappings/dry-run`
+  - `db-targets/connectors/:id/write-history`
+- ✅ 再次執行 targeted 驗證（全部通過）：
+  - `go test ./internal/datalink/sourcerule -run 'TestService_Apply(DatabaseOutputCandidates|LocalModbusOutputCandidates)'`
+  - `go test ./internal/datalink/dbtarget -run 'Test(MappingService_DryRun|ConnectorService_GenerateSchema|ConnectorService_ListWriteHistory)'`
+  - `go test ./internal/api/handlers -run 'TestSourceRuleHandler_Apply(DatabaseOutputs|LocalModbusOutputs)|TestDatabaseTargetHandler_(DryRunMappings|GenerateSchema|ListWriteHistory)'`
+  - `bash scripts/check_file_lines.sh`
+  - `git diff --check`
+- ✅ 盤點 worktree 狀態：
+  - `.worktrees/workbench-v1|v2|v3` 皆已存在，且 `.worktrees/` 已由 `.gitignore` 忽略
+  - 三者目前 HEAD 皆為 `b8688e5`（舊基線），主工作樹為 `main@3a18025` 且含本次未提交變更
+
+**補充驗證**：
+- 嘗試執行全量 `go test ./...`：因 sandbox 不允許 bind TCP/UDP（`listen tcp :0`、`listen udp 127.0.0.1:0`）失敗，屬環境限制，非本輪 API 變更引入。

@@ -310,3 +310,12 @@
   - Step 3 unbind/lifecycle 降噪
   - Step 4 direct surface binding
   - regression / review / build 驗證
+
+## 2026-04-06 Phase -1 API 實作新發現
+- SourceRule 的 `database_outputs` candidate 在現行模型下，若沒有已存在的 DB mapping scope（connector/table/column），API 層無法安全自動補建 mapping；因此 `apply` 需回傳 per-item `schema_missing`，不能默默成功。
+- Local Modbus output snapshot 目前仍是 `deferred`（payload 可為空），`/local-modbus/apply` 在此階段應回傳 per-item `skipped` + `deferred`，避免前端誤判成後端故障。
+- DB tooling 三支 API 若以「直接套用既有 mapping repo + inspectTables」為核心，可在不引入 mock 的前提下快速提供：
+  - schema generate（preview/execute）
+  - mapping dry-run（candidate-level blocked reason）
+  - write history（由 writer 寫入事件聚合）
+- 在 sandbox 內，`internal/api/handlers` 全量測試會因既有測試需 bind TCP 埠而失敗；本輪採 targeted tests 驗證新增 API 契約，並保留此環境限制說明。

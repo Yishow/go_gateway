@@ -35,6 +35,12 @@
 - **舊頁面保留**：`frontend/src/pages/datalink/workbench/` 保持不動，舊路由 `/datalink/workbench` 維持運作
 - **平行存在期**：新舊頁面同時可用，切換穩定後再考慮廢棄舊路由
 
+### 無 Mock 的交付策略（API 先行）
+
+- 本 change **不使用 mock API / 假資料層**，Studio V2 的主要互動必須直接走真實後端端點。
+- 在 UI 分流（`worktree v1/v2/v3`）開始前，先完成 V2 必要 API 的 OpenSpec 契約與後端實作。
+- 三個 UI 版本必須共用同一組 API 契約（避免每個版本各自定義請求/回應語意）。
+
 ## What Changes
 
 ### 流程架構重組
@@ -113,10 +119,13 @@
   - WorkbenchDiagnosticPanel 整合至 WorkbenchFrame
 
 - `local-modbus-memory-workbench`：移出主流程，重組為獨立工具頁
+- `datalink-api`：
+  - 新增 SourceRule 輸出 apply 端點（Database / Local Modbus）
+  - 新增 Database schema generate（preview/execute）、mapping dry-run、write history 查詢端點
 
 ## Non-Goals
 
-- 不改動後端 API 介面（除非 DB Output 新功能需要）
+- 不做僅前端 mock 的假流程；V2 互動需走真實 API
 - 不改動 TestPage 的工程測試功能
 - 不重設計 i18n 字典結構（僅新增 key）
 - 不引入新的狀態管理函式庫
@@ -134,8 +143,14 @@
 
 ### 後端（可能需要）
 
-- DB Output 的歷史記錄查看：可能需要新增寫入日誌 API
-- 多 connector 同時寫入：確認現有 `dbtarget` service 是否支援
+- SourceRule 輸出 apply API：
+  - `POST /api/v1/datalink/source-rules/:id/database-outputs/apply`
+  - `POST /api/v1/datalink/source-rules/:id/local-modbus/apply`
+- Database 輔助 API：
+  - `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate`（`dry_run=true|false`）
+  - `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run`
+  - `GET /api/v1/datalink/db-targets/connectors/:id/write-history`
+- 上述 API 均需提供明確錯誤分類與可行動訊息，供 WorkbenchDiagnosticPanel 與 Step 4 UI 直接消費
 
 ### 測試
 

@@ -43,6 +43,7 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 	for _, mapping := range mappings {
 		connector, err := w.connectorRepo.GetByID(ctx, mapping.ConnectorID)
 		if err != nil {
+			recordWriteHistory(mapping.ConnectorID, "failed", 0, err.Error())
 			failures = append(failures, fmt.Sprintf("mapping %s 取得連接器失敗: %v", mapping.ID, err))
 			continue
 		}
@@ -51,8 +52,11 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 		}
 
 		if err := w.writeMapping(ctx, connector, mapping, value, observedAt); err != nil {
+			recordWriteHistory(connector.ID, "failed", 0, err.Error())
 			failures = append(failures, fmt.Sprintf("mapping %s 寫入失敗: %v", mapping.ID, err))
+			continue
 		}
+		recordWriteHistory(connector.ID, "success", 1, "")
 	}
 
 	if len(failures) > 0 {

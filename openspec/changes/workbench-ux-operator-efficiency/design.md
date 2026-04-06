@@ -104,6 +104,34 @@ Step 4: Database   — 設定 DB 輸出連線、映射、寫入模式
 
 ---
 
+## 無 Mock API 契約（V2 必要）
+
+本 change 採「API 先行」策略；UI 分流版本（v1/v2/v3）不使用 mock 層，以下端點需先可用：
+
+### SourceRule 輸出 Apply
+
+- `POST /api/v1/datalink/source-rules/:id/database-outputs/apply`
+- `POST /api/v1/datalink/source-rules/:id/local-modbus/apply`
+
+請求需包含 `revision_id` 與 `candidate_ids[]`；回應需提供 per-item 結果（success/failed/skipped + reason）。
+
+### Database Step 4 輔助能力
+
+- `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate`
+  - `dry_run=true`：回傳 SQL preview，不落地
+  - `dry_run=false`：執行建表 / alter，回傳執行結果
+- `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run`
+  - 回傳每個 candidate 的驗證結果與阻擋原因
+- `GET /api/v1/datalink/db-targets/connectors/:id/write-history`
+  - 回傳最近 N 次寫入摘要（時間、筆數、成功/失敗、錯誤原因）
+
+### 錯誤模型
+
+- 所有端點需回傳可歸類錯誤碼（validation/conflict/revision_mismatch/connector_unavailable/schema_missing）。
+- UI 不接受僅有「unknown error」字串；至少要有可行動訊息與對應步驟。
+
+---
+
 ## Step 1：DeviceTestConsole 設計
 
 ### 元件拆分
@@ -341,14 +369,16 @@ TagBindingStudio (1712行)
          TagBatchActionBar → buildBatchDiffPreview → apply → batchSummary → CTA
 
 [Step 4] DBConnectorManager → 多 connector 管理 (SQLite + PostgreSQL)
-         TableSchemaGenerator → 依 Tag 自動建表
-         ColumnMappingBoard → Tag → DB column 綁定 (dry-run → apply)
-         WritingHistoryPanel → 最近寫入記錄 / 錯誤日誌
+         TableSchemaGenerator → POST /db-targets/connectors/:id/schema/generate (dry_run)
+         ColumnMappingBoard → POST /db-targets/connectors/:id/mappings/dry-run
+         Review Apply → POST /source-rules/:id/database-outputs/apply
+         WritingHistoryPanel → GET /db-targets/connectors/:id/write-history
 
 [/tools/modbus] RegisterOverview ← modbusShareAPI
                 AutoMapEngine → dry-run → apply
                 ConflictResolver → 偵測衝突 → 候選解決方案
                 LiveRegisterReader ← SSE
+                Review Apply → POST /source-rules/:id/local-modbus/apply
 ```
 
 ---

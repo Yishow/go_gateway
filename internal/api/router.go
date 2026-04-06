@@ -205,6 +205,8 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.GET("/source-rules/:id/candidates", sourceRuleHandler.Candidates)
 				datalinkGroup.POST("/source-rules/:id/candidates/recompute", sourceRuleHandler.RecomputeCandidates)
 				datalinkGroup.POST("/source-rules/:id/tags/apply", sourceRuleHandler.ApplyTags)
+				datalinkGroup.POST("/source-rules/:id/database-outputs/apply", sourceRuleHandler.ApplyDatabaseOutputs)
+				datalinkGroup.POST("/source-rules/:id/local-modbus/apply", sourceRuleHandler.ApplyLocalModbusOutputs)
 				datalinkGroup.GET("/source-rules/:id/tag-review-decisions", sourceRuleHandler.ListTagReviewDecisions)
 				datalinkGroup.POST("/source-rules/:id/tag-review-decisions", sourceRuleHandler.UpsertTagReviewDecision)
 			}
@@ -282,6 +284,9 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.POST("/db-targets/connectors/:id/test", dbTargetHandler.TestConnector)
 				datalinkGroup.GET("/db-targets/connectors/:id/tables", dbTargetHandler.ListTables)
 				datalinkGroup.GET("/db-targets/connectors/:id/validate", dbTargetHandler.ValidateConnector)
+				datalinkGroup.POST("/db-targets/connectors/:id/schema/generate", dbTargetHandler.GenerateSchema)
+				datalinkGroup.POST("/db-targets/connectors/:id/mappings/dry-run", dbTargetHandler.DryRunMappings)
+				datalinkGroup.GET("/db-targets/connectors/:id/write-history", dbTargetHandler.ListWriteHistory)
 				datalinkGroup.GET("/db-targets/mappings", dbTargetHandler.ListMappings)
 				datalinkGroup.POST("/db-targets/mappings", dbTargetHandler.CreateMapping)
 				datalinkGroup.GET("/db-targets/mappings/:id", dbTargetHandler.GetMapping)

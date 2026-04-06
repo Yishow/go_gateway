@@ -160,6 +160,7 @@ func main() {
 	dbTargetConnectorRepo := dbtarget.NewSQLConnectorRepository(db)
 	dbTargetMappingRepo := dbtarget.NewSQLTargetMappingRepository(db)
 	dbTargetConnectorSvc := dbtarget.NewConnectorService(dbTargetConnectorRepo, dbTargetMappingRepo)
+	dbTargetConnectorSvc.SetTagReader(tagSvc)
 	dbTargetMappingSvc := dbtarget.NewMappingService(dbTargetMappingRepo, dbTargetConnectorRepo, tagSvc)
 	dbTargetWriter := dbtarget.NewWriter(dbTargetConnectorRepo, dbTargetMappingRepo)
 

@@ -200,3 +200,31 @@
   - `make check-lines`
   - `git diff --check`
 - [x] 建立繁中詳細 commit
+
+---
+
+## 臨時任務：2026-04-06 Workbench UX Phase -1 API 實作（本輪）
+
+- [x] 補齊 SourceRule output apply API（無 mock）：
+  - `POST /api/v1/datalink/source-rules/:id/database-outputs/apply`
+  - `POST /api/v1/datalink/source-rules/:id/local-modbus/apply`
+- [x] 補齊 DB target 工具 API（無 mock）：
+  - `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate`
+  - `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run`
+  - `GET /api/v1/datalink/db-targets/connectors/:id/write-history`
+- [x] 補 service + handler 測試：
+  - revision mismatch
+  - per-item partial success
+  - schema_missing / connector_unavailable
+  - local-modbus deferred apply contract
+- [x] 更新 OpenSpec tasks：
+  - `-1.2`、`-1.3`、`-1.4` 標記完成
+- [x] 執行本輪驗證（targeted）：
+  - `go test ./internal/datalink/sourcerule -run 'TestService_Apply(DatabaseOutputCandidates|LocalModbusOutputCandidates)'`
+  - `go test ./internal/datalink/dbtarget -run 'Test(MappingService_DryRun|ConnectorService_GenerateSchema|ConnectorService_ListWriteHistory)'`
+  - `go test ./internal/api/handlers -run 'TestSourceRuleHandler_Apply(DatabaseOutputs|LocalModbusOutputs)|TestDatabaseTargetHandler_(DryRunMappings|GenerateSchema|ListWriteHistory)'`
+  - `bash scripts/check_file_lines.sh`
+  - `git diff --check`
+
+**備註**：
+- `internal/api/handlers` 全量測試在目前 sandbox 仍會因 `listen tcp :0` 權限限制失敗；本輪改用 targeted tests 驗證新增端點與契約。

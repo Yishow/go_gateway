@@ -8,6 +8,30 @@
 - 新頁面位於 `frontend/src/pages/studio/` 與 `frontend/src/pages/tools/modbus/`
 - 舊頁面 `frontend/src/pages/datalink/workbench/` 保持不動
 - 路由：新 `/studio`、舊 `/datalink/workbench` 平行存在
+- **無 mock 約束**：UI 開發前必須先完成 V2 API 契約與後端端點，三個 worktree 共用同一組真實 API
+
+---
+
+## Phase -1：V2 API 就緒（無 mock gate）
+
+> 目標：先完成 UI 會直接呼叫的 API，避免 v1/v2/v3 三個版本各自假設契約。
+
+- [x] -1.1 補齊 OpenSpec API 契約（`specs/datalink-api/spec.md`）
+  - SourceRule 輸出 apply：database/local-modbus
+  - DB schema generate（dry_run）、mapping dry-run、write history
+
+- [x] -1.2 後端路由與 handler 實作
+  - `POST /api/v1/datalink/source-rules/:id/database-outputs/apply`
+  - `POST /api/v1/datalink/source-rules/:id/local-modbus/apply`
+  - `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate`
+  - `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run`
+  - `GET /api/v1/datalink/db-targets/connectors/:id/write-history`
+
+- [x] -1.3 補後端測試（handler + service）
+  - revision mismatch / conflict / connector invalid / schema missing
+  - per-item partial success response contract
+
+- [x] -1.4 API 驗收完成後才開啟 Phase 0~6 的 UI 分流開發
 
 ---
 
@@ -134,14 +158,16 @@
 
 - [ ] 5.3 `TableSchemaGenerator`：一鍵建表
   - 依選取 Tag 的 data_type 生成 SQL（preview → 確認 → 執行）
-  - 確認後端 `/api/db-targets/schema/generate` 或等價 API 支援
+  - 確認後端 `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate` 支援 `dry_run`
 
 - [ ] 5.4 `ColumnMappingBoard`：映射狀態標示
   - 已映射（✓）/ 未映射（○）/ 衝突（✗）三態
 
 - [ ] 5.5 Dry-run 預覽模態
+- [ ] 5.5.1 串接 `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run`
 - [ ] 5.6 寫入模式設定：Upsert / Insert-only / Overwrite
 - [ ] 5.7 `WritingHistoryPanel`：最近 N 次寫入記錄
+- [ ] 5.7.1 串接 `GET /api/v1/datalink/db-targets/connectors/:id/write-history`
 - [ ] 5.8 更新 i18n 字典
 - [ ] 5.9 補 Vitest 測試：DBConnectorManager CRUD、ColumnMappingBoard 狀態
 - [ ] 5.10 補 Playwright E2E：完整 DB 輸出設定流程
@@ -182,6 +208,7 @@
 - [ ] 全部 Vitest 測試通過（包含新增的子元件測試）
 - [ ] `npm run lint` 無錯誤
 - [ ] `npm run build` 成功
+- [ ] V2 API smoke 測試通過（無 mock）
 - [ ] Playwright E2E：4 步驟主流程全流程通過
 - [ ] Playwright E2E：診斷面板觸發 + 跳轉通過
 - [ ] Playwright E2E：Local Modbus 工具頁主要流程通過
