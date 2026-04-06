@@ -196,6 +196,36 @@ describe('Workbench locale contract', () => {
     expect(enCommon.workbench.tag.master.eyebrow).toContain('engineering');
   });
 
+  it('keeps shell and navigation copy on studio review-first language', () => {
+    expect(zhTWCommon.workbench.header.ariaLabel).toContain('Studio');
+    expect(enCommon.workbench.header.ariaLabel).toContain('Studio');
+    expect(zhTWCommon.workbench.stepRail.ariaLabel).toContain('Studio');
+    expect(enCommon.workbench.stepRail.ariaLabel).toContain('Studio');
+    expect(zhTWCommon.workbench.contextBar.ariaLabel).toContain('Studio');
+    expect(enCommon.workbench.contextBar.ariaLabel).toContain('Studio');
+    expect(zhTWCommon.workbench.actionDock.ariaLabel).toContain('Studio');
+    expect(enCommon.workbench.actionDock.ariaLabel).toContain('Studio');
+
+    expect(zhTWCommon.workbench.steps.tag).toContain('審查');
+    expect(enCommon.workbench.steps.tag).toContain('Review');
+    expect(zhTWCommon.workbench.steps.output).toContain('審查');
+    expect(enCommon.workbench.steps.output).toContain('Review');
+    expect(zhTWCommon.workbench.header.actions.gotoTag).toContain('審查');
+    expect(enCommon.workbench.header.actions.gotoTag).toContain('Review');
+    expect(zhTWCommon.workbench.contextBar.actions.gotoTag).toContain('審查');
+    expect(enCommon.workbench.contextBar.actions.gotoTag).toContain('Review');
+    expect(zhTWCommon.workbench.actionDock.readiness.tag).toContain('審查');
+    expect(enCommon.workbench.actionDock.readiness.tag).toContain('Review');
+    expect(zhTWCommon.workbench.actionDock.readiness.output).toContain('審查');
+    expect(enCommon.workbench.actionDock.readiness.output).toContain('Review');
+    expect(zhTWCommon.workbench.actionDock.nextAction.createPoints).toContain('規則');
+    expect(enCommon.workbench.actionDock.nextAction.createPoints).toContain('rule');
+    expect(zhTWCommon.workbench.actionDock.nextAction.bindTags).toContain('審查');
+    expect(enCommon.workbench.actionDock.nextAction.bindTags).toContain('Review');
+    expect(zhTWCommon.workbench.actionDock.nextAction.advanceToOutput).not.toContain('綁定');
+    expect(enCommon.workbench.actionDock.nextAction.advanceToOutput).not.toContain('binding');
+  });
+
   it('ships localized zh-TW strings for Step 3 empty-state guidance additions', () => {
     expect(zhTWCommon.workbench.tag.empty.eligibleSpans).not.toBe(
       enCommon.workbench.tag.empty.eligibleSpans,

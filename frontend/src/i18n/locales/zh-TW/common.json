@@ -427,7 +427,7 @@
       "label": "基底已就緒"
     },
     "header": {
-      "ariaLabel": "資料鏈結工作台頁首",
+      "ariaLabel": "Datalink Studio 頁首",
       "eyebrow": "Studio 主流程",
       "currentStep": "目前步驟",
       "selectedDevice": "目前設備",
@@ -443,19 +443,19 @@
         "selectDevice": "選擇設備",
         "switchDevice": "切換設備",
         "gotoSource": "前往來源規劃",
-        "gotoTag": "前往 Tag 綁定",
+        "gotoTag": "前往 Tag 審查",
         "gotoOutput": "前往輸出審查"
       }
     },
     "stepNavigator": {
-      "ariaLabel": "工作流步驟"
+      "ariaLabel": "Studio 工作流步驟"
     },
     "stepRail": {
-      "ariaLabel": "工作台步驟導軌",
+      "ariaLabel": "Studio 步驟導軌",
       "heading": "步驟"
     },
     "contextBar": {
-      "ariaLabel": "工作台上下文列",
+      "ariaLabel": "Studio 上下文列",
       "noDevice": "尚未選擇設備",
       "testPassed": "連線測試成功",
       "testFailed": "連線測試失敗",
@@ -464,12 +464,12 @@
         "selectDevice": "選擇設備",
         "switchDevice": "切換設備",
         "gotoSource": "前往來源規劃",
-        "gotoTag": "前往 Tag 綁定",
+        "gotoTag": "前往 Tag 審查",
         "gotoOutput": "前往輸出審查"
       }
     },
     "inspector": {
-      "ariaLabel": "工作台檢查面板",
+      "ariaLabel": "Studio 檢查面板",
       "heading": "檢查面板",
       "placeholder": "在工作區選取項目以檢視其詳細資訊。",
       "noSelection": "未選取",
@@ -482,7 +482,7 @@
       }
     },
     "bottomSummary": {
-      "ariaLabel": "工作台摘要列",
+      "ariaLabel": "Studio 摘要列",
       "points": "Point 數量",
       "tags": "Tag 數量",
       "outputs": "輸出數量",
@@ -499,7 +499,7 @@
       }
     },
     "actionDock": {
-      "ariaLabel": "工作台操作摘要",
+      "ariaLabel": "Studio 操作摘要",
       "title": "Studio 摘要",
       "description": "在這裡掌握 /studio 主流程的就緒度、主線數量與下一步建議。",
       "activeStep": "作用中步驟",
@@ -514,20 +514,20 @@
       "readiness": {
         "title": "主線就緒度",
         "source": "來源規劃",
-        "tag": "Tag 綁定",
+        "tag": "Tag 審查",
         "output": "輸出審查",
         "ready": "已就緒",
         "pending": "待處理"
       },
       "nextAction": {
-        "selectDevice": "先選擇設備，才能解鎖來源、Tag 與輸出三個步驟。",
-        "createPoints": "先規劃位址並批次建立來源 point。",
-        "advanceToTag": "來源 point 已就緒，下一步可以前往 Tag 綁定。",
-        "bindTags": "請先為目前設備建立並連結 Tag，再往輸出步驟前進。",
-        "advanceToOutput": "Tag 綁定已就緒，下一步在同一個 Studio 內檢查 Local Modbus 與資料庫輸出。",
-        "completeTagBinding": "請先完成 Tag 綁定，Step 4 才會有可發佈的 linked tag。",
+        "selectDevice": "先選擇設備，才能解鎖來源規劃、Tag 審查與輸出審查三個步驟。",
+        "createPoints": "先規劃位址並套用來源規則。",
+        "advanceToTag": "來源 point 已就緒，下一步可以前往 Tag 審查。",
+        "bindTags": "請先為目前設備審查並確認 Tag，再往輸出步驟前進。",
+        "advanceToOutput": "Tag 審查已就緒，下一步在同一個 Studio 內檢查 Local Modbus 與資料庫輸出。",
+        "completeTagBinding": "請先完成 Tag 審查，Step 4 才會有可發佈的 linked tag。",
         "configureOutput": "在同一個 Output 工作區完成 Local Modbus 或資料庫輸出設定與套用。",
-        "advanceToSourcePlanning": "設備已選擇，下一步前往來源規劃並套用位址範圍。"
+        "advanceToSourcePlanning": "設備已選擇，下一步前往來源規劃並套用來源規則。"
       }
     },
     "runtime": {
@@ -546,13 +546,13 @@
     "steps": {
       "device": "設備",
       "source": "來源",
-      "tag": "Tag 綁定",
-      "output": "輸出"
+      "tag": "Tag 審查",
+      "output": "輸出審查"
     },
     "placeholders": {
       "device": "foundation 外框已就緒，下一個 slice 會補上設備選擇體驗。",
       "source": "foundation 外框已就緒，下一個 slice 會補上地址畫布與 ledger。",
-      "tag": "foundation 外框已就緒，下一個 slice 會補上 tag 綁定工作台。",
+      "tag": "foundation 外框已就緒，下一個 slice 會補上 tag 審查面板。",
       "output": "foundation 外框已就緒，下一個 slice 會補上 Local Modbus 與資料庫輸出面板。"
     },
     "source": {

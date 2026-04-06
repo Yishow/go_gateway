@@ -427,7 +427,7 @@
       "label": "Foundation Ready"
     },
     "header": {
-      "ariaLabel": "Workbench header",
+      "ariaLabel": "Studio header",
       "eyebrow": "Studio primary flow",
       "currentStep": "Current step",
       "selectedDevice": "Selected device",
@@ -443,19 +443,19 @@
         "selectDevice": "Select device",
         "switchDevice": "Switch device",
         "gotoSource": "Go to source",
-        "gotoTag": "Go to tag",
+        "gotoTag": "Review tags",
         "gotoOutput": "Review outputs"
       }
     },
     "stepNavigator": {
-      "ariaLabel": "Workbench steps"
+      "ariaLabel": "Studio steps"
     },
     "stepRail": {
-      "ariaLabel": "Workbench step rail",
+      "ariaLabel": "Studio step rail",
       "heading": "Steps"
     },
     "contextBar": {
-      "ariaLabel": "Workbench context bar",
+      "ariaLabel": "Studio context bar",
       "noDevice": "No device selected",
       "testPassed": "Connection test passed",
       "testFailed": "Connection test failed",
@@ -464,12 +464,12 @@
         "selectDevice": "Select device",
         "switchDevice": "Switch device",
         "gotoSource": "Go to source",
-        "gotoTag": "Go to tag",
+        "gotoTag": "Review tags",
         "gotoOutput": "Review outputs"
       }
     },
     "inspector": {
-      "ariaLabel": "Workbench inspector",
+      "ariaLabel": "Studio inspector",
       "heading": "Inspector",
       "placeholder": "Select an item in the work area to see its details here.",
       "noSelection": "No selection",
@@ -482,7 +482,7 @@
       }
     },
     "bottomSummary": {
-      "ariaLabel": "Workbench summary bar",
+      "ariaLabel": "Studio summary bar",
       "points": "Points",
       "tags": "Tags",
       "outputs": "Outputs",
@@ -499,7 +499,7 @@
       }
     },
     "actionDock": {
-      "ariaLabel": "Workbench action dock",
+      "ariaLabel": "Studio action dock",
       "title": "Studio summary",
       "description": "Track readiness, workflow counts, and the next action for the /studio primary path.",
       "activeStep": "Active step",
@@ -514,20 +514,20 @@
       "readiness": {
         "title": "Readiness",
         "source": "Source planning",
-        "tag": "Tag binding",
-        "output": "Output review",
+        "tag": "Tag Review",
+        "output": "Output Review",
         "ready": "Ready",
         "pending": "Pending"
       },
       "nextAction": {
-        "selectDevice": "Select a device to unlock the source, tag, and output steps.",
-        "createPoints": "Plan addresses and batch-create source points for this device.",
-        "advanceToTag": "Source points are ready. Continue to tag binding and generate linked tags.",
-        "bindTags": "Create and link tags for the selected device before configuring outputs.",
-        "advanceToOutput": "Tag bindings are ready. Review Local Modbus and Database outputs in the same Studio workspace.",
-        "completeTagBinding": "Finish tag binding first so Step 4 has linked tags to publish.",
+        "selectDevice": "Select a device to unlock source planning, tag review, and output review.",
+        "createPoints": "Plan addresses and apply source rules for this device.",
+        "advanceToTag": "Source points are ready. Continue to tag review and confirm linked tags.",
+        "bindTags": "Review and confirm tags for the selected device before configuring outputs.",
+        "advanceToOutput": "Tag review is ready. Review Local Modbus and Database outputs in the same Studio workspace.",
+        "completeTagBinding": "Finish tag review first so Step 4 has linked tags to publish.",
         "configureOutput": "Finish Local Modbus or Database output setup and apply inside the same Output workspace.",
-        "advanceToSourcePlanning": "A device is selected. Continue to source planning and apply an address range."
+        "advanceToSourcePlanning": "A device is selected. Continue to source planning and apply a source rule."
       }
     },
     "runtime": {
@@ -546,13 +546,13 @@
     "steps": {
       "device": "Device",
       "source": "Source",
-      "tag": "Tag Binding",
-      "output": "Output"
+      "tag": "Tag Review",
+      "output": "Output Review"
     },
     "placeholders": {
       "device": "Foundation shell ready. The device selection experience will land in the next slice.",
       "source": "Foundation shell ready. The address canvas and ledger will land in the next slice.",
-      "tag": "Foundation shell ready. The tag binding studio will land in the next slice.",
+      "tag": "Foundation shell ready. The tag review surface will land in the next slice.",
       "output": "Foundation shell ready. Local Modbus and database output boards will land in the next slice."
     },
     "source": {
