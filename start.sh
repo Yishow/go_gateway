@@ -163,6 +163,14 @@ show_log_noise_summary() {
   info "可加上 --verbose 顯示全部原始日誌。"
 }
 
+show_frontend_host_hint() {
+  if [[ "$FRONTEND_DEV_HOST" == "0.0.0.0" || "$FRONTEND_DEV_HOST" == "::" ]]; then
+    info "💡 前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port 5173）"
+  else
+    info "💡 前端開發伺服器通常運行在 http://$FRONTEND_DEV_HOST:5173"
+  fi
+}
+
 # 清理前端開發伺服器及其子進程
 cleanup_frontend() {
   if [[ -n "$FRONTEND_PID" ]]; then
@@ -501,7 +509,7 @@ start_dev_mode() {
     fi
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
-    info "💡 前端開發伺服器通常運行在 http://localhost:5173"
+    show_frontend_host_hint
   fi
 
   clear_port
@@ -556,7 +564,7 @@ start_air_mode() {
     fi
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
-    info "💡 前端開發伺服器通常運行在 http://localhost:5173"
+    show_frontend_host_hint
     info "💡 前端修改會自動熱重載"
   fi
 

@@ -2,13 +2,94 @@
 
 ## 設計目標
 
-以**資深操作員效率**為核心，重構 Datalink Workbench 的元件架構，同步強化各步驟的 UX 功能，使操作員能快速完成配置、批次處理、診斷問題。
+以**資深操作員效率**為核心，**全新設計** Datalink Studio 的頁面與元件，遵循 Linear Design System 打造資訊密集的工業操作介面。舊頁面保留不動，新頁面從 `frontend/src/pages/studio/` 全新建立。
+
+---
+
+## 設計系統
+
+> **唯一設計規範來源**：`frontend/docs/DESIGN-PRINCIPLES.md`
+
+### 顏色系統
+
+```css
+/* 背景層次 */
+--bg-void:     #08090a   /* 最深底色，頁面最外層 */
+--bg-base:     #0f1011   /* 主要頁面背景 */
+--bg-elevated: #191a1b   /* 卡片、Panel 背景 */
+--bg-surface:  #28282c   /* 浮層、Dropdown 背景 */
+
+/* 文字 */
+--text-primary:   #e8e8e9   /* 主要文字 */
+--text-secondary: #8b8b8f   /* 次要說明文字 */
+--text-muted:     #5a5a5e   /* 禁用/佔位文字 */
+
+/* Accent（工業 Cyan，取代 Linear Indigo） */
+--accent: #06b6d4
+
+/* 狀態色 */
+--status-success: #22c55e  /* ● 連線中 / 已套用 */
+--status-warning: #f59e0b  /* ⚠ partial / conflict */
+--status-error:   #ef4444  /* ✗ 失敗 / blocked */
+--status-info:    #3b82f6  /* ℹ 說明 */
+```
+
+### 佈局框架
+
+```
+├── TopBar (48px)         — Studio 標題、步驟指示器、⚠ 診斷按鈕
+├── StepRail (240px)      — 步驟切換側欄（左）
+├── MainContent           — 各 Step 主工作區
+└── DiagnosticPanel       — Slide-over 診斷面板（右，可展開）
+```
+
+---
+
+## 新頁面目錄結構
+
+```
+frontend/src/pages/studio/
+├── StudioPage.tsx                  — 主入口，TopBar + StepRail + 路由
+├── StudioProvider.tsx              — 跨步驟狀態（selectedDeviceId, readiness）
+├── components/
+│   ├── StudioTopBar.tsx
+│   ├── StudioStepRail.tsx
+│   └── WorkbenchDiagnosticPanel.tsx
+├── device/
+│   ├── StudioDevicePage.tsx
+│   ├── DeviceListPanel.tsx
+│   ├── DeviceEditForm.tsx
+│   └── DeviceTestConsole.tsx
+├── source/
+│   ├── StudioSourcePage.tsx
+│   ├── SourceRulePanel.tsx
+│   ├── RuleTemplateQuickBar.tsx
+│   ├── AddressCanvasView.tsx
+│   └── SourceLivePanel.tsx
+├── tag/
+│   ├── StudioTagPage.tsx
+│   ├── TagCandidateBoard.tsx
+│   └── TagBatchActionBar.tsx
+└── output/
+    ├── StudioDatabasePage.tsx
+    ├── DBConnectorManager.tsx
+    ├── TableSchemaGenerator.tsx
+    ├── ColumnMappingBoard.tsx
+    └── WritingHistoryPanel.tsx
+
+frontend/src/pages/tools/modbus/
+├── LocalModbusToolPage.tsx
+├── RegisterOverview.tsx
+├── AutoMapEngine.tsx
+├── ConflictResolver.tsx
+└── LiveRegisterReader.tsx
+```
 
 ---
 
 ## 架構設計
 
-### 主流程：4 步驟 Workbench
+## 主流程架構：Studio（4 步驟）
 
 ```
 Step 1: Device     — 建立 / 選擇資料來源設備，分層診斷 Connect / Probe
@@ -18,6 +99,8 @@ Step 4: Database   — 設定 DB 輸出連線、映射、寫入模式
 ```
 
 **Local Modbus** 獨立為工具頁，路由：`/tools/modbus`，從主導覽或 Tag 頁面的快速入口進入。
+
+**舊頁面保留**：`/datalink/workbench` 舊路由維持可用，不影響現有使用者。
 
 ---
 

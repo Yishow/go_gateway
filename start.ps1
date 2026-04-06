@@ -201,6 +201,15 @@ function Write-Warning {
     Write-ColorOutput "⚠️  $Message" "Yellow"
 }
 
+function Write-FrontendDevHostHint {
+    if ($script:FrontendDevHost -eq "0.0.0.0" -or $script:FrontendDevHost -eq "::") {
+        Write-Info "前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port 5173）"
+    }
+    else {
+        Write-Info "前端開發伺服器通常運行在 http://$script:FrontendDevHost`:5173"
+    }
+}
+
 function Invoke-WithPortEnvironment {
     param(
         [Parameter(Mandatory = $true)]
@@ -783,7 +792,7 @@ function Start-FrontendDevServer {
         
         if ($frontendProcess) {
             Write-Success "前端開發伺服器已啟動（PID: $($frontendProcess.Id)）"
-            Write-Info "💡 前端開發伺服器通常運行在 http://localhost:5173"
+            Write-FrontendDevHostHint
             Write-Info "💡 前端修改會自動熱重載"
             
             # 等待一小段時間確認伺服器啟動

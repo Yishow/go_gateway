@@ -16,6 +16,25 @@
 
 5. **跨目標映射不透明**：操作員不清楚哪些 Tag 已映射到 Modbus、哪些到 Database，兩個輸出目標的狀態沒有統一視圖。
 
+## Design System
+
+所有新頁面以 **Linear Design System** 為設計語言基礎，適配工業 Workbench 情境：
+
+- **設計規範來源**：`frontend/docs/DESIGN-PRINCIPLES.md`（唯一設計參考文件）
+- **設計語言參考**：`frontend/docs/LINEAR-DESIGN-REFERENCE.md`（Linear 原語對照）
+- **核心原則**：深色優先、資訊密集、精準工程感
+- **Accent 色**：Cyan `#06b6d4`（取代 Linear 的 Indigo，與現有 slate/cyan 架構一致）
+- **背景層次**：`#08090a` void → `#0f1011` base → `#191a1b` elevated → `#28282c` surface
+
+## Implementation Strategy
+
+### 新建頁面，保留舊頁面
+
+- **新頁面路徑**：`frontend/src/pages/studio/`（全新設計，基於 DESIGN-PRINCIPLES.md）
+- **路由**：`/studio`（新主流程入口）、`/tools/modbus`（Local Modbus 工具頁）
+- **舊頁面保留**：`frontend/src/pages/datalink/workbench/` 保持不動，舊路由 `/datalink/workbench` 維持運作
+- **平行存在期**：新舊頁面同時可用，切換穩定後再考慮廢棄舊路由
+
 ## What Changes
 
 ### 流程架構重組
@@ -27,13 +46,17 @@
 工具頁: /tools/modbus（Local Modbus 完整工具，可選）
 ```
 
-### 元件重構（同步進行）
+### 全新頁面設計（基於 Linear 設計系統）
 
-| 現狀 | 目標 |
-|------|------|
-| `SourceCanvasSection` (2688行) | 拆分為 `SourceRulePanel` + `AddressCanvasView` + `SourceLivePanel` |
-| `WorkbenchDeviceStep` (1713行) | 拆分為 `DeviceListPanel` + `DeviceEditForm` + `DeviceTestConsole` |
-| `TagBindingStudio` (1712行) | 拆分為 `TagCandidateBoard` + `TagBatchActionBar` |
+| 新頁面 | 路由 | 對應舊元件（邏輯遷移來源） |
+|--------|------|--------------------------|
+| `StudioDevicePage` | `/studio?step=device` | `WorkbenchDeviceStep` (1713行) |
+| `StudioSourcePage` | `/studio?step=source` | `SourceCanvasSection` (2688行) |
+| `StudioTagPage` | `/studio?step=tag` | `TagBindingStudio` (1712行) |
+| `StudioDatabasePage` | `/studio?step=output` | `DatabaseTargetBoard` (1191行) |
+| `LocalModbusToolPage` | `/tools/modbus` | `LocalModbusBoard` (1084行) |
+
+舊元件**不修改**，新頁面從 `frontend/src/pages/studio/` 全新建立，遵守 `DESIGN-PRINCIPLES.md`。
 
 ### 新增 UX 功能
 
@@ -102,11 +125,12 @@
 
 ### 前端
 
-- `frontend/src/pages/datalink/workbench/`：大量元件重構與拆分
-- `frontend/src/pages/datalink/workbench/WorkbenchFrame.tsx`：整合 DiagnosticPanel
+- `frontend/src/pages/studio/`（新建）：全新 Studio 主流程頁面
 - `frontend/src/pages/tools/modbus/`（新建）：Local Modbus 工具頁
-- `frontend/src/router/`：新增 `/tools/modbus` 路由
+- `frontend/src/router/`：新增 `/studio` 與 `/tools/modbus` 路由
 - `frontend/src/i18n/locales/`：新增診斷面板、模板欄、DB 輸出相關 key
+- `frontend/docs/DESIGN-PRINCIPLES.md`（已建立）：所有新頁面的設計規範來源
+- 舊 `frontend/src/pages/datalink/workbench/`：**保持不動**
 
 ### 後端（可能需要）
 
