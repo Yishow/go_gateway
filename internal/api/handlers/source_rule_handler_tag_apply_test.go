@@ -209,6 +209,32 @@ func TestSourceRuleHandler_ApplyTags_ReturnsPerCandidateResultsForPartialSuccess
 	assert.Contains(t, payload.Data.Results[1].Error, "已綁定其他 point")
 	assert.Empty(t, payload.Data.Results[1].TagID)
 	assert.Empty(t, payload.Data.Results[1].MappingID)
+
+	candidatesReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-apply-partial/candidates", nil)
+	require.NoError(t, err)
+	candidatesResp := httptest.NewRecorder()
+	fixture.router.ServeHTTP(candidatesResp, candidatesReq)
+	require.Equal(t, http.StatusOK, candidatesResp.Code)
+
+	var candidatesPayload map[string]any
+	require.NoError(t, json.Unmarshal(candidatesResp.Body.Bytes(), &candidatesPayload))
+	data := candidatesPayload["data"].(map[string]any)
+	tagCandidates := data["tags"].(map[string]any)["candidates"].([]any)
+	require.Len(t, tagCandidates, 2)
+
+	refreshedByID := make(map[string]map[string]any, len(tagCandidates))
+	for _, candidate := range tagCandidates {
+		record := candidate.(map[string]any)
+		refreshedByID[record["id"].(string)] = record
+	}
+
+	require.Contains(t, refreshedByID, candidates[0].ID)
+	assert.Equal(t, payload.Data.Results[0].TagID, refreshedByID[candidates[0].ID]["tag_id"])
+	assert.Equal(t, payload.Data.Results[0].MappingID, refreshedByID[candidates[0].ID]["mapping_id"])
+
+	require.Contains(t, refreshedByID, candidates[1].ID)
+	assert.Nil(t, refreshedByID[candidates[1].ID]["tag_id"])
+	assert.Nil(t, refreshedByID[candidates[1].ID]["mapping_id"])
 }
 
 func TestSourceRuleHandler_ApplyTags_RefreshesCandidateViewAfterApply(t *testing.T) {

@@ -237,6 +237,23 @@ func TestService_ApplyTagCandidates_ReturnsPerItemResultsForPartialSuccess(t *te
 	require.NotNil(t, secondLink)
 	assert.Nil(t, secondLink.TagID)
 	assert.Nil(t, secondLink.MappingID)
+
+	refreshedCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, refreshedCandidates, 2)
+	refreshedByID := make(map[string]schema.SourceRuleTagCandidate, len(refreshedCandidates))
+	for _, refreshedCandidate := range refreshedCandidates {
+		refreshedByID[refreshedCandidate.ID] = refreshedCandidate
+	}
+
+	require.Contains(t, refreshedByID, candidates[0].ID)
+	require.NotNil(t, refreshedByID[candidates[0].ID].TagID)
+	require.NotNil(t, refreshedByID[candidates[0].ID].MappingID)
+	assert.Equal(t, response.Results[0].TagID, *refreshedByID[candidates[0].ID].TagID)
+	assert.Equal(t, response.Results[0].MappingID, *refreshedByID[candidates[0].ID].MappingID)
+
+	require.Contains(t, refreshedByID, candidates[1].ID)
+	assert.Nil(t, refreshedByID[candidates[1].ID].TagID)
+	assert.Nil(t, refreshedByID[candidates[1].ID].MappingID)
 }
 
 func TestService_ApplyTagCandidates_RecomputesCandidateSnapshotsAfterApply(t *testing.T) {
