@@ -210,3 +210,57 @@ func TestSourceRuleHandler_ApplyTags_ReturnsPerCandidateResultsForPartialSuccess
 	assert.Empty(t, payload.Data.Results[1].TagID)
 	assert.Empty(t, payload.Data.Results[1].MappingID)
 }
+
+func TestSourceRuleHandler_ApplyTags_RefreshesCandidateViewAfterApply(t *testing.T) {
+	t.Parallel()
+
+	fixture := setupSourceRuleCandidatesFixture(t)
+	candidate := createRuleCandidateForDecisionTest(t, fixture, "rule-apply-refresh")
+
+	rule, err := fixture.repo.GetByID(context.Background(), "rule-apply-refresh")
+	require.NoError(t, err)
+
+	applyBody, err := json.Marshal(sourcerule.ApplyTagCandidatesRequest{
+		RevisionID:   rule.RevisionID,
+		CandidateIDs: []string{candidate.ID},
+	})
+	require.NoError(t, err)
+
+	applyReq, err := http.NewRequest(
+		http.MethodPost,
+		"/datalink/source-rules/rule-apply-refresh/tags/apply",
+		bytes.NewBuffer(applyBody),
+	)
+	require.NoError(t, err)
+	applyReq.Header.Set("Content-Type", "application/json")
+	applyResp := httptest.NewRecorder()
+	fixture.router.ServeHTTP(applyResp, applyReq)
+	require.Equal(t, http.StatusOK, applyResp.Code)
+
+	candidatesReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-apply-refresh/candidates", nil)
+	require.NoError(t, err)
+	candidatesResp := httptest.NewRecorder()
+	fixture.router.ServeHTTP(candidatesResp, candidatesReq)
+	require.Equal(t, http.StatusOK, candidatesResp.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(candidatesResp.Body.Bytes(), &payload))
+	data := payload["data"].(map[string]any)
+
+	tags := data["tags"].(map[string]any)
+	tagCandidates := tags["candidates"].([]any)
+	require.Len(t, tagCandidates, 1)
+
+	refreshed := tagCandidates[0].(map[string]any)
+	assert.Equal(t, candidate.ID, refreshed["id"])
+	assert.NotEmpty(t, refreshed["tag_id"])
+	assert.NotEmpty(t, refreshed["mapping_id"])
+
+	databaseOutputs := data["database_outputs"].(map[string]any)
+	assert.Equal(t, "deferred", databaseOutputs["status"])
+	assert.NotEmpty(t, databaseOutputs["reason"])
+
+	localModbusOutputs := data["local_modbus_outputs"].(map[string]any)
+	assert.Equal(t, "deferred", localModbusOutputs["status"])
+	assert.NotEmpty(t, localModbusOutputs["reason"])
+}

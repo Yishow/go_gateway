@@ -238,3 +238,64 @@ func TestService_ApplyTagCandidates_ReturnsPerItemResultsForPartialSuccess(t *te
 	assert.Nil(t, secondLink.TagID)
 	assert.Nil(t, secondLink.MappingID)
 }
+
+func TestService_ApplyTagCandidates_RecomputesCandidateSnapshotsAfterApply(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	tagSvc := tag.NewService(tag.NewMemoryRepository())
+	mappingSvc := mapping.NewServiceWithTagResolver(mapping.NewMemoryRepository(), tagSvc.GetByID)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+	svc.SetTagMappingServices(tagSvc, mappingSvc)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-apply-refresh")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-apply-refresh",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	candidate := firstTagCandidateFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	response, err := svc.ApplyTagCandidates(ctx, rule.ID, ApplyTagCandidatesRequest{
+		RevisionID:   rule.RevisionID,
+		CandidateIDs: []string{candidate.ID},
+	})
+	require.NoError(t, err)
+	require.Len(t, response.Results, 1)
+
+	snapshots, err := svc.ListCandidateSnapshots(ctx, rule.ID)
+	require.NoError(t, err)
+	require.Len(t, snapshots, 3)
+
+	refreshedCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, refreshedCandidates, 1)
+	require.NotNil(t, refreshedCandidates[0].TagID)
+	require.NotNil(t, refreshedCandidates[0].MappingID)
+	assert.Equal(t, response.Results[0].TagID, *refreshedCandidates[0].TagID)
+	assert.Equal(t, response.Results[0].MappingID, *refreshedCandidates[0].MappingID)
+
+	snapshotByType := make(map[schema.SourceRuleCandidateType]*schema.SourceRuleCandidateSnapshot, len(snapshots))
+	for _, snapshot := range snapshots {
+		snapshotByType[snapshot.CandidateType] = snapshot
+	}
+
+	require.Contains(t, snapshotByType, schema.SourceRuleCandidateTypeDatabaseOutputs)
+	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, snapshotByType[schema.SourceRuleCandidateTypeDatabaseOutputs].Status)
+	assert.Equal(t, databaseOutputsDeferredReason, snapshotByType[schema.SourceRuleCandidateTypeDatabaseOutputs].Reason)
+
+	require.Contains(t, snapshotByType, schema.SourceRuleCandidateTypeLocalModbusOutputs)
+	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, snapshotByType[schema.SourceRuleCandidateTypeLocalModbusOutputs].Status)
+	assert.Equal(t, localModbusOutputsDeferredReason, snapshotByType[schema.SourceRuleCandidateTypeLocalModbusOutputs].Reason)
+}

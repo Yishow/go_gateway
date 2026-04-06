@@ -142,6 +142,24 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 			s.rollbackTagMappingSync(ctx, result)
 			return nil, err
 		}
+		if err := s.persistCandidateSnapshots(ctx, rule, nextLinks); err != nil {
+			restoreLinksErr := s.replaceRuleLinks(ctx, rule.ID, nextLinks, previousLinks)
+			s.rollbackTagMappingSync(ctx, result)
+			var restoreSnapshotsErr error
+			if restoreLinksErr == nil {
+				restoreSnapshotsErr = s.persistCandidateSnapshots(ctx, rule, previousLinks)
+			}
+			switch {
+			case restoreLinksErr != nil && restoreSnapshotsErr != nil:
+				return nil, fmt.Errorf("refresh apply candidates: %w (restore links: %v, restore snapshots: %v)", err, restoreLinksErr, restoreSnapshotsErr)
+			case restoreLinksErr != nil:
+				return nil, fmt.Errorf("refresh apply candidates: %w (restore links: %v)", err, restoreLinksErr)
+			case restoreSnapshotsErr != nil:
+				return nil, fmt.Errorf("refresh apply candidates: %w (restore snapshots: %v)", err, restoreSnapshotsErr)
+			default:
+				return nil, err
+			}
+		}
 	}
 
 	return response, nil
