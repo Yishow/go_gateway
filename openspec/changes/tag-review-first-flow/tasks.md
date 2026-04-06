@@ -18,6 +18,6 @@
 
 ## 4. Validation
 
-- [ ] 4.1 Add tests for rename/skip/override carry-forward across compatible revisions
+- [x] 4.1 Add tests for rename/skip/override carry-forward across compatible revisions
 - [ ] 4.2 Add tests for stale revision blocking in Step 3
 - [ ] 4.3 Add tests for tag apply partial-result responses and post-apply candidate refresh
