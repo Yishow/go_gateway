@@ -26,6 +26,7 @@ type ApplyTagCandidateResult struct {
 	Status      string `json:"status"`
 	TagID       string `json:"tag_id,omitempty"`
 	MappingID   string `json:"mapping_id,omitempty"`
+	Error       string `json:"error,omitempty"`
 }
 
 type ApplyTagCandidatesResponse struct {
@@ -74,50 +75,60 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 		linkByAddress[normalizeAddressKey(link.Address)] = link
 	}
 
-	result := tagMappingSyncResult{
-		updatedMappings: make(map[string]mappingRollbackState),
-		updatedTags:     make(map[string]tagRollbackState),
+	for _, candidateID := range candidateIDs {
+		candidate, exists := candidateByID[candidateID]
+		if !exists {
+			return nil, fmt.Errorf("%w: tag candidate %s not found in revision %s", ErrInvalidTagApplyRequest, candidateID, rule.RevisionID)
+		}
+		if linkByAddress[normalizeAddressKey(candidate.Address)] == nil {
+			return nil, fmt.Errorf("%w: source rule link not found for candidate %s", ErrInvalidTagApplyRequest, candidateID)
+		}
 	}
+
+	result := newTagMappingSyncResult()
 	response := &ApplyTagCandidatesResponse{
 		SourceRuleID: rule.ID,
 		RevisionID:   rule.RevisionID,
 		Results:      make([]ApplyTagCandidateResult, 0, len(candidateIDs)),
 	}
+	linksChanged := false
 
 	for _, candidateID := range candidateIDs {
-		candidate, exists := candidateByID[candidateID]
-		if !exists {
-			s.rollbackTagMappingSync(ctx, result)
-			return nil, fmt.Errorf("%w: tag candidate %s not found in revision %s", ErrInvalidTagApplyRequest, candidateID, rule.RevisionID)
-		}
-
+		candidate := candidateByID[candidateID]
 		link := linkByAddress[normalizeAddressKey(candidate.Address)]
-		if link == nil {
-			s.rollbackTagMappingSync(ctx, result)
-			return nil, fmt.Errorf("%w: source rule link not found for candidate %s", ErrInvalidTagApplyRequest, candidateID)
-		}
-
 		pointRecord, err := s.pointSvc.GetByID(ctx, link.PointID)
 		if err != nil {
 			s.rollbackTagMappingSync(ctx, result)
 			return nil, fmt.Errorf("取得來源規則衍生點位失敗: %w", err)
 		}
 
+		candidateResult := newTagMappingSyncResult()
 		effectiveTagKey, overrideTagID, err := resolveTagApplyDecision(candidate, decisionByCandidateID[candidateID])
 		if err != nil {
-			s.rollbackTagMappingSync(ctx, result)
-			return nil, err
+			response.Results = append(response.Results, ApplyTagCandidateResult{
+				CandidateID: candidate.ID,
+				Status:      "failed",
+				Error:       err.Error(),
+			})
+			continue
 		}
 
-		tagRecord, mappingRecord, err := s.applyRuleTagMapping(ctx, rule, pointRecord, link, candidate, effectiveTagKey, overrideTagID, &result)
+		tagRecord, mappingRecord, err := s.applyRuleTagMapping(ctx, rule, pointRecord, link, candidate, effectiveTagKey, overrideTagID, &candidateResult)
 		if err != nil {
-			s.rollbackTagMappingSync(ctx, result)
-			return nil, err
+			s.rollbackTagMappingSync(ctx, candidateResult)
+			response.Results = append(response.Results, ApplyTagCandidateResult{
+				CandidateID: candidate.ID,
+				Status:      "failed",
+				Error:       err.Error(),
+			})
+			continue
 		}
 
+		mergeTagMappingSyncResult(&result, candidateResult)
 		link.TagID = stringPtr(tagRecord.ID)
 		link.MappingID = stringPtr(mappingRecord.ID)
 		link.UpdatedAt = time.Now()
+		linksChanged = true
 		response.Results = append(response.Results, ApplyTagCandidateResult{
 			CandidateID: candidate.ID,
 			Status:      "applied",
@@ -126,12 +137,48 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 		})
 	}
 
-	if err := s.replaceRuleLinks(ctx, rule.ID, previousLinks, nextLinks); err != nil {
-		s.rollbackTagMappingSync(ctx, result)
-		return nil, err
+	if linksChanged {
+		if err := s.replaceRuleLinks(ctx, rule.ID, previousLinks, nextLinks); err != nil {
+			s.rollbackTagMappingSync(ctx, result)
+			return nil, err
+		}
 	}
 
 	return response, nil
+}
+
+func newTagMappingSyncResult() tagMappingSyncResult {
+	return tagMappingSyncResult{
+		updatedMappings: make(map[string]mappingRollbackState),
+		updatedTags:     make(map[string]tagRollbackState),
+	}
+}
+
+func mergeTagMappingSyncResult(target *tagMappingSyncResult, source tagMappingSyncResult) {
+	target.createdTagIDs = append(target.createdTagIDs, source.createdTagIDs...)
+	target.createdMappingIDs = append(target.createdMappingIDs, source.createdMappingIDs...)
+	if len(source.updatedMappings) > 0 {
+		if target.updatedMappings == nil {
+			target.updatedMappings = make(map[string]mappingRollbackState, len(source.updatedMappings))
+		}
+		for mappingID, state := range source.updatedMappings {
+			if _, exists := target.updatedMappings[mappingID]; exists {
+				continue
+			}
+			target.updatedMappings[mappingID] = state
+		}
+	}
+	if len(source.updatedTags) > 0 {
+		if target.updatedTags == nil {
+			target.updatedTags = make(map[string]tagRollbackState, len(source.updatedTags))
+		}
+		for tagID, state := range source.updatedTags {
+			if _, exists := target.updatedTags[tagID]; exists {
+				continue
+			}
+			target.updatedTags[tagID] = state
+		}
+	}
 }
 
 func validateApplyTagCandidatesRequest(req ApplyTagCandidatesRequest) ([]string, string, error) {

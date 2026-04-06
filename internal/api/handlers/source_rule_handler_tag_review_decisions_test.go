@@ -150,11 +150,25 @@ func TestSourceRuleHandler_TagReviewDecisions(t *testing.T) {
 func createRuleCandidateForDecisionTest(t *testing.T, fixture *sourceRuleCandidatesFixture, ruleID string) schema.SourceRuleTagCandidate {
 	t.Helper()
 
+	candidates := createRuleCandidatesForDecisionTest(t, fixture, ruleID, "40001", 1)
+	require.Len(t, candidates, 1)
+	return candidates[0]
+}
+
+func createRuleCandidatesForDecisionTest(
+	t *testing.T,
+	fixture *sourceRuleCandidatesFixture,
+	ruleID string,
+	startAddress string,
+	count int,
+) []schema.SourceRuleTagCandidate {
+	t.Helper()
+
 	createBody, err := json.Marshal(sourcerule.CreateRuleRequest{
 		ID:           ruleID,
 		DeviceID:     "device-1",
-		StartAddress: "40001",
-		Count:        1,
+		StartAddress: startAddress,
+		Count:        count,
 		DataType:     schema.DataTypeInt16,
 		NamingPrefix: "SRC",
 		Enabled:      true,
@@ -182,10 +196,10 @@ func createRuleCandidateForDecisionTest(t *testing.T, fixture *sourceRuleCandida
 
 		var payload handlerTagSnapshotPayload
 		require.NoError(t, json.Unmarshal([]byte(snapshot.Payload), &payload))
-		require.Len(t, payload.Candidates, 1)
-		return payload.Candidates[0]
+		require.Len(t, payload.Candidates, count)
+		return payload.Candidates
 	}
 
 	t.Fatalf("expected tag candidate snapshot for %s", ruleID)
-	return schema.SourceRuleTagCandidate{}
+	return nil
 }

@@ -65,6 +65,14 @@ func applyRuleManagedLinks(t *testing.T, ctx context.Context, repo *MemoryReposi
 func firstTagCandidateFromMemoryRepo(t *testing.T, repo *MemoryRepository, ruleID, revisionID string) schema.SourceRuleTagCandidate {
 	t.Helper()
 
+	candidates := tagCandidatesFromMemoryRepo(t, repo, ruleID, revisionID)
+	require.NotEmpty(t, candidates)
+	return candidates[0]
+}
+
+func tagCandidatesFromMemoryRepo(t *testing.T, repo *MemoryRepository, ruleID, revisionID string) []schema.SourceRuleTagCandidate {
+	t.Helper()
+
 	snapshots, err := repo.ListCandidateSnapshots(context.Background(), ruleID, revisionID)
 	require.NoError(t, err)
 
@@ -75,9 +83,9 @@ func firstTagCandidateFromMemoryRepo(t *testing.T, repo *MemoryRepository, ruleI
 		var payload tagSnapshotPayload
 		require.NoError(t, json.Unmarshal([]byte(snapshot.Payload), &payload))
 		require.NotEmpty(t, payload.Candidates)
-		return payload.Candidates[0]
+		return payload.Candidates
 	}
 
 	t.Fatalf("tag snapshot not found for rule %s revision %s", ruleID, revisionID)
-	return schema.SourceRuleTagCandidate{}
+	return nil
 }
