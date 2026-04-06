@@ -188,6 +188,27 @@ func main() {
 			return dbTargetMappingSvc.List(ctx, dbtarget.TargetMappingListFilter{})
 		}),
 	)
+	sourceRuleSvc.SetDatabaseTargetConnectorValidator(
+		sourcerule.DatabaseTargetConnectorValidatorFunc(func(ctx context.Context, connectorID string) (*sourcerule.DatabaseTargetConnectorValidation, error) {
+			result, err := dbTargetMappingSvc.Validate(ctx, connectorID)
+			if err != nil {
+				return nil, err
+			}
+			issues := make([]sourcerule.DatabaseTargetValidationIssue, 0, len(result.Issues))
+			for _, issue := range result.Issues {
+				issues = append(issues, sourcerule.DatabaseTargetValidationIssue{
+					Severity:  issue.Severity,
+					MappingID: issue.MappingID,
+					Code:      issue.Code,
+					Message:   issue.Message,
+				})
+			}
+			return &sourcerule.DatabaseTargetConnectorValidation{
+				Ready:  result.Ready,
+				Issues: issues,
+			}, nil
+		}),
+	)
 	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
 		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
 	}

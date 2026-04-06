@@ -495,9 +495,9 @@ start_dev_mode() {
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
     # 使用 setsid 建立新進程組，方便整體清理
     if has_cmd setsid; then
-      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev -- --host '$FRONTEND_DEV_HOST'" &
+      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev --host '$FRONTEND_DEV_HOST'" &
     else
-      (cd "$FRONTEND_DIR" && pnpm run dev -- --host "$FRONTEND_DEV_HOST") &
+      (cd "$FRONTEND_DIR" && pnpm run dev --host "$FRONTEND_DEV_HOST") &
     fi
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
@@ -550,9 +550,9 @@ start_air_mode() {
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
     if has_cmd setsid; then
-      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev -- --host '$FRONTEND_DEV_HOST'" &
+      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev --host '$FRONTEND_DEV_HOST'" &
     else
-      (cd "$FRONTEND_DIR" && pnpm run dev -- --host "$FRONTEND_DEV_HOST") &
+      (cd "$FRONTEND_DIR" && pnpm run dev --host "$FRONTEND_DEV_HOST") &
     fi
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"

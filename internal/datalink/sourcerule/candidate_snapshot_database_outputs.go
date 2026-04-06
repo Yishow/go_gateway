@@ -23,14 +23,18 @@ func (s *Service) buildDatabaseOutputCandidates(
 	ctx context.Context,
 	rule *schema.SourceRule,
 	tagCandidates []schema.SourceRuleTagCandidate,
-) ([]schema.SourceRuleDatabaseOutputCandidate, error) {
+) ([]schema.SourceRuleDatabaseOutputCandidate, schema.SourceRuleCandidateStatus, string, error) {
 	states, err := s.listEffectiveTagReviewStates(ctx, rule.ID, tagCandidates)
 	if err != nil {
-		return nil, err
+		return nil, "", "", err
 	}
 	mappingsByTagID, err := s.listDatabaseTargetMappingsByTagID(ctx)
 	if err != nil {
-		return nil, err
+		return nil, "", "", err
+	}
+	validationIndex, err := s.listDatabaseTargetValidationIndex(ctx, mappingsByTagID)
+	if err != nil {
+		return nil, "", "", err
 	}
 
 	candidates := make([]schema.SourceRuleDatabaseOutputCandidate, 0, len(tagCandidates))
@@ -42,30 +46,31 @@ func (s *Service) buildDatabaseOutputCandidates(
 
 		mappings := effectiveStateMappings(state, mappingsByTagID)
 		if len(mappings) == 0 {
-			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, nil)
+			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, nil, validationIndex)
 			if buildErr != nil {
-				return nil, buildErr
+				return nil, "", "", buildErr
 			}
 			candidates = append(candidates, candidate)
 			continue
 		}
 
 		for _, mappingRecord := range mappings {
-			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, mappingRecord)
+			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, mappingRecord, validationIndex)
 			if buildErr != nil {
-				return nil, buildErr
+				return nil, "", "", buildErr
 			}
 			candidates = append(candidates, candidate)
 		}
 	}
 
-	return candidates, nil
+	return databaseOutputSnapshotState(candidates)
 }
 
 func buildDatabaseOutputCandidate(
 	ruleID string,
 	state effectiveTagReviewState,
 	mappingRecord *schema.DatabaseTargetMapping,
+	validationIndex databaseTargetValidationIndex,
 ) (schema.SourceRuleDatabaseOutputCandidate, error) {
 	candidate := schema.SourceRuleDatabaseOutputCandidate{
 		Address:     state.Address,
@@ -74,6 +79,7 @@ func buildDatabaseOutputCandidate(
 		TagKey:      state.TagKey,
 		DisplayName: state.DisplayName,
 		DataType:    state.DataType,
+		Status:      schema.SourceRuleOutputStatusReady,
 	}
 	if mappingRecord != nil {
 		candidate.MappingID = stringPtr(mappingRecord.ID)
@@ -83,6 +89,7 @@ func buildDatabaseOutputCandidate(
 		candidate.ColumnName = mappingRecord.ColumnName
 		candidate.WriteMode = mappingRecord.WriteMode
 		candidate.TimestampColumn = cloneOptionalString(mappingRecord.TimestampColumn)
+		applyDatabaseTargetValidation(&candidate, mappingRecord, validationIndex)
 	}
 	candidate.Identity = buildDatabaseOutputCandidateIdentity(
 		ruleID,

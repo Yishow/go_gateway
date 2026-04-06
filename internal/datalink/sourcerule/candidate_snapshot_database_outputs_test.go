@@ -173,6 +173,84 @@ func TestService_CandidateSnapshots_UsesPersistedDatabaseMappingScope(t *testing
 	assert.Contains(t, scope, map[string]any{"key": "database_column_name", "value": "line_a"})
 }
 
+func TestService_CandidateSnapshots_MarksInvalidDatabaseScopeOutOfSync(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	tagSvc := tag.NewService(tag.NewMemoryRepository())
+	mappingSvc := mapping.NewServiceWithTagResolver(mapping.NewMemoryRepository(), tagSvc.GetByID)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+	svc.SetTagMappingServices(tagSvc, mappingSvc)
+
+	overrideTag, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "factory.db.broken",
+		DisplayName: "DB Broken",
+		DataType:    schema.DataTypeInt16,
+	})
+	require.NoError(t, err)
+	svc.SetDatabaseTargetMappingReader(DatabaseTargetMappingListFunc(func(context.Context) ([]*schema.DatabaseTargetMapping, error) {
+		return []*schema.DatabaseTargetMapping{
+			{
+				ID:          "db-map-broken",
+				TagID:       overrideTag.ID,
+				ConnectorID: "connector-broken",
+				TableSchema: "public",
+				TableName:   "measurements",
+				ColumnName:  "line_a",
+				WriteMode:   schema.DatabaseWriteModeInsert,
+			},
+		}, nil
+	}))
+	svc.SetDatabaseTargetConnectorValidator(DatabaseTargetConnectorValidatorFunc(func(context.Context, string) (*DatabaseTargetConnectorValidation, error) {
+		return &DatabaseTargetConnectorValidation{
+			Ready: false,
+			Issues: []DatabaseTargetValidationIssue{
+				{
+					Severity:  "error",
+					MappingID: "db-map-broken",
+					Code:      "table_missing",
+					Message:   "找不到資料表: public.measurements",
+				},
+			},
+		}, nil
+	}))
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-db-invalid")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-db-invalid",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	tagCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, tagCandidates, 1)
+	_, err = svc.UpsertTagReviewDecision(ctx, rule.ID, UpsertTagReviewDecisionRequest{
+		CandidateID:   tagCandidates[0].ID,
+		Action:        schema.SourceRuleTagReviewDecisionActionOverride,
+		OverrideTagID: overrideTag.ID,
+	})
+	require.NoError(t, err)
+
+	snapshots, err := svc.ListCandidateSnapshots(ctx, rule.ID)
+	require.NoError(t, err)
+	databaseCandidates, databaseSnapshot := databaseCandidatesFromSnapshots(t, snapshots)
+	assert.Equal(t, schema.SourceRuleCandidateStatusBlocked, databaseSnapshot.Status)
+	assert.Contains(t, databaseSnapshot.Reason, "找不到資料表")
+	require.Len(t, databaseCandidates, 1)
+	assert.Equal(t, "out_of_sync", databaseCandidates[0]["status"])
+	assert.Contains(t, databaseCandidates[0]["blocking_reason"], "找不到資料表")
+}
+
 func databaseCandidatesFromSnapshots(
 	t *testing.T,
 	snapshots []*schema.SourceRuleCandidateSnapshot,

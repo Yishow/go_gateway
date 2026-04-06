@@ -69,7 +69,7 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 	if err != nil {
 		return nil, err
 	}
-	databaseOutputCandidates, err := s.buildDatabaseOutputCandidates(ctx, rule, tagCandidates)
+	databaseOutputCandidates, databaseOutputStatus, databaseOutputReason, err := s.buildDatabaseOutputCandidates(ctx, rule, tagCandidates)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,8 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 			RevisionID:    rule.RevisionID,
 			CandidateType: schema.SourceRuleCandidateTypeDatabaseOutputs,
 			Payload:       databaseOutputPayload,
-			Status:        schema.SourceRuleCandidateStatusReady,
+			Status:        databaseOutputStatus,
+			Reason:        databaseOutputReason,
 			GeneratedAt:   generatedAt,
 		},
 		{

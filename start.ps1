@@ -101,6 +101,11 @@ if ($Port -eq 8080) {
     }
 }
 
+$script:FrontendDevHost = [System.Environment]::GetEnvironmentVariable("FRONTEND_DEV_HOST")
+if ([string]::IsNullOrWhiteSpace($script:FrontendDevHost)) {
+    $script:FrontendDevHost = "0.0.0.0"
+}
+
 # 顏色輸出函數 / 顯示框架
 function Write-ColorOutput {
     param(
@@ -194,6 +199,29 @@ function Write-Info {
 function Write-Warning {
     param([string]$Message)
     Write-ColorOutput "⚠️  $Message" "Yellow"
+}
+
+function Invoke-WithPortEnvironment {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Port,
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Action
+    )
+
+    $originalPort = [System.Environment]::GetEnvironmentVariable("PORT")
+    $env:PORT = [string]$Port
+    try {
+        & $Action
+    }
+    finally {
+        if ([string]::IsNullOrWhiteSpace($originalPort)) {
+            Remove-Item Env:\PORT -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:PORT = $originalPort
+        }
+    }
 }
 
 function Show-Banner {
@@ -743,7 +771,7 @@ function Start-FrontendDevServer {
     }
     
     # 啟動前端開發伺服器
-    Write-Info "🚀 啟動前端開發伺服器..."
+    Write-Info "🚀 啟動前端開發伺服器... (host=$script:FrontendDevHost)"
     $originalLocation = Get-Location
     
     try {
@@ -751,7 +779,7 @@ function Start-FrontendDevServer {
         
         # 使用 Start-Process 在背景啟動前端伺服器
         # 使用 cmd.exe 來正確處理 pnpm 命令，避免 PowerShell 的問題
-        $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "pnpm run dev" -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
+        $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "pnpm run dev --host $script:FrontendDevHost" -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
         
         if ($frontendProcess) {
             Write-Success "前端開發伺服器已啟動（PID: $($frontendProcess.Id)）"
@@ -1089,15 +1117,17 @@ function Start-Application {
         Write-Info "這是一個 GUI 應用程式，將在背景運行並顯示在系統托盤"
         Write-Info "💡 請查看系統通知區（右下角）的圖示"
         Write-Info "💡 右鍵點擊圖示可以打開瀏覽器或退出應用程式"
-        
+
         try {
-            $process = Start-Process -FilePath $ExePath -PassThru -WindowStyle Hidden
+            $process = Invoke-WithPortEnvironment -Port $Port -Action {
+                Start-Process -FilePath $ExePath -PassThru -WindowStyle Hidden
+            }
             Write-Success "應用程式已啟動（PID: $($process.Id)）"
             Write-Info "應用程式正在背景運行，請查看系統托盤圖示"
-            
+
             # 等待一小段時間確認應用程式啟動
             Start-Sleep -Milliseconds 500
-            
+
             # 檢查進程是否仍在運行
             if (-not (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
                 Write-Warning "應用程式可能啟動失敗，請檢查日誌或錯誤訊息"
@@ -1116,15 +1146,17 @@ function Start-Application {
     else {
         Write-Info "按 Ctrl+C 可停止服務"
         Write-ColorOutput "`n--- 服務輸出開始 ---" "Cyan"
-        
+
         try {
             $script:LogNoiseCounters = @{}
-            & $ExePath 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+            Invoke-WithPortEnvironment -Port $Port -Action {
+                & $ExePath 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+            }
             $serviceExitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
-            
+
             Write-ColorOutput "--- 服務輸出結束 ---`n" "Cyan"
             Show-LogNoiseSummary
-            
+
             if ($serviceExitCode -eq 0) {
                 Write-Success "服務正常退出"
             }
@@ -1375,7 +1407,9 @@ function Start-AirMode {
         Set-Location $script:ROOT_DIR
         # 將環境變數傳遞給 Air（Air 會傳遞給子進程）
         $script:LogNoiseCounters = @{}
-        air 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        Invoke-WithPortEnvironment -Port $Port -Action {
+            air 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        }
         Show-LogNoiseSummary
     }
     catch {
@@ -1448,7 +1482,9 @@ function Start-DevMode {
     try {
         Push-Location $script:APP_PATH
         $script:LogNoiseCounters = @{}
-        go run . 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        Invoke-WithPortEnvironment -Port $Port -Action {
+            go run . 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        }
         Show-LogNoiseSummary
     }
     catch {

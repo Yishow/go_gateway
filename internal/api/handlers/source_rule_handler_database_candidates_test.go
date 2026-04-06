@@ -161,3 +161,82 @@ func TestSourceRuleHandler_Candidates_UsesPersistedDatabaseScopeForDatabaseOutpu
 	assert.Equal(t, "upsert", candidate["write_mode"])
 	assert.Equal(t, "ts", candidate["timestamp_column"])
 }
+
+func TestSourceRuleHandler_Candidates_MarksInvalidDatabaseScopeOutOfSync(t *testing.T) {
+	t.Parallel()
+
+	fixture := setupSourceRuleCandidatesFixture(t)
+	overrideTag, err := fixture.tagSvc.Create(context.Background(), tag.CreateTagRequest{
+		Key:         "factory.db.broken",
+		DisplayName: "DB Broken",
+		DataType:    schema.DataTypeInt16,
+	})
+	require.NoError(t, err)
+	fixture.ruleSvc.SetDatabaseTargetMappingReader(
+		sourcerule.DatabaseTargetMappingListFunc(func(context.Context) ([]*schema.DatabaseTargetMapping, error) {
+			return []*schema.DatabaseTargetMapping{
+				{
+					ID:          "db-map-broken",
+					TagID:       overrideTag.ID,
+					ConnectorID: "connector-broken",
+					TableSchema: "public",
+					TableName:   "measurements",
+					ColumnName:  "line_a",
+					WriteMode:   schema.DatabaseWriteModeInsert,
+				},
+			}, nil
+		}),
+	)
+	fixture.ruleSvc.SetDatabaseTargetConnectorValidator(
+		sourcerule.DatabaseTargetConnectorValidatorFunc(func(context.Context, string) (*sourcerule.DatabaseTargetConnectorValidation, error) {
+			return &sourcerule.DatabaseTargetConnectorValidation{
+				Ready: false,
+				Issues: []sourcerule.DatabaseTargetValidationIssue{
+					{
+						Severity:  "error",
+						MappingID: "db-map-broken",
+						Code:      "table_missing",
+						Message:   "找不到資料表: public.measurements",
+					},
+				},
+			}, nil
+		}),
+	)
+
+	tagCandidates := createRuleCandidatesForDecisionTest(t, fixture, "rule-db-invalid", "40001", 1)
+	body, err := json.Marshal(sourcerule.UpsertTagReviewDecisionRequest{
+		CandidateID:   tagCandidates[0].ID,
+		Action:        schema.SourceRuleTagReviewDecisionActionOverride,
+		OverrideTagID: overrideTag.ID,
+	})
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"/datalink/source-rules/rule-db-invalid/tag-review-decisions",
+		bytes.NewBuffer(body),
+	)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := httptest.NewRecorder()
+	fixture.router.ServeHTTP(resp, req)
+	require.Equal(t, http.StatusOK, resp.Code)
+
+	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-invalid/candidates", nil)
+	require.NoError(t, err)
+	resp = httptest.NewRecorder()
+	fixture.router.ServeHTTP(resp, req)
+	require.Equal(t, http.StatusOK, resp.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+	data := payload["data"].(map[string]any)
+	databaseOutputs := data["database_outputs"].(map[string]any)
+	assert.Equal(t, "blocked", databaseOutputs["status"])
+	assert.Contains(t, databaseOutputs["reason"], "找不到資料表")
+
+	candidate := databaseOutputs["candidates"].([]any)[0].(map[string]any)
+	assert.Equal(t, "out_of_sync", candidate["status"])
+	assert.Contains(t, candidate["blocking_reason"], "找不到資料表")
+}

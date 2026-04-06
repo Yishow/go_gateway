@@ -130,7 +130,18 @@ type SourceRuleDatabaseOutputCandidate struct {
 	ColumnName        string                      `json:"column_name,omitempty"`
 	WriteMode         DatabaseWriteMode           `json:"write_mode,omitempty"`
 	TimestampColumn   *string                     `json:"timestamp_column,omitempty"`
+	Status            SourceRuleOutputStatus      `json:"status"`
+	BlockingReason    string                      `json:"blocking_reason,omitempty"`
 }
+
+// SourceRuleOutputStatus identifies review/apply readiness of a rule-owned output candidate.
+type SourceRuleOutputStatus string
+
+const (
+	SourceRuleOutputStatusReady     SourceRuleOutputStatus = "ready"
+	SourceRuleOutputStatusBlocked   SourceRuleOutputStatus = "blocked"
+	SourceRuleOutputStatusOutOfSync SourceRuleOutputStatus = "out_of_sync"
+)
 
 type SourceRuleTagReviewDecisionAction string
 
