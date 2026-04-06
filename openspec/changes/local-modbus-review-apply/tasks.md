@@ -13,7 +13,7 @@
 ## 3. Local Modbus apply APIs
 
 - [x] 3.1 Add rule-scoped Local Modbus apply endpoint with revision-aware request validation
-- [ ] 3.2 Return per-item apply results for partial success and failure handling
+- [x] 3.2 Return per-item apply results for partial success and failure handling
 - [ ] 3.3 Keep verification-first checks inside the Local Modbus apply flow instead of a separate manual-first path
 
 ## 4. Validation
