@@ -11,17 +11,19 @@ import (
 )
 
 type MemoryRepository struct {
-	mu        sync.RWMutex
-	rules     map[string]*schema.SourceRule
-	links     map[string][]*schema.SourceRuleLink
-	snapshots map[string][]*schema.SourceRuleCandidateSnapshot
+	mu                 sync.RWMutex
+	rules              map[string]*schema.SourceRule
+	links              map[string][]*schema.SourceRuleLink
+	snapshots          map[string][]*schema.SourceRuleCandidateSnapshot
+	tagReviewDecisions map[string]map[string]*schema.SourceRuleTagReviewDecision
 }
 
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		rules:     make(map[string]*schema.SourceRule),
-		links:     make(map[string][]*schema.SourceRuleLink),
-		snapshots: make(map[string][]*schema.SourceRuleCandidateSnapshot),
+		rules:              make(map[string]*schema.SourceRule),
+		links:              make(map[string][]*schema.SourceRuleLink),
+		snapshots:          make(map[string][]*schema.SourceRuleCandidateSnapshot),
+		tagReviewDecisions: make(map[string]map[string]*schema.SourceRuleTagReviewDecision),
 	}
 }
 
@@ -54,6 +56,7 @@ func (r *MemoryRepository) Delete(_ context.Context, id string) error {
 	delete(r.rules, id)
 	delete(r.links, id)
 	delete(r.snapshots, id)
+	delete(r.tagReviewDecisions, id)
 	for key := range r.snapshots {
 		if strings.HasPrefix(key, id+":") {
 			delete(r.snapshots, key)

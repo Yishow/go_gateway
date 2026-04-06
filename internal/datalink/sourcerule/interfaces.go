@@ -18,6 +18,9 @@ type Repository interface {
 	ReplaceCandidateSnapshots(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot) error
 	ListCandidateSnapshots(ctx context.Context, ruleID, revisionID string) ([]*schema.SourceRuleCandidateSnapshot, error)
 	DeleteCandidateSnapshots(ctx context.Context, ruleID, revisionID string) error
+	UpsertTagReviewDecision(ctx context.Context, decision *schema.SourceRuleTagReviewDecision) error
+	GetTagReviewDecision(ctx context.Context, ruleID, candidateID string) (*schema.SourceRuleTagReviewDecision, error)
+	ListTagReviewDecisions(ctx context.Context, ruleID string) ([]*schema.SourceRuleTagReviewDecision, error)
 }
 
 type RuntimeSyncer interface {
