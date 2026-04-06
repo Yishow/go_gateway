@@ -1011,6 +1011,49 @@
           "invalid": "blocked: {{reason}}"
         }
       },
+      "modbusReviewSurface": {
+        "eyebrow": "Rule-scoped candidates",
+        "title": "Review Local Modbus output from the active source rule",
+        "description": "This panel keeps register conflicts, verification progress, and server health inline so you can confirm the current rule before writing runtime mappings.",
+        "revision": "Source-rule revision",
+        "serverHealth": "Runtime health",
+        "serverRunning": "Server ready @ {{address}}",
+        "serverStopped": "Server not running",
+        "serverMeta": "{{mappings}} mappings · {{conflicts}} conflicts",
+        "noRule": "Focus a source rule in Step 2 or Step 3 before reviewing Local Modbus output candidates.",
+        "loading": "Loading Local Modbus output candidates…",
+        "empty": "No Local Modbus output candidates are available for the active source rule.",
+        "setReason": "The candidate set is currently blocked: {{reason}}",
+        "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
+        "persistedRegister": "Persisted register HR{{register}} · width {{count}}",
+        "registerPending": "Holding register has not been assigned yet",
+        "currentSelection": "Current selection",
+        "summary": {
+          "ready": "All visible candidates are verification-ready.",
+          "pending": "Verification is still waiting on runtime readiness.",
+          "blocked": "{{count}} candidates need attention before apply."
+        },
+        "verification": {
+          "title": "Verification",
+          "ready": "Ready",
+          "pending": "Pending",
+          "blocked": "Blocked",
+          "summaryDetail": "{{count}} candidate(s) are visible in the current rule scope.",
+          "readyDetail": "This candidate has a persisted register and the runtime is ready.",
+          "serverPendingDetail": "Start the Local Modbus server before treating this candidate as apply-ready.",
+          "registerPendingDetail": "Assign and save a holding register before applying this candidate.",
+          "tagPendingDetail": "Apply the tag review decision first so the final tag identity is stable.",
+          "conflictDetail": "Resolve the register overlap shown above before applying this candidate.",
+          "outOfSyncDetail": "Refresh this candidate before applying it to Local Modbus."
+        },
+        "status": {
+          "ready": "Apply-ready",
+          "blocked": "Blocked",
+          "deferred": "Deferred",
+          "out_of_sync": "Out of sync",
+          "blocked_conflict": "Blocked by conflict"
+        }
+      },
       "status": {
         "server": "Server",
         "serverRunning": "Running @ {{address}}",

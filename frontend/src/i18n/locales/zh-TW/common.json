@@ -1011,6 +1011,49 @@
           "invalid": "已阻擋：{{reason}}"
         }
       },
+      "modbusReviewSurface": {
+        "eyebrow": "規則範圍候選項",
+        "title": "根據目前來源規則檢查 Local Modbus 輸出",
+        "description": "這裡會把 register 衝突、驗證進度與 server health 直接顯示在同一處，讓你先確認目前規則，再決定是否寫入 runtime mapping。",
+        "revision": "來源規則 revision",
+        "serverHealth": "Runtime health",
+        "serverRunning": "Server 已就緒 @ {{address}}",
+        "serverStopped": "Server 尚未啟動",
+        "serverMeta": "{{mappings}} 筆映射 · {{conflicts}} 筆衝突",
+        "noRule": "請先在 Step 2 / Step 3 聚焦一個來源規則，才能檢視 Local Modbus 輸出候選項。",
+        "loading": "正在讀取 Local Modbus 輸出候選項…",
+        "empty": "目前的來源規則沒有可檢視的 Local Modbus 輸出候選項。",
+        "setReason": "候選集合目前被阻擋：{{reason}}",
+        "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
+        "persistedRegister": "已保存 register：HR{{register}} · 寬度 {{count}}",
+        "registerPending": "尚未指派 Holding Register",
+        "currentSelection": "目前選取",
+        "summary": {
+          "ready": "目前可見候選項都已通過驗證。",
+          "pending": "驗證仍在等待 runtime 就緒。",
+          "blocked": "有 {{count}} 筆候選項需要先處理。"
+        },
+        "verification": {
+          "title": "驗證狀態",
+          "ready": "已就緒",
+          "pending": "待完成",
+          "blocked": "已阻擋",
+          "summaryDetail": "目前規則範圍內可見 {{count}} 筆候選項。",
+          "readyDetail": "此候選項已有保存的 register，且 runtime 已就緒。",
+          "serverPendingDetail": "請先啟動 Local Modbus server，才能把這筆候選項視為可套用。",
+          "registerPendingDetail": "請先指派並保存 Holding Register，再套用這筆候選項。",
+          "tagPendingDetail": "請先套用 Tag review 決策，讓最終 tag identity 穩定。",
+          "conflictDetail": "請先排除上方顯示的 register overlap，再套用這筆候選項。",
+          "outOfSyncDetail": "請先重新整理這筆候選項，再套用到 Local Modbus。"
+        },
+        "status": {
+          "ready": "可套用",
+          "blocked": "已阻擋",
+          "deferred": "待前置步驟完成",
+          "out_of_sync": "已失同步",
+          "blocked_conflict": "衝突阻擋"
+        }
+      },
       "status": {
         "server": "Server 狀態",
         "serverRunning": "運行中 @ {{address}}",

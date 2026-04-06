@@ -11,7 +11,9 @@ import type {
   ModbusShareMapping,
   ModbusShareStatus,
 } from '../../../types/datalink';
+import { LocalModbusRegisterMapCanvas } from './LocalModbusRegisterMapCanvas';
 import { SourceRuleDatabaseTargetBoard } from './SourceRuleDatabaseTargetBoard';
+import { SourceRuleLocalModbusReviewSurface } from './SourceRuleLocalModbusReviewSurface';
 import { useWorkbench } from './WorkbenchProvider';
 import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 import type { AutoMapStrategy, DryRunResult } from './workbenchOutputTypes';
@@ -156,153 +158,6 @@ function computeDryRun(
     }
     return { tagId: c.tagId, tagKey: c.tagKey, register: mapping.register, valid: true };
   });
-}
-
-type RegisterMapCanvasProps = {
-  candidates: OutputCandidate[];
-  shareMappings: ModbusShareMapping[];
-  conflicts: MappingConflict[];
-  selectedTagId: string;
-  viewportAnchorRegister: number | null;
-  onSlotClick: (slotIndex: number, occupant: OutputCandidate | null) => void;
-  onAutoMap: (strategy: AutoMapStrategy) => void;
-  onDryRun: () => void;
-  dryRunResults: DryRunResult[] | null;
-  t: (key: string, params?: Record<string, unknown>) => string;
-};
-
-function RegisterMapCanvas({
-  candidates,
-  shareMappings,
-  conflicts,
-  selectedTagId,
-  viewportAnchorRegister,
-  onSlotClick,
-  onAutoMap,
-  onDryRun,
-  dryRunResults,
-  t,
-}: RegisterMapCanvasProps) {
-  const maxCanvasSlots = 256;
-  const conflictRegisters = new Set(conflicts.map((c) => c.register));
-  const mappedSlots = new Map<number, OutputCandidate>();
-
-  for (const mapping of shareMappings) {
-    const candidate = candidates.find((c) => c.tagId === mapping.tag_id);
-    if (candidate) {
-      getRegisterSlots(mapping.register, mapping.data_type).forEach((slot) => {
-        mappedSlots.set(slot, candidate);
-      });
-    }
-  }
-
-  const maxRegister = Math.max(16, ...Array.from(mappedSlots.keys()).map((r) => r + 4));
-  const slotCount = Math.min(maxRegister, maxCanvasSlots);
-  const viewportStart = slotCount >= maxRegister
-    ? 0
-    : Math.max(
-      0,
-      Math.min(
-        (viewportAnchorRegister ?? 0) - Math.floor(slotCount / 2),
-        maxRegister - slotCount,
-      ),
-    );
-
-  return (
-    <div data-testid="register-map-canvas" className="space-y-4">
-      <div className="flex flex-wrap gap-1">
-        {Array.from({ length: slotCount }, (_, index) => {
-          const slotRegister = viewportStart + index;
-          const candidate = mappedSlots.get(slotRegister);
-          const isConflict = conflictRegisters.has(slotRegister);
-          const isSlotForSelected = candidate?.tagId === selectedTagId && Boolean(selectedTagId);
-          const displayRegister = toModbusDisplayRegister(slotRegister);
-          return (
-            <button
-              type="button"
-              key={slotRegister}
-              data-testid={`register-slot-${displayRegister}`}
-              data-conflict={isConflict ? 'true' : undefined}
-              onClick={() => onSlotClick(slotRegister, candidate ?? null)}
-              className={`flex min-w-[60px] cursor-pointer flex-col items-center rounded-lg border px-2 py-1 text-[10px] transition hover:ring-1 hover:ring-cyan-400/40 ${
-                isConflict
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
-                  : isSlotForSelected
-                    ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/50'
-                    : candidate
-                      ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200'
-                      : selectedTagId
-                        ? 'border-slate-700 bg-slate-900/60 text-slate-400 hover:border-cyan-500/40 hover:bg-cyan-500/5'
-                        : 'border-slate-800 bg-slate-950/50 text-slate-500'
-              }`}
-            >
-              <span className="font-mono text-[9px] text-slate-500">HR{displayRegister}</span>
-              <span className="truncate font-medium">
-                {candidate?.tagKey ?? '—'}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onAutoMap('sequential')}
-          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-cyan-500/40"
-        >
-          {t('workbench.output.modbusStudio.autoMap.sequential')}
-        </button>
-        <button
-          type="button"
-          onClick={() => onAutoMap('gapAware')}
-          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-cyan-500/40"
-        >
-          {t('workbench.output.modbusStudio.autoMap.gapAware')}
-        </button>
-        <button
-          type="button"
-          onClick={() => onAutoMap('aligned')}
-          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-cyan-500/40"
-        >
-          {t('workbench.output.modbusStudio.autoMap.aligned')}
-        </button>
-        <button
-          type="button"
-          onClick={onDryRun}
-          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20"
-        >
-          {t('workbench.output.modbusStudio.actions.dryRun')}
-        </button>
-      </div>
-
-      {dryRunResults ? (
-        <div data-testid="dry-run-results" className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-            {t('workbench.output.modbusStudio.dryRun.heading')}
-          </p>
-          <ul className="space-y-1">
-            {dryRunResults.map((r) => (
-              <li
-                key={r.tagId}
-                className={`rounded-lg border px-3 py-1.5 text-xs ${
-                  r.valid
-                    ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-200'
-                    : 'border-rose-500/20 bg-rose-500/5 text-rose-200'
-                }`}
-              >
-                {r.tagKey}: {r.valid
-                  ? t('workbench.output.modbusStudio.dryRun.valid', {
-                    register: toModbusDisplayRegister(r.register),
-                  })
-                  : t('workbench.output.modbusStudio.dryRun.invalid', { reason: r.reason ?? 'unknown' })}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 export function LocalModbusBoard() {
@@ -610,7 +465,7 @@ export function LocalModbusBoard() {
     }
   }, [loadData, selectedModbusCandidate, t]);
 
-  const handleSlotClick = useCallback(async (slotIndex: number, occupant: OutputCandidate | null) => {
+  const handleSlotClick = useCallback(async (slotIndex: number, occupant: WorkbenchOutputCandidate | null) => {
     if (occupant) {
       setIsBusy(true);
       try {
@@ -891,186 +746,194 @@ export function LocalModbusBoard() {
       </section>
 
       {activeOutputTarget === 'modbus' ? (
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-          <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
-                {t('workbench.output.modbusStudio.eyebrow')}
-              </p>
-              <h3 className="text-xl font-semibold text-slate-50">
-                {t('workbench.output.modbusStudio.title')}
-              </h3>
+        <>
+          <SourceRuleLocalModbusReviewSurface
+            selectedTagId={selectedTagId}
+            status={status}
+            conflictCount={conflicts.length}
+          />
+
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+            <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+                  {t('workbench.output.modbusStudio.eyebrow')}
+                </p>
+                <h3 className="text-xl font-semibold text-slate-50">
+                  {t('workbench.output.modbusStudio.title')}
+                </h3>
+              </div>
+
+              <LocalModbusRegisterMapCanvas
+                candidates={candidates}
+                shareMappings={shareMappings}
+                conflicts={conflicts}
+                selectedTagId={selectedTagId}
+                viewportAnchorRegister={viewportAnchorRegister}
+                onSlotClick={(slot, occupant) => void handleSlotClick(slot, occupant)}
+                onAutoMap={(strategy) => void handleAutoMap(strategy)}
+                onDryRun={handleDryRun}
+                dryRunResults={dryRunResults}
+                t={t}
+              />
             </div>
 
-            <RegisterMapCanvas
-              candidates={candidates}
-              shareMappings={shareMappings}
-              conflicts={conflicts}
-              selectedTagId={selectedTagId}
-              viewportAnchorRegister={viewportAnchorRegister}
-              onSlotClick={(slot, occupant) => void handleSlotClick(slot, occupant)}
-              onAutoMap={(strategy) => void handleAutoMap(strategy)}
-              onDryRun={handleDryRun}
-              dryRunResults={dryRunResults}
-              t={t}
-            />
-          </div>
+            <aside
+              className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5"
+              data-testid="modbus-secondary-panels"
+              data-emphasis="supporting"
+            >
+              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    {t('workbench.output.status.server')}
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-50">
+                    {status?.enabled
+                      ? t('workbench.output.status.serverRunning', { address: status.address })
+                      : t('workbench.output.status.serverStopped')}
+                  </p>
+                </article>
+                <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    {t('workbench.output.status.mappingCount')}
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-50">
+                    {status?.mapping_count ?? shareMappings.length}
+                  </p>
+                </article>
+                <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    {t('workbench.output.status.conflicts')}
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-slate-50">
+                    {conflicts.length}
+                  </p>
+                </article>
+              </div>
 
-          <aside
-            className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5"
-            data-testid="modbus-secondary-panels"
-            data-emphasis="supporting"
-          >
-            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-              <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                  {t('workbench.output.status.server')}
-                </p>
-                <p className="mt-2 text-lg font-semibold text-slate-50">
-                  {status?.enabled
-                    ? t('workbench.output.status.serverRunning', { address: status.address })
-                    : t('workbench.output.status.serverStopped')}
-                </p>
-              </article>
-              <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                  {t('workbench.output.status.mappingCount')}
-                </p>
-                <p className="mt-2 text-lg font-semibold text-slate-50">
-                  {status?.mapping_count ?? shareMappings.length}
-                </p>
-              </article>
-              <article className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                  {t('workbench.output.status.conflicts')}
-                </p>
-                <p className="mt-2 text-lg font-semibold text-slate-50">
-                  {conflicts.length}
-                </p>
-              </article>
-            </div>
+              <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <div className="grid gap-3">
+                  <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                    <span>{t('workbench.output.server.port')}</span>
+                    <input
+                      aria-label={t('workbench.output.server.port')}
+                      value={serverPortInput}
+                      onChange={(event) => setServerPortInput(event.target.value)}
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                      disabled={isBusy || Boolean(status?.enabled)}
+                    />
+                  </label>
+                </div>
 
-            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-              <div className="grid gap-3">
-                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                  <span>{t('workbench.output.server.port')}</span>
-                  <input
-                    aria-label={t('workbench.output.server.port')}
-                    value={serverPortInput}
-                    onChange={(event) => setServerPortInput(event.target.value)}
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
                     disabled={isBusy || Boolean(status?.enabled)}
+                    onClick={() => void handleStartServer()}
+                    className="rounded-lg border border-emerald-400/30 bg-emerald-500/20 px-3 py-2 text-sm font-medium text-emerald-100 disabled:opacity-50"
+                  >
+                    {t('workbench.output.actions.startServer')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isBusy || !status?.enabled}
+                    onClick={() => void handleStopServer()}
+                    className="rounded-lg border border-rose-400/30 bg-rose-500/20 px-3 py-2 text-sm font-medium text-rose-100 disabled:opacity-50"
+                  >
+                    {t('workbench.output.actions.stopServer')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isBusy || !canSync}
+                    onClick={() => void handleSync()}
+                    className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-100 disabled:opacity-50"
+                  >
+                    {t('workbench.output.actions.sync')}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    {t('workbench.output.mapping.selectedTag')}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-50">
+                    {selectedModbusCandidate?.tagKey ?? '—'}
+                  </p>
+                </div>
+
+                <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
+                  <span>{t('workbench.output.mapping.register')}</span>
+                  <input
+                    aria-label={t('workbench.output.mapping.register')}
+                    value={registerInput}
+                    onChange={(event) => setRegisterInput(event.target.value)}
+                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
                   />
                 </label>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleBind()}
+                    disabled={isBusy || !selectedModbusCandidate}
+                    className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+                  >
+                    {t('workbench.output.actions.bind')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete()}
+                    disabled={isBusy || !selectedModbusCandidate || selectedModbusCandidate.register === null}
+                    className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
+                  >
+                    {t('workbench.output.actions.delete')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handlePushValue()}
+                    disabled={isBusy || !selectedModbusCandidate}
+                    className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
+                  >
+                    {t('workbench.output.actions.pushValue')}
+                  </button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={isBusy || Boolean(status?.enabled)}
-                  onClick={() => void handleStartServer()}
-                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/20 px-3 py-2 text-sm font-medium text-emerald-100 disabled:opacity-50"
+              {conflicts.length > 0 ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100"
                 >
-                  {t('workbench.output.actions.startServer')}
-                </button>
-                <button
-                  type="button"
-                  disabled={isBusy || !status?.enabled}
-                  onClick={() => void handleStopServer()}
-                  className="rounded-lg border border-rose-400/30 bg-rose-500/20 px-3 py-2 text-sm font-medium text-rose-100 disabled:opacity-50"
-                >
-                  {t('workbench.output.actions.stopServer')}
-                </button>
-                <button
-                  type="button"
-                  disabled={isBusy || !canSync}
-                  onClick={() => void handleSync()}
-                  className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-100 disabled:opacity-50"
-                >
-                  {t('workbench.output.actions.sync')}
-                </button>
-              </div>
-            </div>
+                  <p>{t('workbench.output.conflicts.summary')}</p>
+                  <ul className="space-y-1">
+                    {conflicts.map((conflict) => (
+                      <li key={conflict.register}>
+                        {t('workbench.output.conflicts.item', {
+                          register: toModbusDisplayRegister(conflict.register),
+                          count: conflict.mappings.length,
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
-            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-              <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                  {t('workbench.output.mapping.selectedTag')}
+              {message ? (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200"
+                >
+                  {message}
                 </p>
-                <p className="mt-2 text-sm font-semibold text-slate-50">
-                  {selectedModbusCandidate?.tagKey ?? '—'}
-                </p>
-              </div>
-
-              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                <span>{t('workbench.output.mapping.register')}</span>
-                <input
-                  aria-label={t('workbench.output.mapping.register')}
-                  value={registerInput}
-                  onChange={(event) => setRegisterInput(event.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-                />
-              </label>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                   type="button"
-                   onClick={() => void handleBind()}
-                   disabled={isBusy || !selectedModbusCandidate}
-                   className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
-                 >
-                  {t('workbench.output.actions.bind')}
-                </button>
-                <button
-                   type="button"
-                   onClick={() => void handleDelete()}
-                   disabled={isBusy || !selectedModbusCandidate || selectedModbusCandidate.register === null}
-                   className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
-                 >
-                  {t('workbench.output.actions.delete')}
-                </button>
-                <button
-                   type="button"
-                   onClick={() => void handlePushValue()}
-                   disabled={isBusy || !selectedModbusCandidate}
-                   className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
-                 >
-                  {t('workbench.output.actions.pushValue')}
-                </button>
-              </div>
-            </div>
-
-            {conflicts.length > 0 ? (
-              <div
-                role="status"
-                aria-live="polite"
-                className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100"
-              >
-                <p>{t('workbench.output.conflicts.summary')}</p>
-                <ul className="space-y-1">
-                  {conflicts.map((conflict) => (
-                    <li key={conflict.register}>
-                      {t('workbench.output.conflicts.item', {
-                        register: toModbusDisplayRegister(conflict.register),
-                        count: conflict.mappings.length,
-                      })}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {message ? (
-              <p
-                role="status"
-                aria-live="polite"
-                className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200"
-              >
-                {message}
-              </p>
-            ) : null}
-          </aside>
-        </section>
+              ) : null}
+            </aside>
+          </section>
+        </>
       ) : null}
 
       {activeOutputTarget === 'database' ? (

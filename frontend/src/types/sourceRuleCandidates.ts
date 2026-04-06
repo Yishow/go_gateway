@@ -40,6 +40,12 @@ export interface SourceRuleTagCandidateView {
 
 export type SourceRuleOutputStatus = 'ready' | 'blocked' | 'out_of_sync';
 
+export type SourceRuleLocalModbusOutputStatus =
+  | 'deferred'
+  | 'ready'
+  | 'out_of_sync'
+  | 'blocked_conflict';
+
 export interface SourceRuleDatabaseOutputCandidateView {
   id: string;
   identity: SourceRuleCandidateIdentity;
@@ -61,6 +67,23 @@ export interface SourceRuleDatabaseOutputCandidateView {
   timestamp_column?: string;
 }
 
+export interface SourceRuleLocalModbusOutputCandidateView {
+  id: string;
+  identity: SourceRuleCandidateIdentity;
+  proposed_signature: string;
+  address: string;
+  point_id: string;
+  tag_id?: string;
+  tag_key: string;
+  display_name: string;
+  data_type: DataType;
+  register?: number;
+  register_count: number;
+  status: SourceRuleLocalModbusOutputStatus;
+  blocking_reason?: string;
+  updated_at?: string;
+}
+
 export interface SourceRuleCandidateSetView<TCandidate> {
   status: SourceRuleCandidateSetStatus;
   reason?: string;
@@ -72,5 +95,5 @@ export interface SourceRuleCandidateSnapshotView {
   revision_id: string;
   tags: SourceRuleCandidateSetView<SourceRuleTagCandidateView>;
   database_outputs: SourceRuleCandidateSetView<SourceRuleDatabaseOutputCandidateView>;
-  local_modbus_outputs: SourceRuleCandidateSetView<Record<string, unknown>>;
+  local_modbus_outputs: SourceRuleCandidateSetView<SourceRuleLocalModbusOutputCandidateView>;
 }
