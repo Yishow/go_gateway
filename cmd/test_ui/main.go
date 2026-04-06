@@ -210,6 +210,21 @@ func main() {
 			}, nil
 		}),
 	)
+	sourceRuleSvc.SetLocalModbusMappingReader(
+		sourcerule.LocalModbusMappingListFunc(func(context.Context) ([]sourcerule.LocalModbusMappingRecord, error) {
+			mappings := modbusShareSvc.ListMappings()
+			records := make([]sourcerule.LocalModbusMappingRecord, 0, len(mappings))
+			for _, mappingRecord := range mappings {
+				records = append(records, sourcerule.LocalModbusMappingRecord{
+					TagID:     mappingRecord.TagID,
+					Register:  mappingRecord.Register,
+					DataType:  mappingRecord.DataType,
+					UpdatedAt: mappingRecord.UpdatedAt,
+				})
+			}
+			return records, nil
+		}),
+	)
 	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
 		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
 	}

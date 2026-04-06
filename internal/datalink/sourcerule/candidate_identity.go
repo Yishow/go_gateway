@@ -16,6 +16,7 @@ const (
 	databaseSchemaScopeKey        = "database_table_schema"
 	databaseTableScopeKey         = "database_table_name"
 	databaseColumnScopeKey        = "database_column_name"
+	localModbusRegisterScopeKey   = "local_modbus_register"
 )
 
 type tagCandidateSignaturePayload struct {
@@ -36,6 +37,15 @@ type databaseOutputCandidateSignaturePayload struct {
 	ColumnName      string                   `json:"column_name,omitempty"`
 	WriteMode       schema.DatabaseWriteMode `json:"write_mode,omitempty"`
 	TimestampColumn *string                  `json:"timestamp_column,omitempty"`
+}
+
+type localModbusOutputCandidateSignaturePayload struct {
+	TagID         *string         `json:"tag_id,omitempty"`
+	TagKey        string          `json:"tag_key"`
+	DisplayName   string          `json:"display_name"`
+	DataType      schema.DataType `json:"data_type"`
+	Register      *uint16         `json:"register,omitempty"`
+	RegisterCount int             `json:"register_count"`
 }
 
 func buildTagCandidateIdentity(ruleID, address string, dataType schema.DataType) schema.SourceRuleCandidateIdentity {
@@ -91,6 +101,34 @@ func buildDatabaseOutputCandidateIdentity(
 	}
 }
 
+func buildLocalModbusOutputCandidateIdentity(
+	ruleID string,
+	address string,
+	dataType schema.DataType,
+	register *uint16,
+) schema.SourceRuleCandidateIdentity {
+	scope := []schema.SourceRuleCandidateScopeField{
+		{
+			Key:   derivedTargetDataTypeScopeKey,
+			Value: string(dataType),
+		},
+	}
+	if register != nil {
+		scope = append(scope, schema.SourceRuleCandidateScopeField{
+			Key:   localModbusRegisterScopeKey,
+			Value: fmt.Sprintf("%d", *register),
+		})
+	}
+
+	return schema.SourceRuleCandidateIdentity{
+		SourceRuleID:           ruleID,
+		CandidateType:          schema.SourceRuleCandidateTypeLocalModbusOutputs,
+		CandidateKind:          schema.SourceRuleCandidateKindLocalModbusOutput,
+		DerivedFromRuleAddress: normalizeAddressKey(address),
+		TargetBindingScope:     scope,
+	}
+}
+
 func candidateID(identity schema.SourceRuleCandidateIdentity) (string, error) {
 	normalized := normalizedCandidateIdentity(identity)
 	data, err := json.Marshal(normalized)
@@ -128,6 +166,21 @@ func databaseOutputCandidateSignature(candidate schema.SourceRuleDatabaseOutputC
 	})
 	if err != nil {
 		return "", fmt.Errorf("序列化資料庫輸出候選簽章失敗: %w", err)
+	}
+	return candidateHash("signature", payload), nil
+}
+
+func localModbusOutputCandidateSignature(candidate schema.SourceRuleLocalModbusOutputCandidate) (string, error) {
+	payload, err := json.Marshal(localModbusOutputCandidateSignaturePayload{
+		TagID:         candidate.TagID,
+		TagKey:        candidate.TagKey,
+		DisplayName:   candidate.DisplayName,
+		DataType:      candidate.DataType,
+		Register:      candidate.Register,
+		RegisterCount: candidate.RegisterCount,
+	})
+	if err != nil {
+		return "", fmt.Errorf("序列化 local modbus 輸出候選簽章失敗: %w", err)
 	}
 	return candidateHash("signature", payload), nil
 }

@@ -77,7 +77,11 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 	if err != nil {
 		return nil, err
 	}
-	deferredPayload, err := marshalCandidateSnapshotPayload([]struct{}{})
+	localModbusOutputCandidates, err := s.buildLocalModbusOutputCandidates(ctx, rule, links)
+	if err != nil {
+		return nil, err
+	}
+	localModbusOutputPayload, err := marshalCandidateSnapshotPayload(localModbusOutputCandidates)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +109,7 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 			SourceRuleID:  rule.ID,
 			RevisionID:    rule.RevisionID,
 			CandidateType: schema.SourceRuleCandidateTypeLocalModbusOutputs,
-			Payload:       deferredPayload,
+			Payload:       localModbusOutputPayload,
 			Status:        schema.SourceRuleCandidateStatusDeferred,
 			Reason:        localModbusOutputsDeferredReason,
 			GeneratedAt:   generatedAt,

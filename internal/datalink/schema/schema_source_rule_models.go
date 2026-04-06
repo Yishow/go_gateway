@@ -143,6 +143,34 @@ const (
 	SourceRuleOutputStatusOutOfSync SourceRuleOutputStatus = "out_of_sync"
 )
 
+// SourceRuleLocalModbusOutputStatus identifies review/apply readiness of one rule-owned local Modbus candidate.
+type SourceRuleLocalModbusOutputStatus string
+
+const (
+	SourceRuleLocalModbusOutputStatusDeferred        SourceRuleLocalModbusOutputStatus = "deferred"
+	SourceRuleLocalModbusOutputStatusReady           SourceRuleLocalModbusOutputStatus = "ready"
+	SourceRuleLocalModbusOutputStatusOutOfSync       SourceRuleLocalModbusOutputStatus = "out_of_sync"
+	SourceRuleLocalModbusOutputStatusBlockedConflict SourceRuleLocalModbusOutputStatus = "blocked_conflict"
+)
+
+// SourceRuleLocalModbusOutputCandidate describes one rule-scoped local Modbus output candidate.
+type SourceRuleLocalModbusOutputCandidate struct {
+	ID                string                            `json:"id"`
+	Identity          SourceRuleCandidateIdentity       `json:"identity"`
+	ProposedSignature string                            `json:"proposed_signature"`
+	Address           string                            `json:"address"`
+	PointID           string                            `json:"point_id"`
+	TagID             *string                           `json:"tag_id,omitempty"`
+	TagKey            string                            `json:"tag_key,omitempty"`
+	DisplayName       string                            `json:"display_name,omitempty"`
+	DataType          DataType                          `json:"data_type"`
+	Register          *uint16                           `json:"register,omitempty"`
+	RegisterCount     int                               `json:"register_count"`
+	Status            SourceRuleLocalModbusOutputStatus `json:"status"`
+	BlockingReason    string                            `json:"blocking_reason,omitempty"`
+	UpdatedAt         *time.Time                        `json:"updated_at,omitempty"`
+}
+
 type SourceRuleTagReviewDecisionAction string
 
 const (
