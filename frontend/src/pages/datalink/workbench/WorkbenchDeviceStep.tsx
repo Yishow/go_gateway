@@ -24,6 +24,7 @@ import type {
 } from '../../../types/datalink';
 import { Spinner } from '../../../components/ui/spinner';
 import { useWorkbench } from './WorkbenchProvider';
+import { shouldClearSelectedDevice } from './deviceSelectionGuard';
 import {
   buildDeviceCapabilitySummary,
   buildDeviceEndpointSummary,
@@ -430,7 +431,12 @@ export function WorkbenchDeviceStep() {
     setInspectorSelection,
     setSelectedDeviceId,
   } = useWorkbench();
-  const { data: devices = [], isLoading } = useDevicesQuery();
+  const {
+    data: devices = [],
+    isLoading,
+    isSuccess: devicesQuerySuccess,
+    isFetching: devicesQueryFetching,
+  } = useDevicesQuery();
   const createDeviceMutation = useCreateDeviceMutation();
   const testDraftConnectionMutation = useTestDraftConnectionMutation();
   const updateDeviceMutation = useUpdateDeviceMutation();
@@ -443,6 +449,7 @@ export function WorkbenchDeviceStep() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
   const [notice, setNotice] = useState<DeviceNotice | null>(null);
   const pendingSelectedDeviceIdRef = useRef<string | null>(null);
+  const initializedPanelKeyRef = useRef<string | null>(null);
 
   const filteredDevices = useMemo(() => {
     return devices.filter((device) => {
@@ -498,32 +505,53 @@ export function WorkbenchDeviceStep() {
       return;
     }
 
-    const deviceExists = devices.some((device) => device.id === selectedDeviceId);
-    if (deviceExists) {
+    const shouldClear = shouldClearSelectedDevice({
+      selectedDeviceId,
+      devices,
+      isSuccess: devicesQuerySuccess,
+      isFetching: devicesQueryFetching,
+      pendingSelectedDeviceId: pendingSelectedDeviceIdRef.current,
+    });
+
+    if (!shouldClear) {
       if (pendingSelectedDeviceIdRef.current === selectedDeviceId) {
         pendingSelectedDeviceIdRef.current = null;
       }
       return;
     }
 
-    if (pendingSelectedDeviceIdRef.current === selectedDeviceId) {
-      return;
-    }
-
-    if (selectedDeviceId && !deviceExists) {
-      setSelectedDeviceId(null);
-      clearInspectorSelection();
-    }
-  }, [clearInspectorSelection, devices, selectedDeviceId, setSelectedDeviceId]);
+    setSelectedDeviceId(null);
+    clearInspectorSelection();
+  }, [
+    clearInspectorSelection,
+    devices,
+    devicesQueryFetching,
+    devicesQuerySuccess,
+    selectedDeviceId,
+    setSelectedDeviceId,
+  ]);
 
   useEffect(() => {
     if (!devicePanelState) {
+      initializedPanelKeyRef.current = null;
+      return;
+    }
+
+    const panelKey =
+      devicePanelState.mode === 'create'
+        ? 'create'
+        : devicePanelState.mode === 'edit'
+          ? `edit:${devicePanelState.deviceId}`
+          : `clone:${devicePanelState.sourceDeviceId}`;
+
+    if (initializedPanelKeyRef.current === panelKey) {
       return;
     }
 
     if (devicePanelState.mode === 'create') {
       setDraft(createEmptyDeviceDraft());
       setFieldErrors({});
+      initializedPanelKeyRef.current = panelKey;
       return;
     }
 
@@ -546,6 +574,7 @@ export function WorkbenchDeviceStep() {
         : nextDraft,
     );
     setFieldErrors({});
+    initializedPanelKeyRef.current = panelKey;
   }, [devicePanelState, devices]);
 
   useEffect(() => {
