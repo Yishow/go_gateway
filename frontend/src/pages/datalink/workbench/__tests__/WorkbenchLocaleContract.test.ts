@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 describe('Workbench locale contract', () => {
   it('ships localized zh-TW strings for the foundation shell landmarks and steps', () => {
-    expect(zhTWCommon.workbench.title).not.toBe(enCommon.workbench.title);
     expect(zhTWCommon.workbench.foundation.label).not.toBe(enCommon.workbench.foundation.label);
     expect(zhTWCommon.workbench.header.ariaLabel).not.toBe(enCommon.workbench.header.ariaLabel);
     expect(zhTWCommon.workbench.header.eyebrow).not.toBe(enCommon.workbench.header.eyebrow);
@@ -19,6 +18,19 @@ describe('Workbench locale contract', () => {
     expect(zhTWCommon.workbench.steps.source).not.toBe(enCommon.workbench.steps.source);
     expect(zhTWCommon.workbench.steps.tag).not.toBe(enCommon.workbench.steps.tag);
     expect(zhTWCommon.workbench.steps.output).not.toBe(enCommon.workbench.steps.output);
+  });
+
+  it('positions /studio as the primary guided workflow in shell copy', () => {
+    expect(zhTWCommon.workbench.title).toContain('Studio');
+    expect(enCommon.workbench.title).toContain('Studio');
+    expect(zhTWCommon.workbench.subtitle).toContain('/studio');
+    expect(enCommon.workbench.subtitle).toContain('/studio');
+    expect(zhTWCommon.workbench.header.eyebrow).toContain('Studio');
+    expect(enCommon.workbench.header.eyebrow).toContain('Studio');
+    expect(zhTWCommon.workbench.actionDock.nextAction.advanceToOutput).toContain('Studio');
+    expect(enCommon.workbench.actionDock.nextAction.advanceToOutput).toContain('Studio');
+    expect(zhTWCommon.workbench.actionDock.nextAction.configureOutput).toContain('資料庫');
+    expect(enCommon.workbench.actionDock.nextAction.configureOutput).toContain('Database');
   });
 
   it('ships localized zh-TW strings for the five-region shell components', () => {

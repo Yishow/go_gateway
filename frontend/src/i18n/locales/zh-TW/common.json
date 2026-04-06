@@ -421,14 +421,14 @@
     }
   },
   "workbench": {
-    "title": "Datalink 工作台",
-    "subtitle": "以全新的單頁流程，從來源設定一路走到位址可視化、Tag 綁定與輸出映射。",
+    "title": "Datalink Studio",
+    "subtitle": "在同一個 /studio 工作區內，依序完成設備、來源規劃、Tag 審查與輸出審查。",
     "foundation": {
       "label": "基底已就緒"
     },
     "header": {
       "ariaLabel": "資料鏈結工作台頁首",
-      "eyebrow": "工作台主線",
+      "eyebrow": "Studio 主流程",
       "currentStep": "目前步驟",
       "selectedDevice": "目前設備",
       "noDevice": "尚未選擇設備",
@@ -444,7 +444,7 @@
         "switchDevice": "切換設備",
         "gotoSource": "前往來源規劃",
         "gotoTag": "前往 Tag 綁定",
-        "gotoOutput": "前往輸出設定"
+        "gotoOutput": "前往輸出審查"
       }
     },
     "stepNavigator": {
@@ -465,7 +465,7 @@
         "switchDevice": "切換設備",
         "gotoSource": "前往來源規劃",
         "gotoTag": "前往 Tag 綁定",
-        "gotoOutput": "前往輸出設定"
+        "gotoOutput": "前往輸出審查"
       }
     },
     "inspector": {
@@ -500,8 +500,8 @@
     },
     "actionDock": {
       "ariaLabel": "工作台操作摘要",
-      "title": "執行摘要",
-      "description": "這個區塊會集中顯示目前就緒度、主線數量與下一步建議。",
+      "title": "Studio 摘要",
+      "description": "在這裡掌握 /studio 主流程的就緒度、主線數量與下一步建議。",
       "activeStep": "作用中步驟",
       "selectedDevice": "目前設備",
       "noDevice": "尚未選擇設備",
@@ -515,7 +515,7 @@
         "title": "主線就緒度",
         "source": "來源規劃",
         "tag": "Tag 綁定",
-        "output": "輸出映射",
+        "output": "輸出審查",
         "ready": "已就緒",
         "pending": "待處理"
       },
@@ -524,9 +524,9 @@
         "createPoints": "先規劃位址並批次建立來源 point。",
         "advanceToTag": "來源 point 已就緒，下一步可以前往 Tag 綁定。",
         "bindTags": "請先為目前設備建立並連結 Tag，再往輸出步驟前進。",
-        "advanceToOutput": "Tag 綁定已就緒，下一步可以設定 Local Modbus 輸出。",
+        "advanceToOutput": "Tag 綁定已就緒，下一步在同一個 Studio 內檢查 Local Modbus 與資料庫輸出。",
         "completeTagBinding": "請先完成 Tag 綁定，Step 4 才會有可發佈的 linked tag。",
-        "configureOutput": "開始指定 Local Modbus register，並同步輸出映射。",
+        "configureOutput": "在同一個 Output 工作區完成 Local Modbus 或資料庫輸出設定與套用。",
         "advanceToSourcePlanning": "設備已選擇，下一步前往來源規劃並套用位址範圍。"
       }
     },
@@ -1290,8 +1290,8 @@
       },
       "empty": {
         "eyebrow": "還沒有任何設備",
-        "title": "先建立一台來源設備，工作台主線才會解鎖",
-        "description": "新的 workbench 不再要求你跳去舊 wizard。直接在這裡建立設備，接著就能進入來源位址規劃。"
+        "title": "先建立一台來源設備，Studio 主流程才會解鎖",
+        "description": "直接在 /studio 建立設備，接著就能進入來源位址規劃，不必再跳去舊 wizard。"
       },
       "filteredEmpty": {
         "eyebrow": "沒有符合條件的設備",
@@ -1351,8 +1351,8 @@
         "createTitle": "建立新設備",
         "editTitle": "編輯設備",
         "cloneTitle": "複製設備成新的來源",
-        "createDescription": "用新的 workbench flow 直接完成設備建立，不再跳出舊式 modal/wizard。",
-        "editDescription": "保留目前選擇脈絡，在同一個工作台裡調整設備連線設定。",
+        "createDescription": "在 /studio 直接完成設備建立，不再跳出舊式 modal 或 wizard。",
+        "editDescription": "保留目前選擇脈絡，在同一個 Studio 工作區裡調整設備連線設定。",
         "cloneDescription": "沿用已選設備的連線與能力預設，但儲存前仍必須確認新的設備識別。"
       },
       "fields": {
@@ -1364,7 +1364,7 @@
       "connection": {
         "eyebrow": "通訊設定",
         "title": "連線參數",
-        "description": "依協定切換欄位，但維持同一套 panel 佈局，避免設備設定又回到多層 modal。",
+        "description": "依協定切換欄位，但維持同一個 Studio 面板佈局，避免設備設定又回到多層 modal。",
         "backendHostHint": "這裡可直接測目前編輯中的草稿設定，不必先儲存；測試一樣是從 backend 所在主機發起，所以請以 backend 到目標設備的網路路徑為準。",
         "host": "主機位址",
         "port": "Port",

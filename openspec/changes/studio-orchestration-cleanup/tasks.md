@@ -6,7 +6,7 @@
 
 ## 2. Guided workflow cleanup
 
-- [ ] 2.1 Update guided workflow content so `/studio` is the sole primary product path
+- [x] 2.1 Update guided workflow content so `/studio` is the sole primary product path
 - [ ] 2.2 Demote drag-drop point/tag/mapping tooling to secondary engineering surfaces
 - [ ] 2.3 Remove remaining manual-first product language from workbench shell and navigation
 

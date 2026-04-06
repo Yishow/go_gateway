@@ -421,14 +421,14 @@
     }
   },
   "workbench": {
-    "title": "Datalink Workbench",
-    "subtitle": "Use a fresh single-screen workflow to move from source setup to visual address planning, tag binding, and output mapping.",
+    "title": "Datalink Studio",
+    "subtitle": "Complete device setup, source planning, tag review, and output review inside one /studio workspace.",
     "foundation": {
       "label": "Foundation Ready"
     },
     "header": {
       "ariaLabel": "Workbench header",
-      "eyebrow": "Workbench flow",
+      "eyebrow": "Studio primary flow",
       "currentStep": "Current step",
       "selectedDevice": "Selected device",
       "noDevice": "No device selected",
@@ -444,7 +444,7 @@
         "switchDevice": "Switch device",
         "gotoSource": "Go to source",
         "gotoTag": "Go to tag",
-        "gotoOutput": "Go to output"
+        "gotoOutput": "Review outputs"
       }
     },
     "stepNavigator": {
@@ -465,7 +465,7 @@
         "switchDevice": "Switch device",
         "gotoSource": "Go to source",
         "gotoTag": "Go to tag",
-        "gotoOutput": "Go to output"
+        "gotoOutput": "Review outputs"
       }
     },
     "inspector": {
@@ -500,8 +500,8 @@
     },
     "actionDock": {
       "ariaLabel": "Workbench action dock",
-      "title": "Execution summary",
-      "description": "Use this dock to track readiness, counts, and the next action for the active step.",
+      "title": "Studio summary",
+      "description": "Track readiness, workflow counts, and the next action for the /studio primary path.",
       "activeStep": "Active step",
       "selectedDevice": "Selected device",
       "noDevice": "No device selected",
@@ -515,7 +515,7 @@
         "title": "Readiness",
         "source": "Source planning",
         "tag": "Tag binding",
-        "output": "Output mapping",
+        "output": "Output review",
         "ready": "Ready",
         "pending": "Pending"
       },
@@ -524,9 +524,9 @@
         "createPoints": "Plan addresses and batch-create source points for this device.",
         "advanceToTag": "Source points are ready. Continue to tag binding and generate linked tags.",
         "bindTags": "Create and link tags for the selected device before configuring outputs.",
-        "advanceToOutput": "Tag bindings are ready. Move to Local Modbus output mapping.",
+        "advanceToOutput": "Tag bindings are ready. Review Local Modbus and Database outputs in the same Studio workspace.",
         "completeTagBinding": "Finish tag binding first so Step 4 has linked tags to publish.",
-        "configureOutput": "Assign Local Modbus registers and sync the output mappings.",
+        "configureOutput": "Finish Local Modbus or Database output setup and apply inside the same Output workspace.",
         "advanceToSourcePlanning": "A device is selected. Continue to source planning and apply an address range."
       }
     },
@@ -1290,8 +1290,8 @@
       },
       "empty": {
         "eyebrow": "No devices yet",
-        "title": "Create a source device to unlock the workbench flow",
-        "description": "The new workbench no longer sends you through the legacy wizard. Create the device here, then continue to source planning."
+        "title": "Create a source device to unlock the Studio primary flow",
+        "description": "Create the device directly in /studio, then continue to source planning without returning to the legacy wizard."
       },
       "filteredEmpty": {
         "eyebrow": "No matching devices",
@@ -1351,8 +1351,8 @@
         "createTitle": "Create a new device",
         "editTitle": "Edit device",
         "cloneTitle": "Clone device into a new source",
-        "createDescription": "Finish device setup in the new workbench flow without jumping back into the old modal or wizard shell.",
-        "editDescription": "Adjust the selected device in context, without leaving the workbench.",
+        "createDescription": "Finish device setup directly in /studio without jumping back into the old modal or wizard shell.",
+        "editDescription": "Adjust the selected device in context without leaving the Studio workspace.",
         "cloneDescription": "Start from the selected device defaults, but confirm a distinct device identity before saving."
       },
       "fields": {
@@ -1364,7 +1364,7 @@
       "connection": {
         "eyebrow": "Connection setup",
         "title": "Connection parameters",
-        "description": "The fields switch by protocol, but the layout stays inside one consistent workbench panel instead of multiple modals.",
+        "description": "The fields switch by protocol, but the layout stays inside one consistent Studio panel instead of multiple modals.",
         "backendHostHint": "You can test the current draft settings here without saving first. The dial still starts from the backend host, so judge reachability from the backend-to-device network path.",
         "host": "Host",
         "port": "Port",
