@@ -137,6 +137,16 @@
 - 開始執行前先做 session catchup；每完成一個 phase，要同步更新計畫狀態、測試結果、修改檔案與錯誤紀錄。
 - 重要發現、legacy 清單、風險與失敗嘗試不得只留在對話上下文，必須寫入文件以利續作。
 
+## Worktree 多版本實作規範（強制）
+- 當需求包含「平行版本比較 / A-B / 2+ 變體」時，Agent 必須使用 git worktree，不得在主工作樹混做。
+- 預設 worktree 目錄為 `.worktrees/`；若不存在先建立。
+- 建立 worktree 前必須驗證忽略規則；若未忽略，先更新 `.gitignore` 讓 `.worktrees/` 被忽略。
+- 分支命名採 `exp/<topic>-v1`、`exp/<topic>-v2`、`exp/<topic>-v3`。
+- 路徑命名採 `.worktrees/<topic>-v1`、`.worktrees/<topic>-v2`、`.worktrees/<topic>-v3`。
+- 每個版本必須使用不同啟動埠，避免 dev server 與 API 衝突。
+- Agent 回報時必須列出：worktree 路徑、分支名稱、啟動命令、對應 URL。
+- 比較完成後，保留勝出版；其餘版本使用 `git worktree remove` 清理。
+
 ## OpenSpec 與 Agent 工作注意事項
 - 依規劃 phase 與步驟執行，不可跳步或僅交付最小可動版本。
 - 先看現行規格 `openspec/specs/`，再處理 `openspec/changes/` 中與本次變更相關的 proposal / tasks。
