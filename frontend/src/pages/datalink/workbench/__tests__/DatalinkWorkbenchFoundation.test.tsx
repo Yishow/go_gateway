@@ -3,9 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../../../App';
+import type { Mapping, Point, Tag } from '../../../../types/datalink';
 
 const {
   mockDevices,
+  mockPoints,
+  mockTags,
+  mockMappings,
   mockCreateDeviceMutation,
   mockTestDraftConnectionMutation,
   mockUpdateDeviceMutation,
@@ -24,6 +28,9 @@ const {
     created_at: string;
     updated_at: string;
   }>,
+  mockPoints: [] as Point[],
+  mockTags: [] as Tag[],
+  mockMappings: [] as Mapping[],
   mockCreateDeviceMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
@@ -80,8 +87,10 @@ vi.mock('@/hooks/datalink/useDevices', () => ({
 }));
 
 vi.mock('@/hooks/datalink/usePoints', () => ({
-  usePointsQuery: () => ({
-    data: [],
+  usePointsQuery: (filters?: { device_id?: string }) => ({
+    data: filters?.device_id
+      ? mockPoints.filter((point) => point.device_id === filters.device_id)
+      : [],
     isLoading: false,
   }),
   useCreatePointMutation: () => ({
@@ -89,6 +98,37 @@ vi.mock('@/hooks/datalink/usePoints', () => ({
     isPending: false,
   }),
   useDeletePointMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
+vi.mock('@/hooks/datalink/useTags', () => ({
+  useTagsQuery: () => ({
+    data: mockTags,
+    isLoading: false,
+    refetch: vi.fn().mockResolvedValue({ data: mockTags }),
+  }),
+  useCreateTagMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteTagMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
+vi.mock('@/hooks/datalink/useMappings', () => ({
+  useMappingsQuery: () => ({
+    data: mockMappings,
+    isLoading: false,
+  }),
+  useCreateMappingMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteMappingMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
@@ -177,6 +217,63 @@ describe('DatalinkWorkbench foundation route', () => {
     mockUpdateDeviceMutation.mutateAsync.mockResolvedValue(undefined);
     mockTestConnectionMutation.mutateAsync.mockReset();
     mockTestConnectionMutation.isPending = false;
+    mockPoints.splice(
+      0,
+      mockPoints.length,
+      {
+        id: 'point-1',
+        device_id: 'device-1',
+        name: 'Flow Sensor',
+        description: '',
+        data_type: 'int16',
+        address: '40001',
+        enabled: true,
+        polling_group_id: '',
+        last_value: null,
+        last_read_at: '',
+        last_error: '',
+        error_count: 0,
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'point-2',
+        device_id: 'device-1',
+        name: 'Pressure Sensor',
+        description: '',
+        data_type: 'int16',
+        address: '40002',
+        enabled: true,
+        polling_group_id: '',
+        last_value: null,
+        last_read_at: '',
+        last_error: '',
+        error_count: 0,
+        created_at: '',
+        updated_at: '',
+      },
+    );
+    mockTags.splice(0, mockTags.length, {
+      id: 'tag-1',
+      key: 'TAG_40001',
+      display_name: 'Flow Sensor',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'draft',
+      created_at: '',
+      updated_at: '',
+    });
+    mockMappings.splice(0, mockMappings.length, {
+      id: 'mapping-1',
+      point_id: 'point-1',
+      tag_id: 'tag-1',
+      enabled: true,
+      transform_pipeline: '',
+      created_at: '',
+      updated_at: '',
+    });
   });
 
   function renderApp() {
@@ -400,6 +497,47 @@ describe('DatalinkWorkbench foundation route', () => {
     });
 
     expect(screen.getByText('Mixer PLC')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/studio');
+  });
+
+  it('keeps the normal operator workflow inside /studio from device through output', async () => {
+    window.history.pushState({}, '', '/studio');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.device/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    expect(window.location.pathname).toBe('/studio');
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.source/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+    expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/studio');
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.tag/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+    expect(window.location.pathname).toBe('/studio');
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+    expect(screen.getByTestId('active-output-target')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/studio');
   });
 
