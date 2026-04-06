@@ -35,6 +35,7 @@ import (
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
+	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/settings"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/storage"
@@ -182,6 +183,11 @@ func main() {
 	}
 	sourceRuleSvc := sourcerule.NewService(sourceRuleRepo, devSvc, pointSvc, runtimeSvc)
 	sourceRuleSvc.SetTagMappingServices(tagSvc, mappingSvc)
+	sourceRuleSvc.SetDatabaseTargetMappingReader(
+		sourcerule.DatabaseTargetMappingListFunc(func(ctx context.Context) ([]*schema.DatabaseTargetMapping, error) {
+			return dbTargetMappingSvc.List(ctx, dbtarget.TargetMappingListFilter{})
+		}),
+	)
 	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
 		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
 	}

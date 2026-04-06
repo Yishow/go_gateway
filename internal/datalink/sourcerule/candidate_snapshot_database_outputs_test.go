@@ -94,6 +94,85 @@ func TestService_CandidateSnapshots_BuildDatabaseOutputsFromEffectiveTagReviewSt
 	assert.Equal(t, overrideTag.ID, candidateByAddress["40003"]["tag_id"])
 }
 
+func TestService_CandidateSnapshots_UsesPersistedDatabaseMappingScope(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	tagSvc := tag.NewService(tag.NewMemoryRepository())
+	mappingSvc := mapping.NewServiceWithTagResolver(mapping.NewMemoryRepository(), tagSvc.GetByID)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+	svc.SetTagMappingServices(tagSvc, mappingSvc)
+
+	overrideTag, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "factory.db.bound",
+		DisplayName: "DB Bound",
+		DataType:    schema.DataTypeInt16,
+	})
+	require.NoError(t, err)
+	svc.SetDatabaseTargetMappingReader(DatabaseTargetMappingListFunc(func(context.Context) ([]*schema.DatabaseTargetMapping, error) {
+		return []*schema.DatabaseTargetMapping{
+			{
+				ID:              "db-map-1",
+				TagID:           overrideTag.ID,
+				ConnectorID:     "connector-1",
+				TableSchema:     "public",
+				TableName:       "measurements",
+				ColumnName:      "line_a",
+				WriteMode:       schema.DatabaseWriteModeUpsert,
+				TimestampColumn: stringPtr("ts"),
+			},
+		}, nil
+	}))
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-db-scope")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-db-scope",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	tagCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, tagCandidates, 1)
+	_, err = svc.UpsertTagReviewDecision(ctx, rule.ID, UpsertTagReviewDecisionRequest{
+		CandidateID:   tagCandidates[0].ID,
+		Action:        schema.SourceRuleTagReviewDecisionActionOverride,
+		OverrideTagID: overrideTag.ID,
+	})
+	require.NoError(t, err)
+
+	snapshots, err := svc.ListCandidateSnapshots(ctx, rule.ID)
+	require.NoError(t, err)
+	databaseCandidates, databaseSnapshot := databaseCandidatesFromSnapshots(t, snapshots)
+	assert.Equal(t, schema.SourceRuleCandidateStatusReady, databaseSnapshot.Status)
+	require.Len(t, databaseCandidates, 1)
+
+	candidate := databaseCandidates[0]
+	assert.Equal(t, "db-map-1", candidate["mapping_id"])
+	assert.Equal(t, "connector-1", candidate["connector_id"])
+	assert.Equal(t, "public", candidate["table_schema"])
+	assert.Equal(t, "measurements", candidate["table_name"])
+	assert.Equal(t, "line_a", candidate["column_name"])
+	assert.Equal(t, "upsert", candidate["write_mode"])
+	assert.Equal(t, "ts", candidate["timestamp_column"])
+
+	identity := candidate["identity"].(map[string]any)
+	scope := identity["target_binding_scope"].([]any)
+	assert.Contains(t, scope, map[string]any{"key": "database_connector_id", "value": "connector-1"})
+	assert.Contains(t, scope, map[string]any{"key": "database_table_schema", "value": "public"})
+	assert.Contains(t, scope, map[string]any{"key": "database_table_name", "value": "measurements"})
+	assert.Contains(t, scope, map[string]any{"key": "database_column_name", "value": "line_a"})
+}
+
 func databaseCandidatesFromSnapshots(
 	t *testing.T,
 	snapshots []*schema.SourceRuleCandidateSnapshot,

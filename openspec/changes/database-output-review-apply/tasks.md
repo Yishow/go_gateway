@@ -1,7 +1,7 @@
 ## 1. Database candidate orchestration
 
 - [x] 1.1 Bind database candidates to the effective post-tag-review state for the active source-rule revision
-- [ ] 1.2 Persist connector, schema, table, and column context as the authoritative review/apply scope
+- [x] 1.2 Persist connector, schema, table, and column context as the authoritative review/apply scope
 - [ ] 1.3 Mark database candidates `blocked` or `out_of_sync` when referenced context becomes invalid
 
 ## 2. Database review/apply flow

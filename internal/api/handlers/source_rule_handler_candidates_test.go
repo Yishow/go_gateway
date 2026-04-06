@@ -24,6 +24,7 @@ import (
 type sourceRuleCandidatesFixture struct {
 	router     *gin.Engine
 	repo       *sourcerule.MemoryRepository
+	ruleSvc    *sourcerule.Service
 	tagSvc     *tag.Service
 	mappingSvc *mapping.Service
 }
@@ -66,6 +67,7 @@ func setupSourceRuleCandidatesFixture(t *testing.T) *sourceRuleCandidatesFixture
 	return &sourceRuleCandidatesFixture{
 		router:     router,
 		repo:       repo,
+		ruleSvc:    ruleSvc,
 		tagSvc:     tagSvc,
 		mappingSvc: mappingSvc,
 	}

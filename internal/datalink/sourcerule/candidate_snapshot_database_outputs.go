@@ -3,6 +3,7 @@ package sourcerule
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
@@ -27,6 +28,10 @@ func (s *Service) buildDatabaseOutputCandidates(
 	if err != nil {
 		return nil, err
 	}
+	mappingsByTagID, err := s.listDatabaseTargetMappingsByTagID(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	candidates := make([]schema.SourceRuleDatabaseOutputCandidate, 0, len(tagCandidates))
 	for _, tagCandidate := range tagCandidates {
@@ -35,27 +40,125 @@ func (s *Service) buildDatabaseOutputCandidates(
 			continue
 		}
 
-		candidate := schema.SourceRuleDatabaseOutputCandidate{
-			Identity:    buildDatabaseOutputCandidateIdentity(rule.ID, state.Address, state.DataType),
-			Address:     state.Address,
-			PointID:     state.PointID,
-			TagID:       cloneOptionalString(state.TagID),
-			TagKey:      state.TagKey,
-			DisplayName: state.DisplayName,
-			DataType:    state.DataType,
+		mappings := effectiveStateMappings(state, mappingsByTagID)
+		if len(mappings) == 0 {
+			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, nil)
+			if buildErr != nil {
+				return nil, buildErr
+			}
+			candidates = append(candidates, candidate)
+			continue
 		}
-		candidate.ID, err = candidateID(candidate.Identity)
-		if err != nil {
-			return nil, err
+
+		for _, mappingRecord := range mappings {
+			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, mappingRecord)
+			if buildErr != nil {
+				return nil, buildErr
+			}
+			candidates = append(candidates, candidate)
 		}
-		candidate.ProposedSignature, err = databaseOutputCandidateSignature(candidate)
-		if err != nil {
-			return nil, err
-		}
-		candidates = append(candidates, candidate)
 	}
 
 	return candidates, nil
+}
+
+func buildDatabaseOutputCandidate(
+	ruleID string,
+	state effectiveTagReviewState,
+	mappingRecord *schema.DatabaseTargetMapping,
+) (schema.SourceRuleDatabaseOutputCandidate, error) {
+	candidate := schema.SourceRuleDatabaseOutputCandidate{
+		Address:     state.Address,
+		PointID:     state.PointID,
+		TagID:       cloneOptionalString(state.TagID),
+		TagKey:      state.TagKey,
+		DisplayName: state.DisplayName,
+		DataType:    state.DataType,
+	}
+	if mappingRecord != nil {
+		candidate.MappingID = stringPtr(mappingRecord.ID)
+		candidate.ConnectorID = mappingRecord.ConnectorID
+		candidate.TableSchema = mappingRecord.TableSchema
+		candidate.TableName = mappingRecord.TableName
+		candidate.ColumnName = mappingRecord.ColumnName
+		candidate.WriteMode = mappingRecord.WriteMode
+		candidate.TimestampColumn = cloneOptionalString(mappingRecord.TimestampColumn)
+	}
+	candidate.Identity = buildDatabaseOutputCandidateIdentity(
+		ruleID,
+		state.Address,
+		state.DataType,
+		candidate.ConnectorID,
+		candidate.TableSchema,
+		candidate.TableName,
+		candidate.ColumnName,
+	)
+
+	var err error
+	candidate.ID, err = candidateID(candidate.Identity)
+	if err != nil {
+		return schema.SourceRuleDatabaseOutputCandidate{}, err
+	}
+	candidate.ProposedSignature, err = databaseOutputCandidateSignature(candidate)
+	if err != nil {
+		return schema.SourceRuleDatabaseOutputCandidate{}, err
+	}
+	return candidate, nil
+}
+
+func (s *Service) listDatabaseTargetMappingsByTagID(
+	ctx context.Context,
+) (map[string][]*schema.DatabaseTargetMapping, error) {
+	reader := s.databaseTargetMappingReader()
+	if reader == nil {
+		return map[string][]*schema.DatabaseTargetMapping{}, nil
+	}
+
+	mappings, err := reader.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("列出資料庫目標映射失敗: %w", err)
+	}
+
+	result := make(map[string][]*schema.DatabaseTargetMapping)
+	for _, mappingRecord := range mappings {
+		if mappingRecord == nil || strings.TrimSpace(mappingRecord.TagID) == "" {
+			continue
+		}
+		tagID := strings.TrimSpace(mappingRecord.TagID)
+		result[tagID] = append(result[tagID], mappingRecord)
+	}
+
+	for tagID := range result {
+		sort.Slice(result[tagID], func(i, j int) bool {
+			left := result[tagID][i]
+			right := result[tagID][j]
+			if left.ConnectorID != right.ConnectorID {
+				return left.ConnectorID < right.ConnectorID
+			}
+			if left.TableSchema != right.TableSchema {
+				return left.TableSchema < right.TableSchema
+			}
+			if left.TableName != right.TableName {
+				return left.TableName < right.TableName
+			}
+			if left.ColumnName != right.ColumnName {
+				return left.ColumnName < right.ColumnName
+			}
+			return left.ID < right.ID
+		})
+	}
+
+	return result, nil
+}
+
+func effectiveStateMappings(
+	state effectiveTagReviewState,
+	mappingsByTagID map[string][]*schema.DatabaseTargetMapping,
+) []*schema.DatabaseTargetMapping {
+	if state.TagID == nil {
+		return nil
+	}
+	return mappingsByTagID[*state.TagID]
 }
 
 func (s *Service) listEffectiveTagReviewStates(
