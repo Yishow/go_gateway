@@ -18,6 +18,6 @@
 
 ## 4. Validation
 
-- [ ] 4.1 Add tests for connector invalidation and revalidation
+- [x] 4.1 Add tests for connector invalidation and revalidation
 - [ ] 4.2 Add tests for revision-bound database candidate generation and apply
 - [ ] 4.3 Add tests proving database apply does not affect Local Modbus state
