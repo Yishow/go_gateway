@@ -54,6 +54,41 @@ func TestService_ApplyDatabaseOutputCandidates_RejectsRevisionMismatch(t *testin
 	assert.ErrorIs(t, err, ErrOutputApplyRevisionConflict)
 }
 
+func TestService_ApplyDatabaseOutputCandidates_RejectsMissingRevisionID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-db-apply-validation")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-db-apply-validation",
+		DeviceID:     dev.ID,
+		StartAddress: "40021",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	databaseCandidates := databaseOutputCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, databaseCandidates, 1)
+
+	_, err = svc.ApplyDatabaseOutputCandidates(ctx, rule.ID, ApplyOutputCandidatesRequest{
+		CandidateIDs: []string{databaseCandidates[0].ID},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrInvalidOutputApplyRequest)
+}
+
 func TestService_ApplyDatabaseOutputCandidates_ReturnsPerItemResultsForPartialSuccess(t *testing.T) {
 	t.Parallel()
 

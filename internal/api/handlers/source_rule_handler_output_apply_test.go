@@ -49,6 +49,36 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_RejectsRevisionMismatch(t *testi
 	assert.Equal(t, "revision_mismatch", errorPayload["code"])
 }
 
+func TestSourceRuleHandler_ApplyDatabaseOutputs_RejectsMissingRevisionID(t *testing.T) {
+	t.Parallel()
+
+	fixture := setupSourceRuleCandidatesFixture(t)
+	createRuleCandidatesForDecisionTest(t, fixture, "rule-db-apply-validation", "40001", 1)
+	databaseCandidates := loadDatabaseOutputCandidatesForRule(t, fixture, "rule-db-apply-validation")
+	require.Len(t, databaseCandidates, 1)
+
+	applyBody, err := json.Marshal(sourcerule.ApplyOutputCandidatesRequest{
+		CandidateIDs: []string{databaseCandidates[0].ID},
+	})
+	require.NoError(t, err)
+
+	applyReq, err := http.NewRequest(
+		http.MethodPost,
+		"/datalink/source-rules/rule-db-apply-validation/database-outputs/apply",
+		bytes.NewBuffer(applyBody),
+	)
+	require.NoError(t, err)
+	applyReq.Header.Set("Content-Type", "application/json")
+	applyResp := httptest.NewRecorder()
+	fixture.router.ServeHTTP(applyResp, applyReq)
+	require.Equal(t, http.StatusBadRequest, applyResp.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(applyResp.Body.Bytes(), &payload))
+	errorPayload := payload["error"].(map[string]any)
+	assert.Equal(t, "validation", errorPayload["code"])
+}
+
 func TestSourceRuleHandler_ApplyDatabaseOutputs_ReturnsPerCandidateResultsForPartialSuccess(t *testing.T) {
 	t.Parallel()
 
