@@ -118,6 +118,12 @@ function TagStepBootstrap({ focusedRuleId }: { focusedRuleId?: string }) {
   return <TagBindingStudio />;
 }
 
+function FocusStateProbe() {
+  const { crossStepContext } = useWorkbench();
+
+  return <div data-testid="focused-rule-id">{crossStepContext.focusedRuleId ?? ''}</div>;
+}
+
 function renderTagStep(focusedRuleId?: string) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -130,6 +136,7 @@ function renderTagStep(focusedRuleId?: string) {
     <QueryClientProvider client={queryClient}>
       <WorkbenchProvider>
         <TagStepBootstrap focusedRuleId={focusedRuleId} />
+        <FocusStateProbe />
       </WorkbenchProvider>
     </QueryClientProvider>,
   );
@@ -243,6 +250,48 @@ describe('DatalinkWorkbench tag review surface', () => {
     expect(
       screen.getByTestId('source-rule-tag-review-mapping-intent-candidate-1'),
     ).toHaveTextContent('workbench.tag.reviewSurface.mappingIntent.pending');
+  });
+
+  it('persists the resolved review rule into cross-step focus for Step 4 continuity', async () => {
+    mockSourceRules.push({
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      skipped_addresses: [],
+      revision_id: 'rev-1',
+      created_at: '',
+      updated_at: '',
+    });
+    mockCandidateViews['rule-1'] = {
+      source_rule_id: 'rule-1',
+      revision_id: 'rev-1',
+      tags: {
+        status: 'ready',
+        candidates: [],
+      },
+      database_outputs: {
+        status: 'ready',
+        candidates: [],
+      },
+      local_modbus_outputs: {
+        status: 'ready',
+        candidates: [],
+      },
+    };
+
+    renderTagStep();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('source-rule-tag-review-surface')).toBeInTheDocument(),
+    );
+
+    await waitFor(() => expect(screen.getByTestId('focused-rule-id')).toHaveTextContent('rule-1'));
   });
 
   it('switches Step 3 to the newly selected source-rule revision without mixing old candidates', async () => {

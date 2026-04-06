@@ -1,0 +1,20 @@
+{
+  "workbench": {
+    "output": {
+      "database": {
+        "actions": {
+          "generateSchema": "Generate schema"
+        },
+        "dryRun": {
+          "ready": "Mapping dry-run passed",
+          "blocked": "Mapping dry-run blocked: {{reason}}"
+        },
+        "results": {
+          "schemaGenerated": "Schema generated successfully",
+          "schemaGenerateNoChanges": "No schema changes were generated for the current scope",
+          "schemaGenerateFailed": "Failed to generate database schema"
+        }
+      }
+    }
+  }
+}

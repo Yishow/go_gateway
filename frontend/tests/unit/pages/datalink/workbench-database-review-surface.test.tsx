@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   DatabaseConnector,
   DatabaseTableInfo,
+  DatabaseTargetMapping,
   DatabaseTargetValidationResult,
+  SourceRuleRecord,
 } from '../../../../src/types/datalink';
 import { dbTargetAPI } from '../../../../src/services/datalink';
 import type { SourceRuleCandidateSnapshotView } from '../../../../src/types/sourceRuleCandidates';
@@ -15,9 +17,15 @@ import {
   useWorkbench,
 } from '../../../../src/pages/datalink/workbench/WorkbenchProvider';
 
-const { mockCandidateSnapshot, mockDBTargetAPI } = vi.hoisted(() => ({
+const { mockCandidateSnapshot, mockDBTargetAPI, mockPersistedRules, mockCandidateRuleId } = vi.hoisted(() => ({
   mockCandidateSnapshot: {
     value: null as SourceRuleCandidateSnapshotView | null,
+  },
+  mockPersistedRules: {
+    value: [] as SourceRuleRecord[],
+  },
+  mockCandidateRuleId: {
+    value: null as string | null,
   },
   mockDBTargetAPI: {
     listConnectors: vi.fn(),
@@ -26,6 +34,8 @@ const { mockCandidateSnapshot, mockDBTargetAPI } = vi.hoisted(() => ({
     updateConnector: vi.fn(),
     deleteConnector: vi.fn(),
     testConnector: vi.fn(),
+    generateSchema: vi.fn(),
+    dryRunMappings: vi.fn(),
     listTables: vi.fn(),
     validateConnector: vi.fn(),
     listMappings: vi.fn(),
@@ -48,19 +58,45 @@ vi.mock('../../../../src/services/datalink', () => ({
 }));
 
 vi.mock('../../../../src/hooks/datalink/useSourceRuleCandidates', () => ({
-  useSourceRuleCandidatesQuery: () => ({
-    data: mockCandidateSnapshot.value,
+  useSourceRuleCandidatesQuery: (ruleId?: string | null) => {
+    mockCandidateRuleId.value = ruleId ?? null;
+    return {
+      data: mockCandidateSnapshot.value,
+      isLoading: false,
+      isFetching: false,
+    };
+  },
+}));
+
+vi.mock('../../../../src/hooks/datalink/useSourceRules', () => ({
+  useSourceRulesQuery: () => ({
+    data: mockPersistedRules.value,
     isLoading: false,
-    isFetching: false,
+    isSuccess: true,
   }),
 }));
 
 function FocusedRuleBootstrap({ ruleId }: { ruleId: string }) {
-  const { setFocusedRuleId } = useWorkbench();
+  const { setFocusedRuleId, setSelectedDeviceId } = useWorkbench();
 
   useEffect(() => {
+    setSelectedDeviceId('device-1');
     setFocusedRuleId(ruleId);
-  }, [ruleId, setFocusedRuleId]);
+  }, [ruleId, setFocusedRuleId, setSelectedDeviceId]);
+
+  return null;
+}
+
+function SourcePlanningRuleBootstrap({ ruleId }: { ruleId: string }) {
+  const { setSelectedDeviceId, setSourcePlanningState } = useWorkbench();
+
+  useEffect(() => {
+    setSelectedDeviceId('device-1');
+    setSourcePlanningState((currentState) => ({
+      ...currentState,
+      selectedRuleId: ruleId,
+    }));
+  }, [ruleId, setSelectedDeviceId, setSourcePlanningState]);
 
   return null;
 }
@@ -102,7 +138,7 @@ function buildValidation(): DatabaseTargetValidationResult {
   };
 }
 
-function renderBoard() {
+function renderBoard(options?: { focusedRuleId?: string | null; sourcePlanningRuleId?: string | null }) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -113,7 +149,12 @@ function renderBoard() {
   return render(
     <QueryClientProvider client={queryClient}>
       <WorkbenchProvider>
-        <FocusedRuleBootstrap ruleId="rule-1" />
+        {options?.focusedRuleId === null ? null : (
+          <FocusedRuleBootstrap ruleId={options?.focusedRuleId ?? 'rule-1'} />
+        )}
+        {options?.sourcePlanningRuleId ? (
+          <SourcePlanningRuleBootstrap ruleId={options.sourcePlanningRuleId} />
+        ) : null}
         <SourceRuleDatabaseTargetBoard
           candidates={[
             {
@@ -143,6 +184,22 @@ function renderBoard() {
 describe('SourceRuleDatabaseTargetBoard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCandidateRuleId.value = null;
+    mockPersistedRules.value = [{
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      template_name: '',
+      skipped_addresses: [],
+      created_at: '',
+      updated_at: '',
+    }];
     mockCandidateSnapshot.value = {
       source_rule_id: 'rule-1',
       revision_id: 'rev-1',
@@ -233,6 +290,23 @@ describe('SourceRuleDatabaseTargetBoard', () => {
       buildConnector('connector-1', 'Primary DB'),
       buildConnector('connector-2', 'Backup DB'),
     ]);
+    mockDBTargetAPI.generateSchema.mockResolvedValue({
+      connector_id: 'connector-1',
+      dry_run: false,
+      statements: ['CREATE TABLE flow_metrics (value REAL NOT NULL)'],
+      executed: 1,
+    });
+    mockDBTargetAPI.dryRunMappings.mockResolvedValue({
+      connector_id: 'connector-1',
+      results: [
+        {
+          candidate_id: 'db-mapping-1',
+          status: 'ready',
+          mapping_id: 'db-mapping-1',
+          tag_id: 'tag-1',
+        },
+      ],
+    });
     vi.mocked(dbTargetAPI.listMappings).mockResolvedValue([]);
     vi.mocked(dbTargetAPI.listTables).mockImplementation(async (connectorId) => {
       if (connectorId === 'connector-2') {
@@ -304,6 +378,18 @@ describe('SourceRuleDatabaseTargetBoard', () => {
     ).toBeInTheDocument();
   });
 
+  it('falls back to the persisted source-planning rule when cross-step focus is empty', async () => {
+    renderBoard({
+      focusedRuleId: null,
+      sourcePlanningRuleId: 'rule-1',
+    });
+
+    await screen.findByTestId('database-output-review-surface');
+
+    expect(mockCandidateRuleId.value).toBe('rule-1');
+    expect(screen.getByTestId('database-review-revision')).toHaveTextContent('rev-1');
+  });
+
   it('keeps rendering when validation refresh returns ready with null issues', async () => {
     vi.mocked(dbTargetAPI.validateConnector).mockReset();
     vi.mocked(dbTargetAPI.validateConnector)
@@ -330,5 +416,110 @@ describe('SourceRuleDatabaseTargetBoard', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'workbench.output.database.results.validationRefreshed',
     );
+  });
+
+  it('skips review queries for a draft-focused rule id', async () => {
+    mockPersistedRules.value = [];
+    mockCandidateSnapshot.value = null;
+
+    renderBoard();
+
+    await screen.findByText('workbench.output.database.reviewSurface.noRule');
+    expect(mockCandidateRuleId.value).toBeNull();
+  });
+
+  it('can generate schema when the selected connector has no tables yet', async () => {
+    let tables: DatabaseTableInfo[] = [];
+
+    vi.mocked(dbTargetAPI.listTables).mockImplementation(async () => tables);
+    mockDBTargetAPI.generateSchema.mockImplementation(async () => {
+      tables = [buildTable('public', 'flow_metrics')];
+      return {
+        connector_id: 'connector-1',
+        dry_run: false,
+        statements: ['CREATE TABLE flow_metrics (value REAL NOT NULL)'],
+        executed: 1,
+      };
+    });
+
+    renderBoard();
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'workbench.output.database.actions.generateSchema',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockDBTargetAPI.generateSchema).toHaveBeenCalledWith('connector-1', {
+        dry_run: false,
+      });
+    });
+    await waitFor(() => {
+      expect(screen.getByText('public.flow_metrics')).toBeInTheDocument();
+    });
+  });
+
+  it('reports when schema generation produces no changes for the current scope', async () => {
+    vi.mocked(dbTargetAPI.listTables).mockResolvedValue([]);
+    mockDBTargetAPI.generateSchema.mockResolvedValue({
+      connector_id: 'connector-1',
+      dry_run: false,
+      statements: [],
+      executed: 0,
+    });
+
+    renderBoard();
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'workbench.output.database.actions.generateSchema',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockDBTargetAPI.generateSchema).toHaveBeenCalledWith('connector-1', {
+        dry_run: false,
+      });
+    });
+    await screen.findByText('workbench.output.database.results.schemaGenerateNoChanges');
+  });
+
+  it('runs a dry-run check after binding a tag to a database column', async () => {
+    let mappings: DatabaseTargetMapping[] = [];
+
+    vi.mocked(dbTargetAPI.listMappings).mockImplementation(async () => mappings);
+    vi.mocked(dbTargetAPI.createMapping).mockImplementation(async () => {
+      mappings = [{
+        id: 'db-mapping-1',
+        tag_id: 'tag-1',
+        connector_id: 'connector-1',
+        table_schema: 'public',
+        table_name: 'flow_metrics',
+        column_name: 'value',
+        write_mode: 'insert',
+        timestamp_column: null,
+        enabled: true,
+        created_at: '',
+        updated_at: '',
+      }];
+      return mappings[0];
+    });
+
+    renderBoard();
+
+    await screen.findByTestId('schema-column-value');
+
+    fireEvent.change(screen.getByLabelText('workbench.output.database.mapping.table'), {
+      target: { value: 'public.flow_metrics' },
+    });
+    fireEvent.click(screen.getByTestId('schema-column-value'));
+
+    await waitFor(() => {
+      expect(mockDBTargetAPI.dryRunMappings).toHaveBeenCalledWith('connector-1', {
+        candidate_ids: ['db-mapping-1'],
+      });
+    });
+    expect(screen.getByTestId('database-dry-run-results')).toBeInTheDocument();
   });
 });

@@ -764,6 +764,28 @@ export const dbTargetAPI = {
     };
   },
 
+  async generateSchema(
+    id: string,
+    data: { dry_run: boolean },
+  ): Promise<{ connector_id: string; dry_run: boolean; statements: string[]; executed: number }> {
+    const res = await api.post<APIResponse<{ connector_id: string; dry_run: boolean; statements: string[]; executed: number }>>(
+      `/db-targets/connectors/${id}/schema/generate`,
+      data,
+    );
+    return res.data.data!;
+  },
+
+  async dryRunMappings(
+    id: string,
+    data: { candidate_ids?: string[] },
+  ): Promise<{ connector_id: string; results: Array<{ candidate_id: string; status: string; code?: string; reason?: string; mapping_id?: string; tag_id?: string }> }> {
+    const res = await api.post<APIResponse<{ connector_id: string; results: Array<{ candidate_id: string; status: string; code?: string; reason?: string; mapping_id?: string; tag_id?: string }> }>>(
+      `/db-targets/connectors/${id}/mappings/dry-run`,
+      data,
+    );
+    return res.data.data!;
+  },
+
   async listMappings(params?: {
     connector_id?: string;
     tag_id?: string;

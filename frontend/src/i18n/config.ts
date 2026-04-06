@@ -2,8 +2,10 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import enTranslations from './locales/en/common.json';
+import enDatabaseOutputTranslations from './locales/en/database-output.json';
 import enTagReviewTranslations from './locales/en/tag-review.json';
 import zhTWTranslations from './locales/zh-TW/common.json';
+import zhTWDatabaseOutputTranslations from './locales/zh-TW/database-output.json';
 import zhTWTagReviewTranslations from './locales/zh-TW/tag-review.json';
 import { logger } from '../utils/logger';
 import { mergeTranslations } from './mergeTranslations';
@@ -27,10 +29,18 @@ i18n
   .init({
     resources: {
       en: {
-        translation: mergeTranslations(enTranslations, enTagReviewTranslations),
+        translation: mergeTranslations(
+          enTranslations,
+          enTagReviewTranslations,
+          enDatabaseOutputTranslations,
+        ),
       },
       'zh-TW': {
-        translation: mergeTranslations(zhTWTranslations, zhTWTagReviewTranslations),
+        translation: mergeTranslations(
+          zhTWTranslations,
+          zhTWTagReviewTranslations,
+          zhTWDatabaseOutputTranslations,
+        ),
       },
     },
     fallbackLng: 'en', // 預設語言為英文

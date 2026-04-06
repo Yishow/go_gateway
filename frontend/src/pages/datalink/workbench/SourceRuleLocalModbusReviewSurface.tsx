@@ -1,7 +1,9 @@
 import type { ModbusShareStatus } from '../../../types/datalink';
 import { useSourceRuleCandidatesQuery } from '../../../hooks/datalink/useSourceRuleCandidates';
+import { useSourceRulesQuery } from '../../../hooks/datalink/useSourceRules';
 import { LocalModbusReviewPanel } from './LocalModbusReviewPanel';
 import { useWorkbench } from './WorkbenchProvider';
+import { resolvePersistedReviewRuleId } from './reviewRuleId';
 
 type SourceRuleLocalModbusReviewSurfaceProps = {
   selectedTagId: string;
@@ -14,8 +16,14 @@ export function SourceRuleLocalModbusReviewSurface({
   status,
   conflictCount,
 }: SourceRuleLocalModbusReviewSurfaceProps) {
-  const { crossStepContext } = useWorkbench();
-  const reviewRuleId = crossStepContext.focusedRuleId;
+  const { crossStepContext, selectedDeviceId, sourcePlanningState } = useWorkbench();
+  const persistedRulesQuery = useSourceRulesQuery(
+    selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
+  );
+  const reviewRuleId = resolvePersistedReviewRuleId(
+    [crossStepContext.focusedRuleId, sourcePlanningState.selectedRuleId],
+    persistedRulesQuery.data ?? [],
+  );
   const reviewQuery = useSourceRuleCandidatesQuery(reviewRuleId);
 
   return (

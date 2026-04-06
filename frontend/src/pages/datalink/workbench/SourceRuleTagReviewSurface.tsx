@@ -109,6 +109,14 @@ export function SourceRuleTagReviewSurface() {
   } | null>(null);
 
   useEffect(() => {
+    if (!activeRule?.id || crossStepContext.focusedRuleId === activeRule.id) {
+      return;
+    }
+
+    setFocusedRuleId(activeRule.id);
+  }, [activeRule?.id, crossStepContext.focusedRuleId, setFocusedRuleId]);
+
+  useEffect(() => {
     setRenameDrafts({});
     setOverrideSelections({});
     setReviewFeedback(null);

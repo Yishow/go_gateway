@@ -33,6 +33,8 @@ const {
     updateConnector: vi.fn(),
     deleteConnector: vi.fn(),
     testConnector: vi.fn(),
+    generateSchema: vi.fn(),
+    dryRunMappings: vi.fn(),
     listTables: vi.fn(),
     validateConnector: vi.fn(),
     listMappings: vi.fn(),
@@ -310,6 +312,23 @@ describe('DatalinkWorkbench output step', () => {
     mockDBTargetAPI.validateConnector.mockResolvedValue({
       ready: true,
       issues: [],
+    });
+    mockDBTargetAPI.generateSchema.mockResolvedValue({
+      connector_id: 'connector-1',
+      dry_run: false,
+      statements: ['CREATE TABLE sensor_values (...)'],
+      executed: 1,
+    });
+    mockDBTargetAPI.dryRunMappings.mockResolvedValue({
+      connector_id: 'connector-1',
+      results: [
+        {
+          candidate_id: 'db-mapping-1',
+          status: 'ready',
+          mapping_id: 'db-mapping-1',
+          tag_id: 'tag-1',
+        },
+      ],
     });
     mockDBTargetAPI.createConnector.mockResolvedValue({
       id: 'connector-1',

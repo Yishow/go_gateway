@@ -68,6 +68,12 @@ export function DatabaseTargetBoard({
   const [isConnectorEditorOpen, setIsConnectorEditorOpen] = useState(false);
   const [draft, setDraft] = useState<ConnectorDraft>(() => createEmptyDraft());
   const [clearSavedPassword, setClearSavedPassword] = useState(false);
+  const [dryRunResults, setDryRunResults] = useState<Array<{
+    candidate_id: string;
+    status: string;
+    code?: string;
+    reason?: string;
+  }> | null>(null);
   const [message, setMessage] = useState('');
   const [isBusy, setIsBusy] = useState(true);
 
@@ -176,6 +182,9 @@ export function DatabaseTargetBoard({
       setClearSavedPassword(false);
     }
   }, [clearSavedPassword, draft.kind]);
+  useEffect(() => {
+    setDryRunResults(null);
+  }, [selectedConnectorId, selectedTagId]);
   useEffect(() => {
     if (!selectedMapping) {
       return;
@@ -407,6 +416,29 @@ export function DatabaseTargetBoard({
       setIsBusy(false);
     }
   }, [refreshCandidateReview, selectedConnectorId, t]);
+  const handleGenerateSchema = useCallback(async () => {
+    if (!selectedConnectorId) {
+      setMessage(t('workbench.output.database.results.connectorNotSaved'));
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const result = await dbTargetAPI.generateSchema(selectedConnectorId, { dry_run: false });
+      await loadConnectorDetails(selectedConnectorId);
+      await refreshCandidateReview();
+      setMessage(
+        result.executed > 0
+          ? t('workbench.output.database.results.schemaGenerated')
+          : t('workbench.output.database.results.schemaGenerateNoChanges'),
+      );
+    } catch (error) {
+      setMessage(
+        getErrorMessage(error, t('workbench.output.database.results.schemaGenerateFailed')),
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  }, [loadConnectorDetails, refreshCandidateReview, selectedConnectorId, t]);
   const currentTableFromKey = parseTableKey(tableKey);
   const mappedTagCount = connectorMappings.length;
   const schemaColumns = selectedTable?.columns ?? [];
@@ -433,6 +465,8 @@ export function DatabaseTargetBoard({
       try {
         await dbTargetAPI.deleteMapping(existingBinding.mapping.id);
         await loadData();
+        await refreshCandidateReview();
+        setDryRunResults(null);
         setMessage(
           t('workbench.output.database.results.mappingDeleted', {
             key: existingBinding.candidate?.tagKey ?? existingBinding.mapping.tag_id,
@@ -465,7 +499,7 @@ export function DatabaseTargetBoard({
 
     setIsBusy(true);
     try {
-      await dbTargetAPI.createMapping({
+      const mapping = await dbTargetAPI.createMapping({
         tag_id: selectedTagId,
         connector_id: selectedConnectorId,
         table_schema: selectedTable.schema,
@@ -478,6 +512,11 @@ export function DatabaseTargetBoard({
       });
 
       await loadData();
+      await refreshCandidateReview();
+      const dryRun = await dbTargetAPI.dryRunMappings(selectedConnectorId, {
+        candidate_ids: [mapping.id],
+      });
+      setDryRunResults(dryRun.results);
       setMessage(
         t('workbench.output.database.results.mappingSaved', {
           key: selectedCandidateForBind.tagKey,
@@ -492,7 +531,7 @@ export function DatabaseTargetBoard({
     } finally {
       setIsBusy(false);
     }
-  }, [candidates, columnMappingByColumn, loadData, selectedConnectorId, selectedTable, selectedTagId, t, timestampColumn, writeMode]);
+  }, [candidates, columnMappingByColumn, loadData, refreshCandidateReview, selectedConnectorId, selectedTable, selectedTagId, t, timestampColumn, writeMode]);
 
   return (
     <section className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
@@ -910,6 +949,16 @@ export function DatabaseTargetBoard({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {selectedConnectorId && tables.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => void handleGenerateSchema()}
+                disabled={isBusy}
+                className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
+              >
+                {t('workbench.output.database.actions.generateSchema')}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => void handleRefreshValidation()}
@@ -919,6 +968,23 @@ export function DatabaseTargetBoard({
               {t('workbench.output.database.actions.refreshValidation')}
             </button>
           </div>
+
+          {dryRunResults?.length ? (
+            <div
+              data-testid="database-dry-run-results"
+              className="space-y-2 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
+            >
+              {dryRunResults.map((result) => (
+                <p key={`${result.candidate_id}-${result.status}`} className="text-sm text-slate-300">
+                  {result.status === 'ready'
+                    ? t('workbench.output.database.dryRun.ready')
+                    : t('workbench.output.database.dryRun.blocked', {
+                        reason: result.reason ?? result.code ?? 'unknown',
+                      })}
+                </p>
+              ))}
+            </div>
+          ) : null}
 
           <div
             className="space-y-4"

@@ -7,12 +7,18 @@ import {
   WorkbenchProvider,
   useWorkbench,
 } from '../../../../src/pages/datalink/workbench/WorkbenchProvider';
-import type { ModbusShareStatus } from '../../../../src/types/datalink';
+import type { ModbusShareStatus, SourceRuleRecord } from '../../../../src/types/datalink';
 import type { SourceRuleCandidateSnapshotView } from '../../../../src/types/sourceRuleCandidates';
 
-const { mockCandidateSnapshot } = vi.hoisted(() => ({
+const { mockCandidateSnapshot, mockPersistedRules, mockCandidateRuleId } = vi.hoisted(() => ({
   mockCandidateSnapshot: {
     value: null as SourceRuleCandidateSnapshotView | null,
+  },
+  mockPersistedRules: {
+    value: [] as SourceRuleRecord[],
+  },
+  mockCandidateRuleId: {
+    value: null as string | null,
   },
 }));
 
@@ -24,19 +30,45 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('../../../../src/hooks/datalink/useSourceRuleCandidates', () => ({
-  useSourceRuleCandidatesQuery: () => ({
-    data: mockCandidateSnapshot.value,
+  useSourceRuleCandidatesQuery: (ruleId?: string | null) => {
+    mockCandidateRuleId.value = ruleId ?? null;
+    return {
+      data: mockCandidateSnapshot.value,
+      isLoading: false,
+      isFetching: false,
+    };
+  },
+}));
+
+vi.mock('../../../../src/hooks/datalink/useSourceRules', () => ({
+  useSourceRulesQuery: () => ({
+    data: mockPersistedRules.value,
     isLoading: false,
-    isFetching: false,
+    isSuccess: true,
   }),
 }));
 
 function FocusedRuleBootstrap({ ruleId }: { ruleId: string }) {
-  const { setFocusedRuleId } = useWorkbench();
+  const { setFocusedRuleId, setSelectedDeviceId } = useWorkbench();
 
   useEffect(() => {
+    setSelectedDeviceId('device-1');
     setFocusedRuleId(ruleId);
-  }, [ruleId, setFocusedRuleId]);
+  }, [ruleId, setFocusedRuleId, setSelectedDeviceId]);
+
+  return null;
+}
+
+function SourcePlanningRuleBootstrap({ ruleId }: { ruleId: string }) {
+  const { setSelectedDeviceId, setSourcePlanningState } = useWorkbench();
+
+  useEffect(() => {
+    setSelectedDeviceId('device-1');
+    setSourcePlanningState((currentState) => ({
+      ...currentState,
+      selectedRuleId: ruleId,
+    }));
+  }, [ruleId, setSelectedDeviceId, setSourcePlanningState]);
 
   return null;
 }
@@ -53,6 +85,7 @@ function buildStatus(enabled: boolean): ModbusShareStatus {
 
 function renderSurface(options?: {
   focusedRuleId?: string | null;
+  sourcePlanningRuleId?: string | null;
   selectedTagId?: string;
   status?: ModbusShareStatus | null;
   conflictCount?: number;
@@ -68,6 +101,9 @@ function renderSurface(options?: {
     <QueryClientProvider client={queryClient}>
       <WorkbenchProvider>
         {options?.focusedRuleId ? <FocusedRuleBootstrap ruleId={options.focusedRuleId} /> : null}
+        {options?.sourcePlanningRuleId ? (
+          <SourcePlanningRuleBootstrap ruleId={options.sourcePlanningRuleId} />
+        ) : null}
         <SourceRuleLocalModbusReviewSurface
           selectedTagId={options?.selectedTagId ?? 'tag-1'}
           status={options?.status ?? buildStatus(false)}
@@ -81,6 +117,22 @@ function renderSurface(options?: {
 describe('SourceRuleLocalModbusReviewSurface', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCandidateRuleId.value = null;
+    mockPersistedRules.value = [{
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      template_name: '',
+      skipped_addresses: [],
+      created_at: '',
+      updated_at: '',
+    }];
     mockCandidateSnapshot.value = {
       source_rule_id: 'rule-1',
       revision_id: 'rev-1',
@@ -186,5 +238,27 @@ describe('SourceRuleLocalModbusReviewSurface', () => {
     });
 
     expect(screen.getByText('workbench.output.modbusReviewSurface.noRule')).toBeTruthy();
+  });
+
+  it('ignores draft-focused rules until they are persisted', () => {
+    mockPersistedRules.value = [];
+    mockCandidateSnapshot.value = null;
+
+    renderSurface({ focusedRuleId: 'rule-1' });
+
+    expect(mockCandidateRuleId.value).toBeNull();
+    expect(screen.getByText('workbench.output.modbusReviewSurface.noRule')).toBeTruthy();
+  });
+
+  it('falls back to the persisted source-planning rule when cross-step focus is empty', async () => {
+    renderSurface({
+      focusedRuleId: null,
+      sourcePlanningRuleId: 'rule-1',
+    });
+
+    await screen.findByTestId('local-modbus-review-surface');
+
+    expect(mockCandidateRuleId.value).toBe('rule-1');
+    expect(screen.getByTestId('local-modbus-review-revision')).toHaveTextContent('rev-1');
   });
 });

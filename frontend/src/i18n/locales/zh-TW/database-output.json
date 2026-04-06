@@ -1,0 +1,20 @@
+{
+  "workbench": {
+    "output": {
+      "database": {
+        "actions": {
+          "generateSchema": "產生 Schema"
+        },
+        "dryRun": {
+          "ready": "映射 dry-run 通過",
+          "blocked": "映射 dry-run 被阻擋：{{reason}}"
+        },
+        "results": {
+          "schemaGenerated": "已成功產生資料表結構",
+          "schemaGenerateNoChanges": "目前 scope 沒有可產生的資料表結構變更",
+          "schemaGenerateFailed": "產生資料表結構失敗"
+        }
+      }
+    }
+  }
+}
