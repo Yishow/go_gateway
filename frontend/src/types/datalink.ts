@@ -137,7 +137,6 @@ export interface ProtocolInfo {
 // =============================================================================
 // 點位相關
 // =============================================================================
-
 /** 點位 */
 export interface Point {
   id: string;
@@ -196,6 +195,7 @@ export interface SourceRuleRecord {
   skipped_addresses: string[];
   created_at: string;
   updated_at: string;
+  revision_id?: string;
   /** 目標資料型態（可空）。預設與 data_type 相同。 */
   target_data_type?: DataType;
   /** 縮放倍率（可空）。與 scale_offset 構成線性縮放。 */

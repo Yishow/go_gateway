@@ -11,11 +11,20 @@ export interface SourceRuleListFilters {
   enabled?: boolean;
 }
 
-export function useSourceRulesQuery(filters?: SourceRuleListFilters) {
+interface SourceRuleQueryOptions {
+  refetchInterval?: number | false;
+  refetchOnWindowFocus?: boolean;
+}
+
+export function useSourceRulesQuery(
+  filters?: SourceRuleListFilters,
+  options?: SourceRuleQueryOptions,
+) {
   return useQuery({
     queryKey: sourceRuleKeys.list(filters),
     queryFn: () => sourceRuleAPI.list(filters),
     enabled: Boolean(filters?.device_id),
+    ...options,
   });
 }
 

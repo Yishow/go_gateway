@@ -7,7 +7,7 @@
 ## 2. Step 3 review/apply flow
 
 - [x] 2.1 Update Step 3 to load tag candidates and pending mapping intent from the active source-rule revision
-- [ ] 2.2 Add stale revision detection and block tag apply until the review surface refreshes
+- [x] 2.2 Add stale revision detection and block tag apply until the review surface refreshes
 - [ ] 2.3 Add exception-handling actions for rename, skip, override, and batch review feedback
 
 ## 3. Tag apply APIs

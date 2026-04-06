@@ -10,6 +10,14 @@
         "reason": "Reason",
         "loading": "Loading generated tag candidates…",
         "loadFailed": "Failed to load the current rule review surface.",
+        "stale": {
+          "title": "This review surface is stale",
+          "description": "A newer source-rule revision exists. Refresh the review surface before continuing to apply decisions.",
+          "openRevision": "Open revision",
+          "latestRevision": "Latest revision",
+          "refresh": "Refresh review",
+          "refreshing": "Refreshing…"
+        },
         "empty": {
           "title": "No generated tag candidates for this rule",
           "description": "Return to Step 2 and confirm the active source-rule revision produced candidates before continuing."

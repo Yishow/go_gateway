@@ -12,11 +12,15 @@ const {
   mockPoints,
   mockSourceRules,
   mockCandidateViews,
+  mockSourceRulesRefetch,
+  mockCandidateRefetch,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
   mockSourceRules: [] as SourceRuleRecord[],
   mockCandidateViews: {} as Record<string, SourceRuleCandidateSnapshotView>,
+  mockSourceRulesRefetch: vi.fn(),
+  mockCandidateRefetch: vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -79,6 +83,8 @@ vi.mock('../../../../hooks/datalink/useSourceRules', () => ({
     data: mockSourceRules,
     isLoading: false,
     isSuccess: true,
+    isRefetching: false,
+    refetch: mockSourceRulesRefetch,
   }),
 }));
 
@@ -88,6 +94,8 @@ vi.mock('../../../../hooks/datalink/useSourceRuleCandidates', () => ({
     isLoading: false,
     isError: false,
     error: null,
+    isRefetching: false,
+    refetch: mockCandidateRefetch,
   }),
 }));
 
@@ -130,6 +138,8 @@ function renderTagStep(focusedRuleId?: string) {
 describe('DatalinkWorkbench tag review surface', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSourceRulesRefetch.mockResolvedValue({ data: mockSourceRules });
+    mockCandidateRefetch.mockResolvedValue({ data: null });
     mockDevices.splice(0, mockDevices.length, {
       id: 'device-1',
       name: 'Mixer PLC',
@@ -179,6 +189,7 @@ describe('DatalinkWorkbench tag review surface', () => {
       locked: false,
       origin: 'manual',
       skipped_addresses: [],
+      revision_id: 'rev-1',
       created_at: '',
       updated_at: '',
     });
@@ -247,6 +258,7 @@ describe('DatalinkWorkbench tag review surface', () => {
         locked: false,
         origin: 'manual',
         skipped_addresses: [],
+        revision_id: 'rev-1',
         created_at: '',
         updated_at: '',
       },
@@ -261,6 +273,7 @@ describe('DatalinkWorkbench tag review surface', () => {
         locked: false,
         origin: 'manual',
         skipped_addresses: [],
+        revision_id: 'rev-2',
         created_at: '',
         updated_at: '',
       },
@@ -348,5 +361,72 @@ describe('DatalinkWorkbench tag review surface', () => {
 
     expect(screen.queryByTestId('source-rule-tag-review-row-candidate-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('source-rule-tag-review-revision')).toHaveTextContent('rev-2');
+  });
+
+  it('marks the review state stale when the open candidate revision lags behind the latest rule revision', async () => {
+    mockSourceRules.push({
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      skipped_addresses: [],
+      revision_id: 'rev-2',
+      created_at: '',
+      updated_at: '',
+    });
+    mockCandidateViews['rule-1'] = {
+      source_rule_id: 'rule-1',
+      revision_id: 'rev-1',
+      tags: {
+        status: 'ready',
+        candidates: [
+          {
+            id: 'candidate-1',
+            identity: {
+              source_rule_id: 'rule-1',
+              candidate_type: 'tags',
+              candidate_kind: 'tag',
+              derived_from_rule_address: '40001',
+            },
+            proposed_signature: 'sig-1',
+            address: '40001',
+            point_id: 'point-1',
+            tag_key: 'SRC_40001',
+            display_name: 'Flow Sensor',
+            data_type: 'int16',
+            status: 'draft',
+          },
+        ],
+      },
+      database_outputs: {
+        status: 'deferred',
+        candidates: [],
+      },
+      local_modbus_outputs: {
+        status: 'deferred',
+        candidates: [],
+      },
+    };
+
+    renderTagStep('rule-1');
+
+    await waitFor(() =>
+      expect(screen.getByTestId('source-rule-tag-review-stale')).toBeInTheDocument(),
+    );
+
+    expect(screen.getByTestId('source-rule-tag-review-open-revision')).toHaveTextContent('rev-1');
+    expect(screen.getByTestId('source-rule-tag-review-latest-revision')).toHaveTextContent('rev-2');
+
+    fireEvent.click(screen.getByTestId('source-rule-tag-review-refresh'));
+
+    await waitFor(() => {
+      expect(mockSourceRulesRefetch).toHaveBeenCalledTimes(1);
+      expect(mockCandidateRefetch).toHaveBeenCalledTimes(1);
+    });
   });
 });

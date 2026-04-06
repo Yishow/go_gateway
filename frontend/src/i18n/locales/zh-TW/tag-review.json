@@ -10,6 +10,14 @@
         "reason": "原因",
         "loading": "正在載入自動產生的 Tag 候選…",
         "loadFailed": "目前規則的審查面板載入失敗。",
+        "stale": {
+          "title": "目前審查面板已過期",
+          "description": "這條規則已經有較新的 source-rule revision。請先刷新審查面板，再繼續套用審查決策。",
+          "openRevision": "目前開啟 revision",
+          "latestRevision": "最新 revision",
+          "refresh": "刷新審查面板",
+          "refreshing": "刷新中…"
+        },
         "empty": {
           "title": "這條規則目前沒有可審查的 Tag 候選",
           "description": "請先回到 Step 2，確認 active source rule revision 已經產生候選內容，再繼續往下。"

@@ -3,16 +3,23 @@ import { useTranslation } from 'react-i18next';
 import { useSourceRuleCandidatesQuery } from '../../../hooks/datalink/useSourceRuleCandidates';
 import { useSourceRulesQuery } from '../../../hooks/datalink/useSourceRules';
 import type { SourceRuleRecord } from '../../../types/datalink';
-import type { SourceRuleCandidateSetStatus, SourceRuleTagCandidateView } from '../../../types/sourceRuleCandidates';
+import type {
+  SourceRuleCandidateSetStatus,
+  SourceRuleTagCandidateView,
+} from '../../../types/sourceRuleCandidates';
 import { getDataTypeBitWidth } from './sourceCanvasModel';
 import { useWorkbench } from './WorkbenchProvider';
 
-function resolveActiveRuleId(rules: SourceRuleRecord[], preferredIds: Array<string | null | undefined>) {
+function resolveActiveRuleId(
+  rules: SourceRuleRecord[],
+  preferredIds: Array<string | null | undefined>,
+) {
   for (const candidateId of preferredIds) {
     if (candidateId && rules.some((rule) => rule.id === candidateId)) {
       return candidateId;
     }
   }
+
   return rules[0]?.id ?? null;
 }
 
@@ -50,15 +57,13 @@ function getMappingIntentTone(candidate: SourceRuleTagCandidateView) {
 
 export function SourceRuleTagReviewSurface() {
   const { t } = useTranslation();
-  const {
-    selectedDeviceId,
-    crossStepContext,
-    sourcePlanningState,
-    setFocusedRuleId,
-  } = useWorkbench();
-  const { data: rules = [] } = useSourceRulesQuery(
+  const { selectedDeviceId, crossStepContext, sourcePlanningState, setFocusedRuleId } =
+    useWorkbench();
+  const rulesQuery = useSourceRulesQuery(
     selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
+    selectedDeviceId ? { refetchInterval: 5000, refetchOnWindowFocus: true } : undefined,
   );
+  const { data: rules = [] } = rulesQuery;
 
   const persistedRules = useMemo(
     () => rules.filter((rule) => rule.device_id === selectedDeviceId),
@@ -74,10 +79,20 @@ export function SourceRuleTagReviewSurface() {
   const tagSet = candidateView?.tags;
   const tagCandidates = tagSet?.candidates ?? [];
   const pendingMappingCount = tagCandidates.filter((candidate) => !candidate.mapping_id).length;
+  const latestRevisionId = activeRule?.revision_id ?? null;
+  const openRevisionId = candidateView?.revision_id ?? null;
+  const staleReview = Boolean(
+    latestRevisionId && openRevisionId && latestRevisionId !== openRevisionId,
+  );
+  const refreshingReview = rulesQuery.isRefetching || candidateQuery.isRefetching;
 
   if (!selectedDeviceId || persistedRules.length === 0 || !activeRule) {
     return null;
   }
+
+  const handleRefreshReview = async () => {
+    await Promise.all([rulesQuery.refetch(), candidateQuery.refetch()]);
+  };
 
   return (
     <section
@@ -113,6 +128,60 @@ export function SourceRuleTagReviewSurface() {
           </select>
         </label>
       </div>
+
+      {staleReview ? (
+        <div
+          className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-amber-50"
+          data-testid="source-rule-tag-review-stale"
+        >
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">
+                {t('workbench.tag.reviewSurface.stale.title')}
+              </p>
+              <p className="text-sm leading-6 text-amber-50/85">
+                {t('workbench.tag.reviewSurface.stale.description')}
+              </p>
+              <dl className="grid gap-3 text-xs text-amber-100/85 md:grid-cols-2">
+                <div>
+                  <dt className="font-semibold uppercase tracking-[0.14em] text-amber-200/90">
+                    {t('workbench.tag.reviewSurface.stale.openRevision')}
+                  </dt>
+                  <dd
+                    className="mt-1 font-mono text-sm text-amber-50"
+                    data-testid="source-rule-tag-review-open-revision"
+                  >
+                    {openRevisionId}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-semibold uppercase tracking-[0.14em] text-amber-200/90">
+                    {t('workbench.tag.reviewSurface.stale.latestRevision')}
+                  </dt>
+                  <dd
+                    className="mt-1 font-mono text-sm text-amber-50"
+                    data-testid="source-rule-tag-review-latest-revision"
+                  >
+                    {latestRevisionId}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleRefreshReview()}
+              disabled={refreshingReview}
+              data-testid="source-rule-tag-review-refresh"
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300/40 bg-slate-950/40 px-4 text-sm font-semibold text-amber-50 transition hover:border-amber-200/60 hover:bg-slate-950/60 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t(
+                `workbench.tag.reviewSurface.stale.${refreshingReview ? 'refreshing' : 'refresh'}`,
+              )}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {candidateQuery.isLoading ? (
         <div
