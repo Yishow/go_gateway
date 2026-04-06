@@ -349,4 +349,36 @@ describe('DatalinkWorkbench tag review actions', () => {
       ).toBeInTheDocument();
     });
   });
+
+  it('disables Step 3 review actions when the open candidate revision is stale', async () => {
+    mockSourceRules[0].revision_id = 'rev-2';
+    mockCandidateViews['rule-1'] = {
+      ...mockCandidateViews['rule-1'],
+      revision_id: 'rev-1',
+    };
+    mockTags.push({
+      id: 'tag-override-1',
+      key: 'EXISTING_40002',
+      display_name: 'Existing tag',
+      description: '',
+      data_type: 'int16',
+      unit: '',
+      labels: null,
+      status: 'active',
+      created_at: '',
+      updated_at: '',
+    });
+
+    renderTagStep('rule-1');
+
+    await waitFor(() =>
+      expect(screen.getByTestId('source-rule-tag-review-stale')).toBeInTheDocument(),
+    );
+
+    expect(screen.getByTestId('source-rule-tag-review-rename-input-candidate-1')).toBeDisabled();
+    expect(screen.getByTestId('source-rule-tag-review-rename-save-candidate-1')).toBeDisabled();
+    expect(screen.getByTestId('source-rule-tag-review-skip-candidate-1')).toBeDisabled();
+    expect(screen.getByTestId('source-rule-tag-review-override-select-candidate-2')).toBeDisabled();
+    expect(screen.getByTestId('source-rule-tag-review-override-save-candidate-2')).toBeDisabled();
+  });
 });
