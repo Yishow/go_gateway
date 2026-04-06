@@ -20,4 +20,4 @@
 
 - [x] 4.1 Add tests for restart restore of Local Modbus rule-owned state
 - [x] 4.2 Add tests for conflict detection and selective blocking behavior
-- [ ] 4.3 Add tests proving Local Modbus apply does not affect Database state
+- [x] 4.3 Add tests proving Local Modbus apply does not affect Database state

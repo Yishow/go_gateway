@@ -67,6 +67,31 @@ func TestService_LocalModbusConflictRefresh_PreservesDatabaseSnapshot(t *testing
 	assert.NotEmpty(t, candidateA.BlockingReason)
 }
 
+func TestService_ApplyLocalModbusOutputCandidates_PreservesDatabaseSnapshot(t *testing.T) {
+	t.Parallel()
+
+	ctx, svc, rule := createLocalModbusApplyValidationRule(t, "device-lm-apply-db-isolation", "rule-lm-apply-db-isolation", "40081")
+	repo := svc.repo.(*MemoryRepository)
+
+	databasePayload := `{"candidates":[{"id":"db-apply-preserved","tag_key":"DB_APPLY_PRESERVED","connector_id":"connector-apply-preserved","table_name":"measurements","column_name":"line_a","status":"blocked","blocking_reason":"database scope pending"}]}`
+	setDatabaseSnapshotForRule(t, repo, rule.ID, rule.RevisionID, databasePayload, schema.SourceRuleCandidateStatusBlocked, "preserved database apply state")
+	beforeSnapshot := databaseSnapshotForRule(t, repo, rule.ID, rule.RevisionID)
+
+	localModbusPayload := `{"candidates":[{"id":"lm-apply-preserved","tag_id":"tag-apply-preserved","tag_key":"LM_APPLY_PRESERVED","register":9}]}`
+	setLocalModbusSnapshotForRule(t, repo, rule.ID, rule.RevisionID, localModbusPayload, schema.SourceRuleCandidateStatusReady, "")
+
+	response, err := svc.ApplyLocalModbusOutputCandidates(ctx, rule.ID, ApplyOutputCandidatesRequest{
+		RevisionID:   rule.RevisionID,
+		CandidateIDs: []string{"lm-apply-preserved"},
+	})
+	require.NoError(t, err)
+	require.Len(t, response.Results, 1)
+	assert.Equal(t, "success", response.Results[0].Status)
+	assert.Equal(t, "lm-apply-preserved", response.Results[0].CandidateID)
+
+	assertDatabaseSnapshotForRule(t, repo, rule.ID, rule.RevisionID, databasePayload, schema.SourceRuleCandidateStatusBlocked, "preserved database apply state", beforeSnapshot.GeneratedAt)
+}
+
 func setDatabaseSnapshotForRule(
 	t *testing.T,
 	repo *MemoryRepository,
