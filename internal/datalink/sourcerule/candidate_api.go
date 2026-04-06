@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -39,7 +40,10 @@ func (s *Service) GetCandidateView(ctx context.Context, ruleID string) (*Candida
 		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
 	}
 	if shouldRecomputeDatabaseCandidateView(snapshots) {
-		return s.RecomputeCandidateView(ctx, ruleID)
+		snapshots, err = s.recomputeDatabaseCandidateView(ctx, rule, snapshots)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return s.composeCandidateView(ctx, rule, snapshots)
 }
@@ -71,6 +75,81 @@ func shouldRecomputeDatabaseCandidateView(snapshots []*schema.SourceRuleCandidat
 		return snapshot.Status == schema.SourceRuleCandidateStatusBlocked
 	}
 	return false
+}
+
+func (s *Service) recomputeDatabaseCandidateView(
+	ctx context.Context,
+	rule *schema.SourceRule,
+	snapshots []*schema.SourceRuleCandidateSnapshot,
+) ([]*schema.SourceRuleCandidateSnapshot, error) {
+	nextSnapshots, err := s.buildDatabaseCandidateSnapshots(ctx, rule, snapshots)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.ReplaceCandidateSnapshots(ctx, nextSnapshots); err != nil {
+		return nil, fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
+	}
+	refreshedSnapshots, err := s.repo.ListCandidateSnapshots(ctx, rule.ID, rule.RevisionID)
+	if err != nil {
+		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
+	}
+	return refreshedSnapshots, nil
+}
+
+func (s *Service) buildDatabaseCandidateSnapshots(
+	ctx context.Context,
+	rule *schema.SourceRule,
+	snapshots []*schema.SourceRuleCandidateSnapshot,
+) ([]*schema.SourceRuleCandidateSnapshot, error) {
+	var tagsSnapshot *schema.SourceRuleCandidateSnapshot
+	var databaseSnapshot *schema.SourceRuleCandidateSnapshot
+	var localModbusSnapshot *schema.SourceRuleCandidateSnapshot
+	for _, snapshot := range snapshots {
+		if snapshot == nil {
+			continue
+		}
+		switch snapshot.CandidateType {
+		case schema.SourceRuleCandidateTypeTags:
+			tagsSnapshot = cloneCandidateSnapshot(snapshot)
+		case schema.SourceRuleCandidateTypeDatabaseOutputs:
+			databaseSnapshot = cloneCandidateSnapshot(snapshot)
+		case schema.SourceRuleCandidateTypeLocalModbusOutputs:
+			localModbusSnapshot = cloneCandidateSnapshot(snapshot)
+		}
+	}
+	if tagsSnapshot == nil {
+		return nil, fmt.Errorf("來源規則 %s revision %s 缺少 tags 候選快照", rule.ID, rule.RevisionID)
+	}
+	if databaseSnapshot == nil {
+		return nil, fmt.Errorf("來源規則 %s revision %s 缺少 database outputs 候選快照", rule.ID, rule.RevisionID)
+	}
+	if localModbusSnapshot == nil {
+		return nil, fmt.Errorf("來源規則 %s revision %s 缺少 local modbus outputs 候選快照", rule.ID, rule.RevisionID)
+	}
+
+	tagCandidates, err := decodeCandidatePayload[schema.SourceRuleTagCandidate](tagsSnapshot.Payload)
+	if err != nil {
+		return nil, fmt.Errorf("解析來源規則 tag 候選快照失敗: %w", err)
+	}
+	databaseCandidates, databaseStatus, databaseReason, err := s.buildDatabaseOutputCandidates(ctx, rule, tagCandidates)
+	if err != nil {
+		return nil, err
+	}
+	databasePayload, err := marshalCandidateSnapshotPayload(databaseCandidates)
+	if err != nil {
+		return nil, err
+	}
+
+	databaseSnapshot.Payload = databasePayload
+	databaseSnapshot.Status = databaseStatus
+	databaseSnapshot.Reason = databaseReason
+	databaseSnapshot.GeneratedAt = time.Now().UTC()
+
+	return []*schema.SourceRuleCandidateSnapshot{
+		tagsSnapshot,
+		databaseSnapshot,
+		localModbusSnapshot,
+	}, nil
 }
 
 func (s *Service) composeCandidateView(ctx context.Context, rule *schema.SourceRule, snapshots []*schema.SourceRuleCandidateSnapshot) (*CandidateSnapshotView, error) {
