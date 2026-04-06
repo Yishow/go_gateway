@@ -8,7 +8,7 @@
 
 - [x] 2.1 Detect overlapping register allocations and mark only the conflicting subset as `blocked_conflict`
 - [x] 2.2 Update the Local Modbus review surface to show conflict reasons, verification state, and health feedback inline
-- [ ] 2.3 Keep database candidate/apply state untouched during Local Modbus review and apply actions
+- [x] 2.3 Keep database candidate/apply state untouched during Local Modbus review and apply actions
 
 ## 3. Local Modbus apply APIs
 
