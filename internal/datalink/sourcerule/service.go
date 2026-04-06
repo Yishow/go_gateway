@@ -787,32 +787,6 @@ func (s *Service) replaceRuleLinks(ctx context.Context, ruleID string, previousL
 	return nil
 }
 
-func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule *schema.SourceRule, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool) (tagMappingSyncResult, error) {
-	result := tagMappingSyncResult{
-		updatedMappings: make(map[string]mappingRollbackState),
-		updatedTags:     make(map[string]tagRollbackState),
-	}
-	if s.tagSvc == nil || s.mappingSvc == nil || len(links) == 0 {
-		return result, nil
-	}
-
-	for _, link := range links {
-		pointRecord, err := s.pointSvc.GetByID(ctx, link.PointID)
-		if err != nil {
-			return result, fmt.Errorf("取得衍生點位失敗: %w", err)
-		}
-		tagRecord, mappingRecord, err := s.ensureRuleTagMapping(ctx, oldRule, rule, pointRecord, link, enabled, &result)
-		if err != nil {
-			return result, err
-		}
-		link.TagID = stringPtr(tagRecord.ID)
-		link.MappingID = stringPtr(mappingRecord.ID)
-		link.UpdatedAt = time.Now()
-	}
-
-	return result, nil
-}
-
 func (s *Service) ensureRuleTagMapping(
 	ctx context.Context,
 	oldRule *schema.SourceRule,

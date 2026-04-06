@@ -17,7 +17,9 @@ import (
 )
 
 func TestSourceRuleHandler_RecomputeCandidates_UpdatesPersistedCurrentSnapshot(t *testing.T) {
-	router, repo := setupSourceRuleCandidatesFixture(t)
+	fixture := setupSourceRuleCandidatesFixture(t)
+	router := fixture.router
+	repo := fixture.repo
 
 	createBody, err := json.Marshal(sourcerule.CreateRuleRequest{
 		ID:           "rule-recompute-persist",
@@ -100,7 +102,8 @@ func TestSourceRuleHandler_RecomputeCandidates_UpdatesPersistedCurrentSnapshot(t
 }
 
 func TestSourceRuleHandler_RecomputeCandidates_PreservesOutOfSyncReviewState(t *testing.T) {
-	router := setupSourceRuleCandidatesRouter(t)
+	fixture := setupSourceRuleCandidatesFixture(t)
+	router := fixture.router
 
 	createBody, err := json.Marshal(sourcerule.CreateRuleRequest{
 		ID:           "rule-out-of-sync-review",
@@ -119,6 +122,8 @@ func TestSourceRuleHandler_RecomputeCandidates_PreservesOutOfSyncReviewState(t *
 	createResp := httptest.NewRecorder()
 	router.ServeHTTP(createResp, createReq)
 	require.Equal(t, http.StatusCreated, createResp.Code)
+
+	seedAppliedRuleManagedLink(t, fixture, "rule-out-of-sync-review")
 
 	updateReq, err := http.NewRequest(http.MethodPut, "/datalink/source-rules/rule-out-of-sync-review", bytes.NewBufferString(`{"scale_multiplier":2}`))
 	require.NoError(t, err)

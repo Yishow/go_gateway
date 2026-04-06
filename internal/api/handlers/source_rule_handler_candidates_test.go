@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"go-gateway/internal/datalink/device"
@@ -20,7 +21,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupSourceRuleCandidatesFixture(t *testing.T) (*gin.Engine, *sourcerule.MemoryRepository) {
+type sourceRuleCandidatesFixture struct {
+	router     *gin.Engine
+	repo       *sourcerule.MemoryRepository
+	tagSvc     *tag.Service
+	mappingSvc *mapping.Service
+}
+
+type handlerTagSnapshotPayload struct {
+	Candidates []schema.SourceRuleTagCandidate `json:"candidates"`
+}
+
+func setupSourceRuleCandidatesFixture(t *testing.T) *sourceRuleCandidatesFixture {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -48,17 +60,85 @@ func setupSourceRuleCandidatesFixture(t *testing.T) (*gin.Engine, *sourcerule.Me
 	router.PUT("/datalink/source-rules/:id", handler.Update)
 	router.GET("/datalink/source-rules/:id/candidates", handler.Candidates)
 	router.POST("/datalink/source-rules/:id/candidates/recompute", handler.RecomputeCandidates)
-	return router, repo
+	return &sourceRuleCandidatesFixture{
+		router:     router,
+		repo:       repo,
+		tagSvc:     tagSvc,
+		mappingSvc: mappingSvc,
+	}
 }
 
 func setupSourceRuleCandidatesRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	router, _ := setupSourceRuleCandidatesFixture(t)
-	return router
+	return setupSourceRuleCandidatesFixture(t).router
+}
+
+func seedAppliedRuleManagedLink(t *testing.T, fixture *sourceRuleCandidatesFixture, ruleID string) {
+	t.Helper()
+
+	ctx := context.Background()
+	rule, err := fixture.repo.GetByID(ctx, ruleID)
+	require.NoError(t, err)
+
+	links, err := fixture.repo.ListLinks(ctx, ruleID)
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+
+	snapshots, err := fixture.repo.ListCandidateSnapshots(ctx, ruleID, rule.RevisionID)
+	require.NoError(t, err)
+
+	var candidate schema.SourceRuleTagCandidate
+	for _, snapshot := range snapshots {
+		if snapshot.CandidateType != schema.SourceRuleCandidateTypeTags {
+			continue
+		}
+		var payload handlerTagSnapshotPayload
+		require.NoError(t, json.Unmarshal([]byte(snapshot.Payload), &payload))
+		require.Len(t, payload.Candidates, 1)
+		candidate = payload.Candidates[0]
+		break
+	}
+	require.NotEmpty(t, candidate.ID)
+
+	tagRecord, err := fixture.tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         candidate.TagKey,
+		DisplayName: candidate.DisplayName,
+		DataType:    candidate.DataType,
+		Labels: map[string]string{
+			"source":              "source-rule",
+			"source_rule_id":      rule.ID,
+			"source_rule_address": strings.ToUpper(strings.TrimSpace(candidate.Address)),
+		},
+	})
+	require.NoError(t, err)
+
+	enabled := rule.Enabled
+	status := schema.MappingStatusActive
+	if !enabled {
+		status = schema.MappingStatusDraft
+	}
+	mappingRecord, err := fixture.mappingSvc.Create(ctx, mapping.CreateMappingRequest{
+		PointID:           links[0].PointID,
+		TagID:             tagRecord.ID,
+		Enabled:           &enabled,
+		TransformPipeline: candidate.TransformPipeline,
+		Status:            &status,
+	})
+	require.NoError(t, err)
+
+	links[0].TagID = stringPtr(tagRecord.ID)
+	links[0].MappingID = stringPtr(mappingRecord.ID)
+	require.NoError(t, fixture.repo.DeleteLinks(ctx, ruleID))
+	require.NoError(t, fixture.repo.CreateLinks(ctx, links))
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 func TestSourceRuleHandler_Candidates_ReturnsCurrentRevisionSnapshot(t *testing.T) {
-	router := setupSourceRuleCandidatesRouter(t)
+	fixture := setupSourceRuleCandidatesFixture(t)
+	router := fixture.router
 
 	createBody, err := json.Marshal(sourcerule.CreateRuleRequest{
 		ID:           "rule-candidates",
@@ -77,6 +157,8 @@ func TestSourceRuleHandler_Candidates_ReturnsCurrentRevisionSnapshot(t *testing.
 	createResp := httptest.NewRecorder()
 	router.ServeHTTP(createResp, createReq)
 	require.Equal(t, http.StatusCreated, createResp.Code)
+
+	seedAppliedRuleManagedLink(t, fixture, "rule-candidates")
 
 	updateReq, err := http.NewRequest(http.MethodPut, "/datalink/source-rules/rule-candidates", bytes.NewBufferString(`{"scale_multiplier":2}`))
 	require.NoError(t, err)
@@ -166,7 +248,7 @@ func TestSourceRuleHandler_RecomputeCandidates_ReturnsCurrentRevisionSnapshot(t 
 
 	candidate := tagCandidates[0].(map[string]any)
 	assert.NotEmpty(t, candidate["id"])
-	assert.Equal(t, "active", candidate["status"])
+	assert.Equal(t, "draft", candidate["status"])
 	assert.NotEmpty(t, candidate["proposed_signature"])
-	assert.NotEmpty(t, candidate["last_applied_signature"])
+	assert.Nil(t, candidate["last_applied_signature"])
 }

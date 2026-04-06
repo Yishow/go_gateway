@@ -323,103 +323,7 @@ func TestService_Enable_BlocksWhenDeviceNotActive(t *testing.T) {
 	assert.Contains(t, err.Error(), "activation readiness")
 }
 
-func TestService_Create_AutoCreatesTagAndMappingLinks(t *testing.T) {
-	ctx := context.Background()
-	deviceRepo := device.NewMemoryRepository()
-	pointRepo := point.NewMemoryRepository()
-	pointSvc := point.NewService(pointRepo, nil)
-	deviceSvc := device.NewService(deviceRepo, nil)
-	tagSvc := tag.NewService(tag.NewMemoryRepository())
-	mappingSvc := mapping.NewServiceWithTagResolver(mapping.NewMemoryRepository(), tagSvc.GetByID)
-	repo := NewMemoryRepository()
-	svc := NewService(repo, deviceSvc, pointSvc, nil)
-	svc.SetTagMappingServices(tagSvc, mappingSvc)
-
-	dev, err := seedActiveDevice(ctx, deviceRepo, "device-1")
-	require.NoError(t, err)
-
-	rule, err := svc.Create(ctx, CreateRuleRequest{
-		ID:           "rule-auto",
-		DeviceID:     dev.ID,
-		StartAddress: "40001",
-		Count:        2,
-		DataType:     schema.DataTypeInt16,
-		NamingPrefix: "MIXER",
-		Enabled:      true,
-	})
-	require.NoError(t, err)
-
-	links, err := svc.ListLinks(ctx, rule.ID)
-	require.NoError(t, err)
-	require.Len(t, links, 2)
-	for _, link := range links {
-		require.NotNil(t, link.TagID)
-		require.NotNil(t, link.MappingID)
-	}
-
-	tags, err := tagSvc.List(ctx, tag.ListFilter{})
-	require.NoError(t, err)
-	require.Len(t, tags, 2)
-	assert.ElementsMatch(t, []string{"MIXER_40001", "MIXER_40002"}, []string{tags[0].Key, tags[1].Key})
-
-	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
-	require.NoError(t, err)
-	require.Len(t, mappings, 2)
-	for _, item := range mappings {
-		assert.True(t, item.Enabled)
-	}
-}
-
-func TestService_EnableDisable_SyncsAutoCreatedMappingState(t *testing.T) {
-	ctx := context.Background()
-	deviceRepo := device.NewMemoryRepository()
-	pointRepo := point.NewMemoryRepository()
-	pointSvc := point.NewService(pointRepo, nil)
-	deviceSvc := device.NewService(deviceRepo, nil)
-	tagSvc := tag.NewService(tag.NewMemoryRepository())
-	mappingSvc := mapping.NewServiceWithTagResolver(mapping.NewMemoryRepository(), tagSvc.GetByID)
-	repo := NewMemoryRepository()
-	svc := NewService(repo, deviceSvc, pointSvc, nil)
-	svc.SetTagMappingServices(tagSvc, mappingSvc)
-
-	dev, err := seedActiveDevice(ctx, deviceRepo, "device-1")
-	require.NoError(t, err)
-
-	rule, err := svc.Create(ctx, CreateRuleRequest{
-		ID:           "rule-disabled",
-		DeviceID:     dev.ID,
-		StartAddress: "40001",
-		Count:        1,
-		DataType:     schema.DataTypeInt16,
-		NamingPrefix: "MIXER",
-		Enabled:      false,
-	})
-	require.NoError(t, err)
-	assert.False(t, rule.Enabled)
-
-	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
-	require.NoError(t, err)
-	require.Len(t, mappings, 1)
-	assert.False(t, mappings[0].Enabled)
-
-	require.NoError(t, svc.Enable(ctx, rule.ID))
-	mappings, err = mappingSvc.List(ctx, mapping.ListFilter{})
-	require.NoError(t, err)
-	require.Len(t, mappings, 1)
-	assert.True(t, mappings[0].Enabled)
-
-	require.NoError(t, svc.Disable(ctx, rule.ID))
-	mappings, err = mappingSvc.List(ctx, mapping.ListFilter{})
-	require.NoError(t, err)
-	require.Len(t, mappings, 1)
-	assert.False(t, mappings[0].Enabled)
-
-	tags, err := tagSvc.List(ctx, tag.ListFilter{})
-	require.NoError(t, err)
-	require.Len(t, tags, 1)
-}
-
-func TestService_SyncDerivedPointState_BackfillsTagMappingsForLegacyRuleLinks(t *testing.T) {
+func TestService_SyncDerivedPointState_DoesNotBackfillTagMappingsForPendingLinks(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -458,16 +362,19 @@ func TestService_SyncDerivedPointState_BackfillsTagMappingsForLegacyRuleLinks(t 
 	syncedLinks, err := syncSvc.ListLinks(ctx, rule.ID)
 	require.NoError(t, err)
 	require.Len(t, syncedLinks, 1)
-	require.NotNil(t, syncedLinks[0].TagID)
-	require.NotNil(t, syncedLinks[0].MappingID)
+	assert.Nil(t, syncedLinks[0].TagID)
+	assert.Nil(t, syncedLinks[0].MappingID)
 
 	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
 	require.NoError(t, err)
-	require.Len(t, mappings, 1)
-	assert.False(t, mappings[0].Enabled)
+	assert.Empty(t, mappings)
+
+	tags, err := tagSvc.List(ctx, tag.ListFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, tags)
 }
 
-func TestService_Create_RollsBackWhenGeneratedTagKeyCollides(t *testing.T) {
+func TestService_Create_AllowsCandidateTagKeyCollisionUntilApply(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -497,23 +404,27 @@ func TestService_Create_RollsBackWhenGeneratedTagKeyCollides(t *testing.T) {
 		NamingPrefix: "MIXER",
 		Enabled:      true,
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "資料型別衝突")
+	require.NoError(t, err)
 
 	rules, err := svc.List(ctx, ListFilter{DeviceID: &dev.ID})
 	require.NoError(t, err)
-	assert.Empty(t, rules)
+	require.Len(t, rules, 1)
 
 	points, err := pointSvc.List(ctx, point.ListFilter{DeviceID: &dev.ID})
 	require.NoError(t, err)
-	assert.Empty(t, points)
+	require.Len(t, points, 1)
 
 	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
 	require.NoError(t, err)
 	assert.Empty(t, mappings)
+
+	tags, err := tagSvc.List(ctx, tag.ListFilter{})
+	require.NoError(t, err)
+	require.Len(t, tags, 1)
+	assert.Equal(t, schema.DataTypeFloat32, tags[0].DataType)
 }
 
-func TestService_Update_RemovesOrphanedAutoTagsForShrunkRange(t *testing.T) {
+func TestService_Update_ShrunkRangeKeepsCandidatesPendingUntilApply(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -545,12 +456,17 @@ func TestService_Update_RemovesOrphanedAutoTagsForShrunkRange(t *testing.T) {
 
 	tags, err := tagSvc.List(ctx, tag.ListFilter{})
 	require.NoError(t, err)
-	require.Len(t, tags, 1)
-	assert.Equal(t, "MIXER_40001", tags[0].Key)
+	assert.Empty(t, tags)
 
 	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
 	require.NoError(t, err)
-	require.Len(t, mappings, 1)
+	assert.Empty(t, mappings)
+
+	links, err := svc.ListLinks(ctx, rule.ID)
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+	assert.Nil(t, links[0].TagID)
+	assert.Nil(t, links[0].MappingID)
 }
 
 func TestService_Update_RollsBackBackfilledPollingGroupOnFailure(t *testing.T) {
@@ -706,7 +622,7 @@ func seedDeviceWithStatus(ctx context.Context, repo *device.MemoryRepository, id
 // Target Data Type 與 Scale 相關測試
 // =============================================================================
 
-func TestService_Create_WithTargetDataType_CreatesTagWithTargetType(t *testing.T) {
+func TestService_Create_WithTargetDataType_PublishesCandidateWithTargetType(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -748,18 +664,16 @@ func TestService_Create_WithTargetDataType_CreatesTagWithTargetType(t *testing.T
 	require.NoError(t, err)
 	assert.Equal(t, schema.DataTypeUint16, pointRecord.DataType)
 
-	// 驗證 Tag 使用目標型別 float64
-	tagRecord, err := tagSvc.GetByID(ctx, *links[0].TagID)
-	require.NoError(t, err)
-	assert.Equal(t, schema.DataTypeFloat64, tagRecord.DataType)
+	assert.Nil(t, links[0].TagID)
+	assert.Nil(t, links[0].MappingID)
 
-	// 驗證 Mapping 包含 cast 步驟
-	mappingRecord, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
-	require.NoError(t, err)
-	require.NotEmpty(t, mappingRecord.TransformPipeline)
+	candidate := firstTagCandidateFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	assert.Equal(t, schema.DataTypeFloat64, candidate.DataType)
+	require.Len(t, candidate.TransformPipeline, 1)
+	assert.Equal(t, schema.TransformCast, candidate.TransformPipeline[0].Type)
 }
 
-func TestService_Create_WithScale_CreatesMappingWithScaleStep(t *testing.T) {
+func TestService_Create_WithScale_PublishesScalePipelineCandidate(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -797,19 +711,15 @@ func TestService_Create_WithScale_CreatesMappingWithScaleStep(t *testing.T) {
 	links, err := svc.ListLinks(ctx, rule.ID)
 	require.NoError(t, err)
 	require.Len(t, links, 1)
+	assert.Nil(t, links[0].TagID)
+	assert.Nil(t, links[0].MappingID)
 
-	mappingRecord, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
-	require.NoError(t, err)
-	require.NotEmpty(t, mappingRecord.TransformPipeline)
-
-	// 解析 pipeline 驗證 scale 步驟
-	var steps []schema.TransformStep
-	require.NoError(t, json.Unmarshal([]byte(mappingRecord.TransformPipeline), &steps))
-	require.Len(t, steps, 1)
-	assert.Equal(t, schema.TransformScale, steps[0].Type)
+	candidate := firstTagCandidateFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, candidate.TransformPipeline, 1)
+	assert.Equal(t, schema.TransformScale, candidate.TransformPipeline[0].Type)
 }
 
-func TestService_Create_WithTargetTypeAndScale_CreatesCastThenScalePipeline(t *testing.T) {
+func TestService_Create_WithTargetTypeAndScale_PublishesCastThenScaleCandidate(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -847,12 +757,11 @@ func TestService_Create_WithTargetTypeAndScale_CreatesCastThenScalePipeline(t *t
 	links, err := svc.ListLinks(ctx, rule.ID)
 	require.NoError(t, err)
 	require.Len(t, links, 1)
+	assert.Nil(t, links[0].TagID)
+	assert.Nil(t, links[0].MappingID)
 
-	mappingRecord, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
-	require.NoError(t, err)
-
-	var steps []schema.TransformStep
-	require.NoError(t, json.Unmarshal([]byte(mappingRecord.TransformPipeline), &steps))
+	candidate := firstTagCandidateFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	steps := candidate.TransformPipeline
 	require.Len(t, steps, 2)
 
 	// 驗證順序：先 cast，再 scale
@@ -893,8 +802,7 @@ func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
 		Enabled:      true,
 	})
 	require.NoError(t, err)
-	links, err := svc.ListLinks(ctx, rule.ID)
-	require.NoError(t, err)
+	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
 	tagRecord, err := tagSvc.GetByID(ctx, *links[0].TagID)
 	require.NoError(t, err)
 	assert.Equal(t, schema.DataTypeUint16, tagRecord.DataType)
@@ -958,9 +866,7 @@ func TestService_Update_ClearConversionSettings_RemovesTagCastAndScale(t *testin
 		ScaleOffset:     &offset,
 	})
 	require.NoError(t, err)
-	links, err := svc.ListLinks(ctx, rule.ID)
-	require.NoError(t, err)
-	require.Len(t, links, 1)
+	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
 	initialMapping, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
 	require.NoError(t, err)
 	initialPipeline := initialMapping.TransformPipeline

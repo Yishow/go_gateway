@@ -255,8 +255,8 @@ func assertSnapshotSet(t *testing.T, snapshots []*schema.SourceRuleCandidateSnap
 		assert.NotEmpty(t, tags.Candidates[0].ID)
 		assert.Equal(t, schema.SourceRuleCandidateKindTag, tags.Candidates[0].Identity.CandidateKind)
 		assert.NotEmpty(t, tags.Candidates[0].ProposedSignature)
-		assert.NotNil(t, tags.Candidates[0].TagID)
-		assert.NotNil(t, tags.Candidates[0].MappingID)
+		assert.Nil(t, tags.Candidates[0].TagID)
+		assert.Nil(t, tags.Candidates[0].MappingID)
 	}
 
 	databaseSnapshot := byType[schema.SourceRuleCandidateTypeDatabaseOutputs]
