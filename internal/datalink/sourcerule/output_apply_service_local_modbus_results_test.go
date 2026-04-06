@@ -14,7 +14,7 @@ func TestService_ApplyLocalModbusOutputCandidates_ReturnsPerItemResultsForPartia
 
 	ctx, svc, rule := createLocalModbusApplyValidationRule(t, "device-lm-apply-partial", "rule-lm-apply-partial", "40041")
 
-	localModbusPayload := `{"candidates":[{"id":"lm-candidate-ready","tag_key":"LM_READY","register":11}]}`
+	localModbusPayload := `{"candidates":[{"id":"lm-candidate-ready","tag_id":"tag-ready","tag_key":"LM_READY","register":11}]}`
 	setLocalModbusSnapshotForRule(t, svc.repo.(*MemoryRepository), rule.ID, rule.RevisionID, localModbusPayload, schema.SourceRuleCandidateStatusReady, "")
 
 	response, err := svc.ApplyLocalModbusOutputCandidates(ctx, rule.ID, ApplyOutputCandidatesRequest{

@@ -14,6 +14,16 @@ var (
 	ErrOutputApplyRevisionConflict = errors.New("output apply revision conflict")
 )
 
+const (
+	outputApplyCodeConflict             = "conflict"
+	outputApplyCodeConnectorUnavailable = "connector_unavailable"
+	outputApplyCodeOutOfSync            = "out_of_sync"
+	outputApplyCodeRegisterMissing      = "register_missing"
+	outputApplyCodeSchemaMissing        = "schema_missing"
+	outputApplyCodeTagMissing           = "tag_missing"
+	outputApplyCodeTypeConflict         = "type_conflict"
+)
+
 type ApplyOutputCandidatesRequest struct {
 	RevisionID   string   `json:"revision_id"`
 	CandidateIDs []string `json:"candidate_ids"`
@@ -212,27 +222,36 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 		return response, nil
 	}
 
-	candidates, err := decodeCandidatePayload[map[string]any](localModbusSnapshot.Payload)
+	candidates, err := decodeCandidatePayload[schema.SourceRuleLocalModbusOutputCandidate](localModbusSnapshot.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("解析來源規則 local modbus 候選快照失敗: %w", err)
 	}
-	candidateByID := make(map[string]struct{}, len(candidates))
+	candidateByID := make(map[string]schema.SourceRuleLocalModbusOutputCandidate, len(candidates))
 	for _, candidate := range candidates {
-		candidateID, _ := candidate["id"].(string)
-		candidateID = strings.TrimSpace(candidateID)
+		candidateID := strings.TrimSpace(candidate.ID)
 		if candidateID == "" {
 			continue
 		}
-		candidateByID[candidateID] = struct{}{}
+		candidateByID[candidateID] = candidate
 	}
 
 	for _, candidateID := range candidateIDs {
-		if _, exists := candidateByID[candidateID]; !exists {
+		candidate, exists := candidateByID[candidateID]
+		if !exists {
 			response.Results = append(response.Results, ApplyOutputCandidateResult{
 				CandidateID: candidateID,
 				Status:      "failed",
 				Code:        "validation",
 				Reason:      fmt.Sprintf("candidate %s not found in revision %s", candidateID, rule.RevisionID),
+			})
+			continue
+		}
+		if code, reason, blocked := verifyLocalModbusApplyCandidate(candidate); blocked {
+			response.Results = append(response.Results, ApplyOutputCandidateResult{
+				CandidateID: candidate.ID,
+				Status:      "failed",
+				Code:        code,
+				Reason:      reason,
 			})
 			continue
 		}
@@ -245,8 +264,23 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 	return response, nil
 }
 
-func validateApplyOutputCandidatesRequest(req ApplyOutputCandidatesRequest) ([]string, string, error) {
-	revisionID := strings.TrimSpace(req.RevisionID)
+func verifyLocalModbusApplyCandidate(candidate schema.SourceRuleLocalModbusOutputCandidate) (code string, reason string, blocked bool) {
+	switch {
+	case candidate.Status == schema.SourceRuleLocalModbusOutputStatusBlockedConflict:
+		return outputApplyCodeConflict, defaultReason(candidate.BlockingReason, "candidate is blocked by conflict"), true
+	case candidate.Status == schema.SourceRuleLocalModbusOutputStatusOutOfSync:
+		return outputApplyCodeOutOfSync, defaultReason(candidate.BlockingReason, "candidate is out of sync"), true
+	case candidate.TagID == nil || strings.TrimSpace(*candidate.TagID) == "":
+		return outputApplyCodeTagMissing, "local modbus tag is not configured", true
+	case candidate.Register == nil:
+		return outputApplyCodeRegisterMissing, "local modbus register is not configured", true
+	default:
+		return "", "", false
+	}
+}
+
+func validateApplyOutputCandidatesRequest(req ApplyOutputCandidatesRequest) (candidateIDs []string, revisionID string, err error) {
+	revisionID = strings.TrimSpace(req.RevisionID)
 	if revisionID == "" {
 		return nil, "", fmt.Errorf("%w: revision_id is required", ErrInvalidOutputApplyRequest)
 	}
@@ -255,7 +289,7 @@ func validateApplyOutputCandidatesRequest(req ApplyOutputCandidatesRequest) ([]s
 	}
 
 	seen := make(map[string]struct{}, len(req.CandidateIDs))
-	candidateIDs := make([]string, 0, len(req.CandidateIDs))
+	candidateIDs = make([]string, 0, len(req.CandidateIDs))
 	for _, candidateID := range req.CandidateIDs {
 		normalized := strings.TrimSpace(candidateID)
 		if normalized == "" {
@@ -283,10 +317,11 @@ func outputSnapshotByType(
 	return nil, fmt.Errorf("%w: candidate snapshot %s is missing", ErrInvalidOutputApplyRequest, candidateType)
 }
 
-func matchValidationIssue(
-	validation *DatabaseTargetConnectorValidation,
-	mappingID string,
-) (string, string, bool) {
+func matchValidationIssue(validation *DatabaseTargetConnectorValidation, mappingID string) (
+	issueCode string,
+	issueMessage string,
+	blocked bool,
+) {
 	if validation == nil {
 		return "", "", false
 	}
@@ -299,7 +334,7 @@ func matchValidationIssue(
 		}
 	}
 	if !validation.Ready {
-		return "connector_unavailable", "connector is not ready", true
+		return outputApplyCodeConnectorUnavailable, "connector is not ready", true
 	}
 	return "", "", false
 }
@@ -308,15 +343,15 @@ func mapValidationIssueCode(code string) string {
 	normalized := strings.TrimSpace(strings.ToLower(code))
 	switch normalized {
 	case "connector_unreachable", "connector_unavailable", "connector_auth_failed":
-		return "connector_unavailable"
+		return outputApplyCodeConnectorUnavailable
 	case "table_missing", "column_missing", "timestamp_missing", "timestamp_column_missing", "timestamp_column_not_unique":
-		return "schema_missing"
+		return outputApplyCodeSchemaMissing
 	case "column_type_mismatch", "type_conflict":
-		return "type_conflict"
+		return outputApplyCodeTypeConflict
 	case "mapping_missing":
-		return "schema_missing"
+		return outputApplyCodeSchemaMissing
 	default:
-		return "conflict"
+		return outputApplyCodeConflict
 	}
 }
 
@@ -324,19 +359,19 @@ func classifyDatabaseBlockingCode(reason string) string {
 	normalized := strings.ToLower(strings.TrimSpace(reason))
 	switch {
 	case normalized == "":
-		return "conflict"
+		return outputApplyCodeConflict
 	case strings.Contains(normalized, "table"), strings.Contains(normalized, "欄位"), strings.Contains(normalized, "schema"):
-		return "schema_missing"
+		return outputApplyCodeSchemaMissing
 	case strings.Contains(normalized, "unreachable"), strings.Contains(normalized, "連線"), strings.Contains(normalized, "connector"):
-		return "connector_unavailable"
+		return outputApplyCodeConnectorUnavailable
 	case strings.Contains(normalized, "type"):
-		return "type_conflict"
+		return outputApplyCodeTypeConflict
 	default:
-		return "conflict"
+		return outputApplyCodeConflict
 	}
 }
 
-func defaultReason(reason string, fallback string) string {
+func defaultReason(reason, fallback string) string {
 	trimmed := strings.TrimSpace(reason)
 	if trimmed != "" {
 		return trimmed

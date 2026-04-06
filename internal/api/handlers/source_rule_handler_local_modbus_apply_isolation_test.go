@@ -82,7 +82,7 @@ func TestSourceRuleHandler_ApplyLocalModbusOutputs_PreservesDatabaseSnapshot(t *
 	databasePayload := `{"candidates":[{"id":"db-handler-preserved","tag_key":"DB_HANDLER","connector_id":"connector-handler","table_name":"measurements","column_name":"line_a","status":"blocked","blocking_reason":"database context pending"}]}`
 	setHandlerDatabaseSnapshot(t, fixture, rule.ID, rule.RevisionID, databasePayload, schema.SourceRuleCandidateStatusBlocked, "preserved database handler state")
 
-	localModbusPayload := `{"candidates":[{"id":"lm-handler-preserved","tag_key":"LM_HANDLER","register":11}]}`
+	localModbusPayload := `{"candidates":[{"id":"lm-handler-preserved","tag_id":"tag-handler","tag_key":"LM_HANDLER","register":11}]}`
 	setHandlerLocalModbusSnapshot(t, fixture, rule.ID, rule.RevisionID, localModbusPayload, schema.SourceRuleCandidateStatusReady, "")
 
 	applyBody, err := json.Marshal(sourcerule.ApplyOutputCandidatesRequest{

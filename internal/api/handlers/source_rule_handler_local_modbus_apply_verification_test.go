@@ -15,29 +15,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSourceRuleHandler_ApplyLocalModbusOutputs_ReturnsPerCandidateResultsForPartialSuccess(t *testing.T) {
+func TestSourceRuleHandler_ApplyLocalModbusOutputs_MissingRegisterReturnsFailedResult(t *testing.T) {
 	t.Parallel()
 
 	fixture := setupSourceRuleCandidatesFixture(t)
-	createRuleCandidatesForDecisionTest(t, fixture, "rule-lm-apply-partial", "40041", 1)
+	createRuleCandidatesForDecisionTest(t, fixture, "rule-lm-apply-verify-register", "40062", 1)
 
 	ctx := context.Background()
-	rule, err := fixture.repo.GetByID(ctx, "rule-lm-apply-partial")
+	rule, err := fixture.repo.GetByID(ctx, "rule-lm-apply-verify-register")
 	require.NoError(t, err)
 
-	localModbusPayload := `{"candidates":[{"id":"lm-candidate-ready","tag_id":"tag-ready","tag_key":"LM_READY","register":11}]}`
+	localModbusPayload := `{"candidates":[{"id":"lm-candidate-pending-register","tag_id":"tag-register","tag_key":"LM_PENDING_REGISTER","status":"deferred"}]}`
 	setHandlerLocalModbusSnapshot(t, fixture, rule.ID, rule.RevisionID, localModbusPayload, schema.SourceRuleCandidateStatusReady, "")
 
 	applyBody, err := json.Marshal(sourcerule.ApplyOutputCandidatesRequest{
 		RevisionID:   rule.RevisionID,
-		CandidateIDs: []string{"lm-candidate-ready", "lm-candidate-missing"},
+		CandidateIDs: []string{"lm-candidate-pending-register"},
 	})
 	require.NoError(t, err)
 
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		"/datalink/source-rules/rule-lm-apply-partial/local-modbus/apply",
+		"/datalink/source-rules/rule-lm-apply-verify-register/local-modbus/apply",
 		bytes.NewBuffer(applyBody),
 	)
 	require.NoError(t, err)
@@ -52,13 +52,9 @@ func TestSourceRuleHandler_ApplyLocalModbusOutputs_ReturnsPerCandidateResultsFor
 	assert.Equal(t, true, payload["success"])
 
 	results := payload["data"].(map[string]any)["results"].([]any)
-	require.Len(t, results, 2)
-
-	assert.Equal(t, "lm-candidate-ready", results[0].(map[string]any)["candidate_id"])
-	assert.Equal(t, "success", results[0].(map[string]any)["status"])
-
-	assert.Equal(t, "lm-candidate-missing", results[1].(map[string]any)["candidate_id"])
-	assert.Equal(t, "failed", results[1].(map[string]any)["status"])
-	assert.Equal(t, "validation", results[1].(map[string]any)["code"])
-	assert.Equal(t, "candidate lm-candidate-missing not found in revision "+rule.RevisionID, results[1].(map[string]any)["reason"])
+	require.Len(t, results, 1)
+	assert.Equal(t, "lm-candidate-pending-register", results[0].(map[string]any)["candidate_id"])
+	assert.Equal(t, "failed", results[0].(map[string]any)["status"])
+	assert.Equal(t, "register_missing", results[0].(map[string]any)["code"])
+	assert.Equal(t, "local modbus register is not configured", results[0].(map[string]any)["reason"])
 }
