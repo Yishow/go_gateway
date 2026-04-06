@@ -1,7 +1,7 @@
 ## 1. Persistent Local Modbus state
 
 - [x] 1.1 Persist rule-owned Local Modbus mapping ownership and revision metadata
-- [ ] 1.2 Restore Local Modbus candidate and applied mapping state after restart
+- [x] 1.2 Restore Local Modbus candidate and applied mapping state after restart
 - [ ] 1.3 Bind Local Modbus candidates to the active source-rule revision and effective tag state
 
 ## 2. Conflict-governed review/apply flow

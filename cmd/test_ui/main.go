@@ -228,6 +228,15 @@ func main() {
 	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
 		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
 	}
+	if err := sourceRuleSvc.RestoreLocalModbusMappingState(
+		context.Background(),
+		sourcerule.LocalModbusMappingUpsertFunc(func(ctx context.Context, mappingRecord sourcerule.LocalModbusMappingRecord) error {
+			_, err := modbusShareSvc.UpsertMapping(ctx, mappingRecord.TagID, mappingRecord.Register)
+			return err
+		}),
+	); err != nil {
+		log.Printf("還原 Local Modbus 規則狀態失敗: %v", err)
+	}
 	if err := runtimeSvc.Start(context.Background()); err != nil {
 		log.Printf("datalink runtime 啟動失敗，runtime 功能將不可用: %v", err)
 	}

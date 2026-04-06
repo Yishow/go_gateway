@@ -27,6 +27,16 @@ func (fn LocalModbusMappingListFunc) List(ctx context.Context) ([]LocalModbusMap
 	return fn(ctx)
 }
 
+type LocalModbusMappingWriter interface {
+	Upsert(ctx context.Context, mappingRecord LocalModbusMappingRecord) error
+}
+
+type LocalModbusMappingUpsertFunc func(ctx context.Context, mappingRecord LocalModbusMappingRecord) error
+
+func (fn LocalModbusMappingUpsertFunc) Upsert(ctx context.Context, mappingRecord LocalModbusMappingRecord) error {
+	return fn(ctx, mappingRecord)
+}
+
 func (s *Service) SetLocalModbusMappingReader(reader LocalModbusMappingReader) {
 	if reader == nil {
 		localModbusMappingReaders.Delete(s)
