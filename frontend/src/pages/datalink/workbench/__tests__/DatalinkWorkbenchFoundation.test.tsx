@@ -541,6 +541,26 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(window.location.pathname).toBe('/studio');
   });
 
+  it('keeps source engineering tools inside /studio instead of opening another workflow route', async () => {
+    window.history.pushState({}, '', '/studio');
+
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.source/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+
+    fireEvent.click(screen.getByTestId('source-toolbar-more-trigger'));
+
+    expect(screen.getByTestId('source-toolbar-more-menu')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/studio');
+  });
+
   it('redirects /datalink into /studio', async () => {
     window.history.pushState({}, '', '/datalink');
 
