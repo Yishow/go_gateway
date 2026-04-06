@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import TestPage from './pages/TestPage'
 import TestPageShell from './pages/TestPageShell'
 import {
+  buildWorkbenchRedirect,
   buildDashboardModalRedirect,
   buildLegacyMigrationRedirect,
   buildLocalModbusCompatRedirect,
@@ -20,7 +21,7 @@ function LocalModbusCompatRoute() {
 
 function LegacyStudioRedirect() {
   const location = useLocation()
-  const destination = location.search ? `/studio${location.search}` : '/studio'
+  const destination = `${buildWorkbenchRedirect()}${location.search}${location.hash}`
   return <Navigate to={destination} replace />
 }
 
@@ -49,6 +50,7 @@ function AppRoutes() {
       {/* Datalink legacy routes */}
       <Route path="/datalink" element={<LegacyStudioRedirect />} />
       <Route path="/datalink/workbench" element={<LegacyStudioRedirect />} />
+      <Route path="/datalink/workbench/*" element={<LegacyStudioRedirect />} />
       <Route path="/datalink/dashboard-legacy" element={<LegacyStudioRedirect />} />
       <Route path="/datalink/devices-legacy" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
       <Route path="/datalink/devices" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />

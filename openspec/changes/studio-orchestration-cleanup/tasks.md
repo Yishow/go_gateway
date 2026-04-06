@@ -1,6 +1,6 @@
 ## 1. Route consolidation
 
-- [ ] 1.1 Redirect legacy `/datalink/workbench` entry points into `/studio`
+- [x] 1.1 Redirect legacy `/datalink/workbench` entry points into `/studio`
 - [ ] 1.2 Preserve step or selection context on redirect where feasible
 - [ ] 1.3 Remove shell-level assumptions that `/datalink/workbench` remains a separate primary workflow
 

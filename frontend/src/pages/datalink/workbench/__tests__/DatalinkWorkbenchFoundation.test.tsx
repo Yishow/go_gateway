@@ -102,6 +102,7 @@ vi.mock('@/router/gateway', () => ({
 }));
 
 vi.mock('@/features/datalink/legacyRoutes', () => ({
+  buildWorkbenchRedirect: () => '/studio',
   buildDashboardModalRedirect: (intent: string) => `/mock/dashboard/${intent}`,
   buildLegacyMigrationRedirect: (intent: string) => `/mock/legacy/${intent}`,
   buildLocalModbusCompatRedirect: (section?: string | null) =>
@@ -363,6 +364,24 @@ describe('DatalinkWorkbench foundation route', () => {
     );
     expect(window.location.pathname).toBe('/studio');
     expect(window.location.search).toContain('step=output');
+  });
+
+  it('redirects nested legacy workbench entries into /studio while preserving query context', async () => {
+    window.history.pushState({}, '', '/datalink/workbench/legacy-output?step=output&target=database');
+
+    renderApp();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-current', 'step');
+    });
+    expect(screen.getByTestId('active-output-target')).toHaveTextContent(
+      'workbench.bottomSummary.targets.database',
+    );
+    expect(window.location.pathname).toBe('/studio');
+    expect(window.location.search).toContain('step=output');
+    expect(window.location.search).toContain('target=database');
   });
 
   it('renders the main operator flow through /studio', async () => {
