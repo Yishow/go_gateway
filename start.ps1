@@ -321,8 +321,10 @@ function Write-RuntimeLogLine {
         }
         if ($msg -match "127\.0\.0\.1:5020") {
             Write-ColorOutput "[BOOT] Local Modbus share started on 127.0.0.1:5020" "Green"
-        } elseif ($msg -match "localhost:8080") {
-            Write-ColorOutput "[BOOT] Server started at http://localhost:8080" "Green"
+        } elseif ($msg -match "測試工具伺服器啟動於\s*(?<url>https?://\S+)") {
+            Write-ColorOutput ("[BOOT] Server started at {0}" -f $Matches.url) "Green"
+        } elseif ($msg -match "測試工具伺服器啟動於") {
+            Write-ColorOutput "[BOOT] Server started" "Green"
         } elseif ($msg -match "資料庫路徑") {
             Write-ColorOutput "[BOOT] Database initialized" "DarkGray"
         } elseif ($Verbose) {
@@ -342,7 +344,7 @@ function Write-RuntimeLogLine {
         Write-ColorOutput $Line "Red"
     } elseif ($Line -match "WARN|Warning|⚠") {
         Write-ColorOutput $Line "Yellow"
-    } elseif ($Line -match "啟動於|localhost:8080|本機 Modbus 分享服務已啟動") {
+    } elseif ($Line -match "啟動於|本機 Modbus 分享服務已啟動") {
         Write-ColorOutput $Line "Green"
     } else {
         Write-ColorOutput $Line "DarkGray"

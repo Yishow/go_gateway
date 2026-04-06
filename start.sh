@@ -120,8 +120,9 @@ runtime_log_line() {
     fi
     if [[ "$msg" == *"127.0.0.1:5020"* ]]; then
       printf "\033[32m[BOOT] Local Modbus share started on 127.0.0.1:5020\033[0m\n"
-    elif [[ "$msg" == *"localhost:8080"* ]]; then
-      printf "\033[32m[BOOT] Server started at http://localhost:8080\033[0m\n"
+    elif [[ "$msg" == *"測試工具伺服器啟動於 "* ]]; then
+      local startup_url="${msg##*啟動於 }"
+      printf "\033[32m[BOOT] Server started at %s\033[0m\n" "$startup_url"
     elif [[ "$msg" == *"資料庫路徑"* ]]; then
       printf "\033[90m[BOOT] Database initialized\033[0m\n"
     elif [[ "$VERBOSE" == true ]]; then
@@ -143,7 +144,7 @@ runtime_log_line() {
     printf "\033[31m%s\033[0m\n" "$line"
   elif [[ "$line" =~ WARN|Warning ]]; then
     printf "\033[33m%s\033[0m\n" "$line"
-  elif [[ "$line" =~ 啟動於|localhost:8080|本機\ Modbus\ 分享服務已啟動 ]]; then
+  elif [[ "$line" =~ 啟動於|本機\ Modbus\ 分享服務已啟動 ]]; then
     printf "\033[32m%s\033[0m\n" "$line"
   else
     printf "\033[90m%s\033[0m\n" "$line"
