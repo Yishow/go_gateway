@@ -194,7 +194,7 @@ describe('DatalinkWorkbench foundation route', () => {
     );
   }
 
-  it('renders a real device setup step through /datalink/workbench', () => {
+  it('redirects /datalink/workbench into /studio and renders the device step', () => {
     renderApp();
 
     expect(
@@ -210,6 +210,7 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(screen.getByText('Backup PLC')).toBeInTheDocument();
     expect(screen.queryByText('workbench.placeholders.device')).not.toBeInTheDocument();
     expect(screen.getByTestId('workbench-inspector-panel')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/studio');
   });
 
   it('keeps Step 1 search, protocol filter, and create action inside one primary toolbar', () => {
@@ -323,6 +324,9 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(screen.getByTestId('active-output-target')).toHaveTextContent(
       'workbench.bottomSummary.targets.database',
     );
+    expect(window.location.pathname).toBe('/studio');
+    expect(window.location.search).toContain('step=output');
+    expect(window.location.search).toContain('target=database');
   });
 
   it('does not lock step navigation after a deep-link is applied', async () => {

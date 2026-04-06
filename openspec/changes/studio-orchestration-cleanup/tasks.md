@@ -12,6 +12,6 @@
 
 ## 3. Validation
 
-- [ ] 3.1 Add tests for legacy route redirects into `/studio`
+- [x] 3.1 Add tests for legacy route redirects into `/studio`
 - [ ] 3.2 Add tests proving the normal operator workflow completes inside `/studio`
 - [ ] 3.3 Add tests that secondary engineering tools do not replace `/studio` as the primary workflow route
