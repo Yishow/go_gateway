@@ -757,7 +757,11 @@ export const dbTargetAPI = {
     const res = await api.get<APIResponse<DatabaseTargetValidationResult>>(
       `/db-targets/connectors/${id}/validate`,
     );
-    return res.data.data ?? { ready: false, issues: [] };
+    const data = res.data.data;
+    return {
+      ready: data?.ready ?? false,
+      issues: data?.issues ?? [],
+    };
   },
 
   async listMappings(params?: {

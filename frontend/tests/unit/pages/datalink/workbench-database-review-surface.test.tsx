@@ -303,4 +303,32 @@ describe('SourceRuleDatabaseTargetBoard', () => {
       screen.getByText((content) => content.includes('Connector schema drift detected')),
     ).toBeInTheDocument();
   });
+
+  it('keeps rendering when validation refresh returns ready with null issues', async () => {
+    vi.mocked(dbTargetAPI.validateConnector).mockReset();
+    vi.mocked(dbTargetAPI.validateConnector)
+      .mockResolvedValueOnce(buildValidation())
+      .mockResolvedValueOnce({
+        ready: true,
+        issues: null,
+      } as unknown as DatabaseTargetValidationResult);
+
+    renderBoard();
+
+    await screen.findByTestId('database-output-review-surface');
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'workbench.output.database.actions.refreshValidation',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(dbTargetAPI.validateConnector).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByTestId('database-output-review-surface')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'workbench.output.database.results.validationRefreshed',
+    );
+  });
 });

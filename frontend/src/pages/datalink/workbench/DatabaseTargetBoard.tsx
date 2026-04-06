@@ -31,6 +31,7 @@ import {
   parseTableKey,
   statusBadgeClasses,
 } from './databaseTargetBoardUtils';
+import { useRefreshSourceRuleCandidates } from './useRefreshSourceRuleCandidates';
 import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 
 type DatabaseTargetBoardProps = {
@@ -50,6 +51,7 @@ export function DatabaseTargetBoard({
   reviewSet = null,
   reviewLoading = false,
 }: DatabaseTargetBoardProps) {
+  const refreshCandidateReview = useRefreshSourceRuleCandidates();
   const { t } = useTranslation();
   const tRef = useRef(t);
   tRef.current = t;
@@ -94,11 +96,11 @@ export function DatabaseTargetBoard({
       mappings.filter((mapping) => mapping.connector_id === selectedConnectorId),
     [mappings, selectedConnectorId],
   );
-  const validationErrorCount = useMemo(
-    () =>
-      validation?.issues.filter((issue) => issue.severity === 'error').length ?? 0,
-    [validation],
-  );
+  const validationIssues = validation?.issues ?? [];
+  const validationReady = validation?.ready ?? false;
+  const validationErrorCount = validationIssues.filter(
+    (issue) => issue.severity === 'error',
+  ).length;
 
   const loadData = useCallback(async () => {
     setIsBusy(true);
@@ -174,12 +176,10 @@ export function DatabaseTargetBoard({
       setClearSavedPassword(false);
     }
   }, [clearSavedPassword, draft.kind]);
-
   useEffect(() => {
     if (!selectedMapping) {
       return;
     }
-
     const nextTableKey = `${selectedMapping.table_schema}.${selectedMapping.table_name}`;
     const nextWriteMode = selectedMapping.write_mode;
     const nextTimestampColumn =
@@ -205,7 +205,6 @@ export function DatabaseTargetBoard({
       };
     });
   }, [selectedMapping]);
-
   useEffect(() => {
     setScope((previous) => {
       if (!selectedConnectorId) {
@@ -265,7 +264,6 @@ export function DatabaseTargetBoard({
       };
     });
   }, [columnName, selectedConnectorId, selectedMapping, tableKey, tables, timestampColumn, writeMode]);
-
   const handleNewConnector = useCallback(() => {
     setScope(DATABASE_OUTPUT_SCOPE_INITIAL);
     setIsConnectorEditorOpen(true);
@@ -275,21 +273,18 @@ export function DatabaseTargetBoard({
     setValidation(null);
     setMessage('');
   }, []);
-
   const handleConnectorField = useCallback(
     <K extends keyof ConnectorDraft,>(key: K, value: ConnectorDraft[K]) => {
       setDraft((previous) => ({ ...previous, [key]: value }));
     },
     [],
   );
-
   const handleSaveConnector = useCallback(async () => {
     const trimmedName = draft.name.trim();
     if (!trimmedName) {
       setMessage(t('workbench.output.database.results.connectorNameRequired'));
       return;
     }
-
     if (draft.kind === 'sqlite' && !draft.sqliteDsn.trim()) {
       setMessage(t('workbench.output.database.results.sqliteDsnRequired'));
       return;
@@ -312,12 +307,12 @@ export function DatabaseTargetBoard({
               : undefined,
           })
         : await dbTargetAPI.createConnector(payload);
-
       setScope(() => ({
         ...DATABASE_OUTPUT_SCOPE_INITIAL,
         connectorId: connector.id,
       }));
       await loadData();
+      await refreshCandidateReview();
       setMessage(
         t('workbench.output.database.results.connectorSaved', {
           name: connector.name,
@@ -330,14 +325,12 @@ export function DatabaseTargetBoard({
     } finally {
       setIsBusy(false);
     }
-  }, [canClearSavedPassword, clearSavedPassword, draft, loadData, selectedConnectorId, t]);
-
+  }, [canClearSavedPassword, clearSavedPassword, draft, loadData, refreshCandidateReview, selectedConnectorId, t]);
   const handleTestConnector = useCallback(async () => {
     if (!selectedConnectorId) {
       setMessage(t('workbench.output.database.results.connectorNotSaved'));
       return;
     }
-
     setIsBusy(true);
     try {
       const connector = await dbTargetAPI.testConnector(selectedConnectorId);
@@ -346,6 +339,7 @@ export function DatabaseTargetBoard({
         connectorId: connector.id,
       }));
       await loadData();
+      await refreshCandidateReview();
       setMessage(
         t('workbench.output.database.results.connectorTested', {
           status: connector.status,
@@ -358,13 +352,11 @@ export function DatabaseTargetBoard({
     } finally {
       setIsBusy(false);
     }
-  }, [loadData, selectedConnectorId, t]);
-
+  }, [loadData, refreshCandidateReview, selectedConnectorId, t]);
   const handleDeleteConnector = useCallback(async () => {
     if (!selectedConnectorId || !selectedConnector) {
       return;
     }
-
     setIsBusy(true);
     try {
       await dbTargetAPI.deleteConnector(selectedConnectorId);
@@ -385,17 +377,18 @@ export function DatabaseTargetBoard({
       setIsBusy(false);
     }
   }, [loadData, selectedConnector, selectedConnectorId, t]);
-
   const handleRefreshValidation = useCallback(async () => {
     if (!selectedConnectorId) {
       setMessage(t('workbench.output.database.results.connectorNotSaved'));
       return;
     }
-
     setIsBusy(true);
     try {
       const nextValidation = await dbTargetAPI.validateConnector(selectedConnectorId);
       setValidation(nextValidation);
+      if (nextValidation.ready) {
+        await refreshCandidateReview();
+      }
       setMessage(
         t('workbench.output.database.results.validationRefreshed', {
           ready: nextValidation.ready
@@ -413,8 +406,7 @@ export function DatabaseTargetBoard({
     } finally {
       setIsBusy(false);
     }
-  }, [selectedConnectorId, t]);
-
+  }, [refreshCandidateReview, selectedConnectorId, t]);
   const currentTableFromKey = parseTableKey(tableKey);
   const mappedTagCount = connectorMappings.length;
   const schemaColumns = selectedTable?.columns ?? [];
@@ -1070,15 +1062,15 @@ export function DatabaseTargetBoard({
             </div>
           </div>
 
-          {validation?.issues.length ? (
+          {validationIssues.length ? (
             <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <p className="text-sm font-semibold text-slate-50">
-                {validation.ready
+                {validationReady
                   ? t('workbench.output.database.validation.ready')
                   : t('workbench.output.database.validation.notReady')}
               </p>
               <ul className="space-y-2 text-sm text-slate-300">
-                {validation.issues.map((issue) => (
+                {validationIssues.map((issue) => (
                   <li
                     key={`${issue.code}-${issue.mapping_id ?? 'global'}-${issue.tag_id ?? 'none'}`}
                     className={`rounded-xl border px-3 py-2 ${

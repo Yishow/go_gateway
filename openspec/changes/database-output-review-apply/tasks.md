@@ -7,7 +7,7 @@
 ## 2. Database review/apply flow
 
 - [x] 2.1 Update the database output workspace to show rule-scoped candidates and current connector context together
-- [ ] 2.2 Revalidate blocked database candidates automatically when the original connector context becomes valid again
+- [x] 2.2 Revalidate blocked database candidates automatically when the original connector context becomes valid again
 - [ ] 2.3 Keep Local Modbus candidate/apply state untouched during database review and apply actions
 
 ## 3. Database apply APIs

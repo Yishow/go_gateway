@@ -38,6 +38,9 @@ func (s *Service) GetCandidateView(ctx context.Context, ruleID string) (*Candida
 	if err != nil {
 		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
 	}
+	if shouldRecomputeDatabaseCandidateView(snapshots) {
+		return s.RecomputeCandidateView(ctx, ruleID)
+	}
 	return s.composeCandidateView(ctx, rule, snapshots)
 }
 
@@ -50,14 +53,24 @@ func (s *Service) RecomputeCandidateView(ctx context.Context, ruleID string) (*C
 	if err != nil {
 		return nil, fmt.Errorf("列出來源規則連結失敗: %w", err)
 	}
-	snapshots, err := s.buildCandidateSnapshots(ctx, rule, links)
-	if err != nil {
+	if err := s.persistCandidateSnapshots(ctx, rule, links); err != nil {
 		return nil, err
 	}
-	if err := s.repo.ReplaceCandidateSnapshots(ctx, snapshots); err != nil {
-		return nil, fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
+	snapshots, err := s.repo.ListCandidateSnapshots(ctx, rule.ID, rule.RevisionID)
+	if err != nil {
+		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
 	}
 	return s.composeCandidateView(ctx, rule, snapshots)
+}
+
+func shouldRecomputeDatabaseCandidateView(snapshots []*schema.SourceRuleCandidateSnapshot) bool {
+	for _, snapshot := range snapshots {
+		if snapshot == nil || snapshot.CandidateType != schema.SourceRuleCandidateTypeDatabaseOutputs {
+			continue
+		}
+		return snapshot.Status == schema.SourceRuleCandidateStatusBlocked
+	}
+	return false
 }
 
 func (s *Service) composeCandidateView(ctx context.Context, rule *schema.SourceRule, snapshots []*schema.SourceRuleCandidateSnapshot) (*CandidateSnapshotView, error) {
