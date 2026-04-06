@@ -1,13 +1,21 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSourceRuleCandidatesQuery } from '../../../hooks/datalink/useSourceRuleCandidates';
+import {
+  useSourceRuleTagReviewDecisionsQuery,
+  useUpsertSourceRuleTagReviewDecisionMutation,
+} from '../../../hooks/datalink/useSourceRuleTagReviewDecisions';
 import { useSourceRulesQuery } from '../../../hooks/datalink/useSourceRules';
+import { useTagsQuery } from '../../../hooks/datalink/useTags';
 import type { SourceRuleRecord } from '../../../types/datalink';
 import type {
   SourceRuleCandidateSetStatus,
   SourceRuleTagCandidateView,
 } from '../../../types/sourceRuleCandidates';
-import { getDataTypeBitWidth } from './sourceCanvasModel';
+import type {
+  SourceRuleTagReviewDecisionAction,
+} from '../../../types/sourceRuleTagReviewDecisions';
+import { SourceRuleTagReviewCandidateRow } from './SourceRuleTagReviewCandidateRow';
 import { useWorkbench } from './WorkbenchProvider';
 
 function resolveActiveRuleId(
@@ -39,21 +47,14 @@ function getSetTone(status: SourceRuleCandidateSetStatus) {
   }
 }
 
-function getCandidateStatusKey(candidate: SourceRuleTagCandidateView) {
-  return candidate.tag_id || candidate.mapping_id ? 'applied' : 'generated';
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
-function getCandidateTone(candidate: SourceRuleTagCandidateView) {
-  return getCandidateStatusKey(candidate) === 'applied'
-    ? 'border-emerald-500/30 bg-emerald-500/[0.12] text-emerald-100'
-    : 'border-sky-500/30 bg-sky-500/[0.12] text-sky-100';
-}
-
-function getMappingIntentTone(candidate: SourceRuleTagCandidateView) {
-  return candidate.mapping_id
-    ? 'border-emerald-500/20 bg-emerald-500/[0.1] text-emerald-100'
-    : 'border-amber-500/20 bg-amber-500/[0.12] text-amber-100';
-}
+type ReviewFeedback = {
+  tone: 'success' | 'error';
+  message: string;
+};
 
 export function SourceRuleTagReviewSurface() {
   const { t } = useTranslation();
@@ -74,7 +75,10 @@ export function SourceRuleTagReviewSurface() {
     sourcePlanningState.selectedRuleId,
   ]);
   const activeRule = persistedRules.find((rule) => rule.id === activeRuleId) ?? null;
+  const { data: tags = [] } = useTagsQuery();
   const candidateQuery = useSourceRuleCandidatesQuery(activeRule?.id ?? null);
+  const reviewDecisionsQuery = useSourceRuleTagReviewDecisionsQuery(activeRule?.id ?? null);
+  const upsertDecisionMutation = useUpsertSourceRuleTagReviewDecisionMutation(activeRule?.id ?? null);
   const candidateView = candidateQuery.data;
   const tagSet = candidateView?.tags;
   const tagCandidates = tagSet?.candidates ?? [];
@@ -85,6 +89,31 @@ export function SourceRuleTagReviewSurface() {
     latestRevisionId && openRevisionId && latestRevisionId !== openRevisionId,
   );
   const refreshingReview = rulesQuery.isRefetching || candidateQuery.isRefetching;
+  const activeDecisions = useMemo(
+    () => (reviewDecisionsQuery.data ?? []).filter((decision) => !decision.stale),
+    [reviewDecisionsQuery.data],
+  );
+  const decisionByCandidateId = useMemo(
+    () =>
+      new Map(
+        activeDecisions.map((decision) => [decision.candidate_id, decision] as const),
+      ),
+    [activeDecisions],
+  );
+  const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
+  const [overrideSelections, setOverrideSelections] = useState<Record<string, string>>({});
+  const [reviewFeedback, setReviewFeedback] = useState<ReviewFeedback | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<{
+    candidateId: string;
+    action: SourceRuleTagReviewDecisionAction;
+  } | null>(null);
+
+  useEffect(() => {
+    setRenameDrafts({});
+    setOverrideSelections({});
+    setReviewFeedback(null);
+    setPendingDecision(null);
+  }, [activeRule?.id, openRevisionId]);
 
   if (!selectedDeviceId || persistedRules.length === 0 || !activeRule) {
     return null;
@@ -92,6 +121,83 @@ export function SourceRuleTagReviewSurface() {
 
   const handleRefreshReview = async () => {
     await Promise.all([rulesQuery.refetch(), candidateQuery.refetch()]);
+  };
+
+  const handleRenameDraftChange = (candidateId: string, value: string) => {
+    setRenameDrafts((current) => ({
+      ...current,
+      [candidateId]: value,
+    }));
+  };
+
+  const handleOverrideSelectionChange = (candidateId: string, value: string) => {
+    setOverrideSelections((current) => ({
+      ...current,
+      [candidateId]: value,
+    }));
+  };
+
+  const handleSaveDecision = async (
+    candidate: SourceRuleTagCandidateView,
+    action: SourceRuleTagReviewDecisionAction,
+    request: {
+      tag_key?: string;
+      override_tag_id?: string;
+    },
+  ) => {
+    setPendingDecision({
+      candidateId: candidate.id,
+      action,
+    });
+
+    try {
+      const decision = await upsertDecisionMutation.mutateAsync({
+        candidate_id: candidate.id,
+        action,
+        ...request,
+      });
+      if (action === 'rename') {
+        setRenameDrafts((current) => ({
+          ...current,
+          [candidate.id]: decision.tag_key ?? request.tag_key ?? '',
+        }));
+        setReviewFeedback({
+          tone: 'success',
+          message: t('workbench.tag.reviewSurface.feedback.renameSaved', {
+            tagKey: decision.tag_key ?? request.tag_key ?? '',
+          }),
+        });
+      } else if (action === 'skip') {
+        setReviewFeedback({
+          tone: 'success',
+          message: t('workbench.tag.reviewSurface.feedback.skipSaved', {
+            tagKey: candidate.tag_key,
+          }),
+        });
+      } else {
+        setOverrideSelections((current) => ({
+          ...current,
+          [candidate.id]: decision.override_tag_id ?? request.override_tag_id ?? '',
+        }));
+        setRenameDrafts((current) => ({
+          ...current,
+          [candidate.id]: decision.tag_key ?? '',
+        }));
+        setReviewFeedback({
+          tone: 'success',
+          message: t('workbench.tag.reviewSurface.feedback.overrideSaved', {
+            tagKey: decision.tag_key ?? '',
+          }),
+        });
+      }
+    } catch (error) {
+      setReviewFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, t('workbench.tag.reviewSurface.feedback.saveFailed')),
+      });
+    } finally {
+      setPendingDecision(null);
+    }
   };
 
   return (
@@ -183,6 +289,31 @@ export function SourceRuleTagReviewSurface() {
         </div>
       ) : null}
 
+      {reviewDecisionsQuery.isError ? (
+        <div
+          className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-4 text-sm text-rose-100"
+          data-testid="source-rule-tag-review-decision-error"
+        >
+          <p className="font-medium">{t('workbench.tag.reviewSurface.feedback.loadSavedFailed')}</p>
+          <p className="mt-1 text-rose-100/80">
+            {reviewDecisionsQuery.error instanceof Error ? reviewDecisionsQuery.error.message : ''}
+          </p>
+        </div>
+      ) : null}
+
+      {reviewFeedback ? (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm ${
+            reviewFeedback.tone === 'success'
+              ? 'border-emerald-500/30 bg-emerald-500/[0.12] text-emerald-100'
+              : 'border-rose-500/30 bg-rose-500/10 text-rose-100'
+          }`}
+          data-testid="source-rule-tag-review-feedback"
+        >
+          {reviewFeedback.message}
+        </div>
+      ) : null}
+
       {candidateQuery.isLoading ? (
         <div
           className="rounded-2xl border border-slate-800 bg-slate-900/75 px-4 py-6 text-sm text-slate-300"
@@ -260,71 +391,38 @@ export function SourceRuleTagReviewSurface() {
             </div>
           ) : (
             <ul className="grid gap-3" data-testid="source-rule-tag-review-candidate-list">
-              {tagCandidates.map((candidate) => (
-                <li
-                  key={candidate.id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-4"
-                  data-testid={`source-rule-tag-review-row-${candidate.id}`}
-                >
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-slate-50">
-                        {candidate.display_name || candidate.tag_key}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {t('workbench.tag.reviewSurface.candidateMeta', {
-                          address: candidate.address,
-                          dataType: candidate.data_type,
-                          bitWidth: getDataTypeBitWidth(candidate.data_type),
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getCandidateTone(candidate)}`}
-                        data-testid={`source-rule-tag-review-status-${candidate.id}`}
-                      >
-                        {t(`workbench.tag.reviewSurface.status.${getCandidateStatusKey(candidate)}`)}
-                      </span>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getMappingIntentTone(candidate)}`}
-                        data-testid={`source-rule-tag-review-mapping-intent-${candidate.id}`}
-                      >
-                        {t(
-                          `workbench.tag.reviewSurface.mappingIntent.${candidate.mapping_id ? 'applied' : 'pending'}`,
-                        )}
-                      </span>
-                    </div>
-                  </div>
+              {tagCandidates.map((candidate) => {
+                const currentDecision = decisionByCandidateId.get(candidate.id) ?? null;
+                const renameValue =
+                  renameDrafts[candidate.id] ?? currentDecision?.tag_key?.trim() ?? candidate.tag_key;
+                const overrideSelection =
+                  overrideSelections[candidate.id] ?? currentDecision?.override_tag_id ?? '';
+                const rowPendingAction =
+                  pendingDecision?.candidateId === candidate.id ? pendingDecision.action : null;
+                const rowBusy =
+                  pendingDecision?.candidateId === candidate.id && upsertDecisionMutation.isPending;
 
-                  <dl className="mt-4 grid gap-3 text-sm text-slate-300 md:grid-cols-3">
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        {t('workbench.tag.reviewSurface.fields.tagKey')}
-                      </dt>
-                      <dd className="mt-1 font-mono text-slate-100">{candidate.tag_key}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        {t('workbench.tag.reviewSurface.fields.pointId')}
-                      </dt>
-                      <dd className="mt-1 font-mono text-slate-100">{candidate.point_id}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        {t('workbench.tag.reviewSurface.fields.mappingStatus')}
-                      </dt>
-                      <dd className="mt-1 text-slate-100">
-                        {t(`workbench.tag.reviewSurface.mappingStatus.${candidate.status}`)}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  {candidate.blocking_reason ? (
-                    <p className="mt-3 text-xs text-amber-200">{candidate.blocking_reason}</p>
-                  ) : null}
-                </li>
-              ))}
+                return (
+                  <SourceRuleTagReviewCandidateRow
+                    key={candidate.id}
+                    candidate={candidate}
+                    currentDecision={currentDecision}
+                    renameValue={renameValue}
+                    overrideSelection={overrideSelection}
+                    tags={tags}
+                    staleReview={staleReview}
+                    reviewDecisionsLoading={reviewDecisionsQuery.isLoading}
+                    reviewDecisionsError={reviewDecisionsQuery.isError}
+                    rowBusy={rowBusy}
+                    rowPendingAction={rowPendingAction}
+                    onRenameDraftChange={handleRenameDraftChange}
+                    onOverrideSelectionChange={handleOverrideSelectionChange}
+                    onSaveDecision={(rowCandidate, action, request) => {
+                      void handleSaveDecision(rowCandidate, action, request);
+                    }}
+                  />
+                );
+              })}
             </ul>
           )}
         </>

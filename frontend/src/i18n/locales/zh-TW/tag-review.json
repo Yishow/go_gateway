@@ -35,8 +35,33 @@
         "candidateMeta": "位址 {{address}} · {{dataType}} · {{bitWidth}} 位元",
         "fields": {
           "tagKey": "Tag key",
+          "generatedTagKey": "原始預設值",
           "pointId": "Point ID",
           "mappingStatus": "Mapping 狀態"
+        },
+        "actions": {
+          "renameLabel": "改名後的 tag key",
+          "renamePlaceholder": "輸入核准後的 tag key",
+          "renameSave": "儲存改名",
+          "skip": "略過這筆候選",
+          "overrideLabel": "改用既有 Tag",
+          "overridePlaceholder": "選擇既有 Tag",
+          "overrideSave": "套用既有 Tag",
+          "saving": "儲存中…",
+          "appliedLocked": "這筆候選已經套用完成，這裡僅保留唯讀審查資訊。",
+          "noOverrideTags": "請先建立或還原既有 Tag，才能使用 override。"
+        },
+        "reviewDecision": {
+          "rename": "已改名",
+          "skip": "已略過",
+          "override": "已改用既有 Tag"
+        },
+        "feedback": {
+          "renameSaved": "已儲存改名決策：{{tagKey}}",
+          "skipSaved": "已儲存略過決策：{{tagKey}}",
+          "overrideSaved": "已儲存 override 決策：{{tagKey}}",
+          "saveFailed": "儲存 Tag 審查決策失敗。",
+          "loadSavedFailed": "載入已儲存的審查決策失敗。"
         },
         "status": {
           "generated": "已產生",

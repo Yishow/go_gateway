@@ -43,6 +43,7 @@ export const sourceRuleKeys = {
   details: () => [...sourceRuleKeys.all, 'detail'] as const,
   detail: (id: string) => [...sourceRuleKeys.details(), id] as const,
   candidates: (id: string) => [...sourceRuleKeys.all, 'candidates', id] as const,
+  reviewDecisions: (id: string) => [...sourceRuleKeys.all, 'review-decisions', id] as const,
 };
 
 /** Tag 相關 Query Keys */

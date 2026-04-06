@@ -35,8 +35,33 @@
         "candidateMeta": "Address {{address}} · {{dataType}} · {{bitWidth}}-bit",
         "fields": {
           "tagKey": "Tag key",
+          "generatedTagKey": "Generated default",
           "pointId": "Point ID",
           "mappingStatus": "Mapping status"
+        },
+        "actions": {
+          "renameLabel": "Rename tag key",
+          "renamePlaceholder": "Enter an approved tag key",
+          "renameSave": "Save rename",
+          "skip": "Skip candidate",
+          "overrideLabel": "Override with existing tag",
+          "overridePlaceholder": "Select an existing tag",
+          "overrideSave": "Use existing tag",
+          "saving": "Saving…",
+          "appliedLocked": "This candidate is already applied, so review exceptions are read-only here.",
+          "noOverrideTags": "Create or restore an existing tag before using override."
+        },
+        "reviewDecision": {
+          "rename": "Renamed",
+          "skip": "Skipped",
+          "override": "Override"
+        },
+        "feedback": {
+          "renameSaved": "Saved rename decision: {{tagKey}}",
+          "skipSaved": "Saved skip decision for {{tagKey}}",
+          "overrideSaved": "Saved override decision: {{tagKey}}",
+          "saveFailed": "Failed to save tag review decision.",
+          "loadSavedFailed": "Failed to load saved review decisions."
         },
         "status": {
           "generated": "Generated",
