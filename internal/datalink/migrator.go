@@ -29,6 +29,10 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 
 	content, err := migrations.FS.ReadFile(targetFile)
 	if err == nil {
+		if err := ensureSQLiteMappingLifecycleColumns(db); err != nil {
+			return err
+		}
+
 		log.Printf("Executing SQLite migration: %s", targetFile)
 		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", targetFile, err)
@@ -77,9 +81,6 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 			return err
 		}
 		if err := ensureSQLiteSourceRuleCandidateSnapshotsTable(db); err != nil {
-			return err
-		}
-		if err := ensureSQLiteMappingLifecycleColumns(db); err != nil {
 			return err
 		}
 		if err := ensureSQLiteSourceRuleTagReviewDecisionsTable(db); err != nil {

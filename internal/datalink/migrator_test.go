@@ -71,3 +71,41 @@ func TestMigrator_Migrate(t *testing.T) {
 	// Insert a dummy row to check constraints (optional, but good for deeper verification)
 	// For now, just checking table existence is sufficient for the first pass.
 }
+
+func TestMigrator_Migrate_LegacyMappingsTable(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`
+		CREATE TABLE mappings (
+			id TEXT PRIMARY KEY,
+			point_id TEXT NOT NULL,
+			tag_id TEXT NOT NULL,
+			transform_pipeline TEXT NOT NULL DEFAULT '[]',
+			enabled INTEGER NOT NULL DEFAULT 1,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+			UNIQUE (point_id, tag_id)
+		);
+	`)
+	require.NoError(t, err)
+
+	migrator := NewMigrator()
+
+	err = migrator.Migrate(db)
+	require.NoError(t, err)
+
+	for _, column := range []string{
+		"status",
+		"rule_candidate_id",
+		"proposed_signature",
+		"last_applied_signature",
+		"blocking_reason",
+	} {
+		var colName string
+		err = db.QueryRow(`SELECT name FROM pragma_table_info('mappings') WHERE name = ?`, column).Scan(&colName)
+		require.NoError(t, err)
+		assert.Equal(t, column, colName)
+	}
+}

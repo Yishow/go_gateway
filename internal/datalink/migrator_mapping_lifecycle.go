@@ -10,6 +10,14 @@ import (
 func ensureSQLiteMappingLifecycleColumns(db *sql.DB) error {
 	const migrationName = "011_mapping_lifecycle_sqlite.up.sql"
 
+	tableExists, err := sqliteTableExists(db, "mappings")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite mappings table for migration %s: %w", migrationName, err)
+	}
+	if !tableExists {
+		return nil
+	}
+
 	columns := []struct {
 		name string
 		ddl  string
