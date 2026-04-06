@@ -95,7 +95,7 @@ func (s *Service) composeCandidateView(ctx context.Context, rule *schema.SourceR
 		tagViews = append(tagViews, view)
 	}
 
-	databaseCandidates, err := decodeCandidatePayload[map[string]any](databaseSnapshot.Payload)
+	databaseCandidates, err := decodeCandidatePayload[schema.SourceRuleDatabaseOutputCandidate](databaseSnapshot.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("解析來源規則 database output 候選快照失敗: %w", err)
 	}

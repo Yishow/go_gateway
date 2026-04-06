@@ -259,10 +259,11 @@ func assertSnapshotSet(t *testing.T, snapshots []*schema.SourceRuleCandidateSnap
 		assert.Nil(t, tags.Candidates[0].MappingID)
 	}
 
-	databaseSnapshot := byType[schema.SourceRuleCandidateTypeDatabaseOutputs]
+	databaseCandidates, databaseSnapshot := databaseCandidatesFromSnapshots(t, snapshots)
 	require.NotNil(t, databaseSnapshot)
-	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, databaseSnapshot.Status)
-	assert.NotEmpty(t, databaseSnapshot.Reason)
+	assert.Equal(t, schema.SourceRuleCandidateStatusReady, databaseSnapshot.Status)
+	assert.Empty(t, databaseSnapshot.Reason)
+	assert.Len(t, databaseCandidates, expectedTagCount)
 
 	localModbusSnapshot := byType[schema.SourceRuleCandidateTypeLocalModbusOutputs]
 	require.NotNil(t, localModbusSnapshot)

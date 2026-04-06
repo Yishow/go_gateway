@@ -283,8 +283,9 @@ func TestSourceRuleHandler_ApplyTags_RefreshesCandidateViewAfterApply(t *testing
 	assert.NotEmpty(t, refreshed["mapping_id"])
 
 	databaseOutputs := data["database_outputs"].(map[string]any)
-	assert.Equal(t, "deferred", databaseOutputs["status"])
-	assert.NotEmpty(t, databaseOutputs["reason"])
+	assert.Equal(t, "ready", databaseOutputs["status"])
+	assert.Empty(t, databaseOutputs["reason"])
+	require.Len(t, databaseOutputs["candidates"].([]any), 1)
 
 	localModbusOutputs := data["local_modbus_outputs"].(map[string]any)
 	assert.Equal(t, "deferred", localModbusOutputs["status"])

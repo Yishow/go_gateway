@@ -67,6 +67,13 @@ func (s *Service) UpsertTagReviewDecision(ctx context.Context, ruleID string, re
 	if err := s.repo.UpsertTagReviewDecision(ctx, decision); err != nil {
 		return nil, err
 	}
+	links, err := s.repo.ListLinks(ctx, rule.ID)
+	if err != nil {
+		return nil, fmt.Errorf("列出來源規則連結失敗: %w", err)
+	}
+	if err := s.persistCandidateSnapshots(ctx, rule, links); err != nil {
+		return nil, err
+	}
 	return s.repo.GetTagReviewDecision(ctx, rule.ID, candidate.ID)
 }
 

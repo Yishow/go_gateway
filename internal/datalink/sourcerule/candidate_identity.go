@@ -19,11 +19,37 @@ type tagCandidateSignaturePayload struct {
 	TransformPipeline []schema.TransformStep `json:"transform_pipeline"`
 }
 
+type databaseOutputCandidateSignaturePayload struct {
+	TagID       *string         `json:"tag_id,omitempty"`
+	TagKey      string          `json:"tag_key"`
+	DisplayName string          `json:"display_name"`
+	DataType    schema.DataType `json:"data_type"`
+}
+
 func buildTagCandidateIdentity(ruleID, address string, dataType schema.DataType) schema.SourceRuleCandidateIdentity {
 	return schema.SourceRuleCandidateIdentity{
 		SourceRuleID:           ruleID,
 		CandidateType:          schema.SourceRuleCandidateTypeTags,
 		CandidateKind:          schema.SourceRuleCandidateKindTag,
+		DerivedFromRuleAddress: normalizeAddressKey(address),
+		TargetBindingScope: []schema.SourceRuleCandidateScopeField{
+			{
+				Key:   derivedTargetDataTypeScopeKey,
+				Value: string(dataType),
+			},
+		},
+	}
+}
+
+func buildDatabaseOutputCandidateIdentity(
+	ruleID string,
+	address string,
+	dataType schema.DataType,
+) schema.SourceRuleCandidateIdentity {
+	return schema.SourceRuleCandidateIdentity{
+		SourceRuleID:           ruleID,
+		CandidateType:          schema.SourceRuleCandidateTypeDatabaseOutputs,
+		CandidateKind:          schema.SourceRuleCandidateKindDatabaseOutput,
 		DerivedFromRuleAddress: normalizeAddressKey(address),
 		TargetBindingScope: []schema.SourceRuleCandidateScopeField{
 			{
@@ -52,6 +78,19 @@ func tagCandidateSignature(candidate schema.SourceRuleTagCandidate) (string, err
 	})
 	if err != nil {
 		return "", fmt.Errorf("序列化來源規則候選簽章失敗: %w", err)
+	}
+	return candidateHash("signature", payload), nil
+}
+
+func databaseOutputCandidateSignature(candidate schema.SourceRuleDatabaseOutputCandidate) (string, error) {
+	payload, err := json.Marshal(databaseOutputCandidateSignaturePayload{
+		TagID:       candidate.TagID,
+		TagKey:      candidate.TagKey,
+		DisplayName: candidate.DisplayName,
+		DataType:    candidate.DataType,
+	})
+	if err != nil {
+		return "", fmt.Errorf("序列化資料庫輸出候選簽章失敗: %w", err)
 	}
 	return candidateHash("signature", payload), nil
 }

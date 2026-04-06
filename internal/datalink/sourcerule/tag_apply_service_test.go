@@ -309,8 +309,8 @@ func TestService_ApplyTagCandidates_RecomputesCandidateSnapshotsAfterApply(t *te
 	}
 
 	require.Contains(t, snapshotByType, schema.SourceRuleCandidateTypeDatabaseOutputs)
-	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, snapshotByType[schema.SourceRuleCandidateTypeDatabaseOutputs].Status)
-	assert.Equal(t, databaseOutputsDeferredReason, snapshotByType[schema.SourceRuleCandidateTypeDatabaseOutputs].Reason)
+	assert.Equal(t, schema.SourceRuleCandidateStatusReady, snapshotByType[schema.SourceRuleCandidateTypeDatabaseOutputs].Status)
+	assert.Empty(t, snapshotByType[schema.SourceRuleCandidateTypeDatabaseOutputs].Reason)
 
 	require.Contains(t, snapshotByType, schema.SourceRuleCandidateTypeLocalModbusOutputs)
 	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, snapshotByType[schema.SourceRuleCandidateTypeLocalModbusOutputs].Status)

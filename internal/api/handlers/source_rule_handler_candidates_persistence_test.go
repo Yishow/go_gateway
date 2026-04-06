@@ -99,6 +99,10 @@ func TestSourceRuleHandler_RecomputeCandidates_UpdatesPersistedCurrentSnapshot(t
 	assert.Equal(t, rule.RevisionID, afterData["revision_id"])
 	afterTags := afterData["tags"].(map[string]any)
 	require.Len(t, afterTags["candidates"].([]any), 1)
+	afterDatabaseOutputs := afterData["database_outputs"].(map[string]any)
+	assert.Equal(t, "ready", afterDatabaseOutputs["status"])
+	assert.Empty(t, afterDatabaseOutputs["reason"])
+	require.Len(t, afterDatabaseOutputs["candidates"].([]any), 1)
 }
 
 func TestSourceRuleHandler_RecomputeCandidates_PreservesOutOfSyncReviewState(t *testing.T) {

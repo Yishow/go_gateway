@@ -65,8 +65,10 @@ type SourceRuleCandidateKind string
 
 const (
 	// SourceRuleCandidateKindTag identifies a rule-derived tag candidate and its pending mapping intent.
-	SourceRuleCandidateKindTag     SourceRuleCandidateKind = "tag"
-	SourceRuleCandidateKindMapping SourceRuleCandidateKind = "mapping"
+	SourceRuleCandidateKindTag               SourceRuleCandidateKind = "tag"
+	SourceRuleCandidateKindMapping           SourceRuleCandidateKind = "mapping"
+	SourceRuleCandidateKindDatabaseOutput    SourceRuleCandidateKind = "database_output"
+	SourceRuleCandidateKindLocalModbusOutput SourceRuleCandidateKind = "local_modbus_output"
 )
 
 // SourceRuleCandidateScopeField records one canonical binding-scope discriminator.
@@ -108,6 +110,26 @@ type SourceRuleTagCandidate struct {
 	DisplayName       string                      `json:"display_name,omitempty"`
 	DataType          DataType                    `json:"data_type"`
 	TransformPipeline []TransformStep             `json:"transform_pipeline,omitempty"`
+}
+
+// SourceRuleDatabaseOutputCandidate describes one rule-scoped database output candidate.
+type SourceRuleDatabaseOutputCandidate struct {
+	ID                string                      `json:"id"`
+	Identity          SourceRuleCandidateIdentity `json:"identity"`
+	ProposedSignature string                      `json:"proposed_signature"`
+	Address           string                      `json:"address"`
+	PointID           string                      `json:"point_id"`
+	TagID             *string                     `json:"tag_id,omitempty"`
+	TagKey            string                      `json:"tag_key,omitempty"`
+	DisplayName       string                      `json:"display_name,omitempty"`
+	DataType          DataType                    `json:"data_type"`
+	MappingID         *string                     `json:"mapping_id,omitempty"`
+	ConnectorID       string                      `json:"connector_id,omitempty"`
+	TableSchema       string                      `json:"table_schema,omitempty"`
+	TableName         string                      `json:"table_name,omitempty"`
+	ColumnName        string                      `json:"column_name,omitempty"`
+	WriteMode         DatabaseWriteMode           `json:"write_mode,omitempty"`
+	TimestampColumn   *string                     `json:"timestamp_column,omitempty"`
 }
 
 type SourceRuleTagReviewDecisionAction string

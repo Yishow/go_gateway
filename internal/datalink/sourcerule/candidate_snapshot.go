@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	databaseOutputsDeferredReason    = "database output review flow is deferred until the output phase is configured"
 	localModbusOutputsDeferredReason = "local modbus output review flow is deferred until the output phase is configured"
 )
 
@@ -70,6 +69,14 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 	if err != nil {
 		return nil, err
 	}
+	databaseOutputCandidates, err := s.buildDatabaseOutputCandidates(ctx, rule, tagCandidates)
+	if err != nil {
+		return nil, err
+	}
+	databaseOutputPayload, err := marshalCandidateSnapshotPayload(databaseOutputCandidates)
+	if err != nil {
+		return nil, err
+	}
 	deferredPayload, err := marshalCandidateSnapshotPayload([]struct{}{})
 	if err != nil {
 		return nil, err
@@ -89,9 +96,8 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 			SourceRuleID:  rule.ID,
 			RevisionID:    rule.RevisionID,
 			CandidateType: schema.SourceRuleCandidateTypeDatabaseOutputs,
-			Payload:       deferredPayload,
-			Status:        schema.SourceRuleCandidateStatusDeferred,
-			Reason:        databaseOutputsDeferredReason,
+			Payload:       databaseOutputPayload,
+			Status:        schema.SourceRuleCandidateStatusReady,
 			GeneratedAt:   generatedAt,
 		},
 		{
