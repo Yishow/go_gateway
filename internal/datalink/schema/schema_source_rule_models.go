@@ -120,11 +120,14 @@ const (
 
 // SourceRuleTagReviewDecision persists one rule-scoped review choice for a canonical tag candidate identity.
 type SourceRuleTagReviewDecision struct {
-	SourceRuleID  string                            `json:"source_rule_id" db:"source_rule_id"`
-	CandidateID   string                            `json:"candidate_id" db:"candidate_id"`
-	Action        SourceRuleTagReviewDecisionAction `json:"action" db:"decision_type"`
-	TagKey        string                            `json:"tag_key,omitempty" db:"tag_key"`
-	OverrideTagID *string                           `json:"override_tag_id,omitempty" db:"override_tag_id"`
-	CreatedAt     time.Time                         `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time                         `json:"updated_at" db:"updated_at"`
+	SourceRuleID    string                            `json:"source_rule_id" db:"source_rule_id"`
+	CandidateID     string                            `json:"candidate_id" db:"candidate_id"`
+	Action          SourceRuleTagReviewDecisionAction `json:"action" db:"decision_type"`
+	TagKey          string                            `json:"tag_key,omitempty" db:"tag_key"`
+	OverrideTagID   *string                           `json:"override_tag_id,omitempty" db:"override_tag_id"`
+	Stale           bool                              `json:"stale" db:"stale"`
+	StaleRevisionID string                            `json:"stale_revision_id,omitempty" db:"stale_revision_id"`
+	StaleAt         *time.Time                        `json:"stale_at,omitempty" db:"stale_at"`
+	CreatedAt       time.Time                         `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time                         `json:"updated_at" db:"updated_at"`
 }

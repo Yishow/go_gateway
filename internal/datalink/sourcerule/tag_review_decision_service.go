@@ -29,10 +29,13 @@ func (s *Service) UpsertTagReviewDecision(ctx context.Context, ruleID string, re
 	}
 
 	decision := &schema.SourceRuleTagReviewDecision{
-		SourceRuleID: rule.ID,
-		CandidateID:  candidate.ID,
-		Action:       req.Action,
-		UpdatedAt:    time.Now().UTC(),
+		SourceRuleID:    rule.ID,
+		CandidateID:     candidate.ID,
+		Action:          req.Action,
+		Stale:           false,
+		StaleRevisionID: "",
+		StaleAt:         nil,
+		UpdatedAt:       time.Now().UTC(),
 	}
 
 	switch req.Action {

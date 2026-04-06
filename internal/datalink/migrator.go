@@ -85,6 +85,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteSourceRuleTagReviewDecisionsTable(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteSourceRuleTagReviewDecisionStaleColumns(db); err != nil {
+			return err
+		}
 
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err

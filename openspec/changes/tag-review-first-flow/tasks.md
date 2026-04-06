@@ -2,7 +2,7 @@
 
 - [x] 1.1 Change rule-generated tag handling to remain candidate-only until explicit tag apply
 - [x] 1.2 Persist rename, skip, and override decisions against the canonical rule-owned tag identity
-- [ ] 1.3 Mark prior review decisions stale when a later revision changes the tag identity materially
+- [x] 1.3 Mark prior review decisions stale when a later revision changes the tag identity materially
 
 ## 2. Step 3 review/apply flow
 

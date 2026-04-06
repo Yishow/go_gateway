@@ -44,6 +44,13 @@ func (s *Service) persistCandidateSnapshots(ctx context.Context, rule *schema.So
 	if err := s.repo.ReplaceCandidateSnapshots(ctx, snapshots); err != nil {
 		return fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
 	}
+	tagCandidates, err := decodeCurrentTagCandidates(snapshots)
+	if err != nil {
+		return err
+	}
+	if err := s.markStaleTagReviewDecisions(ctx, rule, tagCandidates); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -159,4 +166,18 @@ func cloneOptionalString(value *string) *string {
 		return nil
 	}
 	return stringPtr(*value)
+}
+
+func decodeCurrentTagCandidates(snapshots []*schema.SourceRuleCandidateSnapshot) ([]schema.SourceRuleTagCandidate, error) {
+	for _, snapshot := range snapshots {
+		if snapshot == nil || snapshot.CandidateType != schema.SourceRuleCandidateTypeTags {
+			continue
+		}
+		candidates, err := decodeCandidatePayload[schema.SourceRuleTagCandidate](snapshot.Payload)
+		if err != nil {
+			return nil, fmt.Errorf("解析來源規則 tag 候選快照失敗: %w", err)
+		}
+		return candidates, nil
+	}
+	return []schema.SourceRuleTagCandidate{}, nil
 }

@@ -66,5 +66,9 @@ func cloneTagReviewDecision(decision *schema.SourceRuleTagReviewDecision) *schem
 		value := *decision.OverrideTagID
 		copy.OverrideTagID = &value
 	}
+	if decision.StaleAt != nil {
+		value := *decision.StaleAt
+		copy.StaleAt = &value
+	}
 	return &copy
 }
