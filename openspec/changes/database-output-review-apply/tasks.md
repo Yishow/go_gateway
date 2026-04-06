@@ -13,7 +13,7 @@
 ## 3. Database apply APIs
 
 - [x] 3.1 Add rule-scoped database output apply endpoint with revision-aware request validation
-- [ ] 3.2 Return per-item apply results for partial success and failure handling
+- [x] 3.2 Return per-item apply results for partial success and failure handling
 - [ ] 3.3 Ensure apply does not silently rebind candidates to a different connector or table
 
 ## 4. Validation
