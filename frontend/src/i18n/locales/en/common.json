@@ -1091,6 +1091,31 @@
           "mapped": "Writing to {{table}}.{{column}}",
           "unmapped": "No database column bound"
         },
+        "reviewSurface": {
+          "eyebrow": "Rule-scoped candidates",
+          "title": "Review database output from the active source rule",
+          "description": "This panel only shows database candidates that fit the current connector scope so stale connector or table choices do not leak into a new revision.",
+          "revision": "Source-rule revision",
+          "currentConnector": "Current connector",
+          "currentTable": "Current table",
+          "none": "Not selected",
+          "noRule": "Focus a source rule in Step 2 or Step 3 before reviewing database output candidates.",
+          "loading": "Loading database output candidates…",
+          "empty": "No database output candidates are available in the current connector scope.",
+          "setReason": "The candidate set is currently blocked: {{reason}}",
+          "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
+          "persistedPath": "{{connector}} · {{table}} · {{column}}",
+          "currentScopePath": "Using current scope: {{connector}} · {{table}}",
+          "unscoped": "Connector, table, and column are not saved yet",
+          "tagPending": "Apply the tag review decision before publishing this output",
+          "currentSelection": "Current selection",
+          "status": {
+            "ready": "Apply-ready",
+            "blocked": "Blocked",
+            "out_of_sync": "Out of sync",
+            "deferred": "Deferred"
+          }
+        },
         "mapping": {
           "tag": "Linked tag",
           "selectedTag": "Selected tag",

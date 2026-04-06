@@ -11,7 +11,7 @@ import type {
   ModbusShareMapping,
   ModbusShareStatus,
 } from '../../../types/datalink';
-import { DatabaseTargetBoard } from './DatabaseTargetBoard';
+import { SourceRuleDatabaseTargetBoard } from './SourceRuleDatabaseTargetBoard';
 import { useWorkbench } from './WorkbenchProvider';
 import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 import type { AutoMapStrategy, DryRunResult } from './workbenchOutputTypes';
@@ -1074,7 +1074,7 @@ export function LocalModbusBoard() {
       ) : null}
 
       {activeOutputTarget === 'database' ? (
-        <DatabaseTargetBoard
+        <SourceRuleDatabaseTargetBoard
           candidates={candidates}
           selectedTagId={databaseSelectedTagId}
         />

@@ -1091,6 +1091,31 @@
           "mapped": "已寫入 {{table}}.{{column}}",
           "unmapped": "尚未綁定資料庫欄位"
         },
+        "reviewSurface": {
+          "eyebrow": "規則範圍候選項",
+          "title": "根據目前來源規則檢查資料庫輸出",
+          "description": "這裡只顯示目前 connector scope 可用的 database candidates，避免把舊的 connector / table 選擇套用到新的 revision。",
+          "revision": "來源規則 revision",
+          "currentConnector": "目前 connector",
+          "currentTable": "目前資料表",
+          "none": "尚未選擇",
+          "noRule": "請先在 Step 2 / Step 3 聚焦一個來源規則，才能檢視資料庫輸出候選項。",
+          "loading": "正在讀取資料庫輸出候選項…",
+          "empty": "目前 connector scope 內沒有資料庫輸出候選項。",
+          "setReason": "候選集合目前被阻擋：{{reason}}",
+          "candidateMeta": "Point {{point}} · {{address}} · {{dataType}}",
+          "persistedPath": "{{connector}} · {{table}} · {{column}}",
+          "currentScopePath": "使用目前 scope：{{connector}} · {{table}}",
+          "unscoped": "尚未保存 connector / table / column",
+          "tagPending": "等待 Tag 套用後才能輸出",
+          "currentSelection": "目前選取",
+          "status": {
+            "ready": "可套用",
+            "blocked": "已阻擋",
+            "out_of_sync": "已失同步",
+            "deferred": "待前置步驟完成"
+          }
+        },
         "mapping": {
           "tag": "已連結 Tag",
           "selectedTag": "目前選取 Tag",
