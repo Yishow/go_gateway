@@ -15,7 +15,7 @@
 
 - [x] 3.1 更新 TypeScript 型別與 `useSourceRules` 以傳遞 `target_data_type` 與 scale 欄位
 - [x] 3.2 在 `SourceCanvasSection` 規則表單新增「目標資料型態」與可選「縮放／偏移」、i18n
-- [ ] 3.3 補 Vitest／Workbench 相關測試
+- [x] 3.3 補 Vitest／Workbench 相關測試
 
 ## 4. 連線 `data_format`（跨協議）
 

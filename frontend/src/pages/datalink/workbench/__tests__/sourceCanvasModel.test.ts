@@ -136,6 +136,28 @@ describe('sourceCanvasModel', () => {
     expect(items.find((item) => item.address === '40002')?.status).toBe('conflict');
   });
 
+  it('applies rule scale to live values shown in the canvas', () => {
+    const items = buildAddressCanvasItems({
+      points: [createPoint({ address: '40001', last_value: 10 })],
+      rules: [{
+        id: 'rule-1',
+        startAddress: '40001',
+        count: 1,
+        dataType: 'int16',
+        namingPrefix: 'SENSOR',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        skippedAddresses: [],
+        scaleMultiplier: 0.1,
+        scaleOffset: 5,
+      }],
+      protocol: 'modbus_tcp',
+    });
+
+    expect(items.find((item) => item.address === '40001')?.liveValue).toBe(6);
+  });
+
   describe('countEligibleSpans', () => {
     function createRule(overrides: Partial<SourceRule>): SourceRule {
       return {
