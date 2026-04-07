@@ -342,4 +342,27 @@
     - `baseline`：最快、風險最低，但 probe 語意藏在 diagnostics 裡，不適合作為新 Device 表面
     - `v1`：速度最接近 baseline，且把 probe 語意前移；是低風險備選
     - `v2`：邏輯清晰度與系統完整性最佳，雖互動略慢於 baseline / v1，但最平衡
-    - `v3`：資訊密度與工作台感最強，但互動較慢，且維護 / foundation 風險最高
+  - `v3`：資訊密度與工作台感最強，但互動較慢，且維護 / foundation 風險最高
+
+---
+
+## 臨時任務：2026-04-07 Workbench UX Phase 1R Device 重做（使用者直接打回）
+
+- [x] 明確重新定義 round 方向：
+  - 三版都要是不同 interaction model + 不同視覺語言
+  - 三版都允許徹底重做 Device interaction skeleton
+  - 三版都要明確對齊 `design-md`
+- [x] 與使用者確認三 archetypes 策略：
+  - `v1` = Linear Control Room
+  - `v2` = Sentry Incident Desk
+  - `v3` = ClickHouse Data Cockpit
+- [ ] 將 Phase 1R 三 archetypes 與共通 domain model 回寫 OpenSpec
+- [ ] 平行派發 `phase1r-v1` / `phase1r-v2` / `phase1r-v3`
+- [ ] 完成 `phase1r-compare`
+
+**備註**：
+- 使用者明確否定上一輪 Device compare，理由是：
+  - 三版 UI 差異不足
+  - interaction model 幾乎沒變
+  - 視覺語言沒有真正對齊 `design-md`
+  - 看起來仍太像 baseline

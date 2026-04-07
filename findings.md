@@ -71,6 +71,17 @@
   - v3：`486 / 467 / 462`
   - 順序分別為：`list -> detail / detail -> editor / editor -> diagnostics`
 
+## 2026-04-07 Workbench UX 使用者直接 review 新發現
+- 使用者明確判定上一輪 Phase 1 Device round **不合格**，核心原因不是單一 bug，而是設計方向錯了：
+  - 三版太像彼此，也太像 baseline
+  - UI kit 被當成「換皮」而不是不同 interaction model
+  - `design-md` 的骨架 / 資訊區 / 數據視覺語言沒有真正落地
+- 因此後續 Phase 1 不應再沿用「同一個骨架換 kit」策略，而要改為：
+  - `v1` = Linear Control Room
+  - `v2` = Sentry Incident Desk
+  - `v3` = ClickHouse Data Cockpit
+- 本輪最重要的驗收標準不再只是 connect / probe 有沒有變清楚，而是：**三版是否一眼就能看出不同 interaction model 與不同視覺語言。**
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

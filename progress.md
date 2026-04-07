@@ -542,3 +542,17 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
 - ✅ 推薦版本：
   - **v2 / MUI**
   - 理由：connect / probe diagnostics 最清楚、editor mode 語意最直接、主要檔案都壓在 300 行內，是 Device phase 下最平衡的版本
+
+#### Session 19: 使用者直接打回 Phase 1 Device round
+- ❌ 使用者明確否定上一輪 Device compare 結果
+- ❌ 原因：
+  - 三版看起來差異不足
+  - 互動模型沒有真正重做
+  - 視覺語言沒有對齊 `/Users/yishow/prj/awesome-design-md/design-md`
+  - 整體仍太像 baseline
+- ✅ 新方向已確認：
+  - 採 `Three Archetypes` 重開 Device round
+  - `v1` = Linear Control Room
+  - `v2` = Sentry Incident Desk
+  - `v3` = ClickHouse Data Cockpit
+  - 三版都允許完全重做 Device interaction skeleton，只保留同 route / 同 API / 同 token / 同 domain contract

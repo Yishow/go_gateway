@@ -191,7 +191,12 @@ cd .worktrees/woe-v3-antd/frontend         && VITE_DEV_PORT=4176 VITE_API_PROXY_
   - action 位置
   - 狀態提示的呈現
   - table / card / drawer / modal 的組合
-- 但不允許演化成三套完全不同的資訊架構或產品流程。
+- 一般情況下不允許演化成三套完全不同的資訊架構或產品流程。
+- **例外：Phase 1 Device 重做 round** 已被直接 review 指出「三版差異不足且過度接近 baseline」，因此在這一個 phase 內，`v1` / `v2` / `v3` 被明確允許演化成三種不同的 interaction skeleton，但仍必須共用：
+  - 同一個 `/studio` route
+  - 同一組真實 API / hook / mutation
+  - 同一份 workbench domain state
+  - 同一組 shared design-token 語意層
 
 ## 共同不變項
 
@@ -280,6 +285,47 @@ reason:
 - 不允許改變底層 connect / probe API 語意。
 - 可因 kit 能力不同微調表單、結果區、診斷提示的編排。
 
+#### Phase 1R：Three Archetypes reboot
+
+- 本輪不是「同一個 Device 畫面換不同 kit」；本輪明確要求三版各自成為**不同的工作台 archetype**。
+- 觸發原因：上一輪 Device compare 被直接 review 判定為：
+  - 三版差異不足
+  - interaction model 沒有翻新
+  - 視覺語言沒有真正對齊 `design-md`
+  - 整體仍過度接近 baseline
+- 因此本輪 Device phase 允許**完全重做 interaction skeleton**，但不允許改 route / API / domain contract。
+
+#### Phase 1R 共通 domain model
+
+- 三個 archetype 都必須把 Device 拆成同一套 domain layers：
+  1. `Selection layer`：找設備、篩選、選中設備
+  2. `Task layer`：目前正在執行的 create / edit / clone / connect / probe 任務
+  3. `Diagnostics layer`：connect 與 probe 必須是兩個獨立可辨識的 stage
+  4. `System layer`：capability、recent tests、readiness、tag / output 摘要
+- 本輪不再接受 baseline 那種「先進 editor，之後才從結果裡看懂 probe」的互動模型。
+- `create / edit / clone` 必須有明確 mode 語意，不得只是同一張表單套不同資料。
+
+#### Phase 1R 三個 archetype
+
+| 版本 | Archetype | design source mapping | interaction model | 核心目標 |
+| --- | --- | --- | --- | --- |
+| `v1` | Linear Control Room | 骨架 = `linear.app`；資訊區 = `linear.app` + 少量 `sentry` 診斷徽章；數據視覺 = 精簡 `clickhouse` stats strip | 左欄 device rail / 中央 task canvas / 右欄 live inspector | 低噪音、最快上手、最像產品主線 |
+| `v2` | Sentry Incident Desk | 骨架 = `sentry`；資訊區 = `sentry` 主導；數據視覺 = `clickhouse` 用於 diagnostics / throughput / recent tests 摘要 | 任務導向 command center，diagnostics 是第一公民 | 最強 troubleshooting / connect-probe flow |
+| `v3` | ClickHouse Data Cockpit | 骨架 = `clickhouse`；資訊區 = `linear.app` 結構 + `sentry` 告警語意；數據視覺 = `clickhouse` 主導 | 高密度 cockpit，首屏就是控制台 | 最像工業 ops console |
+
+#### Phase 1R 視覺語言原則
+
+- `v1 / Linear Control Room`
+  - 近黑、低噪音、精密、極簡
+  - Inter Variable / 細 border / indigo active state
+- `v2 / Sentry Incident Desk`
+  - 深紫黑、診斷導向、事件處理感
+  - Rubik + uppercase labels + lime / coral / purple 狀態對比
+- `v3 / ClickHouse Data Cockpit`
+  - 純黑 + neon、高對比、高密度
+  - heavy Inter + KPI tiles + 高可見 health / throughput signals
+- 三版都不能再呈現「同一個灰黑 Tailwind 表面換 kit」的感覺。
+
 ### Phase 2：Source
 
 - 比較 source rule 編修、模板套用與畫面模式切換的最佳表面。
@@ -329,3 +375,4 @@ reason:
   - 同一組 compare gate
 
 這樣可讓實驗真正聚焦在**同主題、同 API、不同 UI kit 表面**的比較，而不是預設某一種單一路徑。
+在 Phase 1R 中，這個比較會進一步提升為**同主題、同 API、不同 archetype + 不同 kit + 不同視覺語言**的比較。
