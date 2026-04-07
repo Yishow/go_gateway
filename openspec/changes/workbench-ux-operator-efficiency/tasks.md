@@ -52,7 +52,7 @@
 
 > 目標：建立四套表面的共同比較框架與 shared token 主題。
 
-- [ ] 0.1 共用基礎
+- [x] 0.1 共用基礎
   - 固定 baseline / v1 / v2 / v3 的版本矩陣
   - 固定 branch / worktree / port 命名
   - 固定 compare 輸出格式與量測 rubric
@@ -60,14 +60,14 @@
   - 明確記錄「主線不受影響、共用 `/studio`、禁止 mock」
   - 明確記錄 phase 執行順序：`baseline -> v1 -> v2 -> v3 -> compare`
 
-- [ ] 0.2 共用 tokens
+- [x] 0.2 共用 tokens
   - 從 `/Users/yishow/prj/awesome-design-md/design-md/` 萃取主題元素
   - 以 `linear.app + sentry + clickhouse` 作為目前選定的 shared token 參考混合
   - 區分 `preserve / adapt / reject` 三種抽取結果
   - 建立共享 design-token 語意層
   - 定義三個 UI kit 的 token mapping 邊界
 
-- [ ] 0.3 命名與執行順序落地
+- [x] 0.3 命名與執行順序落地
   - `baseline`：`woe-base-current-ui` / `.worktrees/woe-base-current-ui` / `4173`
   - `v1`：`woe-v1-radix` / `.worktrees/woe-v1-radix` / `4174`
   - `v2`：`woe-v2-mui` / `.worktrees/woe-v2-mui` / `4175`
@@ -75,31 +75,31 @@
   - 記錄 shared backend 使用策略與 compare 順序
   - 補出可直接照做的 worktree / backend / frontend 啟動操作稿
 
-- [ ] 0.4 語意 token 命名落地
+- [x] 0.4 語意 token 命名落地
   - 至少明確 `surface.*`、`text.*`、`accent.*`、`status.*`、`border.*`、`focus.*`、`density.*`、`data.*`
   - 確保三個 UI kit 共用相同 token family，而不是各自發明不同命名
 
-- [ ] 0.2.baseline 建立 baseline worktree
+- [x] 0.2.baseline 建立 baseline worktree
   - 從共享 API 基線切出 current UI baseline
   - 凍結 baseline 的 `/studio` 行為供後續比較
   - 收集 baseline 的初始截圖與量測方式
 
-- [ ] 0.2.v1 建立 `v1` worktree（shadcn/Radix）
+- [x] 0.2.v1 建立 `v1` worktree（shadcn/Radix）
   - 從共享 API 基線切出 `v1`
   - 在該 worktree 內讓 `/studio` 指向 shadcn/Radix 版本
   - 使用 shared design tokens
 
-- [ ] 0.2.v2 建立 `v2` worktree（MUI）
+- [x] 0.2.v2 建立 `v2` worktree（MUI）
   - 從共享 API 基線切出 `v2`
   - 在該 worktree 內讓 `/studio` 指向 MUI 版本
   - 使用 shared design tokens
 
-- [ ] 0.2.v3 建立 `v3` worktree（Ant Design）
+- [x] 0.2.v3 建立 `v3` worktree（Ant Design）
   - 從共享 API 基線切出 `v3`
   - 在該 worktree 內讓 `/studio` 指向 Ant Design 版本
   - 使用 shared design tokens
 
-- [ ] 0.2.compare 驗證四套表面共同起跑線
+- [x] 0.2.compare 驗證四套表面共同起跑線
   - baseline 與三個新版本皆可在各自 port 開啟 `/studio`
   - baseline 與三個新版本皆連到同一組真實 API
   - 三個新版本皆使用相同語意 token

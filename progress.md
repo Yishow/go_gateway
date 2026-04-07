@@ -351,3 +351,49 @@ git diff --check
 - 將 shared foundation commit 套用到 baseline / v1 / v2 / v3
 - baseline branch 建立 freeze checkpoint
 - 平行派發 v1 / v2 / v3 subagents 只做 Phase 0
+
+#### Session 12: Workbench UX Phase 0 compare gate（本輪）
+- ✅ baseline / v1 / v2 / v3 全部完成 Phase 0 checkpoint：
+  - baseline：`e0928d8`
+  - v1：`53e4fca`
+  - v2：`e3a245f`
+  - v3：`e1c3fac`
+- ✅ 使用 `agent-browser` 收集四版 `/studio` 證據：
+  - `files/phase0-baseline-compare.png`
+  - `files/phase0-v1-compare.png`
+  - `files/phase0-v2-compare.png`
+  - `files/phase0-v3-compare.png`
+- ✅ 使用 `agent-browser` 驗證四版 `?step=source` deep-link：
+  - baseline `4173`
+  - v1 `4174`
+  - v2 `4175`
+  - v3 `4176`
+- ✅ 以 frontend proxy 驗證 shared real API：
+  - `GET /api/v1/datalink/devices`
+  - 四版 response bytes = `3076`
+  - 四版 sha256 = `5cafa581345cfa9225eb221c3c821671ddae03523385cb464fb6669fe6aa9ad4`
+- ✅ 量測基本 `/studio` response timing（3 次平均）：
+  - baseline = `2.2ms`
+  - v1 = `1.8ms`
+  - v2 = `2.0ms`
+  - v3 = `1.8ms`
+- ✅ 完成 Phase 0 compare 結論：
+  - 操作順暢度：四版都能穩定載入與切到 Source；差異主要在 shell/step rail 語意
+  - 邏輯清晰度：`v2` 最佳，`v3` 次之，`v1` 接近 baseline
+  - 對系統的完整性：四版皆維持同 `/studio` + 同 API + 同資料
+  - 首屏資訊密度：baseline/v1 最熟悉，v2 最平衡，v3 最有工作台感但略厚重
+  - 關鍵操作時間：四版差異極小，均在 `1.8ms ~ 2.2ms`
+  - 實作 / 維護風險：baseline < v1 < v3 < v2
+  - 推薦版本（Phase 0 only）：`v2 / MUI`
+
+**驗證結果**：
+```bash
+curl http://127.0.0.1:4173/4174/4175/4176/studio
+agent-browser open /studio
+agent-browser open /studio?step=source
+curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
+```
+- 結果：
+  - 四版 `/studio` 可達
+  - 四版 deep-link 可達
+  - 四版 API proxy hash 一致

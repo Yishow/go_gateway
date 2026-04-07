@@ -9,6 +9,15 @@
 - `frontend-design` 的 UX / color guidance 與本案目標一致：工業操作員屬 B2B / efficiency-first 情境，應優先控制 cognitive load、資訊分塊、低疲勞 dark surface 與清楚的 severity / diagnostics，而不是追求炫光視效。
 - `openspec validate` 對 validate 子命令使用 `--changes`，不是 `--change`；apply/status 與 validate 的 CLI 旗標不一致，後續 automation 需注意。
 
+## 2026-04-07 Workbench UX Phase 0 compare 新發現
+- 四套表面在 compare 當下都能以同一個 `/studio` route 啟動，且 `?step=source` deep-link 也都可正常落到來源步驟；這代表 route contract 與 route-state sync 在四版共同起跑線上成立。
+- 透過四個 frontend dev server 的 `/api/v1/datalink/devices` proxy 回應做 hash，比對結果完全一致；因此本輪 compare 的 backend 條件確實是同一組真實 API，而不是版本分流。
+- `v1` 的 shadcn/Radix foundation 最保守，幾乎維持 baseline 的資訊結構，只在 shell 語彙與 token 掛載上建立版本身份；優點是風險低，缺點是第一眼辨識度與 step-state 語意提升有限。
+- `v2` 的 MUI foundation 在 Phase 0 就已經把 step rail、context bar、summary bar 與 theme shell 做出最明確的版本身份；a11y snapshot 中只有 v2 明確呈現 selected tab 語意，這對後續 compare 的「邏輯清晰度」很有利。
+- `v3` 的 Ant Design foundation 版本身份也很清楚，且 Layout/Steps 能快速形成工作台感；但目前從 a11y snapshot 看，步驟選取狀態不像 v2 那麼直接，且 App-level ConfigProvider 帶來的全域影響面比 v1 大。
+- 以 Phase 0 這個「共同起跑線」目標來看，推薦版本先給 `v2 / MUI`：不是因為它已經是最終 winner，而是它在不改 API/route 的前提下，最成功地建立了可比較、可辨識、可延續到後續 phase 的 shell 基礎。
+- 風險排序（僅 Phase 0）：`baseline` 最低、`v1` 次低、`v3` 中高、`v2` 最高；v2 的清晰度最好，但也是目前 diff 面與維護面最大的版本，後續 phase 需持續觀察是否會放大成本。
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

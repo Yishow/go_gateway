@@ -246,11 +246,16 @@
   - `frontend/src/styles/workbench-experiment-tokens.ts`
   - `frontend/src/pages/datalink/workbench/workbenchExperimentContract.ts`
 - [x] 對齊 OpenSpec worktree 路徑到 repo 既有 `.worktrees/` 規則
-- [ ] 將 shared foundation commit 套用到 baseline / v1 / v2 / v3 worktree
-- [ ] 在 baseline branch 建立 freeze checkpoint 與證據
-- [ ] 平行派發 v1 / v2 / v3 subagents，只做 Phase 0
-- [ ] 完成 Phase 0 compare gate，確認四套表面共同起跑線
+- [x] 將 shared foundation commit 套用到 baseline / v1 / v2 / v3 worktree
+- [x] 在 baseline branch 建立 freeze checkpoint 與證據
+- [x] 平行派發 v1 / v2 / v3 subagents，只做 Phase 0
+- [x] 完成 Phase 0 compare gate，確認四套表面共同起跑線
 
 **備註**：
 - 本輪保留既有 `.worktrees/workbench-v1|v2|v3` 舊實驗工作樹，不納入本次正式 matrix。
 - `/studio` route contract 目前仍由 `frontend/src/App.tsx` 明確守住，Phase 0 shared foundation 只補 contract 與 token source，不直接改 baseline UI 表面。
+- Phase 0 compare 結論：
+  - baseline / v1 / v2 / v3 皆可在 `4173/4174/4175/4176` 開啟同一個 `/studio`
+  - 四版透過 frontend proxy 命中同一組真實 API（`/api/v1/datalink/devices` response hash 一致）
+  - 推薦版本（僅 Phase 0）：`v2 / MUI`，原因是 step shell 語意最清楚、版本辨識最穩定；但維護成本目前也是四版中最高
+  - Phase 1 以前暫不推進，等待使用者確認下一輪
