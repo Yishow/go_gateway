@@ -18,6 +18,15 @@
 - 以 Phase 0 這個「共同起跑線」目標來看，推薦版本先給 `v2 / MUI`：不是因為它已經是最終 winner，而是它在不改 API/route 的前提下，最成功地建立了可比較、可辨識、可延續到後續 phase 的 shell 基礎。
 - 風險排序（僅 Phase 0）：`baseline` 最低、`v1` 次低、`v3` 中高、`v2` 最高；v2 的清晰度最好，但也是目前 diff 面與維護面最大的版本，後續 phase 需持續觀察是否會放大成本。
 
+## 2026-04-07 Workbench UX Phase 1 Device shared criteria 新發現
+- Device phase 若不先鎖定 `create / edit / clone / connect / probe / diagnostics` 六個動作，很容易讓各版本只優化自己擅長的一段，失去 compare 的可比性。
+- baseline 的 `agent-browser` 實際探查顯示：
+  - Device list 首屏有明確 `Create device`
+  - 已選設備 detail 可見 `Edit device`、`Clone from selected`、`Test connection`
+  - 但至少在目前 baseline detail snapshot 中，尚未看到和 `connect` 並列、明確命名的 `probe` 入口
+- 這代表 Phase 1 compare 的一個核心問題不是單純視覺好不好看，而是：**版本能否把 connect / probe 分段診斷語意做得更清楚，同時不破壞現有 create/edit/clone 路徑。**
+- `workbench-device-step-editor.test.tsx` 與 `workbench-device-form-model.test.ts` 已經把多協議欄位、draft preservation 與 clone / edit 基本約束固定下來；Phase 1 variants 應該重用這些現有 contract，而不是另外發明新流程。
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

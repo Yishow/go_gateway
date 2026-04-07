@@ -259,3 +259,27 @@
   - 四版透過 frontend proxy 命中同一組真實 API（`/api/v1/datalink/devices` response hash 一致）
   - 推薦版本（僅 Phase 0）：`v2 / MUI`，原因是 step shell 語意最清楚、版本辨識最穩定；但維護成本目前也是四版中最高
   - Phase 1 以前暫不推進，等待使用者確認下一輪
+
+---
+
+## 臨時任務：2026-04-07 Workbench UX Phase 1 Device 啟動（本輪）
+
+- [x] 將 `phase1-shared` 轉為結構化 contract：
+  - `WORKBENCH_DEVICE_COMPARE_SCENARIOS`
+  - `WORKBENCH_DEVICE_COMPARE_ACCEPTANCE`
+  - `WORKBENCH_DEVICE_COMPARE_CRITICAL_TASK`
+- [x] 明確鎖定 Device compare 的六個動作：
+  - create
+  - edit
+  - clone
+  - connect
+  - probe
+  - diagnostics
+- [ ] 以 baseline `/studio` 實際操作 Device step，建立 baseline 證據
+- [ ] 完成 `phase1-baseline`
+- [ ] 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
+- [ ] 完成 `phase1-compare`
+
+**備註**：
+- baseline 首次 agent-browser 探查已確認：create / edit / clone / test-connection 都存在於 Device surface。
+- baseline 目前首屏可見的是單一 `Test connection` 操作，尚未在已選設備 detail 中看見明確分離的 `probe` 入口；這將作為 Phase 1 compare 的重點觀察項。

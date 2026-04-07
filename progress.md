@@ -397,3 +397,28 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
   - 四版 `/studio` 可達
   - 四版 deep-link 可達
   - 四版 API proxy hash 一致
+
+#### Session 13: Workbench UX Phase 1 shared criteria（本輪）
+- ✅ 在 `workbenchExperimentContract.ts` 補齊 Device phase shared contract：
+  - `WORKBENCH_DEVICE_COMPARE_SCENARIOS`
+  - `WORKBENCH_DEVICE_COMPARE_ACCEPTANCE`
+  - `WORKBENCH_DEVICE_COMPARE_CRITICAL_TASK`
+- ✅ 鎖定 Device compare 六個固定動作：
+  - create
+  - edit
+  - clone
+  - connect
+  - probe
+  - diagnostics
+- ✅ 使用 `agent-browser` 先探查 baseline Device step：
+  - `/studio` Device list 首屏
+  - 開啟 `Create device` editor
+  - 開啟既有 `Browser Smoke PLC` detail
+- ✅ baseline 初步觀察：
+  - create / edit / clone 路徑存在
+  - 已選設備 detail 有 `Test connection`
+  - 目前尚未看到明確分離的 `probe` 入口，列為 compare 重點
+
+**下一步**：
+- 完成 `phase1-baseline`
+- 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`

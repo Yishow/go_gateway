@@ -134,3 +134,63 @@ export const WORKBENCH_EXPERIMENT_PHASES: readonly WorkbenchExperimentPhase[] = 
     scenarioFocus: ['end-to-end-run', 'full-compare', 'winner-recommendation'],
   },
 ] as const;
+
+export const WORKBENCH_DEVICE_COMPARE_SCENARIOS = [
+  {
+    id: 'device-create',
+    label: '建立設備',
+    goal: '從 Device step 建立新的 PLC device，保留在同一個 /studio 流程內。',
+    actions: ['open-create', 'fill-identity', 'fill-connection', 'save-device'],
+    successSignals: ['device-created', 'device-listed', 'editor-state-preserved'],
+  },
+  {
+    id: 'device-edit',
+    label: '編輯設備',
+    goal: '修改既有設備的連線欄位，確認 edit path 不會遺失現有設定。',
+    actions: ['open-edit', 'inspect-current-config', 'change-connection', 'save-device'],
+    successSignals: ['existing-config-loaded', 'mutation-submitted', 'updated-state-visible'],
+  },
+  {
+    id: 'device-clone',
+    label: '複製設備',
+    goal: '從既有設備 clone 出新設備，並確認名稱衝突規則與初始值承接。',
+    actions: ['open-clone', 'adjust-name', 'verify-carried-config', 'save-device'],
+    successSignals: ['clone-mode-visible', 'distinct-name-enforced', 'cloned-config-persisted'],
+  },
+  {
+    id: 'device-connect',
+    label: '連線檢查',
+    goal: '觸發 connect 段落診斷，確認結果區與可行動訊息清楚。',
+    actions: ['run-connect', 'observe-connect-stage', 'inspect-result-panel'],
+    successSignals: ['connect-stage-visible', 'latency-or-status-visible', 'actionable-feedback-visible'],
+  },
+  {
+    id: 'device-probe',
+    label: '探測檢查',
+    goal: '觸發 probe 段落診斷，確認與 connect 結果明確分離。',
+    actions: ['run-probe', 'observe-probe-stage', 'inspect-result-panel'],
+    successSignals: ['probe-stage-visible', 'connect-and-probe-separated', 'capability-feedback-visible'],
+  },
+  {
+    id: 'device-diagnostics',
+    label: '錯誤診斷',
+    goal: '在失敗條件下看見可行動的 blocker 與下一步。',
+    actions: ['trigger-failure', 'read-diagnostic-copy', 'find-recovery-action'],
+    successSignals: ['blocking-reason-visible', 'next-step-clear', 'no-silent-failure'],
+  },
+] as const;
+
+export const WORKBENCH_DEVICE_COMPARE_ACCEPTANCE = [
+  'create / edit / clone / connect / probe / diagnostics 六種動作都必須留在同一個 /studio workflow 中',
+  'connect 與 probe 的結果必須可分辨，不得把兩者折疊成單一模糊成功/失敗訊號',
+  'Device form 必須保留既有 protocol-specific connection fields 與 draft preservation',
+  '畫面必須能讓操作員快速看出目前是在 create、edit 還是 clone 模式',
+  '失敗訊息必須帶可行動診斷，不可只有抽象錯誤字串或 silent failure',
+  'compare 時四版都必須使用同一組真實 API 與同一批 device data',
+] as const;
+
+export const WORKBENCH_DEVICE_COMPARE_CRITICAL_TASK = {
+  id: 'device-connect-probe-pass',
+  label: '建立或選取設備後完成 connect / probe 診斷判讀',
+  measures: ['time-to-open-editor', 'time-to-submit-check', 'time-to-understand-result'],
+} as const;

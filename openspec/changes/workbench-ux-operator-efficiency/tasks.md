@@ -111,7 +111,7 @@
 
 > 目標：比較設備建立、編輯、clone、connect / probe 的最佳表面。
 
-- [ ] 1.1 共用基礎
+- [x] 1.1 共用基礎
   - 固定 Device 場景與驗收標準
   - 固定需要比較的動作：create、edit、clone、connect、probe、錯誤診斷
 
