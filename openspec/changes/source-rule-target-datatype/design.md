@@ -76,17 +76,17 @@
 
 
 
-|| 層級 | 參數範例 | 用途 |
+| 層級 | 主要參數 | 寫入位置 / UI 入口 | 職責邊界 | 本變更對齊 |
+| --- | --- | --- | --- | --- |
+| **裝置連線** | `host`、`port`、`serial`、`baud`、`parity`、`slave_id`、`timeout`、`persistent_connection`、`keep_alive`、**`data_format`** | `devices.connection_config`、Workbench Step 1 裝置編輯器、`connector` `ConfigSchema` | 決定如何連線，以及如何把多 register 原始值解碼成正確數值；**不負責** Tag 型別或工程單位換算 | Modbus TCP／RTU／UDP 與 MC 3E 皆可設定 `data_format`；空值仍沿用既有解碼預設 |
+| **點位 Point** | **`address`**、**`data_type`**、polling 群組 | `points`、Source Rule 同步產生的 Point 定義 | 決定從哪裡讀、以哪種協議語意讀、需要幾個 register；若 Point `data_type` 不對，後續 `cast`／`scale` 無法補救錯誤解碼 | `data_type` 持續代表**協議讀取型別**，不因 Tag 目標型別而改寫 |
+| **來源規則（規劃）** | `start`、`count`、`naming`、**`target_data_type`**、**`scale_multiplier`**、**`scale_offset`** | `source_rules`、Workbench Source Rule 表單 | 描述批次建立 Point／Tag／Mapping 的規劃意圖；自身不執行轉換，但會在同步時決定 Tag 型別與預設管線 | 新增 `target_data_type` 與 scale 欄位；空值表示沿用 Point 型別 / 不插入 scale |
+| **映射 Mapping** | `transform_pipeline`（`cast`、`scale`、`formula`…） | `mappings.transform_pipeline`、runtime `ExecutePipeline` | 對**已正確解碼**的 Point 值做後續轉換；固定順序為 **`cast -> scale`** | Source Rule 同步依規則產生預設 `cast` / `scale` 步驟，並經 `ValidateTransformPipeline` 驗證 |
 
-||------|-----------|------|
+**補充：**
 
-|| **裝置連線** | host、port、serial、baud、parity、**slave_id**、**timeout**、**persistent_connection**、**keep_alive**、**`data_format`**（多 word／float 解碼） | 傳輸與**原始暫存器解碼** |
-
-|| **點位 Point** | **address**、**data_type**（讀取寬度與協議語意）、polling 群組 | 讀哪裡、讀幾個 register |
-
-|| **來源規則（規劃）** | start、count、naming、**target_data_type**、**scale／offset** | 批次建立 Point／Tag／Mapping 的意圖 |
-
-|| **映射 Mapping** | `transform_pipeline`（`cast`、`scale`、`formula`…） | 讀取正確 raw 之後的轉換 |
+- `Tag.data_type` 是規則同步的**結果**，不是獨立的抓取參數層；當規則宣告 `target_data_type` 時，Tag 跟隨目標型別，而 Point 保持協議讀取型別。
+- 排查數值異常時，優先順序為：**連線 `data_format`** → **Point `data_type` / address** → **規則的目標型別與縮放宣告** → **Mapping 管線**。
 
 
 
