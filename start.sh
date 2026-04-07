@@ -31,7 +31,9 @@ HAS_ANY_PARAM=false
 FRONTEND_PID=""
 
 # 日誌噪音計數器（關聯陣列）
-declare -A LOG_NOISE_COUNTERS
+# 在 bash 5.3 + set -u 下，僅 declare 而未初始化的空關聯陣列
+# 於 `${#array[@]}` 存取時會觸發 unbound variable。
+declare -A LOG_NOISE_COUNTERS=()
 
 info() { printf "\033[36m[INFO]\033[0m %s\n" "$*"; }
 success() { printf "\033[32m[OK]\033[0m %s\n" "$*"; }
@@ -169,6 +171,24 @@ show_frontend_host_hint() {
     info "💡 前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port 5173）"
   else
     info "💡 前端開發伺服器通常運行在 http://$FRONTEND_DEV_HOST:5173"
+  fi
+}
+
+frontend_proxy_target() {
+  printf "http://127.0.0.1:%s" "$PORT"
+}
+
+start_frontend_dev_server() {
+  local proxy_target
+  proxy_target="$(frontend_proxy_target)"
+
+  if has_cmd setsid; then
+    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' pnpm run dev --host '$FRONTEND_DEV_HOST'" &
+  else
+    (
+      cd "$FRONTEND_DIR" &&
+        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" pnpm run dev --host "$FRONTEND_DEV_HOST"
+    ) &
   fi
 }
 
@@ -502,12 +522,8 @@ start_dev_mode() {
 
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
-    # 使用 setsid 建立新進程組，方便整體清理
-    if has_cmd setsid; then
-      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev --host '$FRONTEND_DEV_HOST'" &
-    else
-      (cd "$FRONTEND_DIR" && pnpm run dev --host "$FRONTEND_DEV_HOST") &
-    fi
+    # 顯式傳遞 backend PORT / proxy target，避免 dev server 代理到錯的埠。
+    start_frontend_dev_server
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
     show_frontend_host_hint
@@ -558,11 +574,7 @@ start_air_mode() {
   # 啟動前端開發伺服器
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
-    if has_cmd setsid; then
-      setsid bash -c "cd '$FRONTEND_DIR' && pnpm run dev --host '$FRONTEND_DEV_HOST'" &
-    else
-      (cd "$FRONTEND_DIR" && pnpm run dev --host "$FRONTEND_DEV_HOST") &
-    fi
+    start_frontend_dev_server
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
     show_frontend_host_hint

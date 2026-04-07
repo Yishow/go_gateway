@@ -2,6 +2,15 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+function resolveProxyTarget(env: Record<string, string>): string {
+  if (env.VITE_API_PROXY_TARGET) {
+    return env.VITE_API_PROXY_TARGET;
+  }
+
+  const backendPort = env.PORT || "8080";
+  return `http://127.0.0.1:${backendPort}`;
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // 載入環境變數（從 .env 文件）
@@ -9,7 +18,7 @@ export default defineConfig(({ mode }) => {
 
   // 從環境變數讀取配置，提供預設值
   const devPort = parseInt(env.VITE_DEV_PORT || "5173", 10);
-  const proxyTarget = env.VITE_API_PROXY_TARGET || "http://localhost:8080";
+  const proxyTarget = resolveProxyTarget(env);
 
   return {
     plugins: [react()],
@@ -39,7 +48,7 @@ export default defineConfig(({ mode }) => {
       port: devPort,
       proxy: {
         "/api": {
-          // 從環境變數讀取代理目標，預設 http://localhost:8080
+          // 開發模式時讓 proxy 跟隨 backend PORT，避免 start.sh/start.ps1 啟動到不同 port。
           target: proxyTarget,
           changeOrigin: true,
           secure: false,

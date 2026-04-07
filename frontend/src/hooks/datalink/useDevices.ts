@@ -40,6 +40,8 @@ export function useDevicesQuery(filters?: DeviceListFilters) {
   return useQuery({
     queryKey: deviceKeys.list(filters),
     queryFn: () => deviceAPI.list(filters),
+    placeholderData: (previousData) => previousData,
+    refetchOnWindowFocus: false,
   });
 }
 
