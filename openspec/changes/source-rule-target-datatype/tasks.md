@@ -26,5 +26,5 @@
 ## 5. 文件與驗收
 
 - [x] 5.1 在 `docs/` 或 `design.md` 延伸處整理「連線／Point／規則／映射」參數分層表（與本變更 proposal 一致）
-- [ ] 5.2 手動驗收：① `data_format` 變更後 float 讀值正確；② `uint16`→`float64` cast；③ scale 單獨與合併
+- [x] 5.2 手動驗收：① `data_format` 變更後 float 讀值正確；② `uint16`→`float64` cast；③ scale 單獨與合併
 - [ ] 5.3 更新本 `tasks.md` 勾選進度
