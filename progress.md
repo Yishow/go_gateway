@@ -445,3 +445,25 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
 **下一步**：
 - 完成 `phase1-baseline`
 - 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
+
+#### Session 15: Workbench UX Phase 1 v2 / MUI 完成
+- ✅ v2 子代理完成 `1.1.v2`
+- ✅ branch / commit：
+  - `woe-v2-mui`
+  - `16d27b3`
+- ✅ 結構變更：
+  - `WorkbenchDeviceStep` 拆成 6 個 MUI 元件
+  - 單檔最高 273 行，符合 line-limit 目標
+- ✅ 驗證：
+  - `tsc --noEmit`
+  - ESLint
+  - Vitest form-model tests `8/8`
+  - `agent-browser` 實際操作驗證
+- ✅ 證據：
+  - `phase1-v2-device-list.png`
+  - `phase1-v2-device-diagnostics.png`
+  - `phase1-v2-device-create-editor.png`
+- ✅ 重要結論：
+  - connect / probe diagnostics 已提升為一級顯示
+  - create / edit mode 的辨識度提升
+  - `/mappings` 500 為 pre-existing backend issue，非 v2 Device surface regression

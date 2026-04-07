@@ -29,6 +29,12 @@
 - 這代表 Phase 1 compare 的一個核心問題不是單純視覺好不好看，而是：**版本能否把 connect / probe 分段診斷語意做得更清楚，同時不破壞現有 create/edit/clone 路徑。**
 - `workbench-device-step-editor.test.tsx` 與 `workbench-device-form-model.test.ts` 已經把多協議欄位、draft preservation 與 clone / edit 基本約束固定下來；Phase 1 variants 應該重用這些現有 contract，而不是另外發明新流程。
 
+## 2026-04-07 Workbench UX Phase 1 v2 / MUI 新發現
+- v2 把 Device monolith 拆成 6 個 MUI 元件後，connect / probe / detail / editor 的責任邊界明顯清楚許多，這對 compare 中的「邏輯清晰度」與「維護風險」都很有利。
+- `MuiDeviceDiagnosticsPanel` 把 `connect` 與 `probe` 變成一級 stage，這正面回應了 baseline 只有在 diagnostics 結果裡才看得到 probe state 的問題。
+- v2 的真實瀏覽器驗證顯示：Device 相關 API 正常打到 backend 8080，而 `/mappings` 的 500 是 pre-existing backend issue，不應誤記到 v2 Device surface 頭上。
+- v2 保留 create / edit / clone 主線，同時讓 mode（CREATE / EDIT）在 editor 內變成可視語意，這可能會在「關鍵操作時間」與「操作順暢度」上勝過 baseline。
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

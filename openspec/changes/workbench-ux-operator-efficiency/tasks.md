@@ -123,7 +123,7 @@
   - 以 shared tokens + shadcn/Radix primitives 設計 Device surface
   - 可依 kit 特性微調表單、結果區與提示區邏輯
 
-- [ ] 1.1.v2 MUI
+- [x] 1.1.v2 MUI
   - 以 shared tokens + MUI components 設計 Device surface
   - 可依 kit 特性微調表單、結果區與提示區邏輯
 

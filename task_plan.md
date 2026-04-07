@@ -279,6 +279,7 @@
 - [x] 以 baseline `/studio` 實際操作 Device step，建立 baseline 證據
 - [x] 完成 `phase1-baseline`
 - [ ] 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
+- [ ] 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
 - [ ] 完成 `phase1-compare`
 
 **備註**：
@@ -293,3 +294,14 @@
   - 編輯器露出 `Test current draft settings`
   - diagnostics 區內才會出現 `Connect phase` 與 `Protocol probe`
 - 這代表 baseline 並非缺少 probe 能力，而是 **probe 被包在診斷結果裡，不是首屏可辨識的一級操作**；這將作為 Phase 1 compare 的主觀察項。
+- v2 / MUI 已完成 `1.1.v2`：
+  - commit：`16d27b3`
+  - 1741 行 monolith 被拆成 6 個 MUI 元件，單檔最高 273 行
+  - connect / probe diagnostics 已提升為一級 panel 與 stage 狀態
+  - 證據：
+    - `phase1-v2-device-list.png`
+    - `phase1-v2-device-diagnostics.png`
+    - `phase1-v2-device-create-editor.png`
+  - 已知風險：
+    - `/api/v1/datalink/mappings` 500 為 pre-existing backend issue
+    - 未使用 `@mui/lab`，改以 `Button + CircularProgress` 實作 loading 狀態
