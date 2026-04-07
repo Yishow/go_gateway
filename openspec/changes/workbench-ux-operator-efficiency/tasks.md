@@ -143,31 +143,32 @@
 
 > 目標：把 Device 從「同一表面換 kit」提升為三種真正不同的工作台 archetype。
 
-- [ ] 1R.1 共用基礎
+- [x] 1R.1 共用基礎
   - 把 `v1` / `v2` / `v3` 明確定義為三種不同 archetype
   - 固定三版各自的 design source mapping
   - 固定 Device 共通 domain model：selection / task / diagnostics / system
   - 明確規定 connect / probe 必須是第一公民，create / edit / clone 必須有明確 mode
   - 若 shared token contract 不足以表達三版語言，必須先擴充同一份 shared semantic contract；不得新增 version-only token file
 
-- [ ] 1R.1.v1 Linear Control Room
+- [x] 1R.1.v1 Linear Control Room
   - 以 `linear.app` 為骨架，重做 v1 Device interaction skeleton
   - 形成左欄 device rail / 中央 task canvas / 右欄 live inspector
   - 視覺上必須一眼區別於 baseline 與其他版本
 
-- [ ] 1R.1.v2 Sentry Incident Desk
+- [x] 1R.1.v2 Sentry Incident Desk
   - 以 `sentry` 為骨架，重做 v2 Device interaction skeleton
   - 形成任務導向 command center，讓 diagnostics 成為主敘事
   - 視覺上必須一眼區別於 baseline 與其他版本
 
-- [ ] 1R.1.v3 ClickHouse Data Cockpit
+- [x] 1R.1.v3 ClickHouse Data Cockpit
   - 以 `clickhouse` 為骨架，重做 v3 Device interaction skeleton
   - 形成高密度 cockpit，首屏就呈現 KPI / health / recent tests / diagnostics
   - 視覺上必須一眼區別於 baseline 與其他版本
 
-- [ ] 1R.1.compare Device 重做比較與推薦
+- [x] 1R.1.compare Device 重做比較與推薦
   - 重新輸出 baseline + 三個重做版本在 Device 場景的比較表
   - compare 必須明確說明三版在 interaction model 與視覺語言上的差異
+  - 推薦 `v2 / Sentry Incident Desk` 作為本輪最佳平衡；`v1 / Linear Control Room` 保留作為低風險 fallback，`v3 / ClickHouse Data Cockpit` 保留高密度 cockpit 亮點供後續吸收
   - 給出新的 Device phase 推薦版本與理由
 
 ---
