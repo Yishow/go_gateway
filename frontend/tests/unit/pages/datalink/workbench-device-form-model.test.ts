@@ -24,6 +24,12 @@ describe('workbenchDeviceFormModel', () => {
     expect(cfg.port).toBe(5000);
   });
 
+  it('modbus 預設 data_format 與後端／registry 一致', () => {
+    expect(createDefaultDeviceConnectionConfig('modbus_tcp').data_format).toBe('ABCD');
+    expect(createDefaultDeviceConnectionConfig('modbus_udp').data_format).toBe('ABCD');
+    expect(createDefaultDeviceConnectionConfig('modbus_rtu').data_format).toBe('ABCD');
+  });
+
   it('normalizeMc3eDataFormatValue 接受字節序並將舊 binary／ascii 轉為 CDAB', () => {
     expect(normalizeMc3eDataFormatValue('cdab')).toBe('CDAB');
     expect(normalizeMc3eDataFormatValue('binary')).toBe('CDAB');
@@ -61,5 +67,24 @@ describe('workbenchDeviceFormModel', () => {
     const draft = buildDeviceDraftFromDevice(device);
     expect(draft.connectionConfig.data_format).toBe('CDAB');
     expect(draft.connectionConfig.host).toBe('h');
+  });
+
+  it('buildDeviceDraftFromDevice 載入 modbus_tcp 缺省 data_format 時回退 ABCD', () => {
+    const device: Device = {
+      id: '2',
+      name: 'modbus',
+      description: '',
+      protocol: 'modbus_tcp',
+      connection_config: JSON.stringify({ host: '10.0.0.8', port: 502 }),
+      status: 'active',
+      last_test_at: null,
+      last_test_success: null,
+      last_test_error: '',
+      created_at: '',
+      updated_at: '',
+    };
+    const draft = buildDeviceDraftFromDevice(device);
+    expect(draft.connectionConfig.data_format).toBe('ABCD');
+    expect(draft.connectionConfig.host).toBe('10.0.0.8');
   });
 });

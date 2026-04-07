@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -58,11 +58,22 @@ function OpenCreatePanelButton() {
   );
 }
 
+function OpenEditPanelButton() {
+  const { openEditDevicePanel } = useWorkbench();
+
+  return (
+    <button onClick={() => openEditDevicePanel('device-1')} type="button">
+      open-edit
+    </button>
+  );
+}
+
 function buildTree(queryClient: QueryClient): ReactNode {
   return (
     <QueryClientProvider client={queryClient}>
       <WorkbenchProvider>
         <OpenCreatePanelButton />
+        <OpenEditPanelButton />
         <WorkbenchDeviceStep />
       </WorkbenchProvider>
     </QueryClientProvider>
@@ -121,5 +132,81 @@ describe('WorkbenchDeviceStep create editor', () => {
     expect(screen.getByLabelText('workbench.device.fields.protocol')).toHaveValue(
       'modbus_rtu',
     );
+  });
+
+  it('submits modbus tcp data_format from the create editor', async () => {
+    mockCreateDeviceMutation.mutateAsync.mockResolvedValue({
+      id: 'device-created',
+    });
+
+    renderDeviceStep();
+
+    fireEvent.click(screen.getByRole('button', { name: 'open-create' }));
+    fireEvent.change(screen.getByLabelText('workbench.device.fields.name'), {
+      target: { value: 'Modbus TCP Device' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.device.connection.host'), {
+      target: { value: '192.168.0.10' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.device.connection.dataFormat'), {
+      target: { value: 'BADC' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.save' }));
+
+    await waitFor(() => {
+      expect(mockCreateDeviceMutation.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          protocol: 'modbus_tcp',
+          connection_config: expect.objectContaining({
+            data_format: 'BADC',
+          }),
+        }),
+      );
+    });
+  });
+
+  it('loads and persists mc_3e data_format in the edit editor', async () => {
+    mockDeviceQuery.data = [
+      {
+        id: 'device-1',
+        name: 'MC Device',
+        description: '',
+        protocol: 'mc_3e',
+        status: 'active',
+        connection_config: JSON.stringify({
+          host: '10.0.0.20',
+          port: 5000,
+          data_format: 'binary',
+        }),
+        last_test_at: null,
+        last_test_success: null,
+        last_test_error: '',
+        created_at: '',
+        updated_at: '',
+      },
+    ];
+    mockUpdateDeviceMutation.mutateAsync.mockResolvedValue(undefined);
+
+    renderDeviceStep();
+
+    fireEvent.click(screen.getByRole('button', { name: 'open-edit' }));
+
+    const dataFormatField = screen.getByLabelText('workbench.device.connection.dataFormat');
+    expect(dataFormatField).toHaveValue('CDAB');
+
+    fireEvent.change(dataFormatField, { target: { value: 'DCBA' } });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.device.actions.save' }));
+
+    await waitFor(() => {
+      expect(mockUpdateDeviceMutation.mutateAsync).toHaveBeenCalledWith({
+        id: 'device-1',
+        data: expect.objectContaining({
+          connection_config: expect.objectContaining({
+            data_format: 'DCBA',
+          }),
+        }),
+      });
+    });
   });
 });

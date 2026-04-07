@@ -33,7 +33,6 @@ import {
   createEmptyDeviceDraft,
   getWorkbenchDeviceStatusLabelKey,
   getWorkbenchProtocolLabelKey,
-  normalizeMc3eDataFormatValue,
   parseDeviceConnectionConfig,
   sanitizeDeviceConnectionConfig,
   WORKBENCH_DEVICE_STATUSES,
@@ -41,6 +40,7 @@ import {
   type DeviceConnectionConfig,
   type DeviceDraft,
 } from './workbenchDeviceFormModel';
+import { buildConnectionDataFormatOptions, normalizeConnectionDataFormatValue } from './workbenchDeviceDataFormat';
 
 const inputClassName =
   'w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30';
@@ -52,17 +52,11 @@ const ghostButtonClassName =
 const primaryButtonClassName =
   'inline-flex items-center justify-center rounded-xl bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50';
 
-type DeviceNotice = {
-  tone: 'success' | 'error' | 'info';
-  message: string;
-};
+type DeviceNotice = { tone: 'success' | 'error' | 'info'; message: string };
 
 type FieldErrorMap = Record<string, string>;
 
-type SelectOption = {
-  value: string;
-  label: string;
-};
+type SelectOption = { value: string; label: string };
 
 function joinClasses(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
@@ -450,6 +444,7 @@ export function WorkbenchDeviceStep() {
   const [notice, setNotice] = useState<DeviceNotice | null>(null);
   const pendingSelectedDeviceIdRef = useRef<string | null>(null);
   const initializedPanelKeyRef = useRef<string | null>(null);
+  const dataFormatOptions = useMemo(() => buildConnectionDataFormatOptions(t), [t]);
 
   const filteredDevices = useMemo(() => {
     return devices.filter((device) => {
@@ -811,6 +806,16 @@ export function WorkbenchDeviceStep() {
                 value={connectionValueAsString('timeout')}
                 inputMode="numeric"
               />
+              <SelectField
+                id="device-modbus-format"
+                label={t('workbench.device.connection.dataFormat')}
+                onChange={(value) => setConnectionValue('data_format', value)}
+                options={dataFormatOptions}
+                value={normalizeConnectionDataFormatValue(
+                  draft.protocol,
+                  draft.connectionConfig.data_format,
+                )}
+              />
             </div>
           </>
         );
@@ -890,6 +895,16 @@ export function WorkbenchDeviceStep() {
                 placeholder="5"
                 value={connectionValueAsString('timeout')}
                 inputMode="numeric"
+              />
+              <SelectField
+                id="device-rtu-format"
+                label={t('workbench.device.connection.dataFormat')}
+                onChange={(value) => setConnectionValue('data_format', value)}
+                options={dataFormatOptions}
+                value={normalizeConnectionDataFormatValue(
+                  'modbus_rtu',
+                  draft.connectionConfig.data_format,
+                )}
               />
             </div>
           </>
@@ -1139,25 +1154,9 @@ export function WorkbenchDeviceStep() {
                 id="device-mc-format"
                 label={t('workbench.device.connection.dataFormat')}
                 onChange={(value) => setConnectionValue('data_format', value)}
-                options={[
-                  {
-                    value: 'ABCD',
-                    label: t('workbench.device.connection.dataFormats.abcd'),
-                  },
-                  {
-                    value: 'BADC',
-                    label: t('workbench.device.connection.dataFormats.badc'),
-                  },
-                  {
-                    value: 'CDAB',
-                    label: t('workbench.device.connection.dataFormats.cdab'),
-                  },
-                  {
-                    value: 'DCBA',
-                    label: t('workbench.device.connection.dataFormats.dcba'),
-                  },
-                ]}
-                value={normalizeMc3eDataFormatValue(
+                options={dataFormatOptions}
+                value={normalizeConnectionDataFormatValue(
+                  'mc_3e',
                   draft.connectionConfig.data_format,
                 )}
               />

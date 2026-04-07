@@ -3,6 +3,12 @@ import type {
   DeviceStatus,
   ProtocolType,
 } from '../../../types/datalink';
+import {
+  MC3E_DEFAULT_DATA_FORMAT,
+  MODBUS_DEFAULT_DATA_FORMAT,
+  normalizeConnectionDataFormatValue,
+  supportsConnectionDataFormat,
+} from './workbenchDeviceDataFormat';
 
 export type DeviceConnectionValue = string | number | boolean | string[];
 export type DeviceConnectionConfig = Record<
@@ -34,11 +40,7 @@ export const WORKBENCH_PROTOCOLS: readonly ProtocolType[] = [
   'mqtt',
 ];
 
-export const WORKBENCH_DEVICE_STATUSES: readonly DeviceStatus[] = [
-  'active',
-  'draft',
-  'disabled',
-];
+export const WORKBENCH_DEVICE_STATUSES: readonly DeviceStatus[] = ['active', 'draft', 'disabled'];
 
 const protocolLabelKeyMap: Record<ProtocolType, string> = {
   modbus_tcp: 'workbench.device.protocols.modbus_tcp',
@@ -119,6 +121,7 @@ export function createDefaultDeviceConnectionConfig(
         port: 502,
         slave_id: 1,
         timeout: 5,
+        data_format: MODBUS_DEFAULT_DATA_FORMAT,
       };
     case 'modbus_udp':
       return {
@@ -126,6 +129,7 @@ export function createDefaultDeviceConnectionConfig(
         port: 502,
         slave_id: 1,
         timeout: 5,
+        data_format: MODBUS_DEFAULT_DATA_FORMAT,
       };
     case 'modbus_rtu':
       return {
@@ -136,6 +140,7 @@ export function createDefaultDeviceConnectionConfig(
         parity: 'none',
         slave_id: 1,
         timeout: 5,
+        data_format: MODBUS_DEFAULT_DATA_FORMAT,
       };
     case 'fatek_fbs':
       return {
@@ -159,7 +164,7 @@ export function createDefaultDeviceConnectionConfig(
         io_no: 1023,
         station_no: 0,
         timeout: 5,
-        data_format: 'CDAB',
+        data_format: MC3E_DEFAULT_DATA_FORMAT,
       };
     case 'mqtt':
       return {
@@ -185,9 +190,6 @@ export function createEmptyDeviceDraft(
   };
 }
 
-/** 後端 MC 3E 支援的 data_format（hsllogic 字節序枚舉） */
-const MC_3E_DATA_FORMATS = new Set(['ABCD', 'BADC', 'CDAB', 'DCBA']);
-
 /**
  * 將 MC 3E 連線設定中的 data_format 正規化為後端可解讀的字節序字串。
  * 舊版 Workbench 曾送出 binary／ascii，一律對應為預設 CDAB。
@@ -196,14 +198,7 @@ const MC_3E_DATA_FORMATS = new Set(['ABCD', 'BADC', 'CDAB', 'DCBA']);
  * @returns ABCD、BADC、CDAB、DCBA 之一
  */
 export function normalizeMc3eDataFormatValue(value: unknown): string {
-  if (typeof value !== 'string') {
-    return 'CDAB';
-  }
-  const upper = value.trim().toUpperCase();
-  if (MC_3E_DATA_FORMATS.has(upper)) {
-    return upper;
-  }
-  return 'CDAB';
+  return normalizeConnectionDataFormatValue('mc_3e', value);
 }
 
 export function parseDeviceConnectionConfig(
@@ -230,8 +225,9 @@ export function buildDeviceDraftFromDevice(device: Device): DeviceDraft {
     ...createDefaultDeviceConnectionConfig(device.protocol),
     ...parseDeviceConnectionConfig(device.connection_config),
   };
-  if (device.protocol === 'mc_3e') {
-    connectionConfig.data_format = normalizeMc3eDataFormatValue(
+  if (supportsConnectionDataFormat(device.protocol)) {
+    connectionConfig.data_format = normalizeConnectionDataFormatValue(
+      device.protocol,
       connectionConfig.data_format,
     );
   }
@@ -339,13 +335,13 @@ export function buildDeviceCapabilitySummary(
   const wordOrder = (() => {
     switch (protocol) {
       case 'mc_3e':
+      case 'modbus_tcp':
+      case 'modbus_udp':
+      case 'modbus_rtu':
         return readConnectionValueAsString(connectionConfig, 'data_format')
           ?? t('workbench.device.capability.values.protocolDefault');
       case 'mqtt':
         return notApplicable;
-      case 'modbus_tcp':
-      case 'modbus_udp':
-      case 'modbus_rtu':
       case 'fatek_fbs':
         return t('workbench.device.capability.values.protocolDefault');
     }
