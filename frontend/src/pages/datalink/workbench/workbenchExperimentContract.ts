@@ -180,13 +180,47 @@ export const WORKBENCH_DEVICE_COMPARE_SCENARIOS = [
   },
 ] as const;
 
+export const WORKBENCH_DEVICE_PHASE1R_REBOOT = {
+  task: '1R.1',
+  label: 'Device 三 archetypes reboot',
+  reason: '上一輪 Device compare 被直接 review 判定為差異不足且過度接近 baseline。',
+  domainLayers: ['selection', 'task', 'diagnostics', 'system'],
+} as const;
+
+export const WORKBENCH_DEVICE_PHASE1R_ARCHETYPES = {
+  v1: {
+    label: 'Linear Control Room',
+    sourceMapping: ['linear.app', 'sentry-badges', 'clickhouse-stats'],
+    interactionModel: 'device rail / task canvas / live inspector',
+    visualGoal: 'near-black low-noise surface with indigo emphasis',
+  },
+  v2: {
+    label: 'Sentry Incident Desk',
+    sourceMapping: ['sentry', 'clickhouse-diagnostics', 'linear-structure'],
+    interactionModel: 'incident feed / diagnostics desk / system intel',
+    visualGoal: 'warm purple-black command center with uppercase labels and lime/coral emphasis',
+  },
+  v3: {
+    label: 'ClickHouse Data Cockpit',
+    sourceMapping: ['clickhouse', 'linear-structure', 'sentry-alert-semantics'],
+    interactionModel: 'KPI strip / fleet grid / inline cockpit expansion',
+    visualGoal: 'pure-black high-density console with neon throughput signals',
+  },
+} as const;
+
 export const WORKBENCH_DEVICE_COMPARE_ACCEPTANCE = [
   'create / edit / clone / connect / probe / diagnostics 六種動作都必須留在同一個 /studio workflow 中',
+  'Selection / Task / Diagnostics / System 四層必須在 Device surface 可辨識，不可再次被折疊成單一 editor 心智模型',
+  'v1 / v2 / v3 必須形成不同 archetype，而不是同一個畫面只換 kit 或小幅重排',
+  '整個 Device phase 首屏必須一眼就能辨識成不同產品語言，不得只是沿用 baseline 骨架再換色、換字重或換少量元件',
+  'Device phase 的工具列、主工作區、檢查區與摘要節奏都必須跟 archetype 一起重寫；若主要 chrome 仍與目前 Studio 八分像，視為不通過',
   'connect 與 probe 的結果必須可分辨，不得把兩者折疊成單一模糊成功/失敗訊號',
+  'connect / probe 必須是第一公民，不可再次埋進單一 diagnostics blob 或只有 editor 內結果可見',
   'Device form 必須保留既有 protocol-specific connection fields 與 draft preservation',
   '畫面必須能讓操作員快速看出目前是在 create、edit 還是 clone 模式',
   '失敗訊息必須帶可行動診斷，不可只有抽象錯誤字串或 silent failure',
   'compare 時四版都必須使用同一組真實 API 與同一批 device data',
+  '其餘 workbench pages 即使暫不改邏輯，也必須以同 archetype 的設計語言重新表達，避免 Device 很像另一個產品、其餘頁面卻仍是 baseline 皮膚',
 ] as const;
 
 export const WORKBENCH_DEVICE_COMPARE_CRITICAL_TASK = {
