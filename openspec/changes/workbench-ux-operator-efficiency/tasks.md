@@ -148,6 +148,7 @@
   - 固定三版各自的 design source mapping
   - 固定 Device 共通 domain model：selection / task / diagnostics / system
   - 明確規定 connect / probe 必須是第一公民，create / edit / clone 必須有明確 mode
+  - 若 shared token contract 不足以表達三版語言，必須先擴充同一份 shared semantic contract；不得新增 version-only token file
 
 - [ ] 1R.1.v1 Linear Control Room
   - 以 `linear.app` 為骨架，重做 v1 Device interaction skeleton

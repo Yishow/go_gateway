@@ -325,6 +325,7 @@ reason:
   - 純黑 + neon、高對比、高密度
   - heavy Inter + KPI tiles + 高可見 health / throughput signals
 - 三版都不能再呈現「同一個灰黑 Tailwind 表面換 kit」的感覺。
+- 若 shared token contract 無法同時表達這三組視覺語言，必須先擴充**同一份 shared semantic contract**（例如 archetype palette / typography cue / depth treatment），不得在 branch 內新增 version-only token file。
 
 ### Phase 2：Source
 

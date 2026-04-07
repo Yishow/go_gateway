@@ -356,11 +356,21 @@
   - `v1` = Linear Control Room
   - `v2` = Sentry Incident Desk
   - `v3` = ClickHouse Data Cockpit
-- [ ] 將 Phase 1R 三 archetypes 與共通 domain model 回寫 OpenSpec
-- [ ] 平行派發 `phase1r-v1` / `phase1r-v2` / `phase1r-v3`
-- [ ] 完成 `phase1r-compare`
+- [x] 將 Phase 1R 三 archetypes 與共通 domain model 回寫 OpenSpec
+- [x] 平行派發 `phase1r-v1` / `phase1r-v2` / `phase1r-v3`
+- [x] 發現 shared token contract 過窄，依 blocked 規則重開 shared foundation
+- [x] 擴充 `frontend/src/styles/workbench-experiment-tokens.ts`：
+  - archetype-specific palette semantics（linear / sentry / clickhouse）
+  - typography cues（510 / 700 / 900 權重與 tracking）
+  - depth / treatment semantics（glass / inset / neon glow）
+- [x] 補 shared token contract unit test：
+  - `frontend/tests/unit/features/datalink/workbench-experiment-tokens.test.ts`
+- [ ] 讓 `phase1r-v1` / `phase1r-v2` / `phase1r-v3` 依新 shared contract 對齊後續作
+- [ ] 完成 Phase 1R compare gate
 
 **備註**：
+- 直接觸發點是 v2 開始長 branch-local `sentryVisualTokens.ts`；雖然該檔多半是 style preset 而非完整新 palette，但它暴露出 shared token contract 仍不足以支撐三 archetypes 的真正視覺語言。
+- 本輪 shared repair 已把「不可在 branch 內新增 version-only token file」回寫到 OpenSpec design / tasks，避免後續再次 drift。
 - 使用者明確否定上一輪 Device compare，理由是：
   - 三版 UI 差異不足
   - interaction model 幾乎沒變

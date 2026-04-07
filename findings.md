@@ -82,6 +82,19 @@
   - `v3` = ClickHouse Data Cockpit
 - 本輪最重要的驗收標準不再只是 connect / probe 有沒有變清楚，而是：**三版是否一眼就能看出不同 interaction model 與不同視覺語言。**
 
+## 2026-04-07 Workbench UX Phase 1R shared token contract 新發現
+- 原始 Phase 0 token contract 雖然足夠支撐「同一骨架換 kit」的公平比較，但不足以支撐 Phase 1R 的三 archetypes reboot：
+  - `Linear` 需要近黑 + 單一 indigo-violet + 超細白邊界
+  - `Sentry` 需要 warm purple-black + Rubik/uppercase + lime/coral emphasis
+  - `ClickHouse` 需要 pure black + neon yellow-green + heavy KPI display
+- v2 在重做途中開始長出 branch-local `sentryVisualTokens.ts`，這不是單純命名問題，而是明確訊號：**shared contract 太窄，版本只好自己補 style contract。**
+- 依使用者規則，遇到 token conflict 時主代理不能讓版本偷偷完成，而必須先回到 shared contract；因此本輪先暫停 `phase1r-v1/v2/v3` 收尾，重開 `phase1r-shared`。
+- 修補方向不是為三版各開一份 token file，而是在同一份 `workbench-experiment-tokens.ts` 補上：
+  - `archetype.linear / sentry / clickhouse`
+  - shared typography cues（510 / 700 / 900 權重與 label tracking）
+  - shared treatment semantics（glass / inset / neon glow / ambient purple）
+- 這樣三版仍共用**同一份 shared semantic contract**，但已不再被單一灰黑 palette 綁死。
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：
