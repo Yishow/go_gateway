@@ -87,6 +87,13 @@ func parseModbusDataFormat(format string) hsllogic.DataFormat {
 	}
 }
 
+func effectiveModbusDataFormat(requestFormat, connectionFormat string) string {
+	if strings.TrimSpace(requestFormat) != "" {
+		return requestFormat
+	}
+	return connectionFormat
+}
+
 // convertModbusValue 將 Modbus 暫存器值轉換為指定型別（依 dataFormat 解多暫存器數值）。
 func convertModbusValue(registers []uint16, dataType schema.DataType, dataFormat string) interface{} {
 	if len(registers) == 0 {

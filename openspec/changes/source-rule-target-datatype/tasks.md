@@ -20,7 +20,7 @@
 ## 4. 連線 `data_format`（跨協議）
 
 - [x] 4.1 在 `internal/datalink/connector/registry.go` 為 **Modbus TCP／RTU／UDP** 的 `ConfigSchema` 增加 **`data_format`**（enum 與 MC3E 一致），預設值與現行解碼預設對齊
-- [ ] 4.2 Modbus 適配器讀取 `connection_config.data_format` 並傳入 `lib/hsllogic`（或等價）解碼路徑；補多字組 float／int32 單元測試
+- [x] 4.2 Modbus 適配器讀取 `connection_config.data_format` 並傳入 `lib/hsllogic`（或等價）解碼路徑；補多字組 float／int32 單元測試
 - [ ] 4.3 前端裝置連線表單（動態 schema）驗證 Modbus 與 MC3E 皆能選擇並儲存 `data_format`
 
 ## 5. 文件與驗收

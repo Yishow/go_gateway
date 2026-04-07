@@ -124,7 +124,12 @@ func (c *ModbusRTUConnector) Read(ctx context.Context, req connector.ReadRequest
 	defer c.afterOperation()
 
 	// 複用 TCP 版本的讀取邏輯
-	tcpConn := &ModbusTCPConnector{client: c.client, connected: true, persistentMode: true}
+	tcpConn := &ModbusTCPConnector{
+		client:         c.client,
+		connected:      true,
+		persistentMode: true,
+		config:         schema.ConnectionConfigModbusTCP{DataFormat: c.config.DataFormat},
+	}
 	return tcpConn.Read(ctx, req)
 }
 

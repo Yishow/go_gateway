@@ -112,7 +112,12 @@ func (c *ModbusUDPConnector) Read(ctx context.Context, req connector.ReadRequest
 	// 短連接模式：操作完成後自動斷線
 	defer c.afterOperation()
 
-	tcpConn := &ModbusTCPConnector{client: c.client, connected: true, persistentMode: true}
+	tcpConn := &ModbusTCPConnector{
+		client:         c.client,
+		connected:      true,
+		persistentMode: true,
+		config:         schema.ConnectionConfigModbusTCP{DataFormat: c.config.DataFormat},
+	}
 	return tcpConn.Read(ctx, req)
 }
 

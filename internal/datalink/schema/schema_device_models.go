@@ -104,6 +104,8 @@ type ConnectionConfigModbusTCP struct {
 	SlaveID byte `json:"slave_id"`
 	// Timeout 連線逾時秒數
 	Timeout int `json:"timeout"`
+	// DataFormat 字節序格式 (ABCD, BADC, CDAB, DCBA)，預設為 ABCD
+	DataFormat string `json:"data_format,omitempty"`
 }
 
 // ConnectionConfigModbusRTU Modbus RTU 連線配置
@@ -122,6 +124,8 @@ type ConnectionConfigModbusRTU struct {
 	SlaveID byte `json:"slave_id"`
 	// Timeout 通訊逾時秒數
 	Timeout int `json:"timeout"`
+	// DataFormat 字節序格式 (ABCD, BADC, CDAB, DCBA)，預設為 ABCD
+	DataFormat string `json:"data_format,omitempty"`
 }
 
 // ConnectionConfigModbusUDP Modbus UDP 連線配置
@@ -134,6 +138,8 @@ type ConnectionConfigModbusUDP struct {
 	SlaveID byte `json:"slave_id"`
 	// Timeout 通訊逾時秒數
 	Timeout int `json:"timeout"`
+	// DataFormat 字節序格式 (ABCD, BADC, CDAB, DCBA)，預設為 ABCD
+	DataFormat string `json:"data_format,omitempty"`
 }
 
 // ConnectionConfigFatekFBs FATEK FBs 連線配置
