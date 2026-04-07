@@ -228,3 +228,29 @@
 
 **備註**：
 - `internal/api/handlers` 全量測試在目前 sandbox 仍會因 `listen tcp :0` 權限限制失敗；本輪改用 targeted tests 驗證新增端點與契約。
+
+---
+
+## 臨時任務：2026-04-07 Workbench UX Phase 0 啟動（本輪）
+
+- [x] 重新讀取 `proposal.md`、`design.md`、`tasks.md`、`specs/datalink-api/spec.md`
+- [x] 建立 fleet SQL todo DAG：
+  - `phaseN-shared -> phaseN-baseline -> phaseN-(v1|v2|v3) -> phaseN-compare`
+- [x] 啟用 `frontend-design` 並補讀 UX / color design context
+- [x] 建立正式 worktree：
+  - `.worktrees/woe-base-current-ui`
+  - `.worktrees/woe-v1-radix`
+  - `.worktrees/woe-v2-mui`
+  - `.worktrees/woe-v3-antd`
+- [x] 落地 Phase 0 shared foundation 檔案：
+  - `frontend/src/styles/workbench-experiment-tokens.ts`
+  - `frontend/src/pages/datalink/workbench/workbenchExperimentContract.ts`
+- [x] 對齊 OpenSpec worktree 路徑到 repo 既有 `.worktrees/` 規則
+- [ ] 將 shared foundation commit 套用到 baseline / v1 / v2 / v3 worktree
+- [ ] 在 baseline branch 建立 freeze checkpoint 與證據
+- [ ] 平行派發 v1 / v2 / v3 subagents，只做 Phase 0
+- [ ] 完成 Phase 0 compare gate，確認四套表面共同起跑線
+
+**備註**：
+- 本輪保留既有 `.worktrees/workbench-v1|v2|v3` 舊實驗工作樹，不納入本次正式 matrix。
+- `/studio` route contract 目前仍由 `frontend/src/App.tsx` 明確守住，Phase 0 shared foundation 只補 contract 與 token source，不直接改 baseline UI 表面。

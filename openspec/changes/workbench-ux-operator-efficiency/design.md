@@ -44,10 +44,10 @@ mainline stays stable until a winner is chosen
 
 | 版本 | branch | worktree 目錄名 | frontend port | 備註 |
 | --- | --- | --- | --- | --- |
-| `baseline` | `woe-base-current-ui` | `../go_gateway-woe-base-current-ui` | `4173` | 凍結目前 `/studio` 作比較基線 |
-| `v1` | `woe-v1-radix` | `../go_gateway-woe-v1-radix` | `4174` | shared tokens + shadcn/Radix |
-| `v2` | `woe-v2-mui` | `../go_gateway-woe-v2-mui` | `4175` | shared tokens + MUI |
-| `v3` | `woe-v3-antd` | `../go_gateway-woe-v3-antd` | `4176` | shared tokens + Ant Design |
+| `baseline` | `woe-base-current-ui` | `.worktrees/woe-base-current-ui` | `4173` | 凍結目前 `/studio` 作比較基線 |
+| `v1` | `woe-v1-radix` | `.worktrees/woe-v1-radix` | `4174` | shared tokens + shadcn/Radix |
+| `v2` | `woe-v2-mui` | `.worktrees/woe-v2-mui` | `4175` | shared tokens + MUI |
+| `v3` | `woe-v3-antd` | `.worktrees/woe-v3-antd` | `4176` | shared tokens + Ant Design |
 
 ### 執行順序
 
@@ -61,19 +61,19 @@ mainline stays stable until a winner is chosen
 
 ```bash
 # 1. 建立四個 worktree
-git worktree add ../go_gateway-woe-base-current-ui -b woe-base-current-ui
-git worktree add ../go_gateway-woe-v1-radix -b woe-v1-radix
-git worktree add ../go_gateway-woe-v2-mui -b woe-v2-mui
-git worktree add ../go_gateway-woe-v3-antd -b woe-v3-antd
+git worktree add .worktrees/woe-base-current-ui -b woe-base-current-ui
+git worktree add .worktrees/woe-v1-radix -b woe-v1-radix
+git worktree add .worktrees/woe-v2-mui -b woe-v2-mui
+git worktree add .worktrees/woe-v3-antd -b woe-v3-antd
 
 # 2. 啟動共享 backend（任一選定工作目錄即可，但 API 契約必須一致）
 ./start.sh --dev-mode --port 8080
 
 # 3. 在各 worktree 啟動前端 dev server
-cd ../go_gateway-woe-base-current-ui/frontend && VITE_DEV_PORT=4173 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
-cd ../go_gateway-woe-v1-radix/frontend     && VITE_DEV_PORT=4174 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
-cd ../go_gateway-woe-v2-mui/frontend       && VITE_DEV_PORT=4175 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
-cd ../go_gateway-woe-v3-antd/frontend      && VITE_DEV_PORT=4176 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+cd .worktrees/woe-base-current-ui/frontend && VITE_DEV_PORT=4173 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+cd .worktrees/woe-v1-radix/frontend        && VITE_DEV_PORT=4174 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+cd .worktrees/woe-v2-mui/frontend          && VITE_DEV_PORT=4175 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+cd .worktrees/woe-v3-antd/frontend         && VITE_DEV_PORT=4176 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
 ```
 
 #### 操作注意

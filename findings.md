@@ -1,5 +1,14 @@
 # Findings
 
+## 2026-04-07 Workbench UX Phase 0 啟動新發現
+- `openspec status/apply` 顯示目前 change 為唯一 active change，schema 為 `spec-driven`，進度 `4/60`；可直接從 Phase 0 開始，不需再猜測使用哪個 change。
+- 目前 repo 已有舊的 `.worktrees/workbench-v1|v2|v3`，但它們仍停在舊基線 commit，且命名不符合本次 OpenSpec matrix；最安全做法是保留不動，另外建立 `woe-*` 正式 worktree。
+- `frontend/src/App.tsx` 已明確把 `/studio` 定為唯一主產品 route，`/datalink/*` 收斂為 redirect；這代表本 change 的 route guard 主要是「不可破壞既有 contract」，不是新增路由。
+- `frontend/package.json` 目前只有 Radix 相關依賴，尚未引入 MUI / Ant Design；因此 v2、v3 Phase 0 需要由各自 branch 明確新增依賴與 theme mapping，不可假設 repo 已預裝。
+- 現有 `frontend/src/styles/tokens.ts` 與 `designSystem.ts` 偏向目前 dark dashboard token；本輪若要做公平實驗，必須另建一層 kit-agnostic semantic token contract，而不是直接把現有 blue/slate token 當成共享實驗主題。
+- `frontend-design` 的 UX / color guidance 與本案目標一致：工業操作員屬 B2B / efficiency-first 情境，應優先控制 cognitive load、資訊分塊、低疲勞 dark surface 與清楚的 severity / diagnostics，而不是追求炫光視效。
+- `openspec validate` 對 validate 子命令使用 `--changes`，不是 `--change`；apply/status 與 validate 的 CLI 旗標不一致，後續 automation 需注意。
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

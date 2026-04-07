@@ -298,3 +298,56 @@ git diff --check
 
 **補充驗證**：
 - 嘗試執行全量 `go test ./...`：因 sandbox 不允許 bind TCP/UDP（`listen tcp :0`、`listen udp 127.0.0.1:0`）失敗，屬環境限制，非本輪 API 變更引入。
+
+#### Session 11: Workbench UX Phase 0 啟動（本輪）
+- ✅ 讀取 OpenSpec context：
+  - `proposal.md`
+  - `design.md`
+  - `tasks.md`
+  - `specs/datalink-api/spec.md`
+- ✅ 建立 fleet SQL todo graph：
+  - `phase0-shared`
+  - `phase0-baseline`
+  - `phase0-v1|v2|v3`
+  - `phase0-compare`
+  - 並串起 Phase 1 ~ 6 的 shared / baseline / variants / compare 依賴
+- ✅ 啟用 `frontend-design` 並讀取 `ux-psychology.md`、`color-system.md`
+- ✅ 建立正式 Phase 0 worktree：
+  - `.worktrees/woe-base-current-ui`
+  - `.worktrees/woe-v1-radix`
+  - `.worktrees/woe-v2-mui`
+  - `.worktrees/woe-v3-antd`
+- ✅ 為四個 worktree 執行基礎 setup：
+  - `go mod download`
+  - `cd frontend && npm install --silent`
+- ✅ 落地 shared foundation 檔案：
+  - `frontend/src/styles/workbench-experiment-tokens.ts`
+  - `frontend/src/pages/datalink/workbench/workbenchExperimentContract.ts`
+- ✅ 對齊 OpenSpec worktree path：
+  - `openspec/changes/workbench-ux-operator-efficiency/design.md`
+  - `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
+- ✅ 執行本輪 shared-foundation 驗證：
+  - `openspec validate --changes "workbench-ux-operator-efficiency"`
+  - `cd frontend && npx tsc --noEmit`
+  - `cd frontend && npx eslint src/styles/workbench-experiment-tokens.ts src/pages/datalink/workbench/workbenchExperimentContract.ts`
+  - `bash scripts/check_file_lines.sh`
+  - `git diff --check`
+
+**驗證結果**：
+```bash
+openspec validate --changes "workbench-ux-operator-efficiency"
+cd frontend && npx tsc --noEmit
+cd frontend && npx eslint src/styles/workbench-experiment-tokens.ts src/pages/datalink/workbench/workbenchExperimentContract.ts
+bash scripts/check_file_lines.sh
+git diff --check
+```
+- 結果：
+  - `openspec validate` 通過
+  - TypeScript / ESLint 通過
+  - line-limit 通過（僅 `design.md`、`tasks.md` 既有長檔 warning）
+  - `git diff --check` 通過
+
+**下一步**：
+- 將 shared foundation commit 套用到 baseline / v1 / v2 / v3
+- baseline branch 建立 freeze checkpoint
+- 平行派發 v1 / v2 / v3 subagents 只做 Phase 0

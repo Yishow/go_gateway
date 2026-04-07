@@ -68,10 +68,10 @@
   - 定義三個 UI kit 的 token mapping 邊界
 
 - [ ] 0.3 命名與執行順序落地
-  - `baseline`：`woe-base-current-ui` / `../go_gateway-woe-base-current-ui` / `4173`
-  - `v1`：`woe-v1-radix` / `../go_gateway-woe-v1-radix` / `4174`
-  - `v2`：`woe-v2-mui` / `../go_gateway-woe-v2-mui` / `4175`
-  - `v3`：`woe-v3-antd` / `../go_gateway-woe-v3-antd` / `4176`
+  - `baseline`：`woe-base-current-ui` / `.worktrees/woe-base-current-ui` / `4173`
+  - `v1`：`woe-v1-radix` / `.worktrees/woe-v1-radix` / `4174`
+  - `v2`：`woe-v2-mui` / `.worktrees/woe-v2-mui` / `4175`
+  - `v3`：`woe-v3-antd` / `.worktrees/woe-v3-antd` / `4176`
   - 記錄 shared backend 使用策略與 compare 順序
   - 補出可直接照做的 worktree / backend / frontend 啟動操作稿
 
