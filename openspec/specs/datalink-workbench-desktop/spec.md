@@ -4,17 +4,14 @@
 TBD - created by archiving change redesign-datalink-workbench-desktop-flow. Update Purpose after archive.
 ## Requirements
 ### Requirement: Desktop workbench shell
-The system SHALL provide a desktop-first workbench shell at `/datalink/workbench` with five persistent regions: `StepRail`, `ContextBar`, `PrimaryWorkArea`, `InspectorPanel`, and `BottomSummaryBar`.
+The system SHALL provide a desktop-first workbench shell at `/studio` as the primary product route with persistent workbench regions for step navigation, context, main review surfaces, inspection, and summary feedback.
 
-#### Scenario: 1920 desktop shell stays readable
-- **WHEN** the operator opens `/datalink/workbench` on a 1920×1080 desktop viewport
-- **THEN** the workbench shows the five-region shell without horizontal overflow
-- **AND** the main working surface is not constrained by a centered `max-width` content box
+Any legacy `/datalink/workbench` entry SHALL redirect to `/studio` instead of remaining a separate primary workflow.
 
-#### Scenario: Shared inspector replaces page-level summary dock
-- **WHEN** the operator switches between Device, Source, Tag, and Output steps
-- **THEN** the same desktop `InspectorPanel` hosts the active detail surface for the current selection
-- **AND** the page does not rely on a separate persistent right-side action dock as a shell region
+#### Scenario: Primary workbench opens through `/studio`
+- **WHEN** the operator opens the primary datalink workbench
+- **THEN** the system loads the desktop-first shell at `/studio`
+- **AND** does not require a separate primary `/datalink/workbench` route for the same workflow
 
 ### Requirement: Device workspace establishes capability context
 The system SHALL provide a `DeviceWorkspace` that lets the operator select or create a source device and understand the capability context required for source planning.
@@ -69,17 +66,17 @@ The system SHALL provide a `TagBindingBoard` that exposes source context, propos
 - **AND** shows a post-apply result summary with created, linked, skipped, and failed items
 
 ### Requirement: Unified output workspace supports both targets
-The system SHALL provide one `OutputWorkspace` that keeps Local Modbus and Database outputs inside the same workbench step.
+The system SHALL provide one Output workspace inside `/studio` that keeps Local Modbus and Database outputs in the same workbench step.
 
-#### Scenario: Operator changes output target without leaving workbench
-- **WHEN** the operator switches between `Local Modbus` and `Database` in Step 4
-- **THEN** the output candidate board remains in the same workbench route
-- **AND** the target-specific studio changes without requiring navigation to another page
+#### Scenario: Operator changes output target without leaving `/studio`
+- **WHEN** the operator switches between `Local Modbus` and `Database` in the Output step
+- **THEN** the output review surface remains in the same `/studio` route
+- **AND** the target-specific studio changes without requiring navigation to a separate primary page
 
-#### Scenario: Candidate readiness tracks both targets independently
-- **WHEN** an output candidate is ready for one target but not the other
-- **THEN** the UI displays a distinct readiness state for each target and an overall readiness summary
-- **AND** the inspector explains why a candidate is `partial` or `blocked`
+#### Scenario: Output target switching preserves one primary workflow
+- **WHEN** legacy navigation or bookmarks would previously open a separate workbench route for output work
+- **THEN** the system keeps the operator inside `/studio`
+- **AND** treats any retained legacy entry as a compatibility redirect rather than a second primary workflow
 
 ### Requirement: Device testing distinguishes transport and protocol phases
 The workbench SHALL show and judge transport connectivity and protocol probe results as separate outcomes in Step 1.

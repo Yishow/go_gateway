@@ -5,41 +5,27 @@
 TBD - created by archiving change add-device-data-pipeline. Update Purpose after archive.
 ## Requirements
 ### Requirement: Guided workflow
-
-The UI SHALL provide a guided workflow that keeps a persistent visual context of the complete datalink flow inside one workbench workspace: **Device -> Source Plan -> Tag Binding -> Output Targets**.
+The UI SHALL provide a guided workflow that keeps the complete datalink product flow inside `/studio` as the primary workspace: **Device -> SourceRule -> Tag review -> Output review/apply**.
 
 The workflow SHALL ensure:
 
-1. Operators establish device capability context before source planning.
-2. Source, tag, and output context remain visible without leaving `/datalink/workbench`.
-3. Local Modbus and Database output readiness remain visible in the same workspace.
-4. Failures are localized to a specific step, selection, or output target.
+1. Operators establish device capability context before source-rule planning.
+2. Tag and output review remain bound to the active source-rule revision.
+3. Manual point, tag, or mapping construction tools are secondary and SHALL NOT be required to complete the normal product path.
+4. Database and Local Modbus output readiness remain visible in the same workspace.
+5. Failures remain localized to the owning step, selection, or output target.
 
-#### Scenario: End-to-end guided configuration in one workbench
-- **WHEN** an operator selects a device, applies source planning, completes tag binding, and configures an output target
-- **THEN** the UI keeps the flow inside `/datalink/workbench`
-- **AND** the operator does not need to switch to a separate page to complete the main path
-
-#### Scenario: Step-localized error handling
-- **WHEN** planning, binding, or output validation fails
-- **THEN** the UI marks the owning step or selected object as failed or blocked
-- **AND** provides actionable retry or edit guidance in context
+#### Scenario: End-to-end guided configuration uses `/studio`
+- **WHEN** an operator selects a device, saves a source rule, reviews tag candidates, and applies one or both output targets
+- **THEN** the primary workflow stays inside `/studio`
+- **AND** the operator does not need a separate manual point-first or mapping-first route to complete the normal path
 
 ### Requirement: Drag-drop mapping canvas
+The UI MAY provide a drag-drop mapping canvas as a secondary engineering tool, but the primary `/studio` workflow SHALL NOT depend on manual drag-drop point-to-tag mapping.
 
-The UI SHALL provide a drag-drop canvas to connect source points to target tags and mapping steps.
-
-#### Scenario: Create mapping by drag
-
-- WHEN a user drags a point onto a tag
-- THEN a mapping is created and editable
-
-#### Scenario: Edit existing mapping
-
-- WHEN a user clicks on an existing mapping
-- THEN the mapping details are shown for editing
-
----
+#### Scenario: Primary workflow completes without drag-drop mapping
+- **WHEN** an operator completes the normal `/studio` workflow
+- **THEN** the system does not require opening a drag-drop mapping canvas to create the effective rule-driven tag or output state
 
 ### Requirement: Transform builder
 
