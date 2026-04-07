@@ -57,6 +57,20 @@
   - 較強的首屏資訊密度 / workbench identity
   - 較高的實作與維護風險
 
+## 2026-04-07 Workbench UX Phase 1 compare 結論
+- **推薦版本：v2 / MUI**
+- 排名理由：
+  - `v2`：在 Device 場景下，connect / probe 兩階段 diagnostics 的語意最清楚，editor mode 也最一眼可辨識；雖 detail -> editor 比 baseline / v1 稍慢，但整體認知負擔最低，且主要檔案都壓在 300 行內。
+  - `v1`：是最穩健的低風險備案。它保留 baseline 節奏，又把 diagnostics 語意前移；但主協調檔仍有 462 行，維護面不如 v2。
+  - `v3`：資訊密度與控制台感最強，但互動時間最慢，且 `DeviceFormDrawer.tsx` 422 行、foundation tests 28 failures（Phase 0 shell 既有問題）都會放大後續維護成本。
+  - `baseline`：速度與風險都最保守，但 Device probe 語意仍然過於隱藏，不適合作為 Phase 1 最終推薦。
+- Device phase 關鍵操作時間（ms）：
+  - baseline：`458 / 381 / 377`
+  - v1：`459 / 397 / 381`
+  - v2：`502 / 493 / 386`
+  - v3：`486 / 467 / 462`
+  - 順序分別為：`list -> detail / detail -> editor / editor -> diagnostics`
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

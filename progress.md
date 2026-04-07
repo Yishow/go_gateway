@@ -472,6 +472,7 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
 - ✅ v1 branch / commit：
   - `woe-v1-radix`
   - `b1a6b9c`
+  - `4896fc8`（補齊 diagnostics i18n 文案）
 - ✅ 結構變更：
   - `WorkbenchDeviceStep` 拆成 8 個角色檔案
   - `WorkbenchDeviceDiagnosticsPanel` 明確分層 `Connect` / `Protocol Probe`
@@ -514,3 +515,30 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
   - v3 具備明確的雙階段 diagnostics 與高資訊密度
   - foundation tests 28 failures 為 Phase 0 shell 既有問題，不是 Device refactor regression
   - `DeviceFormDrawer.tsx` 422 行，形成明確維護風險
+
+#### Session 18: Workbench UX Phase 1 compare gate
+- ✅ compare 範圍：
+  - baseline (`4173`)
+  - v1 / shadcn-Radix (`4174`)
+  - v2 / MUI (`4175`)
+  - v3 / Ant Design (`4176`)
+- ✅ compare 依據：
+  - `agent-browser` 實際操作證據
+  - 真實 API / 同一路由 `/studio`
+  - key operation timings
+  - code split / line count / test 狀態
+- ✅ 關鍵操作時間（ms）：
+  - baseline：`458 / 381 / 377`
+  - v1：`459 / 397 / 381`
+  - v2：`502 / 493 / 386`
+  - v3：`486 / 467 / 462`
+  - 順序：`list -> detail / detail -> editor / editor -> diagnostics`
+- ✅ 比較結論：
+  - **操作順暢度**：`v1` ≈ `baseline` > `v3` > `v2`
+  - **邏輯清晰度**：`v2` > `v3` > `v1` > `baseline`
+  - **系統完整性**：`v2` > `v1` ≈ `v3` > `baseline`
+  - **首屏資訊密度**：`v3` > `v2` > `v1` > `baseline`
+  - **實作 / 維護風險**：`baseline` < `v2` < `v1` < `v3`
+- ✅ 推薦版本：
+  - **v2 / MUI**
+  - 理由：connect / probe diagnostics 最清楚、editor mode 語意最直接、主要檔案都壓在 300 行內，是 Device phase 下最平衡的版本

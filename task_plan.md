@@ -279,8 +279,8 @@
 - [x] 以 baseline `/studio` 實際操作 Device step，建立 baseline 證據
 - [x] 完成 `phase1-baseline`
 - [ ] 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
-- [ ] 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
-- [ ] 完成 `phase1-compare`
+- [x] 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
+- [x] 完成 `phase1-compare`
 
 **備註**：
 - baseline 首次 agent-browser 探查已確認：create / edit / clone / test-connection 都存在於 Device surface。
@@ -306,7 +306,7 @@
     - `/api/v1/datalink/mappings` 500 為 pre-existing backend issue
     - 未使用 `@mui/lab`，改以 `Button + CircularProgress` 實作 loading 狀態
 - v1 / shadcn-Radix 已完成 `1.1.v1`：
-  - commit：`b1a6b9c`
+  - commits：`b1a6b9c`、`4896fc8`
   - `WorkbenchDeviceStep` 拆成 8 個角色檔案；主檔 462 行，其餘多數 <250 行
   - connect / probe diagnostics 已提升為明確分層區塊
   - 證據：
@@ -319,7 +319,7 @@
   - 已知風險：
     - 主協調檔 `WorkbenchDeviceStep.tsx` 仍有 462 行，雖未超過 500 行硬上限，但維護風險高於 v2
 - v3 / Ant Design 已完成 `1.1.v3`：
-  - commit：`dc496b9`
+  - commits：`dc496b9`、`6ba09f8`
   - `WorkbenchDeviceStep` 主檔 258 行，但 `DeviceFormDrawer.tsx` 有 422 行
   - connect / probe diagnostics 已提升為雙階段區塊
   - 證據：
@@ -332,3 +332,14 @@
   - 已知風險：
     - foundation tests 28 failures 為 Phase 0 Ant Design shell 既有問題，非本次 Device step regression
     - `DeviceFormDrawer.tsx` 已超過 300 行軟上限，維護風險偏高
+- Phase 1 compare 結論：
+  - **推薦版本：v2 / MUI**
+  - 理由：
+    - connect / probe diagnostics 最清楚，兩階段狀態在 UI 上最穩定、最容易被 operator 立即辨識
+    - create / edit mode 語意最直接，與 Device detail / diagnostics / editor 的責任分層最完整
+    - 6 個主要檔案全部維持在 300 行以下，維護面優於 v1 / v3
+  - compare 摘要：
+    - `baseline`：最快、風險最低，但 probe 語意藏在 diagnostics 裡，不適合作為新 Device 表面
+    - `v1`：速度最接近 baseline，且把 probe 語意前移；是低風險備選
+    - `v2`：邏輯清晰度與系統完整性最佳，雖互動略慢於 baseline / v1，但最平衡
+    - `v3`：資訊密度與工作台感最強，但互動較慢，且維護 / foundation 風險最高

@@ -131,7 +131,7 @@
   - 以 shared tokens + Ant Design components 設計 Device surface
   - 可依 kit 特性微調表單、結果區與提示區邏輯
 
-- [ ] 1.1.compare Device 比較與推薦
+- [x] 1.1.compare Device 比較與推薦
   - 輸出 baseline + 三個新版本在 Device 場景的比較表
   - 給出本 phase 推薦版本與理由
 
