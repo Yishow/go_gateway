@@ -318,3 +318,17 @@
     - editor -> diagnostics：`381ms`
   - 已知風險：
     - 主協調檔 `WorkbenchDeviceStep.tsx` 仍有 462 行，雖未超過 500 行硬上限，但維護風險高於 v2
+- v3 / Ant Design 已完成 `1.1.v3`：
+  - commit：`dc496b9`
+  - `WorkbenchDeviceStep` 主檔 258 行，但 `DeviceFormDrawer.tsx` 有 422 行
+  - connect / probe diagnostics 已提升為雙階段區塊
+  - 證據：
+    - `phase1-v3-device-list.png`
+    - `phase1-v3-device-diagnostics.png`
+  - timing：
+    - list -> detail：`486ms`
+    - detail -> editor：`467ms`
+    - editor -> diagnostics：`462ms`
+  - 已知風險：
+    - foundation tests 28 failures 為 Phase 0 Ant Design shell 既有問題，非本次 Device step regression
+    - `DeviceFormDrawer.tsx` 已超過 300 行軟上限，維護風險偏高

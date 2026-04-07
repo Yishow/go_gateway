@@ -44,6 +44,19 @@
 - 這代表 v1 的改良方向偏向 **保守演進**：它把 diagnostics 語意拉高，但沒有像 v2 那樣大幅重塑整個 Device shell。
 - 風險面上，v1 雖然拆成多個子元件，但主協調檔 `WorkbenchDeviceStep.tsx` 仍有 462 行；若 compare 重視維護面，這會明顯輸給 v2。
 
+## 2026-04-07 Workbench UX Phase 1 v3 / Ant Design 新發現
+- v3 把 Device shell 的資訊密度拉得比 v1 / v2 都高，特別是在 list/detail/card/drawer 的結構語意上更接近「控制台」感。
+- v3 也明確呈現 connect / probe 兩階段 diagnostics，但互動時間比 baseline / v1 / v2 都慢一些：
+  - list -> detail：`486ms`
+  - detail -> editor：`467ms`
+  - editor -> diagnostics：`462ms`
+- v3 的主要風險不是功能缺失，而是維護面：
+  - `DeviceFormDrawer.tsx` 422 行，超過 300 行軟上限
+  - foundation tests 28 failures 屬於 Phase 0 Ant Design shell 既有問題，會拖累版本整體穩定性評價
+- 因此 v3 在 compare 中很可能會同時拿到：
+  - 較強的首屏資訊密度 / workbench identity
+  - 較高的實作與維護風險
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

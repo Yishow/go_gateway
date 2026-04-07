@@ -489,3 +489,28 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
 - ✅ 重要結論：
   - v1 在維持 baseline 節奏的前提下，把 connect / probe 語意前移
   - 主協調檔 462 行，維護風險低於 monolith，但仍高於 v2 的拆分品質
+
+#### Session 17: Workbench UX Phase 1 v3 / Ant Design 完成
+- ✅ v3 branch / commit：
+  - `woe-v3-antd`
+  - `dc496b9`
+- ✅ 結構變更：
+  - `WorkbenchDeviceStep` 主檔降到 258 行
+  - 新增 `DeviceFormDrawer`、`DeviceListTable`、`DeviceDetailCard`、`DeviceDiagnosticsPanel`、`deviceConnectionFieldDefs`
+- ✅ 驗證：
+  - `tsc --noEmit`
+  - `npm run lint`
+  - `npm run build`
+  - editor tests `3/3`
+  - `agent-browser` 實際操作驗證
+- ✅ 證據：
+  - `phase1-v3-device-list.png`
+  - `phase1-v3-device-diagnostics.png`
+- ✅ timing：
+  - list -> detail：`486ms`
+  - detail -> editor：`467ms`
+  - editor -> diagnostics：`462ms`
+- ✅ 重要結論：
+  - v3 具備明確的雙階段 diagnostics 與高資訊密度
+  - foundation tests 28 failures 為 Phase 0 shell 既有問題，不是 Device refactor regression
+  - `DeviceFormDrawer.tsx` 422 行，形成明確維護風險
