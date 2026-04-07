@@ -305,3 +305,16 @@
   - 已知風險：
     - `/api/v1/datalink/mappings` 500 為 pre-existing backend issue
     - 未使用 `@mui/lab`，改以 `Button + CircularProgress` 實作 loading 狀態
+- v1 / shadcn-Radix 已完成 `1.1.v1`：
+  - commit：`b1a6b9c`
+  - `WorkbenchDeviceStep` 拆成 8 個角色檔案；主檔 462 行，其餘多數 <250 行
+  - connect / probe diagnostics 已提升為明確分層區塊
+  - 證據：
+    - `phase1-v1-device-list.png`
+    - `phase1-v1-device-diagnostics.png`
+  - timing：
+    - list -> detail：`459ms`
+    - detail -> editor：`397ms`
+    - editor -> diagnostics：`381ms`
+  - 已知風險：
+    - 主協調檔 `WorkbenchDeviceStep.tsx` 仍有 462 行，雖未超過 500 行硬上限，但維護風險高於 v2

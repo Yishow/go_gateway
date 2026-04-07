@@ -119,7 +119,7 @@
   - 量測目前 UI 在 Device 場景的操作順暢度、邏輯清晰度與主線承接完整性
   - 記錄 baseline 的優勢與缺點
 
-- [ ] 1.1.v1 shadcn/Radix
+- [x] 1.1.v1 shadcn/Radix
   - 以 shared tokens + shadcn/Radix primitives 設計 Device surface
   - 可依 kit 特性微調表單、結果區與提示區邏輯
 

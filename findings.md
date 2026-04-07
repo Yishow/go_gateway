@@ -35,6 +35,15 @@
 - v2 的真實瀏覽器驗證顯示：Device 相關 API 正常打到 backend 8080，而 `/mappings` 的 500 是 pre-existing backend issue，不應誤記到 v2 Device surface 頭上。
 - v2 保留 create / edit / clone 主線，同時讓 mode（CREATE / EDIT）在 editor 內變成可視語意，這可能會在「關鍵操作時間」與「操作順暢度」上勝過 baseline。
 
+## 2026-04-07 Workbench UX Phase 1 v1 / shadcn-Radix 新發現
+- v1 也把 connect / probe diagnostics 升成明確分層，不再像 baseline 那樣只在診斷結果裡被動顯示 probe state。
+- v1 的操作時間非常接近 baseline：
+  - list -> detail：`459ms`
+  - detail -> editor：`397ms`
+  - editor -> diagnostics：`381ms`
+- 這代表 v1 的改良方向偏向 **保守演進**：它把 diagnostics 語意拉高，但沒有像 v2 那樣大幅重塑整個 Device shell。
+- 風險面上，v1 雖然拆成多個子元件，但主協調檔 `WorkbenchDeviceStep.tsx` 仍有 462 行；若 compare 重視維護面，這會明顯輸給 v2。
+
 ## 2026-04-06 未提交變更 code review 新發現
 - `scripts/check_file_lines.sh` 在本地 fallback 模式原本只看 staged 或 unstaged diff，未涵蓋 untracked 新檔；這會導致開發者在 `git add` 前先跑 `make check-lines` 時漏檢新建立的大檔案。
 - 修正方式：

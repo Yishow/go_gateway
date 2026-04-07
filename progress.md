@@ -467,3 +467,25 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
   - connect / probe diagnostics 已提升為一級顯示
   - create / edit mode 的辨識度提升
   - `/mappings` 500 為 pre-existing backend issue，非 v2 Device surface regression
+
+#### Session 16: Workbench UX Phase 1 v1 / shadcn-Radix 完成
+- ✅ v1 branch / commit：
+  - `woe-v1-radix`
+  - `b1a6b9c`
+- ✅ 結構變更：
+  - `WorkbenchDeviceStep` 拆成 8 個角色檔案
+  - `WorkbenchDeviceDiagnosticsPanel` 明確分層 `Connect` / `Protocol Probe`
+- ✅ 驗證：
+  - `workbench-device-form-model` + `workbench-device-step-editor` 共 11 個測試通過
+  - 新增檔案 lint 通過
+  - `agent-browser` 實際操作驗證
+- ✅ 證據：
+  - `phase1-v1-device-list.png`
+  - `phase1-v1-device-diagnostics.png`
+- ✅ timing：
+  - list -> detail：`459ms`
+  - detail -> editor：`397ms`
+  - editor -> diagnostics：`381ms`
+- ✅ 重要結論：
+  - v1 在維持 baseline 節奏的前提下，把 connect / probe 語意前移
+  - 主協調檔 462 行，維護風險低於 monolith，但仍高於 v2 的拆分品質
