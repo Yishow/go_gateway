@@ -57,6 +57,31 @@ mainline stays stable until a winner is chosen
 4. 每個 phase 都依序完成 `baseline -> v1 -> v2 -> v3 -> compare`。
 5. compare 結論完成前，不進入下一個 phase。
 
+### Worktree 操作稿
+
+```bash
+# 1. 建立四個 worktree
+git worktree add ../go_gateway-woe-base-current-ui -b woe-base-current-ui
+git worktree add ../go_gateway-woe-v1-radix -b woe-v1-radix
+git worktree add ../go_gateway-woe-v2-mui -b woe-v2-mui
+git worktree add ../go_gateway-woe-v3-antd -b woe-v3-antd
+
+# 2. 啟動共享 backend（任一選定工作目錄即可，但 API 契約必須一致）
+./start.sh --dev-mode --port 8080
+
+# 3. 在各 worktree 啟動前端 dev server
+cd ../go_gateway-woe-base-current-ui/frontend && VITE_DEV_PORT=4173 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+cd ../go_gateway-woe-v1-radix/frontend     && VITE_DEV_PORT=4174 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+cd ../go_gateway-woe-v2-mui/frontend       && VITE_DEV_PORT=4175 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+cd ../go_gateway-woe-v3-antd/frontend      && VITE_DEV_PORT=4176 VITE_API_PROXY_TARGET=http://127.0.0.1:8080 npm run dev -- --host 0.0.0.0
+```
+
+#### 操作注意
+
+- backend 共享 `8080` 只是預設建議；若改用其他 port，四個前端都必須同步更新 `VITE_API_PROXY_TARGET`。
+- compare 時要固定使用同一組測試資料與同一組 backend 狀態。
+- 若新增 `v4+`，沿用同樣格式分配新的 branch / worktree / port。
+
 ### Shared Backend Rule
 
 - 優先使用同一個共享 backend API instance 作為三個新版本與 baseline 的比較來源。
@@ -109,6 +134,19 @@ mainline stays stable until a winner is chosen
 | shared design tokens | 定義共同主題語意與視覺一致性 |
 | UI kit mapping | 把 token 映射到 shadcn/Radix、MUI、Ant Design 的元件 props / class / theme API |
 | variant interaction | 根據 kit 特性微調局部互動邏輯與元件組合 |
+
+### 建議語意命名
+
+| token family | 建議命名 | 用途 |
+| --- | --- | --- |
+| `surface.*` | `surface.app`, `surface.panel`, `surface.elevated`, `surface.overlay` | 控制主背景、卡片、浮層、覆蓋層 |
+| `text.*` | `text.primary`, `text.secondary`, `text.muted`, `text.inverse` | 控制主要文字、次要說明、弱化文字與反白文字 |
+| `accent.*` | `accent.primary`, `accent.subtle`, `accent.strong` | 控制主強調色與其強弱層次 |
+| `status.*` | `status.success`, `status.warning`, `status.error`, `status.info` | 控制狀態與 severity 呈現 |
+| `border.*` | `border.default`, `border.muted`, `border.strong` | 控制常規分隔、弱分隔與強分隔 |
+| `focus.*` | `focus.ring`, `focus.offset`, `focus.invalid` | 控制鍵盤 focus、錯誤 focus 與可及性高亮 |
+| `density.*` | `density.compact`, `density.default`, `density.relaxed` | 控制表格、表單、列表的資訊密度節奏 |
+| `data.*` | `data.rowHover`, `data.rowSelected`, `data.metricAccent` | 控制資料表面互動與指標強調 |
 
 ### 重要限制
 

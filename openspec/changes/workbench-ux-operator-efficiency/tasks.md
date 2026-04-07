@@ -73,6 +73,11 @@
   - `v2`：`woe-v2-mui` / `../go_gateway-woe-v2-mui` / `4175`
   - `v3`：`woe-v3-antd` / `../go_gateway-woe-v3-antd` / `4176`
   - 記錄 shared backend 使用策略與 compare 順序
+  - 補出可直接照做的 worktree / backend / frontend 啟動操作稿
+
+- [ ] 0.4 語意 token 命名落地
+  - 至少明確 `surface.*`、`text.*`、`accent.*`、`status.*`、`border.*`、`focus.*`、`density.*`、`data.*`
+  - 確保三個 UI kit 共用相同 token family，而不是各自發明不同命名
 
 - [ ] 0.2.baseline 建立 baseline worktree
   - 從共享 API 基線切出 current UI baseline
