@@ -69,6 +69,22 @@ Snapshot completeness SHALL NOT require every downstream target to be apply-read
 - **THEN** the snapshot is still marked complete
 - **AND** the database target entry is persisted as `blocked` or `deferred` with its reason instead of being omitted
 
+### Requirement: Rule changes preserve applied downstream state until explicit reapply
+The system SHALL mark changed downstream assets as `out_of_sync` rather than silently replacing applied tag or output state.
+
+#### Scenario: Applied downstream asset becomes out of sync
+- **WHEN** a saved source-rule revision changes the derived downstream result
+- **THEN** the system preserves the previously applied asset
+- **AND** marks it as `out_of_sync` until the operator explicitly reapplies the new candidate
+
+### Requirement: Rule revision rollback restores the last applied downstream state
+The system SHALL treat rollback as a state-based restore of the last successfully applied downstream state per target.
+
+#### Scenario: Unapplied revision is rolled back
+- **WHEN** a newer source-rule revision is abandoned or rolled back before downstream apply is completed
+- **THEN** the system removes unapplied candidate snapshots for the rolled-back revision
+- **AND** preserves the last successfully applied downstream state for tags, database output, and Local Modbus output independently
+
 ### Requirement: Rule enablement controls collection without deleting derived relationships
 The system SHALL treat rule enablement as collection control only and SHALL preserve Point, Tag, Mapping, and Output relationships when a rule is disabled.
 
