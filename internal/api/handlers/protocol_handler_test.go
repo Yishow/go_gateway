@@ -125,7 +125,7 @@ func TestProtocolHandler_List_ModbusTCP(t *testing.T) {
 	// 驗證欄位
 	assert.Equal(t, "modbus_tcp", modbusTCP["type"])
 	assert.Equal(t, "Modbus TCP", modbusTCP["name"])
-	assert.Equal(t, "Modbus TCP/IP 協議", modbusTCP["description"])
+	assert.Equal(t, "Modbus TCP/IP 協議，用於乙太網路連接的 PLC 和設備", modbusTCP["description"])
 	assert.NotNil(t, modbusTCP["config_schema"])
 
 	// 驗證 Config Schema 是有效的 JSON
@@ -168,7 +168,7 @@ func TestProtocolHandler_List_ModbusRTU(t *testing.T) {
 
 	assert.Equal(t, "modbus_rtu", modbusRTU["type"])
 	assert.Equal(t, "Modbus RTU", modbusRTU["name"])
-	assert.Equal(t, "Modbus RTU 串列協議", modbusRTU["description"])
+	assert.Equal(t, "Modbus RTU 協議，用於 RS-232/RS-485 串列通訊", modbusRTU["description"])
 }
 
 /**
@@ -199,7 +199,7 @@ func TestProtocolHandler_List_ModbusUDP(t *testing.T) {
 
 	assert.Equal(t, "modbus_udp", modbusUDP["type"])
 	assert.Equal(t, "Modbus UDP", modbusUDP["name"])
-	assert.Equal(t, "Modbus UDP 協議", modbusUDP["description"])
+	assert.Equal(t, "Modbus UDP 協議，用於 UDP 通訊", modbusUDP["description"])
 }
 
 /**
@@ -230,7 +230,7 @@ func TestProtocolHandler_List_FatekFBs(t *testing.T) {
 
 	assert.Equal(t, "fatek_fbs", fatekFBs["type"])
 	assert.Equal(t, "FATEK FBs", fatekFBs["name"])
-	assert.Equal(t, "FATEK FBs PLC 協議", fatekFBs["description"])
+	assert.Equal(t, "FATEK FBs 系列 PLC ASCII 協議", fatekFBs["description"])
 }
 
 /**
@@ -261,7 +261,7 @@ func TestProtocolHandler_List_MC3E(t *testing.T) {
 
 	assert.Equal(t, "mc_3e", mc3e["type"])
 	assert.Equal(t, "Mitsubishi MC 3E", mc3e["name"])
-	assert.Equal(t, "三菱 MC 3E 協議 (Binary)", mc3e["description"])
+	assert.Equal(t, "三菱 MC Protocol 3E Frame (Binary)", mc3e["description"])
 }
 
 /**
@@ -292,7 +292,7 @@ func TestProtocolHandler_List_MQTT(t *testing.T) {
 
 	assert.Equal(t, "mqtt", mqtt["type"])
 	assert.Equal(t, "MQTT", mqtt["name"])
-	assert.Equal(t, "MQTT 訂閱接收", mqtt["description"])
+	assert.Equal(t, "MQTT 訂閱接收，用於接收 IoT 設備資料", mqtt["description"])
 }
 
 /**
@@ -345,20 +345,20 @@ func TestProtocolHandler_List_ConfigSchema_ModbusTCP(t *testing.T) {
 	// 驗證 host 屬性
 	host := properties["host"].(map[string]interface{})
 	assert.Equal(t, "string", host["type"])
-	assert.Equal(t, "主機位址", host["description"])
+	assert.Equal(t, "主機位址", host["title"])
 
 	// 驗證 port 屬性
 	port := properties["port"].(map[string]interface{})
 	assert.Equal(t, "integer", port["type"])
 	assert.Equal(t, float64(502), port["default"])
-	assert.Equal(t, "埠號", port["description"])
+	assert.Equal(t, "埠號", port["title"])
 
 	// 驗證 slave_id 屬性
 	slaveID := properties["slave_id"].(map[string]interface{})
 	assert.Equal(t, "integer", slaveID["type"])
 	assert.Equal(t, float64(1), slaveID["minimum"])
 	assert.Equal(t, float64(247), slaveID["maximum"])
-	assert.Equal(t, "Slave ID", slaveID["description"])
+	assert.Equal(t, "從站 ID", slaveID["title"])
 }
 
 /**

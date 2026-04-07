@@ -166,7 +166,8 @@ var protocolInfos = map[schema.ProtocolType]ProtocolInfo{
 				"host": {"type": "string", "title": "主機位址", "description": "IP 位址或主機名稱"},
 				"port": {"type": "integer", "title": "埠號", "default": 502, "minimum": 1, "maximum": 65535},
 				"slave_id": {"type": "integer", "title": "從站 ID", "default": 1, "minimum": 1, "maximum": 247},
-				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5, "minimum": 1, "maximum": 60}
+				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5, "minimum": 1, "maximum": 60},
+				"data_format": {"type": "string", "title": "資料格式（字節序）", "enum": ["ABCD", "BADC", "CDAB", "DCBA"], "default": "ABCD", "description": "對應 hsllogic 浮點／多暫存器解碼字節序"}
 			},
 			"required": ["host", "port", "slave_id"]
 		}`),
@@ -184,7 +185,8 @@ var protocolInfos = map[schema.ProtocolType]ProtocolInfo{
 				"stop_bits": {"type": "integer", "title": "停止位元", "enum": [1, 2], "default": 1},
 				"parity": {"type": "string", "title": "同位檢查", "enum": ["none", "odd", "even"], "default": "none"},
 				"slave_id": {"type": "integer", "title": "從站 ID", "default": 1, "minimum": 1, "maximum": 247},
-				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5, "minimum": 1, "maximum": 60}
+				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5, "minimum": 1, "maximum": 60},
+				"data_format": {"type": "string", "title": "資料格式（字節序）", "enum": ["ABCD", "BADC", "CDAB", "DCBA"], "default": "ABCD", "description": "對應 hsllogic 浮點／多暫存器解碼字節序"}
 			},
 			"required": ["serial_port", "baud_rate", "slave_id"]
 		}`),
@@ -199,7 +201,8 @@ var protocolInfos = map[schema.ProtocolType]ProtocolInfo{
 				"host": {"type": "string", "title": "主機位址"},
 				"port": {"type": "integer", "title": "埠號", "default": 502},
 				"slave_id": {"type": "integer", "title": "從站 ID", "default": 1},
-				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5}
+				"timeout": {"type": "integer", "title": "逾時 (秒)", "default": 5},
+				"data_format": {"type": "string", "title": "資料格式（字節序）", "enum": ["ABCD", "BADC", "CDAB", "DCBA"], "default": "ABCD", "description": "對應 hsllogic 浮點／多暫存器解碼字節序"}
 			},
 			"required": ["host", "port", "slave_id"]
 		}`),
