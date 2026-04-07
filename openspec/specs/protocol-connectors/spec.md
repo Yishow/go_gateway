@@ -81,6 +81,14 @@ The system SHALL report transport-connect results and protocol-probe results as 
 - **THEN** the system SHALL return a probe-stage failure classification
 - **AND** SHALL preserve the successful connect result in the same test response
 
+### Requirement: Connector diagnostics expose planning capability hints
+Protocol connector diagnostics SHALL expose the capability hints needed by rule-driven planning and later review flows.
+
+#### Scenario: Planning capability hints are returned with diagnostics
+- **WHEN** a client requests connector diagnostics for a selected device
+- **THEN** the system returns connect/probe phase results plus protocol capability hints relevant to source-rule planning
+- **AND** those hints remain distinguishable from transient test failure messages
+
 ### Requirement: Connection probes use protocol-appropriate configuration
 The system SHALL use protocol-appropriate probe configuration instead of relying on one implicit default probe behavior for all connectors.
 
@@ -88,4 +96,3 @@ The system SHALL use protocol-appropriate probe configuration instead of relying
 - **WHEN** a connector test runs for a configured device
 - **THEN** the system SHALL use the protocol-specific probe configuration for that device
 - **AND** SHALL NOT assume one shared implicit probe address or validation pattern across all protocols
-

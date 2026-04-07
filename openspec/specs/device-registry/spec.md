@@ -47,42 +47,76 @@ The system SHALL track device status as draft, active, or disabled and expose th
 
 ### Requirement: Device readiness check
 
-The system SHALL provide a readiness check API to verify if a device is fully configured and ready to collect data.
+The system SHALL provide a readiness contract that distinguishes planning eligibility from activation/apply eligibility instead of reducing device readiness to one final boolean.
+
+The readiness contract MUST include at least:
+
+- `connect_status`
+- `probe_status`
+- `planning_allowed`
+- `activation_allowed`
+- `apply_allowed`
+- `blocking_reasons`
 
 #### Scenario: Check ready device
 
-- **WHEN** a client requests readiness status for a device with all required configurations
-- **THEN** the API returns `ready: true` with all checks passing
+- **WHEN** a client requests readiness status for a device with successful connect/probe diagnostics and all required configurations
+- **THEN** the readiness contract reports `planning_allowed=true`, `activation_allowed=true`, and `apply_allowed=true`
+- **AND** returns no blocking reasons
 
 #### Scenario: Check incomplete device
 
-- **WHEN** a client requests readiness status for a device missing required configurations
-- **THEN** the API returns `ready: false` with a list of missing configurations and suggestions
+- **WHEN** a client requests readiness status for a device missing required configurations or later workflow prerequisites
+- **THEN** the readiness contract returns the explicit connect/probe status plus the eligibility flags that still apply
+- **AND** includes blocking reasons explaining the missing configuration or workflow prerequisites
+
+#### Scenario: Planning can proceed after connect success
+
+- **WHEN** a device has successful connect diagnostics but failed probe diagnostics
+- **THEN** the device remains saved and selectable for planning context
+- **AND** the readiness contract reports `planning_allowed=true` while both `activation_allowed` and `apply_allowed` remain `false`
+
+#### Scenario: Activation requires successful probe
+
+- **WHEN** a device has successful connect and probe diagnostics
+- **THEN** the readiness contract allows activation and apply according to current downstream prerequisites
+- **AND** the response distinguishes probe success from any later workflow-specific blocking state
+
+#### Scenario: Readiness reports explicit blocking reasons
+
+- **WHEN** a client requests readiness status for a device that is not fully eligible for activation or apply
+- **THEN** the system returns the relevant blocking reasons in the readiness contract
+- **AND** does not require the caller to infer readiness state from one summary boolean alone
 
 #### Scenario: Readiness check includes device status
 
 - **WHEN** a readiness check is performed
-- **THEN** the system verifies the device status is `active`
+- **THEN** the system verifies device status separately from connect/probe diagnostics
+- **AND** reports any status-based restriction explicitly in `blocking_reasons`
 
 #### Scenario: Readiness check includes points
 
 - **WHEN** a readiness check is performed
 - **THEN** the system verifies at least one enabled point exists for the device
+- **AND** surfaces any missing point prerequisite in `blocking_reasons`
 
 #### Scenario: Readiness check includes polling groups
 
 - **WHEN** a readiness check is performed
 - **THEN** the system verifies points are assigned to enabled polling groups
+- **AND** surfaces any polling-group prerequisite in `blocking_reasons`
 
 #### Scenario: Readiness check includes mappings
 
 - **WHEN** a readiness check is performed
 - **THEN** the system verifies points have corresponding enabled mappings
+- **AND** surfaces any mapping prerequisite in `blocking_reasons`
 
 #### Scenario: Readiness check includes scheduler status
 
 - **WHEN** a readiness check is performed
 - **THEN** the system verifies the collection scheduler is running
+- **AND** surfaces any scheduler prerequisite in `blocking_reasons`
 
 ### Requirement: Device collection statistics
 
@@ -145,4 +179,3 @@ The system SHALL provide a dashboard showing device collection status and config
 
 - **WHEN** device collection status changes
 - **THEN** the dashboard updates in real-time using SSE
-
