@@ -417,7 +417,30 @@ curl http://127.0.0.1:{4173,4174,4175,4176}/api/v1/datalink/devices
 - ✅ baseline 初步觀察：
   - create / edit / clone 路徑存在
   - 已選設備 detail 有 `Test connection`
-  - 目前尚未看到明確分離的 `probe` 入口，列為 compare 重點
+  - `probe` 不在 detail 首屏按鈕，而是在 diagnostics 區結果內揭露
+
+#### Session 14: Workbench UX Phase 1 baseline（Current Studio）
+- ✅ 使用 `agent-browser` 完成 baseline Device 實際操作：
+  - 開啟 `Create device`
+  - 開啟既有 `Browser Smoke PLC` detail
+  - 進入 `Edit device`
+  - 觸發 `Test current draft settings`
+- ✅ 保留證據：
+  - `phase1-baseline-device-create.png`
+  - `phase1-baseline-device-detail.png`
+  - `phase1-baseline-device-edit.png`
+  - `phase1-baseline-device-test-current-draft.png`
+- ✅ baseline 診斷文字證據重點：
+  - `Test current draft settings`
+  - `Failed`
+  - `Connect phase`
+  - `Protocol probe`
+  - `Skipped`
+- ✅ baseline 結論：
+  - create / edit / clone 主路徑是完整的
+  - connect / probe 其實都有，但拆層不夠前置
+  - operator 需要先進入 editor 並執行 diagnostics，才看得到 `Protocol probe`
+  - 這使 baseline 在「系統完整性」上仍成立，但在「操作順暢度」與「邏輯清晰度」上留有優化空間
 
 **下一步**：
 - 完成 `phase1-baseline`

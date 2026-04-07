@@ -23,7 +23,9 @@
 - baseline 的 `agent-browser` 實際探查顯示：
   - Device list 首屏有明確 `Create device`
   - 已選設備 detail 可見 `Edit device`、`Clone from selected`、`Test connection`
-  - 但至少在目前 baseline detail snapshot 中，尚未看到和 `connect` 並列、明確命名的 `probe` 入口
+  - `Edit device` 之後可在編輯器中看到 `Test current draft settings`
+  - 執行 draft diagnostics 後，頁面文字明確出現 `Connect phase` 與 `Protocol probe`
+- 換言之，baseline 並不是沒有 probe，而是 **probe state 被包在 diagnostics 結果裡，而不是作為首屏就能辨識的一級動作**。
 - 這代表 Phase 1 compare 的一個核心問題不是單純視覺好不好看，而是：**版本能否把 connect / probe 分段診斷語意做得更清楚，同時不破壞現有 create/edit/clone 路徑。**
 - `workbench-device-step-editor.test.tsx` 與 `workbench-device-form-model.test.ts` 已經把多協議欄位、draft preservation 與 clone / edit 基本約束固定下來；Phase 1 variants 應該重用這些現有 contract，而不是另外發明新流程。
 

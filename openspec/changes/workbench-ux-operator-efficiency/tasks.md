@@ -115,7 +115,7 @@
   - 固定 Device 場景與驗收標準
   - 固定需要比較的動作：create、edit、clone、connect、probe、錯誤診斷
 
-- [ ] 1.1.baseline Current Studio
+- [x] 1.1.baseline Current Studio
   - 量測目前 UI 在 Device 場景的操作順暢度、邏輯清晰度與主線承接完整性
   - 記錄 baseline 的優勢與缺點
 

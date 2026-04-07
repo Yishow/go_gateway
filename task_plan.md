@@ -276,10 +276,20 @@
   - probe
   - diagnostics
 - [ ] 以 baseline `/studio` 實際操作 Device step，建立 baseline 證據
-- [ ] 完成 `phase1-baseline`
+- [x] 以 baseline `/studio` 實際操作 Device step，建立 baseline 證據
+- [x] 完成 `phase1-baseline`
 - [ ] 平行派發 `phase1-v1` / `phase1-v2` / `phase1-v3`
 - [ ] 完成 `phase1-compare`
 
 **備註**：
 - baseline 首次 agent-browser 探查已確認：create / edit / clone / test-connection 都存在於 Device surface。
-- baseline 目前首屏可見的是單一 `Test connection` 操作，尚未在已選設備 detail 中看見明確分離的 `probe` 入口；這將作為 Phase 1 compare 的重點觀察項。
+- baseline 已完成 Device 基線量測，證據包含：
+  - `phase1-baseline-device-create.png`
+  - `phase1-baseline-device-detail.png`
+  - `phase1-baseline-device-edit.png`
+  - `phase1-baseline-device-test-current-draft.png`
+- baseline 的 connect / probe 語意分層目前是：
+  - 已選設備 detail 露出 `Test connection`
+  - 編輯器露出 `Test current draft settings`
+  - diagnostics 區內才會出現 `Connect phase` 與 `Protocol probe`
+- 這代表 baseline 並非缺少 probe 能力，而是 **probe 被包在診斷結果裡，不是首屏可辨識的一級操作**；這將作為 Phase 1 compare 的主觀察項。
