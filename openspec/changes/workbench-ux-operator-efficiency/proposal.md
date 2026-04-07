@@ -1,161 +1,152 @@
-# Proposal: Workbench UX Operator Efficiency Overhaul
+# Proposal: Workbench UX Operator Efficiency Experiment
 
 ## Why
 
-目前 Datalink Workbench 的 5 步驟流程（Device → Source → Tag → Output）在功能上已具備完整的 E2E 資料採集設定能力，但在**操作員效率**上存在多項系統性缺陷：
+目前系統尚未正式上線，因此這次 change 的目標不是「重構並取代現在的 UI」，而是：
 
-**核心痛點：**
+1. **保留目前 `/studio` 當 baseline**
+2. **額外做 3 個平行新版本**
+3. 在**同一組真實 API、同一個 `/studio` route、同一組 design tokens** 下，比較不同 UI kit 帶來的操作差異
 
-1. **重複輸入問題（Step 2）**：資深操作員每次建立 Source Rule 都要重新輸入起始地址、數量、命名前綴，沒有 Template 快速套用入口（Template 功能藏在 toolbar 次級選單）。
+要比較的重點不是單純視覺好不好看，而是：
 
-2. **元件過度膨脹**：`SourceCanvasSection`（2688行）、`WorkbenchDeviceStep`（1713行）、`TagBindingStudio`（1712行）三個核心元件單一職責嚴重違反，導致維護困難、測試覆蓋不完整。
+- 操作是否順暢
+- 邏輯是否清楚
+- 對系統主流程的承接是否完整
 
-3. **就緒狀態不可操作**：StepRail 與 BottomSummaryBar 的 `partial`/`blocked` 色點沒有說明「為什麼卡住」，操作員需自行逐步驟排查原因。
+因此本 change 改寫為 **baseline + 3 個 UI kit 版本** 的正式對照實驗，而不是單一路線的新 UI 重構。
 
-4. **Step 4 資訊密度過高**：DB connector 建立、Table schema 設定、Column 映射全部嵌在同一頁面，首次設定體驗極差；Local Modbus 雖然是可選功能，但目前與 Database Output 強制並排。
+## Experiment Model
 
-5. **跨目標映射不透明**：操作員不清楚哪些 Tag 已映射到 Modbus、哪些到 Database，兩個輸出目標的狀態沒有統一視圖。
+| 版本 | 角色 | UI kit / 表面 | 說明 |
+| --- | --- | --- | --- |
+| `baseline` | 現況基線 | Current `/studio` UI | 凍結目前 UI，作為正式比較對象 |
+| `v1` | 新版本 1 | shadcn/Radix | 使用 token-first 主題，允許微調互動邏輯 |
+| `v2` | 新版本 2 | MUI | 使用 token-first 主題，允許微調互動邏輯 |
+| `v3` | 新版本 3 | Ant Design | 使用 token-first 主題，允許微調互動邏輯 |
 
-## Design System
+### Version Strategy
 
-所有新頁面以 **Linear Design System** 為設計語言基礎，適配工業 Workbench 情境：
+- 四個版本有**同一個大目標**：提升資深操作員在 `/studio` 主線中的效率。
+- `v1` / `v2` / `v3` 的差異主要來自：
+  - UI kit
+  - kit 所擅長的元件語彙
+  - 在不偏離主流程前提下的**微調互動邏輯**
+- 不做四套完全不同產品，不做四套不同後端契約。
 
-- **設計規範來源**：`frontend/docs/DESIGN-PRINCIPLES.md`（唯一設計參考文件）
-- **設計語言參考**：`frontend/docs/LINEAR-DESIGN-REFERENCE.md`（Linear 原語對照）
-- **核心原則**：深色優先、資訊密集、精準工程感
-- **Accent 色**：Cyan `#06b6d4`（取代 Linear 的 Indigo，與現有 slate/cyan 架構一致）
-- **背景層次**：`#08090a` void → `#0f1011` base → `#191a1b` elevated → `#28282c` surface
+## Shared Design Tokens
 
-## Implementation Strategy
+三個新版本必須先建立一套**共享的 design-token 主題層**，再映射到不同 UI kit。
 
-### 新建頁面，保留舊頁面
+### 主題來源
 
-- **新頁面路徑**：`frontend/src/pages/studio/`（全新設計，基於 DESIGN-PRINCIPLES.md）
-- **路由**：`/studio`（新主流程入口）、`/tools/modbus`（Local Modbus 工具頁）
-- **舊頁面保留**：`frontend/src/pages/datalink/workbench/` 保持不動，舊路由 `/datalink/workbench` 維持運作
-- **平行存在期**：新舊頁面同時可用，切換穩定後再考慮廢棄舊路由
+- 可從 `/Users/yishow/prj/awesome-design-md/design-md/` 提取視覺元素與語意線索，整理成主題來源庫。
+- 本 change 目前選定的主題混合來源為：`linear.app + sentry + clickhouse`
 
-### 無 Mock 的交付策略（API 先行）
+### Token 範圍
 
-- 本 change **不使用 mock API / 假資料層**，Studio V2 的主要互動必須直接走真實後端端點。
-- 在 UI 分流（`worktree v1/v2/v3`）開始前，先完成 V2 必要 API 的 OpenSpec 契約與後端實作。
-- 三個 UI 版本必須共用同一組 API 契約（避免每個版本各自定義請求/回應語意）。
+至少包含：
+
+- color roles
+- typography
+- spacing
+- radius
+- surface / elevation
+- border / divider
+- status / severity
+- focus / hover / active states
+
+### Token 抽取原則
+
+| 來源 | 優先提取 | 不直接搬用 |
+| --- | --- | --- |
+| `linear.app` | 版面節奏、資訊層級、精簡但高密度的表面語彙 | 品牌識別本身與特定產品 copy |
+| `sentry` | severity / diagnostics / issue 狀態表面 | 與錯誤監控產品綁定的專屬語意 |
+| `clickhouse` | 表格、資料密度、指標面板的結構感 | 特定資料庫產品的品牌裝飾 |
+
+抽取後必須先轉成**語意 token**，再決定是否映射到 kit 元件；不得直接把外部設計稿當成成品樣式搬進來。
+
+### Token 規則
+
+1. 三個新版本共享同一組**語意 token**。
+2. 差異發生在 kit component mapping 與互動細節，不是發生在三套完全不同主題。
+3. baseline 不強制回補 token 化，但必須能被同一組比較 rubric 評估。
+
+## Shared Constraints
+
+1. **baseline + 三個新版本共用同一組真實 API 契約**，不得使用 mock API、假資料流程或版本專屬後端語意。
+2. **baseline + 三個新版本都使用同一個 `/studio` route**；版本隔離只靠 worktree / branch / port，不得額外開 `/studio-v1`、`/studio-v2` 之類平行產品路由。
+3. **不影響現行系統**：目前 UI 先被凍結為 baseline，比較期間主線與既有 `/studio` 行為保持穩定。
+4. **相同主流程範圍**：四套表面都必須完整覆蓋 Device / Source / Tag / Output。
+5. **比較 gate 強制**：每個 phase 都必須完成 `共用基礎 -> baseline -> v1 -> v2 -> v3 -> compare`，才能進入下一個 phase。
+6. **可微調互動邏輯，但不可偏離同一個大目標**：三個新版本可以因 kit 特性微調操作表面，但不能變成三套不同產品。
+
+## Comparison Outputs
+
+每個 `compare` 子任務都必須產出固定格式的比較結果，至少包含：
+
+| 指標 | 說明 |
+| --- | --- |
+| 操作順暢度 | 點擊 / 輸入 / 確認步驟是否精簡，操作是否卡頓或繞路 |
+| 邏輯清晰度 | 使用者是否容易理解畫面結構、狀態關係與下一步 |
+| 對系統的完整性 | 是否完整承接 Device / Source / Tag / Output 主線，不留下明顯缺口 |
+| 首屏資訊密度 | 首屏能否看見必要狀態與上下文 |
+| 關鍵操作時間 | 完成指定任務的耗時 |
+| 實作 / 維護風險 | 元件複雜度、檔案膨脹風險、後續維護成本 |
+| 推薦結論 | 本 phase 建議保留的版本與理由 |
+
+## Stop Conditions
+
+若出現以下任一情況，必須先停下來補 spec / contract，不得直接硬做：
+
+1. 真實 API 契約不足，無法讓四套表面在同條件下比較。
+2. baseline 未被凍結，導致比較基線可能漂移。
+3. shared design-token 主題層未定義，導致三個新版本的比較失去共同視覺語意。
+4. 需要新增與 repo 現況衝突的產品路由或平行主入口。
+5. 某一版需要版本專屬後端語意，導致四套表面不再可比。
 
 ## What Changes
 
-### 流程架構重組
+本 change 不再描述「單一路線的新 Studio 重構」，而是改為：
 
-**主流程縮減為 4 步驟**，Local Modbus 獨立為工具頁：
+1. 建立 **baseline + 3 個 UI kit 版本** 的 `/studio` 對照實驗 OpenSpec。
+2. 明確定義 baseline 的量測角色，以及 `v1=shadcn/Radix`、`v2=MUI`、`v3=Ant Design`。
+3. 明確定義共享 design-token 主題層與外部主題來源。
+4. 明確定義後續若新增 `v4+` 版本時的擴充規則。
+5. 將 UI 工作拆成矩陣式 tasks：`共用基礎 -> baseline -> v1 -> v2 -> v3 -> compare`。
+6. 以比較證據與推薦版本作為主要交付，而不是直接把某一版併入主線。
 
-```
-主流程: Device → Source → Tag → Database Output
-工具頁: /tools/modbus（Local Modbus 完整工具，可選）
-```
+## Future Variant Expansion
 
-### 全新頁面設計（基於 Linear 設計系統）
+若之後還要增加更多版本比較，遵循以下規則：
 
-| 新頁面 | 路由 | 對應舊元件（邏輯遷移來源） |
-|--------|------|--------------------------|
-| `StudioDevicePage` | `/studio?step=device` | `WorkbenchDeviceStep` (1713行) |
-| `StudioSourcePage` | `/studio?step=source` | `SourceCanvasSection` (2688行) |
-| `StudioTagPage` | `/studio?step=tag` | `TagBindingStudio` (1712行) |
-| `StudioDatabasePage` | `/studio?step=output` | `DatabaseTargetBoard` (1191行) |
-| `LocalModbusToolPage` | `/tools/modbus` | `LocalModbusBoard` (1084行) |
-
-舊元件**不修改**，新頁面從 `frontend/src/pages/studio/` 全新建立，遵守 `DESIGN-PRINCIPLES.md`。
-
-### 新增 UX 功能
-
-**Step 1 改善：**
-- `DeviceTestConsole`：Connect / Probe 分欄卡片，視覺層次清楚；測試記錄保留最近 3 次歷史
-- Connect 成功但 Probe 失敗時顯示「資料收集將被阻擋」標語
-
-**Step 2 改善：**
-- `RuleTemplateQuickBar`：左側固定展開式模板列，支援懸停預覽、一鍵套用、一鍵儲存
-- `Plan/Live/Link` 模式移到畫布頂部明確 Tab 列
-
-**Step 3 改善：**
-- `TagBatchActionBar`：一鍵全部 Auto-Bind（含策略選擇）→ diff preview → apply
-- Apply 後顯示進度完成橫幅，引導跳轉至 Step 4
-
-**Step 4（Database Output）新增：**
-- `DBConnectorManager`：多 connector 管理（同時寫入 SQLite + PostgreSQL）
-- `TableSchemaGenerator`：依 Tag 自動建表（一鍵生成 schema）
-- `ColumnMappingBoard`：Tag → DB column 映射狀態（已映射/未映射/衝突）
-- Dry-run 預覽（真實寫入前可預覽結果）
-- 寫入模式設定（Upsert / Insert-only / Overwrite）
-- 歷史記錄查看（最近寫入的數據 / 錯誤日誌）
-
-**新增：WorkbenchDiagnosticPanel（Slide-over）：**
-- 觸發：點擊 `partial`/`blocked` 色點，或頂欄常駐「⚠ N 個問題」按鈕
-- 內容：按步驟分組的問題清單，每項附一鍵跳轉+主畫面高亮
-- Slide-over 右側推出，不遮擋主工作區，可邊診斷邊操作
-
-**新增：Local Modbus 工具頁（/tools/modbus）：**
-- Register 地址總覽表（全部 HR 的已映射/空閒/衝突狀態）
-- AutoMap + Dry-run 預覽
-- 衝突自動偵測與一鍵解決（提供候選解決方案）
-- Live 實時讀值顯示（SSE）
-- 分組管理（不同 Tag 組分配到不同地址區間）
-- 手動寫入 register（測試用途）
-
-## Capabilities
-
-### New Capabilities
-
-- `workbench-diagnostic-panel`：跨步驟診斷 Slide-over，問題清單 + 一鍵跳轉
-- `rule-template-quick-bar`：Source Rule 模板快捷欄，支援套用/儲存/預覽
-- `database-output-workbench`：完整 DB 輸出工作台（多 connector、自動建表、dry-run、寫入歷史）
-- `local-modbus-tool-page`：獨立的 Local Modbus 工具頁（/tools/modbus）
-
-### Modified Capabilities
-
-- `datalink-workbench-desktop`：
-  - 主流程縮減為 4 步驟（移除 Local Modbus 步驟）
-  - 元件拆分（SourceCanvasSection、WorkbenchDeviceStep、TagBindingStudio）
-  - Step 1：DeviceTestConsole 分層顯示
-  - Step 2：Plan/Live/Link Tab 列；RuleTemplateQuickBar 整合
-  - Step 3：TagBatchActionBar 強化；Apply 後引導 CTA
-  - WorkbenchDiagnosticPanel 整合至 WorkbenchFrame
-
-- `local-modbus-memory-workbench`：移出主流程，重組為獨立工具頁
-- `datalink-api`：
-  - 新增 SourceRule 輸出 apply 端點（Database / Local Modbus）
-  - 新增 Database schema generate（preview/execute）、mapping dry-run、write history 查詢端點
+1. 新版本必須沿用同一組 shared API 與同一組 design-token 主題。
+2. 新版本必須以新的 worktree / branch / port 隔離，不新增新產品 route。
+3. 新版本必須補進同一套任務矩陣，例如新增 `0.2.v4`、`1.1.v4`、`2.1.v4`。
+4. 新版本必須接受與 baseline / v1 / v2 / v3 相同的 compare rubric。
+5. 新版本加入前，必須先補 branch / worktree / port 命名與 shared token mapping。
+6. 未補齊矩陣與 compare 欄位前，不得把新版本加入正式推薦結論。
 
 ## Non-Goals
 
-- 不做僅前端 mock 的假流程；V2 互動需走真實 API
-- 不改動 TestPage 的工程測試功能
-- 不重設計 i18n 字典結構（僅新增 key）
-- 不引入新的狀態管理函式庫
+1. 本 change 不在實驗階段引入新的永久產品路由。
+2. 本 change 不以 mock 流程製作視覺展示稿。
+3. 本 change 不讓三個新版本各自演化出不同後端契約。
+4. 本 change 不把三個新版本做成三套完全不同產品概念。
+5. 本 change 不直接宣布哪一版成為正式主線；正式收斂應在比較完成後再做決策。
 
 ## Impact
 
-### 前端
+### OpenSpec
 
-- `frontend/src/pages/studio/`（新建）：全新 Studio 主流程頁面
-- `frontend/src/pages/tools/modbus/`（新建）：Local Modbus 工具頁
-- `frontend/src/router/`：新增 `/studio` 與 `/tools/modbus` 路由
-- `frontend/src/i18n/locales/`：新增診斷面板、模板欄、DB 輸出相關 key
-- `frontend/docs/DESIGN-PRINCIPLES.md`（已建立）：所有新頁面的設計規範來源
-- 舊 `frontend/src/pages/datalink/workbench/`：**保持不動**
+- 重寫 `openspec/changes/workbench-ux-operator-efficiency/proposal.md`
+- 重寫 `openspec/changes/workbench-ux-operator-efficiency/design.md`
+- 重寫 `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
+- 保留已完成的 `specs/datalink-api/spec.md` 作為 baseline + 三個新版本共用 API 基線
 
-### 後端（可能需要）
+### Implementation Planning
 
-- SourceRule 輸出 apply API：
-  - `POST /api/v1/datalink/source-rules/:id/database-outputs/apply`
-  - `POST /api/v1/datalink/source-rules/:id/local-modbus/apply`
-- Database 輔助 API：
-  - `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate`（`dry_run=true|false`）
-  - `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run`
-  - `GET /api/v1/datalink/db-targets/connectors/:id/write-history`
-- 上述 API 均需提供明確錯誤分類與可行動訊息，供 WorkbenchDiagnosticPanel 與 Step 4 UI 直接消費
-
-### 測試
-
-- 各拆分元件補獨立 Vitest 測試
-- `WorkbenchDiagnosticPanel`：問題列表計算邏輯測試
-- `RuleTemplateQuickBar`：模板套用/儲存狀態變化
-- `DBConnectorManager`：多 connector CRUD
-- Playwright E2E：完整 4 步驟主流程驗收
+- 後續實作將以一個 baseline worktree 與三個新版本 worktree / branch / port 並行比較
+- 三個新版本先共用一套 design-token 主題，再各自映射到 shadcn/Radix、MUI、Ant Design
+- 每個 worktree 內部可自由調整模組結構，但對外都必須維持 `/studio` 與同一組 API 契約
+- 主線 `/studio` 在推薦版本決定前不應被實驗性 UI 直接覆蓋

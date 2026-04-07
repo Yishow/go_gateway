@@ -1,431 +1,293 @@
-# Design: Workbench UX Operator Efficiency Overhaul
+# Design: Workbench UX Operator Efficiency Experiment
 
 ## 設計目標
 
-以**資深操作員效率**為核心，**全新設計** Datalink Studio 的頁面與元件，遵循 Linear Design System 打造資訊密集的工業操作介面。舊頁面保留不動，新頁面從 `frontend/src/pages/studio/` 全新建立。
+本 change 的目標不是立刻交付單一新 UI，而是先**凍結目前 UI 當 baseline**，再建立**三個 UI kit 版本**，在相同 API、相同主流程與相同 design-token 語意下，驗證哪一種表面最能提升資深操作員效率。
 
----
+設計必須同時滿足五個前提：
 
-## 設計系統
+1. **主線穩定**：目前 canonical `/studio` 先被凍結為 baseline，不被實驗直接取代。
+2. **版本可比**：baseline 與三個新版本都只能改 UI 表面，不得各自擁有不同的 API 語意。
+3. **路由收斂**：baseline 與三個新版本都維持 `/studio`，不創造平行產品入口。
+4. **token 共享**：三個新版本先共用同一套 design-token 主題，再映射到不同 kit。
+5. **證據導向**：每個 phase 都產出固定格式的比較結論，再決定是否前進。
 
-> **唯一設計規範來源**：`frontend/docs/DESIGN-PRINCIPLES.md`
+## 實驗拓樸
 
-### 顏色系統
+```text
+                             shared API-ready base
+                                     │
+        ┌───────────────┬────────────┼────────────┬───────────────┐
+        │               │            │            │               │
+        ▼               ▼            ▼            ▼               ▼
+   baseline worktree   worktree v1  worktree v2  worktree v3   mainline
+   branch: woe-base    branch: woe-radix branch: woe-mui branch: woe-antd current
+   port:   4173        port:   4174      port:   4175    port:   4176     stable
+   route:  /studio     route:  /studio   route:  /studio route:  /studio
+        │               │            │            │
+        └───────────────┴──── same real backend API ───────────────┘
 
-```css
-/* 背景層次 */
---bg-void:     #08090a   /* 最深底色，頁面最外層 */
---bg-base:     #0f1011   /* 主要頁面背景 */
---bg-elevated: #191a1b   /* 卡片、Panel 背景 */
---bg-surface:  #28282c   /* 浮層、Dropdown 背景 */
-
-/* 文字 */
---text-primary:   #e8e8e9   /* 主要文字 */
---text-secondary: #8b8b8f   /* 次要說明文字 */
---text-muted:     #5a5a5e   /* 禁用/佔位文字 */
-
-/* Accent（工業 Cyan，取代 Linear Indigo） */
---accent: #06b6d4
-
-/* 狀態色 */
---status-success: #22c55e  /* ● 連線中 / 已套用 */
---status-warning: #f59e0b  /* ⚠ partial / conflict */
---status-error:   #ef4444  /* ✗ 失敗 / blocked */
---status-info:    #3b82f6  /* ℹ 說明 */
+baseline is a frozen snapshot of the current UI for comparison;
+mainline stays stable until a winner is chosen
 ```
 
-### 佈局框架
+### 共用基線
 
-```
-├── TopBar (48px)         — Studio 標題、步驟指示器、⚠ 診斷按鈕
-├── StepRail (240px)      — 步驟切換側欄（左）
-├── MainContent           — 各 Step 主工作區
-└── DiagnosticPanel       — Slide-over 診斷面板（右，可展開）
-```
+- baseline 與三個新版本都從 **Phase -1 API 已完成** 的共同基線分出。
+- baseline 必須在任何新版本實驗前先凍結，作為可重複量測的 current UI 快照。
+- 若實驗中發現 API 契約不足，只能補到**共同基線**，再同步到 baseline 與三個新版本，不得只修某一版。
+- 版本識別依靠 branch / worktree / port，不依靠 route path。
 
----
+## Worktree / Branch / Port 命名
 
-## 新頁面目錄結構
+### 建議命名
 
-```
-frontend/src/pages/studio/
-├── StudioPage.tsx                  — 主入口，TopBar + StepRail + 路由
-├── StudioProvider.tsx              — 跨步驟狀態（selectedDeviceId, readiness）
-├── components/
-│   ├── StudioTopBar.tsx
-│   ├── StudioStepRail.tsx
-│   └── WorkbenchDiagnosticPanel.tsx
-├── device/
-│   ├── StudioDevicePage.tsx
-│   ├── DeviceListPanel.tsx
-│   ├── DeviceEditForm.tsx
-│   └── DeviceTestConsole.tsx
-├── source/
-│   ├── StudioSourcePage.tsx
-│   ├── SourceRulePanel.tsx
-│   ├── RuleTemplateQuickBar.tsx
-│   ├── AddressCanvasView.tsx
-│   └── SourceLivePanel.tsx
-├── tag/
-│   ├── StudioTagPage.tsx
-│   ├── TagCandidateBoard.tsx
-│   └── TagBatchActionBar.tsx
-└── output/
-    ├── StudioDatabasePage.tsx
-    ├── DBConnectorManager.tsx
-    ├── TableSchemaGenerator.tsx
-    ├── ColumnMappingBoard.tsx
-    └── WritingHistoryPanel.tsx
+| 版本 | branch | worktree 目錄名 | frontend port | 備註 |
+| --- | --- | --- | --- | --- |
+| `baseline` | `woe-base-current-ui` | `../go_gateway-woe-base-current-ui` | `4173` | 凍結目前 `/studio` 作比較基線 |
+| `v1` | `woe-v1-radix` | `../go_gateway-woe-v1-radix` | `4174` | shared tokens + shadcn/Radix |
+| `v2` | `woe-v2-mui` | `../go_gateway-woe-v2-mui` | `4175` | shared tokens + MUI |
+| `v3` | `woe-v3-antd` | `../go_gateway-woe-v3-antd` | `4176` | shared tokens + Ant Design |
 
-frontend/src/pages/tools/modbus/
-├── LocalModbusToolPage.tsx
-├── RegisterOverview.tsx
-├── AutoMapEngine.tsx
-├── ConflictResolver.tsx
-└── LiveRegisterReader.tsx
-```
+### 執行順序
 
----
+1. 先切 `baseline` worktree，凍結 current UI。
+2. 從 `linear.app + sentry + clickhouse` 抽出 shared design-token 語意層。
+3. 再建立 `v1` / `v2` / `v3` worktree，分別接上各自 UI kit。
+4. 每個 phase 都依序完成 `baseline -> v1 -> v2 -> v3 -> compare`。
+5. compare 結論完成前，不進入下一個 phase。
 
-## 架構設計
+### Shared Backend Rule
 
-## 主流程架構：Studio（4 步驟）
+- 優先使用同一個共享 backend API instance 作為三個新版本與 baseline 的比較來源。
+- 若開發期間因 worktree 隔離需要各自啟動 backend，也必須保證：
+  - API 契約完全一致
+  - 測試資料來源一致
+  - compare 時的量測條件一致
 
-```
-Step 1: Device     — 建立 / 選擇資料來源設備，分層診斷 Connect / Probe
-Step 2: Source     — 規劃 Source Rule，格狀畫布查看 planned/used/unmanaged/conflict
-Step 3: Tag        — 批次 review 系統自動建立的 Tag / Mapping
-Step 4: Database   — 設定 DB 輸出連線、映射、寫入模式
-```
+## Shared Design Tokens
 
-**Local Modbus** 獨立為工具頁，路由：`/tools/modbus`，從主導覽或 Tag 頁面的快速入口進入。
+### 外部主題來源
 
-**舊頁面保留**：`/datalink/workbench` 舊路由維持可用，不影響現有使用者。
+- 主題元素來源：`/Users/yishow/prj/awesome-design-md/design-md/`
+- 此來源是**靈感與元素庫**，不是直接照抄單一品牌頁面。
+- 本 change 目前選定的 shared token 參考混合為：`linear.app + sentry + clickhouse`
 
----
+### 主題抽取分工
 
-## 無 Mock API 契約（V2 必要）
+| 來源 | 主要吸收的元素 | 轉成 token 時的責任 |
+| --- | --- | --- |
+| `linear.app` | 版面節奏、留白比例、精簡工具感 | 轉成 spacing / layout / neutral surface token |
+| `sentry` | severity、issue、diagnostic callout | 轉成 status / severity / diagnostic emphasis token |
+| `clickhouse` | 表格密度、資料面板、指標分組 | 轉成 data-surface / table / density token |
 
-本 change 採「API 先行」策略；UI 分流版本（v1/v2/v3）不使用 mock 層，以下端點需先可用：
+### 抽取步驟
 
-### SourceRule 輸出 Apply
+1. 先從三個參考來源收集候選元素。
+2. 將候選元素分類為 `preserve`、`adapt`、`reject`。
+3. 只把 `preserve` / `adapt` 類元素轉成語意 token。
+4. 完成 shared token 表後，再做 kit mapping。
+5. 若某個 kit 無法自然承接某個 token，優先調整 mapping，不直接改 shared token 語意。
 
-- `POST /api/v1/datalink/source-rules/:id/database-outputs/apply`
-- `POST /api/v1/datalink/source-rules/:id/local-modbus/apply`
+### token 層責任
 
-請求需包含 `revision_id` 與 `candidate_ids[]`；回應需提供 per-item 結果（success/failed/skipped + reason）。
+三個新版本必須先整理出共享的語意 token，至少涵蓋：
 
-### Database Step 4 輔助能力
+- color roles
+- typography scale
+- spacing scale
+- radius
+- elevation / surface
+- border / divider
+- severity / status
+- interaction states（hover / active / focus / selected）
 
-- `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate`
-  - `dry_run=true`：回傳 SQL preview，不落地
-  - `dry_run=false`：執行建表 / alter，回傳執行結果
-- `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run`
-  - 回傳每個 candidate 的驗證結果與阻擋原因
-- `GET /api/v1/datalink/db-targets/connectors/:id/write-history`
-  - 回傳最近 N 次寫入摘要（時間、筆數、成功/失敗、錯誤原因）
+### mapping 規則
 
-### 錯誤模型
+| 層級 | 責任 |
+| --- | --- |
+| shared design tokens | 定義共同主題語意與視覺一致性 |
+| UI kit mapping | 把 token 映射到 shadcn/Radix、MUI、Ant Design 的元件 props / class / theme API |
+| variant interaction | 根據 kit 特性微調局部互動邏輯與元件組合 |
 
-- 所有端點需回傳可歸類錯誤碼（validation/conflict/revision_mismatch/connector_unavailable/schema_missing）。
-- UI 不接受僅有「unknown error」字串；至少要有可行動訊息與對應步驟。
+### 重要限制
 
----
+1. 三個新版本必須共用同一組語意 token。
+2. 差異可以來自 kit 表達能力與微調互動邏輯，不可以來自三套完全不同主題。
+3. baseline 不要求回補 token 化，但必須用同一組比較 rubric 評估。
 
-## Step 1：DeviceTestConsole 設計
+## 後續擴充版本規則
 
-### 元件拆分
+若未來要再加入 `v4+` 版本，遵循以下設計規則：
 
-```
-WorkbenchDeviceStep (1713行)
-  ├── DeviceListPanel      設備列表、選取、篩選
-  ├── DeviceEditForm       建立 / 編輯 / Clone 表單
-  └── DeviceTestConsole    Connect + Probe 分層結果
-```
+1. **先擴矩陣，再做 UI**：先補 proposal / design / tasks 的版本欄位與 compare 格式，再開始實作。
+2. **沿用 shared token 主題**：新增版本只能映射既有 token 語意，不可自創另一套主題宇宙。
+3. **沿用相同 route / API**：新增版本仍只能使用 `/studio` 與同一組真實 API。
+4. **先分配新命名**：新增版本前，先補新的 branch / worktree / port 命名。
+5. **沿用相同比較標準**：新增版本必須補 baseline 對照與完整 compare 證據，才能納入推薦。
 
-### DeviceTestConsole 佈局
+### `v4+` 操作手順
 
-```
-┌─────────────────────────────────────────┐
-│ [Connect 階段]          ●成功 / ✗失敗   │
-│  主機：192.168.1.10:502                 │
-│  耗時：45ms                            │
-├─────────────────────────────────────────┤
-│ [Probe 階段]            ●成功 / ✗失敗   │
-│  協議：Modbus TCP                       │
-│  Slave ID 1：讀取 HR0 → 1234           │
-│  ⚠ 若 Connect 成功但 Probe 失敗：      │
-│    「資料收集將被阻擋，直到 Probe 通過」 │
-├─────────────────────────────────────────┤
-│ 歷史：[2025-04-05 ✓] [2025-04-04 ✗]  │
-└─────────────────────────────────────────┘
-```
+1. 在 proposal 補上一列新版本定義（例如 `v4 = Mantine`）。
+2. 在 design 補新版本的 kit mapping、branch / worktree / port。
+3. 在 tasks 為每個 phase 補上對應的 `v4` 子任務。
+4. 重新執行 `openspec validate ...`。
+5. 建立新 worktree 並接上 shared tokens。
+6. 依同樣的 compare rubric 取得 baseline 對照證據。
+7. 完整 compare 前，不得把 `v4+` 放進推薦結論。
 
-**設計原則：**
-- Connect 欄與 Probe 欄視覺重量不同（Connect 是前提，字體較大）
-- 兩個欄位各有獨立的「重新測試」按鈕
-- 測試記錄保留最近 3 次，操作員可快速對比
+## baseline 與三個 kit 版本
 
----
+| 版本 | UI kit / 表面 | 允許的差異 | 預期優勢 | 主要風險 |
+| --- | --- | --- | --- | --- |
+| `baseline` | current `/studio` | 不新增新設計，只量測現況 | 能提供真正的現況參考值 | 若 baseline 漂移，後續比較全部失真 |
+| `v1` | shadcn/Radix | 可依 primitives 自由組合，微調高頻互動表面 | 彈性最高，容易做精準工程感表面 | 需要較多組裝與一致性約束 |
+| `v2` | MUI | 可利用成熟表單 / data-display 元件，微調操作節奏 | 表單與資料結構表現穩定 | 若控制不好，視覺可能過於制式 |
+| `v3` | Ant Design | 可利用資料輸入、表格、工作流元件，微調明確操作回饋 | 對狀態、表格、批次操作很有優勢 | 若過度使用，畫面可能顯得厚重 |
 
-## Step 2：SourceRulePanel + RuleTemplateQuickBar 設計
+### 版本策略
 
-### 元件拆分
+- 四個版本有**同一個大目標**：提升 `/studio` 主流程的操作效率。
+- `v1` / `v2` / `v3` 可以因 kit 能力差異而微調互動邏輯，例如：
+  - 表單拆分方式
+  - action 位置
+  - 狀態提示的呈現
+  - table / card / drawer / modal 的組合
+- 但不允許演化成三套完全不同的資訊架構或產品流程。
 
-```
-SourceCanvasSection (2688行)
-  ├── SourceRulePanel       規則清單 + 規則表單
-  ├── RuleTemplateQuickBar  模板快捷列（新增）
-  ├── AddressCanvasView     畫布渲染 + Tab 切換
-  └── SourceLivePanel       Live 資料流 + 收集控制
-```
+## 共同不變項
 
-### RuleTemplateQuickBar 佈局（左側展開式）
+以下契約對 baseline 與三個新版本全部強制成立：
 
-```
-┌──────────────────────────────┐
-│  📋 規則模板                 │
-│  ─────────────────────────── │
-│  [Fatek D 區段]              │
-│   D100-D120, uint16, d_       │（hover 顯示預覽）
-│                [套用] [刪除]  │
-│  [Modbus 標準 HR]            │
-│   HR0-HR99, float32, hr_      │
-│                [套用] [刪除]  │
-│  ─────────────────────────── │
-│  [+ 從當前規則儲存]          │
-└──────────────────────────────┘
-```
+1. **相同四步主線**
+   - Device
+   - Source
+   - Tag
+   - Output
+2. **相同真實後端 API**
+   - 使用已完成的 datalink API delta spec 與後端端點
+   - 禁止 mock-only 流程
+3. **相同 route contract**
+   - 對外都使用 `/studio`
+   - 不新增 `/studio-v1`、`/studio-v2`、`/tools/modbus` 等實驗專用產品入口
+4. **相同驗收場景**
+   - 建立 / 編輯設備並做 connect + probe
+   - 建立或套用 source rule 並檢視 plan / live
+   - review tag candidates 並執行 batch action
+   - 設定 output 綁定並處理阻塞 / 診斷
+5. **相同比較格式**
+   - 操作錄影 / 截圖
+   - 指定任務步數
+   - 關鍵操作耗時
+   - 邏輯清晰度筆記
+   - 對系統完整性的評估
+   - 實作 / 維護風險判斷
 
-**設計原則：**
-- 模板列預設展開（桌面）、收合（小螢幕）
-- Hover 顯示起始地址、數量、命名前綴預覽
-- 「從當前規則儲存」：一鍵，不需進入 toolbar 次級選單
+## 比較方法
 
-### 畫布視模切換：Tab 列（取代 toolbar icon）
+每個 compare checkpoint 都要回收 baseline 與三個新版本的下列資料：
 
-```
-[Plan 模式] [Live 模式] [Link 模式]
-```
-清楚的 Tab 取代原本 toolbar 內的小 icon，每個模式有簡短說明文字。
+| 類別 | 證據 |
+| --- | --- |
+| 操作順暢度 | 完成場景的步數、切換次數、額外確認次數、是否繞路 |
+| 邏輯清晰度 | 畫面結構是否好理解、狀態與下一步是否明確 |
+| 對系統的完整性 | 是否完整承接四步主線，是否留下明顯缺口 |
+| 首屏資訊密度 | 首屏是否能看見必要狀態、上下文與下一步 |
+| 關鍵操作時間 | 完成指定任務的耗時 |
+| 實作成本 | 元件複雜度、是否引入超長檔風險、測試成本 |
+| 維護風險 | 共享邏輯可否抽離、後續擴充是否清楚 |
 
----
+### 比較輸出格式
 
-## Step 3：TagBatchActionBar 強化設計
+每次 compare 至少輸出：
 
-### 元件拆分
+```text
+phase:
+scenario:
 
-```
-TagBindingStudio (1712行)
-  ├── TagCandidateBoard    候選 Point 列表 + 篩選（unbound/partial/bound）
-  └── TagBatchActionBar    批次操作工具列（強化）
-```
+baseline:
+  操作順暢度:
+  邏輯清晰度:
+  對系統的完整性:
+  首屏資訊密度:
+  關鍵操作時間:
+  實作 / 維護風險:
 
-### TagBatchActionBar 操作路徑
+v1 (shadcn/Radix):
+  ...
 
-```
-一鍵全選 → 選策略（Create / Link Existing）→ Diff Preview → Apply → 成功橫幅 + CTA
-```
+v2 (MUI):
+  ...
 
-**Apply 後的成功橫幅：**
-```
-✓ 已建立 15 個 Tag，5 個綁定成功    [前往 Step 4 設定資料庫輸出 →]
+v3 (Ant Design):
+  ...
+
+recommendation:
+reason:
 ```
 
-**設計原則：**
-- `partial` / `blocked` 候選項用不同底色區別（amber/rose），不只靠文字
-- 批次操作從 5 步縮短為 2 步（選策略 + 確認）
-- Diff preview 清楚標明每個 Point 將會發生的事（建立/綁定/跳過）
+## Phase 切分設計
 
----
+### Phase 0：baseline 與 token 基礎
 
-## Step 4：Database Output 完整工作台設計
+- 先建立 baseline worktree 並凍結 current UI。
+- 從外部主題來源整理共享 design-token 語意層。
+- 固定 baseline / v1 / v2 / v3 的 branch / worktree / port 命名。
+- 固定共同驗收場景、量測表與 compare 輸出格式。
+- 確認 baseline 與三個新版本都能在各自環境以 `/studio` 啟動並連到同一組 API。
 
-### 頁面區域佈局
+### Phase 1：Device
 
-```
-┌──────────────────────────────────────────────────────┐
-│  DB Connector 管理欄（頂部）                          │
-│  [SQLite: dev.db ●] [PostgreSQL: prod ●] [+ 新增]   │
-├───────────────────────┬──────────────────────────────┤
-│  Tag 候選列表         │  映射設定面板                 │
-│  ─────────────────── │  ─────────────────────────── │
-│  ▪ temp_1  [未映射]  │  表：sensor_data             │
-│  ▪ temp_2  [已映射]  │  欄位：temperature (float)  │
-│  ▪ press_1 [衝突⚠]  │                               │
-│                       │  [Upsert ▾] [Dry-run] [套用] │
-│                       │  ─────────────────────────── │
-│                       │  寫入記錄（最近 5 次）        │
-│                       │  2025-04-05 12:00 ✓ 15 筆   │
-│                       │  2025-04-05 11:59 ✗ 錯誤…  │
-└───────────────────────┴──────────────────────────────┘
-```
+- 比較設備列表、編輯、clone、connect / probe 的最佳表面。
+- 不允許改變底層 connect / probe API 語意。
+- 可因 kit 能力不同微調表單、結果區、診斷提示的編排。
 
-### DBConnectorManager
+### Phase 2：Source
 
-- 支援多 connector（SQLite + PostgreSQL 同時存在）
-- 每個 connector 有獨立的 `ConnectorSetupWizard`（Modal，4 步：選類型→填設定→測試→選 schema）
-- connector 狀態徽章：● 連線中 / ○ 草稿 / ✗ 連線失敗
+- 比較 source rule 編修、模板套用與畫面模式切換的最佳表面。
+- 著重在重複輸入、邏輯清晰度與資訊承接。
 
-### TableSchemaGenerator
+### Phase 3：Tag
 
-- 選取一組 Tag → 點「自動建表」→ 預覽 SQL → 確認執行
-- 生成欄位依 Tag 的 `data_type` 映射（`float64` → `REAL`，`int32` → `INTEGER`，etc.）
+- 比較 tag review、批次操作、diff preview 與 apply 回饋。
+- 著重在 batch decision 成本、狀態回饋與系統承接完整性。
 
-### Dry-run 預覽模態
+### Phase 4：Output
 
-```
-┌────────────────────────────────┐
-│  Dry-run 預覽（不會真正寫入）  │
-│  ──────────────────────────── │
-│  temp_1 → temperature  ✓ 25.3│
-│  press_1 → pressure    ✓ 1.01│
-│  flow_1  → flow_rate   ✗ 欄位不存在 │
-│                       [取消] [確認套用] │
-└────────────────────────────────┘
-```
+- 比較 output 綁定、狀態表面與阻塞診斷。
+- 著重在映射狀態可見性、步驟連續性與資訊完整性。
 
----
+### Phase 5：跨步驟 shell / diagnostics
 
-## WorkbenchDiagnosticPanel（Slide-over）
+- 比較 readiness、global blockers 與跨步驟診斷提示的最佳表面。
+- 著重在系統主線是否被完整承接，而不是額外開 route。
 
-### 觸發方式
+### Phase 6：總結與推薦
 
-1. 點擊任何步驟的 `partial` / `blocked` 色點
-2. 頂欄常駐按鈕：「⚠ 3 個問題」（有問題時顯示，無問題時隱藏）
+- 在相同端對端流程下重跑 baseline 與三個新版本。
+- 整理每 phase 的 compare 結論。
+- 產出推薦版本、保留理由、淘汰理由與後續建議。
 
-### Slide-over 結構
+## Stop Conditions 與升級規則
 
-```
-┌────────────────────────────────────┐（右側推出，不覆蓋主畫面）
-│  ⚠ 工作台診斷                     │
-│  ──────────────────────────────── │
-│  Step 1 設備                   ✓  │
-│  Step 2 來源規則               ⚠  │
-│    ├ Rule #2 衝突（影響 3 Points） │
-│    │                [前往並高亮 →] │
-│    └ 收集未啟動                   │
-│                     [啟動收集 →]  │
-│  Step 3 Tag 綁定               ⚠  │
-│    └ 5 個 Point 尚未綁定 Tag     │
-│                   [前往 Step 3 →] │
-│  Step 4 資料庫輸出             ●  │
-│    └ 3 個 Tag 尚未映射 DB 欄位   │
-│                   [前往 Step 4 →] │
-└────────────────────────────────────┘
-```
+遇到以下狀況，必須先回到 OpenSpec 補契約：
 
-**設計原則：**
-- 問題清單自動刷新（每次步驟切換後重新計算）
-- 每個問題項目有：描述、一鍵跳轉、跳轉後高亮相關元素
-- Slide-over 不阻擋操作員繼續操作主畫面
+1. 某一版需要專屬 API 欄位或回應結構。
+2. baseline 未被凍結，無法提供穩定比較基線。
+3. shared design-token 層未定義，無法確保三個新版本比較公平。
+4. 某一版需要新的永久產品 route 才能成立。
+5. baseline 與三個新版本無法使用相同驗收場景比較。
+6. compare 結果格式不足以支持推薦結論。
+7. 新增版本未先補 OpenSpec 矩陣就直接開工。
 
----
+## 實作邊界
 
-## Local Modbus 工具頁（/tools/modbus）
+- 本 design **不強制**三個新版本採相同內部檔案結構；版本可以在各自 worktree 內做最合適的拆分。
+- 但任何內部做法都必須遵守：
+  - repo 的 `/studio` 主線規範
+  - 檔案行數限制
+  - 同一組 API 契約
+  - 同一組 shared design tokens
+  - 同一組 compare gate
 
-### 頁面佈局
-
-```
-┌─────────────────────────────────────────────────────┐
-│  🔧 Local Modbus 工具                               │
-│  [Register 總覽] [分組管理] [Live 監控] [手動寫入]  │
-├──────────────────────────────────────────────────────┤
-│  Register 總覽（主要視圖）                           │
-│  [AutoMap ▾] [Dry-run] [偵測衝突] [套用]           │
-│  ─────────────────────────────────────────────────── │
-│  HR0001  temp_1    float32  25.3  ●已映射           │
-│  HR0003  press_1   float32   1.01 ●已映射           │
-│  HR0005  ─────────────────────── ○空閑             │
-│  HR0006  flow_1 [衝突⚠]  temp_2  ✗衝突            │
-│  ─────────────────────────────────────────────────── │
-│  衝突詳情：HR0006 被 flow_1 + temp_2 同時映射        │
-│  建議解法：[移動 temp_2 → HR0010] [解除 temp_2 映射]│
-└──────────────────────────────────────────────────────┘
-```
-
-**功能規格：**
-- **Register 總覽**：顯示全部 HR，狀態：已映射（●）/ 空閑（○）/ 衝突（✗）
-- **AutoMap + Dry-run**：sequential/reverse 策略，干跑預覽後才套用
-- **衝突解決**：自動偵測所有衝突，逐一顯示候選解決方案（移動/解除）
-- **Live 監控**：SSE 即時值，可 Freeze / 快照
-- **分組管理**：定義地址區間（HR0-99 給 A 組，HR100-199 給 B 組）
-- **手動寫入**：輸入 register + 值 → 寫入（測試用，有確認提示）
-
----
-
-## 資料流
-
-```
-[Step 1] DeviceListPanel → selectedDeviceId (WorkbenchProvider)
-         DeviceTestConsole ← ConnectionTestResult (connect/probe 分層)
-
-[Step 2] SourceRulePanel → SourceRule[] (DB 持久化)
-         RuleTemplateQuickBar → applyTemplate → SourceRule draft
-         AddressCanvasView ← buildAddressCanvasItems (planned/used/unmanaged/conflict)
-         SourceLivePanel ← useRuntimeStream (SSE)
-
-[Step 3] TagCandidateBoard ← points (unbound/partial/bound)
-         TagBatchActionBar → buildBatchDiffPreview → apply → batchSummary → CTA
-
-[Step 4] DBConnectorManager → 多 connector 管理 (SQLite + PostgreSQL)
-         TableSchemaGenerator → POST /db-targets/connectors/:id/schema/generate (dry_run)
-         ColumnMappingBoard → POST /db-targets/connectors/:id/mappings/dry-run
-         Review Apply → POST /source-rules/:id/database-outputs/apply
-         WritingHistoryPanel → GET /db-targets/connectors/:id/write-history
-
-[/tools/modbus] RegisterOverview ← modbusShareAPI
-                AutoMapEngine → dry-run → apply
-                ConflictResolver → 偵測衝突 → 候選解決方案
-                LiveRegisterReader ← SSE
-                Review Apply → POST /source-rules/:id/local-modbus/apply
-```
-
----
-
-## 錯誤處理
-
-| 場景 | 處理方式 |
-|------|---------|
-| Connect 失敗（網路不通） | DeviceTestConsole Connect 欄顯示錯誤，不執行 Probe |
-| Connect 成功但 Probe 失敗 | 分欄顯示，標示「資料收集被阻擋」，允許儲存設備 |
-| Source Rule 衝突 | conflict 格子 tooltip + 診斷面板問題項 |
-| Tag Batch Apply 失敗 | TagBindingFailure[] 逐項說明 stage + 修復建議 |
-| DB 連線測試失敗 | 行內顯示錯誤，允許 draft 模式儲存 connector |
-| Modbus Register 衝突 | RegisterOverview 高亮 + ConflictResolver 候選解法 |
-| Dry-run 發現欄位不存在 | 預覽模態標紅，阻擋套用，提示建表 |
-
----
-
-## 測試策略
-
-### 單元測試（Vitest）
-
-| 元件/模組 | 測試重點 |
-|----------|---------|
-| `DeviceTestConsole` | Connect/Probe 狀態組合渲染 |
-| `RuleTemplateQuickBar` | 套用/儲存模板的狀態變化 |
-| `AddressCanvasView` | plan/live/link 模式切換 |
-| `TagBatchActionBar` | diff preview 計算、batch apply 結果 |
-| `DBConnectorManager` | 多 connector CRUD |
-| `WorkbenchDiagnosticPanel` | 問題列表計算邏輯 |
-| `ConflictResolver` | 衝突偵測算法 + 候選解法生成 |
-
-### E2E 測試（Playwright）
-
-- 完整 4 步驟主流程（從建立設備到 DB 映射套用）
-- 診斷面板觸發與一鍵跳轉
-- Local Modbus 工具頁 AutoMap + Dry-run 流程
-
----
-
-## 實作分期建議
-
-| Phase | 內容 | 說明 |
-|-------|------|------|
-| P1 | 元件拆分（重構）| 不改 UX，先建立乾淨的元件邊界 |
-| P2 | WorkbenchDiagnosticPanel | 跨步驟診斷，立即提升操作員可見性 |
-| P3 | Step 2 RuleTemplateQuickBar + Tab 列 | 解決最高頻的重複輸入痛點 |
-| P4 | Step 3 TagBatchActionBar 強化 | 批次操作效率 |
-| P5 | Step 4 Database Output 完整工作台 | 完整 DB 輸出功能 |
-| P6 | Local Modbus 工具頁（/tools/modbus）| 獨立工具，完整 6 大功能 |
+這樣可讓實驗真正聚焦在**同主題、同 API、不同 UI kit 表面**的比較，而不是預設某一種單一路徑。
