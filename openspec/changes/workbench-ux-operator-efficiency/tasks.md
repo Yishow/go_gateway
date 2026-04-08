@@ -218,15 +218,15 @@
 
 > 目標：以 `v2` 建立 canonical Tag review/apply flow，再讓 `v1` / `v3` 做同 flow 對照。
 
-- [ ] 3.1 共用基礎
+- [x] 3.1 共用基礎
   - 在 `main` 上更新 Tag shared acceptance / scenario matrix
   - 固定共同動作：review candidates、preview diff、choose action、apply、failure / retry / recovery
 
-- [ ] 3.1.baseline Current Studio
+- [x] 3.1.baseline Current Studio
   - 以 baseline snapshot 收集 review queue、diff preview、handoff to Output evidence
   - 記錄 baseline 在 batch decision 與失敗回饋上的痛點
 
-- [ ] 3.1.v2 Sentry Incident Desk（primary functional track）
+- [x] 3.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical Tag review/apply flow
   - 讓 blocker、retry、partial-failure surfaced state 在 `v2` 先穩定
 
