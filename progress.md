@@ -1,7 +1,7 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-08 Workbench UX Phase 2 baseline ready
+**當前 Phase**：2026-04-08 Workbench UX Phase 2 v2 source ready
 
 ---
 
@@ -24,10 +24,9 @@
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/design.md`
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
   - `openspec validate --changes workbench-ux-operator-efficiency` 通過
-- ✅ 完成 Phase 2 shared contract：
-  - Source step 補上 `loading / loadFailed / retry` surfaced state
-  - Tag step 補上 `diff preview scope`、stale preview invalidation、Source -> Tag handoff scope
-- ⏳ 下一步：開始 2.1.baseline evidence / compare
+- ✅ 完成 Phase 2 shared contract 與 2.1.baseline Current Studio
+- ✅ baseline evidence：已用 agent-browser 保存 overview / focused / handoff / link-mode，並記錄重複輸入、mode switch 缺少 compare scaffold、Source -> Tag handoff 失焦三個痛點
+- ⏳ 下一步：開始 2.1.v2 canonical Source flow
 
 **驗證結果**：
 ```bash

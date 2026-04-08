@@ -192,7 +192,7 @@
   - 固定 Source 共同動作：rule create/edit、template apply、plan/live/link switch、handoff to Tag
   - 明確定義 `diff preview scope`、stale preview invalidation、failure / retry / recovery
 
-- [ ] 2.1.baseline Current Studio
+- [x] 2.1.baseline Current Studio
   - 以 `main` branch baseline snapshot 收集 overview / focused / handoff evidence
   - 記錄 baseline 在重複輸入、模式切換與 stale preview 上的痛點
 

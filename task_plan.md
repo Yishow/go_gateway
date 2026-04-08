@@ -108,9 +108,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-08 Workbench UX Phase 2 baseline ready
-**進度**: Phase 2 shared contract 已完成；Source step 已補上 shared `loading / error / retry` surfaced state，Tag step 已補上 `diff preview scope`、stale preview invalidation、Source->Tag handoff scope
-**下一步**: 開始 `workbench-phase2-baseline-evidence`
+**Phase**: 2026-04-08 Workbench UX Phase 2 v2 source ready
+**進度**: Phase 2 shared contract 與 2.1.baseline 已完成；baseline evidence 已保存 overview / focused / handoff / link-mode 四個畫面，並記錄重複輸入、模式切換與 handoff 失焦痛點
+**下一步**: 開始 `workbench-phase2-v2-source`
 
 ---
 

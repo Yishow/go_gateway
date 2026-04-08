@@ -1,5 +1,11 @@
 # Findings
 
+## 2026-04-08 Phase 2 baseline evidence 新發現
+- baseline Source overview 仍以 device-picker + rule-builder 雙區塊起手；選到 `Browser Smoke PLC` 後，首屏立即暴露大量欄位與稀疏 canvas，重複輸入負擔高。
+- baseline focused state 的 `Review tags` 仍是單一前進動作；即使操作員已聚焦到 `40004`，切到 Tag step 後仍直接落到整個 device 範圍的候選清單，handoff 焦點沒有被保住。
+- baseline `Link` mode 雖然能把 cell 文案切成 downstream 狀態（例如 `Unbound` / `No downstream state`），但 mode switch 只是在同一張密集 canvas 上改字，沒有額外的 compare / preview scaffold 幫操作員理解差異。
+- 本輪 agent-browser evidence 已保存到 session files：`phase2-baseline-source-overview.png`、`phase2-baseline-source-focused.png`、`phase2-baseline-source-selected.png`、`phase2-baseline-source-handoff.png`、`phase2-baseline-source-link-mode.png`。
+
 ## 2026-04-08 Source -> Tag boundary shared-contract 新發現
 - Tag step 原本的 batch diff preview 只看 selected device 全部 points，沒有跟著 active source rule / candidate snapshot 收斂 scope，因此會把 unrelated device-scope candidates 帶進同一個 diff。
 - 這輪已把 active-rule selection 抽成 shared helper，Tag board 透過 candidate snapshot 收斂 point scope；因此 focused-rule handoff、rule 切換 stale preview invalidation、candidate snapshot 變更 stale preview invalidation，現在都由同一個 shared contract 驅動。
