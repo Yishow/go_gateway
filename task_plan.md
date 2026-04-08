@@ -108,9 +108,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-08 Workbench UX Phase 2 shared contract in progress
-**進度**: spec、OpenSpec correction、Phase 2 implementation plan 已完成；Source step 已補上 shared `loading / error / retry` surfaced state 與測試
-**下一步**: 繼續 Phase 2 shared contract 的下一個 Source acceptance case（diff preview / stale preview / Source->Tag handoff 其一）
+**Phase**: 2026-04-08 Workbench UX Phase 2 baseline ready
+**進度**: Phase 2 shared contract 已完成；Source step 已補上 shared `loading / error / retry` surfaced state，Tag step 已補上 `diff preview scope`、stale preview invalidation、Source->Tag handoff scope
+**下一步**: 開始 `workbench-phase2-baseline-evidence`
 
 ---
 

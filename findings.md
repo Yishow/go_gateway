@@ -1,5 +1,10 @@
 # Findings
 
+## 2026-04-08 Source -> Tag boundary shared-contract 新發現
+- Tag step 原本的 batch diff preview 只看 selected device 全部 points，沒有跟著 active source rule / candidate snapshot 收斂 scope，因此會把 unrelated device-scope candidates 帶進同一個 diff。
+- 這輪已把 active-rule selection 抽成 shared helper，Tag board 透過 candidate snapshot 收斂 point scope；因此 focused-rule handoff、rule 切換 stale preview invalidation、candidate snapshot 變更 stale preview invalidation，現在都由同一個 shared contract 驅動。
+- 為了不吞掉既有的 review surface，Tag board 的整頁 empty gate 仍維持 `points.length === 0`；當 active rule 的 candidate set 為空時，只清空 board candidates，不會把 review surface 一起隱藏。
+
 ## 2026-04-08 Phase 2 shared contract TDD 新發現
 - Source step 的第一個真正 shared-contract 缺口不是 planner helper，而是 `useSourceRulesQuery` 還在 loading / error 時，畫面仍直接進入一般 planner/canvas。
 - 這輪已用 TDD 補上 `loading / loadFailed / retry` 三個 surfaced state，並新增 `SourceCanvasStatusState.tsx` 承接狀態 UI，避免繼續放大 `SourceCanvasSection.tsx` 這種歷史超長檔。

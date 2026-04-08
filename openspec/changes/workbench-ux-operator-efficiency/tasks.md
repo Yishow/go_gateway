@@ -187,7 +187,7 @@
 
 > 目標：以 `v2` 建立 canonical Source flow，再讓 `v1` 與 `v3` 在同一個 shared contract 上完成對照。
 
-- [ ] 2.1 共用基礎
+- [x] 2.1 共用基礎
   - 在 `main` 上更新 Source shared acceptance / scenario matrix
   - 固定 Source 共同動作：rule create/edit、template apply、plan/live/link switch、handoff to Tag
   - 明確定義 `diff preview scope`、stale preview invalidation、failure / retry / recovery

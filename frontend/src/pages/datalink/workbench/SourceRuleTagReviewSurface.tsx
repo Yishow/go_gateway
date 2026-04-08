@@ -16,20 +16,8 @@ import type {
   SourceRuleTagReviewDecisionAction,
 } from '../../../types/sourceRuleTagReviewDecisions';
 import { SourceRuleTagReviewCandidateRow } from './SourceRuleTagReviewCandidateRow';
+import { resolveActiveRuleId } from './sourceRuleSelection';
 import { useWorkbench } from './WorkbenchProvider';
-
-function resolveActiveRuleId(
-  rules: SourceRuleRecord[],
-  preferredIds: Array<string | null | undefined>,
-) {
-  for (const candidateId of preferredIds) {
-    if (candidateId && rules.some((rule) => rule.id === candidateId)) {
-      return candidateId;
-    }
-  }
-
-  return rules[0]?.id ?? null;
-}
 
 function buildRuleLabel(rule: SourceRuleRecord) {
   return `${rule.start_address} · ${rule.naming_prefix} · ${rule.data_type}`;
