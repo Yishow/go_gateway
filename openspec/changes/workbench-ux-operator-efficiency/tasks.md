@@ -196,19 +196,19 @@
   - 以 `main` branch baseline snapshot 收集 overview / focused / handoff evidence
   - 記錄 baseline 在重複輸入、模式切換與 stale preview 上的痛點
 
-- [ ] 2.1.v2 Sentry Incident Desk（primary functional track）
+- [x] 2.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical Source flow 與 blocker / retry / recovery surfaced state
   - 以 `v2` 作為後續 `v1` / `v3` 的行為基準
 
-- [ ] 2.1.v1 Linear Control Room（full-flow high-polish track）
+- [x] 2.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 Source domain flow
   - 以更低噪音、更長時段可讀的 control-room 語言重做 Source surface
 
-- [ ] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+- [x] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只實作 compare 所需的 Source cockpit surface
   - 保留 overview / focused / handoff / blocker / retry evidence，不擴張成第二條主線
 
-- [ ] 2.1.compare Source 比較與推薦
+- [x] 2.1.compare Source 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - 若 compare 認為 canonical owner 必須改變，先停下來修 OpenSpec，不可默默換線
 

@@ -1,7 +1,7 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-08 Workbench UX Phase 2 v2 source ready
+**當前 Phase**：2026-04-08 Workbench UX Phase 2 source compare ready
 
 ---
 
@@ -24,9 +24,9 @@
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/design.md`
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
   - `openspec validate --changes workbench-ux-operator-efficiency` 通過
-- ✅ 完成 Phase 2 shared contract 與 2.1.baseline Current Studio
-- ✅ baseline evidence：已用 agent-browser 保存 overview / focused / handoff / link-mode，並記錄重複輸入、mode switch 缺少 compare scaffold、Source -> Tag handoff 失焦三個痛點
-- ⏳ 下一步：開始 2.1.v2 canonical Source flow
+- ✅ 完成 Phase 2 shared contract、2.1.baseline 與 `2.1.v1` / `2.1.v2` / `2.1.v3` Source rollout
+- ✅ compare evidence：baseline 與三版均已具備 overview / focused / handoff；v1 / v2 / v3 已完成 browser verification 與 test/build
+- ⏳ 下一步：開始 2.1.compare Source 比較與推薦
 
 **驗證結果**：
 ```bash

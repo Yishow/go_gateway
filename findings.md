@@ -1,5 +1,12 @@
 # Findings
 
+## 2026-04-08 Phase 2 Source compare 新發現
+- baseline 共享 flow 完整，但首屏仍直接把 device-picker 與 planner/canvas 疊在同一張工作檯，operator 必須自己理解 handoff；local compare flow 到 Source planner ready 約 `0.99s`。
+- v1 `Linear Control Room` 的長時間可讀性最好，`SourceControlRoom` + runtime/tag-review surface 讓 focused / handoff 狀態更 calm，但需要額外 scoped CSS layer 與多筆收尾 commit；local compare flow 約 `1.02s`。
+- v2 `Sentry Incident Desk` 在不改 shared flow 的前提下，把 overview / focused / handoff 三態收進同一個 command deck，首屏資訊密度、引導順序與 canonical 行為契約最平衡。
+- v3 `ClickHouse Data Cockpit` 的產品語言辨識度與資訊密度最強，但 neon cockpit 噪音最高、shared surface touched 面最大，維護風險高於 v1 / v2。
+- Compare 結論：維持 `v2` 作為 Source phase canonical owner；後續如需加值，優先收割 `v1` 的 calm control-room pacing 與 `v3` 的 density cues，不需要回頭修 OpenSpec owner。
+
 ## 2026-04-08 Phase 2 baseline evidence 新發現
 - baseline Source overview 仍以 device-picker + rule-builder 雙區塊起手；選到 `Browser Smoke PLC` 後，首屏立即暴露大量欄位與稀疏 canvas，重複輸入負擔高。
 - baseline focused state 的 `Review tags` 仍是單一前進動作；即使操作員已聚焦到 `40004`，切到 Tag step 後仍直接落到整個 device 範圍的候選清單，handoff 焦點沒有被保住。

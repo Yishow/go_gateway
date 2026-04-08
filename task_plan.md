@@ -108,9 +108,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-08 Workbench UX Phase 2 v2 source ready
-**進度**: Phase 2 shared contract 與 2.1.baseline 已完成；baseline evidence 已保存 overview / focused / handoff / link-mode 四個畫面，並記錄重複輸入、模式切換與 handoff 失焦痛點
-**下一步**: 開始 `workbench-phase2-v2-source`
+**Phase**: 2026-04-08 Workbench UX Phase 2 source compare ready
+**進度**: Phase 2 baseline 與 v1 / v2 / v3 Source rollout 已完成；baseline 與三版都具備 overview / focused / handoff evidence，且 v1 / v2 / v3 已完成 browser verification 與 test/build
+**下一步**: 執行 `2.1.compare Source 比較與推薦`
 
 ---
 
