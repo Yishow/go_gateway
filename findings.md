@@ -1,5 +1,19 @@
 # Findings
 
+## 2026-04-09 Reopened Phase 4 compare gate 新發現
+- **`v2` 仍是 Output phase 的最佳 canonical owner**：它把 readiness、dry-run、apply、blocker diagnosis 都提升到 incident-desk command surface，對 Phase 4 這種「先判讀 target 狀態，再決定 publish / repair 動作」的節奏最完整。
+- **`v1` 是最佳 long-session operator console**：calm rail 能把 rule revision、attention count、return path 與 blocker framing 壓成最低認知負擔；但實際 mutation 仍在 shared board，所以關鍵操作速度沒有超過 `v2`。
+- **`v3` 的 telemetry density 與 quick-action dock 最強**：top KPI + bottom dock 讓 expert operator 一眼讀到全局並直接觸發真動作；代價是 wrapper/global-style/action-anchor orchestration touched 面最大，維護風險明顯高於 `v1` / baseline / `v2`。
+- baseline 雖然 shared board 最直接、raw functionality 也最完整，但 compare 真正看的是 archetype-level reframing；baseline 仍讓 operator 自己從 shared page 解讀 target diagnosis，因此不適合作為 rollout owner。
+- 四版在同一條 real API 路徑上的 raw latency 沒有 user-visible 差異；Phase 4 真正拉開差距的是：
+  - 第一屏是否先講清楚「現在是哪個 target、哪種狀態、下一步該做什麼」
+  - 從 landing 到 meaningful action / blocker 的 click path 長度
+- Phase 4 正式 recommendation：
+  - 維持 `v2` canonical owner
+  - 優先吸收 `v1` 的 calm blocker / revision framing
+  - 次優先吸收 `v3` 的 telemetry strip 與 bottom operations dock
+  - 不更換 canonical owner，除非後續要回 OpenSpec 提 amendment
+
 ## 2026-04-08 Phase 4 baseline Current Studio 新發現
 - `4.1.baseline` 一開始看起來像是 baseline Output 沒有 linked tags，可是真正的 shared blocker 是 **`/api/v1/datalink/mappings` 因 nullable lifecycle 欄位直接掃進 `string` 而回 500**；修正 `mapping/sql_repo.go` 的 NULL scan 後，real API 才重新露出 linked tag candidates，baseline `/studio` 才能做真正的 Output snapshot。
 - 真實裝置 `UI 4.3 Modbus TCP` 現在可在同一個 `/studio?step=output` 裡同時切換 Local Modbus 與 Database，且共用同一組 tag chips（`TAG_40002` / `TAG_40001`）；這證明 baseline 已經具備跨 target family 的 shared selection surface。

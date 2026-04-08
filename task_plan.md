@@ -6,6 +6,28 @@
 
 ---
 
+## 臨時任務：2026-04-09 Phase 4 compare gate（本輪）
+
+- [x] 收斂 `4.1.baseline`、`4.1.v2`、`4.1.v1`、`4.1.v3` 的 Local Modbus / Database evidence
+- [x] 對照四版在同一個 `/studio` route、同一個 real API、同一個 `UI 4.3 Modbus TCP` 路徑上的 Output flow
+- [x] 依 compare rubric 輸出：
+  - 操作順暢度
+  - 邏輯清晰度
+  - 對系統的完整性
+  - 首屏資訊密度
+  - 關鍵操作時間
+  - 實作 / 維護風險
+  - 推薦版本與理由
+- [x] 將 Phase 4 compare 結論寫回 `openspec/changes/.../tasks.md` 與 planning records
+- [x] 建立 `[compare][Task 4.1]` 詳細 commit
+
+**比較結論**：
+- 維持 `v2 Sentry Incident Desk` 作為 Phase 4 canonical owner。
+- `v1` 的最佳可吸收亮點是 calm rail 的 blocker / revision framing。
+- `v3` 的最佳可吸收亮點是 telemetry strip 與 bottom operations dock。
+
+---
+
 ## 臨時任務：2026-03-23 規範文件對齊 ✅
 
 - [x] 深度盤點 `README.md`、`Makefile`、`frontend/package.json`、`scripts/build.ps1`、`frontend/tsconfig.json`、`frontend/eslint.config.js`、`.golangci.yml`
@@ -108,9 +130,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-08 Workbench UX Phase 4 v2 prep
-**進度**: `4.1 共用基礎` 與 `4.1.baseline Current Studio` 已完成；baseline evidence 已在 real device `UI 4.3 Modbus TCP` 上覆蓋 Local Modbus / Database 兩個 target families，且 `/api/v1/datalink/mappings` 的 shared NULL scan blocker 已在 `main` 修正
-**下一步**: 進入 `4.1.v2 Sentry Incident Desk`，先把 canonical Output flow 裡的 readiness / dry-run / apply / blocker diagnosis 做正，再以同一條 baseline evidence path 對照 Local Modbus 與 Database
+**Phase**: 2026-04-09 Workbench UX Phase 4 compare complete
+**進度**: `4.1 共用基礎`、baseline、`v2`、`v1`、`v3` 與 compare gate 已全部完成；Phase 4 正式結論為維持 `v2` canonical owner，並記錄 `v1` calm rail / `v3` telemetry+dock 的可吸收亮點
+**下一步**: 若繼續 rollout，進入 `5.1 共用基礎`，先鎖定 cross-step shell / diagnostics 的 shared acceptance 與 ownership 邊界
 
 ---
 

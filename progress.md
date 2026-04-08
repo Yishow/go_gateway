@@ -1,11 +1,41 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-08 Workbench UX Phase 4 baseline prep
+**當前 Phase**：2026-04-09 Workbench UX Phase 4 compare complete
 
 ---
 
 ## 執行記錄
+
+### 2026-04-09
+
+#### Session 26: Reopened Phase 4 compare gate 完成（本輪）
+- ✅ compare gate 已以同一個 `/studio` route、同一組 real API、同一台真實裝置 `UI 4.3 Modbus TCP` 完成四個輸入的 controller-side判讀：
+  - baseline `4173`
+  - `v2` `4175`（commit `a73fff4`）
+  - `v1` `4174`（commit `e714be8`）
+  - `v3` `4176`（commit `5f357df`）
+- ✅ compare 明確同時評估兩個 target families：
+  - Local Modbus register binding / runtime blocker
+  - Database connector / table / column binding blocker
+- ✅ 正式 compare 結論：
+  - **推薦版本：`v2 Sentry Incident Desk`**
+  - `v1` 在長時間閱讀、blocker / revision framing 與低干擾 pacing 最佳
+  - `v3` 在 first-screen density、telemetry readout 與 quick-action dock 最強
+  - baseline 功能完整，但 archetype-level blocker ownership 與 target diagnosis 仍停在 shared page
+- ✅ 關鍵操作時間結論：
+  - 四版在同一條 real API 路徑上的 raw latency 沒有 user-visible 差異
+  - Phase 4 真正拉開差距的是 **首屏到 primary action / blocker 的 interaction path**
+  - `v2` meaningful action path 最短；`v1` 與 baseline 接近；`v3` 雖快但心智負荷較高
+- ✅ `phase4-compare-reopen` 已完成；下一個 ready task 為 `5.1 共用基礎`
+
+**比較摘要**：
+| 版本 | 操作順暢度 | 邏輯清晰度 | 對系統的完整性 | 首屏資訊密度 | 關鍵操作時間 | 實作 / 維護風險 | 結論 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | 中 | 中低 | 高 | 中高但訊號衝突 | Modbus blocker 1 click；Database blocker 2 clicks；但 blocker 只停在 page-local message | 低 | 保留為對照基線，不適合作 rollout owner |
+| `v1` | 中高 | 高 | 高 | 中 | Modbus blocker 1 click；Database blocker 2 clicks；閱讀最穩，但 command path 沒縮短 | 低中 | 吸收 calm rail / blocker framing，不取代 canonical |
+| `v2` | **最高** | **高** | **最高** | 中高 | Desk dry-run / connector setup 1 click；meaningful action path 最短 | 中高 | **維持 canonical owner** |
+| `v3` | 高 | 中高 | 高 | **最高** | Dock start/dry-run 1 click；Dock configure/save 2 clicks | **最高** | 保留 telemetry strip / ops dock 想法，不作 owner |
 
 ### 2026-04-08
 

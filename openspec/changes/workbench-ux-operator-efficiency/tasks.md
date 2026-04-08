@@ -270,24 +270,40 @@
   - 以 baseline snapshot 收集兩個 target families 的 overview / focused / blocker evidence
   - 記錄 baseline 在狀態可見性與阻塞理解上的痛點
 
-- [ ] 4.1.v2 Sentry Incident Desk（primary functional track）
+- [x] 4.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 Local Modbus + Database 的 canonical Output flow
   - 先讓 readiness、dry-run、apply、failure / retry / recovery 在 `v2` 正確
   - incident-desk target diagnosis / apply 操作面必須 clearly different
+  - ✅ branch commit：`a73fff4`
+  - ✅ 已完成 Local Modbus / Database 真實 browser evidence 與 branch docs 封帳
 
-- [ ] 4.1.v1 Linear Control Room（full-flow high-polish track）
+- [x] 4.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 Output domain flow與 target coverage
   - 以 clearly different control-room operator-console 語言表達 blocker 與狀態轉移
+  - ✅ branch commit：`e714be8`
+  - ✅ 已完成 Local Modbus / Database 真實 browser evidence 與 branch docs 封帳
 
-- [ ] 4.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+- [x] 4.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只保留 compare 所需的 dense mapping/state surface
   - 仍必須同時覆蓋 Local Modbus + Database 與 shared apply / blocker contract
   - 但不能只是 shared output page 加 density surface
+  - ✅ branch commit：`5f357df`
+  - ✅ 已完成 Local Modbus / Database 真實 browser evidence 與 branch docs 封帳
 
-- [ ] 4.1.compare Output 比較與推薦
+- [x] 4.1.compare Output 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - compare 必須明確評估兩個 target families，不可只看其中一個
   - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
+  - ✅ compare 輸入：
+    - baseline `4173`
+    - `v2` `a73fff4` / `4175`
+    - `v1` `e714be8` / `4174`
+    - `v3` `5f357df` / `4176`
+  - ✅ compare 結論：
+    - **推薦版本：`v2 Sentry Incident Desk`**
+    - `v1` 最適合吸收 calm rail / blocker framing
+    - `v3` 最適合吸收 telemetry strip / bottom operations dock
+    - compare 不足以推翻 Phase 4 的 canonical owner，維持 `v2`
 
 ---
 
