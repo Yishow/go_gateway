@@ -311,11 +311,14 @@
 
 > 目標：以 `v2` 建立 canonical shell / diagnostics flow，同時守住 shell ownership 邊界。
 
-- [ ] 5.1 共用基礎
+- [x] 5.1 共用基礎
   - 在 `main` 上更新 shell shared acceptance / scenario matrix
   - 固定 shell 只擁有：readiness summary、active blocker summary、diagnostics refresh status、shortest return action
   - 明確禁止 shell 吃掉 step-local edit / mutation / validation
   - 明確定義 shell / diagnostics 的三 archetype 語言與 fail gate
+  - ✅ 新增 `workbenchShellCompareContract.ts`
+  - ✅ `workbenchExperimentContract.ts` 已正式 re-export shell shared compare contract
+  - ✅ `phase5.scenarioFocus` 已從舊的 `readiness / global-blockers / repair-hop / return-to-flow` 對齊為 `readiness-summary / active-blocker / diagnostics-refresh / return-to-mainline`
 
 - [ ] 5.1.baseline Current Studio
   - 以 baseline snapshot 收集 readiness、blocker、return-to-mainline evidence

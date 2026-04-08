@@ -12,6 +12,12 @@ export {
   WORKBENCH_OUTPUT_COMPARE_SCENARIOS,
 } from './workbenchOutputCompareContract';
 export {
+  WORKBENCH_SHELL_COMPARE_ACCEPTANCE,
+  WORKBENCH_SHELL_COMPARE_ARCHETYPES,
+  WORKBENCH_SHELL_COMPARE_CRITICAL_TASK,
+  WORKBENCH_SHELL_COMPARE_SCENARIOS,
+} from './workbenchShellCompareContract';
+export {
   WORKBENCH_TAG_COMPARE_ACCEPTANCE,
   WORKBENCH_TAG_COMPARE_ARCHETYPES,
   WORKBENCH_TAG_COMPARE_CRITICAL_TASK,
@@ -155,7 +161,12 @@ export const WORKBENCH_EXPERIMENT_PHASES: readonly WorkbenchExperimentPhase[] = 
     id: 'phase5',
     task: '5.1',
     label: 'Shell / Diagnostics',
-    scenarioFocus: ['readiness', 'global-blockers', 'repair-hop', 'return-to-flow'],
+    scenarioFocus: [
+      'readiness-summary',
+      'active-blocker',
+      'diagnostics-refresh',
+      'return-to-mainline',
+    ],
   },
   {
     id: 'phase6',

@@ -1,5 +1,11 @@
 # Findings
 
+## 2026-04-09 Phase 5 shared foundation 新發現
+- Phase 5 的起點不是先畫新 shell，而是 **先鎖 ownership boundary**；如果沒有 shared compare contract，後續 `v2` / `v1` / `v3` 很容易把 shell 擴張成各自的 version-only workflow center。
+- 目前 `phase5.scenarioFocus` 舊值 `readiness / global-blockers / repair-hop / return-to-flow` 太鬆，會讓 shell 看起來像能直接接管修復流程；對齊成 `readiness-summary / active-blocker / diagnostics-refresh / return-to-mainline` 後，shared contract 才真正符合 OpenSpec 的四個 shell owned surfaces。
+- Phase 5 shared acceptance 必須明講 **shell 只做 summary / refresh / return，不做 step-local edit / mutation / validation**；不把這條寫死，variant UI 很容易在 compare 前就先漂成不同 ownership model。
+- `v2` / `v1` / `v3` 在 Phase 5 的 archetype 差異應該建立在 summary / alert / blocker framing 上，而不是把 step-local workflow 拉上 shell；這讓後續 baseline 與三版 compare 能聚焦在 diagnostics 讀法，而不是誰偷接管更多操作。
+
 ## 2026-04-09 Reopened Phase 4 compare gate 新發現
 - **`v2` 仍是 Output phase 的最佳 canonical owner**：它把 readiness、dry-run、apply、blocker diagnosis 都提升到 incident-desk command surface，對 Phase 4 這種「先判讀 target 狀態，再決定 publish / repair 動作」的節奏最完整。
 - **`v1` 是最佳 long-session operator console**：calm rail 能把 rule revision、attention count、return path 與 blocker framing 壓成最低認知負擔；但實際 mutation 仍在 shared board，所以關鍵操作速度沒有超過 `v2`。

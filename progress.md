@@ -1,13 +1,27 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-09 Workbench UX Phase 4 compare complete
+**當前 Phase**：2026-04-09 Workbench UX Phase 5 shared foundation complete
 
 ---
 
 ## 執行記錄
 
 ### 2026-04-09
+
+#### Session 27: Phase 5 shared foundation 完成（本輪）
+- ✅ `main` 已完成 `5.1 共用基礎`：
+  - 新增 `workbenchShellCompareContract.ts`
+  - `workbenchExperimentContract.ts` 已正式 re-export Shell / diagnostics shared compare contract
+  - `phase5.scenarioFocus` 已從舊的 `readiness / global-blockers / repair-hop / return-to-flow` 對齊為 `readiness-summary / active-blocker / diagnostics-refresh / return-to-mainline`
+- ✅ shared boundary 已正式鎖定：
+  - shell 只可擁有 readiness summary、active blocker summary、diagnostics refresh status、shortest return-to-mainline action
+  - shell 不得接管 step-local edit / mutation / validation ownership
+- ✅ TDD / targeted validation 完成：
+  - 新增 `workbench-shell-compare-contract` failing test 與正式 wrapper test entry
+  - Shell compare + Output compare + Tag compare + Shell UI 共 `26/26` 通過
+  - `npx tsc --noEmit`、targeted ESLint、`npm run build` 通過
+- ✅ `phase5-shared-reopen` 已完成；下一個 ready task 為 `5.1.baseline Current Studio`
 
 #### Session 26: Reopened Phase 4 compare gate 完成（本輪）
 - ✅ compare gate 已以同一個 `/studio` route、同一組 real API、同一台真實裝置 `UI 4.3 Modbus TCP` 完成四個輸入的 controller-side判讀：

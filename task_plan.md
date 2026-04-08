@@ -6,6 +6,24 @@
 
 ---
 
+## 臨時任務：2026-04-09 Phase 5 shared foundation（本輪）
+
+- [x] 在 `main` 上建立 Phase 5 shell / diagnostics shared compare contract
+- [x] 對齊 `WORKBENCH_EXPERIMENT_PHASES.phase5` 的 scenario focus 與 OpenSpec ownership boundary
+- [x] 補上正式測試入口與 red/green contract 驗證
+- [x] 完成本輪型別檢查、targeted ESLint、targeted Vitest 與 frontend build
+
+**備註**：
+- 新增 `frontend/src/pages/datalink/workbench/workbenchShellCompareContract.ts`
+- shell 正式 shared boundary 固定為：
+  - readiness summary
+  - active blocker summary
+  - diagnostics refresh status
+  - shortest return-to-mainline action
+- shell 明確不得接管 step-local edit / mutation / validation ownership
+
+---
+
 ## 臨時任務：2026-04-09 Phase 4 compare gate（本輪）
 
 - [x] 收斂 `4.1.baseline`、`4.1.v2`、`4.1.v1`、`4.1.v3` 的 Local Modbus / Database evidence
@@ -130,9 +148,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-09 Workbench UX Phase 4 compare complete
-**進度**: `4.1 共用基礎`、baseline、`v2`、`v1`、`v3` 與 compare gate 已全部完成；Phase 4 正式結論為維持 `v2` canonical owner，並記錄 `v1` calm rail / `v3` telemetry+dock 的可吸收亮點
-**下一步**: 若繼續 rollout，進入 `5.1 共用基礎`，先鎖定 cross-step shell / diagnostics 的 shared acceptance 與 ownership 邊界
+**Phase**: 2026-04-09 Workbench UX Phase 5 shared foundation complete
+**進度**: `5.1 共用基礎` 已在 `main` 完成；shell shared acceptance、scenario matrix 與 ownership boundary 已鎖定，下一步可進 `5.1.baseline Current Studio`
+**下一步**: 以 baseline `4173` 收集 readiness、blocker、return-to-mainline evidence，確認 current `/studio` 的跨步驟 shell / diagnostics 強弱項
 
 ---
 
