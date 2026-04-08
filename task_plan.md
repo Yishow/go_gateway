@@ -6,6 +6,26 @@
 
 ---
 
+## 臨時任務：2026-04-09 Phase 5 baseline Current Studio（本輪）
+
+- [x] 啟動 baseline `4173` 與 shared backend `8080`
+- [x] 以 `agent-browser` 在真實裝置 `UI 4.3 Modbus TCP` 收集 readiness / blocker / return-to-mainline evidence
+- [x] 記錄 baseline shell 在跨步驟 diagnostics 上的強弱項
+
+**備註**：
+- 正式 evidence：
+  - `baseline-shell-readiness.png`
+  - `baseline-shell-return-to-mainline.png`
+  - `baseline-shell-blocker.png`
+- baseline strengths：
+  - 選取裝置後，shell 立即能讀出 `Source ready`、`Tag ready`、`Output partial`
+  - Output step 至少有一個保持主線可見的 next-action CTA
+- baseline weaknesses：
+  - global blocker 沒有被提升到 shell summary；真實 Database blocker `Enter a connector name first` 仍停在 step-local message
+  - diagnostics refresh status 沒有被 shell 擁有；相關 refresh / validation affordance 仍在內層 workspace
+
+---
+
 ## 臨時任務：2026-04-09 Phase 5 shared foundation（本輪）
 
 - [x] 在 `main` 上建立 Phase 5 shell / diagnostics shared compare contract
@@ -148,9 +168,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-09 Workbench UX Phase 5 shared foundation complete
-**進度**: `5.1 共用基礎` 已在 `main` 完成；shell shared acceptance、scenario matrix 與 ownership boundary 已鎖定，下一步可進 `5.1.baseline Current Studio`
-**下一步**: 以 baseline `4173` 收集 readiness、blocker、return-to-mainline evidence，確認 current `/studio` 的跨步驟 shell / diagnostics 強弱項
+**Phase**: 2026-04-09 Workbench UX Phase 5 baseline complete
+**進度**: `5.1 共用基礎`、`5.1.baseline Current Studio` 已完成；baseline shell 的 readiness / blocker / return-to-mainline 證據已收齊，下一步可進 `5.1.v2 Sentry Incident Desk`
+**下一步**: 在 `woe-v2-mui` 建立 canonical shell / diagnostics flow，先把 global blocker、refresh、retry、return action 做成 incident-desk shell surface
 
 ---
 

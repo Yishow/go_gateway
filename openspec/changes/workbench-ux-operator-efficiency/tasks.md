@@ -320,9 +320,14 @@
   - ✅ `workbenchExperimentContract.ts` 已正式 re-export shell shared compare contract
   - ✅ `phase5.scenarioFocus` 已從舊的 `readiness / global-blockers / repair-hop / return-to-flow` 對齊為 `readiness-summary / active-blocker / diagnostics-refresh / return-to-mainline`
 
-- [ ] 5.1.baseline Current Studio
+- [x] 5.1.baseline Current Studio
   - 以 baseline snapshot 收集 readiness、blocker、return-to-mainline evidence
   - 記錄 baseline 在跨步驟診斷上的強弱項
+  - ✅ baseline `4173` + real device `UI 4.3 Modbus TCP`
+  - ✅ 正式 evidence：
+    - `baseline-shell-readiness.png`
+    - `baseline-shell-return-to-mainline.png`
+    - `baseline-shell-blocker.png`
 
 - [ ] 5.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical cross-step shell / diagnostics flow

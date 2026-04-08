@@ -1,5 +1,15 @@
 # Findings
 
+## 2026-04-09 Phase 5 baseline Current Studio 新發現
+- baseline shell 在真實裝置 `UI 4.3 Modbus TCP` 上已經有 **基本可用的 cross-step readiness framing**：選取裝置後，step rail / summary strip 會立即露出 `Source ready`、`Tag ready`、`Output partial`，這代表 current shell 並不是完全沒有 Phase 5 基礎。
+- baseline 的 return-to-mainline 表達目前仍偏 generic：進入 Output step 後，context CTA 只是 `Finish Local Modbus or Database output setup and apply inside the same Output workspace.`，有保住主線，但還沒有把「哪個 blocker 正在阻塞、最短修復路徑是什麼」講清楚。
+- 真實 Database blocker `Enter a connector name first` 可以直接重現，但 **shell chrome 完全不跟著變化**；這證明 baseline 的 active blocker summary 仍不存在，blocker ownership 仍停留在 step-local validation message。
+- baseline 也還沒有明確的 shell-owned diagnostics refresh status；目前 refresh / validation 相關 affordance 仍分散在各 step 內層 surface，操作者必須自己進工作區尋找。
+- 本輪正式 evidence：
+  - `baseline-shell-readiness.png`
+  - `baseline-shell-return-to-mainline.png`
+  - `baseline-shell-blocker.png`
+
 ## 2026-04-09 Phase 5 shared foundation 新發現
 - Phase 5 的起點不是先畫新 shell，而是 **先鎖 ownership boundary**；如果沒有 shared compare contract，後續 `v2` / `v1` / `v3` 很容易把 shell 擴張成各自的 version-only workflow center。
 - 目前 `phase5.scenarioFocus` 舊值 `readiness / global-blockers / repair-hop / return-to-flow` 太鬆，會讓 shell 看起來像能直接接管修復流程；對齊成 `readiness-summary / active-blocker / diagnostics-refresh / return-to-mainline` 後，shared contract 才真正符合 OpenSpec 的四個 shell owned surfaces。

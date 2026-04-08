@@ -1,13 +1,26 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-09 Workbench UX Phase 5 shared foundation complete
+**當前 Phase**：2026-04-09 Workbench UX Phase 5 baseline complete
 
 ---
 
 ## 執行記錄
 
 ### 2026-04-09
+
+#### Session 28: Phase 5 baseline Current Studio 完成（本輪）
+- ✅ baseline `4173` 與 shared backend `8080` 已恢復，並以 `agent-browser` 在真實裝置 `UI 4.3 Modbus TCP` 收齊 Phase 5 shell evidence：
+  - `baseline-shell-readiness.png`
+  - `baseline-shell-return-to-mainline.png`
+  - `baseline-shell-blocker.png`
+- ✅ baseline strengths 已確認：
+  - 選取 `UI 4.3 Modbus TCP` 後，shell 立即露出 `Source ready`、`Tag ready`、`Output partial` 的 cross-step readiness framing
+  - 進入 Output step 時，context-bar 仍保留一顆指向主線的 next-action CTA：`Finish Local Modbus or Database output setup and apply inside the same Output workspace.`
+- ✅ baseline weaknesses 已確認：
+  - 真實 Database blocker `Enter a connector name first` 仍只停在 Output workspace 內層 validation message，沒有被提升成 shell-level active blocker summary
+  - shell 沒有明確 diagnostics refresh status；refresh / validation affordance 仍留在 step-local surface
+- ✅ `phase5-baseline-reopen` 已完成；下一個 ready task 為 `5.1.v2 Sentry Incident Desk`
 
 #### Session 27: Phase 5 shared foundation 完成（本輪）
 - ✅ `main` 已完成 `5.1 共用基礎`：
