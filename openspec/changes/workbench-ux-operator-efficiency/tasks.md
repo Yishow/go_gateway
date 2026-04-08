@@ -8,13 +8,23 @@
 - baseline 與三個新版本都必須使用**同一個 `/studio` route**；版本隔離只靠 worktree / branch / port。
 - baseline 與三個新版本都必須使用**同一組真實 API 契約**；禁止 mock-only 流程。
 - 三個新版本都必須先共用**同一組 design-token 主題語意**，再映射到各自 UI kit。
-- UI kit 固定為：
-  - `v1` = shadcn/Radix
-  - `v2` = MUI
-  - `v3` = Ant Design
-- 三個新版本有同一個大目標，但允許因 kit 特性**微調互動邏輯**。
-- 若某個 phase 被直接 review 判定為「差異不足」，主代理可在同一個 change 內重開該 phase，將 `v1` / `v2` / `v3` 提升為不同 archetype round；但仍必須維持同 route / 同 API / 同 token。
-- 每個 phase 都必須完成 `共用基礎 -> baseline -> v1 -> v2 -> v3 -> compare`，才能前進。
+- Phase 2–5 角色固定為：
+  - `v2` = primary functional track
+  - `v1` = full-flow high-polish track
+  - `v3` = necessary-consistency comparison track
+- compare 可以建議吸收 `v1` / `v3` 亮點或停下來修 spec，但**不可默默改寫 `v2` canonical owner**；若要換 owner，必須先回到 OpenSpec amendment。
+- Phase 2–5 的 baseline 定義固定為：`main` branch 上、該 phase shared acceptance commit 完成後、任何 variant UI work 開始前的 `/studio` frozen snapshot。
+- Phase 2–5 每個 phase 都必須完成 `共用基礎 -> baseline -> v2 -> v1 -> v3 -> compare`，才能前進。
+- 每個 shared task 都必須先在 `main` 上定義 branch-neutral acceptance / scenario matrix，再開始 variant work。
+- Phase 4 Output 一律同時覆蓋：
+  - `Local Modbus register binding`
+  - `Database schema/column binding`
+- Phase 5 shell 只擁有：
+  - readiness summary
+  - active blocker summary
+  - diagnostics refresh status
+  - shortest return-to-mainline action
+- step-local edit / mutation / validation 仍屬各步驟表面，不可被 shell 吃掉。
 - 每個 `compare` 子任務都必須輸出：
   - 操作順暢度
   - 邏輯清晰度
@@ -173,160 +183,166 @@
 
 ---
 
-## Phase 2：Source 對照實驗
+## Phase 2：Source winner-led rollout
 
-> 目標：比較 source rule 編修、模板套用與模式切換的最佳表面。
+> 目標：以 `v2` 建立 canonical Source flow，再讓 `v1` 與 `v3` 在同一個 shared contract 上完成對照。
 
 - [ ] 2.1 共用基礎
-  - 固定 Source 場景與驗收標準
-  - 固定需要比較的動作：新增規則、套模板、修改範圍、查看 plan / live / link
+  - 在 `main` 上更新 Source shared acceptance / scenario matrix
+  - 固定 Source 共同動作：rule create/edit、template apply、plan/live/link switch、handoff to Tag
+  - 明確定義 `diff preview scope`、stale preview invalidation、failure / retry / recovery
 
 - [ ] 2.1.baseline Current Studio
-  - 量測目前 UI 在 Source 場景的操作順暢度、邏輯清晰度與主線承接完整性
-  - 記錄 baseline 在重複輸入與模式切換上的已知痛點
+  - 以 `main` branch baseline snapshot 收集 overview / focused / handoff evidence
+  - 記錄 baseline 在重複輸入、模式切換與 stale preview 上的痛點
 
-- [ ] 2.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計 Source surface
-  - 可依 kit 特性微調模板、畫布、模式切換與資訊編排
+- [ ] 2.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 canonical Source flow 與 blocker / retry / recovery surfaced state
+  - 以 `v2` 作為後續 `v1` / `v3` 的行為基準
 
-- [ ] 2.1.v2 MUI
-  - 以 shared tokens + MUI 設計 Source surface
-  - 可依 kit 特性微調模板、畫布、模式切換與資訊編排
+- [ ] 2.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 Source domain flow
+  - 以更低噪音、更長時段可讀的 control-room 語言重做 Source surface
 
-- [ ] 2.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計 Source surface
-  - 可依 kit 特性微調模板、畫布、模式切換與資訊編排
+- [ ] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只實作 compare 所需的 Source cockpit surface
+  - 保留 overview / focused / handoff / blocker / retry evidence，不擴張成第二條主線
 
 - [ ] 2.1.compare Source 比較與推薦
-  - 輸出 baseline + 三個新版本在 Source 場景的比較表
-  - 給出本 phase 推薦版本與理由
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - 若 compare 認為 canonical owner 必須改變，先停下來修 OpenSpec，不可默默換線
 
 ---
 
-## Phase 3：Tag 對照實驗
+## Phase 3：Tag winner-led rollout
 
-> 目標：比較 tag review、批次操作、diff preview 與 apply 回饋的最佳表面。
+> 目標：以 `v2` 建立 canonical Tag review/apply flow，再讓 `v1` / `v3` 做同 flow 對照。
 
 - [ ] 3.1 共用基礎
-  - 固定 Tag 場景與驗收標準
-  - 固定需要比較的動作：review candidates、選策略、preview diff、apply、處理失敗
+  - 在 `main` 上更新 Tag shared acceptance / scenario matrix
+  - 固定共同動作：review candidates、preview diff、choose action、apply、failure / retry / recovery
 
 - [ ] 3.1.baseline Current Studio
-  - 量測目前 UI 在 Tag 場景的操作順暢度、邏輯清晰度與主線承接完整性
-  - 記錄 baseline 在 batch decision 與回饋上的特徵
+  - 以 baseline snapshot 收集 review queue、diff preview、handoff to Output evidence
+  - 記錄 baseline 在 batch decision 與失敗回饋上的痛點
 
-- [ ] 3.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計 Tag surface
-  - 可依 kit 特性微調 review、diff 與 apply feedback 表面
+- [ ] 3.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 canonical Tag review/apply flow
+  - 讓 blocker、retry、partial-failure surfaced state 在 `v2` 先穩定
 
-- [ ] 3.1.v2 MUI
-  - 以 shared tokens + MUI 設計 Tag surface
-  - 可依 kit 特性微調 review、diff 與 apply feedback 表面
+- [ ] 3.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 Tag domain flow
+  - 以 calmer review surface 提升大批量 decision 的 legibility
 
-- [ ] 3.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計 Tag surface
-  - 可依 kit 特性微調 review、diff 與 apply feedback 表面
+- [ ] 3.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只保留 compare 所需的 board / summary density
+  - 不得改變 shared apply / recovery contract
 
 - [ ] 3.1.compare Tag 比較與推薦
-  - 輸出 baseline + 三個新版本在 Tag 場景的比較表
-  - 給出本 phase 推薦版本與理由
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - compare 只能推薦吸收亮點或回補 spec，不可直接改 canonical owner
 
 ---
 
-## Phase 4：Output 對照實驗
+## Phase 4：Output winner-led rollout
 
-> 目標：比較 output 綁定、狀態表面與阻塞診斷的最佳表面。
+> 目標：以 `v2` 建立 canonical Output flow，且同時覆蓋 Local Modbus 與 Database 兩個 target families。
 
 - [ ] 4.1 共用基礎
-  - 固定 Output 場景與驗收標準
-  - 固定需要比較的動作：查看映射狀態、執行 dry-run、套用輸出、理解阻塞原因
+  - 在 `main` 上更新 Output shared acceptance / scenario matrix
+  - 固定共同動作：readiness、dry-run、apply、blocker diagnosis
+  - 明確要求 Local Modbus 與 Database 兩個 target families 都必須被驗收
 
 - [ ] 4.1.baseline Current Studio
-  - 量測目前 UI 在 Output 場景的操作順暢度、邏輯清晰度與主線承接完整性
-  - 記錄 baseline 的資訊密度與狀態可見性特徵
+  - 以 baseline snapshot 收集兩個 target families 的 overview / focused / blocker evidence
+  - 記錄 baseline 在狀態可見性與阻塞理解上的痛點
 
-- [ ] 4.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計 Output surface
-  - 可依 kit 特性微調狀態視圖、dry-run 與套用回饋
+- [ ] 4.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 Local Modbus + Database 的 canonical Output flow
+  - 先讓 readiness、dry-run、apply、failure / retry / recovery 在 `v2` 正確
 
-- [ ] 4.1.v2 MUI
-  - 以 shared tokens + MUI 設計 Output surface
-  - 可依 kit 特性微調狀態視圖、dry-run 與套用回饋
+- [ ] 4.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 Output domain flow與 target coverage
+  - 以 calmer operator-console 語言表達 blocker 與狀態轉移
 
-- [ ] 4.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計 Output surface
-  - 可依 kit 特性微調狀態視圖、dry-run 與套用回饋
+- [ ] 4.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只保留 compare 所需的 dense mapping/state surface
+  - 仍必須同時覆蓋 Local Modbus + Database 與 shared apply / blocker contract
 
 - [ ] 4.1.compare Output 比較與推薦
-  - 輸出 baseline + 三個新版本在 Output 場景的比較表
-  - 給出本 phase 推薦版本與理由
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - compare 必須明確評估兩個 target families，不可只看其中一個
 
 ---
 
-## Phase 5：跨步驟 Shell / Diagnostics 對照實驗
+## Phase 5：Cross-step shell / diagnostics winner-led rollout
 
-> 目標：比較 readiness、global blockers 與跨步驟診斷提示的最佳表面。
+> 目標：以 `v2` 建立 canonical shell / diagnostics flow，同時守住 shell ownership 邊界。
 
 - [ ] 5.1 共用基礎
-  - 固定跨步驟問題模型與 readiness 判準
-  - 固定需要比較的動作：辨識 blocker、跳轉修復、回到主流程
+  - 在 `main` 上更新 shell shared acceptance / scenario matrix
+  - 固定 shell 只擁有：readiness summary、active blocker summary、diagnostics refresh status、shortest return action
+  - 明確禁止 shell 吃掉 step-local edit / mutation / validation
 
 - [ ] 5.1.baseline Current Studio
-  - 量測目前 UI 的 readiness 與 blocker surfaced 能力
+  - 以 baseline snapshot 收集 readiness、blocker、return-to-mainline evidence
   - 記錄 baseline 在跨步驟診斷上的強弱項
 
-- [ ] 5.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計跨步驟診斷表面
-  - 可依 kit 特性微調 shell、drawer、banner、summary 的互動
+- [ ] 5.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 canonical cross-step shell / diagnostics flow
+  - 先讓 global blocker、refresh、retry、return action 在 `v2` 正確
 
-- [ ] 5.1.v2 MUI
-  - 以 shared tokens + MUI 設計跨步驟診斷表面
-  - 可依 kit 特性微調 shell、drawer、banner、summary 的互動
+- [ ] 5.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 shell ownership model
+  - 以更低干擾、更一致的 full-flow shell 語言表達同一組能力
 
-- [ ] 5.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計跨步驟診斷表面
-  - 可依 kit 特性微調 shell、drawer、banner、summary 的互動
+- [ ] 5.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只保留 compare 所需的 cockpit summary / alert surface
+  - 不得把 shell 擴成 version-only workflow center
 
 - [ ] 5.1.compare Shell / Diagnostics 比較與推薦
-  - 輸出 baseline + 三個新版本在跨步驟診斷場景的比較表
-  - 給出本 phase 推薦版本與理由
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - compare 必須確認 shell 沒有改寫 step-local ownership
 
 ---
 
-## Phase 6：總結驗收與最終推薦
+## Phase 6：最終驗收與推薦
 
-> 目標：在相同端對端流程下重跑 baseline 與三個新版本，得到正式推薦結論。
+> 目標：以同一個 end-to-end 主線重跑 baseline、`v2`、`v1`、`v3`，輸出正式推薦與保留亮點。
 
 - [ ] 6.1 共用基礎
   - 固定最終 E2E 場景
-  - 固定最終比較報告格式
+  - 固定最終 compare 輸出格式與證據欄位
 
 - [ ] 6.1.baseline 整體驗收
   - 完成 baseline 端對端操作、截圖與記錄
 
-- [ ] 6.1.v1 整體驗收（shadcn/Radix）
-  - 完成 v1 端對端操作、截圖與記錄
+- [ ] 6.1.v2 整體驗收（primary functional track）
+  - 完成 `v2` 端對端操作、截圖與記錄
 
-- [ ] 6.1.v2 整體驗收（MUI）
-  - 完成 v2 端對端操作、截圖與記錄
+- [ ] 6.1.v1 整體驗收（full-flow high-polish track）
+  - 完成 `v1` 端對端操作、截圖與記錄
 
-- [ ] 6.1.v3 整體驗收（Ant Design）
-  - 完成 v3 端對端操作、截圖與記錄
+- [ ] 6.1.v3 整體驗收（minimum-obligation track）
+  - 完成 `v3` 端對端操作、截圖與記錄
 
 - [ ] 6.1.compare 最終比較與推薦版本
-  - 彙整所有 phase 的 compare 結果
-  - 明確指出推薦版本、淘汰理由、保留亮點與後續 follow-up 建議
+  - 彙整所有 phase compare 結果
+  - 明確指出推薦版本、保留亮點、淘汰理由與後續 follow-up 建議
 
 ---
 
 ## 驗收條件
 
-- [ ] baseline 與三個新版本全程共用同一組真實 API，無 mock 分流
-- [ ] baseline 與三個新版本全程維持同一個 `/studio` route
-- [ ] baseline 在比較開始前已凍結，不隨新版本實驗漂移
+- [ ] baseline 與 `v2` / `v1` / `v3` 全程共用同一組真實 API，無 mock 分流
+- [ ] baseline 與 `v2` / `v1` / `v3` 全程維持同一個 `/studio` route
+- [ ] baseline 依 Phase 2–5 baseline 定義凍結，不隨 variant work 漂移
 - [ ] 三個新版本全程使用同一組 shared design tokens
+- [ ] 每個 shared task 都先在 `main` 上定義 branch-neutral acceptance / scenario matrix
 - [ ] compare 子任務完成前，不得跳到下一個 phase
 - [ ] 每個 compare 結果都包含操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險
+- [ ] Phase 4 compare 同時覆蓋 Local Modbus 與 Database 兩個 target families
+- [ ] 若 compare 挑戰 `v2` canonical owner，必須先回到 OpenSpec amendment，不可直接換線
 - [ ] 最終輸出包含推薦版本與明確理由
 
 ---

@@ -2,151 +2,150 @@
 
 ## Why
 
-目前系統尚未正式上線，因此這次 change 的目標不是「重構並取代現在的 UI」，而是：
+Phase 1R Device compare is complete and the downstream direction is now approved:
 
-1. **保留目前 `/studio` 當 baseline**
-2. **額外做 3 個平行新版本**
-3. 在**同一組真實 API、同一個 `/studio` route、同一組 design tokens** 下，比較不同 UI kit 帶來的操作差異
+1. `v2 / Sentry Incident Desk` is the primary functional direction.
+2. `v1 / Linear Control Room` remains the full-flow high-polish alternate.
+3. `v3 / ClickHouse Data Cockpit` remains a limited comparison/control track.
 
-要比較的重點不是單純視覺好不好看，而是：
+The current OpenSpec still models Phase 2–5 as three equal-cost parallel experiments. That is no longer accurate and now creates four problems:
 
-- 操作是否順暢
-- 邏輯是否清楚
-- 對系統主流程的承接是否完整
+- **spec drift**: approved direction and written tasks no longer match
+- **delivery inefficiency**: `v2` has already won the functional role, but the spec still spreads equal effort
+- **quality dilution**: `v1` risks becoming a half-maintained skin instead of a deliberate full-flow language
+- **over-investment in `v3`**: the cockpit track should remain valuable, but not consume equal depth in every later phase
 
-因此本 change 改寫為 **baseline + 3 個 UI kit 版本** 的正式對照實驗，而不是單一路線的新 UI 重構。
-
-## Experiment Model
-
-| 版本 | 角色 | UI kit / 表面 | 說明 |
-| --- | --- | --- | --- |
-| `baseline` | 現況基線 | Current `/studio` UI | 凍結目前 UI，作為正式比較對象 |
-| `v1` | 新版本 1 | shadcn/Radix | 使用 token-first 主題，允許微調互動邏輯 |
-| `v2` | 新版本 2 | MUI | 使用 token-first 主題，允許微調互動邏輯 |
-| `v3` | 新版本 3 | Ant Design | 使用 token-first 主題，允許微調互動邏輯 |
-
-### Version Strategy
-
-- 四個版本有**同一個大目標**：提升資深操作員在 `/studio` 主線中的效率。
-- `v1` / `v2` / `v3` 的差異主要來自：
-  - UI kit
-  - kit 所擅長的元件語彙
-  - 在不偏離主流程前提下的**微調互動邏輯**
-- 不做四套完全不同產品，不做四套不同後端契約。
-
-## Shared Design Tokens
-
-三個新版本必須先建立一套**共享的 design-token 主題層**，再映射到不同 UI kit。
-
-### 主題來源
-
-- 可從 `/Users/yishow/prj/awesome-design-md/design-md/` 提取視覺元素與語意線索，整理成主題來源庫。
-- 本 change 目前選定的主題混合來源為：`linear.app + sentry + clickhouse`
-
-### Token 範圍
-
-至少包含：
-
-- color roles
-- typography
-- spacing
-- radius
-- surface / elevation
-- border / divider
-- status / severity
-- focus / hover / active states
-
-### Token 抽取原則
-
-| 來源 | 優先提取 | 不直接搬用 |
-| --- | --- | --- |
-| `linear.app` | 版面節奏、資訊層級、精簡但高密度的表面語彙 | 品牌識別本身與特定產品 copy |
-| `sentry` | severity / diagnostics / issue 狀態表面 | 與錯誤監控產品綁定的專屬語意 |
-| `clickhouse` | 表格、資料密度、指標面板的結構感 | 特定資料庫產品的品牌裝飾 |
-
-抽取後必須先轉成**語意 token**，再決定是否映射到 kit 元件；不得直接把外部設計稿當成成品樣式搬進來。
-
-### Token 規則
-
-1. 三個新版本共享同一組**語意 token**。
-2. 差異發生在 kit component mapping 與互動細節，不是發生在三套完全不同主題。
-3. baseline 不強制回補 token 化，但必須能被同一組比較 rubric 評估。
-
-## Shared Constraints
-
-1. **baseline + 三個新版本共用同一組真實 API 契約**，不得使用 mock API、假資料流程或版本專屬後端語意。
-2. **baseline + 三個新版本都使用同一個 `/studio` route**；版本隔離只靠 worktree / branch / port，不得額外開 `/studio-v1`、`/studio-v2` 之類平行產品路由。
-3. **不影響現行系統**：目前 UI 先被凍結為 baseline，比較期間主線與既有 `/studio` 行為保持穩定。
-4. **相同主流程範圍**：四套表面都必須完整覆蓋 Device / Source / Tag / Output。
-5. **比較 gate 強制**：每個 phase 都必須完成 `共用基礎 -> baseline -> v1 -> v2 -> v3 -> compare`，才能進入下一個 phase。
-6. **可微調互動邏輯，但不可偏離同一個大目標**：三個新版本可以因 kit 特性微調操作表面，但不能變成三套不同產品。
-
-## Comparison Outputs
-
-每個 `compare` 子任務都必須產出固定格式的比較結果，至少包含：
-
-| 指標 | 說明 |
-| --- | --- |
-| 操作順暢度 | 點擊 / 輸入 / 確認步驟是否精簡，操作是否卡頓或繞路 |
-| 邏輯清晰度 | 使用者是否容易理解畫面結構、狀態關係與下一步 |
-| 對系統的完整性 | 是否完整承接 Device / Source / Tag / Output 主線，不留下明顯缺口 |
-| 首屏資訊密度 | 首屏能否看見必要狀態與上下文 |
-| 關鍵操作時間 | 完成指定任務的耗時 |
-| 實作 / 維護風險 | 元件複雜度、檔案膨脹風險、後續維護成本 |
-| 推薦結論 | 本 phase 建議保留的版本與理由 |
-
-## Stop Conditions
-
-若出現以下任一情況，必須先停下來補 spec / contract，不得直接硬做：
-
-1. 真實 API 契約不足，無法讓四套表面在同條件下比較。
-2. baseline 未被凍結，導致比較基線可能漂移。
-3. shared design-token 主題層未定義，導致三個新版本的比較失去共同視覺語意。
-4. 需要新增與 repo 現況衝突的產品路由或平行主入口。
-5. 某一版需要版本專屬後端語意，導致四套表面不再可比。
+This correction keeps the original experiment constraints intact while changing the remaining rollout model to match the approved Phase 1R outcome.
 
 ## What Changes
 
-本 change 不再描述「單一路線的新 Studio 重構」，而是改為：
+The change now treats Phase 2–5 as a **winner-led rollout** instead of a three-equal-track race.
 
-1. 建立 **baseline + 3 個 UI kit 版本** 的 `/studio` 對照實驗 OpenSpec。
-2. 明確定義 baseline 的量測角色，以及 `v1=shadcn/Radix`、`v2=MUI`、`v3=Ant Design`。
-3. 明確定義共享 design-token 主題層與外部主題來源。
-4. 明確定義後續若新增 `v4+` 版本時的擴充規則。
-5. 將 UI 工作拆成矩陣式 tasks：`共用基礎 -> baseline -> v1 -> v2 -> v3 -> compare`。
-6. 以比較證據與推薦版本作為主要交付，而不是直接把某一版併入主線。
+### Fixed version roles
+
+| Version | New role | Meaning |
+| --- | --- | --- |
+| `baseline` | phase control snapshot | frozen `main` `/studio` surface used for comparison |
+| `v2` | primary functional track | canonical workflow behavior for later phases |
+| `v1` | full-flow high-polish track | same workflow as `v2`, expressed with a more refined operator language |
+| `v3` | necessary-consistency comparison track | compare-capable cockpit surface with explicit minimum obligations |
+
+### Fixed phase rhythm
+
+Every remaining phase now follows:
+
+1. shared contract / acceptance update
+2. baseline check and evidence refresh
+3. `v2`
+4. `v1`
+5. `v3`
+6. compare gate
+
+The compare gate remains mandatory before the next phase can begin.
+
+### Baseline rule
+
+For Phase 2–5, baseline means the `main` branch `/studio` surface:
+
+- after the shared acceptance update for that phase is committed
+- before any phase-specific variant UI work begins
+
+### Compare authority rule
+
+Compare may recommend:
+
+- keeping `v2` as canonical and continuing
+- harvesting ideas from `v1` or `v3`
+- reopening the spec if the canonical direction is no longer acceptable
+
+Compare may **not** silently transfer canonical ownership away from `v2`. Any owner change requires an explicit OpenSpec amendment.
+
+## Shared Constraints
+
+These constraints remain absolute:
+
+1. same real API
+2. same `/studio` route
+3. same shared semantic token system
+4. no mock-only flow
+5. no version-specific backend contract
+6. no additional product route
+
+The remaining rollout also keeps one shared domain flow:
+
+- Device -> Source -> Tag -> Output
+
+Additional boundary rules:
+
+- Phase 4 Output must cover both `Local Modbus register binding` and `Database schema/column binding`.
+- Phase 5 shell may summarize readiness/blockers, but detailed editing and step-local validation remain owned by the underlying step surfaces.
+- Shared acceptance tests must be defined on `main` before variant work begins.
+
+## `v3` Minimum Obligations
+
+`v3` no longer receives equal investment depth, but it still must:
+
+1. run on the same `/studio` route and real API
+2. complete the same phase entry and exit conditions as the shared contract
+3. keep required blocker, error, and retry visibility
+4. preserve compare evidence for overview, focused, and handoff states
+5. keep any cockpit-specific additions additive, not workflow-replacing
+
+## Compare Output Contract
+
+Each remaining compare gate still must output:
+
+- 操作順暢度
+- 邏輯清晰度
+- 對系統的完整性
+- 首屏資訊密度
+- 關鍵操作時間
+- 實作 / 維護風險
+- 推薦版本與理由
+
+The compared entries remain:
+
+- baseline
+- `v2`
+- `v1`
+- `v3`
 
 ## Future Variant Expansion
 
-若之後還要增加更多版本比較，遵循以下規則：
+If `v4+` is ever added later:
 
-1. 新版本必須沿用同一組 shared API 與同一組 design-token 主題。
-2. 新版本必須以新的 worktree / branch / port 隔離，不新增新產品 route。
-3. 新版本必須補進同一套任務矩陣，例如新增 `0.2.v4`、`1.1.v4`、`2.1.v4`。
-4. 新版本必須接受與 baseline / v1 / v2 / v3 相同的 compare rubric。
-5. 新版本加入前，必須先補 branch / worktree / port 命名與 shared token mapping。
-6. 未補齊矩陣與 compare 欄位前，不得把新版本加入正式推薦結論。
+1. update proposal / design / tasks first
+2. keep the same `/studio` route and shared API contract
+3. keep the same shared semantic token system
+4. allocate a new branch / worktree / port before implementation
+5. extend the same compare matrix before the new variant can participate
 
 ## Non-Goals
 
-1. 本 change 不在實驗階段引入新的永久產品路由。
-2. 本 change 不以 mock 流程製作視覺展示稿。
-3. 本 change 不讓三個新版本各自演化出不同後端契約。
-4. 本 change 不把三個新版本做成三套完全不同產品概念。
-5. 本 change 不直接宣布哪一版成為正式主線；正式收斂應在比較完成後再做決策。
+This correction does **not**:
+
+1. reopen the Phase 1R Device winner decision
+2. turn `v1` into a skin-only layer
+3. keep `v3` as an equal-cost delivery path
+4. create new product routes or variant-only backend semantics
+5. let compare silently replace the canonical owner
 
 ## Impact
 
-### OpenSpec
+### OpenSpec artifacts
 
-- 重寫 `openspec/changes/workbench-ux-operator-efficiency/proposal.md`
-- 重寫 `openspec/changes/workbench-ux-operator-efficiency/design.md`
-- 重寫 `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
-- 保留已完成的 `specs/datalink-api/spec.md` 作為 baseline + 三個新版本共用 API 基線
+- update `openspec/changes/workbench-ux-operator-efficiency/proposal.md`
+- update `openspec/changes/workbench-ux-operator-efficiency/design.md`
+- update `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
+- keep `specs/datalink-api/spec.md` unchanged as the shared backend contract
 
-### Implementation Planning
+### Next execution step
 
-- 後續實作將以一個 baseline worktree 與三個新版本 worktree / branch / port 並行比較
-- 三個新版本先共用一套 design-token 主題，再各自映射到 shadcn/Radix、MUI、Ant Design
-- 每個 worktree 內部可自由調整模組結構，但對外都必須維持 `/studio` 與同一組 API 契約
-- 主線 `/studio` 在推薦版本決定前不應被實驗性 UI 直接覆蓋
+After this correction, execution resumes with:
+
+1. Phase 2 shared Source contract
+2. Phase 2 baseline evidence
+3. Phase 2 `v2`
+4. Phase 2 `v1`
+5. Phase 2 `v3`
+6. Phase 2 compare

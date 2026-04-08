@@ -1,11 +1,42 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：1.2 補齊 ARIA 屬性
+**當前 Phase**：2026-04-08 Workbench UX Phase 2 shared contract ready
 
 ---
 
 ## 執行記錄
+
+### 2026-04-08
+
+#### Session 9: Workbench UX Phase 2–5 rollout design review / planning handoff（本輪）
+- ✅ 完成 `docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md` 修補：
+  - baseline / baseline check 定義
+  - `v3` 最低交付義務
+  - shared scenario matrix
+  - OpenSpec amendment outputs 與 planning handoff criteria
+- ✅ reviewer loop 通過：
+  - `spec-reviewer-rollout-fast`：`✅ Approved`
+  - `spec-reviewer-rollout`：`✅ Approved`
+- ✅ 使用者核准 spec，可進入 implementation planning
+- ✅ 完成 OpenSpec correction：
+  - 更新 `openspec/changes/workbench-ux-operator-efficiency/proposal.md`
+  - 更新 `openspec/changes/workbench-ux-operator-efficiency/design.md`
+  - 更新 `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
+  - `openspec validate --changes workbench-ux-operator-efficiency` 通過
+- ⏳ 下一步：開始 Phase 2 shared contract / acceptance work
+
+**驗證結果**：
+```bash
+git --no-pager diff --check -- docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md
+```
+- 結果：通過
+
+**修改檔案**：
+- docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md
+- task_plan.md
+- findings.md
+- progress.md
 
 ### 2026-03-23
 
@@ -16,18 +47,7 @@
 - ✅ 收斂兩份文件的規範優先順序描述
 - ✅ 補寫 planning records（`task_plan.md`、`findings.md`、`progress.md`）
 
-**驗證結果**：
-```bash
-git --no-pager diff --check -- AGENTS.md CLAUDE.md
-```
-- 結果：通過，無 whitespace / patch 格式錯誤
-
-**修改檔案**：
-- AGENTS.md
-- CLAUDE.md
-- task_plan.md
-- findings.md
-- progress.md
+**驗證 / 修改摘要**：`git diff --check -- AGENTS.md CLAUDE.md` 通過；修改 `AGENTS.md`、`CLAUDE.md` 與三份 planning records。
 
 ### 2026-03-22
 
@@ -40,22 +60,7 @@ git --no-pager diff --check -- AGENTS.md CLAUDE.md
 - ✅ 補充測試（Spinner、Skeleton、ErrorBoundary）
 - ✅ 測試通過（21 tests passed）
 
-**測試結果**：
-```
-✓ tests/unit/components/ErrorBoundary.test.tsx (4 tests)
-✓ tests/unit/components/ui/spinner.test.tsx (6 tests)
-✓ tests/unit/components/ui/skeleton.test.tsx (11 tests)
-```
-
-**修改檔案**：
-- frontend/src/components/ui/spinner.tsx（新增）
-- frontend/src/components/ui/skeleton.tsx（新增）
-- frontend/src/components/ErrorBoundary.tsx（新增）
-- frontend/src/App.tsx（加入 ErrorBoundary）
-- frontend/src/pages/datalink/workbench/WorkbenchDeviceStep.tsx（使用 Spinner）
-- frontend/tests/unit/components/ErrorBoundary.test.tsx（新增）
-- frontend/tests/unit/components/ui/spinner.test.tsx（新增）
-- frontend/tests/unit/components/ui/skeleton.test.tsx（新增）
+**測試 / 修改摘要**：21 個前端單元測試通過；新增 `spinner`、`skeleton`、`ErrorBoundary` 與對應測試，並更新 `App.tsx`、`WorkbenchDeviceStep.tsx`。
 
 #### Session 1: Phase 1.2 補齊 ARIA 屬性（進行中）
 - ✅ WorkbenchStepRail 補充 `aria-label`（包含就緒狀態）
@@ -80,21 +85,7 @@ git --no-pager diff --check -- AGENTS.md CLAUDE.md
   - 回收 staged diff 中不完整的 MQTT topic-based source planner 位址支援，避免前端接受 topic 但現有 canvas / backend point model 無法正確處理
 - ? 同步更新 `frontend/tests/unit/utils/addressParser.test.ts`，改回驗證目前正式支援的 planner 預設位址 contract
 
-**驗證結果**：
-```bash
-cd frontend && npm run test -- tests/unit/utils/addressParser.test.ts tests/unit/features/datalink/sourcePlannerContract.test.ts tests/unit/pages/datalink/workbench-source-canvas-model.test.ts tests/unit/pages/datalink/workbench-source-step.test.tsx
-cd frontend && npm run build
-go test ./internal/datalink ./cmd/test_ui
-```
-- 結果：通過（frontend 83 tests passed；build 成功；Go target packages 通過）
-
-**修改檔案**：
-- .gitignore
-- frontend/src/utils/addressParser.ts
-- frontend/tests/unit/utils/addressParser.test.ts
-- task_plan.md
-- findings.md
-- progress.md
+**驗證 / 修改摘要**：前端 targeted tests 83 個通過、build 成功、Go target packages 通過；修正 `.gitignore` 與 address parser contract，並同步 planning records。
 
 #### Session 4: uncommitted review / bugfix（本輪）
 - ? 重新確認目前 staged 變更實際集中於：
@@ -112,23 +103,7 @@ go test ./internal/datalink ./cmd/test_ui
   - `cd frontend && npx eslint src/pages/datalink/workbench/sourceCanvasModel.ts src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts`
   - `$env:GOCACHE='C:\\AIProject\\go_gateway\\.gocache'; $env:TEMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; $env:TMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; go test ./internal/datalink/point ./internal/datalink/sourcerule`
 
-**驗證結果**：
-```bash
-cd frontend && npx tsc --noEmit
-cd frontend && npx eslint src/pages/datalink/workbench/sourceCanvasModel.ts src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts
-$env:GOCACHE='C:\\AIProject\\go_gateway\\.gocache'; $env:TEMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; $env:TMP='C:\\AIProject\\go_gateway\\.gocache\\tmp'; go test ./internal/datalink/point ./internal/datalink/sourcerule
-```
-- 結果：通過
-
-**額外限制**：
-- `cd frontend && npm run test -- src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts` 在目前 sandbox 會因 `esbuild` 啟動子行程失敗而回報 `spawn EPERM`，因此本輪未能取得 Vitest 執行證據。
-
-**修改檔案**：
-- frontend/src/pages/datalink/workbench/sourceCanvasModel.ts
-- frontend/src/pages/datalink/workbench/__tests__/sourceCanvasModel.test.ts
-- task_plan.md
-- findings.md
-- progress.md
+**驗證 / 修改摘要**：`tsc --noEmit`、targeted ESLint、Go targeted tests 通過；修正 `sourceCanvasModel` formatter regression 並補回歸測試。Vitest 仍受 sandbox `spawn EPERM` 限制。
 
 #### Session 5: README 規範整併（本輪）
 - ✅ 深度盤點規範與實作來源：
@@ -155,17 +130,7 @@ $env:GOCACHE='C:\\AIProject\\go_gateway\\.gocache'; $env:TEMP='C:\\AIProject\\go
   - repo 特定規則（規範優先序、OpenSpec、planning-with-files）
 - ✅ 同步更新 planning records：`task_plan.md`、`findings.md`、`progress.md`
 
-**驗證結果**：
-```bash
-git --no-pager diff --check -- README.md task_plan.md findings.md progress.md
-```
-- 結果：通過，無 whitespace / patch 格式錯誤
-
-**修改檔案**：
-- README.md
-- task_plan.md
-- findings.md
-- progress.md
+**驗證 / 修改摘要**：`git diff --check -- README.md task_plan.md findings.md progress.md` 通過；重寫 `README.md` 並同步三份 planning records。
 
 #### Session 6: AGENTS / CLAUDE / README 規範整併（本輪）
 - ✅ 重新盤點 `AGENTS.md`、`CLAUDE.md`、`README.md` 與實際 repo 流程，確認缺口集中在：
@@ -182,19 +147,7 @@ git --no-pager diff --check -- README.md task_plan.md findings.md progress.md
 - ✅ 微調 `README.md`，補齊 `make longtask-smoke`，使命令清單與 `AGENTS.md` / `CLAUDE.md` 完全一致
 - ✅ 同步更新 planning records：`task_plan.md`、`findings.md`、`progress.md`
 
-**驗證結果**：
-```bash
-git --no-pager diff --check -- AGENTS.md CLAUDE.md README.md task_plan.md findings.md progress.md
-```
-- 結果：通過，無 whitespace / patch 格式錯誤
-
-**修改檔案**：
-- AGENTS.md
-- CLAUDE.md
-- README.md
-- task_plan.md
-- findings.md
-- progress.md
+**驗證 / 修改摘要**：`git diff --check -- AGENTS.md CLAUDE.md README.md task_plan.md findings.md progress.md` 通過；更新三份規範文件並同步 planning records。
 
 #### Session 7: 檔案行數規範強制落地（本輪）
 - ✅ 新增 `scripts/check_file_lines.sh`：
@@ -212,26 +165,7 @@ git --no-pager diff --check -- AGENTS.md CLAUDE.md README.md task_plan.md findin
   - 強制聲明 `AGENTS.md` 與 `CLAUDE.md` 必須互相參考，不可只讀一份
   - 補上行數規範與執行方式
 
-**驗證結果**：
-```bash
-bash scripts/check_file_lines.sh
-git --no-pager diff --check -- .github/pull_request_template.md .github/workflows/file-line-limit.yml .line-limit-ignore .githooks/pre-commit Makefile AGENTS.md CLAUDE.md README.md scripts/check_file_lines.sh task_plan.md findings.md progress.md
-```
-- 結果：`check_file_lines.sh` 通過（含 warning）；`diff --check` 通過（無 whitespace / patch 格式錯誤）
-
-**修改檔案**：
-- scripts/check_file_lines.sh（新增）
-- .line-limit-ignore（新增）
-- .github/workflows/file-line-limit.yml（新增）
-- .githooks/pre-commit（新增）
-- Makefile
-- .github/pull_request_template.md
-- AGENTS.md
-- CLAUDE.md
-- README.md
-- task_plan.md
-- findings.md
-- progress.md
+**驗證 / 修改摘要**：`check_file_lines.sh` 與 `diff --check` 通過；新增腳本、CI、hook、ignore 與 PR template，並同步規範與 planning records。
 
 #### Session 8: 未提交變更 code review / bugfix / commit（本輪）
 - ✅ 完成未提交變更 code review（以目前工作樹為範圍）

@@ -1,5 +1,17 @@
 # Findings
 
+## 2026-04-08 Workbench UX OpenSpec correction 新發現
+- `proposal.md`、`design.md`、`tasks.md` 已對齊 approved winner-led rollout spec：`v2` canonical、`v1` full-flow high-polish、`v3` minimum-obligation compare track。
+- `tasks.md` 的 Phase 2–5 順序已從舊的 `baseline -> v1 -> v2 -> v3 -> compare` 改為 `shared -> baseline -> v2 -> v1 -> v3 -> compare`，並補上 baseline 定義、Phase 4 雙 target families、Phase 5 shell ownership 邊界。
+- `openspec validate --changes workbench-ux-operator-efficiency` 已通過；這代表下一個真正可以開始的實作項是 Phase 2 shared contract，而不是再回頭修 spec artifact。
+
+## 2026-04-07 Workbench UX Phase 2–5 rollout planning 新發現
+- `docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md` 已完成 reviewer loop，且兩個 reviewer 都明確轉為 `✅ Approved`；代表後續可進入 implementation planning，但仍要先修正 OpenSpec change files。
+- Phase 2–5 的新硬規則已固定：`v2` 是 canonical behavior track、`v1` 是 full-flow high-polish track、`v3` 是 minimum-obligation comparison track；compare 不能直接默默改寫 canonical owner，若要改 owner 必須先回到 OpenSpec amendment。
+- Phase 2–5 的 baseline 已被明確定義為：`main` branch 上、該 phase shared acceptance commit 完成後、任何 variant branch UI work 開始前的 `/studio` frozen control snapshot。
+- Phase 4 Output 不再能抽象地當成單一表面處理；規劃與驗收都必須同時覆蓋 `Local Modbus register binding` 與 `Database schema/column binding` 兩個 target families。
+- 目前 `openspec/changes/workbench-ux-operator-efficiency/tasks.md` 仍停留在舊的三等份 Phase 2–5 實驗矩陣；真正開始 Phase 2 前，必須先把 proposal/design/tasks 一起改成 winner-led rollout model。
+
 ## 2026-04-07 Workbench UX Phase 0 啟動新發現
 - `openspec status/apply` 顯示目前 change 為唯一 active change，schema 為 `spec-driven`，進度 `4/60`；可直接從 Phase 0 開始，不需再猜測使用哪個 change。
 - 目前 repo 已有舊的 `.worktrees/workbench-v1|v2|v3`，但它們仍停在舊基線 commit，且命名不符合本次 OpenSpec matrix；最安全做法是保留不動，另外建立 `woe-*` 正式 worktree。

@@ -20,6 +20,30 @@
 
 ---
 
+## 臨時任務：2026-04-07 Workbench UX Phase 2–5 rollout planning（本輪）
+
+- [x] 完成 `docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md`
+- [x] 完成 reviewer loop，取得雙 reviewer `✅ Approved`
+- [x] 取得使用者 spec 核准
+- [x] 依新 spec 修正 `openspec/changes/workbench-ux-operator-efficiency/{proposal,design,tasks}.md`
+- [x] 依修正後 OpenSpec 建立 Phase 2 implementation plan（shared -> baseline -> v2 -> v1 -> v3 -> compare）
+- [x] 同步更新 SQL todo DAG 與本輪 planning records
+
+**備註**：
+- 最新 spec commit：`abc2059`
+- 目前 blocker 已從 brainstorming gate 移除，但在 OpenSpec 修正完成前，仍不可進入 Phase 2 實作。
+
+### 本輪執行骨架
+1. OpenSpec correction：更新 `proposal.md`、`design.md`、`tasks.md` 為 winner-led rollout model
+2. Phase 2 shared contract：補齊 Source shared acceptance、scenario matrix、done conditions
+3. Phase 2 baseline：凍結並收集 baseline evidence
+4. Phase 2 `v2`：先完成 canonical Source flow
+5. Phase 2 `v1`：在相同 flow 上完成高質感 full-flow surface
+6. Phase 2 `v3`：只完成 minimum-obligation compare surface
+7. Phase 2 compare：輸出 compare rubric、推薦結論、checkpoint update
+
+---
+
 ## Phase 1: P0 高優先級改善（影響可用性）
 
 ### 1.1 統一載入狀態與錯誤處理 ✅
@@ -84,9 +108,9 @@
 
 ## 當前狀態
 
-**Phase**: 1.2 補齊 ARIA 屬性  
-**進度**: 0/6 完成  
-**下一步**: WorkbenchStepRail 補充 aria-current、aria-label
+**Phase**: 2026-04-08 Workbench UX Phase 2 shared contract ready
+**進度**: spec、OpenSpec correction、Phase 2 implementation plan 與 SQL DAG 已完成；下一個 ready item 是 Phase 2 shared contract
+**下一步**: 開始 `workbench-phase2-shared-contract`
 
 ---
 
