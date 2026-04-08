@@ -556,7 +556,7 @@
       "output": "foundation 外框已就緒，下一個 slice 會補上 Local Modbus 與資料庫輸出面板。"
     },
     "source": {
-      "empty": {
+      "loading": "正在載入來源規劃資料", "loadFailed": "無法載入來源規劃資料", "retry": "重新載入", "empty": {
         "eyebrow": "先選擇來源設備",
         "title": "請先選擇設備，再開始規劃位址",
         "description": "Step 2 需要綁定一台設備，地址畫布才能顯示既有點位與新規劃範圍。"

@@ -1,5 +1,16 @@
 # Findings
 
+## 2026-04-08 Phase 2 shared contract TDD 新發現
+- Source step 的第一個真正 shared-contract 缺口不是 planner helper，而是 `useSourceRulesQuery` 還在 loading / error 時，畫面仍直接進入一般 planner/canvas。
+- 這輪已用 TDD 補上 `loading / loadFailed / retry` 三個 surfaced state，並新增 `SourceCanvasStatusState.tsx` 承接狀態 UI，避免繼續放大 `SourceCanvasSection.tsx` 這種歷史超長檔。
+- Vitest 只收 `frontend/tests/unit/**`，因此新增 Source status-state 測試時要補 wrapper `frontend/tests/unit/pages/datalink/workbench-source-status-state.test.tsx` 去匯入 `src/.../__tests__/SourceCanvasStatusState.test.tsx`。
+- 為符合超長檔規則，`SourceCanvasSection.tsx` 最終比 HEAD 少 1 行、`DatalinkWorkbenchSourceStep.test.tsx` 維持與 HEAD 同行數；新行數增量由新小檔承接。
+
+## 2026-04-08 Phase 2 shared contract reconnaissance
+- Source shared contract 目前主要落在三個地方：`frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx`、`frontend/src/features/datalink/sourcePlannerContract.ts`、`frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx`。
+- `sourcePlannerContract.test.ts` 目前只鎖住 naming prefix、count parsing、template round-trip 等 planner helper contract，尚未覆蓋這輪 spec 新增的 `diff preview scope`、stale preview invalidation、Source -> Tag handoff 邊界。
+- `SourceCanvasSection.tsx` 已明確持有 `viewMode`（`plan` / `live` / `link`）與 template load/save state，代表這輪 shared contract 更可能要先在 Source step integration test 上補 failing test，而不是只加 helper unit test。
+
 ## 2026-04-08 Workbench UX OpenSpec correction 新發現
 - `proposal.md`、`design.md`、`tasks.md` 已對齊 approved winner-led rollout spec：`v2` canonical、`v1` full-flow high-polish、`v3` minimum-obligation compare track。
 - `tasks.md` 的 Phase 2–5 順序已從舊的 `baseline -> v1 -> v2 -> v3 -> compare` 改為 `shared -> baseline -> v2 -> v1 -> v3 -> compare`，並補上 baseline 定義、Phase 4 雙 target families、Phase 5 shell ownership 邊界。

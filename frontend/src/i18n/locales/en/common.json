@@ -556,7 +556,7 @@
       "output": "Foundation shell ready. Local Modbus and database output boards will land in the next slice."
     },
     "source": {
-      "empty": {
+      "loading": "Loading source planning data", "loadFailed": "Unable to load source planning data", "retry": "Try again", "empty": {
         "eyebrow": "Select a source device",
         "title": "Choose a device before planning addresses",
         "description": "Step 2 needs an active device so the address canvas can visualize existing points and planned ranges."

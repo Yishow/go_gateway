@@ -1,7 +1,7 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-08 Workbench UX Phase 2 shared contract ready
+**當前 Phase**：2026-04-08 Workbench UX Phase 2 shared contract in progress
 
 ---
 
@@ -24,7 +24,11 @@
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/design.md`
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
   - `openspec validate --changes workbench-ux-operator-efficiency` 通過
-- ⏳ 下一步：開始 Phase 2 shared contract / acceptance work
+- ✅ 啟動 Phase 2 shared contract TDD：
+  - 補上 Source step `loading / loadFailed / retry` surfaced state
+  - 新增 `SourceCanvasStatusState.tsx`
+  - 新增 `frontend/tests/unit/pages/datalink/workbench-source-status-state.test.tsx` wrapper 與對應狀態測試
+- ⏳ 下一步：延續 Phase 2 shared contract，補下一個 Source acceptance case
 
 **驗證結果**：
 ```bash
