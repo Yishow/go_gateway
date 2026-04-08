@@ -110,7 +110,7 @@
 
 **Phase**: 2026-04-08 Workbench UX reopened Phase 3 compare complete
 **進度**: `3.1` 全部完成；compare gate 已正式判定 `v2` 繼續維持 Tag canonical owner，`v1` / `v3` 則作為可吸收亮點的 distinct variants 保留 evidence 與 branch checkpoint
-**下一步**: 等待你決定是否進入下一 phase，或先檢視本次 Tag compare 輸出 / 證據
+**下一步**: 若你核准，進入 `4.1 共用基礎`（Output shared foundation）；若要先 review，本輪 compare 輸出與證據也都已備齊
 
 ---
 
