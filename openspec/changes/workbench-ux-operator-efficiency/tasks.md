@@ -8,6 +8,9 @@
 - baseline 與三個新版本都必須使用**同一個 `/studio` route**；版本隔離只靠 worktree / branch / port。
 - baseline 與三個新版本都必須使用**同一組真實 API 契約**；禁止 mock-only 流程。
 - 三個新版本都必須先共用**同一組 design-token 主題語意**，再映射到各自 UI kit。
+- Phase 2–5 的 shared logic 保持不變：同一個 domain flow、同一組 blocker / retry / recovery semantics、同一組 state ownership。
+- Phase 2–5 真的要重做的是 operator surface：action placement / ordering、primary work surface、preview / summary framing、視覺語言。
+- 只有換 kit、加 scoped CSS、或只調整密度，不足以算完成；如果 review 仍認為「除了 Device，其他都像同一版」，該 phase 直接視為未完成。
 - Phase 2–5 角色固定為：
   - `v2` = primary functional track
   - `v1` = full-flow high-polish track
@@ -183,14 +186,15 @@
 
 ---
 
-## Phase 2：Source winner-led rollout
+## Phase 2：Source winner-led rollout（reopened）
 
-> 目標：以 `v2` 建立 canonical Source flow，再讓 `v1` 與 `v3` 在同一個 shared contract 上完成對照。
+> 目標：在 **邏輯不變** 的前提下，重新讓 `Source` 形成三個真正不同的 archetype-level 操作表面，而不是 shared flow 外面包不同皮。
 
 - [x] 2.1 共用基礎
   - 在 `main` 上更新 Source shared acceptance / scenario matrix
   - 固定 Source 共同動作：rule create/edit、template apply、plan/live/link switch、handoff to Tag
   - 明確定義 `diff preview scope`、stale preview invalidation、failure / retry / recovery
+  - 明確定義什麼叫做 `Source` phase 的 archetype-level 差異（不是只換 shell / CSS）
 
 - [x] 2.1.baseline Current Studio
   - 以 `main` branch baseline snapshot 收集 overview / focused / handoff evidence
@@ -198,49 +202,57 @@
 
 - [x] 2.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical Source flow 與 blocker / retry / recovery surfaced state
-  - 以 `v2` 作為後續 `v1` / `v3` 的行為基準
+  - 以 incident-desk command surface 重做 `Source` 的 primary work / preview / handoff arrangement
+  - 以 `v2` 作為後續 `v1` / `v3` 的行為基準，但不可只停在既有 wrapper-level 差異
 
 - [x] 2.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 Source domain flow
-  - 以更低噪音、更長時段可讀的 control-room 語言重做 Source surface
+  - 以 clearly different control-room editing skeleton 重做 `Source` surface
+  - 操作感受必須一眼區別於 `v2` / `v3`
 
-- [x] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+- [ ] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只實作 compare 所需的 Source cockpit surface
   - 保留 overview / focused / handoff / blocker / retry evidence，不擴張成第二條主線
+  - 但 primary work/readout surface 必須仍然是 clearly different cockpit form，不可退化成 shared page + dense skin
 
-- [x] 2.1.compare Source 比較與推薦
+- [ ] 2.1.compare Source 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - 若 compare 認為 canonical owner 必須改變，先停下來修 OpenSpec，不可默默換線
+  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
 
 ---
 
-## Phase 3：Tag winner-led rollout
+## Phase 3：Tag winner-led rollout（reopened）
 
-> 目標：以 `v2` 建立 canonical Tag review/apply flow，再讓 `v1` / `v3` 做同 flow 對照。
+> 目標：在 **邏輯不變** 的前提下，重新讓 `Tag` 形成三個真正不同的 archetype-level review/apply 操作表面。
 
-- [x] 3.1 共用基礎
+- [ ] 3.1 共用基礎
   - 在 `main` 上更新 Tag shared acceptance / scenario matrix
   - 固定共同動作：review candidates、preview diff、choose action、apply、failure / retry / recovery
+  - 明確定義 `Tag` phase 的 archetype-level 差異與 fail gate
 
-- [x] 3.1.baseline Current Studio
+- [ ] 3.1.baseline Current Studio
   - 以 baseline snapshot 收集 review queue、diff preview、handoff to Output evidence
   - 記錄 baseline 在 batch decision 與失敗回饋上的痛點
 
-- [x] 3.1.v2 Sentry Incident Desk（primary functional track）
+- [ ] 3.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical Tag review/apply flow
   - 讓 blocker、retry、partial-failure surfaced state 在 `v2` 先穩定
+  - 以 clearly different incident-desk review command surface 重做主要 decision flow
 
 - [ ] 3.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 Tag domain flow
-  - 以 calmer review surface 提升大批量 decision 的 legibility
+  - 以 clearly different control-room review skeleton 提升大批量 decision 的 legibility
 
 - [ ] 3.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只保留 compare 所需的 board / summary density
   - 不得改變 shared apply / recovery contract
+  - 但 board / summary / apply surface 必須仍然 clearly different，而不是 shared Tag page 加密度樣式
 
 - [ ] 3.1.compare Tag 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - compare 只能推薦吸收亮點或回補 spec，不可直接改 canonical owner
+  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
 
 ---
 
@@ -252,6 +264,7 @@
   - 在 `main` 上更新 Output shared acceptance / scenario matrix
   - 固定共同動作：readiness、dry-run、apply、blocker diagnosis
   - 明確要求 Local Modbus 與 Database 兩個 target families 都必須被驗收
+  - 明確定義 `Output` phase 的三 archetype operation language
 
 - [ ] 4.1.baseline Current Studio
   - 以 baseline snapshot 收集兩個 target families 的 overview / focused / blocker evidence
@@ -260,18 +273,21 @@
 - [ ] 4.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 Local Modbus + Database 的 canonical Output flow
   - 先讓 readiness、dry-run、apply、failure / retry / recovery 在 `v2` 正確
+  - incident-desk target diagnosis / apply 操作面必須 clearly different
 
 - [ ] 4.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 Output domain flow與 target coverage
-  - 以 calmer operator-console 語言表達 blocker 與狀態轉移
+  - 以 clearly different control-room operator-console 語言表達 blocker 與狀態轉移
 
 - [ ] 4.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只保留 compare 所需的 dense mapping/state surface
   - 仍必須同時覆蓋 Local Modbus + Database 與 shared apply / blocker contract
+  - 但不能只是 shared output page 加 density surface
 
 - [ ] 4.1.compare Output 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - compare 必須明確評估兩個 target families，不可只看其中一個
+  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
 
 ---
 
@@ -283,6 +299,7 @@
   - 在 `main` 上更新 shell shared acceptance / scenario matrix
   - 固定 shell 只擁有：readiness summary、active blocker summary、diagnostics refresh status、shortest return action
   - 明確禁止 shell 吃掉 step-local edit / mutation / validation
+  - 明確定義 shell / diagnostics 的三 archetype 語言與 fail gate
 
 - [ ] 5.1.baseline Current Studio
   - 以 baseline snapshot 收集 readiness、blocker、return-to-mainline evidence
@@ -291,18 +308,21 @@
 - [ ] 5.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical cross-step shell / diagnostics flow
   - 先讓 global blocker、refresh、retry、return action 在 `v2` 正確
+  - incident-desk shell / diagnostics 操作面必須 clearly different
 
 - [ ] 5.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 shell ownership model
-  - 以更低干擾、更一致的 full-flow shell 語言表達同一組能力
+  - 以 clearly different、低干擾的 control-room shell 語言表達同一組能力
 
 - [ ] 5.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只保留 compare 所需的 cockpit summary / alert surface
   - 不得把 shell 擴成 version-only workflow center
+  - 但 summary / alert surface 必須仍然 clearly different，而不是 shared shell 加 cockpit 裝飾
 
 - [ ] 5.1.compare Shell / Diagnostics 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - compare 必須確認 shell 沒有改寫 step-local ownership
+  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
 
 ---
 
@@ -313,6 +333,7 @@
 - [ ] 6.1 共用基礎
   - 固定最終 E2E 場景
   - 固定最終 compare 輸出格式與證據欄位
+  - 固定最終「三版本在非 Device phase 仍 clearly distinct」驗收題
 
 - [ ] 6.1.baseline 整體驗收
   - 完成 baseline 端對端操作、截圖與記錄
@@ -329,6 +350,7 @@
 - [ ] 6.1.compare 最終比較與推薦版本
   - 彙整所有 phase compare 結果
   - 明確指出推薦版本、保留亮點、淘汰理由與後續 follow-up 建議
+  - 明確回答三版本是否在整條 `/studio` 主線上都仍是 recognizably different products
 
 ---
 
@@ -341,6 +363,7 @@
 - [ ] 每個 shared task 都先在 `main` 上定義 branch-neutral acceptance / scenario matrix
 - [ ] compare 子任務完成前，不得跳到下一個 phase
 - [ ] 每個 compare 結果都包含操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險
+- [ ] 每個 compare 結果都明確回答三版本在非 Device phase 是否仍 clearly distinct
 - [ ] Phase 4 compare 同時覆蓋 Local Modbus 與 Database 兩個 target families
 - [ ] 若 compare 挑戰 `v2` canonical owner，必須先回到 OpenSpec amendment，不可直接換線
 - [ ] 最終輸出包含推薦版本與明確理由
