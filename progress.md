@@ -1,13 +1,24 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-08 Workbench UX reopened Phase 3 compare complete
+**當前 Phase**：2026-04-08 Workbench UX Phase 4 baseline prep
 
 ---
 
 ## 執行記錄
 
 ### 2026-04-08
+
+#### Session 24: Phase 4 shared foundation 完成（本輪）
+- ✅ `main` 已完成 `4.1 共用基礎`：
+  - 新增 `workbenchOutputCompareContract.ts`
+  - `workbenchExperimentContract.ts` 已正式 re-export Output shared compare contract
+  - `phase4.scenarioFocus` 已從舊的 `mapping-visibility / apply-output` 對齊為 spec 要求的 `readiness / dry-run / apply / blocker-diagnosis`
+- ✅ TDD / targeted validation 完成：
+  - 新增 `workbench-output-compare-contract` failing test 再補最小 contract code
+  - Output compare + Output step + Database review surface 共 `47/47` 通過
+  - `npx tsc --noEmit` 通過
+- ✅ `phase4-shared-reopen` 已完成；下一個 ready task 為 `4.1.baseline Current Studio`
 
 #### Session 23: Reopened Phase 3 compare gate 完成（本輪）
 - ✅ compare gate 已以 baseline `4173`、`woe-v2-mui` `4175`、`woe-v1-radix` `4174`、`woe-v3-antd` `4176` 四個正式輸入完成，且全都維持同一個 `/studio` route、同一組 real API 與 shared design tokens。

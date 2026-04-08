@@ -1,4 +1,22 @@
 import type { WorkbenchStep } from './workbenchTypes';
+export {
+  WORKBENCH_SOURCE_COMPARE_ACCEPTANCE,
+  WORKBENCH_SOURCE_COMPARE_ARCHETYPES,
+  WORKBENCH_SOURCE_COMPARE_CRITICAL_TASK,
+  WORKBENCH_SOURCE_COMPARE_SCENARIOS,
+} from './workbenchSourceCompareContract';
+export {
+  WORKBENCH_OUTPUT_COMPARE_ACCEPTANCE,
+  WORKBENCH_OUTPUT_COMPARE_ARCHETYPES,
+  WORKBENCH_OUTPUT_COMPARE_CRITICAL_TASK,
+  WORKBENCH_OUTPUT_COMPARE_SCENARIOS,
+} from './workbenchOutputCompareContract';
+export {
+  WORKBENCH_TAG_COMPARE_ACCEPTANCE,
+  WORKBENCH_TAG_COMPARE_ARCHETYPES,
+  WORKBENCH_TAG_COMPARE_CRITICAL_TASK,
+  WORKBENCH_TAG_COMPARE_SCENARIOS,
+} from './workbenchTagCompareContract';
 
 export const WORKBENCH_EXPERIMENT_ROUTE = '/studio' as const;
 
@@ -105,21 +123,33 @@ export const WORKBENCH_EXPERIMENT_PHASES: readonly WorkbenchExperimentPhase[] = 
     task: '2.1',
     label: 'Source',
     step: 'source',
-    scenarioFocus: ['create-rule', 'apply-template', 'edit-range', 'plan-live-link'],
+    scenarioFocus: [
+      'create-rule',
+      'apply-template',
+      'plan-live-link',
+      'stale-preview-recovery',
+      'handoff-tag',
+    ],
   },
   {
     id: 'phase3',
     task: '3.1',
     label: 'Tag',
     step: 'tag',
-    scenarioFocus: ['review-candidates', 'batch-actions', 'diff-preview', 'apply-feedback'],
+    scenarioFocus: [
+      'review-candidates',
+      'diff-preview',
+      'apply-decision',
+      'failure-retry-recovery',
+      'handoff-output',
+    ],
   },
   {
     id: 'phase4',
     task: '4.1',
     label: 'Output',
     step: 'output',
-    scenarioFocus: ['mapping-visibility', 'dry-run', 'apply-output', 'blocker-diagnosis'],
+    scenarioFocus: ['readiness', 'dry-run', 'apply', 'blocker-diagnosis'],
   },
   {
     id: 'phase5',

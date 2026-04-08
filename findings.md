@@ -1,5 +1,10 @@
 # Findings
 
+## 2026-04-08 Phase 4 shared foundation 新發現
+- `4.1` 的缺口和前兩個 reopened phase 一樣，首先不是 UI，而是 **shared compare contract 不存在**；在 `main` 先補 `workbenchOutputCompareContract.ts`，才能把 Output phase 的 compare gate 從 OpenSpec 文字落到前端主契約。
+- Output phase 的 shared scenario focus 必須明確從舊的 `mapping-visibility / apply-output` 收斂成 spec 指定的 `readiness / dry-run / apply / blocker-diagnosis`；否則後面 baseline / v1 / v2 / v3 很容易又各自定義不同的 Output 主線。
+- 這輪 contract 也把一個重要 spec 約束寫死：**Local Modbus 與 Database 兩個 target families 都必須被同一份 compare contract 覆蓋**，避免 Phase 4 只拿單一 target family 做假 compare。
+
 ## 2026-04-08 Reopened Phase 3 compare gate 新發現
 - 四個 compare 輸入（baseline / `v2` / `v1` / `v3`）在同一條 critical path 上的 raw latency 幾乎沒有差異：以 local preview + 同一個 real device `UI 4.3 Modbus TCP` 測得，`/studio -> 選 device -> Tag Review` 約都在 `2.9s` 同級；真正決定優劣的是資訊排序與 action zoning。
 - **`v2` 仍是 Tag phase 的最佳 canonical owner**：它把 review readiness、retry / recovery、以及 Output handoff narrative 都放在 incident-desk command surface 的首屏，既能保留 shared diff/apply flow，又最符合「先判斷、再決策、再交接」的操作節奏。

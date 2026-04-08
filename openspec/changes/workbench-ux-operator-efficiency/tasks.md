@@ -260,7 +260,7 @@
 
 > 目標：以 `v2` 建立 canonical Output flow，且同時覆蓋 Local Modbus 與 Database 兩個 target families。
 
-- [ ] 4.1 共用基礎
+- [x] 4.1 共用基礎
   - 在 `main` 上更新 Output shared acceptance / scenario matrix
   - 固定共同動作：readiness、dry-run、apply、blocker diagnosis
   - 明確要求 Local Modbus 與 Database 兩個 target families 都必須被驗收

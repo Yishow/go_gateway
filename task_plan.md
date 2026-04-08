@@ -108,9 +108,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-08 Workbench UX reopened Phase 3 compare complete
-**進度**: `3.1` 全部完成；compare gate 已正式判定 `v2` 繼續維持 Tag canonical owner，`v1` / `v3` 則作為可吸收亮點的 distinct variants 保留 evidence 與 branch checkpoint
-**下一步**: 若你核准，進入 `4.1 共用基礎`（Output shared foundation）；若要先 review，本輪 compare 輸出與證據也都已備齊
+**Phase**: 2026-04-08 Workbench UX Phase 4 baseline prep
+**進度**: `4.1 共用基礎` 已完成；Output phase 現在已有正式 shared compare contract，且 Phase 4 的 scenario focus 已對齊 `readiness / dry-run / apply / blocker-diagnosis`
+**下一步**: 進入 `4.1.baseline Current Studio`，同時收集 Local Modbus 與 Database 兩個 target families 的 overview / focused / blocker evidence
 
 ---
 
