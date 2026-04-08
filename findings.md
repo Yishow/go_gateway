@@ -1,5 +1,21 @@
 # Findings
 
+## 2026-04-08 Phase 4 baseline Current Studio 新發現
+- `4.1.baseline` 一開始看起來像是 baseline Output 沒有 linked tags，可是真正的 shared blocker 是 **`/api/v1/datalink/mappings` 因 nullable lifecycle 欄位直接掃進 `string` 而回 500**；修正 `mapping/sql_repo.go` 的 NULL scan 後，real API 才重新露出 linked tag candidates，baseline `/studio` 才能做真正的 Output snapshot。
+- 真實裝置 `UI 4.3 Modbus TCP` 現在可在同一個 `/studio?step=output` 裡同時切換 Local Modbus 與 Database，且共用同一組 tag chips（`TAG_40002` / `TAG_40001`）；這證明 baseline 已經具備跨 target family 的 shared selection surface。
+- baseline 最明顯的語意衝突是：**global tag chips 已能直接操作 linked tag，但 rule-scoped review strip 同時又顯示 `來源規則 REVISION —`、`0 筆候選項` 與「請先聚焦來源規則」**。對 operator 來說，這會形成「上方已可動作、下方卻說目前沒有 candidate」的雙重訊號。
+- Local Modbus focused state 的 traceability 不差：切換 `TAG_40001` 後，右側 inspector 會同步顯示來源位址、TAG key、Local Modbus / Database mapping 狀態；但 blocker narrative 仍分散在 strip、workspace controls 與 page-local status message，沒有 incident-style 單點診斷面。
+- Local Modbus blocker 在真實操作下可直接再現：按下 `啟動 Server` 後，頁內會明確回報 `port 5020 is already in use, please stop the conflicting process or choose another port`。診斷內容夠具體，但仍停留在 page-local message，而不是更高位階的 blocker ownership。
+- Database overview 雖然成功共用同一組 tag chips 與 selected-tag preview，但在 connector 尚未存在時就先露出 table / write-mode / write-row preview 骨架；這讓 operator 在尚未完成 connector readiness 前，就被迫看見過早的 mapping form。
+- Database blocker 也能以真實操作直接重現：展開 connector editor 後直接 `儲存 Connector`，頁內會清楚回報 `請先輸入 connector 名稱`。copy 清楚，但仍屬 page-local validation，沒有被提升成更清晰的 target-diagnosis surface。
+- 本輪正式 evidence（`agent-browser`，session artifacts）：
+  - `baseline-output-modbus-overview.png`
+  - `baseline-output-modbus-focused.png`
+  - `baseline-output-modbus-blocker.png`
+  - `baseline-output-database-overview.png`
+  - `baseline-output-database-focused.png`
+  - `baseline-output-database-blocker.png`
+
 ## 2026-04-08 Phase 4 shared foundation 新發現
 - `4.1` 的缺口和前兩個 reopened phase 一樣，首先不是 UI，而是 **shared compare contract 不存在**；在 `main` 先補 `workbenchOutputCompareContract.ts`，才能把 Output phase 的 compare gate 從 OpenSpec 文字落到前端主契約。
 - Output phase 的 shared scenario focus 必須明確從舊的 `mapping-visibility / apply-output` 收斂成 spec 指定的 `readiness / dry-run / apply / blocker-diagnosis`；否則後面 baseline / v1 / v2 / v3 很容易又各自定義不同的 Output 主線。

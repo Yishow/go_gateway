@@ -266,7 +266,7 @@
   - 明確要求 Local Modbus 與 Database 兩個 target families 都必須被驗收
   - 明確定義 `Output` phase 的三 archetype operation language
 
-- [ ] 4.1.baseline Current Studio
+- [x] 4.1.baseline Current Studio
   - 以 baseline snapshot 收集兩個 target families 的 overview / focused / blocker evidence
   - 記錄 baseline 在狀態可見性與阻塞理解上的痛點
 

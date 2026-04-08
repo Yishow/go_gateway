@@ -108,9 +108,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-08 Workbench UX Phase 4 baseline prep
-**進度**: `4.1 共用基礎` 已完成；Output phase 現在已有正式 shared compare contract，且 Phase 4 的 scenario focus 已對齊 `readiness / dry-run / apply / blocker-diagnosis`
-**下一步**: 進入 `4.1.baseline Current Studio`，同時收集 Local Modbus 與 Database 兩個 target families 的 overview / focused / blocker evidence
+**Phase**: 2026-04-08 Workbench UX Phase 4 v2 prep
+**進度**: `4.1 共用基礎` 與 `4.1.baseline Current Studio` 已完成；baseline evidence 已在 real device `UI 4.3 Modbus TCP` 上覆蓋 Local Modbus / Database 兩個 target families，且 `/api/v1/datalink/mappings` 的 shared NULL scan blocker 已在 `main` 修正
+**下一步**: 進入 `4.1.v2 Sentry Incident Desk`，先把 canonical Output flow 裡的 readiness / dry-run / apply / blocker diagnosis 做正，再以同一條 baseline evidence path 對照 Local Modbus 與 Database
 
 ---
 

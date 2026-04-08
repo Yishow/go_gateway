@@ -9,6 +9,26 @@
 
 ### 2026-04-08
 
+#### Session 25: Phase 4 baseline Current Studio 完成（本輪）
+- ✅ 修正 shared API blocker：`/api/v1/datalink/mappings` 原本因 `rule_candidate_id` 等 nullable lifecycle 欄位直接掃進 `string` 而回 500；`mapping/sql_repo.go` 已改為用 `sql.NullString` 掃描，real API `8080` 現在重新回 200。
+- ✅ TDD / validation 完成：
+  - 新增 `TestSQLRepository_ReadsNullLifecycleColumns`
+  - `go test ./internal/datalink/mapping -run 'TestSQLRepository_ReadsNullLifecycleColumns|TestSQLRepository_List|TestSQLRepository_GetByID' -count=1`
+  - `go test ./internal/api/handlers -run Test.*Mapping -count=1`
+  - `curl http://127.0.0.1:8080/api/v1/datalink/mappings` 回 200，baseline preview 重新露出 Output candidates
+- ✅ `agent-browser` 已對 baseline `4173` + real device `UI 4.3 Modbus TCP` 收齊兩個 target families 的 overview / focused / blocker evidence：
+  - `baseline-output-modbus-overview.png`
+  - `baseline-output-modbus-focused.png`
+  - `baseline-output-modbus-blocker.png`
+  - `baseline-output-database-overview.png`
+  - `baseline-output-database-focused.png`
+  - `baseline-output-database-blocker.png`
+- ✅ baseline pain points 已確認：
+  - global tag chips 與 rule-scoped candidate strip 同時存在互相衝突的 readiness 訊號
+  - Local Modbus 的 port blocker 與 Database 的 connector validation 都只停在 page-local message
+  - Database 在 connector 尚未 ready 前就先露出 mapping skeleton，target diagnosis 不夠收斂
+- ✅ `phase4-baseline-reopen` 已完成；下一個 ready task 為 `4.1.v2 Sentry Incident Desk`
+
 #### Session 24: Phase 4 shared foundation 完成（本輪）
 - ✅ `main` 已完成 `4.1 共用基礎`：
   - 新增 `workbenchOutputCompareContract.ts`
