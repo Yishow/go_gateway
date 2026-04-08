@@ -1,5 +1,136 @@
 # Findings
 
+## 2026-04-08 Reopened Phase 3 compare gate 新發現
+- 四個 compare 輸入（baseline / `v2` / `v1` / `v3`）在同一條 critical path 上的 raw latency 幾乎沒有差異：以 local preview + 同一個 real device `UI 4.3 Modbus TCP` 測得，`/studio -> 選 device -> Tag Review` 約都在 `2.9s` 同級；真正決定優劣的是資訊排序與 action zoning。
+- **`v2` 仍是 Tag phase 的最佳 canonical owner**：它把 review readiness、retry / recovery、以及 Output handoff narrative 都放在 incident-desk command surface 的首屏，既能保留 shared diff/apply flow，又最符合「先判斷、再決策、再交接」的操作節奏。
+- **`v1` 是最佳 long-session control room**：左 rail 讓 active rule、counts、return path 與 calm pacing 最清楚，操作心理負擔最低；但主要 command 仍散落在 rail / workboard / right-side tools 之間，所以 system completeness 與 action clarity 還是略輸 `v2`。
+- **`v3` 的首屏資訊密度與產品辨識度最強**：cockpit banner、telemetry tiles、bottom handoff dock 讓 operator 一眼讀到全局；代價是 layout override 與 visual orchestration touched 面最大，shared 結構若再變，v3 最容易需要跟著補修。
+- baseline 雖然共享 flow 完整，但 compare 真正看的是 archetype-level reframing；baseline 仍主要仰賴操作者自行從 dense shared page 推理 decision hierarchy，因此不適合作為後續 rollout owner。
+- Phase 3 compare 正式結論：**維持 `v2` 作為 Tag canonical owner**；後續若要吸收亮點，優先回收 `v1` 的 calm rail pacing 與 `v3` 的 telemetry density，而不是更換 canonical line。
+
+## 2026-04-08 Reopened Phase 3 v3 ClickHouse Data Cockpit 新發現
+- `v3` Tag 最重要的不是再做一張 neon 皮，而是把 `TagBindingStudio` 改成 **top telemetry -> full-width review board -> bottom operations dock** 的 cockpit 讀法；這樣才能和 `v1` 的 left rail、`v2` 的 incident desk 真正拉開 archetype 差異。
+- `CockpitTagGlobalStyles` 的核心價值在 orchestration，而不是 fork domain：它只重排 shared `TagBindingStudio` 的 section/aside hierarchy，讓 board 成為 primary instrument、exception/master surface 下沉成 operations dock，因此 shared review/apply/recovery contract 仍維持一致。
+- `agent-browser` 實際驗收證明 v3 的 first-screen density 已經成立：真實裝置 `UI 4.3 Modbus TCP` 進入 Tag step 後，會先讀到 cockpit banner、telemetry tiles 與 bottom handoff dock，再進入 review board。
+- 目前真實資料下 handoff 仍 blocked（linked tags = 0），但 v3 已把 blocker narrative 提升成 cockpit dock，而不是只在 context bar 留一顆 disabled CTA；這讓 compare 可以公平評估 v3 的 blocker legibility。
+- 本輪正式 evidence：
+  - `phase3-v3-tag-overview.png`
+  - `phase3-v3-tag-focused.png`
+  - `phase3-v3-tag-handoff-blocked.png`
+
+## 2026-04-08 Reopened Phase 3 v1 Linear Control Room 新發現
+- `v1` Tag 這輪最安全、也最符合 spec 的做法，是把 archetype 差異放在 **zoning / pacing**：左側 `TagRailPanel` 承接 active rule、candidate count、point blocker 與 shortest next action，中央仍保留 shared `TagBindingStudio`，外層 inspector 完全不 fork。
+- 這種 layout-only control-room shell 對 shared Tag flow 的干擾極低；official `woe-v1-radix` targeted Tag suite `36/36` 全綠，證明 review queue、exception tools、tag master 與既有 apply/recovery contract 都還在原位運作。
+- `agent-browser` 實際驗收顯示 v1 的首屏讀法已和 baseline / `v2` 拉開：操作者進入 Tag step 後，會先看到 calm rail 的 rule review / revision / point count framing，再進入 shared workboard，而不是直接被 dense candidate controls 淹沒。
+- 真實裝置 `UI 4.3 Modbus TCP` 在目前資料下仍是 handoff blocked（linked tags = 0），但 v1 已把這個狀態收斂成 control-room framing，而不是只留一個漂浮在 shared page 的 disabled CTA。
+- 本輪正式 evidence：
+  - `phase3-v1-tag-overview.png`
+  - `phase3-v1-tag-focused.png`
+  - `phase3-v1-tag-handoff-blocked.png`
+
+## 2026-04-08 Reopened Phase 3 v2 Tag incident desk 新發現
+- `v2` 這輪真正成立的關鍵不是把 `TagBindingStudio` 換掉，而是把它降成 shared workboard，再由 `MuiTagIncidentDesk` 把 blocker / summary / handoff 提到首屏；一旦用 early-return 把 workboard 整塊藏掉，既有 Tag step integration contract 會立刻整片失效。
+- `tagReady` 不能只靠候選列存在就成立；`useWorkbenchSummary()` 的 ready gate 仍看 linked tag/mapping，所以 incident-desk handoff 驗證必須用真實 linked state，不能只用「有 candidates」當 proxy。
+- official `woe-v2-mui` 一度殘留了不可信 subagent 寫下的 composition 版本與 dead incident locale；這輪已收斂回 rescue 驗證過的 shell，並清掉過時 test / locale 殘留，避免 compare 時再次混入假 branch state。
+- `agent-browser` 實際驗收證明 v2 首屏已經具備明確的 incident-desk 節奏：上方先給 review readiness / Output handoff narrative，下方仍保留 shared review queue、exception tools、tag master 與 batch diff preview。
+- browser 驗收還抓到一個真實 i18n 漏洞：handoff blocker 一開始落回英文 fallback；補上 `workbench.tag.results.outputBlocked` 後，正式 evidence 才可算數。
+- 本輪正式 evidence：
+  - `phase3-v2-tag-overview.png`
+  - `phase3-v2-tag-handoff-blocked.png`
+  - `phase3-v2-tag-diff-preview.png`
+
+## 2026-04-08 Reopened Phase 3 baseline Tag evidence 新發現
+- baseline Tag 在同一個 `/studio` flow 下已能直接打開 review queue，但 **decision surfaces 分散**：候選列本身有 row-level actions，batch action 又在另一塊 checkbox toolbar，tag library 再是第三塊；對大量 review 來說，Hick's Law 成本偏高。
+- baseline 的 handoff 問題很明顯：`Review outputs` 只顯示 disabled CTA，沒有把「為什麼還不能去 Output」提升成明確 blocker narrative；這會迫使操作者回頭自己猜是 selection、mapping 還是 apply 狀態造成的阻塞。
+- baseline focused review 雖然能看見 candidate-level 資訊，但 diff / review focus 與 handoff 關係沒有被重新 framing，整體仍比較像 shared data page，而不是一個清楚的 Tag operation language。
+
+## 2026-04-08 Reopened Phase 3 shared foundation 新發現
+- Tag phase 的 shared contract 與 Source 類似，也適合先用獨立 compare contract 檔把 matrix 鎖住，再由 `workbenchExperimentContract.ts` 統一 re-export；這樣 variant branches 之後可以直接依同一份 phase3 scenario / acceptance / archetype / critical task 做實作與 compare。
+- `3.1` 最重要的不是先做某個 variant UI，而是先把 `review candidates -> diff preview -> choose/apply -> failure/retry/recovery -> handoff Output` 這條 shared operator path 固定下來，否則後面三版很容易又各自漂出不同 Tag flow。
+- Phase 3 design 對 archetype 差異已足夠明確：`v2` 是 incident-desk review command deck，`v1` 是 control-room batch review skeleton，`v3` 則只能保留 cockpit board / summary density，不能把 shared apply / recovery contract 取代掉。
+
+## 2026-04-08 Reopened Phase 2 compare gate 新發現
+- 這輪 compare 以同一台真實 device `UI 4.3 Modbus TCP` 的 `overview -> focused -> handoff` 路徑做 controller-side 判讀，四個輸入都維持同一個 `/studio` route、同一組 backend API 與 shared domain flow。
+- **`v2` 仍是最佳 canonical owner**：它把 blocker / recovery / handoff 全都放在 incident-desk command surface 裡，對 Source 這種「先判斷、再編修、再交接」的操作節奏最順；compare 不足以推翻 OpenSpec 既定 owner。
+- **`v1` 最適合長時間操作與低干擾巡檢**：左欄 rail 把 framing 做得最清楚，操作心理負擔最低；但因主要 command 仍在 canvas / outer inspector 間分配，所以在 Source phase 的 decisive command clarity 還是略輸 `v2`。
+- **`v3` 的 first-screen density 最強，但 maintenance risk 也最高**：top KPI strip + cockpit shell 讓資訊一眼很多，但它仰賴額外 wrapper 與 global style orchestration 去重排 shared `SourceCanvasSection`，後續若 shared 結構再變，v3 最容易需要跟著補修。
+- baseline 雖然功能沒壞、關鍵路徑也短，但 reopened compare 真正要拉開的是 archetype-level framing；baseline 在這一點上仍主要依賴操作者對 shared workbench 的既有記憶，因此不適合作為繼續 rollout 的 owner。
+- 結論：Phase 2 compare 可以正式判定三個 variant 在非 Device phase **仍 clearly distinct**，且 `v2` 無需換線。
+
+## 2026-04-08 Reopened Phase 2 v3 ClickHouse Data Cockpit completion 新發現
+- 實際 code 與 browser 驗收顯示，v3 並不是只有 banner：`SourceCanvasSection` 已經把 ClickHouse cockpit 語言深度接到 Source step，包含 top banner、dense rule layer、coverage readout 與 cockpit-styled canvas/ledger framing。
+- v3 與 v2 的差異點不在 shared domain flow，而在 **首屏讀法**：v2 是 command-deck / handoff-first，v3 則把 KPI / rule layer / coverage readout 提到 top-of-fold，讓操作員先看 cockpit instruments，再進入細部編修。
+- controller-side `agent-browser` 驗收已確認 v3 overview / focused / handoff 三態都能在同一組真實 API 下成立，證據為：
+  - `phase2-v3-source-overview.png`
+  - `phase2-v3-source-focused.png`
+  - `phase2-v3-source-handoff.png`
+- 就 reopened `2.1.v3` 的 minimum-obligation compare 目標來說，目前 official `woe-v3-antd` branch state 已足夠作為 compare 輸入，不需要再做第二條 v3 rescue 線。
+
+## 2026-04-08 Reopened Phase 2 v1 Linear Control Room completion 新發現
+- v1 `Source` 這輪終於不再只是 header wrapper：`SourceControlRoom` 改成真正的 inner three-zone skeleton，左欄 `SourceRailPanel` 讓規則導覽、blocker 與 handoff 從 canvas 中抽離，中央仍保留 shared `SourceCanvasSection`，右側則沿用 `WorkbenchFrame inspector` slot 承接現有 inspector banner。
+- 這個做法把 archetype-level 差異放在 **action zoning / work framing**，而不是去 fork shared Source domain logic；因此 `SourceCanvasSection` 不需要再被 v1 branch 深改，shared API 與 state ownership 也維持一致。
+- `SourceRailPanel` 目前是 read-only navigator，而不是第二套 command surface；這讓 v1 能維持 long-session friendly 的 calm pacing，同時不破壞 canonical `v2` already-defined flow ownership。
+- controller-side `agent-browser` evidence 已保存：
+  - `phase2-v1-source-overview.png`
+  - `phase2-v1-source-focused.png`
+  - `phase2-v1-source-handoff.png`
+
+## 2026-04-08 Reopened Phase 2 v2 rescue completion 新發現
+- official `v2` 雖然已有 `Sentry Incident Desk` 外觀，但 reopened acceptance 真正的缺口在三個 shared-contract 層面：`phase2.scenarioFocus` 漂移、`workbenchSourceCompareContract.ts` 沒有 consumer、以及 stale preview recovery 沒有可見 UI surface。
+- rescue 修正的關鍵不是再做一層 MUI wrapper，而是把 `workbenchExperimentContract.ts` 改成 live-link Source compare contract，並讓 stale template auto-upgrade 真的經過 `source-template-warning` surfaced state。
+- 補做 review-driven regression 後確認：mount-time `templateRecoveryWarning` 也不能永久壓過後續 template apply warning；因此最終顯示優先序必須是 `templateWarning ?? templateRecoveryWarning`，否則 legacy template 使用者會看不到 capability mismatch 提示。
+- `agent-browser` 的有效 v2 evidence 必須來自正確指向 backend `8080` 的 preview；若 4175 上跑的是未帶 `VITE_API_BASE_URL=http://127.0.0.1:8080/api/v1` 的 dev server，UI create/select device 會落到 local 404，這種 run 不能算正式 acceptance evidence。
+- 實際 handoff 驗證最穩定的 real device 是 `UI 4.3 Modbus TCP`：它已存在 `4 pts`，所以能直接驗證 `Source ready -> Tag Review` 的真正可行路徑；本輪 v2 三態 evidence 已保存為：
+  - `phase2-v2-rescue-source-overview.png`
+  - `phase2-v2-rescue-source-focused.png`
+  - `phase2-v2-rescue-source-handoff.png`
+
+## 2026-04-08 Reopened Phase 2 baseline evidence 新發現
+- baseline `Source` overview 仍從 device-pick 起手；即使直接 deep-link 到 `?step=source`，第一個最明顯的動作還是先決定裝置，而不是進入某種 archetype-specific planning workspace。
+- 選到 `Browser Smoke PLC` 後，focused state 立即把 `Rule builder`、`Plan / Live / Link`、`Review tags` CTA 與 dense grid 一次鋪開；操作是完整的，但 hierarchy 仍然偏向 shared workbench，而不是某個鮮明的 phase-specific product language。
+- 點 `40004` 的 focused state 會把 cell 選取壓在同一張 dense grid 裡，沒有額外的 work/readout scaffold 幫操作員理解「現在正在處理哪個 Source 任務」，這正是 reopened compare 要求重新拉開的地方。
+- `Review tags` handoff 目前可正確導到 `http://127.0.0.1:4173/studio?step=tag`，但交接語意仍主要靠 step switch 本身，而不是由 `Source` surface 內部提供更強的 handoff framing。
+- 本輪 baseline evidence 已保存到 session files：
+  - `phase2-reopen-baseline-source-overview.png`
+  - `phase2-reopen-baseline-source-focused.png`
+  - `phase2-reopen-baseline-source-handoff.png`
+
+## 2026-04-08 Reopened Phase 2 shared contract 新發現
+- `workbenchExperimentContract.ts` 原本只有 Phase 0/1 matrix 與 Device 1R contract；這輪補上正式的 Source reopened shared contract export，避免 reopened `2.1` 只存在於 OpenSpec 文字、沒有進入前端主 contract。
+- 新增 `workbenchSourceCompareContract.ts` 後，`Source` phase 現在有四個正式 shared artifacts：
+  - `WORKBENCH_SOURCE_COMPARE_SCENARIOS`
+  - `WORKBENCH_SOURCE_COMPARE_ACCEPTANCE`
+  - `WORKBENCH_SOURCE_COMPARE_ARCHETYPES`
+  - `WORKBENCH_SOURCE_COMPARE_CRITICAL_TASK`
+- `WORKBENCH_EXPERIMENT_PHASES` 的 `phase2.scenarioFocus` 也已對齊 reopened gate：`create-rule / apply-template / plan-live-link / stale-preview-recovery / handoff-tag`。
+- 這代表 reopened `2.1 共用基礎` 不再只是規格口號，而是已被主程式與單元測試正式鎖住。
+
+## 2026-04-08 Phase 2–5 reopen governance 新發現
+- 使用者實際看過 `v1` / `v2` / `v3` live preview 後，直接判定「除了 Device，其他都像同一版」；這個回饋與目前程式碼現況相符：非 Device phase 雖然有 branch-specific 檔案修改，但 operator-facing 差異仍然不夠強。
+- 使用者已明確選擇：**reopen Phase 2–5**，並且 **保留 winner-led owner model**（`v2` canonical、`v1` full-flow high-polish、`v3` minimum-obligation）。
+- 新治理的核心不是改 shared logic，而是要求所有 non-Device phases 都必須重做 operator surface：action placement / ordering、primary work surface、preview / summary framing、visual language 都要真正分化。
+- OpenSpec amendment 已完成且 `openspec validate --changes workbench-ux-operator-efficiency` 通過；`openspec instructions apply` 目前回到 `24/69`，下一個正式 pending task 是 `2.1 共用基礎`。
+
+## 2026-04-08 Phase 3 execution-governance 新發現
+- 目前 `workbench-ux-operator-efficiency` 的 `proposal.md`、`design.md`、`tasks.md` 都一致採用 **winner-led rollout**：Phase 2–5 固定節奏是 `shared -> baseline -> v2 -> v1 -> v3 -> compare`，且 `v2` 是 canonical owner。
+- 你最新要求改成 `baseline -> v1 -> v2 -> v3 -> compare`，且要求「Spec is Law」；因此目前不是單純執行順序偏好，而是 **使用者指令與現行 OpenSpec 工件衝突**，不能直接假裝兩者都成立。
+- `openspec instructions apply --change workbench-ux-operator-efficiency --json` 目前顯示進度為 `33/68`；已完成到 `3.1.v2`，剩餘最近的 pending tasks 是 `3.1.v1`、`3.1.v3`、`3.1.compare`。
+- 正式 worktree 已存在且可直接沿用：baseline `woe-base-current-ui`、`v1` `woe-v1-radix`、`v2` `woe-v2-mui`、`v3` `woe-v3-antd`；`.worktrees/` 也已被 git ignore。
+
+## 2026-04-08 Phase 3 v2 Tag 新發現
+- `v2` 已把 Tag 首屏改成 Sentry Incident Desk 語言：command deck 先給 active rule / readiness / Output handoff，再把 review surface 與 batch board 收進同一個 command-center 節奏，首屏產品辨識度比 baseline 明顯高。
+- canonical `v2` 這輪已吸收 shared contract：refresh failure 會明確 surfaced feedback + retry，不再讓錯誤只停在 raw candidate error 區塊。
+- 真正有效的 browser evidence 來自修正後的 `VITE_API_PROXY_TARGET=http://127.0.0.1:8080`；先前誤指向 `3333` 的 run 已作廢，不納入 acceptance。
+- `woe-v2-mui` 最終 head 為 `ec0e0c1`，`3.1.v2` 已在 branch tasks 打勾，並保存 `phase3-v2-tag-{overview,focused,handoff}.png`。
+
+## 2026-04-08 Phase 3 baseline evidence 新發現
+- `main` 已補齊 Tag shared acceptance / scenario matrix：Phase 3 compare focus 改成 `review-candidates / diff-preview / apply-decision / failure-retry-recovery / handoff-output`，`SourceRuleTagReviewSurface` 也補上 refresh failure feedback + retry CTA。
+- `workbench.tag.reviewSurface` 原本缺整段 locale；這輪已把 rule-scoped review copy、actions、feedback、stale state 一次補齊，避免 baseline Tag review surface 在真實 UI 出現 raw translation keys。
+- baseline Tag overview 雖然已經有 rule-scoped review queue，但 rename / skip / override controls 會在首屏一次展開多列，review surface 與 batch board 彼此競爭注意力，decision hierarchy 偏吵。
+- baseline diff preview 必須先手動 `Select bindable only` 才會浮現；preview scaffold 不是主動引導，而更像藏在 batch board 後面的 secondary readout。
+- baseline handoff 到 Output 仍卡在 blocker：即使完成真實 bind，Step 4 仍只給出 `Finish tag review first so Step 4 has linked tags to publish.`，操作員很難立即理解還缺哪個 review / apply state。
+- 本輪 agent-browser evidence 已保存到 session files：`phase3-baseline-tag-overview.png`、`phase3-baseline-tag-diff-preview.png`、`phase3-baseline-tag-handoff-blocked.png`。
+
 ## 2026-04-08 Phase 2 Source compare 新發現
 - baseline 共享 flow 完整，但首屏仍直接把 device-picker 與 planner/canvas 疊在同一張工作檯，operator 必須自己理解 handoff；local compare flow 到 Source planner ready 約 `0.99s`。
 - v1 `Linear Control Room` 的長時間可讀性最好，`SourceControlRoom` + runtime/tag-review surface 讓 focused / handoff 狀態更 calm，但需要額外 scoped CSS layer 與多筆收尾 commit；local compare flow 約 `1.02s`。

@@ -108,9 +108,9 @@
 
 ## 當前狀態
 
-**Phase**: 2026-04-08 Workbench UX Phase 2 source compare ready
-**進度**: Phase 2 baseline 與 v1 / v2 / v3 Source rollout 已完成；baseline 與三版都具備 overview / focused / handoff evidence，且 v1 / v2 / v3 已完成 browser verification 與 test/build
-**下一步**: 執行 `2.1.compare Source 比較與推薦`
+**Phase**: 2026-04-08 Workbench UX reopened Phase 3 compare complete
+**進度**: `3.1` 全部完成；compare gate 已正式判定 `v2` 繼續維持 Tag canonical owner，`v1` / `v3` 則作為可吸收亮點的 distinct variants 保留 evidence 與 branch checkpoint
+**下一步**: 等待你決定是否進入下一 phase，或先檢視本次 Tag compare 輸出 / 證據
 
 ---
 

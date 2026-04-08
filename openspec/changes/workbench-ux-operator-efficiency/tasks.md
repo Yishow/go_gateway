@@ -210,12 +210,12 @@
   - 以 clearly different control-room editing skeleton 重做 `Source` surface
   - 操作感受必須一眼區別於 `v2` / `v3`
 
-- [ ] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+- [x] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只實作 compare 所需的 Source cockpit surface
   - 保留 overview / focused / handoff / blocker / retry evidence，不擴張成第二條主線
   - 但 primary work/readout surface 必須仍然是 clearly different cockpit form，不可退化成 shared page + dense skin
 
-- [ ] 2.1.compare Source 比較與推薦
+- [x] 2.1.compare Source 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - 若 compare 認為 canonical owner 必須改變，先停下來修 OpenSpec，不可默默換線
   - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
@@ -226,30 +226,30 @@
 
 > 目標：在 **邏輯不變** 的前提下，重新讓 `Tag` 形成三個真正不同的 archetype-level review/apply 操作表面。
 
-- [ ] 3.1 共用基礎
+- [x] 3.1 共用基礎
   - 在 `main` 上更新 Tag shared acceptance / scenario matrix
   - 固定共同動作：review candidates、preview diff、choose action、apply、failure / retry / recovery
   - 明確定義 `Tag` phase 的 archetype-level 差異與 fail gate
 
-- [ ] 3.1.baseline Current Studio
+- [x] 3.1.baseline Current Studio
   - 以 baseline snapshot 收集 review queue、diff preview、handoff to Output evidence
   - 記錄 baseline 在 batch decision 與失敗回饋上的痛點
 
-- [ ] 3.1.v2 Sentry Incident Desk（primary functional track）
+- [x] 3.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical Tag review/apply flow
   - 讓 blocker、retry、partial-failure surfaced state 在 `v2` 先穩定
   - 以 clearly different incident-desk review command surface 重做主要 decision flow
 
-- [ ] 3.1.v1 Linear Control Room（full-flow high-polish track）
+- [x] 3.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 Tag domain flow
   - 以 clearly different control-room review skeleton 提升大批量 decision 的 legibility
 
-- [ ] 3.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+- [x] 3.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只保留 compare 所需的 board / summary density
   - 不得改變 shared apply / recovery contract
   - 但 board / summary / apply surface 必須仍然 clearly different，而不是 shared Tag page 加密度樣式
 
-- [ ] 3.1.compare Tag 比較與推薦
+- [x] 3.1.compare Tag 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - compare 只能推薦吸收亮點或回補 spec，不可直接改 canonical owner
   - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉

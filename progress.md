@@ -1,13 +1,159 @@
 # UI/UX 改善執行進度
 
 **開始時間**：2026-03-22  
-**當前 Phase**：2026-04-08 Workbench UX Phase 2 source compare ready
+**當前 Phase**：2026-04-08 Workbench UX reopened Phase 3 compare complete
 
 ---
 
 ## 執行記錄
 
 ### 2026-04-08
+
+#### Session 23: Reopened Phase 3 compare gate 完成（本輪）
+- ✅ compare gate 已以 baseline `4173`、`woe-v2-mui` `4175`、`woe-v1-radix` `4174`、`woe-v3-antd` `4176` 四個正式輸入完成，且全都維持同一個 `/studio` route、同一組 real API 與 shared design tokens。
+- ✅ controller-side compare 結論：
+  - **推薦版本：`v2 Sentry Incident Desk`**
+  - `v1` 在操作順暢度 / 長時間閱讀上最好，但 command ownership 仍分散在 rail、shared board 與 right-side tools 之間
+  - `v3` 的首屏資訊密度最高，但維護風險也最高，因為它仰賴更多 layout override 來重排 shared `TagBindingStudio`
+  - baseline 功能完整，但 Tag decision hierarchy 仍偏向 shared page，沒把 blocker / handoff narrative 提升到 archetype-level surface
+- ✅ compare 期間的 local critical-path timing（`/studio -> 選 UI 4.3 Modbus TCP -> Tag Review`）四版都落在約 `2.9s` 同級，沒有 user-visible latency 差異；真正拉開差距的是 operator framing，不是 raw speed。
+- ✅ `phase3-compare-reopen` 已完成；等待你決定是否進入下一 phase。
+
+#### Session 22: Reopened Phase 3 v3 ClickHouse Data Cockpit 完成（本輪）
+- ✅ `woe-v3-antd` 已正式完成 `3.1.v3 ClickHouse Data Cockpit`：
+  - `DatalinkWorkbenchPage.tsx` 的 Tag step 已改由 `CockpitTagStep` 承接
+  - 新增 `CockpitTagKpiBar.tsx`、`CockpitTagGlobalStyles.tsx`，把 Tag 首屏重做成 top telemetry + full-width board + bottom handoff dock
+  - shared `TagBindingStudio` domain flow 仍保留在同一個 `/studio` route 內
+- ✅ TDD / targeted validation 完成：
+  - 新增 `workbench-tag-cockpit` wrapper test
+  - official `woe-v3-antd` targeted Tag suite `39/39` 通過
+  - `npm run build`、`npx tsc --noEmit` 通過
+- ✅ `agent-browser` controller-side evidence 已保存：
+  - `phase3-v3-tag-overview.png`
+  - `phase3-v3-tag-focused.png`
+  - `phase3-v3-tag-handoff-blocked.png`
+- ✅ `phase3-v3-reopen` 已完成；下一個 ready task 為 `3.1.compare Tag 比較與推薦`
+
+#### Session 21: Reopened Phase 3 v1 Linear Control Room 完成（本輪）
+- ✅ `woe-v1-radix` 已正式完成 `3.1.v1 Linear Control Room`：
+  - `DatalinkWorkbenchPage.tsx` 的 Tag step 已改由 `TagControlRoom` 承接
+  - 新增 `TagRailPanel.tsx`，把 review set、point blocker 與 output handoff 收斂到左側 calm rail
+  - 中央仍維持 shared `TagBindingStudio`，`WorkbenchFrame inspector` slot 不變
+- ✅ TDD / targeted validation 完成：
+  - 新增 `workbench-tag-control-room` wrapper test
+  - official `woe-v1-radix` targeted Tag suite `36/36` 通過
+  - `npx tsc --noEmit` 通過
+- ✅ `agent-browser` controller-side evidence 已保存：
+  - `phase3-v1-tag-overview.png`
+  - `phase3-v1-tag-focused.png`
+  - `phase3-v1-tag-handoff-blocked.png`
+- ✅ `phase3-v1-reopen` 已完成；下一個 ready task 為 `3.1.v3 ClickHouse Data Cockpit`
+
+#### Session 20: Reopened Phase 3 v2 Tag incident desk 完成（本輪）
+- ✅ `woe-v2-mui` 已正式完成 `3.1.v2 Sentry Incident Desk`，且 canonical `TagBindingStudio` domain flow 仍保留在同一個 `/studio` route 內：
+  - 新增 `MuiTagIncidentDesk.tsx`
+  - `MuiTagCommandDeck.tsx` 收斂為 incident-desk shell entry
+  - 舊的 `MuiTagCommandDeckIncidentDesk` 殘留測試與 dead incident locale 已清理
+- ✅ TDD 與 controller-side 驗證都完成：
+  - official `woe-v2-mui` targeted Tag suite `38/38` 通過
+  - `npx tsc --noEmit` 通過
+  - `agent-browser` evidence 已保存：
+    - `phase3-v2-tag-overview.png`
+    - `phase3-v2-tag-handoff-blocked.png`
+    - `phase3-v2-tag-diff-preview.png`
+- ✅ browser evidence 也驗出一個真 UX/i18n 漏洞：handoff blocker 原本落回英文 fallback；本輪已補正式 locale key 並重新取證
+- ✅ `phase3-v2-reopen` 已完成；下一個 ready task 為 `3.1.v1 Linear Control Room`
+
+#### Session 19: Reopened Phase 3 baseline Tag evidence 完成（本輪）
+- ✅ baseline `/studio` Tag step 已以 real device `UI 4.3 Modbus TCP` 收齊 controller-side evidence：
+  - review queue：`phase3-baseline-tag-overview.png`
+  - focused review：`phase3-baseline-tag-focused.png`
+  - handoff blocker：`phase3-baseline-tag-handoff-blocked.png`
+- ✅ baseline pain points 已確認：
+  - batch decision 入口分散在候選列、checkbox 區與 tag library，下個動作不夠集中
+  - `Review outputs` 僅呈現 disabled CTA，缺少高位階 blocker narrative
+  - diff / review focus 與 handoff relation 不夠明確，操作員要自己從 dense queue 讀出狀態
+- ⏭️ 下一個 ready task 為 `3.1.v2 Sentry Incident Desk`
+
+#### Session 18: Reopened Phase 3 shared foundation 完成（本輪）
+- ✅ `3.1 共用基礎` 已在 `main` 建立 Tag shared compare contract：
+  - `WORKBENCH_TAG_COMPARE_SCENARIOS`
+  - `WORKBENCH_TAG_COMPARE_ACCEPTANCE`
+  - `WORKBENCH_TAG_COMPARE_ARCHETYPES`
+  - `WORKBENCH_TAG_COMPARE_CRITICAL_TASK`
+- ✅ `workbenchExperimentContract.ts` 已正式 re-export Tag shared contract，讓 Phase 3 不再只有 OpenSpec 文字、沒有前端主契約入口
+- ✅ TDD：先新增 failing test，再補最小 contract code；Tag compare contract wrapper 與既有 Tag step / review tests共 `35/35` 通過
+- ⏭️ 下一個 ready task 為 `3.1.baseline Current Studio`
+
+#### Session 17: Reopened Phase 2 compare gate 完成（本輪）
+- ✅ compare gate 已完成，輸入為 baseline / `v2` / `v1` / `v3` 四個乾淨 worktree，且全都維持同一個 `/studio` route 與同一組 real API
+- ✅ compare 結論：**`v2` 繼續維持 Source canonical owner**
+  - `v2`：command surface 與 blocker / recovery / handoff 最平衡，維護風險也仍低於 `v3`
+  - `v1`：long-session framing 最穩，但 Source 主工作區的 command ownership 不如 `v2` 直接
+  - `v3`：首屏 telemetry 最強、外觀最鮮明，但為了保持 cockpit form 需要額外 wrapper / style orchestration，維護風險最高
+  - baseline：功能仍完整，但 reopened compare 關注的 archetype-level framing 仍不足
+- ✅ compare 明確確認：`v2` / `v1` / `v3` 在非 Device phase 仍 clearly distinct，Phase 2 可正式關閉
+
+#### Session 16: Reopened Phase 2 v3 ClickHouse Data Cockpit 完成（本輪）
+- ✅ `woe-v3-antd` 現有 branch state 已達 reopened `2.1.v3` compare-ready：
+  - ClickHouse cockpit banner / dense rule layer / coverage readout 已接入 Source surface
+  - primary work/readout 已不是 shared page + dense skin
+- ✅ controller-side browser evidence 已保存：
+  - overview：`phase2-v3-source-overview.png`
+  - focused：`phase2-v3-source-focused.png`
+  - handoff：`phase2-v3-source-handoff.png`
+- ✅ controller-side 最小驗證：`workbench-source-step` wrapper test `50/50` 通過，`tsc --noEmit` 通過
+- ✅ `phase2-v3-reopen` 已完成；下一個 ready task 為 `phase2-compare-reopen`
+
+#### Session 15: Reopened Phase 2 v1 Linear Control Room 完成（本輪）
+- ✅ `woe-v1-radix` 已完成 `Linear Control Room` Source 三區塊骨架：
+  - 左欄 `SourceRailPanel`
+  - 中央 `SourceCanvasSection`
+  - 右側沿用 `WorkbenchFrame inspector` slot
+- ✅ shared logic / API 契約維持不動：`SourceCanvasSection` domain logic 未被 v1 改寫
+- ✅ controller-side browser evidence 已保存：
+  - overview：`phase2-v1-source-overview.png`
+  - focused：`phase2-v1-source-focused.png`
+  - handoff：`phase2-v1-source-handoff.png`
+- ✅ controller-side 最小驗證：`workbench-source-control-room` wrapper test `7/7` 通過，`tsc --noEmit` 通過
+- ✅ `phase2-v1-reopen` 已完成；下一個 ready task 為 `phase2-v3-reopen`
+
+#### Session 14: Reopened Phase 2 v2 rescue 完成（本輪）
+- ✅ 在 `.worktrees/woe-v2-mui-rescue` 以 TDD 收斂 reopened `2.1.v2`：
+  - 修正 `phase2.scenarioFocus` 漂移
+  - 讓 `workbenchSourceCompareContract.ts` 正式接入 `workbenchExperimentContract.ts`
+  - 補上 stale preview recovery warning surfaced state
+- ✅ reviewer 第二輪確認 reopened Phase 2 v2 已無 spec blocker，剩餘 only minor i18n completeness gap，不影響 acceptance
+- ✅ follow-up code review 再補一個 regression fix：避免 mount-time `templateRecoveryWarning` 永久遮住後續 `templateWarning`
+- ✅ 以 `agent-browser` 補齊最終 v2 Source evidence：
+  - overview：`phase2-v2-rescue-source-overview.png`
+  - focused：`phase2-v2-rescue-source-focused.png`
+  - handoff：`phase2-v2-rescue-source-handoff.png`
+- ✅ targeted validation：`workbench-source-step` + `workbench-source-incident-desk.reopen` 共 `54/54` 通過，`tsc --noEmit` / targeted ESLint 通過
+- ⏭️ `phase2-v2-reopen` 已完成；下一個 ready task 為 `phase2-v1-reopen`
+
+#### Session 13: Reopened Phase 2 baseline evidence 完成（本輪）
+- ✅ 啟動 baseline preview：`http://127.0.0.1:4173/studio`（共用 backend `8080`）
+- ✅ 以 `agent-browser` 收齊 reopened `Source` baseline 三態證據：
+  - overview：`phase2-reopen-baseline-source-overview.png`
+  - focused：`phase2-reopen-baseline-source-focused.png`
+  - handoff：`phase2-reopen-baseline-source-handoff.png`
+- ✅ `phase2-baseline-reopen` 已完成；下一個 ready task 為 `phase2-v2-reopen`
+
+#### Session 12: Reopened Phase 2 shared contract 完成（本輪）
+- ✅ 以 TDD 完成 reopened `2.1`：新增 `workbench-experiment-contract.test.ts`、補 `workbenchSourceCompareContract.ts`、讓 `workbenchExperimentContract.ts` re-export 新 Source shared contract，並把 `phase2.scenarioFocus` 對齊 reopened gate
+- ✅ 本輪驗證：targeted Vitest（7 tests）、ESLint、`tsc --noEmit`、changed-file line count、`git diff --check`
+- ⏭️ `phase2-shared-reopen` 已完成；下一個 ready task 為 `phase2-baseline-reopen`
+
+#### Session 11: Workbench UX Phase 2–5 reopen amendment（本輪）
+- ✅ 使用者正式打回目前 non-Device sameness，確認新治理為 `reopen-phase2-to5 + keep-winner-led-archetypes`
+- ✅ 更新並驗證 `proposal.md`、`design.md`、`tasks.md` 與 `docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md`
+- ✅ `openspec validate --changes workbench-ux-operator-efficiency` 通過；`openspec apply` 進度重置為 `24/69`
+- ✅ SQL backlog 改為 reopened 路徑：舊 `phase3-*` 標記 superseded / blocked，正式起點改為 `phase2-shared-reopen`
+
+#### Session 10: Workbench UX Phase 3 execution-governance check（本輪）
+- ✅ 重新盤點規範與 OpenSpec，確認正式 worktree 可沿用、`.worktrees/` 已被 git ignore
+- ✅ 建立最初的 Phase 3 SQL todo DAG，但在派發 subagents 前主動停下，因為現行 OpenSpec 順序與使用者當時的新指令衝突
 
 #### Session 9: Workbench UX Phase 2–5 rollout design review / planning handoff（本輪）
 - ✅ 完成 `docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md` 修補：
@@ -24,15 +170,17 @@
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/design.md`
   - 更新 `openspec/changes/workbench-ux-operator-efficiency/tasks.md`
   - `openspec validate --changes workbench-ux-operator-efficiency` 通過
-- ✅ 完成 Phase 2 shared contract、2.1.baseline 與 `2.1.v1` / `2.1.v2` / `2.1.v3` Source rollout
-- ✅ compare evidence：baseline 與三版均已具備 overview / focused / handoff；v1 / v2 / v3 已完成 browser verification 與 test/build
-- ⏳ 下一步：開始 2.1.compare Source 比較與推薦
+- ✅ 完成 Phase 2 compare、正式 `woe-v2-mui` rescue 整併，以及 Phase 3 `3.1` shared contract
+- ✅ 完成 `3.1.baseline`：baseline 已收齊 review queue / diff preview / handoff blocker evidence，並記錄 batch decision / failure feedback 痛點
+- ✅ 完成 `3.1.v2`：`woe-v2-mui` 已交付 canonical Tag review/apply flow、修正為 backend `8080` evidence，最終 head `ec0e0c1`
 
 **驗證結果**：
 ```bash
-git --no-pager diff --check -- docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md
+cd frontend && npx eslint src/pages/datalink/workbench/SourceRuleTagReviewSurface.tsx src/pages/datalink/workbench/workbenchExperimentContract.ts src/pages/datalink/workbench/__tests__/WorkbenchLocaleContract.test.ts src/pages/datalink/workbench/__tests__/DatalinkWorkbenchTagReviewSurface.test.tsx
+cd frontend && npm run test -- --run tests/unit/features/datalink/workbench-locale.test.ts tests/unit/pages/datalink/workbench-tag-review-surface.test.tsx
+cd frontend && npm run build
 ```
-- 結果：通過
+- 結果：通過；full `cd frontend && npm run test -- --run` 仍被 `tests/unit/pages/datalink/workbench-foundation.test.tsx` 四個既有失敗擋住，單獨執行同樣失敗
 
 **修改檔案**：
 - docs/superpowers/specs/2026-04-07-workbench-phase-2-to-5-rollout-design.md
