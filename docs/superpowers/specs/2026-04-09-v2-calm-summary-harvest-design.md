@@ -347,12 +347,18 @@ The acceptance evidence should focus on:
 
 | State | Surface | Expected behavior after follow-up | Verification |
 | --- | --- | --- | --- |
+| no selected device | Shell blocker | still shows an explicit device-selection blocker and device-return action | `MuiWorkbenchShellIncidentDesk.reopen.test.tsx` |
+| no focused rule | Output handoff | still points the operator back to Source/Tag before Output apply | `MuiOutputIncidentDesk.reopen.test.tsx` + Database browser evidence |
 | `outputPending` | Shell blocker | calmer wording, but still explicit about returning to Output | `MuiWorkbenchShellIncidentDesk.reopen.test.tsx` + browser Shell evidence |
+| refresh in progress | Shell refresh status | still exposes an in-progress diagnostic state while refresh action is disabled | `MuiWorkbenchShellIncidentDesk.reopen.test.tsx` |
 | refresh success | Shell refresh status | calmer secondary emphasis, still explicit success text | Shell test + browser refresh evidence |
+| ready review state | Output priority + summary strip | still reads as apply-ready while keeping priority card ahead of contextual chips | `MuiOutputIncidentDesk.reopen.test.tsx` + browser Output evidence |
 | Local Modbus blocked/deferred | Output priority card + handoff | priority card remains first-glance; handoff stays actionable | `MuiOutputIncidentDesk.reopen.test.tsx` + Local Modbus evidence |
 | Database no-rule / no-candidates | Output handoff | calm repair guidance still points back to Tag | Output incident-desk test + Database evidence |
 | target switch | Output summary strip + command dock | wording may change, but selected target behavior and primary actions stay unchanged | Output incident-desk test |
-| stale/error states | Output alerts | existing retry / refresh surfaces remain explicit | Output incident-desk test |
+| candidates query failure | Output priority/retry surface | failure text and retry affordance remain explicit above the shared workboard | `MuiOutputIncidentDesk.reopen.test.tsx` |
+| stale review data | Output stale banner | stale warning and refresh action remain explicit in the incident wrapper | `MuiOutputIncidentDesk.reopen.test.tsx` |
+| error/deferred alerts | Output alerts | existing retry / refresh surfaces remain explicit | Output incident-desk test |
 
 ## 9. Risks and Mitigations
 
@@ -382,6 +388,10 @@ This follow-up is successful when all of the following are true:
 2. Shell still renders the same four owned surfaces and the same two actions in the same order.
 3. Output still renders the same four incident-wrapper regions and the same command-dock actions in the same order.
 4. The state → surface → verification matrix in Section 8.4 is fully covered by tests and browser evidence.
-5. Browser evidence on the fixed Phase 6 fixture still shows `v2` as incident-desk first, not as a relabeled `v1` surface.
+5. Browser evidence on the fixed Phase 6 fixture still shows all of the following:
+   - Shell is still blocker-first
+   - Output still presents a priority card before summary context
+   - command-dock actions remain the same incident-desk actions, in the same order
+   - the surface still reads as `v2`, not as a rail-first or cockpit-first layout
 6. No API, route, target-switching, or ownership semantics change.
 7. Targeted tests, type-check, lint, and build all pass.
