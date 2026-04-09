@@ -422,8 +422,19 @@
     - reviewer 必須能在 `Source`、`Tag`、`Output`、`Shell` 四段，透過首屏與第一個主操作辨識 `v2` / `v1` / `v3` 是不同產品語言
     - 若差異只剩 component kit、spacing、顏色或 chrome，而主操作骨架與資訊節奏仍幾乎一樣，Phase 6 不得關閉
 
-- [ ] 6.1.baseline 整體驗收
+- [x] 6.1.baseline 整體驗收
   - 完成 baseline 端對端操作、截圖與記錄
+  - ✅ preview / route / device：`4173` / `/studio` / `UI 4.3 Modbus TCP`
+  - ✅ 正式 evidence：
+    - `baseline-final-overview.png`
+    - `baseline-final-source-focused.png`
+    - `baseline-final-tag-focused.png`
+    - `baseline-final-output-local-modbus.png`
+    - `baseline-final-output-database.png`
+  - ✅ baseline 記錄：
+    - 同一條主線可從 `Device -> Source -> Tag -> Output` 穩定重跑，且 Output 兩個 target families 都可見
+    - `Shell` 仍然只有 generic readiness / CTA framing，沒有 final compare 所需的 blocker / refresh narrative
+    - 作為 control 足夠，但在非 Device phase 幾乎沒有 archetype differentiation，可作為最終 compare 的下限參考
 
 - [ ] 6.1.v2 整體驗收（primary functional track）
   - 完成 `v2` 端對端操作、截圖與記錄
