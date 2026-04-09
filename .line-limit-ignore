@@ -10,3 +10,6 @@ frontend/pnpm-lock.yaml
 
 # Imported external docs
 docs/HslDocs_*
+
+# Historical planning archives
+docs/planning-archive/*

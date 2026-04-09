@@ -14,6 +14,7 @@ const {
   mockCandidateViews,
   mockSourceRulesRefetch,
   mockCandidateRefetch,
+  mockCandidateState,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
@@ -21,21 +22,19 @@ const {
   mockCandidateViews: {} as Record<string, SourceRuleCandidateSnapshotView>,
   mockSourceRulesRefetch: vi.fn(),
   mockCandidateRefetch: vi.fn(),
+  mockCandidateState: { isError: false, error: null as Error | null },
 }));
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/useDevices', () => ({
   useDevicesQuery: () => ({
     data: mockDevices,
     isLoading: false,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/usePoints', () => ({
   usePointsQuery: () => ({
     data: mockPoints,
@@ -46,7 +45,6 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     isPending: false,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/useTags', () => ({
   useTagsQuery: () => ({
     data: [],
@@ -62,7 +60,6 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
     isPending: false,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/useMappings', () => ({
   useMappingsQuery: () => ({
     data: [],
@@ -92,8 +89,8 @@ vi.mock('../../../../hooks/datalink/useSourceRuleCandidates', () => ({
   useSourceRuleCandidatesQuery: (ruleId?: string | null) => ({
     data: ruleId ? mockCandidateViews[ruleId] ?? null : null,
     isLoading: false,
-    isError: false,
-    error: null,
+    isError: mockCandidateState.isError,
+    error: mockCandidateState.error,
     isRefetching: false,
     refetch: mockCandidateRefetch,
   }),
@@ -147,6 +144,8 @@ describe('DatalinkWorkbench tag review surface', () => {
     vi.clearAllMocks();
     mockSourceRulesRefetch.mockResolvedValue({ data: mockSourceRules });
     mockCandidateRefetch.mockResolvedValue({ data: null });
+    mockCandidateState.isError = false;
+    mockCandidateState.error = null;
     mockDevices.splice(0, mockDevices.length, {
       id: 'device-1',
       name: 'Mixer PLC',
@@ -477,5 +476,25 @@ describe('DatalinkWorkbench tag review surface', () => {
       expect(mockSourceRulesRefetch).toHaveBeenCalledTimes(1);
       expect(mockCandidateRefetch).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('surfaces refresh failure and then retries into a recovered candidate review', async () => {
+    mockSourceRules.push({ id: 'rule-1', device_id: 'device-1', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 'SRC', enabled: true, locked: false, origin: 'manual', skipped_addresses: [], revision_id: 'rev-1', created_at: '', updated_at: '' });
+    mockCandidateState.isError = true;
+    mockCandidateState.error = new Error('candidate load failed');
+    mockCandidateRefetch.mockRejectedValueOnce(new Error('refresh failed')).mockImplementationOnce(async () => {
+      mockCandidateState.isError = false;
+      mockCandidateState.error = null;
+      mockCandidateViews['rule-1'] = { source_rule_id: 'rule-1', revision_id: 'rev-1', tags: { status: 'ready', candidates: [{ id: 'candidate-1', identity: { source_rule_id: 'rule-1', candidate_type: 'tags', candidate_kind: 'tag', derived_from_rule_address: '40001' }, proposed_signature: 'sig-1', address: '40001', point_id: 'point-1', tag_key: 'SRC_40001', display_name: 'Flow Sensor', data_type: 'int16', status: 'draft' }] }, database_outputs: { status: 'deferred', candidates: [] }, local_modbus_outputs: { status: 'deferred', candidates: [] } };
+      return { data: mockCandidateViews['rule-1'] };
+    });
+
+    renderTagStep('rule-1');
+
+    await waitFor(() => expect(screen.getByTestId('source-rule-tag-review-error')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('source-rule-tag-review-retry'));
+    await waitFor(() => expect(screen.getByTestId('source-rule-tag-review-feedback')).toHaveTextContent('refresh failed'));
+    fireEvent.click(screen.getByTestId('source-rule-tag-review-retry'));
+    await waitFor(() => expect(screen.getByTestId('source-rule-tag-review-row-candidate-1')).toBeInTheDocument());
   });
 });

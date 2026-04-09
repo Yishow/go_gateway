@@ -1,6 +1,20 @@
 import enCommon from '../../../../i18n/locales/en/common.json';
+import enTagReview from '../../../../i18n/locales/en/tag-review.json';
 import zhTWCommon from '../../../../i18n/locales/zh-TW/common.json';
+import zhTWTagReview from '../../../../i18n/locales/zh-TW/tag-review.json';
+import { mergeTranslations } from '../../../../i18n/mergeTranslations';
 import { describe, expect, it } from 'vitest';
+
+type MergedLocaleTree = typeof enCommon & typeof enTagReview;
+
+const enTranslations = mergeTranslations(
+  enCommon as MergedLocaleTree,
+  enTagReview,
+) as MergedLocaleTree;
+const zhTWTranslations = mergeTranslations(
+  zhTWCommon as MergedLocaleTree,
+  zhTWTagReview,
+) as MergedLocaleTree;
 
 describe('Workbench locale contract', () => {
   it('ships localized zh-TW strings for the foundation shell landmarks and steps', () => {
@@ -178,6 +192,18 @@ describe('Workbench locale contract', () => {
     );
     expect(zhTWCommon.workbench.output.database.actions.configureConnector).not.toBe(
       enCommon.workbench.output.database.actions.configureConnector,
+    );
+  });
+
+  it('ships localized zh-TW strings for the tag rule-scoped review surface', () => {
+    expect(zhTWTranslations.workbench.tag.reviewSurface.title).not.toBe(
+      enTranslations.workbench.tag.reviewSurface.title,
+    );
+    expect(zhTWTranslations.workbench.tag.reviewSurface.actions.renameSave).not.toBe(
+      enTranslations.workbench.tag.reviewSurface.actions.renameSave,
+    );
+    expect(zhTWTranslations.workbench.tag.reviewSurface.feedback.refreshFailed).not.toBe(
+      enTranslations.workbench.tag.reviewSurface.feedback.refreshFailed,
     );
   });
 

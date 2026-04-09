@@ -10,6 +10,7 @@
         "reason": "Reason",
         "loading": "Loading generated tag candidates…",
         "loadFailed": "Failed to load the current rule review surface.",
+        "retry": "Retry review load",
         "stale": {
           "title": "This review surface is stale",
           "description": "A newer source-rule revision exists. Refresh the review surface before continuing to apply decisions.",
@@ -61,7 +62,9 @@
           "skipSaved": "Saved skip decision for {{tagKey}}",
           "overrideSaved": "Saved override decision: {{tagKey}}",
           "saveFailed": "Failed to save tag review decision.",
-          "loadSavedFailed": "Failed to load saved review decisions."
+          "loadSavedFailed": "Failed to load saved review decisions.",
+          "refreshed": "Review data refreshed",
+          "refreshFailed": "Failed to refresh review data"
         },
         "status": {
           "generated": "Generated",

@@ -2,9 +2,9 @@
 
 ## Goal
 
-This correction aligns Phase 2–5 with the approved Phase 1R compare result without reopening any completed work from Phase -1, Phase 0, Phase 1, or Phase 1R.
+This correction keeps the approved Phase 1R winner decision, but reopens Phase 2–5 after a live review found that the post-Device surfaces still read too similarly outside Device.
 
-The remaining rollout must keep one real `/studio` workflow over one real API while shifting from a three-equal-track experiment to a winner-led delivery model.
+The remaining rollout must keep one real `/studio` workflow over one real API while preserving three archetype-level versions under a winner-led delivery model.
 
 ## Approved Phase 1R Outcome
 
@@ -15,6 +15,18 @@ The accepted downstream decision is:
 3. `v3 / ClickHouse Data Cockpit` remains a limited comparison/control track.
 
 The correction therefore changes only the **remaining rollout model**, not the completed Device result.
+
+## Reopen Trigger
+
+The current Source/Tag previews exposed a governance gap:
+
+1. the shared logic was mostly preserved
+2. the branches did touch different Source/Tag files
+3. but the operator-facing result still felt too similar outside Device
+
+The issue is therefore not backend logic drift. The issue is that the remaining phases were allowed to fall back toward shared surfaces with lighter wrappers, instead of carrying the Device archetypes through the rest of the product.
+
+Phase 2–5 are therefore reopened under the same shared logic and version roles, but with a stronger surface-differentiation rule.
 
 ## Hard Constraints
 
@@ -35,6 +47,23 @@ Existing worktree identity remains unchanged:
 | `v1` | `woe-v1-radix` | high-polish alternate |
 | `v2` | `woe-v2-mui` | canonical functional track |
 | `v3` | `woe-v3-antd` | minimum-obligation comparison track |
+
+## Logic Invariant
+
+Across reopened Phase 2–5 work:
+
+- the domain flow stays the same
+- the shared API contract stays the same
+- the state ownership / blocker / retry semantics stay the same
+
+What changes is the operator surface:
+
+- action placement and ordering
+- primary working surface
+- preview / summary scaffolding
+- visual hierarchy and interaction pacing
+
+If a review can still reasonably conclude that only Device looks different, the phase is not complete.
 
 ## Version Roles
 
@@ -82,6 +111,20 @@ It is complete for a phase only when:
 
 `v3` may omit secondary refinements that are not required to satisfy those conditions.
 
+## Archetype Continuity Rule
+
+The Device 1R identities must remain visible in every later phase:
+
+- `v1 / Linear Control Room`: calm task zoning, deliberate pacing, long-session readability, and visibly different work/readout framing
+- `v2 / Sentry Incident Desk`: command-deck structure, surfaced blocker/retry narrative, and task-centered incident-style operation
+- `v3 / ClickHouse Data Cockpit`: dense banner / KPI / board composition, cockpit-like summary density, and clearly different primary readout surfaces
+
+The following do **not** satisfy this rule on their own:
+
+- kit-only substitution
+- CSS-only reskinning
+- identical action choreography with slightly different component chrome
+
 ### Canonical ownership rule
 
 Compare may recommend harvesting ideas from `v1` or `v3`, or stopping for a spec correction, but it may not silently move canonical ownership away from `v2`. Any owner change requires an explicit OpenSpec amendment.
@@ -98,6 +141,10 @@ Every remaining phase follows this sequence:
 6. compare gate
 
 The next phase does not begin until the compare gate is complete.
+
+## Reopen Rule
+
+Previously accepted Phase 2 work and partial Phase 3 work are downgraded to reference evidence only. They may inform the rerun, but they do not count as completed acceptance under this amendment.
 
 ### Baseline check checklist
 
@@ -231,19 +278,19 @@ Each version must keep at least:
 
 ### Phase 2 — Source
 
-`v2` defines the canonical rule create/edit, template apply, mode switching, inspector, and stale-preview recovery flow. `v1` keeps the same flow with a lower-noise prolonged-editing surface. `v3` keeps dense canvas/summary presentation only while preserving the same Source -> Tag handoff.
+`v2` defines the canonical rule create/edit, template apply, mode switching, inspector, and stale-preview recovery flow through an incident-desk command surface. `v1` keeps the same flow, but must express it through a clearly different control-room editing skeleton with different action zoning, preview staging, and handoff scaffolding. `v3` keeps cockpit density through clearly different banner / KPI / board composition while preserving the same Source -> Tag handoff.
 
 ### Phase 3 — Tag
 
-`v2` defines the canonical review queue, diff preview, batch decision, apply, retry, and recovery flow. `v1` keeps those same actions while optimizing composure and legibility during larger review batches. `v3` keeps board/summary density only while the same apply and recovery contract stays visible.
+`v2` defines the canonical review queue, diff preview, batch decision, apply, retry, and recovery flow through an incident-desk review command deck. `v1` keeps those same actions while moving them into a clearly different control-room review skeleton optimized for long batch sessions. `v3` keeps board/summary density only if the primary work surface still reads as a cockpit and the same apply / recovery contract remains visible.
 
 ### Phase 4 — Output
 
-`v2` defines the canonical flow for both Local Modbus and Database targets, and both must cover readiness, dry-run, apply, and blocker diagnosis. `v1` keeps the same targets and actions with calmer state framing. `v3` may keep denser mapping/state views, but it must still surface both targets and the same apply/blocker contract.
+`v2` defines the canonical flow for both Local Modbus and Database targets, and both must cover readiness, dry-run, apply, and blocker diagnosis through an incident-desk output command surface. `v1` keeps the same targets and actions through a clearly different control-room operator console. `v3` may keep denser mapping/state views, but it must still read as a cockpit surface while surfacing both targets and the same apply/blocker contract.
 
 ### Phase 5 — Cross-step shell / diagnostics
 
-`v2` is the canonical shell implementation. `v1` re-expresses the same shell abilities with lower interference. `v3` keeps only the cockpit summary/alert surfaces needed to satisfy the same shell ownership model.
+`v2` is the canonical shell implementation. `v1` re-expresses the same shell abilities with a clearly different control-room summary skeleton and lower interference. `v3` keeps only the cockpit summary/alert surfaces needed to satisfy the same shell ownership model, but those surfaces must remain recognizably cockpit-oriented rather than a light shell reskin.
 
 ### Phase 6 — Final compare
 
@@ -260,6 +307,7 @@ Each remaining phase must output:
 - 關鍵操作時間
 - 實作 / 維護風險
 - 推薦版本與理由
+- 三版本在非 Device phase 是否仍然明確可辨
 
 The compared entries remain:
 
