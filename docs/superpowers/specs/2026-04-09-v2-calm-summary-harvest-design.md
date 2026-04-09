@@ -1,6 +1,6 @@
 # V2 Calm Summary Harvest Design
 
-- Status: Brainstorming-approved; pending spec-review
+- Status: Brainstorming-approved; spec-review approved; pending user review
 - Date: 2026-04-09
 - Scope: v2-only follow-up after Phase 6 compare, limited to Shell and Output summary surfaces
 
@@ -106,12 +106,31 @@ The chosen approach is **Approach A — Small calming pass**.
 
 ### 7.1 Boundaries
 
-This follow-up is intentionally limited to these units:
+Implementation happens on the `woe-v2-mui` worktree first, then is eligible to merge back only after validation.
 
-1. `frontend/src/pages/datalink/workbench/MuiWorkbenchIncidentStrip.tsx`
-2. `frontend/src/pages/datalink/workbench/MuiOutputIncidentDesk.tsx`
-3. related `v2` i18n strings
-4. targeted tests that lock summary behavior
+This follow-up is intentionally limited to these concrete units:
+
+1. `.worktrees/woe-v2-mui/frontend/src/pages/datalink/workbench/MuiWorkbenchIncidentStrip.tsx`
+2. `.worktrees/woe-v2-mui/frontend/src/pages/datalink/workbench/MuiOutputIncidentDesk.tsx`
+3. `.worktrees/woe-v2-mui/frontend/src/i18n/locales/en/common.json`
+4. `.worktrees/woe-v2-mui/frontend/src/i18n/locales/zh-TW/common.json`
+5. `.worktrees/woe-v2-mui/frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx`
+6. `.worktrees/woe-v2-mui/frontend/src/pages/datalink/workbench/__tests__/MuiOutputIncidentDesk.reopen.test.tsx`
+
+The copy scope is also intentionally limited:
+
+- Shell copy keys rendered by `MuiWorkbenchIncidentStrip`
+  - `workbench.shell.eyebrow`
+  - `workbench.shell.labels.blocker`
+  - `workbench.shell.labels.refresh`
+  - `workbench.shell.readinessSummary`
+  - `workbench.shell.blockers.*`
+  - `workbench.shell.refresh.*`
+- Output incident copy keys rendered by `MuiOutputIncidentDesk`
+  - `workbench.output.incident.priority.*`
+  - `workbench.output.incident.summaryEyebrow`
+  - `workbench.output.incident.metrics.*`
+  - `workbench.output.incident.handoff.*`
 
 This follow-up does **not** modify:
 
@@ -120,6 +139,22 @@ This follow-up does **not** modify:
 - Shell action placement
 - Output command-dock action order
 - shared tokens or backend contracts
+
+### 7.1A Unit ownership
+
+The touched units have separate responsibilities and must stay that way:
+
+- `MuiWorkbenchIncidentStrip.tsx`
+  - owns the Shell summary presentation only
+  - may change copy hierarchy and small layout emphasis
+  - may not change which shell actions exist or where they route
+- `MuiOutputIncidentDesk.tsx`
+  - owns the v2 incident wrapper around the Output step
+  - may change priority/summary/handoff wording and local emphasis
+  - may not change the shared Output workboard behavior
+- `LocalModbusBoard` and `DatabaseTargetBoard`
+  - remain untouched implementation surfaces
+  - still own target-specific editing, mutation, validation, and persistence behavior
 
 ### 7.2 Shell summary changes
 
@@ -180,6 +215,22 @@ The calming pass works as follows:
    - no action reorder
    - only reduce surrounding summary noise so the dock does not compete with the priority card
 
+### 7.3A Output ownership boundary
+
+Within `MuiOutputIncidentDesk`, the boundary for this follow-up is:
+
+- **allowed to change**
+  - priority-card copy and emphasis
+  - summary-strip wording and chip prominence
+  - handoff-panel wording
+  - spacing and local grouping inside the incident wrapper
+- **not allowed to change**
+  - Local Modbus board actions, register-map behavior, or dry-run flow
+  - Database board actions, connector editing behavior, or schema/mapping behavior
+  - target-switching logic
+  - selected-tag behavior
+  - shared target-specific validation messages
+
 ### 7.4 Data flow and state invariants
 
 No domain or data-flow meaning changes in this follow-up.
@@ -219,6 +270,33 @@ The compare found that Output recovery after reload still depends on restoring c
 
 That issue is explicitly **out of scope** for this follow-up. This spec only records it so the implementation does not quietly expand into recovery redesign.
 
+### 7.7 Concrete “calmer” examples
+
+“Calmer” is intentionally constrained in this spec. It means:
+
+- keep the same state meaning
+- keep the same required next step
+- reduce escalation tone in labels and supporting copy
+- demote non-primary context so one surface stays visually primary
+
+Allowed example patterns:
+
+- Shell
+  - “Shell incident desk” → calmer context-style eyebrow, while still reading as `v2`
+  - “Active blocker” may become a calmer but still explicit label such as “Current blocker” or “Needs attention”
+  - “Shell diagnostics refreshed” may be shortened, but must still clearly communicate diagnostic success
+- Output
+  - “Incident summary” may become a calmer context label
+  - revision and attention chips may be visually quieter than linked/scoped context when they are not the current blocker
+  - “Recovery handoff” may become a calmer next-step label, but must still clearly point back to Tag when prerequisites are missing
+
+Not allowed:
+
+- replacing incident-desk language with control-room language wholesale
+- removing blocker nouns entirely
+- making revision or attention impossible to find
+- flattening the priority card until it no longer reads as the main decision surface
+
 ## 8. Testing and Validation
 
 ### 8.1 Targeted test updates
@@ -226,10 +304,11 @@ That issue is explicitly **out of scope** for this follow-up. This spec only rec
 Update or add targeted tests that prove:
 
 1. Shell actions and ownership remain unchanged.
-2. Output command-dock order remains unchanged.
-3. Summary and handoff copy changes do not break Local Modbus review.
-4. Summary and handoff copy changes do not break Database review.
-5. Existing blocker, stale, deferred, and retryable states still render clearly.
+2. Shell blocker and refresh states still render explicit text for missing-source, tag-required, output-pending, and refresh-success paths.
+3. Output command-dock order remains unchanged.
+4. Summary and handoff copy changes do not break Local Modbus review.
+5. Summary and handoff copy changes do not break Database review.
+6. Existing blocker, stale, deferred, and retryable states still render clearly.
 
 ### 8.2 Validation workflow
 
@@ -239,7 +318,21 @@ The implementation validation should run:
 2. `tsc --noEmit`
 3. targeted ESLint for changed files
 4. `npm run build`
-5. browser validation on real `/studio` data using `UI 4.3 Modbus TCP`
+5. browser validation on the same real Phase 6 fixture described below
+
+### 8.2A Browser-validation fixture
+
+The browser validation fixture is fixed to the Phase 6 compare path:
+
+- worktree preview: `woe-v2-mui` on port `4175`
+- route: `/studio`
+- device: `UI 4.3 Modbus TCP`
+- focused source rule: `40001 · MBT · int16`
+- expected revision context: `82b8eea1-0876-4284-a9d7-e15db8779ca3`
+- linked-tag context visible in Output: `TAG_40001`, `TAG_40002`
+- output targets exercised: Local Modbus and Database
+
+If that fixture is not available, validation is blocked rather than silently substituted with another path.
 
 ### 8.3 Browser evidence expectations
 
@@ -249,6 +342,17 @@ The acceptance evidence should focus on:
 - Output summary strip and handoff panel for Local Modbus
 - Output summary strip and handoff panel for Database
 - proof that `v2` still reads as `v2`, not as a relabeled `v1`
+
+### 8.4 State → surface → verification matrix
+
+| State | Surface | Expected behavior after follow-up | Verification |
+| --- | --- | --- | --- |
+| `outputPending` | Shell blocker | calmer wording, but still explicit about returning to Output | `MuiWorkbenchShellIncidentDesk.reopen.test.tsx` + browser Shell evidence |
+| refresh success | Shell refresh status | calmer secondary emphasis, still explicit success text | Shell test + browser refresh evidence |
+| Local Modbus blocked/deferred | Output priority card + handoff | priority card remains first-glance; handoff stays actionable | `MuiOutputIncidentDesk.reopen.test.tsx` + Local Modbus evidence |
+| Database no-rule / no-candidates | Output handoff | calm repair guidance still points back to Tag | Output incident-desk test + Database evidence |
+| target switch | Output summary strip + command dock | wording may change, but selected target behavior and primary actions stay unchanged | Output incident-desk test |
+| stale/error states | Output alerts | existing retry / refresh surfaces remain explicit | Output incident-desk test |
 
 ## 9. Risks and Mitigations
 
@@ -274,8 +378,10 @@ Even copy-level changes can break test selectors or state assumptions.
 
 This follow-up is successful when all of the following are true:
 
-1. `v2` still reads immediately as the canonical incident-desk product.
-2. Shell and Output summaries feel calmer and less noisy than before.
-3. Blockers, retries, and return actions remain explicit and fast to interpret.
-4. No API, route, or ownership semantics change.
-5. Targeted tests and real-browser validation both pass.
+1. Only the six files listed in Section 7.1 change, unless the spec is amended.
+2. Shell still renders the same four owned surfaces and the same two actions in the same order.
+3. Output still renders the same four incident-wrapper regions and the same command-dock actions in the same order.
+4. The state → surface → verification matrix in Section 8.4 is fully covered by tests and browser evidence.
+5. Browser evidence on the fixed Phase 6 fixture still shows `v2` as incident-desk first, not as a relabeled `v1` surface.
+6. No API, route, target-switching, or ownership semantics change.
+7. Targeted tests, type-check, lint, and build all pass.
