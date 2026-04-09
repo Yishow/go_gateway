@@ -329,24 +329,76 @@
     - `baseline-shell-return-to-mainline.png`
     - `baseline-shell-blocker.png`
 
-- [ ] 5.1.v2 Sentry Incident Desk（primary functional track）
+- [x] 5.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical cross-step shell / diagnostics flow
   - 先讓 global blocker、refresh、retry、return action 在 `v2` 正確
   - incident-desk shell / diagnostics 操作面必須 clearly different
+  - ✅ branch / commit / preview：`woe-v2-mui` / `3408f63` / `4175`
+  - ✅ 正式 evidence：
+    - `v2-shell-overview.png`
+    - `v2-shell-refresh-success.png`
+    - `v2-shell-return-to-output.png`
 
-- [ ] 5.1.v1 Linear Control Room（full-flow high-polish track）
+- [x] 5.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 shell ownership model
   - 以 clearly different、低干擾的 control-room shell 語言表達同一組能力
+  - ✅ branch / commit / preview：`woe-v1-radix` / `0579eef` / `4174`
+  - ✅ 正式 evidence：
+    - `v1-shell-overview.png`
+    - `v1-shell-refresh-success.png`
+    - `v1-shell-return-to-output.png`
 
-- [ ] 5.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+- [x] 5.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只保留 compare 所需的 cockpit summary / alert surface
   - 不得把 shell 擴成 version-only workflow center
   - 但 summary / alert surface 必須仍然 clearly different，而不是 shared shell 加 cockpit 裝飾
+  - ✅ branch / commit / preview：`woe-v3-antd` / `6f9bc5c` / `4176`
+  - ✅ 正式 evidence：
+    - `v3-shell-overview.png`
+    - `v3-shell-refresh-success.png`
+    - `v3-shell-return-to-output.png`
 
-- [ ] 5.1.compare Shell / Diagnostics 比較與推薦
+- [x] 5.1.compare Shell / Diagnostics 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - compare 必須確認 shell 沒有改寫 step-local ownership
   - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
+  - ✅ baseline control：`b446045` / `4173`
+  - ✅ compare rubric：
+    - **操作順暢度**
+      - baseline：最低；需先進 step-local surface 才能理解真正 blocker
+      - `v2`：最佳；blocker / refresh / return action 集中在同一條 incident strip
+      - `v1`：次佳；同樣可直接回主線，但 calmer spacing 讓掃描稍慢於 `v2`
+      - `v3`：中上；return action 明確，但高密度 cockpit framing 提高首屏解析負擔
+    - **邏輯清晰度**
+      - baseline：最低；shell 只給 generic CTA，沒有 shell-level blocker summary
+      - `v2`：最佳；四個 shell-owned surfaces 的責任邊界最清楚
+      - `v1`：高；ownership 一樣乾淨，但需要多看一眼才會感覺到 urgency
+      - `v3`：中；alert/telemetry identity 強，但較容易把注意力帶向 cockpit 語氣
+    - **對系統的完整性**
+      - baseline：部分；readiness 可讀，但 blocker / refresh / return contract 不完整
+      - `v2`：最佳；是唯一把 canonical shell loop 做成最完整、最直接的版本
+      - `v1`：高；shared shell loop 完整成立，且沒有侵入 step-local workflow
+      - `v3`：達標；minimum-obligation shell loop 成立，但刻意不擴成 full workflow center
+    - **首屏資訊密度**
+      - baseline：最低
+      - `v1`：中
+      - `v2`：中高，平衡最好
+      - `v3`：最高
+    - **關鍵操作時間**
+      - baseline：最慢；需要先進各 step 才能完成 blocker triage
+      - `v2`：最短；讀取 shell 後可直接 refresh 或 return
+      - `v1`：接近 `v2`；主要差距是 calmer framing 帶來的額外掃描時間
+      - `v3`：接近 `v2`，但首屏 telemetry 較多，初次判讀成本最高
+    - **實作 / 維護風險**
+      - baseline：最低，但功能不足
+      - `v1`：中低；新增 surface 小且 ownership 穩定
+      - `v2`：中；surface 最完整，但 shell semantics 也最強，後續需守 canonical owner 邊界
+      - `v3`：最高；視覺密度與 cockpit identity 最強，也最容易放大維護面與噪音
+  - ✅ 推薦版本：維持 `v2 Sentry Incident Desk` 為 Phase 5 canonical owner
+  - ✅ 推薦理由：
+    - `v2` 在不吃掉 step-local ownership 的前提下，把 readiness、blocker、refresh、return 這條 shell loop 做到最短、最清楚
+    - `v1` 是最好的長時間操作備案，建議回收 calmer blocker framing / lower-interference pacing
+    - `v3` 的 alert line 在首屏資訊密度與版本辨識度上最強，建議只回收 alert / telemetry cues，不延用整條 cockpit intensity
 
 ---
 
