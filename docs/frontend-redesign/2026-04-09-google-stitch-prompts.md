@@ -9,12 +9,38 @@
 
 ## 使用方式
 
-1. 先丟 `Prompt 0`
-2. 再依序產各 screen
-3. 每個 screen 只做少量迭代
-4. 不要把所有頁面需求一次塞進同一個 prompt
+1. 先貼「前置說明模板」
+2. 再貼 `Prompt 0`
+3. 後續每一輪改用 follow-up 模板，再貼對應 screen prompt
+4. 每個 screen 只做少量迭代
+5. 不要把所有頁面需求一次塞進同一個 prompt
 
-## Prompt 0: Product Foundation
+## 前置說明模板
+
+### 第一輪用
+
+```text
+I am redesigning an existing industrial data gateway frontend.
+Please help me generate one screen direction at a time.
+Do not redesign the whole product in one response.
+Start with the overall product direction first.
+```
+
+### 後續 screen iteration 用
+
+```text
+Keep the accepted overall product direction.
+Now focus only on this screen or this one refinement request.
+Do not redesign the whole product again.
+```
+
+## 使用規則
+
+- 下方各段 `Prompt` 都是 prompt body
+- 不建議單獨裸貼
+- 建議每次都先貼前置說明模板，再貼 prompt body
+
+## Prompt 0: Product Foundation Body
 
 ```text
 Design a B2B industrial data gateway web application with two major areas:
@@ -29,7 +55,7 @@ The visual language should feel like one product family, but the two areas shoul
 Use a dark industrial control-room style with strong information hierarchy, monospaced operational data where appropriate, compact status chips, and clear distinction between workflow steps and engineering diagnostics.
 ```
 
-## Prompt 1: Studio Shell
+## Prompt 1: Studio Shell Body
 
 ```text
 Create the main /studio shell for an industrial data platform. The primary workflow is:
@@ -45,7 +71,7 @@ This shell should be desktop-first and include:
 The shell should support clear workflow progression and not look like a generic dashboard.
 ```
 
-## Prompt 2: Device Screen
+## Prompt 2: Device Screen Body
 
 ```text
 Design the Device step for /studio. This screen is where operators define and validate data source devices.
@@ -59,7 +85,7 @@ Key capabilities:
 The screen should feel operational and trustworthy, not like a generic form page.
 ```
 
-## Prompt 3: Source Screen
+## Prompt 3: Source Screen Body
 
 ```text
 Design the Source step for /studio. This step is used to plan how data is read from industrial devices.
@@ -73,7 +99,7 @@ Key capabilities:
 The screen should make spatial address planning understandable, not feel like a spreadsheet.
 ```
 
-## Prompt 4: Tag Screen
+## Prompt 4: Tag Screen Body
 
 ```text
 Design the Tag step as a Semantic Refinement Board.
@@ -96,7 +122,7 @@ Essential actions:
 - preview destination readiness
 ```
 
-## Prompt 5: Destination Hub
+## Prompt 5: Destination Hub Body
 
 ```text
 Design the Destination step as a Destination Hub.
@@ -114,7 +140,7 @@ Important rules:
 The screen should make it obvious that Database and Share are parallel destination options.
 ```
 
-## Prompt 6: Database Workspace
+## Prompt 6: Database Workspace Body
 
 ```text
 Design the Database workspace for /studio.
@@ -139,7 +165,7 @@ Key actions:
 This should support cases like grouping 10 power-meter tags into one database row.
 ```
 
-## Prompt 7: Share Hub
+## Prompt 7: Share Hub Body
 
 ```text
 Design the Share / Publish hub under /studio.
@@ -153,7 +179,7 @@ It should present two clear destination cards:
 Use the same visual language as /studio, but emphasize that these are delivery targets for already refined data.
 ```
 
-## Prompt 8: Local Modbus Workspace
+## Prompt 8: Local Modbus Workspace Body
 
 ```text
 Design the Local Modbus workspace.
@@ -177,7 +203,7 @@ Key actions:
 - dry run before apply
 ```
 
-## Prompt 9: MQTT Workspace
+## Prompt 9: MQTT Workspace Body
 
 ```text
 Design the MQTT workspace.
@@ -201,7 +227,7 @@ Key actions:
 - dry run or publish validation
 ```
 
-## Prompt 10: Test Console
+## Prompt 10: Test Console Body
 
 ```text
 Design /test as a Field Engineer Debug Console for factory and on-site debugging.
@@ -223,21 +249,21 @@ Use the same product family visual language as /studio, but make this screen den
 
 ## Refinement prompts
 
-### Refine Studio consistency
+### Refine Studio consistency body
 
 ```text
 Keep the same overall layout, but make the visual language across Device, Source, Tag, and Destination feel more like one product family.
 Do not change the information architecture.
 ```
 
-### Refine Test density
+### Refine Test density body
 
 ```text
 Keep the same /test structure, but increase the information density and make it feel more like an engineering console and less like a product workflow page.
 Do not make it look messy.
 ```
 
-### Refine Delivery Group framing
+### Refine Delivery Group framing body
 
 ```text
 Keep the existing destination layouts, but make Delivery Groups feel like the primary planning unit across Database, Local Modbus, and MQTT.

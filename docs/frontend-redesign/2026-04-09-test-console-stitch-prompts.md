@@ -13,7 +13,32 @@
 
 不要一次把整個 `/test` 所有要求塞進同一個 prompt。
 
-## Prompt T0: Test Console Foundation
+## 前置說明模板
+
+### 第一輪用
+
+```text
+I am redesigning an existing industrial data gateway frontend.
+Please help me generate one /test screen direction at a time.
+Do not redesign the whole product in one response.
+Start with the overall /test direction first.
+```
+
+### 後續 screen iteration 用
+
+```text
+Keep the accepted /test direction.
+Now focus only on this screen or this one refinement request.
+Do not redesign the whole /test console again.
+```
+
+## 使用規則
+
+- 下方各段 `Prompt` 都是 prompt body
+- 不建議單獨裸貼
+- 建議每次都先貼前置說明模板，再貼 prompt body
+
+## Prompt T0: Test Console Foundation Body
 
 ```text
 Design /test as a field engineer debug console for an industrial data gateway.
@@ -31,7 +56,7 @@ Prioritize:
 - protocol-level debugging
 ```
 
-## Prompt T1: Test Console Shell
+## Prompt T1: Test Console Shell Body
 
 ```text
 Create the main shell for /test.
@@ -47,7 +72,7 @@ This should remain a single-route console, not a multi-step wizard.
 The page should feel like a real engineering tool used on-site in a factory.
 ```
 
-## Prompt T2: Session Header
+## Prompt T2: Session Header Body
 
 ```text
 Design a top session header for /test.
@@ -68,7 +93,7 @@ Include:
 This should feel more like an instrument status bar than a marketing hero area.
 ```
 
-## Prompt T3: Setup Rail
+## Prompt T3: Setup Rail Body
 
 ```text
 Design the left setup rail for /test.
@@ -85,7 +110,7 @@ Include:
 The layout should support frequent switching between profiles and protocols without feeling like a long form page.
 ```
 
-## Prompt T4: Command Lab
+## Prompt T4: Command Lab Body
 
 ```text
 Design the main Command Lab workspace for /test.
@@ -102,7 +127,7 @@ Include:
 Make this feel like a controlled command bench, not like a CRUD form.
 ```
 
-## Prompt T5: Live Monitor Workspace
+## Prompt T5: Live Monitor Workspace Body
 
 ```text
 Design the Live Monitor workspace for /test.
@@ -119,7 +144,7 @@ Include:
 The screen should help engineers understand signal changes over time without looking like a business analytics dashboard.
 ```
 
-## Prompt T6: Scan Workspace
+## Prompt T6: Scan Workspace Body
 
 ```text
 Design the Scan workspace for /test.
@@ -138,7 +163,7 @@ Include:
 This should feel like a discovery utility, separate from direct command execution.
 ```
 
-## Prompt T7: RTU Polling Jobs Workspace
+## Prompt T7: RTU Polling Jobs Workspace Body
 
 ```text
 Design the RTU Polling Jobs workspace for /test.
@@ -155,7 +180,7 @@ Include:
 The layout should make it obvious that this is persistent job-oriented polling, not the same as quick command polling.
 ```
 
-## Prompt T8: Diagnostics Rail
+## Prompt T8: Diagnostics Rail Body
 
 ```text
 Design the right-side diagnostics rail for /test.
@@ -172,7 +197,7 @@ Include:
 This should feel like a serious diagnostics surface, not a decorative sidebar.
 ```
 
-## Prompt T9: Packet Detail Expansion
+## Prompt T9: Packet Detail Expansion Body
 
 ```text
 Keep the existing /test shell, but redesign the packet detail interaction in the diagnostics rail.
@@ -189,7 +214,7 @@ When a packet is selected, show:
 Make the expanded detail feel precise and engineer-friendly.
 ```
 
-## Prompt T10: Density Refinement
+## Prompt T10: Density Refinement Body
 
 ```text
 Keep the same /test information architecture, but increase information density and reduce empty decorative spacing.
@@ -200,7 +225,7 @@ Do not change the screen structure.
 Do not turn it into a cluttered wall of controls.
 ```
 
-## Prompt T11: Session-Centered Refinement
+## Prompt T11: Session-Centered Refinement Body
 
 ```text
 Keep the same /test structure, but make the current connection session feel like the main character of the page.
@@ -215,7 +240,7 @@ The operator should always know:
 Do not change the route structure.
 ```
 
-## Prompt T12: Diagnostics-First Refinement
+## Prompt T12: Diagnostics-First Refinement Body
 
 ```text
 Keep the same /test structure, but make the diagnostics rail feel more authoritative and more useful during active debugging.
@@ -229,7 +254,7 @@ Increase the perceived importance of:
 Do not make it overpower the main workspace entirely.
 ```
 
-## Prompt T13: Setup-to-Action Rhythm
+## Prompt T13: Setup-to-Action Rhythm Body
 
 ```text
 Keep the same /test structure, but improve the rhythm from setup to action.

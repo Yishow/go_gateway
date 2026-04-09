@@ -77,6 +77,10 @@ When the user wants Google Stitch output:
 - Generate one screen at a time.
 - Change one major thing at a time.
 - Do not put the entire product into one prompt.
+- Always produce Stitch prompts in two parts:
+  - a short preamble that says this is an existing product redesign
+  - the screen-specific prompt body
+- For follow-up prompts, tell Stitch to keep the accepted direction and focus only on one screen or one refinement request.
 
 ## Pencil guidance
 
