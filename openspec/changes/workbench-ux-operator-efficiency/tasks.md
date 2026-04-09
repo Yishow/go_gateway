@@ -406,10 +406,21 @@
 
 > 目標：以同一個 end-to-end 主線重跑 baseline、`v2`、`v1`、`v3`，輸出正式推薦與保留亮點。
 
-- [ ] 6.1 共用基礎
-  - 固定最終 E2E 場景
-  - 固定最終 compare 輸出格式與證據欄位
-  - 固定最終「三版本在非 Device phase 仍 clearly distinct」驗收題
+- [x] 6.1 共用基礎
+  - 固定最終 E2E 場景：
+    - 使用真實 API + 真實裝置 `UI 4.3 Modbus TCP`
+    - 依同一條 `/studio` 主線重跑 `Device -> Source -> Tag -> Output -> Shell`
+    - `Source` 必須進入可操作的 focused rule / preview state，並保留 handoff to `Tag`
+    - `Tag` 必須進入可操作的 review/apply state，並保留 handoff to `Output`
+    - `Output` 必須同時覆蓋 Local Modbus 與 Database 兩個 target families
+    - `Shell` 必須再次驗證 readiness summary、active blocker summary、diagnostics refresh、shortest return action
+  - 固定最終 compare 輸出格式與證據欄位：
+    - 每個版本至少保留 `overview`、`focused`、`next-step handoff` 三組 browser evidence
+    - compare 必須逐一輸出：操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險、推薦版本與理由、非 Device phase distinctness 結論
+    - 最終 compare 必須額外寫出：保留亮點、淘汰理由、後續 follow-up 建議
+  - 固定最終「三版本在非 Device phase 仍 clearly distinct」驗收題：
+    - reviewer 必須能在 `Source`、`Tag`、`Output`、`Shell` 四段，透過首屏與第一個主操作辨識 `v2` / `v1` / `v3` 是不同產品語言
+    - 若差異只剩 component kit、spacing、顏色或 chrome，而主操作骨架與資訊節奏仍幾乎一樣，Phase 6 不得關閉
 
 - [ ] 6.1.baseline 整體驗收
   - 完成 baseline 端對端操作、截圖與記錄
