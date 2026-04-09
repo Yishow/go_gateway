@@ -436,35 +436,125 @@
     - `Shell` 仍然只有 generic readiness / CTA framing，沒有 final compare 所需的 blocker / refresh narrative
     - 作為 control 足夠，但在非 Device phase 幾乎沒有 archetype differentiation，可作為最終 compare 的下限參考
 
-- [ ] 6.1.v2 整體驗收（primary functional track）
+- [x] 6.1.v2 整體驗收（primary functional track）
   - 完成 `v2` 端對端操作、截圖與記錄
+  - ✅ branch / commit / preview：`woe-v2-mui` / `b70d169` / `4175`
+  - ✅ 正式 evidence：
+    - `v2-final-overview.png`
+    - `v2-final-shell-refresh-success.png`
+    - `v2-final-source-focused.png`
+    - `v2-final-tag-focused.png`
+    - `v2-final-output-local-modbus.png`
+    - `v2-final-output-database.png`
+  - ✅ 最終驗收記錄：
+    - `SHELL 事件桌`、Source / Tag / Output command deck 與 incident summary 仍是最清楚的 canonical owner
+    - 同一個 Output workspace 內同時覆蓋 Local Modbus 與 Database
+    - 本輪封帳前已修正 `DatabaseTargetBoard.tsx` database mapping selects 缺少 `name`，reload 後 form-field issue 已消失
 
-- [ ] 6.1.v1 整體驗收（full-flow high-polish track）
+- [x] 6.1.v1 整體驗收（full-flow high-polish track）
   - 完成 `v1` 端對端操作、截圖與記錄
+  - ✅ branch / commit / preview：`woe-v1-radix` / `a0cc33d` / `4174`
+  - ✅ 正式 evidence：
+    - `v1-final-overview.png`
+    - `v1-final-shell-refresh-success.png`
+    - `v1-final-source-focused.png`
+    - `v1-final-tag-focused.png`
+    - `v1-final-output-local-modbus.png`
+    - `v1-final-output-database.png`
+  - ✅ 最終驗收記錄：
+    - `SHELL 控制線`、Source rail、Tag rail、Output rail 仍保持 calmer control-room pacing，版本語言明確不同於 `v2`
+    - `Local Modbus` / `Database` 仍在同一個 Output workspace 內完成，沒有分裂 shared flow 或 target contract
+    - 本輪 final validation 額外修正 `TagRailPanel.tsx`、`OutputRailPanel.tsx` 錯誤 `workbench.headerBar.linkedTagCount` key 與 `DatabaseTargetBoard.tsx` form-field issue
 
-- [ ] 6.1.v3 整體驗收（minimum-obligation track）
+- [x] 6.1.v3 整體驗收（minimum-obligation track）
   - 完成 `v3` 端對端操作、截圖與記錄
+  - ✅ branch / commit / preview：`woe-v3-antd` / `311df2c` / `4176`
+  - ✅ 正式 evidence：
+    - `v3-final-overview.png`
+    - `v3-final-shell-refresh-success.png`
+    - `v3-final-source-focused.png`
+    - `v3-final-tag-focused.png`
+    - `v3-final-output-local-modbus.png`
+    - `v3-final-output-database.png`
+  - ✅ 最終驗收記錄：
+    - `Cockpit alert line`、Source telemetry、Tag telemetry lane、Output telemetry-first board + bottom dock 仍保持最高密度的 cockpit identity，版本語言明確不同於 `v2` / `v1`
+    - 在同一個 Output workspace 內仍同時覆蓋 Local Modbus 與 Database，沒有拆出版本專屬 route 或 backend contract
+    - 本輪 final validation 額外修正 `DatabaseTargetBoard.tsx` connector / mapping controls 缺少 `name` 的 form-field issue；reload 後 console issue = `0`
+    - reload 後若只在 Output step 重新選 device，focused revision 不會完整回來；要透過 `Tag -> Output` handoff 才能恢復 rule-scoped candidate
 
-- [ ] 6.1.compare 最終比較與推薦版本
-  - 彙整所有 phase compare 結果
-  - 明確指出推薦版本、保留亮點、淘汰理由與後續 follow-up 建議
-  - 明確回答三版本是否在整條 `/studio` 主線上都仍是 recognizably different products
+- [x] 6.1.compare 最終比較與推薦版本
+  - ✅ compare input frozen：
+    - baseline：`cf684d5`
+    - `v2`：`b70d169`
+    - `v1`：`a0cc33d`
+    - `v3`：`311df2c`
+  - ✅ 非 Device phase distinctness 結論：**成立**
+    - `v2`：Source / Tag / Output / Shell 都維持 incident-desk / command-deck 主語言
+    - `v1`：四段都維持 calmer control-line / rail-first pacing
+    - `v3`：四段都維持 telemetry-first cockpit framing 與最高密度的 alert / dock 語言
+  - ✅ 比較結果：
+    - **操作順暢度**
+      - baseline：最弱；每一步都能做，但跨步驟 handoff 與 shell guidance 最少
+      - `v1`：穩定、低干擾，接近 `v2`；在 blocker triage 與第一眼 action hierarchy 上略慢半拍
+      - `v2`：最佳；從 Source -> Tag -> Output -> Shell 的 handoff 最短、最直覺
+      - `v3`：steady-state scan 很快，但密度最高；reload 後還需依賴 `Tag -> Output` handoff 恢復 focused scope
+    - **邏輯清晰度**
+      - baseline：低；步驟能完成，但缺少 final compare 所需的 blocker / refresh / return narrative
+      - `v1`：高；控制線與 rail summaries 很穩，但較依賴操作者主動解讀 calmer framing
+      - `v2`：最高；canonical owner 與每一步的下一個動作都最明確
+      - `v3`：中；版本辨識很強，但 telemetry / dock 語氣最容易把操作焦點拉散
+    - **對系統的完整性**
+      - baseline：作為 control 成立，但不足以當最終產品語言
+      - `v1`：高；完整覆蓋四步主線與兩個 output target families，且 ownership 邊界乾淨
+      - `v2`：最高；既完整又保有最穩定的 canonical flow
+      - `v3`：中高；功能覆蓋完整，但需要更多 compare-only 說明才能避免密度壓過主線
+    - **首屏資訊密度**
+      - baseline：最低
+      - `v1`：中低，最安靜
+      - `v2`：中高，平衡最好
+      - `v3`：最高，最有 cockpit identity
+    - **關鍵操作時間**
+      - baseline：最慢；缺少跨步驟語義與 final shell guidance
+      - `v1`：接近 `v2`；主要差距在 calmer summaries 讓首次判讀略慢
+      - `v2`：最快；最短的 blocker triage、handoff 與 return path
+      - `v3`：初次 scan 很快，但修正 / 回復路徑時間最不穩定
+    - **實作 / 維護風險**
+      - baseline：最低，但功能與語義不足
+      - `v1`：中低；額外 surface 小，節奏穩定
+      - `v2`：中；surface 最完整，但 canonical owner 邊界必須持續守住
+      - `v3`：最高；資訊密度、dock 語言與 shared board 補丁都讓維護面最大
+  - ✅ 推薦版本：維持 `v2 Sentry Incident Desk` 為最終推薦與 canonical owner
+  - ✅ 推薦理由：
+    - `v2` 是唯一同時滿足最短操作路徑、最高邏輯清晰度、完整 system coverage 與可控維護風險的版本
+    - `v1` 是最好的長時間操作備案，但沒有在關鍵 triage / handoff 時間上超越 `v2`
+    - `v3` 有最強的版本辨識與資訊密度，但代價是最高的認知與維護風險
+  - ✅ 保留亮點：
+    - `v1`：回收 calmer blocker framing、control-line wording、rail summary pacing
+    - `v3`：回收 alert / telemetry cues，以及只在可量化縮短掃描時間時才採用的 dock grouping
+  - ✅ 淘汰理由：
+    - baseline：缺少 blocker / refresh / return narrative，也沒有非 Device phase 的產品辨識度
+    - `v1`：雖然最穩、最安靜，但在首輪 triage 與 action hierarchy 上仍輸 `v2`
+    - `v3`：雖然最有辨識度，但密度與恢復路徑風險過高，不適合當 canonical 主線
+  - ✅ follow-up 建議：
+    - 將 `v1` 的 calmer blocker / rail summaries 作為 `v2` 的低干擾文案候選，而不是改掉 `v2` 的 canonical 骨架
+    - 將 `v3` 的 telemetry / alert cues 只在能縮短 scan time 的位置引入 `v2`，避免整套 cockpit intensity 進入主線
+    - 後續若要改善 Output recovery，應把 reload 後 focused revision restoration 規格化，而不是交給操作者猜測
 
 ---
 
 ## 驗收條件
 
-- [ ] baseline 與 `v2` / `v1` / `v3` 全程共用同一組真實 API，無 mock 分流
-- [ ] baseline 與 `v2` / `v1` / `v3` 全程維持同一個 `/studio` route
-- [ ] baseline 依 Phase 2–5 baseline 定義凍結，不隨 variant work 漂移
-- [ ] 三個新版本全程使用同一組 shared design tokens
-- [ ] 每個 shared task 都先在 `main` 上定義 branch-neutral acceptance / scenario matrix
-- [ ] compare 子任務完成前，不得跳到下一個 phase
-- [ ] 每個 compare 結果都包含操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險
-- [ ] 每個 compare 結果都明確回答三版本在非 Device phase 是否仍 clearly distinct
-- [ ] Phase 4 compare 同時覆蓋 Local Modbus 與 Database 兩個 target families
-- [ ] 若 compare 挑戰 `v2` canonical owner，必須先回到 OpenSpec amendment，不可直接換線
-- [ ] 最終輸出包含推薦版本與明確理由
+- [x] baseline 與 `v2` / `v1` / `v3` 全程共用同一組真實 API，無 mock 分流
+- [x] baseline 與 `v2` / `v1` / `v3` 全程維持同一個 `/studio` route
+- [x] baseline 依 Phase 2–5 baseline 定義凍結，不隨 variant work 漂移
+- [x] 三個新版本全程使用同一組 shared design tokens
+- [x] 每個 shared task 都先在 `main` 上定義 branch-neutral acceptance / scenario matrix
+- [x] compare 子任務完成前，不得跳到下一個 phase
+- [x] 每個 compare 結果都包含操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險
+- [x] 每個 compare 結果都明確回答三版本在非 Device phase 是否仍 clearly distinct
+- [x] Phase 4 compare 同時覆蓋 Local Modbus 與 Database 兩個 target families
+- [x] 若 compare 挑戰 `v2` canonical owner，必須先回到 OpenSpec amendment，不可直接換線
+- [x] 最終輸出包含推薦版本與明確理由
 
 ---
 
