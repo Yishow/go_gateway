@@ -3,17 +3,19 @@ set -euo pipefail
 
 WARN_LIMIT="${WARN_LIMIT:-300}"
 HARD_LIMIT="${HARD_LIMIT:-500}"
+DOC_WARN_LIMIT="${DOC_WARN_LIMIT:-300}"
+DOC_HARD_LIMIT="${DOC_HARD_LIMIT:-800}"
 BASE_SHA=""
 CHECK_ALL=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/check_file_lines.sh [--base <sha>] [--warn <n>] [--hard <n>] [--all]
+  scripts/check_file_lines.sh [--base <sha>] [--warn <n>] [--hard <n>] [--doc-warn <n>] [--doc-hard <n>] [--all]
 
 Policy:
-  - > WARN (default 300): warning
-  - > HARD (default 500): fail
+  - Non-doc files: > WARN (default 300) warning, > HARD (default 500) fail
+  - Markdown docs: > DOC_WARN (default 300) warning, > DOC_HARD (default 800) fail
 
 Legacy guard:
   If a file was already > HARD at base commit, it is allowed only when line count
@@ -35,6 +37,14 @@ while [[ $# -gt 0 ]]; do
       HARD_LIMIT="${2:-}"
       shift 2
       ;;
+    --doc-warn)
+      DOC_WARN_LIMIT="${2:-}"
+      shift 2
+      ;;
+    --doc-hard)
+      DOC_HARD_LIMIT="${2:-}"
+      shift 2
+      ;;
     --all)
       CHECK_ALL=1
       shift
@@ -51,13 +61,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if ! [[ "$WARN_LIMIT" =~ ^[0-9]+$ ]] || ! [[ "$HARD_LIMIT" =~ ^[0-9]+$ ]]; then
-  echo "[line-limit] WARN/HARD must be integers." >&2
+if ! [[ "$WARN_LIMIT" =~ ^[0-9]+$ ]] || ! [[ "$HARD_LIMIT" =~ ^[0-9]+$ ]] || ! [[ "$DOC_WARN_LIMIT" =~ ^[0-9]+$ ]] || ! [[ "$DOC_HARD_LIMIT" =~ ^[0-9]+$ ]]; then
+  echo "[line-limit] WARN/HARD and DOC_WARN/DOC_HARD must be integers." >&2
   exit 2
 fi
 
 if (( HARD_LIMIT <= WARN_LIMIT )); then
   echo "[line-limit] HARD limit must be greater than WARN limit." >&2
+  exit 2
+fi
+
+if (( DOC_HARD_LIMIT <= DOC_WARN_LIMIT )); then
+  echo "[line-limit] DOC_HARD limit must be greater than DOC_WARN limit." >&2
   exit 2
 fi
 
@@ -95,6 +110,18 @@ is_text_candidate() {
 
   case "$path" in
     *.go|*.ts|*.tsx|*.js|*.jsx|*.css|*.scss|*.sh|*.bash|*.zsh|*.ps1|*.md|*.txt|*.yml|*.yaml|*.json|*.toml|*.ini|*.env|*.sql)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+is_doc_file() {
+  local path="$1"
+  case "$path" in
+    *.md)
       return 0
       ;;
     *)
@@ -152,6 +179,14 @@ for f in "${changed_files[@]}"; do
 
   checked_count=$((checked_count + 1))
   new_lines="$(wc -l < "$f" | tr -d '[:space:]')"
+  warn_limit="$WARN_LIMIT"
+  hard_limit="$HARD_LIMIT"
+  kind_label="default"
+  if is_doc_file "$f"; then
+    warn_limit="$DOC_WARN_LIMIT"
+    hard_limit="$DOC_HARD_LIMIT"
+    kind_label="doc"
+  fi
 
   old_exists=0
   old_lines=0
@@ -160,38 +195,38 @@ for f in "${changed_files[@]}"; do
     old_lines="$(git show "${comparison_base}:${f}" | wc -l | tr -d '[:space:]')"
   fi
 
-  if (( new_lines > HARD_LIMIT )); then
-    if (( old_exists == 1 )) && (( old_lines > HARD_LIMIT )) && (( new_lines <= old_lines )); then
-      legacy_items+=("${new_lines} ${f} (legacy ${old_lines} -> ${new_lines})")
+  if (( new_lines > hard_limit )); then
+    if (( old_exists == 1 )) && (( old_lines > hard_limit )) && (( new_lines <= old_lines )); then
+      legacy_items+=("${new_lines} ${f} [${kind_label}] (legacy ${old_lines} -> ${new_lines})")
       continue
     fi
-    fail_items+=("${new_lines} ${f}")
+    fail_items+=("${new_lines} ${f} [${kind_label}]")
     continue
   fi
 
-  if (( new_lines > WARN_LIMIT )); then
-    warn_items+=("${new_lines} ${f}")
+  if (( new_lines > warn_limit )); then
+    warn_items+=("${new_lines} ${f} [${kind_label}]")
   fi
 done
 
 echo "[line-limit] checked files: ${checked_count}"
-echo "[line-limit] limits: warn>${WARN_LIMIT}, fail>${HARD_LIMIT}"
+echo "[line-limit] limits: default warn>${WARN_LIMIT}, fail>${HARD_LIMIT}; doc warn>${DOC_WARN_LIMIT}, fail>${DOC_HARD_LIMIT}"
 
 if [[ ${#warn_items[@]} -gt 0 ]]; then
   echo
-  echo "[line-limit] WARNING files (> ${WARN_LIMIT} lines):"
+  echo "[line-limit] WARNING files (over per-file warn limit):"
   printf '  %s\n' "${warn_items[@]}"
 fi
 
 if [[ ${#legacy_items[@]} -gt 0 ]]; then
   echo
-  echo "[line-limit] LEGACY allowed (> ${HARD_LIMIT}, not increased):"
+  echo "[line-limit] LEGACY allowed (over per-file hard limit, not increased):"
   printf '  %s\n' "${legacy_items[@]}"
 fi
 
 if [[ ${#fail_items[@]} -gt 0 ]]; then
   echo
-  echo "[line-limit] ERROR files (> ${HARD_LIMIT} lines):"
+  echo "[line-limit] ERROR files (over per-file hard limit):"
   printf '  %s\n' "${fail_items[@]}"
   echo
   echo "[line-limit] Failed. Split files or reduce line count."
