@@ -111,6 +111,7 @@ function buildConnector(id: string, name: string): DatabaseConnector {
     last_check_at: null,
     last_check_error: '',
     enabled: true,
+    default_write_interval_seconds: 15,
     created_at: '',
     updated_at: '',
   };

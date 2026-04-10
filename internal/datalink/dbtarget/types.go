@@ -19,38 +19,44 @@ type TargetMappingListFilter struct {
 }
 
 type CreateConnectorRequest struct {
-	Name             string                       `json:"name"`
-	Kind             schema.DatabaseConnectorKind `json:"kind"`
-	ConnectionConfig ConnectionConfig             `json:"connection_config"`
-	Enabled          *bool                        `json:"enabled,omitempty"`
+	Name                        string                       `json:"name"`
+	Kind                        schema.DatabaseConnectorKind `json:"kind"`
+	ConnectionConfig            ConnectionConfig             `json:"connection_config"`
+	Enabled                     *bool                        `json:"enabled,omitempty"`
+	DefaultWriteIntervalSeconds *int                         `json:"default_write_interval_seconds,omitempty"`
 }
 
 type UpdateConnectorRequest struct {
-	Name             *string                       `json:"name,omitempty"`
-	ConnectionConfig *ConnectionConfig             `json:"connection_config,omitempty"`
-	ClearPassword    *bool                         `json:"clear_password,omitempty"`
-	Enabled          *bool                         `json:"enabled,omitempty"`
-	Kind             *schema.DatabaseConnectorKind `json:"kind,omitempty"`
+	Name                        *string                       `json:"name,omitempty"`
+	ConnectionConfig            *ConnectionConfig             `json:"connection_config,omitempty"`
+	ClearPassword               *bool                         `json:"clear_password,omitempty"`
+	Enabled                     *bool                         `json:"enabled,omitempty"`
+	Kind                        *schema.DatabaseConnectorKind `json:"kind,omitempty"`
+	DefaultWriteIntervalSeconds *int                          `json:"default_write_interval_seconds,omitempty"`
 }
 
 type CreateTargetMappingRequest struct {
-	TagID           string                   `json:"tag_id"`
-	ConnectorID     string                   `json:"connector_id"`
-	TableSchema     string                   `json:"table_schema"`
-	TableName       string                   `json:"table_name"`
-	ColumnName      string                   `json:"column_name"`
-	WriteMode       schema.DatabaseWriteMode `json:"write_mode"`
-	TimestampColumn *string                  `json:"timestamp_column,omitempty"`
-	Enabled         *bool                    `json:"enabled,omitempty"`
+	TagID                string                   `json:"tag_id"`
+	ConnectorID          string                   `json:"connector_id"`
+	TableSchema          string                   `json:"table_schema"`
+	TableName            string                   `json:"table_name"`
+	ColumnName           string                   `json:"column_name"`
+	WriteMode            schema.DatabaseWriteMode `json:"write_mode"`
+	TimestampColumn      *string                  `json:"timestamp_column,omitempty"`
+	GroupKey             *string                  `json:"group_key,omitempty"`
+	WriteIntervalSeconds *int                     `json:"write_interval_seconds,omitempty"`
+	Enabled              *bool                    `json:"enabled,omitempty"`
 }
 
 type UpdateTargetMappingRequest struct {
-	TableSchema     *string                   `json:"table_schema,omitempty"`
-	TableName       *string                   `json:"table_name,omitempty"`
-	ColumnName      *string                   `json:"column_name,omitempty"`
-	WriteMode       *schema.DatabaseWriteMode `json:"write_mode,omitempty"`
-	TimestampColumn *string                   `json:"timestamp_column,omitempty"`
-	Enabled         *bool                     `json:"enabled,omitempty"`
+	TableSchema          *string                   `json:"table_schema,omitempty"`
+	TableName            *string                   `json:"table_name,omitempty"`
+	ColumnName           *string                   `json:"column_name,omitempty"`
+	WriteMode            *schema.DatabaseWriteMode `json:"write_mode,omitempty"`
+	TimestampColumn      *string                   `json:"timestamp_column,omitempty"`
+	GroupKey             *string                   `json:"group_key,omitempty"`
+	WriteIntervalSeconds *int                      `json:"write_interval_seconds,omitempty"`
+	Enabled              *bool                     `json:"enabled,omitempty"`
 }
 
 type ColumnInfo struct {

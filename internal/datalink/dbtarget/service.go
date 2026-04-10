@@ -35,41 +35,37 @@ func (s *ConnectorService) Create(ctx context.Context, req CreateConnectorReques
 	if name == "" {
 		return nil, fmt.Errorf("資料庫連接器名稱不可為空")
 	}
-
 	connectionConfigJSON, err := serializeConnectionConfig(req.ConnectionConfig)
 	if err != nil {
 		return nil, err
 	}
-
 	id, err := common.NewUUID()
 	if err != nil {
 		return nil, fmt.Errorf("建立資料庫連接器 ID 失敗: %w", err)
 	}
-
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
-
+	defaultIntervalSeconds := defaultWriteIntervalSeconds(req.DefaultWriteIntervalSeconds)
 	status, lastCheckAt, lastCheckError := probeConnector(ctx, req.Kind, req.ConnectionConfig)
 	now := time.Now()
 	connector := &schema.DatabaseConnector{
-		ID:               id,
-		Name:             name,
-		Kind:             req.Kind,
-		ConnectionConfig: connectionConfigJSON,
-		Status:           status,
-		LastCheckAt:      lastCheckAt,
-		LastCheckError:   lastCheckError,
-		Enabled:          enabled,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+		ID:                          id,
+		Name:                        name,
+		Kind:                        req.Kind,
+		ConnectionConfig:            connectionConfigJSON,
+		Status:                      status,
+		LastCheckAt:                 lastCheckAt,
+		LastCheckError:              lastCheckError,
+		Enabled:                     enabled,
+		DefaultWriteIntervalSeconds: defaultIntervalSeconds,
+		CreatedAt:                   now,
+		UpdatedAt:                   now,
 	}
-
 	if err := s.repo.Create(ctx, connector); err != nil {
 		return nil, fmt.Errorf("建立資料庫連接器失敗: %w", err)
 	}
-
 	return connector, nil
 }
 
@@ -92,13 +88,14 @@ func (s *ConnectorService) Update(ctx context.Context, id string, req UpdateConn
 	if req.Enabled != nil {
 		connector.Enabled = *req.Enabled
 	}
-
+	if req.DefaultWriteIntervalSeconds != nil {
+		connector.DefaultWriteIntervalSeconds = defaultWriteIntervalSeconds(req.DefaultWriteIntervalSeconds)
+	}
 	existingConnectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
 		return nil, err
 	}
 	clearPassword := req.ClearPassword != nil && *req.ClearPassword
-
 	var connectionConfig ConnectionConfig
 	if req.ConnectionConfig != nil {
 		connectionConfig = preserveSensitiveConnectionConfigValues(
@@ -120,14 +117,11 @@ func (s *ConnectorService) Update(ctx context.Context, id string, req UpdateConn
 			}
 		}
 	}
-
 	connector.Status, connector.LastCheckAt, connector.LastCheckError = probeConnector(ctx, connector.Kind, connectionConfig)
 	connector.UpdatedAt = time.Now()
-
 	if err := s.repo.Update(ctx, connector); err != nil {
 		return nil, fmt.Errorf("更新資料庫連接器失敗: %w", err)
 	}
-
 	return connector, nil
 }
 
@@ -164,19 +158,15 @@ func (s *ConnectorService) TestConnection(ctx context.Context, id string) (*sche
 	if err != nil {
 		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
 	}
-
 	connectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
 		return nil, err
 	}
-
 	connector.Status, connector.LastCheckAt, connector.LastCheckError = probeConnector(ctx, connector.Kind, connectionConfig)
 	connector.UpdatedAt = time.Now()
-
 	if err := s.repo.Update(ctx, connector); err != nil {
 		return nil, fmt.Errorf("更新資料庫連接器測試狀態失敗: %w", err)
 	}
-
 	return connector, nil
 }
 
@@ -213,49 +203,43 @@ func (s *MappingService) Create(ctx context.Context, req CreateTargetMappingRequ
 	if err != nil {
 		return nil, fmt.Errorf("取得標籤失敗: %w", err)
 	}
-
 	id, err := common.NewUUID()
 	if err != nil {
 		return nil, fmt.Errorf("建立資料庫目標映射 ID 失敗: %w", err)
 	}
-
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
-
 	writeMode := req.WriteMode
 	if writeMode == "" {
 		writeMode = schema.DatabaseWriteModeInsert
 	}
-
 	tableSchema := normalizeOptionalString(req.TableSchema)
 	if tableSchema == "" {
 		tableSchema = defaultSchemaForKind(connector.Kind)
 	}
-
 	mapping := &schema.DatabaseTargetMapping{
-		ID:              id,
-		TagID:           strings.TrimSpace(req.TagID),
-		ConnectorID:     connector.ID,
-		TableSchema:     tableSchema,
-		TableName:       strings.TrimSpace(req.TableName),
-		ColumnName:      strings.TrimSpace(req.ColumnName),
-		WriteMode:       writeMode,
-		TimestampColumn: normalizeTimestampColumnForWriteMode(writeMode, req.TimestampColumn),
-		Enabled:         enabled,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:                   id,
+		TagID:                strings.TrimSpace(req.TagID),
+		ConnectorID:          connector.ID,
+		TableSchema:          tableSchema,
+		TableName:            strings.TrimSpace(req.TableName),
+		ColumnName:           strings.TrimSpace(req.ColumnName),
+		WriteMode:            writeMode,
+		TimestampColumn:      normalizeTimestampColumnForWriteMode(writeMode, req.TimestampColumn),
+		GroupKey:             normalizeOptionalPointer(req.GroupKey),
+		WriteIntervalSeconds: normalizeOptionalIntPointer(req.WriteIntervalSeconds),
+		Enabled:              enabled,
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
 	}
-
 	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping); err != nil {
 		return nil, err
 	}
-
 	if err := s.repo.Create(ctx, mapping); err != nil {
 		return nil, fmt.Errorf("建立資料庫目標映射失敗: %w", err)
 	}
-
 	return mapping, nil
 }
 
@@ -274,7 +258,6 @@ func (s *MappingService) Update(ctx context.Context, id string, req UpdateTarget
 	if err != nil {
 		return nil, fmt.Errorf("取得標籤失敗: %w", err)
 	}
-
 	if req.TableSchema != nil {
 		tableSchema := normalizeOptionalString(*req.TableSchema)
 		if tableSchema == "" {
@@ -299,16 +282,19 @@ func (s *MappingService) Update(ctx context.Context, id string, req UpdateTarget
 	if req.Enabled != nil {
 		mapping.Enabled = *req.Enabled
 	}
+	if req.GroupKey != nil {
+		mapping.GroupKey = normalizeOptionalPointer(req.GroupKey)
+	}
+	if req.WriteIntervalSeconds != nil {
+		mapping.WriteIntervalSeconds = normalizeOptionalIntPointer(req.WriteIntervalSeconds)
+	}
 	mapping.UpdatedAt = time.Now()
-
 	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping); err != nil {
 		return nil, err
 	}
-
 	if err := s.repo.Update(ctx, mapping); err != nil {
 		return nil, fmt.Errorf("更新資料庫目標映射失敗: %w", err)
 	}
-
 	return mapping, nil
 }
 

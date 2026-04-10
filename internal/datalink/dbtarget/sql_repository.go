@@ -20,11 +20,9 @@ func NewSQLConnectorRepository(db *sql.DB) *SQLConnectorRepository {
 }
 
 func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.DatabaseConnector) error {
-	query := `
-		INSERT INTO database_connectors (
-			id, name, kind, connection_config, status, last_check_at, last_check_error, enabled, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
+	query := `INSERT INTO database_connectors (
+		id, name, kind, connection_config, status, last_check_at, last_check_error, enabled, default_write_interval_seconds, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(
 		ctx,
@@ -37,6 +35,7 @@ func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.D
 		connector.LastCheckAt,
 		connector.LastCheckError,
 		connector.Enabled,
+		connector.DefaultWriteIntervalSeconds,
 		connector.CreatedAt,
 		connector.UpdatedAt,
 	)
@@ -47,11 +46,9 @@ func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.D
 }
 
 func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.DatabaseConnector) error {
-	query := `
-		UPDATE database_connectors
-		SET name = ?, kind = ?, connection_config = ?, status = ?, last_check_at = ?, last_check_error = ?, enabled = ?, updated_at = ?
-		WHERE id = ?
-	`
+	query := `UPDATE database_connectors
+		SET name = ?, kind = ?, connection_config = ?, status = ?, last_check_at = ?, last_check_error = ?, enabled = ?, default_write_interval_seconds = ?, updated_at = ?
+		WHERE id = ?`
 
 	result, err := r.db.ExecContext(
 		ctx,
@@ -63,6 +60,7 @@ func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.D
 		connector.LastCheckAt,
 		connector.LastCheckError,
 		connector.Enabled,
+		connector.DefaultWriteIntervalSeconds,
 		connector.UpdatedAt,
 		connector.ID,
 	)
@@ -97,42 +95,22 @@ func (r *SQLConnectorRepository) Delete(ctx context.Context, id string) error {
 }
 
 func (r *SQLConnectorRepository) GetByID(ctx context.Context, id string) (*schema.DatabaseConnector, error) {
-	query := `
-		SELECT
-			id,
-			name,
-			kind,
-			connection_config,
-			status,
-			COALESCE(CAST(last_check_at AS TEXT), ''),
-			last_check_error,
-			enabled,
-			CAST(created_at AS TEXT),
-			CAST(updated_at AS TEXT)
-		FROM database_connectors
-		WHERE id = ?
-	`
+	query := `SELECT
+		id, name, kind, connection_config, status, COALESCE(CAST(last_check_at AS TEXT), ''),
+		last_check_error, enabled, default_write_interval_seconds, CAST(created_at AS TEXT), CAST(updated_at AS TEXT)
+	FROM database_connectors
+	WHERE id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, id)
 	return scanConnectorRow(row)
 }
 
 func (r *SQLConnectorRepository) List(ctx context.Context, filter ConnectorListFilter) ([]*schema.DatabaseConnector, error) {
-	query := `
-		SELECT
-			id,
-			name,
-			kind,
-			connection_config,
-			status,
-			COALESCE(CAST(last_check_at AS TEXT), ''),
-			last_check_error,
-			enabled,
-			CAST(created_at AS TEXT),
-			CAST(updated_at AS TEXT)
-		FROM database_connectors
-		WHERE 1=1
-	`
+	query := `SELECT
+		id, name, kind, connection_config, status, COALESCE(CAST(last_check_at AS TEXT), ''),
+		last_check_error, enabled, default_write_interval_seconds, CAST(created_at AS TEXT), CAST(updated_at AS TEXT)
+	FROM database_connectors
+	WHERE 1=1`
 	args := []any{}
 
 	if filter.Enabled != nil {
@@ -160,11 +138,9 @@ func NewSQLTargetMappingRepository(db *sql.DB) *SQLTargetMappingRepository {
 }
 
 func (r *SQLTargetMappingRepository) Create(ctx context.Context, mapping *schema.DatabaseTargetMapping) error {
-	query := `
-		INSERT INTO database_target_mappings (
-			id, tag_id, connector_id, table_schema, table_name, column_name, write_mode, timestamp_column, enabled, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
+	query := `INSERT INTO database_target_mappings (
+		id, tag_id, connector_id, table_schema, table_name, column_name, write_mode, timestamp_column, group_key, write_interval_seconds, enabled, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(
 		ctx,
@@ -177,6 +153,8 @@ func (r *SQLTargetMappingRepository) Create(ctx context.Context, mapping *schema
 		mapping.ColumnName,
 		mapping.WriteMode,
 		mapping.TimestampColumn,
+		mapping.GroupKey,
+		mapping.WriteIntervalSeconds,
 		mapping.Enabled,
 		mapping.CreatedAt,
 		mapping.UpdatedAt,
@@ -188,11 +166,9 @@ func (r *SQLTargetMappingRepository) Create(ctx context.Context, mapping *schema
 }
 
 func (r *SQLTargetMappingRepository) Update(ctx context.Context, mapping *schema.DatabaseTargetMapping) error {
-	query := `
-		UPDATE database_target_mappings
-		SET connector_id = ?, table_schema = ?, table_name = ?, column_name = ?, write_mode = ?, timestamp_column = ?, enabled = ?, updated_at = ?
-		WHERE id = ?
-	`
+	query := `UPDATE database_target_mappings
+		SET connector_id = ?, table_schema = ?, table_name = ?, column_name = ?, write_mode = ?, timestamp_column = ?, group_key = ?, write_interval_seconds = ?, enabled = ?, updated_at = ?
+		WHERE id = ?`
 
 	result, err := r.db.ExecContext(
 		ctx,
@@ -203,6 +179,8 @@ func (r *SQLTargetMappingRepository) Update(ctx context.Context, mapping *schema
 		mapping.ColumnName,
 		mapping.WriteMode,
 		mapping.TimestampColumn,
+		mapping.GroupKey,
+		mapping.WriteIntervalSeconds,
 		mapping.Enabled,
 		mapping.UpdatedAt,
 		mapping.ID,
@@ -249,44 +227,22 @@ func (r *SQLTargetMappingRepository) DeleteByConnectorID(ctx context.Context, co
 }
 
 func (r *SQLTargetMappingRepository) GetByID(ctx context.Context, id string) (*schema.DatabaseTargetMapping, error) {
-	query := `
-		SELECT
-			id,
-			tag_id,
-			connector_id,
-			table_schema,
-			table_name,
-			column_name,
-			write_mode,
-			timestamp_column,
-			enabled,
-			CAST(created_at AS TEXT),
-			CAST(updated_at AS TEXT)
-		FROM database_target_mappings
-		WHERE id = ?
-	`
+	query := `SELECT
+		id, tag_id, connector_id, table_schema, table_name, column_name, write_mode, timestamp_column,
+		group_key, write_interval_seconds, enabled, CAST(created_at AS TEXT), CAST(updated_at AS TEXT)
+	FROM database_target_mappings
+	WHERE id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, id)
 	return scanTargetMappingRow(row)
 }
 
 func (r *SQLTargetMappingRepository) List(ctx context.Context, filter TargetMappingListFilter) ([]*schema.DatabaseTargetMapping, error) {
-	query := `
-		SELECT
-			id,
-			tag_id,
-			connector_id,
-			table_schema,
-			table_name,
-			column_name,
-			write_mode,
-			timestamp_column,
-			enabled,
-			CAST(created_at AS TEXT),
-			CAST(updated_at AS TEXT)
-		FROM database_target_mappings
-		WHERE 1=1
-	`
+	query := `SELECT
+		id, tag_id, connector_id, table_schema, table_name, column_name, write_mode, timestamp_column,
+		group_key, write_interval_seconds, enabled, CAST(created_at AS TEXT), CAST(updated_at AS TEXT)
+	FROM database_target_mappings
+	WHERE 1=1`
 	args := []any{}
 
 	if filter.ConnectorID != nil {
@@ -315,9 +271,7 @@ func (r *SQLTargetMappingRepository) List(ctx context.Context, filter TargetMapp
 
 func scanConnectorRow(row *sql.Row) (*schema.DatabaseConnector, error) {
 	var connector schema.DatabaseConnector
-	var lastCheckAt string
-	var createdAt string
-	var updatedAt string
+	var lastCheckAt, createdAt, updatedAt string
 
 	err := row.Scan(
 		&connector.ID,
@@ -328,6 +282,7 @@ func scanConnectorRow(row *sql.Row) (*schema.DatabaseConnector, error) {
 		&lastCheckAt,
 		&connector.LastCheckError,
 		&connector.Enabled,
+		&connector.DefaultWriteIntervalSeconds,
 		&createdAt,
 		&updatedAt,
 	)
@@ -365,9 +320,7 @@ func scanConnectorRows(rows *sql.Rows) ([]*schema.DatabaseConnector, error) {
 
 	for rows.Next() {
 		var connector schema.DatabaseConnector
-		var lastCheckAt string
-		var createdAt string
-		var updatedAt string
+		var lastCheckAt, createdAt, updatedAt string
 
 		if err := rows.Scan(
 			&connector.ID,
@@ -378,6 +331,7 @@ func scanConnectorRows(rows *sql.Rows) ([]*schema.DatabaseConnector, error) {
 			&lastCheckAt,
 			&connector.LastCheckError,
 			&connector.Enabled,
+			&connector.DefaultWriteIntervalSeconds,
 			&createdAt,
 			&updatedAt,
 		); err != nil {
@@ -415,9 +369,9 @@ func scanConnectorRows(rows *sql.Rows) ([]*schema.DatabaseConnector, error) {
 
 func scanTargetMappingRow(row *sql.Row) (*schema.DatabaseTargetMapping, error) {
 	var mapping schema.DatabaseTargetMapping
-	var timestampColumn sql.NullString
-	var createdAt string
-	var updatedAt string
+	var timestampColumn, groupKey sql.NullString
+	var writeIntervalSeconds sql.NullInt64
+	var createdAt, updatedAt string
 
 	err := row.Scan(
 		&mapping.ID,
@@ -428,6 +382,8 @@ func scanTargetMappingRow(row *sql.Row) (*schema.DatabaseTargetMapping, error) {
 		&mapping.ColumnName,
 		&mapping.WriteMode,
 		&timestampColumn,
+		&groupKey,
+		&writeIntervalSeconds,
 		&mapping.Enabled,
 		&createdAt,
 		&updatedAt,
@@ -454,6 +410,14 @@ func scanTargetMappingRow(row *sql.Row) (*schema.DatabaseTargetMapping, error) {
 		value := timestampColumn.String
 		mapping.TimestampColumn = &value
 	}
+	if groupKey.Valid {
+		value := groupKey.String
+		mapping.GroupKey = &value
+	}
+	if writeIntervalSeconds.Valid {
+		value := int(writeIntervalSeconds.Int64)
+		mapping.WriteIntervalSeconds = &value
+	}
 
 	return &mapping, nil
 }
@@ -463,9 +427,9 @@ func scanTargetMappingRows(rows *sql.Rows) ([]*schema.DatabaseTargetMapping, err
 
 	for rows.Next() {
 		var mapping schema.DatabaseTargetMapping
-		var timestampColumn sql.NullString
-		var createdAt string
-		var updatedAt string
+		var timestampColumn, groupKey sql.NullString
+		var writeIntervalSeconds sql.NullInt64
+		var createdAt, updatedAt string
 
 		if err := rows.Scan(
 			&mapping.ID,
@@ -476,6 +440,8 @@ func scanTargetMappingRows(rows *sql.Rows) ([]*schema.DatabaseTargetMapping, err
 			&mapping.ColumnName,
 			&mapping.WriteMode,
 			&timestampColumn,
+			&groupKey,
+			&writeIntervalSeconds,
 			&mapping.Enabled,
 			&createdAt,
 			&updatedAt,
@@ -497,6 +463,14 @@ func scanTargetMappingRows(rows *sql.Rows) ([]*schema.DatabaseTargetMapping, err
 		if timestampColumn.Valid {
 			value := timestampColumn.String
 			mapping.TimestampColumn = &value
+		}
+		if groupKey.Valid {
+			value := groupKey.String
+			mapping.GroupKey = &value
+		}
+		if writeIntervalSeconds.Valid {
+			value := int(writeIntervalSeconds.Int64)
+			mapping.WriteIntervalSeconds = &value
 		}
 
 		mappings = append(mappings, &mapping)

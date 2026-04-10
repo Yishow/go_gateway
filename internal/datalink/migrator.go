@@ -63,6 +63,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", sqliteDatabaseTargetMigration, err)
 		}
+		if err := ensureSQLiteDatabaseTargetGroupingColumns(db); err != nil {
+			return err
+		}
 
 		const sqliteSourceRuleMigration = "005_source_rules_sqlite.up.sql"
 		content, err = migrations.FS.ReadFile(sqliteSourceRuleMigration)
@@ -255,6 +258,48 @@ func ensureSQLiteSourceRuleCandidateSnapshotsTable(db *sql.DB) error {
 	log.Printf("Executing SQLite migration: %s", migrationName)
 	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
+	}
+
+	return nil
+}
+
+func ensureSQLiteDatabaseTargetGroupingColumns(db *sql.DB) error {
+	const migrationName = "014_database_target_grouping_sqlite.up.sql"
+
+	columns := []struct {
+		table string
+		name  string
+		ddl   string
+	}{
+		{
+			table: "database_connectors",
+			name:  "default_write_interval_seconds",
+			ddl:   "ALTER TABLE database_connectors ADD COLUMN default_write_interval_seconds INTEGER NOT NULL DEFAULT 15",
+		},
+		{
+			table: "database_target_mappings",
+			name:  "group_key",
+			ddl:   "ALTER TABLE database_target_mappings ADD COLUMN group_key TEXT",
+		},
+		{
+			table: "database_target_mappings",
+			name:  "write_interval_seconds",
+			ddl:   "ALTER TABLE database_target_mappings ADD COLUMN write_interval_seconds INTEGER",
+		},
+	}
+
+	for _, column := range columns {
+		exists, err := sqliteColumnExists(db, column.table, column.name)
+		if err != nil {
+			return fmt.Errorf("failed to inspect sqlite column %s for migration %s: %w", column.name, migrationName, err)
+		}
+		if exists {
+			continue
+		}
+		log.Printf("Executing SQLite migration: %s (%s.%s)", migrationName, column.table, column.name)
+		if _, err := db.ExecContext(context.Background(), column.ddl); err != nil {
+			return fmt.Errorf("failed to execute migration %s for column %s: %w", migrationName, column.name, err)
+		}
 	}
 
 	return nil

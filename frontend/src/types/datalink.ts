@@ -523,26 +523,23 @@ export interface DatabaseConnector {
   kind: DatabaseConnectorKind;
   connection_config: Record<string, unknown>;
   status: DatabaseConnectorStatus;
-  last_check_at?: string | null;
-  last_check_error: string;
-  enabled: boolean;
+  last_check_at?: string | null; last_check_error: string;
+  enabled: boolean; default_write_interval_seconds: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateDatabaseConnectorRequest {
-  name: string;
-  kind: DatabaseConnectorKind;
+  name: string; kind: DatabaseConnectorKind;
   connection_config: Record<string, unknown>;
-  enabled?: boolean;
+  enabled?: boolean; default_write_interval_seconds?: number;
 }
 
 export interface UpdateDatabaseConnectorRequest {
   name?: string;
   kind?: DatabaseConnectorKind;
-  connection_config?: Record<string, unknown>;
-  clear_password?: boolean;
-  enabled?: boolean;
+  connection_config?: Record<string, unknown>; clear_password?: boolean;
+  enabled?: boolean; default_write_interval_seconds?: number;
 }
 
 export interface DatabaseTargetMapping {
@@ -550,33 +547,27 @@ export interface DatabaseTargetMapping {
   tag_id: string;
   connector_id: string;
   table_schema: string;
-  table_name: string;
-  column_name: string;
-  write_mode: DatabaseWriteMode;
-  timestamp_column?: string | null;
+  table_name: string; column_name: string;
+  write_mode: DatabaseWriteMode; timestamp_column?: string | null;
+  group_key?: string | null; write_interval_seconds?: number | null;
   enabled: boolean;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateDatabaseTargetMappingRequest {
-  tag_id: string;
-  connector_id: string;
-  table_schema?: string;
-  table_name: string;
-  column_name: string;
-  write_mode?: DatabaseWriteMode;
-  timestamp_column?: string;
-  enabled?: boolean;
+  tag_id: string; connector_id: string;
+  table_schema?: string; table_name: string;
+  column_name: string; write_mode?: DatabaseWriteMode;
+  timestamp_column?: string; group_key?: string | null;
+  write_interval_seconds?: number | null; enabled?: boolean;
 }
 
 export interface UpdateDatabaseTargetMappingRequest {
-  table_schema?: string;
-  table_name?: string;
-  column_name?: string;
-  write_mode?: DatabaseWriteMode;
-  timestamp_column?: string;
-  enabled?: boolean;
+  table_schema?: string; table_name?: string;
+  column_name?: string; write_mode?: DatabaseWriteMode;
+  timestamp_column?: string; group_key?: string | null;
+  write_interval_seconds?: number | null; enabled?: boolean;
 }
 
 export interface DatabaseTableColumn {
