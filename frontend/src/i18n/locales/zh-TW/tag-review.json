@@ -10,7 +10,6 @@
         "reason": "原因",
         "loading": "正在載入自動產生的 Tag 候選…",
         "loadFailed": "目前規則的審查面板載入失敗。",
-        "retry": "重試載入審查資料",
         "stale": {
           "title": "目前審查面板已過期",
           "description": "這條規則已經有較新的 source-rule revision。請先刷新審查面板，再繼續套用審查決策。",
@@ -62,9 +61,7 @@
           "skipSaved": "已儲存略過決策：{{tagKey}}",
           "overrideSaved": "已儲存 override 決策：{{tagKey}}",
           "saveFailed": "儲存 Tag 審查決策失敗。",
-          "loadSavedFailed": "載入已儲存的審查決策失敗。",
-          "refreshed": "審查資料已重新整理",
-          "refreshFailed": "重新整理審查資料失敗"
+          "loadSavedFailed": "載入已儲存的審查決策失敗。"
         },
         "status": {
           "generated": "已產生",

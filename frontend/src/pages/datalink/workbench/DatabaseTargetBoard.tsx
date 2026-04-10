@@ -655,11 +655,12 @@ export function DatabaseTargetBoard({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => setIsConnectorEditorOpen((currentValue) => !currentValue)}
-              className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200"
-            >
+              <button
+                type="button"
+                data-testid="output-database-toggle-connector"
+                onClick={() => setIsConnectorEditorOpen((currentValue) => !currentValue)}
+                className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200"
+              >
               {isConnectorEditorOpen
                 ? t('workbench.output.database.actions.hideConnector')
                 : t('workbench.output.database.actions.configureConnector')}
@@ -682,6 +683,7 @@ export function DatabaseTargetBoard({
               <span>{t('workbench.output.database.connector.kind')}</span>
               <select
                 aria-label={t('workbench.output.database.connector.kind')}
+                name="database-connector-kind"
                 value={draft.kind}
                 onChange={(event) =>
                   handleConnectorField(
@@ -824,6 +826,7 @@ export function DatabaseTargetBoard({
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
+                  data-testid="output-database-save-connector"
                   onClick={() => void handleSaveConnector()}
                   disabled={isBusy}
                   className="rounded-lg bg-violet-500 px-3 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
@@ -878,6 +881,7 @@ export function DatabaseTargetBoard({
                 <span>{t('workbench.output.database.mapping.table')}</span>
                 <select
                   aria-label={t('workbench.output.database.mapping.table')}
+                  name="database-mapping-table"
                   value={tableKey}
                   onChange={(event) =>
                     setScope((previous) => ({
@@ -902,6 +906,7 @@ export function DatabaseTargetBoard({
               <span>{t('workbench.output.database.mapping.writeMode')}</span>
                 <select
                   aria-label={t('workbench.output.database.mapping.writeMode')}
+                  name="database-mapping-write-mode"
                   value={writeMode}
                   onChange={(event) =>
                     setScope((previous) => ({
@@ -926,6 +931,7 @@ export function DatabaseTargetBoard({
                 <span>{t('workbench.output.database.mapping.timestampColumn')}</span>
                 <select
                   aria-label={t('workbench.output.database.mapping.timestampColumn')}
+                  name="database-mapping-timestamp-column"
                   value={timestampColumn}
                   onChange={(event) =>
                     setScope((previous) => ({
@@ -952,6 +958,7 @@ export function DatabaseTargetBoard({
             {selectedConnectorId && tables.length === 0 ? (
               <button
                 type="button"
+                data-testid="output-database-generate-schema"
                 onClick={() => void handleGenerateSchema()}
                 disabled={isBusy}
                 className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
@@ -961,6 +968,7 @@ export function DatabaseTargetBoard({
             ) : null}
             <button
               type="button"
+              data-testid="output-database-refresh-validation"
               onClick={() => void handleRefreshValidation()}
               disabled={isBusy || !selectedConnectorId}
               className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-50"
@@ -994,6 +1002,7 @@ export function DatabaseTargetBoard({
             {schemaColumns.length > 0 ? (
               <div
                 data-testid="schema-snapshot"
+                tabIndex={-1}
                 className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
               >
                 <div className="space-y-1">

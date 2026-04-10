@@ -1,5 +1,44 @@
 # Findings
 
+## 2026-04-10 全頁面 baseline 驗證新發現
+- `/test` baseline 的方法不能只用在工程頁；若不把 `/studio` 與 destination family 一起文件化，之後仍會反覆卡在「這頁到底是現有 code、還是只有 Stitch 規劃」的混亂。
+- `/studio` 真實 code reality 仍是單一路由 `device -> source -> tag -> output`，所以後續所有 page-by-page 評估都必須先承認這件事，不能直接把 Stitch 的 Destination Hub / Database / Local Modbus / MQTT 當成現成 route。
+- Database 與 Local Modbus 的實作能力其實已存在，但 page identity 尚未獨立；這類頁面最容易被誤判成「已經有頁」或「還沒做」，實際上它們是 `code-backed but route-collapsed`。
+- Destination Hub 與 MQTT Workspace 則是另一種類型：它們目前應被明確標成 `Stitch-planned baseline`，而不是未分析或不存在。
+- 因此之後的頁面驗證至少要分三類：
+  - code 已存在，可直接比對
+  - code 已有能力，但頁面尚未獨立
+  - 只有 Stitch 規劃，尚無 code owner
+- 這套分類也必須收進 skill；否則下次重跑 redesign review，agent 還是會重新探索並混淆 page status。
+
+## 2026-04-10 `/test` baseline 與 accepted 對照新發現
+- `/test` 現有 code 的核心問題不是能力不夠，而是仍停留在「很多工具卡並排在同一頁」的舊心智。
+- 目前 repo 內 `/test` 真正已存在的能力，已足夠支撐 accepted 的四個 workspace：
+  - `Command Lab`
+  - `Live Monitor`
+  - `Device Scan`
+  - `RTU Polling Jobs`
+- `/test` 真正缺的是：
+  - session shell
+  - setup rail
+  - active workspace choreography
+  - diagnostics rail 固定化
+  - state ownership 從多張卡收口到 shell / adapter
+- 因此 `/test` 後續對接 accepted screens 時，優先順序不應是先改 backend，也不應是先逐張重寫 card，而應是：
+  - 先建 shell
+  - 再建 workspace adapter
+  - 最後才重構局部工具 UI
+- 這類判斷如果每次都重做探索會浪費很多時間，因此 `/test` 必須有一份可重複引用的 current architecture baseline。
+- 本 repo 的 Stitch generation / edit 預設模型仍固定為 `GEMINI_3_1_PRO`；這點也應保留在 project skill，而不是只留在對話脈絡。
+
+## 2026-04-10 Tag Workspace focused refinement 新發現
+- `Tag Workspace` 的真正缺口不是缺欄位，而是缺「語義整理 -> 下游交付」這段橋樑語意。
+- 本輪 focused refinement 後，新候選 `93c37ae5c52b4da19b1f908effc95ff8` 已補出：
+  - `Tag Group` 層級
+  - lower-center `handoff bundle` / delivery hint
+  - 右側 `readiness / traceability` 的決策性
+- 這張目前比先前 accepted tag screen 更接近真正的 `Semantic Refinement Board`，可作為下一輪 `/studio` 主線 review 的新基準。
+
 ## 2026-04-10 v2 calm summary harvest / tracking sync 新發現
 - 這輪 follow-up browser gate 的主 blocker 不是 calmer Shell / Output wrapper 本身，而是 shared backend `mappings` repository：真實 Phase 6 fixture 中 lifecycle text 欄位同時存在 `NULL` 與 `''`，直接掃進 Go `string` 會讓 `/api/v1/datalink/mappings` 回 `500`。
 - 受影響的 nullable 欄位不是只有 `rule_candidate_id`。第一輪只補這個欄位後，runtime 立刻在 log 中暴露下一個真實 failing column `proposed_signature`；最後確認必須一起處理 `rule_candidate_id`、`proposed_signature`、`last_applied_signature`、`blocking_reason` 才能恢復整條 fixture。

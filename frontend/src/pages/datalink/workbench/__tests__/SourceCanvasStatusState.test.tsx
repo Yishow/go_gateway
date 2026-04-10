@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
@@ -99,8 +99,8 @@ function renderPage() {
 }
 
 function openSourceStepForDevice() {
-  fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+  fireEvent.click(screen.getByRole('tab', { name: /workbench\.steps\.source/ }));
 }
 
 describe('SourceCanvasSection status states', () => {
@@ -129,31 +129,39 @@ describe('SourceCanvasSection status states', () => {
     mockSourceRules.splice(0, mockSourceRules.length);
   });
 
-  it('shows a loading surface before source planning data is ready', () => {
+  it('shows a loading surface before source planning data is ready', async () => {
     mockSourceRulesLoading.value = true;
     renderPage();
     openSourceStepForDevice();
+    await waitFor(() =>
+      expect(screen.getByTestId('source-loading-state')).toHaveTextContent(
+        'workbench.source.loading',
+      ),
+    );
     expect(screen.getByTestId('source-loading-state')).toHaveTextContent(
       'workbench.source.loading',
     );
     expect(screen.queryByLabelText('workbench.source.planner.startAddress')).not.toBeInTheDocument();
   });
 
-  it('shows an error surface when source planning data fails to load', () => {
+  it('shows an error surface when source planning data fails to load', async () => {
     mockSourceRulesError.value = new Error('source rules exploded');
     renderPage();
     openSourceStepForDevice();
-    expect(screen.getByTestId('source-error-state')).toHaveTextContent(
-      'workbench.source.loadFailed',
+    await waitFor(() =>
+      expect(screen.getByTestId('source-error-state')).toHaveTextContent(
+        'workbench.source.loadFailed',
+      ),
     );
     expect(screen.getByTestId('source-error-state')).toHaveTextContent('source rules exploded');
     expect(screen.queryByLabelText('workbench.source.planner.startAddress')).not.toBeInTheDocument();
   });
 
-  it('retries source planning data loading from the error surface', () => {
+  it('retries source planning data loading from the error surface', async () => {
     mockSourceRulesError.value = new Error('source rules exploded');
     renderPage();
     openSourceStepForDevice();
+    await waitFor(() => expect(screen.getByTestId('source-error-state')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.retry' }));
     expect(mockSourceRulesRefetch).toHaveBeenCalledTimes(1);
   });

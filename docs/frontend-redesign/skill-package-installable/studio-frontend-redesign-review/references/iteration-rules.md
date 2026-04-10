@@ -18,6 +18,15 @@ Use these rules when the generated UI is unsatisfactory.
 - controls need local repositioning
 - one screen needs polish without changing the system
 
+## Stitch MCP operating rules
+
+- Edit one screen at a time.
+- Change one structural goal at a time.
+- Prefer `edit_screens` for accepted directions and `generate_screen_from_text` for first-pass exploration.
+- If a Stitch edit is slow, wait rather than immediately retrying.
+- If the user interrupts a Stitch edit, check `get_screen` and `get_project` first.
+- Do not conclude success from update time alone; verify with a fresh screenshot when possible.
+
 ## Move to implementation patching only when
 
 - the route map is accepted

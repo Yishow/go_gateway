@@ -79,7 +79,7 @@ export function LocalModbusRegisterMapCanvas({
     );
 
   return (
-    <div data-testid="register-map-canvas" className="space-y-4">
+    <div data-testid="register-map-canvas" tabIndex={-1} className="space-y-4">
       <div className="flex flex-wrap gap-1">
         {Array.from({ length: slotCount }, (_, index) => {
           const slotRegister = viewportStart + index;
@@ -139,6 +139,7 @@ export function LocalModbusRegisterMapCanvas({
         </button>
         <button
           type="button"
+          data-testid="output-modbus-dry-run"
           onClick={onDryRun}
           className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20"
         >

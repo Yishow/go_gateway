@@ -468,6 +468,37 @@
         "gotoOutput": "前往輸出審查"
       }
     },
+    "shell": {
+      "eyebrow": "事件脈絡",
+      "labels": {
+        "blocker": "目前阻擋",
+        "refresh": "診斷狀態"
+      },
+      "readinessSummary": "{{readyCount}}/{{stepCount}} 個步驟已就緒 · {{attentionCount}} 個需要注意",
+      "blockers": {
+        "noDevice": "請先選擇設備，才能解鎖跨步驟診斷。",
+        "sourceRequired": "來源尚未就緒。請先補齊或修復來源 point，再往後續步驟前進。",
+        "tagRequired": "Tag 審查尚未完成。請先完成 Tag 決策，再進入輸出。",
+        "tagAttention": "仍有 Tag 需要處理，輸出流程還不能穩定收斂。",
+        "outputPending": "輸出尚待確認。請檢查 Local Modbus 或資料庫輸出，再完成套用。",
+        "stable": "主線目前穩定，請留在目前工作桌繼續操作。"
+      },
+      "actions": {
+        "returnDevice": "打開設備工作桌",
+        "returnSource": "回到來源規劃",
+        "returnTag": "回到 Tag 審查",
+        "returnOutput": "打開輸出工作區",
+        "focusCurrent": "留在目前工作桌"
+      },
+      "refresh": {
+        "idle": "診斷待命中",
+        "running": "正在刷新 shell 診斷…",
+        "success": "診斷已刷新",
+        "error": "診斷刷新失敗",
+        "action": "刷新 shell 診斷",
+        "retry": "重試診斷刷新"
+      }
+    },
     "inspector": {
       "ariaLabel": "Studio 檢查面板",
       "heading": "檢查面板",
@@ -556,10 +587,32 @@
       "output": "foundation 外框已就緒，下一個 slice 會補上 Local Modbus 與資料庫輸出面板。"
     },
     "source": {
-      "loading": "正在載入來源規劃資料", "loadFailed": "無法載入來源規劃資料", "retry": "重新載入", "empty": {
+      "loading": "正在載入來源規劃資料",
+      "loadFailed": "無法載入來源規劃資料",
+      "retry": "重新載入",
+      "empty": {
         "eyebrow": "先選擇來源設備",
         "title": "請先選擇設備，再開始規劃位址",
         "description": "Step 2 需要綁定一台設備，地址畫布才能顯示既有點位與新規劃範圍。"
+      },
+      "sentryBanner": {
+        "eyebrow": "事件桌 — 來源",
+        "title": "先完成規則覆蓋判讀，再交給 Tag 審查",
+        "description": "把規則編修、畫布覆蓋與重試訊號收在同一個 Sentry 風格工作桌，讓操作員在交接到 Tag review 前先判讀這次位址差異。",
+        "ready": "暢通",
+        "blocked": "阻塞中"
+      },
+      "deskMode": {
+        "tabListAria": "來源工作桌模式",
+        "inspect": "巡檢",
+        "build": "建造",
+        "triage": "分診"
+      },
+      "handoff": {
+        "dockLabel": "交接區",
+        "toTag": "→ TAG 審查",
+        "pointSummary": "已映射 {{count}} 點",
+        "noDevice": "尚未選擇設備"
       },
       "view": {
         "plan": "規劃",
@@ -941,6 +994,7 @@
         "created": "已建立",
         "linked": "已綁定",
         "unbound": "已解除",
+        "outputBlocked": "請先完成目前這批審查，再交接到 Output。",
         "failedLabel": "失敗",
         "skippedLabel": "略過",
         "tagFallback": "建立 Tag 失敗",
@@ -960,6 +1014,86 @@
         "conflict": {
           "existing-key": "目前的 preview key 已存在。",
           "duplicate-preview": "目前有其他已選 point 共用了同一個 preview key。"
+        }
+      },
+      "reviewSurface": {
+        "eyebrow": "規則範圍候選項",
+        "title": "依目前來源規則審查 Tag 決策",
+        "description": "維持在同一個 source-rule revision 內完成 rename / skip / override，確認就緒集合後再交接到 Output。",
+        "activeRule": "目前來源規則",
+        "loading": "正在讀取 Tag 審查候選項…",
+        "loadFailed": "讀取 Tag 審查候選項失敗",
+        "retry": "重試載入審查資料",
+        "revision": "來源規則 revision",
+        "metrics": {
+          "generated": "候選數",
+          "pendingMappings": "需補 mapping 審查"
+        },
+        "setStatus": {
+          "ready": "可套用",
+          "blocked": "已阻擋",
+          "deferred": "待前置步驟完成"
+        },
+        "reason": "原因",
+        "empty": {
+          "title": "目前 revision 沒有可審查的 Tag 候選項",
+          "description": "若這條規則還缺 point，請先回 Source；或切換到其他規則 revision 繼續審查。"
+        },
+        "candidateMeta": "位址 {{address}} · {{dataType}} · {{bitWidth}} 位元",
+        "status": {
+          "generated": "已生成",
+          "applied": "已套用"
+        },
+        "mappingIntent": {
+          "pending": "仍需確認 mapping",
+          "applied": "mapping 已就緒"
+        },
+        "reviewDecision": {
+          "rename": "重新命名",
+          "skip": "略過",
+          "override": "改用既有 Tag"
+        },
+        "fields": {
+          "tagKey": "Tag key",
+          "generatedTagKey": "原始生成 key",
+          "pointId": "Point ID",
+          "mappingStatus": "Mapping 狀態"
+        },
+        "mappingStatus": {
+          "draft": "草稿",
+          "validated": "已驗證",
+          "active": "已啟用",
+          "out_of_sync": "已失同步",
+          "error": "錯誤"
+        },
+        "actions": {
+          "renameLabel": "重新命名候選項",
+          "renamePlaceholder": "修改這列的 Tag key",
+          "renameSave": "儲存 rename",
+          "skip": "略過候選項",
+          "overrideLabel": "改綁既有 Tag",
+          "overridePlaceholder": "選擇既有 Tag",
+          "overrideSave": "儲存 override",
+          "saving": "儲存中…",
+          "appliedLocked": "這筆候選項已套用，無法再在此處修改。",
+          "noOverrideTags": "若要使用 override，請先建立或載入可用的 Tag。"
+        },
+        "feedback": {
+          "renameSaved": "已儲存 {{tagKey}} 的 rename 決策",
+          "skipSaved": "已儲存 {{tagKey}} 的略過決策",
+          "overrideSaved": "已儲存 {{tagKey}} 的 override 決策",
+          "saveFailed": "儲存審查決策失敗",
+          "loadSavedFailed": "讀取已儲存的審查決策失敗",
+          "refreshed": "審查資料已重新整理",
+          "refreshFailed": "重新整理審查資料失敗"
+        },
+        "stale": {
+          "title": "目前審查落後於最新的來源規則 revision",
+          "description": "請先重新整理規則與候選快照，再繼續套用決策，避免 Step 3 與最新 Source 規劃脫節。",
+          "openRevision": "目前開啟 revision",
+          "latestRevision": "最新 revision",
+          "refresh": "重新整理審查",
+          "refreshing": "正在重新整理審查…"
         }
       }
     },
@@ -990,6 +1124,41 @@
       "targetSwitcher": {
         "modbus": "Local Modbus",
         "database": "資料庫"
+      },
+      "incident": {
+        "priority": {
+          "ready": "可進入套用",
+          "attention": "需要先分流處理",
+          "noRule": "請先在 Source 或 Tag 聚焦一個來源規則，再檢查 target 範圍的 readiness。",
+          "blockedFallback": "{{target}} 仍有 blocker，請先回到 target workboard 處理後再套用。",
+          "deferredFallback": "{{target}} 仍在等待前一步 review 完成，請先清除前置阻擋。",
+          "readyCopy": "{{target}} 已與 shared workboard 對齊，可以繼續 dry-run 或套用流程。"
+        },
+        "loadFailed": "讀取 Output incident readiness 失敗。",
+        "stale": "Output review 資料已過期，請先重新整理再套用。",
+        "summaryEyebrow": "Incident 脈絡",
+        "metrics": {
+          "linked": "已連結",
+          "scoped": "規則範圍",
+          "attention": "待確認"
+        },
+        "tabListAria": "Output incident target 模式",
+        "commands": {
+          "label": "指令面板",
+          "runDryRun": "指令：執行 Dry-run",
+          "syncMappings": "指令：同步映射",
+          "configureConnector": "指令：打開 Connector 設定",
+          "refreshValidation": "指令：重新驗證",
+          "focusRegisterMap": "聚焦 Register Map",
+          "focusSchema": "聚焦 Schema 快照"
+        },
+        "handoff": {
+          "label": "下一步",
+          "noRule": "請先回到 Tag 還原啟用中的來源規則，再繼續輸出審查。",
+          "noCandidates": "{{target}} 目前還沒有規則範圍候選項，請先在 workboard 裡完成檢查。",
+          "ready": "目前 target 的 desk 脈絡已與共用工作板對齊。",
+          "gotoTag": "前往 Tag"
+        }
       },
       "modbusStudio": {
         "eyebrow": "Local Modbus 工作台",
@@ -1308,11 +1477,20 @@
       },
       "inspector": {
         "eyebrow": "設備 Inspector",
+        "healthLabel": "健康度",
+        "healthPassing": "正常",
+        "healthFailing": "異常",
+        "healthUnknown": "未知",
         "lastTest": "最後測試結果",
         "noTestYet": "尚未執行連線測試",
         "capabilitySummary": "能力摘要",
         "connectionSummary": "連線摘要",
         "recentTests": "最近三次連線測試",
+        "statusLabel": "狀態",
+        "statusFieldLabel": "狀態",
+        "protocolFieldLabel": "協定",
+        "readinessLabel": "就緒度",
+        "awaitingStageTest": "等待測試",
         "emptyTitle": "先選擇一台設備",
         "emptyDescription": "選取左側設備卡後，這裡會顯示協定、連線摘要與下一步操作。若還沒有設備，也可以直接從這裡建立。",
         "unknownTestTime": "測試時間尚未同步",

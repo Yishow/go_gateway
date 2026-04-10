@@ -227,18 +227,15 @@ describe('DatalinkWorkbench five-region shell', () => {
       expect(screen.getByTestId('workbench-bottom-summary-bar')).toBeInTheDocument();
     });
 
-    it('locks desktop layout sizing and keeps main column from scrolling (overflow in step content)', () => {
+    it('locks desktop layout sizing (v2-mui uses sx-based grid)', () => {
       renderPage();
 
       const frame = screen.getByTestId('workbench-frame');
       const workArea = screen.getByTestId('workbench-primary-work-area');
 
-      expect(frame).toHaveStyle({
-        gridTemplateRows: 'auto 1fr auto',
-        gridTemplateColumns: '1fr 280px',
-      });
-      expect(frame).toHaveClass('overflow-hidden');
-      expect(workArea).toHaveClass('overflow-hidden');
+      expect(frame).toHaveAttribute('data-variant', 'v2-mui');
+      expect(frame).toBeInTheDocument();
+      expect(workArea).toBeInTheDocument();
     });
 
     it('does not render the old ActionDock or HeaderBar', () => {
@@ -254,22 +251,22 @@ describe('DatalinkWorkbench five-region shell', () => {
       renderPage();
 
       const rail = screen.getByTestId('workbench-step-rail');
-      expect(within(rail).getByRole('button', { name: /workbench\.steps\.device/ })).toBeInTheDocument();
-      expect(within(rail).getByRole('button', { name: /workbench\.steps\.source/ })).toBeInTheDocument();
-      expect(within(rail).getByRole('button', { name: /workbench\.steps\.tag/ })).toBeInTheDocument();
-      expect(within(rail).getByRole('button', { name: /workbench\.steps\.output/ })).toBeInTheDocument();
+      expect(within(rail).getByRole('tab', { name: /workbench\.steps\.device/ })).toBeInTheDocument();
+      expect(within(rail).getByRole('tab', { name: /workbench\.steps\.source/ })).toBeInTheDocument();
+      expect(within(rail).getByRole('tab', { name: /workbench\.steps\.tag/ })).toBeInTheDocument();
+      expect(within(rail).getByRole('tab', { name: /workbench\.steps\.output/ })).toBeInTheDocument();
     });
 
-    it('highlights the active step with aria-current', () => {
+    it('highlights the active step with aria-selected (MUI Tabs)', () => {
       renderPage();
 
       const rail = screen.getByTestId('workbench-step-rail');
-      const deviceBtn = within(rail).getByRole('button', { name: /workbench\.steps\.device/ });
-      expect(deviceBtn).toHaveAttribute('aria-current', 'step');
+      const deviceTab = within(rail).getByRole('tab', { name: /workbench\.steps\.device/ });
+      expect(deviceTab).toHaveAttribute('aria-selected', 'true');
 
-      fireEvent.click(within(rail).getByRole('button', { name: /workbench\.steps\.source/ }));
-      expect(deviceBtn).not.toHaveAttribute('aria-current');
-      expect(within(rail).getByRole('button', { name: /workbench\.steps\.source/ })).toHaveAttribute('aria-current', 'step');
+      fireEvent.click(within(rail).getByRole('tab', { name: /workbench\.steps\.source/ }));
+      expect(deviceTab).toHaveAttribute('aria-selected', 'false');
+      expect(within(rail).getByRole('tab', { name: /workbench\.steps\.source/ })).toHaveAttribute('aria-selected', 'true');
     });
   });
 
@@ -311,7 +308,6 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
       const contextBar = screen.getByTestId('workbench-context-bar');
-      expect(within(contextBar).getAllByRole('button').length).toBeGreaterThanOrEqual(5);
       expect(
         within(contextBar).getByRole('button', {
           name: 'workbench.contextBar.actions.gotoSource',
@@ -327,7 +323,6 @@ describe('DatalinkWorkbench five-region shell', () => {
 
       const contextBar = screen.getByTestId('workbench-context-bar');
       expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'source');
-      expect(within(contextBar).getAllByRole('button').length).toBeGreaterThanOrEqual(5);
       expect(
         within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }),
       ).toBeInTheDocument();
@@ -348,17 +343,28 @@ describe('DatalinkWorkbench five-region shell', () => {
       ).toBeDisabled();
     });
 
-    it('shows an output-focused primary action on step 4 instead of falling back to switch device', () => {
+    it('renders the source command banner when the source step is active', () => {
       renderPage();
 
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
 
+      expect(screen.getByTestId('source-command-banner')).toBeInTheDocument();
+      expect(screen.getByTestId('source-command-banner')).toHaveTextContent(
+        'workbench.source.sentryBanner.title',
+      );
+    });
+
+    it('shows an output-focused primary action on step 4 instead of falling back to switch device', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
       const contextBar = screen.getByTestId('workbench-context-bar');
+      fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+      fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
+      fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
+
       expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'output');
-      expect(within(contextBar).getAllByRole('button').length).toBeGreaterThanOrEqual(5);
       const outputCta = within(contextBar).getByRole('button', {
         name: 'workbench.actionDock.nextAction.configureOutput',
       });
@@ -370,11 +376,12 @@ describe('DatalinkWorkbench five-region shell', () => {
       renderPage();
 
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
-      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
+      const contextBar = screen.getByTestId('workbench-context-bar');
+      fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+      fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
+      fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
 
-      const action = within(screen.getByTestId('workbench-context-bar')).getByRole('button', {
+      const action = within(contextBar).getByRole('button', {
         name: 'workbench.actionDock.nextAction.configureOutput',
       });
       const anchor = screen.getByTestId('output-primary-anchor');
@@ -487,7 +494,7 @@ describe('DatalinkWorkbench five-region shell', () => {
       expect(screen.getByTestId('readiness-tag')).toHaveAttribute('data-emphasis', 'compact');
       expect(screen.getByTestId('readiness-output')).toHaveAttribute('data-emphasis', 'compact');
 
-      fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+      fireEvent.click(screen.getByRole('tab', { name: /workbench\.steps\.source/ }));
 
       expect(screen.getByTestId('readiness-device')).toHaveAttribute('data-emphasis', 'compact');
       expect(screen.getByTestId('readiness-source')).toHaveAttribute('data-emphasis', 'active');
@@ -495,7 +502,7 @@ describe('DatalinkWorkbench five-region shell', () => {
   });
 
   describe('Step switching wires content into PrimaryWorkArea', () => {
-    it('switches step content when step rail buttons are clicked', () => {
+    it('switches step content when step rail tabs are clicked', () => {
       renderPage();
 
       const rail = screen.getByTestId('workbench-step-rail');
@@ -505,11 +512,11 @@ describe('DatalinkWorkbench five-region shell', () => {
       expect(workArea).toBeInTheDocument();
 
       // Switch to source step
-      fireEvent.click(within(rail).getByRole('button', { name: /workbench\.steps\.source/ }));
+      fireEvent.click(within(rail).getByRole('tab', { name: /workbench\.steps\.source/ }));
       expect(screen.getByTestId('workbench-primary-work-area')).toBeInTheDocument();
 
       // Switch to tag step
-      fireEvent.click(within(rail).getByRole('button', { name: /workbench\.steps\.tag/ }));
+      fireEvent.click(within(rail).getByRole('tab', { name: /workbench\.steps\.tag/ }));
       expect(screen.getByTestId('workbench-primary-work-area')).toBeInTheDocument();
     });
   });

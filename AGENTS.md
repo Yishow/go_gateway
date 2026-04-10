@@ -41,7 +41,7 @@
 - `make gate-smoke | make gate-final | make gate-soak | make gatev11 | make gatev12`：執行 Modbus gate / soak 類驗證腳本。
 - `make points-precheck-up | make points-precheck-down | make points-migrate-up | make points-migrate-down`：執行 points unique migration precheck / apply；down 流程需明確確認策略。
 - `make longtask-smoke`：驗證 long-task 提醒機制（controller start/finish + reconcile）。
-- `make check-lines`：執行檔案行數規範檢查（一般檔 300 警告 / 500 阻擋；doc 文件 300 警告 / 800 阻擋）。
+- `make check-lines`：執行檔案行數規範檢查（300 警告 / 500 阻擋）。
 
 ## 程式碼樣式
 - Go：使用 `gofmt` / `goimports`；package 名稱維持小寫；錯誤處理優先明確回傳並附上下文；維持 happy path 左對齊。
@@ -95,12 +95,11 @@
 - 禁止未對齊 OpenSpec 既有規格就直接改寫需求語意；遇到衝突需先回報。
 
 ## 檔案行數規範（強制）
-- 目標上限：所有檔案都應盡量控制在 `<= 300` 行；一般檔硬上限 `<= 500` 行，doc 文件（Markdown）硬上限 `<= 800` 行。
+- 目標上限：單檔 `<= 300` 行；硬上限：單檔 `<= 500` 行。
 - 檢查規則：
   - `> 300` 行：警告，PR 必須補充理由與拆分計畫。
-  - 一般檔 `> 500` 行：視為阻擋條件（CI 失敗）。
-  - doc 文件（`*.md`）`> 800` 行：視為阻擋條件（CI 失敗）。
-  - 對於歷史上已超過對應硬上限的檔案，僅允許「不增加行數」的修改（鼓勵逐步縮減）。
+  - `> 500` 行：視為阻擋條件（CI 失敗）。
+  - 對於歷史上已超過 500 行的檔案，僅允許「不增加行數」的修改（鼓勵逐步縮減）。
 - 強制工具：
   - 腳本：`scripts/check_file_lines.sh`
   - ignore 清單：`.line-limit-ignore`

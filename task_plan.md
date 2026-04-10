@@ -6,6 +6,43 @@
 
 ---
 
+## 臨時任務：2026-04-10 `/test` baseline 文檔化與 skill 同步（本輪）
+
+- [x] 盤點 `/test` 當前 route、page、component、service、API 關係
+- [x] 新增 `/test` current architecture baseline 文件
+- [x] 將 `/test` baseline protocol 同步回 project skill、generic skill 與 workflow skill spec
+- [x] 將 baseline 文件掛回 redesign master index
+- [x] 明確記錄 `/studio` accepted set 目前只剩 `Tag Workspace` 值得再做 focused refinement
+- [x] 以 `GEMINI_3_1_PRO` 產出新的 `Tag Workspace` focused refinement 候選
+
+**備註**：
+- 這輪不做 `/test` implementation。
+- 這輪的目的是固定 `/test` 比對基準，讓後續 accepted screen 對接不需要每次重新探索。
+- `Tag Workspace` 新候選：
+  - `93c37ae5c52b4da19b1f908effc95ff8`
+  - `[已接受候選] 語義精煉工作台 (Tag Workspace - 精煉版)`
+
+---
+
+## 臨時任務：2026-04-10 全頁面 baseline 驗證與 Stitch 規劃同步（本輪）
+
+- [x] 盤點 `/studio` 當前 route、page、provider state、service / API 關係
+- [x] 新增 `/studio` current architecture baseline 文件
+- [x] 新增所有頁面的 verification baseline 文件
+- [x] 將 accepted screen reconnection matrix 更新為目前 accepted screen set
+- [x] 將 baseline 規則同步回 master index、workflow skill spec、project skill、generic skill
+- [ ] 由使用者確認新 baseline 文件內容
+
+**備註**：
+- 這輪仍不進入 frontend implementation / backend reconnection。
+- 對 repo 尚未存在的頁面，不再標記為略過，而是用 accepted Stitch page 作為 `Stitch-planned baseline`。
+- 本輪 `/studio` pages 比對基準：
+  - Device / Source / Tag：current code + accepted Stitch
+  - Destination Hub / MQTT：Stitch-planned baseline
+  - Database / Local Modbus：current output target surface + accepted Stitch
+
+---
+
 ## 臨時任務：2026-04-10 v2 calm summary harvest follow-up / tracking sync（本輪）
 
 - [x] 在真實 Phase 6 fixture 上重現 `GET /api/v1/datalink/mappings` 500 並完成 root-cause tracing

@@ -9,6 +9,55 @@
 
 ### 2026-04-10
 
+#### Session 31: 全頁面 baseline 驗證與 skill 同步（本輪）
+- ✅ 新增 `/studio` 現況基準文件：
+  - `docs/frontend-redesign/2026-04-10-studio-current-architecture-baseline.md`
+- ✅ 新增所有頁面的逐頁驗證基線文件：
+  - `docs/frontend-redesign/2026-04-10-all-pages-verification-baseline.md`
+- ✅ 更新 accepted Stitch 對接矩陣為目前 accepted screen set：
+  - `docs/frontend-redesign/2026-04-09-accepted-screens-reconnection-matrix.md`
+  - 已改為目前 accepted ids，並加入 `Destination Hub`、`Database Workspace`、`Local Modbus Workspace`、`MQTT Workspace`
+- ✅ 更新 redesign 索引與 workflow skill 規範：
+  - `docs/frontend-redesign/2026-04-09-studio-test-redesign-master-plan.md`
+  - `docs/frontend-redesign/2026-04-09-redesign-workflow-skill-spec.md`
+  - `docs/frontend-redesign/skill-package-installable/studio-frontend-redesign-review/SKILL.md`
+  - `docs/frontend-redesign/skill-package-installable/frontend-redesign-integration-review/SKILL.md`
+  - `docs/frontend-redesign/skill-package/studio-frontend-redesign-review/SKILL.md`
+- ✅ 本輪正式收斂的頁面分類：
+  - code 已存在，可直接比對
+  - code 已有能力，但 route / page identity 尚未獨立
+  - Stitch-planned baseline
+- ⏳ 下一步：
+  - 由使用者確認兩份新 baseline 文件內容
+  - 確認後再決定是否進一步補每頁 prompts 或 route-level reconnection plan
+
+#### Session 30: `/test` architecture baseline 與 skill 同步（本輪）
+- ✅ 確認本 repo 的 Stitch 預設模型仍為 `GEMINI_3_1_PRO`
+- ✅ 新增 `/test` 現況基準文件：
+  - `docs/frontend-redesign/2026-04-10-test-console-current-architecture-baseline.md`
+  - 已固定記錄 route、page shell、component composition、state ownership、service/API usage、accepted-screen 對照
+- ✅ 更新 `/test` IA 分析文件，補上 baseline 參照：
+  - `docs/frontend-redesign/2026-04-09-test-console-analysis-and-ia.md`
+- ✅ 更新 workflow skill spec 與 skill：
+  - `docs/frontend-redesign/2026-04-09-redesign-workflow-skill-spec.md`
+  - `docs/frontend-redesign/skill-package-installable/studio-frontend-redesign-review/SKILL.md`
+  - `docs/frontend-redesign/skill-package-installable/frontend-redesign-integration-review/SKILL.md`
+  - `docs/frontend-redesign/skill-package/studio-frontend-redesign-review/SKILL.md`
+- ✅ 更新 redesign 索引：
+  - `docs/frontend-redesign/2026-04-09-studio-test-redesign-master-plan.md`
+- ✅ 本輪結論：
+  - `/studio` accepted set 目前只建議再針對 `Tag Workspace` 做 focused refinement
+  - `/test` 的主要缺口是 shell 與 state ownership，不是 backend contract 不足
+- ✅ 已依使用者確認，對 `Tag Workspace` 進行 focused Stitch refinement：
+  - 使用模型：`GEMINI_3_1_PRO`
+  - 新候選：
+    - `93c37ae5c52b4da19b1f908effc95ff8`
+    - `[已接受候選] 語義精煉工作台 (Tag Workspace - 精煉版)`
+  - 新版已補強：
+    - `Tag Group` 存在感
+    - handoff bundle / delivery hint
+    - 右側 readiness / traceability 的決策性
+
 #### Session 29: v2 calm summary harvest blocker fix 與追蹤同步（本輪）
 - ✅ `woe-v2-mui` 已完成 `v2 calm summary harvest` 的 Task 3 browser gate：
   - 真實 Phase 6 fixture 仍使用 `UI 4.3 Modbus TCP`、同一條 `/studio` route 與 shared API

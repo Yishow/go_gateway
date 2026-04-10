@@ -137,11 +137,10 @@ make check-lines
 - 多步驟任務預設使用 `planning-with-files`，持續維護 `task_plan.md`、`findings.md`、`progress.md`。
 
 ## 檔案行數規範（強制）
-- 目標：所有檔案盡量不超過 300 行；一般檔硬上限 500 行，Markdown 文件硬上限 800 行。
+- 目標：單檔不超過 300 行；硬上限 500 行。
 - 規則：
   - `> 300` 行：警告，必須在 PR 提供原因與拆分計畫。
-  - 一般檔 `> 500` 行：CI 阻擋。
-  - Markdown 文件 `> 800` 行：CI 阻擋。
+  - `> 500` 行：CI 阻擋。
   - 歷史超長檔僅允許不增加行數的變更，應逐步縮減。
 - 工具與落地：
   - `scripts/check_file_lines.sh`

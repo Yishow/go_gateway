@@ -50,6 +50,8 @@ skill 執行後應產出：
 3. `Google Stitch prompts`
 4. `Pencil MCP planning doc`
 5. `backend integration plan`
+6. 每一個納入 scope 的頁面，都必須有可重用的 `baseline / comparison` 文件
+7. 如果 repo 中原本沒有該頁，必須用 accepted Stitch page 產出一份 `Stitch-planned baseline`
 
 ## Workflow
 
@@ -77,11 +79,13 @@ skill 執行後應產出：
 - 主要 page
 - 主產品頁與工具頁
 - 現有 screen ownership
+- 若存在獨立工具頁，例如 `/test`，必須額外記錄 page shell、component composition、state ownership
 
 輸出：
 
 - current route inventory
 - current page inventory
+- page-by-page baseline / comparison document
 
 ### Step 3: Backend API inventory
 
@@ -105,12 +109,15 @@ skill 執行後應產出：
 - `frontend/src/services/*.ts`
 - `frontend/src/hooks/datalink/*.ts`
 - 頁面如何經由 hooks 與 services 取數據 / mutate
+- 對於獨立工具頁，還要盤點 page-level state 與 component-level state 的 ownership
 
 輸出：
 
 - `route -> page -> hook -> service -> API` integration chain
 - 哪些是 stable contract
 - 哪些需要 adapter
+- 若為工具頁，補 `page shell -> workspace -> diagnostics` 的 ownership baseline
+- 若為主產品頁，補 `route -> shell -> step/workspace -> state owner -> service/API` 的 ownership baseline
 
 ### Step 5: IA redesign
 
@@ -187,6 +194,14 @@ skill 必須產出：
 - field engineer oriented
 - packet/log/monitor ready
 - independent route, not appended to studio flow
+- 必須先產出一份「current architecture baseline」，避免每次重做 `/test` redesign 都重新探索現況
+
+### 所有頁面的 baseline 規範
+
+- 不只 `/test`
+- `/studio` 與其 destination family pages 也必須有逐頁 baseline
+- 若該頁已存在於 code，baseline 要寫 current route、page owner、state owner、service/API basis
+- 若該頁不存在於 code，baseline 要寫 accepted Stitch page id、規劃用途、預期 route 與目前缺口
 
 ## Skill 建議結構
 
@@ -202,10 +217,16 @@ frontend-redesign-integration-review/
 
 專案版 `studio-frontend-redesign-review` 再額外補 repo 專屬 domain、route、API 與 workflow 規則。
 
+## 本 repo 的 Stitch 模型預設
+
+- 對這個 repo 的 Stitch generation / edit 工作，預設使用 `GEMINI_3_1_PRO`
+- 只有在使用者明確指定其他模型時才覆蓋
+
 ## SKILL.md 應包含的核心程序
 
 - 先盤點 repo 與 OpenSpec
 - 再盤點 route / page / API / integration
+- 先建立 / 更新所有頁面的 baseline / comparison 文件
 - 再輸出新 IA
 - 再輸出 Stitch / Pencil package
 - 再輸出 backend reconnection plan
@@ -232,6 +253,7 @@ skill 完成後，至少要讓使用者得到：
 - 一份可討論的新主線規格
 - 一份 API inventory
 - 一份 frontend-backend integration map
+- 一套可逐頁比對的 baseline 文件
 - 一組可拿去 AI 產版的 prompt
 - 一份 AI 產版後接回 backend 的執行策略
 - 一套不滿意版面時可重複執行的迭代規則

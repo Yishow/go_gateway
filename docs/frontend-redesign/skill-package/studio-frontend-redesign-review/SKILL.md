@@ -1,6 +1,6 @@
 ---
 name: studio-frontend-redesign-review
-description: Review and redesign this repo's frontend end-to-end: audit current routes, APIs, and frontend-backend integration; redefine product IA for /studio and /test; generate Google Stitch and Pencil MCP outputs; and carry the work through until the AI-generated frontend is reconnected to the current backend contract and verified.
+description: Use when redesigning this repo's `/studio` or `/test`, comparing accepted Stitch pages against current code, or planning how page-by-page baselines will reconnect to the existing backend.
 ---
 
 # Studio Frontend Redesign Review
@@ -44,6 +44,24 @@ Document:
 - `/test` dependencies
 - stable contracts vs likely adapter boundaries
 
+Create or refresh reusable baseline documents for every page in scope.
+
+For code-backed pages, record:
+
+- current shell structure
+- page-level state
+- component-level state
+- service and API usage
+- accepted-screen-to-current-code mapping
+
+For Stitch-only pages, record:
+
+- accepted Stitch screen id and title
+- planned route or mode
+- intended domain object
+- missing code owner
+- missing API or adapter gap
+
 ### 4. Redesign IA and object model
 
 Output:
@@ -61,6 +79,12 @@ If the user wants Stitch:
 - write plain-language, screen-by-screen prompts
 - avoid one huge prompt
 - keep one screen or one change per prompt
+- if Stitch MCP is available, prefer operating on the actual Stitch project instead of stopping at prompt text
+- for this repo's Stitch generation and edit work, default to `modelId: GEMINI_3_1_PRO` unless the user explicitly requests another model
+- identify the target project first, then list screens, then edit one screen at a time
+- treat `generate_screen_from_text` as first-pass generation and `edit_screens` as refinement
+- after any interrupted or long-running Stitch edit, verify with `get_screen` and `get_project` before retrying
+- do not assume an aborted edit failed; Stitch edits may finish asynchronously
 
 If the user wants Pencil:
 
@@ -99,9 +123,11 @@ At minimum, produce:
 
 1. workflow and IA spec
 2. API inventory and integration map
-3. Stitch prompt package when requested
-4. Pencil planning package when requested
-5. backend reconnection plan
+3. `/test` current architecture baseline when `/test` is in scope
+4. page-by-page baseline / comparison documents for all other pages in scope
+5. Stitch prompt package when requested
+6. Pencil planning package when requested
+7. backend reconnection plan
 
 ## Design rules for this repo
 
@@ -111,6 +137,15 @@ Treat `/studio` and `/test` as separate first-class products inside one repo:
 - `/test` = field engineer debug console
 
 Keep the same design language, but allow `/test` to be denser and more tool-like.
+
+For `/test`, do not jump straight from accepted screens to implementation sequencing.
+First compare accepted screens against the current baseline and explicitly separate:
+
+- shell problems
+- adapter problems
+- backend gaps
+
+For pages that do not yet exist in code, use the accepted Stitch page as a `Stitch-planned baseline` instead of skipping the page.
 
 ## References
 

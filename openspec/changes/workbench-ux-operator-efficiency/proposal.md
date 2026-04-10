@@ -2,7 +2,7 @@
 
 ## Why
 
-Phase 1R Device compare is complete and the downstream direction remains approved:
+Phase 1R Device compare is complete and the downstream direction is now approved:
 
 1. `v2 / Sentry Incident Desk` is the primary functional direction.
 2. `v1 / Linear Control Room` remains the full-flow high-polish alternate.
@@ -15,13 +15,11 @@ The current OpenSpec still models Phase 2–5 as three equal-cost parallel exper
 - **quality dilution**: `v1` risks becoming a half-maintained skin instead of a deliberate full-flow language
 - **over-investment in `v3`**: the cockpit track should remain valuable, but not consume equal depth in every later phase
 
-A subsequent live review of the current Phase 2/3 previews found a new problem: outside Device, the three versions still read too similarly. Source/Tag work touched different files, but the operator-facing surfaces still felt too close, which violates the requirement for three genuinely different versions.
-
-This correction therefore keeps the original experiment constraints intact while reopening Phase 2–5 so the remaining work preserves three distinct archetype-level surfaces under the same shared logic.
+This correction keeps the original experiment constraints intact while changing the remaining rollout model to match the approved Phase 1R outcome.
 
 ## What Changes
 
-The change continues to treat Phase 2–5 as a **winner-led rollout**, but now reopens the remaining UI phases under a stricter archetype-difference requirement.
+The change now treats Phase 2–5 as a **winner-led rollout** instead of a three-equal-track race.
 
 ### Fixed version roles
 
@@ -44,8 +42,6 @@ Every remaining phase now follows:
 6. compare gate
 
 The compare gate remains mandatory before the next phase can begin.
-
-Completed Phase 2 work and partial Phase 3 work become **reference evidence only** until the reopened phase tasks are rerun under the updated archetype-difference gate.
 
 ### Baseline rule
 
@@ -85,24 +81,6 @@ Additional boundary rules:
 - Phase 5 shell may summarize readiness/blockers, but detailed editing and step-local validation remain owned by the underlying step surfaces.
 - Shared acceptance tests must be defined on `main` before variant work begins.
 
-## Logic Invariant, Surface Rework
-
-The shared logic remains fixed:
-
-- same domain flow
-- same API contract
-- same state ownership
-- same blocker / retry / recovery meaning
-
-What must change is the operator-facing surface:
-
-- action placement and sequencing
-- primary working surface and supporting readouts
-- preview / summary framing
-- visual hierarchy and product language
-
-Kit swaps, scoped CSS overlays, or density-only adjustments are not sufficient if the result still reads like the same product outside Device.
-
 ## `v3` Minimum Obligations
 
 `v3` no longer receives equal investment depth, but it still must:
@@ -124,8 +102,6 @@ Each remaining compare gate still must output:
 - 關鍵操作時間
 - 實作 / 維護風險
 - 推薦版本與理由
-
-In addition, compare must explicitly judge whether the phase still reads as three recognizably different versions beyond Device. If the answer is no, the phase remains open.
 
 The compared entries remain:
 

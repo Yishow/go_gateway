@@ -1,28 +1,34 @@
 import type { WorkbenchStep } from './workbenchTypes';
-export {
-  WORKBENCH_SOURCE_COMPARE_ACCEPTANCE,
-  WORKBENCH_SOURCE_COMPARE_ARCHETYPES,
-  WORKBENCH_SOURCE_COMPARE_CRITICAL_TASK,
-  WORKBENCH_SOURCE_COMPARE_SCENARIOS,
-} from './workbenchSourceCompareContract';
-export {
-  WORKBENCH_OUTPUT_COMPARE_ACCEPTANCE,
-  WORKBENCH_OUTPUT_COMPARE_ARCHETYPES,
-  WORKBENCH_OUTPUT_COMPARE_CRITICAL_TASK,
-  WORKBENCH_OUTPUT_COMPARE_SCENARIOS,
-} from './workbenchOutputCompareContract';
-export {
+import {
   WORKBENCH_SHELL_COMPARE_ACCEPTANCE,
   WORKBENCH_SHELL_COMPARE_ARCHETYPES,
   WORKBENCH_SHELL_COMPARE_CRITICAL_TASK,
   WORKBENCH_SHELL_COMPARE_SCENARIOS,
 } from './workbenchShellCompareContract';
+import {
+  WORKBENCH_SOURCE_COMPARE_ACCEPTANCE,
+  WORKBENCH_SOURCE_COMPARE_ARCHETYPES,
+  WORKBENCH_SOURCE_COMPARE_CRITICAL_TASK,
+  WORKBENCH_SOURCE_COMPARE_SCENARIOS,
+} from './workbenchSourceCompareContract';
+
 export {
-  WORKBENCH_TAG_COMPARE_ACCEPTANCE,
-  WORKBENCH_TAG_COMPARE_ARCHETYPES,
-  WORKBENCH_TAG_COMPARE_CRITICAL_TASK,
-  WORKBENCH_TAG_COMPARE_SCENARIOS,
-} from './workbenchTagCompareContract';
+  WORKBENCH_SHELL_COMPARE_ACCEPTANCE,
+  WORKBENCH_SHELL_COMPARE_ARCHETYPES,
+  WORKBENCH_SHELL_COMPARE_CRITICAL_TASK,
+  WORKBENCH_SHELL_COMPARE_SCENARIOS,
+};
+
+export {
+  WORKBENCH_SOURCE_COMPARE_ACCEPTANCE,
+  WORKBENCH_SOURCE_COMPARE_ARCHETYPES,
+  WORKBENCH_SOURCE_COMPARE_CRITICAL_TASK,
+  WORKBENCH_SOURCE_COMPARE_SCENARIOS,
+};
+
+const WORKBENCH_SOURCE_PHASE2_SCENARIO_FOCUS = WORKBENCH_SOURCE_COMPARE_SCENARIOS.map(
+  ({ id }) => id.replace(/^source-/, ''),
+);
 
 export const WORKBENCH_EXPERIMENT_ROUTE = '/studio' as const;
 
@@ -129,33 +135,21 @@ export const WORKBENCH_EXPERIMENT_PHASES: readonly WorkbenchExperimentPhase[] = 
     task: '2.1',
     label: 'Source',
     step: 'source',
-    scenarioFocus: [
-      'create-rule',
-      'apply-template',
-      'plan-live-link',
-      'stale-preview-recovery',
-      'handoff-tag',
-    ],
+    scenarioFocus: WORKBENCH_SOURCE_PHASE2_SCENARIO_FOCUS,
   },
   {
     id: 'phase3',
     task: '3.1',
     label: 'Tag',
     step: 'tag',
-    scenarioFocus: [
-      'review-candidates',
-      'diff-preview',
-      'apply-decision',
-      'failure-retry-recovery',
-      'handoff-output',
-    ],
+    scenarioFocus: ['review-candidates', 'batch-actions', 'diff-preview', 'apply-feedback'],
   },
   {
     id: 'phase4',
     task: '4.1',
     label: 'Output',
     step: 'output',
-    scenarioFocus: ['readiness', 'dry-run', 'apply', 'blocker-diagnosis'],
+    scenarioFocus: ['mapping-visibility', 'dry-run', 'apply-output', 'blocker-diagnosis'],
   },
   {
     id: 'phase5',

@@ -1,4 +1,4 @@
-# Workbench Phase 2–5 Archetype-preserving Winner-led Rollout Design
+# Workbench Phase 2–5 Winner-led Rollout Design
 
 - Status: Brainstorming-approved; pending spec-review
 - Date: 2026-04-07
@@ -12,15 +12,15 @@ Phase 1R established a new Device round with three visibly distinct archetypes a
 2. `v1 / Linear Control Room` is the strongest low-risk fallback and the best candidate for a higher-polish full-flow treatment.
 3. `v3 / ClickHouse Data Cockpit` contains valuable high-density cockpit ideas, but its maintenance cost is too high to keep as an equal-investment track for every later phase.
 
-The current OpenSpec no longer has the old three-equal-track problem, but a new live-review problem emerged: outside Device, the current Source/Tag work still reads too similarly across versions.
+The current OpenSpec still assumes Phase 2–5 are three-equal variant races. That no longer matches the approved direction.
 
-This amendment keeps the winner-led owner model, but reopens Phase 2–5 so the remaining workbench phases preserve three genuinely different archetype-level surfaces:
+This design changes the rollout model for the remaining workbench phases:
 
-- `v2` remains the **primary functional delivery track**
-- `v1` remains the **full-flow high-polish parallel track**
-- `v3` remains the **necessary-consistency comparison track**
+- `v2` becomes the **primary functional delivery track**
+- `v1` becomes the **full-flow high-polish parallel track**
+- `v3` becomes the **necessary-consistency comparison track**
 
-The compare gate remains mandatory at the end of every phase, but completion now also requires the resulting phase to still read as three recognizably different versions beyond Device.
+The compare gate remains mandatory at the end of every phase, but the investment model changes from “three equal implementation efforts” to “one canonical workflow track, one full-quality alternate expression, one limited comparison/control track.”
 
 ## 2. Problem Statement
 
@@ -31,16 +31,16 @@ The approved user direction is now:
 - carry `v1` forward as a full-flow high-quality language, not a cosmetic skin
 - stop treating `v3` as an equal-cost delivery path unless its cockpit-specific strengths justify the extra effort
 
-If Phase 2–5 continue from the current partial state without reopening the surface requirement, the project pays a new cost:
+If Phase 2–5 continue under the previous three-equal-track assumption, the project will pay three costs at once:
 
-1. **Archetype drift cost**
-   - Different branches touch different files, but the operator-facing result still collapses back toward one shared product.
+1. **Spec drift cost**
+   - The operational decision has changed, but the OpenSpec task matrix still encodes the old shape.
 
-2. **Review failure cost**
-   - The user already reviewed the live previews and rejected the current outcome because only Device reads clearly different.
+2. **Delivery inefficiency**
+   - All three versions would continue receiving equal effort even though the approved compare result already selected `v2` as the primary direction.
 
-3. **Mixed-suite cost**
-   - If only later phases are corrected, `/studio` will still contain a half-distinct product line where Source remains too close while later steps diverge.
+3. **Quality dilution**
+   - `v1` would risk becoming a half-maintained alternate branch instead of the deliberate, refined end-to-end language the user asked for.
 
 The remaining work must therefore be re-scoped before implementation continues.
 
@@ -49,17 +49,15 @@ The remaining work must therefore be re-scoped before implementation continues.
 ### Product goals
 
 - Keep `/studio` as one real workflow over the same real API and same route contract.
-- Keep the shared domain logic unchanged while reworking all operator-facing operations.
-- Carry `v2` through `Source`, `Tag`, `Output`, and cross-step diagnostics as a clearly recognizable incident-desk product.
-- Carry `v1` through the same end-to-end workflow as a clearly recognizable control-room product.
-- Retain `v3` as a clearly recognizable cockpit product with explicit limits.
+- Carry the winning `v2` interaction model through `Source`, `Tag`, `Output`, and cross-step diagnostics.
+- Carry `v1` through the same end-to-end workflow with a cleaner, more refined, more consistent product language.
+- Retain `v3` only as a comparison-capable cockpit track with explicit limits.
 
 ### Architecture goals
 
 - Keep one shared domain/data-flow contract across all remaining phases.
 - Prevent branch-local logic forks, hidden behavior divergence, or version-only backend semantics.
 - Ensure each phase still ends with a comparable evidence-based decision.
-- Ensure each reopened phase stays recognizably different beyond Device.
 
 ### Delivery goals
 
@@ -73,7 +71,6 @@ The remaining work must therefore be re-scoped before implementation continues.
 - Allowing `v1` to diverge from the canonical domain flow in the name of polish.
 - Allowing `v3` to become a second primary product direction.
 - Creating new routes, mock backends, or variant-specific API contracts.
-- Accepting wrapper-only or skin-only variation as sufficient completion.
 
 ## 5. Approved Decisions
 
@@ -83,7 +80,6 @@ The remaining work must therefore be re-scoped before implementation continues.
 4. `v1` must remain a full-flow implementation, not a skin-only layer.
 5. `v3` is retained for necessary consistency and compare value only.
 6. Every later phase still requires a compare gate before moving forward.
-7. Phase 2–5 are reopened because current non-Device surfaces are not distinct enough.
 
 ## 6. Approaches Considered
 
@@ -178,20 +174,6 @@ It is not required to receive equal feature-investment depth as `v1` and `v2`.
 
 `v3` may omit secondary refinements that are not needed to satisfy those five conditions.
 
-### 7.2A Archetype continuity rule
-
-Every reopened phase must preserve the Device 1R identities:
-
-- `v1`: control-room zoning, calmer pacing, long-session readability, clearly different work/readout framing
-- `v2`: incident-desk command surfaces, blocker-first narrative, task-centered operation
-- `v3`: cockpit density, KPI/banner/board composition, clearly different primary readout surfaces
-
-The following are insufficient on their own:
-
-- kit-only substitution
-- CSS-only overlays
-- identical action choreography with different component chrome
-
 ### 7.3 Fixed phase rhythm
 
 For every remaining phase, the sequence is:
@@ -204,10 +186,6 @@ For every remaining phase, the sequence is:
 6. compare gate
 
 The next phase does not start until the compare gate completes.
-
-### 7.3A Reopen rule
-
-Completed Phase 2 work and partial Phase 3 work become reference evidence only until rerun under this amendment.
 
 ### 7.4 Baseline definition
 
@@ -287,19 +265,19 @@ Versions may not introduce:
 
 ### 9.1 Phase 2 — Source
 
-`v2` defines the canonical flow for rule create/edit, template apply, plan/live/link switching, inspector behavior, and stale-preview recovery through an incident-desk command surface. `v1` keeps the same flow through a clearly different control-room editing skeleton. `v3` keeps the same handoff through a clearly different cockpit banner / KPI / board composition.
+`v2` defines the canonical flow for rule create/edit, template apply, plan/live/link switching, inspector behavior, and stale-preview recovery. `v1` keeps the same flow with a lower-noise prolonged-editing surface. `v3` keeps the dense canvas/summary presentation only so long as the same rule-to-Tag handoff remains intact.
 
 ### 9.2 Phase 3 — Tag
 
-`v2` defines the canonical review queue, diff preview, batch decision, apply, retry, and recovery flow through an incident-desk review command surface. `v1` keeps those same actions through a clearly different control-room review skeleton. `v3` keeps board/summary density only where the same apply and recovery contract stays visible and the phase still reads as a cockpit.
+`v2` defines the canonical review queue, diff preview, batch decision, apply, retry, and recovery flow. `v1` keeps those same actions while optimizing composure and legibility during large review batches. `v3` keeps board/summary density only where the same apply and recovery contract stays visible.
 
 ### 9.3 Phase 4 — Output
 
-`v2` defines the canonical output flow for both Local Modbus and Database targets, and both must cover readiness, dry-run, apply, and blocker diagnosis through an incident-desk output surface. `v1` keeps those same target families and actions with a clearly different control-room console. `v3` may keep denser mapping/state views, but it must still surface both target families through a clearly different cockpit surface.
+`v2` defines the canonical output flow for both Local Modbus and Database targets, and both must cover readiness, dry-run, apply, and blocker diagnosis. `v1` keeps those same target families and actions with calmer state framing. `v3` may keep denser mapping/state views, but it must still surface both target families and the same apply/blocker contract.
 
 ### 9.4 Phase 5 — Cross-step shell / diagnostics
 
-The shared shell contract owns only four cross-step surfaces: readiness summary, active blocker summary, diagnostics refresh status, and shortest return-to-mainline action. Detailed editing, mutation, and step-local validation stay owned by the underlying phase surfaces. `v2` is the canonical shell implementation, `v1` re-expresses the same shell through a clearly different control-room summary skeleton, and `v3` keeps only the cockpit summary/alert surfaces needed to satisfy that same ownership model while remaining recognizably cockpit-like.
+The shared shell contract owns only four cross-step surfaces: readiness summary, active blocker summary, diagnostics refresh status, and shortest return-to-mainline action. Detailed editing, mutation, and step-local validation stay owned by the underlying phase surfaces. `v2` is the canonical shell implementation, `v1` re-expresses the same shell with lower interference, and `v3` keeps only the cockpit summary/alert surfaces needed to satisfy that same ownership model.
 
 ## 10. Error Handling Rules
 

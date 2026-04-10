@@ -845,6 +845,7 @@ export function LocalModbusBoard() {
                   </button>
                   <button
                     type="button"
+                    data-testid="output-modbus-sync"
                     disabled={isBusy || !canSync}
                     onClick={() => void handleSync()}
                     className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-100 disabled:opacity-50"

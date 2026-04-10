@@ -266,7 +266,7 @@ describe('DatalinkWorkbench runtime phase surface', () => {
   it('shows runtime health summary and current point value inside the source view', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
@@ -285,7 +285,7 @@ describe('DatalinkWorkbench runtime phase surface', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
@@ -316,7 +316,7 @@ describe('DatalinkWorkbench runtime phase surface', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 

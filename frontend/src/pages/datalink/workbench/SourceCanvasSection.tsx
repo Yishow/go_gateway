@@ -452,6 +452,7 @@ export function SourceCanvasSection() {
   /** 來源畫布每列顯示幾個位址格（例 10 → 40001～40010 同一列）；自本機 storage 還原。 */
   const [canvasLatticeColumns, setCanvasLatticeColumns] = useState(LATTICE_COLUMNS_DEFAULT);
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
+  const [templateRecoveryWarning, setTemplateRecoveryWarning] = useState<string | null>(null);
   const [templateWarning, setTemplateWarning] = useState<string | null>(null);
   const [appliedTemplate, setAppliedTemplate] = useState<{
     id: string;
@@ -486,18 +487,29 @@ export function SourceCanvasSection() {
   useEffect(() => {
     const restored = loadSourceTemplates();
     if (restored.length === 0) {
+      setTemplateRecoveryWarning(null);
       setTemplates([]);
       return;
     }
 
-    const nextTemplates = restored.some(isTemplateStale)
+    const hasStaleTemplate = restored.some(isTemplateStale);
+    const nextTemplates = hasStaleTemplate
       ? sortTemplates(upgradeTemplates(restored))
       : sortTemplates(restored);
 
-    if (restored.some(isTemplateStale)) {
+    if (hasStaleTemplate) {
       saveSourceTemplates(nextTemplates);
+      setTemplateRecoveryWarning(
+        t('workbench.source.templates.recoveredLegacy', {
+          defaultValue:
+            'Legacy templates were auto-upgraded. Review the range before reusing it.',
+        }),
+      );
+    } else {
+      setTemplateRecoveryWarning(null);
     }
     setTemplates(nextTemplates);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- legacy template recovery only needs mount-time evaluation
   }, []);
   useEffect(() => {
     setTemplateWarning(null);
@@ -2654,9 +2666,9 @@ export function SourceCanvasSection() {
             </section>
           ) : null}
 
-          {templateWarning ? (
+          {templateRecoveryWarning || templateWarning ? (
             <p className="text-sm text-amber-200" data-testid="source-template-warning">
-              {templateWarning}
+              {templateWarning ?? templateRecoveryWarning}
             </p>
           ) : null}
 

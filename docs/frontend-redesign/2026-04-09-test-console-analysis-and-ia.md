@@ -4,6 +4,15 @@
 
 分析目前 `/test` 頁面實際在做什麼，並定義下一版更合理的資訊架構。
 
+這份文件偏向：
+
+- IA 問題判讀
+- redesign 方向
+
+如果要看之後重複引用的現況基準，請優先對照：
+
+- `docs/frontend-redesign/2026-04-10-test-console-current-architecture-baseline.md`
+
 ## 我目前看到的頁面結構
 
 目前 `/test` 是一個大型單頁 console。
