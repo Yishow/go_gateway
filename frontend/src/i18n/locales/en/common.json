@@ -612,6 +612,8 @@
         "dockLabel": "HANDOFF",
         "toTag": "→ TAG REVIEW",
         "pointSummary": "{{count}} points mapped",
+        "prefixLabel": "Prefix",
+        "groupedReview": "Next step reviews grouped tags before Database planning.",
         "noDevice": "No device selected"
       },
       "view": {

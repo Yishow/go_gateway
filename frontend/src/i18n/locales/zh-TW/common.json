@@ -612,6 +612,8 @@
         "dockLabel": "交接區",
         "toTag": "→ TAG 審查",
         "pointSummary": "已映射 {{count}} 點",
+        "prefixLabel": "前綴",
+        "groupedReview": "下一步會先審查 grouped Tag，再進入 Database 規劃。",
         "noDevice": "尚未選擇設備"
       },
       "view": {

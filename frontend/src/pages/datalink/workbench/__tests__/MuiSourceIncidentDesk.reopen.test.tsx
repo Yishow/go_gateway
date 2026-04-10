@@ -199,6 +199,31 @@ describe('MuiSourceCommandDeck reopened Phase 2', () => {
     expect(screen.queryByTestId('source-handoff-dock')).not.toBeInTheDocument();
   });
 
+  it('shows grouped tag-review handoff context with point count and naming prefix', () => {
+    mockSourceRules.push({
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'MBT',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      skipped_addresses: [],
+      revision_id: 'rev-1',
+      created_at: '',
+      updated_at: '',
+    });
+
+    openSourceForMixer();
+
+    const handoffPanel = screen.getByTestId('source-incident-handoff-panel');
+    expect(within(handoffPanel).getByTestId('source-handoff-point-count')).toHaveTextContent('1');
+    expect(within(handoffPanel).getByTestId('source-handoff-naming-prefix')).toHaveTextContent('MBT');
+    expect(handoffPanel).toHaveTextContent('workbench.source.handoff.groupedReview');
+  });
+
   it('surfaces stale template auto-recovery in the source workspace', () => {
     localStorage.setItem(
       SOURCE_TEMPLATE_STORAGE_KEY,

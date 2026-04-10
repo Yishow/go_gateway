@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -24,15 +24,48 @@ const DESK_MODES: readonly { key: SentryDeskMode; labelKey: string }[] = [
 
 export function MuiSourceCommandDeck() {
   const { t } = useTranslation();
-  const { selectedDeviceId, setActiveStep, sourceStepNotice } = useWorkbench();
+  const {
+    crossStepContext,
+    selectedDeviceId,
+    setActiveStep,
+    sourcePlanningState,
+    sourceStepNotice,
+  } = useWorkbench();
   const { selectedDevice, sourceReady, pointCount } = useWorkbenchSummary();
   const [deskMode, setDeskMode] = useState<SentryDeskMode>('inspect');
   const hasDevice = Boolean(selectedDeviceId);
   const isBlocked = !hasDevice || !sourceReady;
+  const activeSourceRule = useMemo(() => {
+    if (!selectedDeviceId) {
+      return null;
+    }
+
+    const deviceRules = sourcePlanningState.rules.filter(
+      (rule) => rule.deviceId === selectedDeviceId,
+    );
+    if (deviceRules.length === 0) {
+      return null;
+    }
+
+    return (
+      deviceRules.find((rule) => rule.id === crossStepContext.focusedRuleId) ??
+      deviceRules.find((rule) => rule.id === sourcePlanningState.selectedRuleId) ??
+      deviceRules[0]
+    );
+  }, [
+    crossStepContext.focusedRuleId,
+    selectedDeviceId,
+    sourcePlanningState.rules,
+    sourcePlanningState.selectedRuleId,
+  ]);
+  const plannedPointCount = activeSourceRule
+    ? Math.max(activeSourceRule.count - activeSourceRule.skippedAddresses.length, 0)
+    : pointCount;
+  const namingPrefixContext = activeSourceRule?.namingPrefix.trim() || null;
   const incidentPriorityCopy =
     sourceStepNotice ??
     (hasDevice
-      ? t('workbench.source.handoff.pointSummary', { count: pointCount })
+      ? t('workbench.source.handoff.pointSummary', { count: plannedPointCount })
       : t('workbench.source.handoff.noDevice'));
 
   return (
@@ -252,9 +285,55 @@ export function MuiSourceCommandDeck() {
               sx={{ ...SENTRY_SX.monoData, mt: 0.75, mb: 1, fontSize: '11px' }}
             >
               {hasDevice
-                ? t('workbench.source.handoff.pointSummary', { count: pointCount })
+                ? t('workbench.source.handoff.pointSummary', { count: plannedPointCount })
                 : t('workbench.source.handoff.noDevice')}
             </Typography>
+            {hasDevice ? (
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+                <Chip
+                  data-testid="source-handoff-point-count"
+                  size="small"
+                  label={`${plannedPointCount} pts`}
+                  sx={{
+                    ...SENTRY_SX.modeChip,
+                    height: 24,
+                    color: tokens.text.secondary,
+                    bgcolor: alpha(sentry.panel, 0.88),
+                    border: `1px solid ${sentry.border}`,
+                    fontFamily: 'Monaco, Menlo, monospace',
+                    fontSize: '10px',
+                  }}
+                />
+                {namingPrefixContext ? (
+                  <Chip
+                    data-testid="source-handoff-naming-prefix"
+                    size="small"
+                    label={`${t('workbench.source.handoff.prefixLabel')} · ${namingPrefixContext}`}
+                    sx={{
+                      ...SENTRY_SX.modeChip,
+                      height: 24,
+                      color: sentry.highlight,
+                      bgcolor: alpha(sentry.highlight, 0.1),
+                      border: `1px solid ${alpha(sentry.highlight, 0.28)}`,
+                      fontSize: '10px',
+                    }}
+                  />
+                ) : null}
+              </Stack>
+            ) : null}
+            {hasDevice && activeSourceRule ? (
+              <Typography
+                sx={{
+                  mt: 0.25,
+                  mb: 1,
+                  color: tokens.text.secondary,
+                  fontSize: '12px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {t('workbench.source.handoff.groupedReview')}
+              </Typography>
+            ) : null}
             <Button
               fullWidth
               size="small"
