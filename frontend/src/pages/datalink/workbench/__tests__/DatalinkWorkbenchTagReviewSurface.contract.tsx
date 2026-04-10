@@ -24,20 +24,17 @@ const {
   mockCandidateRefetch: vi.fn(),
   mockCandidateState: { isError: false, error: null as Error | null },
 }));
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/useDevices', () => ({
   useDevicesQuery: () => ({
     data: mockDevices,
     isLoading: false,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/usePoints', () => ({
   usePointsQuery: () => ({
     data: mockPoints,
@@ -48,7 +45,6 @@ vi.mock('../../../../hooks/datalink/usePoints', () => ({
     isPending: false,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/useTags', () => ({
   useTagsQuery: () => ({
     data: [],
@@ -64,7 +60,6 @@ vi.mock('../../../../hooks/datalink/useTags', () => ({
     isPending: false,
   }),
 }));
-
 vi.mock('../../../../hooks/datalink/useMappings', () => ({
   useMappingsQuery: () => ({
     data: [],
@@ -145,23 +140,12 @@ function renderTagStep(focusedRuleId?: string) {
 }
 
 describe('DatalinkWorkbench tag review surface', () => {
-  function seedRule(overrides: Partial<SourceRuleRecord> = {}) {
-    const rule: SourceRuleRecord = {
-      id: 'rule-1', device_id: 'device-1', start_address: '40001', count: 1,
-      data_type: 'int16', naming_prefix: 'SRC', enabled: true, locked: false,
-      origin: 'manual', skipped_addresses: [], revision_id: 'rev-1',
-      created_at: '', updated_at: '', ...overrides,
-    };
-    mockSourceRules.push(rule);
-    return rule;
-  }
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCandidateState.isError = false;
-    mockCandidateState.error = null;
     mockSourceRulesRefetch.mockResolvedValue({ data: mockSourceRules });
     mockCandidateRefetch.mockResolvedValue({ data: null });
+    mockCandidateState.isError = false;
+    mockCandidateState.error = null;
     mockDevices.splice(0, mockDevices.length, {
       id: 'device-1',
       name: 'Mixer PLC',
@@ -200,7 +184,21 @@ describe('DatalinkWorkbench tag review surface', () => {
   });
 
   it('loads generated tag candidates from the active source-rule revision', async () => {
-    seedRule();
+    mockSourceRules.push({
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      skipped_addresses: [],
+      revision_id: 'rev-1',
+      created_at: '',
+      updated_at: '',
+    });
     mockCandidateViews['rule-1'] = {
       source_rule_id: 'rule-1',
       revision_id: 'rev-1',
@@ -254,7 +252,21 @@ describe('DatalinkWorkbench tag review surface', () => {
   });
 
   it('persists the resolved review rule into cross-step focus for Step 4 continuity', async () => {
-    seedRule();
+    mockSourceRules.push({
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      skipped_addresses: [],
+      revision_id: 'rev-1',
+      created_at: '',
+      updated_at: '',
+    });
     mockCandidateViews['rule-1'] = {
       source_rule_id: 'rule-1',
       revision_id: 'rev-1',
@@ -282,11 +294,38 @@ describe('DatalinkWorkbench tag review surface', () => {
   });
 
   it('switches Step 3 to the newly selected source-rule revision without mixing old candidates', async () => {
-    seedRule();
-    seedRule({
-      id: 'rule-2', start_address: '40101', data_type: 'float32',
-      naming_prefix: 'LINE', revision_id: 'rev-2',
-    });
+    mockSourceRules.push(
+      {
+        id: 'rule-1',
+        device_id: 'device-1',
+        start_address: '40001',
+        count: 1,
+        data_type: 'int16',
+        naming_prefix: 'SRC',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        skipped_addresses: [],
+        revision_id: 'rev-1',
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: 'rule-2',
+        device_id: 'device-1',
+        start_address: '40101',
+        count: 1,
+        data_type: 'float32',
+        naming_prefix: 'LINE',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        skipped_addresses: [],
+        revision_id: 'rev-2',
+        created_at: '',
+        updated_at: '',
+      },
+    );
     mockCandidateViews['rule-1'] = {
       source_rule_id: 'rule-1',
       revision_id: 'rev-1',
@@ -373,7 +412,21 @@ describe('DatalinkWorkbench tag review surface', () => {
   });
 
   it('marks the review state stale when the open candidate revision lags behind the latest rule revision', async () => {
-    seedRule({ revision_id: 'rev-2' });
+    mockSourceRules.push({
+      id: 'rule-1',
+      device_id: 'device-1',
+      start_address: '40001',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'SRC',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      skipped_addresses: [],
+      revision_id: 'rev-2',
+      created_at: '',
+      updated_at: '',
+    });
     mockCandidateViews['rule-1'] = {
       source_rule_id: 'rule-1',
       revision_id: 'rev-1',
@@ -426,27 +479,22 @@ describe('DatalinkWorkbench tag review surface', () => {
   });
 
   it('surfaces refresh failure and then retries into a recovered candidate review', async () => {
-    seedRule();
-
+    mockSourceRules.push({ id: 'rule-1', device_id: 'device-1', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 'SRC', enabled: true, locked: false, origin: 'manual', skipped_addresses: [], revision_id: 'rev-1', created_at: '', updated_at: '' });
     mockCandidateState.isError = true;
-    mockCandidateState.error = new Error('network timeout');
+    mockCandidateState.error = new Error('candidate load failed');
+    mockCandidateRefetch.mockRejectedValueOnce(new Error('refresh failed')).mockImplementationOnce(async () => {
+      mockCandidateState.isError = false;
+      mockCandidateState.error = null;
+      mockCandidateViews['rule-1'] = { source_rule_id: 'rule-1', revision_id: 'rev-1', tags: { status: 'ready', candidates: [{ id: 'candidate-1', identity: { source_rule_id: 'rule-1', candidate_type: 'tags', candidate_kind: 'tag', derived_from_rule_address: '40001' }, proposed_signature: 'sig-1', address: '40001', point_id: 'point-1', tag_key: 'SRC_40001', display_name: 'Flow Sensor', data_type: 'int16', status: 'draft' }] }, database_outputs: { status: 'deferred', candidates: [] }, local_modbus_outputs: { status: 'deferred', candidates: [] } };
+      return { data: mockCandidateViews['rule-1'] };
+    });
 
     renderTagStep('rule-1');
 
-    await waitFor(() =>
-      expect(screen.getByTestId('source-rule-tag-review-error')).toBeInTheDocument(),
-    );
-
-    expect(screen.getByTestId('source-rule-tag-review-retry')).toBeInTheDocument();
-
-    mockCandidateState.isError = false;
-    mockCandidateState.error = null;
-    mockCandidateRefetch.mockResolvedValueOnce({});
-
+    await waitFor(() => expect(screen.getByTestId('source-rule-tag-review-error')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('source-rule-tag-review-retry'));
-
-    await waitFor(() => {
-      expect(mockCandidateRefetch).toHaveBeenCalled();
-    });
+    await waitFor(() => expect(screen.getByTestId('source-rule-tag-review-feedback')).toHaveTextContent('refresh failed'));
+    fireEvent.click(screen.getByTestId('source-rule-tag-review-retry'));
+    await waitFor(() => expect(screen.getByTestId('source-rule-tag-review-row-candidate-1')).toBeInTheDocument());
   });
 });

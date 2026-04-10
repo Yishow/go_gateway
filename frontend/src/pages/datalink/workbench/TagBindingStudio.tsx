@@ -26,6 +26,7 @@ import {
   type TagBindingCandidate,
   type TagBindingStrategy,
 } from './tagBindingModel';
+import { useTagBindingSourceScope } from './useTagBindingSourceScope';
 
 type TagBindingFailure = {
   pointId: string;
@@ -98,7 +99,6 @@ export function TagBindingStudio() {
   const createMappingMutation = useCreateMappingMutation();
   const deleteMappingMutation = useDeleteMappingMutation();
   const deletePointMutation = useDeletePointMutation();
-
   const selectedDevice = getSelectedDevice(devices, selectedDeviceId);
   const mappingByPointId = useMemo(
     () => new Map(mappings.map((mapping) => [mapping.point_id, mapping])),
@@ -108,6 +108,7 @@ export function TagBindingStudio() {
     () => new Map(tags.map((tag) => [tag.id, tag])),
     [tags],
   );
+  const scopedPoints = useTagBindingSourceScope(points);
   const [prefix, setPrefix] = useState('TAG');
   const [strategy, setStrategy] = useState<TagBindingStrategy>('address');
   const [flowMode, setFlowMode] = useState<TagBindingFlowMode>('create');
@@ -126,13 +127,14 @@ export function TagBindingStudio() {
   const [tagLibraryFeedback, setTagLibraryFeedback] = useState<TagLibraryFeedback | null>(null);
   const [isBatchUnbinding, setIsBatchUnbinding] = useState(false);
   const [isBatchDeletingPoints, setIsBatchDeletingPoints] = useState(false);
-
-  const pointIdsKey = useMemo(() => points.map((point) => point.id).join('|'), [points]);
-
+  const pointIdsKey = useMemo(
+    () => scopedPoints.map((point) => point.id).join('|'),
+    [scopedPoints],
+  );
   const candidates = useMemo(
     () =>
       buildTagBindingCandidates({
-        points,
+        points: scopedPoints,
         tags,
         mappings,
         template: {
@@ -140,14 +142,12 @@ export function TagBindingStudio() {
           strategy,
         },
       }),
-    [mappings, points, prefix, strategy, tags],
+    [mappings, prefix, scopedPoints, strategy, tags],
   );
-
   useEffect(() => {
     setSelectedPointIds([]);
     setBatchSummary(null);
   }, [pointIdsKey, selectedDeviceId]);
-
   useEffect(() => {
     setExistingTagSelections((currentState) => {
       let didChange = false;

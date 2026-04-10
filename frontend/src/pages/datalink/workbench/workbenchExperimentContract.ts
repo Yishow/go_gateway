@@ -11,6 +11,12 @@ import {
   WORKBENCH_SOURCE_COMPARE_CRITICAL_TASK,
   WORKBENCH_SOURCE_COMPARE_SCENARIOS,
 } from './workbenchSourceCompareContract';
+import {
+  WORKBENCH_TAG_COMPARE_ACCEPTANCE,
+  WORKBENCH_TAG_COMPARE_ARCHETYPES,
+  WORKBENCH_TAG_COMPARE_CRITICAL_TASK,
+  WORKBENCH_TAG_COMPARE_SCENARIOS,
+} from './workbenchTagCompareContract';
 
 export {
   WORKBENCH_SHELL_COMPARE_ACCEPTANCE,
@@ -26,8 +32,19 @@ export {
   WORKBENCH_SOURCE_COMPARE_SCENARIOS,
 };
 
+export {
+  WORKBENCH_TAG_COMPARE_ACCEPTANCE,
+  WORKBENCH_TAG_COMPARE_ARCHETYPES,
+  WORKBENCH_TAG_COMPARE_CRITICAL_TASK,
+  WORKBENCH_TAG_COMPARE_SCENARIOS,
+};
+
 const WORKBENCH_SOURCE_PHASE2_SCENARIO_FOCUS = WORKBENCH_SOURCE_COMPARE_SCENARIOS.map(
   ({ id }) => id.replace(/^source-/, ''),
+);
+
+const WORKBENCH_TAG_PHASE3_SCENARIO_FOCUS = WORKBENCH_TAG_COMPARE_SCENARIOS.map(({ id }) =>
+  id.replace(/^tag-/, ''),
 );
 
 export const WORKBENCH_EXPERIMENT_ROUTE = '/studio' as const;
@@ -142,7 +159,7 @@ export const WORKBENCH_EXPERIMENT_PHASES: readonly WorkbenchExperimentPhase[] = 
     task: '3.1',
     label: 'Tag',
     step: 'tag',
-    scenarioFocus: ['review-candidates', 'batch-actions', 'diff-preview', 'apply-feedback'],
+    scenarioFocus: WORKBENCH_TAG_PHASE3_SCENARIO_FOCUS,
   },
   {
     id: 'phase4',

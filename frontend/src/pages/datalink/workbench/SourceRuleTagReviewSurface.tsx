@@ -16,20 +16,8 @@ import type {
   SourceRuleTagReviewDecisionAction,
 } from '../../../types/sourceRuleTagReviewDecisions';
 import { SourceRuleTagReviewCandidateRow } from './SourceRuleTagReviewCandidateRow';
+import { resolveActiveRuleId } from './sourceRuleSelection';
 import { useWorkbench } from './WorkbenchProvider';
-
-function resolveActiveRuleId(
-  rules: SourceRuleRecord[],
-  preferredIds: Array<string | null | undefined>,
-) {
-  for (const candidateId of preferredIds) {
-    if (candidateId && rules.some((rule) => rule.id === candidateId)) {
-      return candidateId;
-    }
-  }
-
-  return rules[0]?.id ?? null;
-}
 
 function buildRuleLabel(rule: SourceRuleRecord) {
   return `${rule.start_address} · ${rule.naming_prefix} · ${rule.data_type}`;
@@ -128,7 +116,20 @@ export function SourceRuleTagReviewSurface() {
   }
 
   const handleRefreshReview = async () => {
-    await Promise.all([rulesQuery.refetch(), candidateQuery.refetch()]);
+    setReviewFeedback(null);
+
+    try {
+      await Promise.all([rulesQuery.refetch(), candidateQuery.refetch()]);
+      setReviewFeedback({
+        tone: 'success',
+        message: t('workbench.tag.reviewSurface.feedback.refreshed'),
+      });
+    } catch (error) {
+      setReviewFeedback({
+        tone: 'error',
+        message: getErrorMessage(error, t('workbench.tag.reviewSurface.feedback.refreshFailed')),
+      });
+    }
   };
 
   const handleRenameDraftChange = (candidateId: string, value: string) => {
@@ -338,6 +339,19 @@ export function SourceRuleTagReviewSurface() {
           <p className="mt-1 text-rose-100/80">
             {candidateQuery.error instanceof Error ? candidateQuery.error.message : ''}
           </p>
+          <button
+            type="button"
+            onClick={() => void handleRefreshReview()}
+            disabled={refreshingReview}
+            data-testid="source-rule-tag-review-retry"
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-rose-300/40 bg-slate-950/40 px-4 text-sm font-semibold text-rose-50 transition hover:border-rose-200/60 hover:bg-slate-950/60 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {t(
+              refreshingReview
+                ? 'workbench.tag.reviewSurface.stale.refreshing'
+                : 'workbench.tag.reviewSurface.retry',
+            )}
+          </button>
         </div>
       ) : (
         <>

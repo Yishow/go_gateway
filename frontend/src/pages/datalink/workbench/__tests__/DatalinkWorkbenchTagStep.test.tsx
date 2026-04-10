@@ -265,7 +265,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByText('workbench.tag.empty.title')).toBeInTheDocument();
@@ -278,7 +278,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const goToSourceButton = screen.getByTestId('tag-empty-goto-source');
@@ -287,14 +287,14 @@ describe('DatalinkWorkbench tag step', () => {
     fireEvent.click(goToSourceButton);
 
     // After clicking, active step should switch to source (step 2)
-    const sourceStepButton = screen.getByRole('button', { name: /workbench\.steps\.source/ });
-    expect(sourceStepButton).toHaveAttribute('aria-current', 'step');
+    const sourceStepButton = screen.getByRole('tab', { name: /workbench.steps.source/ });
+    expect(sourceStepButton).toHaveAttribute('aria-selected', 'true');
   });
 
   it('previews tag keys for selected points and updates the preview when the prefix changes', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('tag-preview-point-1')).toHaveTextContent('TAG_40001');
@@ -312,7 +312,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('tag-candidate-board')).toHaveAttribute(
@@ -352,7 +352,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('tag-review-summary')).toBeInTheDocument();
@@ -364,7 +364,7 @@ describe('DatalinkWorkbench tag step', () => {
   it('shows adaptive board guidance and flow hints as selection state changes', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByText('workbench.tag.board.selectionHint.none')).toBeInTheDocument();
@@ -382,7 +382,7 @@ describe('DatalinkWorkbench tag step', () => {
   it('groups manual correction tools under an exception-handling section', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('tag-exception-tools')).toBeInTheDocument();
@@ -407,7 +407,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
 
@@ -420,7 +420,7 @@ describe('DatalinkWorkbench tag step', () => {
   it('shows batch actions only after one or more candidate rows are selected', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.queryByTestId('batch-diff-preview')).not.toBeInTheDocument();
@@ -439,7 +439,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const deleteBtn = screen.getByTestId('tag-delete-selected-points');
@@ -474,7 +474,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const row = screen.getByTestId('tag-candidate-point-1');
@@ -492,7 +492,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.click(screen.getByTestId('tag-candidate-point-1'));
@@ -515,7 +515,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.change(screen.getByLabelText('workbench.tag.board.search'), {
       target: { value: 'Pressure' },
@@ -567,7 +567,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     expect(screen.getByTestId('tag-master-surface')).toBeInTheDocument();
@@ -595,7 +595,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.tag.master.fields.key'), {
@@ -643,7 +643,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
@@ -679,7 +679,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
 
@@ -712,7 +712,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
     fireEvent.click(screen.getByLabelText('Pressure Sensor'));
@@ -731,7 +731,7 @@ describe('DatalinkWorkbench tag step', () => {
   it('shows a batch diff preview before executing the bind', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
     fireEvent.click(screen.getByLabelText('Pressure Sensor'));
@@ -760,7 +760,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
     fireEvent.click(screen.getByLabelText('Pressure Sensor'));
@@ -785,7 +785,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.tag.board.flow.existing' }));
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
@@ -796,7 +796,7 @@ describe('DatalinkWorkbench tag step', () => {
   it('shows an enhanced result summary with created/linked/skipped/failed counts', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
     fireEvent.click(screen.getByLabelText('Pressure Sensor'));
@@ -837,7 +837,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const candidate = screen.getByTestId('tag-candidate-point-1');
@@ -883,7 +883,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const candidate = screen.getByTestId('tag-candidate-point-1');
@@ -948,7 +948,7 @@ describe('DatalinkWorkbench tag step', () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.click(screen.getByLabelText('Flow Sensor'));
@@ -971,7 +971,7 @@ describe('DatalinkWorkbench tag step', () => {
   it('shows the template panel collapsed by default with a toggle button', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.tag/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.tag/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const toggle = screen.getByTestId('tag-template-toggle');
