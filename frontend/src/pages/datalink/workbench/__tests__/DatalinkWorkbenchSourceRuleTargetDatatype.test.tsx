@@ -108,7 +108,7 @@ function renderPage() {
 
 async function openSourceStep() {
   renderPage();
-  fireEvent.click(screen.getByRole('button', { name: /workbench\.steps\.source/ }));
+  fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
   await screen.findByLabelText('workbench.source.planner.startAddress');
 }

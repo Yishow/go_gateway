@@ -48,6 +48,7 @@ import {
   getDefaultPlannerStartAddress,
 } from '../../../utils/addressParser';
 import { AddressCanvas } from './AddressCanvas';
+import { SourceCanvasStatusState } from './SourceCanvasStatusState';
 import {
   clampLatticeColumns,
   LATTICE_COLUMNS_DEFAULT,
@@ -451,6 +452,7 @@ export function SourceCanvasSection() {
   /** 來源畫布每列顯示幾個位址格（例 10 → 40001～40010 同一列）；自本機 storage 還原。 */
   const [canvasLatticeColumns, setCanvasLatticeColumns] = useState(LATTICE_COLUMNS_DEFAULT);
   const [templateNotice, setTemplateNotice] = useState<string | null>(null);
+  const [templateRecoveryWarning, setTemplateRecoveryWarning] = useState<string | null>(null);
   const [templateWarning, setTemplateWarning] = useState<string | null>(null);
   const [appliedTemplate, setAppliedTemplate] = useState<{
     id: string;
@@ -462,7 +464,6 @@ export function SourceCanvasSection() {
     if (!selectedDeviceId) {
       return [];
     }
-
     const forDevice = sourcePlanningState.rules.filter(
       (rule) => rule.deviceId === selectedDeviceId,
     );
@@ -486,48 +487,49 @@ export function SourceCanvasSection() {
   useEffect(() => {
     const restored = loadSourceTemplates();
     if (restored.length === 0) {
+      setTemplateRecoveryWarning(null);
       setTemplates([]);
       return;
     }
 
-    const nextTemplates = restored.some(isTemplateStale)
+    const hasStaleTemplate = restored.some(isTemplateStale);
+    const nextTemplates = hasStaleTemplate
       ? sortTemplates(upgradeTemplates(restored))
       : sortTemplates(restored);
 
-    if (restored.some(isTemplateStale)) {
+    if (hasStaleTemplate) {
       saveSourceTemplates(nextTemplates);
+      setTemplateRecoveryWarning(
+        t('workbench.source.templates.recoveredLegacy', {
+          defaultValue:
+            'Legacy templates were auto-upgraded. Review the range before reusing it.',
+        }),
+      );
+    } else {
+      setTemplateRecoveryWarning(null);
     }
-
     setTemplates(nextTemplates);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- legacy template recovery only needs mount-time evaluation
   }, []);
-
   useEffect(() => {
     setTemplateWarning(null);
     setAppliedTemplate(null);
   }, [selectedDeviceId]);
-
-  /**
-   * 在捲動區已抵頂或抵底時阻斷 wheel 的預設行為，避免捲動鏈把剩餘位移傳給祖先節點（外層 flex 版面會「微微跟著動」）。
-   *
-   * 須使用 `{ passive: false }` 才能於邊界呼叫 `preventDefault`；僅在頂／底過捲時觸發，不影響區塊內正常捲動。
-   */
+  /** 在捲動區頂/底邊界攔截 wheel，避免位移傳到外層造成整塊版面跟動。 */
   useEffect(() => {
     if (!selectedDeviceId) {
       return undefined;
     }
-
     const el = sourceWorkspaceSecondaryScrollRef.current;
     if (!el) {
       return undefined;
     }
-
     const onWheel = (event: WheelEvent) => {
       const { scrollTop, scrollHeight, clientHeight } = el;
       const { deltaY } = event;
       const edgeSlack = 2;
       const atTop = scrollTop <= edgeSlack;
       const atBottom = scrollTop + clientHeight >= scrollHeight - edgeSlack;
-
       if ((atTop && deltaY < 0) || (atBottom && deltaY > 0)) {
         event.preventDefault();
       }
@@ -538,10 +540,7 @@ export function SourceCanvasSection() {
       el.removeEventListener('wheel', onWheel);
     };
   }, [selectedDeviceId]);
-
-  /**
-   * 「更多」選單開啟時：點擊外區或 Escape 關閉，避免遮擋下層互動。
-   */
+  /** 「更多」選單開啟時：點擊外區或 Escape 關閉，避免遮擋下層互動。 */
   useEffect(() => {
     if (!sourceToolbarMoreOpen) {
       return undefined;
@@ -1551,6 +1550,18 @@ export function SourceCanvasSection() {
       </section>
     );
   }
+
+  if (selectedDeviceId && sourceRulesQuery.isLoading) return <SourceCanvasStatusState state="loading" />;
+  if (sourceRulesQuery.isError)
+    return (
+      <SourceCanvasStatusState
+        error={sourceRulesQuery.error}
+        onRetry={() => {
+          void sourceRulesQuery.refetch();
+        }}
+        state="error"
+      />
+    );
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
@@ -2655,9 +2666,9 @@ export function SourceCanvasSection() {
             </section>
           ) : null}
 
-          {templateWarning ? (
+          {templateRecoveryWarning || templateWarning ? (
             <p className="text-sm text-amber-200" data-testid="source-template-warning">
-              {templateWarning}
+              {templateWarning ?? templateRecoveryWarning}
             </p>
           ) : null}
 
