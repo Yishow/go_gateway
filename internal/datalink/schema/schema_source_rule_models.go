@@ -114,24 +114,26 @@ type SourceRuleTagCandidate struct {
 
 // SourceRuleDatabaseOutputCandidate describes one rule-scoped database output candidate.
 type SourceRuleDatabaseOutputCandidate struct {
-	ID                string                      `json:"id"`
-	Identity          SourceRuleCandidateIdentity `json:"identity"`
-	ProposedSignature string                      `json:"proposed_signature"`
-	Address           string                      `json:"address"`
-	PointID           string                      `json:"point_id"`
-	TagID             *string                     `json:"tag_id,omitempty"`
-	TagKey            string                      `json:"tag_key,omitempty"`
-	DisplayName       string                      `json:"display_name,omitempty"`
-	DataType          DataType                    `json:"data_type"`
-	MappingID         *string                     `json:"mapping_id,omitempty"`
-	ConnectorID       string                      `json:"connector_id,omitempty"`
-	TableSchema       string                      `json:"table_schema,omitempty"`
-	TableName         string                      `json:"table_name,omitempty"`
-	ColumnName        string                      `json:"column_name,omitempty"`
-	WriteMode         DatabaseWriteMode           `json:"write_mode,omitempty"`
-	TimestampColumn   *string                     `json:"timestamp_column,omitempty"`
-	Status            SourceRuleOutputStatus      `json:"status"`
-	BlockingReason    string                      `json:"blocking_reason,omitempty"`
+	ID                   string                      `json:"id"`
+	Identity             SourceRuleCandidateIdentity `json:"identity"`
+	ProposedSignature    string                      `json:"proposed_signature"`
+	Address              string                      `json:"address"`
+	PointID              string                      `json:"point_id"`
+	TagID                *string                     `json:"tag_id,omitempty"`
+	TagKey               string                      `json:"tag_key,omitempty"`
+	DisplayName          string                      `json:"display_name,omitempty"`
+	DataType             DataType                    `json:"data_type"`
+	MappingID            *string                     `json:"mapping_id,omitempty"`
+	ConnectorID          string                      `json:"connector_id,omitempty"`
+	TableSchema          string                      `json:"table_schema,omitempty"`
+	TableName            string                      `json:"table_name,omitempty"`
+	ColumnName           string                      `json:"column_name,omitempty"`
+	GroupKey             *string                     `json:"group_key"`
+	WriteMode            DatabaseWriteMode           `json:"write_mode,omitempty"`
+	TimestampColumn      *string                     `json:"timestamp_column,omitempty"`
+	WriteIntervalSeconds *int                        `json:"write_interval_seconds"`
+	Status               SourceRuleOutputStatus      `json:"status"`
+	BlockingReason       string                      `json:"blocking_reason,omitempty"`
 }
 
 // SourceRuleOutputStatus identifies review/apply readiness of a rule-owned output candidate.

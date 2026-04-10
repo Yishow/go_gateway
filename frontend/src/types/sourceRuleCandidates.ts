@@ -63,8 +63,10 @@ export interface SourceRuleDatabaseOutputCandidateView {
   table_schema?: string;
   table_name?: string;
   column_name?: string;
+  group_key?: string | null;
   write_mode?: DatabaseWriteMode;
   timestamp_column?: string;
+  write_interval_seconds?: number | null;
 }
 
 export interface SourceRuleLocalModbusOutputCandidateView {

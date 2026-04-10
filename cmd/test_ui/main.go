@@ -189,6 +189,7 @@ func main() {
 			return dbTargetMappingSvc.List(ctx, dbtarget.TargetMappingListFilter{})
 		}),
 	)
+	sourceRuleSvc.SetDatabaseTargetConnectorReader(dbTargetConnectorSvc)
 	sourceRuleSvc.SetDatabaseTargetConnectorValidator(
 		sourcerule.DatabaseTargetConnectorValidatorFunc(func(ctx context.Context, connectorID string) (*sourcerule.DatabaseTargetConnectorValidation, error) {
 			result, err := dbTargetMappingSvc.Validate(ctx, connectorID)

@@ -92,18 +92,22 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_ReturnsPerCandidateResultsForPar
 		DataType:    schema.DataTypeInt16,
 	})
 	require.NoError(t, err)
+	groupKey := "meter"
+	writeIntervalSeconds := 15
 
 	fixture.ruleSvc.SetDatabaseTargetMappingReader(
 		sourcerule.DatabaseTargetMappingListFunc(func(context.Context) ([]*schema.DatabaseTargetMapping, error) {
 			return []*schema.DatabaseTargetMapping{
 				{
-					ID:          "db-map-partial",
-					TagID:       overrideTag.ID,
-					ConnectorID: "connector-ready",
-					TableSchema: "public",
-					TableName:   "measurements",
-					ColumnName:  "line_a",
-					WriteMode:   schema.DatabaseWriteModeInsert,
+					ID:                   "db-map-partial",
+					TagID:                overrideTag.ID,
+					ConnectorID:          "connector-ready",
+					TableSchema:          "public",
+					TableName:            "measurements",
+					ColumnName:           "line_a",
+					GroupKey:             &groupKey,
+					WriteMode:            schema.DatabaseWriteModeInsert,
+					WriteIntervalSeconds: &writeIntervalSeconds,
 				},
 			}, nil
 		}),
@@ -179,6 +183,11 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_ReturnsPerCandidateResultsForPar
 	assert.Equal(t, "success", results[0].(map[string]any)["status"])
 	assert.Equal(t, "db-map-partial", results[0].(map[string]any)["mapping_id"])
 	assert.Equal(t, "connector-ready", results[0].(map[string]any)["connector_id"])
+	assert.Equal(t, "meter", results[0].(map[string]any)["group_key"])
+	assert.Equal(t, "public", results[0].(map[string]any)["table_schema"])
+	assert.Equal(t, "measurements", results[0].(map[string]any)["table_name"])
+	assert.Equal(t, "line_a", results[0].(map[string]any)["column_name"])
+	assert.Equal(t, float64(15), results[0].(map[string]any)["write_interval_seconds"])
 
 	assert.Equal(t, unmappedCandidateID, results[1].(map[string]any)["candidate_id"])
 	assert.Equal(t, "failed", results[1].(map[string]any)["status"])

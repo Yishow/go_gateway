@@ -30,12 +30,19 @@ type ApplyOutputCandidatesRequest struct {
 }
 
 type ApplyOutputCandidateResult struct {
-	CandidateID string `json:"candidate_id"`
-	Status      string `json:"status"`
-	Code        string `json:"code,omitempty"`
-	Reason      string `json:"reason,omitempty"`
-	MappingID   string `json:"mapping_id,omitempty"`
-	ConnectorID string `json:"connector_id,omitempty"`
+	CandidateID          string                   `json:"candidate_id"`
+	Status               string                   `json:"status"`
+	Code                 string                   `json:"code,omitempty"`
+	Reason               string                   `json:"reason,omitempty"`
+	MappingID            string                   `json:"mapping_id,omitempty"`
+	ConnectorID          string                   `json:"connector_id,omitempty"`
+	GroupKey             *string                  `json:"group_key"`
+	TableSchema          string                   `json:"table_schema,omitempty"`
+	TableName            string                   `json:"table_name,omitempty"`
+	ColumnName           string                   `json:"column_name,omitempty"`
+	WriteMode            schema.DatabaseWriteMode `json:"write_mode,omitempty"`
+	TimestampColumn      *string                  `json:"timestamp_column"`
+	WriteIntervalSeconds *int                     `json:"write_interval_seconds"`
 }
 
 type ApplyOutputCandidatesResponse struct {
@@ -102,33 +109,27 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 		}
 
 		if candidate.Status == schema.SourceRuleOutputStatusBlocked || candidate.Status == schema.SourceRuleOutputStatusOutOfSync {
-			response.Results = append(response.Results, ApplyOutputCandidateResult{
-				CandidateID: candidate.ID,
-				Status:      "failed",
-				Code:        classifyDatabaseBlockingCode(candidate.BlockingReason),
-				Reason:      defaultReason(candidate.BlockingReason, "candidate is blocked"),
-				MappingID:   derefOptional(candidate.MappingID),
-				ConnectorID: candidate.ConnectorID,
-			})
+			result := databaseApplyCandidateResult(candidate)
+			result.Status = "failed"
+			result.Code = classifyDatabaseBlockingCode(candidate.BlockingReason)
+			result.Reason = defaultReason(candidate.BlockingReason, "candidate is blocked")
+			response.Results = append(response.Results, result)
 			continue
 		}
 		if candidate.MappingID == nil || strings.TrimSpace(*candidate.MappingID) == "" {
-			response.Results = append(response.Results, ApplyOutputCandidateResult{
-				CandidateID: candidate.ID,
-				Status:      "failed",
-				Code:        "schema_missing",
-				Reason:      "database mapping scope is not configured",
-			})
+			result := databaseApplyCandidateResult(candidate)
+			result.Status = "failed"
+			result.Code = "schema_missing"
+			result.Reason = "database mapping scope is not configured"
+			response.Results = append(response.Results, result)
 			continue
 		}
 		if strings.TrimSpace(candidate.ConnectorID) == "" {
-			response.Results = append(response.Results, ApplyOutputCandidateResult{
-				CandidateID: candidate.ID,
-				Status:      "failed",
-				Code:        "schema_missing",
-				Reason:      "connector_id is required",
-				MappingID:   *candidate.MappingID,
-			})
+			result := databaseApplyCandidateResult(candidate)
+			result.Status = "failed"
+			result.Code = "schema_missing"
+			result.Reason = "connector_id is required"
+			response.Results = append(response.Results, result)
 			continue
 		}
 
@@ -142,40 +143,46 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 				}
 			}
 			if validateErr, hasErr := validationErrors[candidate.ConnectorID]; hasErr {
-				response.Results = append(response.Results, ApplyOutputCandidateResult{
-					CandidateID: candidate.ID,
-					Status:      "failed",
-					Code:        "connector_unavailable",
-					Reason:      validateErr.Error(),
-					MappingID:   *candidate.MappingID,
-					ConnectorID: candidate.ConnectorID,
-				})
+				result := databaseApplyCandidateResult(candidate)
+				result.Status = "failed"
+				result.Code = "connector_unavailable"
+				result.Reason = validateErr.Error()
+				response.Results = append(response.Results, result)
 				continue
 			}
 			if validation := validationCache[candidate.ConnectorID]; validation != nil {
 				if issueCode, issueMessage, blocked := matchValidationIssue(validation, *candidate.MappingID); blocked {
-					response.Results = append(response.Results, ApplyOutputCandidateResult{
-						CandidateID: candidate.ID,
-						Status:      "failed",
-						Code:        mapValidationIssueCode(issueCode),
-						Reason:      issueMessage,
-						MappingID:   *candidate.MappingID,
-						ConnectorID: candidate.ConnectorID,
-					})
+					result := databaseApplyCandidateResult(candidate)
+					result.Status = "failed"
+					result.Code = mapValidationIssueCode(issueCode)
+					result.Reason = issueMessage
+					response.Results = append(response.Results, result)
 					continue
 				}
 			}
 		}
 
-		response.Results = append(response.Results, ApplyOutputCandidateResult{
-			CandidateID: candidate.ID,
-			Status:      "success",
-			MappingID:   *candidate.MappingID,
-			ConnectorID: candidate.ConnectorID,
-		})
+		result := databaseApplyCandidateResult(candidate)
+		result.Status = "success"
+		response.Results = append(response.Results, result)
 	}
 
 	return response, nil
+}
+
+func databaseApplyCandidateResult(candidate schema.SourceRuleDatabaseOutputCandidate) ApplyOutputCandidateResult {
+	return ApplyOutputCandidateResult{
+		CandidateID:          candidate.ID,
+		MappingID:            derefOptional(candidate.MappingID),
+		ConnectorID:          candidate.ConnectorID,
+		GroupKey:             cloneOptionalString(candidate.GroupKey),
+		TableSchema:          candidate.TableSchema,
+		TableName:            candidate.TableName,
+		ColumnName:           candidate.ColumnName,
+		WriteMode:            candidate.WriteMode,
+		TimestampColumn:      cloneOptionalString(candidate.TimestampColumn),
+		WriteIntervalSeconds: cloneOptionalInt(candidate.WriteIntervalSeconds),
+	}
 }
 
 func (s *Service) ApplyLocalModbusOutputCandidates(

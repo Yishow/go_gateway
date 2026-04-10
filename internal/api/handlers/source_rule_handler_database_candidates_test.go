@@ -92,11 +92,56 @@ func TestSourceRuleHandler_Candidates_UsesEffectiveTagReviewStateForDatabaseOutp
 	assert.Equal(t, overrideTag.ID, candidateByAddress["40003"]["tag_id"])
 }
 
+func TestSourceRuleHandler_Candidates_InfersGroupedDatabaseScopeForSlashTagKeys(t *testing.T) {
+	t.Parallel()
+
+	fixture := setupSourceRuleCandidatesFixture(t)
+	tagCandidates := createRuleCandidatesForDecisionTest(t, fixture, "rule-db-grouped", "40001", 1)
+	require.Len(t, tagCandidates, 1)
+
+	body, err := json.Marshal(sourcerule.UpsertTagReviewDecisionRequest{
+		CandidateID: tagCandidates[0].ID,
+		Action:      schema.SourceRuleTagReviewDecisionActionRename,
+		TagKey:      "meter/A1",
+	})
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		"/datalink/source-rules/rule-db-grouped/tag-review-decisions",
+		bytes.NewBuffer(body),
+	)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := httptest.NewRecorder()
+	fixture.router.ServeHTTP(resp, req)
+	require.Equal(t, http.StatusOK, resp.Code)
+
+	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-grouped/candidates", nil)
+	require.NoError(t, err)
+	resp = httptest.NewRecorder()
+	fixture.router.ServeHTTP(resp, req)
+	require.Equal(t, http.StatusOK, resp.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+	data := payload["data"].(map[string]any)
+	databaseOutputs := data["database_outputs"].(map[string]any)
+	require.Len(t, databaseOutputs["candidates"].([]any), 1)
+
+	candidate := databaseOutputs["candidates"].([]any)[0].(map[string]any)
+	assert.Equal(t, "meter", candidate["group_key"])
+	assert.Equal(t, "a1", candidate["column_name"])
+	assert.Equal(t, float64(15), candidate["write_interval_seconds"])
+}
+
 func TestSourceRuleHandler_Candidates_UsesPersistedDatabaseScopeForDatabaseOutputs(t *testing.T) {
 	t.Parallel()
 
 	fixture := setupSourceRuleCandidatesFixture(t)
 	timestampColumn := "ts"
+	writeIntervalSeconds := 15
 	overrideTag, err := fixture.tagSvc.Create(context.Background(), tag.CreateTagRequest{
 		Key:         "factory.db.bound",
 		DisplayName: "DB Bound",
@@ -114,6 +159,7 @@ func TestSourceRuleHandler_Candidates_UsesPersistedDatabaseScopeForDatabaseOutpu
 					TableName:       "measurements",
 					ColumnName:      "line_a",
 					WriteMode:       schema.DatabaseWriteModeUpsert,
+					WriteIntervalSeconds: &writeIntervalSeconds,
 					TimestampColumn: &timestampColumn,
 				},
 			}, nil
@@ -158,6 +204,10 @@ func TestSourceRuleHandler_Candidates_UsesPersistedDatabaseScopeForDatabaseOutpu
 	assert.Equal(t, "public", candidate["table_schema"])
 	assert.Equal(t, "measurements", candidate["table_name"])
 	assert.Equal(t, "line_a", candidate["column_name"])
+	_, hasGroupKey := candidate["group_key"]
+	assert.True(t, hasGroupKey)
+	assert.Nil(t, candidate["group_key"])
+	assert.Equal(t, float64(15), candidate["write_interval_seconds"])
 	assert.Equal(t, "upsert", candidate["write_mode"])
 	assert.Equal(t, "ts", candidate["timestamp_column"])
 }

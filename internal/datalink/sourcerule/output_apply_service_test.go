@@ -125,17 +125,21 @@ func TestService_ApplyDatabaseOutputCandidates_ReturnsPerItemResultsForPartialSu
 		DataType:    schema.DataTypeInt16,
 	})
 	require.NoError(t, err)
+	groupKey := "meter"
+	writeIntervalSeconds := 15
 
 	svc.SetDatabaseTargetMappingReader(DatabaseTargetMappingListFunc(func(context.Context) ([]*schema.DatabaseTargetMapping, error) {
 		return []*schema.DatabaseTargetMapping{
 			{
-				ID:          "db-map-apply-partial",
-				TagID:       overrideTag.ID,
-				ConnectorID: "connector-ready",
-				TableSchema: "public",
-				TableName:   "measurements",
-				ColumnName:  "line_a",
-				WriteMode:   schema.DatabaseWriteModeInsert,
+				ID:                   "db-map-apply-partial",
+				TagID:                overrideTag.ID,
+				ConnectorID:          "connector-ready",
+				TableSchema:          "public",
+				TableName:            "measurements",
+				ColumnName:           "line_a",
+				GroupKey:             &groupKey,
+				WriteMode:            schema.DatabaseWriteModeInsert,
+				WriteIntervalSeconds: &writeIntervalSeconds,
 			},
 		}, nil
 	}))
@@ -177,6 +181,13 @@ func TestService_ApplyDatabaseOutputCandidates_ReturnsPerItemResultsForPartialSu
 	assert.Equal(t, "success", response.Results[0].Status)
 	assert.Equal(t, "db-map-apply-partial", response.Results[0].MappingID)
 	assert.Equal(t, "connector-ready", response.Results[0].ConnectorID)
+	require.NotNil(t, response.Results[0].GroupKey)
+	assert.Equal(t, "meter", *response.Results[0].GroupKey)
+	assert.Equal(t, "public", response.Results[0].TableSchema)
+	assert.Equal(t, "measurements", response.Results[0].TableName)
+	assert.Equal(t, "line_a", response.Results[0].ColumnName)
+	require.NotNil(t, response.Results[0].WriteIntervalSeconds)
+	assert.Equal(t, 15, *response.Results[0].WriteIntervalSeconds)
 	assert.Empty(t, response.Results[0].Code)
 	assert.Empty(t, response.Results[0].Reason)
 

@@ -32,6 +32,10 @@ func (s *Service) buildDatabaseOutputCandidates(
 	if err != nil {
 		return nil, "", "", err
 	}
+	connectorsByID, err := s.listDatabaseTargetConnectorsByID(ctx, mappingsByTagID)
+	if err != nil {
+		return nil, "", "", err
+	}
 	validationIndex, err := s.listDatabaseTargetValidationIndex(ctx, mappingsByTagID)
 	if err != nil {
 		return nil, "", "", err
@@ -46,7 +50,7 @@ func (s *Service) buildDatabaseOutputCandidates(
 
 		mappings := effectiveStateMappings(state, mappingsByTagID)
 		if len(mappings) == 0 {
-			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, nil, validationIndex)
+			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, nil, nil, validationIndex)
 			if buildErr != nil {
 				return nil, "", "", buildErr
 			}
@@ -55,7 +59,13 @@ func (s *Service) buildDatabaseOutputCandidates(
 		}
 
 		for _, mappingRecord := range mappings {
-			candidate, buildErr := buildDatabaseOutputCandidate(rule.ID, state, mappingRecord, validationIndex)
+			candidate, buildErr := buildDatabaseOutputCandidate(
+				rule.ID,
+				state,
+				mappingRecord,
+				connectorsByID[mappingRecord.ConnectorID],
+				validationIndex,
+			)
 			if buildErr != nil {
 				return nil, "", "", buildErr
 			}
@@ -70,25 +80,30 @@ func buildDatabaseOutputCandidate(
 	ruleID string,
 	state effectiveTagReviewState,
 	mappingRecord *schema.DatabaseTargetMapping,
+	connectorRecord *schema.DatabaseConnector,
 	validationIndex databaseTargetValidationIndex,
 ) (schema.SourceRuleDatabaseOutputCandidate, error) {
 	candidate := schema.SourceRuleDatabaseOutputCandidate{
-		Address:     state.Address,
-		PointID:     state.PointID,
-		TagID:       cloneOptionalString(state.TagID),
-		TagKey:      state.TagKey,
-		DisplayName: state.DisplayName,
-		DataType:    state.DataType,
-		Status:      schema.SourceRuleOutputStatusReady,
+		Address:              state.Address,
+		PointID:              state.PointID,
+		TagID:                cloneOptionalString(state.TagID),
+		TagKey:               state.TagKey,
+		DisplayName:          state.DisplayName,
+		DataType:             state.DataType,
+		WriteIntervalSeconds: defaultDatabaseWriteIntervalPointer(),
+		Status:               schema.SourceRuleOutputStatusReady,
 	}
+	candidate.GroupKey, candidate.ColumnName = inferDatabaseGroupAndColumn(state.TagKey)
 	if mappingRecord != nil {
 		candidate.MappingID = stringPtr(mappingRecord.ID)
 		candidate.ConnectorID = mappingRecord.ConnectorID
 		candidate.TableSchema = mappingRecord.TableSchema
 		candidate.TableName = mappingRecord.TableName
 		candidate.ColumnName = mappingRecord.ColumnName
+		candidate.GroupKey = cloneOptionalString(mappingRecord.GroupKey)
 		candidate.WriteMode = mappingRecord.WriteMode
 		candidate.TimestampColumn = cloneOptionalString(mappingRecord.TimestampColumn)
+		candidate.WriteIntervalSeconds = effectiveDatabaseWriteIntervalPointer(mappingRecord, connectorRecord)
 		applyDatabaseTargetValidation(&candidate, mappingRecord, validationIndex)
 	}
 	candidate.Identity = buildDatabaseOutputCandidateIdentity(
@@ -96,9 +111,11 @@ func buildDatabaseOutputCandidate(
 		state.Address,
 		state.DataType,
 		candidate.ConnectorID,
+		candidate.GroupKey,
 		candidate.TableSchema,
 		candidate.TableName,
 		candidate.ColumnName,
+		candidate.WriteIntervalSeconds,
 	)
 
 	var err error
@@ -111,6 +128,47 @@ func buildDatabaseOutputCandidate(
 		return schema.SourceRuleDatabaseOutputCandidate{}, err
 	}
 	return candidate, nil
+}
+
+func defaultDatabaseWriteIntervalPointer() *int {
+	seconds := 15
+	return &seconds
+}
+
+func effectiveDatabaseWriteIntervalPointer(
+	mappingRecord *schema.DatabaseTargetMapping,
+	connectorRecord *schema.DatabaseConnector,
+) *int {
+	if mappingRecord != nil && mappingRecord.WriteIntervalSeconds != nil {
+		return cloneOptionalInt(mappingRecord.WriteIntervalSeconds)
+	}
+	if connectorRecord != nil && connectorRecord.DefaultWriteIntervalSeconds > 0 {
+		seconds := connectorRecord.DefaultWriteIntervalSeconds
+		return &seconds
+	}
+	return defaultDatabaseWriteIntervalPointer()
+}
+
+func inferDatabaseGroupAndColumn(tagKey string) (*string, string) {
+	trimmed := strings.TrimSpace(tagKey)
+	prefix, suffix, found := strings.Cut(trimmed, "/")
+	if !found {
+		return nil, ""
+	}
+	groupKey := strings.TrimSpace(prefix)
+	columnName := normalizeDatabaseCandidateColumnName(suffix)
+	if groupKey == "" || columnName == "" {
+		return nil, ""
+	}
+	return stringPtr(groupKey), columnName
+}
+
+func normalizeDatabaseCandidateColumnName(value string) string {
+	replaced := strings.ReplaceAll(strings.TrimSpace(value), "/", "_")
+	if replaced == "" {
+		return ""
+	}
+	return strings.ToLower(replaced)
 }
 
 func (s *Service) listDatabaseTargetMappingsByTagID(
@@ -156,6 +214,39 @@ func (s *Service) listDatabaseTargetMappingsByTagID(
 	}
 
 	return result, nil
+}
+
+func (s *Service) listDatabaseTargetConnectorsByID(
+	ctx context.Context,
+	mappingsByTagID map[string][]*schema.DatabaseTargetMapping,
+) (map[string]*schema.DatabaseConnector, error) {
+	reader := s.databaseTargetConnectorReader()
+	if reader == nil {
+		return map[string]*schema.DatabaseConnector{}, nil
+	}
+
+	connectorIDs := make(map[string]struct{})
+	for _, mappings := range mappingsByTagID {
+		for _, mappingRecord := range mappings {
+			if mappingRecord == nil || strings.TrimSpace(mappingRecord.ConnectorID) == "" {
+				continue
+			}
+			connectorIDs[mappingRecord.ConnectorID] = struct{}{}
+		}
+	}
+
+	connectorsByID := make(map[string]*schema.DatabaseConnector, len(connectorIDs))
+	for connectorID := range connectorIDs {
+		connector, err := reader.GetByID(ctx, connectorID)
+		if err != nil {
+			return nil, fmt.Errorf("取得資料庫連接器 %s 失敗: %w", connectorID, err)
+		}
+		if connector == nil {
+			continue
+		}
+		connectorsByID[connectorID] = connector
+	}
+	return connectorsByID, nil
 }
 
 func effectiveStateMappings(

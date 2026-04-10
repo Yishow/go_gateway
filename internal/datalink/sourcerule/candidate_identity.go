@@ -13,9 +13,11 @@ import (
 const (
 	derivedTargetDataTypeScopeKey = "derived_target_data_type"
 	databaseConnectorScopeKey     = "database_connector_id"
+	databaseGroupKeyScopeKey      = "database_group_key"
 	databaseSchemaScopeKey        = "database_table_schema"
 	databaseTableScopeKey         = "database_table_name"
 	databaseColumnScopeKey        = "database_column_name"
+	databaseWriteIntervalScopeKey = "database_write_interval_seconds"
 	localModbusRegisterScopeKey   = "local_modbus_register"
 )
 
@@ -27,16 +29,18 @@ type tagCandidateSignaturePayload struct {
 }
 
 type databaseOutputCandidateSignaturePayload struct {
-	TagID           *string                  `json:"tag_id,omitempty"`
-	TagKey          string                   `json:"tag_key"`
-	DisplayName     string                   `json:"display_name"`
-	DataType        schema.DataType          `json:"data_type"`
-	ConnectorID     string                   `json:"connector_id,omitempty"`
-	TableSchema     string                   `json:"table_schema,omitempty"`
-	TableName       string                   `json:"table_name,omitempty"`
-	ColumnName      string                   `json:"column_name,omitempty"`
-	WriteMode       schema.DatabaseWriteMode `json:"write_mode,omitempty"`
-	TimestampColumn *string                  `json:"timestamp_column,omitempty"`
+	TagID                *string                  `json:"tag_id,omitempty"`
+	TagKey               string                   `json:"tag_key"`
+	DisplayName          string                   `json:"display_name"`
+	DataType             schema.DataType          `json:"data_type"`
+	ConnectorID          string                   `json:"connector_id,omitempty"`
+	TableSchema          string                   `json:"table_schema,omitempty"`
+	TableName            string                   `json:"table_name,omitempty"`
+	ColumnName           string                   `json:"column_name,omitempty"`
+	GroupKey             *string                  `json:"group_key"`
+	WriteMode            schema.DatabaseWriteMode `json:"write_mode,omitempty"`
+	TimestampColumn      *string                  `json:"timestamp_column,omitempty"`
+	WriteIntervalSeconds *int                     `json:"write_interval_seconds"`
 }
 
 type localModbusOutputCandidateSignaturePayload struct {
@@ -68,9 +72,11 @@ func buildDatabaseOutputCandidateIdentity(
 	address string,
 	dataType schema.DataType,
 	connectorID string,
+	groupKey *string,
 	tableSchema string,
 	tableName string,
 	columnName string,
+	writeIntervalSeconds *int,
 ) schema.SourceRuleCandidateIdentity {
 	scope := []schema.SourceRuleCandidateScopeField{
 		{
@@ -88,9 +94,15 @@ func buildDatabaseOutputCandidateIdentity(
 		})
 	}
 	appendScope(databaseConnectorScopeKey, connectorID)
+	if groupKey != nil {
+		appendScope(databaseGroupKeyScopeKey, *groupKey)
+	}
 	appendScope(databaseSchemaScopeKey, tableSchema)
 	appendScope(databaseTableScopeKey, tableName)
 	appendScope(databaseColumnScopeKey, columnName)
+	if writeIntervalSeconds != nil {
+		appendScope(databaseWriteIntervalScopeKey, fmt.Sprintf("%d", *writeIntervalSeconds))
+	}
 
 	return schema.SourceRuleCandidateIdentity{
 		SourceRuleID:           ruleID,
@@ -153,16 +165,18 @@ func tagCandidateSignature(candidate schema.SourceRuleTagCandidate) (string, err
 
 func databaseOutputCandidateSignature(candidate schema.SourceRuleDatabaseOutputCandidate) (string, error) {
 	payload, err := json.Marshal(databaseOutputCandidateSignaturePayload{
-		TagID:           candidate.TagID,
-		TagKey:          candidate.TagKey,
-		DisplayName:     candidate.DisplayName,
-		DataType:        candidate.DataType,
-		ConnectorID:     candidate.ConnectorID,
-		TableSchema:     candidate.TableSchema,
-		TableName:       candidate.TableName,
-		ColumnName:      candidate.ColumnName,
-		WriteMode:       candidate.WriteMode,
-		TimestampColumn: candidate.TimestampColumn,
+		TagID:                candidate.TagID,
+		TagKey:               candidate.TagKey,
+		DisplayName:          candidate.DisplayName,
+		DataType:             candidate.DataType,
+		ConnectorID:          candidate.ConnectorID,
+		TableSchema:          candidate.TableSchema,
+		TableName:            candidate.TableName,
+		ColumnName:           candidate.ColumnName,
+		GroupKey:             candidate.GroupKey,
+		WriteMode:            candidate.WriteMode,
+		TimestampColumn:      candidate.TimestampColumn,
+		WriteIntervalSeconds: candidate.WriteIntervalSeconds,
 	})
 	if err != nil {
 		return "", fmt.Errorf("序列化資料庫輸出候選簽章失敗: %w", err)

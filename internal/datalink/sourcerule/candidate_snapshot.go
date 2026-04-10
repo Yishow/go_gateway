@@ -182,6 +182,14 @@ func cloneOptionalString(value *string) *string {
 	return stringPtr(*value)
 }
 
+func cloneOptionalInt(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	normalized := *value
+	return &normalized
+}
+
 func decodeCurrentTagCandidates(snapshots []*schema.SourceRuleCandidateSnapshot) ([]schema.SourceRuleTagCandidate, error) {
 	for _, snapshot := range snapshots {
 		if snapshot == nil || snapshot.CandidateType != schema.SourceRuleCandidateTypeTags {

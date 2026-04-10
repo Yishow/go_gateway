@@ -94,6 +94,58 @@ func TestService_CandidateSnapshots_BuildDatabaseOutputsFromEffectiveTagReviewSt
 	assert.Equal(t, overrideTag.ID, candidateByAddress["40003"]["tag_id"])
 }
 
+func TestService_CandidateSnapshots_InfersGroupedDatabaseMetadataFromSlashTagKey(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-db-grouped")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-db-grouped",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	tagCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, tagCandidates, 1)
+
+	_, err = svc.UpsertTagReviewDecision(ctx, rule.ID, UpsertTagReviewDecisionRequest{
+		CandidateID: tagCandidates[0].ID,
+		Action:      schema.SourceRuleTagReviewDecisionActionRename,
+		TagKey:      "meter/A1",
+	})
+	require.NoError(t, err)
+
+	databaseCandidates := databaseOutputCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, databaseCandidates, 1)
+
+	candidate := databaseCandidates[0]
+	require.NotNil(t, candidate.GroupKey)
+	assert.Equal(t, "meter", *candidate.GroupKey)
+	assert.Equal(t, "a1", candidate.ColumnName)
+	require.NotNil(t, candidate.WriteIntervalSeconds)
+	assert.Equal(t, 15, *candidate.WriteIntervalSeconds)
+	assert.Contains(t, candidate.Identity.TargetBindingScope, schema.SourceRuleCandidateScopeField{
+		Key:   "database_group_key",
+		Value: "meter",
+	})
+	assert.Contains(t, candidate.Identity.TargetBindingScope, schema.SourceRuleCandidateScopeField{
+		Key:   "database_write_interval_seconds",
+		Value: "15",
+	})
+}
+
 func TestService_CandidateSnapshots_UsesPersistedDatabaseMappingScope(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
@@ -171,6 +223,73 @@ func TestService_CandidateSnapshots_UsesPersistedDatabaseMappingScope(t *testing
 	assert.Contains(t, scope, map[string]any{"key": "database_table_schema", "value": "public"})
 	assert.Contains(t, scope, map[string]any{"key": "database_table_name", "value": "measurements"})
 	assert.Contains(t, scope, map[string]any{"key": "database_column_name", "value": "line_a"})
+}
+
+func TestService_CandidateSnapshots_UsesConnectorDefaultWriteIntervalWhenMappingOverrideIsEmpty(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	tagSvc := tag.NewService(tag.NewMemoryRepository())
+	mappingSvc := mapping.NewServiceWithTagResolver(mapping.NewMemoryRepository(), tagSvc.GetByID)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+	svc.SetTagMappingServices(tagSvc, mappingSvc)
+
+	overrideTag, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "factory.db.connector-default",
+		DisplayName: "DB Connector Default",
+		DataType:    schema.DataTypeInt16,
+	})
+	require.NoError(t, err)
+	svc.SetDatabaseTargetMappingReader(DatabaseTargetMappingListFunc(func(context.Context) ([]*schema.DatabaseTargetMapping, error) {
+		return []*schema.DatabaseTargetMapping{
+			{
+				ID:          "db-map-connector-default",
+				TagID:       overrideTag.ID,
+				ConnectorID: "connector-45",
+				TableSchema: "public",
+				TableName:   "measurements",
+				ColumnName:  "line_a",
+				WriteMode:   schema.DatabaseWriteModeInsert,
+			},
+		}, nil
+	}))
+	svc.SetDatabaseTargetConnectorReader(DatabaseTargetConnectorGetFunc(func(context.Context, string) (*schema.DatabaseConnector, error) {
+		return &schema.DatabaseConnector{
+			ID:                          "connector-45",
+			DefaultWriteIntervalSeconds: 45,
+		}, nil
+	}))
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-db-connector-default")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-db-connector-default",
+		DeviceID:     dev.ID,
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	tagCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, tagCandidates, 1)
+	_, err = svc.UpsertTagReviewDecision(ctx, rule.ID, UpsertTagReviewDecisionRequest{
+		CandidateID:   tagCandidates[0].ID,
+		Action:        schema.SourceRuleTagReviewDecisionActionOverride,
+		OverrideTagID: overrideTag.ID,
+	})
+	require.NoError(t, err)
+
+	databaseCandidates := databaseOutputCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, databaseCandidates, 1)
+	require.NotNil(t, databaseCandidates[0].WriteIntervalSeconds)
+	assert.Equal(t, 45, *databaseCandidates[0].WriteIntervalSeconds)
 }
 
 func TestService_CandidateSnapshots_MarksInvalidDatabaseScopeOutOfSync(t *testing.T) {

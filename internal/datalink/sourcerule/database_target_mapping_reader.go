@@ -9,6 +9,7 @@ import (
 
 var (
 	databaseTargetMappingReaders      sync.Map
+	databaseTargetConnectorReaders    sync.Map
 	databaseTargetConnectorValidators sync.Map
 )
 
@@ -20,6 +21,22 @@ type DatabaseTargetMappingListFunc func(ctx context.Context) ([]*schema.Database
 
 func (fn DatabaseTargetMappingListFunc) List(ctx context.Context) ([]*schema.DatabaseTargetMapping, error) {
 	return fn(ctx)
+}
+
+type DatabaseTargetConnectorReader interface {
+	GetByID(ctx context.Context, connectorID string) (*schema.DatabaseConnector, error)
+}
+
+type DatabaseTargetConnectorGetFunc func(
+	ctx context.Context,
+	connectorID string,
+) (*schema.DatabaseConnector, error)
+
+func (fn DatabaseTargetConnectorGetFunc) GetByID(
+	ctx context.Context,
+	connectorID string,
+) (*schema.DatabaseConnector, error) {
+	return fn(ctx, connectorID)
 }
 
 type DatabaseTargetConnectorValidation struct {
@@ -65,6 +82,23 @@ func (s *Service) databaseTargetMappingReader() DatabaseTargetMappingReader {
 	}
 	mappingReader, _ := reader.(DatabaseTargetMappingReader)
 	return mappingReader
+}
+
+func (s *Service) SetDatabaseTargetConnectorReader(reader DatabaseTargetConnectorReader) {
+	if reader == nil {
+		databaseTargetConnectorReaders.Delete(s)
+		return
+	}
+	databaseTargetConnectorReaders.Store(s, reader)
+}
+
+func (s *Service) databaseTargetConnectorReader() DatabaseTargetConnectorReader {
+	reader, ok := databaseTargetConnectorReaders.Load(s)
+	if !ok {
+		return nil
+	}
+	connectorReader, _ := reader.(DatabaseTargetConnectorReader)
+	return connectorReader
 }
 
 func (s *Service) SetDatabaseTargetConnectorValidator(validator DatabaseTargetConnectorValidator) {
