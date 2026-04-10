@@ -3,13 +3,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../../../App';
-import type { Mapping, Point, Tag } from '../../../../types/datalink';
+import type { Mapping, Point, SourceRuleRecord, Tag } from '../../../../types/datalink';
 
 const {
   mockDevices,
   mockPoints,
   mockTags,
   mockMappings,
+  mockSourceRules,
+  mockSourceRulesError,
+  mockSourceRulesLoading,
+  mockSourceRulesRefetch,
   mockCreateDeviceMutation,
   mockTestDraftConnectionMutation,
   mockUpdateDeviceMutation,
@@ -31,6 +35,10 @@ const {
   mockPoints: [] as Point[],
   mockTags: [] as Tag[],
   mockMappings: [] as Mapping[],
+  mockSourceRules: [] as SourceRuleRecord[],
+  mockSourceRulesError: { value: null as Error | null },
+  mockSourceRulesLoading: { value: false },
+  mockSourceRulesRefetch: vi.fn(),
   mockCreateDeviceMutation: {
     mutateAsync: vi.fn(),
     isPending: false,
@@ -134,6 +142,24 @@ vi.mock('@/hooks/datalink/useMappings', () => ({
   }),
 }));
 
+vi.mock('@/hooks/datalink/useSourceRules', () => ({
+  useSourceRulesQuery: (filters?: { device_id?: string }) => ({
+    data: filters?.device_id
+      ? mockSourceRules.filter((rule) => rule.device_id === filters.device_id)
+      : [],
+    error: mockSourceRulesError.value,
+    isError: mockSourceRulesError.value !== null,
+    isLoading: mockSourceRulesLoading.value,
+    isSuccess: !mockSourceRulesLoading.value && mockSourceRulesError.value === null,
+    refetch: mockSourceRulesRefetch,
+  }),
+  useCreateSourceRuleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateSourceRuleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteSourceRuleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useEnableSourceRuleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDisableSourceRuleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
 vi.mock('@/router/gateway', () => ({
   GatewayCreateEntryRedirect: () => <div data-testid="gateway-create-entry-redirect-mock" />,
   GatewayEntryRoute: () => <div data-testid="gateway-entry-route-mock" />,
@@ -167,6 +193,10 @@ vi.mock('@/services/datalink', async () => {
 describe('DatalinkWorkbench foundation route', () => {
   beforeEach(() => {
     window.history.pushState({}, '', '/datalink/workbench');
+    mockSourceRules.splice(0, mockSourceRules.length);
+    mockSourceRulesError.value = null;
+    mockSourceRulesLoading.value = false;
+    mockSourceRulesRefetch.mockReset();
     mockDevices.splice(
       0,
       mockDevices.length,
@@ -298,8 +328,8 @@ describe('DatalinkWorkbench foundation route', () => {
       screen.getByRole('navigation', { name: 'workbench.stepRail.ariaLabel' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /workbench\.steps\.device/ }),
-    ).toHaveAttribute('aria-current', 'step');
+      screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
+    ).toHaveAttribute('aria-selected', 'true');
     expect(
       screen.getByRole('textbox', { name: 'workbench.device.search.label' }),
     ).toBeInTheDocument();
@@ -415,8 +445,8 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
     expect(screen.getByTestId('active-output-target')).toHaveTextContent(
       'workbench.bottomSummary.targets.database',
@@ -433,21 +463,21 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
 
     // User clicks the device step in the step rail — must NOT be locked back to output.
     fireEvent.click(
-      screen.getByRole('button', { name: /workbench\.steps\.device/ }),
+      screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
     );
 
     expect(
-      screen.getByRole('button', { name: /workbench\.steps\.device/ }),
-    ).toHaveAttribute('aria-current', 'step');
+      screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
+    ).toHaveAttribute('aria-selected', 'true');
     expect(
-      screen.getByRole('button', { name: /workbench\.steps\.output/ }),
-    ).not.toHaveAttribute('aria-current', 'step');
+      screen.getByRole('tab', { name: /workbench\.steps\.output/ }),
+    ).not.toHaveAttribute('aria-selected', 'true');
   });
 
   it('redirects legacy local modbus entry into the new workbench output step', async () => {
@@ -457,8 +487,8 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
     expect(screen.getByTestId('active-output-target')).toHaveTextContent(
       'workbench.bottomSummary.targets.modbus',
@@ -474,8 +504,8 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
     expect(screen.getByTestId('active-output-target')).toHaveTextContent(
       'workbench.bottomSummary.targets.database',
@@ -492,8 +522,8 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.device/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
 
     expect(screen.getByText('Mixer PLC')).toBeInTheDocument();
@@ -507,35 +537,38 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.device/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     expect(window.location.pathname).toBe('/studio');
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+    const contextBar = screen.getByTestId('workbench-context-bar');
+    fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.source/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.source/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
-    expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/studio');
-
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /workbench\.steps\.tag/ }),
-      ).toHaveAttribute('aria-current', 'step');
+      expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeInTheDocument();
     });
     expect(window.location.pathname).toBe('/studio');
 
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
+    fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.output/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.tag/ }),
+      ).toHaveAttribute('aria-selected', 'true');
+    });
+    expect(window.location.pathname).toBe('/studio');
+
+    fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole('tab', { name: /workbench\.steps\.output/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
     expect(screen.getByTestId('active-output-target')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/studio');
@@ -547,14 +580,21 @@ describe('DatalinkWorkbench foundation route', () => {
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+    fireEvent.click(
+      within(screen.getByTestId('workbench-context-bar')).getByRole('button', {
+        name: 'workbench.contextBar.actions.gotoSource',
+      }),
+    );
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.source/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.source/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
 
+    await waitFor(() => {
+      expect(screen.getByTestId('source-toolbar-more-trigger')).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByTestId('source-toolbar-more-trigger'));
 
     expect(screen.getByTestId('source-toolbar-more-menu')).toBeInTheDocument();
@@ -568,8 +608,8 @@ describe('DatalinkWorkbench foundation route', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /workbench\.steps\.device/ }),
-      ).toHaveAttribute('aria-current', 'step');
+        screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
+      ).toHaveAttribute('aria-selected', 'true');
     });
 
     expect(window.location.pathname).toBe('/studio');
@@ -596,21 +636,24 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(window.location.pathname).toBe('/test');
   });
 
-  it('selects a device from the device step and advances to source planning', () => {
+  it('selects a device from the device step and advances to source planning', async () => {
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+    fireEvent.click(
+      within(screen.getByTestId('workbench-context-bar')).getByRole('button', {
+        name: 'workbench.contextBar.actions.gotoSource',
+      }),
+    );
 
-    expect(
-      screen.getByRole('button', { name: /workbench\.steps\.source/ }),
-    ).toHaveAttribute('aria-current', 'step');
-    expect(
-      screen.getByLabelText('workbench.source.planner.startAddress'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText('workbench.source.planner.count'),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /workbench\.steps\.source/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await waitFor(() => {
+      expect(screen.getByLabelText('workbench.source.planner.startAddress')).toBeInTheDocument();
+      expect(screen.getByLabelText('workbench.source.planner.count')).toBeInTheDocument();
+    });
   });
 
   it('shows a master-detail device panel after a device is selected', () => {
@@ -637,10 +680,8 @@ describe('DatalinkWorkbench foundation route', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     const contextBar = screen.getByTestId('workbench-context-bar');
-    const actions = within(contextBar).getAllByRole('button');
-
-    // 四個步驟按鈕 + 一個主 CTA（前往來源）
-    expect(actions.length).toBeGreaterThanOrEqual(5);
+    const tabs = within(contextBar).getAllByRole('tab');
+    expect(tabs.length).toBe(4);
     expect(
       within(contextBar).getByRole('button', {
         name: 'workbench.contextBar.actions.gotoSource',

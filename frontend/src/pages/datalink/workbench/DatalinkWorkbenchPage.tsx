@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useInRouterContext, useSearchParams } from 'react-router-dom';
-import { WorkbenchDeviceStep } from './WorkbenchDeviceStep';
-import { WorkbenchFrame } from './WorkbenchFrame';
+import Box from '@mui/material/Box';
+import { MuiDeviceStep } from './MuiDeviceStep';
+import { MuiOutputCommandDeck } from './MuiOutputCommandDeck';
+import { MuiSourceCommandDeck } from './MuiSourceCommandDeck';
+import { MuiTagCommandDeck } from './MuiTagCommandDeck';
+import { MuiWorkbenchFrame } from './MuiWorkbenchFrame';
+import { MuiWorkbenchShell } from './MuiWorkbenchShell';
 import { WorkbenchProvider, useWorkbench } from './WorkbenchProvider';
-import { LocalModbusBoard } from './LocalModbusBoard';
-import { SourceCanvasSection } from './SourceCanvasSection';
-import { TagBindingStudio } from './TagBindingStudio';
 import { WORKBENCH_STEPS, type OutputTarget, type WorkbenchStep } from './workbenchTypes';
 
 const WORKBENCH_OUTPUT_TARGETS = ['modbus', 'database'] as const;
@@ -23,13 +25,13 @@ function StepContent() {
 
   switch (activeStep) {
     case 'device':
-      return <WorkbenchDeviceStep />;
+      return <MuiDeviceStep />;
     case 'source':
-      return <SourceCanvasSection />;
+      return <MuiSourceCommandDeck />;
     case 'tag':
-      return <TagBindingStudio />;
+      return <MuiTagCommandDeck />;
     case 'output':
-      return <LocalModbusBoard />;
+      return <MuiOutputCommandDeck />;
     default:
       return null;
   }
@@ -104,19 +106,21 @@ function WorkbenchRouteStateSync() {
  */
 function WorkbenchShell() {
   return (
-    <WorkbenchFrame>
+    <MuiWorkbenchFrame>
       <WorkbenchRouteStateSync />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <Box sx={{ display: 'flex', minHeight: 0, minWidth: 0, flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
         <StepContent />
-      </div>
-    </WorkbenchFrame>
+      </Box>
+    </MuiWorkbenchFrame>
   );
 }
 
 export default function DatalinkWorkbenchPage() {
   return (
-    <WorkbenchProvider>
-      <WorkbenchShell />
-    </WorkbenchProvider>
+    <MuiWorkbenchShell>
+      <WorkbenchProvider>
+        <WorkbenchShell />
+      </WorkbenchProvider>
+    </MuiWorkbenchShell>
   );
 }
