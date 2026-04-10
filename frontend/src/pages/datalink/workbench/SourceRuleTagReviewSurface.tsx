@@ -10,11 +10,16 @@ import { useTagsQuery } from '../../../hooks/datalink/useTags';
 import type { SourceRuleRecord } from '../../../types/datalink';
 import type {
   SourceRuleCandidateSetStatus,
+  SourceRuleDatabaseOutputCandidateView,
   SourceRuleTagCandidateView,
 } from '../../../types/sourceRuleCandidates';
 import type {
   SourceRuleTagReviewDecisionAction,
 } from '../../../types/sourceRuleTagReviewDecisions';
+import {
+  buildTagDatabaseGroupingSuggestions,
+  normalizeDatabaseGroupingOverrideDraft,
+} from './databaseGroupingSuggestions';
 import { SourceRuleTagReviewCandidateRow } from './SourceRuleTagReviewCandidateRow';
 import { resolveActiveRuleId } from './sourceRuleSelection';
 import { useWorkbench } from './WorkbenchProvider';
@@ -46,8 +51,15 @@ type ReviewFeedback = {
 
 export function SourceRuleTagReviewSurface() {
   const { t } = useTranslation();
-  const { selectedDeviceId, crossStepContext, sourcePlanningState, setFocusedRuleId } =
-    useWorkbench();
+  const {
+    selectedDeviceId,
+    crossStepContext,
+    sourcePlanningState,
+    setFocusedRuleId,
+    tagGroupingOverrides,
+    setTagGroupingOverride,
+    clearTagGroupingOverride,
+  } = useWorkbench();
   const rulesQuery = useSourceRulesQuery(
     selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
     selectedDeviceId ? { refetchInterval: 5000, refetchOnWindowFocus: true } : undefined,
@@ -70,6 +82,8 @@ export function SourceRuleTagReviewSurface() {
   const candidateView = candidateQuery.data;
   const tagSet = candidateView?.tags;
   const tagCandidates = tagSet?.candidates ?? [];
+  const databaseCandidates: SourceRuleDatabaseOutputCandidateView[] =
+    candidateView?.database_outputs.candidates ?? [];
   const pendingMappingCount = tagCandidates.filter((candidate) => !candidate.mapping_id).length;
   const latestRevisionId = activeRule?.revision_id ?? null;
   const openRevisionId = candidateView?.revision_id ?? null;
@@ -90,6 +104,9 @@ export function SourceRuleTagReviewSurface() {
   );
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [overrideSelections, setOverrideSelections] = useState<Record<string, string>>({});
+  const [groupingDrafts, setGroupingDrafts] = useState<
+    Record<string, { groupKey: string; columnName: string }>
+  >({});
   const [reviewFeedback, setReviewFeedback] = useState<ReviewFeedback | null>(null);
   const [pendingDecision, setPendingDecision] = useState<{
     candidateId: string;
@@ -107,6 +124,7 @@ export function SourceRuleTagReviewSurface() {
   useEffect(() => {
     setRenameDrafts({});
     setOverrideSelections({});
+    setGroupingDrafts({});
     setReviewFeedback(null);
     setPendingDecision(null);
   }, [activeRule?.id, openRevisionId]);
@@ -114,6 +132,14 @@ export function SourceRuleTagReviewSurface() {
   if (!selectedDeviceId || persistedRules.length === 0 || !activeRule) {
     return null;
   }
+
+  const currentGroupingOverrides = tagGroupingOverrides[activeRule.id] ?? {};
+  const databaseSuggestions = buildTagDatabaseGroupingSuggestions(
+    tagCandidates,
+    decisionByCandidateId,
+    databaseCandidates,
+    currentGroupingOverrides,
+  );
 
   const handleRefreshReview = async () => {
     setReviewFeedback(null);
@@ -144,6 +170,87 @@ export function SourceRuleTagReviewSurface() {
       ...current,
       [candidateId]: value,
     }));
+  };
+
+  const handleGroupingDraftChange = (
+    candidateId: string,
+    key: 'groupKey' | 'columnName',
+    value: string,
+  ) => {
+    const suggestion = databaseSuggestions[candidateId];
+    setGroupingDrafts((current) => {
+      const currentDraft = current[candidateId] ?? {
+        groupKey: suggestion?.groupKey ?? '',
+        columnName: suggestion?.columnName ?? '',
+      };
+      return {
+        ...current,
+        [candidateId]: {
+          ...currentDraft,
+          [key]: value,
+        },
+      };
+    });
+  };
+
+  const handleSaveGroupingOverride = (candidate: SourceRuleTagCandidateView) => {
+    const suggestion = databaseSuggestions[candidate.id];
+    if (!suggestion) {
+      return;
+    }
+
+    const draft = groupingDrafts[candidate.id] ?? {
+      groupKey: suggestion.groupKey ?? '',
+      columnName: suggestion.columnName,
+    };
+    const normalized = normalizeDatabaseGroupingOverrideDraft(draft.groupKey, draft.columnName);
+    if (normalized.groupKey !== null && normalized.columnName === '') {
+      setReviewFeedback({
+        tone: 'error',
+        message: t('workbench.tag.reviewSurface.feedback.groupingColumnRequired'),
+      });
+      return;
+    }
+
+    if (
+      normalized.groupKey === suggestion.inferredGroupKey &&
+      normalized.columnName === suggestion.inferredColumnName
+    ) {
+      clearTagGroupingOverride(activeRule.id, candidate.point_id);
+      setGroupingDrafts((current) => {
+        const { [candidate.id]: _removed, ...remaining } = current;
+        return remaining;
+      });
+      setReviewFeedback({
+        tone: 'success',
+        message: t('workbench.tag.reviewSurface.feedback.groupingReset', {
+          tagKey: candidate.tag_key,
+        }),
+      });
+      return;
+    }
+
+    setTagGroupingOverride(activeRule.id, candidate.point_id, normalized);
+    setReviewFeedback({
+      tone: 'success',
+      message: t('workbench.tag.reviewSurface.feedback.groupingSaved', {
+        tagKey: candidate.tag_key,
+      }),
+    });
+  };
+
+  const handleResetGroupingOverride = (candidate: SourceRuleTagCandidateView) => {
+    clearTagGroupingOverride(activeRule.id, candidate.point_id);
+    setGroupingDrafts((current) => {
+      const { [candidate.id]: _removed, ...remaining } = current;
+      return remaining;
+    });
+    setReviewFeedback({
+      tone: 'success',
+      message: t('workbench.tag.reviewSurface.feedback.groupingReset', {
+        tagKey: candidate.tag_key,
+      }),
+    });
   };
 
   const handleSaveDecision = async (
@@ -419,6 +526,21 @@ export function SourceRuleTagReviewSurface() {
                   renameDrafts[candidate.id] ?? currentDecision?.tag_key?.trim() ?? candidate.tag_key;
                 const overrideSelection =
                   overrideSelections[candidate.id] ?? currentDecision?.override_tag_id ?? '';
+                const effectiveTagKey = currentDecision?.tag_key?.trim() || candidate.tag_key;
+                const databaseSuggestion = databaseSuggestions[candidate.id] ?? {
+                  groupKey: null,
+                  columnName: '',
+                  inferredGroupKey: null,
+                  inferredColumnName: '',
+                  memberTagKeys: [effectiveTagKey],
+                  writeIntervalSeconds: null,
+                  overridden: false,
+                };
+                const groupingDraft =
+                  groupingDrafts[candidate.id] ?? {
+                    groupKey: databaseSuggestion.groupKey ?? '',
+                    columnName: databaseSuggestion.columnName,
+                  };
                 const rowPendingAction =
                   pendingDecision?.candidateId === candidate.id ? pendingDecision.action : null;
                 const rowBusy =
@@ -429,6 +551,9 @@ export function SourceRuleTagReviewSurface() {
                     key={candidate.id}
                     candidate={candidate}
                     currentDecision={currentDecision}
+                    effectiveTagKey={effectiveTagKey}
+                    databaseSuggestion={databaseSuggestion}
+                    groupingDraft={groupingDraft}
                     renameValue={renameValue}
                     overrideSelection={overrideSelection}
                     tags={tags}
@@ -437,6 +562,9 @@ export function SourceRuleTagReviewSurface() {
                     reviewDecisionsError={reviewDecisionsQuery.isError}
                     rowBusy={rowBusy}
                     rowPendingAction={rowPendingAction}
+                    onGroupingDraftChange={handleGroupingDraftChange}
+                    onSaveGroupingOverride={handleSaveGroupingOverride}
+                    onResetGroupingOverride={handleResetGroupingOverride}
                     onRenameDraftChange={handleRenameDraftChange}
                     onOverrideSelectionChange={handleOverrideSelectionChange}
                     onSaveDecision={(rowCandidate, action, request) => {

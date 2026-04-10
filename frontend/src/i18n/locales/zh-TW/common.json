@@ -1061,6 +1061,20 @@
           "pointId": "Point ID",
           "mappingStatus": "Mapping 狀態"
         },
+        "databaseGrouping": {
+          "title": "Database 列建議",
+          "singleRow": "單列寫入",
+          "singleMember": "這筆 Tag 目前會以單獨一列寫入。",
+          "members": "同列成員",
+          "interval": "每 {{seconds}} 秒 flush 一次",
+          "overrideBadge": "已保存 override",
+          "groupKey": "Group key",
+          "columnName": "欄位名稱",
+          "groupPlaceholder": "留白可維持單列寫入",
+          "columnPlaceholder": "value_column",
+          "save": "儲存列 override",
+          "reset": "重設 override"
+        },
         "mappingStatus": {
           "draft": "草稿",
           "validated": "已驗證",
@@ -1084,6 +1098,9 @@
           "renameSaved": "已儲存 {{tagKey}} 的 rename 決策",
           "skipSaved": "已儲存 {{tagKey}} 的略過決策",
           "overrideSaved": "已儲存 {{tagKey}} 的 override 決策",
+          "groupingSaved": "已儲存 {{tagKey}} 的 Database 列 override",
+          "groupingReset": "已重設 {{tagKey}} 的 Database 列 override",
+          "groupingColumnRequired": "設定 group key 時，必須填入欄位名稱",
           "saveFailed": "儲存審查決策失敗",
           "loadSavedFailed": "讀取已儲存的審查決策失敗",
           "refreshed": "審查資料已重新整理",
@@ -1321,6 +1338,8 @@
           "persistedPath": "{{connector}} · {{table}} · {{column}}",
           "currentScopePath": "使用目前 scope：{{connector}} · {{table}}",
           "unscoped": "尚未保存 connector / table / column",
+          "groupedSuggestion": "列建議：{{groupKey}} → {{columnName}}",
+          "singleSuggestion": "單列建議：{{columnName}}",
           "tagPending": "等待 Tag 套用後才能輸出",
           "currentSelection": "目前選取",
           "status": {

@@ -350,6 +350,88 @@ describe('DatalinkWorkbench tag review actions', () => {
     });
   });
 
+  it('shows inferred grouped database metadata and row membership for slash-based tags', async () => {
+    mockCandidateViews['rule-1'] = {
+      source_rule_id: 'rule-1',
+      revision_id: 'rev-1',
+      tags: {
+        status: 'ready',
+        candidates: [
+          buildCandidate('candidate-1', '40001', 'meter/A1'),
+          buildCandidate('candidate-2', '40002', 'meter/kw'),
+        ],
+      },
+      database_outputs: {
+        status: 'ready',
+        candidates: [
+          {
+            id: 'db-candidate-1',
+            identity: {
+              source_rule_id: 'rule-1',
+              candidate_type: 'database_outputs',
+              candidate_kind: 'database_output',
+              derived_from_rule_address: '40001',
+            },
+            proposed_signature: 'db-sig-1',
+            address: '40001',
+            point_id: 'point-40001',
+            tag_key: 'meter/A1',
+            display_name: 'Flow Sensor',
+            data_type: 'int16',
+            status: 'ready',
+            group_key: 'meter',
+            column_name: 'a1',
+            write_interval_seconds: 15,
+          },
+          {
+            id: 'db-candidate-2',
+            identity: {
+              source_rule_id: 'rule-1',
+              candidate_type: 'database_outputs',
+              candidate_kind: 'database_output',
+              derived_from_rule_address: '40002',
+            },
+            proposed_signature: 'db-sig-2',
+            address: '40002',
+            point_id: 'point-40002',
+            tag_key: 'meter/kw',
+            display_name: 'Level Sensor',
+            data_type: 'int16',
+            status: 'ready',
+            group_key: 'meter',
+            column_name: 'kw',
+            write_interval_seconds: 15,
+          },
+        ],
+      },
+      local_modbus_outputs: {
+        status: 'ready',
+        candidates: [],
+      },
+    };
+
+    renderTagStep('rule-1');
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('source-rule-tag-review-database-group-candidate-1'),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByTestId('source-rule-tag-review-database-group-candidate-1'),
+    ).toHaveTextContent('meter');
+    expect(
+      screen.getByTestId('source-rule-tag-review-database-column-candidate-1'),
+    ).toHaveTextContent('a1');
+    expect(
+      screen.getByTestId('source-rule-tag-review-database-members-candidate-1'),
+    ).toHaveTextContent('meter/A1');
+    expect(
+      screen.getByTestId('source-rule-tag-review-database-members-candidate-1'),
+    ).toHaveTextContent('meter/kw');
+  });
+
   it('disables Step 3 review actions when the open candidate revision is stale', async () => {
     mockSourceRules[0].revision_id = 'rev-2';
     mockCandidateViews['rule-1'] = {

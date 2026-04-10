@@ -9,7 +9,7 @@
 ## 2. Studio workflow surfaces
 
 - [x] 2.1 Add Source-step handoff context for grouped Tag review
-- [ ] 2.2 Make Tag review group-aware with editable overrides for inferred database row groups
+- [x] 2.2 Make Tag review group-aware with editable overrides for inferred database row groups
 - [ ] 2.3 Rework the Database Output surface into a grouped row planner with interval controls and per-target readiness
 
 ## 3. Flow alignment and validation

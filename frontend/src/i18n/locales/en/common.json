@@ -1061,6 +1061,20 @@
           "pointId": "Point ID",
           "mappingStatus": "Mapping status"
         },
+        "databaseGrouping": {
+          "title": "Database row suggestion",
+          "singleRow": "Single row",
+          "singleMember": "This tag currently writes as its own row.",
+          "members": "Grouped members",
+          "interval": "Flush every {{seconds}}s",
+          "overrideBadge": "Override saved",
+          "groupKey": "Group key",
+          "columnName": "Column name",
+          "groupPlaceholder": "Leave blank to keep a single row",
+          "columnPlaceholder": "value_column",
+          "save": "Save row override",
+          "reset": "Reset override"
+        },
         "mappingStatus": {
           "draft": "Draft",
           "validated": "Validated",
@@ -1084,6 +1098,9 @@
           "renameSaved": "Rename decision saved for {{tagKey}}",
           "skipSaved": "Skip decision saved for {{tagKey}}",
           "overrideSaved": "Override decision saved for {{tagKey}}",
+          "groupingSaved": "Database row override saved for {{tagKey}}",
+          "groupingReset": "Database row override reset for {{tagKey}}",
+          "groupingColumnRequired": "Column name is required when a group key is set",
           "saveFailed": "Failed to save the review decision",
           "loadSavedFailed": "Failed to load saved review decisions",
           "refreshed": "Review data refreshed",
@@ -1321,6 +1338,8 @@
           "persistedPath": "{{connector}} · {{table}} · {{column}}",
           "currentScopePath": "Using current scope: {{connector}} · {{table}}",
           "unscoped": "Connector, table, and column are not saved yet",
+          "groupedSuggestion": "Row suggestion: {{groupKey}} → {{columnName}}",
+          "singleSuggestion": "Single-row suggestion: {{columnName}}",
           "tagPending": "Apply the tag review decision before publishing this output",
           "currentSelection": "Current selection",
           "status": {

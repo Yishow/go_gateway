@@ -5,6 +5,7 @@ import type {
   SourceRuleTagReviewDecision,
   SourceRuleTagReviewDecisionAction,
 } from '../../../types/sourceRuleTagReviewDecisions';
+import type { DatabaseGroupingSuggestion } from './databaseGroupingSuggestions';
 import { getDataTypeBitWidth } from './sourceCanvasModel';
 
 type DecisionPayload = {
@@ -15,6 +16,12 @@ type DecisionPayload = {
 type SourceRuleTagReviewCandidateRowProps = {
   candidate: SourceRuleTagCandidateView;
   currentDecision: SourceRuleTagReviewDecision | null;
+  effectiveTagKey: string;
+  databaseSuggestion: DatabaseGroupingSuggestion;
+  groupingDraft: {
+    groupKey: string;
+    columnName: string;
+  };
   renameValue: string;
   overrideSelection: string;
   tags: Tag[];
@@ -23,6 +30,13 @@ type SourceRuleTagReviewCandidateRowProps = {
   reviewDecisionsError: boolean;
   rowBusy: boolean;
   rowPendingAction: SourceRuleTagReviewDecisionAction | null;
+  onGroupingDraftChange: (
+    candidateId: string,
+    key: 'groupKey' | 'columnName',
+    value: string,
+  ) => void;
+  onSaveGroupingOverride: (candidate: SourceRuleTagCandidateView) => void;
+  onResetGroupingOverride: (candidate: SourceRuleTagCandidateView) => void;
   onRenameDraftChange: (candidateId: string, value: string) => void;
   onOverrideSelectionChange: (candidateId: string, value: string) => void;
   onSaveDecision: (
@@ -59,16 +73,12 @@ function getReviewDecisionTone(action: SourceRuleTagReviewDecisionAction) {
   }
 }
 
-function getEffectiveTagKey(
-  candidate: SourceRuleTagCandidateView,
-  decision: SourceRuleTagReviewDecision | null,
-) {
-  return decision?.tag_key?.trim() || candidate.tag_key;
-}
-
 export function SourceRuleTagReviewCandidateRow({
   candidate,
   currentDecision,
+  effectiveTagKey,
+  databaseSuggestion,
+  groupingDraft,
   renameValue,
   overrideSelection,
   tags,
@@ -77,17 +87,21 @@ export function SourceRuleTagReviewCandidateRow({
   reviewDecisionsError,
   rowBusy,
   rowPendingAction,
+  onGroupingDraftChange,
+  onSaveGroupingOverride,
+  onResetGroupingOverride,
   onRenameDraftChange,
   onOverrideSelectionChange,
   onSaveDecision,
 }: SourceRuleTagReviewCandidateRowProps) {
   const { t } = useTranslation();
-  const effectiveTagKey = getEffectiveTagKey(candidate, currentDecision);
   const appliedCandidate = getCandidateStatusKey(candidate) === 'applied';
   const actionDisabled = staleReview || reviewDecisionsLoading || reviewDecisionsError;
   const disableRename = actionDisabled || appliedCandidate || rowBusy;
   const disableSkip = actionDisabled || appliedCandidate || rowBusy;
   const disableOverride = actionDisabled || appliedCandidate || rowBusy || tags.length === 0;
+  const disableGrouping = staleReview || rowBusy;
+  const invalidGroupingDraft = groupingDraft.groupKey.trim() !== '' && groupingDraft.columnName.trim() === '';
 
   return (
     <li
@@ -160,6 +174,99 @@ export function SourceRuleTagReviewCandidateRow({
           </dd>
         </div>
       </dl>
+
+      <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/55 p-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {t('workbench.tag.reviewSurface.databaseGrouping.title')}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="inline-flex items-center rounded-full border border-cyan-500/25 bg-cyan-500/[0.12] px-3 py-1 text-xs font-semibold text-cyan-100"
+                data-testid={`source-rule-tag-review-database-group-${candidate.id}`}
+              >
+                {databaseSuggestion.groupKey
+                  ? databaseSuggestion.groupKey
+                  : t('workbench.tag.reviewSurface.databaseGrouping.singleRow')}
+              </span>
+              <span
+                className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/75 px-3 py-1 text-xs font-semibold text-slate-200"
+                data-testid={`source-rule-tag-review-database-column-${candidate.id}`}
+              >
+                {databaseSuggestion.columnName || '—'}
+              </span>
+              {databaseSuggestion.writeIntervalSeconds ? (
+                <span className="text-xs text-slate-400">
+                  {t('workbench.tag.reviewSurface.databaseGrouping.interval', {
+                    seconds: databaseSuggestion.writeIntervalSeconds,
+                  })}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {databaseSuggestion.overridden ? (
+            <span className="rounded-full border border-violet-500/30 bg-violet-500/[0.12] px-3 py-1 text-xs font-semibold text-violet-100">
+              {t('workbench.tag.reviewSurface.databaseGrouping.overrideBadge')}
+            </span>
+          ) : null}
+        </div>
+        <p
+          className="mt-2 text-xs text-slate-400"
+          data-testid={`source-rule-tag-review-database-members-${candidate.id}`}
+        >
+          {databaseSuggestion.groupKey
+            ? `${t('workbench.tag.reviewSurface.databaseGrouping.members')}: ${databaseSuggestion.memberTagKeys.join(', ')}`
+            : t('workbench.tag.reviewSurface.databaseGrouping.singleMember')}
+        </p>
+
+        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
+          <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-slate-300">
+            <span>{t('workbench.tag.reviewSurface.databaseGrouping.groupKey')}</span>
+            <input
+              value={groupingDraft.groupKey}
+              disabled={disableGrouping}
+              data-testid={`source-rule-tag-review-database-group-input-${candidate.id}`}
+              onChange={(event) =>
+                onGroupingDraftChange(candidate.id, 'groupKey', event.target.value)
+              }
+              className="h-10 rounded-xl border-0 bg-slate-900/70 px-3 text-sm text-slate-100 ring-1 ring-slate-700/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/35 disabled:cursor-not-allowed disabled:opacity-60"
+              placeholder={t('workbench.tag.reviewSurface.databaseGrouping.groupPlaceholder')}
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-slate-300">
+            <span>{t('workbench.tag.reviewSurface.databaseGrouping.columnName')}</span>
+            <input
+              value={groupingDraft.columnName}
+              disabled={disableGrouping}
+              data-testid={`source-rule-tag-review-database-column-input-${candidate.id}`}
+              onChange={(event) =>
+                onGroupingDraftChange(candidate.id, 'columnName', event.target.value)
+              }
+              className="h-10 rounded-xl border-0 bg-slate-900/70 px-3 text-sm text-slate-100 ring-1 ring-slate-700/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/35 disabled:cursor-not-allowed disabled:opacity-60"
+              placeholder={t('workbench.tag.reviewSurface.databaseGrouping.columnPlaceholder')}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={disableGrouping || invalidGroupingDraft}
+            data-testid={`source-rule-tag-review-database-save-${candidate.id}`}
+            onClick={() => onSaveGroupingOverride(candidate)}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-violet-400/30 bg-violet-500/[0.1] px-4 text-sm font-semibold text-violet-100 transition hover:border-violet-300/50 hover:bg-violet-500/[0.14] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {t('workbench.tag.reviewSurface.databaseGrouping.save')}
+          </button>
+          <button
+            type="button"
+            disabled={disableGrouping}
+            data-testid={`source-rule-tag-review-database-reset-${candidate.id}`}
+            onClick={() => onResetGroupingOverride(candidate)}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/75 px-4 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {t('workbench.tag.reviewSurface.databaseGrouping.reset')}
+          </button>
+        </div>
+      </div>
 
       <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/55 p-3">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">

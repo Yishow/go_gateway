@@ -164,6 +164,17 @@ export const WORKBENCH_SOURCE_PLANNING_INITIAL: WorkbenchSourcePlanningState = {
   plannerStartAddressByDeviceId: {},
 } as const;
 
+export type WorkbenchTagGroupingOverride = {
+  groupKey: string | null;
+  columnName: string;
+};
+
+export type WorkbenchTagGroupingOverrideMap = Readonly<
+  Record<string, Readonly<Record<string, WorkbenchTagGroupingOverride>>>
+>;
+
+export const WORKBENCH_TAG_GROUPING_OVERRIDES_INITIAL: WorkbenchTagGroupingOverrideMap = {} as const;
+
 export type DevicePanelState =
   | { mode: 'create' }
   | { mode: 'edit'; deviceId: string }

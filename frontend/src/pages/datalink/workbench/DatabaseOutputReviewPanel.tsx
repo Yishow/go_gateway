@@ -223,6 +223,22 @@ export function DatabaseOutputReviewPanel({
                         {buildScopePath(candidate, selectedConnectorName, selectedTableKey, t)}
                       </p>
 
+                      {candidate.group_key || candidate.column_name ? (
+                        <p
+                          className="text-xs text-slate-400"
+                          data-testid={`database-review-grouping-${candidate.id}`}
+                        >
+                          {candidate.group_key
+                            ? t('workbench.output.database.reviewSurface.groupedSuggestion', {
+                                groupKey: candidate.group_key,
+                                columnName: candidate.column_name || '—',
+                              })
+                            : t('workbench.output.database.reviewSurface.singleSuggestion', {
+                                columnName: candidate.column_name || '—',
+                              })}
+                        </p>
+                      ) : null}
+
                       {candidate.blocking_reason ? (
                         <p className="text-xs text-amber-100">{candidate.blocking_reason}</p>
                       ) : null}

@@ -20,10 +20,13 @@ import {
   type InspectorSelection,
   type OutputTarget,
   type WorkbenchCrossStepContext,
-  type WorkbenchOutputSelectionState,
-  type WorkbenchSourcePlanningState,
-  type WorkbenchStep,
-} from './workbenchTypes';
+    type WorkbenchOutputSelectionState,
+    type WorkbenchSourcePlanningState,
+    type WorkbenchStep,
+    type WorkbenchTagGroupingOverride,
+    type WorkbenchTagGroupingOverrideMap,
+    WORKBENCH_TAG_GROUPING_OVERRIDES_INITIAL,
+  } from './workbenchTypes';
 
 type WorkbenchContextValue = {
   // Step navigation
@@ -59,6 +62,16 @@ type WorkbenchContextValue = {
   setSourcePlanningState: Dispatch<SetStateAction<WorkbenchSourcePlanningState>>;
   setSourcePlannerStartAddress: (deviceId: string, startAddress: string) => void;
   clearSourcePlanningState: () => void;
+
+  // Step 3 grouped database suggestion overrides — persist into Output planning
+  tagGroupingOverrides: WorkbenchTagGroupingOverrideMap;
+  setTagGroupingOverride: (
+    ruleId: string,
+    pointId: string,
+    override: WorkbenchTagGroupingOverride,
+  ) => void;
+  clearTagGroupingOverride: (ruleId: string, pointId: string) => void;
+  clearTagGroupingOverrides: () => void;
 
   // Step 1 shared UI state
   devicePanelState: DevicePanelState;
@@ -101,6 +114,9 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   );
   const [sourcePlanningState, setSourcePlanningState] = useState<WorkbenchSourcePlanningState>(
     WORKBENCH_SOURCE_PLANNING_INITIAL,
+  );
+  const [tagGroupingOverrides, setTagGroupingOverrides] = useState<WorkbenchTagGroupingOverrideMap>(
+    WORKBENCH_TAG_GROUPING_OVERRIDES_INITIAL,
   );
   const [devicePanelState, setDevicePanelState] = useState<DevicePanelState>(null);
   const [recentDeviceTests, setRecentDeviceTests] = useState<
@@ -146,6 +162,43 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const clearTagGroupingOverrides = useCallback(() => {
+    setTagGroupingOverrides(WORKBENCH_TAG_GROUPING_OVERRIDES_INITIAL);
+  }, []);
+
+  const setTagGroupingOverride = useCallback(
+    (ruleId: string, pointId: string, override: WorkbenchTagGroupingOverride) => {
+      setTagGroupingOverrides((currentState) => ({
+        ...currentState,
+        [ruleId]: {
+          ...(currentState[ruleId] ?? {}),
+          [pointId]: override,
+        },
+      }));
+    },
+    [],
+  );
+
+  const clearTagGroupingOverride = useCallback((ruleId: string, pointId: string) => {
+    setTagGroupingOverrides((currentState) => {
+      const currentRuleOverrides = currentState[ruleId];
+      if (!currentRuleOverrides || !currentRuleOverrides[pointId]) {
+        return currentState;
+      }
+
+      const { [pointId]: _removed, ...remainingRuleOverrides } = currentRuleOverrides;
+      if (Object.keys(remainingRuleOverrides).length === 0) {
+        const { [ruleId]: _removedRule, ...remainingOverrides } = currentState;
+        return remainingOverrides;
+      }
+
+      return {
+        ...currentState,
+        [ruleId]: remainingRuleOverrides,
+      };
+    });
+  }, []);
+
   const setSourcePlannerStartAddress = useCallback((deviceId: string, startAddress: string) => {
     setSourcePlanningState((currentState) => ({
       ...currentState,
@@ -179,9 +232,16 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       clearCrossStepContext();
       clearOutputSelectionState();
       clearSourcePlanningState();
+      clearTagGroupingOverrides();
       closeDevicePanel();
     },
-    [clearCrossStepContext, clearOutputSelectionState, clearSourcePlanningState, closeDevicePanel],
+    [
+      clearCrossStepContext,
+      clearOutputSelectionState,
+      clearSourcePlanningState,
+      clearTagGroupingOverrides,
+      closeDevicePanel,
+    ],
   );
 
   const setFocusedRuleId = useCallback((ruleId: string | null) => {
@@ -245,6 +305,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setSourcePlanningState,
       setSourcePlannerStartAddress,
       clearSourcePlanningState,
+      tagGroupingOverrides,
+      setTagGroupingOverride,
+      clearTagGroupingOverride,
+      clearTagGroupingOverrides,
       devicePanelState,
       openCreateDevicePanel,
       openEditDevicePanel,
@@ -277,6 +341,10 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       setSourcePlanningState,
       setSourcePlannerStartAddress,
       clearSourcePlanningState,
+      tagGroupingOverrides,
+      setTagGroupingOverride,
+      clearTagGroupingOverride,
+      clearTagGroupingOverrides,
       devicePanelState,
       openCreateDevicePanel,
       openEditDevicePanel,
