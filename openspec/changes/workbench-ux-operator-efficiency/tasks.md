@@ -8,9 +8,6 @@
 - baseline 與三個新版本都必須使用**同一個 `/studio` route**；版本隔離只靠 worktree / branch / port。
 - baseline 與三個新版本都必須使用**同一組真實 API 契約**；禁止 mock-only 流程。
 - 三個新版本都必須先共用**同一組 design-token 主題語意**，再映射到各自 UI kit。
-- Phase 2–5 的 shared logic 保持不變：同一個 domain flow、同一組 blocker / retry / recovery semantics、同一組 state ownership。
-- Phase 2–5 真的要重做的是 operator surface：action placement / ordering、primary work surface、preview / summary framing、視覺語言。
-- 只有換 kit、加 scoped CSS、或只調整密度，不足以算完成；如果 review 仍認為「除了 Device，其他都像同一版」，該 phase 直接視為未完成。
 - Phase 2–5 角色固定為：
   - `v2` = primary functional track
   - `v1` = full-flow high-polish track
@@ -186,15 +183,14 @@
 
 ---
 
-## Phase 2：Source winner-led rollout（reopened）
+## Phase 2：Source winner-led rollout
 
-> 目標：在 **邏輯不變** 的前提下，重新讓 `Source` 形成三個真正不同的 archetype-level 操作表面，而不是 shared flow 外面包不同皮。
+> 目標：以 `v2` 建立 canonical Source flow，再讓 `v1` 與 `v3` 在同一個 shared contract 上完成對照。
 
 - [x] 2.1 共用基礎
   - 在 `main` 上更新 Source shared acceptance / scenario matrix
   - 固定 Source 共同動作：rule create/edit、template apply、plan/live/link switch、handoff to Tag
   - 明確定義 `diff preview scope`、stale preview invalidation、failure / retry / recovery
-  - 明確定義什麼叫做 `Source` phase 的 archetype-level 差異（不是只換 shell / CSS）
 
 - [x] 2.1.baseline Current Studio
   - 以 `main` branch baseline snapshot 收集 overview / focused / handoff evidence
@@ -202,23 +198,19 @@
 
 - [x] 2.1.v2 Sentry Incident Desk（primary functional track）
   - 完成 canonical Source flow 與 blocker / retry / recovery surfaced state
-  - 以 incident-desk command surface 重做 `Source` 的 primary work / preview / handoff arrangement
-  - 以 `v2` 作為後續 `v1` / `v3` 的行為基準，但不可只停在既有 wrapper-level 差異
+  - 以 `v2` 作為後續 `v1` / `v3` 的行為基準
 
 - [x] 2.1.v1 Linear Control Room（full-flow high-polish track）
   - 保持與 `v2` 相同的 Source domain flow
-  - 以 clearly different control-room editing skeleton 重做 `Source` surface
-  - 操作感受必須一眼區別於 `v2` / `v3`
+  - 以更低噪音、更長時段可讀的 control-room 語言重做 Source surface
 
 - [x] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
   - 只實作 compare 所需的 Source cockpit surface
   - 保留 overview / focused / handoff / blocker / retry evidence，不擴張成第二條主線
-  - 但 primary work/readout surface 必須仍然是 clearly different cockpit form，不可退化成 shared page + dense skin
 
 - [x] 2.1.compare Source 比較與推薦
   - 比較 baseline + `v2` + `v1` + `v3`
   - 若 compare 認為 canonical owner 必須改變，先停下來修 OpenSpec，不可默默換線
-  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
 
 ---
 

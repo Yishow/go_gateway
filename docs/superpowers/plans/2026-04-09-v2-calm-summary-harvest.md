@@ -45,7 +45,7 @@
 - Create if missing: `.worktrees/woe-v2-mui/`
 - Verify branch: `woe-v2-mui`
 
-- [ ] **Step 1: Verify or create the worktree before touching files**
+- [x] **Step 1: Verify or create the worktree before touching files**
 
 Run:
 
@@ -64,7 +64,7 @@ fi
 
 Expected: `.worktrees/woe-v2-mui` exists and is attached to branch `woe-v2-mui`.
 
-- [ ] **Step 2: Verify the worktree is clean enough to start**
+- [x] **Step 2: Verify the worktree is clean enough to start**
 
 Run:
 
@@ -76,7 +76,7 @@ git branch --show-current
 
 Expected: branch name is `woe-v2-mui`; if unrelated changes exist, stop and decide whether they are safe to work around before editing.
 
-- [ ] **Step 3: Confirm the target frontend files are reachable**
+- [x] **Step 3: Confirm the target frontend files are reachable**
 
 Run:
 
@@ -98,7 +98,7 @@ Expected: all four checks succeed before Task 1 starts.
 - Modify: `.worktrees/woe-v2-mui/frontend/src/i18n/locales/en/common.json`
 - Modify: `.worktrees/woe-v2-mui/frontend/src/i18n/locales/zh-TW/common.json`
 
-- [ ] **Step 1: Write the failing Shell test with a tiny translation map**
+- [x] **Step 1: Write the failing Shell test with a tiny translation map**
 
 Replace the current `t: (key) => key` mock in `MuiWorkbenchShellIncidentDesk.reopen.test.tsx` with a local translation map for the touched Shell keys and add assertions for the calmer copy while keeping the same action contract.
 
@@ -132,7 +132,7 @@ Add/update expectations so the test proves:
 - the return action still routes to Output
 - refresh success still surfaces explicit success text
 
-- [ ] **Step 2: Run the Shell test to verify it fails**
+- [x] **Step 2: Run the Shell test to verify it fails**
 
 Run:
 
@@ -143,7 +143,7 @@ npm test -- --run src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncide
 
 Expected: FAIL because the current component/locale strings do not match the new calmer copy assertions.
 
-- [ ] **Step 3: Implement the minimal Shell change**
+- [x] **Step 3: Implement the minimal Shell change**
 
 Update `MuiWorkbenchIncidentStrip.tsx` and the two locale files.
 
@@ -177,7 +177,7 @@ Representative locale edits:
 "success": "Diagnostics refreshed"
 ```
 
-- [ ] **Step 4: Run the Shell test to verify it passes**
+- [x] **Step 4: Run the Shell test to verify it passes**
 
 Run:
 
@@ -188,7 +188,7 @@ npm test -- --run src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncide
 
 Expected: PASS with the calmer copy rendered and the same return/refresh behavior intact.
 
-- [ ] **Step 5: Commit the Shell pass**
+- [x] **Step 5: Commit the Shell pass**
 
 ```bash
 cd /Users/yishow/prj/go_gateway/.worktrees/woe-v2-mui
@@ -209,7 +209,7 @@ git commit -m "[v2-followup][Task 1] 收斂 Shell incident strip 文案與層級
 - Modify: `.worktrees/woe-v2-mui/frontend/src/i18n/locales/en/common.json`
 - Modify: `.worktrees/woe-v2-mui/frontend/src/i18n/locales/zh-TW/common.json`
 
-- [ ] **Step 1: Write the failing Output test with translation-aware copy assertions**
+- [x] **Step 1: Write the failing Output test with translation-aware copy assertions**
 
 Update the Output reopen harness so it no longer returns raw keys for the touched incident strings. Add a minimal translation map and failing assertions for the calmer summary/handoff layer while keeping command-dock behavior locked.
 
@@ -241,7 +241,7 @@ The failing test should prove:
 - attention/revision context moves into the secondary summary row
 - `Go to Tag` still exists and keeps the repair path intact
 
-- [ ] **Step 2: Run the Output test to verify it fails**
+- [x] **Step 2: Run the Output test to verify it fails**
 
 Run:
 
@@ -252,7 +252,7 @@ npm test -- --run src/pages/datalink/workbench/__tests__/MuiOutputIncidentDesk.r
 
 Expected: FAIL because the current Output incident desk still uses the old copy and one-row summary strip.
 
-- [ ] **Step 3: Implement the minimal Output change**
+- [x] **Step 3: Implement the minimal Output change**
 
 Update `MuiOutputIncidentDesk.tsx` and the two locale files.
 
@@ -286,7 +286,7 @@ Representative structure:
 </Box>
 ```
 
-- [ ] **Step 4: Run Output tests to verify the wrapper still works**
+- [x] **Step 4: Run Output tests to verify the wrapper still works**
 
 Run:
 
@@ -299,7 +299,7 @@ npm test -- --run \
 
 Expected: PASS; the incident wrapper copy/layout is calmer while Local Modbus / Database behavior remains unchanged.
 
-- [ ] **Step 5: Commit the Output pass**
+- [x] **Step 5: Commit the Output pass**
 
 ```bash
 cd /Users/yishow/prj/go_gateway/.worktrees/woe-v2-mui
@@ -321,7 +321,7 @@ git commit -m "[v2-followup][Task 2] 收斂 Output incident summary 與 handoff 
 - Test: `.worktrees/woe-v2-mui/frontend/src/pages/datalink/workbench/__tests__/MuiOutputIncidentDesk.reopen.test.tsx`
 - Test: `.worktrees/woe-v2-mui/frontend/tests/unit/pages/datalink/workbench-output-step.test.tsx`
 
-- [ ] **Step 1: Run the combined automated validation**
+- [x] **Step 1: Run the combined automated validation**
 
 Run:
 
@@ -340,7 +340,7 @@ npm run build
 
 Expected: all commands pass.
 
-- [ ] **Step 2: Reproduce the fixed browser fixture**
+- [x] **Step 2: Reproduce the fixed browser fixture**
 
 Use `agent-browser` against:
 
@@ -352,7 +352,7 @@ Use `agent-browser` against:
 
 Expected: the same fixture used by the approved spec is available; if not, stop and resolve the fixture instead of substituting a different path.
 
-- [ ] **Step 3: Capture the required browser evidence**
+- [x] **Step 3: Capture the required browser evidence**
 
 Capture at minimum:
 
@@ -366,7 +366,7 @@ The screenshots must show:
 - Output still leads with the priority card
 - the calmer summary/handoff copy does not make the screen read like `v1`
 
-- [ ] **Step 4: Apply only minimal browser-led polish if needed**
+- [x] **Step 4: Apply only minimal browser-led polish if needed**
 
 If browser validation exposes a small wording/spacing issue, fix it only in the two wrapper components already in scope, then rerun:
 
@@ -381,7 +381,7 @@ npm run build
 
 Expected: PASS again after the small polish fix.
 
-- [ ] **Step 5: Commit the validated follow-up**
+- [x] **Step 5: Commit the validated follow-up**
 
 ```bash
 cd /Users/yishow/prj/go_gateway/.worktrees/woe-v2-mui
@@ -396,11 +396,13 @@ git commit -m "[v2-followup][Task 3] 完成 calm summary harvest 驗證與收尾
   -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 ```
 
+Completed outcome: browser gate surfaced a shared backend blocker in `internal/datalink/mapping/sql_repo.go`, so the final validating commit was `ba75251` (`[v2][Task 3] 修正 mappings 可空欄位掃描並完成瀏覽器驗收`). No extra wrapper polish commit was needed after the real fixture recovered.
+
 ## Done Checklist
 
-- [ ] Only the Shell and Output wrapper surfaces changed
-- [ ] `v2` still reads as incident-desk first
-- [ ] Shell actions are unchanged
-- [ ] Output command-dock actions are unchanged
-- [ ] Local Modbus and Database flows still pass shared tests
-- [ ] Browser evidence captured on the fixed `4175` Phase 6 fixture
+- [x] Shell / Output wrapper surfaces stayed unchanged during Task 3 browser gate; the only extra code change was the shared backend mappings nullable-scan fix needed to restore the real fixture
+- [x] `v2` still reads as incident-desk first
+- [x] Shell actions are unchanged
+- [x] Output command-dock actions are unchanged
+- [x] Local Modbus and Database flows still pass shared tests
+- [x] Browser evidence captured on the fixed `4175` Phase 6 fixture
