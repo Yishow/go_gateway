@@ -8,12 +8,23 @@
 - baseline 與三個新版本都必須使用**同一個 `/studio` route**；版本隔離只靠 worktree / branch / port。
 - baseline 與三個新版本都必須使用**同一組真實 API 契約**；禁止 mock-only 流程。
 - 三個新版本都必須先共用**同一組 design-token 主題語意**，再映射到各自 UI kit。
-- UI kit 固定為：
-  - `v1` = shadcn/Radix
-  - `v2` = MUI
-  - `v3` = Ant Design
-- 三個新版本有同一個大目標，但允許因 kit 特性**微調互動邏輯**。
-- 每個 phase 都必須完成 `共用基礎 -> baseline -> v1 -> v2 -> v3 -> compare`，才能前進。
+- Phase 2–5 角色固定為：
+  - `v2` = primary functional track
+  - `v1` = full-flow high-polish track
+  - `v3` = necessary-consistency comparison track
+- compare 可以建議吸收 `v1` / `v3` 亮點或停下來修 spec，但**不可默默改寫 `v2` canonical owner**；若要換 owner，必須先回到 OpenSpec amendment。
+- Phase 2–5 的 baseline 定義固定為：`main` branch 上、該 phase shared acceptance commit 完成後、任何 variant UI work 開始前的 `/studio` frozen snapshot。
+- Phase 2–5 每個 phase 都必須完成 `共用基礎 -> baseline -> v2 -> v1 -> v3 -> compare`，才能前進。
+- 每個 shared task 都必須先在 `main` 上定義 branch-neutral acceptance / scenario matrix，再開始 variant work。
+- Phase 4 Output 一律同時覆蓋：
+  - `Local Modbus register binding`
+  - `Database schema/column binding`
+- Phase 5 shell 只擁有：
+  - readiness summary
+  - active blocker summary
+  - diagnostics refresh status
+  - shortest return-to-mainline action
+- step-local edit / mutation / validation 仍屬各步驟表面，不可被 shell 吃掉。
 - 每個 `compare` 子任務都必須輸出：
   - 操作順暢度
   - 邏輯清晰度
@@ -52,7 +63,7 @@
 
 > 目標：建立四套表面的共同比較框架與 shared token 主題。
 
-- [ ] 0.1 共用基礎
+- [x] 0.1 共用基礎
   - 固定 baseline / v1 / v2 / v3 的版本矩陣
   - 固定 branch / worktree / port 命名
   - 固定 compare 輸出格式與量測 rubric
@@ -60,46 +71,46 @@
   - 明確記錄「主線不受影響、共用 `/studio`、禁止 mock」
   - 明確記錄 phase 執行順序：`baseline -> v1 -> v2 -> v3 -> compare`
 
-- [ ] 0.2 共用 tokens
+- [x] 0.2 共用 tokens
   - 從 `/Users/yishow/prj/awesome-design-md/design-md/` 萃取主題元素
   - 以 `linear.app + sentry + clickhouse` 作為目前選定的 shared token 參考混合
   - 區分 `preserve / adapt / reject` 三種抽取結果
   - 建立共享 design-token 語意層
   - 定義三個 UI kit 的 token mapping 邊界
 
-- [ ] 0.3 命名與執行順序落地
-  - `baseline`：`woe-base-current-ui` / `../go_gateway-woe-base-current-ui` / `4173`
-  - `v1`：`woe-v1-radix` / `../go_gateway-woe-v1-radix` / `4174`
-  - `v2`：`woe-v2-mui` / `../go_gateway-woe-v2-mui` / `4175`
-  - `v3`：`woe-v3-antd` / `../go_gateway-woe-v3-antd` / `4176`
+- [x] 0.3 命名與執行順序落地
+  - `baseline`：`woe-base-current-ui` / `.worktrees/woe-base-current-ui` / `4173`
+  - `v1`：`woe-v1-radix` / `.worktrees/woe-v1-radix` / `4174`
+  - `v2`：`woe-v2-mui` / `.worktrees/woe-v2-mui` / `4175`
+  - `v3`：`woe-v3-antd` / `.worktrees/woe-v3-antd` / `4176`
   - 記錄 shared backend 使用策略與 compare 順序
   - 補出可直接照做的 worktree / backend / frontend 啟動操作稿
 
-- [ ] 0.4 語意 token 命名落地
+- [x] 0.4 語意 token 命名落地
   - 至少明確 `surface.*`、`text.*`、`accent.*`、`status.*`、`border.*`、`focus.*`、`density.*`、`data.*`
   - 確保三個 UI kit 共用相同 token family，而不是各自發明不同命名
 
-- [ ] 0.2.baseline 建立 baseline worktree
+- [x] 0.2.baseline 建立 baseline worktree
   - 從共享 API 基線切出 current UI baseline
   - 凍結 baseline 的 `/studio` 行為供後續比較
   - 收集 baseline 的初始截圖與量測方式
 
-- [ ] 0.2.v1 建立 `v1` worktree（shadcn/Radix）
+- [x] 0.2.v1 建立 `v1` worktree（shadcn/Radix）
   - 從共享 API 基線切出 `v1`
   - 在該 worktree 內讓 `/studio` 指向 shadcn/Radix 版本
   - 使用 shared design tokens
 
-- [ ] 0.2.v2 建立 `v2` worktree（MUI）
+- [x] 0.2.v2 建立 `v2` worktree（MUI）
   - 從共享 API 基線切出 `v2`
   - 在該 worktree 內讓 `/studio` 指向 MUI 版本
   - 使用 shared design tokens
 
-- [ ] 0.2.v3 建立 `v3` worktree（Ant Design）
+- [x] 0.2.v3 建立 `v3` worktree（Ant Design）
   - 從共享 API 基線切出 `v3`
   - 在該 worktree 內讓 `/studio` 指向 Ant Design 版本
   - 使用 shared design tokens
 
-- [ ] 0.2.compare 驗證四套表面共同起跑線
+- [x] 0.2.compare 驗證四套表面共同起跑線
   - baseline 與三個新版本皆可在各自 port 開啟 `/studio`
   - baseline 與三個新版本皆連到同一組真實 API
   - 三個新版本皆使用相同語意 token
@@ -111,187 +122,431 @@
 
 > 目標：比較設備建立、編輯、clone、connect / probe 的最佳表面。
 
-- [ ] 1.1 共用基礎
+- [x] 1.1 共用基礎
   - 固定 Device 場景與驗收標準
   - 固定需要比較的動作：create、edit、clone、connect、probe、錯誤診斷
 
-- [ ] 1.1.baseline Current Studio
+- [x] 1.1.baseline Current Studio
   - 量測目前 UI 在 Device 場景的操作順暢度、邏輯清晰度與主線承接完整性
   - 記錄 baseline 的優勢與缺點
 
-- [ ] 1.1.v1 shadcn/Radix
+- [x] 1.1.v1 shadcn/Radix
   - 以 shared tokens + shadcn/Radix primitives 設計 Device surface
   - 可依 kit 特性微調表單、結果區與提示區邏輯
 
-- [ ] 1.1.v2 MUI
+- [x] 1.1.v2 MUI
   - 以 shared tokens + MUI components 設計 Device surface
   - 可依 kit 特性微調表單、結果區與提示區邏輯
 
-- [ ] 1.1.v3 Ant Design
+- [x] 1.1.v3 Ant Design
   - 以 shared tokens + Ant Design components 設計 Device surface
   - 可依 kit 特性微調表單、結果區與提示區邏輯
 
-- [ ] 1.1.compare Device 比較與推薦
+- [x] 1.1.compare Device 比較與推薦
   - 輸出 baseline + 三個新版本在 Device 場景的比較表
   - 給出本 phase 推薦版本與理由
+  - 已被直接 review 判定為「三版差異不足且過度接近 baseline」，以下重開 Device round
 
 ---
 
-## Phase 2：Source 對照實驗
+## Phase 1R：Device 三 archetypes 重做實驗
 
-> 目標：比較 source rule 編修、模板套用與模式切換的最佳表面。
+> 目標：把 Device 從「同一表面換 kit」提升為三種真正不同的工作台 archetype。
 
-- [ ] 2.1 共用基礎
-  - 固定 Source 場景與驗收標準
-  - 固定需要比較的動作：新增規則、套模板、修改範圍、查看 plan / live / link
+- [x] 1R.1 共用基礎
+  - 把 `v1` / `v2` / `v3` 明確定義為三種不同 archetype
+  - 固定三版各自的 design source mapping
+  - 固定 Device 共通 domain model：selection / task / diagnostics / system
+  - 明確規定 connect / probe 必須是第一公民，create / edit / clone 必須有明確 mode
+  - 若 shared token contract 不足以表達三版語言，必須先擴充同一份 shared semantic contract；不得新增 version-only token file
 
-- [ ] 2.1.baseline Current Studio
-  - 量測目前 UI 在 Source 場景的操作順暢度、邏輯清晰度與主線承接完整性
-  - 記錄 baseline 在重複輸入與模式切換上的已知痛點
+- [x] 1R.1.v1 Linear Control Room
+  - 以 `linear.app` 為骨架，重做 v1 Device interaction skeleton
+  - 形成左欄 device rail / 中央 task canvas / 右欄 live inspector
+  - 視覺上必須一眼區別於 baseline 與其他版本
 
-- [ ] 2.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計 Source surface
-  - 可依 kit 特性微調模板、畫布、模式切換與資訊編排
+- [x] 1R.1.v2 Sentry Incident Desk
+  - 以 `sentry` 為骨架，重做 v2 Device interaction skeleton
+  - 形成任務導向 command center，讓 diagnostics 成為主敘事
+  - 視覺上必須一眼區別於 baseline 與其他版本
 
-- [ ] 2.1.v2 MUI
-  - 以 shared tokens + MUI 設計 Source surface
-  - 可依 kit 特性微調模板、畫布、模式切換與資訊編排
+- [x] 1R.1.v3 ClickHouse Data Cockpit
+  - 以 `clickhouse` 為骨架，重做 v3 Device interaction skeleton
+  - 形成高密度 cockpit，首屏就呈現 KPI / health / recent tests / diagnostics
+  - 視覺上必須一眼區別於 baseline 與其他版本
 
-- [ ] 2.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計 Source surface
-  - 可依 kit 特性微調模板、畫布、模式切換與資訊編排
-
-- [ ] 2.1.compare Source 比較與推薦
-  - 輸出 baseline + 三個新版本在 Source 場景的比較表
-  - 給出本 phase 推薦版本與理由
-
----
-
-## Phase 3：Tag 對照實驗
-
-> 目標：比較 tag review、批次操作、diff preview 與 apply 回饋的最佳表面。
-
-- [ ] 3.1 共用基礎
-  - 固定 Tag 場景與驗收標準
-  - 固定需要比較的動作：review candidates、選策略、preview diff、apply、處理失敗
-
-- [ ] 3.1.baseline Current Studio
-  - 量測目前 UI 在 Tag 場景的操作順暢度、邏輯清晰度與主線承接完整性
-  - 記錄 baseline 在 batch decision 與回饋上的特徵
-
-- [ ] 3.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計 Tag surface
-  - 可依 kit 特性微調 review、diff 與 apply feedback 表面
-
-- [ ] 3.1.v2 MUI
-  - 以 shared tokens + MUI 設計 Tag surface
-  - 可依 kit 特性微調 review、diff 與 apply feedback 表面
-
-- [ ] 3.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計 Tag surface
-  - 可依 kit 特性微調 review、diff 與 apply feedback 表面
-
-- [ ] 3.1.compare Tag 比較與推薦
-  - 輸出 baseline + 三個新版本在 Tag 場景的比較表
-  - 給出本 phase 推薦版本與理由
+- [x] 1R.1.compare Device 重做比較與推薦
+  - 重新輸出 baseline + 三個重做版本在 Device 場景的比較表
+  - compare 必須明確說明三版在 interaction model 與視覺語言上的差異
+  - 推薦 `v2 / Sentry Incident Desk` 作為本輪最佳平衡；`v1 / Linear Control Room` 保留作為低風險 fallback，`v3 / ClickHouse Data Cockpit` 保留高密度 cockpit 亮點供後續吸收
+  - 給出新的 Device phase 推薦版本與理由
 
 ---
 
-## Phase 4：Output 對照實驗
+## Phase 2：Source winner-led rollout
 
-> 目標：比較 output 綁定、狀態表面與阻塞診斷的最佳表面。
+> 目標：以 `v2` 建立 canonical Source flow，再讓 `v1` 與 `v3` 在同一個 shared contract 上完成對照。
 
-- [ ] 4.1 共用基礎
-  - 固定 Output 場景與驗收標準
-  - 固定需要比較的動作：查看映射狀態、執行 dry-run、套用輸出、理解阻塞原因
+- [x] 2.1 共用基礎
+  - 在 `main` 上更新 Source shared acceptance / scenario matrix
+  - 固定 Source 共同動作：rule create/edit、template apply、plan/live/link switch、handoff to Tag
+  - 明確定義 `diff preview scope`、stale preview invalidation、failure / retry / recovery
 
-- [ ] 4.1.baseline Current Studio
-  - 量測目前 UI 在 Output 場景的操作順暢度、邏輯清晰度與主線承接完整性
-  - 記錄 baseline 的資訊密度與狀態可見性特徵
+- [x] 2.1.baseline Current Studio
+  - 以 `main` branch baseline snapshot 收集 overview / focused / handoff evidence
+  - 記錄 baseline 在重複輸入、模式切換與 stale preview 上的痛點
 
-- [ ] 4.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計 Output surface
-  - 可依 kit 特性微調狀態視圖、dry-run 與套用回饋
+- [x] 2.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 canonical Source flow 與 blocker / retry / recovery surfaced state
+  - 以 `v2` 作為後續 `v1` / `v3` 的行為基準
 
-- [ ] 4.1.v2 MUI
-  - 以 shared tokens + MUI 設計 Output surface
-  - 可依 kit 特性微調狀態視圖、dry-run 與套用回饋
+- [x] 2.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 Source domain flow
+  - 以更低噪音、更長時段可讀的 control-room 語言重做 Source surface
 
-- [ ] 4.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計 Output surface
-  - 可依 kit 特性微調狀態視圖、dry-run 與套用回饋
+- [x] 2.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只實作 compare 所需的 Source cockpit surface
+  - 保留 overview / focused / handoff / blocker / retry evidence，不擴張成第二條主線
 
-- [ ] 4.1.compare Output 比較與推薦
-  - 輸出 baseline + 三個新版本在 Output 場景的比較表
-  - 給出本 phase 推薦版本與理由
+- [x] 2.1.compare Source 比較與推薦
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - 若 compare 認為 canonical owner 必須改變，先停下來修 OpenSpec，不可默默換線
 
 ---
 
-## Phase 5：跨步驟 Shell / Diagnostics 對照實驗
+## Phase 3：Tag winner-led rollout（reopened）
 
-> 目標：比較 readiness、global blockers 與跨步驟診斷提示的最佳表面。
+> 目標：在 **邏輯不變** 的前提下，重新讓 `Tag` 形成三個真正不同的 archetype-level review/apply 操作表面。
 
-- [ ] 5.1 共用基礎
-  - 固定跨步驟問題模型與 readiness 判準
-  - 固定需要比較的動作：辨識 blocker、跳轉修復、回到主流程
+- [x] 3.1 共用基礎
+  - 在 `main` 上更新 Tag shared acceptance / scenario matrix
+  - 固定共同動作：review candidates、preview diff、choose action、apply、failure / retry / recovery
+  - 明確定義 `Tag` phase 的 archetype-level 差異與 fail gate
 
-- [ ] 5.1.baseline Current Studio
-  - 量測目前 UI 的 readiness 與 blocker surfaced 能力
+- [x] 3.1.baseline Current Studio
+  - 以 baseline snapshot 收集 review queue、diff preview、handoff to Output evidence
+  - 記錄 baseline 在 batch decision 與失敗回饋上的痛點
+
+- [x] 3.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 canonical Tag review/apply flow
+  - 讓 blocker、retry、partial-failure surfaced state 在 `v2` 先穩定
+  - 以 clearly different incident-desk review command surface 重做主要 decision flow
+
+- [x] 3.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 Tag domain flow
+  - 以 clearly different control-room review skeleton 提升大批量 decision 的 legibility
+
+- [x] 3.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只保留 compare 所需的 board / summary density
+  - 不得改變 shared apply / recovery contract
+  - 但 board / summary / apply surface 必須仍然 clearly different，而不是 shared Tag page 加密度樣式
+
+- [x] 3.1.compare Tag 比較與推薦
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - compare 只能推薦吸收亮點或回補 spec，不可直接改 canonical owner
+  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
+
+---
+
+## Phase 4：Output winner-led rollout
+
+> 目標：以 `v2` 建立 canonical Output flow，且同時覆蓋 Local Modbus 與 Database 兩個 target families。
+
+- [x] 4.1 共用基礎
+  - 在 `main` 上更新 Output shared acceptance / scenario matrix
+  - 固定共同動作：readiness、dry-run、apply、blocker diagnosis
+  - 明確要求 Local Modbus 與 Database 兩個 target families 都必須被驗收
+  - 明確定義 `Output` phase 的三 archetype operation language
+
+- [x] 4.1.baseline Current Studio
+  - 以 baseline snapshot 收集兩個 target families 的 overview / focused / blocker evidence
+  - 記錄 baseline 在狀態可見性與阻塞理解上的痛點
+
+- [x] 4.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 Local Modbus + Database 的 canonical Output flow
+  - 先讓 readiness、dry-run、apply、failure / retry / recovery 在 `v2` 正確
+  - incident-desk target diagnosis / apply 操作面必須 clearly different
+  - ✅ branch commit：`a73fff4`
+  - ✅ 已完成 Local Modbus / Database 真實 browser evidence 與 branch docs 封帳
+
+- [x] 4.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 Output domain flow與 target coverage
+  - 以 clearly different control-room operator-console 語言表達 blocker 與狀態轉移
+  - ✅ branch commit：`e714be8`
+  - ✅ 已完成 Local Modbus / Database 真實 browser evidence 與 branch docs 封帳
+
+- [x] 4.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只保留 compare 所需的 dense mapping/state surface
+  - 仍必須同時覆蓋 Local Modbus + Database 與 shared apply / blocker contract
+  - 但不能只是 shared output page 加 density surface
+  - ✅ branch commit：`5f357df`
+  - ✅ 已完成 Local Modbus / Database 真實 browser evidence 與 branch docs 封帳
+
+- [x] 4.1.compare Output 比較與推薦
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - compare 必須明確評估兩個 target families，不可只看其中一個
+  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
+  - ✅ compare 輸入：
+    - baseline `4173`
+    - `v2` `a73fff4` / `4175`
+    - `v1` `e714be8` / `4174`
+    - `v3` `5f357df` / `4176`
+  - ✅ compare 結論：
+    - **推薦版本：`v2 Sentry Incident Desk`**
+    - `v1` 最適合吸收 calm rail / blocker framing
+    - `v3` 最適合吸收 telemetry strip / bottom operations dock
+    - compare 不足以推翻 Phase 4 的 canonical owner，維持 `v2`
+
+---
+
+## Phase 5：Cross-step shell / diagnostics winner-led rollout
+
+> 目標：以 `v2` 建立 canonical shell / diagnostics flow，同時守住 shell ownership 邊界。
+
+- [x] 5.1 共用基礎
+  - 在 `main` 上更新 shell shared acceptance / scenario matrix
+  - 固定 shell 只擁有：readiness summary、active blocker summary、diagnostics refresh status、shortest return action
+  - 明確禁止 shell 吃掉 step-local edit / mutation / validation
+  - 明確定義 shell / diagnostics 的三 archetype 語言與 fail gate
+  - ✅ 新增 `workbenchShellCompareContract.ts`
+  - ✅ `workbenchExperimentContract.ts` 已正式 re-export shell shared compare contract
+  - ✅ `phase5.scenarioFocus` 已從舊的 `readiness / global-blockers / repair-hop / return-to-flow` 對齊為 `readiness-summary / active-blocker / diagnostics-refresh / return-to-mainline`
+
+- [x] 5.1.baseline Current Studio
+  - 以 baseline snapshot 收集 readiness、blocker、return-to-mainline evidence
   - 記錄 baseline 在跨步驟診斷上的強弱項
+  - ✅ baseline `4173` + real device `UI 4.3 Modbus TCP`
+  - ✅ 正式 evidence：
+    - `baseline-shell-readiness.png`
+    - `baseline-shell-return-to-mainline.png`
+    - `baseline-shell-blocker.png`
 
-- [ ] 5.1.v1 shadcn/Radix
-  - 以 shared tokens + shadcn/Radix 設計跨步驟診斷表面
-  - 可依 kit 特性微調 shell、drawer、banner、summary 的互動
+- [x] 5.1.v2 Sentry Incident Desk（primary functional track）
+  - 完成 canonical cross-step shell / diagnostics flow
+  - 先讓 global blocker、refresh、retry、return action 在 `v2` 正確
+  - incident-desk shell / diagnostics 操作面必須 clearly different
+  - ✅ branch / commit / preview：`woe-v2-mui` / `3408f63` / `4175`
+  - ✅ 正式 evidence：
+    - `v2-shell-overview.png`
+    - `v2-shell-refresh-success.png`
+    - `v2-shell-return-to-output.png`
 
-- [ ] 5.1.v2 MUI
-  - 以 shared tokens + MUI 設計跨步驟診斷表面
-  - 可依 kit 特性微調 shell、drawer、banner、summary 的互動
+- [x] 5.1.v1 Linear Control Room（full-flow high-polish track）
+  - 保持與 `v2` 相同的 shell ownership model
+  - 以 clearly different、低干擾的 control-room shell 語言表達同一組能力
+  - ✅ branch / commit / preview：`woe-v1-radix` / `0579eef` / `4174`
+  - ✅ 正式 evidence：
+    - `v1-shell-overview.png`
+    - `v1-shell-refresh-success.png`
+    - `v1-shell-return-to-output.png`
 
-- [ ] 5.1.v3 Ant Design
-  - 以 shared tokens + Ant Design 設計跨步驟診斷表面
-  - 可依 kit 特性微調 shell、drawer、banner、summary 的互動
+- [x] 5.1.v3 ClickHouse Data Cockpit（minimum-obligation track）
+  - 只保留 compare 所需的 cockpit summary / alert surface
+  - 不得把 shell 擴成 version-only workflow center
+  - 但 summary / alert surface 必須仍然 clearly different，而不是 shared shell 加 cockpit 裝飾
+  - ✅ branch / commit / preview：`woe-v3-antd` / `6f9bc5c` / `4176`
+  - ✅ 正式 evidence：
+    - `v3-shell-overview.png`
+    - `v3-shell-refresh-success.png`
+    - `v3-shell-return-to-output.png`
 
-- [ ] 5.1.compare Shell / Diagnostics 比較與推薦
-  - 輸出 baseline + 三個新版本在跨步驟診斷場景的比較表
-  - 給出本 phase 推薦版本與理由
+- [x] 5.1.compare Shell / Diagnostics 比較與推薦
+  - 比較 baseline + `v2` + `v1` + `v3`
+  - compare 必須確認 shell 沒有改寫 step-local ownership
+  - 若 review 仍認為三版除了 Device 幾乎一樣，本 phase 不得關閉
+  - ✅ baseline control：`b446045` / `4173`
+  - ✅ compare rubric：
+    - **操作順暢度**
+      - baseline：最低；需先進 step-local surface 才能理解真正 blocker
+      - `v2`：最佳；blocker / refresh / return action 集中在同一條 incident strip
+      - `v1`：次佳；同樣可直接回主線，但 calmer spacing 讓掃描稍慢於 `v2`
+      - `v3`：中上；return action 明確，但高密度 cockpit framing 提高首屏解析負擔
+    - **邏輯清晰度**
+      - baseline：最低；shell 只給 generic CTA，沒有 shell-level blocker summary
+      - `v2`：最佳；四個 shell-owned surfaces 的責任邊界最清楚
+      - `v1`：高；ownership 一樣乾淨，但需要多看一眼才會感覺到 urgency
+      - `v3`：中；alert/telemetry identity 強，但較容易把注意力帶向 cockpit 語氣
+    - **對系統的完整性**
+      - baseline：部分；readiness 可讀，但 blocker / refresh / return contract 不完整
+      - `v2`：最佳；是唯一把 canonical shell loop 做成最完整、最直接的版本
+      - `v1`：高；shared shell loop 完整成立，且沒有侵入 step-local workflow
+      - `v3`：達標；minimum-obligation shell loop 成立，但刻意不擴成 full workflow center
+    - **首屏資訊密度**
+      - baseline：最低
+      - `v1`：中
+      - `v2`：中高，平衡最好
+      - `v3`：最高
+    - **關鍵操作時間**
+      - baseline：最慢；需要先進各 step 才能完成 blocker triage
+      - `v2`：最短；讀取 shell 後可直接 refresh 或 return
+      - `v1`：接近 `v2`；主要差距是 calmer framing 帶來的額外掃描時間
+      - `v3`：接近 `v2`，但首屏 telemetry 較多，初次判讀成本最高
+    - **實作 / 維護風險**
+      - baseline：最低，但功能不足
+      - `v1`：中低；新增 surface 小且 ownership 穩定
+      - `v2`：中；surface 最完整，但 shell semantics 也最強，後續需守 canonical owner 邊界
+      - `v3`：最高；視覺密度與 cockpit identity 最強，也最容易放大維護面與噪音
+  - ✅ 推薦版本：維持 `v2 Sentry Incident Desk` 為 Phase 5 canonical owner
+  - ✅ 推薦理由：
+    - `v2` 在不吃掉 step-local ownership 的前提下，把 readiness、blocker、refresh、return 這條 shell loop 做到最短、最清楚
+    - `v1` 是最好的長時間操作備案，建議回收 calmer blocker framing / lower-interference pacing
+    - `v3` 的 alert line 在首屏資訊密度與版本辨識度上最強，建議只回收 alert / telemetry cues，不延用整條 cockpit intensity
 
 ---
 
-## Phase 6：總結驗收與最終推薦
+## Phase 6：最終驗收與推薦
 
-> 目標：在相同端對端流程下重跑 baseline 與三個新版本，得到正式推薦結論。
+> 目標：以同一個 end-to-end 主線重跑 baseline、`v2`、`v1`、`v3`，輸出正式推薦與保留亮點。
 
-- [ ] 6.1 共用基礎
-  - 固定最終 E2E 場景
-  - 固定最終比較報告格式
+- [x] 6.1 共用基礎
+  - 固定最終 E2E 場景：
+    - 使用真實 API + 真實裝置 `UI 4.3 Modbus TCP`
+    - 依同一條 `/studio` 主線重跑 `Device -> Source -> Tag -> Output -> Shell`
+    - `Source` 必須進入可操作的 focused rule / preview state，並保留 handoff to `Tag`
+    - `Tag` 必須進入可操作的 review/apply state，並保留 handoff to `Output`
+    - `Output` 必須同時覆蓋 Local Modbus 與 Database 兩個 target families
+    - `Shell` 必須再次驗證 readiness summary、active blocker summary、diagnostics refresh、shortest return action
+  - 固定最終 compare 輸出格式與證據欄位：
+    - 每個版本至少保留 `overview`、`focused`、`next-step handoff` 三組 browser evidence
+    - compare 必須逐一輸出：操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險、推薦版本與理由、非 Device phase distinctness 結論
+    - 最終 compare 必須額外寫出：保留亮點、淘汰理由、後續 follow-up 建議
+  - 固定最終「三版本在非 Device phase 仍 clearly distinct」驗收題：
+    - reviewer 必須能在 `Source`、`Tag`、`Output`、`Shell` 四段，透過首屏與第一個主操作辨識 `v2` / `v1` / `v3` 是不同產品語言
+    - 若差異只剩 component kit、spacing、顏色或 chrome，而主操作骨架與資訊節奏仍幾乎一樣，Phase 6 不得關閉
 
-- [ ] 6.1.baseline 整體驗收
+- [x] 6.1.baseline 整體驗收
   - 完成 baseline 端對端操作、截圖與記錄
+  - ✅ preview / route / device：`4173` / `/studio` / `UI 4.3 Modbus TCP`
+  - ✅ 正式 evidence：
+    - `baseline-final-overview.png`
+    - `baseline-final-source-focused.png`
+    - `baseline-final-tag-focused.png`
+    - `baseline-final-output-local-modbus.png`
+    - `baseline-final-output-database.png`
+  - ✅ baseline 記錄：
+    - 同一條主線可從 `Device -> Source -> Tag -> Output` 穩定重跑，且 Output 兩個 target families 都可見
+    - `Shell` 仍然只有 generic readiness / CTA framing，沒有 final compare 所需的 blocker / refresh narrative
+    - 作為 control 足夠，但在非 Device phase 幾乎沒有 archetype differentiation，可作為最終 compare 的下限參考
 
-- [ ] 6.1.v1 整體驗收（shadcn/Radix）
-  - 完成 v1 端對端操作、截圖與記錄
+- [x] 6.1.v2 整體驗收（primary functional track）
+  - 完成 `v2` 端對端操作、截圖與記錄
+  - ✅ branch / commit / preview：`woe-v2-mui` / `b70d169` / `4175`
+  - ✅ 正式 evidence：
+    - `v2-final-overview.png`
+    - `v2-final-shell-refresh-success.png`
+    - `v2-final-source-focused.png`
+    - `v2-final-tag-focused.png`
+    - `v2-final-output-local-modbus.png`
+    - `v2-final-output-database.png`
+  - ✅ 最終驗收記錄：
+    - `SHELL 事件桌`、Source / Tag / Output command deck 與 incident summary 仍是最清楚的 canonical owner
+    - 同一個 Output workspace 內同時覆蓋 Local Modbus 與 Database
+    - 本輪封帳前已修正 `DatabaseTargetBoard.tsx` database mapping selects 缺少 `name`，reload 後 form-field issue 已消失
 
-- [ ] 6.1.v2 整體驗收（MUI）
-  - 完成 v2 端對端操作、截圖與記錄
+- [x] 6.1.v1 整體驗收（full-flow high-polish track）
+  - 完成 `v1` 端對端操作、截圖與記錄
+  - ✅ branch / commit / preview：`woe-v1-radix` / `a0cc33d` / `4174`
+  - ✅ 正式 evidence：
+    - `v1-final-overview.png`
+    - `v1-final-shell-refresh-success.png`
+    - `v1-final-source-focused.png`
+    - `v1-final-tag-focused.png`
+    - `v1-final-output-local-modbus.png`
+    - `v1-final-output-database.png`
+  - ✅ 最終驗收記錄：
+    - `SHELL 控制線`、Source rail、Tag rail、Output rail 仍保持 calmer control-room pacing，版本語言明確不同於 `v2`
+    - `Local Modbus` / `Database` 仍在同一個 Output workspace 內完成，沒有分裂 shared flow 或 target contract
+    - 本輪 final validation 額外修正 `TagRailPanel.tsx`、`OutputRailPanel.tsx` 錯誤 `workbench.headerBar.linkedTagCount` key 與 `DatabaseTargetBoard.tsx` form-field issue
 
-- [ ] 6.1.v3 整體驗收（Ant Design）
-  - 完成 v3 端對端操作、截圖與記錄
+- [x] 6.1.v3 整體驗收（minimum-obligation track）
+  - 完成 `v3` 端對端操作、截圖與記錄
+  - ✅ branch / commit / preview：`woe-v3-antd` / `311df2c` / `4176`
+  - ✅ 正式 evidence：
+    - `v3-final-overview.png`
+    - `v3-final-shell-refresh-success.png`
+    - `v3-final-source-focused.png`
+    - `v3-final-tag-focused.png`
+    - `v3-final-output-local-modbus.png`
+    - `v3-final-output-database.png`
+  - ✅ 最終驗收記錄：
+    - `Cockpit alert line`、Source telemetry、Tag telemetry lane、Output telemetry-first board + bottom dock 仍保持最高密度的 cockpit identity，版本語言明確不同於 `v2` / `v1`
+    - 在同一個 Output workspace 內仍同時覆蓋 Local Modbus 與 Database，沒有拆出版本專屬 route 或 backend contract
+    - 本輪 final validation 額外修正 `DatabaseTargetBoard.tsx` connector / mapping controls 缺少 `name` 的 form-field issue；reload 後 console issue = `0`
+    - reload 後若只在 Output step 重新選 device，focused revision 不會完整回來；要透過 `Tag -> Output` handoff 才能恢復 rule-scoped candidate
 
-- [ ] 6.1.compare 最終比較與推薦版本
-  - 彙整所有 phase 的 compare 結果
-  - 明確指出推薦版本、淘汰理由、保留亮點與後續 follow-up 建議
+- [x] 6.1.compare 最終比較與推薦版本
+  - ✅ compare input frozen：
+    - baseline：`cf684d5`
+    - `v2`：`b70d169`
+    - `v1`：`a0cc33d`
+    - `v3`：`311df2c`
+  - ✅ 非 Device phase distinctness 結論：**成立**
+    - `v2`：Source / Tag / Output / Shell 都維持 incident-desk / command-deck 主語言
+    - `v1`：四段都維持 calmer control-line / rail-first pacing
+    - `v3`：四段都維持 telemetry-first cockpit framing 與最高密度的 alert / dock 語言
+  - ✅ 比較結果：
+    - **操作順暢度**
+      - baseline：最弱；每一步都能做，但跨步驟 handoff 與 shell guidance 最少
+      - `v1`：穩定、低干擾，接近 `v2`；在 blocker triage 與第一眼 action hierarchy 上略慢半拍
+      - `v2`：最佳；從 Source -> Tag -> Output -> Shell 的 handoff 最短、最直覺
+      - `v3`：steady-state scan 很快，但密度最高；reload 後還需依賴 `Tag -> Output` handoff 恢復 focused scope
+    - **邏輯清晰度**
+      - baseline：低；步驟能完成，但缺少 final compare 所需的 blocker / refresh / return narrative
+      - `v1`：高；控制線與 rail summaries 很穩，但較依賴操作者主動解讀 calmer framing
+      - `v2`：最高；canonical owner 與每一步的下一個動作都最明確
+      - `v3`：中；版本辨識很強，但 telemetry / dock 語氣最容易把操作焦點拉散
+    - **對系統的完整性**
+      - baseline：作為 control 成立，但不足以當最終產品語言
+      - `v1`：高；完整覆蓋四步主線與兩個 output target families，且 ownership 邊界乾淨
+      - `v2`：最高；既完整又保有最穩定的 canonical flow
+      - `v3`：中高；功能覆蓋完整，但需要更多 compare-only 說明才能避免密度壓過主線
+    - **首屏資訊密度**
+      - baseline：最低
+      - `v1`：中低，最安靜
+      - `v2`：中高，平衡最好
+      - `v3`：最高，最有 cockpit identity
+    - **關鍵操作時間**
+      - baseline：最慢；缺少跨步驟語義與 final shell guidance
+      - `v1`：接近 `v2`；主要差距在 calmer summaries 讓首次判讀略慢
+      - `v2`：最快；最短的 blocker triage、handoff 與 return path
+      - `v3`：初次 scan 很快，但修正 / 回復路徑時間最不穩定
+    - **實作 / 維護風險**
+      - baseline：最低，但功能與語義不足
+      - `v1`：中低；額外 surface 小，節奏穩定
+      - `v2`：中；surface 最完整，但 canonical owner 邊界必須持續守住
+      - `v3`：最高；資訊密度、dock 語言與 shared board 補丁都讓維護面最大
+  - ✅ 推薦版本：維持 `v2 Sentry Incident Desk` 為最終推薦與 canonical owner
+  - ✅ 推薦理由：
+    - `v2` 是唯一同時滿足最短操作路徑、最高邏輯清晰度、完整 system coverage 與可控維護風險的版本
+    - `v1` 是最好的長時間操作備案，但沒有在關鍵 triage / handoff 時間上超越 `v2`
+    - `v3` 有最強的版本辨識與資訊密度，但代價是最高的認知與維護風險
+  - ✅ 保留亮點：
+    - `v1`：回收 calmer blocker framing、control-line wording、rail summary pacing
+    - `v3`：回收 alert / telemetry cues，以及只在可量化縮短掃描時間時才採用的 dock grouping
+  - ✅ 淘汰理由：
+    - baseline：缺少 blocker / refresh / return narrative，也沒有非 Device phase 的產品辨識度
+    - `v1`：雖然最穩、最安靜，但在首輪 triage 與 action hierarchy 上仍輸 `v2`
+    - `v3`：雖然最有辨識度，但密度與恢復路徑風險過高，不適合當 canonical 主線
+  - ✅ follow-up 建議：
+    - 將 `v1` 的 calmer blocker / rail summaries 作為 `v2` 的低干擾文案候選，而不是改掉 `v2` 的 canonical 骨架
+    - 將 `v3` 的 telemetry / alert cues 只在能縮短 scan time 的位置引入 `v2`，避免整套 cockpit intensity 進入主線
+    - 後續若要改善 Output recovery，應把 reload 後 focused revision restoration 規格化，而不是交給操作者猜測
 
 ---
 
 ## 驗收條件
 
-- [ ] baseline 與三個新版本全程共用同一組真實 API，無 mock 分流
-- [ ] baseline 與三個新版本全程維持同一個 `/studio` route
-- [ ] baseline 在比較開始前已凍結，不隨新版本實驗漂移
-- [ ] 三個新版本全程使用同一組 shared design tokens
-- [ ] compare 子任務完成前，不得跳到下一個 phase
-- [ ] 每個 compare 結果都包含操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險
-- [ ] 最終輸出包含推薦版本與明確理由
+- [x] baseline 與 `v2` / `v1` / `v3` 全程共用同一組真實 API，無 mock 分流
+- [x] baseline 與 `v2` / `v1` / `v3` 全程維持同一個 `/studio` route
+- [x] baseline 依 Phase 2–5 baseline 定義凍結，不隨 variant work 漂移
+- [x] 三個新版本全程使用同一組 shared design tokens
+- [x] 每個 shared task 都先在 `main` 上定義 branch-neutral acceptance / scenario matrix
+- [x] compare 子任務完成前，不得跳到下一個 phase
+- [x] 每個 compare 結果都包含操作順暢度、邏輯清晰度、對系統的完整性、首屏資訊密度、關鍵操作時間、實作 / 維護風險
+- [x] 每個 compare 結果都明確回答三版本在非 Device phase 是否仍 clearly distinct
+- [x] Phase 4 compare 同時覆蓋 Local Modbus 與 Database 兩個 target families
+- [x] 若 compare 挑戰 `v2` canonical owner，必須先回到 OpenSpec amendment，不可直接換線
+- [x] 最終輸出包含推薦版本與明確理由
 
 ---
 
