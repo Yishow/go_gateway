@@ -69,20 +69,17 @@ func (s *ConnectorService) GenerateSchema(
 	}
 	manager, err := openExternalDBManager(connector.Kind, connectionConfig)
 	if err != nil {
-		recordWriteHistory(connector.ID, "failed", 0, err.Error())
 		return nil, err
 	}
 	defer manager.Close()
 
 	for _, statement := range statements {
 		if _, execErr := manager.DB().ExecContext(ctx, statement); execErr != nil {
-			recordWriteHistory(connector.ID, "failed", 0, execErr.Error())
 			return nil, fmt.Errorf("執行 schema statement 失敗: %w", execErr)
 		}
 	}
 
 	result.Executed = len(statements)
-	recordWriteHistory(connector.ID, "success", len(statements), "")
 	return result, nil
 }
 

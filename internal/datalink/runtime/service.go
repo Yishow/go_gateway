@@ -185,6 +185,11 @@ func (s *Service) Stop(ctx context.Context) error {
 	if err := s.writer.Flush(ctx); err != nil {
 		return err
 	}
+	if closer, ok := s.target.(interface{ Close(context.Context) error }); ok && closer != nil {
+		if err := closer.Close(ctx); err != nil {
+			return err
+		}
+	}
 	return s.writer.Close()
 }
 

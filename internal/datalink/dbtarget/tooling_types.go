@@ -32,8 +32,11 @@ type MappingDryRunResult struct {
 }
 
 type WriteHistoryRecord struct {
-	Timestamp    time.Time `json:"timestamp"`
-	Status       string    `json:"status"`
-	RowCount     int       `json:"row_count"`
-	ErrorSummary string    `json:"error_summary,omitempty"`
+	ObservedAt               time.Time `json:"observed_at"`
+	Status                   string    `json:"status"`
+	RowCount                 int       `json:"row_count"`
+	GroupKey                 *string   `json:"group_key"`
+	TableName                string    `json:"table_name,omitempty"`
+	EffectiveIntervalSeconds int       `json:"effective_interval_seconds"`
+	ErrorSummary             string    `json:"error_summary,omitempty"`
 }

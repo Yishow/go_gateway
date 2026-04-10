@@ -23,12 +23,13 @@ import (
 )
 
 type dbTargetToolingFixture struct {
-	router       *gin.Engine
-	connectorSvc *dbtarget.ConnectorService
-	mappingSvc   *dbtarget.MappingService
-	writer       *dbtarget.Writer
-	mappingRepo  *dbtarget.SQLTargetMappingRepository
-	tagSvc       *tag.Service
+	router        *gin.Engine
+	connectorRepo *dbtarget.SQLConnectorRepository
+	connectorSvc  *dbtarget.ConnectorService
+	mappingSvc    *dbtarget.MappingService
+	writer        *dbtarget.Writer
+	mappingRepo   *dbtarget.SQLTargetMappingRepository
+	tagSvc        *tag.Service
 }
 
 func setupDBTargetToolingFixture(t *testing.T) *dbTargetToolingFixture {
@@ -52,12 +53,13 @@ func setupDBTargetToolingFixture(t *testing.T) *dbTargetToolingFixture {
 	router.GET("/datalink/db-targets/connectors/:id/write-history", handler.ListWriteHistory)
 
 	return &dbTargetToolingFixture{
-		router:       router,
-		connectorSvc: connectorSvc,
-		mappingSvc:   mappingSvc,
-		writer:       writer,
-		mappingRepo:  mappingRepo,
-		tagSvc:       tagSvc,
+		router:        router,
+		connectorRepo: connectorRepo,
+		connectorSvc:  connectorSvc,
+		mappingSvc:    mappingSvc,
+		writer:        writer,
+		mappingRepo:   mappingRepo,
+		tagSvc:        tagSvc,
 	}
 }
 
@@ -264,6 +266,112 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsLatestRecords(t *testing.
 	require.Len(t, records, 1)
 	assert.Equal(t, "success", records[0].(map[string]any)["status"])
 	assert.Equal(t, float64(1), records[0].(map[string]any)["row_count"])
+}
+
+func TestDatabaseTargetHandler_ListWriteHistory_ReturnsGroupedFlushMetadata(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	fixture := setupDBTargetToolingFixture(t)
+	targetDSN := filepath.Join(t.TempDir(), "target-handler-grouped-history.db")
+	targetDB, err := sql.Open("sqlite", targetDSN)
+	require.NoError(t, err)
+	_, err = targetDB.Exec(`
+		CREATE TABLE meter_rows (
+			ts DATETIME PRIMARY KEY,
+			a1 REAL,
+			kw REAL
+		)
+	`)
+	require.NoError(t, err)
+	require.NoError(t, targetDB.Close())
+
+	tickCh := make(chan time.Time, 2)
+
+	connector, err := fixture.connectorSvc.Create(ctx, dbtarget.CreateConnectorRequest{
+		Name: "handler-grouped-history",
+		Kind: schema.DatabaseConnectorKindSQLite,
+		ConnectionConfig: dbtarget.ConnectionConfig{
+			"dsn": targetDSN,
+		},
+	})
+	require.NoError(t, err)
+
+	tagA1, err := fixture.tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "meter/A1",
+		DisplayName: "Meter A1",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+	tagKW, err := fixture.tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "meter/kw",
+		DisplayName: "Meter kW",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+
+	groupKey := "meter"
+	_, err = fixture.mappingSvc.Create(ctx, dbtarget.CreateTargetMappingRequest{
+		TagID:           tagA1.ID,
+		ConnectorID:     connector.ID,
+		TableName:       "meter_rows",
+		ColumnName:      "a1",
+		GroupKey:        &groupKey,
+		WriteMode:       schema.DatabaseWriteModeUpsert,
+		TimestampColumn: stringPtrForDBTarget("ts"),
+	})
+	require.NoError(t, err)
+	_, err = fixture.mappingSvc.Create(ctx, dbtarget.CreateTargetMappingRequest{
+		TagID:           tagKW.ID,
+		ConnectorID:     connector.ID,
+		TableName:       "meter_rows",
+		ColumnName:      "kw",
+		GroupKey:        &groupKey,
+		WriteMode:       schema.DatabaseWriteModeUpsert,
+		TimestampColumn: stringPtrForDBTarget("ts"),
+	})
+	require.NoError(t, err)
+
+	writer := dbtarget.NewWriterWithConfig(
+		fixture.connectorRepo,
+		fixture.mappingRepo,
+		dbtarget.WriterConfig{FlushTick: tickCh},
+	)
+	t.Cleanup(func() {
+		require.NoError(t, writer.Close(context.Background()))
+	})
+
+	observedAt := time.Date(2026, 4, 6, 11, 0, 5, 0, time.UTC)
+	require.NoError(t, writer.WriteTagValue(ctx, tagA1.ID, 42.5, observedAt))
+	require.NoError(t, writer.WriteTagValue(ctx, tagKW.ID, 7.25, observedAt.Add(3*time.Second)))
+	tickCh <- time.Date(2026, 4, 6, 11, 0, 15, 0, time.UTC)
+
+	require.Eventually(t, func() bool {
+		records, listErr := fixture.connectorSvc.ListWriteHistory(ctx, connector.ID, 1)
+		return listErr == nil && len(records) == 1
+	}, time.Second, 10*time.Millisecond)
+
+	req, err := http.NewRequest(
+		http.MethodGet,
+		"/datalink/db-targets/connectors/"+connector.ID+"/write-history?limit=1",
+		nil,
+	)
+	require.NoError(t, err)
+	resp := httptest.NewRecorder()
+	fixture.router.ServeHTTP(resp, req)
+	require.Equal(t, http.StatusOK, resp.Code)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+	records := payload["data"].(map[string]any)["records"].([]any)
+	require.Len(t, records, 1)
+	record := records[0].(map[string]any)
+	assert.Equal(t, "success", record["status"])
+	assert.Equal(t, float64(1), record["row_count"])
+	assert.Equal(t, "meter", record["group_key"])
+	assert.Equal(t, "meter_rows", record["table_name"])
+	assert.Equal(t, float64(15), record["effective_interval_seconds"])
+	assert.Equal(t, "2026-04-06T11:00:00Z", record["observed_at"])
 }
 
 func openMigratedDBTargetMainDB(t *testing.T) *sql.DB {

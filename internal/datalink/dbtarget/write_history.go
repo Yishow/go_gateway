@@ -1,6 +1,7 @@
 package dbtarget
 
 import (
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -15,16 +16,22 @@ var globalWriteHistoryStore = &writeHistoryStore{
 	byConnector: map[string][]WriteHistoryRecord{},
 }
 
-func recordWriteHistory(connectorID string, status string, rowCount int, errorSummary string) {
+func recordWriteHistory(connectorID string, record WriteHistoryRecord) {
 	key := strings.TrimSpace(connectorID)
 	if key == "" {
 		return
 	}
-	record := WriteHistoryRecord{
-		Timestamp:    time.Now().UTC(),
-		Status:       strings.TrimSpace(status),
-		RowCount:     rowCount,
-		ErrorSummary: strings.TrimSpace(errorSummary),
+	record.Status = strings.TrimSpace(record.Status)
+	record.ErrorSummary = strings.TrimSpace(record.ErrorSummary)
+	record.TableName = strings.TrimSpace(record.TableName)
+	if record.ObservedAt.IsZero() {
+		record.ObservedAt = time.Now().UTC()
+	} else {
+		record.ObservedAt = record.ObservedAt.UTC()
+	}
+	if record.GroupKey != nil {
+		trimmed := strings.TrimSpace(*record.GroupKey)
+		record.GroupKey = &trimmed
 	}
 
 	globalWriteHistoryStore.mu.Lock()
@@ -56,10 +63,14 @@ func listWriteHistory(connectorID string, limit int) []WriteHistoryRecord {
 	if len(records) == 0 {
 		return []WriteHistoryRecord{}
 	}
+	copied := append([]WriteHistoryRecord(nil), records...)
+	sort.Slice(copied, func(i, j int) bool {
+		return copied[i].ObservedAt.After(copied[j].ObservedAt)
+	})
 
 	result := make([]WriteHistoryRecord, 0, limit)
-	for i := len(records) - 1; i >= 0 && len(result) < limit; i-- {
-		result = append(result, records[i])
+	for i := 0; i < len(copied) && len(result) < limit; i++ {
+		result = append(result, copied[i])
 	}
 	return result
 }

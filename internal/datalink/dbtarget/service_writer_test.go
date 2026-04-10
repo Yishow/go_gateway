@@ -11,6 +11,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
@@ -129,6 +130,195 @@ func TestMappingService_CreateRejectsUpsertWithoutUniqueTimestamp(t *testing.T) 
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "primary key 或 single-column unique")
+}
+
+func TestWriter_GroupedMappingsFlushOneRowPerBucketOnTimer(t *testing.T) {
+	ctx := context.Background()
+	mainDB := openMigratedTestDB(t)
+	targetDSN := filepath.Join(t.TempDir(), "target-grouped-timer.db")
+
+	targetDB, err := sql.Open("sqlite", targetDSN)
+	require.NoError(t, err)
+	defer targetDB.Close()
+	_, err = targetDB.Exec(`
+		CREATE TABLE meter_rows (
+			ts DATETIME PRIMARY KEY,
+			a1 REAL,
+			kw REAL
+		)
+	`)
+	require.NoError(t, err)
+
+	tagSvc := tag.NewService(tag.NewSQLRepository(mainDB))
+	connectorRepo := NewSQLConnectorRepository(mainDB)
+	mappingRepo := NewSQLTargetMappingRepository(mainDB)
+	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
+	mappingSvc := NewMappingService(mappingRepo, connectorRepo, tagSvc)
+	tickCh := make(chan time.Time, 2)
+	writer := NewWriterWithConfig(connectorRepo, mappingRepo, WriterConfig{FlushTick: tickCh})
+	t.Cleanup(func() {
+		require.NoError(t, writer.Close(context.Background()))
+	})
+
+	interval := 15
+	connector, err := connectorSvc.Create(ctx, CreateConnectorRequest{
+		Name: "grouped-timer",
+		Kind: schema.DatabaseConnectorKindSQLite,
+		ConnectionConfig: ConnectionConfig{
+			"dsn": targetDSN,
+		},
+		DefaultWriteIntervalSeconds: &interval,
+	})
+	require.NoError(t, err)
+	resetWriteHistory(connector.ID)
+
+	tagA1, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "meter/A1",
+		DisplayName: "Meter A1",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+	tagKW, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "meter/kw",
+		DisplayName: "Meter kW",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+
+	groupKey := "meter"
+	_, err = mappingSvc.Create(ctx, CreateTargetMappingRequest{
+		TagID:           tagA1.ID,
+		ConnectorID:     connector.ID,
+		TableName:       "meter_rows",
+		ColumnName:      "a1",
+		GroupKey:        &groupKey,
+		WriteMode:       schema.DatabaseWriteModeUpsert,
+		TimestampColumn: stringPtr("ts"),
+	})
+	require.NoError(t, err)
+	_, err = mappingSvc.Create(ctx, CreateTargetMappingRequest{
+		TagID:           tagKW.ID,
+		ConnectorID:     connector.ID,
+		TableName:       "meter_rows",
+		ColumnName:      "kw",
+		GroupKey:        &groupKey,
+		WriteMode:       schema.DatabaseWriteModeUpsert,
+		TimestampColumn: stringPtr("ts"),
+	})
+	require.NoError(t, err)
+
+	firstObservedAt := time.Date(2026, 4, 6, 11, 0, 3, 0, time.UTC)
+	secondObservedAt := time.Date(2026, 4, 6, 11, 0, 10, 0, time.UTC)
+	bucketStart := time.Date(2026, 4, 6, 11, 0, 0, 0, time.UTC)
+
+	require.NoError(t, writer.WriteTagValue(ctx, tagA1.ID, 42.5, firstObservedAt))
+	require.NoError(t, writer.WriteTagValue(ctx, tagKW.ID, 7.25, secondObservedAt))
+
+	var rowCount int
+	err = targetDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM meter_rows`).Scan(&rowCount)
+	require.NoError(t, err)
+	require.Equal(t, 0, rowCount)
+
+	tickCh <- time.Date(2026, 4, 6, 11, 0, 15, 0, time.UTC)
+	require.Eventually(t, func() bool {
+		queryErr := targetDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM meter_rows`).Scan(&rowCount)
+		return queryErr == nil && rowCount == 1
+	}, time.Second, 10*time.Millisecond)
+
+	var storedTS time.Time
+	var a1Value float64
+	var kwValue float64
+	err = targetDB.QueryRowContext(ctx, `SELECT ts, a1, kw FROM meter_rows LIMIT 1`).Scan(&storedTS, &a1Value, &kwValue)
+	require.NoError(t, err)
+	assert.Equal(t, bucketStart, storedTS.UTC())
+	assert.Equal(t, 42.5, a1Value)
+	assert.Equal(t, 7.25, kwValue)
+
+	records, err := connectorSvc.ListWriteHistory(ctx, connector.ID, 1)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, "success", records[0].Status)
+	assert.Equal(t, 1, records[0].RowCount)
+	assert.Equal(t, bucketStart, records[0].ObservedAt.UTC())
+	require.NotNil(t, records[0].GroupKey)
+	assert.Equal(t, "meter", *records[0].GroupKey)
+	assert.Equal(t, "meter_rows", records[0].TableName)
+	assert.Equal(t, 15, records[0].EffectiveIntervalSeconds)
+}
+
+func TestWriter_CloseFlushesPendingGroupedBuckets(t *testing.T) {
+	ctx := context.Background()
+	mainDB := openMigratedTestDB(t)
+	targetDSN := filepath.Join(t.TempDir(), "target-grouped-close.db")
+
+	targetDB, err := sql.Open("sqlite", targetDSN)
+	require.NoError(t, err)
+	defer targetDB.Close()
+	_, err = targetDB.Exec(`
+		CREATE TABLE meter_rows (
+			ts DATETIME PRIMARY KEY,
+			a1 REAL
+		)
+	`)
+	require.NoError(t, err)
+
+	tagSvc := tag.NewService(tag.NewSQLRepository(mainDB))
+	connectorRepo := NewSQLConnectorRepository(mainDB)
+	mappingRepo := NewSQLTargetMappingRepository(mainDB)
+	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
+	mappingSvc := NewMappingService(mappingRepo, connectorRepo, tagSvc)
+	writer := NewWriterWithConfig(connectorRepo, mappingRepo, WriterConfig{})
+
+	connector, err := connectorSvc.Create(ctx, CreateConnectorRequest{
+		Name: "grouped-close",
+		Kind: schema.DatabaseConnectorKindSQLite,
+		ConnectionConfig: ConnectionConfig{
+			"dsn": targetDSN,
+		},
+	})
+	require.NoError(t, err)
+	resetWriteHistory(connector.ID)
+
+	tagEntity, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "meter/A1",
+		DisplayName: "Meter A1",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+
+	groupKey := "meter"
+	_, err = mappingSvc.Create(ctx, CreateTargetMappingRequest{
+		TagID:           tagEntity.ID,
+		ConnectorID:     connector.ID,
+		TableName:       "meter_rows",
+		ColumnName:      "a1",
+		GroupKey:        &groupKey,
+		WriteMode:       schema.DatabaseWriteModeUpsert,
+		TimestampColumn: stringPtr("ts"),
+	})
+	require.NoError(t, err)
+
+	observedAt := time.Date(2026, 4, 6, 12, 5, 4, 0, time.UTC)
+	require.NoError(t, writer.WriteTagValue(ctx, tagEntity.ID, 18.5, observedAt))
+
+	var rowCount int
+	err = targetDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM meter_rows`).Scan(&rowCount)
+	require.NoError(t, err)
+	require.Equal(t, 0, rowCount)
+
+	require.NoError(t, writer.Close(ctx))
+
+	err = targetDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM meter_rows`).Scan(&rowCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, rowCount)
+
+	records, err := connectorSvc.ListWriteHistory(ctx, connector.ID, 1)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.Equal(t, "success", records[0].Status)
+	require.NotNil(t, records[0].GroupKey)
+	assert.Equal(t, "meter", *records[0].GroupKey)
+	assert.Equal(t, "meter_rows", records[0].TableName)
 }
 
 func TestMappingService_UpdateClearsTimestampWhenSwitchingToInsert(t *testing.T) {
