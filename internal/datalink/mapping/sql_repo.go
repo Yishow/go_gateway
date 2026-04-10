@@ -222,6 +222,10 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 	var mapping schema.Mapping
 	var createdAt, updatedAt string
+	var ruleCandidateID sql.NullString
+	var proposedSignature sql.NullString
+	var lastAppliedSignature sql.NullString
+	var blockingReason sql.NullString
 
 	err := row.Scan(
 		&mapping.ID,
@@ -229,10 +233,10 @@ func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 		&mapping.TagID,
 		&mapping.TransformPipeline,
 		&mapping.Status,
-		&mapping.RuleCandidateID,
-		&mapping.ProposedSignature,
-		&mapping.LastAppliedSignature,
-		&mapping.BlockingReason,
+		&ruleCandidateID,
+		&proposedSignature,
+		&lastAppliedSignature,
+		&blockingReason,
 		&mapping.Enabled,
 		&createdAt,
 		&updatedAt,
@@ -255,6 +259,10 @@ func (r *SQLRepository) scanMapping(row *sql.Row) (*schema.Mapping, error) {
 	}
 	mapping.CreatedAt = parsedCreatedAt
 	mapping.UpdatedAt = parsedUpdatedAt
+	mapping.RuleCandidateID = ruleCandidateID.String
+	mapping.ProposedSignature = proposedSignature.String
+	mapping.LastAppliedSignature = lastAppliedSignature.String
+	mapping.BlockingReason = blockingReason.String
 
 	return &mapping, nil
 }
@@ -266,6 +274,10 @@ func (r *SQLRepository) scanMappings(rows *sql.Rows) ([]*schema.Mapping, error) 
 	for rows.Next() {
 		var mapping schema.Mapping
 		var createdAt, updatedAt string
+		var ruleCandidateID sql.NullString
+		var proposedSignature sql.NullString
+		var lastAppliedSignature sql.NullString
+		var blockingReason sql.NullString
 
 		err := rows.Scan(
 			&mapping.ID,
@@ -273,10 +285,10 @@ func (r *SQLRepository) scanMappings(rows *sql.Rows) ([]*schema.Mapping, error) 
 			&mapping.TagID,
 			&mapping.TransformPipeline,
 			&mapping.Status,
-			&mapping.RuleCandidateID,
-			&mapping.ProposedSignature,
-			&mapping.LastAppliedSignature,
-			&mapping.BlockingReason,
+			&ruleCandidateID,
+			&proposedSignature,
+			&lastAppliedSignature,
+			&blockingReason,
 			&mapping.Enabled,
 			&createdAt,
 			&updatedAt,
@@ -296,6 +308,10 @@ func (r *SQLRepository) scanMappings(rows *sql.Rows) ([]*schema.Mapping, error) 
 		}
 		mapping.CreatedAt = parsedCreatedAt
 		mapping.UpdatedAt = parsedUpdatedAt
+		mapping.RuleCandidateID = ruleCandidateID.String
+		mapping.ProposedSignature = proposedSignature.String
+		mapping.LastAppliedSignature = lastAppliedSignature.String
+		mapping.BlockingReason = blockingReason.String
 
 		mappings = append(mappings, &mapping)
 	}

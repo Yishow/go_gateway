@@ -420,6 +420,44 @@ func TestSQLRepository_List(t *testing.T) {
 }
 
 /**
+ * TestSQLRepository_ReadsNullLifecycleColumns 測試讀取可為 NULL 的 lifecycle 欄位。
+ */
+func TestSQLRepository_ReadsNullLifecycleColumns(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewSQLRepository(db)
+	ctx := context.Background()
+
+	pointID, tagID := setupTestData(t, db)
+	now := time.Now().UTC()
+
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO mappings (
+			id, point_id, tag_id, transform_pipeline, status, rule_candidate_id,
+			proposed_signature, last_applied_signature, blocking_reason, enabled, created_at, updated_at
+		)
+		VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)
+	`, "mapping-null-lifecycle", pointID, tagID, `[]`, schema.MappingStatusActive, 1, now, now)
+	require.NoError(t, err)
+
+	result, err := repo.List(ctx, ListFilter{})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Empty(t, result[0].RuleCandidateID)
+	assert.Empty(t, result[0].ProposedSignature)
+	assert.Empty(t, result[0].LastAppliedSignature)
+	assert.Empty(t, result[0].BlockingReason)
+
+	retrieved, err := repo.GetByID(ctx, "mapping-null-lifecycle")
+	require.NoError(t, err)
+	assert.Empty(t, retrieved.RuleCandidateID)
+	assert.Empty(t, retrieved.ProposedSignature)
+	assert.Empty(t, retrieved.LastAppliedSignature)
+	assert.Empty(t, retrieved.BlockingReason)
+}
+
+/**
  * TestSQLRepository_List_WithFilter 測試使用過濾條件列出映射
  */
 func TestSQLRepository_List_WithFilter(t *testing.T) {
