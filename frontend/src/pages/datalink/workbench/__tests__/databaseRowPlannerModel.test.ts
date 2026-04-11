@@ -86,6 +86,82 @@ describe('buildDatabaseRowPlans', () => {
     expect(rowPlans[0].issueCodes).toContain('interval_mismatch');
   });
 
+  it('surfaces connector, table, and write mode mismatches on the same grouped row', () => {
+    const rowPlans = buildDatabaseRowPlans({
+      candidates: [
+        createCandidate({
+          id: 'candidate-1',
+          point_id: 'point-1',
+          connector_id: 'connector-a',
+          table_schema: 'main',
+          table_name: 'sensor_values',
+          write_mode: 'insert',
+        }),
+        createCandidate({
+          id: 'candidate-2',
+          point_id: 'point-2',
+          tag_id: 'tag-2',
+          tag_key: 'meter/kw',
+          column_name: 'kw',
+          display_name: 'Flow KW',
+          address: '40002',
+          connector_id: 'connector-b',
+          table_schema: 'archive',
+          table_name: 'meter_rows',
+          write_mode: 'upsert',
+        }),
+      ],
+      selectedConnectorId: '',
+      selectedTableKey: '',
+      selectedWriteMode: 'insert',
+      selectedTimestampColumn: '',
+      connectorDefaultWriteIntervalSeconds: 15,
+    });
+
+    expect(rowPlans).toHaveLength(1);
+    expect(rowPlans[0].status).toBe('blocked');
+    expect(rowPlans[0].issueCodes).toEqual(
+      expect.arrayContaining([
+        'connector_mismatch',
+        'table_mismatch',
+        'write_mode_mismatch',
+      ]),
+    );
+  });
+
+  it('surfaces timestamp mismatches when grouped upsert members disagree on timestamp columns', () => {
+    const rowPlans = buildDatabaseRowPlans({
+      candidates: [
+        createCandidate({
+          id: 'candidate-1',
+          point_id: 'point-1',
+          write_mode: 'upsert',
+          timestamp_column: 'observed_at',
+        }),
+        createCandidate({
+          id: 'candidate-2',
+          point_id: 'point-2',
+          tag_id: 'tag-2',
+          tag_key: 'meter/kw',
+          column_name: 'kw',
+          display_name: 'Flow KW',
+          address: '40002',
+          write_mode: 'upsert',
+          timestamp_column: 'ts',
+        }),
+      ],
+      selectedConnectorId: '',
+      selectedTableKey: '',
+      selectedWriteMode: 'upsert',
+      selectedTimestampColumn: '',
+      connectorDefaultWriteIntervalSeconds: 15,
+    });
+
+    expect(rowPlans).toHaveLength(1);
+    expect(rowPlans[0].status).toBe('blocked');
+    expect(rowPlans[0].issueCodes).toContain('timestamp_mismatch');
+  });
+
   it('keeps slashless or legacy mappings as single-member rows', () => {
     const rowPlans = buildDatabaseRowPlans({
       candidates: [

@@ -146,6 +146,52 @@ func TestService_CandidateSnapshots_InfersGroupedDatabaseMetadataFromSlashTagKey
 	})
 }
 
+func TestService_CandidateSnapshots_KeepsSlashlessTagsSingleMemberByDefault(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	repo := NewMemoryRepository()
+	svc := NewService(repo, deviceSvc, pointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-db-slashless")
+	require.NoError(t, err)
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID:           "rule-db-slashless",
+		DeviceID:     dev.ID,
+		StartAddress: "40011",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	tagCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, tagCandidates, 1)
+
+	_, err = svc.UpsertTagReviewDecision(ctx, rule.ID, UpsertTagReviewDecisionRequest{
+		CandidateID: tagCandidates[0].ID,
+		Action:      schema.SourceRuleTagReviewDecisionActionRename,
+		TagKey:      "FLOW_TOTAL",
+	})
+	require.NoError(t, err)
+
+	databaseCandidates := databaseOutputCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
+	require.Len(t, databaseCandidates, 1)
+
+	candidate := databaseCandidates[0]
+	assert.Nil(t, candidate.GroupKey)
+	assert.Empty(t, candidate.ColumnName)
+	assert.NotContains(
+		t,
+		candidate.Identity.TargetBindingScope,
+		schema.SourceRuleCandidateScopeField{Key: "database_group_key", Value: "FLOW_TOTAL"},
+	)
+}
+
 func TestService_CandidateSnapshots_UsesPersistedDatabaseMappingScope(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
