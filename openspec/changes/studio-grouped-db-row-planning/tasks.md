@@ -16,4 +16,4 @@
 
 - [x] 3.1 Align step rail, context bar, and shell recovery cues to the grouped Output readiness truth
 - [x] 3.2 Add or update backend/frontend regression coverage for grouped planning, compatibility rules, and one-target completion
-- [ ] 3.3 Run integrated `/studio` browser validation and capture evidence for Device → Source → Tag → Output → Shell
+- [x] 3.3 Run integrated `/studio` browser validation and capture evidence for Device → Source → Tag → Output → Shell
