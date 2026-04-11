@@ -480,6 +480,7 @@
         "sourceRequired": "來源尚未就緒。請先補齊或修復來源 point，再往後續步驟前進。",
         "tagRequired": "Tag 審查尚未完成。請先完成 Tag 決策，再進入輸出。",
         "tagAttention": "仍有 Tag 需要處理，輸出流程還不能穩定收斂。",
+        "outputRuleRequired": "輸出步驟需要有效的規則交接脈絡。請先回到 Tag 審查重新打開來源規則，再繼續輸出設定。",
         "outputPending": "輸出尚待確認。請檢查 Local Modbus 或資料庫輸出，再完成套用。",
         "stable": "主線目前穩定，請留在目前工作桌繼續操作。"
       },

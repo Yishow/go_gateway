@@ -18,6 +18,28 @@ export type WorkbenchShellReadinessStats = {
 const READY_STATUSES: ReadonlySet<WorkbenchReadiness> = new Set(['ready', 'applied']);
 const ATTENTION_STATUSES: ReadonlySet<WorkbenchReadiness> = new Set(['partial', 'blocked']);
 
+export function getWorkbenchReadinessExplanationKey(
+  state: StepReadinessState,
+): string | null {
+  switch (state.reason) {
+    case 'no-device-selected':
+      return 'workbench.shell.blockers.noDevice';
+    case 'no-points':
+    case 'no-source-points':
+      return 'workbench.shell.blockers.sourceRequired';
+    case 'no-tags-linked':
+      return 'workbench.shell.blockers.tagRequired';
+    case 'some-tags-blocked':
+      return 'workbench.shell.blockers.tagAttention';
+    case 'output-rule-required':
+      return 'workbench.shell.blockers.outputRuleRequired';
+    case 'output-not-applied':
+      return 'workbench.shell.blockers.outputPending';
+    default:
+      return null;
+  }
+}
+
 export function getWorkbenchShellReadinessStats(
   readinessStates: ReadonlyArray<StepReadinessState>,
 ): WorkbenchShellReadinessStats {
@@ -72,6 +94,15 @@ export function getWorkbenchShellIncidentModel(input: {
   if (input.tagReadiness.reason === 'some-tags-blocked') {
     return {
       blockerKey: 'workbench.shell.blockers.tagAttention',
+      returnLabelKey: 'workbench.shell.actions.returnTag',
+      returnStep: 'tag',
+      tone: 'warning',
+    };
+  }
+
+  if (input.outputReadiness.reason === 'output-rule-required') {
+    return {
+      blockerKey: 'workbench.shell.blockers.outputRuleRequired',
       returnLabelKey: 'workbench.shell.actions.returnTag',
       returnStep: 'tag',
       tone: 'warning',

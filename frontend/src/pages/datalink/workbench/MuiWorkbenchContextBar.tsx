@@ -11,9 +11,10 @@ import {
   getWorkbenchDeviceStatusLabelKey,
   getWorkbenchProtocolLabelKey,
 } from './workbenchDeviceFormModel';
+import { useWorkbenchOutputMainline } from './useWorkbenchOutputMainline';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
 import { SENTRY_SX, severityColor } from './sentrySurfaceStyles';
-import type { WorkbenchStep } from './workbenchTypes';
+import type { StepReadinessState, WorkbenchStep } from './workbenchTypes';
 
 const s = tokens.archetype.sentry;
 
@@ -29,14 +30,19 @@ const s = tokens.archetype.sentry;
 export function MuiWorkbenchContextBar() {
   const { t } = useTranslation();
   const { activeStep, selectedDeviceId, setActiveStep, sourceStepNotice } = useWorkbench();
-  const { selectedDevice, sourceReady, tagReady, outputReady } = useWorkbenchSummary();
+  const { selectedDevice, sourceReady, tagReady } = useWorkbenchSummary();
+  const { outputReadiness } = useWorkbenchOutputMainline({
+    hasSelectedDevice: Boolean(selectedDeviceId),
+    sourceReady,
+    tagReady,
+  });
   const deviceLabel = selectedDevice?.name ?? t('workbench.contextBar.noDevice');
   const primaryAction = getPrimaryAction({
     activeStep,
     hasSelectedDevice: Boolean(selectedDeviceId),
     sourceReady,
     tagReady,
-    outputReady,
+    outputReadiness,
     t,
     setActiveStep,
   });
@@ -177,6 +183,7 @@ export function MuiWorkbenchContextBar() {
 
       {/* Primary CTA */}
       <Button
+        data-testid="context-bar-primary-action"
         size="small"
         disabled={primaryAction.disabled}
         onClick={primaryAction.onClick}
@@ -202,7 +209,7 @@ function getPrimaryAction(input: {
   hasSelectedDevice: boolean;
   sourceReady: boolean;
   tagReady: boolean;
-  outputReady: boolean;
+  outputReadiness: StepReadinessState;
   t: (key: string) => string;
   setActiveStep: (step: WorkbenchStep) => void;
 }) {
@@ -234,17 +241,33 @@ function getPrimaryAction(input: {
       disabled: !input.tagReady,
     };
   }
+
+  if (input.outputReadiness.reason === 'no-source-points') {
+    return {
+      label: input.t('workbench.shell.actions.returnSource'),
+      onClick: () => input.setActiveStep('source'),
+      disabled: false,
+    };
+  }
+
+  if (
+    input.outputReadiness.reason === 'no-tags-linked' ||
+    input.outputReadiness.reason === 'output-rule-required'
+  ) {
+    return {
+      label: input.t('workbench.shell.actions.returnTag'),
+      onClick: () => input.setActiveStep('tag'),
+      disabled: false,
+    };
+  }
+
   return {
-    label: input.outputReady
-      ? input.t('workbench.actionDock.nextAction.configureOutput')
-      : input.t('workbench.actionDock.nextAction.completeTagBinding'),
-    onClick: input.outputReady
-      ? () => {
-          const anchor = document.querySelector<HTMLElement>('[data-testid="output-primary-anchor"]');
-          anchor?.focus();
-          anchor?.scrollIntoView?.({ block: 'nearest' });
-        }
-      : () => input.setActiveStep('tag'),
+    label: input.t('workbench.actionDock.nextAction.configureOutput'),
+    onClick: () => {
+      const anchor = document.querySelector<HTMLElement>('[data-testid="output-primary-anchor"]');
+      anchor?.focus();
+      anchor?.scrollIntoView?.({ block: 'nearest' });
+    },
     disabled: false,
   };
 }

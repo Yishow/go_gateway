@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 import { workbenchExperimentTokens as tokens } from '../../../styles/workbench-experiment-tokens';
 import { useWorkbench } from './WorkbenchProvider';
+import { useWorkbenchOutputMainline } from './useWorkbenchOutputMainline';
 import { SENTRY_SX } from './sentrySurfaceStyles';
 import { useWorkbenchShellDiagnostics } from './useWorkbenchShellDiagnostics';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
@@ -27,13 +28,14 @@ function toneColor(tone: 'ok' | 'warning' | 'critical') {
 
 export function MuiWorkbenchIncidentStrip() {
   const { t } = useTranslation();
-  const { activeStep, setActiveStep } = useWorkbench();
-  const {
-    selectedDevice,
-    sourceReadiness,
-    tagReadiness,
-    outputReadiness,
-  } = useWorkbenchSummary();
+  const { activeStep, selectedDeviceId, setActiveStep } = useWorkbench();
+  const { selectedDevice, sourceReady, sourceReadiness, tagReady, tagReadiness } =
+    useWorkbenchSummary();
+  const { outputReadiness } = useWorkbenchOutputMainline({
+    hasSelectedDevice: Boolean(selectedDeviceId),
+    sourceReady,
+    tagReady,
+  });
   const diagnostics = useWorkbenchShellDiagnostics();
 
   const readiness = getWorkbenchShellReadinessStats([

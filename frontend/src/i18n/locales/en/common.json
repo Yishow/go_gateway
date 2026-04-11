@@ -480,6 +480,7 @@
         "sourceRequired": "Source is not ready. Add or recover source points before advancing.",
         "tagRequired": "Tag review is not complete. Finish tag decisions before output.",
         "tagAttention": "Some tags still need review before output can stabilize.",
+        "outputRuleRequired": "Output needs an active rule handoff. Return to Tag review to reopen the source rule context, then continue in Output.",
         "outputPending": "Output still needs review. Check Local Modbus or Database, then apply the mapping.",
         "stable": "Mainline is stable. Keep working inside the current desk."
       },

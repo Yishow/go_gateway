@@ -7,8 +7,9 @@ import {
   getWorkbenchDeviceStatusLabelKey,
   getWorkbenchProtocolLabelKey,
 } from './workbenchDeviceFormModel';
+import { useWorkbenchOutputMainline } from './useWorkbenchOutputMainline';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
-import type { WorkbenchStep } from './workbenchTypes';
+import type { StepReadinessState, WorkbenchStep } from './workbenchTypes';
 import { WorkbenchStepRail } from './WorkbenchStepRail';
 
 /**
@@ -24,14 +25,19 @@ function joinClasses(...classNames: Array<string | false | null | undefined>) {
 export function WorkbenchContextBar() {
   const { t } = useTranslation();
   const { activeStep, selectedDeviceId, setActiveStep, sourceStepNotice } = useWorkbench();
-  const { selectedDevice, sourceReady, tagReady, outputReady } = useWorkbenchSummary();
+  const { selectedDevice, sourceReady, tagReady } = useWorkbenchSummary();
+  const { outputReadiness } = useWorkbenchOutputMainline({
+    hasSelectedDevice: Boolean(selectedDeviceId),
+    sourceReady,
+    tagReady,
+  });
   const deviceLabel = selectedDevice?.name ?? t('workbench.contextBar.noDevice');
   const primaryAction = getPrimaryAction({
     activeStep,
     hasSelectedDevice: Boolean(selectedDeviceId),
     sourceReady,
     tagReady,
-    outputReady,
+    outputReadiness,
     t,
     setActiveStep,
   });
@@ -104,6 +110,7 @@ export function WorkbenchContextBar() {
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900',
           'disabled:cursor-not-allowed disabled:border-slate-700/90 disabled:bg-slate-950/60 disabled:bg-none disabled:text-slate-500 disabled:shadow-none sm:w-auto',
         )}
+        data-testid="context-bar-primary-action"
         disabled={primaryAction.disabled}
         onClick={primaryAction.onClick}
         type="button"
@@ -126,7 +133,7 @@ function getPrimaryAction(
     hasSelectedDevice: boolean;
     sourceReady: boolean;
     tagReady: boolean;
-    outputReady: boolean;
+    outputReadiness: StepReadinessState;
     t: (key: string) => string;
     setActiveStep: (step: WorkbenchStep) => void;
   },
@@ -163,17 +170,32 @@ function getPrimaryAction(
     };
   }
 
+  if (input.outputReadiness.reason === 'no-source-points') {
+    return {
+      label: input.t('workbench.shell.actions.returnSource'),
+      onClick: () => input.setActiveStep('source'),
+      disabled: false,
+    };
+  }
+
+  if (
+    input.outputReadiness.reason === 'no-tags-linked' ||
+    input.outputReadiness.reason === 'output-rule-required'
+  ) {
+    return {
+      label: input.t('workbench.shell.actions.returnTag'),
+      onClick: () => input.setActiveStep('tag'),
+      disabled: false,
+    };
+  }
+
   return {
-    label: input.outputReady
-      ? input.t('workbench.actionDock.nextAction.configureOutput')
-      : input.t('workbench.actionDock.nextAction.completeTagBinding'),
-    onClick: input.outputReady
-      ? () => {
-          const anchor = document.querySelector<HTMLElement>('[data-testid="output-primary-anchor"]');
-          anchor?.focus();
-          anchor?.scrollIntoView?.({ block: 'nearest' });
-        }
-      : () => input.setActiveStep('tag'),
+    label: input.t('workbench.actionDock.nextAction.configureOutput'),
+    onClick: () => {
+      const anchor = document.querySelector<HTMLElement>('[data-testid="output-primary-anchor"]');
+      anchor?.focus();
+      anchor?.scrollIntoView?.({ block: 'nearest' });
+    },
     disabled: false,
   };
 }

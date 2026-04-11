@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 import { workbenchExperimentTokens as tokens } from '../../../styles/workbench-experiment-tokens';
 import { useWorkbench } from './WorkbenchProvider';
+import { useWorkbenchOutputMainline } from './useWorkbenchOutputMainline';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
 import { SENTRY_SX } from './sentrySurfaceStyles';
 import type { StepReadinessState, WorkbenchReadiness, WorkbenchStep } from './workbenchTypes';
@@ -29,16 +30,22 @@ function readinessColor(status: WorkbenchReadiness): string {
  */
 export function MuiWorkbenchBottomSummaryBar() {
   const { t } = useTranslation();
-  const { activeOutputTarget, activeStep } = useWorkbench();
+  const { activeOutputTarget, activeStep, selectedDeviceId } = useWorkbench();
   const {
     pointCount,
     linkedTagCount,
     outputCandidateCount,
     deviceReadiness,
+    sourceReady,
     sourceReadiness,
+    tagReady,
     tagReadiness,
-    outputReadiness,
   } = useWorkbenchSummary();
+  const { outputReadiness } = useWorkbenchOutputMainline({
+    hasSelectedDevice: Boolean(selectedDeviceId),
+    sourceReady,
+    tagReady,
+  });
 
   const readinessItems: ReadonlyArray<{
     step: WorkbenchStep;

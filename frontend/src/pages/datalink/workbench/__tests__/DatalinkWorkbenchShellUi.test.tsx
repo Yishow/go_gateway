@@ -355,7 +355,7 @@ describe('DatalinkWorkbench five-region shell', () => {
       );
     });
 
-    it('shows an output-focused primary action on step 4 instead of falling back to switch device', () => {
+    it('returns to tag review on step 4 when output scope has no active rule handoff', () => {
       renderPage();
 
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
@@ -365,14 +365,13 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
 
       expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'output');
-      const outputCta = within(contextBar).getByRole('button', {
-        name: 'workbench.actionDock.nextAction.configureOutput',
-      });
+      const outputCta = within(contextBar).getByTestId('context-bar-primary-action');
       expect(outputCta).toBeInTheDocument();
+      expect(outputCta).toHaveTextContent('workbench.shell.actions.returnTag');
       expect(outputCta).not.toHaveTextContent('workbench.contextBar.actions.switchDevice');
     });
 
-    it('focuses the output primary anchor when the output CTA is pressed', () => {
+    it('routes back to tag review when output scope must recover the active rule handoff', () => {
       renderPage();
 
       fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
@@ -381,16 +380,12 @@ describe('DatalinkWorkbench five-region shell', () => {
       fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoTag' }));
       fireEvent.click(within(contextBar).getByRole('button', { name: 'workbench.contextBar.actions.gotoOutput' }));
 
-      const action = within(contextBar).getByRole('button', {
-        name: 'workbench.actionDock.nextAction.configureOutput',
-      });
-      const anchor = screen.getByTestId('output-primary-anchor');
-
-      expect(anchor).not.toHaveFocus();
+      const action = within(contextBar).getByTestId('context-bar-primary-action');
+      expect(action).toHaveTextContent('workbench.shell.actions.returnTag');
 
       fireEvent.click(action);
 
-      expect(anchor).toHaveFocus();
+      expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'tag');
     });
   });
 

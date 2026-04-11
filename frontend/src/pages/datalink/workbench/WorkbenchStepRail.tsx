@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkbench } from './WorkbenchProvider';
+import { useWorkbenchOutputMainline } from './useWorkbenchOutputMainline';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
+import { getWorkbenchReadinessExplanationKey } from './workbenchShellIncidentModel';
 import {
   WORKBENCH_STEPS,
   WORKBENCH_STEP_META,
@@ -34,13 +36,14 @@ function getReadinessColor(status: WorkbenchReadiness): string {
  */
 export function WorkbenchStepRail() {
   const { t } = useTranslation();
-  const { activeStep, setActiveStep } = useWorkbench();
-  const {
-    deviceReadiness,
-    sourceReadiness,
-    tagReadiness,
-    outputReadiness,
-  } = useWorkbenchSummary();
+  const { activeStep, selectedDeviceId, setActiveStep } = useWorkbench();
+  const { deviceReadiness, sourceReady, sourceReadiness, tagReady, tagReadiness } =
+    useWorkbenchSummary();
+  const { outputReadiness } = useWorkbenchOutputMainline({
+    hasSelectedDevice: Boolean(selectedDeviceId),
+    sourceReady,
+    tagReady,
+  });
 
   const stepReadiness: Record<WorkbenchStep, StepReadinessState> = {
     device: deviceReadiness,
@@ -75,14 +78,17 @@ export function WorkbenchStepRail() {
           {WORKBENCH_STEPS.map((step, index) => {
             const isActive = step === activeStep;
             const readiness = stepReadiness[step];
+            const explanationKey = getWorkbenchReadinessExplanationKey(readiness);
+            const explanationLabel = explanationKey ? t(explanationKey) : null;
             return (
               <li key={step} className="shrink-0">
                 <button
                   type="button"
                   onClick={() => setActiveStep(step)}
                   aria-current={isActive ? 'step' : undefined}
-                  aria-label={`${t(WORKBENCH_STEP_META[step].labelKey)} - ${t(`workbench.readiness.${readiness.status}`)}`}
+                  aria-label={`${t(WORKBENCH_STEP_META[step].labelKey)} - ${t(`workbench.readiness.${readiness.status}`)}${explanationLabel ? ` - ${explanationLabel}` : ''}`}
                   data-readiness={readiness.status}
+                  title={explanationLabel ?? t(`workbench.readiness.${readiness.status}`)}
                   className={[
                     'flex min-h-8 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] font-medium sm:min-h-9 sm:gap-2 sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-xs',
                     'transition-[color,background-color,border-color,box-shadow] duration-200',

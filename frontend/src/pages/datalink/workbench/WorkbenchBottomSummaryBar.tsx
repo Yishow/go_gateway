@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkbench } from './WorkbenchProvider';
+import { useWorkbenchOutputMainline } from './useWorkbenchOutputMainline';
 import { WB_SHELL_SURFACE } from './workbenchShellTokens';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
 import type { StepReadinessState, WorkbenchReadiness, WorkbenchStep } from './workbenchTypes';
@@ -34,16 +35,22 @@ function getReadinessTextColor(status: WorkbenchReadiness): string {
 
 export function WorkbenchBottomSummaryBar() {
   const { t } = useTranslation();
-  const { activeOutputTarget, activeStep } = useWorkbench();
+  const { activeOutputTarget, activeStep, selectedDeviceId } = useWorkbench();
   const {
     pointCount,
     linkedTagCount,
     outputCandidateCount,
     deviceReadiness,
+    sourceReady,
     sourceReadiness,
+    tagReady,
     tagReadiness,
-    outputReadiness,
   } = useWorkbenchSummary();
+  const { outputReadiness } = useWorkbenchOutputMainline({
+    hasSelectedDevice: Boolean(selectedDeviceId),
+    sourceReady,
+    tagReady,
+  });
 
   const readinessItems: ReadonlyArray<{
     step: WorkbenchStep;

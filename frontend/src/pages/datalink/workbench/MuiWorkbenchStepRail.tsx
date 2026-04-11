@@ -3,7 +3,9 @@ import ButtonBase from '@mui/material/ButtonBase';
 import { useTranslation } from 'react-i18next';
 import { workbenchExperimentTokens as tokens } from '../../../styles/workbench-experiment-tokens';
 import { useWorkbench } from './WorkbenchProvider';
+import { useWorkbenchOutputMainline } from './useWorkbenchOutputMainline';
 import { useWorkbenchSummary } from './useWorkbenchSummary';
+import { getWorkbenchReadinessExplanationKey } from './workbenchShellIncidentModel';
 import {
   WORKBENCH_STEPS,
   WORKBENCH_STEP_META,
@@ -39,9 +41,14 @@ function readinessGlyph(status: WorkbenchReadiness): string {
  */
 export function MuiWorkbenchStepRail() {
   const { t } = useTranslation();
-  const { activeStep, setActiveStep } = useWorkbench();
-  const { deviceReadiness, sourceReadiness, tagReadiness, outputReadiness } =
+  const { activeStep, selectedDeviceId, setActiveStep } = useWorkbench();
+  const { deviceReadiness, sourceReady, sourceReadiness, tagReady, tagReadiness } =
     useWorkbenchSummary();
+  const { outputReadiness } = useWorkbenchOutputMainline({
+    hasSelectedDevice: Boolean(selectedDeviceId),
+    sourceReady,
+    tagReady,
+  });
 
   const stepReadiness: Record<WorkbenchStep, StepReadinessState> = {
     device: deviceReadiness,
@@ -61,15 +68,18 @@ export function MuiWorkbenchStepRail() {
         const readiness = stepReadiness[step];
         const isActive = step === activeStep;
         const dotColor = readinessGlyph(readiness.status);
+        const explanationKey = getWorkbenchReadinessExplanationKey(readiness);
+        const explanationLabel = explanationKey ? t(explanationKey) : null;
         return (
           <ButtonBase
             key={step}
             role="tab"
             onClick={() => setActiveStep(step)}
             data-readiness={readiness.status}
-            aria-label={`${t(WORKBENCH_STEP_META[step].labelKey)} - ${t(`workbench.readiness.${readiness.status}`)}`}
+            aria-label={`${t(WORKBENCH_STEP_META[step].labelKey)} - ${t(`workbench.readiness.${readiness.status}`)}${explanationLabel ? ` - ${explanationLabel}` : ''}`}
             aria-current={isActive ? 'step' : undefined}
             aria-selected={isActive}
+            title={explanationLabel ?? t(`workbench.readiness.${readiness.status}`)}
             sx={{
               display: 'inline-flex',
               alignItems: 'center',
