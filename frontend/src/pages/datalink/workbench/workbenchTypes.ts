@@ -167,6 +167,7 @@ export const WORKBENCH_SOURCE_PLANNING_INITIAL: WorkbenchSourcePlanningState = {
 export type WorkbenchTagGroupingOverride = {
   groupKey: string | null;
   columnName: string;
+  writeIntervalSeconds?: number | null;
 };
 
 export type WorkbenchTagGroupingOverrideMap = Readonly<

@@ -1362,6 +1362,36 @@
           "tagSelector": "映射標籤",
           "tagPlaceholder": "選擇標籤"
         },
+        "rowPlanner": {
+          "eyebrow": "群組列規劃器",
+          "title": "先規劃資料庫群組列再套用",
+          "description": "把群組列當成主要流程，先調整 group key、成員欄位與寫入週期，再一次套用整列。",
+          "summary": "{{ready}} 筆可套用 / 共 {{total}} 列",
+          "empty": "目前規則沒有可規劃的資料庫列。",
+          "memberCount": "{{count}} 個成員",
+          "groupKey": "Group key",
+          "interval": "寫入週期（秒）",
+          "column": "欄位",
+          "members": "成員",
+          "apply": "套用整列",
+          "status": {
+            "ready": "可套用",
+            "blocked": "已阻擋"
+          },
+          "issue": {
+            "candidate_blocked": "這列中至少一個成員已被目前 review set 阻擋。",
+            "tag_pending": "請先完成 Tag review，再發布這列輸出。",
+            "connector_required": "套用這列前請先選擇 connector。",
+            "table_required": "套用這列前請先選擇目標資料表。",
+            "timestamp_required": "使用 upsert 時請先選擇 timestamp 欄位。",
+            "column_required": "這列每個成員都需要欄位名稱後才能套用。",
+            "connector_mismatch": "列成員指向不同 connector。",
+            "table_mismatch": "列成員指向不同資料表。",
+            "write_mode_mismatch": "列成員的寫入模式不一致。",
+            "timestamp_mismatch": "列成員的 timestamp 欄位不一致。",
+            "interval_mismatch": "列成員必須共用相同的有效寫入週期。"
+          }
+        },
         "writeMode": {
           "insert": "insert",
           "upsert": "upsert"

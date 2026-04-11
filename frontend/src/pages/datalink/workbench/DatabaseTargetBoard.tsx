@@ -8,7 +8,6 @@ import type {
   DatabaseTableInfo,
   DatabaseTargetMapping,
   DatabaseTargetValidationResult,
-  DatabaseWriteMode,
 } from '../../../types/datalink';
 import type {
   SourceRuleCandidateSetView,
@@ -18,6 +17,7 @@ import {
   DATABASE_OUTPUT_SCOPE_INITIAL,
   type DatabaseOutputScope,
 } from './databaseOutputModel';
+import { DatabaseGroupedRowPlanner } from './DatabaseGroupedRowPlanner';
 import { DatabaseOutputReviewPanel } from './DatabaseOutputReviewPanel';
 import {
   type ConnectorDraft,
@@ -28,10 +28,19 @@ import {
   defaultTimestampColumn,
   defaultValueColumn,
   getErrorMessage,
-  parseTableKey,
   statusBadgeClasses,
 } from './databaseTargetBoardUtils';
+import {
+  type DatabaseRowPlan,
+  type DatabaseRowPlanMember,
+  buildDatabaseRowPlans,
+} from './databaseRowPlannerModel';
+import {
+  applyDatabaseGroupingOverridesToReviewSet,
+  normalizeDatabaseGroupingColumnName,
+} from './databaseGroupingSuggestions';
 import { useRefreshSourceRuleCandidates } from './useRefreshSourceRuleCandidates';
+import { useWorkbench } from './WorkbenchProvider';
 import type { WorkbenchOutputCandidate } from './workbenchOutputTypes';
 
 type DatabaseTargetBoardProps = {
@@ -43,6 +52,16 @@ type DatabaseTargetBoardProps = {
   reviewLoading?: boolean;
 }
 
+function isVisibleInConnectorScope(
+  candidate: SourceRuleDatabaseOutputCandidateView,
+  selectedConnectorId: string,
+) {
+  if (!selectedConnectorId) {
+    return !candidate.connector_id;
+  }
+  return !candidate.connector_id || candidate.connector_id === selectedConnectorId;
+}
+
 export function DatabaseTargetBoard({
   candidates,
   selectedTagId,
@@ -52,6 +71,7 @@ export function DatabaseTargetBoard({
   reviewLoading = false,
 }: DatabaseTargetBoardProps) {
   const refreshCandidateReview = useRefreshSourceRuleCandidates();
+  const { setTagGroupingOverride, tagGroupingOverrides } = useWorkbench();
   const { t } = useTranslation();
   const tRef = useRef(t);
   tRef.current = t;
@@ -102,11 +122,41 @@ export function DatabaseTargetBoard({
       mappings.filter((mapping) => mapping.connector_id === selectedConnectorId),
     [mappings, selectedConnectorId],
   );
+  const scopedReviewCandidates = useMemo(() => {
+    const overrides = reviewRuleId ? tagGroupingOverrides[reviewRuleId] : undefined;
+    const reviewSetWithOverrides = applyDatabaseGroupingOverridesToReviewSet(
+      reviewSet,
+      overrides,
+    );
+    return (reviewSetWithOverrides?.candidates ?? []).filter((candidate) =>
+      isVisibleInConnectorScope(candidate, selectedConnectorId),
+    );
+  }, [reviewRuleId, reviewSet, selectedConnectorId, tagGroupingOverrides]);
   const validationIssues = validation?.issues ?? [];
   const validationReady = validation?.ready ?? false;
   const validationErrorCount = validationIssues.filter(
     (issue) => issue.severity === 'error',
   ).length;
+  const rowPlans = useMemo(
+    () =>
+      buildDatabaseRowPlans({
+        candidates: scopedReviewCandidates,
+        selectedConnectorId,
+        selectedTableKey: tableKey,
+        selectedWriteMode: writeMode,
+        selectedTimestampColumn: timestampColumn,
+        connectorDefaultWriteIntervalSeconds:
+          selectedConnector?.default_write_interval_seconds ?? null,
+      }),
+    [
+      scopedReviewCandidates,
+      selectedConnector?.default_write_interval_seconds,
+      selectedConnectorId,
+      tableKey,
+      timestampColumn,
+      writeMode,
+    ],
+  );
 
   const loadData = useCallback(async () => {
     setIsBusy(true);
@@ -439,7 +489,6 @@ export function DatabaseTargetBoard({
       setIsBusy(false);
     }
   }, [loadConnectorDetails, refreshCandidateReview, selectedConnectorId, t]);
-  const currentTableFromKey = parseTableKey(tableKey);
   const mappedTagCount = connectorMappings.length;
   const schemaColumns = selectedTable?.columns ?? [];
 
@@ -532,6 +581,148 @@ export function DatabaseTargetBoard({
       setIsBusy(false);
     }
   }, [candidates, columnMappingByColumn, loadData, refreshCandidateReview, selectedConnectorId, selectedTable, selectedTagId, t, timestampColumn, writeMode]);
+
+  const applyRowOverride = useCallback(
+    (
+      pointId: string,
+      nextGroupKey: string | null,
+      nextColumnName: string,
+      nextIntervalSeconds: number | null,
+    ) => {
+      if (!reviewRuleId) {
+        return;
+      }
+      setTagGroupingOverride(reviewRuleId, pointId, {
+        groupKey: nextGroupKey,
+        columnName: nextColumnName,
+        writeIntervalSeconds: nextIntervalSeconds,
+      });
+    },
+    [reviewRuleId, setTagGroupingOverride],
+  );
+
+  const handleRowGroupChange = useCallback(
+    (rowPlan: DatabaseRowPlan, value: string) => {
+      const nextGroupKey = value.trim() === '' ? null : value.trim();
+      for (const member of rowPlan.members) {
+        applyRowOverride(
+          member.pointId,
+          nextGroupKey,
+          member.columnName,
+          member.intervalSeconds,
+        );
+      }
+    },
+    [applyRowOverride],
+  );
+
+  const handleRowIntervalChange = useCallback(
+    (rowPlan: DatabaseRowPlan, value: string) => {
+      const trimmed = value.trim();
+      const parsed =
+        trimmed === ''
+          ? null
+          : Number.isFinite(Number(trimmed)) && Number(trimmed) > 0
+            ? Number(trimmed)
+            : rowPlan.intervalSeconds;
+      for (const member of rowPlan.members) {
+        applyRowOverride(
+          member.pointId,
+          rowPlan.groupKey,
+          member.columnName,
+          parsed,
+        );
+      }
+    },
+    [applyRowOverride],
+  );
+
+  const handleRowMemberColumnChange = useCallback(
+    (rowPlan: DatabaseRowPlan, member: DatabaseRowPlanMember, value: string) => {
+      applyRowOverride(
+        member.pointId,
+        rowPlan.groupKey,
+        normalizeDatabaseGroupingColumnName(value),
+        member.intervalSeconds,
+      );
+    },
+    [applyRowOverride],
+  );
+
+  const handleApplyRow = useCallback(
+    async (rowPlan: DatabaseRowPlan) => {
+      if (!selectedConnectorId) {
+        setMessage(t('workbench.output.database.results.connectorNotSaved'));
+        return;
+      }
+      if (!selectedTable) {
+        setMessage(t('workbench.output.database.results.tableRequired'));
+        return;
+      }
+      if (rowPlan.status !== 'ready') {
+        return;
+      }
+
+      setIsBusy(true);
+      try {
+        const mappingIds: string[] = [];
+
+        for (const member of rowPlan.members) {
+          if (!member.tagId) {
+            continue;
+          }
+
+          const payload = {
+            tag_id: member.tagId,
+            connector_id: selectedConnectorId,
+            table_schema: selectedTable.schema,
+            table_name: selectedTable.name,
+            column_name: member.columnName,
+            write_mode: writeMode,
+            timestamp_column: writeMode === 'upsert' ? timestampColumn.trim() : '',
+            group_key: rowPlan.groupKey,
+            write_interval_seconds: rowPlan.intervalSeconds,
+            enabled: true,
+          };
+          const mapping = member.mappingId
+            ? await dbTargetAPI.updateMapping(member.mappingId, payload)
+            : await dbTargetAPI.createMapping(payload);
+          mappingIds.push(mapping.id);
+        }
+
+        await loadData();
+        await refreshCandidateReview();
+        if (mappingIds.length > 0) {
+          const dryRun = await dbTargetAPI.dryRunMappings(selectedConnectorId, {
+            candidate_ids: mappingIds,
+          });
+          setDryRunResults(dryRun.results);
+        }
+        setMessage(
+          t('workbench.output.database.results.mappingSaved', {
+            key: rowPlan.displayKey,
+            table: selectedTable.name,
+            column: rowPlan.members[0]?.columnName ?? '',
+          }),
+        );
+      } catch (error) {
+        setMessage(
+          getErrorMessage(error, t('workbench.output.database.results.mappingSaveFailed')),
+        );
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [
+      loadData,
+      refreshCandidateReview,
+      selectedConnectorId,
+      selectedTable,
+      t,
+      timestampColumn,
+      writeMode,
+    ],
+  );
 
   return (
     <section className="space-y-6 rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
@@ -855,104 +1046,42 @@ export function DatabaseTargetBoard({
         </aside>
 
         <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <div
-            className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
-            data-testid="database-selected-tag"
-          >
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-              {t('workbench.output.database.mapping.selectedTag')}
-            </p>
-            <p className="mt-2 text-sm font-semibold text-slate-50">
-              {selectedCandidate?.tagKey ?? '—'}
-            </p>
-            {selectedCandidate ? (
-              <p className="mt-1 text-xs text-slate-400">
-                {t('workbench.output.database.candidates.meta', {
-                  point: selectedCandidate.pointName,
-                  address: selectedCandidate.pointAddress,
-                  dataType: selectedCandidate.dataType,
-                })}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 lg:grid-cols-2">
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-                <span>{t('workbench.output.database.mapping.table')}</span>
-                <select
-                  aria-label={t('workbench.output.database.mapping.table')}
-                  name="database-mapping-table"
-                  value={tableKey}
-                  onChange={(event) =>
-                    setScope((previous) => ({
-                      ...previous,
-                      tableKey: event.target.value,
-                      columnName: '',
-                      timestampColumn: '',
-                    }))
-                  }
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-                >
-                <option value="">{t('workbench.output.database.mapping.tablePlaceholder')}</option>
-                {tables.map((table) => (
-                  <option key={buildTableKey(table)} value={buildTableKey(table)}>
-                    {buildTableKey(table)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400">
-              <span>{t('workbench.output.database.mapping.writeMode')}</span>
-                <select
-                  aria-label={t('workbench.output.database.mapping.writeMode')}
-                  name="database-mapping-write-mode"
-                  value={writeMode}
-                  onChange={(event) =>
-                    setScope((previous) => ({
-                      ...previous,
-                      writeMode: event.target.value as DatabaseWriteMode,
-                      timestampColumn: '',
-                    }))
-                  }
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-                >
-                <option value="insert">
-                  {t('workbench.output.database.writeMode.insert')}
-                </option>
-                <option value="upsert">
-                  {t('workbench.output.database.writeMode.upsert')}
-                </option>
-              </select>
-            </label>
-
-            {writeMode === 'upsert' ? (
-              <label className="space-y-1 text-xs uppercase tracking-[0.16em] text-slate-400 lg:col-span-2">
-                <span>{t('workbench.output.database.mapping.timestampColumn')}</span>
-                <select
-                  aria-label={t('workbench.output.database.mapping.timestampColumn')}
-                  name="database-mapping-timestamp-column"
-                  value={timestampColumn}
-                  onChange={(event) =>
-                    setScope((previous) => ({
-                      ...previous,
-                      timestampColumn: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-                >
-                  <option value="">
-                    {t('workbench.output.database.mapping.timestampPlaceholder')}
-                  </option>
-                  {tableColumns.map((column) => (
-                    <option key={column.name} value={column.name}>
-                      {column.name} ({column.data_type})
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-          </div>
+          <DatabaseGroupedRowPlanner
+            rowPlans={rowPlans}
+            selectedCandidate={selectedCandidate}
+            selectedConnectorId={selectedConnectorId}
+            tables={tables}
+            tableKey={tableKey}
+            writeMode={writeMode}
+            timestampColumn={timestampColumn}
+            tableColumns={tableColumns}
+            isBusy={isBusy}
+            onChangeTable={(value) =>
+              setScope((previous) => ({
+                ...previous,
+                tableKey: value,
+                columnName: '',
+                timestampColumn: '',
+              }))
+            }
+            onChangeWriteMode={(value) =>
+              setScope((previous) => ({
+                ...previous,
+                writeMode: value,
+                timestampColumn: '',
+              }))
+            }
+            onChangeTimestampColumn={(value) =>
+              setScope((previous) => ({
+                ...previous,
+                timestampColumn: value,
+              }))
+            }
+            onChangeRowGroup={handleRowGroupChange}
+            onChangeRowInterval={handleRowIntervalChange}
+            onChangeMemberColumn={handleRowMemberColumnChange}
+            onApplyRow={handleApplyRow}
+          />
 
           <div className="flex flex-wrap gap-2">
             {selectedConnectorId && tables.length === 0 ? (
@@ -1090,51 +1219,6 @@ export function DatabaseTargetBoard({
               </div>
             ) : null}
 
-            <div
-              data-testid="write-row-preview"
-              className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
-            >
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  {t('workbench.output.database.preview.title')}
-                </p>
-                <p className="text-sm text-slate-300">
-                  {t('workbench.output.database.preview.description')}
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <article className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                    {t('workbench.output.database.preview.table')}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-slate-50">
-                    {currentTableFromKey
-                      ? `${currentTableFromKey.schema}.${currentTableFromKey.name}`
-                      : t('workbench.output.database.preview.empty')}
-                  </p>
-                </article>
-                <article className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                    {t('workbench.output.database.preview.column')}
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-slate-50">
-                    {columnName || t('workbench.output.database.preview.empty')}
-                  </p>
-                </article>
-                <article className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                    {t('workbench.output.database.preview.value')}
-                  </p>
-                  <p className="mt-2 break-all text-sm font-semibold text-slate-50">
-                    {selectedCandidate?.lastValue === null ||
-                    selectedCandidate?.lastValue === undefined
-                      ? t('workbench.output.database.preview.empty')
-                      : String(selectedCandidate.lastValue)}
-                  </p>
-                </article>
-              </div>
-            </div>
           </div>
 
           {validationIssues.length ? (

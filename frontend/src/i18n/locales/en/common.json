@@ -1362,6 +1362,36 @@
           "tagSelector": "Tag to map",
           "tagPlaceholder": "Select a tag"
         },
+        "rowPlanner": {
+          "eyebrow": "Grouped row planner",
+          "title": "Plan grouped database rows before apply",
+          "description": "Use grouped rows as the first-pass workflow. Adjust group key, member columns, and interval before applying the whole row.",
+          "summary": "{{ready}} ready / {{total}} rows",
+          "empty": "No database row plans are available for the current rule.",
+          "memberCount": "{{count}} members",
+          "groupKey": "Group key",
+          "interval": "Write interval (seconds)",
+          "column": "Column",
+          "members": "Members",
+          "apply": "Apply row",
+          "status": {
+            "ready": "ready",
+            "blocked": "blocked"
+          },
+          "issue": {
+            "candidate_blocked": "A member is already blocked by the current review set.",
+            "tag_pending": "Apply the Tag review decisions before publishing this row.",
+            "connector_required": "Choose a connector before applying this row.",
+            "table_required": "Choose a target table before applying this row.",
+            "timestamp_required": "Choose a timestamp column for upsert rows.",
+            "column_required": "Every row member needs a column name before apply.",
+            "connector_mismatch": "Members point at different connectors.",
+            "table_mismatch": "Members point at different tables.",
+            "write_mode_mismatch": "Members disagree on write mode.",
+            "timestamp_mismatch": "Members disagree on timestamp column.",
+            "interval_mismatch": "Members must share the same effective interval."
+          }
+        },
         "writeMode": {
           "insert": "insert",
           "upsert": "upsert"

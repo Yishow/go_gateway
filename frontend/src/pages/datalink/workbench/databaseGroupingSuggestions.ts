@@ -156,6 +156,10 @@ export function applyDatabaseGroupingOverridesToReviewSet(
         ...candidate,
         group_key: override.groupKey,
         column_name: override.columnName,
+        write_interval_seconds:
+          override.writeIntervalSeconds !== undefined
+            ? override.writeIntervalSeconds
+            : candidate.write_interval_seconds,
       };
     }),
   };
