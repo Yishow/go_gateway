@@ -322,6 +322,11 @@ The apply response MUST report per-item success or failure so partial success is
 - **THEN** the API returns per-candidate success and failure results
 - **AND** does not collapse the response into one ambiguous pass/fail result
 
+#### Scenario: Stale database apply revision is rejected
+- **WHEN** a client applies database output candidates with a stale `revision_id`
+- **THEN** the API rejects the request with a `revision-conflict` error
+- **AND** returns enough revision context for the UI to refresh candidates instead of silently retrying
+
 ### Requirement: Rule-scoped Local Modbus apply APIs
 The API SHALL expose explicit rule-scoped endpoints to apply approved Local Modbus candidates for a source-rule revision.
 
@@ -342,6 +347,11 @@ The apply response MUST report per-item success or failure so partial success is
 - **WHEN** a client applies multiple Local Modbus candidates and only some succeed
 - **THEN** the API returns per-candidate success and failure results
 - **AND** does not collapse the response into one ambiguous pass/fail result
+
+#### Scenario: Stale Local Modbus apply revision is rejected
+- **WHEN** a client applies Local Modbus candidates with a stale `revision_id`
+- **THEN** the API rejects the request with a `revision-conflict` error
+- **AND** returns enough revision context for the UI to refresh candidates instead of silently retrying
 
 ### Requirement: Database connector and mapping APIs expose grouped-row metadata
 
@@ -366,6 +376,29 @@ The system SHALL expose grouped database-row planning metadata through connector
 - **WHEN** a client reads or validates a database mapping
 - **THEN** the effective interval equals `write_interval_seconds` when that override is present
 - **AND** otherwise the effective interval equals the connector `default_write_interval_seconds`
+
+### Requirement: Database schema generation and mapping dry-run APIs
+
+The system SHALL expose dedicated database tooling endpoints so `/studio` can preview schema mutations and validate mapping candidates against the current connector state.
+
+Endpoints:
+
+- `POST /api/v1/datalink/db-targets/connectors/:id/schema/generate` - Generate or preview connector schema changes
+- `POST /api/v1/datalink/db-targets/connectors/:id/mappings/dry-run` - Dry-run selected mapping candidates before apply
+
+The schema generate request MUST support `dry_run=true|false`.
+
+The dry-run response MUST return candidate-level validation outcomes and machine-readable blocking categories for blocked candidates.
+
+#### Scenario: Schema dry-run previews SQL without mutating connector schema
+- **WHEN** a client calls schema generate with `dry_run=true`
+- **THEN** the API returns SQL preview and validation feedback
+- **AND** does not execute schema mutations
+
+#### Scenario: Mapping dry-run identifies blocked candidates before apply
+- **WHEN** a client requests mapping dry-run for selected candidates
+- **THEN** the API returns which candidates are eligible to apply or blocked
+- **AND** includes machine-readable blocking categories such as `schema_missing`, `connector_unavailable`, and `type_conflict`
 
 ### Requirement: Rule-scoped database candidate and apply APIs carry grouped planning metadata
 
