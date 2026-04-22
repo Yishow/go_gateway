@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { CardMinimizeProvider } from './components/CardMinimizeProvider'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -13,6 +14,10 @@ import {
 } from './features/datalink/legacyRoutes'
 import DatalinkWorkbenchPage from './pages/datalink/workbench/DatalinkWorkbenchPage'
 import { GatewayCreateEntryRedirect, GatewayEntryRoute, GatewayExpertWorkbenchRoute, GatewayQuickSetupRoute } from './router/gateway'
+
+const DevAgentation = import.meta.env.DEV
+  ? lazy(() => import('./components/DevAgentation').then((module) => ({ default: module.DevAgentation })))
+  : null
 
 function LocalModbusCompatRoute() {
   const [searchParams] = useSearchParams()
@@ -100,6 +105,11 @@ function App() {
             <BrowserRouter>
               <AppRoutes />
             </BrowserRouter>
+            {DevAgentation ? (
+              <Suspense fallback={null}>
+                <DevAgentation />
+              </Suspense>
+            ) : null}
           </CardMinimizeProvider>
         </ToastProvider>
       </ThemeProvider>

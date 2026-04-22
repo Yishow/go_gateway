@@ -2,11 +2,23 @@
 
 set -euo pipefail
 
+load_env_script="$(dirname "${BASH_SOURCE[0]}")/scripts/load-env.sh"
+if [[ -f "$load_env_script" ]]; then
+  source "$load_env_script"
+elif [[ -f ".env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source ".env"
+  set +a
+fi
+
 APP_NAME="gateway"
 APP_PATH="cmd/test_ui"
 BUILD_DIR="bin"
 FRONTEND_DIR="frontend"
 FRONTEND_DEV_HOST="${FRONTEND_DEV_HOST:-0.0.0.0}"
+FRONTEND_DEV_PORT="${FRONTEND_DEV_PORT:-${VITE_DEV_PORT:-5173}}"
+VITE_DEV_PORT="${VITE_DEV_PORT:-$FRONTEND_DEV_PORT}"
 PORT="${PORT:-8080}"
 LOG_DIR="bin/logs"
 TMP_DIR="bin/tmp"
@@ -168,9 +180,9 @@ show_log_noise_summary() {
 
 show_frontend_host_hint() {
   if [[ "$FRONTEND_DEV_HOST" == "0.0.0.0" || "$FRONTEND_DEV_HOST" == "::" ]]; then
-    info "💡 前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port 5173）"
+    info "💡 前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port ${FRONTEND_DEV_PORT}）"
   else
-    info "💡 前端開發伺服器通常運行在 http://$FRONTEND_DEV_HOST:5173"
+    info "💡 前端開發伺服器通常運行在 http://$FRONTEND_DEV_HOST:${FRONTEND_DEV_PORT}"
   fi
 }
 
@@ -183,11 +195,11 @@ start_frontend_dev_server() {
   proxy_target="$(frontend_proxy_target)"
 
   if has_cmd setsid; then
-    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' pnpm run dev --host '$FRONTEND_DEV_HOST'" &
+    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' VITE_DEV_PORT='$FRONTEND_DEV_PORT' pnpm run dev --host '$FRONTEND_DEV_HOST' --port '$FRONTEND_DEV_PORT'" &
   else
     (
       cd "$FRONTEND_DIR" &&
-        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" pnpm run dev --host "$FRONTEND_DEV_HOST"
+        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" VITE_DEV_PORT="$FRONTEND_DEV_PORT" pnpm run dev --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT"
     ) &
   fi
 }
@@ -664,6 +676,10 @@ run_test() {
   fi
   success "測試完成"
 }
+
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
 
 while [[ $# -gt 0 ]]; do
   HAS_ANY_PARAM=true

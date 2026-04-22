@@ -8,6 +8,7 @@ const buildConfig = viteConfig as (env: ConfigEnv) => UserConfig;
 
 const originalPort = process.env.PORT;
 const originalProxyTarget = process.env.VITE_API_PROXY_TARGET;
+const originalDevPort = process.env.VITE_DEV_PORT;
 
 function getApiProxyTarget(config: UserConfig): string | undefined {
   const proxy = config.server?.proxy;
@@ -41,6 +42,12 @@ describe("vite proxy target", () => {
     } else {
       process.env.VITE_API_PROXY_TARGET = originalProxyTarget;
     }
+
+    if (originalDevPort === undefined) {
+      delete process.env.VITE_DEV_PORT;
+    } else {
+      process.env.VITE_DEV_PORT = originalDevPort;
+    }
   });
 
   it("uses PORT when VITE_API_PROXY_TARGET is not set", () => {
@@ -59,5 +66,13 @@ describe("vite proxy target", () => {
     const config = buildConfig({ command: "serve", mode: "test" });
 
     expect(getApiProxyTarget(config)).toBe("http://127.0.0.1:9090");
+  });
+
+  it("uses VITE_DEV_PORT for the frontend dev server port", () => {
+    process.env.VITE_DEV_PORT = "4173";
+
+    const config = buildConfig({ command: "serve", mode: "test" });
+
+    expect(config.server?.port).toBe(4173);
   });
 });
