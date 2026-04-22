@@ -203,7 +203,22 @@
 
 **Phase**: 2026-04-10 v2 calm summary harvest follow-up / tracking sync complete
 **進度**: `6.1.compare` 已封帳，且 `v2 calm summary harvest` follow-up 也已完成真實 browser gate；shared backend `mappings` nullable scan blocker 已修正，v2 Task 0–3 與 follow-up tracking 都已同步
-**下一步**: 等待使用者決定是要繼續整合 main / OpenSpec 收尾、開下一輪 follow-up，或直接結束本 change 的後續工作
+**下一步**: 深度分析 `/studio?target=database&step=source` 的 UI/UX 問題，透過持續訪談整理改善 spec
+
+---
+
+## 臨時任務：2026-04-23 `/studio?target=database&step=source` 改善分析（本輪）
+
+- [x] 恢復 planning context 與 session catchup
+- [x] 讀取 AGENTS / CLAUDE / React / TypeScript / OpenSpec 相關規範
+- [ ] 以真實頁面做第一輪 UI/UX 審視並記錄 findings
+- [ ] 對使用者進行深度、非表面訪談，釐清產品語意、操作心智與技術約束
+- [ ] 將頁面改善方向整理成 spec 檔案
+
+**備註**：
+- 本輪先做分析與 spec，不直接進入實作。
+- 目標頁面是 `/studio` 主線中的 `source` step，且目前 target context 為 `database`。
+- 分析時需特別對齊 OpenSpec 中的 source-rule planning、rule-scoped handoff 與 database output mainline 語意。
 
 ---
 

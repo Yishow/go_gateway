@@ -378,25 +378,15 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'planned');
   });
 
-  it('toggles device collection from the source runtime card and shows a result notice', async () => {
+  it('shows runtime summary counters and collection hint in the source runtime card', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
-    fireEvent.click(screen.getByTestId('source-device-collection-toggle'));
-
-    await waitFor(() => {
-      expect(mockToggleDeviceStatusMutation.mutateAsync).toHaveBeenCalledWith({
-        id: 'device-1',
-        currentStatus: 'active',
-      });
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId('source-step-notice')).toHaveTextContent(
-        'workbench.source.collection.stopped',
-      );
-    });
+    expect(screen.getByTestId('source-runtime-collection-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('source-runtime-collection-hint')).toBeInTheDocument();
+    expect(mockToggleDeviceStatusMutation.mutateAsync).not.toHaveBeenCalled();
   });
 
   it('preserves draft rules per device when switching the selected device', async () => {
@@ -530,7 +520,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByText('workbench.source.inspector.span.unmanagedNotice')).toBeInTheDocument();
   });
 
-  it('preserves skipped addresses when editing a persisted rule', async () => {
+  it('preserves skipped addresses when editing non-geometry fields on a persisted rule', async () => {
     mockSourceRules.splice(0, mockSourceRules.length, {
       id: 'persisted-rule-1',
       device_id: 'device-1',
@@ -553,17 +543,20 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
     openSourceRuleLayerRulesTab();
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }));
-    fireEvent.change(screen.getAllByDisplayValue('40001').at(-1)!, {
-      target: { value: '40005' },
+
+    const editForm = screen.getByTestId('rule-inline-edit-form');
+    fireEvent.change(within(editForm).getByLabelText('workbench.source.planner.scaleMultiplier'), {
+      target: { value: '2' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.ruleLayer.editSave' }));
+    fireEvent.click(within(editForm).getByRole('button', { name: 'workbench.source.ruleLayer.editSave' }));
 
     await waitFor(() => {
       expect(mockUpdateSourceRuleMutation.mutateAsync).toHaveBeenCalledWith({
         id: 'persisted-rule-1',
         data: expect.objectContaining({
-          start_address: '40005',
+          start_address: '40001',
           skipped_addresses: ['40002'],
+          scale_multiplier: 2,
         }),
       });
     });
@@ -649,7 +642,7 @@ describe('DatalinkWorkbench source step', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows a step-local health summary with dual point-creation actions', () => {
+  it('shows a step-local health summary and keeps apply-to-canvas as the primary source action', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
@@ -665,6 +658,7 @@ describe('DatalinkWorkbench source step', () => {
 
     const summary = screen.getByTestId('source-step-summary');
     const primaryToolbar = screen.getByTestId('source-primary-toolbar');
+    const handoffPanel = screen.getByTestId('source-incident-handoff-panel');
 
     expect(within(summary).getByTestId('source-summary-ready-count')).toHaveTextContent('2');
     expect(within(summary).getByTestId('source-summary-conflict-count')).toHaveTextContent('0');
@@ -677,6 +671,16 @@ describe('DatalinkWorkbench source step', () => {
     expect(
       within(primaryToolbar).getByRole('button', {
         name: 'workbench.source.actions.createRulePoints',
+      }),
+    ).toBeEnabled();
+    expect(
+      within(primaryToolbar).queryByRole('button', {
+        name: 'workbench.source.handoff.toTag',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(handoffPanel).getByRole('button', {
+        name: 'workbench.source.handoff.toTag',
       }),
     ).toBeEnabled();
   });
@@ -820,24 +824,29 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.queryByTestId('source-rule-rule-1')).not.toBeInTheDocument();
   });
 
-  it('treats the address canvas as the primary workspace and the rule layer as supporting context', () => {
+  it('treats the active rule layer as the primary workspace and the canvas as supporting context', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    expect(screen.getByTestId('source-canvas-workspace')).toHaveAttribute(
+    expect(screen.getByTestId('source-rule-layer')).toHaveAttribute(
       'data-emphasis',
       'primary',
     );
-    expect(screen.getByTestId('source-rule-layer')).toHaveAttribute(
+    expect(screen.getByTestId('source-canvas-workspace')).toHaveAttribute(
       'data-emphasis',
       'supporting',
     );
     expect(
-      within(screen.getByTestId('source-canvas-workspace')).getByTestId(
-        'source-coverage-overview',
-      ),
+      within(screen.getByTestId('source-rule-layer')).getByTestId('source-rule-rule-1'),
     ).toBeInTheDocument();
   });
 
@@ -1384,7 +1393,7 @@ describe('DatalinkWorkbench source step', () => {
     ).toBeInTheDocument();
   });
 
-  it('opens inline edit when clicking edit rule in the conflict queue', () => {
+  it('opens visible inline edit when clicking edit rule in the conflict queue', () => {
     mockPoints[0].address = '40002';
 
     renderPage();
@@ -1407,8 +1416,11 @@ describe('DatalinkWorkbench source step', () => {
       within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.editRule' }),
     );
 
+    expect(screen.getByTestId('source-rule-layer-tab-rules')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('source-rule-layer-tab-planner')).toHaveAttribute('aria-selected', 'false');
+
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
-    expect(within(ruleCard).getByTestId('rule-inline-edit-form')).toBeInTheDocument();
+    expect(within(ruleCard).getByTestId('rule-inline-edit-form')).toBeVisible();
   });
 
   it('renders data type selector with grouped optgroups and all backend-aligned types enabled', () => {
@@ -1648,14 +1660,7 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.getByTestId('source-rule-rule-2')).toBeInTheDocument();
   });
 
-  it('resets skippedAddresses when a rule is inline-edited so stale skips do not suppress wrong spans', () => {
-    // 1. Create float32 rule at 40001 count=2 → planned at 40001, 40003
-    // 2. Add point at 40003 → conflict at 40003
-    // 3. Skip span at 40003 → skippedAddresses=['40003'], conflict resolved
-    // 4. Inline-edit rule to start at 40010 → geometry changes completely
-    // 5. Verify the old skip ('40003') does NOT suppress 40003-range in the new geometry
-    //    (new planned addresses are 40010, 40012 — '40003' is irrelevant)
-    //    If skippedAddresses were preserved, a future edit back to 40001 would silently lose 40003.
+  it('clears stale skipped spans after inline geometry edits', () => {
     mockPoints[0].address = '40003';
 
     renderPage();
@@ -1673,7 +1678,6 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    // Skip the conflicting span
     const conflictItem = screen.getByTestId('conflict-item-40003');
     fireEvent.click(
       within(conflictItem).getByRole('button', { name: 'workbench.source.conflictQueue.skipSpan' }),
@@ -1681,13 +1685,13 @@ describe('DatalinkWorkbench source step', () => {
     expect(screen.queryByTestId('source-conflict-queue')).not.toBeInTheDocument();
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('1');
 
-    // Inline-edit rule to move start address
     const ruleCard = screen.getByTestId('source-rule-rule-1-card');
     openSourceRuleLayerRulesTab();
+
     fireEvent.click(
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
     );
-    const editForm = within(ruleCard).getByTestId('rule-inline-edit-form');
+    let editForm = within(ruleCard).getByTestId('rule-inline-edit-form');
     fireEvent.change(within(editForm).getByLabelText('workbench.source.planner.startAddress'), {
       target: { value: '40010' },
     });
@@ -1695,10 +1699,26 @@ describe('DatalinkWorkbench source step', () => {
       within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editSave' }),
     );
 
-    // After edit, both spans of the new geometry should be ready (no stale skip)
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
     expect(screen.getByTestId('address-cell-40010')).toHaveAttribute('data-status', 'planned');
     expect(screen.getByTestId('address-cell-40012')).toHaveAttribute('data-status', 'planned');
+
+    mockPoints.splice(0, mockPoints.length);
+
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editStart' }),
+    );
+    editForm = within(ruleCard).getByTestId('rule-inline-edit-form');
+    fireEvent.change(within(editForm).getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.click(
+      within(ruleCard).getByRole('button', { name: 'workbench.source.ruleLayer.editSave' }),
+    );
+
+    expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
+    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-40003')).toHaveAttribute('data-status', 'planned');
   });
 
   it('visually merges 32-bit cells with gridColumn span on root and hides continuations', () => {

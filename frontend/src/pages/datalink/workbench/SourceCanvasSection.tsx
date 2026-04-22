@@ -1224,14 +1224,21 @@ export function SourceCanvasSection() {
       return;
     }
 
+    const nextStartAddress = editDraft.startAddress.trim();
+    const geometryChanged =
+      rule.startAddress !== nextStartAddress ||
+      rule.count !== parsedEditCount ||
+      rule.dataType !== editDraft.dataType;
+    const nextSkippedAddresses = geometryChanged ? [] : editDraft.skippedAddresses;
+
     if (rule.persisted) {
       await updateSourceRuleMutation.mutateAsync({
         id: ruleId,
         data: {
-          start_address: editDraft.startAddress.trim(),
+          start_address: nextStartAddress,
           count: parsedEditCount,
           data_type: editDraft.dataType,
-          skipped_addresses: editDraft.skippedAddresses,
+          skipped_addresses: nextSkippedAddresses,
           target_data_type: editDraft.targetDataType || null,
           scale_multiplier: editDraft.scaleMultiplier ? Number(editDraft.scaleMultiplier) : null,
           scale_offset: editDraft.scaleOffset ? Number(editDraft.scaleOffset) : null,
@@ -1259,10 +1266,10 @@ export function SourceCanvasSection() {
             rule.id === ruleId
               ? {
                   ...rule,
-                  startAddress: editDraft.startAddress.trim(),
+                  startAddress: nextStartAddress,
                   count: parsedEditCount,
                   dataType: editDraft.dataType,
-                  skippedAddresses: editDraft.skippedAddresses,
+                  skippedAddresses: nextSkippedAddresses,
                   targetDataType: editDraft.targetDataType || undefined,
                   scaleMultiplier: editDraft.scaleMultiplier ? Number(editDraft.scaleMultiplier) : undefined,
                   scaleOffset: editDraft.scaleOffset ? Number(editDraft.scaleOffset) : undefined,
@@ -1569,7 +1576,7 @@ export function SourceCanvasSection() {
         <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <section
             className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/25 p-4"
-            data-emphasis="supporting"
+            data-emphasis="primary"
             data-testid="source-rule-layer"
           >
             <div className="shrink-0 space-y-1">
@@ -2201,7 +2208,7 @@ export function SourceCanvasSection() {
 
         <section
           className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
-          data-emphasis="primary"
+          data-emphasis="supporting"
           data-testid="source-canvas-workspace"
         >
           <div
@@ -2643,6 +2650,7 @@ export function SourceCanvasSection() {
                               type="button"
                               className="rounded-lg border border-rose-500/30 px-2 py-1 text-[11px] text-rose-100"
                               onClick={() => {
+                                setRuleLayerTab('rules');
                                 handleSelectRule(targetRuleId);
                                 handleStartRuleEdit(targetRuleId);
                               }}

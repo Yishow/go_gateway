@@ -1,5 +1,20 @@
 # Findings
 
+## 2026-04-23 `/studio?target=database&step=source` 改善分析新發現
+- 這個頁面雖然帶著 `target=database`，但依 OpenSpec 與現有 `/studio` 主線，它本質上仍是 **Step 2 source planning**，不該過早被 database-specific setup 語意吃掉；database 應該主要影響 handoff 文案、review framing 與 downstream readiness，而不是把 source step 本身變成 output 配置頁。
+- OpenSpec 對 source step 的核心要求有三個：`source-rule planning`、`rule-scoped handoff`、`live value / downstream snapshot`。因此若頁面讓使用者感到「資料庫點有點怪」或「沒看到規劃」，高機率是因為頁面沒有把這三件事清楚分層，而不是單純缺欄位。
+- `database-target-workbench` spec 又要求 database output 是 connector-aware、grouped-row aware、rule-scoped 的；這代表 source step 若要提前暗示 database，應該暗示的是未來會怎麼被分組與下游承接，而不是直接把 connector、schema、table 等 output 細節混進 source planning 畫面。
+- 以 `ui-ux-pro-max` 的規則來看，這類工業操作頁的高優先問題會落在：資訊分層、狀態可掃描性、primary action 唯一性、錯誤/阻塞是否靠近當前操作、以及 step handoff 是否保持清楚。若畫面同時讓人看到太多 planner 細節與下游 target 影子，就容易讓主 CTA 與主心智模型失焦。
+- `ui-ux-pro-max` 給的自動 design-system 推薦把 style 拉到 neumorphism，這對本案其實是不適配訊號：它再次提醒這個頁面不該追求裝飾性，而該回到高對比、低疲勞、可診斷、可掃描的 operator workspace 語言。
+- 使用者對這頁的核心期待已明確：
+  - 痛點不是單一功能缺失，而是 **看不到目前規劃了什麼**。
+  - source step 應同時承擔地址/型別編排、規則管理、即時值驗證、以及下游交付前整理四種角色，但主軸仍應以 **一條 source rule** 為中心。
+  - `target=database` 不該只是背景參數；它應直接改變 source step 的主視覺與主操作，讓 source 規劃更明確地朝 database downstream 對齊。
+  - primary CTA 應偏向 `套用規劃到畫布`，而不是過早把注意力拉去 `前往 Tag review`。
+  - 使用者接受 `邊規劃邊往下游看結果再回來修` 的循環式流程，因此 source step 需要提供更強的 preview / handoff 可逆性。
+  - 目前最被壓縮的是 **規劃區**，而 database 語意的問題不是太強，而是 **太弱、沒有幫助規劃**。
+  - 成功結束這頁時，使用者最想帶走的不是「我規劃完了」，而是「**我知道接下來 Tag review 會看到什麼**」。
+
 ## 2026-04-10 全頁面 baseline 驗證新發現
 - `/test` baseline 的方法不能只用在工程頁；若不把 `/studio` 與 destination family 一起文件化，之後仍會反覆卡在「這頁到底是現有 code、還是只有 Stitch 規劃」的混亂。
 - `/studio` 真實 code reality 仍是單一路由 `device -> source -> tag -> output`，所以後續所有 page-by-page 評估都必須先承認這件事，不能直接把 Stitch 的 Destination Hub / Database / Local Modbus / MQTT 當成現成 route。
