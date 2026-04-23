@@ -186,6 +186,11 @@ show_frontend_host_hint() {
   fi
 }
 
+show_embedded_frontend_hint() {
+  info "💡 :$PORT 會使用本次啟動前同步好的 embedded 前端快照"
+  info "💡 前端在啟動後若還有新修改，:${FRONTEND_DEV_PORT} 會即時更新；:$PORT 需重新執行 start.sh 才會刷新"
+}
+
 frontend_proxy_target() {
   printf "http://127.0.0.1:%s" "$PORT"
 }
@@ -194,12 +199,14 @@ start_frontend_dev_server() {
   local proxy_target
   proxy_target="$(frontend_proxy_target)"
 
+  clear_frontend_port true
+
   if has_cmd setsid; then
-    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' VITE_DEV_PORT='$FRONTEND_DEV_PORT' pnpm run dev --host '$FRONTEND_DEV_HOST' --port '$FRONTEND_DEV_PORT'" &
+    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' VITE_DEV_PORT='$FRONTEND_DEV_PORT' pnpm run dev --host '$FRONTEND_DEV_HOST' --port '$FRONTEND_DEV_PORT' --strictPort" &
   else
     (
       cd "$FRONTEND_DIR" &&
-        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" VITE_DEV_PORT="$FRONTEND_DEV_PORT" pnpm run dev --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT"
+        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" VITE_DEV_PORT="$FRONTEND_DEV_PORT" pnpm run dev --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
     ) &
   fi
 }
@@ -231,10 +238,10 @@ Go Gateway mac 啟動腳本
 
 選項:
   --dev-mode           開發模式 (go run)
-  --air-mode           熱重載模式 (air)
-  --quick-start        一鍵啟動 (build + start)
+  --air-mode           熱重載模式 (air，啟動前同步 embedded 前端)
+  --quick-start        一鍵啟動 (lint + sync frontend + build + start)
   --start              建置後啟動服務
-  --skip-build         跳過建置
+  --skip-build         跳過一般建置（若需刷新 embedded 前端會自動補建）
   --skip-lint          跳過 golangci-lint
   --skip-test          跳過測試
   --skip-quality       跳過代碼質量檢查
@@ -284,8 +291,14 @@ find_air_cmd() {
 is_managed_pid() {
   local pid="$1"
   local cmd
+  local exe_path
   cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
-  [[ "$cmd" == *"/bin/gateway"* || "$cmd" == *"cmd/test_ui"* || "$cmd" == *"start.sh"* ]]
+  if [[ "$cmd" == *"/bin/gateway"* || "$cmd" == *"cmd/test_ui"* || "$cmd" == *"/exe/test_ui"* || "$cmd" == *"start.sh"* || "$cmd" == *"/frontend/node_modules/.bin/vite"* ]]; then
+    return 0
+  fi
+
+  exe_path="$(lsof -a -p "$pid" -d txt -Fn 2>/dev/null | sed -n 's/^n//p' | head -n1)"
+  [[ "$exe_path" == *"/test_ui"* || "$exe_path" == *"/gateway"* ]]
 }
 
 show_main_menu() {
@@ -294,12 +307,12 @@ show_main_menu() {
 ============================================
    Go Gateway 啟動選單 (mac)
 ============================================
- 1) 開發模式 (go run)
- 2) 熱重載模式 (air)
- 3) 一鍵啟動 (lint + build + start)
- 4) 完整流程 (lint + build + quality + test)
- 5) 僅建置
- 6) 僅啟動 (skip build)
+  1) 開發模式 (go run)
+  2) 熱重載模式 (air，啟動前同步 embedded 前端)
+  3) 一鍵啟動 (lint + sync frontend + build + start)
+  4) 完整流程 (lint + build + quality + test)
+  5) 僅建置 (sync frontend + build)
+  6) 快速啟動 (sync frontend + build + start，跳過 lint/test/quality)
  7) 僅測試
  8) 檢查環境
  9) 健康檢查
@@ -341,20 +354,43 @@ pid_on_port() {
   lsof -tiTCP:"$1" -sTCP:LISTEN 2>/dev/null | head -n1 || true
 }
 
-clear_port() {
+managed_ports() {
+  local port
+  declare -A seen=()
+
+  for port in "$PORT" "$FRONTEND_DEV_PORT" "$VITE_DEV_PORT"; do
+    if [[ "$port" =~ ^[0-9]+$ && -z "${seen[$port]+x}" ]]; then
+      seen["$port"]=1
+      printf "%s\n" "$port"
+    fi
+  done
+
+  for port in {8080..8090}; do
+    if [[ -z "${seen[$port]+x}" ]]; then
+      seen["$port"]=1
+      printf "%s\n" "$port"
+    fi
+  done
+}
+
+clear_listen_port() {
+  local port="$1"
+  local label="${2:-端口}"
+  local force_cleanup="${3:-false}"
   local pid
-  pid="$(pid_on_port "$PORT")"
+  pid="$(pid_on_port "$port")"
   if [[ -z "$pid" ]]; then
-    info "端口 $PORT 可用"
+    info "$label $port 可用"
     return 0
   fi
 
-  warn "端口 $PORT 被 PID $pid 佔用"
-  if [[ "$AUTO_KILL_PORT" == true ]]; then
+  if [[ "$AUTO_KILL_PORT" == true || "$force_cleanup" == true ]]; then
+    warn "$label $port 被 PID $pid 佔用，將先清理再啟動"
     kill -9 "$pid" 2>/dev/null || true
     sleep 0.3
   else
-    read -r -p "是否終止該進程? (y/N): " ans
+    warn "$label $port 被 PID $pid 佔用"
+    read -r -p "是否終止 $label ${port} 的進程? (y/N): " ans
     if [[ "$ans" =~ ^[Yy]$ ]]; then
       kill -9 "$pid" 2>/dev/null || true
       sleep 0.3
@@ -363,11 +399,19 @@ clear_port() {
     fi
   fi
 
-  if [[ -n "$(pid_on_port "$PORT")" ]]; then
-    err "端口 $PORT 清理失敗"
+  if [[ -n "$(pid_on_port "$port")" ]]; then
+    err "$label $port 清理失敗"
     return 1
   fi
-  success "端口 $PORT 已清理"
+  success "$label $port 已清理"
+}
+
+clear_port() {
+  clear_listen_port "$PORT" "後端端口" "${1:-false}"
+}
+
+clear_frontend_port() {
+  clear_listen_port "$FRONTEND_DEV_PORT" "前端端口" "${1:-false}"
 }
 
 build_frontend() {
@@ -392,6 +436,7 @@ build_frontend() {
 }
 
 build_app() {
+  build_frontend
   mkdir -p "$BUILD_DIR"
   info "建置後端..."
   go build -ldflags "-s -w" -trimpath -o "$BUILD_DIR/$APP_NAME" "./$APP_PATH"
@@ -409,7 +454,7 @@ build_single() {
 start_app() {
   local exe="$BUILD_DIR/$APP_NAME"
   [[ -x "$exe" ]] || { err "找不到可執行檔: $exe"; return 1; }
-  clear_port
+  clear_port true
   info "啟動服務於 :$PORT"
   PORT="$PORT" "$exe"
 }
@@ -429,7 +474,7 @@ list_processes() {
   local found=false
   local pids
 
-  pids="$(pgrep -f "/bin/gateway|cmd/test_ui|start.sh" 2>/dev/null || true)"
+  pids="$(pgrep -f "/bin/gateway|cmd/test_ui|start.sh|/frontend/node_modules/.bin/vite" 2>/dev/null || true)"
   if [[ -n "$pids" ]]; then
     found=true
     info "相關進程:"
@@ -439,15 +484,15 @@ list_processes() {
     done <<<"$pids"
   fi
 
-  info "端口佔用情況 (8080-8090):"
+  info "端口佔用情況:"
   local p pid
-  for p in {8080..8090}; do
+  while IFS= read -r p; do
     pid="$(pid_on_port "$p")"
     if [[ -n "$pid" ]]; then
       found=true
       printf "  %s -> PID %s\n" "$p" "$pid"
     fi
-  done
+  done < <(managed_ports)
 
   [[ "$found" == true ]] || info "未發現運行中的服務"
 }
@@ -456,7 +501,7 @@ stop_all_services() {
   info "停止所有運行中的服務..."
   local stopped=0
   local pids pid
-  pids="$(pgrep -f "/bin/gateway|cmd/test_ui|start.sh --skip-lint --start|start.sh --start" 2>/dev/null || true)"
+  pids="$(pgrep -f "/bin/gateway|cmd/test_ui|start.sh|/frontend/node_modules/.bin/vite" 2>/dev/null || true)"
 
   if [[ -n "$pids" ]]; then
     while IFS= read -r pid; do
@@ -467,13 +512,13 @@ stop_all_services() {
   fi
 
   local p
-  for p in {8080..8090}; do
+  while IFS= read -r p; do
     pid="$(pid_on_port "$p")"
     if [[ -n "$pid" ]] && is_managed_pid "$pid"; then
       kill -9 "$pid" 2>/dev/null || true
       stopped=$((stopped + 1))
     fi
-  done
+  done < <(managed_ports)
 
   if [[ "$stopped" -eq 0 ]]; then
     info "未發現需要停止的服務"
@@ -528,6 +573,8 @@ start_dev_mode() {
   info "🚀 開發模式（無需編譯）"
   info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後需要手動重新運行"
   info "💡 將同時啟動前端開發伺服器和後端服務"
+  info "📦 啟動前同步 embedded 前端資產..."
+  build_frontend
 
   # 設定清理 trap
   trap cleanup_all EXIT INT TERM
@@ -535,13 +582,14 @@ start_dev_mode() {
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
     # 顯式傳遞 backend PORT / proxy target，避免 dev server 代理到錯的埠。
-    start_frontend_dev_server
+    start_frontend_dev_server || return 1
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
     show_frontend_host_hint
+    show_embedded_frontend_hint
   fi
 
-  clear_port
+  clear_port true
   info "▶️  啟動後端應用程式（使用 go run）..."
 
   # 重置噪音計數器
@@ -559,6 +607,8 @@ start_air_mode() {
   info "🔥 熱重載模式（Air）"
   info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新運行"
   info "💡 將同時啟動前端開發伺服器和後端服務"
+  info "📦 啟動前同步 embedded 前端資產..."
+  build_frontend
 
   # 設定清理 trap
   trap cleanup_all EXIT INT TERM
@@ -586,14 +636,15 @@ start_air_mode() {
   # 啟動前端開發伺服器
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
-    start_frontend_dev_server
+    start_frontend_dev_server || return 1
     FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
     show_frontend_host_hint
+    show_embedded_frontend_hint
     info "💡 前端修改會自動熱重載"
   fi
 
-  clear_port
+  clear_port true
 
   # 檢查 .air.toml 是否存在
   if [[ ! -f ".air.toml" ]]; then
@@ -736,7 +787,6 @@ if [[ "$HAS_ANY_PARAM" != true ]]; then
       SKIP_LINT=true
       SKIP_TEST=true
       SKIP_QUALITY=true
-      SKIP_BUILD=true
       START=true
       ;;
     7)
@@ -829,6 +879,10 @@ if [[ "$SKIP_BUILD" != true ]]; then
 fi
 
 if [[ "$START" == true ]]; then
+  if [[ "$SKIP_BUILD" == true ]]; then
+    warn "偵測到 --start --skip-build。為避免 8080 使用過期 embedded 前端，將自動重新建置。"
+    build_app
+  fi
   start_app
 fi
 

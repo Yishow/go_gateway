@@ -92,6 +92,33 @@ $script:SuccessSummary = New-Object System.Collections.Generic.List[string]
 $script:StepCounter = 0
 $script:TotalSteps = 0
 
+function Import-DotEnvFile {
+    param([string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    Get-Content $Path | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith("#")) {
+            return
+        }
+
+        $parts = $line -split "=", 2
+        if ($parts.Count -ne 2) {
+            return
+        }
+
+        $name = $parts[0].Trim()
+        $value = $parts[1].Trim()
+        [System.Environment]::SetEnvironmentVariable($name, $value)
+        Set-Item -Path "Env:$name" -Value $value
+    }
+}
+
+Import-DotEnvFile -Path (Join-Path $script:ROOT_DIR ".env")
+
 # 從環境變數讀取端口配置（如果未指定）
 if ($Port -eq 8080) {
     $envPort = [System.Environment]::GetEnvironmentVariable("PORT")
@@ -104,6 +131,14 @@ if ($Port -eq 8080) {
 $script:FrontendDevHost = [System.Environment]::GetEnvironmentVariable("FRONTEND_DEV_HOST")
 if ([string]::IsNullOrWhiteSpace($script:FrontendDevHost)) {
     $script:FrontendDevHost = "0.0.0.0"
+}
+
+$script:FrontendDevPort = [System.Environment]::GetEnvironmentVariable("FRONTEND_DEV_PORT")
+if ([string]::IsNullOrWhiteSpace($script:FrontendDevPort)) {
+    $script:FrontendDevPort = [System.Environment]::GetEnvironmentVariable("VITE_DEV_PORT")
+}
+if ([string]::IsNullOrWhiteSpace($script:FrontendDevPort)) {
+    $script:FrontendDevPort = "5173"
 }
 
 # 顏色輸出函數 / 顯示框架
@@ -203,11 +238,45 @@ function Write-Warning {
 
 function Write-FrontendDevHostHint {
     if ($script:FrontendDevHost -eq "0.0.0.0" -or $script:FrontendDevHost -eq "::") {
-        Write-Info "前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port 5173）"
+        Write-Info "前端開發伺服器已監聽所有介面，區網請使用本機 LAN IP 存取（port $script:FrontendDevPort）"
     }
     else {
-        Write-Info "前端開發伺服器通常運行在 http://$script:FrontendDevHost`:5173"
+        Write-Info "前端開發伺服器通常運行在 http://$script:FrontendDevHost`:$script:FrontendDevPort"
     }
+}
+
+function Write-EmbeddedFrontendHint {
+    Write-Info "💡 :$Port 會使用本次啟動前同步好的 embedded 前端快照"
+    Write-Info "💡 前端在啟動後若還有新修改，:$script:FrontendDevPort 會即時更新；:$Port 需重新執行 start.ps1 才會刷新"
+}
+
+function Get-FrontendProxyTarget {
+    $proxyTarget = [System.Environment]::GetEnvironmentVariable("VITE_API_PROXY_TARGET")
+    if ([string]::IsNullOrWhiteSpace($proxyTarget)) {
+        return "http://127.0.0.1:$Port"
+    }
+    return $proxyTarget
+}
+
+function Get-ManagedPorts {
+    $ports = [System.Collections.Generic.List[int]]::new()
+    foreach ($candidate in @($Port, $script:FrontendDevPort, 8080..8090)) {
+        if ($null -eq $candidate) {
+            continue
+        }
+
+        $text = "$candidate"
+        if ($text -notmatch '^\d+$') {
+            continue
+        }
+
+        $value = [int]$text
+        if (-not $ports.Contains($value)) {
+            $ports.Add($value)
+        }
+    }
+
+    return $ports
 }
 
 function Invoke-WithPortEnvironment {
@@ -598,7 +667,7 @@ function Get-RunningServices {
     
     # 檢查端口佔用
     Write-Info "端口佔用情況:"
-    for ($p = 8080; $p -le 8090; $p++) {
+    foreach ($p in (Get-ManagedPorts)) {
         if (Test-PortInUse -Port $p) {
             $proc = Get-ProcessByPort -Port $p
             if ($proc) {
@@ -652,10 +721,10 @@ function Stop-AllServices {
     }
     
     # 清理端口
-    for ($p = 8080; $p -le 8090; $p++) {
+    foreach ($p in (Get-ManagedPorts)) {
         if (Test-PortInUse -Port $p) {
             $proc = Get-ProcessByPort -Port $p
-            if ($proc -and ($proc.ProcessName -eq "gateway" -or $proc.ProcessName -eq "test-ui")) {
+            if ($proc -and (Test-ManagedProcess -Process $proc)) {
                 try {
                     Stop-ProcessByPort -Port $p -Force
                     $stopped++
@@ -703,11 +772,16 @@ function Start-Diagnose {
     
     # 檢查端口
     Write-Info "3. 檢查端口狀態..."
-    if (Test-PortInUse -Port $Port) {
-        $proc = Get-ProcessByPort -Port $Port
-        if ($proc) {
-            if ($proc.ProcessName -ne "gateway" -and $proc.ProcessName -ne "test-ui") {
-                $issues += "端口 $Port 被其他程序佔用: $($proc.ProcessName)"
+    foreach ($managedPort in @($Port, [int]$script:FrontendDevPort)) {
+        if (Test-PortInUse -Port $managedPort) {
+            $proc = Get-ProcessByPort -Port $managedPort
+            if ($proc) {
+                if ($managedPort -eq $Port) {
+                    $issues += "後端端口 $managedPort 已被 $($proc.ProcessName) 佔用，啟動前會自動清理"
+                }
+                else {
+                    $issues += "前端端口 $managedPort 已被 $($proc.ProcessName) 佔用，啟動前會自動清理"
+                }
             }
         }
     }
@@ -781,8 +855,15 @@ function Start-FrontendDevServer {
         }
     }
     
+    if (-not (Clear-PortForService -Port ([int]$script:FrontendDevPort) -AutoKill:$true)) {
+        Write-Error "前端端口 $script:FrontendDevPort 清理失敗，無法啟動前端開發伺服器"
+        return $null
+    }
+
+    $proxyTarget = Get-FrontendProxyTarget
+
     # 啟動前端開發伺服器
-    Write-Info "🚀 啟動前端開發伺服器... (host=$script:FrontendDevHost)"
+    Write-Info "🚀 啟動前端開發伺服器... (host=$script:FrontendDevHost, port=$script:FrontendDevPort)"
     $originalLocation = Get-Location
     
     try {
@@ -790,19 +871,25 @@ function Start-FrontendDevServer {
         
         # 使用 Start-Process 在背景啟動前端伺服器
         # 使用 cmd.exe 來正確處理 pnpm 命令，避免 PowerShell 的問題
-        $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "pnpm run dev --host $script:FrontendDevHost" -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
+        $frontendCommand = "set PORT=$Port && set VITE_API_PROXY_TARGET=$proxyTarget && set VITE_DEV_PORT=$script:FrontendDevPort && pnpm run dev --host $script:FrontendDevHost --port $script:FrontendDevPort --strictPort"
+        $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $frontendCommand -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
         
         if ($frontendProcess) {
             Write-Success "前端開發伺服器已啟動（PID: $($frontendProcess.Id)）"
             Write-FrontendDevHostHint
+            Write-EmbeddedFrontendHint
             Write-Info "💡 前端修改會自動熱重載"
             
             # 等待一小段時間確認伺服器啟動
             Start-Sleep -Milliseconds 1000
             
-            # 檢查進程是否仍在運行
+            # 檢查進程與端口是否仍在運行
             if (-not (Get-Process -Id $frontendProcess.Id -ErrorAction SilentlyContinue)) {
                 Write-Warning "前端開發伺服器可能啟動失敗"
+                return $null
+            }
+            if (-not (Test-PortInUse -Port ([int]$script:FrontendDevPort))) {
+                Write-Warning "前端開發伺服器未成功綁定端口 $script:FrontendDevPort"
                 return $null
             }
             
@@ -1225,6 +1312,55 @@ function Get-ProcessByPort {
     return $null
 }
 
+function Get-ProcessExecutablePath {
+    param([System.Diagnostics.Process]$Process)
+
+    if (-not $Process) {
+        return $null
+    }
+
+    if ($Process.Path) {
+        return $Process.Path
+    }
+
+    try {
+        return $Process.MainModule.FileName
+    }
+    catch {
+        try {
+            $processInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $($Process.Id)" -ErrorAction Stop
+            return $processInfo.ExecutablePath
+        }
+        catch {
+            return $null
+        }
+    }
+}
+
+function Test-ManagedProcess {
+    param([System.Diagnostics.Process]$Process)
+
+    if (-not $Process) {
+        return $false
+    }
+
+    $name = $Process.ProcessName.ToLowerInvariant()
+    if ($name -in @("gateway", "test-ui")) {
+        return $true
+    }
+
+    $executablePath = Get-ProcessExecutablePath -Process $Process
+    if ([string]::IsNullOrWhiteSpace($executablePath)) {
+        return $false
+    }
+
+    return (
+        $executablePath -match '[\\/]gateway(\.exe)?$' -or
+        $executablePath -match '[\\/]test_ui(\.exe)?$' -or
+        $executablePath -like '*frontend*node_modules*vite*'
+    )
+}
+
 # 終止佔用指定端口的進程
 function Stop-ProcessByPort {
     param(
@@ -1365,6 +1501,12 @@ function Start-AirMode {
     Write-Info "💡 使用 go run，無需編譯 exe，與開發模式一致"
     Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
+
+    Write-Info "📦 啟動前同步 embedded 前端資產..."
+    if (-not (Build-Frontend -Force)) {
+        Write-Error "前端建置失敗，無法啟動 Air 模式"
+        return
+    }
     
     # 詢問是否開啟瀏覽器
     Request-OpenBrowser | Out-Null
@@ -1401,6 +1543,11 @@ function Start-AirMode {
     }
     
     Write-ColorOutput ""
+
+    if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
+        Write-Error "後端端口 $Port 清理失敗，無法啟動 Air 模式"
+        return
+    }
     
     # 檢查 .air.toml 是否存在
     if (-not (Test-Path ".air.toml")) {
@@ -1467,6 +1614,12 @@ function Start-DevMode {
     Write-Info "💡 此模式使用 go run，無需編譯 exe，適合快速開發迭代"
     Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
+
+    Write-Info "📦 啟動前同步 embedded 前端資產..."
+    if (-not (Build-Frontend -Force)) {
+        Write-Error "前端建置失敗，無法啟動開發模式"
+        return
+    }
     
     # 詢問是否開啟瀏覽器
     Request-OpenBrowser | Out-Null
@@ -1484,6 +1637,11 @@ function Start-DevMode {
     }
     
     Write-ColorOutput ""
+
+    if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
+        Write-Error "後端端口 $Port 清理失敗，無法啟動開發模式"
+        return
+    }
     
     # 運行應用程式
     Write-Info "▶️  啟動後端應用程式（使用 go run）..."
@@ -1538,7 +1696,7 @@ function Start-QuickStart {
     
     # 檢查並清理端口
     Write-Info "檢查端口 $Port 狀態..."
-    if (-not (Clear-PortForService -Port $Port -AutoKill:$AutoKillPort)) {
+    if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
         Write-Error "端口 $Port 清理失敗，無法啟動服務"
         $script:ExitCode = 1
         return
@@ -1818,7 +1976,7 @@ if ($Start) {
     
     # 檢查並清理端口
     Write-Info "檢查端口 $Port 狀態..."
-    if (-not (Clear-PortForService -Port $Port -AutoKill:$AutoKillPort)) {
+    if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
         Write-Error "端口 $Port 清理失敗，無法啟動服務"
         $script:ExitCode = 1
         Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "端口清理失敗"
