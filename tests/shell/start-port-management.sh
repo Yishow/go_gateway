@@ -104,6 +104,10 @@ if [[ "$frontend_command" != *"--strictPort"* ]]; then
   printf 'expected frontend dev server command to enforce a fixed port, got:\n%s\n' "$frontend_command" >&2
   exit 1
 fi
+if [[ "$frontend_command" != *"pnpm exec vite"* ]]; then
+  printf 'expected frontend dev server command to invoke vite directly, got:\n%s\n' "$frontend_command" >&2
+  exit 1
+fi
 
 occupied_pid=7777
 prompted=false

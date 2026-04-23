@@ -205,11 +205,11 @@ start_frontend_dev_server() {
   clear_frontend_port true
 
   if has_cmd setsid; then
-    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' VITE_DEV_PORT='$FRONTEND_DEV_PORT' pnpm run dev --host '$FRONTEND_DEV_HOST' --port '$FRONTEND_DEV_PORT' --strictPort" &
+    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' VITE_DEV_PORT='$FRONTEND_DEV_PORT' pnpm exec vite --host '$FRONTEND_DEV_HOST' --port '$FRONTEND_DEV_PORT' --strictPort" &
   else
     (
       cd "$FRONTEND_DIR" &&
-        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" VITE_DEV_PORT="$FRONTEND_DEV_PORT" pnpm run dev --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
+        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" VITE_DEV_PORT="$FRONTEND_DEV_PORT" pnpm exec vite --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
     ) &
   fi
 }
@@ -292,7 +292,6 @@ cleanup_backend() {
 
   if [[ -n "$BACKEND_LOG_PID" ]]; then
     kill -- -"$BACKEND_LOG_PID" 2>/dev/null || kill "$BACKEND_LOG_PID" 2>/dev/null || true
-    wait "$BACKEND_LOG_PID" 2>/dev/null || true
     BACKEND_LOG_PID=""
   fi
 

@@ -871,7 +871,7 @@ function Start-FrontendDevServer {
         
         # 使用 Start-Process 在背景啟動前端伺服器
         # 使用 cmd.exe 來正確處理 pnpm 命令，避免 PowerShell 的問題
-        $frontendCommand = "set PORT=$Port && set VITE_API_PROXY_TARGET=$proxyTarget && set VITE_DEV_PORT=$script:FrontendDevPort && pnpm run dev --host $script:FrontendDevHost --port $script:FrontendDevPort --strictPort"
+        $frontendCommand = "set PORT=$Port && set VITE_API_PROXY_TARGET=$proxyTarget && set VITE_DEV_PORT=$script:FrontendDevPort && pnpm exec vite --host $script:FrontendDevHost --port $script:FrontendDevPort --strictPort"
         $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $frontendCommand -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
         
         if ($frontendProcess) {
