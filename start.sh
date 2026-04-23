@@ -282,18 +282,18 @@ cleanup_frontend() {
 }
 
 cleanup_backend() {
-  if [[ -n "$BACKEND_LOG_PID" ]]; then
-    kill "$BACKEND_LOG_PID" 2>/dev/null || true
-    wait "$BACKEND_LOG_PID" 2>/dev/null || true
-    BACKEND_LOG_PID=""
-  fi
-
   if [[ -n "$BACKEND_PID" ]]; then
     info "正在停止後端服務（PID: ${BACKEND_PID}）..."
     kill -- -"$BACKEND_PID" 2>/dev/null || kill "$BACKEND_PID" 2>/dev/null || true
     wait "$BACKEND_PID" 2>/dev/null || true
     BACKEND_PID=""
     success "後端服務已停止"
+  fi
+
+  if [[ -n "$BACKEND_LOG_PID" ]]; then
+    kill -- -"$BACKEND_LOG_PID" 2>/dev/null || kill "$BACKEND_LOG_PID" 2>/dev/null || true
+    wait "$BACKEND_LOG_PID" 2>/dev/null || true
+    BACKEND_LOG_PID=""
   fi
 
   if [[ -n "$BACKEND_LOG_FILE" && -f "$BACKEND_LOG_FILE" ]]; then
