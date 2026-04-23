@@ -113,6 +113,13 @@ async function openSourceStep() {
   await screen.findByLabelText('workbench.source.planner.startAddress');
 }
 
+async function switchToDatabaseTarget() {
+  fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.output/ }));
+  fireEvent.click(screen.getByRole('tab', { name: 'workbench.output.targetSwitcher.database' }));
+  fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
+  await screen.findByLabelText('workbench.source.planner.startAddress');
+}
+
 describe('DatalinkWorkbench source-rule target datatype fields', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -223,5 +230,34 @@ describe('DatalinkWorkbench source-rule target datatype fields', () => {
         }),
       });
     });
+  });
+
+  it('applies database-aware defaults without overriding explicit planner choices', async () => {
+    await openSourceStep();
+    await switchToDatabaseTarget();
+
+    expect(screen.getByTestId('source-planner-database-defaults')).toBeInTheDocument();
+    expect(screen.getByLabelText('workbench.source.planner.namingPrefix')).toHaveValue('MBT_ROW');
+    expect(screen.getByLabelText('workbench.source.planner.targetDataType')).toHaveValue('float64');
+    expect(screen.getByLabelText('workbench.source.planner.scaleMultiplier')).toHaveValue(1);
+    expect(screen.getByLabelText('workbench.source.planner.scaleOffset')).toHaveValue(0);
+
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.namingPrefix'), {
+      target: { value: 'CUSTOM_ROW' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.targetDataType'), {
+      target: { value: 'bool' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.scaleMultiplier'), {
+      target: { value: '2.5' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'uint32' },
+    });
+
+    expect(screen.getByLabelText('workbench.source.planner.namingPrefix')).toHaveValue('CUSTOM_ROW');
+    expect(screen.getByLabelText('workbench.source.planner.targetDataType')).toHaveValue('bool');
+    expect(screen.getByLabelText('workbench.source.planner.scaleMultiplier')).toHaveValue(2.5);
+    expect(screen.getByLabelText('workbench.source.planner.scaleOffset')).toHaveValue(0);
   });
 });

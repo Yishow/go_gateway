@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, CircleHelp } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -58,6 +58,9 @@ import {
   writeSourceCanvasLatticeColumns,
 } from './sourceCanvasLatticeColumns';
 import { AddressLedger } from './AddressLedger';
+import { SourceRuleLayerPanel } from './SourceRuleLayerPanel';
+import { SourceStepRuleSummary } from './SourceStepRuleSummary';
+import { SourceTriagePanel } from './SourceTriagePanel';
 import { useWorkbench } from './WorkbenchProvider';
 import { parseDeviceConnectionConfig } from './workbenchDeviceFormModel';
 import {
@@ -71,6 +74,7 @@ import {
   type SourceValueFormat,
   type SourceViewMode,
 } from './sourceCanvasModel';
+import { buildSourcePlanningDatabaseAdvisory } from './sourceStepRuleSummaryModel';
 
 function getSelectedDevice(devices: Device[], selectedDeviceId: string | null) {
   return devices.find((device) => device.id === selectedDeviceId) ?? null;
@@ -364,10 +368,17 @@ function buildRulePointDefinitions(input: {
   return [...definitions.values()];
 }
 
-export function SourceCanvasSection() {
+type SourceCanvasSectionProps = {
+  deskMode: 'inspect' | 'build' | 'triage';
+};
+
+export function SourceCanvasSection({ deskMode }: SourceCanvasSectionProps) {
   const { t } = useTranslation();
   const {
+    activeOutputTarget,
+    crossStepContext,
     selectedDeviceId,
+    setActiveStep,
     setFocusedRuleId,
     setInspectorSelection,
     setSelectedDeviceId,
@@ -420,6 +431,13 @@ export function SourceCanvasSection() {
   const [targetDataType, setTargetDataType] = useState<DataType | ''>('');
   const [scaleMultiplier, setScaleMultiplier] = useState<string>('');
   const [scaleOffset, setScaleOffset] = useState<string>('');
+  const [plannerFieldTouched, setPlannerFieldTouched] = useState({
+    namingPrefix: false,
+    targetDataType: false,
+    scaleMultiplier: false,
+    scaleOffset: false,
+  });
+  const [hoverPreviewRuleId, setHoverPreviewRuleId] = useState<string | null>(null);
   const [dataFormat, setDataFormat] = useState<string>('');
   /** 規劃規則層側欄：規則建立器與已新增規則清單之分頁。 */
   const [ruleLayerTab, setRuleLayerTab] = useState<'planner' | 'rules'>('planner');
@@ -580,6 +598,16 @@ export function SourceCanvasSection() {
     setStartAddress(nextStartAddress);
   }, [rememberedStartAddress, selectedDevice]);
 
+  useEffect(() => {
+    setPlannerFieldTouched({
+      namingPrefix: false,
+      targetDataType: false,
+      scaleMultiplier: false,
+      scaleOffset: false,
+    });
+    setHoverPreviewRuleId(null);
+  }, [selectedDeviceId]);
+
   /**
    * 切換設備（或設備資料載入完成）時，依協定重設規則建立器的命名前綴預設值。
    * 僅依 `deviceId` 與 `protocol` 觸發，避免 React Query 重取導致同一台設備下使用者已編輯的前綴被洗回。
@@ -588,8 +616,46 @@ export function SourceCanvasSection() {
     if (!selectedDeviceId || !selectedDeviceProtocol) {
       return;
     }
-    setNamingPrefix(getDefaultNamingPrefixForProtocol(selectedDeviceProtocol));
-  }, [selectedDeviceId, selectedDeviceProtocol]);
+
+    if (activeOutputTarget === 'database') {
+      const advisory = buildSourcePlanningDatabaseAdvisory(selectedDeviceProtocol, dataType);
+      if (!plannerFieldTouched.namingPrefix) {
+        setNamingPrefix(advisory.namingPrefix);
+      }
+      if (!plannerFieldTouched.targetDataType) {
+        setTargetDataType(advisory.targetDataType);
+      }
+      if (!plannerFieldTouched.scaleMultiplier) {
+        setScaleMultiplier(advisory.scaleMultiplier);
+      }
+      if (!plannerFieldTouched.scaleOffset) {
+        setScaleOffset(advisory.scaleOffset);
+      }
+      return;
+    }
+
+    if (!plannerFieldTouched.namingPrefix) {
+      setNamingPrefix(getDefaultNamingPrefixForProtocol(selectedDeviceProtocol));
+    }
+    if (!plannerFieldTouched.targetDataType) {
+      setTargetDataType('');
+    }
+    if (!plannerFieldTouched.scaleMultiplier) {
+      setScaleMultiplier('');
+    }
+    if (!plannerFieldTouched.scaleOffset) {
+      setScaleOffset('');
+    }
+  }, [
+    activeOutputTarget,
+    dataType,
+    plannerFieldTouched.namingPrefix,
+    plannerFieldTouched.scaleMultiplier,
+    plannerFieldTouched.scaleOffset,
+    plannerFieldTouched.targetDataType,
+    selectedDeviceId,
+    selectedDeviceProtocol,
+  ]);
 
   useEffect(() => {
     if (!selectedDeviceId || !sourceRulesQuery.isSuccess) {
@@ -693,136 +759,27 @@ export function SourceCanvasSection() {
 
   const runtimePointsHealthy = runtimeStatusQuery.data?.collectors[0]?.points_healthy ?? 0;
   const runtimePointsStale = runtimeStatusQuery.data?.collectors[0]?.points_stale ?? 0;
-
-  /** 右欄檢查面板上方的 Runtime／規則套用摘要（僅在有選中設備時註冊至 WorkbenchFrame）。 */
-  const sourceStepInspectorBannerContent = useMemo(() => {
-    if (!selectedDeviceId) {
-      return null;
+  const activeRuleId = useMemo(() => {
+    const preferredIds = [crossStepContext.focusedRuleId, sourcePlanningState.selectedRuleId];
+    for (const candidateId of preferredIds) {
+      if (candidateId && rules.some((rule) => rule.id === candidateId)) {
+        return candidateId;
+      }
     }
-
-    return (
-      <div
-        className="min-w-0 space-y-3.5"
-        data-testid="source-runtime-collection-panel"
-      >
-        <section aria-label={t('workbench.runtime.summary.title')}>
-          <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
-            <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-400/95">
-              {t('workbench.runtime.summary.title')}
-            </p>
-            <button
-              type="button"
-              data-testid="source-runtime-collection-hint"
-              className="shrink-0 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-800/90 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400/80"
-              aria-label={t('workbench.source.collection.hintHint')}
-              title={t('workbench.source.collection.hint')}
-            >
-              <CircleHelp className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <article className="min-w-0 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-2.5 py-2 shadow-sm shadow-black/20">
-              <p className="text-[9px] font-semibold uppercase leading-tight tracking-[0.14em] text-emerald-200/75">
-                {t('workbench.runtime.summary.pointsHealthy')}
-              </p>
-              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-emerald-100">
-                {runtimePointsHealthy}
-              </p>
-            </article>
-            <article className="min-w-0 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-2.5 py-2 shadow-sm shadow-black/20">
-              <p className="text-[9px] font-semibold uppercase leading-tight tracking-[0.14em] text-amber-200/75">
-                {t('workbench.runtime.summary.pointsStale')}
-              </p>
-              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-amber-100">
-                {runtimePointsStale}
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <div
-          className="h-px w-full bg-gradient-to-r from-transparent via-slate-700/80 to-transparent"
-          aria-hidden
-        />
-
-        <section aria-label={t('workbench.source.summary.title')}>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            {t('workbench.source.summary.title')}
-          </p>
-          <div
-            className="grid min-w-0 cursor-help grid-cols-3 gap-1.5"
-            data-testid="source-step-summary"
-            title={t('workbench.source.summary.panelHint')}
-          >
-            <div
-              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
-              title={t('workbench.source.summary.readyToCreateHint')}
-            >
-              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                {t('workbench.source.summary.readyToCreate')}
-              </p>
-              <p
-                className="mt-1 text-base font-semibold tabular-nums leading-none text-emerald-300/95"
-                data-testid="source-summary-ready-count"
-              >
-                {readyToCreateCount}
-              </p>
-            </div>
-            <div
-              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
-              title={t('workbench.source.summary.inConflictHint')}
-            >
-              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                {t('workbench.source.summary.inConflict')}
-              </p>
-              <p
-                className="mt-1 text-base font-semibold tabular-nums leading-none text-rose-300/95"
-                data-testid="source-summary-conflict-count"
-              >
-                {conflictCount}
-              </p>
-            </div>
-            <div
-              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
-              title={t('workbench.source.summary.protectedHint')}
-            >
-              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                {t('workbench.source.summary.protected')}
-              </p>
-              <p
-                className="mt-1 text-base font-semibold tabular-nums leading-none text-amber-300/95"
-                data-testid="source-summary-protected-count"
-              >
-                {protectedPointDefinitions.length}
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- t 用於文案；排除不穩定參照以免右欄 slot 重複註冊循環
+    return rules[0]?.id ?? null;
   }, [
-    conflictCount,
-    protectedPointDefinitions.length,
-    readyToCreateCount,
-    runtimePointsHealthy,
-    runtimePointsStale,
-    selectedDeviceId,
+    crossStepContext.focusedRuleId,
+    rules,
+    sourcePlanningState.selectedRuleId,
   ]);
+  const previewRuleId = hoverPreviewRuleId ?? activeRuleId;
 
-  /**
-   * 將 Runtime／規則摘要節點註冊到 Workbench 右欄；卸載或內容為空時清空，避免殘留到其他步驟。
-   */
-  useLayoutEffect(() => {
-    if (sourceStepInspectorBannerContent) {
-      setSourceStepInspectorBanner(sourceStepInspectorBannerContent);
-    } else {
-      setSourceStepInspectorBanner(null);
-    }
+  useEffect(() => {
+    setSourceStepInspectorBanner(null);
     return () => {
       setSourceStepInspectorBanner(null);
     };
-  }, [setSourceStepInspectorBanner, sourceStepInspectorBannerContent]);
+  }, [setSourceStepInspectorBanner]);
 
   const conflictQueue = useMemo(() => buildConflictQueue(items), [items]);
 
@@ -995,6 +952,7 @@ export function SourceCanvasSection() {
   };
 
   const handleSelectRule = (ruleId: string) => {
+    setHoverPreviewRuleId(null);
     setSourcePlanningState((currentState) => ({
       ...currentState,
       selectedRuleId: ruleId,
@@ -1570,10 +1528,269 @@ export function SourceCanvasSection() {
       />
     );
 
-  return (
-    <section className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
-      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
+  const workspaceModeTestId =
+    deskMode === 'build' ? 'source-build-workspace' : 'source-inspect-workspace';
+  const unmanagedIssueCount = items.filter(
+    (item) => item.status === 'unmanaged' && item.mergeOffset === 0,
+  ).length;
+  const triageNeedsAttention = conflictQueue.length > 0 || unmanagedIssueCount > 0;
+  const workspaceSummaryStrip = (
+    <div
+      className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.9fr)]"
+      data-testid="source-workspace-summary-strip"
+    >
+      <SourceStepRuleSummary
+        activeOutputTarget={activeOutputTarget}
+        activeRuleId={activeRuleId}
+        applyDisabled={
+          safePointDefinitions.length === 0 ||
+          createPointMutation.isPending ||
+          createSourceRuleMutation.isPending ||
+          updateSourceRuleMutation.isPending
+        }
+        batchCreateSummary={batchCreateSummary}
+        items={items}
+        onApplyPlanning={() => {
+          void handleBatchCreate();
+        }}
+        onHoverRule={setHoverPreviewRuleId}
+        onSelectRule={handleSelectRule}
+        previewRuleId={previewRuleId}
+        protocol={selectedDevice.protocol}
+        rules={rules}
+      />
+      <div className="min-w-0 space-y-3.5">
+        <section className="space-y-2" data-testid="source-runtime-collection-panel">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-400/95">
+              {t('workbench.runtime.summary.title')}
+            </p>
+            <button
+              type="button"
+              data-testid="source-runtime-collection-hint"
+              className="shrink-0 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-800/90 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400/80"
+              aria-label={t('workbench.source.collection.hintHint')}
+              title={t('workbench.source.collection.hint')}
+            >
+              <CircleHelp className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <article className="min-w-0 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.08] px-2.5 py-2 shadow-sm shadow-black/20">
+              <p className="text-[9px] font-semibold uppercase leading-tight tracking-[0.14em] text-emerald-200/75">
+                {t('workbench.runtime.summary.pointsHealthy')}
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-emerald-100">
+                {runtimePointsHealthy}
+              </p>
+            </article>
+            <article className="min-w-0 rounded-xl border border-amber-500/20 bg-amber-500/[0.07] px-2.5 py-2 shadow-sm shadow-black/20">
+              <p className="text-[9px] font-semibold uppercase leading-tight tracking-[0.14em] text-amber-200/75">
+                {t('workbench.runtime.summary.pointsStale')}
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-amber-100">
+                {runtimePointsStale}
+              </p>
+            </article>
+          </div>
+        </section>
+        <section aria-label={t('workbench.source.summary.title')}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            {t('workbench.source.summary.title')}
+          </p>
+          <div className="grid min-w-0 cursor-help grid-cols-3 gap-1.5" title={t('workbench.source.summary.panelHint')}>
+            <div
+              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
+              title={t('workbench.source.summary.readyToCreateHint')}
+            >
+              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('workbench.source.summary.readyToCreate')}
+              </p>
+              <p
+                className="mt-1 text-base font-semibold tabular-nums leading-none text-emerald-300/95"
+                data-testid="source-workspace-ready-count"
+              >
+                <span data-testid="source-summary-ready-count">{readyToCreateCount}</span>
+              </p>
+            </div>
+            <div
+              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
+              title={t('workbench.source.summary.inConflictHint')}
+            >
+              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('workbench.source.summary.inConflict')}
+              </p>
+              <p
+                className="mt-1 text-base font-semibold tabular-nums leading-none text-rose-300/95"
+                data-testid="source-workspace-conflict-count"
+              >
+                <span data-testid="source-summary-conflict-count">{conflictCount}</span>
+              </p>
+            </div>
+            <div
+              className="flex min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/50 px-1.5 py-2 shadow-sm shadow-black/15"
+              title={t('workbench.source.summary.protectedHint')}
+            >
+              <p className="truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                {t('workbench.source.summary.protected')}
+              </p>
+              <p
+                className="mt-1 text-base font-semibold tabular-nums leading-none text-amber-300/95"
+                data-testid="source-workspace-protected-count"
+              >
+                <span data-testid="source-summary-protected-count">
+                  {protectedPointDefinitions.length}
+                </span>
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+  const workspaceDiagnosticsStrip = (
+    <section
+      className="rounded-xl border border-slate-800/60 bg-slate-950/20 px-4 py-3"
+      data-testid="source-workspace-diagnostics-strip"
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {t('workbench.source.diagnostics.eyebrow')}
+          </p>
+          <p className="mt-1 text-sm text-slate-300">
+            {t('workbench.source.diagnostics.description')}
+          </p>
+          <p className="mt-2 text-xs text-cyan-200">
+            {t(`workbench.source.deskModeGuidance.${deskMode}`)}
+          </p>
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+          {t(`workbench.source.deskMode.${deskMode}`)}
+        </p>
+      </div>
+    </section>
+  );
+  const triageRecoveryPanel = (
+    <section
+      className="space-y-3 rounded-xl border border-rose-500/20 bg-rose-950/10 p-4"
+      data-testid="source-triage-recovery-panel"
+    >
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300">
+          {t('workbench.source.triage.eyebrow')}
+        </p>
+        <h3 className="text-sm font-semibold text-slate-100">
+          {triageNeedsAttention
+            ? t('workbench.source.triage.title')
+            : t('workbench.source.triage.clearTitle')}
+        </h3>
+        <p className="text-sm text-slate-300">
+          {triageNeedsAttention
+            ? t('workbench.source.triage.description', { count: conflictQueue.length + unmanagedIssueCount })
+            : t('workbench.source.triage.clearDescription')}
+        </p>
+      </div>
+      {triageNeedsAttention ? (
+        <>
+          {unmanagedIssueCount > 0 ? (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.08] px-3 py-2 text-sm text-amber-100">
+              {t('workbench.source.triage.unmanagedSummary', { count: unmanagedIssueCount })}
+            </div>
+          ) : null}
+          {deskMode !== 'triage' && conflictQueue.length > 0 ? (
+            <section
+              className="space-y-2 rounded-xl border border-rose-500/30 bg-rose-900/10 p-3"
+              data-testid="source-conflict-queue"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-300">
+                {t('workbench.source.conflictQueue.title')}
+              </p>
+              <p className="text-xs text-rose-200">
+                {t('workbench.source.conflictQueue.step3Blocked')}
+              </p>
+              <div className="space-y-2">
+                {conflictQueue.map((conflict) => {
+                  const targetRuleId = conflict.ruleIds[conflict.ruleIds.length - 1];
+                  return (
+                    <article
+                      key={conflict.id}
+                      className="flex flex-wrap items-center gap-2 rounded-lg border border-rose-500/20 bg-rose-950/40 px-3 py-2"
+                      data-testid={`conflict-item-${conflict.address}`}
+                    >
+                      <span className="font-mono text-xs text-rose-100">
+                        {conflict.address}
+                      </span>
+                      <span className="text-xs text-rose-200">
+                        {t(conflict.reasonKey)}
+                      </span>
+                      <span className="text-xs text-rose-300">
+                        {conflict.ruleIds.join(', ')}
+                      </span>
+                      <div className="ml-auto flex gap-1">
+                        {targetRuleId ? (
+                          <>
+                            <button
+                              type="button"
+                              className="rounded-lg border border-rose-500/30 px-2 py-1 text-[11px] text-rose-100"
+                              onClick={() => {
+                                setRuleLayerTab('rules');
+                                handleSelectRule(targetRuleId);
+                                handleStartRuleEdit(targetRuleId);
+                              }}
+                            >
+                              {t('workbench.source.conflictQueue.editRule')}
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg border border-rose-500/30 px-2 py-1 text-[11px] text-rose-100"
+                              onClick={() => handleSkipConflictSpan(targetRuleId, conflict.conflictCellAddress)}
+                            >
+                              {t('workbench.source.conflictQueue.skipSpan')}
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+        </>
+      ) : (
+        <div
+          className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.08] px-3 py-3 text-sm text-emerald-100"
+          data-testid="source-triage-clear-state"
+        >
+          {t('workbench.source.triage.clearState')}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-emerald-400/30 px-3 py-1.5 text-xs font-medium text-emerald-100"
+              onClick={() => setActiveStep('tag')}
+            >
+              {t('workbench.source.handoff.toTag')}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+
+  const workspaceGrid = (
+    <div
+      className={[
+        'grid min-h-0 flex-1 gap-4 overflow-hidden',
+        deskMode === 'build'
+          ? 'xl:grid-cols-[minmax(24rem,1.12fr)_minmax(20rem,0.88fr)]'
+          : 'xl:grid-cols-[300px_minmax(0,1fr)]',
+      ].join(' ')}
+    >
+      <SourceRuleLayerPanel
+        panelTestId={deskMode === 'build' ? 'source-build-rule-panel' : 'source-rule-layer-panel'}
+      >
+          <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <section
             className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/25 p-4"
             data-emphasis="primary"
@@ -1735,6 +1952,7 @@ export function SourceCanvasSection() {
                     value={namingPrefix}
                     onChange={(event) => {
                       clearAppliedTemplate();
+                      setPlannerFieldTouched((current) => ({ ...current, namingPrefix: true }));
                       setNamingPrefix(event.target.value);
                     }}
                     className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
@@ -1753,6 +1971,10 @@ export function SourceCanvasSection() {
                       value={targetDataType}
                       onChange={(event) => {
                         clearAppliedTemplate();
+                        setPlannerFieldTouched((current) => ({
+                          ...current,
+                          targetDataType: true,
+                        }));
                         setTargetDataType(event.target.value as DataType | '');
                       }}
                       className={SOURCE_PLANNER_FIELD_CONTROL_CLASS}
@@ -1799,7 +2021,10 @@ export function SourceCanvasSection() {
                       step="any"
                       placeholder="0.0"
                       value={scaleOffset}
-                      onChange={(event) => setScaleOffset(event.target.value)}
+                      onChange={(event) => {
+                        setPlannerFieldTouched((current) => ({ ...current, scaleOffset: true }));
+                        setScaleOffset(event.target.value);
+                      }}
                       className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                     />
                   </label>
@@ -1813,11 +2038,26 @@ export function SourceCanvasSection() {
                       step="any"
                       placeholder="1.0"
                       value={scaleMultiplier}
-                      onChange={(event) => setScaleMultiplier(event.target.value)}
+                      onChange={(event) => {
+                        setPlannerFieldTouched((current) => ({
+                          ...current,
+                          scaleMultiplier: true,
+                        }));
+                        setScaleMultiplier(event.target.value);
+                      }}
                       className={SOURCE_PLANNER_FIELD_CONTROL_MONO_CLASS}
                     />
                   </label>
               </div>
+
+              {activeOutputTarget === 'database' ? (
+                <div
+                  className="rounded-lg border border-violet-500/20 bg-violet-500/[0.08] px-3 py-2 text-xs text-violet-100"
+                  data-testid="source-planner-database-defaults"
+                >
+                  {t('workbench.source.databaseHints.formDefaults')}
+                </div>
+              ) : null}
 
               <button
                 type="button"
@@ -2205,7 +2445,18 @@ export function SourceCanvasSection() {
             </div>
           </section>
         </aside>
+        </SourceRuleLayerPanel>
 
+        <div
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          data-testid={
+            deskMode === 'build'
+              ? 'source-build-canvas-panel'
+              : deskMode === 'triage'
+                ? 'source-triage-canvas-panel'
+                : 'source-inspect-canvas-panel'
+          }
+        >
         <section
           className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40 p-4"
           data-emphasis="supporting"
@@ -2215,34 +2466,47 @@ export function SourceCanvasSection() {
             className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"
             data-testid="source-primary-toolbar"
           >
-            <div className="flex flex-wrap items-center gap-2">
-              {(['plan', 'live', 'link'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setViewMode(mode)}
-                  className={
-                    viewMode === mode
-                      ? 'rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950'
-                      : 'rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300'
+            <div
+              className="flex flex-1 flex-col gap-2 xl:max-w-2xl"
+              data-testid="source-diagnostic-toolbar"
+            >
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {t('workbench.source.diagnostics.eyebrow')}
+                </p>
+                <p className="mt-1 text-sm text-slate-300">
+                  {t('workbench.source.diagnostics.description')}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(['plan', 'live', 'link'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    className={
+                      viewMode === mode
+                        ? 'rounded-lg border border-cyan-500/40 bg-cyan-500/12 px-3 py-1.5 text-xs font-semibold text-cyan-100'
+                        : 'rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-300'
+                    }
+                  >
+                    {t(`workbench.source.view.${mode}`)}
+                  </button>
+                ))}
+                <select
+                  aria-label={t('workbench.source.toolbar.valueFormat')}
+                  value={valueFormat}
+                  onChange={(event) =>
+                    setValueFormat(event.target.value as SourceValueFormat)
                   }
+                  className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs text-slate-200"
                 >
-                  {t(`workbench.source.view.${mode}`)}
-                </button>
-              ))}
-              <select
-                aria-label={t('workbench.source.toolbar.valueFormat')}
-                value={valueFormat}
-                onChange={(event) =>
-                  setValueFormat(event.target.value as SourceValueFormat)
-                }
-                className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-200"
-              >
-                <option value="decimal">{t('workbench.source.formats.decimal')}</option>
-                <option value="hex">{t('workbench.source.formats.hex')}</option>
-                <option value="binary">{t('workbench.source.formats.binary')}</option>
-                <option value="float">{t('workbench.source.formats.float')}</option>
-              </select>
+                  <option value="decimal">{t('workbench.source.formats.decimal')}</option>
+                  <option value="hex">{t('workbench.source.formats.hex')}</option>
+                  <option value="binary">{t('workbench.source.formats.binary')}</option>
+                  <option value="float">{t('workbench.source.formats.float')}</option>
+                </select>
+              </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
               <label
@@ -2383,25 +2647,6 @@ export function SourceCanvasSection() {
               >
                 {t('workbench.source.actions.createSelectedPoints')}
               </button>
-              <button
-                type="button"
-                onClick={() => void handleBatchCreate()}
-                disabled={
-                  safePointDefinitions.length === 0 ||
-                  createPointMutation.isPending ||
-                  createSourceRuleMutation.isPending ||
-                  updateSourceRuleMutation.isPending
-                }
-                title={t('workbench.source.actions.createRulePointsHint')}
-                className="rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 shadow-sm shadow-cyan-900/30 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 disabled:shadow-none"
-              >
-                {t('workbench.source.actions.createRulePoints')}
-                {conflictCount > 0 && safePointDefinitions.length > 0 ? (
-                  <span className="ml-1 font-normal tabular-nums opacity-90">
-                    ({safePointDefinitions.length})
-                  </span>
-                ) : null}
-              </button>
             </div>
           </div>
 
@@ -2423,7 +2668,10 @@ export function SourceCanvasSection() {
 
             <div
               ref={sourceWorkspaceSecondaryScrollRef}
-              className="min-h-0 max-h-[min(46vh,26rem)] touch-pan-y space-y-4 overflow-y-auto overscroll-contain pb-4 scrollbar-none"
+              className={[
+                'min-h-0 touch-pan-y space-y-4 overflow-y-auto overscroll-contain pb-4 scrollbar-none',
+                deskMode === 'build' ? 'max-h-[min(30vh,16rem)]' : 'max-h-[min(38vh,22rem)]',
+              ].join(' ')}
             >
           {selectedPointDefinition ? (
             <div
@@ -2614,7 +2862,7 @@ export function SourceCanvasSection() {
             </div>
           ) : null}
 
-          {conflictQueue.length > 0 ? (
+          {deskMode !== 'triage' && conflictQueue.length > 0 ? (
             <section
               className="space-y-2 rounded-xl border border-rose-500/30 bg-rose-900/10 p-3"
               data-testid="source-conflict-queue"
@@ -2702,7 +2950,34 @@ export function SourceCanvasSection() {
             </div>
           </div>
         </section>
+        </div>
+    </div>
+  );
+
+  const primaryWorkspace =
+    deskMode === 'triage' ? (
+      <SourceTriagePanel recoveryPanel={triageRecoveryPanel}>{workspaceGrid}</SourceTriagePanel>
+    ) : (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden" data-testid={workspaceModeTestId}>
+        {workspaceGrid}
       </div>
+    );
+
+  return (
+    <section className="flex h-full min-h-0 flex-col gap-6 overflow-hidden">
+      {deskMode === 'inspect' ? (
+        <>
+          {workspaceSummaryStrip}
+          {workspaceDiagnosticsStrip}
+          {primaryWorkspace}
+        </>
+      ) : (
+        <>
+          {primaryWorkspace}
+          {workspaceSummaryStrip}
+          {workspaceDiagnosticsStrip}
+        </>
+      )}
     </section>
   );
 }

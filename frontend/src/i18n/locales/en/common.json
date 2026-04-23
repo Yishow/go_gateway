@@ -598,10 +598,18 @@
       },
       "sentryBanner": {
         "eyebrow": "INCIDENT DESK — SOURCE",
-        "title": "Triage rule coverage before Tag review",
+        "title": {
+          "inspect": "Verify rule coverage before Tag review",
+          "build": "Edit the active rule before handing off to Tag review",
+          "triage": "Triage rule coverage before Tag review"
+        },
         "description": "Keep rule edits, canvas coverage, and retry signals in one Sentry-style desk so operators can verify the address delta before handing off to Tag review.",
-        "ready": "CLEAR",
-        "blocked": "BLOCKED"
+        "status": {
+          "inspect": "INSPECTING",
+          "build": "BUILDING",
+          "triage": "TRIAGE",
+          "blocked": "BLOCKED"
+        }
       },
       "deskMode": {
         "tabListAria": "Source desk mode",
@@ -609,13 +617,65 @@
         "build": "BUILD",
         "triage": "TRIAGE"
       },
+      "deskModeGuidance": {
+        "inspect": "Canvas-first verification keeps the active rule and downstream handoff visible while you inspect coverage.",
+        "build": "Edit the focused rule first, with a readable canvas kept beside the builder for immediate planning feedback.",
+        "triage": "Issue-first review pulls blocked, conflict, and unmanaged ranges forward before you return to normal inspection."
+      },
       "handoff": {
         "dockLabel": "HANDOFF",
         "toTag": "→ TAG REVIEW",
         "pointSummary": "{{count}} points mapped",
+        "scopeSummary": "{{startAddress}} · {{count}} · {{dataType}}",
+        "awaitRule": "Select or add a rule to prepare the Tag handoff.",
         "prefixLabel": "Prefix",
         "groupedReview": "Next step reviews grouped tags before Database planning.",
         "noDevice": "No device selected"
+      },
+      "triage": {
+        "eyebrow": "ISSUE-FIRST DESK",
+        "title": "Recover blocked or unmanaged planning before handoff",
+        "description": "{{count}} planning surface(s) need triage before Step 3 can trust this scope.",
+        "clearTitle": "No triage queue is blocking this rule",
+        "clearDescription": "This rule can return to Inspect for verification or move forward without a dedicated incident queue.",
+        "clearState": "No conflict, blocked, or unmanaged range is waiting in triage.",
+        "unmanagedSummary": "{{count}} unmanaged range(s) still need a rule or an explicit skip decision."
+      },
+      "activeRule": {
+        "eyebrow": "ACTIVE RULE",
+        "title": "Confirm the rule before reading the lattice",
+        "description": "Start with the focused rule, its coverage, and the next Tag review scope. The lattice stays available for verification and diagnostics after the plan is clear.",
+        "startAddress": "Start address",
+        "count": "Count",
+        "dataType": "Data type",
+        "coveragePlanned": "Planned",
+        "coverageUsed": "Used",
+        "coverageConflict": "Conflict"
+      },
+      "preview": {
+        "eyebrow": "RULE-SCOPED PREVIEW",
+        "title": "Next Tag review scope",
+        "hoverTitle": "Hovered rule preview",
+        "empty": "No active rule selected.",
+        "pending": "Apply this rule first to lock the exact Tag review scope.",
+        "loading": "Loading the latest rule-scoped preview…",
+        "tagCandidates": "Tag candidates",
+        "tagCandidateCount": "{{count}} candidate(s) in the current rule scope",
+        "noCandidates": "No downstream candidates are available for this rule yet."
+      },
+      "diagnostics": {
+        "eyebrow": "DIAGNOSTIC SURFACE",
+        "description": "Use the canvas to verify coverage, conflicts, and live values after the active rule plan is clear."
+      },
+      "databaseHints": {
+        "title": "Database-aware planning defaults",
+        "description": "When the output target is database, Source planning leans toward database-friendly type, scale, and naming defaults without overriding explicit operator edits.",
+        "targetDataType": "Target type",
+        "scale": "Scale",
+        "naming": "Naming",
+        "grouping": "Grouping hints",
+        "pendingGrouping": "Apply the rule to preview grouped row and column hints for the focused scope.",
+        "formDefaults": "Database target is active. Untouched target type, scale, and naming fields stay aligned with database-friendly planning defaults."
       },
       "view": {
         "plan": "Plan",
@@ -644,7 +704,7 @@
         "addRule": "Add rule",
         "batchCreate": "Batch create",
         "conflictHint": "Resolve address conflicts before applying rules.",
-        "batchSummary": "Applied {{successCount}} rule(s), {{failureCount}} failed.",
+        "batchSummary": "Applied {{successCount}} planned rule(s) to the canvas, {{failureCount}} failed.",
         "batchApplyNoEligibleRules": "No unlocked enabled rules match safe cells; ensure rules are enabled, not plan-protected, and addresses parse correctly.",
         "batchApplyErrorFallback": "Failed to apply source rules (check /api/v1/datalink/source-rules response or network).",
         "import": "Import",
@@ -679,9 +739,9 @@
       },
       "actions": {
         "createSelectedPoints": "Engineering: create selected source",
-        "createRulePoints": "Apply rules",
+        "createRulePoints": "Apply planning to canvas",
         "createSelectedPointsHint": "Exception-only shortcut for creating a backend point from the currently selected cell. The normal flow should still use “Apply rules” for batch creation.",
-        "createRulePointsHint": "Batch-create points for all planned, non-conflicting addresses derived from your rules. If conflicts remain, only the safe subset is created; the number in parentheses is how many will be created this run."
+        "createRulePointsHint": "Materialize the current plan into the canvas for all safe, non-conflicting spans. If conflicts remain, only the safe subset is created this run; the number in parentheses is how many points will be created."
       },
       "toolbar": {
         "valueFormat": "Value format",

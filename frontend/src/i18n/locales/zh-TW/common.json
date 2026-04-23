@@ -598,10 +598,18 @@
       },
       "sentryBanner": {
         "eyebrow": "事件桌 — 來源",
-        "title": "先完成規則覆蓋判讀，再交給 Tag 審查",
+        "title": {
+          "inspect": "先核對規則與畫布，再交給 Tag 審查",
+          "build": "先編修目前規則，再交給 Tag 審查",
+          "triage": "先修復需分診的規劃，再交給 Tag 審查"
+        },
         "description": "把規則編修、畫布覆蓋與重試訊號收在同一個 Sentry 風格工作桌，讓操作員在交接到 Tag review 前先判讀這次位址差異。",
-        "ready": "暢通",
-        "blocked": "阻塞中"
+        "status": {
+          "inspect": "巡檢中",
+          "build": "編修中",
+          "triage": "待分診",
+          "blocked": "阻塞中"
+        }
       },
       "deskMode": {
         "tabListAria": "來源工作桌模式",
@@ -609,13 +617,65 @@
         "build": "建造",
         "triage": "分診"
       },
+      "deskModeGuidance": {
+        "inspect": "以畫布為主檢查目前規則、覆蓋情況與下游交接線索，確認規劃真的成立。",
+        "build": "以規則編修為主，但保留可讀畫布，讓每次調整都能立即對照位址結果。",
+        "triage": "把衝突、阻塞與未納管範圍拉到前面，先解決風險，再回到一般巡檢。"
+      },
       "handoff": {
         "dockLabel": "交接區",
         "toTag": "→ TAG 審查",
         "pointSummary": "已映射 {{count}} 點",
+        "scopeSummary": "{{startAddress}} · {{count}} · {{dataType}}",
+        "awaitRule": "請先選取或建立規則，才能準備交接到 Tag 審查。",
         "prefixLabel": "前綴",
         "groupedReview": "下一步會先審查 grouped Tag，再進入 Database 規劃。",
         "noDevice": "尚未選擇設備"
+      },
+      "triage": {
+        "eyebrow": "分診優先桌",
+        "title": "先修復阻塞或未納管規劃，再交接出去",
+        "description": "目前有 {{count}} 個規劃面需要先分診，Step 3 才能信任這段範圍。",
+        "clearTitle": "這條規則目前沒有分診佇列",
+        "clearDescription": "可以回到巡檢確認細節，或直接沿著主線往下交接，不需要額外 incident queue。",
+        "clearState": "目前沒有衝突、阻塞或未納管範圍留在分診桌。",
+        "unmanagedSummary": "仍有 {{count}} 段未納管範圍需要規則或明確跳過決策。"
+      },
+      "activeRule": {
+        "eyebrow": "目前規則",
+        "title": "先確認這條規則，再讀畫布",
+        "description": "先看目前聚焦規則、覆蓋摘要與下一步 Tag 審查範圍，再進到 lattice 驗證細節。畫布保留做驗證與診斷，不再承擔主要規劃敘事。",
+        "startAddress": "起始位址",
+        "count": "數量",
+        "dataType": "資料型態",
+        "coveragePlanned": "規劃中",
+        "coverageUsed": "已納管",
+        "coverageConflict": "衝突"
+      },
+      "preview": {
+        "eyebrow": "規則範圍預覽",
+        "title": "下一步 Tag 審查範圍",
+        "hoverTitle": "目前為滑入預覽",
+        "empty": "目前沒有聚焦中的規則。",
+        "pending": "請先套用這條規則，才能鎖定精確的 Tag 審查範圍。",
+        "loading": "正在載入這條規則的下游預覽…",
+        "tagCandidates": "Tag 候選項",
+        "tagCandidateCount": "目前規則範圍內有 {{count}} 筆候選項",
+        "noCandidates": "這條規則目前還沒有可預覽的下游候選項。"
+      },
+      "diagnostics": {
+        "eyebrow": "診斷畫布",
+        "description": "當規則摘要清楚後，再用畫布核對覆蓋、衝突與即時值。"
+      },
+      "databaseHints": {
+        "title": "Database 導向規劃預設",
+        "description": "當輸出目標是 database 時，Source 規劃會傾向使用較適合 database review 的型態、縮放與命名預設，但不會覆蓋操作者明確改過的值。",
+        "targetDataType": "目標型態",
+        "scale": "縮放",
+        "naming": "命名",
+        "grouping": "Grouping hints",
+        "pendingGrouping": "先套用規則，就能預覽這條規則對應的 row / column grouping hints。",
+        "formDefaults": "目前輸出目標為 database；尚未明確改過的 target type、scale 與命名前綴，會維持 database-aware 規劃預設。"
       },
       "view": {
         "plan": "規劃",
@@ -644,7 +704,7 @@
         "addRule": "新增規則",
         "batchCreate": "批次建立",
         "conflictHint": "請先排除位址衝突，再進行批次建立。",
-        "batchSummary": "已套用 {{successCount}} 條規則，失敗 {{failureCount}} 條。",
+        "batchSummary": "已將 {{successCount}} 條規劃規則套用到畫布，失敗 {{failureCount}} 條。",
         "batchApplyNoEligibleRules": "沒有可套用的未保護規則與安全格點對應；請確認規則已啟用、非「保護規劃」，且位址格式正確。",
         "batchApplyErrorFallback": "套用來源規則失敗（請檢查 /api/v1/datalink/source-rules 回應或網路連線）。",
         "import": "匯入",
@@ -679,9 +739,9 @@
       },
       "actions": {
         "createSelectedPoints": "工程：建立單一來源",
-        "createRulePoints": "套用規則",
+        "createRulePoints": "套用規劃到畫布",
         "createSelectedPointsHint": "例外處理用的單格建立捷徑，只會為目前選取的一格建立 point；正常主線仍以「套用規則」批次建立為主。",
-        "createRulePointsHint": "依左側規則與格點狀態，對所有可套用且無衝突的規劃位址批次建立 point。若仍有衝突格，只會建立安全子集；括號內數字為本次預計建立筆數。"
+        "createRulePointsHint": "把目前規劃落到畫布，只對安全且無衝突的 span 建立 point。若仍有衝突格，只會建立安全子集；括號內數字為本次預計建立筆數。"
       },
       "toolbar": {
         "valueFormat": "數值格式",

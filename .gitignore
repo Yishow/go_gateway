@@ -106,3 +106,5 @@ datalink.db-wal
 
 # Git worktrees
 .worktrees/
+.spectra/
+openspec/.vector-search.db*

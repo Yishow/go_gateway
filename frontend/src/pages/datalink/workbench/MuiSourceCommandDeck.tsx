@@ -32,7 +32,7 @@ export function MuiSourceCommandDeck() {
     sourceStepNotice,
   } = useWorkbench();
   const { selectedDevice, sourceReady, pointCount } = useWorkbenchSummary();
-  const [deskMode, setDeskMode] = useState<SentryDeskMode>('inspect');
+  const [deskMode, setDeskMode] = useState<SentryDeskMode>('build');
   const hasDevice = Boolean(selectedDeviceId);
   const isBlocked = !hasDevice || !sourceReady;
   const activeSourceRule = useMemo(() => {
@@ -62,10 +62,23 @@ export function MuiSourceCommandDeck() {
     ? Math.max(activeSourceRule.count - activeSourceRule.skippedAddresses.length, 0)
     : pointCount;
   const namingPrefixContext = activeSourceRule?.namingPrefix.trim() || null;
+  const bannerTitleKey = `workbench.source.sentryBanner.title.${deskMode}` as const;
+  const bannerStatusKey =
+    !hasDevice || !sourceReady
+      ? 'workbench.source.sentryBanner.status.blocked'
+      : (`workbench.source.sentryBanner.status.${deskMode}` as const);
+  const bannerStatusColor =
+    !hasDevice || !sourceReady || deskMode === 'triage' ? sentry.warm : sentry.highlight;
   const incidentPriorityCopy =
     sourceStepNotice ??
     (hasDevice
-      ? t('workbench.source.handoff.pointSummary', { count: plannedPointCount })
+      ? activeSourceRule
+        ? t('workbench.source.handoff.scopeSummary', {
+            startAddress: activeSourceRule.startAddress,
+            count: activeSourceRule.count,
+            dataType: activeSourceRule.dataType,
+          })
+        : t('workbench.source.handoff.awaitRule')
       : t('workbench.source.handoff.noDevice'));
 
   return (
@@ -109,7 +122,7 @@ export function MuiSourceCommandDeck() {
                 fontFamily: tokens.typography.family.sentryUi,
               }}
             >
-              {t('workbench.source.sentryBanner.title')}
+              {t(bannerTitleKey)}
             </Typography>
           </Box>
           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
@@ -130,13 +143,13 @@ export function MuiSourceCommandDeck() {
             />
             <Chip
               size="small"
-              label={t(sourceReady ? 'workbench.source.sentryBanner.ready' : 'workbench.source.sentryBanner.blocked')}
+              label={t(bannerStatusKey)}
               sx={{
                 ...SENTRY_SX.modeChip,
                 height: 24,
-                color: sourceReady ? sentry.highlight : sentry.warm,
-                bgcolor: sourceReady ? `${sentry.highlight}1f` : `${sentry.warm}1f`,
-                border: `1px solid ${sourceReady ? `${sentry.highlight}44` : `${sentry.warm}44`}`,
+                color: bannerStatusColor,
+                bgcolor: `${bannerStatusColor}1f`,
+                border: `1px solid ${bannerStatusColor}44`,
               }}
             />
             {hasDevice ? (
@@ -158,61 +171,31 @@ export function MuiSourceCommandDeck() {
         </Stack>
       </Box>
       <Box
-        data-testid="source-incident-desk-shell"
+        data-testid="source-workspace-skeleton"
         sx={{
-          display: 'grid',
+          display: 'flex',
           minHeight: 0,
           flex: 1,
+          flexDirection: 'column',
           gap: 1.5,
           mt: 1.5,
-          gridTemplateColumns: {
-            xs: 'minmax(0, 1fr)',
-            lg: 'minmax(16rem, 19rem) minmax(0, 1fr)',
-          },
         }}
       >
         <Box
-          data-testid="source-incident-command-panel"
+          data-testid="source-workspace-command-strip"
           sx={{
             ...SENTRY_SX.commandStrip,
-            display: 'flex',
-            minHeight: 0,
-            flexDirection: 'column',
-            gap: 1.25,
+            display: 'grid',
+            gap: 1.5,
             px: 1.5,
             py: 1.5,
             border: `1px solid ${sentry.border}`,
+            gridTemplateColumns: {
+              xs: 'minmax(0, 1fr)',
+              xl: 'minmax(0, 1.25fr) minmax(16rem, 22rem)',
+            },
           }}
         >
-          <Box
-            data-testid="source-incident-priority-card"
-            sx={{
-              borderRadius: '12px',
-              border: `1px solid ${sourceReady ? `${sentry.highlight}33` : `${sentry.warm}44`}`,
-              bgcolor: sourceReady ? alpha(sentry.highlight, 0.08) : `${sentry.warm}14`,
-              px: 1.25,
-              py: 1,
-            }}
-          >
-            <Typography
-              sx={{
-                ...SENTRY_SX.sectionLabel,
-                color: sourceReady ? sentry.highlight : sentry.warm,
-              }}
-            >
-              {t(sourceReady ? 'workbench.source.sentryBanner.ready' : 'workbench.source.sentryBanner.blocked')}
-            </Typography>
-            <Typography
-              sx={{
-                mt: 0.5,
-                color: tokens.text.secondary,
-                fontSize: '13px',
-                lineHeight: 1.5,
-              }}
-            >
-              {incidentPriorityCopy}
-            </Typography>
-          </Box>
           <Box sx={{ minHeight: 0 }}>
             <Typography
               sx={{
@@ -224,6 +207,7 @@ export function MuiSourceCommandDeck() {
               {t('workbench.source.deskMode.tabListAria')}
             </Typography>
             <Stack
+              direction={{ xs: 'column', md: 'row' }}
               role="tablist"
               aria-label={t('workbench.source.deskMode.tabListAria')}
               spacing={0.75}
@@ -248,17 +232,13 @@ export function MuiSourceCommandDeck() {
                       deskMode === key
                         ? alpha(sentry.highlight, 0.14)
                         : alpha(sentry.panel, 0.72),
-                    color:
-                      deskMode === key ? sentry.highlight : tokens.text.secondary,
+                    color: deskMode === key ? sentry.highlight : tokens.text.secondary,
                     '&:hover': {
                       bgcolor:
                         deskMode === key
                           ? alpha(sentry.highlight, 0.18)
                           : alpha(sentry.panel, 0.92),
-                      color:
-                        deskMode === key
-                          ? sentry.highlight
-                          : tokens.text.primary,
+                      color: deskMode === key ? sentry.highlight : tokens.text.primary,
                     },
                   }}
                 >
@@ -266,11 +246,21 @@ export function MuiSourceCommandDeck() {
                 </Button>
               ))}
             </Stack>
+            <Typography
+              data-testid="source-desk-mode-guidance"
+              sx={{
+                mt: 1,
+                color: tokens.text.secondary,
+                fontSize: '12px',
+                lineHeight: 1.5,
+              }}
+            >
+              {t(`workbench.source.deskModeGuidance.${deskMode}`)}
+            </Typography>
           </Box>
           <Box
-            data-testid="source-incident-handoff-panel"
+            data-testid="source-workspace-handoff-strip"
             sx={{
-              mt: 'auto',
               borderRadius: '12px',
               border: `1px solid ${sentry.border}`,
               bgcolor: alpha(sentry.elevated, 0.92),
@@ -281,15 +271,23 @@ export function MuiSourceCommandDeck() {
             <Typography sx={{ ...SENTRY_SX.sectionLabel, color: tokens.text.muted }}>
               {t('workbench.source.handoff.dockLabel')}
             </Typography>
-            <Typography
-              sx={{ ...SENTRY_SX.monoData, mt: 0.75, mb: 1, fontSize: '11px' }}
-            >
-              {hasDevice
-                ? t('workbench.source.handoff.pointSummary', { count: plannedPointCount })
-                : t('workbench.source.handoff.noDevice')}
+            <Typography sx={{ ...SENTRY_SX.monoData, mt: 0.75, fontSize: '11px' }}>
+              {incidentPriorityCopy}
             </Typography>
             {hasDevice ? (
-              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+              <Typography
+                sx={{
+                  mt: 0.75,
+                  color: tokens.text.secondary,
+                  fontSize: '12px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {t('workbench.source.handoff.pointSummary', { count: plannedPointCount })}
+              </Typography>
+            ) : null}
+            {hasDevice ? (
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 1, mb: 1 }}>
                 <Chip
                   data-testid="source-handoff-point-count"
                   size="small"
@@ -347,30 +345,20 @@ export function MuiSourceCommandDeck() {
           </Box>
         </Box>
         <Box
-          data-testid="source-incident-workboard"
+          data-testid="sentry-source-workspace"
+          data-desk-mode={deskMode}
           sx={{
             display: 'flex',
             minHeight: 0,
             minWidth: 0,
+            flex: 1,
             overflow: 'hidden',
+            border: `1px solid ${sentry.border}`,
+            borderRadius: '14px',
+            bgcolor: alpha(sentry.canvas, 0.5),
           }}
         >
-          <Box
-            data-testid="sentry-source-workspace"
-            data-desk-mode={deskMode}
-            sx={{
-              display: 'flex',
-              minHeight: 0,
-              minWidth: 0,
-              flex: 1,
-              overflow: 'hidden',
-              border: `1px solid ${sentry.border}`,
-              borderRadius: '14px',
-              bgcolor: alpha(sentry.canvas, 0.5),
-            }}
-          >
-            <SourceCanvasSection />
-          </Box>
+          <SourceCanvasSection deskMode={deskMode} />
         </Box>
       </Box>
     </Box>

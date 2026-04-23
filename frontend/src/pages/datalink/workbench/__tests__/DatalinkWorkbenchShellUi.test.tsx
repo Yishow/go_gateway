@@ -351,7 +351,7 @@ describe('DatalinkWorkbench five-region shell', () => {
 
       expect(screen.getByTestId('source-command-banner')).toBeInTheDocument();
       expect(screen.getByTestId('source-command-banner')).toHaveTextContent(
-        'workbench.source.sentryBanner.title',
+        'workbench.source.sentryBanner.title.build',
       );
     });
 

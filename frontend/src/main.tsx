@@ -1,3 +1,7 @@
+if (import.meta.env.DEV) {
+  import("react-grab");
+}
+
 import './env' // 環境變數驗證（VITE_API_BASE_URL 可選，預設 /api/v1）
 import * as React from 'react'
 import * as ReactDOM from 'react-dom/client'

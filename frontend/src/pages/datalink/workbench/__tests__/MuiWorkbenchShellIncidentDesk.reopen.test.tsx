@@ -28,11 +28,14 @@ const shellTranslations: Record<string, string> = {
   'workbench.shell.eyebrow': 'Incident context',
   'workbench.shell.labels.blocker': 'Current blocker',
   'workbench.shell.labels.refresh': 'Diagnostics status',
+  'workbench.shell.blockers.outputRuleRequired':
+    'Output needs an active rule handoff. Return to Tag review to reopen the source rule context, then continue in Output.',
   'workbench.shell.blockers.outputPending':
     'Output still needs review. Check Local Modbus or Database, then apply the mapping.',
   'workbench.shell.blockers.sourceRequired':
     'Source is not ready. Add or recover source points before advancing.',
   'workbench.shell.refresh.success': 'Diagnostics refreshed',
+  'workbench.shell.actions.returnTag': 'Return to tag review',
   'workbench.shell.actions.returnOutput': 'Open output workspace',
   'workbench.shell.actions.returnSource': 'Return to source',
 };
@@ -259,15 +262,15 @@ describe('MuiWorkbench shell incident desk (reopened Phase 5)', () => {
     expect(screen.getByText('Current blocker')).toBeInTheDocument();
     expect(screen.getByText('Diagnostics status')).toBeInTheDocument();
     expect(screen.getByTestId('shell-incident-blocker')).toHaveTextContent(
-      'Output still needs review. Check Local Modbus or Database, then apply the mapping.',
+      'Output needs an active rule handoff. Return to Tag review to reopen the source rule context, then continue in Output.',
     );
     expect(screen.getByTestId('shell-return-action')).toHaveTextContent(
-      'Open output workspace',
+      'Return to tag review',
     );
 
     fireEvent.click(screen.getByTestId('shell-return-action'));
 
-    expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'output');
+    expect(screen.getByTestId('context-bar-step-summary')).toHaveAttribute('data-active-step', 'tag');
   });
 
   it('routes back to source when upstream readiness is missing', () => {

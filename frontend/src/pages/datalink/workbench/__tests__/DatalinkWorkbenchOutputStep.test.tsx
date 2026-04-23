@@ -1080,7 +1080,7 @@ describe('DatalinkWorkbench output step', () => {
       ).toBeInTheDocument();
     });
 
-    it('groups schema snapshot and write preview into supporting secondary panels', async () => {
+    it('keeps schema snapshot in supporting panels while the row planner stays on the main surface', async () => {
       renderPage();
 
       fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.output/ }));
@@ -1093,8 +1093,9 @@ describe('DatalinkWorkbench output step', () => {
 
       const secondaryPanels = await screen.findByTestId('database-secondary-panels');
       expect(secondaryPanels).toHaveAttribute('data-emphasis', 'supporting');
-      expect(await screen.findByTestId('schema-snapshot')).toBeInTheDocument();
-      expect(within(secondaryPanels).getByTestId('write-row-preview')).toBeInTheDocument();
+      expect(await within(secondaryPanels).findByTestId('schema-snapshot')).toBeInTheDocument();
+      expect(screen.getByTestId('database-grouped-row-planner')).toBeInTheDocument();
+      expect(within(secondaryPanels).queryByTestId('database-grouped-row-planner')).not.toBeInTheDocument();
     });
 
     it('renders a schema snapshot with column type badges', async () => {
@@ -1130,7 +1131,7 @@ describe('DatalinkWorkbench output step', () => {
       expect(tsColumn).toHaveTextContent('PK');
     });
 
-    it('renders a write-row preview panel', async () => {
+    it('renders the grouped row planner surface', async () => {
       renderPage();
 
       fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.output/ }));
@@ -1142,7 +1143,7 @@ describe('DatalinkWorkbench output step', () => {
       );
 
       expect(
-        await screen.findByTestId('write-row-preview'),
+        await screen.findByTestId('database-grouped-row-planner'),
       ).toBeInTheDocument();
     });
 

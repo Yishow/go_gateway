@@ -183,20 +183,33 @@ describe('MuiSourceCommandDeck reopened Phase 2', () => {
     expect('WORKBENCH_SOURCE_COMPARE_CRITICAL_TASK' in experimentContract).toBe(true);
   });
 
-  it('moves desk controls and handoff into a dedicated incident command surface', () => {
+  it('keeps triage recovery inside the shared source workspace skeleton', () => {
+    mockPoints[0].address = '40002';
     openSourceForMixer();
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.dataType'), {
+      target: { value: 'float32' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-triage'));
 
-    const commandPanel = screen.getByTestId('source-incident-command-panel');
-    const handoffPanel = screen.getByTestId('source-incident-handoff-panel');
-    const workboard = screen.getByTestId('source-incident-workboard');
+    const workspaceSkeleton = screen.getByTestId('source-workspace-skeleton');
+    const triageWorkspace = screen.getByTestId('source-triage-workspace');
+    const workspaceSummary = screen.getByTestId('source-workspace-summary-strip');
+    const commandBanner = screen.getByTestId('source-command-banner');
 
-    expect(within(commandPanel).getByTestId('source-desk-tab-inspect')).toBeInTheDocument();
-    expect(within(commandPanel).getByTestId('source-desk-tab-build')).toBeInTheDocument();
-    expect(within(commandPanel).getByTestId('source-desk-tab-triage')).toBeInTheDocument();
-    expect(within(handoffPanel).getByTestId('source-handoff-tag-btn')).toBeInTheDocument();
-    expect(within(workboard).getByTestId('sentry-source-workspace')).toBeInTheDocument();
-    expect(screen.queryByTestId('source-mode-strip')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('source-handoff-dock')).not.toBeInTheDocument();
+    expect(within(workspaceSkeleton).getByTestId('source-workspace-handoff-strip')).toBeInTheDocument();
+    expect(within(triageWorkspace).getByTestId('source-triage-recovery-panel')).toBeInTheDocument();
+    expect(within(triageWorkspace).queryByTestId('source-triage-clear-state')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('source-incident-command-panel')).not.toBeInTheDocument();
+    expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.title.triage');
+    expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.status.triage');
+    expect(triageWorkspace.nextElementSibling).toBe(workspaceSummary);
   });
 
   it('shows grouped tag-review handoff context with point count and naming prefix', () => {
@@ -218,10 +231,37 @@ describe('MuiSourceCommandDeck reopened Phase 2', () => {
 
     openSourceForMixer();
 
-    const handoffPanel = screen.getByTestId('source-incident-handoff-panel');
+    const handoffPanel = screen.getByTestId('source-workspace-handoff-strip');
     expect(within(handoffPanel).getByTestId('source-handoff-point-count')).toHaveTextContent('1');
+    expect(within(handoffPanel).getAllByText('workbench.source.handoff.pointSummary')).toHaveLength(1);
     expect(within(handoffPanel).getByTestId('source-handoff-naming-prefix')).toHaveTextContent('MBT');
     expect(handoffPanel).toHaveTextContent('workbench.source.handoff.groupedReview');
+  });
+
+  it('shows a triage clear state when the active rule has no pending issues', () => {
+    mockPoints.splice(0, mockPoints.length);
+    mockSourceRules.push({
+      id: 'rule-clear',
+      device_id: 'device-1',
+      start_address: '40010',
+      count: 1,
+      data_type: 'int16',
+      naming_prefix: 'CLEAR',
+      enabled: true,
+      locked: false,
+      origin: 'manual',
+      skipped_addresses: [],
+      revision_id: 'rev-clear',
+      created_at: '',
+      updated_at: '',
+    });
+
+    openSourceForMixer();
+    fireEvent.click(screen.getByTestId('source-desk-tab-triage'));
+
+    const triageWorkspace = screen.getByTestId('source-triage-workspace');
+    expect(within(triageWorkspace).getByTestId('source-triage-clear-state')).toBeInTheDocument();
+    expect(within(triageWorkspace).queryByTestId('source-conflict-queue')).not.toBeInTheDocument();
   });
 
   it('surfaces stale template auto-recovery in the source workspace', () => {

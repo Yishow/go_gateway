@@ -9,7 +9,19 @@
       "Bash(go test:*)",
       "Bash(go mod tidy:*)",
       "Bash(dir /B)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(rtk ls *)",
+      "Bash(rtk grep *)",
+      "mcp__plugin_everything-claude-code_playwright__browser_navigate",
+      "Skill(planning-with-files-zht)",
+      "Bash(rtk git *)",
+      "Bash(agentation --help)",
+      "Bash(agentation copy *)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(node *)",
+      "Bash(npm test *)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

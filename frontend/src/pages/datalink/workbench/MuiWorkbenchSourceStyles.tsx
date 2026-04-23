@@ -187,79 +187,32 @@ function statusStyles() {
   } as const;
 }
 
-/**
- * Mode-driven layout restructuring.
- *
- * Overrides the SourceCanvasSection grid layout based on the active desk mode.
- * Uses flex ordering and proportions rather than display:none to keep all
- * panels DOM-accessible (required by tests and accessibility).
- *
- * - inspect: full-width canvas primary, aside compact below
- * - build:   full-width rule builder primary, canvas compact below
- * - triage:  conflict queue highlighted, canvas primary, aside compact
- */
+/** Additional shell-level sentry styling for shared Source desk wrappers. */
 function modeLayoutStyles() {
-  /* The workspace wrapper contains SourceCanvasSection's root:
-     section > div(grid) > aside(rules) + section(canvas) */
-  const gridRoot = `${W} > section > div`;
-  const ruleAside = `> section > div > aside`;
-  const canvasPanel = `[data-testid="source-canvas-workspace"]`;
-  const conflictQueue = `[data-testid="source-conflict-queue"]`;
-
   return {
-    /* ── ALWAYS ── single-column stacked flex (replaces baseline 2-col grid) */
-    [gridRoot]: {
-      display: 'flex !important',
-      flexDirection: 'column !important' as 'column',
-      gap: '8px !important',
+    [`${W} [data-testid="source-workspace-summary-strip"]`]: {
+      padding: '16px',
+      borderBottom: `1px solid ${alpha(sentry.border, 0.75)}`,
+      background: `linear-gradient(180deg, ${alpha(sentry.panel, 0.94)} 0%, ${alpha(sentry.elevated, 0.88)} 100%)`,
     },
-
-    /* ── INSPECT MODE (default) ── canvas is primary, aside compacted below */
-    [`${W}[data-desk-mode="inspect"] ${canvasPanel}`]: {
-      flex: '1 1 auto !important',
-      order: '-1 !important',
-      borderColor: `${alpha(sentry.highlight, 0.4)} !important`,
+    [`${W} [data-testid="source-workspace-diagnostics-strip"]`]: {
+      borderColor: alpha(sentry.highlight, 0.22),
+      background: `linear-gradient(90deg, ${alpha(sentry.accentMuted, 0.22)} 0%, ${alpha(sentry.panel, 0.96)} 100%)`,
     },
-    [`${W}[data-desk-mode="inspect"] ${ruleAside}`]: {
-      flex: '0 0 auto !important',
-      maxHeight: '220px !important',
-      overflow: 'auto !important',
-      opacity: '0.72',
-      borderTop: `1px solid ${sentry.border}`,
+    [`${W} [data-testid="source-build-rule-panel"]`]: {
+      minWidth: 0,
     },
-
-    /* ── BUILD MODE ── rule builder is primary, canvas compacted below */
-    [`${W}[data-desk-mode="build"] ${ruleAside}`]: {
-      flex: '1 1 auto !important',
-      order: '-1 !important',
+    [`${W} [data-testid="source-build-canvas-panel"]`]: {
+      minWidth: 0,
     },
-    [`${W}[data-desk-mode="build"] ${canvasPanel}`]: {
-      flex: '0 0 auto !important',
-      maxHeight: '180px !important',
-      overflow: 'hidden !important',
-      opacity: '0.65',
-      borderTop: `1px solid ${sentry.border}`,
+    [`${W} [data-testid="source-triage-recovery-panel"]`]: {
+      borderColor: alpha(tokens.status.error, 0.36),
+      boxShadow: `0 0 20px ${alpha(tokens.status.error, 0.12)}`,
     },
-
-    /* ── TRIAGE MODE ── conflict queue elevated, aside compacted */
-    [`${W}[data-desk-mode="triage"] ${conflictQueue}`]: {
-      order: '-2 !important',
-      flex: '0 0 auto !important',
-      minHeight: '160px !important',
-      borderColor: `${alpha(tokens.status.error, 0.5)} !important`,
-      boxShadow: `0 0 20px ${alpha(tokens.status.error, 0.15)}`,
+    [`${W} [data-testid="source-triage-clear-state"]`]: {
+      borderColor: alpha(sentry.highlight, 0.28),
     },
-    [`${W}[data-desk-mode="triage"] ${ruleAside}`]: {
-      flex: '0 0 auto !important',
-      maxHeight: '120px !important',
-      overflow: 'auto !important',
-      opacity: '0.55',
-    },
-    [`${W}[data-desk-mode="triage"] ${canvasPanel}`]: {
-      flex: '1 1 auto !important',
-      order: '-1 !important',
-    },
-  } as Record<string, Record<string, string>>;
+  } as const;
 }
 
 export function MuiWorkbenchSourceStyles({ deskMode: _deskMode }: Props) {

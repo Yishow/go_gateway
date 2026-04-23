@@ -642,7 +642,7 @@ describe('DatalinkWorkbench source step', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows a step-local health summary and keeps apply-to-canvas as the primary source action', () => {
+  it('defaults to the build workspace and still lets inspect swap the primary workspace', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
@@ -656,33 +656,51 @@ describe('DatalinkWorkbench source step', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
-    const summary = screen.getByTestId('source-step-summary');
-    const primaryToolbar = screen.getByTestId('source-primary-toolbar');
-    const handoffPanel = screen.getByTestId('source-incident-handoff-panel');
+    const workspaceSkeleton = screen.getByTestId('source-workspace-skeleton');
+    const workspaceSummary = within(workspaceSkeleton).getByTestId('source-workspace-summary-strip');
+    const activeRuleSummary = within(workspaceSkeleton).getByTestId('source-active-rule-summary');
+    const diagnosticToolbar = within(workspaceSkeleton).getByTestId(
+      'source-workspace-diagnostics-strip',
+    );
+    const handoffPanel = within(workspaceSkeleton).getByTestId('source-workspace-handoff-strip');
+    const buildWorkspace = screen.getByTestId('source-build-workspace');
+    const commandBanner = screen.getByTestId('source-command-banner');
 
-    expect(within(summary).getByTestId('source-summary-ready-count')).toHaveTextContent('2');
-    expect(within(summary).getByTestId('source-summary-conflict-count')).toHaveTextContent('0');
-    expect(within(summary).getByTestId('source-summary-protected-count')).toHaveTextContent('0');
+    expect(within(activeRuleSummary).getByTestId('source-active-rule-address')).toHaveTextContent(
+      '40001',
+    );
+    expect(within(activeRuleSummary).getByTestId('source-active-rule-count')).toHaveTextContent('2');
+    expect(within(workspaceSummary).getByTestId('source-workspace-ready-count')).toHaveTextContent('2');
+    expect(within(workspaceSummary).getByTestId('source-workspace-conflict-count')).toHaveTextContent('0');
+    expect(within(workspaceSummary).getByTestId('source-workspace-protected-count')).toHaveTextContent('0');
+    expect(buildWorkspace).toBeInTheDocument();
+    expect(within(buildWorkspace).getByTestId('source-build-rule-panel')).toBeInTheDocument();
+    expect(within(buildWorkspace).getByTestId('source-build-canvas-panel')).toBeInTheDocument();
+    expect(within(diagnosticToolbar).getByText('workbench.source.diagnostics.description')).toBeInTheDocument();
+    expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.title.build');
     expect(
-      within(primaryToolbar).getByRole('button', {
-        name: 'workbench.source.actions.createSelectedPoints',
-      }),
-    ).toBeDisabled();
-    expect(
-      within(primaryToolbar).getByRole('button', {
+      within(activeRuleSummary).getByRole('button', {
         name: 'workbench.source.actions.createRulePoints',
       }),
     ).toBeEnabled();
-    expect(
-      within(primaryToolbar).queryByRole('button', {
-        name: 'workbench.source.handoff.toTag',
-      }),
-    ).not.toBeInTheDocument();
     expect(
       within(handoffPanel).getByRole('button', {
         name: 'workbench.source.handoff.toTag',
       }),
     ).toBeEnabled();
+    expect(within(handoffPanel).getAllByText('workbench.source.handoff.pointSummary')).toHaveLength(1);
+
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
+
+    const inspectWorkspace = screen.getByTestId('source-inspect-workspace');
+    const inspectSummary = screen.getByTestId('source-workspace-summary-strip');
+    expect(screen.getByTestId('source-workspace-skeleton')).toBeInTheDocument();
+    expect(inspectWorkspace).toBeInTheDocument();
+    expect(within(inspectWorkspace).getByTestId('source-primary-toolbar')).toBeInTheDocument();
+    expect(within(inspectWorkspace).getByTestId('source-canvas-workspace')).toBeInTheDocument();
+    expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.title.inspect');
+    expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.status.inspect');
+    expect(inspectSummary.nextElementSibling).toBe(screen.getByTestId('source-workspace-diagnostics-strip'));
   });
 
   it('creates the selected logical span from the summary action', async () => {
@@ -848,6 +866,26 @@ describe('DatalinkWorkbench source step', () => {
     expect(
       within(screen.getByTestId('source-rule-layer')).getByTestId('source-rule-rule-1'),
     ).toBeInTheDocument();
+  });
+
+  it('keeps the canvas scroll region as the dominant vertical surface in build mode', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
+      target: { value: '40001' },
+    });
+    fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
+      target: { value: '8' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+
+    fireEvent.click(screen.getByTestId('source-desk-tab-build'));
+
+    const secondaryScrollRegion = screen.getByTestId('source-coverage-overview').parentElement;
+    expect(secondaryScrollRegion).not.toBeNull();
+    expect(secondaryScrollRegion?.className).not.toContain('max-h-[min(46vh,26rem)]');
   });
 
   it('preserves merged spans and gap cells across multiple source rules', () => {

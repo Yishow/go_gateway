@@ -6,9 +6,10 @@
 
 ## What Changes
 
-- 將 Source step 重構為以 active source rule 為中心的規劃工作台，讓使用者一眼看出當前 rule 的地址覆蓋、型別、scale、命名與規劃狀態。
+- 將 Source step 重構為以 active source rule 為中心的規劃工作台，讓使用者先看懂目前正在編哪一條 rule，再看地址覆蓋與下一步 handoff。
+- 在畫布上方建立 active rule summary 前景區塊，左側 rule list 保留高亮與切換職責；summary 至少顯示起始位址、count、data type 與 planned / used / conflict 覆蓋摘要。
 - 將 Source step 的 primary CTA 收斂為「套用規劃到畫布」，並在套用後直接回饋 rule 已成形與下一步 Tag review 將看到的摘要。
-- 降低大型 canvas 與 mode tabs 的主導性，讓 canvas 轉為解釋與驗證 rule 的 planning surface，而不是唯一資訊來源。
+- 降低大型 canvas 與 mode tabs 的主導性，讓 canvas 轉為驗證與診斷 surface，而不是主要規劃入口；使用者應先從 summary 理解當前狀態，再進入格位檢查 conflict、unmanaged 與 live value。
 - 在 Source step 內加入 rule-scoped Tag preview，支援以 hover / click rule 預覽下一步 Tag review 的候選結果。
 - 讓 `target=database` 影響 Source step 的預設值與規劃語言，例如 data type、scale、naming 與 grouping hints，而不是把 output connector setup 細節提前帶入 Source step。
 - 保持既有 cross-step contract：active rule、rule-scoped candidate snapshot、Tag / Database downstream continuity 不變。

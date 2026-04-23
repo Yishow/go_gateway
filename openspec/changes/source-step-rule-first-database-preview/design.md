@@ -33,8 +33,8 @@
 - 替代方案：建立新的 `activePlanningRuleId` 或 source-step preview state。放棄原因是會與既有 cross-step rule continuity 重疊，增加同步成本。
 
 ### 2. 將 rule summary + preview 提升到 canvas 之前
-- 決定：把 active-rule summary 與 Tag preview 放到 Source step 上半部／前景，canvas 降為 rule explanation surface。
-- 原因：使用者主要痛點是看不到「目前規劃了什麼」，不是看不到格子本身。
+- 決定：把 active-rule summary 與 Tag preview 放到畫布上方的前景區塊，左側 rule list 維持高亮與切換，canvas 降為驗證與診斷 surface。
+- 原因：使用者主要痛點是看不到「目前規劃了什麼」，不是看不到格子本身；閱讀順序必須先回答「我正在編哪條 rule」，再回答覆蓋到哪。
 - 替代方案：維持 canvas 為主，只在旁邊補更多提示。放棄原因是仍無法改變首要閱讀順序。
 
 ### 3. Tag preview 採用 rule-scoped candidate snapshot，而不是複製 Tag step state
@@ -58,6 +58,7 @@
 - [Source preview 與 Tag step 實際結果不同步] → 只重用既有 candidate snapshot hook 與 selection resolver，不做第二套推導。
 - [Database-aware defaults 造成既有 protocol-driven 規劃習慣混亂] → 將 database context 限制為預設值與 hint，不強制覆寫使用者手動選擇。
 - [弱化 mode tabs 影響既有 power users] → 保留功能、只調整層級與預設閱讀順序。
+- [畫布降級後讓使用者誤以為不能編輯] → 明確把畫布定位為驗證與診斷 surface，保留必要互動但不再讓它承擔主敘事。
 - [修改 Source step UI 時連帶破壞既有 tests] → 以現有 Source / Tag / Database tests 為主線補齊，避免先改 contract 再補測。
 
 ## Migration Plan
@@ -69,6 +70,13 @@
 5. 以既有 Source / Tag / Database tests 驗證 continuity，再跑 frontend lint/test/build。
 
 Rollback 策略：若新 UI 組織導致 Source → Tag continuity 混亂，可先保留 underlying state 與 hooks，僅回退 summary / preview surface 與 CTA 文案層，不需資料 migration。
+
+## Success Signals
+
+- 使用者應可在 5 秒內辨識目前 active rule。
+- 使用者應可在 5 秒內看出這條 rule 的 planned / used / conflict 覆蓋狀態。
+- 使用者應可在 5 秒內辨識主動作是「套用規劃到畫布」。
+- 使用者應理解畫布是驗證與診斷 surface，而不是主規劃入口。
 
 ## Open Questions
 
