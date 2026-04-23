@@ -218,8 +218,7 @@ start_backend_process() {
   local command="$1"
 
   mkdir -p "$TMP_DIR"
-  BACKEND_LOG_FILE="$(mktemp "$TMP_DIR/backend.XXXXXX.log")"
-  : >"$BACKEND_LOG_FILE"
+  BACKEND_LOG_FILE="$(mktemp "$TMP_DIR/backend.XXXXXX")"
 
   tail -n +1 -F "$BACKEND_LOG_FILE" 2>/dev/null | while IFS= read -r line; do
     runtime_log_line "$line"
