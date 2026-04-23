@@ -41,6 +41,9 @@ COVERAGE=false
 VERBOSE=false
 HAS_ANY_PARAM=false
 FRONTEND_PID=""
+BACKEND_PID=""
+BACKEND_LOG_PID=""
+BACKEND_LOG_FILE=""
 
 # 日誌噪音計數器（關聯陣列）
 # 在 bash 5.3 + set -u 下，僅 declare 而未初始化的空關聯陣列
@@ -211,6 +214,62 @@ start_frontend_dev_server() {
   fi
 }
 
+start_backend_process() {
+  local command="$1"
+
+  mkdir -p "$TMP_DIR"
+  BACKEND_LOG_FILE="$(mktemp "$TMP_DIR/backend.XXXXXX.log")"
+  : >"$BACKEND_LOG_FILE"
+
+  tail -n +1 -F "$BACKEND_LOG_FILE" 2>/dev/null | while IFS= read -r line; do
+    runtime_log_line "$line"
+  done &
+  BACKEND_LOG_PID=$!
+
+  if has_cmd setsid; then
+    setsid bash -c "$command" >>"$BACKEND_LOG_FILE" 2>&1 &
+  else
+    bash -c "$command" >>"$BACKEND_LOG_FILE" 2>&1 &
+  fi
+  BACKEND_PID=$!
+}
+
+wait_for_port_ready() {
+  local port="$1"
+  local label="${2:-端口}"
+  local attempts="${3:-100}"
+  local i
+
+  for ((i = 0; i < attempts; i++)); do
+    if [[ -n "$(pid_on_port "$port")" ]]; then
+      return 0
+    fi
+    if [[ -n "$BACKEND_PID" ]] && ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+      err "$label $port 未成功啟動"
+      return 1
+    fi
+    sleep 0.1
+  done
+
+  err "$label $port 在預期時間內未成功啟動"
+  return 1
+}
+
+wait_for_backend_exit() {
+  local exit_code=0
+  local pid="$BACKEND_PID"
+
+  if [[ -z "$pid" ]]; then
+    return 0
+  fi
+
+  wait "$pid" || exit_code=$?
+  BACKEND_PID=""
+  cleanup_all
+  trap - EXIT INT TERM
+  return "$exit_code"
+}
+
 # 清理前端開發伺服器及其子進程
 cleanup_frontend() {
   if [[ -n "$FRONTEND_PID" ]]; then
@@ -223,9 +282,31 @@ cleanup_frontend() {
   fi
 }
 
+cleanup_backend() {
+  if [[ -n "$BACKEND_LOG_PID" ]]; then
+    kill "$BACKEND_LOG_PID" 2>/dev/null || true
+    wait "$BACKEND_LOG_PID" 2>/dev/null || true
+    BACKEND_LOG_PID=""
+  fi
+
+  if [[ -n "$BACKEND_PID" ]]; then
+    info "正在停止後端服務（PID: ${BACKEND_PID}）..."
+    kill -- -"$BACKEND_PID" 2>/dev/null || kill "$BACKEND_PID" 2>/dev/null || true
+    wait "$BACKEND_PID" 2>/dev/null || true
+    BACKEND_PID=""
+    success "後端服務已停止"
+  fi
+
+  if [[ -n "$BACKEND_LOG_FILE" && -f "$BACKEND_LOG_FILE" ]]; then
+    rm -f "$BACKEND_LOG_FILE"
+    BACKEND_LOG_FILE=""
+  fi
+}
+
 # 清理所有子進程
 cleanup_all() {
   cleanup_frontend
+  cleanup_backend
   show_log_noise_summary
 }
 
@@ -579,6 +660,18 @@ start_dev_mode() {
   # 設定清理 trap
   trap cleanup_all EXIT INT TERM
 
+  clear_port true
+  info "▶️  啟動後端應用程式（使用 go run）..."
+
+  # 重置噪音計數器
+  LOG_NOISE_COUNTERS=()
+  start_backend_process "cd '$APP_PATH' && PORT='$PORT' go run ."
+  wait_for_port_ready "$PORT" "後端端口" || {
+    cleanup_all
+    trap - EXIT INT TERM
+    return 1
+  }
+
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
     # 顯式傳遞 backend PORT / proxy target，避免 dev server 代理到錯的埠。
@@ -589,18 +682,7 @@ start_dev_mode() {
     show_embedded_frontend_hint
   fi
 
-  clear_port true
-  info "▶️  啟動後端應用程式（使用 go run）..."
-
-  # 重置噪音計數器
-  LOG_NOISE_COUNTERS=()
-
-  # 使用日誌格式化管道
-  (cd "$APP_PATH" && PORT="$PORT" go run .) 2>&1 | while IFS= read -r line; do
-    runtime_log_line "$line"
-  done
-
-  show_log_noise_summary
+  wait_for_backend_exit
 }
 
 start_air_mode() {
@@ -633,6 +715,24 @@ start_air_mode() {
     fi
   fi
 
+  if [[ ! -f ".air.toml" ]]; then
+    warn ".air.toml 配置檔案不存在，Air 將使用預設配置"
+  fi
+
+  clear_port true
+
+  info "▶️  啟動 Air 熱重載... ($air_cmd)"
+  info "💡 修改程式碼後，Air 會自動檢測並使用 go run 重新運行"
+
+  # 重置噪音計數器
+  LOG_NOISE_COUNTERS=()
+  start_backend_process "PORT='$PORT' '$air_cmd'"
+  wait_for_port_ready "$PORT" "後端端口" || {
+    cleanup_all
+    trap - EXIT INT TERM
+    return 1
+  }
+
   # 啟動前端開發伺服器
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
@@ -644,25 +744,7 @@ start_air_mode() {
     info "💡 前端修改會自動熱重載"
   fi
 
-  clear_port true
-
-  # 檢查 .air.toml 是否存在
-  if [[ ! -f ".air.toml" ]]; then
-    warn ".air.toml 配置檔案不存在，Air 將使用預設配置"
-  fi
-
-  info "▶️  啟動 Air 熱重載... ($air_cmd)"
-  info "💡 修改程式碼後，Air 會自動檢測並使用 go run 重新運行"
-
-  # 重置噪音計數器
-  LOG_NOISE_COUNTERS=()
-
-  # 使用日誌格式化管道（對齊 PS1 行為）
-  PORT="$PORT" "$air_cmd" 2>&1 | while IFS= read -r line; do
-    runtime_log_line "$line"
-  done
-
-  show_log_noise_summary
+  wait_for_backend_exit
 }
 
 run_lint() {
