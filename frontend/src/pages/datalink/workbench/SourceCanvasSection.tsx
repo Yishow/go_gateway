@@ -1783,7 +1783,7 @@ export function SourceCanvasSection({ deskMode }: SourceCanvasSectionProps) {
       className={[
         'grid min-h-0 flex-1 gap-4 overflow-hidden',
         deskMode === 'build'
-          ? 'xl:grid-cols-[minmax(24rem,1.12fr)_minmax(20rem,0.88fr)]'
+          ? 'xl:grid-cols-[minmax(20rem,0.92fr)_minmax(0,1.08fr)]'
           : 'xl:grid-cols-[300px_minmax(0,1fr)]',
       ].join(' ')}
     >
@@ -2972,11 +2972,7 @@ export function SourceCanvasSection({ deskMode }: SourceCanvasSectionProps) {
           {primaryWorkspace}
         </>
       ) : (
-        <>
-          {primaryWorkspace}
-          {workspaceSummaryStrip}
-          {workspaceDiagnosticsStrip}
-        </>
+        primaryWorkspace
       )}
     </section>
   );

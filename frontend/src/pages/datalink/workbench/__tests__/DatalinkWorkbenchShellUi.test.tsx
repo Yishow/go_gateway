@@ -2,18 +2,20 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchPage from '../DatalinkWorkbenchPage';
-import type { Device, Mapping, Point, Tag } from '../../../../types/datalink';
+import type { Device, Mapping, Point, SourceRuleRecord, Tag } from '../../../../types/datalink';
 
 const {
   mockDevices,
   mockPoints,
   mockTags,
   mockMappings,
+  mockSourceRules,
 } = vi.hoisted(() => ({
   mockDevices: [] as Device[],
   mockPoints: [] as Point[],
   mockTags: [] as Tag[],
   mockMappings: [] as Mapping[],
+  mockSourceRules: [] as SourceRuleRecord[],
 }));
 
 vi.mock('react-i18next', () => ({
@@ -92,6 +94,36 @@ vi.mock('../../../../hooks/datalink/useMappings', () => ({
     isPending: false,
   }),
   useDeleteMappingMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
+vi.mock('../../../../hooks/datalink/useSourceRules', () => ({
+  useSourceRulesQuery: (filters?: { device_id?: string }) => ({
+    data: filters?.device_id
+      ? mockSourceRules.filter((rule) => rule.device_id === filters.device_id)
+      : [],
+    isLoading: false,
+    isSuccess: true,
+  }),
+  useCreateSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useUpdateSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDeleteSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useEnableSourceRuleMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useDisableSourceRuleMutation: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
@@ -353,6 +385,48 @@ describe('DatalinkWorkbench five-region shell', () => {
       expect(screen.getByTestId('source-command-banner')).toHaveTextContent(
         'workbench.source.sentryBanner.title.build',
       );
+    });
+
+    it('keeps the source command rail to the left of the source workspace', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+
+      const workspaceSkeleton = screen.getByTestId('source-workspace-skeleton');
+      const commandRail = screen.getByTestId('source-workspace-command-rail');
+      const workspace = screen.getByTestId('sentry-source-workspace');
+
+      expect(commandRail).toContainElement(screen.getByTestId('source-workspace-command-strip'));
+      expect(commandRail).toContainElement(screen.getByTestId('source-workspace-handoff-strip'));
+      expect(workspaceSkeleton.firstElementChild).toBe(commandRail);
+      expect(commandRail.nextElementSibling).toBe(workspace);
+    });
+
+    it('prioritizes the build workspace over auxiliary summary panels in source mode', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+
+      expect(screen.getByTestId('source-build-workspace')).toBeInTheDocument();
+      expect(screen.getByTestId('source-build-rule-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('source-build-canvas-panel')).toBeInTheDocument();
+      expect(screen.queryByTestId('source-workspace-summary-strip')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('source-workspace-diagnostics-strip')).not.toBeInTheDocument();
+    });
+
+    it('allocates more width to the build canvas than the rule layer on desktop', () => {
+      renderPage();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+      fireEvent.click(screen.getByRole('button', { name: 'workbench.contextBar.actions.gotoSource' }));
+
+      const buildWorkspace = screen.getByTestId('source-build-workspace');
+      const workspaceGrid = buildWorkspace.firstElementChild as HTMLElement | null;
+
+      expect(workspaceGrid).not.toBeNull();
+      expect(workspaceGrid).toHaveClass('xl:grid-cols-[minmax(20rem,0.92fr)_minmax(0,1.08fr)]');
     });
 
     it('returns to tag review on step 4 when output scope has no active rule handoff', () => {

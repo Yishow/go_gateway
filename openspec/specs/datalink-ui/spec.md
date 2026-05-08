@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change add-device-data-pipeline. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Guided workflow
 The UI SHALL provide a guided workflow that keeps the complete datalink product flow inside `/studio` as the primary workspace: **Device -> SourceRule -> Tag review -> Output review/apply**.
 
@@ -14,12 +16,87 @@ The workflow SHALL ensure:
 3. Manual point, tag, or mapping construction tools are secondary and SHALL NOT be required to complete the normal product path.
 4. Database and Local Modbus output readiness remain visible in the same workspace.
 5. Failures remain localized to the owning step, selection, or output target.
+6. Step 2 SHALL surface the current active source rule as the primary planning unit, so the operator can immediately understand what is currently planned before moving into Tag review.
+7. When the active output target is `database`, Step 2 SHALL reflect database-aware planning guidance without turning Step 2 into connector or schema setup.
 
 #### Scenario: End-to-end guided configuration uses `/studio`
 - **WHEN** an operator selects a device, saves a source rule, reviews tag candidates, and applies one or both output targets
 - **THEN** the primary workflow stays inside `/studio`
 - **AND** the operator does not need a separate manual point-first or mapping-first route to complete the normal path
 
+#### Scenario: Source step exposes the active rule before downstream review
+- **WHEN** an operator opens Step 2 with an active source rule
+- **THEN** the UI shows the current rule’s planning summary before the operator moves to Tag review
+- **AND** the operator can identify the rule’s address coverage, type intent, and current planning state without reading the full canvas first
+
+
+<!-- @trace
+source: source-step-rule-first-database-preview
+updated: 2026-05-09
+code:
+  - .github/prompts/spectra-ask.prompt.md
+  - .github/prompts/spectra-archive.prompt.md
+  - tests/shell/start-port-management.sh
+  - .github/prompts/spectra-debug.prompt.md
+  - .github/skills/spectra-ask/SKILL.md
+  - .github/skills/spectra-debug/SKILL.md
+  - frontend/src/i18n/locales/en/common.json
+  - .github/skills/spectra-audit/SKILL.md
+  - .github/prompts/spectra-propose.prompt.md
+  - .github/skills/spectra-apply/SKILL.md
+  - frontend/src/i18n/locales/zh-TW/common.json
+  - tests/shell/start-backend-before-frontend.sh
+  - .github/prompts/spectra-apply.prompt.md
+  - CLAUDE.md
+  - .github/prompts/spectra-audit.prompt.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - frontend/src/pages/datalink/workbench/SourceTriagePanel.tsx
+  - .github/skills/spectra-discuss/SKILL.md
+  - .github/prompts/opsx-propose.prompt.md
+  - start.sh
+  - .github/skills/spectra-ingest/SKILL.md
+  - tests/shell/start-backend-cleanup-order.sh
+  - frontend/src/pages/datalink/workbench/SourceRuleLayerPanel.tsx
+  - .spectra.yaml
+  - .github/skills/spectra-commit/SKILL.md
+  - frontend/src/main.tsx
+  - .github/prompts/opsx-apply.prompt.md
+  - frontend/src/pages/datalink/workbench/sourceStepRuleSummaryModel.ts
+  - frontend/package.json
+  - frontend/src/pages/datalink/workbench/MuiSourceCommandDeck.tsx
+  - .github/prompts/opsx-archive.prompt.md
+  - frontend/src/App.tsx
+  - .github/skills/spectra-propose/SKILL.md
+  - frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx
+  - .github/prompts/spectra-commit.prompt.md
+  - start.ps1
+  - frontend/src/pages/datalink/workbench/MuiWorkbenchSourceStyles.tsx
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - frontend/src/components/DevAgentation.tsx
+  - tests/shell/start-backend-cleanup-no-log-wait.sh
+  - frontend/src/pages/datalink/workbench/SourceStepRuleSummary.tsx
+  - tests/shell/start-backend-logfile.sh
+  - .github/skills/spectra-archive/SKILL.md
+  - .github/prompts/spectra-ingest.prompt.md
+tests:
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx
+  - cmd/test_ui/static/assets/index-CcV2SQjv.css
+  - cmd/test_ui/static/assets/index-Bl1MOChG.js
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourcePreview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx
+  - frontend/tests/unit/components/DevAgentation.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiSourceIncidentDesk.reopen.test.tsx
+  - cmd/test_ui/static/assets/index-ykctqrgN.css
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx
+  - frontend/tests/unit/pages/datalink/workbench-source-preview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx
+  - cmd/test_ui/static/assets/index-Bw9ae6Dz.js
+  - cmd/test_ui/static/index.html
+  - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
+-->
+
+---
 ### Requirement: Drag-drop mapping canvas
 The UI MAY provide a drag-drop mapping canvas as a secondary engineering tool, but the primary `/studio` workflow SHALL NOT depend on manual drag-drop point-to-tag mapping.
 
@@ -27,6 +104,7 @@ The UI MAY provide a drag-drop mapping canvas as a secondary engineering tool, b
 - **WHEN** an operator completes the normal `/studio` workflow
 - **THEN** the system does not require opening a drag-drop mapping canvas to create the effective rule-driven tag or output state
 
+---
 ### Requirement: Transform builder
 
 The UI SHALL provide a transform builder with ordered steps, parameters, and validation.
@@ -56,7 +134,6 @@ The builder SHALL support the following transform types:
 - THEN the UI calls `/mappings/validate-pipeline` to verify
 
 ---
-
 ### Requirement: Live preview
 
 The UI SHALL provide a live preview of raw and transformed values for a selected mapping using Server-Sent Events (SSE).
@@ -84,7 +161,6 @@ The preview panel SHALL display:
 - THEN the UI automatically reconnects
 
 ---
-
 ### Requirement: Write precision settings
 
 The UI SHALL allow operators to configure write timestamp precision (seconds or milliseconds).
@@ -99,6 +175,7 @@ The UI SHALL allow operators to configure write timestamp precision (seconds or 
 - WHEN a user selects a partition interval (daily/weekly/monthly)
 - THEN the UI saves the setting for time-series storage
 
+---
 ### Requirement: Query-based state management
 
 The UI SHALL use TanStack Query for server state management with caching, automatic refetching, and optimistic updates.
@@ -114,6 +191,7 @@ The UI SHALL use TanStack Query for server state management with caching, automa
 - THEN the UI reflects the change immediately
 - AND reverts if the backend operation fails
 
+---
 ### Requirement: Device onboarding wizard
 
 The system SHALL provide a guided onboarding wizard component to help users complete device configuration.
@@ -138,6 +216,7 @@ The system SHALL provide a guided onboarding wizard component to help users comp
 - **WHEN** a user attempts to proceed to the next step
 - **THEN** the wizard validates the current step before allowing progression
 
+---
 ### Requirement: Device status dashboard
 
 The system SHALL provide a dashboard page showing device collection status and configuration completeness.
@@ -162,6 +241,7 @@ The system SHALL provide a dashboard page showing device collection status and c
 - **WHEN** a user filters devices by status
 - **THEN** the dashboard shows only devices matching the filter criteria
 
+---
 ### Requirement: Device readiness indicator
 
 The system SHALL display readiness status indicators in the device list and device detail pages.
@@ -181,6 +261,7 @@ The system SHALL display readiness status indicators in the device list and devi
 - **WHEN** a user views a device detail page
 - **THEN** the page displays a configuration completion progress bar
 
+---
 ### Requirement: Sidebar navigation improvements
 
 The system SHALL migrate legacy sidebar-aligned feature routes into dashboard modal workflows, except the independent `/test` page.
@@ -195,6 +276,7 @@ The system SHALL migrate legacy sidebar-aligned feature routes into dashboard mo
 - **THEN** the system keeps `/test` as an independent page
 - **AND** does not convert it into dashboard modal flow
 
+---
 ### Requirement: Flow-first workspace visualization
 
 The UI SHALL provide a flow-first workspace with a desktop shell that combines `StepRail`, `ContextBar`, `PrimaryWorkArea`, `InspectorPanel`, and `BottomSummaryBar`.
@@ -215,6 +297,7 @@ The workspace SHALL preserve the following flow-reading order:
 - **THEN** the UI shows that linkage in source, tag, and output contexts
 - **AND** displays readiness as `draft`, `ready`, `partial`, `blocked`, or `applied`
 
+---
 ### Requirement: Accessible and responsive operator workspace
 
 The UI SHALL remain fully operable by keyboard, preserve i18n compatibility, and avoid horizontal overflow at supported desktop breakpoints.
@@ -229,6 +312,7 @@ The UI SHALL remain fully operable by keyboard, preserve i18n compatibility, and
 - **THEN** the desktop shell shows all core workflow regions without horizontal scrolling
 - **AND** the main working surface remains usable at 1920×1080 without overflow traps or collapsed critical controls
 
+---
 ### Requirement: Source template library
 
 The UI SHALL allow operators to save, load, update, and delete source planning templates for Step 2 rule groups.
@@ -251,6 +335,7 @@ Template persistence for this workflow SHALL be browser-local in this redesign r
 - **THEN** the UI warns about mismatches such as `address base` or `word order`
 - **AND** requires the operator to confirm before applying the template
 
+---
 ### Requirement: Motion-guided operator flow
 
 The UI SHALL use motion cues to guide stage transitions between source planning, grid allocation, tag linkage, and DB commit.
@@ -265,6 +350,7 @@ Animations MUST use short transitions (150-300ms) and MUST support reduced-motio
 - **WHEN** user preference is `prefers-reduced-motion`
 - **THEN** motion cues are replaced with static visual emphasis without animation
 
+---
 ### Requirement: Planning intelligence and safety checks
 
 The UI SHALL provide planning assistance and safety checks for one-screen operator execution.
@@ -279,3 +365,84 @@ The UI SHALL provide planning assistance and safety checks for one-screen operat
 - **THEN** the UI runs structural validation first
 - **AND** runs executable validation only after structural validation succeeds
 
+---
+### Requirement: Source desk switching preserves guided-flow continuity
+The UI SHALL preserve guided-flow continuity when the operator switches between Step 2 Source desk modes.
+
+Step 2 desk switching SHALL keep the same active source-rule context, grouped Tag handoff cues, and blocker diagnostics so the operator can continue toward Tag review and Output review without reconstructing planning state.
+
+#### Scenario: Desk switching keeps Source-to-Tag continuity visible
+- **WHEN** an operator changes Step 2 from `Inspect` to `Build` or `Triage`
+- **THEN** the UI keeps the active rule summary and grouped Tag handoff cues visible for the same rule
+- **AND** the operator can still understand what Step 3 will review next without reopening or reloading the workspace
+
+#### Scenario: Desk switching does not behave like a separate workflow branch
+- **WHEN** an operator uses the Step 2 desk selector repeatedly during one planning session
+- **THEN** the workflow remains a single `Device -> SourceRule -> Tag review -> Output review/apply` path inside `/studio`
+- **AND** changing desks SHALL NOT clear progress, hide the primary next-step call to action, or create a second primary workflow inside Step 2
+
+<!-- @trace
+source: rework-source-step-desk-modes
+updated: 2026-05-09
+code:
+  - tests/shell/start-backend-before-frontend.sh
+  - frontend/src/pages/datalink/workbench/SourceRuleLayerPanel.tsx
+  - frontend/src/App.tsx
+  - .github/skills/spectra-ask/SKILL.md
+  - frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx
+  - tests/shell/start-backend-cleanup-no-log-wait.sh
+  - .github/prompts/spectra-debug.prompt.md
+  - .github/prompts/spectra-audit.prompt.md
+  - .github/prompts/spectra-propose.prompt.md
+  - .github/prompts/opsx-archive.prompt.md
+  - .github/skills/spectra-apply/SKILL.md
+  - .github/skills/spectra-audit/SKILL.md
+  - .github/skills/spectra-commit/SKILL.md
+  - .github/skills/spectra-discuss/SKILL.md
+  - .spectra.yaml
+  - .github/prompts/opsx-propose.prompt.md
+  - CLAUDE.md
+  - frontend/src/pages/datalink/workbench/MuiSourceCommandDeck.tsx
+  - .github/skills/spectra-debug/SKILL.md
+  - tests/shell/start-backend-cleanup-order.sh
+  - start.sh
+  - frontend/src/i18n/locales/zh-TW/common.json
+  - frontend/src/pages/datalink/workbench/sourceStepRuleSummaryModel.ts
+  - .github/skills/spectra-ingest/SKILL.md
+  - .github/skills/spectra-archive/SKILL.md
+  - frontend/src/i18n/locales/en/common.json
+  - tests/shell/start-backend-logfile.sh
+  - frontend/src/main.tsx
+  - tests/shell/start-port-management.sh
+  - .github/skills/spectra-propose/SKILL.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - .github/prompts/spectra-ingest.prompt.md
+  - .github/prompts/spectra-ask.prompt.md
+  - frontend/src/components/DevAgentation.tsx
+  - frontend/src/pages/datalink/workbench/SourceTriagePanel.tsx
+  - .github/prompts/spectra-commit.prompt.md
+  - frontend/src/pages/datalink/workbench/MuiWorkbenchSourceStyles.tsx
+  - frontend/package.json
+  - .github/prompts/spectra-archive.prompt.md
+  - start.ps1
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - .github/prompts/opsx-apply.prompt.md
+  - .github/prompts/spectra-apply.prompt.md
+  - frontend/src/pages/datalink/workbench/SourceStepRuleSummary.tsx
+tests:
+  - cmd/test_ui/static/assets/index-CcV2SQjv.css
+  - cmd/test_ui/static/assets/index-ykctqrgN.css
+  - frontend/tests/unit/components/DevAgentation.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx
+  - cmd/test_ui/static/assets/index-Bl1MOChG.js
+  - frontend/tests/unit/pages/datalink/workbench-source-preview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiSourceIncidentDesk.reopen.test.tsx
+  - cmd/test_ui/static/assets/index-Bw9ae6Dz.js
+  - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourcePreview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx
+  - cmd/test_ui/static/index.html
+-->

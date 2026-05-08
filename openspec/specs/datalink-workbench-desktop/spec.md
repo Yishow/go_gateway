@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change redesign-datalink-workbench-desktop-flow. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Desktop workbench shell
 The system SHALL provide a desktop-first workbench shell at `/studio` as the primary product route with persistent workbench regions for step navigation, context, main review surfaces, inspection, and summary feedback.
 
@@ -13,6 +15,7 @@ Any legacy `/datalink/workbench` entry SHALL redirect to `/studio` instead of re
 - **THEN** the system loads the desktop-first shell at `/studio`
 - **AND** does not require a separate primary `/datalink/workbench` route for the same workflow
 
+---
 ### Requirement: Device workspace establishes capability context
 The system SHALL provide a `DeviceWorkspace` that lets the operator select or create a source device and understand the capability context required for source planning.
 
@@ -26,6 +29,7 @@ The system SHALL provide a `DeviceWorkspace` that lets the operator select or cr
 - **THEN** the UI opens a workbench-specific create flow prefilled with reusable connection defaults
 - **AND** still requires a distinct device identity before save
 
+---
 ### Requirement: Address canvas supports rule-driven continuous planning
 The system SHALL render source planning as a continuous 16-bit lattice that can expand multiple rules into merged spans on one shared canvas.
 
@@ -39,6 +43,7 @@ The system SHALL render source planning as a continuous 16-bit lattice that can 
 - **THEN** the canvas spans from the minimum rule start address to the maximum rule end address
 - **AND** gaps between rule-covered ranges remain visible as unplanned address space
 
+---
 ### Requirement: Address canvas uses stable multi-mode visualization
 The system SHALL let the operator switch between `Plan`, `Live`, and `Link` modes without replacing the underlying address geometry.
 
@@ -52,6 +57,7 @@ The system SHALL let the operator switch between `Plan`, `Live`, and `Link` mode
 - **THEN** the toolbar provides value-format switching, live freeze, snapshot compare, jump-to-address, and template load/save actions
 - **AND** those controls apply to the current canvas state without leaving the workbench route
 
+---
 ### Requirement: Tag binding board preserves source-to-tag review context
 The system SHALL provide a `TagBindingBoard` that exposes source context, proposed tag identity, and binding status densely enough for batch review.
 
@@ -65,6 +71,7 @@ The system SHALL provide a `TagBindingBoard` that exposes source context, propos
 - **THEN** the UI shows a pre-apply diff preview before confirmation
 - **AND** shows a post-apply result summary with created, linked, skipped, and failed items
 
+---
 ### Requirement: Unified output workspace supports both targets
 The system SHALL provide one Output workspace inside `/studio` that keeps Local Modbus and Database outputs in the same workbench step.
 
@@ -78,6 +85,7 @@ The system SHALL provide one Output workspace inside `/studio` that keeps Local 
 - **THEN** the system keeps the operator inside `/studio`
 - **AND** treats any retained legacy entry as a compatibility redirect rather than a second primary workflow
 
+---
 ### Requirement: Device testing distinguishes transport and protocol phases
 The workbench SHALL show and judge transport connectivity and protocol probe results as separate outcomes in Step 1.
 
@@ -92,6 +100,7 @@ The workbench SHALL show and judge transport connectivity and protocol probe res
 - **THEN** Step 1 SHALL classify the failure as a connect-stage failure
 - **AND** SHALL present diagnostics without mislabeling the protocol probe as the failing stage
 
+---
 ### Requirement: Source planning reflects device capability and persisted rule state
 The workbench SHALL align Step 2 planning behavior with the selected device capability context and persisted rule state.
 
@@ -104,6 +113,7 @@ The workbench SHALL align Step 2 planning behavior with the selected device capa
 - **THEN** the grid SHALL distinguish them from rule-planned spans
 - **AND** SHALL explain whether each address is unmanaged used state, conflict state, or rule-derived state
 
+---
 ### Requirement: Tag step is review-first for rule-derived mappings
 The workbench SHALL treat Step 3 as a review and exception-handling surface for rule-derived tag candidates and pending mapping intent, not as an immediate active tag-and-mapping persistence step.
 
@@ -117,6 +127,7 @@ The workbench SHALL treat Step 3 as a review and exception-handling surface for 
 - **THEN** Step 3 SHALL surface rename, skip, override, and apply actions inline
 - **AND** SHALL allow corrective review actions without reverting the entire workflow to manual binding
 
+---
 ### Requirement: Tag review consumes source-rule revision candidates
 The workbench SHALL bind Step 3 to tag candidates derived from the active source-rule revision.
 
@@ -125,6 +136,7 @@ The workbench SHALL bind Step 3 to tag candidates derived from the active source
 - **THEN** the workbench loads the tag candidate set for the current active revision
 - **AND** does not mix candidates from older revisions into the same review session
 
+---
 ### Requirement: Tag review detects stale candidate views
 The workbench SHALL detect when Step 3 is showing candidates from an older source-rule revision.
 
@@ -133,6 +145,7 @@ The workbench SHALL detect when Step 3 is showing candidates from an older sourc
 - **THEN** the workbench marks the review state as stale
 - **AND** blocks tag apply until the operator refreshes to the latest candidate revision
 
+---
 ### Requirement: Source rule builder exposes target data type selection
 The system SHALL provide, within Step 2 source planning, a control to set the **target / intended tag data type** alongside the protocol read data type when creating or editing a source rule. The control SHALL default to matching the protocol read data type and SHALL clearly distinguish protocol read semantics from target output semantics.
 
@@ -145,6 +158,7 @@ The system SHALL provide, within Step 2 source planning, a control to set the **
 - **WHEN** an operator does not change the default target data type
 - **THEN** the workbench SHALL behave as today with a single data type selection driving protocol read planning
 
+---
 ### Requirement: Device connection form exposes data format when the protocol uses multi-register decoding
 The workbench SHALL render **`data_format`** (or the documented equivalent) in the device connection editor for each protocol whose connector uses multi-register / floating-point byte ordering (for example **Modbus TCP, Modbus RTU, Modbus UDP**, and **Mitsubishi MC 3E**). The control SHALL list the supported orderings (for example **ABCD, BADC, CDAB, DCBA**) and SHALL persist the value in `connection_config` for the backend to consume during reads.
 
@@ -153,6 +167,7 @@ The workbench SHALL render **`data_format`** (or the documented equivalent) in t
 - **THEN** the UI SHALL expose `data_format` selection
 - **AND** saving the device SHALL persist the chosen value
 
+---
 ### Requirement: Source rule builder MAY expose scale or offset for unit conversion
 The system SHALL provide optional inputs for **linear scaling** (multiplier and/or offset) on the source rule form when the product enables engineering-unit conversion from rule planning, with clear labels that distinguish scaling from protocol read type and from target tag type.
 
@@ -161,15 +176,91 @@ The system SHALL provide optional inputs for **linear scaling** (multiplier and/
 - **THEN** the workbench SHALL persist scale intent with the rule
 - **AND** SHALL not require a target type different from the read type
 
+---
 ### Requirement: Source planning surfaces grouped-tag handoff context
 
 The workbench SHALL show, in Step 2, enough Source planning context for the operator to understand how planned points will move into grouped Tag review and downstream Database planning.
+
+Step 2 SHALL treat the active source rule as the primary planning unit and SHALL present a rule-first summary before the larger canvas surface. The canvas MAY remain available for detailed address inspection, but it SHALL NOT be the only place where the operator can understand the current plan.
 
 #### Scenario: Source summary explains grouped handoff
 - **WHEN** an operator plans source points for a rule
 - **THEN** Step 2 shows the planned point count and current naming-prefix context
 - **AND** the handoff copy explains that the next step will review grouped tags before database planning
 
+#### Scenario: Active rule summary precedes canvas reading
+- **WHEN** an operator focuses a source rule in Step 2
+- **THEN** the workbench shows that rule’s address coverage, rule-scoped planning status, and data-type intent before the operator reads the full lattice canvas
+- **AND** the operator does not need to infer the current rule only from canvas cells or secondary tabs
+
+
+<!-- @trace
+source: source-step-rule-first-database-preview
+updated: 2026-05-09
+code:
+  - .github/prompts/spectra-ask.prompt.md
+  - .github/prompts/spectra-archive.prompt.md
+  - tests/shell/start-port-management.sh
+  - .github/prompts/spectra-debug.prompt.md
+  - .github/skills/spectra-ask/SKILL.md
+  - .github/skills/spectra-debug/SKILL.md
+  - frontend/src/i18n/locales/en/common.json
+  - .github/skills/spectra-audit/SKILL.md
+  - .github/prompts/spectra-propose.prompt.md
+  - .github/skills/spectra-apply/SKILL.md
+  - frontend/src/i18n/locales/zh-TW/common.json
+  - tests/shell/start-backend-before-frontend.sh
+  - .github/prompts/spectra-apply.prompt.md
+  - CLAUDE.md
+  - .github/prompts/spectra-audit.prompt.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - frontend/src/pages/datalink/workbench/SourceTriagePanel.tsx
+  - .github/skills/spectra-discuss/SKILL.md
+  - .github/prompts/opsx-propose.prompt.md
+  - start.sh
+  - .github/skills/spectra-ingest/SKILL.md
+  - tests/shell/start-backend-cleanup-order.sh
+  - frontend/src/pages/datalink/workbench/SourceRuleLayerPanel.tsx
+  - .spectra.yaml
+  - .github/skills/spectra-commit/SKILL.md
+  - frontend/src/main.tsx
+  - .github/prompts/opsx-apply.prompt.md
+  - frontend/src/pages/datalink/workbench/sourceStepRuleSummaryModel.ts
+  - frontend/package.json
+  - frontend/src/pages/datalink/workbench/MuiSourceCommandDeck.tsx
+  - .github/prompts/opsx-archive.prompt.md
+  - frontend/src/App.tsx
+  - .github/skills/spectra-propose/SKILL.md
+  - frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx
+  - .github/prompts/spectra-commit.prompt.md
+  - start.ps1
+  - frontend/src/pages/datalink/workbench/MuiWorkbenchSourceStyles.tsx
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - frontend/src/components/DevAgentation.tsx
+  - tests/shell/start-backend-cleanup-no-log-wait.sh
+  - frontend/src/pages/datalink/workbench/SourceStepRuleSummary.tsx
+  - tests/shell/start-backend-logfile.sh
+  - .github/skills/spectra-archive/SKILL.md
+  - .github/prompts/spectra-ingest.prompt.md
+tests:
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx
+  - cmd/test_ui/static/assets/index-CcV2SQjv.css
+  - cmd/test_ui/static/assets/index-Bl1MOChG.js
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourcePreview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx
+  - frontend/tests/unit/components/DevAgentation.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiSourceIncidentDesk.reopen.test.tsx
+  - cmd/test_ui/static/assets/index-ykctqrgN.css
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx
+  - frontend/tests/unit/pages/datalink/workbench-source-preview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx
+  - cmd/test_ui/static/assets/index-Bw9ae6Dz.js
+  - cmd/test_ui/static/index.html
+  - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
+-->
+
+---
 ### Requirement: Tag review exposes grouped database suggestions before Output
 
 The workbench SHALL show, in Step 3, the inferred database grouping context for rule-derived tags before the operator moves into Database planning.
@@ -184,6 +275,7 @@ The workbench SHALL show, in Step 3, the inferred database grouping context for 
 - **THEN** the chosen group and column overrides are preserved for the Database planner in Output
 - **AND** the operator does not have to re-enter the same override state from scratch
 
+---
 ### Requirement: Output mainline completes when either target is configured
 
 The workbench SHALL treat the Output step as mainline-complete when either Local Modbus or Database is configured, while still keeping both target states visible in the same workspace.
@@ -198,6 +290,7 @@ The workbench SHALL treat the Output step as mainline-complete when either Local
 - **THEN** the Output step is reported as complete for mainline progression
 - **AND** the UI still shows Database planning status and required follow-up work
 
+---
 ### Requirement: Recovery cues point to the true blocked surface
 
 The workbench SHALL align the step rail, context bar, and shell recovery action to the same blocker truth after grouped Output planning changes.
@@ -206,3 +299,331 @@ The workbench SHALL align the step rail, context bar, and shell recovery action 
 - **WHEN** a downstream step is blocked by missing grouped Tag review or Output configuration
 - **THEN** the step rail explains the blocking reason without behaving like an alternate forward-action router
 - **AND** the shell return action points to the actual recovery surface
+
+---
+### Requirement: Source workspace keeps a persistent desk skeleton
+The workbench SHALL reserve a persistent Step 2 desk skeleton for the active source rule before rendering desk-specific primary surfaces.
+
+The persistent skeleton SHALL include the active rule summary, grouped handoff strip, desk selector, blocker diagnostics, and current primary action so the desktop workspace keeps a stable reading order across desk changes.
+
+#### Scenario: Shared desk skeleton remains anchored across desk changes
+- **WHEN** the operator switches the Source workspace between `Inspect`, `Build`, and `Triage`
+- **THEN** the same summary and handoff band remains anchored in the desktop shell above the mode-specific workspace
+- **AND** the operator does not lose the current rule, planning status, or blocker explanation
+
+#### Scenario: Desk skeleton keeps the primary action in a stable location
+- **WHEN** the operator edits, reviews, or triages the active source rule
+- **THEN** the desktop workspace keeps the current primary action in the same Step 2 shell region
+- **AND** the operator does not need to scan different panels to find the next planning action after each desk switch
+
+
+<!-- @trace
+source: rework-source-step-desk-modes
+updated: 2026-05-09
+code:
+  - tests/shell/start-backend-before-frontend.sh
+  - frontend/src/pages/datalink/workbench/SourceRuleLayerPanel.tsx
+  - frontend/src/App.tsx
+  - .github/skills/spectra-ask/SKILL.md
+  - frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx
+  - tests/shell/start-backend-cleanup-no-log-wait.sh
+  - .github/prompts/spectra-debug.prompt.md
+  - .github/prompts/spectra-audit.prompt.md
+  - .github/prompts/spectra-propose.prompt.md
+  - .github/prompts/opsx-archive.prompt.md
+  - .github/skills/spectra-apply/SKILL.md
+  - .github/skills/spectra-audit/SKILL.md
+  - .github/skills/spectra-commit/SKILL.md
+  - .github/skills/spectra-discuss/SKILL.md
+  - .spectra.yaml
+  - .github/prompts/opsx-propose.prompt.md
+  - CLAUDE.md
+  - frontend/src/pages/datalink/workbench/MuiSourceCommandDeck.tsx
+  - .github/skills/spectra-debug/SKILL.md
+  - tests/shell/start-backend-cleanup-order.sh
+  - start.sh
+  - frontend/src/i18n/locales/zh-TW/common.json
+  - frontend/src/pages/datalink/workbench/sourceStepRuleSummaryModel.ts
+  - .github/skills/spectra-ingest/SKILL.md
+  - .github/skills/spectra-archive/SKILL.md
+  - frontend/src/i18n/locales/en/common.json
+  - tests/shell/start-backend-logfile.sh
+  - frontend/src/main.tsx
+  - tests/shell/start-port-management.sh
+  - .github/skills/spectra-propose/SKILL.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - .github/prompts/spectra-ingest.prompt.md
+  - .github/prompts/spectra-ask.prompt.md
+  - frontend/src/components/DevAgentation.tsx
+  - frontend/src/pages/datalink/workbench/SourceTriagePanel.tsx
+  - .github/prompts/spectra-commit.prompt.md
+  - frontend/src/pages/datalink/workbench/MuiWorkbenchSourceStyles.tsx
+  - frontend/package.json
+  - .github/prompts/spectra-archive.prompt.md
+  - start.ps1
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - .github/prompts/opsx-apply.prompt.md
+  - .github/prompts/spectra-apply.prompt.md
+  - frontend/src/pages/datalink/workbench/SourceStepRuleSummary.tsx
+tests:
+  - cmd/test_ui/static/assets/index-CcV2SQjv.css
+  - cmd/test_ui/static/assets/index-ykctqrgN.css
+  - frontend/tests/unit/components/DevAgentation.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx
+  - cmd/test_ui/static/assets/index-Bl1MOChG.js
+  - frontend/tests/unit/pages/datalink/workbench-source-preview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiSourceIncidentDesk.reopen.test.tsx
+  - cmd/test_ui/static/assets/index-Bw9ae6Dz.js
+  - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourcePreview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx
+  - cmd/test_ui/static/index.html
+-->
+
+---
+### Requirement: Source desk layouts allocate distinct primary regions on desktop
+The workbench SHALL allocate distinct desktop-first primary regions for `Inspect`, `Build`, and `Triage` instead of reusing one nearly identical layout.
+
+`Inspect` SHALL prioritize the source canvas, `Build` SHALL prioritize the rule editor while keeping a readable secondary canvas region, and `Triage` SHALL prioritize the incident queue and affected recovery context.
+
+#### Scenario: Build keeps a readable secondary canvas region
+- **WHEN** the operator opens `Build` on a desktop breakpoint
+- **THEN** the rule editor becomes the primary panel
+- **AND** the remaining canvas region stays large enough to inspect current address coverage without collapsing into a token-height preview
+
+#### Scenario: Triage elevates incident review above general canvas browsing
+- **WHEN** the operator opens `Triage` with pending planning issues
+- **THEN** the incident queue and recovery controls occupy the primary desktop region
+- **AND** the canvas is presented only as supporting context for the affected ranges instead of as the dominant browsing surface
+
+<!-- @trace
+source: rework-source-step-desk-modes
+updated: 2026-05-09
+code:
+  - tests/shell/start-backend-before-frontend.sh
+  - frontend/src/pages/datalink/workbench/SourceRuleLayerPanel.tsx
+  - frontend/src/App.tsx
+  - .github/skills/spectra-ask/SKILL.md
+  - frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx
+  - tests/shell/start-backend-cleanup-no-log-wait.sh
+  - .github/prompts/spectra-debug.prompt.md
+  - .github/prompts/spectra-audit.prompt.md
+  - .github/prompts/spectra-propose.prompt.md
+  - .github/prompts/opsx-archive.prompt.md
+  - .github/skills/spectra-apply/SKILL.md
+  - .github/skills/spectra-audit/SKILL.md
+  - .github/skills/spectra-commit/SKILL.md
+  - .github/skills/spectra-discuss/SKILL.md
+  - .spectra.yaml
+  - .github/prompts/opsx-propose.prompt.md
+  - CLAUDE.md
+  - frontend/src/pages/datalink/workbench/MuiSourceCommandDeck.tsx
+  - .github/skills/spectra-debug/SKILL.md
+  - tests/shell/start-backend-cleanup-order.sh
+  - start.sh
+  - frontend/src/i18n/locales/zh-TW/common.json
+  - frontend/src/pages/datalink/workbench/sourceStepRuleSummaryModel.ts
+  - .github/skills/spectra-ingest/SKILL.md
+  - .github/skills/spectra-archive/SKILL.md
+  - frontend/src/i18n/locales/en/common.json
+  - tests/shell/start-backend-logfile.sh
+  - frontend/src/main.tsx
+  - tests/shell/start-port-management.sh
+  - .github/skills/spectra-propose/SKILL.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - .github/prompts/spectra-ingest.prompt.md
+  - .github/prompts/spectra-ask.prompt.md
+  - frontend/src/components/DevAgentation.tsx
+  - frontend/src/pages/datalink/workbench/SourceTriagePanel.tsx
+  - .github/prompts/spectra-commit.prompt.md
+  - frontend/src/pages/datalink/workbench/MuiWorkbenchSourceStyles.tsx
+  - frontend/package.json
+  - .github/prompts/spectra-archive.prompt.md
+  - start.ps1
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - .github/prompts/opsx-apply.prompt.md
+  - .github/prompts/spectra-apply.prompt.md
+  - frontend/src/pages/datalink/workbench/SourceStepRuleSummary.tsx
+tests:
+  - cmd/test_ui/static/assets/index-CcV2SQjv.css
+  - cmd/test_ui/static/assets/index-ykctqrgN.css
+  - frontend/tests/unit/components/DevAgentation.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx
+  - cmd/test_ui/static/assets/index-Bl1MOChG.js
+  - frontend/tests/unit/pages/datalink/workbench-source-preview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiSourceIncidentDesk.reopen.test.tsx
+  - cmd/test_ui/static/assets/index-Bw9ae6Dz.js
+  - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourcePreview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx
+  - cmd/test_ui/static/index.html
+-->
+
+---
+### Requirement: Source step previews rule-scoped Tag review before navigation
+The workbench SHALL provide, within Step 2, a rule-scoped preview of the next Tag review result for the currently focused source rule.
+
+The preview SHALL reuse the same active-rule continuity that Step 3 consumes, so the operator can trust that the Source-step preview and Tag-step review are describing the same candidate scope.
+
+#### Scenario: Clicked rule previews next Tag review scope
+- **WHEN** an operator selects a source rule in Step 2
+- **THEN** the workbench shows a preview of the Tag candidates that the next step will review for that rule
+- **AND** the preview remains bound to the same focused rule when the operator navigates to Step 3
+
+#### Scenario: Hovered rule temporarily previews downstream scope
+- **WHEN** an operator hovers a different source rule in Step 2
+- **THEN** the workbench MAY temporarily preview that rule’s Tag-review scope
+- **AND** leaving the hover state restores the previously selected rule preview unless the operator explicitly changes focus
+
+
+<!-- @trace
+source: source-step-rule-first-database-preview
+updated: 2026-05-09
+code:
+  - .github/prompts/spectra-ask.prompt.md
+  - .github/prompts/spectra-archive.prompt.md
+  - tests/shell/start-port-management.sh
+  - .github/prompts/spectra-debug.prompt.md
+  - .github/skills/spectra-ask/SKILL.md
+  - .github/skills/spectra-debug/SKILL.md
+  - frontend/src/i18n/locales/en/common.json
+  - .github/skills/spectra-audit/SKILL.md
+  - .github/prompts/spectra-propose.prompt.md
+  - .github/skills/spectra-apply/SKILL.md
+  - frontend/src/i18n/locales/zh-TW/common.json
+  - tests/shell/start-backend-before-frontend.sh
+  - .github/prompts/spectra-apply.prompt.md
+  - CLAUDE.md
+  - .github/prompts/spectra-audit.prompt.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - frontend/src/pages/datalink/workbench/SourceTriagePanel.tsx
+  - .github/skills/spectra-discuss/SKILL.md
+  - .github/prompts/opsx-propose.prompt.md
+  - start.sh
+  - .github/skills/spectra-ingest/SKILL.md
+  - tests/shell/start-backend-cleanup-order.sh
+  - frontend/src/pages/datalink/workbench/SourceRuleLayerPanel.tsx
+  - .spectra.yaml
+  - .github/skills/spectra-commit/SKILL.md
+  - frontend/src/main.tsx
+  - .github/prompts/opsx-apply.prompt.md
+  - frontend/src/pages/datalink/workbench/sourceStepRuleSummaryModel.ts
+  - frontend/package.json
+  - frontend/src/pages/datalink/workbench/MuiSourceCommandDeck.tsx
+  - .github/prompts/opsx-archive.prompt.md
+  - frontend/src/App.tsx
+  - .github/skills/spectra-propose/SKILL.md
+  - frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx
+  - .github/prompts/spectra-commit.prompt.md
+  - start.ps1
+  - frontend/src/pages/datalink/workbench/MuiWorkbenchSourceStyles.tsx
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - frontend/src/components/DevAgentation.tsx
+  - tests/shell/start-backend-cleanup-no-log-wait.sh
+  - frontend/src/pages/datalink/workbench/SourceStepRuleSummary.tsx
+  - tests/shell/start-backend-logfile.sh
+  - .github/skills/spectra-archive/SKILL.md
+  - .github/prompts/spectra-ingest.prompt.md
+tests:
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx
+  - cmd/test_ui/static/assets/index-CcV2SQjv.css
+  - cmd/test_ui/static/assets/index-Bl1MOChG.js
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourcePreview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx
+  - frontend/tests/unit/components/DevAgentation.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiSourceIncidentDesk.reopen.test.tsx
+  - cmd/test_ui/static/assets/index-ykctqrgN.css
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx
+  - frontend/tests/unit/pages/datalink/workbench-source-preview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx
+  - cmd/test_ui/static/assets/index-Bw9ae6Dz.js
+  - cmd/test_ui/static/index.html
+  - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
+-->
+
+---
+### Requirement: Source step prioritizes planning actions over mode switching
+The workbench SHALL make applying the current rule to the planning surface the primary action in Step 2, while keeping mode switching as a secondary control.
+
+#### Scenario: Apply planning is the primary action
+- **WHEN** an operator is editing or reviewing a source rule in Step 2
+- **THEN** the most prominent action communicates applying the rule to the planning surface
+- **AND** the workbench gives immediate confirmation that the rule has taken shape for the next review step
+
+#### Scenario: Mode tabs remain secondary
+- **WHEN** Step 2 renders `plan`, `live`, or `link` modes
+- **THEN** those controls remain available without overpowering the active-rule summary or primary apply action
+- **AND** the operator can still identify the current plan without switching modes first
+
+<!-- @trace
+source: source-step-rule-first-database-preview
+updated: 2026-05-09
+code:
+  - .github/prompts/spectra-ask.prompt.md
+  - .github/prompts/spectra-archive.prompt.md
+  - tests/shell/start-port-management.sh
+  - .github/prompts/spectra-debug.prompt.md
+  - .github/skills/spectra-ask/SKILL.md
+  - .github/skills/spectra-debug/SKILL.md
+  - frontend/src/i18n/locales/en/common.json
+  - .github/skills/spectra-audit/SKILL.md
+  - .github/prompts/spectra-propose.prompt.md
+  - .github/skills/spectra-apply/SKILL.md
+  - frontend/src/i18n/locales/zh-TW/common.json
+  - tests/shell/start-backend-before-frontend.sh
+  - .github/prompts/spectra-apply.prompt.md
+  - CLAUDE.md
+  - .github/prompts/spectra-audit.prompt.md
+  - .github/prompts/spectra-discuss.prompt.md
+  - frontend/src/pages/datalink/workbench/SourceTriagePanel.tsx
+  - .github/skills/spectra-discuss/SKILL.md
+  - .github/prompts/opsx-propose.prompt.md
+  - start.sh
+  - .github/skills/spectra-ingest/SKILL.md
+  - tests/shell/start-backend-cleanup-order.sh
+  - frontend/src/pages/datalink/workbench/SourceRuleLayerPanel.tsx
+  - .spectra.yaml
+  - .github/skills/spectra-commit/SKILL.md
+  - frontend/src/main.tsx
+  - .github/prompts/opsx-apply.prompt.md
+  - frontend/src/pages/datalink/workbench/sourceStepRuleSummaryModel.ts
+  - frontend/package.json
+  - frontend/src/pages/datalink/workbench/MuiSourceCommandDeck.tsx
+  - .github/prompts/opsx-archive.prompt.md
+  - frontend/src/App.tsx
+  - .github/skills/spectra-propose/SKILL.md
+  - frontend/src/pages/datalink/workbench/SourceCanvasSection.tsx
+  - .github/prompts/spectra-commit.prompt.md
+  - start.ps1
+  - frontend/src/pages/datalink/workbench/MuiWorkbenchSourceStyles.tsx
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - frontend/src/components/DevAgentation.tsx
+  - tests/shell/start-backend-cleanup-no-log-wait.sh
+  - frontend/src/pages/datalink/workbench/SourceStepRuleSummary.tsx
+  - tests/shell/start-backend-logfile.sh
+  - .github/skills/spectra-archive/SKILL.md
+  - .github/prompts/spectra-ingest.prompt.md
+tests:
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx
+  - cmd/test_ui/static/assets/index-CcV2SQjv.css
+  - cmd/test_ui/static/assets/index-Bl1MOChG.js
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourcePreview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiWorkbenchShellIncidentDesk.reopen.test.tsx
+  - frontend/tests/unit/components/DevAgentation.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchShellUi.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/MuiSourceIncidentDesk.reopen.test.tsx
+  - cmd/test_ui/static/assets/index-ykctqrgN.css
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx
+  - frontend/tests/unit/pages/datalink/workbench-source-preview.test.tsx
+  - frontend/src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx
+  - cmd/test_ui/static/assets/index-Bw9ae6Dz.js
+  - cmd/test_ui/static/index.html
+  - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
+-->

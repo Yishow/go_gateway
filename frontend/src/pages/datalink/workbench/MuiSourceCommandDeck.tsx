@@ -173,90 +173,99 @@ export function MuiSourceCommandDeck() {
       <Box
         data-testid="source-workspace-skeleton"
         sx={{
-          display: 'flex',
+          display: 'grid',
           minHeight: 0,
           flex: 1,
-          flexDirection: 'column',
           gap: 1.5,
           mt: 1.5,
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            lg: 'minmax(18rem, 22rem) minmax(0, 1fr)',
+          },
         }}
       >
         <Box
-          data-testid="source-workspace-command-strip"
+          data-testid="source-workspace-command-rail"
           sx={{
-            ...SENTRY_SX.commandStrip,
-            display: 'grid',
+            display: 'flex',
+            minHeight: 0,
+            flexDirection: 'column',
             gap: 1.5,
-            px: 1.5,
-            py: 1.5,
-            border: `1px solid ${sentry.border}`,
-            gridTemplateColumns: {
-              xs: 'minmax(0, 1fr)',
-              xl: 'minmax(0, 1.25fr) minmax(16rem, 22rem)',
-            },
           }}
         >
-          <Box sx={{ minHeight: 0 }}>
-            <Typography
-              sx={{
-                ...SENTRY_SX.sectionLabel,
-                mb: 0.75,
-                color: tokens.text.muted,
-              }}
-            >
-              {t('workbench.source.deskMode.tabListAria')}
-            </Typography>
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              role="tablist"
-              aria-label={t('workbench.source.deskMode.tabListAria')}
-              spacing={0.75}
-            >
-              {DESK_MODES.map(({ key, labelKey }) => (
-                <Button
-                  key={key}
-                  role="tab"
-                  fullWidth
-                  aria-selected={deskMode === key}
-                  data-testid={`source-desk-tab-${key}`}
-                  onClick={() => setDeskMode(key)}
-                  sx={{
-                    ...SENTRY_SX.modeChip,
-                    justifyContent: 'flex-start',
-                    px: 1.5,
-                    py: 1,
-                    minHeight: 40,
-                    borderRadius: '10px',
-                    border: `1px solid ${deskMode === key ? alpha(sentry.highlight, 0.5) : sentry.border}`,
-                    bgcolor:
-                      deskMode === key
-                        ? alpha(sentry.highlight, 0.14)
-                        : alpha(sentry.panel, 0.72),
-                    color: deskMode === key ? sentry.highlight : tokens.text.secondary,
-                    '&:hover': {
+          <Box
+            data-testid="source-workspace-command-strip"
+            sx={{
+              ...SENTRY_SX.commandStrip,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1.5,
+              px: 1.5,
+              py: 1.5,
+              border: `1px solid ${sentry.border}`,
+            }}
+          >
+            <Box sx={{ minHeight: 0 }}>
+              <Typography
+                sx={{
+                  ...SENTRY_SX.sectionLabel,
+                  mb: 0.75,
+                  color: tokens.text.muted,
+                }}
+              >
+                {t('workbench.source.deskMode.tabListAria')}
+              </Typography>
+              <Stack
+                direction={{ xs: 'column', md: 'row', xl: 'column' }}
+                role="group"
+                aria-label={t('workbench.source.deskMode.tabListAria')}
+                spacing={0.75}
+              >
+                {DESK_MODES.map(({ key, labelKey }) => (
+                  <Button
+                    key={key}
+                    fullWidth
+                    aria-pressed={deskMode === key}
+                    data-testid={`source-desk-tab-${key}`}
+                    onClick={() => setDeskMode(key)}
+                    sx={{
+                      ...SENTRY_SX.modeChip,
+                      justifyContent: 'flex-start',
+                      px: 1.5,
+                      py: 1,
+                      minHeight: 40,
+                      borderRadius: '10px',
+                      border: `1px solid ${deskMode === key ? alpha(sentry.highlight, 0.5) : sentry.border}`,
                       bgcolor:
                         deskMode === key
-                          ? alpha(sentry.highlight, 0.18)
-                          : alpha(sentry.panel, 0.92),
-                      color: deskMode === key ? sentry.highlight : tokens.text.primary,
-                    },
-                  }}
-                >
-                  {t(labelKey)}
-                </Button>
-              ))}
-            </Stack>
-            <Typography
-              data-testid="source-desk-mode-guidance"
-              sx={{
-                mt: 1,
-                color: tokens.text.secondary,
-                fontSize: '12px',
-                lineHeight: 1.5,
-              }}
-            >
-              {t(`workbench.source.deskModeGuidance.${deskMode}`)}
-            </Typography>
+                          ? alpha(sentry.highlight, 0.14)
+                          : alpha(sentry.panel, 0.72),
+                      color: deskMode === key ? sentry.highlight : tokens.text.secondary,
+                      '&:hover': {
+                        bgcolor:
+                          deskMode === key
+                            ? alpha(sentry.highlight, 0.18)
+                            : alpha(sentry.panel, 0.92),
+                        color: deskMode === key ? sentry.highlight : tokens.text.primary,
+                      },
+                    }}
+                  >
+                    {t(labelKey)}
+                  </Button>
+                ))}
+              </Stack>
+              <Typography
+                data-testid="source-desk-mode-guidance"
+                sx={{
+                  mt: 1,
+                  color: tokens.text.secondary,
+                  fontSize: '12px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {t(`workbench.source.deskModeGuidance.${deskMode}`)}
+              </Typography>
+            </Box>
           </Box>
           <Box
             data-testid="source-workspace-handoff-strip"

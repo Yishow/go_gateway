@@ -21,7 +21,9 @@
       "mcp__context7__query-docs",
       "Bash(node *)",
       "Bash(npm test *)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:gitter.im)",
+      "WebFetch(domain:app.gitter.im)"
     ]
   }
 }
