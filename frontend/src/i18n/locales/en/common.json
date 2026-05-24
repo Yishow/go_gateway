@@ -1724,5 +1724,86 @@
         "testFailed": "Connection test failed"
       }
     }
+  },
+  "quickflow": {
+    "page": {
+      "badge": "QuickFlow Hybrid",
+      "title": "QuickFlow Quick Setup",
+      "description": "Condense PLC connection, probing, outputs, and launch checks into a four-step wizard while keeping a live pipeline preview visible.",
+      "currentDevice": "Current device"
+    },
+    "hero": {
+      "kicker": "Industrial Data Gateway",
+      "title": "Device → Probe → Output → Launch",
+      "description": "The A+C hybrid keeps the left-hand wizard flow and right-hand runtime diagnostics in the same workspace."
+    },
+    "metrics": {
+      "points": "Detected points",
+      "interval": "Polling interval",
+      "throughput": "Throughput",
+      "lastWrite": "Last write"
+    },
+    "steps": {
+      "device": {
+        "label": "Device",
+        "description": "PLC and connection settings"
+      },
+      "points": {
+        "label": "Probe",
+        "description": "Read values and address checks"
+      },
+      "output": {
+        "label": "Output",
+        "description": "SQLite / PostgreSQL"
+      },
+      "launch": {
+        "label": "Launch",
+        "description": "Polling and write gates"
+      }
+    },
+    "sections": {
+      "device": {
+        "title": "Device and connection summary",
+        "description": "Lock in the PLC target, protocol, endpoint, and unit before moving into probing.",
+        "deviceCardHint": "Live connection details come from existing Device / readiness / runtime hooks, with sample fallback when backend data is unavailable."
+      },
+      "points": {
+        "title": "Probe and point planning",
+        "description": "Plan around the real PLC address range, confirm live values, and hand the scope downstream.",
+        "summaryTitle": "Source rule summary",
+        "summaryDetail": "Naming prefix {{prefix}}. Once probe succeeds, the scope is ready for tag review and output binding."
+      },
+      "output": {
+        "title": "Outputs and binding strategy",
+        "description": "Confirm the local SQLite sink first, then validate PostgreSQL schema and columns before launch."
+      },
+      "launch": {
+        "title": "Launch checks",
+        "description": "Turn polling, bindings, and failure strategy into an executable checklist before runtime starts.",
+        "blockerTitle": "Current blocker"
+      }
+    },
+    "pipeline": {
+      "kicker": "Live pipeline map",
+      "title": "Real-time pipeline preview",
+      "blockerTitle": "Error beacon"
+    },
+    "runtime": {
+      "connected": "Runtime Online",
+      "connecting": "Runtime Connecting",
+      "error": "Runtime Error",
+      "disconnected": "Runtime Offline"
+    },
+    "badges": {
+      "ready": "Ready",
+      "blocked": "Blocked"
+    },
+    "actions": {
+      "refreshDevices": "Refresh devices"
+    },
+    "errors": {
+      "devices": "Failed to load the device list. Retry or inspect the API status.",
+      "rules": "Source rule data is temporarily unavailable. Showing the last known planning snapshot."
+    }
   }
 }

@@ -13,9 +13,9 @@ metadata:
   generatedBy: "Spectra"
 ---
 
-## Claude fork context
+## Codex fork context
 
-This generated Claude Code skill runs with `context: fork`. The rules in this section take precedence over the shared `ask` body below.
+This generated Codex skill runs with `context: fork`. The rules in this section take precedence over the shared `ask` body below.
 
 If the user did not provide an explicit question and the fork-visible context does not contain a concrete query, return a short message asking the main thread to rerun `/spectra-ask <question>`. Do NOT run `spectra search`, do NOT fabricate a query from unavailable main conversation context, and do NOT wait for an interactive answer inside the fork.
 

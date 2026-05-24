@@ -1724,5 +1724,86 @@
         "testFailed": "連線測試失敗"
       }
     }
+  },
+  "quickflow": {
+    "page": {
+      "badge": "QuickFlow Hybrid",
+      "title": "QuickFlow 快速導入",
+      "description": "以四步驟精靈收斂 PLC 連線、探測、輸出與啟動設定，右側持續保留即時管線預覽。",
+      "currentDevice": "當前設備"
+    },
+    "hero": {
+      "kicker": "工業資料採集閘道",
+      "title": "設備 → 探測 → 輸出 → 啟動",
+      "description": "A+C 混合版把左側精靈的決策節奏與右側 runtime pipeline diagnostics 放在同一個視窗。"
+    },
+    "metrics": {
+      "points": "已探測資料點",
+      "interval": "輪詢週期",
+      "throughput": "當前流量",
+      "lastWrite": "最後寫入"
+    },
+    "steps": {
+      "device": {
+        "label": "設備",
+        "description": "選 PLC 與連線參數"
+      },
+      "points": {
+        "label": "探測",
+        "description": "讀值與位址驗證"
+      },
+      "output": {
+        "label": "輸出",
+        "description": "SQLite / PostgreSQL"
+      },
+      "launch": {
+        "label": "啟動",
+        "description": "輪詢與寫入前檢查"
+      }
+    },
+    "sections": {
+      "device": {
+        "title": "設備與連線摘要",
+        "description": "優先選定要導入的 PLC，確認通訊協定、端點與站號後再進入探測。",
+        "deviceCardHint": "即時連線資訊來自現有 Device / readiness / runtime hook，若 backend 尚未提供則回退 sample data。"
+      },
+      "points": {
+        "title": "探測與資料點規劃",
+        "description": "以真實 PLC 位址範圍為中心，確認來源規則、即時值與命名規則，再交給下游輸出。",
+        "summaryTitle": "來源規則摘要",
+        "summaryDetail": "命名前綴 {{prefix}}，Probe 成功後即可帶進 Tag review / output binding。"
+      },
+      "output": {
+        "title": "輸出與綁定策略",
+        "description": "先確認本地 SQLite 是否穩定承接，再檢查 PostgreSQL schema 與欄位是否完整。"
+      },
+      "launch": {
+        "title": "啟動前檢查",
+        "description": "將輪詢、綁定與異常策略收斂成可執行清單，避免帶著已知 blocker 進入 runtime。",
+        "blockerTitle": "目前阻塞"
+      }
+    },
+    "pipeline": {
+      "kicker": "即時管線圖",
+      "title": "即時管線預覽",
+      "blockerTitle": "錯誤燈號"
+    },
+    "runtime": {
+      "connected": "Runtime Online",
+      "connecting": "Runtime Connecting",
+      "error": "Runtime Error",
+      "disconnected": "Runtime Offline"
+    },
+    "badges": {
+      "ready": "已就緒",
+      "blocked": "阻塞中"
+    },
+    "actions": {
+      "refreshDevices": "重新整理設備"
+    },
+    "errors": {
+      "devices": "設備清單載入失敗，請重試或檢查 API 狀態。",
+      "rules": "來源規則目前無法更新，暫時顯示最近一次可用規劃。"
+    }
   }
 }

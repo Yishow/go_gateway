@@ -13,9 +13,9 @@ metadata:
   generatedBy: "Spectra"
 ---
 
-Audit changed code for security sharp edges in a Claude Code fork. This generated skill is report-only: it SHALL NOT edit files and SHALL NOT apply fixes directly inside the fork.
+Audit changed code for security sharp edges in a Codex fork. This generated skill is report-only: it SHALL NOT edit files and SHALL NOT apply fixes directly inside the fork.
 
-## Claude fork context
+## Codex fork context
 
 Run `git diff HEAD` to gather the current changes. If there are no changes, report that no security sharp edges were found and stop.
 
