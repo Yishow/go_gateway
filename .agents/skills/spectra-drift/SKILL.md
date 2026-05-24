@@ -1,23 +1,12 @@
 ---
 name: spectra-drift
 description: "Detect drift between a Spectra change and the current codebase state"
-context: fork
-agent: Explore
-disallowedTools: [Edit, Write]
 license: MIT
 compatibility: Requires spectra CLI.
 metadata:
   author: spectra
   version: "1.0"
   generatedBy: "Spectra"
----
-
-## Codex fork context
-
-This generated Codex skill runs with `context: fork`. The rules in this section take precedence over the shared `drift` body below.
-
-When no change name is provided, run `spectra list --json`. Auto-select only when there is exactly one active change. If there are zero active changes or more than one active change, return the candidate list or empty-state message and ask the main thread to rerun `/spectra-drift <change-name>`. Do NOT ask an interactive selection question inside the fork.
-
 ---
 
 Detect drift between a Spectra change and the current codebase state. Reports time dormancy, broken design anchors, task collisions with external commits, and a single recommended next command.
