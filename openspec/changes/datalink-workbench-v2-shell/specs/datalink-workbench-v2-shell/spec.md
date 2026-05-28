@@ -1,0 +1,213 @@
+## ADDED Requirements
+
+### Requirement: Coexisting v2 workbench route
+
+The system SHALL expose a parallel workbench route at `/studio/v2` that loads the Datalink Workbench v2 shell, while `/studio` continues to load the legacy `DatalinkWorkbenchPage` without modification. The two routes MUST coexist; navigating to either route MUST NOT redirect to the other.
+
+#### Scenario: Operator opens /studio/v2
+
+- **WHEN** the operator navigates to `/studio/v2`
+- **THEN** the system loads the Workbench v2 shell with top bar, collapsible step rail, central step content, summary rail, and tweaks panel
+- **AND** does not redirect to `/studio`
+
+#### Scenario: Legacy /studio remains unchanged
+
+- **WHEN** the operator navigates to `/studio`
+- **THEN** the system loads the existing `DatalinkWorkbenchPage` exactly as before this change
+- **AND** does not redirect to `/studio/v2`
+
+#### Scenario: Direct deep link to v2
+
+- **WHEN** the operator opens a fresh browser tab with URL ending in `/studio/v2`
+- **THEN** the v2 shell mounts with the default state: Step 1 highlighted, view mode `flow`, no completed steps, summary rail visible on viewports ≥ 1280px
+
+---
+
+### Requirement: Shell layout regions
+
+The Workbench v2 shell SHALL render five persistent regions in a single page: a sticky top bar, a collapsible left step rail, a central step content surface, an optional right summary rail, and a floating tweaks panel. The shell MUST remain functional when the right summary rail is hidden, when the step rail is collapsed, or when the tweaks panel is closed.
+
+#### Scenario: Default render of all regions
+
+- **WHEN** the v2 page mounts at viewport width 1440px and the user has not changed any layout preference
+- **THEN** the top bar is sticky at the top of the viewport
+- **AND** the left step rail is expanded with width 232px showing four steps and the settings entry
+- **AND** the central step content shows the Step 1 header (`STEP 01 / 04`, step title, progress bar) and the Step 1 placeholder
+- **AND** the right summary rail is visible with width 240px showing device / rule / mapping / database summary cards
+- **AND** the tweaks panel is hidden by default
+
+#### Scenario: Step rail collapsed state
+
+- **WHEN** the user clicks the collapse button in the top bar
+- **THEN** the left step rail width transitions to 64px showing only step icons
+- **AND** each icon shows a tooltip with the step title on hover
+- **AND** the central step content surface expands to fill the released horizontal space
+
+##### Example: collapsed widths
+
+| State     | Step rail width | Has expanded labels | Tooltip on hover |
+| --------- | --------------- | ------------------- | ---------------- |
+| Expanded  | 232px           | Yes                 | No               |
+| Collapsed | 64px            | No                  | Yes              |
+
+#### Scenario: Summary rail hidden at narrow viewports
+
+- **WHEN** the viewport width is less than 1280px
+- **THEN** the right summary rail is hidden
+- **AND** the central step content uses the released horizontal space
+- **AND** all other shell regions remain functional
+
+---
+
+### Requirement: Step rail navigation
+
+The step rail SHALL expose four ordered steps (`新增裝置`, `接入規則`, `點位映射`, `儲存資料庫`) plus a settings entry below a divider. Each step entry MUST surface its step number, title, subtitle, and an icon. Reachability MUST follow the rule: step 1 is always reachable, step N (N>1) is reachable when step N-1 has been completed or when step N is the current step.
+
+#### Scenario: Initial reachability
+
+- **WHEN** the v2 page mounts with no completed steps
+- **THEN** step 1 is reachable and current
+- **AND** steps 2, 3, and 4 are not reachable and rendered with `cursor: not-allowed` and reduced opacity
+
+#### Scenario: Step completion unlocks the next step
+
+- **WHEN** the user has completed step 1 (step 1 ID exists in `completed` state)
+- **THEN** step 2 becomes reachable
+- **AND** clicking step 2 in the rail switches the current step to 2 and updates the breadcrumb in the top bar to `Datalink › Workbench › 接入規則`
+
+#### Scenario: Settings entry switches view mode
+
+- **WHEN** the user clicks the settings entry in the step rail
+- **THEN** the view state changes from `flow` to `settings`
+- **AND** the central step content surface renders the Settings placeholder instead of any step placeholder
+- **AND** the right summary rail is hidden
+- **AND** the top bar breadcrumb shows `Datalink › Workbench › 設定`
+
+#### Scenario: Returning from settings to flow
+
+- **WHEN** the view state is `settings` and the user clicks any reachable step in the step rail
+- **THEN** the view state changes back to `flow`
+- **AND** the current step updates to the clicked step ID
+- **AND** the right summary rail returns to visible (on viewports ≥ 1280px)
+
+---
+
+### Requirement: Keyboard shortcut for step rail collapse
+
+The shell SHALL bind a keyboard shortcut (`Cmd+B` on macOS, `Ctrl+B` on Windows/Linux) to toggle the step rail collapsed state. The shortcut MUST only fire while the v2 page is mounted, MUST call `preventDefault` on the original keyboard event, and MUST NOT fire when focus is inside an editable form control.
+
+#### Scenario: Shortcut toggles step rail
+
+- **WHEN** the user presses `Cmd+B` while the step rail is expanded and focus is on the document body
+- **THEN** the step rail collapses to width 64px
+- **AND** the keydown event default action is prevented
+
+#### Scenario: Shortcut suppressed inside text input
+
+- **WHEN** the user focuses an `<input>` element in the central step content and presses `Cmd+B`
+- **THEN** the step rail collapsed state does NOT change
+- **AND** the keydown event default action proceeds normally for the input
+
+---
+
+### Requirement: Design tokens scope
+
+The v2 shell SHALL apply Dark Industrial Telemetry design tokens (background `#0b1220`, surface `slate-900` with 60% opacity and backdrop blur, primary `blue-500/600`, success `emerald-500`, warning `amber-500`, error `red-500`, 24px grid background, Inter and JetBrains Mono fonts) only within the v2 subtree. Tokens MUST NOT leak to the `/studio` route or any other page in the application.
+
+#### Scenario: Tokens scoped to v2 subtree
+
+- **WHEN** the user opens `/studio` after visiting `/studio/v2` in the same browser session
+- **THEN** the `/studio` page renders with its pre-existing styling
+- **AND** `#0b1220` background and 24px grid background do NOT appear on `/studio`
+
+#### Scenario: Tokens applied on v2
+
+- **WHEN** the v2 page is mounted
+- **THEN** the page root element has a data attribute identifying the v2 subtree (for example `data-workbench-v2="true"`)
+- **AND** the background uses the canvas gradient + 24px grid pattern
+- **AND** the default UI font-family resolves to Inter (with system fallback) and mono regions resolve to JetBrains Mono
+
+---
+
+### Requirement: Shared component library for v2
+
+The v2 feature module SHALL provide a TypeScript component library consisting of `Icon`, `Button`, `Field`, `Input`, `Select`, `Textarea`, `Toggle`, `StatusChip`, and `SectionCard`. Each component MUST export a named TypeScript props interface, MUST NOT use the `any` type, and MUST support keyboard interaction and accessible labels.
+
+#### Scenario: Icon renders without emoji
+
+- **WHEN** a component renders `<Icon name="device" />`
+- **THEN** the rendered output is an inline SVG element with `aria-hidden="true"`
+- **AND** no emoji character is used as the visual glyph
+
+#### Scenario: Toggle exposes ARIA switch role
+
+- **WHEN** a `Toggle` component is rendered with `checked={false}`
+- **THEN** the rendered button has `role="switch"` and `aria-checked="false"`
+- **AND** clicking the button calls `onChange(true)`
+
+#### Scenario: SectionCard renders header and content
+
+- **WHEN** a `SectionCard` is rendered with `title="設備列表"`, `subtitle="可同時設定多個設備"`, an icon prop, an aside prop, and children
+- **THEN** the rendered output contains a header region with title, subtitle, icon, and aside
+- **AND** a content region containing the children
+
+---
+
+### Requirement: Placeholder step and settings surfaces
+
+The v2 shell SHALL render placeholder content for each of the four steps and the settings page during the shell-only delivery phase. Each placeholder MUST display a message identifying which step it represents and that full content is coming in a subsequent change. Placeholders MUST NOT make backend API calls, MUST NOT consume `useQuery` or `useMutation` hooks, and MUST NOT block the `onContinue` action for development purposes.
+
+#### Scenario: Step 1 placeholder renders identifying content
+
+- **WHEN** the v2 page mounts with current step 1
+- **THEN** the central step content displays text identifying it as Step 1 (`新增裝置`)
+- **AND** the placeholder text indicates that full Step 1 functionality is delivered by a subsequent change
+- **AND** no network request is initiated by the placeholder
+
+#### Scenario: Settings placeholder renders identifying content
+
+- **WHEN** the view state is `settings`
+- **THEN** the central content displays text identifying it as the Settings page
+- **AND** the placeholder text indicates that full Settings functionality is delivered by a subsequent change
+
+---
+
+### Requirement: Tweaks panel availability
+
+The shell SHALL provide a floating tweaks panel that is hidden by default. The panel MUST be visible only when the application is running in development mode (`import.meta.env.DEV === true`) or when `localStorage.WBV2_TWEAKS === '1'`. The panel MUST control the `sidebarCollapsed` and `showSummaryRail` layout preferences and persist them to `localStorage`.
+
+#### Scenario: Panel hidden in production by default
+
+- **WHEN** the v2 page mounts with `import.meta.env.DEV === false` and `localStorage.WBV2_TWEAKS` is unset
+- **THEN** the tweaks panel is not visible in the DOM
+- **AND** the shell still renders correctly
+
+#### Scenario: Panel visible in development
+
+- **WHEN** the v2 page mounts with `import.meta.env.DEV === true`
+- **THEN** the tweaks panel is rendered as a floating element in the viewport
+- **AND** toggling `收合側邊欄` inside the panel updates the `sidebarCollapsed` state and persists `"sidebarCollapsed":true` to `localStorage`
+
+#### Scenario: localStorage fallback when unavailable
+
+- **WHEN** `localStorage.setItem` throws an exception (for example in a private browsing context) and the user toggles a layout preference in the tweaks panel
+- **THEN** the UI state still updates in memory for the current session
+- **AND** the shell continues to function without crashing
+
+---
+
+### Requirement: i18n namespace for v2
+
+The v2 shell SHALL load all user-facing strings from a dedicated i18n namespace `workbench-v2`. The namespace MUST be available in at least `zh-TW` and `en`. All button labels, breadcrumb fragments, step titles, step subtitles, placeholder copy, and summary card labels MUST resolve through `useTranslation('workbench-v2')`.
+
+#### Scenario: zh-TW locale shows traditional Chinese microcopy
+
+- **WHEN** the locale is `zh-TW` and the v2 page mounts
+- **THEN** the step rail shows step titles `新增裝置`, `接入規則`, `點位映射`, `儲存資料庫` and settings entry `設定`
+- **AND** the save draft button shows `儲存草稿`
+
+#### Scenario: en locale shows English microcopy
+
+- **WHEN** the locale is `en` and the v2 page mounts
+- **THEN** the step rail shows step titles in English (for example `Add Device`, `Source Rule`, `Point Mapping`, `Save to Database`) and the settings entry shows `Settings`
+- **AND** the save draft button shows `Save Draft`

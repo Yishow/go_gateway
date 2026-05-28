@@ -23,7 +23,8 @@
       "Bash(npm test *)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:gitter.im)",
-      "WebFetch(domain:app.gitter.im)"
+      "WebFetch(domain:app.gitter.im)",
+      "Bash(rtk wc *)"
     ]
   }
 }
