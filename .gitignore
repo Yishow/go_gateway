@@ -6,6 +6,7 @@
 *.dylib
 .gocache
 .gotmp
+graphify-out/
 
 # Test binary, built with `go test -c`
 *.test
