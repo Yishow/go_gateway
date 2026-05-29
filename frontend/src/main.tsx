@@ -10,6 +10,13 @@ import { queryClient } from './lib/queryClient'
 import './i18n/config' // 確保初始化副作用已執行
 import App from './App.tsx'
 import './index.css'
+import '@fontsource/inter/400.css'
+import '@fontsource/inter/500.css'
+import '@fontsource/inter/600.css'
+import '@fontsource/inter/700.css'
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/500.css'
+import '@fontsource/jetbrains-mono/600.css'
 
 /**
  * 等待 i18n 初始化完成後再渲染 React 應用

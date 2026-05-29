@@ -12,6 +12,7 @@ import {
   buildLocalModbusCompatRedirect,
 } from './features/datalink/legacyRoutes'
 import DatalinkWorkbenchPage from './pages/datalink/workbench/DatalinkWorkbenchPage'
+import DatalinkWorkbenchV2Page from './pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
 import { GatewayCreateEntryRedirect, GatewayEntryRoute, GatewayExpertWorkbenchRoute, GatewayQuickSetupRoute } from './router/gateway'
 
 function LocalModbusCompatRoute() {
@@ -38,13 +39,14 @@ function LegacyTestToolRedirect() {
  * - /datalink/* -> legacy 相容路由，統一收斂到 /studio
  * - /test -> 測試工具單頁入口
  */
-function AppRoutes() {
+export function AppRoutes() {
   return (
     <Routes>
       {/* 首頁重定向到 studio */}
       <Route path="/" element={<Navigate to="/studio" replace />} />
 
       {/* Studio Main Route */}
+      <Route path="/studio/v2" element={<DatalinkWorkbenchV2Page />} />
       <Route path="/studio" element={<DatalinkWorkbenchPage />} />
 
       {/* Datalink legacy routes */}

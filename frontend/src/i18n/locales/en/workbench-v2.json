@@ -1,0 +1,334 @@
+{
+  "steps": {
+    "device": {
+      "title": "Add Device",
+      "subtitle": "Device + Protocol"
+    },
+    "rule": {
+      "title": "Source Rule",
+      "subtitle": "Source Rules · Multiple Ranges"
+    },
+    "mapping": {
+      "title": "Point Mapping",
+      "subtitle": "Point → Tag"
+    },
+    "database": {
+      "title": "Save to Database",
+      "subtitle": "DB Target · Commit"
+    }
+  },
+  "buttons": {
+    "saveDraft": "Save Draft",
+    "cancel": "Cancel",
+    "next": "Next Step",
+    "prev": "Previous Step",
+    "submit": "Submit and Start Scheduler",
+    "save": "Save",
+    "create": "Create",
+    "continue": "Continue"
+  },
+  "status": {
+    "draft": "Draft",
+    "active": "Active",
+    "disabled": "Disabled",
+    "tested": "Tested",
+    "committed": "Committed"
+  },
+  "loading": {
+    "saving": "Saving…",
+    "loading": "Loading…",
+    "testing": "Testing…",
+    "committing": "Committing…"
+  },
+  "labels": {
+    "devices": "Devices",
+    "rules": "Source Rules",
+    "mappings": "Point Mapping",
+    "database": "Save to Database"
+  },
+  "step1": {
+    "labels": {
+      "device_prefix": "Device"
+    },
+    "protocols": {
+      "modbus_tcp": "Modbus TCP",
+      "modbus_tcp_desc": "Read Modbus register data via Ethernet network, the most common industrial communication standard.",
+      "modbus_rtu": "Modbus RTU",
+      "modbus_rtu_desc": "Bi-directional half-duplex communication with PLCs and sensors via RS-485/RS-232 serial ports.",
+      "modbus_udp": "Modbus UDP",
+      "modbus_udp_desc": "Transfer Modbus protocol using connectionless UDP packets, suitable for high frequency but packet-loss tolerant environments.",
+      "fatek_fbs": "Fatek FBS",
+      "fatek_fbs_desc": "Fatek FBs series PLC proprietary communication protocol, supporting registers and discrete points read/write.",
+      "mc_3e": "MC 3E (Q/L)",
+      "mc_3e_desc": "Mitsubishi Electric Q/L/FX series PLC Ethernet MC protocol 3E frame, supporting device data read/write.",
+      "mqtt": "MQTT Client",
+      "mqtt_desc": "Lightweight publish/subscribe messaging protocol, suitable for IoT and cloud data integration."
+    },
+    "stages": {
+      "resolve": "Resolve Hostname",
+      "connect": "Establish TCP Connection",
+      "probe": "Protocol Command Probe",
+      "open_port": "Open Serial Port",
+      "handshake": "Serial Protocol Handshake",
+      "subscribe": "Subscribe Topic Test"
+    },
+    "groups": {
+      "connect": "Connection Channel",
+      "probe": "Protocol Probe"
+    },
+    "fields": {
+      "device_name": "Device Name",
+      "device_desc": "Device Description",
+      "select_protocol": "Select Protocol",
+      "connection_settings": "Connection Settings",
+      "host": "Host IP Address",
+      "port": "Port",
+      "slave_id": "Slave ID / Unit ID",
+      "timeout": "Timeout",
+      "timeout_hint": "In seconds, defaults to 5s",
+      "serial_port": "Serial Port Path",
+      "baud_rate": "Baud Rate",
+      "parity": "Parity",
+      "mqtt_broker": "MQTT Broker Address",
+      "mqtt_username": "Username",
+      "mqtt_client_id": "Client ID"
+    },
+    "parity": {
+      "none": "None",
+      "even": "Even",
+      "odd": "Odd"
+    },
+    "hints": {
+      "description_placeholder": "Optional device description...",
+      "protocol_reset_warn": "Note: Changing protocol will reset connection settings and test results.",
+      "no_devices": "No devices available. Click button above to add one."
+    },
+    "buttons": {
+      "add_device": "Add Device",
+      "delete_device": "Delete",
+      "run_test": "Run Test",
+      "testing": "Testing...",
+      "continue": "Create All and Continue"
+    },
+    "status": {
+      "testing": "Testing...",
+      "untested": "Untested",
+      "failed": "Failed"
+    },
+    "panels": {
+      "editor": "Device Settings",
+      "diagnostic": "Connection & Diagnostics",
+      "payload_preview": "Payload Preview (JSON)",
+      "payload_hint": "This JSON represents the payload sent to the underlying PLC client.",
+      "stages_title": "Diagnostic Steps Progress",
+      "test_success_title": "Test Successful",
+      "test_success_desc": "Successfully passed network and protocol diagnostics. Total latency is {{latency}} ms. You can now proceed to source rule settings."
+    },
+    "dialogs": {
+      "delete_confirm": "Are you sure you want to delete device \"{{name}}\"? This will also delete all associated source rules, points, mappings, and DB target mappings. This action cannot be undone!"
+    },
+    "footer": {
+      "progress_summary": "{{total}} devices, {{tested}} tested successfully",
+      "warning_untested": "Pending untested devices"
+    }
+  },
+  "step2": {
+    "title": "Source Rules Configuration",
+    "subtitle": "Source Rules",
+    "grid_hint": "Click grid cell to toggle skip status; hold Shift + click to batch select; hold Ctrl / ⌘ + click to multi-select. Skipped points will be excluded from mapping and sharing.",
+    "batch_buttons": {
+      "all_enabled": "Enable All",
+      "all_skipped": "Skip All",
+      "reverse": "Invert Active",
+      "skip_selected": "Skip Selected",
+      "enable_selected": "Enable Selected",
+      "clear_selection": "Clear Selection"
+    },
+    "labels": {
+      "current_grid": "Current Rule Points Grid",
+      "function_code": "Modbus Function Code",
+      "byte_order": "Byte Order",
+      "share_details": "Modbus Share Settings",
+      "global_disabled": "Disabled Globally",
+      "reset_auto": "Reset to Auto"
+    },
+    "table": {
+      "device": "Device Source",
+      "rule": "Source Rule",
+      "name": "Point Name",
+      "address": "Register Address",
+      "function": "Function Code",
+      "datatype": "Data Type",
+      "scale": "Linear Scale",
+      "status": "Status Tags",
+      "skipped": "Skipped",
+      "conflict": "Conflict"
+    },
+    "buttons": {
+      "continue": "Continue to Mapping"
+    }
+  },
+  "step3": {
+    "title": "Point → Tag Mapping",
+    "subtitle": "Bind enabled PLC registers to target Tags and configure optional Scale/Offset linear transformation.",
+    "columns": {
+      "source": "Source",
+      "register": "Register",
+      "tagKey": "Tag Key",
+      "displayName": "Display Name",
+      "unit": "Unit",
+      "targetType": "Target Type",
+      "transform": "× Scale + Offset",
+      "enabled": "Enabled"
+    },
+    "steps": {
+      "decode": "decode (raw)",
+      "scale": "scale (linear)",
+      "cast": "cast to {{type}}",
+      "final": "final → Tag"
+    },
+    "table": {
+      "noPoints": "No enabled points. Go back to enable or add rules.",
+      "bulkApplyText": "Apply selected row's Scale / Offset / Type to all",
+      "bulkApplyPlaceholder": "Select a row to copy its Scale / Offset / Type to all other points"
+    },
+    "preview": {
+      "title": "Transform Preview",
+      "emptySubtitle": "Select a row to preview",
+      "emptyText": "Select any row on the left to preview its transform pipeline and API payload structure."
+    },
+    "footer": {
+      "noEnabled": "No enabled points",
+      "emptyTagWarning": "{{count}} empty Tag Keys",
+      "success": "{{enabled}}/{{total}} points enabled",
+      "back": "Back",
+      "continue": "Configure Database Write"
+    }
+  },
+  "step4": {
+    "connector_kind": "Database Kind",
+    "kind_sqlite": "SQLite",
+    "kind_postgres": "PostgreSQL",
+    "kind_mysql": "MySQL",
+    "kind_sqlserver": "SQL Server",
+    "col_tag_key": "Tag Key",
+    "col_point": "Source Point",
+    "col_db_field": "Database Column",
+    "col_field_type": "Data Type",
+    "col_enabled": "Enabled",
+    "write_mode_label": "Write Strategy",
+    "write_mode_insert": "Time Series Append (INSERT)",
+    "write_mode_insert_desc": "Insert a new row for each interval record. Ideal for historical trends.",
+    "write_mode_upsert": "Overwrite Update (UPSERT)",
+    "write_mode_upsert_desc": "Only keep the latest record. Saves storage space.",
+    "write_interval_label": "Write Interval",
+    "write_interval_desc": "Set the scheduled DB write period interval.",
+    "seconds_unit": "s",
+    "connector_title": "Database Connector",
+    "connector_subtitle": "Configure DB connector options and write strategy parameters",
+    "field_name": "Connection Name",
+    "field_host": "Host IP Address",
+    "field_port": "Port",
+    "field_database": "Database Name",
+    "field_db_sqlite": "DB File Path",
+    "field_username": "Username",
+    "field_schema": "Schema",
+    "field_table": "Table Name",
+    "mapping_title": "Target Column Mapping",
+    "mapping_subtitle": "Map collector tags to target table columns. Timestamp (ts) will be filled automatically.",
+    "no_points": "No configured mappings. Please complete Step 3 first.",
+    "conflict_banner_title": "Column Conflict Detected",
+    "conflict_banner_desc": "Multiple tags are mapped to the same database column. Resolve red highlights to enable commit.",
+    "summary_title": "Review & Commit",
+    "summary_subtitle": "Verify configurations and commit settings to start the gateway scheduler",
+    "summary_devices": "Devices",
+    "summary_rules": "Source Rules",
+    "summary_points": "Active Points",
+    "summary_mappings": "Mappings",
+    "summary_database": "Database Target",
+    "no_enabled_targets_warning": "No columns are enabled for database writing",
+    "submit_btn": "Commit and Start Scheduler",
+    "submit_info": "This will build collectors, map targets, and initialize DB connection pools.",
+    "progress_title": "Deploy Settings",
+    "progress_subtitle": "Executing API command sequence on gateway client...",
+    "waiting_logs": "Preparing command queue...",
+    "executing_next_command": "Executing command sequence...",
+    "success_title": "Settings Applied",
+    "success_subtitle": "Collection pipeline and DB scheduler initialized successfully",
+    "scheduler_started_subline": "Scheduler running · First write batch scheduled in ~{{interval}}s",
+    "go_to_dashboard_btn": "Go to Runtime Dashboard",
+    "success_info": "Track latency, throughput, and scheduler health logs on the Runtime Dashboard.",
+    "scheduler_running": "scheduler running",
+    "scheduler_idle": "scheduler idle"
+  },
+  "settings": {
+    "title": "System Settings",
+    "subtitle": "Manage global gateway connections, storage schedules, byte mapping forwarding, and developer diagnostics tools.",
+    "api_title": "API Endpoint",
+    "api_subtitle": "Configure the base URL and router version of the backend gateway API.",
+    "api_base": "API Base URL",
+    "api_version": "API Router Version",
+    "connector_pool_title": "Connector Pool",
+    "connector_pool_subtitle": "Configure multiple target database instances. Used for traffic splitting, failover, or multi-target writing for different tags.",
+    "add_connector_btn": "Add Connector",
+    "connector_pool_empty_title": "No DB Connectors Configured",
+    "connector_pool_empty_desc": "Click 'Add Connector' in the top right to create a new database connection.",
+    "status_ready": "Connected",
+    "status_testing": "Testing...",
+    "status_failed": "Unreachable",
+    "status_unknown": "Untested",
+    "col_enabled": "Enabled",
+    "last_checked": "Last checked",
+    "btn_testing": "Testing...",
+    "btn_test": "Test Connection",
+    "btn_delete": "Delete",
+    "diagnostics_title": "Diagnostics & Logging",
+    "diagnostics_subtitle": "Control system logging levels, timeouts, and developer debug panels.",
+    "diagnostics_log_level": "Log Level",
+    "diagnostics_timeout": "Timeout (ms)",
+    "diagnostics_sse": "SSE Heartbeat (ms)",
+    "diagnostics_audit": "Audit Log Enabled",
+    "diagnostics_debug_panel": "Show Developer Panel",
+    "modbus_share_title": "Local Modbus Share",
+    "modbus_share_subtitle": "Map and forward acquired tags to local virtual Modbus Server registers for HMI/SCADA querying.",
+    "share_bind_address": "Bind Address",
+    "share_port": "Port",
+    "share_slave_id": "Slave ID",
+    "share_base_register": "Base Register Address",
+    "modbus_share_disabled_msg": "Modbus share service is disabled. Enabling it will link the address layout to Step 2 Modbus Share registers.",
+    "reset_confirm_msg": "Are you sure you want to reset all settings to defaults? This will erase all current configurations and connector pools.",
+    "save_bar_info": "Changes are applied to runtime immediately and persist after the next backend restart.",
+    "reset_to_defaults_btn": "Reset to Defaults",
+    "save_all_btn": "Save All Settings",
+    "scheduler_title": "Scheduler Core",
+    "scheduler_subtitle": "Configure retry limits, breaker thresholds, and auto-start behaviors for data collection.",
+    "scheduler_interval": "Polling Interval (s)",
+    "scheduler_retry": "Max Retry Count",
+    "scheduler_retry_delay": "Retry Delay (s)",
+    "scheduler_breaker": "Circuit Breaker Limit",
+    "scheduler_auto_start": "Auto Start on Boot",
+    "timeseries_title": "Timeseries Strategy",
+    "timeseries_subtitle": "Configure precision resolution, physical partition splitting frequency, and historical retention span.",
+    "timeseries_precision": "Time Precision",
+    "precision_ms": "Millisecond",
+    "precision_s": "Second",
+    "timeseries_partition": "Partition Interval",
+    "partition_daily": "Daily Partition",
+    "partition_weekly": "Weekly Partition",
+    "partition_monthly": "Monthly Partition",
+    "timeseries_batch": "Write Batch Size",
+    "timeseries_retention": "Retention Span",
+    "days_unit": "days",
+    "ui_title": "Interface Preferences",
+    "ui_subtitle": "Set shell themes, UI display locales, and address offset representations.",
+    "ui_theme": "Theme Mode",
+    "theme_dark": "Dark Mode",
+    "theme_light": "Light Mode",
+    "theme_auto": "Follow System",
+    "ui_locale": "Language / Locale",
+    "ui_addr_format": "Address Representation",
+    "addr_modbus": "Modbus Format (e.g. 40001)",
+    "addr_hex": "Hex Offset (e.g. 0x0000)",
+    "addr_raw": "Dec Offset (e.g. 0)"
+  }
+}

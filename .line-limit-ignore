@@ -10,3 +10,9 @@ frontend/pnpm-lock.yaml
 
 # Imported external docs
 docs/HslDocs_*
+
+# OpenSpec specs and proposals
+openspec/*
+
+# Git worktrees
+.worktrees/*

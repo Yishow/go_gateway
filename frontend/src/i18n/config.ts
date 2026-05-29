@@ -7,6 +7,8 @@ import enTagReviewTranslations from './locales/en/tag-review.json';
 import zhTWTranslations from './locales/zh-TW/common.json';
 import zhTWDatabaseOutputTranslations from './locales/zh-TW/database-output.json';
 import zhTWTagReviewTranslations from './locales/zh-TW/tag-review.json';
+import enWorkbenchV2Translations from './locales/en/workbench-v2.json';
+import zhTWWorkbenchV2Translations from './locales/zh-TW/workbench-v2.json';
 import { logger } from '../utils/logger';
 import { mergeTranslations } from './mergeTranslations';
 
@@ -34,6 +36,7 @@ i18n
           enTagReviewTranslations,
           enDatabaseOutputTranslations,
         ),
+        'workbench-v2': enWorkbenchV2Translations,
       },
       'zh-TW': {
         translation: mergeTranslations(
@@ -41,6 +44,7 @@ i18n
           zhTWTagReviewTranslations,
           zhTWDatabaseOutputTranslations,
         ),
+        'workbench-v2': zhTWWorkbenchV2Translations,
       },
     },
     fallbackLng: 'en', // 預設語言為英文

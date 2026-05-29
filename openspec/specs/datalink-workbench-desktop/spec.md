@@ -627,3 +627,163 @@ tests:
   - cmd/test_ui/static/index.html
   - frontend/tests/unit/utils/appAgentationRemoval.test.tsx
 -->
+
+---
+### Requirement: Coexisting v2 workbench at `/studio/v2`
+
+The system SHALL accept `/studio/v2` as a parallel workbench route alongside the existing `/studio` primary route. The existing `/studio` route MUST continue to load the legacy `DatalinkWorkbenchPage` without modification. The `/studio/v2` route MUST load the Workbench v2 shell defined by capability `datalink-workbench-v2-shell`. Neither route MUST redirect to the other automatically.
+
+#### Scenario: /studio remains the primary route
+
+- **WHEN** the operator navigates to `/studio`
+- **THEN** the system loads the pre-existing `DatalinkWorkbenchPage` shell
+- **AND** does not redirect to `/studio/v2`
+
+#### Scenario: /studio/v2 loads the v2 shell
+
+- **WHEN** the operator navigates to `/studio/v2`
+- **THEN** the system loads the Workbench v2 shell
+- **AND** does not redirect to `/studio`
+
+#### Scenario: Legacy datalink routes still redirect to /studio
+
+- **WHEN** the operator navigates to `/datalink/workbench` or any `/datalink/workbench/*` path
+- **THEN** the system redirects to `/studio` exactly as before this change
+- **AND** does not redirect to `/studio/v2`
+
+<!-- @trace
+source: datalink-workbench-v2-shell
+updated: 2026-05-29
+code:
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorPoolSection.tsx
+  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - frontend/src/features/datalink/workbench-v2/state/dbReducer.ts
+  - .line-limit-ignore
+  - frontend/src/features/datalink/workbench-v2/settings/UiSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
+  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsHeader.tsx
+  - frontend/src/i18n/config.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/index.ts
+  - task_plan.md
+  - frontend/src/features/datalink/workbench-v2/state/settingsDefaults.ts
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.test-d.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
+  - frontend/src/features/datalink/workbench-v2/tokens.ts
+  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
+  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/ModbusShareSection.tsx
+  - frontend/src/features/datalink/workbench-v2/state/transformPipeline.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/TargetMappingTable.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
+  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/SchedulerSection.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/index.ts
+  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
+  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
+  - progress.md
+  - frontend/src/features/datalink/workbench-v2/settings/DiagnosticsSection.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/TimeseriesSection.tsx
+  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
+  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
+  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
+  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
+  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
+  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/main.tsx
+  - findings.md
+  - frontend/src/features/datalink/workbench-v2/steps/step4/KindSelector.tsx
+  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/WriteStrategy.tsx
+  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
+  - frontend/src/features/datalink/workbench-v2/components/index.ts
+  - frontend/src/features/datalink/workbench-v2/state/types-step4.test-d.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
+  - frontend/src/features/datalink/workbench-v2/state/settingsReducer.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/ApiSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
+  - frontend/src/features/datalink/workbench-v2/state/commitLog.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SaveBar.tsx
+  - frontend/src/App.tsx
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/PayloadPreview.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
+  - frontend/src/features/datalink/workbench-v2/state/autoAssignTargets.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
+  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
+  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
+  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
+  - frontend/package.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
+tests:
+  - frontend/tests/unit/workbench-v2/reducer-step4.test.ts
+  - frontend/tests/unit/workbench-v2/types-step3.test-d.ts
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/shell.test.tsx
+  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/tokens.test.ts
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/types.test-d.ts
+  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
+  - frontend/tests/unit/workbench-v2/transformPipeline.test.ts
+  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
+  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
+  - frontend/tests/unit/workbench-v2/settingsDefaults.test.ts
+  - frontend/tests/unit/workbench-v2/selectors.test.tsx
+  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
+  - frontend/tests/unit/workbench-v2/commitLog.test.ts
+  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
+  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/state.test.ts
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - frontend/tests/unit/workbench-v2/routing.test.tsx
+  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
+  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
+  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
+  - frontend/tests/unit/workbench-v2/reducer-settings.test.ts
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - frontend/tests/unit/workbench-v2/components.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
+  - frontend/tests/unit/workbench-v2/autoAssignTargets.test.ts
+-->

@@ -1,0 +1,322 @@
+import { describe, it, expect } from 'vitest';
+import {
+  dataTypeWidth,
+  fnFromAddr,
+  formatAddr,
+  derivePoints,
+  deriveAllPoints,
+  computeShareLayout,
+  detectAddressConflicts,
+} from '../../../src/features/datalink/workbench-v2/state/sourceRule';
+import type { Rule } from '../../../src/features/datalink/workbench-v2/state/types';
+
+describe('SourceRule State Pure Helpers', () => {
+  describe('dataTypeWidth', () => {
+    it('應為 10 種不同型別回傳正確的暫存器寬度', () => {
+      expect(dataTypeWidth('bool')).toBe(1);
+      expect(dataTypeWidth('int16')).toBe(1);
+      expect(dataTypeWidth('uint16')).toBe(1);
+      expect(dataTypeWidth('int32')).toBe(2);
+      expect(dataTypeWidth('uint32')).toBe(2);
+      expect(dataTypeWidth('float32')).toBe(2);
+      expect(dataTypeWidth('int64')).toBe(4);
+      expect(dataTypeWidth('uint64')).toBe(4);
+      expect(dataTypeWidth('float64')).toBe(4);
+      expect(dataTypeWidth('string')).toBe(10);
+    });
+  });
+
+  describe('fnFromAddr', () => {
+    it('應根據前綴正確推斷 Modbus Function Type', () => {
+      expect(fnFromAddr('00001')).toBe('coil');
+      expect(fnFromAddr('10001')).toBe('discrete_input');
+      expect(fnFromAddr('30001')).toBe('input_register');
+      expect(fnFromAddr('40001')).toBe('holding_register');
+      expect(fnFromAddr(' 40010 ')).toBe('holding_register'); // 容忍空格
+      expect(fnFromAddr('invalid')).toBe('holding_register'); // 預設
+    });
+  });
+
+  describe('formatAddr', () => {
+    it('應正確格式化地址為字串', () => {
+      expect(formatAddr(40001)).toBe('40001');
+      expect(formatAddr('30005')).toBe('30005');
+    });
+  });
+
+  describe('derivePoints', () => {
+    const mockRule: Rule = {
+      id: 'rule-1',
+      device_id: 'dev-1',
+      name: 'Holding Rule',
+      start_address: '40001',
+      count: 4,
+      data_type: 'int32',
+      naming_prefix: 'TAG_',
+      enabled: true,
+      scale_multiplier: 0.5,
+      scale_offset: -1,
+      data_format: '',
+      skipped_addresses: ['40003'],
+      share_enabled: false,
+      share_start_register: null,
+      share_stride: null,
+    };
+
+    it('應能依據 count 與 stride 正確產生點位陣列，且支援已略過(skipped)狀態', () => {
+      const skippedSet = new Set(['40003']);
+      const points = derivePoints(mockRule, 'dev-1', skippedSet);
+
+      expect(points).toHaveLength(4);
+      
+      // 第一個點 (index 0)：絕對位址 40001
+      expect(points[0]).toEqual({
+        id: 'rule-1-p-0',
+        device_id: 'dev-1',
+        rule_id: 'rule-1',
+        rule_name: 'Holding Rule',
+        name: 'TAG_0',
+        address: '40001',
+        data_type: 'int32',
+        function: 'holding_register',
+        width: 2,
+        enabled: true,
+        skipped: false,
+        _rule_scale: 0.5,
+        _rule_offset: -1,
+      });
+
+      // 第二個點 (index 1)：位址為 40001 + 1*stride = 40003，此點被 skipped 故 enabled 應為 false
+      expect(points[1].address).toBe('40003');
+      expect(points[1].skipped).toBe(true);
+      expect(points[1].enabled).toBe(false);
+
+      // 第三個點 (index 2)：位址為 40001 + 2*2 = 40005
+      expect(points[2].address).toBe('40005');
+      expect(points[2].skipped).toBe(false);
+      expect(points[2].enabled).toBe(true);
+    });
+  });
+
+  describe('deriveAllPoints', () => {
+    it('應能合併多條規則衍生出的全部點位', () => {
+      const rules: Rule[] = [
+        {
+          id: 'rule-1',
+          device_id: 'dev-1',
+          name: 'Coils',
+          start_address: '00001',
+          count: 2,
+          data_type: 'bool',
+          naming_prefix: 'C_',
+          enabled: true,
+          scale_multiplier: 1,
+          scale_offset: 0,
+          data_format: '',
+          skipped_addresses: [],
+          share_enabled: false,
+          share_start_register: null,
+          share_stride: null,
+        },
+        {
+          id: 'rule-2',
+          device_id: 'dev-2', // 不同裝置
+          name: 'Inputs',
+          start_address: '30001',
+          count: 1,
+          data_type: 'int16',
+          naming_prefix: 'I_',
+          enabled: true,
+          scale_multiplier: 1,
+          scale_offset: 0,
+          data_format: '',
+          skipped_addresses: [],
+          share_enabled: false,
+          share_start_register: null,
+          share_stride: null,
+        },
+      ];
+
+      const all = deriveAllPoints(rules, 'fallback-dev');
+      expect(all).toHaveLength(3);
+      expect(all[0].device_id).toBe('dev-1');
+      expect(all[2].device_id).toBe('dev-2');
+    });
+  });
+
+  describe('computeShareLayout', () => {
+    it('應正確計算手動、自動、未啟用的混合佈局，且自動起點依 cursor 取最大值', () => {
+      const rules: Rule[] = [
+        {
+          id: 'rule-1',
+          device_id: 'dev-1',
+          name: 'Auto Share 1',
+          start_address: '40001',
+          count: 5, // 5 * 2 = 10 registers
+          data_type: 'int32',
+          naming_prefix: 'A_',
+          enabled: true,
+          scale_multiplier: 1,
+          scale_offset: 0,
+          data_format: '',
+          skipped_addresses: ['40003'], // skipped 1 point, so count = 4, 4 * 2 = 8 registers
+          share_enabled: true,
+          share_start_register: null, // 自動
+          share_stride: null,
+        },
+        {
+          id: 'rule-2',
+          device_id: 'dev-1',
+          name: 'Disabled Share',
+          start_address: '40010',
+          count: 5,
+          data_type: 'int16',
+          naming_prefix: 'B_',
+          enabled: true,
+          scale_multiplier: 1,
+          scale_offset: 0,
+          data_format: '',
+          skipped_addresses: [],
+          share_enabled: false, // 停用
+          share_start_register: null,
+          share_stride: null,
+        },
+        {
+          id: 'rule-3',
+          device_id: 'dev-1',
+          name: 'Manual Override',
+          start_address: '40020',
+          count: 2, // 2 * 4 = 8 registers
+          data_type: 'float64',
+          naming_prefix: 'C_',
+          enabled: true,
+          scale_multiplier: 1,
+          scale_offset: 0,
+          data_format: '',
+          skipped_addresses: [],
+          share_enabled: true,
+          share_start_register: 40100, // 手動指定起點 40100
+          share_stride: null,
+        },
+        {
+          id: 'rule-4',
+          device_id: 'dev-1',
+          name: 'Auto Share 2',
+          start_address: '40030',
+          count: 2, // 2 * 1 = 2 registers
+          data_type: 'int16',
+          naming_prefix: 'D_',
+          enabled: true,
+          scale_multiplier: 1,
+          scale_offset: 0,
+          data_format: '',
+          skipped_addresses: [],
+          share_enabled: true,
+          share_start_register: null, // 自動，接續前一個的 end (40100 + 2*4 = 40108)
+          share_stride: null,
+        },
+      ];
+
+      const layouts = computeShareLayout(rules, 40001);
+
+      // rule-1: start 40001, end 40001 + 4*2 = 40009
+      expect(layouts['rule-1']).toEqual({
+        start: 40001,
+        stride: 2,
+        end: 40009,
+        auto: true,
+      });
+
+      // rule-2: 未啟用 share 應為 null
+      expect(layouts['rule-2']).toBeNull();
+
+      // rule-3: 手動指定為 40100, end 40100 + 2*4 = 40108
+      expect(layouts['rule-3']).toEqual({
+        start: 40100,
+        stride: 4,
+        end: 40108,
+        auto: false,
+      });
+
+      // rule-4: 自動，因前一條 end 是 40108，所以 start 應為 40108，end 為 40110
+      expect(layouts['rule-4']).toEqual({
+        start: 40108,
+        stride: 1,
+        end: 40110,
+        auto: true,
+      });
+    });
+  });
+
+  describe('detectAddressConflicts', () => {
+    it('跨規則同址且皆啟用時判定為衝突，skipped 點位應排除不衝突', () => {
+      const allPoints = [
+        {
+          id: 'r1-p0',
+          device_id: 'dev-1',
+          rule_id: 'r1',
+          rule_name: 'Rule 1',
+          name: 'TAG_0',
+          address: '40001',
+          data_type: 'int16',
+          function: 'holding_register' as const,
+          width: 1,
+          enabled: true,
+          skipped: false,
+          _rule_scale: 1,
+          _rule_offset: 0,
+        },
+        {
+          id: 'r2-p0',
+          device_id: 'dev-1',
+          rule_id: 'r2',
+          rule_name: 'Rule 2',
+          name: 'TAG_A',
+          address: '40001', // 同址衝突
+          data_type: 'int16',
+          function: 'holding_register' as const,
+          width: 1,
+          enabled: true,
+          skipped: false,
+          _rule_scale: 1,
+          _rule_offset: 0,
+        },
+        {
+          id: 'r3-p0',
+          device_id: 'dev-1',
+          rule_id: 'r3',
+          rule_name: 'Rule 3',
+          name: 'TAG_B',
+          address: '40005',
+          data_type: 'int16',
+          function: 'holding_register' as const,
+          width: 1,
+          enabled: true,
+          skipped: false,
+          _rule_scale: 1,
+          _rule_offset: 0,
+        },
+        {
+          id: 'r4-p0',
+          device_id: 'dev-1',
+          rule_id: 'r4',
+          rule_name: 'Rule 4',
+          name: 'TAG_C',
+          address: '40005', // 同址，但此點被 skipped，不應列入衝突
+          data_type: 'int16',
+          function: 'holding_register' as const,
+          width: 1,
+          enabled: false,
+          skipped: true,
+          _rule_scale: 1,
+          _rule_offset: 0,
+        },
+      ];
+
+      const conflicts = detectAddressConflicts(allPoints);
+      expect(conflicts.size).toBe(1);
+      expect(conflicts.has('40001')).toBe(true);
+      expect(conflicts.has('40005')).toBe(false);
+    });
+  });
+});

@@ -1,0 +1,334 @@
+{
+  "steps": {
+    "device": {
+      "title": "新增裝置",
+      "subtitle": "Device + Protocol"
+    },
+    "rule": {
+      "title": "接入規則",
+      "subtitle": "Source Rules · 多條範圍"
+    },
+    "mapping": {
+      "title": "點位映射",
+      "subtitle": "Point → Tag"
+    },
+    "database": {
+      "title": "儲存資料庫",
+      "subtitle": "DB Target · Commit"
+    }
+  },
+  "buttons": {
+    "saveDraft": "儲存草稿",
+    "cancel": "取消",
+    "next": "下一步",
+    "prev": "上一步",
+    "submit": "提交並啟動排程器",
+    "save": "儲存",
+    "create": "建立",
+    "continue": "繼續"
+  },
+  "status": {
+    "draft": "草稿",
+    "active": "啟用",
+    "disabled": "停用",
+    "tested": "已測試",
+    "committed": "已部署"
+  },
+  "loading": {
+    "saving": "儲存中…",
+    "loading": "載入中…",
+    "testing": "測試中…",
+    "committing": "提交中…"
+  },
+  "labels": {
+    "devices": "設備",
+    "rules": "接入規則",
+    "mappings": "點位映射",
+    "database": "資料庫寫入"
+  },
+  "step1": {
+    "labels": {
+      "device_prefix": "設備"
+    },
+    "protocols": {
+      "modbus_tcp": "Modbus TCP",
+      "modbus_tcp_desc": "透過乙太網路(Ethernet)讀取 Modbus 暫存器資料，最常用的工業通訊標準。",
+      "modbus_rtu": "Modbus RTU",
+      "modbus_rtu_desc": "經由 RS-485/RS-232 序列埠與 PLC、感測器進行雙向半雙工通訊。",
+      "modbus_udp": "Modbus UDP",
+      "modbus_udp_desc": "使用無連線的 UDP 封包傳輸 Modbus 協定，適用於高頻率但容忍丟包的網路環境。",
+      "fatek_fbs": "Fatek FBS",
+      "fatek_fbs_desc": "永宏 Fatek FBs 系列 PLC 專屬通訊協定，支援讀寫暫存器與離散接點。",
+      "mc_3e": "MC 3E (Q/L)",
+      "mc_3e_desc": "三菱電機 Q/L/FX 系列 PLC 乙太網絡 MC 協議 3E 幀，讀寫軟元件資料。",
+      "mqtt": "MQTT Client",
+      "mqtt_desc": "輕量級發布/訂閱訊息協議，適用於物聯網(IoT)與雲端資料接入。"
+    },
+    "stages": {
+      "resolve": "解析主機名稱",
+      "connect": "建立 TCP 連線",
+      "probe": "協議指令診斷",
+      "open_port": "開啟序列埠",
+      "handshake": "序列協定握手",
+      "subscribe": "訂閱主題測試"
+    },
+    "groups": {
+      "connect": "連線通道",
+      "probe": "協議握手"
+    },
+    "fields": {
+      "device_name": "設備名稱",
+      "device_desc": "設備描述",
+      "select_protocol": "選擇通訊協議",
+      "connection_settings": "連線參數配置",
+      "host": "主機 IP 位址 (Host)",
+      "port": "通訊埠 (Port)",
+      "slave_id": "站號 / 單元識別號 (Slave ID)",
+      "timeout": "逾時時間 (Timeout)",
+      "timeout_hint": "單位：秒，預設 5 秒",
+      "serial_port": "序列埠路徑 (Serial Port)",
+      "baud_rate": "波特率 (Baud Rate)",
+      "parity": "校驗位 (Parity)",
+      "mqtt_broker": "MQTT Broker 位址",
+      "mqtt_username": "使用者名稱 (Username)",
+      "mqtt_client_id": "用戶端識別號 (Client ID)"
+    },
+    "parity": {
+      "none": "None (無校驗)",
+      "even": "Even (偶校驗)",
+      "odd": "Odd (奇校驗)"
+    },
+    "hints": {
+      "description_placeholder": "選填的設備說明…",
+      "protocol_reset_warn": "注意：更換通訊協議將會重置連線參數配置與測試結果。",
+      "no_devices": "目前沒有任何設備，請點擊上方按鈕新增。"
+    },
+    "buttons": {
+      "add_device": "新增設備",
+      "delete_device": "刪除設備",
+      "run_test": "執行測試",
+      "testing": "測試中…",
+      "continue": "全部建立並繼續"
+    },
+    "status": {
+      "testing": "測試中…",
+      "untested": "未測試",
+      "failed": "測試失敗"
+    },
+    "panels": {
+      "editor": "設備參數配置",
+      "diagnostic": "連線通道與診斷測試",
+      "payload_preview": "預覽發送配置 (JSON)",
+      "payload_hint": "此 JSON 代表發送給底層 PLC Client 的真實配置格式。",
+      "stages_title": "診斷步驟進度",
+      "test_success_title": "連線測試成功",
+      "test_success_desc": "已順利通過網路與協議層診斷。合計總耗時 {{latency}} 毫秒，現在可以進行下一步的接入規則設定。"
+    },
+    "dialogs": {
+      "delete_confirm": "確定要刪除設備「{{name}}」嗎？這將會連帶清空此設備底下的所有接入規則、點位配置、映射與資料庫寫入綁定，此動作無法復原！"
+    },
+    "footer": {
+      "progress_summary": "共 {{total}} 個設備，{{tested}} 個已通過測試",
+      "warning_untested": "尚有設備未通過連線測試"
+    }
+  },
+  "step2": {
+    "title": "接入規則設定",
+    "subtitle": "接入規則",
+    "grid_hint": "單擊網格以略過點位；配合 Shift + 點擊可批次選取區段；配合 Ctrl / ⌘ + 點擊可多選。被略過的點位將不參與後續映射轉發。",
+    "batch_buttons": {
+      "all_enabled": "全部啟用",
+      "all_skipped": "全部略過",
+      "reverse": "反轉啟用",
+      "skip_selected": "略過選取",
+      "enable_selected": "啟用選取",
+      "clear_selection": "清除選取"
+    },
+    "labels": {
+      "current_grid": "當前規則點位網格",
+      "function_code": "Modbus 功能碼",
+      "byte_order": "位元組順序 (Byte Order)",
+      "share_details": "Modbus Share 轉發配置",
+      "global_disabled": "全域未啟用",
+      "reset_auto": "改回自動分配"
+    },
+    "table": {
+      "device": "設備來源",
+      "rule": "所屬規則",
+      "name": "點位名稱",
+      "address": "暫存器位址",
+      "function": "功能碼",
+      "datatype": "資料型別",
+      "scale": "線性轉換",
+      "status": "狀態標記",
+      "skipped": "跳過",
+      "conflict": "衝突"
+    },
+    "buttons": {
+      "continue": "繼續到映射"
+    }
+  },
+  "step3": {
+    "title": "點位 → Tag 映射",
+    "subtitle": "為啟用的 PLC 暫存器點位綁定對應的 Tag，並設定 Scale/Offset 線性轉換。",
+    "columns": {
+      "source": "來源",
+      "register": "暫存器",
+      "tagKey": "Tag Key",
+      "displayName": "顯示名稱",
+      "unit": "單位",
+      "targetType": "目標型態",
+      "transform": "× Scale + Offset",
+      "enabled": "啟用"
+    },
+    "steps": {
+      "decode": "decode (raw)",
+      "scale": "scale (linear)",
+      "cast": "cast to {{type}}",
+      "final": "final → Tag"
+    },
+    "table": {
+      "noPoints": "無啟用的點位，請回上一步新增或啟用規則。",
+      "bulkApplyText": "將此轉換套用至全部：使用 {{tag}} 的 Scale / Offset / 型態",
+      "bulkApplyPlaceholder": "點擊任一列以將該列的 Scale / Offset / 型態套用到全部點位"
+    },
+    "preview": {
+      "title": "轉換管線預覽",
+      "emptySubtitle": "請選擇點位列以進行預覽",
+      "emptyText": "請點擊左側列表的任一列以預覽其轉換管線與 API Payload 結構。"
+    },
+    "footer": {
+      "noEnabled": "無啟用點位",
+      "emptyTagWarning": "{{count}} 個 Tag Key 留空",
+      "success": "{{enabled}}/{{total}} 個點位已啟用",
+      "back": "上一步",
+      "continue": "設定資料庫寫入"
+    }
+  },
+  "step4": {
+    "connector_kind": "資料庫類型",
+    "kind_sqlite": "SQLite",
+    "kind_postgres": "PostgreSQL",
+    "kind_mysql": "MySQL",
+    "kind_sqlserver": "SQL Server",
+    "col_tag_key": "Tag 名稱",
+    "col_point": "來源點位",
+    "col_db_field": "資料表欄位",
+    "col_field_type": "欄位型態",
+    "col_enabled": "啟用",
+    "write_mode_label": "寫入策略",
+    "write_mode_insert": "時序追加 (INSERT)",
+    "write_mode_insert_desc": "每一筆資料均新增一列，適合歷史趨勢",
+    "write_mode_upsert": "覆寫更新 (UPSERT)",
+    "write_mode_upsert_desc": "僅保留最新時間戳資料，節省空間",
+    "write_interval_label": "寫入間隔",
+    "write_interval_desc": "設定資料庫批次排程寫入的週期時間",
+    "seconds_unit": "秒 (s)",
+    "connector_title": "資料庫連接器",
+    "connector_subtitle": "設定目標資料寫入的資料庫連線參數與策略",
+    "field_name": "連線名稱",
+    "field_host": "主機位址 (Host)",
+    "field_port": "通訊埠 (Port)",
+    "field_database": "資料庫名稱",
+    "field_db_sqlite": "資料庫檔案路徑",
+    "field_username": "使用者名稱",
+    "field_schema": "綱要 (Schema)",
+    "field_table": "資料表名稱",
+    "mapping_title": "寫入欄位配置",
+    "mapping_subtitle": "將採集點位對應到目標資料表的欄位，主鍵欄位 (ts) 將自動填入系統時間",
+    "no_points": "尚無已配置的映射點位，請先完成 Step 3",
+    "conflict_banner_title": "欄位配置重複",
+    "conflict_banner_desc": "有複數點位映射至同一個資料表欄位。請調整下拉選單以消除紅框衝突，否則無法提交設定。",
+    "summary_title": "確認設定並提交",
+    "summary_subtitle": "請確認採集與寫入規劃，提交後排程器將即刻啟動",
+    "summary_devices": "採集裝置",
+    "summary_rules": "點位規則",
+    "summary_points": "採集點位",
+    "summary_mappings": "點位映射",
+    "summary_database": "資料庫寫入",
+    "no_enabled_targets_warning": "尚未啟用任何資料表欄位寫入",
+    "submit_btn": "提交並啟動排程器",
+    "submit_info": "點擊後系統會依序建置採集實體、映射管線與資料庫連接池。",
+    "progress_title": "部署與套用設定",
+    "progress_subtitle": "正在閘道端執行 API 建置命令序列...",
+    "waiting_logs": "準備發送指令...",
+    "executing_next_command": "正在執行下一個指令…",
+    "success_title": "設定已套用",
+    "success_subtitle": "採集管道與寫入任務已建立成功",
+    "scheduler_started_subline": "Scheduler 已啟動 · 第一筆資料預計在 ~{{interval}}s 後寫入",
+    "go_to_dashboard_btn": "前往 Runtime Dashboard",
+    "success_info": "您可以前往運行儀表板即時監看採集延遲、寫入吞吐量與錯誤日誌。",
+    "scheduler_running": "scheduler running",
+    "scheduler_idle": "scheduler idle"
+  },
+  "settings": {
+    "title": "系統設定",
+    "subtitle": "管理閘道全局連線、儲存排程、位元組映射轉發以及開發人員診斷工具。",
+    "api_title": "API 連線端點",
+    "api_subtitle": "設定後端閘道 API 的基礎連線位址與協議版本。",
+    "api_base": "API 伺服器位址 (API Base)",
+    "api_version": "API 路由版本",
+    "connector_pool_title": "資料庫連接器池",
+    "connector_pool_subtitle": "設定多個目標寫入資料庫實體。可用於分流、備援或者是不同點位的多目標寫入設定。",
+    "add_connector_btn": "新增連接器",
+    "connector_pool_empty_title": "尚未建立任何資料庫連接器",
+    "connector_pool_empty_desc": "點擊右上方「新增連接器」按鈕以新增一筆連線設定。",
+    "status_ready": "連線成功",
+    "status_testing": "正在測試…",
+    "status_failed": "無法連線",
+    "status_unknown": "未測試",
+    "col_enabled": "啟用",
+    "last_checked": "上次檢查",
+    "btn_testing": "測試中…",
+    "btn_test": "測試連線",
+    "btn_delete": "刪除",
+    "diagnostics_title": "日誌與開發診斷",
+    "diagnostics_subtitle": "控制系統運行日誌等級、逾時參數與開發者偵錯控制台。",
+    "diagnostics_log_level": "日誌等級 (Log Level)",
+    "diagnostics_timeout": "通訊逾時",
+    "diagnostics_sse": "SSE 心跳",
+    "diagnostics_audit": "記錄操作審計日誌",
+    "diagnostics_debug_panel": "顯示開發者調試面板",
+    "modbus_share_title": "Local Modbus Share",
+    "modbus_share_subtitle": "將採集資料映射並轉發至本地虛擬 Modbus Server 暫存器，供上層 SCADA/HMI 直接抓取。",
+    "share_bind_address": "監聽本機位址",
+    "share_port": "監聽通訊埠 (Port)",
+    "share_slave_id": "本機站號 (Slave ID)",
+    "share_base_register": "起始暫存器位址",
+    "modbus_share_disabled_msg": "Modbus 轉發服務已停用。開啟後點位分配將會與 Step 2 的 Modbus Share 暫存器配置連動。",
+    "reset_confirm_msg": "確定要將所有系統設定重設為預設值嗎？這將會清除您目前所有的連接器設定與變更。",
+    "save_bar_info": "設定變更會立即套用至本地運行，並於後端服務下次重啟後持續生效。",
+    "reset_to_defaults_btn": "重設為預設",
+    "save_all_btn": "儲存所有設定",
+    "scheduler_title": "排程器核心",
+    "scheduler_subtitle": "排程採集重試策略、熔斷器臨界值以及開機啟動選項設定。",
+    "scheduler_interval": "預設輪詢週期",
+    "scheduler_retry": "連線失敗重試上限",
+    "scheduler_retry_delay": "重試延遲時間",
+    "scheduler_breaker": "熔斷計數器閥值",
+    "scheduler_auto_start": "開機自動啟動",
+    "timeseries_title": "時序儲存策略",
+    "timeseries_subtitle": "調整時序資料寫入時的解析度、物理磁碟分區割裂頻率以及保存期限。",
+    "timeseries_precision": "時間精度",
+    "precision_ms": "毫秒 (millisecond)",
+    "precision_s": "秒 (second)",
+    "timeseries_partition": "分區間隔",
+    "partition_daily": "每日分區 (daily)",
+    "partition_weekly": "每週分區 (weekly)",
+    "partition_monthly": "每月分區 (monthly)",
+    "timeseries_batch": "批次寫入限制條數",
+    "timeseries_retention": "歷史保留天數",
+    "days_unit": "天",
+    "ui_title": "介面與格式偏好",
+    "ui_subtitle": "設定工作台外觀樣式、語系以及暫存器位址顯示格式。",
+    "ui_theme": "視覺主題",
+    "theme_dark": "深色模式 (Dark)",
+    "theme_light": "淺色模式 (Light)",
+    "theme_auto": "跟隨系統 (Auto)",
+    "ui_locale": "顯示語系",
+    "ui_addr_format": "暫存器位址格式",
+    "addr_modbus": "Modbus 式 (e.g. 40001)",
+    "addr_hex": "十六進位 (e.g. 0x0000)",
+    "addr_raw": "十進位 (e.g. 0)"
+  }
+}
