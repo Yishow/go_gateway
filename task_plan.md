@@ -62,6 +62,53 @@
 - [x] 撰寫整合單元測試並通過 `npm run test` 與 `go test`。
 - **狀態：** complete
 
+### 階段 10：建立 studio surface 與 API 維護文件
+- [x] 盤點 `/studio`、`/studio/v2`、`/studio/runtime`、`/gateway/*`、`/test` 的定位與成熟度
+- [x] 盤點前端實際使用的 query / mutation / SSE 與對應後端 API
+- [x] 建立多份 Markdown 文件，分開記錄主線頁面、V2/runtime、gateway/test、API registry 與 gap roadmap
+- [x] 建立一份可直接開啟的 HTML 總覽頁
+- **狀態：** complete
+
+### 階段 11：依產品優先順序重構 surface inventory 文件
+- [x] 將 `/studio` 標示為完整版主線但先暫停
+- [x] 將 `/studio/v2` 標示為預設入口與重點施作
+- [x] 將 `/test` 拆成獨立文件並標示先暫停
+- [x] 將 `/gateway/*` 拆成獨立 experimental 記錄
+- [x] 更新 HTML 總覽以反映上述優先順序
+- **狀態：** complete
+
+### 階段 12：修正 HTML 文件台無資料並拆分為 html/js/css
+- [x] 找出 HTML 無資料的 root cause
+- [x] 將文件台拆為 `index.html`、`inventory.css`、`inventory.js`
+- [x] 驗證 JS 語法與基本檔案關聯
+- **狀態：** complete
+
+### 階段 13：為 studio surface inventory 建立 changelog 機制
+- [x] 在 `AGENTS.md` / `CLAUDE.md` 寫明 inventory 更新必須記錄
+- [x] 新增 SQLite changelog CLI
+- [x] 初始化 changelog database 並寫入本次變更
+- [x] 更新 inventory README 使用說明
+- [x] 驗證 CLI 與資料庫內容
+- **狀態：** complete
+
+### 階段 14：補齊 inventory onboarding 入口
+- [x] 新增 `START_HERE.md` 作為第一入口
+- [x] 新增 `context.json` 作為 machine-readable 摘要
+- [x] 更新 `AGENTS.md` / `CLAUDE.md` 指向 onboarding 入口
+- [x] 更新 `README.md` 閱讀順序與 onboarding 規則
+- [x] 將本次文件更新寫入 SQLite changelog
+- [x] 驗證文件與 changelog
+- **狀態：** complete
+
+### 階段 15：強化新對話自動接手入口
+- [x] 新增 `CURRENT_STATE.md` 作為最新狀態快照
+- [x] 更新 onboarding 文件與 `context.json`
+- [x] 強化 `AGENTS.md` / `CLAUDE.md`，把 `studio` surface 任務必讀順序寫死
+- [x] 補一筆 changelog 記錄這次接手機制升級
+- [x] 補一筆 Codex memory note，讓新對話更容易直接接上
+- [x] 驗證文件、JSON 與 changelog
+- **狀態：** complete
+
 ## 關鍵問題
 1. 每一步驟的變更有無互相依賴？（需依序實作，後面的變更可能基於前面已實作的程式碼）
 2. 測試與 Lint 是否在每個階段實作完都要通過？（是，確保每個階段提交時皆為 clean 狀態）
@@ -71,6 +118,7 @@
 |------|------|
 | 新建分支 `feature/datalink-workbench-v2` | 使用者要求另開分支實作，不直接污染 main |
 | 日誌改為時間遞增排序 (Append to array end) | 與 auto-scroll-to-bottom 對齊，提供流暢的控制台滾動 UX。 |
+| 將 surface inventory 拆成多份 md + 一份 html 總覽 | 避免單一文件過大，讓後續維護與 change 規畫更容易定位 |
 
 ## 遇到的錯誤
 | 錯誤 | 嘗試次數 | 解決方案 |

@@ -124,7 +124,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 禁止未對齊 OpenSpec 既有規格就直接改寫需求語意；遇到衝突需先回報。
 
 ## 檔案行數規範（強制）
-- 目標上限：單檔 `<= 300` 行；硬上限：單檔 `<= 500` 行。
+- 目標上限：單檔 `<= 300` 行；硬上限：單檔 `<= 500` 行，MD/HTML不在此限(超過500行仍需注意，要分檔案)。
 - 檢查規則：
   - `> 300` 行：警告，PR 必須補充理由與拆分計畫。
   - `> 500` 行：視為阻擋條件（CI 失敗）。
@@ -165,6 +165,9 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 專案根目錄需維持 `task_plan.md`、`findings.md`、`progress.md` 三份文件，分別記錄階段計畫、關鍵發現與執行 / 驗證過程。
 - 開始執行前先做 session catchup；每完成一個 phase，要同步更新計畫狀態、測試結果、修改檔案與錯誤紀錄。
 - 重要發現、legacy 清單、風險與失敗嘗試不得只留在對話上下文，必須寫入文件以利續作。
+- 若任務涉及 `/studio`、`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 或 `docs/technical/studio-surface-inventory/`，接手時先讀 `docs/technical/studio-surface-inventory/START_HERE.md`、`docs/technical/studio-surface-inventory/context.json`、`docs/technical/studio-surface-inventory/CURRENT_STATE.md`，不足時才展開其他 inventory 文件。
+- 只要修改 `docs/technical/studio-surface-inventory/` 內任何 md/html/js/css 文件，必須同步寫入 `docs/technical/studio-surface-inventory/changelog.sqlite`；不得只改文件不留 changelog。
+- `studio-surface-inventory` 的 changelog 寫入工具是 `go run ./cmd/studio_inventory_changelog ...`；至少要記錄 `summary`、`surface`、`files` 與變更原因。
 
 ## Worktree 多版本實作規範（強制）
 - 當需求包含「平行版本比較 / A-B / 2+ 變體」時，Agent 必須使用 git worktree，不得在主工作樹混做。

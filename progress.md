@@ -123,6 +123,129 @@
   - 執行 `npm run test -- --run runtime-dashboard` 通過 3 個測試檔案、13 個測試案例（全量綠燈）。
   - 執行後端 `go test ./...` 整合測試與前端全量 production build (tsc && vite build)，均完全通過。
 
+### 階段 10：建立 studio surface 與 API 維護文件
+- **狀態：** complete
+- **開始時間：** 14:40
+- 執行的操作：
+  - 盤點 router 中所有與 `/studio`、`/studio/v2`、`/studio/runtime`、`/gateway/*`、`/test` 相關的產品 surface。
+  - 盤點 `/studio` 主線各步驟實際使用的 query / mutation / runtime SSE，以及候選 review / output / runtime 相關 API。
+  - 確認 `/studio/v2` 現況主要仍是 local reducer draft，Step 4 commit 為模擬流程，runtime handoff 只完成 route 層。
+  - 確認 `/gateway/*` 當前主要依賴 feature flag 與 `/test/connect` connect-only APIs。
+  - 新增 `docs/technical/studio-surface-inventory/` 下的多份 Markdown 文件與 HTML 總覽頁。
+- 建立/修改的檔案：
+  - `docs/technical/studio-surface-inventory/README.md` (建立)
+  - `docs/technical/studio-surface-inventory/studio-mainline.md` (建立)
+  - `docs/technical/studio-surface-inventory/studio-v2-runtime.md` (建立)
+  - `docs/technical/studio-surface-inventory/gateway-and-test.md` (建立)
+  - `docs/technical/studio-surface-inventory/backend-api-registry.md` (建立)
+  - `docs/technical/studio-surface-inventory/gap-roadmap.md` (建立)
+  - `docs/technical/studio-surface-inventory/index.html` (建立)
+  - `task_plan.md` (修改)
+  - `findings.md` (修改)
+  - `progress.md` (修改)
+
+### 階段 11：依產品優先順序重構 surface inventory 文件
+- **狀態：** complete
+- **開始時間：** 15:05
+- 執行的操作：
+  - 依使用者新指示將 `/studio` 標示為完整版但先暫停。
+  - 將 `/studio/v2` 與 `/studio/runtime` 文件改成預設入口與重點施作語境。
+  - 將原本混寫的 gateway/test 文件拆成 `/test` 與 `/gateway/*` 兩份獨立文件。
+  - 更新 HTML 總覽頁，把重點施作 / 暫停 / 僅記錄狀態做成明確視覺標示。
+- 建立/修改的檔案：
+  - `docs/technical/studio-surface-inventory/README.md` (修改)
+  - `docs/technical/studio-surface-inventory/studio-mainline.md` (修改)
+  - `docs/technical/studio-surface-inventory/studio-v2-runtime.md` (修改)
+  - `docs/technical/studio-surface-inventory/test-tooling.md` (建立)
+  - `docs/technical/studio-surface-inventory/gateway-experiments.md` (建立)
+  - `docs/technical/studio-surface-inventory/backend-api-registry.md` (修改)
+  - `docs/technical/studio-surface-inventory/gap-roadmap.md` (修改)
+  - `docs/technical/studio-surface-inventory/index.html` (修改)
+  - `task_plan.md` (修改)
+  - `findings.md` (修改)
+  - `progress.md` (修改)
+
+### 階段 12：修正 HTML 文件台無資料並拆分為 html/js/css
+- **狀態：** complete
+- **開始時間：** 15:20
+- 執行的操作：
+  - 檢查第一版 `index.html` 無資料的根因，確認為內嵌 JS 語法錯誤導致 render 未執行。
+  - 將文件台拆為 `index.html`、`inventory.css`、`inventory.js` 三檔，避免大段 inline script/style 難維護。
+  - 移除會破壞 template literal 的未跳脫反引號內容，改用 `<code>` 標記輸出。
+  - 以 `node --check` 驗證 `inventory.js` 語法正確。
+- 建立/修改的檔案：
+  - `docs/technical/studio-surface-inventory/index.html` (重建)
+  - `docs/technical/studio-surface-inventory/inventory.css` (建立)
+  - `docs/technical/studio-surface-inventory/inventory.js` (建立)
+  - `findings.md` (修改)
+  - `progress.md` (修改)
+
+### 階段 13：為 studio surface inventory 建立 changelog 機制
+- **狀態：** complete
+- **開始時間：** 15:45
+- 執行的操作：
+  - 檢查 `AGENTS.md`、`CLAUDE.md` 與現有 inventory 文件，確認目前沒有明文要求在更新 inventory 時同步留下 changelog。
+  - 確認 `go.mod` 已含 `modernc.org/sqlite`，適合用最小 Go CLI 落地 SQLite 記錄，而不是只寫文字規範。
+  - 規劃新增 `cmd/studio_inventory_changelog`，提供 `init`、`add`、`list` 三個最小命令。
+  - 在 `AGENTS.md`、`CLAUDE.md` 與 inventory `README.md` 補上 changelog 維護規則與使用方式。
+  - 以 `go run ./cmd/studio_inventory_changelog init` 初始化 `docs/technical/studio-surface-inventory/changelog.sqlite`。
+  - 以 `go run ./cmd/studio_inventory_changelog add ...` 寫入首筆 changelog，記錄這次機制建立本身。
+  - 以 `go run ./cmd/studio_inventory_changelog list -limit 5` 驗證資料可讀。
+  - 執行 `go test ./cmd/studio_inventory_changelog` 與 `git diff --check` 完成收尾驗證。
+- 建立/修改的檔案：
+  - `AGENTS.md` (修改)
+  - `CLAUDE.md` (修改)
+  - `cmd/studio_inventory_changelog/main.go` (建立)
+  - `docs/technical/studio-surface-inventory/README.md` (修改)
+  - `docs/technical/studio-surface-inventory/changelog.sqlite` (建立)
+  - `task_plan.md` (修改)
+  - `findings.md` (修改)
+  - `progress.md` (修改)
+
+### 階段 14：補齊 inventory onboarding 入口
+- **狀態：** complete
+- **開始時間：** 19:35
+- 執行的操作：
+  - 檢查現有 inventory 文件結構，確認目前雖有 README 與 HTML，但仍缺接手 AI 的固定第一入口與 machine-readable 摘要。
+  - 規劃新增 `START_HERE.md` 與 `context.json`，並要求 `AGENTS.md` / `CLAUDE.md` 明確導向這兩個入口。
+  - 建立 `START_HERE.md`，把產品決策、閱讀順序、常見任務入口與 changelog 用法濃縮成單一入口。
+  - 建立 `context.json`，將重點 surface、策略、canonical docs、known gaps 與 changelog 路徑轉成 machine-readable 摘要。
+  - 更新 `README.md`、`AGENTS.md`、`CLAUDE.md`，要求接手 inventory 任務時先讀 `START_HERE.md` 與 `context.json`。
+  - 以 `go run ./cmd/studio_inventory_changelog add ...` 寫入這次 onboarding 更新的 changelog。
+  - 執行 `go run ./cmd/studio_inventory_changelog list -limit 5`、`python3 -m json.tool docs/technical/studio-surface-inventory/context.json`、`git diff --check` 驗證。
+- 建立/修改的檔案：
+  - `docs/technical/studio-surface-inventory/START_HERE.md` (建立)
+  - `docs/technical/studio-surface-inventory/context.json` (建立)
+  - `docs/technical/studio-surface-inventory/README.md` (修改)
+  - `AGENTS.md` (修改)
+  - `CLAUDE.md` (修改)
+  - `task_plan.md` (修改)
+  - `findings.md` (修改)
+  - `progress.md` (修改)
+
+### 階段 15：強化新對話自動接手入口
+- **狀態：** complete
+- **開始時間：** 19:50
+- 執行的操作：
+  - 規劃新增 `CURRENT_STATE.md`，把「目前做到哪、不要重做什麼、下一步最可能做什麼」濃縮成最新快照。
+  - 擴大 `AGENTS.md` / `CLAUDE.md` 的觸發條件，不只 inventory 任務，連 `/studio`、`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 相關任務都要先讀 onboarding 入口。
+  - 建立 `CURRENT_STATE.md`，固定記錄產品決策、最近新增內容、下次必讀順序與不要重做的事情。
+  - 更新 `START_HERE.md`、`context.json`、`README.md`，把 onboarding 順序擴成 `START_HERE -> context.json -> CURRENT_STATE`。
+  - 更新 `AGENTS.md` 與 `CLAUDE.md`，要求凡是碰 `studio` surfaces 或 inventory 任務都必須先走這個順序。
+  - 新增 Codex memory note 到 `~/.codex/memories/extensions/ad_hoc/notes/2026-05-29T19-55-studio-surface-inventory-onboarding.md`，讓新對話更容易直接接上。
+  - 以 `go run ./cmd/studio_inventory_changelog add ...` 寫入接手機制升級紀錄。
+  - 執行 `go run ./cmd/studio_inventory_changelog list -limit 5`、`python3 -m json.tool docs/technical/studio-surface-inventory/context.json`、`git diff --check` 驗證。
+- 建立/修改的檔案：
+  - `docs/technical/studio-surface-inventory/CURRENT_STATE.md` (建立)
+  - `docs/technical/studio-surface-inventory/START_HERE.md` (修改)
+  - `docs/technical/studio-surface-inventory/context.json` (修改)
+  - `docs/technical/studio-surface-inventory/README.md` (修改)
+  - `AGENTS.md` (修改)
+  - `CLAUDE.md` (修改)
+  - `task_plan.md` (修改)
+  - `findings.md` (修改)
+  - `progress.md` (修改)
+
 ## 測試結果
 | 測試 | 輸入 | 預期結果 | 實際結果 | 狀態 |
 |------|------|---------|---------|------|
@@ -156,4 +279,3 @@
 
 ---
 *每個階段完成後或遇到錯誤時更新此檔案*
-

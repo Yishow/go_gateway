@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Studio Surface Inventory Console</title>
+    <link rel="stylesheet" href="./inventory.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="panel hero">
+        <span class="kicker">Surface Inventory Console</span>
+        <h1>Studio / V2 / Runtime / Test / Gateway 維護主控台</h1>
+        <p>
+          這份 HTML 是互動式維護文件台，讓你不必先啃 Markdown 才能找到資訊。它把各 surface 的產品定位、前端動作、state source of truth、API 綁定、handoff、缺口與 roadmap 拆成分頁與表格。
+        </p>
+        <div class="decision-board" id="decision-board"></div>
+      </section>
+
+      <div class="main-grid">
+        <aside class="panel sidebar">
+          <h2>Tabs</h2>
+          <div class="tab-list" id="tab-list"></div>
+
+          <div class="legend">
+            <div class="legend-item"><span class="chip focus">重點施作</span><span>近期優先開發與規畫主線</span></div>
+            <div class="legend-item"><span class="chip paused">先暫停</span><span>保留完整記錄，但不列入這輪實作</span></div>
+            <div class="legend-item"><span class="chip gap">語意/契約缺口</span><span>API 可用但不足以支撐產品流程</span></div>
+            <div class="legend-item"><span class="chip experimental">原型/實驗</span><span>不等同正式 datalink persisted flow</span></div>
+          </div>
+        </aside>
+
+        <main class="panel content">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <input id="search-input" type="search" placeholder="搜尋 action / API / route / 檔案..." />
+              <select id="status-filter">
+                <option value="all">全部狀態</option>
+                <option value="wired">wired</option>
+                <option value="exists-not-wired">exists-not-wired</option>
+                <option value="frontend-local-only">frontend-local-only</option>
+                <option value="semantics-gap">semantics-gap</option>
+                <option value="connect-only">connect-only</option>
+                <option value="experimental-status">experimental</option>
+              </select>
+            </div>
+            <div class="toolbar-right muted">
+              <span>Primary HTML doc</span>
+              <span>•</span>
+              <span>MD remains canonical long-form backup</span>
+            </div>
+          </div>
+
+          <div id="tab-content"></div>
+        </main>
+      </div>
+    </div>
+
+    <script src="./inventory.js"></script>
+  </body>
+</html>

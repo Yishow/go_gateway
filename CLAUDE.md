@@ -164,9 +164,12 @@ make check-lines
 - `/studio` 是 datalink 主產品唯一主線；`/test` 是工程工具專區。
 - `cmd/test_ui` 為單一可執行檔入口，前端資產嵌入 `cmd/test_ui/static`。
 - 多步驟任務預設使用 `planning-with-files`，持續維護 `task_plan.md`、`findings.md`、`progress.md`。
+- 若任務涉及 `/studio`、`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 或 `docs/technical/studio-surface-inventory/`，先讀 `docs/technical/studio-surface-inventory/START_HERE.md`、`docs/technical/studio-surface-inventory/context.json`、`docs/technical/studio-surface-inventory/CURRENT_STATE.md`，只在不足以回答問題時再展開完整 md/html 文件。
+- 只要修改 `docs/technical/studio-surface-inventory/` 內任何文件，必須同步寫入 `docs/technical/studio-surface-inventory/changelog.sqlite`，避免 inventory 在沒有明確紀錄下被悄悄改動。
+- `studio-surface-inventory` changelog 一律使用 `go run ./cmd/studio_inventory_changelog ...` 管理；至少要留下 `summary`、`surface`、`files`、`reason`。
 
 ## 檔案行數規範（強制）
-- 目標：單檔不超過 300 行；硬上限 500 行。
+- 目標：單檔不超過 300 行；硬上限 500 行，MD/HTML不在此限(超過500行仍需注意，要分檔案)。
 - 規則：
   - `> 300` 行：警告，必須在 PR 提供原因與拆分計畫。
   - `> 500` 行：CI 阻擋。

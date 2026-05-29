@@ -1,0 +1,93 @@
+{
+  "inventory_version": 1,
+  "default_entry_direction": "/studio/v2",
+  "focus_surfaces": [
+    "/studio/v2",
+    "/studio/runtime"
+  ],
+  "paused_surfaces": [
+    "/studio",
+    "/test"
+  ],
+  "experimental_surfaces": [
+    "/gateway/*"
+  ],
+  "surface_strategy": {
+    "/studio": {
+      "role": "full-product-mainline",
+      "status": "paused",
+      "notes": [
+        "功能面應全面覆蓋需求",
+        "本輪不列為重點施作"
+      ]
+    },
+    "/studio/v2": {
+      "role": "user-facing-guided-entry",
+      "status": "focus",
+      "notes": [
+        "面向使用者",
+        "簡單、有指引、容易觀察",
+        "是近期主要施作線"
+      ]
+    },
+    "/studio/runtime": {
+      "role": "post-setup-focused-monitor",
+      "status": "focus",
+      "notes": [
+        "跟隨 /studio/v2 一起規劃",
+        "不是 fleet-first dashboard"
+      ]
+    },
+    "/test": {
+      "role": "engineering-tooling",
+      "status": "paused",
+      "notes": [
+        "先暫停",
+        "維持完整記錄供後續整理"
+      ]
+    },
+    "/gateway/*": {
+      "role": "experimental-prototype",
+      "status": "record-only",
+      "notes": [
+        "保留記錄",
+        "不列為主產品優先線"
+      ]
+    }
+  },
+  "canonical_docs": {
+    "entrypoint": "docs/technical/studio-surface-inventory/START_HERE.md",
+    "current_state": "docs/technical/studio-surface-inventory/CURRENT_STATE.md",
+    "overview": "docs/technical/studio-surface-inventory/README.md",
+    "html_console": "docs/technical/studio-surface-inventory/index.html",
+    "v2_runtime": "docs/technical/studio-surface-inventory/studio-v2-runtime.md",
+    "studio_mainline": "docs/technical/studio-surface-inventory/studio-mainline.md",
+    "test_tooling": "docs/technical/studio-surface-inventory/test-tooling.md",
+    "gateway_experiments": "docs/technical/studio-surface-inventory/gateway-experiments.md",
+    "api_registry": "docs/technical/studio-surface-inventory/backend-api-registry.md",
+    "roadmap": "docs/technical/studio-surface-inventory/gap-roadmap.md"
+  },
+  "canonical_apis": {
+    "runtime_status": "/api/v1/datalink/runtime/status",
+    "runtime_stream": "/api/v1/datalink/runtime/stream",
+    "test_connect": "/test/connect"
+  },
+  "known_gaps": [
+    "router 預設入口仍未切到 /studio/v2",
+    "/studio/v2 commit lifecycle 仍有 backend-persisted contract 缺口",
+    "/studio/runtime lifecycle semantics 仍需持續收斂",
+    "/gateway/* 目前仍主要依賴 connect-only API"
+  ],
+  "onboarding_order": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/technical/studio-surface-inventory/START_HERE.md",
+    "docs/technical/studio-surface-inventory/context.json",
+    "docs/technical/studio-surface-inventory/CURRENT_STATE.md"
+  ],
+  "changelog": {
+    "db_path": "docs/technical/studio-surface-inventory/changelog.sqlite",
+    "tool": "go run ./cmd/studio_inventory_changelog",
+    "required_on_edit": true
+  }
+}
