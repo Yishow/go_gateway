@@ -457,9 +457,18 @@ export interface RuntimeCollectorStatus {
   breaker_state: 'closed' | 'open' | 'half-open' | string;
 }
 
+export interface RuntimeMetrics {
+  collected_total: number;
+  write_success_total: number;
+  write_error_total: number;
+  mapping_error_total: number;
+  point_state_error_total: number;
+}
+
 export interface RuntimeStatus {
   running: boolean;
   uptime_seconds: number;
+  metrics?: RuntimeMetrics;
   collectors: RuntimeCollectorStatus[];
 }
 
@@ -472,6 +481,18 @@ export interface RuntimeValueEvent {
   quality: 'good' | 'bad' | 'uncertain';
   stale: boolean;
   timestamp: string;
+}
+
+export interface RuntimeDeviceStatusEvent {
+  device_id: string;
+  status: 'idle' | 'running' | 'warning' | 'error';
+  points_total: number;
+  points_healthy: number;
+  points_stale: number;
+  points_error: number;
+  last_read_at?: string | null;
+  last_error?: string | null;
+  breaker_state: 'closed' | 'open' | 'half-open' | string;
 }
 
 export type RuntimeStreamConnectionState =

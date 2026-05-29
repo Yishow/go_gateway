@@ -13,6 +13,7 @@ import {
 } from './features/datalink/legacyRoutes'
 import DatalinkWorkbenchPage from './pages/datalink/workbench/DatalinkWorkbenchPage'
 import DatalinkWorkbenchV2Page from './pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
+import { RuntimeDashboardRoute } from './features/datalink/runtime-dashboard/RuntimeDashboardRoute'
 import { GatewayCreateEntryRedirect, GatewayEntryRoute, GatewayExpertWorkbenchRoute, GatewayQuickSetupRoute } from './router/gateway'
 
 function LocalModbusCompatRoute() {
@@ -47,6 +48,7 @@ export function AppRoutes() {
 
       {/* Studio Main Route */}
       <Route path="/studio/v2" element={<DatalinkWorkbenchV2Page />} />
+      <Route path="/studio/runtime" element={<RuntimeDashboardRoute />} />
       <Route path="/studio" element={<DatalinkWorkbenchPage />} />
 
       {/* Datalink legacy routes */}

@@ -642,6 +642,13 @@ export const runtimeAPI = {
     return res.data.data ?? {
       running: false,
       uptime_seconds: 0,
+      metrics: {
+        collected_total: 0,
+        write_success_total: 0,
+        write_error_total: 0,
+        mapping_error_total: 0,
+        point_state_error_total: 0,
+      },
       collectors: [],
     };
   },
