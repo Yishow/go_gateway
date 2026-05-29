@@ -338,7 +338,7 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   describe('Runtime dashboard handoff', () => {
-    it('navigates to the resolved runtime dashboard device route from the success card', () => {
+    it('falls back to /studio/runtime when the shell only has local draft device ids', () => {
       const mockState = {
         ...INITIAL_STATE,
         current: 4 as const,
@@ -370,7 +370,56 @@ describe('Workbench V2 Shell & Integration', () => {
 
       fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
 
-      expect(screen.getByTestId('shell-location')).toHaveTextContent('/studio/runtime?device_id=dev-01');
+      expect(screen.getByTestId('shell-location')).toHaveTextContent('/studio/runtime');
+    });
+
+    it('navigates to the resolved runtime dashboard device route when the shell carries a persisted backend device id', () => {
+      const mockState = {
+        ...INITIAL_STATE,
+        current: 4 as const,
+        devices: [
+          {
+            ...INITIAL_STATE.devices[0],
+            id: '550e8400-e29b-41d4-a716-446655440000',
+          },
+        ],
+        rules: [
+          {
+            ...INITIAL_STATE.rules[0],
+            device_id: '550e8400-e29b-41d4-a716-446655440000',
+          },
+        ],
+        committed: true,
+        commit: {
+          status: 'success' as const,
+          logs: [],
+        },
+      };
+      const mockActions = {
+        state: mockState,
+        setView: vi.fn(),
+        setCurrent: vi.fn(),
+        completeStep: vi.fn(),
+        toggleSidebar: vi.fn(),
+        toggleSummaryRail: vi.fn(),
+        setSidebarCollapsed: vi.fn(),
+        setShowSummaryRail: vi.fn(),
+        resetFlow: vi.fn(),
+        selectRule: vi.fn(),
+        dispatch: vi.fn(),
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/studio/v2']}>
+          <ShellRouterHarness state={mockState} actions={mockActions} />
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
+
+      expect(screen.getByTestId('shell-location')).toHaveTextContent(
+        '/studio/runtime?device_id=550e8400-e29b-41d4-a716-446655440000',
+      );
     });
   });
 });

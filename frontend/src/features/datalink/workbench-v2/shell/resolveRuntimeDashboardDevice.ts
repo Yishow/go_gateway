@@ -5,12 +5,19 @@ type RuntimeDashboardDeviceState = Pick<
   'selectedRuleId' | 'rules' | 'devices'
 >;
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isPersistedBackendDeviceID(deviceID: string | null | undefined): deviceID is string {
+  return typeof deviceID === 'string' && uuidPattern.test(deviceID);
+}
+
 export function resolveRuntimeDashboardDevice(
   state: RuntimeDashboardDeviceState,
 ): string | null {
   if (state.selectedRuleId) {
     const selectedRule = state.rules.find((rule) => rule.id === state.selectedRuleId);
-    if (selectedRule) {
+    if (selectedRule && isPersistedBackendDeviceID(selectedRule.device_id)) {
       return selectedRule.device_id;
     }
   }
@@ -22,11 +29,17 @@ export function resolveRuntimeDashboardDevice(
         .map((rule) => rule.device_id),
     ),
   );
-  if (enabledRuleDeviceIds.length === 1) {
+  if (
+    enabledRuleDeviceIds.length === 1 &&
+    isPersistedBackendDeviceID(enabledRuleDeviceIds[0])
+  ) {
     return enabledRuleDeviceIds[0];
   }
 
-  if (state.devices.length === 1) {
+  if (
+    state.devices.length === 1 &&
+    isPersistedBackendDeviceID(state.devices[0]?.id)
+  ) {
     return state.devices[0].id;
   }
 

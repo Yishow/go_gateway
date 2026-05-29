@@ -14,6 +14,14 @@ import type { RuntimeDashboardLog } from './useRuntimeStream';
 
 const degradedPollingIntervalMs = 5000;
 
+function isMissingRuntimeDeviceError(message: string | null): boolean {
+  if (!message) {
+    return false;
+  }
+
+  return message.includes('device not found');
+}
+
 export type RuntimeDashboardRouteState =
   | 'missing-device-context'
   | 'loading'
@@ -73,6 +81,8 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     deviceId: selectedDeviceId,
     pollingIntervalMs: isDegraded ? degradedPollingIntervalMs : false,
   });
+  const snapshotError =
+    snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null;
 
   const stream = useRuntimeDashboardStream({
     deviceId: selectedDeviceId,
@@ -106,6 +116,10 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return 'missing-device-context';
     }
 
+    if (!lastSnapshot && isMissingRuntimeDeviceError(snapshotError)) {
+      return 'missing-device-context';
+    }
+
     if (!lastSnapshot && snapshotQuery.isError) {
       return 'error';
     }
@@ -127,6 +141,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     isDegraded,
     lastSnapshot,
     selectedDeviceId,
+    snapshotError,
     snapshotQuery.isError,
     snapshotQuery.isFetching,
     snapshotQuery.isLoading,
@@ -139,7 +154,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     selectedDevice,
     devices,
     snapshot: lastSnapshot ?? snapshotQuery.data ?? emptySnapshot,
-    snapshotError: snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null,
+    snapshotError,
     liveValues: stream.liveValues,
     streamState: stream.connectionState,
     logs: stream.logs,

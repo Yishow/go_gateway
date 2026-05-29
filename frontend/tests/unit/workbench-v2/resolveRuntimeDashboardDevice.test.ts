@@ -10,12 +10,12 @@ function createState(overrides?: Partial<WorkbenchV2State>): WorkbenchV2State {
     sidebarCollapsed: false,
     showSummaryRail: true,
     devices: [
-      { id: 'device-A', name: 'Mixer PLC', description: '', protocol: 'modbus_tcp', config: {}, status: 'active', test: null },
-      { id: 'device-B', name: 'Filler PLC', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null },
+      { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Mixer PLC', description: '', protocol: 'modbus_tcp', config: {}, status: 'active', test: null },
+      { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Filler PLC', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null },
     ],
     rules: [
-      { id: 'rule-A', device_id: 'device-A', name: 'Holding Registers', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 'a_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
-      { id: 'rule-B', device_id: 'device-B', name: 'Input Registers', start_address: '30001', count: 1, data_type: 'int16', naming_prefix: 'b_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
+      { id: 'rule-A', device_id: '550e8400-e29b-41d4-a716-446655440000', name: 'Holding Registers', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 'a_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
+      { id: 'rule-B', device_id: '550e8400-e29b-41d4-a716-446655440001', name: 'Input Registers', start_address: '30001', count: 1, data_type: 'int16', naming_prefix: 'b_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
     ],
     selectedRuleId: null,
     points: [],
@@ -53,29 +53,43 @@ describe('resolveRuntimeDashboardDevice', () => {
   it('prefers the selected rule device when selectedRuleId is present', () => {
     const state = createState({ selectedRuleId: 'rule-B' });
 
-    expect(resolveRuntimeDashboardDevice(state)).toBe('device-B');
+    expect(resolveRuntimeDashboardDevice(state)).toBe('550e8400-e29b-41d4-a716-446655440001');
   });
 
   it('uses the single enabled-rule device when all enabled rules belong to one device', () => {
     const state = createState({
       rules: [
-        { id: 'rule-A', device_id: 'device-A', name: 'Holding Registers', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 'a_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
-        { id: 'rule-A2', device_id: 'device-A', name: 'Input Registers', start_address: '30001', count: 1, data_type: 'int16', naming_prefix: 'a2_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
+        { id: 'rule-A', device_id: '550e8400-e29b-41d4-a716-446655440000', name: 'Holding Registers', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 'a_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
+        { id: 'rule-A2', device_id: '550e8400-e29b-41d4-a716-446655440000', name: 'Input Registers', start_address: '30001', count: 1, data_type: 'int16', naming_prefix: 'a2_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
       ],
     });
 
-    expect(resolveRuntimeDashboardDevice(state)).toBe('device-A');
+    expect(resolveRuntimeDashboardDevice(state)).toBe('550e8400-e29b-41d4-a716-446655440000');
   });
 
   it('falls back to the single device when only one device exists', () => {
     const state = createState({
       devices: [
-        { id: 'device-A', name: 'Mixer PLC', description: '', protocol: 'modbus_tcp', config: {}, status: 'active', test: null },
+        { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Mixer PLC', description: '', protocol: 'modbus_tcp', config: {}, status: 'active', test: null },
       ],
       rules: [],
     });
 
-    expect(resolveRuntimeDashboardDevice(state)).toBe('device-A');
+    expect(resolveRuntimeDashboardDevice(state)).toBe('550e8400-e29b-41d4-a716-446655440000');
+  });
+
+  it('returns null for local draft device ids that are not persisted backend ids', () => {
+    const state = createState({
+      devices: [
+        { id: 'dev-01', name: 'Draft PLC', description: '', protocol: 'modbus_tcp', config: {}, status: 'active', test: null },
+      ],
+      rules: [
+        { id: 'rule-01', device_id: 'dev-01', name: 'Holding Registers', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 'draft_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
+      ],
+      selectedRuleId: 'rule-01',
+    });
+
+    expect(resolveRuntimeDashboardDevice(state)).toBeNull();
   });
 
   it('returns null when no deterministic device can be resolved', () => {
