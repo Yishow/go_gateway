@@ -6,6 +6,10 @@ import { StepRail, STEPS } from './StepRail';
 import { SummaryRail } from './SummaryRail';
 import { TweaksPanel } from './TweaksPanel';
 import { Icon, Button } from '../components';
+import {
+  buildRuntimeDashboardTarget,
+  resolveRuntimeDashboardDevice,
+} from './resolveRuntimeDashboardDevice';
 
 // 導入真實的步驟元件與設定頁面
 import { SettingsPage } from '../settings';
@@ -19,6 +23,7 @@ import { Step4Database } from '../steps/step4';
 export interface WorkbenchV2ShellProps {
   state: WorkbenchV2State;
   actions: ReturnType<typeof useWorkbenchV2State>;
+  navigateTo?: (target: string) => void;
 }
 
 /**
@@ -30,6 +35,7 @@ export interface WorkbenchV2ShellProps {
 export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   state,
   actions,
+  navigateTo,
 }) => {
   const {
     view,
@@ -112,6 +118,11 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleRuntimeDashboardHandoff = React.useCallback(() => {
+    const target = buildRuntimeDashboardTarget(resolveRuntimeDashboardDevice(state));
+    navigateTo?.(target);
+  }, [navigateTo, state]);
+
   // 渲染中央步驟內容
   const renderContent = () => {
     if (view === 'settings') {
@@ -158,11 +169,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
           <Step4Database
             state={state}
             dispatch={actions.dispatch}
-            onCommit={() => {
-              // 提交完成回呼
-              // eslint-disable-next-line no-console
-              console.log('Database committed successfully!');
-            }}
+            onCommit={handleRuntimeDashboardHandoff}
           />
         );
       default:

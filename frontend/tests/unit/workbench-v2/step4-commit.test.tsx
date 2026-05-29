@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
+import { WorkbenchV2Shell } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { dbReducer } from '../../../src/features/datalink/workbench-v2/state/dbReducer';
 import type { WorkbenchV2State, CommitLog } from '../../../src/features/datalink/workbench-v2/state/types';
 import type { WorkbenchV2Action } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -18,6 +20,40 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('Step 4 Database Commit Flow Integration', () => {
+  function LocationProbe() {
+    const location = useLocation();
+    return <div data-testid="step4-shell-location">{`${location.pathname}${location.search}`}</div>;
+  }
+
+  function ShellRouterHarness({
+    state,
+    actions,
+  }: {
+    state: WorkbenchV2State;
+    actions: {
+      state: WorkbenchV2State;
+      setView: ReturnType<typeof vi.fn>;
+      setCurrent: ReturnType<typeof vi.fn>;
+      completeStep: ReturnType<typeof vi.fn>;
+      toggleSidebar: ReturnType<typeof vi.fn>;
+      toggleSummaryRail: ReturnType<typeof vi.fn>;
+      setSidebarCollapsed: ReturnType<typeof vi.fn>;
+      setShowSummaryRail: ReturnType<typeof vi.fn>;
+      resetFlow: ReturnType<typeof vi.fn>;
+      selectRule: ReturnType<typeof vi.fn>;
+      dispatch: ReturnType<typeof vi.fn>;
+    };
+  }) {
+    const navigate = useNavigate();
+
+    return (
+      <>
+        <WorkbenchV2Shell state={state} actions={actions} navigateTo={navigate} />
+        <LocationProbe />
+      </>
+    );
+  }
+
   const mockState: WorkbenchV2State = {
     view: 'flow',
     current: 4,
@@ -178,5 +214,50 @@ describe('Step 4 Database Commit Flow Integration', () => {
     fireEvent.click(btn);
 
     expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('當無法解析單一 device 時，仍應 handoff 到 /studio/runtime 且不留下 console log only side effect', () => {
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const unresolvedState: WorkbenchV2State = {
+      ...mockState,
+      devices: [
+        { id: 'd-1', name: 'PLC-1', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null },
+        { id: 'd-2', name: 'PLC-2', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null },
+      ],
+      rules: [
+        { id: 'r-1', device_id: 'd-1', name: 'Holding Registers', start_address: '40001', count: 1, data_type: 'int16', naming_prefix: 't_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
+        { id: 'r-2', device_id: 'd-2', name: 'Input Registers', start_address: '30001', count: 1, data_type: 'int16', naming_prefix: 'u_', enabled: true, scale_multiplier: 1, scale_offset: 0, data_format: '', skipped_addresses: [], share_enabled: false, share_start_register: null, share_stride: null },
+      ],
+      selectedRuleId: null,
+      committed: true,
+      commit: {
+        status: 'success',
+        logs: [],
+      },
+    };
+    const actions = {
+      state: unresolvedState,
+      setView: vi.fn(),
+      setCurrent: vi.fn(),
+      completeStep: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleSummaryRail: vi.fn(),
+      setSidebarCollapsed: vi.fn(),
+      setShowSummaryRail: vi.fn(),
+      resetFlow: vi.fn(),
+      selectRule: vi.fn(),
+      dispatch: vi.fn(),
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/studio/v2']}>
+        <ShellRouterHarness state={unresolvedState} actions={actions} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
+
+    expect(screen.getByTestId('step4-shell-location')).toHaveTextContent('/studio/runtime');
+    expect(consoleLogSpy).not.toHaveBeenCalledWith('Database committed successfully!');
   });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { WorkbenchV2Shell } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -14,6 +15,40 @@ vi.mock('react-i18next', () => ({
 
 describe('Workbench V2 Shell & Integration', () => {
   const originalInnerWidth = window.innerWidth;
+
+  function LocationProbe() {
+    const location = useLocation();
+    return <div data-testid="shell-location">{`${location.pathname}${location.search}`}</div>;
+  }
+
+  function ShellRouterHarness({
+    state,
+    actions,
+  }: {
+    state: typeof INITIAL_STATE;
+    actions: {
+      state: typeof INITIAL_STATE;
+      setView: ReturnType<typeof vi.fn>;
+      setCurrent: ReturnType<typeof vi.fn>;
+      completeStep: ReturnType<typeof vi.fn>;
+      toggleSidebar: ReturnType<typeof vi.fn>;
+      toggleSummaryRail: ReturnType<typeof vi.fn>;
+      setSidebarCollapsed: ReturnType<typeof vi.fn>;
+      setShowSummaryRail: ReturnType<typeof vi.fn>;
+      resetFlow: ReturnType<typeof vi.fn>;
+      selectRule: ReturnType<typeof vi.fn>;
+      dispatch: ReturnType<typeof vi.fn>;
+    };
+  }) {
+    const navigate = useNavigate();
+
+    return (
+      <>
+        <WorkbenchV2Shell state={state} actions={actions} navigateTo={navigate} />
+        <LocationProbe />
+      </>
+    );
+  }
 
   beforeEach(() => {
     // 預設寬度為 1440px (寬螢幕，渲染 SummaryRail)
@@ -299,6 +334,43 @@ describe('Workbench V2 Shell & Integration', () => {
 
       render(<WorkbenchV2Shell state={mockState} actions={mockActions} />);
       expect(screen.getByText('step4.scheduler_running')).toBeInTheDocument();
+    });
+  });
+
+  describe('Runtime dashboard handoff', () => {
+    it('navigates to the resolved runtime dashboard device route from the success card', () => {
+      const mockState = {
+        ...INITIAL_STATE,
+        current: 4 as const,
+        committed: true,
+        commit: {
+          status: 'success' as const,
+          logs: [],
+        },
+      };
+      const mockActions = {
+        state: mockState,
+        setView: vi.fn(),
+        setCurrent: vi.fn(),
+        completeStep: vi.fn(),
+        toggleSidebar: vi.fn(),
+        toggleSummaryRail: vi.fn(),
+        setSidebarCollapsed: vi.fn(),
+        setShowSummaryRail: vi.fn(),
+        resetFlow: vi.fn(),
+        selectRule: vi.fn(),
+        dispatch: vi.fn(),
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/studio/v2']}>
+          <ShellRouterHarness state={mockState} actions={mockActions} />
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
+
+      expect(screen.getByTestId('shell-location')).toHaveTextContent('/studio/runtime?device_id=dev-01');
     });
   });
 });

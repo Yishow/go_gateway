@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CardMinimizeProvider } from './components/CardMinimizeProvider'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -31,6 +31,11 @@ function LegacyTestToolRedirect() {
   return <Navigate to="/test" replace />
 }
 
+function DatalinkWorkbenchV2Route() {
+  const navigate = useNavigate()
+  return <DatalinkWorkbenchV2Page navigateTo={navigate} />
+}
+
 /**
  * 主應用程式組件
  * 
@@ -47,7 +52,7 @@ export function AppRoutes() {
       <Route path="/" element={<Navigate to="/studio" replace />} />
 
       {/* Studio Main Route */}
-      <Route path="/studio/v2" element={<DatalinkWorkbenchV2Page />} />
+      <Route path="/studio/v2" element={<DatalinkWorkbenchV2Route />} />
       <Route path="/studio/runtime" element={<RuntimeDashboardRoute />} />
       <Route path="/studio" element={<DatalinkWorkbenchPage />} />
 
