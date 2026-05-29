@@ -1,19 +1,19 @@
-## 1. 基礎架構與路由設定 (Setup)
+## 1. Focused page surface 先行
 
-- [ ] [P] 1.1 註冊多語言資源。新增 `frontend/src/i18n/locales/zh-TW/runtime-dashboard.json` 與 `frontend/src/i18n/locales/en/runtime-dashboard.json` 包含 Dashboard 所有繁中與英文文案，並在 `frontend/src/i18n/config.ts` 內註冊 `runtime-dashboard` 命名空間。驗證：執行 `npm run lint` 且載入 config 時無 namespace warnings。
-- [ ] [P] 1.2 註冊路由與導覽列入口。在 `frontend/src/App.tsx` 中新增 `/studio/dashboard` 路由指向 `RuntimeDashboard` 頁面，並在 `frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx` 元件中新增對應的導覽按鈕，對齊 "Navigation and Layout" 規格。驗證：撰寫 `runtime-dashboard.test.tsx` 中 "User navigates to dashboard" 測試，模擬點擊 TopBar 中的連結，斷言 React Router 成功轉址至 `/studio/dashboard` 且渲染主容器。
+- [ ] [P] 1.1 以 Red-Green 方式鎖定 `Focused runtime dashboard surface` 與 `Decision: Keep runtime dashboard as a post-setup page surface, not a workflow shell replacement`：先新增 `frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`，完成後可觀察到 route-level state 提供有效 device context 時，頁面會渲染 focused device header、runtime summary、collector health 與 live points 四個主要區塊；驗證：執行 `cd frontend && npm run test -- --run frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`。
+- [ ] [P] 1.2 以 Red-Green 方式鎖定 `Runtime summary presents backend-supported metrics`、`Collector health panel` 與 `Decision: Limit the first page surface to backend-supported monitoring panels`：在同一測試檔先寫出只接受正式 contract 欄位的斷言，完成後可觀察到頁面不需要 queue backlog 或 diagnostic logs 也能成立；驗證：執行 `cd frontend && npm run test -- --run frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`。
 
-## 2. 實時 SSE 數據源對接 (Core Data Feed)
+## 2. Page composition 與 panel 實作
 
-- [ ] [P] 2.1 實作 SSE 資料流訂閱。在 `frontend/src/features/datalink/workbench-v2/dashboard/RuntimeDashboard.tsx` 內實作對 `/api/v1/datalink/runtime/stream` 端點的訂閱，落實設計決策 "Decision: 使用 SSE (Server-Sent Events) 進行實時數據推送"。驗證：單元測試中使用 `vi.spyOn(window, 'EventSource')`，斷言 SSE 成功發起連線，且當連線中斷時頂部會顯示黃色 Warning Banner，並在 5 秒後自動嘗試重連。
+- [ ] 2.1 落實 `Decision: Compose the page around the route-level dashboard state contract`：建立 `RuntimeDashboardPage.tsx` 與 page props contract，完成後 route container 只需傳入 `selectedDeviceId`、`selectedDevice`、`snapshot`、`streamState`、`liveValues`、`onSelectDevice` 就能渲染整頁；驗證：重新執行 `cd frontend && npm run test -- --run frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`。
+- [ ] 2.2 落實 `Focused runtime dashboard surface`：建立 `FocusedDeviceHeader.tsx`、`RuntimeSummaryPanel.tsx`、`CollectorHealthPanel.tsx` 與 `LivePointsTable.tsx`，完成後單一 device 的 runtime 狀態可在一頁中被讀懂；驗證：執行 `cd frontend && npm run test -- --run frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`，並人工檢查不會出現 shell-level 導覽改動。
 
-## 3. 模組化監控元件開發 (Modular Component Integration)
+## 3. Degraded monitoring 呈現
 
-- [ ] [P] 3.1 實作指標卡片。依據設計決策 "Decision: 前端監控元件模組化與狀態隔離" 建立 `MetricsOverview.tsx` 元件，展示 Points/Sec、Success Rate、Avg Latency 採集指標，滿足規格 "Real-time Metrics Processing"。驗證：在 `runtime-dashboard.test.tsx` 中對 "Dashboard metrics update" 進行 TDD 驗證，提供 mock SSE `metrics` 事件資料，斷言畫面上正確顯示計算後的 95.0% 成功率與 15.0ms 平均延遲。
-- [ ] [P] 3.2 實作設備健康狀態網格。建立 `DeviceStatusGrid.tsx` 元件，以格狀展示所有 PLC 設備，對齊規格 "Device Status Grid Visualization"。驗證：在 `runtime-dashboard.test.tsx` 中撰寫 TDD 測試 "Device connectivity changes"，模擬 SSE 推送設備離線狀態，斷言對應設備項目背景色轉紅，並顯示 "Offline" 與最新時間戳記。
-- [ ] [P] 3.3 實作點位即時數值表。建立 `LiveValuesTable.tsx` 元件，以表格展示點位即時轉換值，對齊規格 "Live Value Streaming"。驗證：在 `runtime-dashboard.test.tsx` 中撰寫 TDD 測試 "Value transform and display"，給定 point (multiplier=0.1, offset=5)，模擬 SSE 推送 raw=150 事件，斷言畫面上即時值更新為 "20.0" 並附帶 Throttle 限制（100ms 內防抖）。
-- [ ] [P] 3.4 實作輸出佇列積壓與錯誤日誌。建立 `OutputQueueStatus.tsx` 與 `RealtimeLogs.tsx` 元件，滿足規格 "Output Queue Backlog Indicator" 與 "Real-time Log Stream"。驗證：在 `runtime-dashboard.test.tsx` 撰寫 TDD 測試 "Queue backlog alert" 與 "Error log output"，模擬 SSE 推送 backlog=501 與 TCP 逾時 error 事件，斷言畫面呈現琥珀色警告 Banner，且日誌控制台以紅字追加 timestamped 錯誤訊息。
+- [ ] 3.1 落實 `Degraded runtime monitoring banner` 與 `Decision: Preserve last-known values during degraded runtime monitoring`：建立 `LiveStateBanner.tsx` 並在 `streamState=degraded` 時保留最後成功 summary 與 live values，完成後使用者可以分辨是 live feed 降級而不是整頁失效；驗證：執行 `cd frontend && npm run test -- --run frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`，確認 degraded state 仍保留最後資料。
+- [ ] 3.2 落實 `Live point values table`：讓 `LivePointsTable` 在 snapshot 已就緒但 live values 尚未到達時顯示 placeholder，當 live values 到達後顯示 raw/transformed/timestamp，完成後不會因為首筆 SSE 尚未抵達而產生空白錯覺；驗證：執行 `cd frontend && npm run test -- --run frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`。
 
-## 4. 全量驗證與生產打包 (Final Integration)
+## 4. 收斂與驗證
 
-- [ ] 4.1 執行完整前端建置與測試。在本機環境執行 `npm run lint && npm run test && npm run build`。驗證：前端編譯與 201+ 個測試全綠通過，生產 JS/CSS 資產打包成功無 warnings。
+- [ ] [P] 4.1 註冊 `runtime-dashboard` i18n namespace 並補齊 focused page surface 文案，完成後頁面所有新字串都來自 `frontend/src/i18n/locales/zh-TW/runtime-dashboard.json` 與 `frontend/src/i18n/locales/en/runtime-dashboard.json`；驗證：執行 `cd frontend && npm run lint` 並人工檢查 i18n config 無遺漏 namespace。
+- [ ] 4.2 完成 `runtime-dashboard` change 的 artifact 與頁面收斂：執行 `spectra analyze runtime-dashboard --json`、`spectra validate runtime-dashboard`、`cd frontend && npm run test -- --run frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`，確認無 Critical/Warning，且 page surface 可直接建立在 route/backend contract 之上。

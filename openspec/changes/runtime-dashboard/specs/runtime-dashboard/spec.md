@@ -1,54 +1,70 @@
 ## ADDED Requirements
 
-### Requirement: Navigation and Layout
-The system SHALL provide a dedicated dashboard route at `/studio/dashboard` and a navigation link in the top bar of the main layout, presenting a structured layout containing metrics, device status grid, live values table, output queue status, and real-time logs.
+### Requirement: Focused runtime dashboard surface
+The system SHALL render a focused post-setup runtime dashboard surface for one selected device, without replacing the `/studio/v2` setup shell or introducing a fleet-wide card wall.
 
-#### Scenario: User navigates to dashboard
-- **WHEN** user clicks on the "Dashboard" navigation link in the top bar
-- **THEN** the system redirects to `/studio/dashboard` and renders all five main widget panels
+#### Scenario: Render focused device monitoring page
+- **WHEN** the runtime dashboard receives a selected device context and a successful runtime snapshot
+- **THEN** the page renders a focused device header, runtime summary, collector health panel, and live point values table
+- **AND** the page does not require queue backlog, diagnostic logs, or a global navigation card wall to become usable
 
-### Requirement: Real-time Metrics Processing
-The system SHALL poll or stream real-time performance indicators, calculating and showing the polling throughput (points per second), success rate (%), and average polling latency (ms).
+##### Example: Focused page for one committed device
+- **GIVEN** the selected device is `device-A` and the runtime snapshot for `device-A` loaded successfully
+- **WHEN** the runtime dashboard page renders
+- **THEN** the operator can read one page centered on `device-A` instead of a multi-device overview
 
-#### Scenario: Dashboard metrics update
-- **WHEN** new performance metrics are received from the backend
-- **THEN** the system updates the display of points per second, success rate, and latency metrics instantly
+### Requirement: Runtime summary presents backend-supported metrics
+The runtime dashboard SHALL present only metrics and summary fields guaranteed by the runtime backend contract.
 
-##### Example: Metrics computation
-| Received Points (1s window) | Failed Polls | Latencies | Computed Points/Sec | Computed Success Rate | Avg Latency |
-|-----------------------------|--------------|-----------|---------------------|-----------------------|-------------|
-| 100                         | 5            | [10, 20]  | 100                 | 95.0%                 | 15.0ms      |
-| 0                           | 0            | []        | 0                   | 100.0%                | 0.0ms       |
+#### Scenario: Render summary from runtime snapshot
+- **WHEN** the runtime dashboard receives a runtime snapshot for the selected device
+- **THEN** the summary panel shows the backend-supported runtime metrics and collector summary values
+- **AND** the page does not infer unsupported backlog or log counters from unrelated endpoints
 
-### Requirement: Device Status Grid Visualization
-The system SHALL render a grid of connected PLC devices, indicating each device's name, protocol type, connectivity status (online, offline, testing), and current latency value.
+##### Example: Summary uses only formal contract fields
+- **GIVEN** the runtime snapshot includes `collected_total=128`, `write_success_total=128`, `write_error_total=0`, and collector `status=healthy`
+- **WHEN** the summary panel renders
+- **THEN** it shows those runtime metrics and collector summary values without inventing queue backlog or log counters
 
-#### Scenario: Device connectivity changes
-- **WHEN** a device's connection status changes from online to offline
-- **THEN** the status grid item for this device turns red, displaying "Offline" with an updated timestamp
+### Requirement: Collector health panel
+The runtime dashboard SHALL show collector health for the selected device using the runtime status fields defined by the backend contract.
 
-### Requirement: Live Value Streaming
-The system SHALL dynamically display a live values table containing point names, Modbus/PLC addresses, raw values, transformed values, and updated times.
+#### Scenario: Show collector health counters and status
+- **WHEN** the runtime snapshot or aligned status update reports `status`, `points_total`, `points_healthy`, `points_stale`, `points_error`, `last_read_at`, and `breaker_state`
+- **THEN** the collector health panel renders those fields for the selected device
+- **AND** the panel uses the same status vocabulary as the backend contract instead of introducing page-only health states
 
-#### Scenario: Value transform and display
-- **WHEN** the raw register value changes
-- **THEN** the system applies the scale and offset multiplier and shows the updated raw and transformed values in the table
+### Requirement: Live point values table
+The runtime dashboard SHALL present a live point values table for the selected device, including raw values, transformed values, quality or stale state, and timestamps.
 
-##### Example: Linear scale transformation
-- **GIVEN** a point with scale_multiplier = 0.1 and scale_offset = 5
-- **WHEN** the system reads a raw value of 150
-- **THEN** the transformed value is calculated as 20.0 (150 * 0.1 + 5)
+#### Scenario: Show live values after snapshot-first load
+- **WHEN** the selected device snapshot has loaded but live point events have not arrived yet
+- **THEN** the page keeps the runtime summary visible
+- **AND** the live point values table shows a waiting or placeholder state instead of disappearing
 
-### Requirement: Output Queue Backlog Indicator
-The system SHALL monitor the database and Local Modbus output queues, rendering the current backlog count and alerting the user if the queue length exceeds the threshold.
+##### Example: Snapshot visible before first live point event
+- **GIVEN** `device-A` snapshot loaded at `10:00:00Z` and no live point events have arrived yet
+- **WHEN** the page enters its initial post-snapshot state
+- **THEN** the runtime summary remains visible and the live values area shows a waiting placeholder
 
-#### Scenario: Queue backlog alert
-- **WHEN** the output queue backlog count exceeds 500 items
-- **THEN** the system displays a warning warning banner and changes the queue indicator color to amber
+#### Scenario: Update table with live values
+- **WHEN** live point value updates arrive for the selected device
+- **THEN** the table updates the corresponding rows with raw value, transformed value, quality or stale state, and timestamp
 
-### Requirement: Real-time Log Stream
-The system SHALL stream recent errors, timeouts, or protocol parse warnings from the backend Datalink scheduler, showing them in a scrollable console panel.
+##### Example: Raw and transformed values update one row
+- **GIVEN** the table already contains point `pt-1` for `device-A`
+- **WHEN** a live update arrives with `raw_value=150`, `transformed_value=20.0`, `quality=good`, and timestamp `2026-05-29T10:00:05Z`
+- **THEN** the `pt-1` row shows `150`, `20.0`, `good`, and `2026-05-29T10:00:05Z`
 
-#### Scenario: Error log output
-- **WHEN** the backend collector encounters a TCP handshake timeout for a device
-- **THEN** the dashboard appends a timestamped error message to the log stream console in red text
+### Requirement: Degraded runtime monitoring banner
+The runtime dashboard SHALL clearly indicate when live runtime monitoring is degraded while preserving the last successful runtime data on screen.
+
+#### Scenario: Live stream disconnect preserves last data
+- **WHEN** the live stream disconnects after the page has already rendered runtime summary and point values
+- **THEN** the page shows a degraded monitoring banner
+- **AND** the last successful runtime summary and point values remain visible until fresher data arrives
+
+##### Example: Disconnect after live data keeps last snapshot on screen
+- **GIVEN** the page is already showing runtime summary and the latest values for `device-A`
+- **WHEN** the live stream disconnects
+- **THEN** the page switches to degraded monitoring while keeping the last successful summary and point values visible

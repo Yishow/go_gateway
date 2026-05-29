@@ -1,21 +1,25 @@
 ## Why
 
-當前閘道器缺乏一個直觀、實時的運作監控儀表板。用戶無法在單一介面中掌握各 PLC 設備的即時連線健康度、輪詢調度績效、資料庫/訊息佇列的寫入進度與即時錯誤日誌。引入 Runtime Dashboard 將提供實時數據監控介面，顯著提升維運與故障排障的效率。
+目前 `studio/v2` 已大致對齊 `new_prototype` 的 setup shell，但舊的 `runtime-dashboard` change 把 route、TopBar 導覽、fleet-ish 監控面板與尚未穩定的資料來源綁在一起，導致 scope 過寬且與 prototype 不符。這個 change 需要被收斂成「post-setup runtime page surface」本身，讓它能建立在獨立 route 與 backend contract 之上。
 
 ## What Changes
 
-- 在前端新增 `/studio/dashboard` 路由，提供實時運行儀表板。
-- 在 Workbench V2 的 Shell TopBar 新增「監控面板 (Dashboard)」導覽入口。
-- 新增即時指標元件，顯示採集吞吐量、輪詢延遲、丟包率與資料庫佇列積壓狀態。
-- 新增 PLC 設備狀態格格，直觀展示所有連線中的設備狀態。
-- 新增即時點位數值表，顯示各 Tag 的原始讀取值、轉換值與更新時間。
-- 新增錯誤診斷與日誌面板，顯示最近的採集錯誤（如 TCP 逾時、Modbus 異常碼）。
+- 將 `runtime-dashboard` 收斂為 post-setup runtime dashboard 的頁面表面與監看元件組合，不再擁有 route 或 TopBar 導覽。
+- 以單一 device 為主體，新增 focused device header、runtime summary、collector health、live points table 與 degraded state banner。
+- 讓頁面只消費 backend-supported runtime contract 與 route-level dashboard state，不自行發明 queue backlog、diagnostic logs 或 fleet KPI。
+- 明確定義 live 連線中斷時的 page-level 降級呈現，保留最後成功資料，避免首版 dashboard 因 SSE 抖動而變成空白頁。
+
+## Non-Goals
+
+- 不新增 `/studio/dashboard` 或任何新的 dashboard-first 產品入口。
+- 不修改 `studio/v2` shell 的 TopBar、StepRail、SummaryRail 或首頁 IA。
+- 不在首版 page surface 內加入 queue backlog、diagnostic logs、歷史圖表、fleet-wide card wall。
 
 ## Capabilities
 
 ### New Capabilities
 
-- `runtime-dashboard`: 定義 Runtime Dashboard 的版面結構、與 SSE/API 即時數據源的對接協議，以及各元件（指標、設備狀態、點位值、錯誤日誌）的互動規格。
+- `runtime-dashboard`: 定義 post-setup runtime dashboard 的 focused page surface、monitoring panels 與 degraded monitoring 呈現。
 
 ### Modified Capabilities
 
@@ -26,16 +30,15 @@
 - Affected specs: `runtime-dashboard`
 - Affected code:
   - New:
-    - `frontend/src/features/datalink/workbench-v2/dashboard/RuntimeDashboard.tsx`
-    - `frontend/src/features/datalink/workbench-v2/dashboard/components/MetricsOverview.tsx`
-    - `frontend/src/features/datalink/workbench-v2/dashboard/components/DeviceStatusGrid.tsx`
-    - `frontend/src/features/datalink/workbench-v2/dashboard/components/LiveValuesTable.tsx`
-    - `frontend/src/features/datalink/workbench-v2/dashboard/components/OutputQueueStatus.tsx`
-    - `frontend/src/features/datalink/workbench-v2/dashboard/components/RealtimeLogs.tsx`
-    - `frontend/tests/unit/workbench-v2/runtime-dashboard.test.tsx`
+    - `frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx`
+    - `frontend/src/features/datalink/runtime-dashboard/components/FocusedDeviceHeader.tsx`
+    - `frontend/src/features/datalink/runtime-dashboard/components/RuntimeSummaryPanel.tsx`
+    - `frontend/src/features/datalink/runtime-dashboard/components/CollectorHealthPanel.tsx`
+    - `frontend/src/features/datalink/runtime-dashboard/components/LivePointsTable.tsx`
+    - `frontend/src/features/datalink/runtime-dashboard/components/LiveStateBanner.tsx`
+    - `frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx`
     - `frontend/src/i18n/locales/en/runtime-dashboard.json`
     - `frontend/src/i18n/locales/zh-TW/runtime-dashboard.json`
   - Modified:
-    - `frontend/src/App.tsx`
+    - `frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardRoute.tsx`
     - `frontend/src/i18n/config.ts`
-    - `frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx`
