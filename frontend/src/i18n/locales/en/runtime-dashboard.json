@@ -1,0 +1,58 @@
+{
+  "header": {
+    "eyebrow": "Runtime Dashboard",
+    "noDevice": "Choose a device",
+    "deviceMeta": "Protocol {{protocol}}",
+    "deviceMetaEmpty": "Use the committed device context to inspect live runtime health."
+  },
+  "empty": {
+    "title": "Choose a runtime device",
+    "description": "This page stays focused on one committed device and does not switch to a fleet-wide dashboard."
+  },
+  "loading": {
+    "message": "Loading the latest runtime snapshot..."
+  },
+  "error": {
+    "title": "Runtime snapshot unavailable",
+    "description": "The runtime snapshot failed to load.",
+    "retry": "Retry snapshot"
+  },
+  "banner": {
+    "live": "Live monitoring active",
+    "degraded": "Live stream degraded. Showing the last successful runtime snapshot until the stream recovers."
+  },
+  "summary": {
+    "title": "Runtime summary",
+    "description": "Only backend-supported counters are shown here.",
+    "runningState": "Runtime state",
+    "uptimeSeconds": "Uptime seconds",
+    "collectedTotal": "Collected total",
+    "writeSuccessTotal": "Write success total",
+    "writeErrorTotal": "Write error total",
+    "mappingErrorTotal": "Mapping error total",
+    "pointStateErrorTotal": "Point state error total"
+  },
+  "health": {
+    "title": "Collector health",
+    "description": "Current collector counters for the selected device.",
+    "empty": "Collector status will appear after the first runtime snapshot.",
+    "status": "Status",
+    "pointsTotal": "Points total",
+    "pointsHealthy": "Points healthy",
+    "pointsStale": "Points stale",
+    "pointsError": "Points error",
+    "lastReadAt": "Last read at",
+    "breakerState": "Breaker state"
+  },
+  "points": {
+    "title": "Live points",
+    "description": "Live point rows update after the first runtime value event arrives.",
+    "placeholder": "Waiting for the first live point update.",
+    "address": "Address",
+    "rawValue": "Raw value",
+    "transformedValue": "Transformed value",
+    "quality": "Quality",
+    "timestamp": "Timestamp",
+    "stale": "stale"
+  }
+}

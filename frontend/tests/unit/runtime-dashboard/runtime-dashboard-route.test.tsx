@@ -37,7 +37,8 @@ vi.mock('../../../src/features/datalink/runtime-dashboard/useRuntimeDashboardSta
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, fallback?: unknown) =>
+      typeof fallback === 'string' ? fallback : key,
   }),
 }));
 

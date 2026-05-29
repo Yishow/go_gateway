@@ -8,7 +8,9 @@ import zhTWTranslations from './locales/zh-TW/common.json';
 import zhTWDatabaseOutputTranslations from './locales/zh-TW/database-output.json';
 import zhTWTagReviewTranslations from './locales/zh-TW/tag-review.json';
 import enWorkbenchV2Translations from './locales/en/workbench-v2.json';
+import enRuntimeDashboardTranslations from './locales/en/runtime-dashboard.json';
 import zhTWWorkbenchV2Translations from './locales/zh-TW/workbench-v2.json';
+import zhTWRuntimeDashboardTranslations from './locales/zh-TW/runtime-dashboard.json';
 import { logger } from '../utils/logger';
 import { mergeTranslations } from './mergeTranslations';
 
@@ -37,6 +39,7 @@ i18n
           enDatabaseOutputTranslations,
         ),
         'workbench-v2': enWorkbenchV2Translations,
+        'runtime-dashboard': enRuntimeDashboardTranslations,
       },
       'zh-TW': {
         translation: mergeTranslations(
@@ -45,6 +48,7 @@ i18n
           zhTWDatabaseOutputTranslations,
         ),
         'workbench-v2': zhTWWorkbenchV2Translations,
+        'runtime-dashboard': zhTWRuntimeDashboardTranslations,
       },
     },
     fallbackLng: 'en', // 預設語言為英文

@@ -20,7 +20,7 @@ export type RuntimeDashboardRouteState =
   | 'degraded'
   | 'error';
 
-interface RuntimeDashboardState {
+export interface RuntimeDashboardState {
   routeState: RuntimeDashboardRouteState;
   selectedDeviceId: string | null;
   selectedDevice: Device | null;
@@ -53,7 +53,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
   const [isDegraded, setIsDegraded] = useState(false);
 
   const devicesQuery = useDevicesQuery();
-  const devices = devicesQuery.data ?? [];
+  const devices = useMemo(() => devicesQuery.data ?? [], [devicesQuery.data]);
   const selectedDevice = useMemo(
     () => devices.find((device) => device.id === selectedDeviceId) ?? null,
     [devices, selectedDeviceId],
@@ -125,6 +125,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     isDegraded,
     lastSnapshot,
     selectedDeviceId,
+    snapshotQuery.isError,
     snapshotQuery.isFetching,
     snapshotQuery.isLoading,
     stream.connectionState,

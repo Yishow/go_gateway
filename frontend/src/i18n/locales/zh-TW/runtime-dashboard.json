@@ -1,0 +1,58 @@
+{
+  "header": {
+    "eyebrow": "Runtime Dashboard",
+    "noDevice": "選擇設備",
+    "deviceMeta": "通訊協議 {{protocol}}",
+    "deviceMetaEmpty": "請帶入剛完成設定的設備脈絡，以檢查即時運轉健康度。"
+  },
+  "empty": {
+    "title": "選擇要監看的設備",
+    "description": "此頁面只聚焦單一已提交設備，不會自動切換成全域 fleet dashboard。"
+  },
+  "loading": {
+    "message": "正在載入最新 runtime snapshot..."
+  },
+  "error": {
+    "title": "無法取得 runtime snapshot",
+    "description": "runtime snapshot 載入失敗。",
+    "retry": "重新載入 snapshot"
+  },
+  "banner": {
+    "live": "即時監看已連線",
+    "degraded": "即時串流已降級。畫面會保留最後一次成功的 runtime snapshot，直到串流恢復。"
+  },
+  "summary": {
+    "title": "Runtime 摘要",
+    "description": "此區只呈現後端正式契約保證的監看計數。",
+    "runningState": "Runtime 狀態",
+    "uptimeSeconds": "運行秒數",
+    "collectedTotal": "採集總數",
+    "writeSuccessTotal": "成功寫入總數",
+    "writeErrorTotal": "寫入錯誤總數",
+    "mappingErrorTotal": "Mapping 錯誤總數",
+    "pointStateErrorTotal": "Point state 錯誤總數"
+  },
+  "health": {
+    "title": "Collector 健康度",
+    "description": "顯示選定設備目前 collector 的正式契約欄位。",
+    "empty": "第一次 runtime snapshot 成功後，這裡會顯示 collector 狀態。",
+    "status": "狀態",
+    "pointsTotal": "點位總數",
+    "pointsHealthy": "健康點位",
+    "pointsStale": "陳舊點位",
+    "pointsError": "錯誤點位",
+    "lastReadAt": "最後讀取時間",
+    "breakerState": "Breaker 狀態"
+  },
+  "points": {
+    "title": "即時點位",
+    "description": "第一筆 runtime value event 到達後，這裡會開始更新即時點位列。",
+    "placeholder": "正在等待第一筆即時點位更新。",
+    "address": "位址",
+    "rawValue": "原始值",
+    "transformedValue": "轉換值",
+    "quality": "品質",
+    "timestamp": "時間戳",
+    "stale": "stale"
+  }
+}
