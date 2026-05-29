@@ -20,6 +20,7 @@ export function mappingReducer(state: WorkbenchV2State, action: any): WorkbenchV
       });
       return {
         ...state,
+        points: action.points,
         mappings: nextMappings,
       };
     }
