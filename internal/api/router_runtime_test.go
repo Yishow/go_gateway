@@ -53,6 +53,24 @@ func TestNewRouter_RuntimeStatusEndpoint(t *testing.T) {
 		t.Fatalf("activate device failed: %v", err)
 	}
 
+	otherDevice, err := deviceSvc.Create(ctx, device.CreateDeviceRequest{
+		Name:     "Runtime Filler",
+		Protocol: schema.ProtocolModbusTCP,
+		ConnectionConfig: map[string]interface{}{
+			"host":     "127.0.0.2",
+			"port":     502,
+			"slave_id": 1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create other device failed: %v", err)
+	}
+
+	otherDevice.Status = schema.DeviceStatusActive
+	if err := deviceRepo.Update(ctx, otherDevice); err != nil {
+		t.Fatalf("activate other device failed: %v", err)
+	}
+
 	createdGroup, err := pollingGroupSvc.Create(ctx, pollinggroup.CreateRequest{
 		Name:       "runtime-fast",
 		IntervalMs: 1000,
@@ -106,7 +124,14 @@ func TestNewRouter_RuntimeStatusEndpoint(t *testing.T) {
 		Data    struct {
 			Running       bool `json:"running"`
 			UptimeSeconds int  `json:"uptime_seconds"`
-			Collectors    []struct {
+			Metrics       *struct {
+				CollectedTotal       uint64 `json:"collected_total"`
+				WriteSuccessTotal    uint64 `json:"write_success_total"`
+				WriteErrorTotal      uint64 `json:"write_error_total"`
+				MappingErrorTotal    uint64 `json:"mapping_error_total"`
+				PointStateErrorTotal uint64 `json:"point_state_error_total"`
+			} `json:"metrics"`
+			Collectors []struct {
 				DeviceID     string `json:"device_id"`
 				DeviceName   string `json:"device_name"`
 				PointsTotal  int    `json:"points_total"`
@@ -121,6 +146,9 @@ func TestNewRouter_RuntimeStatusEndpoint(t *testing.T) {
 
 	if !body.Success {
 		t.Fatalf("expected success body, got %s", resp.Body.String())
+	}
+	if body.Data.Metrics == nil {
+		t.Fatalf("expected top-level metrics payload, got %s", resp.Body.String())
 	}
 	if len(body.Data.Collectors) != 1 {
 		t.Fatalf("expected one collector, got %+v", body.Data.Collectors)

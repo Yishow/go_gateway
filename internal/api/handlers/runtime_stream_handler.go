@@ -14,14 +14,19 @@ import (
 
 type runtimeValueStreamSource interface {
 	SubscribeValueEvents(deviceID string, pointIDs []string) (<-chan datalinkruntime.ValueEvent, func())
+	SubscribeStatusEvents(deviceID string) (<-chan datalinkruntime.DeviceStatusEvent, func())
 }
 
 type RuntimeStreamHandler struct {
-	source runtimeValueStreamSource
+	source            runtimeValueStreamSource
+	heartbeatInterval time.Duration
 }
 
 func NewRuntimeStreamHandler(source runtimeValueStreamSource) *RuntimeStreamHandler {
-	return &RuntimeStreamHandler{source: source}
+	return &RuntimeStreamHandler{
+		source:            source,
+		heartbeatInterval: 15 * time.Second,
+	}
 }
 
 func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
@@ -58,21 +63,41 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 		return
 	}
 
-	stream, unsubscribe := h.source.SubscribeValueEvents(deviceID, pointIDs)
-	defer unsubscribe()
+	valueStream, unsubscribeValues := h.source.SubscribeValueEvents(deviceID, pointIDs)
+	statusStream, unsubscribeStatus := h.source.SubscribeStatusEvents(deviceID)
+	if valueStream == nil || statusStream == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"success": false,
+			"error":   gin.H{"message": "runtime stream unavailable"},
+		})
+		return
+	}
+	defer unsubscribeValues()
+	defer unsubscribeStatus()
 
-	heartbeatTicker := time.NewTicker(15 * time.Second)
+	heartbeatInterval := h.heartbeatInterval
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = 15 * time.Second
+	}
+	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
 	for {
 		select {
 		case <-c.Request.Context().Done():
 			return
-		case evt, ok := <-stream:
+		case evt, ok := <-valueStream:
 			if !ok {
 				return
 			}
 			if err := writeRuntimeSSE(c.Writer, flusher, "value", evt); err != nil {
+				return
+			}
+		case evt, ok := <-statusStream:
+			if !ok {
+				return
+			}
+			if err := writeRuntimeSSE(c.Writer, flusher, "status", evt); err != nil {
 				return
 			}
 		case ts := <-heartbeatTicker.C:

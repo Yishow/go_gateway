@@ -24,6 +24,7 @@ type RuntimeHandler struct {
 type runtimeStatusResponse struct {
 	Running       bool                       `json:"running"`
 	UptimeSeconds int64                      `json:"uptime_seconds"`
+	Metrics       datalinkruntime.Stats      `json:"metrics"`
 	Collectors    []runtimeCollectorResponse `json:"collectors"`
 }
 
@@ -58,6 +59,45 @@ func NewRuntimeHandler(
 }
 
 func (h *RuntimeHandler) Status(c *gin.Context) {
+	if h.runtimeSvc != nil {
+		snapshot, err := h.runtimeSvc.RuntimeStatusSnapshot(c.Request.Context(), c.Query("device_id"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   gin.H{"message": "failed to build runtime status snapshot: " + err.Error()},
+			})
+			return
+		}
+
+		response := runtimeStatusResponse{
+			Running:       snapshot.Running,
+			UptimeSeconds: snapshot.UptimeSeconds,
+			Metrics:       snapshot.Metrics,
+			Collectors:    make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
+		}
+		for _, collector := range snapshot.Collectors {
+			response.Collectors = append(response.Collectors, runtimeCollectorResponse{
+				DeviceID:      collector.DeviceID,
+				DeviceName:    collector.DeviceName,
+				Protocol:      collector.Protocol,
+				Status:        collector.Status,
+				PointsTotal:   collector.PointsTotal,
+				PointsHealthy: collector.PointsHealthy,
+				PointsStale:   collector.PointsStale,
+				PointsError:   collector.PointsError,
+				LastReadAt:    collector.LastReadAt,
+				LastError:     collector.LastError,
+				BreakerState:  collector.BreakerState,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    response,
+		})
+		return
+	}
+
 	if h.deviceSvc == nil || h.pointSvc == nil || h.groupSvc == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"success": false,
@@ -116,6 +156,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 	response := runtimeStatusResponse{
 		Running:       running,
 		UptimeSeconds: uptimeSeconds,
+		Metrics:       datalinkruntime.Stats{},
 		Collectors:    make([]runtimeCollectorResponse, 0, len(devices)),
 	}
 

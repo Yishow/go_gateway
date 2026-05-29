@@ -68,3 +68,48 @@ func TestService_SubscribeValueEvents_BroadcastsMatchingPoint(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 }
+
+func TestService_SubscribeValueEvents_LossTolerantWithSlowSubscriber(t *testing.T) {
+	svc := &Service{
+		config: Config{UpdatePointState: false},
+		writer: &mockWriter{},
+	}
+
+	slowStream, unsubscribeSlow := svc.SubscribeValueEvents("device-1", []string{"point-1"})
+	defer unsubscribeSlow()
+
+	fastStream, unsubscribeFast := svc.SubscribeValueEvents("device-1", []string{"point-1"})
+	defer unsubscribeFast()
+
+	startedAt := time.Now()
+	for index := 0; index < 64; index++ {
+		svc.broadcastValueEvent(ValueEvent{
+			DeviceID:         "device-1",
+			PointID:          "point-1",
+			Address:          "40001",
+			RawValue:         index,
+			TransformedValue: index,
+			Quality:          schema.QualityGood,
+			Stale:            false,
+			Timestamp:        time.Date(2026, 3, 16, 6, 0, index, 0, time.UTC),
+		})
+	}
+
+	if time.Since(startedAt) > 200*time.Millisecond {
+		t.Fatalf("expected non-blocking broadcast, took %s", time.Since(startedAt))
+	}
+
+	select {
+	case evt := <-fastStream:
+		require.Equal(t, "device-1", evt.DeviceID)
+		require.Equal(t, "point-1", evt.PointID)
+	case <-time.After(time.Second):
+		t.Fatal("expected fast subscriber to keep receiving events")
+	}
+
+	select {
+	case <-slowStream:
+	case <-time.After(time.Second):
+		t.Fatal("expected slow subscriber channel to remain open")
+	}
+}

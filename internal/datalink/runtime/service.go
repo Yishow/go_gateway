@@ -88,9 +88,13 @@ type Service struct {
 	pointMetaMu    sync.RWMutex
 	pointMetaIndex map[string]pointMeta
 
-	subscriberMu     sync.RWMutex
-	subscribers      map[int64]valueSubscriber
-	nextSubscriberID atomic.Int64
+	subscriberMu       sync.RWMutex
+	subscribers        map[int64]valueSubscriber
+	statusSubscriberMu sync.RWMutex
+	statusSubscribers  map[int64]statusSubscriber
+	nextSubscriberID   atomic.Int64
+	lastStatusMu       sync.Mutex
+	lastStatuses       map[string]DeviceRuntimeStatus
 
 	stopCh    chan struct{}
 	wg        sync.WaitGroup
@@ -110,11 +114,13 @@ type Service struct {
 // 2) snapshot mode: NewService(Config{Writer:..., Snapshot:...})
 func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 	s := &Service{
-		config:         config,
-		mappingIndex:   make(map[string][]mappingBinding),
-		pointMetaIndex: make(map[string]pointMeta),
-		subscribers:    make(map[int64]valueSubscriber),
-		stopCh:         make(chan struct{}),
+		config:            config,
+		mappingIndex:      make(map[string][]mappingBinding),
+		pointMetaIndex:    make(map[string]pointMeta),
+		subscribers:       make(map[int64]valueSubscriber),
+		statusSubscribers: make(map[int64]statusSubscriber),
+		lastStatuses:      make(map[string]DeviceRuntimeStatus),
+		stopCh:            make(chan struct{}),
 	}
 
 	if len(depsOpt) > 0 {
@@ -168,6 +174,8 @@ func (s *Service) Start(ctx context.Context) error {
 
 	s.wg.Add(1)
 	go s.consumeLoop()
+	s.wg.Add(1)
+	go s.statusLoop()
 	return nil
 }
 

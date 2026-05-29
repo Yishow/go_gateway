@@ -80,6 +80,9 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		Stale:            false,
 		Timestamp:        cv.Timestamp,
 	})
+	if deviceID != "" {
+		s.publishDerivedStatus(deviceID)
+	}
 }
 
 func shouldRunPipeline(raw string) bool {
@@ -103,4 +106,20 @@ func buildRawValue(cv collector.CollectedValue) interface{} {
 		return cv.RawBytes
 	}
 	return string(buf)
+}
+
+func (s *Service) publishDerivedStatus(deviceID string) {
+	if deviceID == "" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	status, found, err := s.DeviceStatus(ctx, deviceID)
+	if err != nil || !found {
+		return
+	}
+
+	s.emitStatusIfChanged(status)
 }

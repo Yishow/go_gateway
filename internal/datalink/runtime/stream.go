@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"time"
 
 	"go-gateway/internal/datalink/schema"
@@ -22,10 +23,17 @@ type ValueEvent struct {
 	Timestamp        time.Time          `json:"timestamp"`
 }
 
+type DeviceStatusEvent = DeviceRuntimeStatus
+
 type valueSubscriber struct {
 	deviceID string
 	pointIDs map[string]struct{}
 	ch       chan ValueEvent
+}
+
+type statusSubscriber struct {
+	deviceID string
+	ch       chan DeviceStatusEvent
 }
 
 func (s *Service) registerPointMeta(pointID string, meta pointMeta) {
@@ -81,6 +89,47 @@ func (s *Service) SubscribeValueEvents(deviceID string, pointIDs []string) (<-ch
 	}
 }
 
+func (s *Service) SubscribeStatusEvents(deviceID string) (<-chan DeviceStatusEvent, func()) {
+	s.statusSubscriberMu.Lock()
+	if s.statusSubscribers == nil {
+		s.statusSubscribers = make(map[int64]statusSubscriber)
+	}
+
+	id := s.nextSubscriberID.Add(1)
+	ch := make(chan DeviceStatusEvent, 8)
+	s.statusSubscribers[id] = statusSubscriber{
+		deviceID: deviceID,
+		ch:       ch,
+	}
+	s.statusSubscriberMu.Unlock()
+
+	if deviceID != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		status, found, err := s.DeviceStatus(ctx, deviceID)
+		cancel()
+		if err == nil && found {
+			select {
+			case ch <- status:
+			default:
+			}
+			s.recordLatestStatus(status)
+		}
+	}
+
+	return ch, func() {
+		s.statusSubscriberMu.Lock()
+		defer s.statusSubscriberMu.Unlock()
+
+		sub, exists := s.statusSubscribers[id]
+		if !exists {
+			return
+		}
+
+		delete(s.statusSubscribers, id)
+		close(sub.ch)
+	}
+}
+
 func (s *Service) broadcastValueEvent(event ValueEvent) {
 	s.subscriberMu.RLock()
 	defer s.subscriberMu.RUnlock()
@@ -93,6 +142,22 @@ func (s *Service) broadcastValueEvent(event ValueEvent) {
 			if _, exists := sub.pointIDs[event.PointID]; !exists {
 				continue
 			}
+		}
+
+		select {
+		case sub.ch <- event:
+		default:
+		}
+	}
+}
+
+func (s *Service) broadcastStatusEvent(event DeviceStatusEvent) {
+	s.statusSubscriberMu.RLock()
+	defer s.statusSubscriberMu.RUnlock()
+
+	for _, sub := range s.statusSubscribers {
+		if sub.deviceID != "" && sub.deviceID != event.DeviceID {
+			continue
 		}
 
 		select {
