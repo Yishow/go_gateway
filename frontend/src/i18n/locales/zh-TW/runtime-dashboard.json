@@ -54,5 +54,10 @@
     "quality": "品質",
     "timestamp": "時間戳",
     "stale": "stale"
+  },
+  "logs": {
+    "title": "運作診斷日誌",
+    "description": "即時採集診斷事件與狀態轉移歷史。",
+    "empty": "尚無診斷日誌輸出。"
   }
 }

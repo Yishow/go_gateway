@@ -54,5 +54,10 @@
     "quality": "Quality",
     "timestamp": "Timestamp",
     "stale": "stale"
+  },
+  "logs": {
+    "title": "Diagnostic logs",
+    "description": "Real-time diagnostic events and state transition history.",
+    "empty": "No diagnostic logs emitted yet."
   }
 }

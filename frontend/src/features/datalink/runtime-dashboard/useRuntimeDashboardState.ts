@@ -10,6 +10,7 @@ import type {
 } from '../../../types/datalink';
 import { useRuntimeStatus } from './useRuntimeStatus';
 import { useRuntimeDashboardStream } from './useRuntimeStream';
+import type { RuntimeDashboardLog } from './useRuntimeStream';
 
 const degradedPollingIntervalMs = 5000;
 
@@ -29,6 +30,7 @@ export interface RuntimeDashboardState {
   snapshotError: string | null;
   liveValues: Record<string, RuntimeValueEvent>;
   streamState: RuntimeStreamConnectionState;
+  logs?: RuntimeDashboardLog[];
   onSelectDevice: (deviceId: string) => void;
   onRetrySnapshot: () => Promise<unknown>;
 }
@@ -140,6 +142,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     snapshotError: snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null,
     liveValues: stream.liveValues,
     streamState: stream.connectionState,
+    logs: stream.logs,
     onSelectDevice: (deviceId: string) => {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set('device_id', deviceId);

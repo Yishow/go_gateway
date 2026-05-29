@@ -4,6 +4,7 @@ import { FocusedDeviceHeader } from './FocusedDeviceHeader';
 import { LivePointsTable } from './LivePointsTable';
 import { LiveStateBanner } from './LiveStateBanner';
 import { RuntimeSummaryPanel } from './RuntimeSummaryPanel';
+import { RealtimeLogsPanel } from './RealtimeLogsPanel';
 import type { RuntimeDashboardState } from './useRuntimeDashboardState';
 
 export interface RuntimeDashboardPageProps extends RuntimeDashboardState {}
@@ -17,6 +18,7 @@ export function RuntimeDashboardPage({
   snapshotError,
   liveValues,
   streamState,
+  logs = [],
   onSelectDevice,
   onRetrySnapshot,
 }: RuntimeDashboardPageProps) {
@@ -148,7 +150,14 @@ export function RuntimeDashboardPage({
             <CollectorHealthPanel collector={collector} />
           </div>
         ) : null}
-        <LivePointsTable liveValues={liveValues} />
+        <div className="grid gap-6 lg:grid-cols-12 items-start">
+          <div className="lg:col-span-8">
+            <LivePointsTable liveValues={liveValues} />
+          </div>
+          <div className="lg:col-span-4">
+            <RealtimeLogsPanel logs={logs} />
+          </div>
+        </div>
       </div>
     </div>
   );

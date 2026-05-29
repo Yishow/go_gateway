@@ -320,4 +320,71 @@ describe('runtime dashboard route state', () => {
       expect(mockRuntimeStatus).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('updates logs panel when points go stale or recover without flooding', async () => {
+    renderRoute('/studio/runtime?device_id=device-A');
+
+    await waitFor(() => {
+      expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A');
+    });
+
+    act(() => {
+      mockEventSources[0].open();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('live');
+    });
+
+    act(() => {
+      mockEventSources[0].emit('value', {
+        device_id: 'device-A',
+        point_id: 'point-1',
+        address: '40001',
+        raw_value: 100,
+        transformed_value: 100,
+        quality: 'bad',
+        stale: true,
+        timestamp: '2026-05-29T10:00:00Z',
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('runtime-dashboard-logs-panel')).toHaveTextContent('Point 40001 went stale.');
+    });
+
+    act(() => {
+      mockEventSources[0].emit('value', {
+        device_id: 'device-A',
+        point_id: 'point-1',
+        address: '40001',
+        raw_value: 101,
+        transformed_value: 101,
+        quality: 'bad',
+        stale: true,
+        timestamp: '2026-05-29T10:00:01Z',
+      });
+    });
+
+    const logsText = screen.getByTestId('runtime-dashboard-logs-panel').innerHTML;
+    const occurrences = (logsText.match(/went stale/g) || []).length;
+    expect(occurrences).toBe(1);
+
+    act(() => {
+      mockEventSources[0].emit('value', {
+        device_id: 'device-A',
+        point_id: 'point-1',
+        address: '40001',
+        raw_value: 102,
+        transformed_value: 102,
+        quality: 'good',
+        stale: false,
+        timestamp: '2026-05-29T10:00:02Z',
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('runtime-dashboard-logs-panel')).toHaveTextContent('Point 40001 recovered.');
+    });
+  });
 });

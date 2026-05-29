@@ -98,7 +98,7 @@ describe('RuntimeDashboardPage', () => {
     expect(screen.getByTestId('runtime-dashboard-summary-panel')).toHaveTextContent('128');
     expect(screen.getByTestId('runtime-dashboard-health-panel')).toHaveTextContent('closed');
     expect(screen.queryByText(/queue backlog/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/diagnostic logs/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('runtime-dashboard-logs-panel')).toBeInTheDocument();
   });
 
   it('keeps the last successful data visible while showing a degraded banner', () => {

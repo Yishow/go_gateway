@@ -56,6 +56,12 @@
 - [x] 檢查單檔行數限制
 - **狀態：** complete
 
+### 階段 9：優化項目補齊與日誌系統升級
+- [x] 實作診斷日誌面板 (RealtimeLogsPanel.tsx) 與 `stale` / `recovered` 狀態去重日誌。
+- [x] 將日誌改為 append 末尾以匹配 auto-scroll 效果。
+- [x] 撰寫整合單元測試並通過 `npm run test` 與 `go test`。
+- **狀態：** complete
+
 ## 關鍵問題
 1. 每一步驟的變更有無互相依賴？（需依序實作，後面的變更可能基於前面已實作的程式碼）
 2. 測試與 Lint 是否在每個階段實作完都要通過？（是，確保每個階段提交時皆為 clean 狀態）
@@ -64,6 +70,7 @@
 | 決策 | 理由 |
 |------|------|
 | 新建分支 `feature/datalink-workbench-v2` | 使用者要求另開分支實作，不直接污染 main |
+| 日誌改為時間遞增排序 (Append to array end) | 與 auto-scroll-to-bottom 對齊，提供流暢的控制台滾動 UX。 |
 
 ## 遇到的錯誤
 | 錯誤 | 嘗試次數 | 解決方案 |

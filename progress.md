@@ -112,13 +112,26 @@
   - 執行全量 `tsc && vite build`，建置成功且無 error。
   - 執行 `npm run test -- --run workbench-v2` 通過 30 個測試檔案、201 個測試案例。
 
+### 階段 9：優化項目補齊與日誌系統升級
+- **狀態：** complete
+- **開始時間：** 12:15
+- 執行的操作：
+  - 補齊並優化即時診斷日誌面板 (Real-time Log Panel) 與 `stale` / `recovered` 點位狀態轉換日誌。
+  - 實作 pointStaleStatesRef 狀態過濾器，解決高頻 stale 點位推送造成的 `setLogs` 狀態狂刷與 DOM 渲染效能瓶頸。
+  - 調整日誌輸出順序，變更為 append 方式插入日誌陣列末尾，以實現時間遞增 (Chronological) 顯示，並與日誌置底滾動 UX 完美契合。
+  - 在 `runtime-dashboard-state.test.tsx` 新增針對 logs 轉移與去重的整合單元測試。
+  - 執行 `npm run test -- --run runtime-dashboard` 通過 3 個測試檔案、13 個測試案例（全量綠燈）。
+  - 執行後端 `go test ./...` 整合測試與前端全量 production build (tsc && vite build)，均完全通過。
+
 ## 測試結果
 | 測試 | 輸入 | 預期結果 | 實際結果 | 狀態 |
 |------|------|---------|---------|------|
-| Vitest 測試集 | `npm run test -- --run workbench-v2` | 30 檔案 201 測試全部通過 | 30 檔案 201 測試全數通過 | success |
+| Vitest 測試集 (V2) | `npm run test -- --run workbench-v2` | 31 檔案 207 測試全部通過 | 31 檔案 207 測試全數通過 | success |
+| Vitest 測試集 (Dashboard) | `npm run test -- --run runtime-dashboard` | 3 檔案 13 測試全部通過 | 3 檔案 13 測試全數通過 | success |
+| Go 測試集 | `go test ./...` | 後端測試全部通過 | 後端測試全部通過 | success |
 | 前端 Lint 檢查 | `npm run lint` | 0 errors | 0 errors, 22 warnings | success |
 | 前端打包建置 | `npm run build` | 建置成功無錯誤 | 建置成功無錯誤 | success |
-| 行數規範檢查 | `make check-lines` | 通過 | 通過 (useWorkbenchV2State.ts 收斂至 463 行) | success |
+| 行數規範檢查 | `make check-lines` | 通過 | 通過 (僅 state 測試檔 warning，實作檔全數符合上限) | success |
 
 ## 錯誤日誌
 | 時間戳記 | 錯誤 | 嘗試次數 | 解決方案 |
@@ -130,15 +143,17 @@
 | 03:06 | tsc 類別型別導入與 db.targets 解構 TypeScript 錯誤 | 1 | 加上 import type 與調整 db.targets 為強型別安全判斷 |
 | 08:16 | DeviceTabRail Hook 違反與 ConnectionConfigForm tsc compile 錯誤 | 1 | 移除 map 內的 hook 改呼叫純函數 getColorTheme；將 config 屬性加 type assertions |
 | 09:02 | 舊版 SourceStep 相關測試失敗 | 1 | 驗證發現為基礎 commit 歷史中重構 Source Step 後未同步更新舊測試所致，非本分支變更引起。 |
+| 12:16 | 日誌滾動與 prepending logs 順序不咬合 | 1 | 將新 log 插入行為改為 append 至陣列末尾，並更新 logs index render，使其符合 terminal 排版與 auto-scroll。 |
 
 ## 五問重啟檢查
 | 問題 | 答案 |
 |------|------|
-| 我在哪裡？ | 階段 8：最終驗證與整合 |
+| 我在哪裡？ | 階段 9：優化項目補齊與日誌系統升級 |
 | 我要去哪裡？ | 任務完成，提交代碼並回報使用者 |
-| 目標是什麼？ | 完美交付 datalink-workbench-v2 變更 |
-| 我學到了什麼？ | 舊測試與最近的重構歷史可能不相容，但 v2 模組的測試與建置 100% 綠燈 |
-| 我做了什麼？ | 歸檔了最後的 shell 變更，通過了 v2 全量測試與生產建置，更新了計畫檔案 |
+| 目標是什麼？ | 完美交付 datalink-workbench-v2 與 runtime-dashboard 變更與效能優化 |
+| 我學到了什麼？ | SSE 高頻推送時除了數值要 Throttling 之外，狀態轉移日誌若去重機制設計不周，會造成嚴重的 log 爆量與 rendering 效能問題；應以 Ref 緩衝前一次點位狀態來進行 transition logs 處理。 |
+| 我做了什麼？ | 補齊並深度優化了診斷日誌系統的 transition/deduplication 機制、修正了滾動 UX，並通過全部 220+ 測試與 production 打包。 |
 
 ---
 *每個階段完成後或遇到錯誤時更新此檔案*
+

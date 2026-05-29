@@ -39,10 +39,21 @@ export function LivePointsTable({ liveValues }: LivePointsTableProps) {
 
       {rows.length === 0 ? (
         <div
-          className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 px-4 py-6 text-sm text-slate-400"
+          className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8 flex flex-col items-center justify-center space-y-4"
           data-testid="runtime-dashboard-live-points-placeholder"
         >
-          {t('points.placeholder', 'Waiting for the first live point update.')}
+          <div className="flex items-center gap-2 text-cyan-400/90 text-sm font-medium">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+            </span>
+            {t('points.placeholder', 'Waiting for the first live point update...')}
+          </div>
+          <div className="w-full max-w-md space-y-2.5 animate-pulse">
+            <div className="h-3.5 bg-slate-900/80 rounded-lg w-full"></div>
+            <div className="h-3.5 bg-slate-900/80 rounded-lg w-11/12 mx-auto"></div>
+            <div className="h-3.5 bg-slate-900/80 rounded-lg w-10/12 mx-auto"></div>
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto">
