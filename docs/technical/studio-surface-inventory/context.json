@@ -27,7 +27,8 @@
       "notes": [
         "面向使用者",
         "簡單、有指引、容易觀察",
-        "是近期主要施作線"
+        "是近期主要施作線",
+        "產品入口決策已定為直接切到 /studio/v2"
       ]
     },
     "/studio/runtime": {
@@ -35,7 +36,8 @@
       "status": "focus",
       "notes": [
         "跟隨 /studio/v2 一起規劃",
-        "不是 fleet-first dashboard"
+        "不是 fleet-first dashboard",
+        "需承接 /studio/v2 的多台設備送出交接"
       ]
     },
     "/test": {
@@ -73,8 +75,9 @@
     "test_connect": "/test/connect"
   },
   "known_gaps": [
-    "router 預設入口仍未切到 /studio/v2",
-    "/studio/v2 commit lifecycle 仍有 backend-persisted contract 缺口",
+    "router 預設入口仍未直接切到 /studio/v2",
+    "/studio/v2 commit 仍未接上可持久化的多台設備後端契約",
+    "/studio/runtime 尚未接住 /studio/v2 的多台設備交接",
     "/studio/runtime lifecycle semantics 仍需持續收斂",
     "/gateway/* 目前仍主要依賴 connect-only API"
   ],

@@ -11,10 +11,12 @@ Last updated: `2026-05-29`
 - `/studio/v2`
   - 目前主重點。
   - 目標是面向使用者、簡單、有指引、好觀察。
-  - 預設應朝服務入口方向收斂。
+  - 產品決策已定為直接切到 `/studio/v2` 預設入口。
+  - 下一步重點是把多台設備送出真正接上後端。
 - `/studio/runtime`
   - 追隨 `/studio/v2`。
   - 角色是 post-setup focused monitor，不是獨立 fleet-first dashboard。
+  - 還需要承接 V2 的多台設備送出結果。
 - `/test`
   - 工程工具。
   - 目前先暫停，只保留記錄。
@@ -76,8 +78,8 @@ Last updated: `2026-05-29`
 
 最可能的下一批工作仍是：
 
-1. `/studio/v2` 預設入口與 runtime handoff
-2. `/studio/runtime` lifecycle / contract / observer UX
+1. `/studio/v2` 直接預設入口與多台設備送出契約
+2. `/studio/runtime` 多台設備交接與 lifecycle contract
 3. inventory 文件持續和實作同步
 
 ## Fast Commands

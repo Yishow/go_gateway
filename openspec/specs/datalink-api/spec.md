@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change add-device-data-pipeline. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Management APIs
 
 The system SHALL expose APIs for devices, points, tags, and mappings with persistent storage.
@@ -20,7 +22,6 @@ All data SHALL be persisted to SQLite (for development/testing) or PostgreSQL (f
 - THEN all previously saved data is available
 
 ---
-
 ### Requirement: Connection and preview APIs
 The system SHALL expose APIs to test device connections and preview mapping results.
 
@@ -28,6 +29,7 @@ The system SHALL expose APIs to test device connections and preview mapping resu
 - WHEN a client requests a preview for a mapping
 - THEN the API returns raw and transformed values
 
+---
 ### Requirement: Write settings API
 
 The system SHALL expose APIs to read and update write settings, including timestamp precision and partition interval.
@@ -44,6 +46,7 @@ Settings SHALL be persisted to database (not hardcoded).
 - WHEN a client requests settings
 - THEN the API returns current settings from database
 
+---
 ### Requirement: Polling Groups API
 
 The system SHALL expose APIs for managing polling groups.
@@ -67,7 +70,6 @@ Endpoints:
 - THEN all polling groups are returned
 
 ---
-
 ### Requirement: Protocols API
 
 The system SHALL expose an API to retrieve supported protocols and their configuration schemas.
@@ -82,7 +84,6 @@ Endpoint:
 - THEN the API returns protocol list with type, name, description, and config_schema
 
 ---
-
 ### Requirement: Health API
 
 The system SHALL expose a health check API for the Datalink service.
@@ -97,7 +98,6 @@ Endpoint:
 - THEN the API returns status and service name
 
 ---
-
 ### Requirement: Tag lifecycle APIs
 
 The system SHALL expose APIs for tag lifecycle management.
@@ -130,7 +130,6 @@ Endpoints:
 - THEN the API returns validity, normalized key, and existence status
 
 ---
-
 ### Requirement: Device batch test API
 
 The system SHALL expose an API to batch test device connections.
@@ -145,7 +144,6 @@ Endpoint:
 - THEN the API tests all devices and returns individual results
 
 ---
-
 ### Requirement: Point polling APIs
 
 The system SHALL expose APIs for on-demand point polling.
@@ -166,7 +164,6 @@ Endpoints:
 - THEN the API polls all points and returns results
 
 ---
-
 ### Requirement: Pipeline validation API
 
 The system SHALL expose an API to validate transform pipelines.
@@ -186,7 +183,6 @@ Endpoint:
 - THEN the API returns valid=false with error details
 
 ---
-
 ### Requirement: Preview stream API
 
 The system SHALL expose an SSE endpoint for live mapping preview.
@@ -201,7 +197,6 @@ Endpoint:
 - THEN the server pushes raw and transformed values in real-time
 
 ---
-
 ### Requirement: Device readiness API
 
 The system SHALL expose an API endpoint to check device readiness status using the explicit planning, activation, and apply eligibility contract.
@@ -221,6 +216,7 @@ Endpoint:
 - **THEN** the API returns a response with explicit planning/activation/apply eligibility fields
 - **AND** does not require clients to infer workflow state from one final `ready` boolean alone
 
+---
 ### Requirement: Rule-scoped candidate query and recompute APIs
 The API SHALL expose rule-scoped endpoints to query and recompute candidate snapshots for a source-rule revision.
 
@@ -254,6 +250,7 @@ Each returned candidate object MUST include at least:
 - **THEN** the API regenerates the current revision's candidate snapshot using the shared identity/signature contract
 - **AND** returns the recomputed snapshot without introducing target-specific apply side effects
 
+---
 ### Requirement: Device collection statistics API
 
 The system SHALL expose an API endpoint to retrieve device collection statistics.
@@ -267,6 +264,7 @@ Endpoint:
 - **WHEN** a client requests device statistics
 - **THEN** the API returns collection statistics including last collection time, collection count, and error count
 
+---
 ### Requirement: Device status stream API
 
 The system SHALL expose an SSE endpoint for real-time device status updates.
@@ -280,6 +278,7 @@ Endpoint:
 - **WHEN** a client connects to the device status stream
 - **THEN** the server pushes device status updates in real-time
 
+---
 ### Requirement: Rule-scoped tag apply APIs
 The API SHALL expose explicit rule-scoped endpoints to apply approved tag candidates for a source-rule revision.
 
@@ -301,6 +300,7 @@ The apply response MUST report per-item success or failure so partial success is
 - **THEN** the API returns per-candidate success and failure results
 - **AND** does not collapse the response into one ambiguous pass/fail result
 
+---
 ### Requirement: Rule-scoped database output apply APIs
 The API SHALL expose explicit rule-scoped endpoints to apply approved database output candidates for a source-rule revision.
 
@@ -327,6 +327,7 @@ The apply response MUST report per-item success or failure so partial success is
 - **THEN** the API rejects the request with a `revision-conflict` error
 - **AND** returns enough revision context for the UI to refresh candidates instead of silently retrying
 
+---
 ### Requirement: Rule-scoped Local Modbus apply APIs
 The API SHALL expose explicit rule-scoped endpoints to apply approved Local Modbus candidates for a source-rule revision.
 
@@ -353,6 +354,7 @@ The apply response MUST report per-item success or failure so partial success is
 - **THEN** the API rejects the request with a `revision-conflict` error
 - **AND** returns enough revision context for the UI to refresh candidates instead of silently retrying
 
+---
 ### Requirement: Database connector and mapping APIs expose grouped-row metadata
 
 The system SHALL expose grouped database-row planning metadata through connector and mapping APIs so `/studio` can plan interval-driven row writes without inventing a version-specific backend contract.
@@ -377,6 +379,7 @@ The system SHALL expose grouped database-row planning metadata through connector
 - **THEN** the effective interval equals `write_interval_seconds` when that override is present
 - **AND** otherwise the effective interval equals the connector `default_write_interval_seconds`
 
+---
 ### Requirement: Database schema generation and mapping dry-run APIs
 
 The system SHALL expose dedicated database tooling endpoints so `/studio` can preview schema mutations and validate mapping candidates against the current connector state.
@@ -400,6 +403,7 @@ The dry-run response MUST return candidate-level validation outcomes and machine
 - **THEN** the API returns which candidates are eligible to apply or blocked
 - **AND** includes machine-readable blocking categories such as `schema_missing`, `connector_unavailable`, and `type_conflict`
 
+---
 ### Requirement: Rule-scoped database candidate and apply APIs carry grouped planning metadata
 
 The system SHALL return grouped database planning metadata in rule-scoped candidate, dry-run, and apply payloads so the frontend can review row groups before commit.
@@ -419,6 +423,7 @@ The system SHALL return grouped database planning metadata in rule-scoped candid
 - **THEN** the API returns an explicit blocking reason
 - **AND** the system does not silently merge or remap incompatible members
 
+---
 ### Requirement: Database write history reflects grouped row flushes
 
 The system SHALL expose grouped database write history through `GET /api/v1/datalink/db-targets/connectors/:id/write-history` and SHALL report row outcomes per grouped flush rather than per raw tag event.
@@ -437,3 +442,214 @@ The system SHALL expose grouped database write history through `GET /api/v1/data
 - **WHEN** grouped database writes are bucketed for an effective interval
 - **THEN** the bucket start is aligned by `observed_at.UTC().Truncate(effective_interval)`
 - **AND** all writes within the same aligned bucket contribute to the same grouped row outcome
+
+---
+### Requirement: Runtime status snapshot API
+
+The system SHALL expose `GET /api/v1/datalink/runtime/status` as the polling-compatible snapshot endpoint for runtime monitoring clients.
+
+The endpoint SHALL accept an optional `device_id` query parameter.
+
+Each successful response SHALL include top-level fields `running`, `uptime_seconds`, `metrics`, and `collectors`.
+
+The `metrics` object SHALL include at least:
+
+- `collected_total`
+- `write_success_total`
+- `write_error_total`
+- `mapping_error_total`
+- `point_state_error_total`
+
+Each collector object SHALL include at least:
+
+- `device_id`
+- `device_name`
+- `protocol`
+- `status`
+- `points_total`
+- `points_healthy`
+- `points_stale`
+- `points_error`
+- `last_read_at`
+- `last_error`
+- `breaker_state`
+
+#### Scenario: Request one device snapshot
+
+- **WHEN** a client requests `GET /api/v1/datalink/runtime/status?device_id=device-A`
+- **THEN** the response includes runtime top-level metrics
+- **AND** the `collectors` array contains exactly the collector summary for `device-A`
+
+#### Scenario: Request fleet snapshot without device filter
+
+- **WHEN** a client requests `GET /api/v1/datalink/runtime/status` without `device_id`
+- **THEN** the response includes runtime top-level metrics
+- **AND** the `collectors` array SHALL contain all device collector summaries visible to the runtime service
+
+
+<!-- @trace
+source: add-runtime-dashboard-backend-contract
+updated: 2026-05-30
+code:
+  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
+  - internal/api/handlers/runtime_handler.go
+  - task_plan.md
+  - .antigravitycli/fd0ca231-1a9a-4e65-8569-14c49e7cfa1d.json
+  - cmd/studio_inventory_changelog/main.go
+  - internal/datalink/runtime/ingestor.go
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - CLAUDE.md
+  - AGENTS.md
+  - internal/datalink/runtime/service.go
+  - frontend/src/features/datalink/runtime-dashboard/RealtimeLogsPanel.tsx
+  - progress.md
+  - frontend/src/features/datalink/runtime-dashboard/CollectorHealthPanel.tsx
+  - frontend/src/services/datalink.ts
+  - docs/technical/studio-surface-inventory/gap-roadmap.md
+  - docs/technical/studio-surface-inventory/index.html
+  - docs/technical/studio-surface-inventory/studio-mainline.md
+  - docs/technical/studio-surface-inventory/inventory.js
+  - frontend/src/features/datalink/workbench-v2/shell/resolveRuntimeDashboardDevice.ts
+  - internal/datalink/runtime/status.go
+  - frontend/src/i18n/config.ts
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - docs/technical/studio-surface-inventory/changelog.sqlite
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardRoute.tsx
+  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - docs/technical/studio-surface-inventory/gateway-experiments.md
+  - docs/technical/studio-surface-inventory/test-tooling.md
+  - docs/technical/studio-surface-inventory/inventory.css
+  - docs/technical/studio-surface-inventory/START_HERE.md
+  - frontend/src/App.tsx
+  - frontend/src/features/datalink/runtime-dashboard/LiveStateBanner.tsx
+  - frontend/src/features/datalink/runtime-dashboard/LivePointsTable.tsx
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - findings.md
+  - frontend/src/types/datalink.ts
+  - docs/technical/studio-surface-inventory/README.md
+  - docs/technical/studio-surface-inventory/backend-api-registry.md
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStatus.ts
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSummaryPanel.tsx
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/api/handlers/runtime_stream_handler.go
+  - docs/technical/studio-surface-inventory/CURRENT_STATE.md
+  - docs/technical/studio-surface-inventory/context.json
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts
+  - internal/datalink/runtime/stream.go
+tests:
+  - frontend/tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - internal/api/handlers/runtime_stream_handler_test.go
+  - cmd/test_ui/static/index.html
+  - internal/api/router_runtime_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
+  - internal/datalink/runtime/stream_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
+  - internal/datalink/runtime/status_test.go
+  - frontend/tests/unit/workbench-v2/shell.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
+-->
+
+---
+### Requirement: Runtime value stream API
+
+The system SHALL expose `GET /api/v1/datalink/runtime/stream` as the live runtime monitoring stream for one device.
+
+The endpoint SHALL require `device_id` and SHALL accept an optional comma-separated `point_ids` query parameter.
+
+The stream SHALL emit the following SSE event types:
+
+- `value`
+- `status`
+- `heartbeat`
+
+A `value` event payload SHALL include at least `device_id`, `point_id`, `address`, `raw_value`, `transformed_value`, `quality`, `stale`, and `timestamp`.
+
+A `status` event payload SHALL include at least `device_id`, `status`, `points_total`, `points_healthy`, `points_stale`, `points_error`, `last_read_at`, `last_error`, and `breaker_state`.
+
+A `heartbeat` event payload SHALL include `ts`.
+
+#### Scenario: Reject stream request without device id
+
+- **WHEN** a client requests `GET /api/v1/datalink/runtime/stream` without `device_id`
+- **THEN** the server returns HTTP 400
+- **AND** the request does not create a runtime subscription
+
+#### Scenario: Stream only selected points for one device
+
+- **WHEN** a client requests `GET /api/v1/datalink/runtime/stream?device_id=device-A&point_ids=pt-1,pt-2`
+- **THEN** the stream emits `value` events only for `pt-1` and `pt-2`
+- **AND** the stream continues to emit `status` and `heartbeat` events for `device-A`
+
+#### Scenario: Emit device status change on runtime degradation
+
+- **WHEN** runtime monitoring detects that `device-A` transitions from healthy collection to stale, point-error, or breaker-open state
+- **THEN** the stream emits a `status` event for `device-A`
+- **AND** the payload reflects the same derived status model used by the runtime snapshot endpoint
+
+<!-- @trace
+source: add-runtime-dashboard-backend-contract
+updated: 2026-05-30
+code:
+  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
+  - internal/api/handlers/runtime_handler.go
+  - task_plan.md
+  - .antigravitycli/fd0ca231-1a9a-4e65-8569-14c49e7cfa1d.json
+  - cmd/studio_inventory_changelog/main.go
+  - internal/datalink/runtime/ingestor.go
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - CLAUDE.md
+  - AGENTS.md
+  - internal/datalink/runtime/service.go
+  - frontend/src/features/datalink/runtime-dashboard/RealtimeLogsPanel.tsx
+  - progress.md
+  - frontend/src/features/datalink/runtime-dashboard/CollectorHealthPanel.tsx
+  - frontend/src/services/datalink.ts
+  - docs/technical/studio-surface-inventory/gap-roadmap.md
+  - docs/technical/studio-surface-inventory/index.html
+  - docs/technical/studio-surface-inventory/studio-mainline.md
+  - docs/technical/studio-surface-inventory/inventory.js
+  - frontend/src/features/datalink/workbench-v2/shell/resolveRuntimeDashboardDevice.ts
+  - internal/datalink/runtime/status.go
+  - frontend/src/i18n/config.ts
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - docs/technical/studio-surface-inventory/changelog.sqlite
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardRoute.tsx
+  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - docs/technical/studio-surface-inventory/gateway-experiments.md
+  - docs/technical/studio-surface-inventory/test-tooling.md
+  - docs/technical/studio-surface-inventory/inventory.css
+  - docs/technical/studio-surface-inventory/START_HERE.md
+  - frontend/src/App.tsx
+  - frontend/src/features/datalink/runtime-dashboard/LiveStateBanner.tsx
+  - frontend/src/features/datalink/runtime-dashboard/LivePointsTable.tsx
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - findings.md
+  - frontend/src/types/datalink.ts
+  - docs/technical/studio-surface-inventory/README.md
+  - docs/technical/studio-surface-inventory/backend-api-registry.md
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStatus.ts
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSummaryPanel.tsx
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/api/handlers/runtime_stream_handler.go
+  - docs/technical/studio-surface-inventory/CURRENT_STATE.md
+  - docs/technical/studio-surface-inventory/context.json
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts
+  - internal/datalink/runtime/stream.go
+tests:
+  - frontend/tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - internal/api/handlers/runtime_stream_handler_test.go
+  - cmd/test_ui/static/index.html
+  - internal/api/router_runtime_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
+  - internal/datalink/runtime/stream_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
+  - internal/datalink/runtime/status_test.go
+  - frontend/tests/unit/workbench-v2/shell.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
+-->

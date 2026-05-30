@@ -17,8 +17,9 @@
 
 | Change 建議名 | 問題 | 主要影響面 | 為什麼優先 |
 | --- | --- | --- | --- |
-| `make-studio-v2-default-entry` | 使用者希望預設入口是 `/studio/v2`，但 router 目前仍導向 `/studio` | router、入口 IA | 產品入口與使用者預期不一致 |
-| `integrate-studio-v2-commit-with-runtime-lifecycle` | V2 commit 仍是前端模擬，不能提供正式 persisted handoff | `/studio/v2`、`/studio/runtime` | 不補這個，V2 無法成為真正產品主線 |
+| `make-studio-v2-default-entry` | 使用者已決定直接把預設入口切到 `/studio/v2`，但 router 目前仍導向 `/studio` | router、入口 IA | 產品入口決策與實作現況不一致 |
+| `integrate-studio-v2-multi-device-commit` | V2 commit 仍是前端模擬，且還不能一次送出多台設備到後端 | `/studio/v2`、後端 datalink contract | 不補這個，V2 仍只是草稿 shell |
+| `adapt-runtime-handoff-for-multi-device` | runtime 目前主要以單台 `device_id` handoff 為前提 | `/studio/v2`、`/studio/runtime` | 不補這個，多台 commit 成功後無法穩定交接 |
 | `normalize-runtime-lifecycle-status-contract` | runtime snapshot / SSE 缺正式 lifecycle semantics | `/studio/runtime`、未來 `/studio/v2` | 前端目前還要靠錯誤字串判斷狀態 |
 
 ## P1: 緊接著要處理
@@ -41,7 +42,7 @@
 
 | 類型 | 定義 | 例子 |
 | --- | --- | --- |
-| `missing-api` | 後端沒有頁面需要的 API | V2 正式 commit contract |
+| `missing-api` | 後端沒有頁面需要的 API | V2 正式多台設備 commit contract |
 | `exists-not-wired` | API 存在但前端沒用 | `source-rules/:id/tags/apply` |
 | `semantics-gap` | API 可呼叫但語意不足 | runtime `device not found` / `starting` |
 | `frontend-local-only` | 行為仍只存在 reducer / mock | `/studio/v2` commit flow |
@@ -82,18 +83,28 @@
 - 驗證:
   - `/`、未知 route、legacy route 都能落到正確入口
 
-### 2. `integrate-studio-v2-commit-with-runtime-lifecycle`
+### 2. `integrate-studio-v2-multi-device-commit`
 
-- 目標: V2 commit 後能拿到 persisted IDs 與 runtime handoff context
+- 目標: V2 commit 後能一次送出多台設備，並拿到逐台 persisted 結果
 - 後端工作:
-  - 提供正式 commit endpoint 或 orchestration contract
+  - 提供正式多台設備 commit endpoint 或 orchestration contract
 - 前端工作:
   - Step 4 改用真實 commit response
   - 不再使用模擬 commit logs 當 truth
 - 驗證:
-  - `setup -> commit -> /studio/runtime?device_id=...`
+  - `setup -> commit -> runtime handoff`
 
-### 3. `normalize-runtime-lifecycle-status-contract`
+### 3. `adapt-runtime-handoff-for-multi-device`
+
+- 目標: 讓 runtime 能接住單台或多台 commit 結果
+- 前端工作:
+  - 單台成功時可直接帶 `device_id`
+  - 多台成功時需有正式 handoff context，不再假設只有單一 `device_id`
+- 驗證:
+  - 單台成功可直達 focused runtime
+  - 多台成功可穩定落到可觀察的 runtime 入口
+
+### 4. `normalize-runtime-lifecycle-status-contract`
 
 - 目標: 將 runtime snapshot / stream 語意正式化
 - 後端工作:
@@ -104,7 +115,7 @@
 - 驗證:
   - missing device、starting、live、degraded 都能穩定呈現
 
-### 4. `refactor-studio-mainline-surface-boundaries`
+### 5. `refactor-studio-mainline-surface-boundaries`
 
 - 目標: 降低 `/studio` 複雜度，但不破壞正式能力
 - 狀態: **先暫停**
@@ -115,7 +126,7 @@
   - 主線任務完成率不下降
   - deep-link 與 shared context 不破
 
-### 5. `align-gateway-pages-with-datalink-product-contract`
+### 6. `align-gateway-pages-with-datalink-product-contract`
 
 - 目標: 決定 `/gateway/*` 長期命運
 - 狀態: **先暫停**

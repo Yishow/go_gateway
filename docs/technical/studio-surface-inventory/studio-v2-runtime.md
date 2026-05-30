@@ -11,7 +11,8 @@
 
 - `/studio/v2`：**這一輪重點施作**
 - `/studio/runtime`：**作為 V2 的 post-setup 觀察面一起施作**
-- 預設入口方向：**網站服務應預設導向 `/studio/v2`**
+- 預設入口方向：**網站服務應直接切到 `/studio/v2`**
+- commit 方向：**以多台設備為正式目標，不再先假設只有單台設備**
 
 ## `/studio/v2` 現況
 
@@ -20,7 +21,8 @@
 - 已有完整 shell、四步驟、settings、summary rail、Step 4 handoff。
 - 大多數資料仍存在 `useWorkbenchV2State()` reducer 中。
 - `commit` 目前是前端模擬流程，不是正式的 backend persisted lifecycle。
-- 使用者期待未來「服務預設入口」是 `/studio/v2`，但目前 router 預設仍不是它。
+- 產品決策已定為直接把服務預設入口切到 `/studio/v2`，但目前 router 預設仍不是它。
+- `commit` 的正式方向已定為多台設備；現有 handoff 與 runtime route 仍偏單台心智。
 
 ## V2 的產品要求
 
@@ -35,11 +37,11 @@
 | --- | --- | --- | --- | --- |
 | Shell / step rail / summary rail | 切步驟、看摘要、收合 UI | `useWorkbenchV2State()` | 無 | `frontend-local-only` |
 | Step 1 Device | 編輯設備草稿、跑 staged test、看 connect/probe 階段 | local reducer state | 無正式 datalink API | `frontend-local-only` |
-| Step 2 Rule | 編輯規則、生成 points 視圖 | local reducer state | 無 | `frontend-local-only` |
+| Step 2 Rule | 依設備編輯規則、生成 points 視圖 | local reducer state | 無 | `frontend-local-only` |
 | Step 3 Mapping | 調整 mapping / transform | local reducer state | 無 | `frontend-local-only` |
-| Step 4 Database | 調整 DB target、看 commit progress | local reducer + `buildCommitLogSequence()` | 目前僅模擬 endpoint label | `frontend-local-only` |
+| Step 4 Database | 調整 DB target、送出多台設備設定、看 commit progress | local reducer + `buildCommitLogSequence()` | 目前僅模擬 endpoint label | `frontend-local-only` |
 | Settings | 編輯 connector pool、scheduler、modbus-share 設定草稿 | local reducer state | 無 | `frontend-local-only` |
-| Runtime handoff | 提交成功後前往 runtime dashboard | route navigation | 無 commit API；僅 URL handoff | `semantics-gap` |
+| Runtime handoff | 提交成功後前往 runtime dashboard | route navigation | 無 commit API；僅單台 URL handoff | `semantics-gap` |
 
 ### 重要檔案
 
@@ -54,24 +56,26 @@
 | 項目 | 現況 |
 | --- | --- |
 | handoff target | `/studio/runtime` |
-| query param | `device_id` |
-| guard | 僅 UUID 形態才視為 persisted backend device id |
-| fallback | 取不到 persisted id 時，退回 `/studio/runtime` 不帶 `device_id` |
-| 風險 | Step 4 commit 還沒真正產出 persisted device / point / runtime context |
+| 現有 query param | `device_id` |
+| 現有 guard | 僅 UUID 形態才視為 persisted backend device id |
+| 現有 fallback | 取不到 persisted id 時，退回 `/studio/runtime` 不帶 `device_id` |
+| 目前限制 | 整個 handoff 仍以單台 persisted device 為前提 |
+| 風險 | Step 4 commit 還沒真正產出 persisted device / point / runtime context，也無法表達多台成功結果 |
 
 ### V2 必補的正式契約
 
-1. commit success response 必須回 persisted `device_id`
-2. commit success response 必須回 runtime 啟動狀態
-3. 若 commit 會建立 points / mappings / outputs，最好回最小 summary
-4. route handoff 不能再從 local draft state 猜 runtime device
-5. `/` 與主要入口 redirect 應可直接落到 V2
+1. commit request 必須支援一次送出多台設備設定
+2. commit response 必須逐台回傳 persisted device 結果
+3. commit response 必須回 runtime 啟動狀態與最小 summary
+4. runtime handoff 必須同時支援單台與多台結果，不能只靠單一 `device_id`
+5. route handoff 不能再從 local draft state 猜 runtime device
+6. `/` 與主要入口 redirect 應可直接落到 V2
 
 ## `/studio/runtime` 現況
 
 ### 使用者可見動作
 
-- 依 `device_id` 聚焦單台設備
+- 目前仍是依 `device_id` 聚焦單台設備
 - 讀取 snapshot
 - 開啟 SSE
 - 看 summary / collector health / live points / logs
@@ -112,6 +116,7 @@
 | 類型 | 問題 | 影響 |
 | --- | --- | --- |
 | semantics-gap | `device not found` 目前從 500 + 錯誤字串推導 | 前端必須做字串判斷 |
+| missing-api | runtime handoff 還沒有正式的多台結果參數或上下文 | V2 commit 成功後無法穩定交接多台設備結果 |
 | semantics-gap | 缺 `starting` / `committed but not running` / `not_committed` 類狀態 | setup 後無法正確解釋等待期 |
 | semantics-gap | runtime 與 setup commit 沒有正式 lifecycle handoff | V2 不能穩定直達 focused runtime |
 | exists-not-wired | runtime snapshot 只有 post-setup route 用 | `/studio/v2` 內部還不能當正式 commit result source |
@@ -124,21 +129,25 @@
 - 有引導
 - 容易觀察
 - 作為服務預設入口
+- 支援多台設備一起送出
 
 ### 目前缺的不是 UI，而是 contract
 
-1. V2 沒有正式 commit API
-2. V2 沒有 persisted output summary
-3. Runtime 沒有產品化 lifecycle semantics
-4. Router 還沒改成以 V2 為預設入口
+1. V2 沒有正式的多台設備 commit API
+2. V2 沒有逐台 persisted output summary
+3. Runtime 還沒有正式接住多台 handoff
+4. Runtime 沒有產品化 lifecycle semantics
+5. Router 還沒改成以 V2 為預設入口
 
 ## V2 近期應優先完成的順序
 
 1. `make-studio-v2-default-entry`
-   - 先讓產品入口與使用者方向一致
-2. `integrate-studio-v2-commit-with-runtime-lifecycle`
-   - 讓 V2 不再只是 local-only setup shell
-3. `normalize-runtime-lifecycle-status-contract`
+   - 直接把產品入口切到 `/studio/v2`
+2. `integrate-studio-v2-multi-device-commit`
+   - 讓 V2 不再只是 local-only setup shell，且能一次送出多台設備
+3. `adapt-runtime-handoff-for-multi-device`
+   - 讓 runtime 接得住單台或多台 commit 結果
+4. `normalize-runtime-lifecycle-status-contract`
    - 讓 runtime 成為可靠的 post-setup observer
 
 ## V2 暫時不該膨脹成的樣子
