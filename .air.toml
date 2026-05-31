@@ -10,10 +10,8 @@ tmp_dir = "bin/tmp"
 
 [build]
   args_bin = []
-  # bin 設為空，不使用編譯產物
-  bin = ""
-  # 直接使用 go run，不進行編譯（與選項1開發模式一致）
-  cmd = "go run ./cmd/test_ui"
+  bin = "./bin/tmp/gateway-air"
+  cmd = "go build -o ./bin/tmp/gateway-air ./cmd/test_ui"
   delay = 1000
   # 只監控必要的目錄，排除其他 cmd 子目錄和不需要的目錄
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "bin", "frontend", "node_modules", ".git", "docs", "lib", "cmd/fatek_test", "cmd/gateway", "cmd/test_all", "conductor"]
@@ -27,7 +25,7 @@ tmp_dir = "bin/tmp"
   include_dir = []
   include_ext = ["go", "tpl", "tmpl", "html"]
   include_file = []
-  kill_delay = "0s"
+  kill_delay = "2s"
   log = "bin/tmp/build-errors.log"
   poll = false
   poll_interval = 0
@@ -48,7 +46,7 @@ tmp_dir = "bin/tmp"
   time = false
 
 [misc]
-  clean_on_exit = false
+  clean_on_exit = true
 
 [screen]
   clear_on_rebuild = false

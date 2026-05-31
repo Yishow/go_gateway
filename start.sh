@@ -22,11 +22,14 @@ VITE_DEV_PORT="${VITE_DEV_PORT:-$FRONTEND_DEV_PORT}"
 PORT="${PORT:-8080}"
 LOG_DIR="bin/logs"
 TMP_DIR="bin/tmp"
+AIR_BIN="$TMP_DIR/gateway-air"
+MODBUS_SHARE_PORT="${MODBUS_SHARE_PORT:-5020}"
 AUTO_KILL_PORT=false
 SKIP_BUILD=false
 SKIP_LINT=false
 SKIP_TEST=false
 SKIP_QUALITY=false
+SYNC_EMBED=false
 START=false
 DEV_MODE=false
 AIR_MODE=false
@@ -44,6 +47,7 @@ FRONTEND_PID=""
 BACKEND_PID=""
 BACKEND_LOG_PID=""
 BACKEND_LOG_FILE=""
+RUN_LOCK_DIR=""
 
 # 日誌噪音計數器（關聯陣列）
 # 在 bash 5.3 + set -u 下，僅 declare 而未初始化的空關聯陣列
@@ -55,131 +59,10 @@ success() { printf "\033[32m[OK]\033[0m %s\n" "$*"; }
 warn() { printf "\033[33m[WARN]\033[0m %s\n" "$*"; }
 err() { printf "\033[31m[ERR]\033[0m %s\n" "$*"; }
 
-# ============================================
-# 日誌格式化與噪音過濾（對齊 PS1 功能）
-# ============================================
-
-# 判斷日誌行是否為噪音類別
-# 回傳噪音類別名稱，若非噪音則回傳空字串
-get_log_noise_category() {
-  local line="$1"
-  # air watcher 常見輸出
-  if [[ "$line" =~ ^watching|^building\.\.\.|^\!exclude|^[[:space:]]*/|^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-    printf "air-watcher"
-    return
-  fi
-  # modbus status polling
-  if [[ "$line" == *"/api/v1/datalink/modbus-share/status"* ]]; then
-    printf "status-polling"
-    return
-  fi
-  # dashboard 輪詢請求
-  if [[ "$line" =~ \/api\/v1\/datalink\/(devices|polling-groups|points|mappings|tags) ]]; then
-    printf "dashboard-refresh"
-    return
-  fi
-  # 啟動細節日誌
-  if [[ "$line" == *"資料庫路徑"* || "$line" == *"Executing SQLite migration"* || "$line" == *"ConnectionManager 已初始化"* || "$line" == *"已註冊的協議"* ]]; then
-    printf "startup-detail"
-    return
-  fi
-  printf ""
-}
-
-# 格式化單行執行時日誌輸出（對齊 PS1 Write-RuntimeLogLine）
-runtime_log_line() {
-  local line="$1"
-  [[ -z "$line" ]] && return
-
-  # HTTP 請求行格式化：[timestamp] METHOD /path STATUS latency
-  if [[ "$line" =~ \[([^\]]+)\][[:space:]]+[^[:space:]]+[[:space:]]+(GET|POST|PUT|DELETE|PATCH)[[:space:]]+([^[:space:]]+)[[:space:]]+([0-9]{3})[[:space:]]+(.+) ]]; then
-    local ts="${BASH_REMATCH[1]}"
-    local method="${BASH_REMATCH[2]}"
-    local path="${BASH_REMATCH[3]}"
-    local status="${BASH_REMATCH[4]}"
-    local latency="${BASH_REMATCH[5]}"
-    # 擷取時間部分 HH:MM:SS
-    local time_part
-    if [[ "$ts" =~ ([0-9]{2}:[0-9]{2}:[0-9]{2})$ ]]; then
-      time_part="${BASH_REMATCH[1]}"
-    else
-      time_part="--:--:--"
-    fi
-
-    # dashboard 輪詢在非 verbose 模式下隱藏
-    if [[ "$method" == "GET" && "$status" == "200" && "$path" =~ ^/api/v1/datalink/(devices|polling-groups|points|mappings|tags|modbus-share/status)$ ]]; then
-      if [[ "$VERBOSE" != true ]]; then
-        LOG_NOISE_COUNTERS["dashboard-refresh"]=$(( ${LOG_NOISE_COUNTERS["dashboard-refresh"]:-0} + 1 ))
-        return
-      fi
-    fi
-
-    local formatted
-    formatted=$(printf "[HTTP] %s  %-6s %-46.46s %3s %9s" "$time_part" "$method" "$path" "$status" "$latency")
-    if (( status >= 500 )); then
-      printf "\033[31m%s\033[0m\n" "$formatted"
-    elif (( status >= 400 )); then
-      printf "\033[33m%s\033[0m\n" "$formatted"
-    else
-      printf "\033[90m%s\033[0m\n" "$formatted"
-    fi
-    return
-  fi
-
-  # Go 標準日誌行：yyyy/mm/dd HH:MM:SS file:line: msg
-  if [[ "$line" =~ ^[0-9]{4}/[0-9]{2}/[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}[[:space:]]+[^:]+:[0-9]+:[[:space:]]+(.+)$ ]]; then
-    local msg="${BASH_REMATCH[1]}"
-    local category
-    category="$(get_log_noise_category "$line")"
-    if [[ -n "$category" && "$VERBOSE" != true ]]; then
-      LOG_NOISE_COUNTERS["$category"]=$(( ${LOG_NOISE_COUNTERS["$category"]:-0} + 1 ))
-      return
-    fi
-    if [[ "$msg" == *"127.0.0.1:5020"* ]]; then
-      printf "\033[32m[BOOT] Local Modbus share started on 127.0.0.1:5020\033[0m\n"
-    elif [[ "$msg" == *"測試工具伺服器啟動於 "* ]]; then
-      local startup_url="${msg##*啟動於 }"
-      printf "\033[32m[BOOT] Server started at %s\033[0m\n" "$startup_url"
-    elif [[ "$msg" == *"資料庫路徑"* ]]; then
-      printf "\033[90m[BOOT] Database initialized\033[0m\n"
-    elif [[ "$VERBOSE" == true ]]; then
-      printf "\033[90m[BOOT] %s\033[0m\n" "$msg"
-    fi
-    return
-  fi
-
-  # 一般噪音過濾
-  local category
-  category="$(get_log_noise_category "$line")"
-  if [[ -n "$category" && "$VERBOSE" != true ]]; then
-    LOG_NOISE_COUNTERS["$category"]=$(( ${LOG_NOISE_COUNTERS["$category"]:-0} + 1 ))
-    return
-  fi
-
-  # 著色輸出
-  if [[ "$line" =~ ERROR|Error|panic|FATAL ]]; then
-    printf "\033[31m%s\033[0m\n" "$line"
-  elif [[ "$line" =~ WARN|Warning ]]; then
-    printf "\033[33m%s\033[0m\n" "$line"
-  elif [[ "$line" =~ 啟動於|本機\ Modbus\ 分享服務已啟動 ]]; then
-    printf "\033[32m%s\033[0m\n" "$line"
-  else
-    printf "\033[90m%s\033[0m\n" "$line"
-  fi
-}
-
-# 顯示被隱藏的噪音日誌統計（對齊 PS1 Show-LogNoiseSummary）
-show_log_noise_summary() {
-  [[ ${#LOG_NOISE_COUNTERS[@]} -eq 0 ]] && return
-  [[ "$VERBOSE" == true ]] && return
-  printf "\n\033[36m============================================\033[0m\n"
-  printf "\033[36m   已隱藏雜訊日誌\033[0m\n"
-  printf "\033[36m============================================\033[0m\n"
-  for key in "${!LOG_NOISE_COUNTERS[@]}"; do
-    printf "\033[33m- %s: %s 行\033[0m\n" "$key" "${LOG_NOISE_COUNTERS[$key]}"
-  done
-  info "可加上 --verbose 顯示全部原始日誌。"
-}
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/scripts/start-log-utils.sh"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/scripts/start-process-utils.sh"
 
 show_frontend_host_hint() {
   if [[ "$FRONTEND_DEV_HOST" == "0.0.0.0" || "$FRONTEND_DEV_HOST" == "::" ]]; then
@@ -190,8 +73,14 @@ show_frontend_host_hint() {
 }
 
 show_embedded_frontend_hint() {
-  info "💡 :$PORT 會使用本次啟動前同步好的 embedded 前端快照"
-  info "💡 前端在啟動後若還有新修改，:${FRONTEND_DEV_PORT} 會即時更新；:$PORT 需重新執行 start.sh 才會刷新"
+  if [[ "$SYNC_EMBED" == true ]]; then
+    info "💡 :$PORT 會使用本次啟動前同步好的 embedded 前端快照"
+    info "💡 前端在啟動後若還有新修改，:${FRONTEND_DEV_PORT} 會即時更新；:$PORT 需重新執行 start.sh --sync-embed 才會刷新"
+    return
+  fi
+
+  info "💡 開發模式預設不重建 embedded 前端；即時開發請使用 :${FRONTEND_DEV_PORT}"
+  info "💡 若需要刷新 :$PORT 的 embedded 前端，重新執行時加上 --sync-embed"
 }
 
 frontend_proxy_target() {
@@ -200,18 +89,21 @@ frontend_proxy_target() {
 
 start_frontend_dev_server() {
   local proxy_target
+  local node_options
   proxy_target="$(frontend_proxy_target)"
+  node_options="${NODE_OPTIONS:---max-old-space-size=4096}"
 
   clear_frontend_port true
 
-  if has_cmd setsid; then
-    setsid bash -c "cd '$FRONTEND_DIR' && PORT='$PORT' VITE_API_PROXY_TARGET='$proxy_target' VITE_DEV_PORT='$FRONTEND_DEV_PORT' pnpm exec vite --host '$FRONTEND_DEV_HOST' --port '$FRONTEND_DEV_PORT' --strictPort" &
-  else
-    (
-      cd "$FRONTEND_DIR" &&
-        PORT="$PORT" VITE_API_PROXY_TARGET="$proxy_target" VITE_DEV_PORT="$FRONTEND_DEV_PORT" pnpm exec vite --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
-    ) &
-  fi
+  (
+    cd "$FRONTEND_DIR"
+    export NODE_OPTIONS="$node_options"
+    export PORT="$PORT"
+    export VITE_API_PROXY_TARGET="$proxy_target"
+    export VITE_DEV_PORT="$FRONTEND_DEV_PORT"
+    exec pnpm exec vite --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
+  ) &
+  FRONTEND_PID=$!
 }
 
 start_backend_process() {
@@ -225,11 +117,7 @@ start_backend_process() {
   done &
   BACKEND_LOG_PID=$!
 
-  if has_cmd setsid; then
-    setsid bash -c "$command" >>"$BACKEND_LOG_FILE" 2>&1 &
-  else
-    bash -c "$command" >>"$BACKEND_LOG_FILE" 2>&1 &
-  fi
+  bash -c "$command" >>"$BACKEND_LOG_FILE" 2>&1 &
   BACKEND_PID=$!
 }
 
@@ -265,16 +153,14 @@ wait_for_backend_exit() {
   wait "$pid" || exit_code=$?
   BACKEND_PID=""
   cleanup_all
-  trap - EXIT INT TERM
+  clear_cleanup_traps
   return "$exit_code"
 }
 
 # 清理前端開發伺服器及其子進程
 cleanup_frontend() {
   if [[ -n "$FRONTEND_PID" ]]; then
-    info "正在停止前端開發伺服器（PID: ${FRONTEND_PID}）..."
-    # 終止整個進程組
-    kill -- -"$FRONTEND_PID" 2>/dev/null || kill "$FRONTEND_PID" 2>/dev/null || true
+    stop_process_tree "$FRONTEND_PID" "前端開發伺服器"
     wait "$FRONTEND_PID" 2>/dev/null || true
     FRONTEND_PID=""
     success "前端開發伺服器已停止"
@@ -283,15 +169,14 @@ cleanup_frontend() {
 
 cleanup_backend() {
   if [[ -n "$BACKEND_PID" ]]; then
-    info "正在停止後端服務（PID: ${BACKEND_PID}）..."
-    kill -- -"$BACKEND_PID" 2>/dev/null || kill "$BACKEND_PID" 2>/dev/null || true
+    stop_process_tree "$BACKEND_PID" "後端服務"
     wait "$BACKEND_PID" 2>/dev/null || true
     BACKEND_PID=""
     success "後端服務已停止"
   fi
 
   if [[ -n "$BACKEND_LOG_PID" ]]; then
-    kill -- -"$BACKEND_LOG_PID" 2>/dev/null || kill "$BACKEND_LOG_PID" 2>/dev/null || true
+    kill_process_tree "$BACKEND_LOG_PID" TERM
     BACKEND_LOG_PID=""
   fi
 
@@ -305,6 +190,7 @@ cleanup_backend() {
 cleanup_all() {
   cleanup_frontend
   cleanup_backend
+  release_run_lock
   show_log_noise_summary
 }
 
@@ -317,13 +203,14 @@ Go Gateway mac 啟動腳本
 
 選項:
   --dev-mode           開發模式 (go run)
-  --air-mode           熱重載模式 (air，啟動前同步 embedded 前端)
+  --air-mode           熱重載模式 (air)
   --quick-start        一鍵啟動 (lint + sync frontend + build + start)
   --start              建置後啟動服務
   --skip-build         跳過一般建置（若需刷新 embedded 前端會自動補建）
   --skip-lint          跳過 golangci-lint
   --skip-test          跳過測試
   --skip-quality       跳過代碼質量檢查
+  --sync-embed         開發/熱重載啟動前同步 embedded 前端快照
   --coverage           輸出詳細覆蓋率與 coverage 報告
   --verbose            顯示詳細輸出
   --port <port>        指定端口 (預設: 8080)
@@ -367,19 +254,6 @@ find_air_cmd() {
   return 1
 }
 
-is_managed_pid() {
-  local pid="$1"
-  local cmd
-  local exe_path
-  cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
-  if [[ "$cmd" == *"/bin/gateway"* || "$cmd" == *"cmd/test_ui"* || "$cmd" == *"/exe/test_ui"* || "$cmd" == *"start.sh"* || "$cmd" == *"/frontend/node_modules/.bin/vite"* ]]; then
-    return 0
-  fi
-
-  exe_path="$(lsof -a -p "$pid" -d txt -Fn 2>/dev/null | sed -n 's/^n//p' | head -n1)"
-  [[ "$exe_path" == *"/test_ui"* || "$exe_path" == *"/gateway"* ]]
-}
-
 show_main_menu() {
   cat <<MENU
 
@@ -387,7 +261,7 @@ show_main_menu() {
    Go Gateway 啟動選單 (mac)
 ============================================
   1) 開發模式 (go run)
-  2) 熱重載模式 (air，啟動前同步 embedded 前端)
+  2) 熱重載模式 (air)
   3) 一鍵啟動 (lint + sync frontend + build + start)
   4) 完整流程 (lint + build + quality + test)
   5) 僅建置 (sync frontend + build)
@@ -437,7 +311,7 @@ managed_ports() {
   local port
   declare -A seen=()
 
-  for port in "$PORT" "$FRONTEND_DEV_PORT" "$VITE_DEV_PORT"; do
+  for port in "$PORT" "$FRONTEND_DEV_PORT" "$VITE_DEV_PORT" "$MODBUS_SHARE_PORT"; do
     if [[ "$port" =~ ^[0-9]+$ && -z "${seen[$port]+x}" ]]; then
       seen["$port"]=1
       printf "%s\n" "$port"
@@ -465,14 +339,12 @@ clear_listen_port() {
 
   if [[ "$AUTO_KILL_PORT" == true || "$force_cleanup" == true ]]; then
     warn "$label $port 被 PID $pid 佔用，將先清理再啟動"
-    kill -9 "$pid" 2>/dev/null || true
-    sleep 0.3
+    stop_process_tree "$pid" "$label 佔用進程"
   else
     warn "$label $port 被 PID $pid 佔用"
     read -r -p "是否終止 $label ${port} 的進程? (y/N): " ans
     if [[ "$ans" =~ ^[Yy]$ ]]; then
-      kill -9 "$pid" 2>/dev/null || true
-      sleep 0.3
+      stop_process_tree "$pid" "$label 佔用進程"
     else
       return 1
     fi
@@ -514,6 +386,16 @@ build_frontend() {
   success "前端建置完成"
 }
 
+sync_embedded_frontend_if_requested() {
+  if [[ "$SYNC_EMBED" != true ]]; then
+    info "略過 embedded 前端同步（開發模式預設使用 Vite 即時伺服器）"
+    return 0
+  fi
+
+  info "📦 同步 embedded 前端資產..."
+  build_frontend
+}
+
 build_app() {
   build_frontend
   mkdir -p "$BUILD_DIR"
@@ -553,13 +435,13 @@ list_processes() {
   local found=false
   local pids
 
-  pids="$(pgrep -f "/bin/gateway|cmd/test_ui|start.sh|/frontend/node_modules/.bin/vite" 2>/dev/null || true)"
+  pids="$(related_process_pids | sort -u || true)"
   if [[ -n "$pids" ]]; then
     found=true
     info "相關進程:"
     while IFS= read -r pid; do
       [[ -z "$pid" ]] && continue
-      ps -p "$pid" -o pid,etime,command 2>/dev/null || true
+      ps -p "$pid" -o pid,ppid,etime,rss,command 2>/dev/null || true
     done <<<"$pids"
   fi
 
@@ -580,12 +462,13 @@ stop_all_services() {
   info "停止所有運行中的服務..."
   local stopped=0
   local pids pid
-  pids="$(pgrep -f "/bin/gateway|cmd/test_ui|start.sh|/frontend/node_modules/.bin/vite" 2>/dev/null || true)"
+  pids="$(related_process_pids | sort -u || true)"
 
   if [[ -n "$pids" ]]; then
     while IFS= read -r pid; do
       [[ -z "$pid" ]] && continue
-      kill -9 "$pid" 2>/dev/null || true
+      [[ "$pid" == "$$" || "$pid" == "$BASHPID" ]] && continue
+      stop_process_tree "$pid" "服務進程"
       stopped=$((stopped + 1))
     done <<<"$pids"
   fi
@@ -594,10 +477,14 @@ stop_all_services() {
   while IFS= read -r p; do
     pid="$(pid_on_port "$p")"
     if [[ -n "$pid" ]] && is_managed_pid "$pid"; then
-      kill -9 "$pid" 2>/dev/null || true
+      stop_process_tree "$pid" "端口 $p 進程"
       stopped=$((stopped + 1))
     fi
   done < <(managed_ports)
+
+  if [[ -d "$TMP_DIR" ]]; then
+    find "$TMP_DIR" -maxdepth 1 -type d -name 'start-*.lock' -exec rm -rf {} + 2>/dev/null || true
+  fi
 
   if [[ "$stopped" -eq 0 ]]; then
     info "未發現需要停止的服務"
@@ -620,13 +507,16 @@ diagnose() {
   [[ -d "$APP_PATH" ]] || { err "應用程式目錄不存在: $APP_PATH"; issues=$((issues + 1)); }
 
   info "3) 檢查端口狀態"
-  local pid
-  pid="$(pid_on_port "$PORT")"
-  if [[ -n "$pid" ]]; then
-    warn "端口 $PORT 被 PID $pid 佔用"
-  else
-    success "端口 $PORT 可用"
-  fi
+  local pid p
+  while IFS= read -r p; do
+    pid="$(pid_on_port "$p")"
+    if [[ -n "$pid" ]]; then
+      warn "端口 $p 被 PID $pid 佔用"
+      ps -p "$pid" -o pid,ppid,etime,rss,command 2>/dev/null || true
+    else
+      success "端口 $p 可用"
+    fi
+  done < <(managed_ports)
 
   info "4) 檢查前端"
   if [[ -d "$FRONTEND_DIR" && ! -d "$FRONTEND_DIR/node_modules" ]]; then
@@ -641,6 +531,18 @@ diagnose() {
     warn "尚未發現可執行檔: $BUILD_DIR/$APP_NAME（若尚未建置屬正常）"
   fi
 
+  info "6) 檢查相關進程與記憶體"
+  local pids
+  pids="$(related_process_pids | sort -u || true)"
+  if [[ -n "$pids" ]]; then
+    while IFS= read -r pid; do
+      [[ -z "$pid" ]] && continue
+      ps -p "$pid" -o pid,ppid,etime,rss,command 2>/dev/null || true
+    done <<<"$pids"
+  else
+    success "未發現相關長駐進程"
+  fi
+
   if [[ "$issues" -eq 0 ]]; then
     success "診斷完成，未發現阻塞問題"
   else
@@ -652,21 +554,23 @@ start_dev_mode() {
   info "🚀 開發模式（無需編譯）"
   info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後需要手動重新運行"
   info "💡 將同時啟動前端開發伺服器和後端服務"
-  info "📦 啟動前同步 embedded 前端資產..."
-  build_frontend
 
-  # 設定清理 trap
-  trap cleanup_all EXIT INT TERM
+  install_cleanup_traps
+  acquire_run_lock || {
+    clear_cleanup_traps
+    return 1
+  }
+  sync_embedded_frontend_if_requested
 
   clear_port true
   info "▶️  啟動後端應用程式（使用 go run）..."
 
   # 重置噪音計數器
   LOG_NOISE_COUNTERS=()
-  start_backend_process "cd '$APP_PATH' && PORT='$PORT' go run ."
-  wait_for_port_ready "$PORT" "後端端口" || {
+  start_backend_process "cd '$APP_PATH' && PORT='$PORT' exec go run ."
+  wait_for_port_ready "$PORT" "後端端口" 300 || {
     cleanup_all
-    trap - EXIT INT TERM
+    clear_cleanup_traps
     return 1
   }
 
@@ -674,7 +578,6 @@ start_dev_mode() {
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
     # 顯式傳遞 backend PORT / proxy target，避免 dev server 代理到錯的埠。
     start_frontend_dev_server || return 1
-    FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
     show_frontend_host_hint
     show_embedded_frontend_hint
@@ -687,11 +590,13 @@ start_air_mode() {
   info "🔥 熱重載模式（Air）"
   info "💡 提示: 使用 Ctrl+C 停止，修改程式碼後會自動重新運行"
   info "💡 將同時啟動前端開發伺服器和後端服務"
-  info "📦 啟動前同步 embedded 前端資產..."
-  build_frontend
 
-  # 設定清理 trap
-  trap cleanup_all EXIT INT TERM
+  install_cleanup_traps
+  acquire_run_lock || {
+    clear_cleanup_traps
+    return 1
+  }
+  sync_embedded_frontend_if_requested
 
   # 檢查 Air 是否安裝，若無則自動安裝
   local air_cmd
@@ -720,14 +625,14 @@ start_air_mode() {
   clear_port true
 
   info "▶️  啟動 Air 熱重載... ($air_cmd)"
-  info "💡 修改程式碼後，Air 會自動檢測並使用 go run 重新運行"
+  info "💡 修改程式碼後，Air 會自動編譯 $AIR_BIN 並重新啟動"
 
   # 重置噪音計數器
   LOG_NOISE_COUNTERS=()
-  start_backend_process "PORT='$PORT' '$air_cmd'"
-  wait_for_port_ready "$PORT" "後端端口" || {
+  start_backend_process "PORT='$PORT' exec '$air_cmd'"
+  wait_for_port_ready "$PORT" "後端端口" 300 || {
     cleanup_all
-    trap - EXIT INT TERM
+    clear_cleanup_traps
     return 1
   }
 
@@ -735,7 +640,6 @@ start_air_mode() {
   if [[ -d "$FRONTEND_DIR" ]]; then
     info "🎨 啟動前端開發伺服器... (host=$FRONTEND_DEV_HOST)"
     start_frontend_dev_server || return 1
-    FRONTEND_PID=$!
     success "前端開發伺服器已啟動（PID: ${FRONTEND_PID}）"
     show_frontend_host_hint
     show_embedded_frontend_hint
@@ -823,6 +727,7 @@ while [[ $# -gt 0 ]]; do
     --skip-lint) SKIP_LINT=true ;;
     --skip-test) SKIP_TEST=true ;;
     --skip-quality) SKIP_QUALITY=true ;;
+    --sync-embed) SYNC_EMBED=true ;;
     --coverage) COVERAGE=true ;;
     --verbose) VERBOSE=true ;;
     --auto-kill-port) AUTO_KILL_PORT=true ;;

@@ -371,7 +371,7 @@ function Write-RuntimeLogLine {
             return
         }
         $methodCol = Format-FixedColumn -Text $method -Width 6
-        $pathCol = Format-FixedColumn -Text $path -Width 46
+        $pathCol = $path
         $statusCol = ("{0,3}" -f $status)
         $latencyCol = ("{0,9}" -f $latency)
         $formatted = "[HTTP] $timePart  $methodCol $pathCol $statusCol $latencyCol"
