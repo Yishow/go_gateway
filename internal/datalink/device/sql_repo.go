@@ -22,9 +22,9 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 	query := `
 		INSERT INTO devices (
-			id, name, description, protocol, status, connection_config, 
-			last_test_at, last_test_success, last_test_error, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			id, name, description, protocol, status, connection_config,
+			last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	
 	// 處理可選欄位：將 nil 指針轉換為適當的 SQL 值
@@ -69,6 +69,7 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 		lastTestAt,
 		lastTestSuccess,
 		lastTestError,
+		dev.ReadinessStatus,
 		createdAtStr,
 		updatedAtStr,
 	)
@@ -81,7 +82,7 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device, error) {
 	query := `
 		SELECT id, name, description, protocol, status, connection_config,
-			   last_test_at, last_test_success, last_test_error, created_at, updated_at
+			   last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
 		FROM devices WHERE id = ?
 	`
 	row := r.db.QueryRowContext(ctx, query, id)
@@ -90,6 +91,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 	var lastTestAt sql.NullString
 	var lastTestSuccess sql.NullBool
 	var lastTestError sql.NullString
+	var readinessStatus sql.NullString
 	var createdAtStr, updatedAtStr string
 
 	err := row.Scan(
@@ -102,6 +104,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 		&lastTestAt,
 		&lastTestSuccess,
 		&lastTestError,
+		&readinessStatus,
 		&createdAtStr,
 		&updatedAtStr,
 	)
@@ -125,6 +128,9 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 	if lastTestError.Valid {
 		dev.LastTestError = lastTestError.String
 	}
+	if readinessStatus.Valid {
+		dev.ReadinessStatus = readinessStatus.String
+	}
 
 	return &dev, nil
 }
@@ -132,7 +138,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.Device,
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.Device, error) {
 	query := `
 		SELECT id, name, description, protocol, status, connection_config,
-			   last_test_at, last_test_success, last_test_error, created_at, updated_at
+			   last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
 		FROM devices WHERE 1=1
 	`
 	var args []interface{}
@@ -170,6 +176,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		var lastTestAt sql.NullString
 		var lastTestSuccess sql.NullBool
 		var lastTestError sql.NullString
+		var readinessStatus sql.NullString
 		var createdAtStr, updatedAtStr string
 
 		err := rows.Scan(
@@ -182,6 +189,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 			&lastTestAt,
 			&lastTestSuccess,
 			&lastTestError,
+			&readinessStatus,
 			&createdAtStr,
 			&updatedAtStr,
 		)
@@ -202,6 +210,9 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		if lastTestError.Valid {
 			dev.LastTestError = lastTestError.String
 		}
+		if readinessStatus.Valid {
+			dev.ReadinessStatus = readinessStatus.String
+		}
 
 		devices = append(devices, &dev)
 	}
@@ -212,16 +223,17 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 func (r *SQLRepository) Update(ctx context.Context, dev *schema.Device) error {
 	query := `
 		UPDATE devices 
-		SET name=?, description=?, protocol=?, status=?, connection_config=?, updated_at=?
+		SET name=?, description=?, protocol=?, status=?, connection_config=?, readiness_status=?, updated_at=?
 		WHERE id=?
 	`
-	
+
 	_, err := r.db.ExecContext(ctx, query,
 		dev.Name,
 		dev.Description,
 		dev.Protocol,
 		dev.Status,
 		dev.ConnectionConfig,
+		dev.ReadinessStatus,
 		time.Now(), // Update updated_at
 		dev.ID,
 	)

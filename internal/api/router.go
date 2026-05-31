@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
@@ -17,6 +18,7 @@ import (
 	"go-gateway/internal/datalink/settings"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/tag"
+	"go-gateway/internal/datalink/workspace"
 
 	_ "go-gateway/docs/swagger" // Swagger docs
 
@@ -39,6 +41,7 @@ type DatalinkServices struct {
 	DBTarget     *dbtarget.ConnectorService
 	DBMapping    *dbtarget.MappingService
 	SourceRule   *sourcerule.Service
+	Workspace    *workspace.Service
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -162,6 +165,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkServices.PollingGroup,
 				datalinkServices.Scheduler,
 				datalinkServices.Runtime,
+				datalinkServices.Workspace,
 			)
 			datalinkGroup.GET("/runtime/status", runtimeHandler.Status)
 			runtimeStreamHandler := handlers.NewRuntimeStreamHandler(datalinkServices.Runtime)
@@ -209,11 +213,20 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.POST("/source-rules/:id/local-modbus/apply", sourceRuleHandler.ApplyLocalModbusOutputs)
 				datalinkGroup.GET("/source-rules/:id/tag-review-decisions", sourceRuleHandler.ListTagReviewDecisions)
 				datalinkGroup.POST("/source-rules/:id/tag-review-decisions", sourceRuleHandler.UpsertTagReviewDecision)
+
+				if datalinkServices.Workspace != nil {
+					workspaceSourceRuleHandler := handlers.NewStudioV2WorkspaceSourceRulesHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.SourceRule)
+					datalinkGroup.GET("/studio-v2/workspace/source-rules", workspaceSourceRuleHandler.List)
+					datalinkGroup.POST("/studio-v2/workspace/source-rules", workspaceSourceRuleHandler.Create)
+					datalinkGroup.PUT("/studio-v2/workspace/source-rules/:id", workspaceSourceRuleHandler.Update)
+					datalinkGroup.DELETE("/studio-v2/workspace/source-rules/:id", workspaceSourceRuleHandler.Delete)
+				}
 			}
 
 			// Points
 			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime).
-				WithPolling(datalinkServices.Scheduler, datalinkServices.Mapping, datalinkServices.PollingGroup)
+				WithPolling(datalinkServices.Scheduler, datalinkServices.Mapping, datalinkServices.PollingGroup).
+				WithDirectReader(handlers.NewPointDirectReader(datalinkServices.Point, datalinkServices.Device))
 			datalinkGroup.GET("/points", pointHandler.List)
 			datalinkGroup.POST("/points", pointHandler.Create)
 			datalinkGroup.POST("/points/batch", pointHandler.BatchCreate)
@@ -244,11 +257,45 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			datalinkGroup.DELETE("/mappings/:id", mappingHandler.Delete)
 			datalinkGroup.POST("/mappings/preview", mappingHandler.Preview)
 			datalinkGroup.POST("/mappings/validate-pipeline", mappingHandler.ValidatePipeline)
+			if datalinkServices.Workspace != nil && datalinkServices.SourceRule != nil {
+				workspaceMappingHandler := handlers.NewStudioV2WorkspaceMappingsHandler(
+					datalinkServices.Workspace,
+					datalinkServices.Device,
+					datalinkServices.SourceRule,
+					datalinkServices.Point,
+					datalinkServices.Tag,
+					datalinkServices.Mapping,
+				)
+				datalinkGroup.GET("/studio-v2/workspace/mappings", workspaceMappingHandler.List)
+				datalinkGroup.POST("/studio-v2/workspace/mappings", workspaceMappingHandler.Create)
+				datalinkGroup.PUT("/studio-v2/workspace/mappings/:id", workspaceMappingHandler.Update)
+				datalinkGroup.DELETE("/studio-v2/workspace/mappings/:id", workspaceMappingHandler.Delete)
+			}
 
 			// Settings
 			settingsHandler := handlers.NewSettingsHandler(datalinkServices.Settings)
 			datalinkGroup.GET("/settings", settingsHandler.List)
 			datalinkGroup.PUT("/settings/:key", settingsHandler.Update)
+
+			if datalinkServices.Workspace != nil {
+				workspaceHandler := handlers.NewStudioV2WorkspaceHandler(datalinkServices.Workspace)
+				datalinkGroup.GET("/studio-v2/workspace", workspaceHandler.Get)
+				datalinkGroup.GET("/studio-v2/workspace/runtime-context", runtimeHandler.WorkspaceContext)
+				if datalinkServices.Device != nil {
+					workspaceActivationHandler := handlers.NewStudioV2WorkspaceActivationHandler(
+						workspace.NewActivationService(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime),
+					)
+					datalinkGroup.POST("/studio-v2/workspace/activate", workspaceActivationHandler.Activate)
+
+					workspaceDeviceHandler := handlers.NewStudioV2WorkspaceDevicesHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime)
+					datalinkGroup.GET("/studio-v2/workspace/devices", workspaceDeviceHandler.List)
+					datalinkGroup.POST("/studio-v2/workspace/devices", workspaceDeviceHandler.Create)
+					datalinkGroup.PUT("/studio-v2/workspace/devices/:id", workspaceDeviceHandler.Update)
+					datalinkGroup.PUT("/studio-v2/workspace/devices/:id/availability", workspaceDeviceHandler.UpdateAvailability)
+					datalinkGroup.DELETE("/studio-v2/workspace/devices/:id", workspaceDeviceHandler.Delete)
+					datalinkGroup.PUT("/studio-v2/workspace/device-order", workspaceDeviceHandler.UpdateOrder)
+				}
+			}
 
 			// SSE Preview Stream
 			ssePreviewHandler := handlers.NewDatalinkSSEHandler()
@@ -292,6 +339,20 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.GET("/db-targets/mappings/:id", dbTargetHandler.GetMapping)
 				datalinkGroup.PUT("/db-targets/mappings/:id", dbTargetHandler.UpdateMapping)
 				datalinkGroup.DELETE("/db-targets/mappings/:id", dbTargetHandler.DeleteMapping)
+
+				if datalinkServices.Workspace != nil && datalinkServices.SourceRule != nil {
+					workspaceDatabaseHandler := handlers.NewStudioV2WorkspaceDatabaseHandler(
+						datalinkServices.Workspace,
+						datalinkServices.Device,
+						datalinkServices.SourceRule,
+						datalinkServices.DBTarget,
+						datalinkServices.DBMapping,
+					)
+					datalinkGroup.GET("/studio-v2/workspace/database-config", workspaceDatabaseHandler.GetConfig)
+					datalinkGroup.PUT("/studio-v2/workspace/database-config", workspaceDatabaseHandler.UpdateConfig)
+					datalinkGroup.GET("/studio-v2/workspace/database-targets", workspaceDatabaseHandler.ListTargets)
+					datalinkGroup.PUT("/studio-v2/workspace/database-targets/:point_id", workspaceDatabaseHandler.UpsertTarget)
+				}
 			}
 		}
 	}
@@ -315,19 +376,24 @@ func customLoggerMiddleware() gin.HandlerFunc {
 	return gin.LoggerWithConfig(gin.LoggerConfig{
 		SkipPaths: skipPaths,
 		// 確保所有請求都被記錄（包括 /test/connect）
-		Formatter: func(param gin.LogFormatterParams) string {
-			return fmt.Sprintf("[%s] %s %s %s %d %s \"%s\" %s\n",
-				param.TimeStamp.Format("2006/01/02 - 15:04:05"),
-				param.ClientIP,
-				param.Method,
-				param.Path,
-				param.StatusCode,
-				param.Latency,
-				param.Request.UserAgent(),
-				param.ErrorMessage,
-			)
-		},
+		Formatter: formatHTTPLog,
 	})
+}
+
+func formatHTTPLog(param gin.LogFormatterParams) string {
+	errorMessage := strings.TrimSpace(param.ErrorMessage)
+	if errorMessage != "" {
+		errorMessage = " " + errorMessage
+	}
+
+	return fmt.Sprintf("[HTTP] %s %-6s %s %3d %s%s\n",
+		param.TimeStamp.Format("15:04:05"),
+		param.Method,
+		param.Path,
+		param.StatusCode,
+		param.Latency,
+		errorMessage,
+	)
 }
 
 // corsMiddleware 處理 CORS 跨域請求

@@ -1,0 +1,207 @@
+package handlers
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+
+	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/sourcerule"
+	"go-gateway/internal/datalink/workspace"
+
+	"github.com/gin-gonic/gin"
+)
+
+type StudioV2WorkspaceSourceRulesHandler struct {
+	workspaceSvc *workspace.Service
+	deviceSvc    *device.Service
+	ruleSvc      *sourcerule.Service
+}
+
+type studioV2WorkspaceUpdateRuleRequest struct {
+	DeviceID *string `json:"device_id,omitempty"`
+	sourcerule.UpdateRuleRequest
+}
+
+func NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc *workspace.Service, deviceSvc *device.Service, ruleSvc *sourcerule.Service) *StudioV2WorkspaceSourceRulesHandler {
+	return &StudioV2WorkspaceSourceRulesHandler{
+		workspaceSvc: workspaceSvc,
+		deviceSvc:    deviceSvc,
+		ruleSvc:      ruleSvc,
+	}
+}
+
+func (h *StudioV2WorkspaceSourceRulesHandler) List(c *gin.Context) {
+	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
+	if err != nil {
+		renderStudioV2WorkspaceBootstrapError(c)
+		return
+	}
+
+	rules, err := h.ruleSvc.ListByDeviceIDs(c.Request.Context(), record.OrderedDeviceIDs)
+	if err != nil {
+		renderStudioV2WorkspaceSourceRuleError(c, err)
+		return
+	}
+
+	payload := make([]sourceRuleResponse, 0, len(rules))
+	for _, rule := range rules {
+		item := mapSourceRuleResponse(rule)
+		item.WorkspaceID = record.ID
+		item.SaveState = "saved"
+		payload = append(payload, item)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    payload,
+	})
+}
+
+func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
+	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
+	if err != nil {
+		renderStudioV2WorkspaceBootstrapError(c)
+		return
+	}
+
+	var req sourcerule.CreateRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		renderStudioV2WorkspaceValidationError(c, err)
+		return
+	}
+	if !workspaceOwnsDevice(record, req.DeviceID) {
+		renderStudioV2WorkspaceValidationError(c, errors.New("device_id does not belong to workspace"))
+		return
+	}
+
+	rule, err := h.ruleSvc.Create(c.Request.Context(), req)
+	if err != nil {
+		renderStudioV2WorkspaceSourceRuleError(c, err)
+		return
+	}
+
+	payload := mapSourceRuleResponse(rule)
+	payload.WorkspaceID = record.ID
+	payload.SaveState = "saved"
+	payload.RuntimeApplyStatus, payload.RuntimeApplyMessage = resolveStudioV2RuntimeApplyStatus(c.Request.Context(), h.deviceSvc, rule.DeviceID)
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": payload})
+}
+
+func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
+	record, rule, ok := h.requireWorkspaceRule(c)
+	if !ok {
+		return
+	}
+
+	req, err := parseStudioV2WorkspaceUpdateRuleRequest(c)
+	if err != nil {
+		renderStudioV2WorkspaceValidationError(c, err)
+		return
+	}
+	if req.DeviceID != nil && *req.DeviceID != rule.DeviceID {
+		renderStudioV2WorkspaceValidationError(c, errors.New("workspace rule ownership mismatch"))
+		return
+	}
+
+	updatedRule, err := h.ruleSvc.Update(c.Request.Context(), c.Param("id"), req.UpdateRuleRequest)
+	if err != nil {
+		renderStudioV2WorkspaceSourceRuleError(c, err)
+		return
+	}
+
+	payload := mapSourceRuleResponse(updatedRule)
+	payload.WorkspaceID = record.ID
+	payload.SaveState = "saved"
+	payload.RuntimeApplyStatus, payload.RuntimeApplyMessage = resolveStudioV2RuntimeApplyStatus(c.Request.Context(), h.deviceSvc, updatedRule.DeviceID)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+}
+
+func (h *StudioV2WorkspaceSourceRulesHandler) Delete(c *gin.Context) {
+	if _, _, ok := h.requireWorkspaceRule(c); !ok {
+		return
+	}
+
+	if err := h.ruleSvc.Delete(c.Request.Context(), c.Param("id")); err != nil {
+		renderStudioV2WorkspaceSourceRuleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func (h *StudioV2WorkspaceSourceRulesHandler) requireWorkspaceRule(c *gin.Context) (*workspace.Record, *schema.SourceRule, bool) {
+	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
+	if err != nil {
+		renderStudioV2WorkspaceBootstrapError(c)
+		return nil, nil, false
+	}
+
+	rule, err := h.ruleSvc.GetByID(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   gin.H{"message": "Studio V2 source rule not found"},
+		})
+		return nil, nil, false
+	}
+	if !workspaceOwnsDevice(record, rule.DeviceID) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   gin.H{"message": "Studio V2 source rule not found"},
+		})
+		return nil, nil, false
+	}
+
+	return record, rule, true
+}
+
+func parseStudioV2WorkspaceUpdateRuleRequest(c *gin.Context) (studioV2WorkspaceUpdateRuleRequest, error) {
+	body, err := c.GetRawData()
+	if err != nil {
+		return studioV2WorkspaceUpdateRuleRequest{}, err
+	}
+
+	var req studioV2WorkspaceUpdateRuleRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		return studioV2WorkspaceUpdateRuleRequest{}, err
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return studioV2WorkspaceUpdateRuleRequest{}, err
+	}
+	_, req.TargetDataTypeSet = raw["target_data_type"]
+	_, req.ScaleMultiplierSet = raw["scale_multiplier"]
+	_, req.ScaleOffsetSet = raw["scale_offset"]
+	_, req.DataFormatSet = raw["data_format"]
+
+	return req, nil
+}
+
+func renderStudioV2WorkspaceSourceRuleError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, sourcerule.ErrValidation):
+		renderStudioV2WorkspaceValidationError(c, err)
+	case errors.Is(err, sourcerule.ErrSourceRuleNotFound):
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   gin.H{"message": "Studio V2 source rule not found"},
+		})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   gin.H{"message": err.Error()},
+		})
+	}
+}
+
+func workspaceOwnsDevice(record *workspace.Record, deviceID string) bool {
+	for _, ownedDeviceID := range record.OrderedDeviceIDs {
+		if ownedDeviceID == deviceID {
+			return true
+		}
+	}
+	return false
+}

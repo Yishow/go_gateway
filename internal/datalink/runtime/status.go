@@ -26,6 +26,9 @@ type DeviceRuntimeStatus struct {
 	DeviceName    string     `json:"device_name,omitempty"`
 	Protocol      string     `json:"protocol,omitempty"`
 	Status        string     `json:"status"`
+	AvailabilityStatus string `json:"availability_status"`
+	AvailabilityReason *string `json:"availability_reason,omitempty"`
+	Running       bool       `json:"running"`
 	PointsTotal   int        `json:"points_total"`
 	PointsHealthy int        `json:"points_healthy"`
 	PointsStale   int        `json:"points_stale"`
@@ -149,11 +152,18 @@ func (s *Service) deriveDeviceStatuses(
 		}
 
 		status := DeviceRuntimeStatus{
-			DeviceID:     dev.ID,
-			DeviceName:   dev.Name,
-			Protocol:     string(dev.Protocol),
-			Status:       "idle",
-			BreakerState: s.runtimeBreakerState(dev.ID),
+			DeviceID:           dev.ID,
+			DeviceName:         dev.Name,
+			Protocol:           string(dev.Protocol),
+			Status:             "idle",
+			AvailabilityStatus: device.AvailabilityStatusAvailable,
+			BreakerState:       s.runtimeBreakerState(dev.ID),
+		}
+		if availabilityStatus, availabilityReason := device.AvailabilityOf(dev); availabilityStatus == device.AvailabilityStatusUnavailable {
+			status.AvailabilityStatus = availabilityStatus
+			if availabilityReason != "" {
+				status.AvailabilityReason = &availabilityReason
+			}
 		}
 
 		var lastReadAt *time.Time
@@ -193,6 +203,11 @@ func (s *Service) deriveDeviceStatuses(
 		status.LastReadAt = lastReadAt
 		status.LastError = lastError
 		status.Status = deriveRuntimeDeviceState(status, s.IsRunning())
+		status.Running = status.Status == "running" && status.AvailabilityStatus == device.AvailabilityStatusAvailable
+		if status.AvailabilityStatus == device.AvailabilityStatusUnavailable {
+			status.Running = false
+			status.Status = "idle"
+		}
 		collectors = append(collectors, status)
 	}
 

@@ -29,12 +29,17 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 	connectStatus, probeStatus, blockingReasons := deriveReadinessDiagnostics(device)
 	readiness := &schema.DeviceReadiness{
 		DeviceID:          device.ID,
+		AvailabilityStatus: AvailabilityStatusAvailable,
 		ConnectStatus:     connectStatus,
 		ProbeStatus:       probeStatus,
 		PlanningAllowed:   connectStatus == schema.ReadinessStageStatusSuccess,
 		ActivationAllowed: connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
 		ApplyAllowed:      connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
 		BlockingReasons:   blockingReasons,
+	}
+	if currentReadiness := decodeDeviceReadiness(device); currentReadiness != nil && currentReadiness.AvailabilityStatus == AvailabilityStatusUnavailable {
+		readiness.AvailabilityStatus = AvailabilityStatusUnavailable
+		readiness.AvailabilityReason = currentReadiness.AvailabilityReason
 	}
 	readiness.Status = deriveLegacyReadinessStatus(readiness)
 	readiness.Checks = buildReadinessChecks(device, readiness)

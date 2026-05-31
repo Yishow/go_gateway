@@ -40,6 +40,7 @@ import (
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/tag"
+	"go-gateway/internal/datalink/workspace"
 	"go-gateway/internal/web"
 )
 
@@ -156,6 +157,9 @@ func main() {
 	settingsRepo := settings.NewSQLRepository(db)
 	settingsSvc := settings.NewService(settingsRepo)
 
+	workspaceRepo := workspace.NewSQLRepository(db)
+	workspaceSvc := workspace.NewService(workspaceRepo)
+
 	// Database Target
 	dbTargetConnectorRepo := dbtarget.NewSQLConnectorRepository(db)
 	dbTargetMappingRepo := dbtarget.NewSQLTargetMappingRepository(db)
@@ -263,6 +267,7 @@ func main() {
 		DBTarget:     dbTargetConnectorSvc,
 		DBMapping:    dbTargetMappingSvc,
 		SourceRule:   sourceRuleSvc,
+		Workspace:    workspaceSvc,
 	}
 
 	// 建立 API 路由器
@@ -291,7 +296,7 @@ func main() {
 	go handleSignals()
 
 	// 阻塞主線程，等待信號
-	select {}
+	<-shutdownCh
 }
 
 // startServer 在背景啟動 HTTP 伺服器
@@ -325,7 +330,7 @@ func handleSignals() {
 
 	log.Println("收到系統信號，正在關閉伺服器...")
 	shutdownServer()
-	os.Exit(0)
+	close(shutdownCh)
 }
 
 // shutdownServer 優雅關閉伺服器

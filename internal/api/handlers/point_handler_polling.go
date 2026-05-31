@@ -43,13 +43,18 @@ func (h *PointHandler) WithPolling(
 	return h
 }
 
+func (h *PointHandler) WithDirectReader(reader pointDirectReader) *PointHandler {
+	h.directReader = reader
+	return h
+}
+
 func (h *PointHandler) pollPoint(ctx context.Context, pointID string) (PollResult, error) {
 	pt, err := h.svc.GetByID(ctx, pointID)
 	if err != nil {
 		return PollResult{}, err
 	}
 
-	manualResults := h.pollNow([]string{pointID})
+	manualResults := h.pollNow(ctx, []string{pointID})
 	if cv, ok := manualResults[pointID]; ok {
 		if err := h.svc.UpdateReadResult(ctx, pointID, cv.Value, cv.Error); err != nil {
 			return PollResult{}, err
@@ -66,7 +71,7 @@ func (h *PointHandler) pollPoint(ctx context.Context, pointID string) (PollResul
 }
 
 func (h *PointHandler) pollBatch(ctx context.Context, pointIDs []string) ([]PollResult, error) {
-	manualResults := h.pollNow(pointIDs)
+	manualResults := h.pollNow(ctx, pointIDs)
 	if len(manualResults) > 0 {
 		updates := make([]point.ReadResultUpdate, 0, len(manualResults))
 		for _, pointID := range pointIDs {
@@ -114,19 +119,40 @@ func (h *PointHandler) pollBatch(ctx context.Context, pointIDs []string) ([]Poll
 	return results, nil
 }
 
-func (h *PointHandler) pollNow(pointIDs []string) map[string]collector.CollectedValue {
-	if h.manualPoller == nil || len(pointIDs) == 0 {
-		return map[string]collector.CollectedValue{}
+func (h *PointHandler) pollNow(
+	ctx context.Context,
+	pointIDs []string,
+) map[string]collector.CollectedValue {
+	results := map[string]collector.CollectedValue{}
+	if len(pointIDs) == 0 {
+		return results
 	}
 
-	pollerValue := reflect.ValueOf(h.manualPoller)
-	if pollerValue.Kind() == reflect.Pointer && pollerValue.IsNil() {
-		return map[string]collector.CollectedValue{}
+	if h.manualPoller != nil {
+		pollerValue := reflect.ValueOf(h.manualPoller)
+		if pollerValue.Kind() != reflect.Pointer || !pollerValue.IsNil() {
+			values := h.manualPoller.PollNow(pointIDs)
+			for _, value := range values {
+				results[value.PointID] = value
+			}
+		}
 	}
 
-	values := h.manualPoller.PollNow(pointIDs)
-	results := make(map[string]collector.CollectedValue, len(values))
-	for _, value := range values {
+	if h.directReader == nil {
+		return results
+	}
+
+	missingPointIDs := make([]string, 0, len(pointIDs))
+	for _, pointID := range pointIDs {
+		if _, ok := results[pointID]; !ok {
+			missingPointIDs = append(missingPointIDs, pointID)
+		}
+	}
+	if len(missingPointIDs) == 0 {
+		return results
+	}
+
+	for _, value := range h.directReader.PollDirect(ctx, missingPointIDs) {
 		results[value.PointID] = value
 	}
 	return results

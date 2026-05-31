@@ -269,6 +269,20 @@ func (s *Service) List(ctx context.Context, filter ListFilter) ([]*schema.Source
 	return rules, nil
 }
 
+func (s *Service) ListByDeviceIDs(ctx context.Context, deviceIDs []string) ([]*schema.SourceRule, error) {
+	result := make([]*schema.SourceRule, 0)
+
+	for _, deviceID := range deviceIDs {
+		rules, err := s.List(ctx, ListFilter{DeviceID: &deviceID})
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, rules...)
+	}
+
+	return result, nil
+}
+
 func (s *Service) ListLinks(ctx context.Context, ruleID string) ([]*schema.SourceRuleLink, error) {
 	links, err := s.repo.ListLinks(ctx, ruleID)
 	if err != nil {
@@ -839,13 +853,13 @@ func (s *Service) validateTagAvailability(ctx context.Context, tagRecord *schema
 
 func validateCreateRequest(req CreateRuleRequest) error {
 	if strings.TrimSpace(req.DeviceID) == "" {
-		return fmt.Errorf("device_id is required")
+		return validationError("device_id is required")
 	}
 	if strings.TrimSpace(req.StartAddress) == "" {
-		return fmt.Errorf("start_address is required")
+		return validationError("start_address is required")
 	}
 	if req.Count <= 0 {
-		return fmt.Errorf("count must be greater than zero")
+		return validationError("count must be greater than zero")
 	}
 	if err := validateRuleDataType(req.DataType); err != nil {
 		return err
@@ -869,13 +883,13 @@ func validateRuleDataFormat(dataFormat string) error {
 	case "ABCD", "BADC", "CDAB", "DCBA":
 		return nil
 	default:
-		return fmt.Errorf("unsupported data_format: %s", dataFormat)
+		return validationError(fmt.Sprintf("unsupported data_format: %s", dataFormat))
 	}
 }
 
 func validateRuleDataType(dataType schema.DataType) error {
 	if dataType == "" {
-		return fmt.Errorf("data_type is required")
+		return validationError("data_type is required")
 	}
 	switch dataType {
 	case schema.DataTypeBool,
@@ -890,8 +904,12 @@ func validateRuleDataType(dataType schema.DataType) error {
 		schema.DataTypeString:
 		return nil
 	default:
-		return fmt.Errorf("unsupported data_type: %s", dataType)
+		return validationError(fmt.Sprintf("unsupported data_type: %s", dataType))
 	}
+}
+
+func validationError(message string) error {
+	return fmt.Errorf("%w: %s", ErrValidation, message)
 }
 
 func marshalSkippedAddresses(addresses []string) (string, error) {

@@ -2,9 +2,17 @@ package dbtarget
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"go-gateway/internal/datalink/schema"
 )
+
+var ErrValidation = errors.New("database target validation failed")
+
+func validationError(message string) error {
+	return fmt.Errorf("%w: %s", ErrValidation, message)
+}
 
 type ConnectionConfig map[string]any
 

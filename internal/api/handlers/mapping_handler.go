@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -69,7 +70,11 @@ func (h *MappingHandler) Create(c *gin.Context) {
 
 	m, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, mapping.ErrValidation) {
+			statusCode = http.StatusBadRequest
+		}
+		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
 	if h.runtimeRefresh != nil {
@@ -91,7 +96,11 @@ func (h *MappingHandler) Update(c *gin.Context) {
 
 	m, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, mapping.ErrValidation) {
+			statusCode = http.StatusBadRequest
+		}
+		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
 	if h.runtimeRefresh != nil {

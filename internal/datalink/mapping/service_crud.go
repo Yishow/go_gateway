@@ -3,12 +3,17 @@ package mapping
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
+
+func validationError(message string) error {
+	return fmt.Errorf("%w: %s", ErrValidation, message)
+}
 
 // =============================================================================
 // CRUD 操作
@@ -20,7 +25,7 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 		return nil, err
 	}
 	if err := ValidateTransformPipeline(req.TransformPipeline); err != nil {
-		return nil, fmt.Errorf("轉換管線無效: %w", err)
+		return nil, errors.Join(ErrValidation, fmt.Errorf("轉換管線無效: %w", err))
 	}
 
 	pipelineJSON, err := json.Marshal(req.TransformPipeline)
@@ -28,7 +33,7 @@ func (s *Service) Create(ctx context.Context, req CreateMappingRequest) (*schema
 		return nil, fmt.Errorf("序列化轉換管線失敗: %w", err)
 	}
 	if err := s.validateMappingPreviewGate(ctx, req.TagID, string(pipelineJSON), req.PreviewRawValue); err != nil {
-		return nil, fmt.Errorf("映射預覽驗證失敗: %w", err)
+		return nil, errors.Join(ErrValidation, fmt.Errorf("映射預覽驗證失敗: %w", err))
 	}
 
 	id, err := common.NewUUID()
@@ -88,10 +93,18 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 		return nil, fmt.Errorf("取得映射失敗: %w", err)
 	}
 
+	nextTagID := mapping.TagID
+	if req.TagID != nil {
+		if err := s.validateCardinality(ctx, mapping.PointID, *req.TagID, mapping.ID); err != nil {
+			return nil, err
+		}
+		nextTagID = *req.TagID
+	}
+
 	nextPipelineJSON := mapping.TransformPipeline
 	if req.TransformPipeline != nil {
 		if err := ValidateTransformPipeline(req.TransformPipeline); err != nil {
-			return nil, fmt.Errorf("轉換管線無效: %w", err)
+			return nil, errors.Join(ErrValidation, fmt.Errorf("轉換管線無效: %w", err))
 		}
 		pipelineJSON, err := json.Marshal(req.TransformPipeline)
 		if err != nil {
@@ -106,12 +119,13 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 		nextEnabled = *req.Enabled
 	}
 
-	shouldValidate := nextEnabled && (req.TransformPipeline != nil || (req.Enabled != nil && *req.Enabled))
+	shouldValidate := nextEnabled && (req.TransformPipeline != nil || req.TagID != nil || (req.Enabled != nil && *req.Enabled))
 	if shouldValidate {
-		if err := s.validateMappingPreviewGate(ctx, mapping.TagID, nextPipelineJSON, req.PreviewRawValue); err != nil {
-			return nil, fmt.Errorf("映射預覽驗證失敗: %w", err)
+		if err := s.validateMappingPreviewGate(ctx, nextTagID, nextPipelineJSON, req.PreviewRawValue); err != nil {
+			return nil, errors.Join(ErrValidation, fmt.Errorf("映射預覽驗證失敗: %w", err))
 		}
 	}
+	mapping.TagID = nextTagID
 	mapping.Enabled = nextEnabled
 	if req.Status != nil {
 		mapping.Status = *req.Status
@@ -140,6 +154,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateMappingReques
 
 // UpdateMappingRequest 更新映射請求
 type UpdateMappingRequest struct {
+	TagID                *string                `json:"tag_id,omitempty"`
 	TransformPipeline    []schema.TransformStep `json:"transform_pipeline,omitempty"`
 	Enabled              *bool                  `json:"enabled,omitempty"`
 	Status               *schema.MappingStatus  `json:"status,omitempty"`
@@ -185,7 +200,7 @@ func (s *Service) validateCardinality(ctx context.Context, pointID, tagID, ignor
 		if existing.ID == ignoreMappingID {
 			continue
 		}
-		return fmt.Errorf("point %s 已綁定其他 tag", pointID)
+		return validationError(fmt.Sprintf("point %s 已綁定其他 tag", pointID))
 	}
 
 	tagMappings, err := s.repo.GetByTagID(ctx, tagID)
@@ -196,7 +211,7 @@ func (s *Service) validateCardinality(ctx context.Context, pointID, tagID, ignor
 		if existing.ID == ignoreMappingID {
 			continue
 		}
-		return fmt.Errorf("tag %s 已綁定其他 point", tagID)
+		return validationError(fmt.Sprintf("tag %s 已綁定其他 point", tagID))
 	}
 
 	return nil

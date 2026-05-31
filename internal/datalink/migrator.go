@@ -37,6 +37,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", targetFile, err)
 		}
+		if err := ensureSQLiteDeviceReadinessColumn(db); err != nil {
+			return err
+		}
 
 		needPointUniqueMigration, err := needsSQLitePointUniqueMigration(db)
 		if err != nil {
@@ -151,6 +154,25 @@ func needsSQLitePointUniqueMigration(db *sql.DB) (bool, error) {
 		return false, nil
 	}
 	return strings.Contains(normalized, "unique (device_id, address)"), nil
+}
+
+func ensureSQLiteDeviceReadinessColumn(db *sql.DB) error {
+	const migrationName = "002_add_device_collection_stats.up.sql"
+
+	exists, err := sqliteColumnExists(db, "devices", "readiness_status")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite column readiness_status for migration %s: %w", migrationName, err)
+	}
+	if exists {
+		return nil
+	}
+
+	log.Printf("Executing SQLite migration: %s (devices.readiness_status)", migrationName)
+	if _, err := db.ExecContext(context.Background(), `ALTER TABLE devices ADD COLUMN readiness_status TEXT`); err != nil {
+		return fmt.Errorf("failed to execute migration %s for devices.readiness_status: %w", migrationName, err)
+	}
+
+	return nil
 }
 
 func ensureSQLiteSourceRuleTargetDatatypeColumns(db *sql.DB) error {

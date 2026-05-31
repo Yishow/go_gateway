@@ -55,7 +55,7 @@ func (s *Service) runtimeRuleEnabled(ctx context.Context, rule *schema.SourceRul
 func ruleActivationBlockedError(readiness *schema.DeviceReadiness) error {
 	message := "設備尚未達到 activation readiness，不能啟用來源規則"
 	if readiness == nil || len(readiness.BlockingReasons) == 0 {
-		return fmt.Errorf("%s", message)
+		return validationError(message)
 	}
-	return fmt.Errorf("%s: %s", message, strings.Join(readiness.BlockingReasons, "; "))
+	return validationError(fmt.Sprintf("%s: %s", message, strings.Join(readiness.BlockingReasons, "; ")))
 }

@@ -34,6 +34,23 @@ func (s *stubPointManualPoller) PollNow(pointIDs []string) []collector.Collected
 	return items
 }
 
+type stubPointDirectReader struct {
+	results map[string]collector.CollectedValue
+}
+
+func (s *stubPointDirectReader) PollDirect(
+	_ context.Context,
+	pointIDs []string,
+) []collector.CollectedValue {
+	items := make([]collector.CollectedValue, 0, len(pointIDs))
+	for _, pointID := range pointIDs {
+		if result, ok := s.results[pointID]; ok {
+			items = append(items, result)
+		}
+	}
+	return items
+}
+
 type failingPointReadResultRepo struct {
 	*point.MemoryRepository
 }
@@ -144,6 +161,44 @@ func setupPointPollContractRouter(t *testing.T, poller *stubPointManualPoller) (
 	return router, pointSvc, pointRepo
 }
 
+func setupPointPollContractRouterWithDirectReader(
+	t *testing.T,
+	poller *stubPointManualPoller,
+	directReader *stubPointDirectReader,
+) (*gin.Engine, *point.Service, *point.MemoryRepository) {
+	t.Helper()
+
+	router, pointSvc, pointRepo := setupPointPollContractRouter(t, poller)
+	gin.SetMode(gin.TestMode)
+
+	mappingRepo := mapping.NewMemoryRepository()
+	mappingSvc := mapping.NewService(mappingRepo)
+
+	groupRepo := pollinggroup.NewMemoryRepository()
+	groupSvc := pollinggroup.NewService(groupRepo)
+
+	ctx := context.Background()
+	groupID := "group-1"
+	require.NoError(t, groupRepo.Create(ctx, &schema.PollingGroup{
+		ID:         groupID,
+		Name:       "group-1",
+		IntervalMs: 1000,
+		Priority:   100,
+		Enabled:    true,
+		CreatedAt:  time.Now().Add(-time.Hour),
+		UpdatedAt:  time.Now().Add(-time.Hour),
+	}))
+
+	handler := NewPointHandler(pointSvc).
+		WithPolling(poller, mappingSvc, groupSvc).
+		WithDirectReader(directReader)
+
+	router = gin.Default()
+	router.POST("/datalink/points/:id/poll", handler.Poll)
+	router.POST("/datalink/points/poll", handler.PollBatch)
+	return router, pointSvc, pointRepo
+}
+
 func TestPointHandler_Poll_UsesManualPollAndLatestEnabledMapping(t *testing.T) {
 	polledAt := time.Now().UTC().Truncate(time.Second)
 	poller := &stubPointManualPoller{
@@ -244,6 +299,49 @@ func TestPointHandler_Poll_FallbackWithoutLastReadAtIsStale(t *testing.T) {
 	assert.True(t, body.Success)
 	assert.True(t, body.Data.Stale)
 	assert.Empty(t, body.Data.Timestamp)
+}
+
+func TestPointHandler_PollBatch_FallsBackToDirectReaderWhenManualPollIsUnavailable(t *testing.T) {
+	polledAt := time.Now().UTC().Truncate(time.Second)
+	directReader := &stubPointDirectReader{
+		results: map[string]collector.CollectedValue{
+			"point-1": {
+				PointID:   "point-1",
+				DeviceID:  "device-1",
+				Value:     432,
+				Timestamp: polledAt,
+				Quality:   schema.QualityGood,
+			},
+		},
+	}
+
+	router, pointSvc, _ := setupPointPollContractRouterWithDirectReader(t, &stubPointManualPoller{}, directReader)
+
+	body, err := json.Marshal(PollBatchRequest{PointIDs: &[]string{"point-1"}})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/datalink/points/poll", bytes.NewBuffer(body))
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusOK, resp.Code)
+
+	var payload struct {
+		Success bool         `json:"success"`
+		Data    []PollResult `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &payload))
+	require.True(t, payload.Success)
+	require.Len(t, payload.Data, 1)
+	assert.Equal(t, "point-1", payload.Data[0].PointID)
+	assert.Equal(t, float64(432), payload.Data[0].Value)
+	assert.Equal(t, polledAt.Format(time.RFC3339), payload.Data[0].Timestamp)
+	assert.Empty(t, payload.Data[0].Error)
+
+	storedPoint, err := pointSvc.GetByID(context.Background(), "point-1")
+	require.NoError(t, err)
+	require.NotNil(t, storedPoint.LastValue)
+	assert.Equal(t, "432", *storedPoint.LastValue)
 }
 
 func TestPointHandler_PollBatch_UsesManualPollResultsAndKeepsMissingPoints(t *testing.T) {

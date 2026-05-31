@@ -164,6 +164,76 @@ func TestNewRouter_RuntimeStatusEndpoint(t *testing.T) {
 	}
 }
 
+func TestNewRouter_RuntimeStatusIncludesUnavailableCollectorState(t *testing.T) {
+	deviceRepo := device.NewMemoryRepository()
+	deviceSvc := device.NewService(deviceRepo, nil)
+	pointSvc := point.NewService(point.NewMemoryRepository(), nil)
+	pollingGroupSvc := pollinggroup.NewService(pollinggroup.NewMemoryRepository())
+
+	ctx := t.Context()
+	createdDevice, err := deviceSvc.Create(ctx, device.CreateDeviceRequest{
+		Name:     "Runtime Mixer",
+		Protocol: schema.ProtocolModbusTCP,
+		ConnectionConfig: map[string]interface{}{
+			"host":     "127.0.0.1",
+			"port":     502,
+			"slave_id": 1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create device failed: %v", err)
+	}
+	createdDevice.Status = schema.DeviceStatusActive
+	createdDevice.ReadinessStatus = `{"availability_status":"unavailable","availability_reason":"device form is invalid"}`
+	if err := deviceRepo.Update(ctx, createdDevice); err != nil {
+		t.Fatalf("update device failed: %v", err)
+	}
+
+	router := NewRouter(&DatalinkServices{
+		Device:       deviceSvc,
+		Point:        pointSvc,
+		PollingGroup: pollingGroupSvc,
+		Tag:          tag.NewService(tag.NewMemoryRepository()),
+		Mapping:      mapping.NewService(mapping.NewMemoryRepository()),
+		Settings:     settings.NewService(settings.NewMemoryRepository()),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+createdDevice.ID, nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", resp.Code, resp.Body.String())
+	}
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Collectors []struct {
+				AvailabilityStatus string  `json:"availability_status"`
+				AvailabilityReason *string `json:"availability_reason"`
+				Running            bool    `json:"running"`
+			} `json:"collectors"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response failed: %v", err)
+	}
+
+	if len(body.Data.Collectors) != 1 {
+		t.Fatalf("expected one collector, got %+v", body.Data.Collectors)
+	}
+	if body.Data.Collectors[0].AvailabilityStatus != "unavailable" {
+		t.Fatalf("expected availability_status=unavailable, got %+v", body.Data.Collectors[0])
+	}
+	if body.Data.Collectors[0].AvailabilityReason == nil || *body.Data.Collectors[0].AvailabilityReason != "device form is invalid" {
+		t.Fatalf("expected availability_reason to be populated, got %+v", body.Data.Collectors[0])
+	}
+	if body.Data.Collectors[0].Running {
+		t.Fatalf("expected running=false for unavailable collector, got %+v", body.Data.Collectors[0])
+	}
+}
+
 func TestNewRouter_RuntimeStreamEndpointRequiresDeviceID(t *testing.T) {
 	deviceSvc := device.NewService(device.NewMemoryRepository(), nil)
 	pointSvc := point.NewService(point.NewMemoryRepository(), nil)

@@ -19,6 +19,7 @@ type SourceRuleHandler struct {
 type sourceRuleResponse struct {
 	ID               string   `json:"id"`
 	DeviceID         string   `json:"device_id"`
+	WorkspaceID      string   `json:"workspace_id,omitempty"`
 	StartAddress     string   `json:"start_address"`
 	Count            int      `json:"count"`
 	DataType         string   `json:"data_type"`
@@ -31,6 +32,7 @@ type sourceRuleResponse struct {
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
 	RevisionID       string   `json:"revision_id"`
+	SaveState        string   `json:"save_state,omitempty"`
 	// TargetDataType 目標資料型態（可空）
 	TargetDataType *string `json:"target_data_type,omitempty"`
 	// ScaleMultiplier 縮放倍率（可空）
@@ -39,6 +41,10 @@ type sourceRuleResponse struct {
 	ScaleOffset *float64 `json:"scale_offset,omitempty"`
 	// DataFormat 字節序格式（可空）
 	DataFormat string `json:"data_format,omitempty"`
+	// RuntimeApplyStatus V2 autosave 成功後的 runtime 套用狀態。
+	RuntimeApplyStatus string `json:"runtime_apply_status,omitempty"`
+	// RuntimeApplyMessage 只在 apply_failed 時帶出錯誤說明。
+	RuntimeApplyMessage string `json:"runtime_apply_message,omitempty"`
 }
 
 func NewSourceRuleHandler(svc *sourcerule.Service) *SourceRuleHandler {
@@ -85,7 +91,11 @@ func (h *SourceRuleHandler) Create(c *gin.Context) {
 
 	rule, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, sourcerule.ErrValidation) {
+			statusCode = http.StatusBadRequest
+		}
+		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": mapSourceRuleResponse(rule)})
@@ -116,7 +126,11 @@ func (h *SourceRuleHandler) Update(c *gin.Context) {
 
 	rule, err := h.svc.Update(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		statusCode := http.StatusInternalServerError
+		if errors.Is(err, sourcerule.ErrValidation) {
+			statusCode = http.StatusBadRequest
+		}
+		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapSourceRuleResponse(rule)})

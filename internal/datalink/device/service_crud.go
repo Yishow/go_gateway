@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-gateway/internal/datalink/common"
@@ -16,14 +17,18 @@ import (
 
 // Create 建立新設備
 func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*schema.Device, error) {
+	if err := validateDeviceName(req.Name); err != nil {
+		return nil, err
+	}
+
 	// 驗證協議類型
 	if !isValidProtocol(req.Protocol) {
-		return nil, fmt.Errorf("不支援的協議類型: %s", req.Protocol)
+		return nil, validationError(fmt.Sprintf("不支援的協議類型: %s", req.Protocol))
 	}
 
 	// 驗證連線配置
 	if err := validateConnectionConfig(req.Protocol, req.ConnectionConfig); err != nil {
-		return nil, fmt.Errorf("連線配置無效: %w", err)
+		return nil, validationError(fmt.Sprintf("連線配置無效: %v", err))
 	}
 
 	// 序列化連線配置
@@ -32,9 +37,12 @@ func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*schema.
 		return nil, fmt.Errorf("序列化連線配置失敗: %w", err)
 	}
 
-	id, err := common.NewUUID()
-	if err != nil {
-		return nil, fmt.Errorf("建立設備 ID 失敗: %w", err)
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		id, err = common.NewUUID()
+		if err != nil {
+			return nil, fmt.Errorf("建立設備 ID 失敗: %w", err)
+		}
 	}
 
 	device := &schema.Device{
@@ -57,6 +65,7 @@ func (s *Service) Create(ctx context.Context, req CreateDeviceRequest) (*schema.
 
 // CreateDeviceRequest 建立設備請求
 type CreateDeviceRequest struct {
+	ID               string                 `json:"id,omitempty"`
 	Name             string                 `json:"name"`
 	Description      string                 `json:"description,omitempty"`
 	Protocol         schema.ProtocolType    `json:"protocol"`
@@ -71,6 +80,9 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 	}
 
 	if req.Name != nil {
+		if err := validateDeviceName(*req.Name); err != nil {
+			return nil, err
+		}
 		device.Name = *req.Name
 	}
 	if req.Description != nil {
@@ -79,7 +91,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 	if req.ConnectionConfig != nil {
 		// 驗證連線配置
 		if err := validateConnectionConfig(device.Protocol, req.ConnectionConfig); err != nil {
-			return nil, fmt.Errorf("連線配置無效: %w", err)
+			return nil, validationError(fmt.Sprintf("連線配置無效: %v", err))
 		}
 		configJSON, err := json.Marshal(req.ConnectionConfig)
 		if err != nil {

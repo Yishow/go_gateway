@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	mysqldriver "github.com/go-sql-driver/mysql"
 	datalinkbase "go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
@@ -33,7 +35,7 @@ func NewConnectorService(repo ConnectorRepository, mappingRepoOpt ...TargetMappi
 func (s *ConnectorService) Create(ctx context.Context, req CreateConnectorRequest) (*schema.DatabaseConnector, error) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
-		return nil, fmt.Errorf("資料庫連接器名稱不可為空")
+		return nil, validationError("資料庫連接器名稱不可為空")
 	}
 	connectionConfigJSON, err := serializeConnectionConfig(req.ConnectionConfig)
 	if err != nil {
@@ -78,7 +80,7 @@ func (s *ConnectorService) Update(ctx context.Context, id string, req UpdateConn
 	if req.Name != nil {
 		name := strings.TrimSpace(*req.Name)
 		if name == "" {
-			return nil, fmt.Errorf("資料庫連接器名稱不可為空")
+			return nil, validationError("資料庫連接器名稱不可為空")
 		}
 		connector.Name = name
 	}
@@ -484,6 +486,58 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 			MaxOpenConns: 3,
 			MaxIdleConns: 1,
 		}, nil
+	case schema.DatabaseConnectorKindMySQL:
+		dsn := strings.TrimSpace(stringConfigValue(config, "dsn"))
+		if dsn == "" {
+			user := defaultString(
+				stringConfigValue(config, "user"),
+				stringConfigValue(config, "username"),
+			)
+			databaseName := defaultString(
+				stringConfigValue(config, "database"),
+				stringConfigValue(config, "dbname"),
+			)
+			if user == "" || databaseName == "" {
+				return datalinkbase.DBConfig{}, fmt.Errorf("mysql 連接設定缺少 user/database")
+			}
+
+			mysqlConfig := mysqldriver.NewConfig()
+			mysqlConfig.User = user
+			mysqlConfig.Passwd = stringConfigValue(config, "password")
+			mysqlConfig.Net = "tcp"
+			mysqlConfig.Addr = fmt.Sprintf(
+				"%s:%s",
+				defaultString(stringConfigValue(config, "host"), "127.0.0.1"),
+				defaultString(stringConfigValue(config, "port"), "3306"),
+			)
+			mysqlConfig.DBName = databaseName
+			mysqlConfig.ParseTime = true
+			mysqlConfig.AllowCleartextPasswords = booleanConfigValue(
+				config,
+				true,
+				"allow_cleartext_passwords",
+				"allowCleartextPasswords",
+			)
+			mysqlConfig.TLSConfig = mysqlTLSConfigValue(config, mysqlConfig.AllowCleartextPasswords)
+
+			if timeout := strings.TrimSpace(stringConfigValue(config, "timeout")); timeout != "" {
+				duration, err := time.ParseDuration(timeout)
+				if err != nil {
+					return datalinkbase.DBConfig{}, fmt.Errorf("mysql timeout 格式錯誤: %w", err)
+				}
+				mysqlConfig.Timeout = duration
+				mysqlConfig.ReadTimeout = duration
+				mysqlConfig.WriteTimeout = duration
+			}
+
+			dsn = mysqlConfig.FormatDSN()
+		}
+		return datalinkbase.DBConfig{
+			Type:         datalinkbase.DBTypeMySQL,
+			DSN:          dsn,
+			MaxOpenConns: 3,
+			MaxIdleConns: 1,
+		}, nil
 	default:
 		return datalinkbase.DBConfig{}, fmt.Errorf("不支援的資料庫類型: %s", kind)
 	}
@@ -493,14 +547,14 @@ func probeConnector(ctx context.Context, kind schema.DatabaseConnectorKind, conf
 	now := time.Now()
 	manager, err := openExternalDBManager(kind, config)
 	if err != nil {
-		return classifyConnectorError(err), &now, err.Error()
+		return classifyConnectorError(err), &now, connectorErrorMessage(kind, err)
 	}
 	defer manager.Close()
 
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if err := manager.DB().PingContext(pingCtx); err != nil {
-		return classifyConnectorError(err), &now, err.Error()
+		return classifyConnectorError(err), &now, connectorErrorMessage(kind, err)
 	}
 
 	return schema.DatabaseConnectorStatusReady, &now, ""
@@ -509,13 +563,22 @@ func probeConnector(ctx context.Context, kind schema.DatabaseConnectorKind, conf
 func classifyConnectorError(err error) schema.DatabaseConnectorStatus {
 	message := strings.ToLower(err.Error())
 	switch {
-	case strings.Contains(message, "authentication") || strings.Contains(message, "password"):
+	case strings.Contains(message, "authentication") ||
+		strings.Contains(message, "password") ||
+		strings.Contains(message, "access denied"):
 		return schema.DatabaseConnectorStatusAuthFailed
 	case strings.Contains(message, "不支援的資料庫類型"), strings.Contains(message, "unsupported"):
 		return schema.DatabaseConnectorStatusError
 	default:
 		return schema.DatabaseConnectorStatusUnreachable
 	}
+}
+
+func connectorErrorMessage(kind schema.DatabaseConnectorKind, err error) string {
+	if kind == schema.DatabaseConnectorKindMySQL && errors.Is(err, mysqldriver.ErrUnknownPlugin) {
+		return "資料庫連接測試失敗: 伺服器要求未支援的 MySQL/MariaDB 驗證插件；若為 MariaDB PAM / dialog，請在伺服器啟用 pam_use_cleartext_plugin，或改用 mysql_native_password / mysql_clear_password 帳號"
+	}
+	return err.Error()
 }
 
 func inspectSQLiteTables(ctx context.Context, db *sql.DB) ([]TableInfo, error) {
@@ -764,22 +827,22 @@ func inspectPostgresTables(ctx context.Context, db *sql.DB) ([]TableInfo, error)
 
 func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseConnector, tagEntity *schema.Tag, mapping *schema.DatabaseTargetMapping) error {
 	if mapping.TagID == "" {
-		return fmt.Errorf("標籤 ID 不可為空")
+		return validationError("標籤 ID 不可為空")
 	}
 	if mapping.ConnectorID == "" {
-		return fmt.Errorf("資料庫連接器 ID 不可為空")
+		return validationError("資料庫連接器 ID 不可為空")
 	}
 	if mapping.TableName == "" {
-		return fmt.Errorf("資料表名稱不可為空")
+		return validationError("資料表名稱不可為空")
 	}
 	if mapping.ColumnName == "" {
-		return fmt.Errorf("資料欄位名稱不可為空")
+		return validationError("資料欄位名稱不可為空")
 	}
 	if mapping.WriteMode == "" {
 		mapping.WriteMode = schema.DatabaseWriteModeInsert
 	}
 	if mapping.WriteMode == schema.DatabaseWriteModeUpsert && normalizeOptionalPointer(mapping.TimestampColumn) == nil {
-		return fmt.Errorf("upsert 模式必須設定 timestamp_column")
+		return validationError("upsert 模式必須設定 timestamp_column")
 	}
 
 	tables, err := inspectTables(ctx, connector)
@@ -790,7 +853,7 @@ func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseCo
 	issues := validateMappingAgainstTables(*mapping, *tagEntity, tables)
 	for _, issue := range issues {
 		if issue.Severity == "error" {
-			return fmt.Errorf("%s", issue.Message)
+			return validationError(issue.Message)
 		}
 	}
 
@@ -926,11 +989,45 @@ func stringConfigValue(config ConnectionConfig, key string) string {
 	return strings.TrimSpace(fmt.Sprintf("%v", value))
 }
 
+func booleanConfigValue(config ConnectionConfig, defaultValue bool, keys ...string) bool {
+	for _, key := range keys {
+		value, ok := config[key]
+		if !ok || value == nil {
+			continue
+		}
+		switch typed := value.(type) {
+		case bool:
+			return typed
+		case string:
+			switch strings.ToLower(strings.TrimSpace(typed)) {
+			case "1", "true", "yes", "on":
+				return true
+			case "0", "false", "no", "off":
+				return false
+			}
+		}
+	}
+	return defaultValue
+}
+
 func defaultString(value string, defaultValue string) string {
 	if strings.TrimSpace(value) == "" {
 		return defaultValue
 	}
 	return value
+}
+
+func mysqlTLSConfigValue(config ConnectionConfig, allowCleartextPasswords bool) string {
+	if tlsValue := stringConfigValue(config, "tls"); tlsValue != "" {
+		return tlsValue
+	}
+	if booleanConfigValue(config, false, "use_tls", "useTLS") {
+		return "preferred"
+	}
+	if allowCleartextPasswords {
+		return "preferred"
+	}
+	return ""
 }
 
 func normalizeOptionalString(value string) string {

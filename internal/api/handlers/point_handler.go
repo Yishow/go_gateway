@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
+	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
 
@@ -14,8 +16,13 @@ type PointHandler struct {
 	svc             *point.Service
 	runtimeSync     pointRuntimeSyncer
 	manualPoller    pointManualPoller
+	directReader    pointDirectReader
 	mappingLister   pointMappingLister
 	pollingGroupSvc pointPollingGroupGetter
+}
+
+type pointDirectReader interface {
+	PollDirect(ctx context.Context, pointIDs []string) []collector.CollectedValue
 }
 
 type pointRuntimeSyncer interface {

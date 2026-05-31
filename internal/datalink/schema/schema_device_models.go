@@ -81,6 +81,8 @@ const (
 type DeviceReadiness struct {
 	DeviceID          string               `json:"device_id"`
 	Status            string               `json:"status"` // ready, warning, error
+	AvailabilityStatus string              `json:"availability_status,omitempty"`
+	AvailabilityReason string              `json:"availability_reason,omitempty"`
 	Checks            []ReadinessCheck     `json:"checks"`
 	ConnectStatus     ReadinessStageStatus `json:"connect_status"`
 	ProbeStatus       ReadinessStageStatus `json:"probe_status"`
