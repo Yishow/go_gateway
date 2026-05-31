@@ -258,6 +258,20 @@
   - `frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LiveValues.ts` (修改)
   - `frontend/tests/unit/workbench-v2/step3-live-values.test.tsx` (修改)
 
+### 階段 32：修正 Step 3 將 disabled points 誤當成可啟用 rows
+- **狀態：** complete
+- **開始時間：** 20:35
+- 執行的操作：
+  - 補 `step3-mapping.test.tsx` RED 測試，驗證 Step 3 mount 只應 dispatch `enabled points` 進入 `initMappingsForPoints`。
+  - 確認現況 bug：Step 3 以 `!skipped` 過濾 rows，導致 disabled rule 的 points 也被渲染成可編輯 rows。
+  - 將 `Step3Mapping.tsx` 過濾條件收斂為 `p.enabled && !p.skipped`，對齊 step3 spec「one row per enabled point」。
+  - 執行 targeted Vitest、mapping autosave page test、frontend build 與 `git diff --check`，全部通過。
+- 建立/修改的檔案：
+  - `frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx` (修改)
+  - `frontend/tests/unit/workbench-v2/step3-mapping.test.tsx` (修改)
+  - `findings.md` (修改)
+  - `progress.md` (修改)
+
 ### 階段 31：修正 Step 3 數值顯示只吃 SSE、未退回 last_value
 - **狀態：** complete
 - **開始時間：** 01:32

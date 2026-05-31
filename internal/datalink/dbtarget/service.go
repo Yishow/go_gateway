@@ -543,23 +543,6 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 	}
 }
 
-func probeConnector(ctx context.Context, kind schema.DatabaseConnectorKind, config ConnectionConfig) (schema.DatabaseConnectorStatus, *time.Time, string) {
-	now := time.Now()
-	manager, err := openExternalDBManager(kind, config)
-	if err != nil {
-		return classifyConnectorError(err), &now, connectorErrorMessage(kind, err)
-	}
-	defer manager.Close()
-
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err := manager.DB().PingContext(pingCtx); err != nil {
-		return classifyConnectorError(err), &now, connectorErrorMessage(kind, err)
-	}
-
-	return schema.DatabaseConnectorStatusReady, &now, ""
-}
-
 func classifyConnectorError(err error) schema.DatabaseConnectorStatus {
 	message := strings.ToLower(err.Error())
 	switch {

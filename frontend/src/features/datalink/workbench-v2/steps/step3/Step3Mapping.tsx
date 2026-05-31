@@ -30,7 +30,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 
   // 1. 取得點位與啟用點位列表
   const allPoints = useAllPoints(state.rules, state.devices[0]?.id || 'dev-01');
-  const enabledPoints = useMemo(() => allPoints.filter((p) => !p.skipped), [allPoints]);
+  const enabledPoints = useMemo(() => allPoints.filter((p) => p.enabled && !p.skipped), [allPoints]);
 
   const enabledPointsIdStr = enabledPoints.map((p) => p.id).join(',');
 

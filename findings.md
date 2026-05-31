@@ -88,6 +88,7 @@
 - 正確依賴邊界不是整個 mapping row，而是訂閱真正需要的欄位：`local point id + device_id + address + persisted_point_id`。只要這四個沒變，SSE stream 就不該重建。
 - Step 3 的「數值顯示」不能只靠 runtime SSE。舊 `/studio` 早就用 `SSE raw_value ?? point.last_value`；如果 V2 少了 `last_value` fallback，就會出現設備其實已有最後讀值，但表格與 preview 仍顯示空白或 waiting。
 - 最小修法不是在 UI 層塞預設字串，而是補 persisted points snapshot 查詢，先用 backend `/points` 拿 `last_value`，再讓 SSE 到來後覆蓋它。
+- Step 3 `Point → Tag` 現在若用 `!skipped` 當 row 條件，會把 disabled rule 的 point 也一起渲染成可編輯 row；operator 會誤以為這些 row 的 enabled toggle 也會持久化，但 reload 後 backend 仍只反映真正 `point.enabled === true` 的 rows，看起來就像「剛開 8 個，回來只剩 4 個」。
 
 ## 資源
 - [useRuntimeStream.ts](file:///Users/yishow/prj/go_gateway/frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts)

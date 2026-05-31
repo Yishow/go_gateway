@@ -345,6 +345,76 @@ describe('Step 3 UI Components & Integration', () => {
       );
     });
 
+    it('只應為 enabled points 初始化 Point → Tag rows', () => {
+      const dispatch = vi.fn();
+      const onContinue = vi.fn();
+      const onBack = vi.fn();
+
+      const disabledRule: Rule = {
+        ...mockRule,
+        id: 'rule-02',
+        device_id: 'dev-01',
+        start_address: '40101',
+        count: 4,
+        naming_prefix: 'DISABLED_',
+        enabled: false,
+      };
+      const enabledRule: Rule = {
+        ...mockRule,
+        id: 'rule-01',
+        device_id: 'dev-01',
+        start_address: '40001',
+        count: 4,
+        naming_prefix: 'ENABLED_',
+        enabled: true,
+      };
+      const state: WorkbenchV2State = {
+        ...INITIAL_STATE,
+        devices: [mockDevice],
+        rules: [enabledRule, disabledRule],
+        mappings: {},
+      };
+
+      render(
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+              },
+            })
+          }
+        >
+          <DeviceListContext.Provider value={[mockDevice]}>
+            <Step3Mapping
+              state={state}
+              dispatch={dispatch}
+              onContinue={onContinue}
+              onBack={onBack}
+            />
+          </DeviceListContext.Provider>
+        </QueryClientProvider>
+      );
+
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'initMappingsForPoints',
+        points: expect.arrayContaining([
+          expect.objectContaining({ rule_id: 'rule-01', enabled: true, address: '40001' }),
+          expect.objectContaining({ rule_id: 'rule-01', enabled: true, address: '40002' }),
+          expect.objectContaining({ rule_id: 'rule-01', enabled: true, address: '40003' }),
+          expect.objectContaining({ rule_id: 'rule-01', enabled: true, address: '40004' }),
+        ]),
+      });
+
+      const initCall = dispatch.mock.calls.find(
+        ([action]) => action?.type === 'initMappingsForPoints',
+      )?.[0];
+      expect(initCall.points).toHaveLength(4);
+      expect(initCall.points.every((point: Point) => point.enabled)).toBe(true);
+      expect(initCall.points.some((point: Point) => point.rule_id === 'rule-02')).toBe(false);
+    });
+
     it('繼續按鈕啟用條件: A. 正常 -> 啟用; B. 留空 -> 禁用且 aside warning; C. 無啟用點位 -> 禁用且 aside warning', () => {
       const dispatch = vi.fn();
       const onContinue = vi.fn();

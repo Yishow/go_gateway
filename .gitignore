@@ -105,6 +105,8 @@ config.local.yml
 datalink.db
 datalink.db-shm
 datalink.db-wal
+gateway.db
+gateway.db*
 
 # Git worktrees
 .worktrees/
