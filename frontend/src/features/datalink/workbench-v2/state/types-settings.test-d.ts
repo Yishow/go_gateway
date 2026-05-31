@@ -8,7 +8,9 @@ import type { Settings, SettingsConnector, TimeseriesSettings, SchedulerSettings
 
 // 1. 斷言 SettingsConnector 結構
 expectTypeOf<SettingsConnector['kind']>().toEqualTypeOf<'sqlite' | 'postgres' | 'mysql' | 'sqlserver'>();
-expectTypeOf<SettingsConnector['status']>().toEqualTypeOf<'unknown' | 'testing' | 'ready' | 'unreachable' | 'auth_failed'>();
+expectTypeOf<SettingsConnector['status']>().toEqualTypeOf<
+  'unknown' | 'testing' | 'ready' | 'unreachable' | 'auth_failed' | 'error'
+>();
 expectTypeOf<SettingsConnector['id']>().toEqualTypeOf<string>();
 
 // 2. 斷言 TimeseriesSettings 結構

@@ -6,7 +6,6 @@ import {
   detectAddressConflicts,
   derivePoints,
 } from './sourceRule';
-import { RAW_VALUE_SEEDS } from './mappingDefaults';
 
 /**
  * 衍生所有規則所對應的點位列表 (附帶 caching)
@@ -115,7 +114,7 @@ export function useSelectedMapping(
   selectedIdx: number | null,
   points: Point[],
   mappings: Record<string, Mapping>
-): { point: Point; mapping: Mapping; rawSeed: number } | null {
+): { point: Point; mapping: Mapping } | null {
   return useMemo(() => {
     if (selectedIdx === null || selectedIdx < 0 || selectedIdx >= points.length) {
       return null;
@@ -125,12 +124,9 @@ export function useSelectedMapping(
     if (!point || !mapping) {
       return null;
     }
-    const rawSeed = RAW_VALUE_SEEDS[selectedIdx % RAW_VALUE_SEEDS.length];
     return {
       point,
       mapping,
-      rawSeed,
     };
   }, [selectedIdx, points, mappings]);
 }
-

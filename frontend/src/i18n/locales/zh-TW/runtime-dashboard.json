@@ -3,11 +3,18 @@
     "eyebrow": "Runtime Dashboard",
     "noDevice": "選擇設備",
     "deviceMeta": "通訊協議 {{protocol}}",
+    "deviceMetaUnavailable": "目前不可用：{{reason}}",
+    "unavailable": "不可用",
     "deviceMetaEmpty": "請帶入剛完成設定的設備脈絡，以檢查即時運轉健康度。"
   },
   "empty": {
     "title": "選擇要監看的設備",
     "description": "此頁面只聚焦單一已提交設備，不會自動切換成全域 fleet dashboard。"
+  },
+  "emptyWorkspace": {
+    "title": "目前沒有可監看的設備",
+    "description": "工作區內目前沒有可用設備可供監看。請回到 /studio/v2 修正可用性或啟動其它設備。",
+    "cta": "返回 Studio V2"
   },
   "loading": {
     "message": "正在載入最新 runtime snapshot..."

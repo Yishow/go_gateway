@@ -6,10 +6,10 @@ import { CommitSummary } from './CommitSummary';
 import { CommitProgress } from './CommitProgress';
 import { CommitSuccessCard } from './CommitSuccessCard';
 import { autoAssignTargets } from '../../state/autoAssignTargets';
-import { buildCommitLogSequence } from '../../state/commitLog';
 import { getColumnsFor, getDefaultConnector } from '../../state/dbSchemas';
-import type { WorkbenchV2State, DbConnector, DbTarget } from '../../state/types';
+import type { WorkbenchV2State, DbConnector, DbTarget, CommitLog } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
+import type { StudioV2ActivationResponse } from '../../../../../types/studioV2Activation';
 
 /**
  * Step4Database 元件屬性
@@ -18,24 +18,36 @@ interface Step4DatabaseProps {
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
   onCommit?: () => void;
+  activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
 }
 
 /**
  * 唯讀狀態自訂 Hook
  * 落地設計決策：「Commit 後 form 只讀」
- * @param state 當前狀態
  * @returns 是否唯讀
  */
-export function useStep4Readonly(state: WorkbenchV2State): boolean {
-  return state.committed;
+export function useStep4Readonly(): boolean {
+  return false;
 }
 
 /**
  * Step 4 Database 主頁面元件
  * 落地設計決策：「拆檔策略：8 個元件 + 3 個 state module」 與 「Commit log 序列：純函式 + reducer 串聯」
  */
-export function Step4Database({ state, dispatch, onCommit }: Step4DatabaseProps) {
-  const isReadonly = useStep4Readonly(state);
+export function Step4Database({
+  state,
+  dispatch,
+  onCommit,
+  activateWorkspace,
+}: Step4DatabaseProps) {
+  const isReadonly = useStep4Readonly();
+  const [activationState, setActivationState] = React.useState<{
+    phase: 'idle' | 'activating' | 'done';
+    response: StudioV2ActivationResponse | null;
+  }>({
+    phase: 'idle',
+    response: null,
+  });
 
   const { connector, targets } = state.db;
   const enabledPoints = useMemo(() => state.points.filter(p => p.enabled), [state.points]);
@@ -46,7 +58,6 @@ export function Step4Database({ state, dispatch, onCommit }: Step4DatabaseProps)
 
   // 1. 初始化分配 (mount 時執行一次，確保 Step 1-3 變更同步)
   React.useEffect(() => {
-    if (state.committed) return;
     const initialTargets = autoAssignTargets(enabledPoints, state.mappings, columnNames, targets);
     dispatch({ type: 'autoAssignDbTargets', targets: initialTargets });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,10 +95,42 @@ export function Step4Database({ state, dispatch, onCommit }: Step4DatabaseProps)
     dispatch({ type: 'updateDbTarget', pointId, patch });
   }, [dispatch]);
 
-  // 4. 提交排程器
-  const handleStartCommit = useCallback(() => {
-    dispatch({ type: 'startCommit' });
-  }, [dispatch]);
+  const handleStartActivation = useCallback(async () => {
+    if (!activateWorkspace) {
+      return;
+    }
+
+    setActivationState({
+      phase: 'activating',
+      response: null,
+    });
+
+    try {
+      const response = await activateWorkspace();
+      response.results.forEach((result) => {
+        dispatch({
+          type: 'updateDevice',
+          deviceId: result.device_id,
+          patch: result.status === 'success'
+            ? { status: 'active', running: true }
+            : { running: false },
+        });
+      });
+      setActivationState({
+        phase: 'done',
+        response,
+      });
+    } catch (error) {
+      setActivationState({
+        phase: 'done',
+        response: {
+          workspace_id: '',
+          results: [],
+          message: error instanceof Error ? error.message : 'activation failed',
+        },
+      });
+    }
+  }, [activateWorkspace, dispatch]);
 
   // 5. 計算是否有衝突 (有多個已啟用的對應指向同一個 column)
   const hasConflict = useMemo(() => {
@@ -109,29 +152,22 @@ export function Step4Database({ state, dispatch, onCommit }: Step4DatabaseProps)
     return Object.values(targets).filter(t => t.enabled).length;
   }, [targets]);
 
-  // 7. Commit 動畫計時器 Effect
-  const commitSeq = useMemo(() => buildCommitLogSequence(state), [state]);
-  const commitState = state.commit;
-
-  React.useEffect(() => {
-    if (!commitState || commitState.status !== 'committing') return;
-
-    const currentLogIndex = commitState.logs.length;
-
-    if (currentLogIndex >= commitSeq.length) {
-      dispatch({ type: 'completeCommit' });
-      return;
+  const activationLogs = useMemo<CommitLog[]>(() => {
+    const response = activationState.response;
+    if (!response) {
+      return [];
     }
 
-    const timer = setTimeout(() => {
-      dispatch({
-        type: 'appendCommitLog',
-        log: commitSeq[currentLogIndex]
-      });
-    }, 280);
+    return response.results.map((result) => ({
+      label: `POST /studio-v2/workspace/activate → ${result.device_id}`,
+      detail: result.message,
+      status: result.status === 'success' ? 'success' : 'failed',
+    }));
+  }, [activationState.response]);
 
-    return () => clearTimeout(timer);
-  }, [commitState, commitSeq, dispatch]);
+  const canContinueToRuntime = Boolean(
+    activationState.response?.results.some((result) => result.status === 'success'),
+  );
 
   return (
     <div className="space-y-6">
@@ -158,7 +194,7 @@ export function Step4Database({ state, dispatch, onCommit }: Step4DatabaseProps)
 
         {/* 右側三態面板 */}
         <div className="lg:col-span-5">
-          {!commitState || commitState.status === 'idle' ? (
+          {activationState.phase === 'idle' ? (
             <CommitSummary
               deviceCount={state.devices.length}
               ruleCount={state.rules.filter(r => r.enabled).length}
@@ -167,17 +203,24 @@ export function Step4Database({ state, dispatch, onCommit }: Step4DatabaseProps)
               connector={connector}
               enabledTargetCount={enabledTargetCount}
               hasConflict={hasConflict}
-              onCommit={handleStartCommit}
+              onActivate={handleStartActivation}
             />
-          ) : commitState.status === 'committing' ? (
+          ) : activationState.phase === 'activating' ? (
             <CommitProgress
-              logs={commitState.logs}
-              status={commitState.status}
+              logs={activationLogs}
+              status="committing"
             />
           ) : (
             <CommitSuccessCard
-              writeIntervalSeconds={connector.write_interval_seconds}
+              response={activationState.response ?? { workspace_id: '', results: [] }}
+              canContinue={canContinueToRuntime}
               onCommit={onCommit || (() => {})}
+              onReset={() => {
+                setActivationState({
+                  phase: 'idle',
+                  response: null,
+                });
+              }}
             />
           )}
         </div>

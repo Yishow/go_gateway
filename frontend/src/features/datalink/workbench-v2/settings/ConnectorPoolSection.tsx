@@ -1,52 +1,30 @@
 import { useTranslation } from 'react-i18next';
 import { ConnectorRow } from './ConnectorRow';
 import type { SettingsConnector } from '../state/types';
-import type { WorkbenchV2Action } from '../state/useWorkbenchV2State';
 
 /**
  * ConnectorPoolSection 元件屬性
  */
 interface ConnectorPoolSectionProps {
   connectors: SettingsConnector[];
-  dispatch: React.Dispatch<WorkbenchV2Action>;
+  onAddConnector: () => void;
+  onUpdateConnector: (id: string, patch: Partial<SettingsConnector>) => void;
+  onRemoveConnector: (id: string) => void;
+  onTestConnector: (id: string) => void;
 }
 
 /**
  * 資料庫連接器池設定區塊元件
- * 落地需求：「Connector pool CRUD」與「Connector mock test」
+ * 落地需求：「Connector pool CRUD」與「Connector backend test」
  */
-export function ConnectorPoolSection({ connectors, dispatch }: ConnectorPoolSectionProps) {
+export function ConnectorPoolSection({
+  connectors,
+  onAddConnector,
+  onUpdateConnector,
+  onRemoveConnector,
+  onTestConnector,
+}: ConnectorPoolSectionProps) {
   const { t } = useTranslation('workbench-v2');
-
-  // 新增連接器 Handler
-  const handleAddConnector = () => {
-    dispatch({ type: 'addConnector' });
-  };
-
-  // 測試連接器連線 Handler (900ms 延遲模擬動畫)
-  const handleTestConnector = (id: string) => {
-    dispatch({ type: 'startConnectorTest', id });
-    
-    setTimeout(() => {
-      // 85% 成功機率，15% 失敗機率
-      const success = Math.random() > 0.15;
-      
-      dispatch({
-        type: 'completeConnectorTest',
-        id,
-        result: success
-          ? {
-              status: 'ready',
-              last_check_at: new Date().toISOString()
-            }
-          : {
-              status: 'unreachable',
-              last_check_at: new Date().toISOString(),
-              last_check_error: 'connection refused'
-            }
-      });
-    }, 900);
-  };
 
   return (
     <div className="space-y-6 bg-gray-900/10 border border-gray-800 rounded-2xl p-6 backdrop-blur-sm" data-testid="connector-pool-section">
@@ -64,7 +42,7 @@ export function ConnectorPoolSection({ connectors, dispatch }: ConnectorPoolSect
         {/* 新增連接器按鈕 */}
         <button
           type="button"
-          onClick={handleAddConnector}
+          onClick={onAddConnector}
           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white cursor-pointer transition-all shadow-md shadow-blue-600/10 hover:shadow-blue-500/20 active:scale-[0.98]"
         >
           <span>＋</span>
@@ -78,9 +56,9 @@ export function ConnectorPoolSection({ connectors, dispatch }: ConnectorPoolSect
           <ConnectorRow
             key={connector.id}
             connector={connector}
-            onUpdate={(patch) => dispatch({ type: 'updateConnector', id: connector.id, patch })}
-            onRemove={() => dispatch({ type: 'removeConnector', id: connector.id })}
-            onTest={() => handleTestConnector(connector.id)}
+            onUpdate={(patch) => onUpdateConnector(connector.id, patch)}
+            onRemove={() => onRemoveConnector(connector.id)}
+            onTest={() => onTestConnector(connector.id)}
           />
         ))}
 

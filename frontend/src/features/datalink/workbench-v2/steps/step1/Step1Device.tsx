@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2State, Device, ProtocolId } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
-import { getStagesForProtocol } from '../../state/protocols';
+import { useTestDraftConnectionMutation } from '../../../../../hooks/datalink/useDevices';
 import { DeviceTabRail } from './DeviceTabRail';
 import { DeviceEditor } from './DeviceEditor';
 import { ConnectionTestPanel } from './ConnectionTestPanel';
@@ -22,20 +22,18 @@ export interface Step1DeviceProps {
 /**
  * Workbench V2 第一步：裝置設定主元件 (Step1Device)
  * 
- * 落地設計決策：「Mock 測試動畫：使用 setTimeout + reducer action」
+ * 落地設計決策：「Step 1 diagnostics 直接使用 backend test-draft 契約」
  * 實作需求 **Multi-device tab management**、**Readiness check with explicit connect / probe separation**、**Continue gate**。
  * 容納多裝置列表、設備參數編輯、連線測試進度以及流轉控制 footer。
  */
 export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onContinue }) => {
   const { t } = useTranslation('workbench-v2');
+  const testDraftConnectionMutation = useTestDraftConnectionMutation();
 
   // 1. 本地所選設備狀態
   const [selectedId, setSelectedId] = React.useState<string>(() => {
     return state.devices[0]?.id || '';
   });
-
-  // 2. 測試進度 Timer 的 Ref
-  const timerRef = React.useRef<any>(null);
 
   // 當設備刪除時，自動修正選中狀態
   React.useEffect(() => {
@@ -49,56 +47,27 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
     }
   }, [state.devices, selectedId]);
 
-  // 元件卸載時清除 Timer 避免 memory leak 與測試未清理
-  React.useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
-
   // 當前選中的設備
   const activeDevice = React.useMemo(() => {
     return state.devices.find((d) => d.id === selectedId) || null;
   }, [state.devices, selectedId]);
 
-  // 3. 測試執行 Mock 動畫
-  const handleRunTest = (deviceId: string) => {
+  // 3. 使用真實 backend diagnostics 測試目前 draft
+  const handleRunTest = async (deviceId: string) => {
     const dev = state.devices.find((d) => d.id === deviceId);
     if (!dev) return;
 
-    // 清理舊的 timer
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-
     dispatch({ type: 'startDeviceTest', deviceId });
-
-    const stages = getStagesForProtocol(dev.protocol);
-    let idx = 0;
-
-    const tick = () => {
-      if (idx >= stages.length) {
-        // 完成測試，產生 42 - 60ms 延遲
-        const totalLatency = 42 + Math.floor(Math.random() * 19);
-        dispatch({ type: 'completeDeviceTest', deviceId, totalLatency });
-        return;
-      }
-
-      dispatch({
-        type: 'advanceDeviceTest',
-        deviceId,
-        stageId: stages[idx].id,
-        stageLatency: 10 + Math.floor(Math.random() * 19),
+    try {
+      const result = await testDraftConnectionMutation.mutateAsync({
+        protocol: dev.protocol,
+        connection_config: dev.config,
       });
-
-      idx++;
-      timerRef.current = setTimeout(tick, 380);
-    };
-
-    // 第一次延遲 220ms 啟動
-    timerRef.current = setTimeout(tick, 220);
+      dispatch({ type: 'resolveDeviceTest', deviceId, result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'diagnostics request failed';
+      dispatch({ type: 'failDeviceTest', deviceId, stageId: 'connect', message });
+    }
   };
 
   // 4. 新增設備
@@ -120,6 +89,9 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
       },
       status: 'draft',
       test: null,
+      persisted: false,
+      save_state: 'idle',
+      save_error: null,
     };
 
     dispatch({ type: 'addDevice', device: newDevice });

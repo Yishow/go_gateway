@@ -4,6 +4,13 @@ import type { Device } from '../../state/types';
 import { getColorTheme, DEVICE_COLORS } from '../../state/deviceColors';
 import { Icon } from '../../components/Icon';
 
+const SAVE_STATE_LABELS = {
+  'draft-invalid': '未存',
+  saving: '儲存中',
+  saved: '已儲存',
+  'save-error': '儲存失敗',
+} as const;
+
 export interface DeviceTabRailProps {
   /** 設備列表 */
   devices: Device[];
@@ -102,6 +109,32 @@ export const DeviceTabRail: React.FC<DeviceTabRailProps> = ({
                   data-testid={`status-untested-${device.id}`}
                 >
                   {device.test?.status === 'failed' ? t('step1.status.failed') : t('step1.status.untested')}
+                </span>
+              )}
+
+              {device.save_state && device.save_state !== 'idle' && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium border ${
+                    device.save_state === 'save-error'
+                      ? 'border-rose-500/20 bg-rose-500/10 text-rose-300'
+                      : device.save_state === 'saving'
+                      ? 'border-blue-500/20 bg-blue-500/10 text-blue-300'
+                      : device.save_state === 'saved'
+                      ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                      : 'border-amber-500/20 bg-amber-500/10 text-amber-300'
+                  }`}
+                  data-testid={`device-save-chip-${device.id}`}
+                >
+                  {SAVE_STATE_LABELS[device.save_state]}
+                </span>
+              )}
+
+              {device.availability_status === 'unavailable' && (
+                <span
+                  className="rounded-full border border-rose-500/20 bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-medium text-rose-300"
+                  data-testid={`device-availability-chip-${device.id}`}
+                >
+                  {t('step1.status.unavailable', '不可用')}
                 </span>
               )}
 

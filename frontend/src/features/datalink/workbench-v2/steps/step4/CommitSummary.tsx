@@ -12,7 +12,7 @@ interface CommitSummaryProps {
   connector: DbConnector;
   enabledTargetCount: number;
   hasConflict: boolean;
-  onCommit: () => void;
+  onActivate: () => void;
 }
 
 /**
@@ -27,7 +27,7 @@ export function CommitSummary({
   connector,
   enabledTargetCount,
   hasConflict,
-  onCommit
+  onActivate,
 }: CommitSummaryProps) {
   const { t } = useTranslation('workbench-v2');
 
@@ -55,10 +55,10 @@ export function CommitSummary({
         {/* 標題 */}
         <div>
           <h3 className="text-lg font-semibold text-white">
-            {t('step4.summary_title', '確認設定並提交')}
+            {t('step4.summary_title', '確認設定並第一次啟動')}
           </h3>
           <p className="text-xs text-gray-500 mt-1">
-            {t('step4.summary_subtitle', '請確認採集與寫入規劃，提交後排程器將即刻啟動')}
+            {t('step4.summary_subtitle', 'Step 4 只會啟動目前合法、可用、尚未啟動的設備。')}
           </p>
         </div>
 
@@ -83,11 +83,11 @@ export function CommitSummary({
           </p>
         )}
 
-        {/* 寬版提交按鈕 */}
+        {/* 寬版啟動按鈕 */}
         <button
           type="button"
           disabled={isSubmitDisabled}
-          onClick={onCommit}
+          onClick={onActivate}
           className={`
             w-full py-3 px-4 rounded-xl font-medium text-sm text-center transition-all duration-200 flex items-center justify-center gap-2
             ${isSubmitDisabled
@@ -97,11 +97,11 @@ export function CommitSummary({
           `}
         >
           <span>🚀</span>
-          {t('step4.submit_btn', '提交並啟動排程器')}
+          {t('step4.activate_btn', '第一次啟動設備')}
         </button>
 
         <p className="text-[10px] text-gray-500 text-center leading-normal select-none">
-          {t('step4.submit_info', '點擊後系統會依序建置採集實體、映射管線與資料庫連接池。')}
+          {t('step4.activate_info', '系統會逐台啟動符合條件的設備，並保留每台成功或失敗結果。')}
         </p>
       </div>
     </div>

@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { WorkbenchV2State } from '../../state/types';
+import type { TargetType, WorkbenchV2State } from '../../state/types';
 import { useAllPoints, useMappingValidation, useSelectedMapping } from '../../state/selectors';
 import { MappingTable } from './MappingTable';
 import { TransformPreview } from './TransformPreview';
+import { useStep3LiveValues } from './useStep3LiveValues';
 
 export interface Step3MappingProps {
   state: WorkbenchV2State;
@@ -56,6 +57,37 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   );
 
   const selectedData = useSelectedMapping(selectedIdx, enabledPoints, state.mappings);
+  const liveValues = useStep3LiveValues(enabledPoints, state.mappings);
+  const selectedLiveValue = selectedData
+    ? liveValues.rawValues[selectedData.point.id] ?? null
+    : null;
+  const selectedConnectionState = selectedData
+    ? liveValues.connectionByDevice[selectedData.point.device_id] ?? 'disconnected'
+    : 'disconnected';
+
+  const handleSelectTargetType = (targetType: TargetType) => {
+    if (!selectedData) {
+      return;
+    }
+
+    dispatch({
+      type: 'updateMapping',
+      pointId: selectedData.point.id,
+      patch: { target_type: targetType },
+    });
+  };
+
+  const handleApplyTargetTypeToAll = () => {
+    if (!selectedData) {
+      return;
+    }
+
+    dispatch({
+      type: 'bulkApplyTransform',
+      fromPointId: selectedData.point.id,
+      fields: ['target_type'],
+    });
+  };
 
   return (
     <div className="space-y-6" data-testid="step3-mapping-container">
@@ -79,6 +111,8 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
             selectedIdx={selectedIdx}
             setSelectedIdx={setSelectedIdx}
             devices={state.devices}
+            rawValues={liveValues.rawValues}
+            connectionByDevice={liveValues.connectionByDevice}
             dispatch={dispatch}
           />
         </div>
@@ -88,7 +122,10 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
           <TransformPreview
             point={selectedData ? selectedData.point : null}
             mapping={selectedData ? selectedData.mapping : null}
-            rawSeed={selectedData ? selectedData.rawSeed : null}
+            rawValue={selectedLiveValue}
+            connectionState={selectedConnectionState}
+            onApplyTargetTypeToAll={handleApplyTargetTypeToAll}
+            onSelectTargetType={handleSelectTargetType}
           />
         </div>
       </div>

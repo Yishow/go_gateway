@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ConnectorRow } from '../../../src/features/datalink/workbench-v2/settings/ConnectorRow';
 import { ConnectorPoolSection } from '../../../src/features/datalink/workbench-v2/settings/ConnectorPoolSection';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
@@ -55,77 +55,74 @@ describe('Connector settings', () => {
       fireEvent.change(hostInput!, { target: { value: 'localhost' } });
       expect(onUpdate).toHaveBeenCalledWith({ host: 'localhost' });
     });
+
+    it('renders mysql password input and forwards password updates', () => {
+      const onUpdate = vi.fn();
+      const conn = {
+        ...INITIAL_STATE.settings.connectors[0],
+        id: 'conn-mysql',
+        kind: 'mysql' as const,
+        port: 3306,
+        password: '',
+      };
+
+      render(
+        <ConnectorRow
+          connector={conn}
+          onUpdate={onUpdate}
+          onRemove={vi.fn()}
+          onTest={vi.fn()}
+        />
+      );
+
+      const passwordInput = screen
+        .getByText('密碼')
+        .closest('div')
+        ?.querySelector('input');
+      expect(passwordInput).toHaveAttribute('type', 'password');
+
+      fireEvent.change(passwordInput!, { target: { value: 'secret' } });
+      expect(onUpdate).toHaveBeenCalledWith({ password: 'secret' });
+    });
   });
 
   describe('ConnectorPoolSection', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-      vi.restoreAllMocks();
-    });
-
     it('triggers add and remove actions', () => {
-      const dispatch = vi.fn();
-      render(<ConnectorPoolSection connectors={INITIAL_STATE.settings.connectors} dispatch={dispatch} />);
+      const onAddConnector = vi.fn();
+      const onUpdateConnector = vi.fn();
+      const onRemoveConnector = vi.fn();
+      const onTestConnector = vi.fn();
+      render(
+        <ConnectorPoolSection
+          connectors={INITIAL_STATE.settings.connectors}
+          onAddConnector={onAddConnector}
+          onUpdateConnector={onUpdateConnector}
+          onRemoveConnector={onRemoveConnector}
+          onTestConnector={onTestConnector}
+        />,
+      );
 
       fireEvent.click(screen.getByText('新增連接器'));
-      expect(dispatch).toHaveBeenCalledWith({ type: 'addConnector' });
+      expect(onAddConnector).toHaveBeenCalled();
 
       fireEvent.click(screen.getByText('刪除'));
-      expect(dispatch).toHaveBeenCalledWith({ type: 'removeConnector', id: 'conn-prod' });
+      expect(onRemoveConnector).toHaveBeenCalledWith('conn-prod');
     });
 
-    it('performs successful mock connection test', () => {
-      const dispatch = vi.fn();
-      
-      // Spy Math.random to return 0.5 (which is >= 0.15, meaning success)
-      vi.spyOn(Math, 'random').mockReturnValue(0.5);
-
-      render(<ConnectorPoolSection connectors={INITIAL_STATE.settings.connectors} dispatch={dispatch} />);
-
-      fireEvent.click(screen.getByText('測試連線'));
-      expect(dispatch).toHaveBeenCalledWith({ type: 'startConnectorTest', id: 'conn-prod' });
-
-      // Fast forward time by 900ms
-      act(() => {
-        vi.advanceTimersByTime(900);
-      });
-
-      expect(dispatch).toHaveBeenLastCalledWith({
-        type: 'completeConnectorTest',
-        id: 'conn-prod',
-        result: expect.objectContaining({
-          status: 'ready',
-        }),
-      });
-    });
-
-    it('performs failed mock connection test', () => {
-      const dispatch = vi.fn();
-      
-      // Spy Math.random to return 0.05 (which is < 0.15, meaning fail)
-      vi.spyOn(Math, 'random').mockReturnValue(0.05);
-
-      render(<ConnectorPoolSection connectors={INITIAL_STATE.settings.connectors} dispatch={dispatch} />);
+    it('delegates connector test to the backend callback', () => {
+      const onTestConnector = vi.fn();
+      render(
+        <ConnectorPoolSection
+          connectors={INITIAL_STATE.settings.connectors}
+          onAddConnector={vi.fn()}
+          onUpdateConnector={vi.fn()}
+          onRemoveConnector={vi.fn()}
+          onTestConnector={onTestConnector}
+        />,
+      );
 
       fireEvent.click(screen.getByText('測試連線'));
-      expect(dispatch).toHaveBeenCalledWith({ type: 'startConnectorTest', id: 'conn-prod' });
-
-      // Fast forward time by 900ms
-      act(() => {
-        vi.advanceTimersByTime(900);
-      });
-
-      expect(dispatch).toHaveBeenLastCalledWith({
-        type: 'completeConnectorTest',
-        id: 'conn-prod',
-        result: expect.objectContaining({
-          status: 'unreachable',
-        }),
-      });
+      expect(onTestConnector).toHaveBeenCalledWith('conn-prod');
     });
   });
 });

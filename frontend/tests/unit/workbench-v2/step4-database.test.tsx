@@ -206,7 +206,7 @@ describe('Step 4 Database UI Components & Integration', () => {
 
   describe('CommitSummary', () => {
     it('應渲染 5 列摘要值且 Commit 按鈕啟用；有衝突時按鈕應 disabled', () => {
-      const onCommit = vi.fn();
+      const onActivate = vi.fn();
       const { rerender } = render(
         <CommitSummary
           deviceCount={2}
@@ -216,14 +216,14 @@ describe('Step 4 Database UI Components & Integration', () => {
           connector={mockConnector}
           enabledTargetCount={8}
           hasConflict={false}
-          onCommit={onCommit}
+          onActivate={onActivate}
         />
       );
 
       const btn = screen.getByRole('button');
       expect(btn).not.toBeDisabled();
       fireEvent.click(btn);
-      expect(onCommit).toHaveBeenCalledTimes(1);
+      expect(onActivate).toHaveBeenCalledTimes(1);
 
       // 當有衝突時
       rerender(
@@ -235,7 +235,7 @@ describe('Step 4 Database UI Components & Integration', () => {
           connector={mockConnector}
           enabledTargetCount={8}
           hasConflict={true}
-          onCommit={onCommit}
+          onActivate={onActivate}
         />
       );
 

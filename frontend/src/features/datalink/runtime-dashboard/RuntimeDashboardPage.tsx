@@ -28,6 +28,41 @@ export function RuntimeDashboardPage({
     snapshot?.collectors[0] ??
     null;
 
+  if (routeState === 'empty-workspace') {
+    return (
+      <div
+        className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100"
+        data-testid="runtime-dashboard-empty-workspace"
+      >
+        <div className="mx-auto max-w-6xl space-y-6">
+          <FocusedDeviceHeader
+            selectedDeviceId={selectedDeviceId}
+            selectedDevice={selectedDevice}
+            devices={devices}
+            onSelectDevice={onSelectDevice}
+          />
+          <section className="rounded-3xl border border-dashed border-slate-700 bg-slate-900/60 p-8">
+            <h2 className="text-xl font-semibold text-slate-50">
+              {t('emptyWorkspace.title', 'No available runtime device yet')}
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {t(
+                'emptyWorkspace.description',
+                'No available workspace device can be observed right now. Return to /studio/v2 to fix availability or activate another device.',
+              )}
+            </p>
+            <a
+              href="/studio/v2"
+              className="mt-5 inline-flex rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-2 text-sm font-medium text-slate-100 transition hover:border-slate-500"
+            >
+              {t('emptyWorkspace.cta', 'Return to Studio V2')}
+            </a>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   if (routeState === 'missing-device-context') {
     return (
       <div

@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { PipelineSteps } from '../../../src/features/datalink/workbench-v2/steps/step3/PipelineSteps';
 import { PayloadPreview } from '../../../src/features/datalink/workbench-v2/steps/step3/PayloadPreview';
 import { TransformPreview } from '../../../src/features/datalink/workbench-v2/steps/step3/TransformPreview';
@@ -9,6 +11,7 @@ import { Step3Mapping } from '../../../src/features/datalink/workbench-v2/steps/
 import { DeviceListContext } from '../../../src/features/datalink/workbench-v2/state/deviceColors';
 import type { Point, Mapping, Rule, Device, WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { pointAPI } from '../../../src/services/datalink';
 
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
@@ -26,6 +29,12 @@ vi.mock('react-i18next', () => ({
       return key;
     },
   }),
+}));
+
+vi.mock('../../../src/services/datalink', () => ({
+  pointAPI: {
+    list: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 const mockDevice: Device = {
@@ -115,7 +124,23 @@ const mockMappings: Record<string, Mapping> = {
 describe('Step 3 UI Components & Integration', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(pointAPI.list).mockResolvedValue([]);
   });
+
+  function createWrapper() {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    return function Wrapper({ children }: { children: ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      );
+    };
+  }
 
   describe('PipelineSteps', () => {
     it('應能正確格式化 float64、int16、bool 三種 target_type 數值與 steps 顯示', () => {
@@ -126,7 +151,7 @@ describe('Step 3 UI Components & Integration', () => {
         offset: 5,
       };
       const { rerender } = render(
-        <PipelineSteps point={mockPoints[0]} mapping={mappingFloat} rawSeed={243} />
+        <PipelineSteps point={mockPoints[0]} mapping={mappingFloat} rawValue={243} />
       );
       expect(screen.getByTestId('step-decode')).toHaveTextContent('243');
       expect(screen.getByTestId('step-scale')).toHaveTextContent('243 × 0.1 + 5 = 29.30');
@@ -138,7 +163,7 @@ describe('Step 3 UI Components & Integration', () => {
         scale: 0.1,
         offset: 5.6,
       };
-      rerender(<PipelineSteps point={mockPoints[0]} mapping={mappingInt} rawSeed={243} />);
+      rerender(<PipelineSteps point={mockPoints[0]} mapping={mappingInt} rawValue={243} />);
       expect(screen.getByTestId('step-cast')).toHaveTextContent('30');
       expect(screen.getByTestId('step-final')).toHaveTextContent('30');
 
@@ -148,7 +173,7 @@ describe('Step 3 UI Components & Integration', () => {
         scale: 0,
         offset: 0,
       };
-      rerender(<PipelineSteps point={mockPoints[0]} mapping={mappingBool} rawSeed={243} />);
+      rerender(<PipelineSteps point={mockPoints[0]} mapping={mappingBool} rawValue={243} />);
       expect(screen.getByTestId('step-cast')).toHaveTextContent('false');
       expect(screen.getByTestId('step-final')).toHaveTextContent('false');
     });
@@ -172,12 +197,12 @@ describe('Step 3 UI Components & Integration', () => {
   describe('TransformPreview', () => {
     it('在 point/mapping 為 null 時應渲染 empty state，否則渲染 active preview 且 subtitle 同步', () => {
       const { rerender } = render(
-        <TransformPreview point={null} mapping={null} rawSeed={null} />
+        <TransformPreview point={null} mapping={null} rawValue={null} />
       );
       expect(screen.getByTestId('preview-empty')).toBeInTheDocument();
 
       rerender(
-        <TransformPreview point={mockPoints[0]} mapping={mockMappings['p-01']} rawSeed={243} />
+        <TransformPreview point={mockPoints[0]} mapping={mockMappings['p-01']} rawValue={243} />
       );
       expect(screen.getByTestId('preview-active')).toBeInTheDocument();
       expect(screen.getByText('SENSOR_1 @ 40001')).toBeInTheDocument();
@@ -185,7 +210,7 @@ describe('Step 3 UI Components & Integration', () => {
   });
 
   describe('MappingRow', () => {
-    it('點擊輸入元素時不觸發 onSelect 列選取，但點擊空白處可選取，且 onChange 時 dispatch updateMapping', () => {
+    it('點擊輸入元素時不觸發 onSelect 列選取，但點擊空白處可選取，且顯示裝置即時值', () => {
       const onSelect = vi.fn();
       const dispatch = vi.fn();
 
@@ -198,6 +223,7 @@ describe('Step 3 UI Components & Integration', () => {
                 mapping={mockMappings['p-01']}
                 isSelected={false}
                 devices={[mockDevice]}
+                liveValue={243}
                 onSelect={onSelect}
                 dispatch={dispatch}
               />
@@ -205,6 +231,8 @@ describe('Step 3 UI Components & Integration', () => {
           </table>
         </DeviceListContext.Provider>
       );
+
+      expect(screen.getByTestId('device-live-value-p-01')).toHaveTextContent('243');
 
       const inputTagKey = screen.getByTestId('input-tag-key-p-01');
       fireEvent.click(inputTagKey);
@@ -236,6 +264,8 @@ describe('Step 3 UI Components & Integration', () => {
             selectedIdx={null}
             setSelectedIdx={setSelectedIdx}
             devices={[mockDevice]}
+            rawValues={{}}
+            connectionByDevice={{}}
             dispatch={dispatch}
           />
         </DeviceListContext.Provider>
@@ -253,6 +283,8 @@ describe('Step 3 UI Components & Integration', () => {
             selectedIdx={0}
             setSelectedIdx={setSelectedIdx}
             devices={[mockDevice]}
+            rawValues={{}}
+            connectionByDevice={{}}
             dispatch={dispatch}
           />
         </DeviceListContext.Provider>
@@ -284,14 +316,25 @@ describe('Step 3 UI Components & Integration', () => {
       const onBack = vi.fn();
 
       render(
-        <DeviceListContext.Provider value={[mockDevice]}>
-          <Step3Mapping
-            state={mockState}
-            dispatch={dispatch}
-            onContinue={onContinue}
-            onBack={onBack}
-          />
-        </DeviceListContext.Provider>
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+              },
+            })
+          }
+        >
+          <DeviceListContext.Provider value={[mockDevice]}>
+            <Step3Mapping
+              state={mockState}
+              dispatch={dispatch}
+              onContinue={onContinue}
+              onBack={onBack}
+            />
+          </DeviceListContext.Provider>
+        </QueryClientProvider>
       );
 
       expect(screen.getByTestId('step3-mapping-container')).toBeInTheDocument();
@@ -307,15 +350,19 @@ describe('Step 3 UI Components & Integration', () => {
       const onContinue = vi.fn();
       const onBack = vi.fn();
 
+      const Wrapper = createWrapper();
+
       const { rerender } = render(
-        <DeviceListContext.Provider value={[mockDevice]}>
-          <Step3Mapping
-            state={mockState}
-            dispatch={dispatch}
-            onContinue={onContinue}
-            onBack={onBack}
-          />
-        </DeviceListContext.Provider>
+        <Wrapper>
+          <DeviceListContext.Provider value={[mockDevice]}>
+            <Step3Mapping
+              state={mockState}
+              dispatch={dispatch}
+              onContinue={onContinue}
+              onBack={onBack}
+            />
+          </DeviceListContext.Provider>
+        </Wrapper>
       );
 
       const btnContinue = screen.getByTestId('btn-continue');
@@ -334,14 +381,16 @@ describe('Step 3 UI Components & Integration', () => {
       };
 
       rerender(
-        <DeviceListContext.Provider value={[mockDevice]}>
-          <Step3Mapping
-            state={stateWithEmpty}
-            dispatch={dispatch}
-            onContinue={onContinue}
-            onBack={onBack}
-          />
-        </DeviceListContext.Provider>
+        <Wrapper>
+          <DeviceListContext.Provider value={[mockDevice]}>
+            <Step3Mapping
+              state={stateWithEmpty}
+              dispatch={dispatch}
+              onContinue={onContinue}
+              onBack={onBack}
+            />
+          </DeviceListContext.Provider>
+        </Wrapper>
       );
 
       expect(btnContinue).toBeDisabled();
@@ -358,14 +407,16 @@ describe('Step 3 UI Components & Integration', () => {
       };
 
       rerender(
-        <DeviceListContext.Provider value={[mockDevice]}>
-          <Step3Mapping
-            state={stateWithAllDisabled}
-            dispatch={dispatch}
-            onContinue={onContinue}
-            onBack={onBack}
-          />
-        </DeviceListContext.Provider>
+        <Wrapper>
+          <DeviceListContext.Provider value={[mockDevice]}>
+            <Step3Mapping
+              state={stateWithAllDisabled}
+              dispatch={dispatch}
+              onContinue={onContinue}
+              onBack={onBack}
+            />
+          </DeviceListContext.Provider>
+        </Wrapper>
       );
 
       expect(btnContinue).toBeDisabled();

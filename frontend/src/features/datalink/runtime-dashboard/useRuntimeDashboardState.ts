@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useDevicesQuery } from '../../../hooks/datalink/useDevices';
+import { useStudioV2RuntimeContextQuery } from '../../../hooks/datalink/useStudioV2RuntimeContext';
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
 import type {
-  Device,
   RuntimeStatus,
   RuntimeStreamConnectionState,
+  StudioV2RuntimeContextDevice,
   RuntimeValueEvent,
 } from '../../../types/datalink';
 import { useRuntimeStatus } from './useRuntimeStatus';
@@ -24,6 +24,7 @@ function isMissingRuntimeDeviceError(message: string | null): boolean {
 
 export type RuntimeDashboardRouteState =
   | 'missing-device-context'
+  | 'empty-workspace'
   | 'loading'
   | 'live'
   | 'degraded'
@@ -32,8 +33,8 @@ export type RuntimeDashboardRouteState =
 export interface RuntimeDashboardState {
   routeState: RuntimeDashboardRouteState;
   selectedDeviceId: string | null;
-  selectedDevice: Device | null;
-  devices: Device[];
+  selectedDevice: StudioV2RuntimeContextDevice | null;
+  devices: StudioV2RuntimeContextDevice[];
   snapshot: RuntimeStatus | null;
   snapshotError: string | null;
   liveValues: Record<string, RuntimeValueEvent>;
@@ -58,14 +59,23 @@ const emptySnapshot: RuntimeStatus = {
 
 export function useRuntimeDashboardState(): RuntimeDashboardState {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedDeviceId = searchParams.get('device_id');
+  const queryDeviceId = searchParams.get('device_id');
   const [lastSnapshot, setLastSnapshot] = useState<RuntimeStatus | null>(null);
   const [isDegraded, setIsDegraded] = useState(false);
 
-  const devicesQuery = useDevicesQuery();
-  const devices = useMemo(() => devicesQuery.data ?? [], [devicesQuery.data]);
+  const runtimeContextQuery = useStudioV2RuntimeContextQuery();
+  const devices = useMemo(
+    () => runtimeContextQuery.data?.devices ?? [],
+    [runtimeContextQuery.data],
+  );
+  const selectedDeviceId = useMemo(() => {
+    if (queryDeviceId && devices.some((device) => device.device_id === queryDeviceId)) {
+      return queryDeviceId;
+    }
+    return runtimeContextQuery.data?.default_device_id ?? null;
+  }, [devices, queryDeviceId, runtimeContextQuery.data]);
   const selectedDevice = useMemo(
-    () => devices.find((device) => device.id === selectedDeviceId) ?? null,
+    () => devices.find((device) => device.device_id === selectedDeviceId) ?? null,
     [devices, selectedDeviceId],
   );
 
@@ -81,8 +91,11 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     deviceId: selectedDeviceId,
     pollingIntervalMs: isDegraded ? degradedPollingIntervalMs : false,
   });
-  const snapshotError =
+  const snapshotQueryError =
     snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null;
+  const runtimeContextError =
+    runtimeContextQuery.error instanceof Error ? runtimeContextQuery.error.message : null;
+  const snapshotError = runtimeContextError ?? snapshotQueryError;
 
   const stream = useRuntimeDashboardStream({
     deviceId: selectedDeviceId,
@@ -112,8 +125,16 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
   }, [lastSnapshot, stream.connectionState]);
 
   const routeState = useMemo<RuntimeDashboardRouteState>(() => {
+    if (!runtimeContextQuery.data && (runtimeContextQuery.isLoading || runtimeContextQuery.isFetching)) {
+      return 'loading';
+    }
+
+    if (!runtimeContextQuery.data && runtimeContextQuery.isError) {
+      return 'error';
+    }
+
     if (!selectedDeviceId) {
-      return 'missing-device-context';
+      return 'empty-workspace';
     }
 
     if (!lastSnapshot && isMissingRuntimeDeviceError(snapshotError)) {
@@ -140,6 +161,10 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
   }, [
     isDegraded,
     lastSnapshot,
+    runtimeContextQuery.data,
+    runtimeContextQuery.isError,
+    runtimeContextQuery.isFetching,
+    runtimeContextQuery.isLoading,
     selectedDeviceId,
     snapshotError,
     snapshotQuery.isError,

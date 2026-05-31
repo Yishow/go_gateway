@@ -46,6 +46,10 @@ export function buildDashboardModalRedirect(modal: DashboardModalIntent): string
   return `/datalink?modal=${modal}`;
 }
 
+export function buildWorkbenchV2EntryRedirect(): string {
+  return '/studio/v2';
+}
+
 export function buildWorkbenchRedirect(options?: {
   step?: WorkbenchCompatStep;
   target?: WorkbenchCompatTarget;

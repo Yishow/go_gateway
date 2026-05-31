@@ -3,15 +3,26 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeDashboardRoute } from '../../../src/features/datalink/runtime-dashboard/RuntimeDashboardRoute';
-import type { Device, Point, RuntimeStatus } from '../../../src/types/datalink';
+import type { Point, RuntimeStatus } from '../../../src/types/datalink';
 
 const {
-  mockDevices,
+  mockRuntimeContext,
   mockPoints,
   mockRuntimeStatus,
   mockEventSources,
 } = vi.hoisted(() => ({
-  mockDevices: [] as Device[],
+  mockRuntimeContext: {
+    workspace_id: 'workspace-1',
+    devices: [] as Array<{
+      device_id: string;
+      name: string;
+      protocol: string;
+      running: boolean;
+      availability_status: 'available' | 'unavailable';
+      availability_reason: string | null;
+    }>,
+    default_device_id: null as string | null,
+  },
   mockPoints: [] as Point[],
   mockRuntimeStatus: vi.fn<() => Promise<RuntimeStatus>>(),
   mockEventSources: [] as MockEventSource[],
@@ -63,10 +74,12 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('../../../src/hooks/datalink/useDevices', () => ({
-  useDevicesQuery: () => ({
-    data: mockDevices,
+vi.mock('../../../src/hooks/datalink/useStudioV2RuntimeContext', () => ({
+  useStudioV2RuntimeContextQuery: () => ({
+    data: mockRuntimeContext,
     isLoading: false,
+    isError: false,
+    error: null,
   }),
 }));
 
@@ -130,31 +143,23 @@ describe('runtime dashboard route state', () => {
     mockEventSources.splice(0, mockEventSources.length);
     vi.stubGlobal('EventSource', MockEventSource);
 
-    mockDevices.splice(0, mockDevices.length, {
-      id: 'device-A',
-      name: 'Mixer PLC',
-      description: '',
-      protocol: 'modbus_tcp',
-      status: 'active',
-      connection_config: '{}',
-      last_test_at: null,
-      last_test_success: null,
-      last_test_error: '',
-      created_at: '2026-05-29T00:00:00Z',
-      updated_at: '2026-05-29T00:00:00Z',
-    }, {
-      id: 'device-B',
+    mockRuntimeContext.workspace_id = 'workspace-1';
+    mockRuntimeContext.devices.splice(0, mockRuntimeContext.devices.length, {
+      device_id: 'device-B',
       name: 'Filler PLC',
-      description: '',
       protocol: 'modbus_tcp',
-      status: 'active',
-      connection_config: '{}',
-      last_test_at: null,
-      last_test_success: null,
-      last_test_error: '',
-      created_at: '2026-05-29T00:00:00Z',
-      updated_at: '2026-05-29T00:00:00Z',
+      running: false,
+      availability_status: 'unavailable',
+      availability_reason: 'invalid Step 1 configuration',
+    }, {
+      device_id: 'device-A',
+      name: 'Mixer PLC',
+      protocol: 'modbus_tcp',
+      running: true,
+      availability_status: 'available',
+      availability_reason: null,
     });
+    mockRuntimeContext.default_device_id = 'device-A';
 
     mockPoints.splice(0, mockPoints.length, {
       id: 'point-1',
@@ -188,8 +193,8 @@ describe('runtime dashboard route state', () => {
       error_count: 0,
     } as Point);
 
-    mockRuntimeStatus.mockResolvedValue({
-      running: true,
+    mockRuntimeStatus.mockImplementation(async (deviceId?: string) => ({
+      running: deviceId !== 'device-B',
       uptime_seconds: 12,
       metrics: {
         collected_total: 10,
@@ -199,26 +204,34 @@ describe('runtime dashboard route state', () => {
         point_state_error_total: 0,
       },
       collectors: [{
-        device_id: 'device-A',
-        device_name: 'Mixer PLC',
+        device_id: deviceId ?? 'device-A',
+        device_name: deviceId === 'device-B' ? 'Filler PLC' : 'Mixer PLC',
         protocol: 'modbus_tcp',
-        status: 'running',
+        status: deviceId === 'device-B' ? 'idle' : 'running',
+        availability_status: deviceId === 'device-B' ? 'unavailable' : 'available',
+        availability_reason: deviceId === 'device-B' ? 'invalid Step 1 configuration' : null,
+        running: deviceId !== 'device-B',
         points_total: 1,
-        points_healthy: 1,
+        points_healthy: deviceId === 'device-B' ? 0 : 1,
         points_stale: 0,
         points_error: 0,
         last_read_at: '2026-05-29T00:00:00Z',
         last_error: null,
         breaker_state: 'closed',
       }],
-    });
+    }));
   });
 
-  it('enters missing-device-context when device_id is absent', () => {
+  it('boots from workspace context without requiring device_id and selects the first available v2-ordered device', async () => {
     renderRoute('/studio/runtime');
 
-    expect(screen.getByTestId('runtime-dashboard-missing-device-context')).toBeInTheDocument();
-    expect(mockRuntimeStatus).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A');
+    });
+
+    expect(screen.getByTestId('runtime-dashboard-selected-device')).toHaveTextContent('Mixer PLC');
+    expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('invalid Step 1 configuration');
+    expect(screen.getByTestId('runtime-dashboard-location')).toHaveTextContent('');
   });
 
   it('updates query state when switching device', async () => {
@@ -231,6 +244,16 @@ describe('runtime dashboard route state', () => {
     await waitFor(() => {
       expect(screen.getByTestId('runtime-dashboard-location')).toHaveTextContent('?device_id=device-B');
     });
+  });
+
+  it('keeps device_id as an optional override when present', async () => {
+    renderRoute('/studio/runtime?device_id=device-B');
+
+    await waitFor(() => {
+      expect(mockRuntimeStatus).toHaveBeenCalledWith('device-B');
+    });
+
+    expect(screen.getByTestId('runtime-dashboard-selected-device')).toHaveTextContent('Filler PLC');
   });
 
   it('transitions from loading to live after snapshot and stream attach', async () => {
@@ -298,6 +321,9 @@ describe('runtime dashboard route state', () => {
         device_name: 'Mixer PLC',
         protocol: 'modbus_tcp',
         status: 'running',
+        availability_status: 'available',
+        availability_reason: null,
+        running: true,
         points_total: 1,
         points_healthy: 1,
         points_stale: 0,
@@ -336,6 +362,24 @@ describe('runtime dashboard route state', () => {
     });
 
     expect(screen.queryByTestId('runtime-dashboard-snapshot-error')).not.toBeInTheDocument();
+  });
+
+  it('stays on runtime and shows an empty workspace state when no available devices exist', () => {
+    mockRuntimeContext.devices.splice(0, mockRuntimeContext.devices.length, {
+      device_id: 'device-B',
+      name: 'Filler PLC',
+      protocol: 'modbus_tcp',
+      running: false,
+      availability_status: 'unavailable',
+      availability_reason: 'invalid Step 1 configuration',
+    });
+    mockRuntimeContext.default_device_id = null;
+
+    renderRoute('/studio/runtime');
+
+    expect(screen.getByTestId('runtime-dashboard-empty-workspace')).toBeInTheDocument();
+    expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('Filler PLC');
+    expect(mockRuntimeStatus).not.toHaveBeenCalled();
   });
 
   it('updates logs panel when points go stale or recover without flooding', async () => {

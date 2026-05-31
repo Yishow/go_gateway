@@ -10,6 +10,7 @@ import {
   buildRuntimeDashboardTarget,
   resolveRuntimeDashboardDevice,
 } from './resolveRuntimeDashboardDevice';
+import type { StudioV2ActivationResponse } from '../../../../types/studioV2Activation';
 
 // 導入真實的步驟元件與設定頁面
 import { SettingsPage } from '../settings';
@@ -24,6 +25,7 @@ export interface WorkbenchV2ShellProps {
   state: WorkbenchV2State;
   actions: ReturnType<typeof useWorkbenchV2State>;
   navigateTo?: (target: string) => void;
+  activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
 }
 
 /**
@@ -36,6 +38,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   state,
   actions,
   navigateTo,
+  activateWorkspace,
 }) => {
   const {
     view,
@@ -170,6 +173,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             state={state}
             dispatch={actions.dispatch}
             onCommit={handleRuntimeDashboardHandoff}
+            activateWorkspace={activateWorkspace}
           />
         );
       default:
@@ -191,7 +195,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         onToggleSidebar={toggleSidebar}
         view={view}
         stepTitle={stepMeta?.title}
-        scheduler={state.committed ? 'running' : 'idle'}
+        scheduler={state.devices.some((device) => device.running) ? 'running' : 'idle'}
       />
 
       {/* 主體區域 */}

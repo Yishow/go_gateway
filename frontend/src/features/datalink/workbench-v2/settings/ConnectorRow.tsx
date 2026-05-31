@@ -26,6 +26,7 @@ export function ConnectorRow({ connector, onUpdate, onRemove, onTest }: Connecto
     port,
     database,
     username,
+    password,
     schema,
     table,
     status,
@@ -193,6 +194,19 @@ export function ConnectorRow({ connector, onUpdate, onRemove, onTest }: Connecto
               value={username}
               disabled={isTesting}
               onChange={(e) => onUpdate({ username: e.target.value })}
+              className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white focus:border-blue-500 outline-none transition-all"
+            />
+          </div>
+        )}
+
+        {!isSqlite && (
+          <div className="md:col-span-2 space-y-1">
+            <label className="text-gray-500">{t('step4.field_password', '密碼')}</label>
+            <input
+              type="password"
+              value={password ?? ''}
+              disabled={isTesting}
+              onChange={(e) => onUpdate({ password: e.target.value })}
               className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white focus:border-blue-500 outline-none transition-all"
             />
           </div>

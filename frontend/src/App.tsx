@@ -7,6 +7,7 @@ import TestPage from './pages/TestPage'
 import TestPageShell from './pages/TestPageShell'
 import {
   buildWorkbenchRedirect,
+  buildWorkbenchV2EntryRedirect,
   buildDashboardModalRedirect,
   buildLegacyMigrationRedirect,
   buildLocalModbusCompatRedirect,
@@ -27,6 +28,12 @@ function LegacyStudioRedirect() {
   return <Navigate to={destination} replace />
 }
 
+function GuidedWorkbenchEntryRedirect() {
+  const location = useLocation()
+  const destination = `${buildWorkbenchV2EntryRedirect()}${location.search}${location.hash}`
+  return <Navigate to={destination} replace />
+}
+
 function LegacyTestToolRedirect() {
   return <Navigate to="/test" replace />
 }
@@ -40,16 +47,16 @@ function DatalinkWorkbenchV2Route() {
  * 主應用程式組件
  * 
  * 路由配置：
- * - / -> 重定向到 /studio
+ * - / -> 重定向到 /studio/v2
  * - /studio -> Datalink 主產品入口
- * - /datalink/* -> legacy 相容路由，統一收斂到 /studio
+ * - /datalink/* -> legacy 相容路由，generic landing 收斂到 /studio/v2
  * - /test -> 測試工具單頁入口
  */
 export function AppRoutes() {
   return (
     <Routes>
-      {/* 首頁重定向到 studio */}
-      <Route path="/" element={<Navigate to="/studio" replace />} />
+      {/* 首頁重定向到 studio/v2 */}
+      <Route path="/" element={<GuidedWorkbenchEntryRedirect />} />
 
       {/* Studio Main Route */}
       <Route path="/studio/v2" element={<DatalinkWorkbenchV2Route />} />
@@ -57,8 +64,8 @@ export function AppRoutes() {
       <Route path="/studio" element={<DatalinkWorkbenchPage />} />
 
       {/* Datalink legacy routes */}
-      <Route path="/datalink" element={<LegacyStudioRedirect />} />
-      <Route path="/datalink/workbench" element={<LegacyStudioRedirect />} />
+      <Route path="/datalink" element={<GuidedWorkbenchEntryRedirect />} />
+      <Route path="/datalink/workbench" element={<GuidedWorkbenchEntryRedirect />} />
       <Route path="/datalink/workbench/*" element={<LegacyStudioRedirect />} />
       <Route path="/datalink/dashboard-legacy" element={<LegacyStudioRedirect />} />
       <Route path="/datalink/devices-legacy" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
@@ -86,7 +93,7 @@ export function AppRoutes() {
       <Route path="/analyzer" element={<LegacyTestToolRedirect />} />
 
       {/* Unknown routes fallback */}
-      <Route path="*" element={<Navigate to="/studio" replace />} />
+      <Route path="*" element={<GuidedWorkbenchEntryRedirect />} />
     </Routes>
   );
 }

@@ -217,7 +217,6 @@ describe('useSelectedMapping', () => {
     expect(result.current).not.toBeNull();
     expect(result.current?.point).toEqual(points[0]);
     expect(result.current?.mapping).toEqual(mappings['p-1']);
-    expect(result.current?.rawSeed).toBe(243);
 
     const { result: resultNull } = renderHook(() => useSelectedMapping(5, points, mappings));
     expect(resultNull.current).toBeNull();

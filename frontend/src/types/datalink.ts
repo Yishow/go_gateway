@@ -83,12 +83,16 @@ export interface Device {
   last_test_success: boolean | null;
   last_test_error: string;
   readiness_status?: "ready" | "not_ready" | "error";
+  availability_status?: StudioV2Availability['availability_status'];
+  availability_reason?: string;
+  running?: boolean;
   created_at: string;
   updated_at: string;
 }
 
 /** 建立設備請求 */
 export interface CreateDeviceRequest {
+  id?: string;
   name: string;
   description?: string;
   protocol: ProtocolType;
@@ -184,6 +188,7 @@ export interface UpdatePointRequest {
 export interface SourceRuleRecord {
   id: string;
   device_id: string;
+  workspace_id?: string;
   start_address: string;
   count: number;
   data_type: DataType;
@@ -196,6 +201,7 @@ export interface SourceRuleRecord {
   created_at: string;
   updated_at: string;
   revision_id?: string;
+  save_state?: 'saved';
   /** 目標資料型態（可空）。預設與 data_type 相同。 */
   target_data_type?: DataType;
   /** 縮放倍率（可空）。與 scale_offset 構成線性縮放。 */
@@ -249,6 +255,58 @@ export interface UpdateSourceRuleRequest {
    * 字節序格式；傳 `null` 可清空為連線預設（須與其他欄位一併送出以觸發後端更新）。
    */
   data_format?: string | null;
+}
+
+export interface StudioV2WorkspaceMappingRecord {
+  id: string;
+  workspace_id: string;
+  point_id: string;
+  rule_id: string;
+  device_id: string;
+  address: string;
+  tag_id: string;
+  tag_key: string;
+  display_name: string;
+  unit: string;
+  target_type: DataType;
+  scale: number;
+  offset: number;
+  enabled: boolean;
+  save_state?: 'saved';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudioV2WorkspaceDatabaseConfigRecord {
+  id: string;
+  workspace_id: string;
+  kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
+  name: string;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  schema: string;
+  table: string;
+  write_mode: 'insert' | 'upsert';
+  write_interval_seconds: number;
+  timestamp_column: string;
+  status: string;
+  save_state?: 'saved';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudioV2WorkspaceDatabaseTargetRecord {
+  id: string;
+  workspace_id: string;
+  point_id: string;
+  tag_id: string;
+  column_name: string;
+  enabled: boolean;
+  save_state?: 'saved';
+  created_at: string;
+  updated_at: string;
 }
 
 /** 輪詢群組 */
@@ -408,6 +466,33 @@ export interface SettingItem {
   updated_at: string;
 }
 
+export type StudioV2WorkspaceKind = 'single';
+export type StudioV2WorkspaceStatus = 'empty' | 'ready';
+
+export interface StudioV2Workspace {
+  id: string;
+  kind: StudioV2WorkspaceKind;
+  status: StudioV2WorkspaceStatus;
+  ordered_device_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudioV2RuntimeContextDevice {
+  device_id: string;
+  name: string;
+  protocol: ProtocolType | string;
+  running: boolean;
+  availability_status: StudioV2Availability['availability_status'];
+  availability_reason?: string | null;
+}
+
+export interface StudioV2RuntimeContext {
+  workspace_id: string;
+  devices: StudioV2RuntimeContextDevice[];
+  default_device_id: string | null;
+}
+
 // =============================================================================
 // API 回應
 // =============================================================================
@@ -448,6 +533,9 @@ export interface RuntimeCollectorStatus {
   device_name: string;
   protocol: ProtocolType | string;
   status: 'idle' | 'running' | 'warning' | 'error';
+  availability_status: StudioV2Availability['availability_status'];
+  availability_reason?: string | null;
+  running: boolean;
   points_total: number;
   points_healthy: number;
   points_stale: number;
@@ -617,3 +705,4 @@ export interface DatabaseTargetValidationResult {
   ready: boolean;
   issues: DatabaseTargetValidationIssue[];
 }
+import type { StudioV2Availability } from './studioV2Availability';

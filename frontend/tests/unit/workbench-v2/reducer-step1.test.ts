@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { workbenchV2Reducer, INITIAL_STATE, cascadeRemoveDevice } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { Device, WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
+import type { ConnectionTestResult } from '../../../src/types/datalink';
 
 describe('Workbench V2 Step 1 Reducer Actions', () => {
   const dummyDevice: Device = {
@@ -90,20 +91,42 @@ describe('Workbench V2 Step 1 Reducer Actions', () => {
     });
     expect(state.devices[0].test).not.toBeNull();
     expect(state.devices[0].test?.status).toBe('running');
-    expect(state.devices[0].test?.stages).toHaveProperty('resolve');
-    expect(state.devices[0].test?.stages.resolve.status).toBe('pending');
+    expect(state.devices[0].test?.stages).toHaveProperty('connect');
+    expect(state.devices[0].test?.stages.connect.status).toBe('running');
+    expect(state.devices[0].test?.stages.probe.status).toBe('pending');
   });
 
-  it('advanceDeviceTest 應前進指定 stage 的狀態為 success 並填入延遲', () => {
+  it('resolveDeviceTest 應以 backend diagnostics result 覆寫 connect/probe 階段與整體結果', () => {
     const state1 = workbenchV2Reducer(INITIAL_STATE, { type: 'startDeviceTest', deviceId: 'dev-01' });
+    const result: ConnectionTestResult = {
+      success: false,
+      error: '讀取探測失敗: bad register',
+      latency_ms: 18,
+      connect: {
+        status: 'success',
+        message: 'connect ok',
+        latency_ms: 12,
+      },
+      probe: {
+        status: 'failed',
+        error: 'bad register',
+        latency_ms: 6,
+      },
+      can_activate: false,
+      can_collect: false,
+    };
     const state2 = workbenchV2Reducer(state1, {
-      type: 'advanceDeviceTest',
+      type: 'resolveDeviceTest',
       deviceId: 'dev-01',
-      stageId: 'resolve',
-      stageLatency: 15,
+      result,
     });
-    expect(state2.devices[0].test?.stages.resolve.status).toBe('success');
-    expect(state2.devices[0].test?.stages.resolve.latency_ms).toBe(15);
+    expect(state2.devices[0].status).toBe('draft');
+    expect(state2.devices[0].test?.status).toBe('failed');
+    expect(state2.devices[0].test?.stages.connect.status).toBe('success');
+    expect(state2.devices[0].test?.stages.connect.latency_ms).toBe(12);
+    expect(state2.devices[0].test?.stages.probe.status).toBe('failed');
+    expect(state2.devices[0].test?.stages.probe.message).toBe('bad register');
+    expect(state2.devices[0].test?.latency_ms).toBe(18);
   });
 
   it('completeDeviceTest 應將整個測試設為 success 並記錄總延遲與時間', () => {

@@ -23,14 +23,21 @@ export const RAW_VALUE_SEEDS = [243, 251, 1024, 985, 67, 542, 18, 1450];
  */
 export function buildDefaultMapping(point: Point, idx: number): Mapping {
   const semantic = POINT_SEMANTIC[idx % POINT_SEMANTIC.length];
-  return {
-    point_id: point.id,
+  const value = {
     tag_key: semantic.tag_key,
     display_name: semantic.display,
     unit: semantic.unit,
-    target_type: 'float64',
+    target_type: 'float64' as const,
     scale: point._rule_scale,
     offset: point._rule_offset,
     enabled: true,
+  };
+  return {
+    point_id: point.id,
+    ...value,
+    persisted: false,
+    local_value: value,
+    save_state: 'idle',
+    save_error: null,
   };
 }

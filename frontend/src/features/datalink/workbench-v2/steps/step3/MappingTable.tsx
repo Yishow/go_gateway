@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Point, Mapping, Device } from '../../state/types';
 import { MappingRow } from './MappingRow';
+import type { RuntimeStreamConnectionState } from '../../../../../types/datalink';
 
 export interface MappingTableProps {
   points: Point[];
@@ -9,6 +10,8 @@ export interface MappingTableProps {
   selectedIdx: number | null;
   setSelectedIdx: (idx: number | null) => void;
   devices: Device[];
+  rawValues: Record<string, unknown>;
+  connectionByDevice: Record<string, RuntimeStreamConnectionState>;
   dispatch: React.Dispatch<any>;
 }
 
@@ -24,6 +27,8 @@ export const MappingTable: React.FC<MappingTableProps> = ({
   selectedIdx,
   setSelectedIdx,
   devices,
+  rawValues,
+  connectionByDevice,
   dispatch,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -53,6 +58,9 @@ export const MappingTable: React.FC<MappingTableProps> = ({
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-20">
                 {t('step3.columns.register', { defaultValue: '暫存器' })}
               </th>
+              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
+                {t('step3.columns.deviceValue', { defaultValue: '裝置值' })}
+              </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans">
                 {t('step3.columns.tagKey', { defaultValue: 'Tag Key' })}
               </th>
@@ -76,7 +84,7 @@ export const MappingTable: React.FC<MappingTableProps> = ({
           <tbody>
             {points.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-slate-500 text-xs">
+                <td colSpan={9} className="p-8 text-center text-slate-500 text-xs">
                   {t('step3.table.noPoints', { defaultValue: '無啟用的點位，請回上一步新增或啟用規則。' })}
                 </td>
               </tr>
@@ -91,6 +99,8 @@ export const MappingTable: React.FC<MappingTableProps> = ({
                     mapping={m}
                     isSelected={selectedIdx === idx}
                     devices={devices}
+                    liveValue={rawValues[p.id]}
+                    connectionState={connectionByDevice[p.device_id] ?? 'disconnected'}
                     onSelect={() => setSelectedIdx(idx)}
                     dispatch={dispatch}
                   />

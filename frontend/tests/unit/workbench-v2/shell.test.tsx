@@ -1,9 +1,57 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { WorkbenchV2Shell } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2WorkspaceDevices';
+import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
+import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
+import type { StudioV2ActivationResponse } from '../../../src/types/studioV2Activation';
+
+vi.mock('../../../src/hooks/datalink/useStudioV2Workspace', () => ({
+  useStudioV2WorkspaceQuery: () => ({
+    data: {
+      id: 'workspace-shell-test',
+      kind: 'single',
+      status: 'empty',
+      ordered_device_ids: [],
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    },
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
+vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({
+  studioV2WorkspaceDevicesAPI: {
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    updateOrder: vi.fn(),
+  },
+}));
+
+vi.mock('../../../src/services/studioV2Rules', () => ({
+  studioV2RulesAPI: {
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  },
+}));
+
+vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
+  studioV2WorkspaceDatabaseAPI: {
+    getConfig: vi.fn(),
+    updateConfig: vi.fn(),
+    listTargets: vi.fn(),
+    upsertTarget: vi.fn(),
+  },
+}));
 
 // 模擬 i18next 避免 namespace 未定義錯誤
 vi.mock('react-i18next', () => ({
@@ -15,6 +63,69 @@ vi.mock('react-i18next', () => ({
 
 describe('Workbench V2 Shell & Integration', () => {
   const originalInnerWidth = window.innerWidth;
+  const step4ReadyPoint = {
+    id: 'pt-1',
+    device_id: 'dev-01',
+    rule_id: 'rule-01',
+    rule_name: 'Holding Registers',
+    name: 'SENSOR_1',
+    address: '40001',
+    data_type: 'int16',
+    function: 'holding_register' as const,
+    width: 1,
+    enabled: true,
+    skipped: false,
+    _rule_scale: 1,
+    _rule_offset: 0,
+  };
+  const step4ReadyMapping = {
+    point_id: 'pt-1',
+    tag_key: 'line1.temp_in',
+    display_name: 'Temp In',
+    unit: 'C',
+    target_type: 'float64' as const,
+    scale: 1,
+    offset: 0,
+    enabled: true,
+  };
+
+  function buildStep4ReadyState() {
+    return {
+      ...INITIAL_STATE,
+      current: 4 as const,
+      completed: new Set([1, 2, 3]),
+      points: [step4ReadyPoint],
+      mappings: {
+        [step4ReadyPoint.id]: step4ReadyMapping,
+      },
+      db: {
+        ...INITIAL_STATE.db,
+        targets: {
+          [step4ReadyPoint.id]: {
+            tag_id: 'tag.line1.temp_in',
+            column_name: 'temp_in_c',
+            enabled: true,
+          },
+        },
+      },
+    };
+  }
+
+  function renderWorkbenchPage() {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <DatalinkWorkbenchV2Page />
+      </QueryClientProvider>,
+    );
+  }
 
   function LocationProbe() {
     const location = useLocation();
@@ -24,6 +135,7 @@ describe('Workbench V2 Shell & Integration', () => {
   function ShellRouterHarness({
     state,
     actions,
+    activateWorkspace,
   }: {
     state: typeof INITIAL_STATE;
     actions: {
@@ -39,12 +151,18 @@ describe('Workbench V2 Shell & Integration', () => {
       selectRule: ReturnType<typeof vi.fn>;
       dispatch: ReturnType<typeof vi.fn>;
     };
+    activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
   }) {
     const navigate = useNavigate();
 
     return (
       <>
-        <WorkbenchV2Shell state={state} actions={actions} navigateTo={navigate} />
+        <WorkbenchV2Shell
+          state={state}
+          actions={actions}
+          navigateTo={navigate}
+          activateWorkspace={activateWorkspace}
+        />
         <LocationProbe />
       </>
     );
@@ -66,6 +184,10 @@ describe('Workbench V2 Shell & Integration', () => {
     
     // Spy fetch
     vi.spyOn(window, 'fetch').mockImplementation(() => Promise.resolve({} as Response));
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
+    vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -96,8 +218,12 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   // 5.5 Default render of all regions
-  it('renders all regions with default state', () => {
-    render(<DatalinkWorkbenchV2Page />);
+  it('renders all regions with default state', async () => {
+    renderWorkbenchPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    });
 
     // 驗證 2.3 data-workbench-v2 屬性在 root
     const root = screen.getByTestId('workbench-v2-root');
@@ -157,8 +283,12 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   // 5.2 Settings view switch
-  it('switches view mode when clicking settings', () => {
-    render(<DatalinkWorkbenchV2Page />);
+  it('switches view mode when clicking settings', async () => {
+    renderWorkbenchPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-nav-button')).toBeInTheDocument();
+    });
 
     const settingsButton = screen.getByTestId('settings-nav-button');
     fireEvent.click(settingsButton);
@@ -203,15 +333,19 @@ describe('Workbench V2 Shell & Integration', () => {
       value: 1024,
     });
 
-    render(<DatalinkWorkbenchV2Page />);
+    renderWorkbenchPage();
 
     // 驗證 SummaryRail 不在 DOM 中
     expect(screen.queryByTestId('summary-rail')).not.toBeInTheDocument();
   });
 
   // 6.1 Keyboard shortcut ⌘B
-  it('toggles sidebar state on Cmd+B or Ctrl+B keydown', () => {
-    render(<DatalinkWorkbenchV2Page />);
+  it('toggles sidebar state on Cmd+B or Ctrl+B keydown', async () => {
+    renderWorkbenchPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sidebar-rail-aside')).toBeInTheDocument();
+    });
 
     const sidebar = screen.getByTestId('sidebar-rail-aside');
     expect(sidebar).toHaveAttribute('data-collapsed', 'false');
@@ -226,8 +360,12 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   // 6.2 Keyboard shortcut suppressed in text input
-  it('suppresses sidebar toggle shortcut inside input element', () => {
-    render(<DatalinkWorkbenchV2Page />);
+  it('suppresses sidebar toggle shortcut inside input element', async () => {
+    renderWorkbenchPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sidebar-rail-aside')).toBeInTheDocument();
+    });
 
     const sidebar = screen.getByTestId('sidebar-rail-aside');
     expect(sidebar).toHaveAttribute('data-collapsed', 'false');
@@ -260,7 +398,7 @@ describe('Workbench V2 Shell & Integration', () => {
 
     const consoleWarnSpy = vi.spyOn(console, 'warn');
 
-    render(<DatalinkWorkbenchV2Page />);
+    renderWorkbenchPage();
 
     // 觸發 mount 的 useEffect 呼叫
     expect(consoleWarnSpy).toHaveBeenCalled();
@@ -290,10 +428,10 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   describe('TopBar scheduler', () => {
-    it('當 committed 為 false 時，應顯示 scheduler idle 狀態', () => {
+    it('當沒有任何 running device 時，應顯示 scheduler idle 狀態', () => {
       const mockState = {
         ...INITIAL_STATE,
-        committed: false,
+        devices: INITIAL_STATE.devices.map((device) => ({ ...device, running: false })),
       };
       const mockActions = {
         state: mockState,
@@ -313,10 +451,10 @@ describe('Workbench V2 Shell & Integration', () => {
       expect(screen.getByText('step4.scheduler_idle')).toBeInTheDocument();
     });
 
-    it('當 committed 為 true 時，應顯示 scheduler running 狀態', () => {
+    it('當至少有一台 running device 時，應顯示 scheduler running 狀態', () => {
       const mockState = {
         ...INITIAL_STATE,
-        committed: true,
+        devices: INITIAL_STATE.devices.map((device) => ({ ...device, running: true })),
       };
       const mockActions = {
         state: mockState,
@@ -338,16 +476,8 @@ describe('Workbench V2 Shell & Integration', () => {
   });
 
   describe('Runtime dashboard handoff', () => {
-    it('falls back to /studio/runtime when the shell only has local draft device ids', () => {
-      const mockState = {
-        ...INITIAL_STATE,
-        current: 4 as const,
-        committed: true,
-        commit: {
-          status: 'success' as const,
-          logs: [],
-        },
-      };
+    it('falls back to /studio/runtime when activation only succeeds on local draft ids', async () => {
+      const mockState = buildStep4ReadyState();
       const mockActions = {
         state: mockState,
         setView: vi.fn(),
@@ -361,22 +491,33 @@ describe('Workbench V2 Shell & Integration', () => {
         selectRule: vi.fn(),
         dispatch: vi.fn(),
       };
+      const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
+        workspace_id: 'workspace-1',
+        results: [{ device_id: 'dev-01', status: 'success', message: 'activated' }],
+      });
 
       render(
         <MemoryRouter initialEntries={['/studio/v2']}>
-          <ShellRouterHarness state={mockState} actions={mockActions} />
+          <ShellRouterHarness
+            state={mockState}
+            actions={mockActions}
+            activateWorkspace={activateWorkspace}
+          />
         </MemoryRouter>,
       );
 
+      fireEvent.click(screen.getByText('step4.activate_btn'));
+      await waitFor(() => {
+        expect(screen.getByText('step4.go_to_dashboard_btn')).toBeInTheDocument();
+      });
       fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
 
       expect(screen.getByTestId('shell-location')).toHaveTextContent('/studio/runtime');
     });
 
-    it('navigates to the resolved runtime dashboard device route when the shell carries a persisted backend device id', () => {
+    it('navigates to the resolved runtime dashboard device route when one activation succeeds on a persisted backend device id', async () => {
       const mockState = {
-        ...INITIAL_STATE,
-        current: 4 as const,
+        ...buildStep4ReadyState(),
         devices: [
           {
             ...INITIAL_STATE.devices[0],
@@ -389,11 +530,12 @@ describe('Workbench V2 Shell & Integration', () => {
             device_id: '550e8400-e29b-41d4-a716-446655440000',
           },
         ],
-        committed: true,
-        commit: {
-          status: 'success' as const,
-          logs: [],
-        },
+        points: [
+          {
+            ...step4ReadyPoint,
+            device_id: '550e8400-e29b-41d4-a716-446655440000',
+          },
+        ],
       };
       const mockActions = {
         state: mockState,
@@ -408,13 +550,29 @@ describe('Workbench V2 Shell & Integration', () => {
         selectRule: vi.fn(),
         dispatch: vi.fn(),
       };
+      const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
+        workspace_id: 'workspace-1',
+        results: [{
+          device_id: '550e8400-e29b-41d4-a716-446655440000',
+          status: 'success',
+          message: 'activated',
+        }],
+      });
 
       render(
         <MemoryRouter initialEntries={['/studio/v2']}>
-          <ShellRouterHarness state={mockState} actions={mockActions} />
+          <ShellRouterHarness
+            state={mockState}
+            actions={mockActions}
+            activateWorkspace={activateWorkspace}
+          />
         </MemoryRouter>,
       );
 
+      fireEvent.click(screen.getByText('step4.activate_btn'));
+      await waitFor(() => {
+        expect(screen.getByText('step4.go_to_dashboard_btn')).toBeInTheDocument();
+      });
       fireEvent.click(screen.getByText('step4.go_to_dashboard_btn'));
 
       expect(screen.getByTestId('shell-location')).toHaveTextContent(

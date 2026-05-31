@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SettingsHeader } from '../../../src/features/datalink/workbench-v2/settings/SettingsHeader';
@@ -10,6 +11,7 @@ import { DiagnosticsSection } from '../../../src/features/datalink/workbench-v2/
 import { SaveBar } from '../../../src/features/datalink/workbench-v2/settings/SaveBar';
 import { SettingsPage } from '../../../src/features/datalink/workbench-v2/settings/SettingsPage';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { settingsAPI, dbTargetAPI } from '../../../src/services/datalink';
 
 // 模擬 i18next 避免語系載入錯誤
 vi.mock('react-i18next', () => ({
@@ -18,7 +20,41 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+vi.mock('../../../src/services/datalink', () => ({
+  settingsAPI: {
+    listItems: vi.fn(),
+    updateKey: vi.fn(),
+  },
+  dbTargetAPI: {
+    listConnectors: vi.fn(),
+    createConnector: vi.fn(),
+    updateConnector: vi.fn(),
+    deleteConnector: vi.fn(),
+    testConnector: vi.fn(),
+  },
+}));
+
 describe('Settings Components', () => {
+  beforeEach(() => {
+    vi.mocked(settingsAPI.listItems).mockResolvedValue([]);
+    vi.mocked(dbTargetAPI.listConnectors).mockResolvedValue([]);
+  });
+
+  const renderSettingsPage = () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <SettingsPage state={INITIAL_STATE} dispatch={vi.fn()} />
+      </QueryClientProvider>,
+    );
+  };
+
   describe('SettingsHeader', () => {
     it('renders header title and subtitle', () => {
       render(<SettingsHeader />);
@@ -153,13 +189,11 @@ describe('Settings Components', () => {
   });
 
   describe('SettingsPage Container', () => {
-    it('renders all sections and triggers actions via dispatch', () => {
-      const dispatch = vi.fn();
-      render(<SettingsPage state={INITIAL_STATE} dispatch={dispatch} />);
+    it('renders all sections and triggers actions via dispatch', async () => {
+      renderSettingsPage();
 
-      expect(screen.getByTestId('settings-page')).toBeInTheDocument();
+      expect(await screen.findByTestId('settings-page')).toBeInTheDocument();
       expect(screen.getByText('系統設定')).toBeInTheDocument();
-      expect(screen.getByText('資料庫連接器池')).toBeInTheDocument();
       expect(screen.getByText('時序儲存策略')).toBeInTheDocument();
       expect(screen.getByText('排程器核心')).toBeInTheDocument();
       expect(screen.getByText('Local Modbus Share')).toBeInTheDocument();

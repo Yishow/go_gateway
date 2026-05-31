@@ -167,13 +167,13 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({ state }) => {
       </div>
 
       {/* 部署成功提示 */}
-      {state.committed && (
+      {state.devices.some((device) => device.running) && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] p-3 sweep-in">
           <div className="flex items-center gap-2 text-emerald-200 text-xs font-semibold">
             <Icon name="check" className="w-3.5 h-3.5" />
-            已部署到 Runtime
+            已有設備在 Runtime 執行
           </div>
-          <div className="text-[10px] text-emerald-300/70 mt-1">所有設定已成功寫入。</div>
+          <div className="text-[10px] text-emerald-300/70 mt-1">可前往 Runtime 觀察已成功啟動的設備。</div>
         </div>
       )}
     </div>

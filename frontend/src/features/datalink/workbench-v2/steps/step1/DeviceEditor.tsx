@@ -31,6 +31,15 @@ export const DeviceEditor: React.FC<DeviceEditorProps> = ({
   onChangeProtocol,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const saveStateLabel = device.save_state === 'saving'
+    ? '儲存中'
+    : device.save_state === 'saved'
+    ? '已儲存'
+    : device.save_state === 'save-error'
+    ? '儲存失敗'
+    : device.save_state === 'draft-invalid'
+    ? '未存'
+    : '本地草稿';
 
   return (
     <SectionCard
@@ -39,6 +48,33 @@ export const DeviceEditor: React.FC<DeviceEditorProps> = ({
       data-testid="device-editor"
     >
       <div className="space-y-5">
+        <div
+          className={`rounded-lg border px-3 py-2 text-xs ${
+            device.availability_status === 'unavailable' || device.save_state === 'save-error'
+              ? 'border-rose-500/20 bg-rose-500/10 text-rose-200'
+              : device.save_state === 'draft-invalid'
+              ? 'border-amber-500/20 bg-amber-500/10 text-amber-200'
+              : device.save_state === 'saving'
+              ? 'border-blue-500/20 bg-blue-500/10 text-blue-200'
+              : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+          }`}
+          data-testid="device-save-banner"
+          data-save-state={device.save_state ?? 'idle'}
+        >
+          <div className="font-semibold">{saveStateLabel}</div>
+          {device.availability_status === 'unavailable' && (
+            <div className="mt-1 text-[11px]" data-testid="device-availability-reason">
+              {t('step1.status.unavailable', '不可用')}
+              {device.availability_reason ? `: ${device.availability_reason}` : ''}
+            </div>
+          )}
+          {device.save_error && (
+            <div className="mt-1 text-[11px]" data-testid="device-save-error-text">
+              {device.save_error}
+            </div>
+          )}
+        </div>
+
         {/* 設備名稱與描述 */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t('step1.fields.device_name')} required>

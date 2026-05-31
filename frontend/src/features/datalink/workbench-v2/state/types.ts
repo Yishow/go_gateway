@@ -1,3 +1,5 @@
+import type { StudioV2AvailabilityStatus } from '../../../../types/studioV2Availability';
+
 /**
  * Workbench V2 資料狀態型別定義
  * 
@@ -11,7 +13,7 @@ export interface ReadinessStage {
   id: string; // e.g. 'resolve', 'connect', 'probe'
   label: string; // label or key
   group: 'connect' | 'probe';
-  status: 'pending' | 'running' | 'success' | 'failed';
+  status: 'pending' | 'running' | 'success' | 'failed' | 'skipped';
   latency_ms?: number;
   message?: string;
 }
@@ -19,9 +21,18 @@ export interface ReadinessStage {
 export interface DeviceTest {
   status: 'running' | 'success' | 'failed';
   latency_ms?: number;
-  stages: Record<string, { status: 'pending' | 'running' | 'success' | 'failed'; latency_ms?: number }>;
+  stages: Record<string, {
+    status: 'pending' | 'running' | 'success' | 'failed' | 'skipped';
+    latency_ms?: number;
+    message?: string;
+  }>;
   tested_at?: string; // ISO timestamp
 }
+
+export type DeviceSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
+export type RuleSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
+export type MappingSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
+export type DatabaseSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
 
 export interface Device {
   id: string; // dev-xxx
@@ -31,11 +42,21 @@ export interface Device {
   config: Record<string, unknown>; // 依協定而異，禁止 any
   status: 'draft' | 'tested' | 'active';
   test: DeviceTest | null;
+  persisted?: boolean;
+  save_state?: DeviceSaveState;
+  save_error?: string | null;
+  runtime_apply_status?: StudioV2RuntimeApplyStatus | null;
+  runtime_apply_message?: string | null;
+  availability_status?: StudioV2AvailabilityStatus | null;
+  availability_reason?: string | null;
+  running?: boolean;
 }
 
 export interface Rule {
   id: string; // rule-xxx
   device_id: string; // 所屬裝置 ID
+  workspace_id?: string;
+  revision_id?: string;
   name: string; // 規則名稱 (例如 "Holding Registers")
   start_address: string; // 位址 (例如 "40001")
   count: number; // 點位數量
@@ -49,6 +70,9 @@ export interface Rule {
   share_enabled: boolean;
   share_start_register: number | null;
   share_stride: number | null;
+  persisted?: boolean;
+  save_state?: RuleSaveState;
+  save_error?: string | null;
 }
 
 export interface ShareLayout {
@@ -79,6 +103,16 @@ export interface Point {
 
 export type TargetType = 'bool' | 'int16' | 'int32' | 'int64' | 'uint16' | 'uint32' | 'uint64' | 'float32' | 'float64' | 'string';
 
+export interface MappingValue {
+  tag_key: string;
+  display_name: string;
+  unit: string;
+  target_type: TargetType;
+  scale: number;
+  offset: number;
+  enabled: boolean;
+}
+
 export interface Mapping {
   point_id: string;
   tag_key: string; // e.g., "line01.temp.inlet"
@@ -88,6 +122,18 @@ export interface Mapping {
   scale: number;
   offset: number;
   enabled: boolean;
+  mapping_id?: string;
+  workspace_id?: string;
+  rule_id?: string;
+  device_id?: string;
+  address?: string;
+  tag_id?: string;
+  persisted_point_id?: string;
+  persisted?: boolean;
+  local_value?: MappingValue;
+  persisted_value?: MappingValue;
+  save_state?: MappingSaveState;
+  save_error?: string | null;
 }
 
 export interface DbConnector {
@@ -103,12 +149,23 @@ export interface DbConnector {
   write_interval_seconds: number;
   timestamp_column: string;
   status: string;
+  connector_id?: string;
+  workspace_id?: string;
+  persisted?: boolean;
+  save_state?: DatabaseSaveState;
+  save_error?: string | null;
 }
 
 export interface DbTarget {
   tag_id: string;
   column_name: string;
   enabled: boolean;
+  point_id?: string;
+  row_id?: string;
+  workspace_id?: string;
+  persisted?: boolean;
+  save_state?: DatabaseSaveState;
+  save_error?: string | null;
 }
 
 export interface Connector {
@@ -126,10 +183,11 @@ export interface SettingsConnector {
   port: number;
   database: string;
   username: string;
+  password?: string;
   schema: string;
   table: string;
   enabled: boolean;
-  status: 'unknown' | 'testing' | 'ready' | 'unreachable' | 'auth_failed';
+  status: 'unknown' | 'testing' | 'ready' | 'unreachable' | 'auth_failed' | 'error';
   last_check_at?: string;
   last_check_error?: string;
   default_write_interval_seconds: number;
@@ -211,3 +269,4 @@ export interface WorkbenchV2State {
   commit?: CommitState;
   committed: boolean;
 }
+import type { StudioV2RuntimeApplyStatus } from '../../../../types/studioV2RuntimeApply';

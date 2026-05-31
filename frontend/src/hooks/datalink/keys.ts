@@ -82,4 +82,23 @@ export const protocolKeys = {
 /** Settings 相關 Query Keys */
 export const settingsKeys = {
   all: ['settings'] as const,
+  items: () => [...settingsKeys.all, 'items'] as const,
+};
+
+/** Database Target 相關 Query Keys */
+export const dbTargetKeys = {
+  all: ['db-targets'] as const,
+  connectors: () => [...dbTargetKeys.all, 'connectors'] as const,
+};
+
+/** Studio V2 Workspace 相關 Query Keys */
+export const studioV2WorkspaceKeys = {
+  all: ['studio-v2-workspace'] as const,
+  bootstrap: () => [...studioV2WorkspaceKeys.all, 'bootstrap'] as const,
+  runtimeContext: () => [...studioV2WorkspaceKeys.all, 'runtime-context'] as const,
+  devices: () => [...studioV2WorkspaceKeys.all, 'devices'] as const,
+  sourceRules: () => [...studioV2WorkspaceKeys.all, 'source-rules'] as const,
+  mappings: () => [...studioV2WorkspaceKeys.all, 'mappings'] as const,
+  databaseConfig: () => [...studioV2WorkspaceKeys.all, 'database-config'] as const,
+  databaseTargets: () => [...studioV2WorkspaceKeys.all, 'database-targets'] as const,
 };

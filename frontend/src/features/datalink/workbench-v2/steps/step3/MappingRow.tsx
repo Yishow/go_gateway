@@ -1,14 +1,38 @@
 import * as React from 'react';
 import type { Point, Mapping, Device } from '../../state/types';
 import { useDeviceColor } from '../../state/deviceColors';
+import type { RuntimeStreamConnectionState } from '../../../../../types/datalink';
+
+const MAPPING_SAVE_STATE_LABELS = {
+  saving: '儲存中',
+  saved: '已保存',
+  'save-error': '保存失敗',
+  'draft-invalid': '本地草稿',
+} as const;
 
 export interface MappingRowProps {
   point: Point;
   mapping: Mapping;
   isSelected: boolean;
   devices: Device[];
+  liveValue?: unknown;
+  connectionState?: RuntimeStreamConnectionState;
   onSelect: () => void;
   dispatch: React.Dispatch<any>;
+}
+
+function formatDeviceValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '--';
+  }
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 /**
@@ -22,6 +46,8 @@ export const MappingRow: React.FC<MappingRowProps> = ({
   mapping,
   isSelected,
   devices,
+  liveValue,
+  connectionState = 'disconnected',
   onSelect,
   dispatch,
 }) => {
@@ -51,6 +77,15 @@ export const MappingRow: React.FC<MappingRowProps> = ({
     });
   };
 
+  const deviceValueLabel =
+    liveValue !== null && liveValue !== undefined
+      ? formatDeviceValue(liveValue)
+      : connectionState === 'connecting'
+        ? '連線中'
+        : connectionState === 'error'
+          ? '串流錯誤'
+          : '尚未收到';
+
   return (
     <tr
       onClick={onSelect}
@@ -76,7 +111,12 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         {point.address}
       </td>
 
-      {/* 3. Tag Key (可編輯) */}
+      {/* 3. 裝置即時值 */}
+      <td className="p-3 text-xs font-mono text-slate-300">
+        <span data-testid={`device-live-value-${point.id}`}>{deviceValueLabel}</span>
+      </td>
+
+      {/* 4. Tag Key (可編輯) */}
       <td className="p-2">
         <input
           type="text"
@@ -88,9 +128,26 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all font-mono"
           data-testid={`input-tag-key-${point.id}`}
         />
+        {mapping.save_state && mapping.save_state !== 'idle' && (
+          <div
+            className={`mt-1 text-[10px] ${
+              mapping.save_state === 'save-error'
+                ? 'text-rose-400'
+                : mapping.save_state === 'saving'
+                  ? 'text-amber-400'
+                  : mapping.save_state === 'draft-invalid'
+                    ? 'text-amber-300'
+                    : 'text-emerald-400'
+            }`}
+            data-testid={`mapping-save-state-${point.id}`}
+          >
+            {MAPPING_SAVE_STATE_LABELS[mapping.save_state]}
+            {mapping.save_state === 'save-error' && mapping.save_error ? ` · ${mapping.save_error}` : ''}
+          </div>
+        )}
       </td>
 
-      {/* 4. 顯示名稱 (可編輯) */}
+      {/* 5. 顯示名稱 (可編輯) */}
       <td className="p-2">
         <input
           type="text"
@@ -104,7 +161,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         />
       </td>
 
-      {/* 5. 單位 (可編輯) */}
+      {/* 6. 單位 (可編輯) */}
       <td className="p-2">
         <input
           type="text"
@@ -118,7 +175,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         />
       </td>
 
-      {/* 6. 目標型態 (可編輯) */}
+      {/* 7. 目標型態 (可編輯) */}
       <td className="p-2">
         <select
           value={mapping.target_type}
@@ -141,7 +198,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         </select>
       </td>
 
-      {/* 7. Scale / Offset (可編輯) */}
+      {/* 8. Scale / Offset (可編輯) */}
       <td className="p-2">
         <div className="flex items-center gap-1">
           <input
@@ -168,7 +225,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         </div>
       </td>
 
-      {/* 8. 啟用 Toggle */}
+      {/* 9. 啟用 Toggle */}
       <td className="p-3 text-center">
         <input
           type="checkbox"

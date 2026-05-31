@@ -1,12 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import * as React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProtocolSelector } from '../../../src/features/datalink/workbench-v2/steps/step1/ProtocolSelector';
 import { ConnectionConfigForm } from '../../../src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm';
 import { ConnectionTestPanel } from '../../../src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel';
 import { DeviceTabRail } from '../../../src/features/datalink/workbench-v2/steps/step1/DeviceTabRail';
 import { DeviceEditor } from '../../../src/features/datalink/workbench-v2/steps/step1/DeviceEditor';
 import { Step1Device } from '../../../src/features/datalink/workbench-v2/steps/step1/Step1Device';
-import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { deviceAPI } from '../../../src/services/datalink';
+import type { ConnectionTestResult } from '../../../src/types/datalink';
+import {
+  INITIAL_STATE,
+  workbenchV2Reducer,
+} from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { Device, WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import { DeviceListContext } from '../../../src/features/datalink/workbench-v2/state/deviceColors';
 
@@ -31,7 +38,57 @@ describe('Step 1 Components & Integration', () => {
     config: { host: '192.168.1.100', port: 502, slave_id: 1, timeout: 5 },
     status: 'draft',
     test: null,
+    persisted: true,
+    save_state: 'saved',
+    save_error: null,
+    availability_status: 'available',
+    availability_reason: null,
+    running: true,
   };
+
+  const renderWithQueryClient = (ui: React.ReactElement) => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {ui}
+      </QueryClientProvider>,
+    );
+  };
+
+  const Step1Harness = ({
+    initialState = INITIAL_STATE,
+    onContinue = vi.fn(),
+  }: {
+    initialState?: WorkbenchV2State;
+    onContinue?: () => void;
+  }) => {
+    const [state, dispatch] = React.useReducer(workbenchV2Reducer, initialState);
+    return <Step1Device state={state} dispatch={dispatch} onContinue={onContinue} />;
+  };
+
+  const buildSuccessResult = (): ConnectionTestResult => ({
+    success: true,
+    error: '',
+    latency_ms: 55,
+    connect: {
+      status: 'success',
+      message: 'connect ok',
+      latency_ms: 21,
+    },
+    probe: {
+      status: 'success',
+      message: 'probe ok',
+      latency_ms: 34,
+    },
+    can_activate: true,
+    can_collect: true,
+  });
 
   describe('ProtocolSelector', () => {
     it('應渲染 6 張協議卡片，且點擊時能正確觸發 onChange', () => {
@@ -132,19 +189,10 @@ describe('Step 1 Components & Integration', () => {
       expect(screen.getByTestId('success-readiness-card')).toBeInTheDocument();
       expect(screen.getByText('Successfully tested. Latency 55 ms')).toBeInTheDocument();
     });
-
-    it('新增 spy 斷言 payload 渲染但不發任何 fetch', () => {
-      const spyFetch = vi.spyOn(window, 'fetch');
-      render(<ConnectionTestPanel device={mockDevice} onRunTest={vi.fn()} />);
-
-      // 驗證未發出 fetch 請求
-      expect(spyFetch).not.toHaveBeenCalled();
-      spyFetch.mockRestore();
-    });
   });
 
   describe('DeviceTabRail', () => {
-    it('應渲染裝置分頁與改名 Input，且點擊刪除時觸發 confirm dialog', () => {
+    it('應渲染裝置分頁、save chip 與改名 Input，且點擊刪除時觸發 confirm dialog', () => {
       const handleSelect = vi.fn();
       const handleAdd = vi.fn();
       const handleDelete = vi.fn();
@@ -172,6 +220,7 @@ describe('Step 1 Components & Integration', () => {
       // 改名 input
       const renameInput = screen.getByTestId('input-rename-dev-01');
       expect(renameInput).toHaveValue('PLC-生產線-01');
+      expect(screen.getByTestId('device-save-chip-dev-01')).toHaveTextContent('已儲存');
       fireEvent.change(renameInput, { target: { value: 'New Name' } });
       expect(handleRename).toHaveBeenCalledWith('dev-01', 'New Name');
 
@@ -184,10 +233,35 @@ describe('Step 1 Components & Integration', () => {
       expect(handleDelete).toHaveBeenCalledWith('dev-02');
       confirmSpy.mockRestore();
     });
+
+    it('應保留 unavailable 裝置並顯示可辨識狀態 chip', () => {
+      const unavailableDevice: Device = {
+        ...mockDevice,
+        availability_status: 'unavailable',
+        availability_reason: 'device form is invalid',
+        running: false,
+      };
+
+      render(
+        <DeviceListContext.Provider value={[unavailableDevice]}>
+          <DeviceTabRail
+            devices={[unavailableDevice]}
+            selectedId="dev-01"
+            onSelect={vi.fn()}
+            onAdd={vi.fn()}
+            onDelete={vi.fn()}
+            onRename={vi.fn()}
+          />
+        </DeviceListContext.Provider>
+      );
+
+      expect(screen.getByTestId('device-tab-dev-01')).toBeInTheDocument();
+      expect(screen.getByTestId('device-availability-chip-dev-01')).toHaveTextContent('step1.status.unavailable');
+    });
   });
 
   describe('DeviceEditor', () => {
-    it('應能綁定名稱改值反映 state，切換協議時觸發 reset', () => {
+    it('應能顯示 save banner、綁定名稱改值反映 state，切換協議時觸發 reset', () => {
       const handleUpdate = vi.fn();
       const handleUpdateConfig = vi.fn();
       const handleChangeProtocol = vi.fn();
@@ -201,6 +275,9 @@ describe('Step 1 Components & Integration', () => {
         />
       );
 
+      expect(screen.getByTestId('device-save-banner')).toHaveAttribute('data-save-state', 'saved');
+      expect(screen.getByTestId('device-save-banner')).toHaveTextContent('已儲存');
+
       const nameInput = screen.getByTestId('editor-input-name');
       fireEvent.change(nameInput, { target: { value: 'Temp PLC' } });
       expect(handleUpdate).toHaveBeenCalledWith({ name: 'Temp PLC' });
@@ -209,129 +286,130 @@ describe('Step 1 Components & Integration', () => {
       fireEvent.click(screen.getByTestId('protocol-card-mqtt'));
       expect(handleChangeProtocol).toHaveBeenCalledWith('mqtt');
     });
+
+    it('應在 save-error 時保留錯誤訊息 marker', () => {
+      render(
+        <DeviceEditor
+          device={{ ...mockDevice, save_state: 'save-error', save_error: 'save failed' }}
+          onUpdate={vi.fn()}
+          onUpdateConfig={vi.fn()}
+          onChangeProtocol={vi.fn()}
+        />
+      );
+
+      expect(screen.getByTestId('device-save-banner')).toHaveAttribute('data-save-state', 'save-error');
+      expect(screen.getByTestId('device-save-error-text')).toHaveTextContent('save failed');
+    });
+
+    it('應在 unavailable 時顯示原因且不移除 editor 狀態', () => {
+      render(
+        <DeviceEditor
+          device={{
+            ...mockDevice,
+            availability_status: 'unavailable',
+            availability_reason: 'device form is invalid',
+            running: false,
+          }}
+          onUpdate={vi.fn()}
+          onUpdateConfig={vi.fn()}
+          onChangeProtocol={vi.fn()}
+        />
+      );
+
+      expect(screen.getByTestId('device-save-banner')).toBeInTheDocument();
+      expect(screen.getByTestId('device-availability-reason')).toHaveTextContent(
+        'step1.status.unavailable: device form is invalid',
+      );
+    });
   });
 
-  describe('Step1Device Mock Test Animation & Continue Gate', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
+  describe('Step1Device Live Diagnostics & Continue Gate', () => {
     afterEach(() => {
-      vi.useRealTimers();
+      vi.restoreAllMocks();
     });
 
-    it('點擊執行測試應透過 timer 循序推進步驟', () => {
-      const dispatch = vi.fn();
+    it('點擊執行測試應發出 draft diagnostics request，並在成功後允許繼續', async () => {
       const onContinue = vi.fn();
-
-      render(<Step1Device state={INITIAL_STATE} dispatch={dispatch} onContinue={onContinue} />);
-
-      // 找到執行測試按鈕
-      const runBtn = screen.getByTestId('run-test-button');
-      fireEvent.click(runBtn);
-
-      // 斷言 startDeviceTest 觸發
-      expect(dispatch).toHaveBeenCalledWith({ type: 'startDeviceTest', deviceId: 'dev-01' });
-
-      // 快進 220ms
-      act(() => {
-        vi.advanceTimersByTime(220);
+      let resolveResult: ((value: ConnectionTestResult) => void) | undefined;
+      const diagnosticsPromise = new Promise<ConnectionTestResult>((resolve) => {
+        resolveResult = resolve;
       });
-      // 斷言 advanceDeviceTest 推進第一步 resolve
-      expect(dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'advanceDeviceTest',
-          deviceId: 'dev-01',
-          stageId: 'resolve',
-        })
-      );
+      const diagnosticsSpy = vi
+        .spyOn(deviceAPI, 'testDraftConnection')
+        .mockReturnValue(diagnosticsPromise);
 
-      // 快進 380ms
-      act(() => {
-        vi.advanceTimersByTime(380);
-      });
-      // 推進第二步 connect
-      expect(dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'advanceDeviceTest',
-          deviceId: 'dev-01',
-          stageId: 'connect',
-        })
-      );
-
-      // 快進 380ms
-      act(() => {
-        vi.advanceTimersByTime(380);
-      });
-      // 推進第三步 probe
-      expect(dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'advanceDeviceTest',
-          deviceId: 'dev-01',
-          stageId: 'probe',
-        })
-      );
-
-      // 快進 380ms 到結束
-      act(() => {
-        vi.advanceTimersByTime(380);
-      });
-      expect(dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'completeDeviceTest',
-          deviceId: 'dev-01',
-        })
-      );
-    });
-
-    it('元件卸載時應呼叫 clearTimeout 進行清理', () => {
-      const dispatch = vi.fn();
-      const spyClear = vi.spyOn(window, 'clearTimeout');
-
-      const { unmount } = render(
-        <Step1Device state={INITIAL_STATE} dispatch={dispatch} onContinue={vi.fn()} />
-      );
+      renderWithQueryClient(<Step1Harness onContinue={onContinue} />);
 
       const runBtn = screen.getByTestId('run-test-button');
-      fireEvent.click(runBtn);
-
-      unmount();
-      expect(spyClear).toHaveBeenCalled();
-      spyClear.mockRestore();
-    });
-
-    it('所有設備通過測試前「繼續」按鈕應為 disabled，全通過後啟用且點擊觸發 onContinue', () => {
-      const onContinue = vi.fn();
-
-      // 1. 未測試狀態下
-      const { rerender } = render(
-        <Step1Device state={INITIAL_STATE} dispatch={vi.fn()} onContinue={onContinue} />
-      );
       const continueBtn = screen.getByTestId('btn-continue-step1');
       expect(continueBtn).toBeDisabled();
 
-      // 2. 測試成功狀態下
-      const successState: WorkbenchV2State = {
-        ...INITIAL_STATE,
-        devices: [
-          {
-            ...INITIAL_STATE.devices[0],
-            status: 'tested',
-            test: {
-              status: 'success',
-              latency_ms: 45,
-              stages: {},
-            },
+      fireEvent.click(runBtn);
+
+      await waitFor(() => {
+        expect(diagnosticsSpy).toHaveBeenCalledWith({
+          protocol: 'modbus_tcp',
+          connection_config: {
+            host: '192.168.1.100',
+            port: 502,
+            slave_id: 1,
+            timeout: 5,
           },
-        ],
-      };
+        });
+      });
+      expect(runBtn).toBeDisabled();
+      expect(screen.getByText('step1.buttons.testing')).toBeInTheDocument();
 
-      rerender(<Step1Device state={successState} dispatch={vi.fn()} onContinue={onContinue} />);
-      const continueBtnActive = screen.getByTestId('btn-continue-step1');
-      expect(continueBtnActive).not.toBeDisabled();
+      if (!resolveResult) {
+        throw new Error('expected diagnostics promise resolver to be set');
+      }
+      resolveResult(buildSuccessResult());
 
-      fireEvent.click(continueBtnActive);
+      await waitFor(() => {
+        expect(screen.getByTestId('success-readiness-card')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('btn-continue-step1')).not.toBeDisabled();
+
+      fireEvent.click(screen.getByTestId('btn-continue-step1'));
       expect(onContinue).toHaveBeenCalled();
+    });
+
+    it('diagnostics failure 不得讓 device 自動通過 continue gate', async () => {
+      vi.spyOn(deviceAPI, 'testDraftConnection').mockResolvedValue({
+        success: false,
+        error: '讀取探測失敗: bad register',
+        latency_ms: 18,
+        connect: {
+          status: 'success',
+          message: 'connect ok',
+          latency_ms: 12,
+        },
+        probe: {
+          status: 'failed',
+          error: 'bad register',
+          latency_ms: 6,
+        },
+        can_activate: false,
+        can_collect: false,
+      });
+
+      renderWithQueryClient(
+        <Step1Harness
+          initialState={{
+            ...INITIAL_STATE,
+            devices: [{ ...INITIAL_STATE.devices[0], test: null, status: 'draft' }],
+          }}
+        />,
+      );
+
+      const runBtn = screen.getByTestId('run-test-button');
+      fireEvent.click(runBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('bad register')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('btn-continue-step1')).toBeDisabled();
+      expect(screen.queryByTestId('success-readiness-card')).not.toBeInTheDocument();
     });
   });
 });

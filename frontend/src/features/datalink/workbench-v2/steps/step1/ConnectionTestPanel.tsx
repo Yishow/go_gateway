@@ -11,7 +11,7 @@ export interface ConnectionTestPanelProps {
   /** 當前所選的設備資料 */
   device: Device;
   /** 點按執行測試時的回調 */
-  onRunTest: (deviceId: string) => void;
+  onRunTest: (deviceId: string) => void | Promise<void>;
 }
 
 /**
@@ -46,6 +46,26 @@ export const ConnectionTestPanel: React.FC<ConnectionTestPanelProps> = ({ device
   const currentStages = React.useMemo(() => {
     const defaultStages = getStagesForProtocol(protocol);
     if (!test || !test.stages) return defaultStages;
+    if ('connect' in test.stages || 'probe' in test.stages) {
+      return [
+        {
+          id: 'connect',
+          label: 'step1.stages.connect',
+          group: 'connect' as const,
+          status: test.stages.connect?.status ?? 'pending',
+          latency_ms: test.stages.connect?.latency_ms,
+          message: test.stages.connect?.message,
+        },
+        {
+          id: 'probe',
+          label: 'step1.stages.probe',
+          group: 'probe' as const,
+          status: test.stages.probe?.status ?? 'pending',
+          latency_ms: test.stages.probe?.latency_ms,
+          message: test.stages.probe?.message,
+        },
+      ];
+    }
 
     return defaultStages.map((stage) => {
       const liveStage = test.stages[stage.id];
@@ -53,7 +73,7 @@ export const ConnectionTestPanel: React.FC<ConnectionTestPanelProps> = ({ device
         ...stage,
         status: liveStage ? liveStage.status : 'pending',
         latency_ms: liveStage ? liveStage.latency_ms : undefined,
-        message: liveStage ? (liveStage as any).message : undefined,
+        message: liveStage ? liveStage.message : undefined,
       };
     });
   }, [protocol, test]);

@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { useReducer, useCallback } from 'react';
+import type { ConnectionTestResult } from '../../../../types/datalink';
 import type { WorkbenchV2State, Device, Rule, Mapping, Point } from './types';
-
-import { getDefaultConfig, getStagesForProtocol } from './protocols';
+import { getDefaultConfig } from './protocols';
 import type { ProtocolId } from './types';
 import { ruleReducer } from './ruleReducer';
 import { mappingReducer } from './mappingReducer';
@@ -10,7 +10,6 @@ import { dbReducer } from './dbReducer';
 import { settingsReducer } from './settingsReducer';
 import type { DbConnector, DbTarget, CommitLog, Settings, SettingsConnector } from './types';
 
-// 定義 Actions 型別
 export type WorkbenchV2Action =
   | { type: 'SET_VIEW'; payload: 'flow' | 'settings' }
   | { type: 'SET_CURRENT'; payload: 1 | 2 | 3 | 4 }
@@ -28,7 +27,7 @@ export type WorkbenchV2Action =
   | { type: 'renameDevice'; deviceId: string; name: string }
   | { type: 'changeDeviceProtocol'; deviceId: string; protocol: ProtocolId }
   | { type: 'startDeviceTest'; deviceId: string }
-  | { type: 'advanceDeviceTest'; deviceId: string; stageId: string; stageLatency: number }
+  | { type: 'resolveDeviceTest'; deviceId: string; result: ConnectionTestResult }
   | { type: 'completeDeviceTest'; deviceId: string; totalLatency: number }
   | { type: 'failDeviceTest'; deviceId: string; stageId: string; message: string }
   | { type: 'addRule'; rule: Rule }
@@ -60,10 +59,17 @@ export type WorkbenchV2Action =
   | { type: 'updateConnector'; id: string; patch: Partial<SettingsConnector> }
   | { type: 'removeConnector'; id: string }
   | { type: 'startConnectorTest'; id: string }
-  | { type: 'completeConnectorTest'; id: string; result: { status: 'ready' | 'unreachable' | 'auth_failed'; last_check_at: string; last_check_error?: string } }
+  | {
+      type: 'completeConnectorTest';
+      id: string;
+      result: {
+        status: 'unknown' | 'ready' | 'unreachable' | 'auth_failed' | 'error';
+        last_check_at: string;
+        last_check_error?: string;
+      };
+    }
   | { type: 'resetSettingsToDefaults' };
 
-// 初始預設設備與規則
 const DEFAULT_DEVICE: Device = {
   id: 'dev-01',
   name: 'PLC-生產線-01',
@@ -72,6 +78,14 @@ const DEFAULT_DEVICE: Device = {
   config: { host: '192.168.1.100', port: 502, slave_id: 1, timeout: 5 },
   status: 'draft',
   test: null,
+  persisted: false,
+  save_state: 'idle',
+  save_error: null,
+  runtime_apply_status: null,
+  runtime_apply_message: null,
+  availability_status: 'available',
+  availability_reason: null,
+  running: false,
 };
 
 const DEFAULT_RULE: Rule = {
@@ -90,9 +104,11 @@ const DEFAULT_RULE: Rule = {
   share_enabled: true,
   share_start_register: 40001,
   share_stride: null,
+  persisted: false,
+  save_state: 'idle',
+  save_error: null,
 };
 
-// 初始狀態定義
 export const INITIAL_STATE: WorkbenchV2State = {
   view: 'flow',
   current: 1,
@@ -118,6 +134,9 @@ export const INITIAL_STATE: WorkbenchV2State = {
       write_interval_seconds: 5,
       timestamp_column: 'ts',
       status: 'ready',
+      persisted: false,
+      save_state: 'idle',
+      save_error: null,
     },
     targets: {},
   },
@@ -302,43 +321,51 @@ export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2A
         ),
       };
     case 'startDeviceTest': {
-      const targetDevice = state.devices.find((d) => d.id === action.deviceId);
-      const protocol = targetDevice?.protocol || 'modbus_tcp';
-      const stagesList = getStagesForProtocol(protocol);
-      const stagesRecord: Record<string, { status: 'pending' | 'running' | 'success' | 'failed'; latency_ms?: number }> = {};
-      stagesList.forEach((s) => {
-        stagesRecord[s.id] = { status: 'pending' };
-      });
-
       return {
         ...state,
         devices: state.devices.map((d) =>
           d.id === action.deviceId
             ? {
                 ...d,
+                status: 'draft',
                 test: {
                   status: 'running',
-                  stages: stagesRecord,
+                  stages: {
+                    connect: { status: 'running' },
+                    probe: { status: 'pending' },
+                  },
                 },
               }
             : d
         ),
       };
     }
-    case 'advanceDeviceTest':
+    case 'resolveDeviceTest':
       return {
         ...state,
         devices: state.devices.map((d) => {
           if (d.id !== action.deviceId || !d.test) return d;
-          const updatedStages = {
-            ...d.test.stages,
-            [action.stageId]: { status: 'success' as const, latency_ms: action.stageLatency },
-          };
+          const connectMessage = action.result.connect?.message || action.result.connect?.error;
+          const probeMessage = action.result.probe?.message || action.result.probe?.error;
           return {
             ...d,
+            status: action.result.success ? 'tested' : 'draft',
             test: {
-              ...d.test,
-              stages: updatedStages,
+              status: action.result.success ? 'success' : 'failed',
+              latency_ms: action.result.latency_ms,
+              stages: {
+                connect: {
+                  status: action.result.connect?.status ?? 'failed',
+                  latency_ms: action.result.connect?.latency_ms,
+                  message: connectMessage,
+                },
+                probe: {
+                  status: action.result.probe?.status ?? 'skipped',
+                  latency_ms: action.result.probe?.latency_ms,
+                  message: probeMessage,
+                },
+              },
+              tested_at: new Date().toISOString(),
             },
           };
         }),

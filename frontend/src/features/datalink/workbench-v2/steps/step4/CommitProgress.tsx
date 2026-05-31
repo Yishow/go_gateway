@@ -25,10 +25,10 @@ export function CommitProgress({ logs, status }: CommitProgressProps) {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">
-              {t('step4.progress_title', '部署與套用設定')}
+              {t('step4.progress_title', '第一次啟動設備')}
             </h3>
             <p className="text-xs text-gray-500 mt-1">
-              {t('step4.progress_subtitle', '正在閘道端執行 API 建置命令序列...')}
+              {t('step4.progress_subtitle', '正在逐台啟動符合條件的設備...')}
             </p>
           </div>
           {isCommitting && (
@@ -53,10 +53,10 @@ export function CommitProgress({ logs, status }: CommitProgressProps) {
                   ✓
                 </span>
                 <div>
-                  <span className="text-gray-200 font-semibold block">{log.label}</span>
-                  <span className="text-[10px] text-gray-500 block leading-tight mt-0.5">{log.detail}</span>
-                </div>
+                <span className="text-gray-200 font-semibold block">{log.label}</span>
+                <span className="text-[10px] text-gray-500 block leading-tight mt-0.5">{log.detail}</span>
               </div>
+            </div>
               <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold text-[10px] border border-emerald-500/20 select-none">
                 200
               </span>
@@ -78,7 +78,7 @@ export function CommitProgress({ logs, status }: CommitProgressProps) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
           </span>
-          <span>{t('step4.executing_next_command', '正在執行下一個指令…')}</span>
+          <span>{t('step4.executing_next_command', '正在執行設備啟動…')}</span>
         </div>
       )}
     </div>

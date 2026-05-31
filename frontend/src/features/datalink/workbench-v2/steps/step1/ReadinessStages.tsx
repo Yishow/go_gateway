@@ -44,6 +44,10 @@ export const ReadinessStages: React.FC<ReadinessStagesProps> = ({ stages }) => {
       circleClass = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400';
       textClass = 'text-slate-300';
       iconNode = <Icon name="check" className="h-3 w-3 stroke-[2.5]" />;
+    } else if (stage.status === 'skipped') {
+      circleClass = 'border-slate-700 bg-slate-950/40 text-slate-500';
+      textClass = 'text-slate-400';
+      iconNode = <div className="h-px w-2.5 bg-slate-600" />;
     } else if (stage.status === 'running') {
       circleClass = 'border-blue-500/30 bg-blue-500/10 text-blue-400';
       textClass = 'text-slate-100 font-medium';

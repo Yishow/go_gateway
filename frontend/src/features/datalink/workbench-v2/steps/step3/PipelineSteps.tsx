@@ -1,12 +1,22 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Point, Mapping } from '../../state/types';
+import type { MappingPreviewResponse } from '../../../../../types/datalink';
 import { runScale, castValue, formatFinal } from '../../state/transformPipeline';
+
+function isPreviewScalar(value: unknown): value is number | boolean | string {
+  return typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string';
+}
 
 export interface PipelineStepsProps {
   point: Point;
   mapping: Mapping;
-  rawSeed: number;
+  rawValue: unknown;
+  preview?: MappingPreviewResponse | null;
+}
+
+function toNumericValue(value: unknown): number {
+  return typeof value === 'number' ? value : Number(value) || 0;
 }
 
 /**
@@ -15,12 +25,28 @@ export interface PipelineStepsProps {
  * 落地設計決策：「轉換管線數值流：使用 raw seed 序列」
  * 渲染 4 步驟垂直管線，展示資料從 PLC 解碼到寫入 Tag 的完整運算軌跡與顏色語意。
  */
-export const PipelineSteps: React.FC<PipelineStepsProps> = ({ point, mapping, rawSeed }) => {
+export const PipelineSteps: React.FC<PipelineStepsProps> = ({
+  point,
+  mapping,
+  rawValue,
+  preview = null,
+}) => {
   const { t } = useTranslation('workbench-v2');
+  const numericRawValue = toNumericValue(rawValue);
 
-  const scaled = runScale(rawSeed, mapping.scale, mapping.offset);
-  const casted = castValue(scaled, mapping.target_type);
-  const finalVal = formatFinal(casted, mapping.target_type);
+  const previewScaleValue = preview?.step_results.find((step) => step.step_type === 'scale')?.output_value;
+  const previewCastValue = preview?.step_results.find((step) => step.step_type === 'cast')?.output_value;
+  const scaled = typeof previewScaleValue === 'number'
+    ? previewScaleValue
+    : runScale(numericRawValue, mapping.scale, mapping.offset);
+  const casted = isPreviewScalar(previewCastValue)
+    ? previewCastValue
+    : castValue(scaled, mapping.target_type);
+  const finalSource = isPreviewScalar(preview?.final_value)
+    ? preview.final_value
+    : casted;
+  const finalVal = formatFinal(finalSource, mapping.target_type);
+  const decodeValue = preview?.raw_value ?? rawValue;
 
   return (
     <div className="relative pl-6 border-l border-slate-800 space-y-8 ml-3 py-1">
@@ -33,7 +59,7 @@ export const PipelineSteps: React.FC<PipelineStepsProps> = ({ point, mapping, ra
           {t('step3.steps.decode', { defaultValue: 'decode (raw)' })}
         </div>
         <div className="mt-1 text-sm font-semibold text-slate-300 font-mono">
-          {rawSeed} <span className="text-xs text-slate-500 font-normal">({point.data_type})</span>
+          {String(decodeValue)} <span className="text-xs text-slate-500 font-normal">({point.data_type})</span>
         </div>
       </div>
 
@@ -46,7 +72,7 @@ export const PipelineSteps: React.FC<PipelineStepsProps> = ({ point, mapping, ra
           {t('step3.steps.scale', { defaultValue: 'scale (linear)' })}
         </div>
         <div className="mt-1 text-sm font-semibold text-blue-300 font-mono">
-          {rawSeed} × {mapping.scale} {mapping.offset >= 0 ? `+ ${mapping.offset}` : `- ${Math.abs(mapping.offset)}`} = {scaled.toFixed(2)}
+          {String(decodeValue)} × {mapping.scale} {mapping.offset >= 0 ? `+ ${mapping.offset}` : `- ${Math.abs(mapping.offset)}`} = {scaled.toFixed(2)}
         </div>
       </div>
 
@@ -59,7 +85,7 @@ export const PipelineSteps: React.FC<PipelineStepsProps> = ({ point, mapping, ra
           {t('step3.steps.cast', { defaultValue: 'cast to {{type}}', type: mapping.target_type })}
         </div>
         <div className="mt-1 text-sm font-semibold text-emerald-300 font-mono">
-          {String(casted)}
+          {formatFinal(casted, mapping.target_type)}
         </div>
       </div>
 

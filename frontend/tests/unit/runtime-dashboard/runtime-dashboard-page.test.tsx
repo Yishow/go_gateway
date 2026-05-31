@@ -13,30 +13,20 @@ const baseState = {
   routeState: 'live' as const,
   selectedDeviceId: 'device-A',
   selectedDevice: {
-    id: 'device-A',
+    device_id: 'device-A',
     name: 'Mixer PLC',
-    description: '',
     protocol: 'modbus_tcp' as const,
-    status: 'active' as const,
-    connection_config: '{}',
-    last_test_at: null,
-    last_test_success: true,
-    last_test_error: '',
-    created_at: '2026-05-29T00:00:00Z',
-    updated_at: '2026-05-29T00:00:00Z',
+    running: true,
+    availability_status: 'available' as const,
+    availability_reason: null,
   },
   devices: [{
-    id: 'device-A',
+    device_id: 'device-A',
     name: 'Mixer PLC',
-    description: '',
     protocol: 'modbus_tcp' as const,
-    status: 'active' as const,
-    connection_config: '{}',
-    last_test_at: null,
-    last_test_success: true,
-    last_test_error: '',
-    created_at: '2026-05-29T00:00:00Z',
-    updated_at: '2026-05-29T00:00:00Z',
+    running: true,
+    availability_status: 'available' as const,
+    availability_reason: null,
   }],
   snapshot: {
     running: true,
@@ -53,6 +43,9 @@ const baseState = {
       device_name: 'Mixer PLC',
       protocol: 'modbus_tcp',
       status: 'running' as const,
+      availability_status: 'available' as const,
+      availability_reason: null,
+      running: true,
       points_total: 4,
       points_healthy: 3,
       points_stale: 1,
@@ -139,5 +132,27 @@ describe('RuntimeDashboardPage', () => {
 
     expect(screen.getByTestId('runtime-dashboard-missing-device-context')).toBeInTheDocument();
     expect(screen.queryByTestId('runtime-dashboard-summary-panel')).not.toBeInTheDocument();
+  });
+
+  it('keeps unavailable devices visible in the switcher with their reason', () => {
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        devices={[
+          ...baseState.devices,
+          {
+            device_id: 'device-B',
+            name: 'Filler PLC',
+            protocol: 'modbus_tcp',
+            running: false,
+            availability_status: 'unavailable',
+            availability_reason: 'invalid Step 1 configuration',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('Filler PLC');
+    expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('invalid Step 1 configuration');
   });
 });

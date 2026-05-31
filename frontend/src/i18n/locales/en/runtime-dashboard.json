@@ -3,11 +3,18 @@
     "eyebrow": "Runtime Dashboard",
     "noDevice": "Choose a device",
     "deviceMeta": "Protocol {{protocol}}",
+    "deviceMetaUnavailable": "Unavailable: {{reason}}",
+    "unavailable": "Unavailable",
     "deviceMetaEmpty": "Use the committed device context to inspect live runtime health."
   },
   "empty": {
     "title": "Choose a runtime device",
     "description": "This page stays focused on one committed device and does not switch to a fleet-wide dashboard."
+  },
+  "emptyWorkspace": {
+    "title": "No available runtime device yet",
+    "description": "No available workspace device can be observed right now. Return to /studio/v2 to fix availability or activate another device.",
+    "cta": "Return to Studio V2"
   },
   "loading": {
     "message": "Loading the latest runtime snapshot..."

@@ -8,27 +8,36 @@ const routeStateMock = vi.hoisted(() => ({
   routeState: 'live',
   selectedDeviceId: 'device-A',
   selectedDevice: {
-    id: 'device-A',
+    device_id: 'device-A',
     name: 'Mixer PLC',
-    description: '',
     protocol: 'modbus_tcp',
-    status: 'active',
-    connection_config: '{}',
-    last_test_at: null,
-    last_test_success: null,
-    last_test_error: '',
-    created_at: '2026-05-29T00:00:00Z',
-    updated_at: '2026-05-29T00:00:00Z',
+    running: true,
+    availability_status: 'available',
+    availability_reason: null,
   },
-  devices: [],
+  devices: [{
+    device_id: 'device-A',
+    name: 'Mixer PLC',
+    protocol: 'modbus_tcp',
+    running: true,
+    availability_status: 'available',
+    availability_reason: null,
+  }],
   snapshot: null,
+  snapshotError: null,
   liveValues: {},
   streamState: 'connected',
+  logs: [],
   onSelectDevice: vi.fn(),
+  onRetrySnapshot: vi.fn(),
 }));
 
 vi.mock('../../../src/pages/datalink/workbench/DatalinkWorkbenchPage', () => ({
   default: () => <div data-testid="legacy-workbench">Legacy DatalinkWorkbenchPage</div>,
+}));
+
+vi.mock('../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', () => ({
+  default: () => <div data-testid="workbench-v2-root">Mock Workbench V2</div>,
 }));
 
 vi.mock('../../../src/features/datalink/runtime-dashboard/useRuntimeDashboardState', () => ({
@@ -64,6 +73,13 @@ describe('runtime dashboard route', () => {
 
     expect(screen.getByTestId('runtime-dashboard-route')).toBeInTheDocument();
     expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('live');
+    expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
+  });
+
+  it('renders the dedicated runtime dashboard route when device_id is absent', () => {
+    renderRoutes(['/studio/runtime']);
+
+    expect(screen.getByTestId('runtime-dashboard-route')).toBeInTheDocument();
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
   });
 

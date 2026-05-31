@@ -9,6 +9,10 @@ vi.mock('../../../src/pages/datalink/workbench/DatalinkWorkbenchPage', () => ({
   default: () => <div data-testid="legacy-workbench">Legacy DatalinkWorkbenchPage</div>,
 }));
 
+vi.mock('../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', () => ({
+  default: () => <div data-testid="workbench-v2-root">Workbench V2</div>,
+}));
+
 // Mock i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -18,50 +22,63 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('App Routing Integration', () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
+  function renderRoute(initialEntry: string) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
       },
-    },
-  });
+    });
 
-  it('renders Legacy DatalinkWorkbenchPage on /studio', () => {
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/studio']}>
+        <MemoryRouter initialEntries={[initialEntry]}>
           <AppRoutes />
         </MemoryRouter>
       </QueryClientProvider>
     );
+  }
+
+  it('renders DatalinkWorkbenchV2Page on /', () => {
+    renderRoute('/');
+
+    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
+  });
+
+  it('renders DatalinkWorkbenchV2Page on an unknown route fallback', () => {
+    renderRoute('/does-not-exist');
+
+    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
+  });
+
+  it('renders DatalinkWorkbenchV2Page on /datalink', () => {
+    renderRoute('/datalink');
+
+    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
+  });
+
+  it('renders DatalinkWorkbenchV2Page on /datalink/workbench', () => {
+    renderRoute('/datalink/workbench');
+
+    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
+  });
+
+  it('renders Legacy DatalinkWorkbenchPage on /studio', () => {
+    renderRoute('/studio');
 
     expect(screen.getByTestId('legacy-workbench')).toBeInTheDocument();
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
   });
 
   it('renders DatalinkWorkbenchV2Page on /studio/v2', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/studio/v2']}>
-          <AppRoutes />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
+    renderRoute('/studio/v2');
 
     expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
-  });
-
-  it('redirects /datalink/workbench to /studio', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/datalink/workbench']}>
-          <AppRoutes />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
-
-    // 應該會被 LegacyStudioRedirect 重定向到 /studio 並加載舊版頁面
-    expect(screen.getByTestId('legacy-workbench')).toBeInTheDocument();
   });
 });
