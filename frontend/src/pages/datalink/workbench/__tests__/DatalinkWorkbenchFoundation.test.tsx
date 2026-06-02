@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../../../App';
 import type { Mapping, Point, SourceRuleRecord, Tag } from '../../../../types/datalink';
@@ -77,6 +78,19 @@ vi.mock('@/components/CardMinimizeProvider', () => ({
 
 vi.mock('@/pages/TestPage', () => ({
   default: () => <div data-testid="test-page-mock">test-page</div>,
+}));
+
+vi.mock('@/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', () => ({
+  default: () => {
+    const location = useLocation();
+
+    return (
+      <div data-testid="workbench-v2-root">
+        <span data-testid="workbench-v2-location-pathname">{location.pathname}</span>
+        <span data-testid="workbench-v2-location-search">{location.search}</span>
+      </div>
+    );
+  },
 }));
 
 vi.mock('@/hooks/datalink/useDevices', () => ({
@@ -168,6 +182,7 @@ vi.mock('@/router/gateway', () => ({
 }));
 
 vi.mock('@/features/datalink/legacyRoutes', () => ({
+  buildWorkbenchV2EntryRedirect: () => '/studio/v2',
   buildWorkbenchRedirect: () => '/studio',
   buildDashboardModalRedirect: (intent: string) => `/mock/dashboard/${intent}`,
   buildLegacyMigrationRedirect: (intent: string) => `/mock/legacy/${intent}`,
@@ -192,7 +207,7 @@ vi.mock('@/services/datalink', async () => {
 
 describe('DatalinkWorkbench foundation route', () => {
   beforeEach(() => {
-    window.history.pushState({}, '', '/datalink/workbench');
+    window.history.pushState({}, '', '/studio');
     mockSourceRules.splice(0, mockSourceRules.length);
     mockSourceRulesError.value = null;
     mockSourceRulesLoading.value = false;
@@ -321,23 +336,14 @@ describe('DatalinkWorkbench foundation route', () => {
     );
   }
 
-  it('redirects /datalink/workbench into /studio and renders the device step', () => {
+  it('redirects /datalink/workbench into /studio/v2 and renders the V2 entry', () => {
+    window.history.pushState({}, '', '/datalink/workbench');
+
     renderApp();
 
-    expect(
-      screen.getByRole('navigation', { name: 'workbench.stepRail.ariaLabel' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
-    ).toHaveAttribute('aria-selected', 'true');
-    expect(
-      screen.getByRole('textbox', { name: 'workbench.device.search.label' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Mixer PLC')).toBeInTheDocument();
-    expect(screen.getByText('Backup PLC')).toBeInTheDocument();
-    expect(screen.queryByText('workbench.placeholders.device')).not.toBeInTheDocument();
-    expect(screen.getByTestId('workbench-inspector-panel')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/studio');
+    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(screen.getByTestId('workbench-v2-location-pathname')).toHaveTextContent('/studio/v2');
+    expect(window.location.pathname).toBe('/studio/v2');
   });
 
   it('keeps Step 1 search, protocol filter, and create action inside one primary toolbar', () => {
@@ -438,26 +444,25 @@ describe('DatalinkWorkbench foundation route', () => {
     expect(within(mcRow).queryByText('1/2 · binary')).not.toBeInTheDocument();
   });
 
-  it('supports workbench deep links for step and output target', async () => {
+  it('preserves deep-link query context when /datalink/workbench redirects into /studio/v2', async () => {
     window.history.pushState({}, '', '/datalink/workbench?step=output&target=database');
 
     renderApp();
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('tab', { name: /workbench\.steps\.output/ }),
-      ).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('active-output-target')).toHaveTextContent(
-      'workbench.bottomSummary.targets.database',
+    expect(screen.getByTestId('workbench-v2-location-pathname')).toHaveTextContent('/studio/v2');
+    expect(screen.getByTestId('workbench-v2-location-search')).toHaveTextContent(
+      '?step=output&target=database',
     );
-    expect(window.location.pathname).toBe('/studio');
+    expect(window.location.pathname).toBe('/studio/v2');
     expect(window.location.search).toContain('step=output');
     expect(window.location.search).toContain('target=database');
   });
 
   it('does not lock step navigation after a deep-link is applied', async () => {
-    window.history.pushState({}, '', '/datalink/workbench?step=output&target=database');
+    window.history.pushState({}, '', '/studio?step=output&target=database');
 
     renderApp();
 
@@ -607,12 +612,11 @@ describe('DatalinkWorkbench foundation route', () => {
     renderApp();
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('tab', { name: /workbench\.steps\.device/ }),
-      ).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     });
 
-    expect(window.location.pathname).toBe('/studio');
+    expect(screen.getByTestId('workbench-v2-location-pathname')).toHaveTextContent('/studio/v2');
+    expect(window.location.pathname).toBe('/studio/v2');
   });
 
   it('renders /test without the legacy sidebar layout shell', () => {

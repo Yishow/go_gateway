@@ -158,6 +158,7 @@ describe('DatalinkWorkbench source-rule target datatype fields', () => {
       target: { value: '5' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
     fireEvent.click(
       screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
     );

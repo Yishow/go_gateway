@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Step3Mapping } from '../../../src/features/datalink/workbench-v2/steps/step3/Step3Mapping';
 import { DeviceListContext } from '../../../src/features/datalink/workbench-v2/state/deviceColors';
@@ -81,15 +82,25 @@ const mappings: Record<string, Mapping> = {
 };
 
 function renderStep3(state: WorkbenchV2State, dispatch = vi.fn()) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
   render(
-    <DeviceListContext.Provider value={[device]}>
-      <Step3Mapping
-        state={state}
-        dispatch={dispatch}
-        onContinue={vi.fn()}
-        onBack={vi.fn()}
-      />
-    </DeviceListContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <DeviceListContext.Provider value={[device]}>
+        <Step3Mapping
+          state={state}
+          dispatch={dispatch}
+          onContinue={vi.fn()}
+          onBack={vi.fn()}
+        />
+      </DeviceListContext.Provider>
+    </QueryClientProvider>,
   );
   return dispatch;
 }

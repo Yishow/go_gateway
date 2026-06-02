@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useCreateStudioV2WorkspaceDeviceMutation, useDeleteStudioV2WorkspaceDeviceMutation, useStudioV2WorkspaceDevicesQuery, useUpdateStudioV2WorkspaceDeviceAvailabilityMutation, useUpdateStudioV2WorkspaceDeviceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceDevices';
 import { hydrateStudioV2Device, isStudioV2DeviceValid, toStudioV2DeviceCreateRequest, toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
-import { hydrateStudioV2Rule, rebindDraftRulesToWorkspaceDevice } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
+import { hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import type { Device } from '../../../features/datalink/workbench-v2/state/types';
 import { useWorkbenchV2State, workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { useStudioV2RulesQuery } from '../../../hooks/datalink/useStudioV2Rules';
@@ -55,12 +55,8 @@ export function useStudioV2AutosaveState(enabled: boolean) {
 
     hydratedRef.current = true;
     const hydratedDevices = devicesQuery.data.map(hydrateStudioV2Device);
-    const nextDevices = hydratedDevices.length > 0 ? hydratedDevices : stateRef.current.devices;
-    const hydratedRules = rulesQuery.data.length > 0
-      ? rulesQuery.data.map(hydrateStudioV2Rule)
-      : nextDevices.length > 0
-        ? rebindDraftRulesToWorkspaceDevice(stateRef.current.rules, nextDevices[0].id)
-        : [];
+    const nextDevices = hydratedDevices;
+    const hydratedRules = rulesQuery.data.map(hydrateStudioV2Rule);
 
     actions.dispatch({
       type: 'SET_STATE',

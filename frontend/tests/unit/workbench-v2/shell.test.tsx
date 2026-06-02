@@ -53,6 +53,34 @@ vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
   },
 }));
 
+vi.mock('../../../src/hooks/datalink/useSettings', () => ({
+  useSettingsItemsQuery: () => ({
+    data: [],
+    isSuccess: true,
+    isError: false,
+  }),
+  useDbTargetConnectorsQuery: () => ({
+    data: [],
+    isSuccess: true,
+    isError: false,
+  }),
+  useUpdateSettingKeyMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
+  useCreateDbTargetConnectorMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
+  useUpdateDbTargetConnectorMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
+  useDeleteDbTargetConnectorMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
+  useTestDbTargetConnectorMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
+}));
+
 // 模擬 i18next 避免 namespace 未定義錯誤
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -123,6 +151,37 @@ describe('Workbench V2 Shell & Integration', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <DatalinkWorkbenchV2Page />
+      </QueryClientProvider>,
+    );
+  }
+
+  function renderShell(
+    state: typeof INITIAL_STATE,
+    actions: {
+      state: typeof INITIAL_STATE;
+      setView: ReturnType<typeof vi.fn>;
+      setCurrent: ReturnType<typeof vi.fn>;
+      completeStep: ReturnType<typeof vi.fn>;
+      toggleSidebar: ReturnType<typeof vi.fn>;
+      toggleSummaryRail: ReturnType<typeof vi.fn>;
+      setSidebarCollapsed: ReturnType<typeof vi.fn>;
+      setShowSummaryRail: ReturnType<typeof vi.fn>;
+      resetFlow: ReturnType<typeof vi.fn>;
+      selectRule: ReturnType<typeof vi.fn>;
+      dispatch: ReturnType<typeof vi.fn>;
+    },
+  ) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <WorkbenchV2Shell state={state} actions={actions} />
       </QueryClientProvider>,
     );
   }
@@ -269,7 +328,7 @@ describe('Workbench V2 Shell & Integration', () => {
       dispatch: vi.fn(),
     };
 
-    render(<WorkbenchV2Shell state={mockState} actions={mockActions} />);
+    renderShell(mockState, mockActions);
     
     // 驗證第 2 步在 completed 有 1 時是 reachable 的
     const step2Button = screen.getByTestId('step-nav-button-2');
@@ -319,7 +378,7 @@ describe('Workbench V2 Shell & Integration', () => {
       dispatch: vi.fn(),
     };
 
-    render(<WorkbenchV2Shell state={mockState} actions={mockActions} />);
+    renderShell(mockState, mockActions);
     expect(screen.getByTestId('settings-page')).toBeInTheDocument();
     expect(screen.queryByText('設定內容即將上線')).not.toBeInTheDocument();
   });
@@ -423,7 +482,7 @@ describe('Workbench V2 Shell & Integration', () => {
       dispatch: vi.fn(),
     };
 
-    render(<WorkbenchV2Shell state={mockState} actions={mockActions} />);
+    renderShell(mockState, mockActions);
     expect(screen.getByTestId('step2-rule-container')).toBeInTheDocument();
   });
 
@@ -447,7 +506,7 @@ describe('Workbench V2 Shell & Integration', () => {
         dispatch: vi.fn(),
       };
 
-      render(<WorkbenchV2Shell state={mockState} actions={mockActions} />);
+      renderShell(mockState, mockActions);
       expect(screen.getByText('step4.scheduler_idle')).toBeInTheDocument();
     });
 
@@ -470,7 +529,7 @@ describe('Workbench V2 Shell & Integration', () => {
         dispatch: vi.fn(),
       };
 
-      render(<WorkbenchV2Shell state={mockState} actions={mockActions} />);
+      renderShell(mockState, mockActions);
       expect(screen.getByText('step4.scheduler_running')).toBeInTheDocument();
     });
   });

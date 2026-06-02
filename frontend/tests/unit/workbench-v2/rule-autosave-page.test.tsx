@@ -20,11 +20,38 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
       ))}
       <button
         type="button"
+        data-testid="seed-rule-01"
+        onClick={() => actions.dispatch({
+          type: 'addRule',
+          rule: {
+            id: 'rule-01',
+            device_id: 'dev-01',
+            name: 'Holding Registers',
+            start_address: '',
+            count: 8,
+            data_type: 'int16',
+            naming_prefix: 'LINE_',
+            enabled: true,
+            scale_multiplier: 1,
+            scale_offset: 0,
+            data_format: '',
+            skipped_addresses: [],
+            share_enabled: false,
+            share_start_register: null,
+            share_stride: null,
+            persisted: false,
+            save_state: 'idle',
+            save_error: null,
+          },
+        })}
+      />
+      <button
+        type="button"
         data-testid="make-rule-01-valid"
         onClick={() => actions.dispatch({
           type: 'updateRule',
           ruleId: 'rule-01',
-          patch: { naming_prefix: 'LINE_' },
+          patch: { start_address: '40001', naming_prefix: 'LINE_' },
         })}
       />
       <button
@@ -252,6 +279,7 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
       expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByTestId('seed-rule-01'));
     fireEvent.click(screen.getByTestId('make-rule-01-valid'));
 
     await waitFor(() => {
@@ -285,6 +313,7 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
       expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByTestId('seed-rule-01'));
     fireEvent.click(screen.getByTestId('make-rule-01-invalid'));
 
     await waitFor(() => {

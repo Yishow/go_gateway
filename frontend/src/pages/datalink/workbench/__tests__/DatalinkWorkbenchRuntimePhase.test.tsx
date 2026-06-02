@@ -268,6 +268,7 @@ describe('DatalinkWorkbench runtime phase surface', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.view.live' }));
 
     await waitFor(() => {

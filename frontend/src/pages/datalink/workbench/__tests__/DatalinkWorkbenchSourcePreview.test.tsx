@@ -173,6 +173,7 @@ async function openSourceStep() {
   renderPage();
   fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+  fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
   await screen.findByTestId('source-active-rule-summary');
 }
 
@@ -180,6 +181,7 @@ async function switchToDatabaseTarget() {
   fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.output/ }));
   fireEvent.click(screen.getByRole('tab', { name: 'workbench.output.targetSwitcher.database' }));
   fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
+  fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
   await screen.findByTestId('source-active-rule-summary');
 }
 
@@ -249,6 +251,7 @@ describe('DatalinkWorkbench source preview continuity', () => {
     expect(screen.queryByLabelText('Flow Sensor')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
     expect(await screen.findByTestId('source-tag-preview')).toHaveTextContent('TAG_40002');
     expect(screen.getByTestId('source-active-rule-address')).toHaveTextContent('40002');
   });

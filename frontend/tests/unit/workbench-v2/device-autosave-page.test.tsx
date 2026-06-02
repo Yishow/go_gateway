@@ -23,6 +23,35 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
       ))}
       <button
         type="button"
+        data-testid="seed-dev-01"
+        onClick={() => actions.dispatch({
+          type: 'addDevice',
+          device: {
+            id: 'dev-01',
+            name: '',
+            description: 'Modbus TCP PLC (Line A 主控)',
+            protocol: 'modbus_tcp',
+            config: {
+              host: '192.168.1.100',
+              port: 502,
+              slave_id: 1,
+              timeout: 5,
+            },
+            status: 'draft',
+            test: null,
+            persisted: false,
+            save_state: 'idle',
+            save_error: null,
+            runtime_apply_status: null,
+            runtime_apply_message: null,
+            availability_status: 'available',
+            availability_reason: null,
+            running: false,
+          },
+        })}
+      />
+      <button
+        type="button"
         data-testid="make-dev-01-valid"
         onClick={() => actions.dispatch({
           type: 'updateDevice',
@@ -197,6 +226,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
       expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByTestId('seed-dev-01'));
     fireEvent.click(screen.getByTestId('make-dev-01-valid'));
 
     await waitFor(() => {
@@ -231,6 +261,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
       expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByTestId('seed-dev-01'));
     fireEvent.click(screen.getByTestId('make-dev-01-invalid'));
 
     await waitFor(() => {

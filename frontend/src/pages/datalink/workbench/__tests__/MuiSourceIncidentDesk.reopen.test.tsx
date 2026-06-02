@@ -200,16 +200,15 @@ describe('MuiSourceCommandDeck reopened Phase 2', () => {
 
     const workspaceSkeleton = screen.getByTestId('source-workspace-skeleton');
     const triageWorkspace = screen.getByTestId('source-triage-workspace');
-    const workspaceSummary = screen.getByTestId('source-workspace-summary-strip');
     const commandBanner = screen.getByTestId('source-command-banner');
 
     expect(within(workspaceSkeleton).getByTestId('source-workspace-handoff-strip')).toBeInTheDocument();
     expect(within(triageWorkspace).getByTestId('source-triage-recovery-panel')).toBeInTheDocument();
     expect(within(triageWorkspace).queryByTestId('source-triage-clear-state')).not.toBeInTheDocument();
     expect(screen.queryByTestId('source-incident-command-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('source-workspace-summary-strip')).not.toBeInTheDocument();
     expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.title.triage');
     expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.status.triage');
-    expect(triageWorkspace.nextElementSibling).toBe(workspaceSummary);
   });
 
   it('shows grouped tag-review handoff context with point count and naming prefix', () => {

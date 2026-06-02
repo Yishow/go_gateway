@@ -383,6 +383,7 @@ describe('DatalinkWorkbench source step', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     expect(screen.getByTestId('source-runtime-collection-panel')).toBeInTheDocument();
     expect(screen.getByTestId('source-runtime-collection-hint')).toBeInTheDocument();
@@ -657,32 +658,16 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     const workspaceSkeleton = screen.getByTestId('source-workspace-skeleton');
-    const workspaceSummary = within(workspaceSkeleton).getByTestId('source-workspace-summary-strip');
-    const activeRuleSummary = within(workspaceSkeleton).getByTestId('source-active-rule-summary');
-    const diagnosticToolbar = within(workspaceSkeleton).getByTestId(
-      'source-workspace-diagnostics-strip',
-    );
     const handoffPanel = within(workspaceSkeleton).getByTestId('source-workspace-handoff-strip');
     const buildWorkspace = screen.getByTestId('source-build-workspace');
     const commandBanner = screen.getByTestId('source-command-banner');
 
-    expect(within(activeRuleSummary).getByTestId('source-active-rule-address')).toHaveTextContent(
-      '40001',
-    );
-    expect(within(activeRuleSummary).getByTestId('source-active-rule-count')).toHaveTextContent('2');
-    expect(within(workspaceSummary).getByTestId('source-workspace-ready-count')).toHaveTextContent('2');
-    expect(within(workspaceSummary).getByTestId('source-workspace-conflict-count')).toHaveTextContent('0');
-    expect(within(workspaceSummary).getByTestId('source-workspace-protected-count')).toHaveTextContent('0');
     expect(buildWorkspace).toBeInTheDocument();
     expect(within(buildWorkspace).getByTestId('source-build-rule-panel')).toBeInTheDocument();
     expect(within(buildWorkspace).getByTestId('source-build-canvas-panel')).toBeInTheDocument();
-    expect(within(diagnosticToolbar).getByText('workbench.source.diagnostics.description')).toBeInTheDocument();
+    expect(screen.queryByTestId('source-workspace-summary-strip')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('source-workspace-diagnostics-strip')).not.toBeInTheDocument();
     expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.title.build');
-    expect(
-      within(activeRuleSummary).getByRole('button', {
-        name: 'workbench.source.actions.createRulePoints',
-      }),
-    ).toBeEnabled();
     expect(
       within(handoffPanel).getByRole('button', {
         name: 'workbench.source.handoff.toTag',
@@ -694,10 +679,23 @@ describe('DatalinkWorkbench source step', () => {
 
     const inspectWorkspace = screen.getByTestId('source-inspect-workspace');
     const inspectSummary = screen.getByTestId('source-workspace-summary-strip');
+    const activeRuleSummary = screen.getByTestId('source-active-rule-summary');
     expect(screen.getByTestId('source-workspace-skeleton')).toBeInTheDocument();
     expect(inspectWorkspace).toBeInTheDocument();
     expect(within(inspectWorkspace).getByTestId('source-primary-toolbar')).toBeInTheDocument();
     expect(within(inspectWorkspace).getByTestId('source-canvas-workspace')).toBeInTheDocument();
+    expect(within(activeRuleSummary).getByTestId('source-active-rule-address')).toHaveTextContent(
+      '40001',
+    );
+    expect(within(activeRuleSummary).getByTestId('source-active-rule-count')).toHaveTextContent('2');
+    expect(within(inspectSummary).getByTestId('source-workspace-ready-count')).toHaveTextContent('2');
+    expect(within(inspectSummary).getByTestId('source-workspace-conflict-count')).toHaveTextContent('0');
+    expect(within(inspectSummary).getByTestId('source-workspace-protected-count')).toHaveTextContent('0');
+    expect(
+      within(activeRuleSummary).getByRole('button', {
+        name: 'workbench.source.actions.createRulePoints',
+      }),
+    ).toBeEnabled();
     expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.title.inspect');
     expect(commandBanner).toHaveTextContent('workbench.source.sentryBanner.status.inspect');
     expect(inspectSummary.nextElementSibling).toBe(screen.getByTestId('source-workspace-diagnostics-strip'));
@@ -747,6 +745,7 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: '2' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     fireEvent.click(
       screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
@@ -796,6 +795,7 @@ describe('DatalinkWorkbench source step', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     fireEvent.click(
       screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
@@ -1102,6 +1102,7 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: 'float32' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
     fireEvent.click(
       screen.getByRole('button', { name: 'workbench.source.actions.createRulePoints' }),
     );
@@ -1146,6 +1147,7 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: '40001' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     expect(screen.getByTestId('address-cell-40002')).toHaveAttribute('data-status', 'conflict');
     // The float32 at 40001 occupies 40001-40002, and 40002 is a conflict, so the
@@ -1326,6 +1328,7 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: '2' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     expect(screen.getByTestId('source-summary-ready-count')).toHaveTextContent('2');
 
@@ -1602,6 +1605,7 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: '40001' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     const conflictQueue = screen.getByTestId('source-conflict-queue');
     const conflictItem = within(conflictQueue).getByTestId('conflict-item-40003');
@@ -1715,6 +1719,7 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: '40001' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     const conflictItem = screen.getByTestId('conflict-item-40003');
     fireEvent.click(
@@ -1824,6 +1829,7 @@ describe('DatalinkWorkbench source step', () => {
       target: { value: '1' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
+    fireEvent.click(screen.getByTestId('source-desk-tab-inspect'));
 
     // 40003 is conflict, but 40001 and 40002 are planned and safe
     expect(screen.getByTestId('address-cell-40003')).toHaveAttribute('data-status', 'conflict');
