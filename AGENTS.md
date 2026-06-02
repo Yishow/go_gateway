@@ -33,7 +33,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 專案目標：工業資料採集閘道，從 PLC 協議讀取資料，經 Datalink 映射後輸出到資料儲存或訊息系統，並提供嵌入式 Web UI。
 - 技術棧：後端為 Go 1.25.x（目前 `go.mod` 為 1.25.5）+ Gin；前端為 React 19 + TypeScript 5 + Vite 7。
 - 部署型態：以單一可執行檔整合 API 與嵌入式前端，主要入口是 `cmd/test_ui`；前端 build 產物會嵌入 `cmd/test_ui/static`。
-- 產品主線：`/studio` 是目前 datalink 主產品入口；舊 datalink legacy routes 應收斂 redirect 到 `/studio`，工程測試工具則統一收斂到 `/test`。
+- 產品主線：`/studio/v2` 是目前 datalink 面向使用者的預設入口；`/studio` 保留為既有完整工作台 fallback，舊 datalink generic landing routes 應收斂 redirect 到 `/studio/v2`，工程測試工具則統一收斂到 `/test`。
 - 目前輸出主線以 Local Modbus 與 Database 為主，其中 Database output 正式支援 `SQLite` 與 `PostgreSQL`。
 
 ## 文件閱讀要求（強制）
@@ -149,37 +149,3 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 近期提交慣例為簡短、祈使語氣的繁中主旨（例：`修正...`、`完成...`、`補齊...`）。
 - 每個 commit 聚焦單一主題，並將對應測試一併提交。
 - PR 請附：變更摘要、影響模組、測試證據（例如 `go test ./...`、`npm run test`）、相關 OpenSpec 連結；前端變更需附截圖。
-
-## 前端 UI/UX 專案目標
-- `/studio` 是 datalink 主產品介面，設計與重構都要優先對齊單人操作情境。
-- `Studio` 內的四步驟主流程是唯一主線：
-  1. `device`：建立 / 編輯資料來源，並分開呈現 `connect` / `probe` 診斷。
-  2. `source`：建立或還原 `Source Rule`，在格狀畫布查看 `planned / used / unmanaged / conflict` 狀態與即時值。
-  3. `tag`：以 review-first 方式檢查系統自動建立的 Tag / Mapping；手動 create / existing / unbind 屬於例外處理工具，不是主心智模型。
-  4. `output`：直接在 Local Modbus register 或 Database schema / column 表面上綁定輸出。
-- `TestPage` 是專用工程測試工具；其核心用途與操作行為應保持穩定，僅做 UI 風格一致化，不作產品主流程承載。
-- 前端改版與 cleanup 時，應優先盤查並清除舊 datalink legacy 結構、舊 redirect、未引用元件與過時設計，避免新主線旁再殘留第二套產品入口。
-
-## 文件化工作流
-- 多步驟 UI / UX、架構整理或大型重構任務，預設採 SKILL `planning-with-files` 工作法。
-- 專案根目錄需維持 `task_plan.md`、`findings.md`、`progress.md` 三份文件，分別記錄階段計畫、關鍵發現與執行 / 驗證過程。
-- 開始執行前先做 session catchup；每完成一個 phase，要同步更新計畫狀態、測試結果、修改檔案與錯誤紀錄。
-- 重要發現、legacy 清單、風險與失敗嘗試不得只留在對話上下文，必須寫入文件以利續作。
-- 若任務涉及 `/studio`、`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 或 `docs/technical/studio-surface-inventory/`，接手時先讀 `docs/technical/studio-surface-inventory/START_HERE.md`、`docs/technical/studio-surface-inventory/context.json`、`docs/technical/studio-surface-inventory/CURRENT_STATE.md`，不足時才展開其他 inventory 文件。
-- 只要修改 `docs/technical/studio-surface-inventory/` 內任何 md/html/js/css 文件，必須同步寫入 `docs/technical/studio-surface-inventory/changelog.sqlite`；不得只改文件不留 changelog。
-- `studio-surface-inventory` 的 changelog 寫入工具是 `go run ./cmd/studio_inventory_changelog ...`；至少要記錄 `summary`、`surface`、`files` 與變更原因。
-
-## Worktree 多版本實作規範（強制）
-- 當需求包含「平行版本比較 / A-B / 2+ 變體」時，Agent 必須使用 git worktree，不得在主工作樹混做。
-- 預設 worktree 目錄為 `.worktrees/`；若不存在先建立。
-- 建立 worktree 前必須驗證忽略規則；若未忽略，先更新 `.gitignore` 讓 `.worktrees/` 被忽略。
-- 分支命名採 `exp/<topic>-v1`、`exp/<topic>-v2`、`exp/<topic>-v3`。
-- 路徑命名採 `.worktrees/<topic>-v1`、`.worktrees/<topic>-v2`、`.worktrees/<topic>-v3`。
-- 每個版本必須使用不同啟動埠，避免 dev server 與 API 衝突。
-- Agent 回報時必須列出：worktree 路徑、分支名稱、啟動命令、對應 URL。
-- 比較完成後，保留勝出版；其餘版本使用 `git worktree remove` 清理。
-
-## OpenSpec 與 Agent 工作注意事項
-- 依規劃 phase 與步驟執行，不可跳步或僅交付最小可動版本。
-- 先看現行規格 `openspec/specs/`，再處理 `openspec/changes/` 中與本次變更相關的 proposal / tasks。
-- 規格導向工作需同步更新 `openspec/changes/.../tasks.md` 的實作進度；若實作與 spec 衝突，先回報差異，不要自行改寫需求。

@@ -11,19 +11,19 @@
 ## 目前產品決策
 
 1. `/studio`
-   - 完整版主線。
+   - 既有完整版工作台。
    - 需求面應可全面覆蓋。
-   - 目前先暫停，不列為近期施作重點。
+   - 目前保留為 fallback，不列為近期施作重點。
 2. `/studio/v2`
    - 面向使用者的簡化入口。
    - 要簡單、有指引、容易觀察。
-   - 這是近期重點施作線，也是服務預設入口方向。
+   - 這是近期重點施作線，也是目前服務預設入口。
 3. `/studio/runtime`
    - 跟著 `/studio/v2` 一起看。
    - 定位是 post-setup focused monitor，不是 fleet-first dashboard。
 4. `/test`
-   - 工程測試工具。
-   - 先暫停，但要完整記錄。
+   - 獨立工程測試工具入口。
+   - 不承載產品主流程，但要維持可用與完整記錄。
 5. `/gateway/*`
    - experimental / prototype surfaces。
    - 保留紀錄，不列入主產品優先線。
@@ -80,6 +80,8 @@ go run ./cmd/studio_inventory_changelog add \
 
 ## 目前最該記住的事
 
-- `/studio/v2` 是重點線，`/studio` 與 `/test` 目前都不是。
+- `/studio/v2` 是目前預設入口與重點線。
+- `/test` 是獨立工程測試工具，不是產品主流程。
+- `/studio` 保留為 fallback，不是近期主線。
 - `studio-surface-inventory` 不只是 route 清單，而是行為、API、狀態與缺口的維護台帳。
 - 接手時不要先掃全量 md；先看 `START_HERE.md`、`context.json`、`CURRENT_STATE.md`。

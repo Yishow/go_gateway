@@ -1,25 +1,25 @@
 # Studio Surface Inventory: Current State
 
-Last updated: `2026-05-29`
+Last updated: `2026-06-02`
 
 ## One-screen Summary
 
 - `/studio`
-  - 完整版主線。
-  - 目前先暫停。
+  - 既有完整版工作台。
+  - 目前保留為 fallback。
   - 不要把近期工作重新拉回 `/studio` 首頁重整，除非使用者明確要求。
 - `/studio/v2`
   - 目前主重點。
   - 目標是面向使用者、簡單、有指引、好觀察。
-  - 產品決策已定為直接切到 `/studio/v2` 預設入口。
+  - `/`、unknown routes 與 generic `/datalink` landing 已收斂到 `/studio/v2`。
   - 下一步重點是把多台設備送出真正接上後端。
 - `/studio/runtime`
   - 追隨 `/studio/v2`。
   - 角色是 post-setup focused monitor，不是獨立 fleet-first dashboard。
   - 還需要承接 V2 的多台設備送出結果。
 - `/test`
-  - 工程工具。
-  - 目前先暫停，只保留記錄。
+  - 獨立工程測試工具入口。
+  - legacy `/templates`、`/history`、`/compare`、`/analyzer` 已收斂到 `/test`。
 - `/gateway/*`
   - experimental surfaces。
   - 目前不是產品主線。
@@ -37,6 +37,10 @@ Last updated: `2026-05-29`
    - 任務若涉及 `studio` surfaces / `studio-surface-inventory`
    - 先讀 onboarding 入口
    - 不要一開始就掃完整 md/html
+4. 目前實作已確認：
+   - `frontend/src/App.tsx` 的 `/` 會 redirect 到 `/studio/v2`
+   - unknown routes fallback 也會回到 `/studio/v2`
+   - `/test` 維持獨立頁而非掛回產品主流程
 
 ## Read This First Next Time
 
@@ -70,7 +74,8 @@ Last updated: `2026-05-29`
 ## What Not To Re-Do
 
 - 不要每次重新盤點全部 surface 與全部 API。
-- 不要把 `/studio`、`/test`、`/gateway/*` 當成這一輪優先實作線，除非使用者改變方向。
+- 不要把 `/studio` 或 `/gateway/*` 當成這一輪優先實作線，除非使用者改變方向。
+- 不要把 `/test` 誤當成產品主流程；它是獨立工程測試工具。
 - 不要只改 inventory 文件而不寫 changelog。
 - 不要直接跳進完整 HTML/長文檔，先用 onboarding 入口縮小範圍。
 
@@ -78,7 +83,7 @@ Last updated: `2026-05-29`
 
 最可能的下一批工作仍是：
 
-1. `/studio/v2` 直接預設入口與多台設備送出契約
+1. `/studio/v2` 多台設備送出契約真正持久化到後端
 2. `/studio/runtime` 多台設備交接與 lifecycle contract
 3. inventory 文件持續和實作同步
 

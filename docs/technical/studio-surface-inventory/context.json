@@ -6,7 +6,9 @@
     "/studio/runtime"
   ],
   "paused_surfaces": [
-    "/studio",
+    "/studio"
+  ],
+  "tool_surfaces": [
     "/test"
   ],
   "experimental_surfaces": [
@@ -14,10 +16,11 @@
   ],
   "surface_strategy": {
     "/studio": {
-      "role": "full-product-mainline",
+      "role": "full-product-workbench-fallback",
       "status": "paused",
       "notes": [
         "功能面應全面覆蓋需求",
+        "目前保留為 fallback",
         "本輪不列為重點施作"
       ]
     },
@@ -28,7 +31,7 @@
         "面向使用者",
         "簡單、有指引、容易觀察",
         "是近期主要施作線",
-        "產品入口決策已定為直接切到 /studio/v2"
+        "目前已作為直接預設入口"
       ]
     },
     "/studio/runtime": {
@@ -42,9 +45,10 @@
     },
     "/test": {
       "role": "engineering-tooling",
-      "status": "paused",
+      "status": "tool",
       "notes": [
-        "先暫停",
+        "獨立工程測試工具入口",
+        "不承載產品主流程",
         "維持完整記錄供後續整理"
       ]
     },
@@ -75,7 +79,6 @@
     "test_connect": "/test/connect"
   },
   "known_gaps": [
-    "router 預設入口仍未直接切到 /studio/v2",
     "/studio/v2 commit 仍未接上可持久化的多台設備後端契約",
     "/studio/runtime 尚未接住 /studio/v2 的多台設備交接",
     "/studio/runtime lifecycle semantics 仍需持續收斂",

@@ -49,7 +49,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 專案目標：工業資料採集閘道，從 PLC 協議讀取資料，經 Datalink 映射後輸出到資料儲存 / 訊息系統。
 - 後端：Go 1.25.x（目前 `go.mod` 為 1.25.5）+ Gin；前端：React 19 + TypeScript 5 + Vite 7。
 - 部署型態：單一可執行檔整合 API 與嵌入式前端，主要入口為 `cmd/test_ui`。
-- 前端主線入口：`/studio`；舊 datalink legacy routes 應收斂 redirect 到 `/studio`，工程測試工具集中於 `/test`。
+- 前端主線入口：`/studio/v2`；`/studio` 保留為既有完整工作台 fallback，舊 datalink generic landing routes 應收斂 redirect 到 `/studio/v2`，工程測試工具集中於 `/test`。
 - Database output 正式支援 `SQLite` 與 `PostgreSQL`。
 
 ## 關鍵目錄（AI 常用）
@@ -157,13 +157,10 @@ make check-lines
 - 禁止把 secrets 寫入任何版本化檔案或 commit message。
 - 禁止在未對齊 OpenSpec 的情況下自行改寫需求語意。
 - 禁止把 lint 警告、未使用 import 或 dead code 直接合入主分支。
-- 禁止新增與 `/studio` 平行的產品主入口；legacy 路由應收斂為 redirect。
 - 禁止以手刻字串 SQL 或繞過 service/repository abstraction 快速上線功能。
 
 ## 其他 Repo 特定規則
-- `/studio` 是 datalink 主產品唯一主線；`/test` 是工程工具專區。
 - `cmd/test_ui` 為單一可執行檔入口，前端資產嵌入 `cmd/test_ui/static`。
-- 多步驟任務預設使用 `planning-with-files`，持續維護 `task_plan.md`、`findings.md`、`progress.md`。
 - 若任務涉及 `/studio`、`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 或 `docs/technical/studio-surface-inventory/`，先讀 `docs/technical/studio-surface-inventory/START_HERE.md`、`docs/technical/studio-surface-inventory/context.json`、`docs/technical/studio-surface-inventory/CURRENT_STATE.md`，只在不足以回答問題時再展開完整 md/html 文件。
 - 只要修改 `docs/technical/studio-surface-inventory/` 內任何文件，必須同步寫入 `docs/technical/studio-surface-inventory/changelog.sqlite`，避免 inventory 在沒有明確紀錄下被悄悄改動。
 - `studio-surface-inventory` changelog 一律使用 `go run ./cmd/studio_inventory_changelog ...` 管理；至少要留下 `summary`、`surface`、`files`、`reason`。
@@ -181,11 +178,10 @@ make check-lines
   - `.githooks/pre-commit`（可用 `git config core.hooksPath .githooks` 啟用）
 
 ## AI 實作流程（必遵守）
-1. **Context Check**：先讀 `AGENTS.md`、對應 `.github/instructions/` 與相關 `openspec/specs/*/spec.md`。
-2. **Plan by Phase**：明確本次 phase、輸入、輸出、驗收條件；多步驟任務同步維護 `task_plan.md`、`findings.md`、`progress.md`。
-3. **Implement Fully**：不可跳步、不可僅交付最小可動；需完成錯誤處理與邊界條件。
-4. **Validate**：執行受影響範圍測試與 lint；未執行項必須明確說明風險。
-5. **Report**：回報修改檔案、驗證結果、風險與後續建議。
+1. **Context Check**：先讀 `AGENTS.md`、對應 `.github/instructions/`。
+2. **Implement Fully**：不可跳步、不可僅交付最小可動；需完成錯誤處理與邊界條件。
+3. **Validate**：執行受影響範圍測試與 lint；未執行項必須明確說明風險。
+4. **Report**：回報修改檔案、驗證結果、風險與後續建議。
 
 ## 文件與規範優先順序
 1. `AGENTS.md`
@@ -194,44 +190,6 @@ make check-lines
    Agent 執行邊界、架構脈絡、工作方式與 repo 特定注意事項。
 3. `.github/instructions/*.md`
    依檔案類型套用的語言與框架實作規範。
-
-## 開發路徑指引
-### 新增協議適配器
-1. 在 `internal/protocol/<protocol>/` 實作 client / transport / frame（視需求）。
-2. 在 `internal/datalink/connector/adapters/` 增加對應 adapter。
-3. 在 `internal/datalink/connector/registry.go` 註冊協議。
-4. 補上單元與整合測試（連線、讀寫、錯誤路徑）。
-
-### 新增 API 能力
-1. 在 `internal/api/handlers/` 新增 handler。
-2. 於 `internal/api/router.go` 掛載路由。
-3. 在 `internal/datalink/<module>/` 補 service / repo。
-4. 若影響契約，更新 OpenSpec 與 Swagger。
-
-### 前端擴充
-1. 型別優先更新 `frontend/src/types/`。
-2. API 呼叫集中於 `frontend/src/services/`。
-3. 伺服器狀態使用 React Query hooks（`frontend/src/hooks/datalink/`）。
-4. 使用者文字走 i18n 字典（`frontend/src/i18n/locales/`）。
-
-## 前端 UI / UX 主線提醒
-- `/studio` 是 datalink 主產品介面；`device -> source -> tag -> output` 四步驟是唯一主流程。
-- Step 1 要明確區分 `connect` / `probe` 診斷。
-- Step 2 的主角是 Source Rule 與格狀畫布，不是舊頁面式工作台。
-- Step 3 以 review-first 為主，手動 create / existing / unbind 是例外處理。
-- Step 4 以直接在 Local Modbus / Database 表面上綁定為主，不維持舊 datalink 平行心智模型。
-- `TestPage` 是工程工具，不是產品主流程承載。
-
-## OpenSpec 規格流程（必對齊）
-- 先看現行 spec：`openspec/specs/`。
-- 規格導向實作時，必須同步更新 `openspec/changes/.../tasks.md`。
-- 新功能 / 架構變更需提案；完成後歸檔至 `openspec/changes/archive/`。
-- 實作與驗收衝突時，以 spec 與 tasks 為準並先回報差異。
-
-## 文件化工作流
-- 多步驟 UI / UX、架構整理或大型重構任務，預設採 `planning-with-files`。
-- 專案根目錄需維持 `task_plan.md`、`findings.md`、`progress.md` 三份文件。
-- 開始前先做 session catchup；完成每個 phase 後同步更新計畫狀態、關鍵發現、驗證結果與錯誤紀錄。
 
 ## 文件維護規則
 - 通用規範調整：改 `AGENTS.md`。
