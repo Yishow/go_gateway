@@ -188,7 +188,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col" data-testid="workbench-v2-shell">
+    <div className="wbv2-shell min-h-screen flex flex-col" data-testid="workbench-v2-shell">
       {/* 1. 頂部列 */}
       <TopBar
         sidebarCollapsed={sidebarCollapsed}
@@ -199,7 +199,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
       />
 
       {/* 主體區域 */}
-      <div className="flex-1 flex gap-5 px-5 lg:px-7 py-5">
+      <div className="wbv2-workspace flex-1 flex gap-5 px-4 sm:px-5 lg:px-7 py-5">
         {/* 2. 左側步驟導航列 */}
         <aside
           className="min-w-0 overflow-hidden transition-all duration-200"
@@ -219,7 +219,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             />
 
             {!sidebarCollapsed && view === 'flow' && (
-              <div className="rounded-xl border border-slate-700/40 bg-slate-900/30 p-3 sweep-in">
+              <div className="wbv2-flow-note rounded-xl border border-slate-700/40 bg-slate-900/30 p-3 sweep-in">
                 <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">
                   本流程
                 </div>

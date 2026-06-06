@@ -6,11 +6,16 @@
  */
 
 [data-workbench-v2] {
-  --wbv2-bg: #0b1220;
-  --wbv2-success: #10b981;
-  --wbv2-primary: #3b82f6;
+  --wbv2-bg: #08111d;
+  --wbv2-panel: rgba(15, 23, 42, 0.72);
+  --wbv2-panel-strong: rgba(15, 23, 42, 0.88);
+  --wbv2-border: rgba(125, 211, 252, 0.14);
+  --wbv2-success: #34d399;
+  --wbv2-primary: #22d3ee;
 
   color-scheme: dark;
+  font-variant-numeric: tabular-nums;
+  text-rendering: geometricPrecision;
 
   /* 微動效 class */
   & .pulse-dot {
@@ -35,9 +40,121 @@
   /* 畫布與格線 */
   &.bg-canvas, & .bg-canvas {
     background:
-      radial-gradient(1200px 600px at 20% -10%, rgba(59, 130, 246, 0.08), transparent 60%),
-      radial-gradient(900px 500px at 100% 110%, rgba(16, 185, 129, 0.05), transparent 55%),
-      #0b1220;
+      radial-gradient(900px 460px at 12% -8%, rgba(34, 211, 238, 0.09), transparent 58%),
+      radial-gradient(760px 420px at 100% 108%, rgba(52, 211, 153, 0.055), transparent 58%),
+      linear-gradient(180deg, #08111d 0%, #0b1220 46%, #07101a 100%);
+  }
+
+  &.bg-canvas::before,
+  & .bg-canvas::before,
+  &.wbv2-bootstrap-state::before {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    opacity: 0.16;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(to bottom, black, transparent 82%);
+  }
+
+  & .wbv2-shell {
+    isolation: isolate;
+  }
+
+  & .wbv2-topbar {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.035) inset,
+      0 14px 40px rgba(2, 8, 23, 0.18);
+  }
+
+  & .wbv2-brand-mark {
+    background:
+      linear-gradient(180deg, rgba(34, 211, 238, 0.14), rgba(15, 23, 42, 0.72)),
+      rgba(8, 17, 29, 0.88);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 12px 24px rgba(8, 145, 178, 0.12);
+  }
+
+  & .wbv2-status-pill {
+    min-height: 2rem;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 0.625rem;
+    background: rgba(15, 23, 42, 0.58);
+    padding: 0 0.625rem;
+  }
+
+  & .wbv2-workspace {
+    position: relative;
+    z-index: 1;
+  }
+
+  & .wbv2-flow-note,
+  & .wbv2-surface {
+    border-color: var(--wbv2-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 42%),
+      var(--wbv2-panel);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 18px 44px rgba(2, 8, 23, 0.22);
+  }
+
+  &.wbv2-bootstrap-state,
+  & .wbv2-bootstrap-state {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+
+  & .wbv2-bootstrap-shell {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 760px);
+    border: 1px solid var(--wbv2-border);
+    border-radius: 1.25rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 38%),
+      var(--wbv2-panel-strong);
+    padding: clamp(1.25rem, 4vw, 2rem);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 24px 70px rgba(2, 8, 23, 0.36);
+  }
+
+  & .wbv2-bootstrap-mark {
+    display: inline-flex;
+    min-width: 4rem;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.24);
+    border-radius: 0.75rem;
+    background: rgba(8, 145, 178, 0.12);
+    padding: 0.55rem 0.7rem;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgb(165, 243, 252);
+  }
+
+  & .wbv2-bootstrap-mark.is-error {
+    border-color: rgba(251, 113, 133, 0.28);
+    background: rgba(244, 63, 94, 0.12);
+    color: rgb(255, 205, 214);
+  }
+
+  & .wbv2-skeleton-line {
+    height: 0.5rem;
+    border-radius: 9999px;
+    background:
+      linear-gradient(90deg, rgba(148, 163, 184, 0.08), rgba(34, 211, 238, 0.2), rgba(148, 163, 184, 0.08));
+    background-size: 220% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
   }
 
   & .bg-grid {

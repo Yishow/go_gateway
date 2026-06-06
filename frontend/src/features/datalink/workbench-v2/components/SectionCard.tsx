@@ -27,10 +27,13 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   contentClassName = '',
 }) => {
   const showHeader = !!title || !!aside;
+  const titleId = React.useId();
 
   return (
     <section
-      className={`rounded-2xl border border-slate-700/60 bg-slate-900/60 backdrop-blur-sm shadow-xl shadow-black/30 ${className}`}
+      role={title ? 'region' : undefined}
+      aria-labelledby={title ? titleId : undefined}
+      className={`wbv2-surface rounded-2xl border border-slate-700/60 bg-slate-900/60 backdrop-blur-sm shadow-xl shadow-black/30 ${className}`}
     >
       {showHeader && (
         <header className="flex items-start justify-between gap-4 border-b border-slate-700/60 px-5 py-4">
@@ -42,7 +45,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
             )}
             <div>
               {title && (
-                <h3 className="text-sm font-semibold text-slate-100 leading-tight">
+                <h3 id={titleId} className="text-sm font-semibold text-slate-100 leading-tight">
                   {title}
                 </h3>
               )}

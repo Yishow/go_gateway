@@ -39,6 +39,9 @@ export const StepRail: React.FC<StepRailProps> = ({
   onJump,
   onSwitchView,
 }) => {
+  const focusClass =
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
+
   return (
     <nav className="flex flex-col gap-1 w-full">
       {!collapsed && (
@@ -59,7 +62,7 @@ export const StepRail: React.FC<StepRailProps> = ({
             disabled={!isReachable}
             title={collapsed ? s.title : undefined}
             data-testid={`step-nav-button-${s.id}`}
-            className={`relative flex items-center gap-3 rounded-xl border text-left transition-all w-full focus:outline-none ${
+            className={`relative flex items-center gap-3 rounded-xl border text-left transition-all duration-200 active:scale-[0.99] w-full ${focusClass} ${
               collapsed ? 'p-1.5 justify-center' : 'px-3 py-2.5'
             } ${
               isCurrent
@@ -124,7 +127,7 @@ export const StepRail: React.FC<StepRailProps> = ({
         onClick={() => onSwitchView('settings')}
         title={collapsed ? '設定' : undefined}
         data-testid="settings-nav-button"
-        className={`relative flex items-center gap-3 rounded-xl border text-left transition-all w-full focus:outline-none ${
+        className={`relative flex items-center gap-3 rounded-xl border text-left transition-all duration-200 active:scale-[0.99] w-full ${focusClass} ${
           collapsed ? 'p-1.5 justify-center' : 'px-3 py-2.5'
         } ${
           view === 'settings'

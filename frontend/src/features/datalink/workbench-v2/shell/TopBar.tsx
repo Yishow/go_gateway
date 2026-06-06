@@ -27,12 +27,12 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isRunning = scheduler === 'running';
 
   return (
-    <header className="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-30">
-      <div className="px-5 lg:px-7 py-3 flex items-center gap-4">
+    <header className="wbv2-topbar border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-30">
+      <div className="px-4 sm:px-5 lg:px-7 py-3 flex items-center gap-3 lg:gap-4">
         {/* 收合按鈕 */}
         <button
           onClick={onToggleSidebar}
-          className="grid place-items-center w-8 h-8 rounded-lg border border-slate-700/60 text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-colors"
+          className="grid place-items-center w-8 h-8 rounded-lg border border-slate-700/60 text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           title={sidebarCollapsed ? '展開側邊欄 (⌘B)' : '收合側邊欄 (⌘B)'}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-4 h-4">
@@ -44,8 +44,8 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* 品牌標識 */}
         <div className="flex items-center gap-2.5">
-          <div className="grid place-items-center w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/30 to-emerald-500/20 border border-blue-500/30">
-            <Icon name="bolt" className="w-4 h-4 text-blue-300" />
+          <div className="wbv2-brand-mark grid place-items-center w-9 h-9 rounded-lg border border-cyan-300/30">
+            <Icon name="bolt" className="w-4 h-4 text-cyan-200" />
           </div>
           <div>
             <div className="text-sm font-semibold tracking-tight text-slate-100 leading-tight">Datalink Workbench</div>
@@ -66,14 +66,14 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* 右側按鈕與排程狀態 */}
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="sm" icon={<Icon name="save" className="w-3.5 h-3.5" />}>
+          <Button variant="ghost" size="sm" icon={<Icon name="save" className="w-3.5 h-3.5" />} className="hidden sm:inline-flex">
             儲存草稿
           </Button>
-          <Button variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" className="hidden md:inline-flex">
             取消
           </Button>
-          <div className="h-6 w-px bg-slate-700/60 mx-1" />
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="hidden sm:block h-6 w-px bg-slate-700/60 mx-1" />
+          <div className="wbv2-status-pill flex items-center gap-1.5 text-xs text-slate-400">
             <span
               className={`w-1.5 h-1.5 rounded-full ${
                 isRunning 
@@ -93,4 +93,3 @@ export const TopBar: React.FC<TopBarProps> = ({
     </header>
   );
 };
-

@@ -21,7 +21,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const base =
-    'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100';
   
   const sizes = {
     sm: 'px-2.5 py-1.5 text-xs',
@@ -30,11 +30,11 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20',
-    secondary: 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700/60',
-    ghost: 'text-slate-300 hover:bg-slate-800/70',
-    danger: 'bg-red-600 text-white hover:bg-red-500',
-    success: 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/20',
+    primary: 'bg-cyan-400 text-slate-950 hover:bg-cyan-300 shadow-[0_14px_34px_rgba(34,211,238,0.18)]',
+    secondary: 'bg-slate-900/80 text-slate-200 hover:bg-slate-800 border border-slate-700/60 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]',
+    ghost: 'text-slate-300 hover:bg-slate-800/70 hover:text-slate-50',
+    danger: 'bg-rose-600 text-white hover:bg-rose-500 shadow-[0_14px_34px_rgba(244,63,94,0.14)]',
+    success: 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-[0_14px_34px_rgba(16,185,129,0.16)]',
   };
 
   return (
