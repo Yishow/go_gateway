@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -65,6 +67,51 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpdateConfig(c *gin.Context) {
 	payload := buildWorkspaceDatabaseConfigResponse(record.ID, savedConnector)
 	payload.RuntimeApplyStatus, payload.RuntimeApplyMessage = resolveStudioV2WorkspaceRuntimeApplyStatus(c.Request.Context(), h.deviceSvc, record.OrderedDeviceIDs)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+}
+
+func (h *StudioV2WorkspaceDatabaseHandler) GenerateSchema(c *gin.Context) {
+	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
+	if err != nil {
+		renderStudioV2WorkspaceBootstrapError(c)
+		return
+	}
+	connectorID := strings.TrimSpace(record.DatabaseConnectorID)
+	if connectorID == "" {
+		renderStudioV2WorkspaceValidationError(c, errors.New("workspace database config not found"))
+		return
+	}
+
+	var req dbtarget.SchemaGenerateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		renderStudioV2WorkspaceValidationError(c, err)
+		return
+	}
+
+	result, err := h.connectorSvc.GenerateSchema(c.Request.Context(), connectorID, req)
+	if err != nil {
+		renderStudioV2WorkspaceDatabaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+// EnsureWorkspaceSchema 確保 workspace 已綁定的 database connector 的目標資料表存在。
+// 若 workspace 尚未設定 database（無 connector），視為無需建表並回 nil。
+// 用於 activation 前的保險步驟，實作 workspaceSchemaEnsurer 介面。
+func (h *StudioV2WorkspaceDatabaseHandler) EnsureWorkspaceSchema(ctx context.Context) error {
+	record, err := h.workspaceSvc.GetOrCreate(ctx)
+	if err != nil {
+		return err
+	}
+	connectorID := strings.TrimSpace(record.DatabaseConnectorID)
+	if connectorID == "" {
+		return nil
+	}
+	if _, err := h.connectorSvc.GenerateSchema(ctx, connectorID, dbtarget.SchemaGenerateRequest{DryRun: false}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (h *StudioV2WorkspaceDatabaseHandler) ListTargets(c *gin.Context) {
@@ -143,6 +190,8 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 			TimestampColumn:      workspaceOptionalString(connectorConfigString(connector, "timestamp_column")),
 			WriteIntervalSeconds: workspaceOptionalInt(connector.DefaultWriteIntervalSeconds),
 			Enabled:              boolPtr(req.Enabled),
+			// 允許在目標表/欄位尚未建立時先儲存，稍後由建表流程補建。
+			AllowMissingTable: true,
 		})
 	} else {
 		savedRow, err = h.mappingSvc.Update(c.Request.Context(), rows[0].ID, dbtarget.UpdateTargetMappingRequest{
@@ -153,6 +202,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 			TimestampColumn:      workspaceOptionalString(connectorConfigString(connector, "timestamp_column")),
 			WriteIntervalSeconds: workspaceOptionalInt(connector.DefaultWriteIntervalSeconds),
 			Enabled:              boolPtr(req.Enabled),
+			AllowMissingTable:    true,
 		})
 	}
 	if err != nil {

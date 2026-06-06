@@ -2,10 +2,12 @@ package dbtarget
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/tag"
 )
 
 type tableKey struct {
@@ -37,6 +39,24 @@ func (s *ConnectorService) GenerateSchema(
 	if err != nil {
 		return nil, fmt.Errorf("列出資料庫目標映射失敗: %w", err)
 	}
+	enabledMappings := make([]*schema.DatabaseTargetMapping, 0, len(mappings))
+	for _, mappingRecord := range mappings {
+		if mappingRecord == nil || !mappingRecord.Enabled {
+			continue
+		}
+		enabledMappings = append(enabledMappings, mappingRecord)
+	}
+
+	result := &SchemaGenerateResult{
+		ConnectorID: connector.ID,
+		DryRun:      req.DryRun,
+		Statements:  []string{},
+		Executed:    0,
+	}
+	if len(enabledMappings) == 0 {
+		return result, nil
+	}
+
 	tables, err := inspectTables(ctx, connector)
 	if err != nil {
 		return nil, fmt.Errorf("檢查資料庫目標表結構失敗: %w", err)
@@ -45,7 +65,7 @@ func (s *ConnectorService) GenerateSchema(
 	statements, err := buildSchemaGenerateStatements(
 		ctx,
 		connector.Kind,
-		mappings,
+		enabledMappings,
 		tables,
 		s.connectorTagReader(),
 	)
@@ -53,12 +73,7 @@ func (s *ConnectorService) GenerateSchema(
 		return nil, err
 	}
 
-	result := &SchemaGenerateResult{
-		ConnectorID: connector.ID,
-		DryRun:      req.DryRun,
-		Statements:  statements,
-		Executed:    0,
-	}
+	result.Statements = statements
 	if req.DryRun || len(statements) == 0 {
 		return result, nil
 	}
@@ -219,6 +234,9 @@ func buildSchemaGenerateStatements(
 		if mappingRecord == nil {
 			continue
 		}
+		if !mappingRecord.Enabled {
+			continue
+		}
 		tableName := strings.TrimSpace(mappingRecord.TableName)
 		columnName := strings.TrimSpace(mappingRecord.ColumnName)
 		if tableName == "" || columnName == "" {
@@ -232,6 +250,9 @@ func buildSchemaGenerateStatements(
 
 		valueColumnType, resolveErr := resolveMappingColumnType(ctx, tagReader, mappingRecord.TagID, kind)
 		if resolveErr != nil {
+			if errors.Is(resolveErr, tag.ErrTagNotFound) {
+				continue
+			}
 			return nil, resolveErr
 		}
 

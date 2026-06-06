@@ -19,9 +19,12 @@
 ### 核心事實
 
 - 已有完整 shell、四步驟、settings、summary rail、Step 4 handoff。
-- 大多數資料仍存在 `useWorkbenchV2State()` reducer 中。
-- `commit` 目前是前端模擬流程，不是正式的 backend persisted lifecycle。
-- 產品決策已定為直接把服務預設入口切到 `/studio/v2`，但目前 router 預設仍不是它。
+- 各步驟皆已透過 autosave 持久化至後端 workspace endpoint（devices / source-rules / mappings / database-config / database-targets）；reducer 僅作 UI 狀態。
+- `commit` 已是真實的 backend persisted lifecycle：Step 4 走 `POST /studio-v2/workspace/activate`（真 probe、改 device active、灌進 scheduler 採集）。`commitLog.ts` / `dbReducer` 的舊模擬序列為 dead code，未被使用。
+- Step 4 database-config 已支援 **DB 密碼**（端到端傳遞，更新留空則保留既有密碼）。
+- 已支援 **自動建立目標資料表**：手動「建立資料表」按鈕（dry-run 預覽 + 執行，`POST /studio-v2/workspace/database-schema/generate`）＋ activate 時後端自動 ensure 保險。
+- `UpsertTarget` 在目標表/欄位尚未建立時改為 degraded 放行（`AllowMissingTable`），由建表流程補建，解開「先綁 target 才能建表 / 先建表才能綁 target」死結。
+- 產品決策已定為直接把服務預設入口切到 `/studio/v2`。
 - `commit` 的正式方向已定為多台設備；現有 handoff 與 runtime route 仍偏單台心智。
 
 ## V2 的產品要求
@@ -39,7 +42,7 @@
 | Step 1 Device | 編輯設備草稿、跑 staged test、看 connect/probe 階段 | local reducer state | 無正式 datalink API | `frontend-local-only` |
 | Step 2 Rule | 依設備編輯規則、生成 points 視圖 | local reducer state | 無 | `frontend-local-only` |
 | Step 3 Mapping | 調整 mapping / transform | local reducer state | 無 | `frontend-local-only` |
-| Step 4 Database | 調整 DB target、送出多台設備設定、看 commit progress | local reducer + `buildCommitLogSequence()` | 目前僅模擬 endpoint label | `frontend-local-only` |
+| Step 4 Database | 調整 DB target（含 DB 密碼）、建立資料表、送出設定並啟動 | autosave PUT/POST 至 workspace endpoint | `database-config`（含 password）、`database-targets`、`database-schema/generate`、`activate` | `wired` |
 | Settings | 編輯 connector pool、scheduler、modbus-share 設定草稿 | local reducer state | 無 | `frontend-local-only` |
 | Runtime handoff | 提交成功後前往 runtime dashboard | route navigation | 無 commit API；僅單台 URL handoff | `semantics-gap` |
 

@@ -27,6 +27,7 @@ export function hydrateStudioV2DatabaseConnector(
     write_mode: record.write_mode,
     write_interval_seconds: record.write_interval_seconds,
     timestamp_column: record.timestamp_column,
+    password: undefined,
     status: record.status,
     connector_id: record.id,
     workspace_id: record.workspace_id,
@@ -78,7 +79,7 @@ export function isStudioV2DatabaseTargetValid(target: DbTarget, mapping: Mapping
 export function toStudioV2DatabaseConfigRequest(
   connector: DbConnector,
 ): StudioV2WorkspaceDatabaseConfigRequest {
-  return {
+  const request: StudioV2WorkspaceDatabaseConfigRequest = {
     kind: connector.kind,
     name: connector.name,
     host: connector.host,
@@ -91,6 +92,11 @@ export function toStudioV2DatabaseConfigRequest(
     write_interval_seconds: connector.write_interval_seconds,
     timestamp_column: connector.timestamp_column,
   };
+  // 留空表示沿用既有密碼；只有實際輸入時才送出，避免後端被覆寫成空字串。
+  if (connector.kind !== 'sqlite' && connector.password && connector.password.length > 0) {
+    request.password = connector.password;
+  }
+  return request;
 }
 
 export function toStudioV2DatabaseTargetRequest(

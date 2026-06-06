@@ -143,6 +143,7 @@ export interface DbConnector {
   port: number;
   database: string;
   username: string;
+  password?: string;
   schema: string;
   table: string;
   write_mode: 'insert' | 'upsert';

@@ -282,9 +282,21 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.GET("/studio-v2/workspace", workspaceHandler.Get)
 				datalinkGroup.GET("/studio-v2/workspace/runtime-context", runtimeHandler.WorkspaceContext)
 				if datalinkServices.Device != nil {
-					workspaceActivationHandler := handlers.NewStudioV2WorkspaceActivationHandler(
-						workspace.NewActivationService(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime),
-					)
+					activationService := workspace.NewActivationService(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime)
+					var workspaceActivationHandler *handlers.StudioV2WorkspaceActivationHandler
+					// 若 database 服務齊備，activate 前先確保目標資料表存在（冪等保險）。
+					if datalinkServices.DBTarget != nil && datalinkServices.DBMapping != nil && datalinkServices.SourceRule != nil {
+						schemaEnsurer := handlers.NewStudioV2WorkspaceDatabaseHandler(
+							datalinkServices.Workspace,
+							datalinkServices.Device,
+							datalinkServices.SourceRule,
+							datalinkServices.DBTarget,
+							datalinkServices.DBMapping,
+						)
+						workspaceActivationHandler = handlers.NewStudioV2WorkspaceActivationHandler(activationService, schemaEnsurer)
+					} else {
+						workspaceActivationHandler = handlers.NewStudioV2WorkspaceActivationHandler(activationService)
+					}
 					datalinkGroup.POST("/studio-v2/workspace/activate", workspaceActivationHandler.Activate)
 
 					workspaceDeviceHandler := handlers.NewStudioV2WorkspaceDevicesHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime)
@@ -352,6 +364,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					datalinkGroup.PUT("/studio-v2/workspace/database-config", workspaceDatabaseHandler.UpdateConfig)
 					datalinkGroup.GET("/studio-v2/workspace/database-targets", workspaceDatabaseHandler.ListTargets)
 					datalinkGroup.PUT("/studio-v2/workspace/database-targets/:point_id", workspaceDatabaseHandler.UpsertTarget)
+					datalinkGroup.POST("/studio-v2/workspace/database-schema/generate", workspaceDatabaseHandler.GenerateSchema)
 				}
 			}
 		}

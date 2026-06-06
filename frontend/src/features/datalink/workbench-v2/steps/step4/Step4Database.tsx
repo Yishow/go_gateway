@@ -71,10 +71,11 @@ export function Step4Database({
       name: defaultConn.name,
       database: defaultConn.database,
       username: defaultConn.username,
+      password: kind === 'sqlite' ? undefined : connector.password,
       schema: defaultConn.schema,
       table: defaultConn.table
     };
-    
+
     // 非 SQLite 保留使用者輸入的 Host 與 Port
     if (kind !== 'sqlite') {
       patch.host = connector.host || defaultConn.host;
@@ -136,7 +137,7 @@ export function Step4Database({
   const hasConflict = useMemo(() => {
     const counts: Record<string, number> = {};
     const visiblePoints = state.points.filter(p => p.enabled && state.mappings[p.id]);
-    
+
     visiblePoints.forEach(p => {
       const target = targets[p.id];
       if (target && target.enabled) {
@@ -151,6 +152,30 @@ export function Step4Database({
   const enabledTargetCount = useMemo(() => {
     return Object.values(targets).filter(t => t.enabled).length;
   }, [targets]);
+
+  const schemaActionsDisabled = useMemo(() => {
+    if (connector.save_state !== 'saved') {
+      return true;
+    }
+
+    return Object.values(targets).some((target) => target.save_state !== 'saved');
+  }, [connector.save_state, targets]);
+
+  const schemaPreviewSignature = useMemo(() => JSON.stringify({
+    kind: connector.kind,
+    host: connector.host,
+    port: connector.port,
+    database: connector.database,
+    username: connector.username,
+    password: connector.password ?? '',
+    schema: connector.schema,
+    table: connector.table,
+    write_mode: connector.write_mode,
+    timestamp_column: connector.timestamp_column,
+    targets: Object.entries(targets)
+      .map(([pointId, target]) => `${pointId}:${target.tag_id}:${target.column_name}:${target.enabled}`)
+      .sort(),
+  }), [connector.kind, connector.host, connector.port, connector.database, connector.username, connector.password, connector.schema, connector.table, connector.write_mode, connector.timestamp_column, targets]);
 
   const activationLogs = useMemo<CommitLog[]>(() => {
     const response = activationState.response;
@@ -203,6 +228,8 @@ export function Step4Database({
               connector={connector}
               enabledTargetCount={enabledTargetCount}
               hasConflict={hasConflict}
+              schemaActionsDisabled={schemaActionsDisabled}
+              schemaPreviewSignature={schemaPreviewSignature}
               onActivate={handleStartActivation}
             />
           ) : activationState.phase === 'activating' ? (
@@ -214,7 +241,7 @@ export function Step4Database({
             <CommitSuccessCard
               response={activationState.response ?? { workspace_id: '', results: [] }}
               canContinue={canContinueToRuntime}
-              onCommit={onCommit || (() => {})}
+              onCommit={onCommit || (() => { })}
               onReset={() => {
                 setActivationState({
                   phase: 'idle',

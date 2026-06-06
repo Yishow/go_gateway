@@ -28,10 +28,12 @@ import (
 )
 
 type workspaceDatabaseFixture struct {
-	handler  *StudioV2WorkspaceDatabaseHandler
-	ruleSvc  *sourcerule.Service
-	targetDB string
-	pointIDs []string
+	handler      *StudioV2WorkspaceDatabaseHandler
+	ruleSvc      *sourcerule.Service
+	connectorSvc *dbtarget.ConnectorService
+	workspaceSvc *workspace.Service
+	targetDB     string
+	pointIDs     []string
 }
 
 func TestStudioV2WorkspaceDatabaseHandler_SaveConfigAndOneTarget(t *testing.T) {
@@ -106,8 +108,11 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidTargetDoesNotTouchSavedRows(t *
 
 	saveValidTarget(t, fixture, fixture.pointIDs[0], "line_a")
 
+	// 空 column_name 為真正無效的請求（handler 層硬擋），不應影響既有已存列。
+	// 註：欄位「不存在」在 Studio V2 已改為放行（degraded），由建表流程補建，
+	// 因此這裡用空欄位名而非 missing_column 來測無效情境。
 	invalidReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[1], bytes.NewBufferString(`{
-		"column_name":"missing_column",
+		"column_name":"",
 		"enabled":true
 	}`))
 	invalidReq.Header.Set("Content-Type", "application/json")
@@ -119,7 +124,7 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidTargetDoesNotTouchSavedRows(t *
 	fixture.handler.UpsertTarget(invalidCtx)
 
 	require.Equal(t, http.StatusBadRequest, invalidResp.Code, invalidResp.Body.String())
-	require.Contains(t, invalidResp.Body.String(), "missing_column")
+	require.Contains(t, invalidResp.Body.String(), "column_name")
 
 	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", nil)
 	listResp := httptest.NewRecorder()
@@ -133,6 +138,139 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidTargetDoesNotTouchSavedRows(t *
 	items := listBody["data"].([]any)
 	require.Len(t, items, 1)
 	require.Equal(t, fixture.pointIDs[0], items[0].(map[string]any)["point_id"])
+}
+
+func TestStudioV2WorkspaceDatabaseHandler_PasswordPersistedAndPreservedOnUpdate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	fixture := newWorkspaceDatabaseFixture(t)
+	ctx := context.Background()
+
+	// 首次儲存帶密碼的 postgres connector（127.0.0.1:1 會立即 refused，probe 失敗但仍會儲存）。
+	updateWorkspaceDatabaseConfig(t, fixture, `{
+		"kind":"postgres",
+		"name":"Line A PG",
+		"host":"127.0.0.1",
+		"port":1,
+		"database":"gateway",
+		"username":"gw_writer",
+		"password":"s3cret-pw",
+		"schema":"public",
+		"table":"sensor_values",
+		"write_mode":"insert",
+		"write_interval_seconds":5,
+		"timestamp_column":"ts"
+	}`)
+
+	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, record.DatabaseConnectorID)
+
+	connector, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
+	require.NoError(t, err)
+	require.Contains(t, connector.ConnectionConfig, "s3cret-pw", "password 應被寫入 ConnectionConfig")
+
+	// 不帶 password 再次更新（例如只改 write interval），應保留既有密碼。
+	updateWorkspaceDatabaseConfig(t, fixture, `{
+		"kind":"postgres",
+		"name":"Line A PG",
+		"host":"127.0.0.1",
+		"port":1,
+		"database":"gateway",
+		"username":"gw_writer",
+		"schema":"public",
+		"table":"sensor_values",
+		"write_mode":"insert",
+		"write_interval_seconds":10,
+		"timestamp_column":"ts"
+	}`)
+
+	connectorAfter, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
+	require.NoError(t, err)
+	require.Contains(t, connectorAfter.ConnectionConfig, "s3cret-pw", "未帶 password 的更新應保留既有密碼")
+}
+
+func TestStudioV2WorkspaceDatabaseHandler_SwitchToSQLiteClearsPersistedPassword(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	fixture := newWorkspaceDatabaseFixture(t)
+	ctx := context.Background()
+
+	updateWorkspaceDatabaseConfig(t, fixture, `{
+		"kind":"postgres",
+		"name":"Line A PG",
+		"host":"127.0.0.1",
+		"port":1,
+		"database":"gateway",
+		"username":"gw_writer",
+		"password":"s3cret-pw",
+		"schema":"public",
+		"table":"sensor_values",
+		"write_mode":"insert",
+		"write_interval_seconds":5,
+		"timestamp_column":"ts"
+	}`)
+
+	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
+	require.NoError(t, err)
+
+	updateWorkspaceDatabaseConfig(t, fixture, `{
+		"kind":"sqlite",
+		"name":"Line A SQLite",
+		"database":"`+fixture.targetDB+`",
+		"schema":"main",
+		"table":"sensor_values",
+		"write_mode":"insert",
+		"write_interval_seconds":5,
+		"timestamp_column":"ts"
+	}`)
+
+	connectorAfter, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
+	require.NoError(t, err)
+	require.NotContains(t, connectorAfter.ConnectionConfig, "s3cret-pw", "切換到 sqlite 時應清掉既有密碼")
+}
+
+func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	fixture := newWorkspaceDatabaseFixtureEmptyTarget(t)
+	saveWorkspaceDatabaseConfig(t, fixture)
+	saveValidTarget(t, fixture, fixture.pointIDs[0], "line_a")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/database-schema/generate", bytes.NewBufferString(`{"dry_run":false}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	fixture.handler.GenerateSchema(c)
+
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	body := decodeWorkspaceDatabaseBody(t, resp)
+	data := body["data"].(map[string]any)
+	require.Greater(t, data["executed"].(float64), float64(0), "應有資料表結構被建立")
+
+	// 目標 SQLite 真的應有 sensor_values 表。
+	targetDB, err := sql.Open("sqlite", fixture.targetDB)
+	require.NoError(t, err)
+	defer targetDB.Close()
+	var name string
+	err = targetDB.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='sensor_values'`).Scan(&name)
+	require.NoError(t, err, "sensor_values 表應已被建立")
+	require.Equal(t, "sensor_values", name)
+}
+
+func updateWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture, payload string) {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(payload))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	fixture.handler.UpdateConfig(c)
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 }
 
 func decodeWorkspaceDatabaseBody(t *testing.T, resp *httptest.ResponseRecorder) map[string]any {
@@ -216,11 +354,27 @@ func newWorkspaceDatabaseFixture(t *testing.T) workspaceDatabaseFixture {
 
 	handler := NewStudioV2WorkspaceDatabaseHandler(workspaceSvc, deviceSvc, ruleSvc, dbConnectorSvc, dbMappingSvc)
 	return workspaceDatabaseFixture{
-		handler:  handler,
-		ruleSvc:  ruleSvc,
-		targetDB: targetDB,
-		pointIDs: pointIDs,
+		handler:      handler,
+		ruleSvc:      ruleSvc,
+		connectorSvc: dbConnectorSvc,
+		workspaceSvc: workspaceSvc,
+		targetDB:     targetDB,
+		pointIDs:     pointIDs,
 	}
+}
+
+func newWorkspaceDatabaseFixtureEmptyTarget(t *testing.T) workspaceDatabaseFixture {
+	t.Helper()
+
+	fixture := newWorkspaceDatabaseFixture(t)
+	// 指向一個尚未建立 sensor_values 表的空 SQLite，讓 GenerateSchema 真正建表。
+	emptyTarget := filepath.Join(t.TempDir(), "empty-target.db")
+	emptyDB, err := sql.Open("sqlite", emptyTarget)
+	require.NoError(t, err)
+	require.NoError(t, emptyDB.Ping())
+	require.NoError(t, emptyDB.Close())
+	fixture.targetDB = emptyTarget
+	return fixture
 }
 
 func saveWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture) {

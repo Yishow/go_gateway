@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -195,6 +196,177 @@ func TestConnectorService_GenerateSchema_DryRunAndExecute(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, dryRunValidation.Results, 1)
 	assert.Equal(t, "ready", dryRunValidation.Results[0].Status)
+}
+
+func TestConnectorService_GenerateSchema_IgnoresDisabledMappings(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mainDB := openMigratedTestDB(t)
+	targetDSN := filepath.Join(t.TempDir(), "target-generate-schema-disabled.db")
+
+	targetDB, err := sql.Open("sqlite", targetDSN)
+	require.NoError(t, err)
+	require.NoError(t, targetDB.Close())
+
+	tagSvc := tag.NewService(tag.NewSQLRepository(mainDB))
+	connectorRepo := NewSQLConnectorRepository(mainDB)
+	mappingRepo := NewSQLTargetMappingRepository(mainDB)
+	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
+	connectorSvc.SetTagReader(tagSvc)
+
+	tagEntity, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "db.schema.generate.disabled",
+		DisplayName: "DB Schema Generate Disabled",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+
+	connector, err := connectorSvc.Create(ctx, CreateConnectorRequest{
+		Name: "schema-generate-disabled",
+		Kind: schema.DatabaseConnectorKindSQLite,
+		ConnectionConfig: ConnectionConfig{
+			"dsn": targetDSN,
+		},
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+	require.NoError(t, mappingRepo.Create(ctx, &schema.DatabaseTargetMapping{
+		ID:          "map-schema-generate-disabled",
+		TagID:       tagEntity.ID,
+		ConnectorID: connector.ID,
+		TableSchema: "main",
+		TableName:   "measurements",
+		ColumnName:  "line_disabled",
+		WriteMode:   schema.DatabaseWriteModeInsert,
+		Enabled:     false,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}))
+
+	result, err := connectorSvc.GenerateSchema(ctx, connector.ID, SchemaGenerateRequest{DryRun: true})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Empty(t, result.Statements)
+	assert.Equal(t, 0, result.Executed)
+}
+
+func TestConnectorService_GenerateSchema_DoesNotProbeDBWhenNoEnabledMappings(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mainDB := openMigratedTestDB(t)
+	targetDSN := filepath.Join(t.TempDir(), "missing", "target-generate-schema-no-enabled.db")
+
+	tagSvc := tag.NewService(tag.NewSQLRepository(mainDB))
+	connectorRepo := NewSQLConnectorRepository(mainDB)
+	mappingRepo := NewSQLTargetMappingRepository(mainDB)
+	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
+	connectorSvc.SetTagReader(tagSvc)
+
+	tagEntity, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "db.schema.generate.no.enabled",
+		DisplayName: "DB Schema Generate No Enabled",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+
+	connector, err := connectorSvc.Create(ctx, CreateConnectorRequest{
+		Name: "schema-generate-no-enabled",
+		Kind: schema.DatabaseConnectorKindSQLite,
+		ConnectionConfig: ConnectionConfig{
+			"dsn": targetDSN,
+		},
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+	require.NoError(t, mappingRepo.Create(ctx, &schema.DatabaseTargetMapping{
+		ID:          "map-schema-generate-no-enabled",
+		TagID:       tagEntity.ID,
+		ConnectorID: connector.ID,
+		TableSchema: "main",
+		TableName:   "measurements",
+		ColumnName:  "line_disabled",
+		WriteMode:   schema.DatabaseWriteModeInsert,
+		Enabled:     false,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}))
+
+	result, err := connectorSvc.GenerateSchema(ctx, connector.ID, SchemaGenerateRequest{DryRun: false})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Empty(t, result.Statements)
+	assert.Equal(t, 0, result.Executed)
+}
+
+func TestConnectorService_GenerateSchema_IgnoresMappingsWithMissingTags(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mainDB := openMigratedTestDB(t)
+	targetDSN := filepath.Join(t.TempDir(), "target-generate-schema-missing-tag.db")
+
+	targetDB, err := sql.Open("sqlite", targetDSN)
+	require.NoError(t, err)
+	require.NoError(t, targetDB.Close())
+
+	tagSvc := tag.NewService(tag.NewSQLRepository(mainDB))
+	connectorRepo := NewSQLConnectorRepository(mainDB)
+	mappingRepo := NewSQLTargetMappingRepository(mainDB)
+	connectorSvc := NewConnectorService(connectorRepo, mappingRepo)
+	connectorSvc.SetTagReader(tagSvc)
+
+	liveTag, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "db.schema.generate.live",
+		DisplayName: "DB Schema Generate Live",
+		DataType:    schema.DataTypeFloat64,
+	})
+	require.NoError(t, err)
+
+	connector, err := connectorSvc.Create(ctx, CreateConnectorRequest{
+		Name: "schema-generate-missing-tag",
+		Kind: schema.DatabaseConnectorKindSQLite,
+		ConnectionConfig: ConnectionConfig{
+			"dsn": targetDSN,
+		},
+	})
+	require.NoError(t, err)
+
+	now := time.Now()
+	require.NoError(t, mappingRepo.Create(ctx, &schema.DatabaseTargetMapping{
+		ID:          "map-schema-generate-live",
+		TagID:       liveTag.ID,
+		ConnectorID: connector.ID,
+		TableSchema: "main",
+		TableName:   "measurements",
+		ColumnName:  "line_live",
+		WriteMode:   schema.DatabaseWriteModeInsert,
+		Enabled:     true,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}))
+	require.NoError(t, mappingRepo.Create(ctx, &schema.DatabaseTargetMapping{
+		ID:          "map-schema-generate-stale",
+		TagID:       "missing-tag",
+		ConnectorID: connector.ID,
+		TableSchema: "main",
+		TableName:   "measurements",
+		ColumnName:  "line_stale",
+		WriteMode:   schema.DatabaseWriteModeInsert,
+		Enabled:     true,
+		CreatedAt:   now.Add(time.Second),
+		UpdatedAt:   now.Add(time.Second),
+	}))
+
+	result, err := connectorSvc.GenerateSchema(ctx, connector.ID, SchemaGenerateRequest{DryRun: true})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.NotEmpty(t, result.Statements)
+	assert.Contains(t, strings.Join(result.Statements, "\n"), "line_live")
+	assert.NotContains(t, strings.Join(result.Statements, "\n"), "line_stale")
 }
 
 func TestConnectorService_ListWriteHistory_ReturnsLatestWriteRecord(t *testing.T) {

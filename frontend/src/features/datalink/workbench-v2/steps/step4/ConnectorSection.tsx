@@ -32,6 +32,7 @@ export function ConnectorSection({
     port,
     database,
     username,
+    password,
     schema,
     table,
     write_mode,
@@ -141,6 +142,24 @@ export function ConnectorSection({
               onChange={(e) => onUpdateConnector({ username: e.target.value })}
               className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="postgres"
+            />
+          </div>
+        )}
+
+        {/* SQLite 不需要密碼；留空表示沿用既有密碼（更新時不覆寫） */}
+        {!isSqlite && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-400">
+              {t('step4.field_password', '密碼')}
+            </label>
+            <input
+              type="password"
+              value={password ?? ''}
+              disabled={disabled}
+              autoComplete="new-password"
+              onChange={(e) => onUpdateConnector({ password: e.target.value })}
+              className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder={t('step4.field_password_placeholder', '留空則沿用既有密碼')}
             />
           </div>
         )}

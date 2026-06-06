@@ -13,6 +13,7 @@ export interface StudioV2WorkspaceDatabaseConfigRequest {
   port: number;
   database: string;
   username: string;
+  password?: string;
   schema: string;
   table: string;
   write_mode: StudioV2WorkspaceDatabaseConfigRecord['write_mode'];
@@ -23,6 +24,13 @@ export interface StudioV2WorkspaceDatabaseConfigRequest {
 export interface StudioV2WorkspaceDatabaseTargetRequest {
   column_name: string;
   enabled: boolean;
+}
+
+export interface StudioV2WorkspaceSchemaGenerateResult {
+  connector_id: string;
+  dry_run: boolean;
+  statements: string[];
+  executed: number;
 }
 
 export const studioV2WorkspaceDatabaseAPI = {
@@ -43,6 +51,11 @@ export const studioV2WorkspaceDatabaseAPI = {
 
   async upsertTarget(pointId: string, request: StudioV2WorkspaceDatabaseTargetRequest): Promise<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseTargetRecord>> {
     const res = await studioV2DatalinkApi.put<APIResponse<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceDatabaseTargetRecord>>>(`/studio-v2/workspace/database-targets/${pointId}`, request);
+    return res.data.data!;
+  },
+
+  async generateSchema(dryRun: boolean): Promise<StudioV2WorkspaceSchemaGenerateResult> {
+    const res = await studioV2DatalinkApi.post<APIResponse<StudioV2WorkspaceSchemaGenerateResult>>('/studio-v2/workspace/database-schema/generate', { dry_run: dryRun });
     return res.data.data!;
   },
 };

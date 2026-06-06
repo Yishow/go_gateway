@@ -236,7 +236,7 @@ func (s *MappingService) Create(ctx context.Context, req CreateTargetMappingRequ
 		CreatedAt:            time.Now(),
 		UpdatedAt:            time.Now(),
 	}
-	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping); err != nil {
+	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping, req.AllowMissingTable); err != nil {
 		return nil, err
 	}
 	if err := s.repo.Create(ctx, mapping); err != nil {
@@ -291,7 +291,7 @@ func (s *MappingService) Update(ctx context.Context, id string, req UpdateTarget
 		mapping.WriteIntervalSeconds = normalizeOptionalIntPointer(req.WriteIntervalSeconds)
 	}
 	mapping.UpdatedAt = time.Now()
-	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping); err != nil {
+	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping, req.AllowMissingTable); err != nil {
 		return nil, err
 	}
 	if err := s.repo.Update(ctx, mapping); err != nil {
@@ -808,7 +808,7 @@ func inspectPostgresTables(ctx context.Context, db *sql.DB) ([]TableInfo, error)
 	return tables, nil
 }
 
-func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseConnector, tagEntity *schema.Tag, mapping *schema.DatabaseTargetMapping) error {
+func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseConnector, tagEntity *schema.Tag, mapping *schema.DatabaseTargetMapping, allowMissingTable bool) error {
 	if mapping.TagID == "" {
 		return validationError("標籤 ID 不可為空")
 	}
@@ -835,12 +835,28 @@ func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseCo
 
 	issues := validateMappingAgainstTables(*mapping, *tagEntity, tables)
 	for _, issue := range issues {
-		if issue.Severity == "error" {
-			return validationError(issue.Message)
+		if issue.Severity != "error" {
+			continue
 		}
+		// allowMissingTable 時，表/欄位尚未建立並非阻擋條件，將由後續 schema 生成補建。
+		if allowMissingTable && isMissingSchemaObjectIssue(issue.Code) {
+			continue
+		}
+		return validationError(issue.Message)
 	}
 
 	return nil
+}
+
+// isMissingSchemaObjectIssue 判斷該驗證問題是否為「目標物件尚未建立」類型，
+// 這類問題可由 schema 生成補建，不應在 allowMissingTable 模式下阻擋儲存。
+func isMissingSchemaObjectIssue(code string) bool {
+	switch code {
+	case "table_missing", "column_missing", "timestamp_column_missing":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateMappingAgainstTables(mapping schema.DatabaseTargetMapping, tagEntity schema.Tag, tables []TableInfo) []ValidationIssue {

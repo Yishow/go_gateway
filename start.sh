@@ -528,7 +528,7 @@ diagnose() {
   if [[ -x "$BUILD_DIR/$APP_NAME" ]]; then
     success "已存在可執行檔: $BUILD_DIR/$APP_NAME"
   else
-    warn "尚未發現可執行檔: $BUILD_DIR/$APP_NAME（若尚未建置屬正常）"
+    warn "尚未發現可執行檔: ${BUILD_DIR}/${APP_NAME}（若尚未建置屬正常）"
   fi
 
   info "6) 檢查相關進程與記憶體"

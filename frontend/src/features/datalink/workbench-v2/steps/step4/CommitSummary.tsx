@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DbConnector } from '../../state/types';
+import { studioV2WorkspaceDatabaseAPI } from '../../../../../services/studioV2WorkspaceDatabase';
 
 /**
  * CommitSummary 元件屬性
@@ -12,6 +14,8 @@ interface CommitSummaryProps {
   connector: DbConnector;
   enabledTargetCount: number;
   hasConflict: boolean;
+  schemaActionsDisabled?: boolean;
+  schemaPreviewSignature?: string;
   onActivate: () => void;
 }
 
@@ -27,11 +31,55 @@ export function CommitSummary({
   connector,
   enabledTargetCount,
   hasConflict,
+  schemaActionsDisabled = false,
+  schemaPreviewSignature,
   onActivate,
 }: CommitSummaryProps) {
   const { t } = useTranslation('workbench-v2');
 
   const { kind, schema, table } = connector;
+  const previewStateKey = schemaPreviewSignature ?? `${kind}|${schema}|${table}`;
+
+  // 建立資料表（dry-run 預覽 + 實際執行）的本地狀態
+  const [schemaPhase, setSchemaPhase] = useState<'idle' | 'previewing' | 'previewed' | 'creating' | 'done' | 'error'>('idle');
+  const [schemaStatements, setSchemaStatements] = useState<string[]>([]);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
+  const [schemaExecuted, setSchemaExecuted] = useState(0);
+  const schemaBusy = schemaPhase === 'previewing' || schemaPhase === 'creating';
+  const schemaControlsDisabled = schemaBusy || schemaActionsDisabled;
+
+  useEffect(() => {
+    setSchemaPhase('idle');
+    setSchemaStatements([]);
+    setSchemaError(null);
+    setSchemaExecuted(0);
+  }, [previewStateKey]);
+
+  const handlePreviewSchema = async () => {
+    setSchemaPhase('previewing');
+    setSchemaError(null);
+    try {
+      const result = await studioV2WorkspaceDatabaseAPI.generateSchema(true);
+      setSchemaStatements(result.statements);
+      setSchemaPhase('previewed');
+    } catch (error) {
+      setSchemaError(error instanceof Error ? error.message : String(error));
+      setSchemaPhase('error');
+    }
+  };
+
+  const handleCreateSchema = async () => {
+    setSchemaPhase('creating');
+    setSchemaError(null);
+    try {
+      const result = await studioV2WorkspaceDatabaseAPI.generateSchema(false);
+      setSchemaExecuted(result.executed);
+      setSchemaPhase('done');
+    } catch (error) {
+      setSchemaError(error instanceof Error ? error.message : String(error));
+      setSchemaPhase('error');
+    }
+  };
 
   // 格式化資料庫寫入目標路徑
   const dbTargetText = kind === 'sqlite' || !schema
@@ -81,6 +129,63 @@ export function CommitSummary({
           <p className="text-xs text-amber-500 text-center select-none">
             ⚠️ {t('step4.no_enabled_targets_warning', '尚未啟用任何資料表欄位寫入')}
           </p>
+        )}
+
+        {/* 建立資料表（可選，dry-run 預覽後執行）。啟動時後端也會自動確保。 */}
+        {kind !== 'sqlite' && (
+          <div className="space-y-2 border border-gray-800/60 rounded-xl p-3 bg-gray-950/40">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-400 select-none">
+                {t('step4.schema_section_title', '目標資料表')}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={schemaControlsDisabled}
+                  onClick={handlePreviewSchema}
+                  className="text-[11px] px-2 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {schemaPhase === 'previewing'
+                    ? t('step4.schema_previewing', '預覽中...')
+                    : t('step4.schema_preview_btn', '預覽 DDL')}
+                </button>
+                <button
+                  type="button"
+                  disabled={schemaControlsDisabled}
+                  onClick={handleCreateSchema}
+                  className="text-[11px] px-2 py-1 rounded-md border border-blue-700 text-blue-300 hover:bg-blue-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {schemaPhase === 'creating'
+                    ? t('step4.schema_creating', '建立中...')
+                    : t('step4.schema_create_btn', '建立資料表')}
+                </button>
+              </div>
+            </div>
+
+            {schemaPhase === 'previewed' && (
+              schemaStatements.length === 0 ? (
+                <p className="text-[11px] text-emerald-400 select-none">
+                  {t('step4.schema_no_changes', '資料表已存在，無需建立')}
+                </p>
+              ) : (
+                <pre className="text-[10px] text-gray-300 font-mono bg-black/40 rounded-md p-2 max-h-32 overflow-auto whitespace-pre-wrap">
+                  {schemaStatements.join('\n')}
+                </pre>
+              )
+            )}
+
+            {schemaPhase === 'done' && (
+              <p className="text-[11px] text-emerald-400 select-none">
+                ✓ {t('step4.schema_done', '已建立 {{count}} 項資料表結構', { count: schemaExecuted })}
+              </p>
+            )}
+
+            {schemaPhase === 'error' && schemaError && (
+              <p className="text-[11px] text-rose-400 break-words">
+                {t('step4.schema_error', '建表失敗')}: {schemaError}
+              </p>
+            )}
+          </div>
         )}
 
         {/* 寬版啟動按鈕 */}

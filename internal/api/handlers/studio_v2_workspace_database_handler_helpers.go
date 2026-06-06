@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -22,11 +23,16 @@ type studioV2WorkspaceDatabaseConfigRequest struct {
 	Port                 int                          `json:"port"`
 	Database             string                       `json:"database"`
 	Username             string                       `json:"username"`
+	Password             string                       `json:"password"`
 	Schema               string                       `json:"schema"`
 	Table                string                       `json:"table"`
 	WriteMode            schema.DatabaseWriteMode     `json:"write_mode"`
 	WriteIntervalSeconds int                          `json:"write_interval_seconds"`
 	TimestampColumn      string                       `json:"timestamp_column"`
+}
+
+func workspaceDatabasePasswordRequired(kind schema.DatabaseConnectorKind) bool {
+	return kind != schema.DatabaseConnectorKindSQLite
 }
 
 type studioV2WorkspaceDatabaseConfigResponse struct {
@@ -108,6 +114,12 @@ func (h *StudioV2WorkspaceDatabaseHandler) saveWorkspaceConnector(c *gin.Context
 	if req.Kind == schema.DatabaseConnectorKindSQLite {
 		connectionConfig["dsn"] = strings.TrimSpace(req.Database)
 	}
+	// 僅在使用者實際輸入密碼時才寫入；更新時留空則交由
+	// preserveSensitiveConnectionConfigValues 保留既有密碼。
+	if workspaceDatabasePasswordRequired(req.Kind) && req.Password != "" {
+		connectionConfig["password"] = req.Password
+	}
+	clearPassword := !workspaceDatabasePasswordRequired(req.Kind)
 
 	if strings.TrimSpace(record.DatabaseConnectorID) == "" {
 		saved, err := h.connectorSvc.Create(c.Request.Context(), dbtarget.CreateConnectorRequest{
@@ -132,6 +144,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) saveWorkspaceConnector(c *gin.Context
 		Name:                        workspaceOptionalString(strings.TrimSpace(req.Name)),
 		Kind:                        &req.Kind,
 		ConnectionConfig:            &connectionConfig,
+		ClearPassword:               boolPtr(clearPassword),
 		DefaultWriteIntervalSeconds: workspaceOptionalInt(req.WriteIntervalSeconds),
 	})
 }
@@ -299,6 +312,21 @@ func renderStudioV2WorkspaceDatabaseError(c *gin.Context, err error) {
 	case errors.Is(err, workspace.ErrValidation), errors.Is(err, sourcerule.ErrValidation), errors.Is(err, dbtarget.ErrValidation):
 		renderStudioV2WorkspaceValidationError(c, err)
 	default:
-		c.JSON(500, gin.H{"success": false, "error": gin.H{"message": "Studio V2 database operation failed"}})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": "Studio V2 database operation failed"}})
+	}
+}
+
+func renderStudioV2WorkspaceSchemaEnsureError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, workspace.ErrValidation), errors.Is(err, sourcerule.ErrValidation), errors.Is(err, dbtarget.ErrValidation):
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "validation",
+				"message": err.Error(),
+			},
+		})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": "Studio V2 database operation failed"}})
 	}
 }

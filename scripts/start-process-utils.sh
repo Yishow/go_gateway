@@ -16,7 +16,7 @@ acquire_run_lock() {
   local existing_pid=""
   [[ -f "$RUN_LOCK_DIR/pid" ]] && existing_pid="$(cat "$RUN_LOCK_DIR/pid" 2>/dev/null || true)"
   if [[ "$existing_pid" =~ ^[0-9]+$ ]] && kill -0 "$existing_pid" 2>/dev/null; then
-    err "已有 start.sh 管理此 repo/port（PID: $existing_pid, lock: $RUN_LOCK_DIR）"
+    err "已有 start.sh 管理此 repo/port（PID: ${existing_pid}, lock: ${RUN_LOCK_DIR}）"
     info "若確認是殘留狀態，請先執行 ./start.sh --stop-all"
     return 1
   fi
@@ -85,10 +85,10 @@ stop_process_tree() {
   [[ "$pid" =~ ^[0-9]+$ ]] || return 0
   kill -0 "$pid" 2>/dev/null || return 0
 
-  info "正在停止 $label（PID: $pid）..."
+  info "正在停止 ${label}（PID: ${pid}）..."
   kill_process_tree "$pid" TERM
   if ! wait_for_pid_exit "$pid" 30; then
-    warn "$label 未在預期時間內停止，改用強制終止"
+    warn "${label} 未在預期時間內停止，改用強制終止"
     kill_process_tree "$pid" KILL
     wait_for_pid_exit "$pid" 20 || true
   fi

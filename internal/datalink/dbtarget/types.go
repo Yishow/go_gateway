@@ -54,6 +54,9 @@ type CreateTargetMappingRequest struct {
 	GroupKey             *string                  `json:"group_key,omitempty"`
 	WriteIntervalSeconds *int                     `json:"write_interval_seconds,omitempty"`
 	Enabled              *bool                    `json:"enabled,omitempty"`
+	// AllowMissingTable 為 true 時，允許在目標資料表/欄位尚未建立的情況下儲存映射，
+	// 由後續的 schema 生成（建表按鈕或 activate 自動 ensure）補建。供 Studio V2 使用。
+	AllowMissingTable bool `json:"-"`
 }
 
 type UpdateTargetMappingRequest struct {
@@ -65,6 +68,8 @@ type UpdateTargetMappingRequest struct {
 	GroupKey             *string                   `json:"group_key,omitempty"`
 	WriteIntervalSeconds *int                      `json:"write_interval_seconds,omitempty"`
 	Enabled              *bool                     `json:"enabled,omitempty"`
+	// AllowMissingTable 同 CreateTargetMappingRequest。
+	AllowMissingTable bool `json:"-"`
 }
 
 type ColumnInfo struct {
