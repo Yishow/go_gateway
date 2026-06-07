@@ -87,12 +87,37 @@ frontend_proxy_target() {
   printf "http://127.0.0.1:%s" "$PORT"
 }
 
+ensure_frontend_dependencies() {
+  if [[ ! -d "$FRONTEND_DIR" ]]; then
+    return 0
+  fi
+
+  if [[ -x "$FRONTEND_DIR/node_modules/.bin/vite" ]]; then
+    return 0
+  fi
+
+  info "安裝前端依賴..."
+  pushd "$FRONTEND_DIR" >/dev/null
+  if ! pnpm install; then
+    popd >/dev/null
+    err "前端依賴安裝失敗，請檢查網路連線或 frontend/package.json"
+    return 1
+  fi
+  popd >/dev/null
+
+  if [[ ! -x "$FRONTEND_DIR/node_modules/.bin/vite" ]]; then
+    err "前端依賴安裝後仍找不到 vite，請檢查 frontend/package.json"
+    return 1
+  fi
+}
+
 start_frontend_dev_server() {
   local proxy_target
   local node_options
   proxy_target="$(frontend_proxy_target)"
   node_options="${NODE_OPTIONS:---max-old-space-size=4096}"
 
+  ensure_frontend_dependencies || return 1
   clear_frontend_port true
 
   (
@@ -104,6 +129,25 @@ start_frontend_dev_server() {
     exec pnpm exec vite --host "$FRONTEND_DEV_HOST" --port "$FRONTEND_DEV_PORT" --strictPort
   ) &
   FRONTEND_PID=$!
+
+  local i
+  for ((i = 0; i < 100; i++)); do
+    if [[ -n "$(pid_on_port "$FRONTEND_DEV_PORT")" ]]; then
+      return 0
+    fi
+    if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+      FRONTEND_PID=""
+      err "前端開發伺服器未成功啟動（port ${FRONTEND_DEV_PORT}）"
+      return 1
+    fi
+    sleep 0.1
+  done
+
+  stop_process_tree "$FRONTEND_PID" "前端開發伺服器"
+  wait "$FRONTEND_PID" 2>/dev/null || true
+  FRONTEND_PID=""
+  err "前端開發伺服器未成功啟動（port ${FRONTEND_DEV_PORT}）"
+  return 1
 }
 
 start_backend_process() {

@@ -244,13 +244,13 @@ describe('Workbench V2 Shell & Integration', () => {
       configurable: true,
       value: 1440,
     });
-    
+
     // 清除 localStorage
     localStorage.clear();
-    
+
     // Mock console.warn 防止污染
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    
+    vi.spyOn(console, 'warn').mockImplementation(() => { });
+
     // Spy fetch
     vi.spyOn(window, 'fetch').mockImplementation(() => Promise.resolve({} as Response));
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([]);
@@ -340,7 +340,7 @@ describe('Workbench V2 Shell & Integration', () => {
     };
 
     renderShell(mockState, mockActions);
-    
+
     // 驗證第 2 步在 completed 有 1 時是 reachable 的
     const step2Button = screen.getByTestId('step-nav-button-2');
     expect(step2Button).not.toBeDisabled();

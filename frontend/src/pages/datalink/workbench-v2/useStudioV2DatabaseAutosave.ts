@@ -99,15 +99,15 @@ export function useStudioV2DatabaseAutosave(
     stateRef.current = workbenchV2Reducer(stateRef.current, target
       ? { type: 'updateDbTarget', pointId, patch }
       : {
-          type: 'upsertDbTarget',
-          pointId,
-          target: {
-            tag_id: '',
-            column_name: '',
-            enabled: true,
-            ...patch,
-          } as DbTarget,
-        });
+        type: 'upsertDbTarget',
+        pointId,
+        target: {
+          tag_id: '',
+          column_name: '',
+          enabled: true,
+          ...patch,
+        } as DbTarget,
+      });
     if (target) {
       actions.dispatch({ type: 'updateDbTarget', pointId, patch });
       return;
