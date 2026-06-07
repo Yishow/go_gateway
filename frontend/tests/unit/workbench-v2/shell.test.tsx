@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { WorkbenchV2Shell } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2WorkspaceDevices';
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
@@ -37,6 +38,15 @@ vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({
 
 vi.mock('../../../src/services/studioV2Rules', () => ({
   studioV2RulesAPI: {
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  },
+}));
+
+vi.mock('../../../src/services/studioV2Mappings', () => ({
+  studioV2MappingsAPI: {
     list: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -245,6 +255,7 @@ describe('Workbench V2 Shell & Integration', () => {
     vi.spyOn(window, 'fetch').mockImplementation(() => Promise.resolve({} as Response));
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
     vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
   });

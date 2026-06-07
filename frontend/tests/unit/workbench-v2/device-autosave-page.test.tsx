@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2WorkspaceAPI } from '../../../src/services/studioV2Workspace';
 import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2WorkspaceDevices';
+import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
 
@@ -116,6 +117,15 @@ vi.mock('../../../src/services/studioV2Rules', () => ({
   },
 }));
 
+vi.mock('../../../src/services/studioV2Mappings', () => ({
+  studioV2MappingsAPI: {
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  },
+}));
+
 vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
   studioV2WorkspaceDatabaseAPI: {
     getConfig: vi.fn(),
@@ -146,6 +156,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
     vi.clearAllMocks();
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
     vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
   });
@@ -192,6 +203,40 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('device-order')).toHaveTextContent('dev-B,dev-A');
+    });
+  });
+
+  it('hydrates persisted running truth on reload', async () => {
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+      id: 'workspace-1',
+      kind: 'single',
+      status: 'ready',
+      ordered_device_ids: ['dev-A'],
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    });
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
+      {
+        id: 'dev-A',
+        name: 'Line A PLC',
+        description: '',
+        protocol: 'modbus_tcp',
+        status: 'active',
+        connection_config: '{"host":"192.168.10.10","port":502,"slave_id":1,"timeout":5}',
+        last_test_at: null,
+        last_test_success: null,
+        last_test_error: '',
+        availability_status: 'available',
+        running: true,
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      },
+    ] as any);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('device-running-dev-A')).toHaveTextContent('true');
     });
   });
 
@@ -271,6 +316,30 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
 
     expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled();
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
+  });
+  it('marks session draft recovery state when a local device draft is not yet persisted', async () => {
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+      id: 'workspace-1',
+      kind: 'single',
+      status: 'empty',
+      ordered_device_ids: [],
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    });
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('seed-dev-01'));
+    fireEvent.click(screen.getByTestId('make-dev-01-invalid'));
+
+    await waitFor(() => {
+      expect(window.sessionStorage.getItem('wbv2_unrecovered_draft')).toBe('1');
+    });
   });
 
   it('keeps an invalid running device visible while marking it unavailable', async () => {
@@ -474,5 +543,60 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
       expect(screen.getByTestId('device-save-error-dev-A')).toHaveTextContent('runtime sync failed');
       expect(screen.getByTestId('device-runtime-apply-dev-A')).toHaveTextContent('apply_failed');
     });
+  });
+
+  it('does not mark apply_failed as unrecovered draft loss', async () => {
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+      id: 'workspace-1',
+      kind: 'single',
+      status: 'ready',
+      ordered_device_ids: ['dev-A'],
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    });
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
+      {
+        id: 'dev-A',
+        name: 'Line A PLC',
+        description: '',
+        protocol: 'modbus_tcp',
+        status: 'active',
+        connection_config: '{"host":"192.168.10.10","port":502,"slave_id":1,"timeout":5}',
+        last_test_at: null,
+        last_test_success: null,
+        last_test_error: '',
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      },
+    ]);
+    vi.mocked(studioV2WorkspaceDevicesAPI.update).mockResolvedValueOnce({
+      id: 'dev-A',
+      name: 'Line A Broken',
+      description: '',
+      protocol: 'modbus_tcp',
+      status: 'active',
+      connection_config: '{"host":"192.168.10.20","port":502,"slave_id":1,"timeout":5}',
+      last_test_at: null,
+      last_test_success: null,
+      last_test_error: '',
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+      runtime_apply_status: 'apply_failed',
+      runtime_apply_message: 'runtime sync failed',
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('device-order')).toHaveTextContent('dev-A');
+    });
+
+    fireEvent.click(screen.getByTestId('make-dev-A-fail'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('device-runtime-apply-dev-A')).toHaveTextContent('apply_failed');
+    });
+
+    expect(window.sessionStorage.getItem('wbv2_unrecovered_draft')).toBeNull();
   });
 });

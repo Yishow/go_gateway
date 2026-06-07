@@ -69,35 +69,48 @@ export default function DatalinkWorkbenchV2Page({
   const activationMutation = useActivateStudioV2WorkspaceMutation();
 
   if (
-    workspaceQuery.isLoading ||
-    (workspaceQuery.isSuccess && !autosave.workspaceHydrated) ||
-    autosave.devicesQuery.isLoading ||
-    autosave.rulesQuery.isLoading ||
-    autosave.databaseConfigQuery.isLoading ||
-    autosave.databaseTargetsQuery.isLoading
-  ) {
-    return <WorkbenchV2BootstrapState status="loading" />;
-  }
-
-  if (
     workspaceQuery.isError ||
-    !workspaceQuery.data ||
+    (workspaceQuery.isSuccess && !workspaceQuery.data) ||
     autosave.devicesQuery.isError ||
     autosave.rulesQuery.isError ||
+    autosave.mappingsQuery.isError ||
     autosave.databaseConfigQuery.isError ||
     autosave.databaseTargetsQuery.isError
   ) {
     return <WorkbenchV2BootstrapState status="error" />;
   }
 
+  if (
+    workspaceQuery.isLoading ||
+    (workspaceQuery.isSuccess && !autosave.workspaceHydrated) ||
+    autosave.devicesQuery.isLoading ||
+    autosave.rulesQuery.isLoading ||
+    autosave.mappingsQuery.isLoading ||
+    autosave.databaseConfigQuery.isLoading ||
+    autosave.databaseTargetsQuery.isLoading
+  ) {
+    return <WorkbenchV2BootstrapState status="loading" />;
+  }
+
+  const workspace = workspaceQuery.data!;
+
   return (
     <div
       data-workbench-v2="true"
       data-testid="workbench-v2-root"
-      data-workspace-id={workspaceQuery.data.id}
-      data-workspace-status={workspaceQuery.data.status}
+      data-workspace-id={workspace.id}
+      data-workspace-status={workspace.status}
       className="bg-canvas min-h-screen font-sans text-slate-100 antialiased"
     >
+      {autosave.draftLossWarning && (
+        <div
+          data-testid="workbench-v2-draft-loss-warning"
+          role="alert"
+          className="mx-4 mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 sm:mx-5 lg:mx-7"
+        >
+          {autosave.draftLossWarning}
+        </div>
+      )}
       <WorkbenchV2Shell
         state={autosave.state}
         actions={autosave.actions}

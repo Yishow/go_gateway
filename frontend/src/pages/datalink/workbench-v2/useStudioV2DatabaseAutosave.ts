@@ -15,6 +15,7 @@ import {
 } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { DbConnector, DbTarget, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import type { StudioV2WorkspaceDatabaseTargetRecord } from '../../../types/datalink';
 
 type SaveMeta = {
   inFlight: boolean;
@@ -44,6 +45,34 @@ function saveMetaFor(store: Record<string, SaveMeta>, key: string): SaveMeta {
     store[key] = { inFlight: false, pending: false };
   }
   return store[key];
+}
+
+function buildPersistedPointAliases(state: WorkbenchV2State): Map<string, string> {
+  const aliases = new Map<string, string>();
+  Object.values(state.mappings).forEach((mapping) => {
+    aliases.set(mapping.point_id, mapping.point_id);
+    if (mapping.persisted_point_id) {
+      aliases.set(mapping.persisted_point_id, mapping.point_id);
+    }
+  });
+  return aliases;
+}
+
+function buildHydratedTargets(
+  aliases: Map<string, string>,
+  records: StudioV2WorkspaceDatabaseTargetRecord[] | undefined,
+): Record<string, DbTarget> {
+  return (records ?? []).reduce<Record<string, DbTarget>>((accumulator, record) => {
+    const currentPointId = aliases.get(record.point_id);
+    if (!currentPointId) {
+      return accumulator;
+    }
+    accumulator[currentPointId] = hydrateStudioV2DatabaseTarget(
+      { ...record, point_id: currentPointId },
+      accumulator[currentPointId],
+    );
+    return accumulator;
+  }, {});
 }
 
 export function useStudioV2DatabaseAutosave(
@@ -111,24 +140,47 @@ export function useStudioV2DatabaseAutosave(
     if (!databaseTargetsQuery.isSuccess) {
       return;
     }
+    const aliases = buildPersistedPointAliases(stateRef.current);
+    const aliasSignature = Array.from(aliases.entries())
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([persistedPointId, currentPointId]) => `${persistedPointId}:${currentPointId}`)
+      .join('|');
     const signature = databaseTargetsQuery.data
       .map((record) => `${record.id}:${record.updated_at}`)
       .sort()
-      .join('|');
+      .join('|') + `|${aliasSignature}`;
     if (lastTargetsSignatureRef.current === signature) {
       return;
     }
     lastTargetsSignatureRef.current = signature;
 
-    databaseTargetsQuery.data.forEach((record) => {
-      const current = stateRef.current.db.targets[record.point_id];
-      const hydrated = hydrateStudioV2DatabaseTarget(record, current);
-      if (sameDatabaseTarget(current, hydrated)) {
-        return;
-      }
-      applyTargetPatch(record.point_id, hydrated);
+    const nextTargets = buildHydratedTargets(aliases, databaseTargetsQuery.data);
+    const currentTargets = stateRef.current.db.targets;
+    const hasSameTargets = Object.keys(currentTargets).length === Object.keys(nextTargets).length &&
+      Object.entries(nextTargets).every(([pointId, target]) => sameDatabaseTarget(currentTargets[pointId], target));
+    if (hasSameTargets) {
+      return;
+    }
+
+    stateRef.current = workbenchV2Reducer(stateRef.current, {
+      type: 'SET_STATE',
+      payload: {
+        db: {
+          ...stateRef.current.db,
+          targets: nextTargets,
+        },
+      },
     });
-  }, [applyTargetPatch, databaseTargetsQuery.data, databaseTargetsQuery.isSuccess, stateRef]);
+    actions.dispatch({
+      type: 'SET_STATE',
+      payload: {
+        db: {
+          ...stateRef.current.db,
+          targets: nextTargets,
+        },
+      },
+    });
+  }, [actions, databaseTargetsQuery.data, databaseTargetsQuery.isSuccess, stateRef]);
 
   React.useEffect(() => {
     reconcilePersistedTargets();

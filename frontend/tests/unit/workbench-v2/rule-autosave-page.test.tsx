@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2WorkspaceAPI } from '../../../src/services/studioV2Workspace';
 import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2WorkspaceDevices';
+import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
 
@@ -110,6 +111,15 @@ vi.mock('../../../src/services/studioV2Rules', () => ({
   },
 }));
 
+vi.mock('../../../src/services/studioV2Mappings', () => ({
+  studioV2MappingsAPI: {
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  },
+}));
+
 vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
   studioV2WorkspaceDatabaseAPI: {
     getConfig: vi.fn(),
@@ -154,6 +164,7 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
       },
     ]);
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
     vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
   });
