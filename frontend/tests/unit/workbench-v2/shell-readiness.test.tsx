@@ -75,4 +75,57 @@ describe('Workbench V2 workspace readiness surfaces', () => {
     expect(screen.getByTestId('summary-rail-readiness')).toHaveTextContent('device-probe-required');
     expect(screen.getByTestId('summary-rail-readiness')).toHaveTextContent('database-connector-unreachable');
   });
+
+  it('renders recent activation and audit history in the summary rail', () => {
+    const actions = {
+      state: INITIAL_STATE,
+      setView: vi.fn(),
+      setCurrent: vi.fn(),
+      completeStep: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleSummaryRail: vi.fn(),
+      setSidebarCollapsed: vi.fn(),
+      setShowSummaryRail: vi.fn(),
+      resetFlow: vi.fn(),
+      selectRule: vi.fn(),
+      dispatch: vi.fn(),
+    };
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WorkbenchV2Shell
+          state={INITIAL_STATE}
+          actions={actions}
+          workspaceAuditHistory={[{
+            id: 'audit-1',
+            workspace_id: 'workspace-1',
+            event_type: 'workspace_activation',
+            result: 'partial_success',
+            scope: 'devices:dev-A,dev-B',
+            details: '{"message":"dev-B failed"}',
+            occurred_at: '2026-05-29T10:12:00Z',
+            created_at: '2026-05-29T10:12:01Z',
+          }, {
+            id: 'audit-2',
+            workspace_id: 'workspace-1',
+            event_type: 'database_config_saved',
+            result: 'success',
+            scope: 'database_connector:sqlite',
+            details: '{}',
+            occurred_at: '2026-05-29T10:10:00Z',
+            created_at: '2026-05-29T10:10:01Z',
+          }]}
+        />
+      </QueryClientProvider>,
+    );
+
+    const auditPanel = screen.getByTestId('summary-rail-audit-history');
+    expect(auditPanel).toHaveTextContent('workspace_activation');
+    expect(auditPanel).toHaveTextContent('partial_success');
+    expect(auditPanel).toHaveTextContent('database_config_saved');
+    expect(auditPanel).toHaveTextContent('2026-05-29T10:12:00Z');
+  });
 });

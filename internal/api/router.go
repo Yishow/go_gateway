@@ -7,6 +7,7 @@ import (
 
 	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
+	"go-gateway/internal/datalink/audit"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
@@ -42,6 +43,7 @@ type DatalinkServices struct {
 	DBMapping    *dbtarget.MappingService
 	SourceRule   *sourcerule.Service
 	Workspace    *workspace.Service
+	Audit        *audit.Service
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -280,6 +282,10 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			if datalinkServices.Workspace != nil {
 				workspaceHandler := handlers.NewStudioV2WorkspaceHandler(datalinkServices.Workspace)
 				datalinkGroup.GET("/studio-v2/workspace", workspaceHandler.Get)
+				if datalinkServices.Audit != nil {
+					workspaceAuditHandler := handlers.NewStudioV2WorkspaceAuditHandler(datalinkServices.Workspace, datalinkServices.Audit)
+					datalinkGroup.GET("/studio-v2/workspace/audit-history", workspaceAuditHandler.List)
+				}
 				datalinkGroup.GET("/studio-v2/workspace/runtime-context", runtimeHandler.WorkspaceContext)
 				if datalinkServices.Device != nil {
 					activationService := workspace.NewActivationService(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime)
@@ -297,6 +303,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					} else {
 						workspaceActivationHandler = handlers.NewStudioV2WorkspaceActivationHandler(activationService)
 					}
+					workspaceActivationHandler.WithAudit(datalinkServices.Audit)
 					datalinkGroup.POST("/studio-v2/workspace/activate", workspaceActivationHandler.Activate)
 
 					workspaceDeviceHandler := handlers.NewStudioV2WorkspaceDevicesHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime)
@@ -359,7 +366,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 						datalinkServices.SourceRule,
 						datalinkServices.DBTarget,
 						datalinkServices.DBMapping,
-					)
+					).WithAudit(datalinkServices.Audit)
 					datalinkGroup.GET("/studio-v2/workspace/database-config", workspaceDatabaseHandler.GetConfig)
 					datalinkGroup.PUT("/studio-v2/workspace/database-config", workspaceDatabaseHandler.UpdateConfig)
 					datalinkGroup.GET("/studio-v2/workspace/database-targets", workspaceDatabaseHandler.ListTargets)

@@ -148,6 +148,14 @@ function renderPage() {
 describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({
+      id: 'workspace-1',
+      kind: 'single',
+      status: 'ready',
+      ordered_device_ids: ['dev-01'],
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    });
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
       {
         id: 'dev-01',

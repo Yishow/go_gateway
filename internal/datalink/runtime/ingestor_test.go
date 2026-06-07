@@ -183,3 +183,66 @@ func TestHandleCollectedValue_RuntimeStatusReportsDatabaseDeliveryFailureStages(
 	require.Contains(t, diagnostic.Error, "permission denied")
 	require.Equal(t, ts, diagnostic.ObservedAt)
 }
+
+func TestHandleCollectedValue_RuntimeDiagnosticsKeepSuccessAndFailureContext(t *testing.T) {
+	mw := &mockWriter{}
+	targetWriter := &mockTargetWriter{}
+	successAt := time.Date(2026, 3, 16, 10, 0, 0, 0, time.UTC)
+	failedAt := time.Date(2026, 3, 16, 10, 3, 0, 0, time.UTC)
+	s := &Service{
+		config: Config{UpdatePointState: false},
+		writer: mw,
+		target: targetWriter,
+		mappingIndex: map[string][]mappingBinding{
+			"pt-A": {
+				{
+					TagID:             "tag-A",
+					TagDataType:       schema.DataTypeFloat64,
+					TransformPipeline: "[]",
+				},
+			},
+		},
+		pointMetaIndex: map[string]pointMeta{
+			"pt-A": {DeviceID: "dev-A", Address: "40001"},
+		},
+	}
+
+	s.handleCollectedValue(context.Background(), collector.CollectedValue{
+		DeviceID:  "dev-A",
+		PointID:   "pt-A",
+		Value:     21.0,
+		Timestamp: successAt,
+		Quality:   schema.QualityGood,
+	})
+	targetWriter.err = errors.New("write timeout")
+	s.handleCollectedValue(context.Background(), collector.CollectedValue{
+		DeviceID:  "dev-A",
+		PointID:   "pt-A",
+		Value:     22.0,
+		Timestamp: failedAt,
+		Quality:   schema.QualityGood,
+	})
+
+	snapshot, err := s.RuntimeStatusSnapshot(context.Background(), "dev-A")
+	require.NoError(t, err)
+	require.Len(t, snapshot.Diagnostics, 1)
+
+	diagnostic := snapshot.Diagnostics[0]
+	require.Equal(t, "device:dev-A", diagnostic.Scope)
+	require.Equal(t, "dev-A", diagnostic.DeviceID)
+	require.Equal(t, "pt-A", diagnostic.PointID)
+	require.Equal(t, "tag-A", diagnostic.TagID)
+	require.Equal(t, RuntimeFlowStageRuntimeProjection, diagnostic.LatestSuccessfulStage)
+	require.Equal(t, RuntimeFlowStageDatabaseDelivery, diagnostic.FailureStage)
+	require.Equal(t, "write timeout", diagnostic.FailureReason)
+	require.NotNil(t, diagnostic.LastSuccessAt)
+	require.NotNil(t, diagnostic.LastFailureAt)
+	require.Equal(t, successAt, *diagnostic.LastSuccessAt)
+	require.Equal(t, failedAt, *diagnostic.LastFailureAt)
+	require.Equal(t, []RuntimeFlowDiagnosticStage{
+		{Stage: RuntimeFlowStageCollector, Status: RuntimeFlowStageStatusSuccess, ObservedAt: &failedAt},
+		{Stage: RuntimeFlowStageMapping, Status: RuntimeFlowStageStatusSuccess, ObservedAt: &failedAt},
+		{Stage: RuntimeFlowStageRuntimeProjection, Status: RuntimeFlowStageStatusSuccess, ObservedAt: &failedAt},
+		{Stage: RuntimeFlowStageDatabaseDelivery, Status: RuntimeFlowStageStatusFailed, ObservedAt: &failedAt, Reason: "write timeout"},
+	}, diagnostic.Stages)
+}

@@ -30,6 +30,7 @@ type runtimeStatusResponse struct {
 	SnapshotState    datalinkruntime.RuntimeTruthState            `json:"snapshot_state"`
 	Metrics          datalinkruntime.Stats                        `json:"metrics"`
 	Collectors       []runtimeCollectorResponse                   `json:"collectors"`
+	Diagnostics      []datalinkruntime.RuntimeFlowDiagnostic      `json:"diagnostics,omitempty"`
 	DatabaseDelivery []datalinkruntime.DatabaseDeliveryDiagnostic `json:"database_delivery,omitempty"`
 }
 
@@ -172,6 +173,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 			SnapshotState:    snapshot.SnapshotState,
 			Metrics:          snapshot.Metrics,
 			Collectors:       make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
+			Diagnostics:      snapshot.Diagnostics,
 			DatabaseDelivery: snapshot.DatabaseDelivery,
 		}
 		for _, collector := range snapshot.Collectors {

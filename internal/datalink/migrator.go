@@ -102,6 +102,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteWorkspaceAuditHistoryTable(db); err != nil {
+			return err
+		}
 
 		return nil
 	}
@@ -270,6 +273,30 @@ func ensureSQLiteSourceRuleCandidateSnapshotsTable(db *sql.DB) error {
 	exists, err := sqliteTableExists(db, "source_rule_candidate_snapshots")
 	if err != nil {
 		return fmt.Errorf("failed to inspect sqlite table source_rule_candidate_snapshots for migration %s: %w", migrationName, err)
+	}
+	if exists {
+		return nil
+	}
+
+	content, err := migrations.FS.ReadFile(migrationName)
+	if err != nil {
+		return fmt.Errorf("failed to read migration file %s: %w", migrationName, err)
+	}
+
+	log.Printf("Executing SQLite migration: %s", migrationName)
+	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
+		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
+	}
+
+	return nil
+}
+
+func ensureSQLiteWorkspaceAuditHistoryTable(db *sql.DB) error {
+	const migrationName = "016_workspace_audit_history_sqlite.up.sql"
+
+	exists, err := sqliteTableExists(db, "workspace_audit_history")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite table workspace_audit_history for migration %s: %w", migrationName, err)
 	}
 	if exists {
 		return nil

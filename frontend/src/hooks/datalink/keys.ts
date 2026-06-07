@@ -101,4 +101,5 @@ export const studioV2WorkspaceKeys = {
   mappings: () => [...studioV2WorkspaceKeys.all, 'mappings'] as const,
   databaseConfig: () => [...studioV2WorkspaceKeys.all, 'database-config'] as const,
   databaseTargets: () => [...studioV2WorkspaceKeys.all, 'database-targets'] as const,
+  auditHistory: () => [...studioV2WorkspaceKeys.all, 'audit-history'] as const,
 };

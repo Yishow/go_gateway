@@ -3,11 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { useStudioV2RuntimeContextQuery } from '../../../hooks/datalink/useStudioV2RuntimeContext';
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
 import type {
-  RuntimeStatus,
   StudioV2RuntimeContextDevice,
   RuntimeValueEvent,
 } from '../../../types/datalink';
-import type { RuntimeTruthState } from '../../../types/runtimeTruth';
+import type { RuntimeStatusWithDiagnostics } from '../../../types/runtimeDiagnostics';
 import { useRuntimeStatus } from './useRuntimeStatus';
 import { useRuntimeDashboardStream } from './useRuntimeStream';
 import type {
@@ -16,10 +15,6 @@ import type {
 } from './useRuntimeStream';
 
 const degradedPollingIntervalMs = 5000;
-
-type RuntimeStatusWithTruth = RuntimeStatus & {
-  snapshot_state?: RuntimeTruthState;
-};
 
 function isMissingRuntimeDeviceError(message: string | null): boolean {
   if (!message) {
@@ -43,7 +38,7 @@ export interface RuntimeDashboardState {
   selectedDeviceId: string | null;
   selectedDevice: StudioV2RuntimeContextDevice | null;
   devices: StudioV2RuntimeContextDevice[];
-  snapshot: RuntimeStatus | null;
+  snapshot: RuntimeStatusWithDiagnostics | null;
   snapshotError: string | null;
   liveValues: Record<string, RuntimeValueEvent>;
   streamState: RuntimeDashboardStreamConnectionState;
@@ -55,7 +50,7 @@ export interface RuntimeDashboardState {
 export function useRuntimeDashboardState(): RuntimeDashboardState {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryDeviceId = searchParams.get('device_id');
-  const [lastSnapshot, setLastSnapshot] = useState<RuntimeStatusWithTruth | null>(null);
+  const [lastSnapshot, setLastSnapshot] = useState<RuntimeStatusWithDiagnostics | null>(null);
   const [isDegraded, setIsDegraded] = useState(false);
 
   const runtimeContextQuery = useStudioV2RuntimeContextQuery();
@@ -108,7 +103,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
 
   useEffect(() => {
     if (snapshotQuery.data) {
-      setLastSnapshot(snapshotQuery.data as RuntimeStatusWithTruth);
+      setLastSnapshot(snapshotQuery.data as RuntimeStatusWithDiagnostics);
     }
   }, [snapshotQuery.data]);
 
@@ -124,7 +119,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
   }, [lastSnapshot, stream.connectionState]);
 
   const currentSnapshot =
-    lastSnapshot ?? (snapshotQuery.data as RuntimeStatusWithTruth | undefined) ?? null;
+    lastSnapshot ?? (snapshotQuery.data as RuntimeStatusWithDiagnostics | undefined) ?? null;
   const snapshotState = currentSnapshot?.snapshot_state;
 
   const routeState = useMemo<RuntimeDashboardRouteState>(() => {

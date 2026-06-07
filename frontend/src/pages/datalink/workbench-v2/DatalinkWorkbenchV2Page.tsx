@@ -1,6 +1,7 @@
 import { WorkbenchV2Shell } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { useActivateStudioV2WorkspaceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceActivation';
 import { useStudioV2WorkspaceQuery } from '../../../hooks/datalink/useStudioV2Workspace';
+import { useStudioV2WorkspaceAuditHistoryQuery } from '../../../hooks/datalink/useStudioV2WorkspaceAuditHistory';
 import { useStudioV2AutosaveState } from './useStudioV2AutosaveState';
 import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 
@@ -65,6 +66,7 @@ export default function DatalinkWorkbenchV2Page({
   navigateTo,
 }: DatalinkWorkbenchV2PageProps) {
   const workspaceQuery = useStudioV2WorkspaceQuery();
+  const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(workspaceQuery.isSuccess);
   const autosave = useStudioV2AutosaveState(workspaceQuery.isSuccess);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
 
@@ -117,6 +119,8 @@ export default function DatalinkWorkbenchV2Page({
         navigateTo={navigateTo}
         activateWorkspace={() => activationMutation.mutateAsync()}
         workspaceReadiness={workspace.readiness_summary}
+        workspaceAuditHistory={auditHistoryQuery.data?.entries ?? []}
+        workspaceAuditUnavailable={auditHistoryQuery.isError}
       />
     </div>
   );

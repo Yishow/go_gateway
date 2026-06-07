@@ -11,6 +11,7 @@ import {
   resolveRuntimeDashboardDevice,
 } from './resolveRuntimeDashboardDevice';
 import type { StudioV2ActivationResponse } from '../../../../types/studioV2Activation';
+import type { StudioV2WorkspaceAuditEntry } from '../../../../types/studioV2WorkspaceAudit';
 import type { StudioV2WorkspaceReadinessSummary } from '../../../../types/studioV2WorkspaceReadiness';
 import { WorkspaceReadinessPanel } from '../components/WorkspaceReadinessPanel';
 
@@ -29,6 +30,8 @@ export interface WorkbenchV2ShellProps {
   navigateTo?: (target: string) => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
+  workspaceAuditHistory?: StudioV2WorkspaceAuditEntry[];
+  workspaceAuditUnavailable?: boolean;
 }
 
 /**
@@ -43,6 +46,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   navigateTo,
   activateWorkspace,
   workspaceReadiness,
+  workspaceAuditHistory,
+  workspaceAuditUnavailable,
 }) => {
   const {
     view,
@@ -317,7 +322,12 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1">
                 即時設定摘要
               </div>
-              <SummaryRail state={state} workspaceReadiness={workspaceReadiness} />
+              <SummaryRail
+                state={state}
+                workspaceReadiness={workspaceReadiness}
+                workspaceAuditHistory={workspaceAuditHistory}
+                workspaceAuditUnavailable={workspaceAuditUnavailable}
+              />
             </div>
           </aside>
         )}

@@ -25,6 +25,7 @@ import (
 	"go-gateway/internal/api"
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/audit"
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
@@ -159,6 +160,7 @@ func main() {
 
 	workspaceRepo := workspace.NewSQLRepository(db)
 	workspaceSvc := workspace.NewService(workspaceRepo)
+	auditSvc := audit.NewService(audit.NewSQLRepository(db))
 
 	// Database Target
 	dbTargetConnectorRepo := dbtarget.NewSQLConnectorRepository(db)
@@ -284,6 +286,7 @@ func main() {
 		DBMapping:    dbTargetMappingSvc,
 		SourceRule:   sourceRuleSvc,
 		Workspace:    workspaceSvc,
+		Audit:        auditSvc,
 	}
 
 	// 建立 API 路由器

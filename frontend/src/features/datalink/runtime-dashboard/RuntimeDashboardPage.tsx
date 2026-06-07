@@ -3,6 +3,7 @@ import { CollectorHealthPanel } from './CollectorHealthPanel';
 import { FocusedDeviceHeader } from './FocusedDeviceHeader';
 import { LivePointsTable } from './LivePointsTable';
 import { LiveStateBanner } from './LiveStateBanner';
+import { RuntimeDiagnosticsPanel } from './RuntimeDiagnosticsPanel';
 import { RuntimeSummaryPanel } from './RuntimeSummaryPanel';
 import { RealtimeLogsPanel } from './RealtimeLogsPanel';
 import type { RuntimeDashboardState } from './useRuntimeDashboardState';
@@ -240,6 +241,10 @@ export function RuntimeDashboardPage({
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <RuntimeSummaryPanel snapshot={snapshot} />
             <CollectorHealthPanel collector={collector} />
+            <RuntimeDiagnosticsPanel
+              diagnostics={snapshot.diagnostics}
+              selectedDeviceId={selectedDeviceId}
+            />
           </div>
         ) : null}
         <div className="grid gap-6 lg:grid-cols-12 items-start">

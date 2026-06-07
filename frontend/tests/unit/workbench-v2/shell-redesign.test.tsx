@@ -18,11 +18,19 @@ vi.mock('../../../src/hooks/datalink/useStudioV2Workspace', () => ({
   useStudioV2WorkspaceQuery: () => mockState.workspaceQuery,
 }));
 
+vi.mock('../../../src/hooks/datalink/useStudioV2WorkspaceAuditHistory', () => ({
+  useStudioV2WorkspaceAuditHistoryQuery: () => ({
+    data: { entries: [] },
+    isError: false,
+  }),
+}));
+
 vi.mock('../../../src/pages/datalink/workbench-v2/useStudioV2AutosaveState', () => ({
   useStudioV2AutosaveState: () => ({
     workspaceHydrated: false,
     devicesQuery: { isLoading: false, isError: false },
     rulesQuery: { isLoading: false, isError: false },
+    mappingsQuery: { isLoading: false, isError: false },
     databaseConfigQuery: { isLoading: false, isError: false },
     databaseTargetsQuery: { isLoading: false, isError: false },
     state: {},

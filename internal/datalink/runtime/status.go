@@ -20,6 +20,7 @@ type RuntimeStatusSnapshot struct {
 	Metrics          Stats                        `json:"metrics"`
 	Collectors       []DeviceRuntimeStatus        `json:"collectors"`
 	DatabaseDelivery []DatabaseDeliveryDiagnostic `json:"database_delivery"`
+	Diagnostics      []RuntimeFlowDiagnostic      `json:"diagnostics"`
 }
 
 // DeviceRuntimeStatus describes one device runtime summary shared by snapshot and stream.
@@ -71,6 +72,7 @@ func (s *Service) RuntimeStatusSnapshot(ctx context.Context, deviceID string) (R
 		Metrics:          s.Snapshot(),
 		Collectors:       collectors,
 		DatabaseDelivery: s.databaseDeliveryDiagnostics(deviceID),
+		Diagnostics:      s.runtimeFlowDiagnostics(deviceID),
 	}, nil
 }
 

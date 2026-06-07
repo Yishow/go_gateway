@@ -23,6 +23,7 @@ type workspaceSchemaEnsurer interface {
 type StudioV2WorkspaceActivationHandler struct {
 	activator     workspaceActivator
 	schemaEnsurer workspaceSchemaEnsurer
+	auditSvc      workspaceAuditRecorder
 }
 
 func NewStudioV2WorkspaceActivationHandler(activator workspaceActivator, schemaEnsurer ...workspaceSchemaEnsurer) *StudioV2WorkspaceActivationHandler {
@@ -65,6 +66,7 @@ func (h *StudioV2WorkspaceActivationHandler) Activate(c *gin.Context) {
 		})
 		return
 	}
+	h.recordActivationAudit(c.Request.Context(), response)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

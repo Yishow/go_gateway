@@ -21,6 +21,7 @@ type StudioV2WorkspaceDatabaseHandler struct {
 	ruleSvc      *sourcerule.Service
 	connectorSvc *dbtarget.ConnectorService
 	mappingSvc   *dbtarget.MappingService
+	auditSvc     workspaceAuditRecorder
 }
 
 func NewStudioV2WorkspaceDatabaseHandler(workspaceSvc *workspace.Service, deviceSvc *device.Service, ruleSvc *sourcerule.Service, connectorSvc *dbtarget.ConnectorService, mappingSvc *dbtarget.MappingService) *StudioV2WorkspaceDatabaseHandler {
@@ -69,6 +70,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpdateConfig(c *gin.Context) {
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
 	payload.RuntimeApplyIssues = applyOutcome.Issues
+	h.recordDatabaseConfigAudit(c.Request.Context(), record.ID, savedConnector, payload.RuntimeApplyStatus)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 }
 
@@ -228,5 +230,6 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
 	payload.RuntimeApplyIssues = applyOutcome.Issues
+	h.recordDatabaseTargetAudit(c.Request.Context(), record.ID, savedRow, binding.PointID, payload.RuntimeApplyStatus)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 }

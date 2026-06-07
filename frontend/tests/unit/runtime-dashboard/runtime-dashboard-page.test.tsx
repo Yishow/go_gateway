@@ -94,6 +94,49 @@ describe('RuntimeDashboardPage', () => {
     expect(screen.getByTestId('runtime-dashboard-logs-panel')).toBeInTheDocument();
   });
 
+  it('shows latest runtime diagnostics failure context for the selected device', () => {
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        snapshot={{
+          ...baseState.snapshot,
+          diagnostics: [{
+            scope: 'device:device-A',
+            device_id: 'device-A',
+            point_id: 'pt-1',
+            tag_id: 'tag-pressure',
+            last_success_at: '2026-05-29T10:10:00Z',
+            last_failure_at: '2026-05-29T10:12:00Z',
+            latest_successful_stage: 'runtime_projection',
+            failure_stage: 'database_delivery',
+            failure_reason: 'permission denied',
+            stages: [
+              { stage: 'collector', status: 'success', observed_at: '2026-05-29T10:12:00Z' },
+              { stage: 'mapping', status: 'success', observed_at: '2026-05-29T10:12:00Z' },
+              {
+                stage: 'runtime_projection',
+                status: 'success',
+                observed_at: '2026-05-29T10:12:00Z',
+              },
+              {
+                stage: 'database_delivery',
+                status: 'failed',
+                observed_at: '2026-05-29T10:12:00Z',
+                reason: 'permission denied',
+              },
+            ],
+          }],
+        }}
+      />,
+    );
+
+    const panel = screen.getByTestId('runtime-dashboard-diagnostics-panel');
+    expect(panel).toHaveTextContent('database_delivery');
+    expect(panel).toHaveTextContent('permission denied');
+    expect(panel).toHaveTextContent('2026-05-29T10:12:00Z');
+    expect(panel).toHaveTextContent('runtime_projection');
+  });
+
   it('marks unsupported summary metrics unavailable instead of filling zero defaults', () => {
     const snapshotWithoutMetrics = {
       ...baseState.snapshot,

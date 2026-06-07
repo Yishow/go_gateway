@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"go-gateway/internal/datalink/audit"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/workspace"
 
@@ -61,6 +62,46 @@ func TestStudioV2WorkspaceActivationHandler_ReturnsPerDeviceResultsOnPartialSucc
 	}
 	if body := resp.Body.String(); body == "" || !containsAll(body, "workspace-1", "dev-A", "success", "dev-B", "failed", "activation timeout") {
 		t.Fatalf("expected per-device partial success payload, got %s", body)
+	}
+}
+
+func TestStudioV2WorkspaceActivationHandler_RecordsPartialActivationAudit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	auditSvc := audit.NewService(audit.NewMemoryRepository())
+	handler := NewStudioV2WorkspaceActivationHandler(&stubWorkspaceActivator{
+		response: &workspace.ActivationResponse{
+			WorkspaceID: "workspace-1",
+			Results: []workspace.ActivationResult{
+				{DeviceID: "dev-A", Status: workspace.ActivationResultStatusSuccess, Message: "activated"},
+				{DeviceID: "dev-B", Status: workspace.ActivationResultStatusFailed, Message: "activation timeout"},
+			},
+		},
+	}).WithAudit(auditSvc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	handler.Activate(c)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", resp.Code, resp.Body.String())
+	}
+	entries, err := auditSvc.List(context.Background(), audit.ListFilter{WorkspaceID: "workspace-1", Limit: 10})
+	if err != nil {
+		t.Fatalf("list audit failed: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one activation audit entry, got %+v", entries)
+	}
+	entry := entries[0]
+	if entry.EventType != audit.EventTypeWorkspaceActivation || entry.Result != audit.ResultPartialSuccess {
+		t.Fatalf("unexpected activation audit entry: %+v", entry)
+	}
+	if !containsAll(entry.Scope, "dev-A", "dev-B") || !containsAll(entry.Details, "activation timeout") {
+		t.Fatalf("expected activation scope/details, got %+v", entry)
 	}
 }
 

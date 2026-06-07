@@ -13,6 +13,7 @@ import (
 	"time"
 
 	datalinkbase "go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/audit"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
@@ -33,6 +34,7 @@ type workspaceDatabaseFixture struct {
 	connectorSvc  *dbtarget.ConnectorService
 	connectorRepo dbtarget.ConnectorRepository
 	workspaceSvc  *workspace.Service
+	auditSvc      *audit.Service
 	targetDB      string
 	pointIDs      []string
 }
@@ -353,13 +355,15 @@ func newWorkspaceDatabaseFixture(t *testing.T) workspaceDatabaseFixture {
 	}
 	require.NoError(t, ruleSvc.ReplaceLinks(ctx, ruleRecord.ID, links))
 
-	handler := NewStudioV2WorkspaceDatabaseHandler(workspaceSvc, deviceSvc, ruleSvc, dbConnectorSvc, dbMappingSvc)
+	auditSvc := audit.NewService(audit.NewMemoryRepository())
+	handler := NewStudioV2WorkspaceDatabaseHandler(workspaceSvc, deviceSvc, ruleSvc, dbConnectorSvc, dbMappingSvc).WithAudit(auditSvc)
 	return workspaceDatabaseFixture{
 		handler:       handler,
 		ruleSvc:       ruleSvc,
 		connectorSvc:  dbConnectorSvc,
 		connectorRepo: dbConnectorRepo,
 		workspaceSvc:  workspaceSvc,
+		auditSvc:      auditSvc,
 		targetDB:      targetDB,
 		pointIDs:      pointIDs,
 	}

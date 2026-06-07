@@ -190,6 +190,21 @@ func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing
 				FailedStage string   `json:"failed_stage"`
 				Error       string   `json:"error"`
 			} `json:"database_delivery"`
+			Diagnostics []struct {
+				Scope                 string `json:"scope"`
+				DeviceID              string `json:"device_id"`
+				PointID               string `json:"point_id"`
+				TagID                 string `json:"tag_id"`
+				LatestSuccessfulStage string `json:"latest_successful_stage"`
+				FailureStage          string `json:"failure_stage"`
+				FailureReason         string `json:"failure_reason"`
+				LastFailureAt         string `json:"last_failure_at"`
+				Stages                []struct {
+					Stage  string `json:"stage"`
+					Status string `json:"status"`
+					Reason string `json:"reason"`
+				} `json:"stages"`
+			} `json:"diagnostics"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
@@ -217,5 +232,30 @@ func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing
 		if diagnostic.Stages[idx] != expectedStages[idx] {
 			t.Fatalf("unexpected database delivery stages: %+v", diagnostic.Stages)
 		}
+	}
+
+	if len(body.Data.Diagnostics) != 1 {
+		t.Fatalf("expected one runtime flow diagnostic, got %s", resp.Body.String())
+	}
+	flowDiagnostic := body.Data.Diagnostics[0]
+	if flowDiagnostic.Scope != "device:"+deviceRecord.ID ||
+		flowDiagnostic.DeviceID != deviceRecord.ID ||
+		flowDiagnostic.PointID != pointRecord.ID ||
+		flowDiagnostic.TagID != tagRecord.ID {
+		t.Fatalf("unexpected flow diagnostic scope: %+v", flowDiagnostic)
+	}
+	if flowDiagnostic.LatestSuccessfulStage != "runtime_projection" ||
+		flowDiagnostic.FailureStage != "database_delivery" ||
+		flowDiagnostic.FailureReason != "permission denied" ||
+		flowDiagnostic.LastFailureAt == "" {
+		t.Fatalf("unexpected flow diagnostic failure context: %+v", flowDiagnostic)
+	}
+	if len(flowDiagnostic.Stages) != 4 {
+		t.Fatalf("unexpected flow diagnostic stages: %+v", flowDiagnostic.Stages)
+	}
+	if flowDiagnostic.Stages[3].Stage != "database_delivery" ||
+		flowDiagnostic.Stages[3].Status != "failed" ||
+		flowDiagnostic.Stages[3].Reason != "permission denied" {
+		t.Fatalf("unexpected flow diagnostic failed stage: %+v", flowDiagnostic.Stages)
 	}
 }
