@@ -106,6 +106,9 @@ type Service struct {
 	lastStatusMu       sync.Mutex
 	lastStatuses       map[string]DeviceRuntimeStatus
 
+	databaseDeliveryMu sync.RWMutex
+	databaseDelivery   map[string]DatabaseDeliveryDiagnostic
+
 	stopCh    chan struct{}
 	wg        sync.WaitGroup
 	running   atomic.Bool
@@ -131,6 +134,7 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		subscribers:       make(map[int64]valueSubscriber),
 		statusSubscribers: make(map[int64]statusSubscriber),
 		lastStatuses:      make(map[string]DeviceRuntimeStatus),
+		databaseDelivery:  make(map[string]DatabaseDeliveryDiagnostic),
 		stopCh:            make(chan struct{}),
 	}
 

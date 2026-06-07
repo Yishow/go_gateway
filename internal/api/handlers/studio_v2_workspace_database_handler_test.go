@@ -28,12 +28,13 @@ import (
 )
 
 type workspaceDatabaseFixture struct {
-	handler      *StudioV2WorkspaceDatabaseHandler
-	ruleSvc      *sourcerule.Service
-	connectorSvc *dbtarget.ConnectorService
-	workspaceSvc *workspace.Service
-	targetDB     string
-	pointIDs     []string
+	handler       *StudioV2WorkspaceDatabaseHandler
+	ruleSvc       *sourcerule.Service
+	connectorSvc  *dbtarget.ConnectorService
+	connectorRepo dbtarget.ConnectorRepository
+	workspaceSvc  *workspace.Service
+	targetDB      string
+	pointIDs      []string
 }
 
 func TestStudioV2WorkspaceDatabaseHandler_SaveConfigAndOneTarget(t *testing.T) {
@@ -354,12 +355,13 @@ func newWorkspaceDatabaseFixture(t *testing.T) workspaceDatabaseFixture {
 
 	handler := NewStudioV2WorkspaceDatabaseHandler(workspaceSvc, deviceSvc, ruleSvc, dbConnectorSvc, dbMappingSvc)
 	return workspaceDatabaseFixture{
-		handler:      handler,
-		ruleSvc:      ruleSvc,
-		connectorSvc: dbConnectorSvc,
-		workspaceSvc: workspaceSvc,
-		targetDB:     targetDB,
-		pointIDs:     pointIDs,
+		handler:       handler,
+		ruleSvc:       ruleSvc,
+		connectorSvc:  dbConnectorSvc,
+		connectorRepo: dbConnectorRepo,
+		workspaceSvc:  workspaceSvc,
+		targetDB:      targetDB,
+		pointIDs:      pointIDs,
 	}
 }
 

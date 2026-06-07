@@ -14,8 +14,6 @@ import (
 )
 
 func TestProbeConnector_PostgresCreatesMissingDatabaseAndRetries(t *testing.T) {
-	t.Parallel()
-
 	originalOpen := openExternalDBManagerFunc
 	originalEnsure := ensurePostgresDatabaseIfMissingFunc
 	t.Cleanup(func() {

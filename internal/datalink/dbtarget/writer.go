@@ -2,7 +2,6 @@ package dbtarget
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,6 +14,7 @@ import (
 type Writer struct {
 	connectorRepo ConnectorRepository
 	mappingRepo   TargetMappingRepository
+	tagReader     ConnectorTagReader
 	now           func() time.Time
 	flushTick     <-chan time.Time
 	stopTick      func()
@@ -33,6 +33,7 @@ type WriterConfig struct {
 	FlushTick     <-chan time.Time
 	FlushInterval time.Duration
 	Now           func() time.Time
+	TagReader     ConnectorTagReader
 }
 
 type groupedWriteKey struct {
@@ -60,6 +61,7 @@ func NewWriterWithConfig(
 	writer := &Writer{
 		connectorRepo: connectorRepo,
 		mappingRepo:   mappingRepo,
+		tagReader:     config.TagReader,
 		now:           config.Now,
 		stopCh:        make(chan struct{}),
 		grouped:       make(map[groupedWriteKey]*groupedWriteBucket),
@@ -89,14 +91,11 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 		return fmt.Errorf("tagID 不可為空")
 	}
 
-	enabled := true
-	mappings, err := w.mappingRepo.List(ctx, TargetMappingListFilter{
-		TagID:   &tagID,
-		Enabled: &enabled,
-	})
+	projection, err := listLiveTargetProjection(ctx, w.mappingRepo, TargetMappingListFilter{TagID: &tagID}, w.tagReader)
 	if err != nil {
 		return fmt.Errorf("查詢資料庫目標映射失敗: %w", err)
 	}
+	mappings := projection.Mappings
 	if len(mappings) == 0 {
 		return nil
 	}
@@ -128,6 +127,9 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 		}
 
 		if err := w.writeMapping(ctx, connector, mapping, value, observedAt); err != nil {
+			if outcomeErr := w.recordWriteOutcome(ctx, connector, observedAt, deliveryOutcomeFailed, err.Error()); outcomeErr != nil {
+				failures = append(failures, fmt.Sprintf("mapping %s 更新寫入狀態失敗: %v", mapping.ID, outcomeErr))
+			}
 			recordWriteHistory(connector.ID, WriteHistoryRecord{
 				ObservedAt:               observedAt,
 				Status:                   "failed",
@@ -138,6 +140,10 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 				ErrorSummary:             err.Error(),
 			})
 			failures = append(failures, fmt.Sprintf("mapping %s 寫入失敗: %v", mapping.ID, err))
+			continue
+		}
+		if err := w.recordWriteOutcome(ctx, connector, observedAt, deliveryOutcomeSuccess, ""); err != nil {
+			failures = append(failures, fmt.Sprintf("mapping %s 更新寫入狀態失敗: %v", mapping.ID, err))
 			continue
 		}
 		recordWriteHistory(connector.ID, WriteHistoryRecord{
@@ -284,6 +290,9 @@ func (w *Writer) flushBuckets(ctx context.Context, now time.Time, flushAll bool)
 	var failures []string
 	for _, bucket := range buckets {
 		if err := w.flushGroupedBucket(ctx, bucket); err != nil {
+			if outcomeErr := w.recordFlushOutcome(ctx, bucket.Connector, bucket.Key.BucketStart, deliveryOutcomeFailed, err.Error()); outcomeErr != nil {
+				failures = append(failures, outcomeErr.Error())
+			}
 			recordWriteHistory(bucket.Key.ConnectorID, WriteHistoryRecord{
 				ObservedAt:               bucket.Key.BucketStart,
 				Status:                   "failed",
@@ -293,6 +302,10 @@ func (w *Writer) flushBuckets(ctx context.Context, now time.Time, flushAll bool)
 				EffectiveIntervalSeconds: bucket.Key.EffectiveIntervalSeconds,
 				ErrorSummary:             err.Error(),
 			})
+			failures = append(failures, err.Error())
+			continue
+		}
+		if err := w.recordFlushOutcome(ctx, bucket.Connector, bucket.Key.BucketStart, deliveryOutcomeSuccess, ""); err != nil {
 			failures = append(failures, err.Error())
 			continue
 		}
@@ -352,59 +365,6 @@ func (w *Writer) flushGroupedBucket(ctx context.Context, bucket *groupedWriteBuc
 	return nil
 }
 
-func buildGroupedWriteStatement(
-	kind schema.DatabaseConnectorKind,
-	key groupedWriteKey,
-	values map[string]any,
-) (string, []any, error) {
-	if len(values) == 0 {
-		return "", nil, fmt.Errorf("grouped write has no buffered values")
-	}
-
-	columnNames := make([]string, 0, len(values))
-	for columnName := range values {
-		columnNames = append(columnNames, columnName)
-	}
-	sort.Strings(columnNames)
-
-	columns := make([]string, 0, len(columnNames)+1)
-	args := make([]any, 0, len(columnNames)+1)
-	if key.WriteMode == schema.DatabaseWriteModeUpsert && strings.TrimSpace(key.TimestampColumn) != "" {
-		columns = append(columns, quoteIdentifier(kind, key.TimestampColumn))
-		args = append(args, key.BucketStart)
-	}
-	for _, columnName := range columnNames {
-		columns = append(columns, quoteIdentifier(kind, columnName))
-		args = append(args, values[columnName])
-	}
-
-	placeholders := buildPlaceholders(kind, len(args))
-	tableRef := qualifiedTableName(kind, key.SchemaName, key.TableName)
-	query := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES (%s)",
-		tableRef,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
-	if key.WriteMode == schema.DatabaseWriteModeUpsert {
-		if strings.TrimSpace(key.TimestampColumn) == "" {
-			return "", nil, fmt.Errorf("upsert 模式缺少 timestamp_column")
-		}
-		assignments := make([]string, 0, len(columnNames))
-		for _, columnName := range columnNames {
-			quoted := quoteIdentifier(kind, columnName)
-			assignments = append(assignments, fmt.Sprintf("%s = EXCLUDED.%s", quoted, quoted))
-		}
-		query += fmt.Sprintf(
-			" ON CONFLICT (%s) DO UPDATE SET %s",
-			quoteIdentifier(kind, key.TimestampColumn),
-			strings.Join(assignments, ", "),
-		)
-	}
-	return query, args, nil
-}
-
 func hasGroupedWriteKey(mapping *schema.DatabaseTargetMapping) bool {
 	return strings.TrimSpace(derefOptionalString(mapping.GroupKey)) != ""
 }
@@ -437,93 +397,6 @@ func derefOptionalString(value *string) string {
 func copyStringPointer(value string) *string {
 	trimmed := strings.TrimSpace(value)
 	return &trimmed
-}
-
-func buildWriteStatement(
-	kind schema.DatabaseConnectorKind,
-	mapping *schema.DatabaseTargetMapping,
-	value any,
-	observedAt time.Time,
-) (string, []any, error) {
-	if mapping.TableName == "" || mapping.ColumnName == "" {
-		return "", nil, fmt.Errorf("資料庫目標映射缺少資料表或欄位資訊")
-	}
-
-	columns := []string{quoteIdentifier(kind, mapping.ColumnName)}
-	args := []any{normalizeDBValue(value)}
-	if mapping.WriteMode == schema.DatabaseWriteModeUpsert && mapping.TimestampColumn != nil {
-		columns = append(columns, quoteIdentifier(kind, *mapping.TimestampColumn))
-		args = append(args, observedAt.UTC())
-	}
-
-	placeholders := buildPlaceholders(kind, len(args))
-	tableRef := qualifiedTableName(kind, mapping.TableSchema, mapping.TableName)
-	query := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES (%s)",
-		tableRef,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
-	if mapping.WriteMode == schema.DatabaseWriteModeUpsert {
-		if mapping.TimestampColumn == nil {
-			return "", nil, fmt.Errorf("upsert 模式缺少 timestamp_column")
-		}
-
-		valueColumn := quoteIdentifier(kind, mapping.ColumnName)
-		timestampColumn := quoteIdentifier(kind, *mapping.TimestampColumn)
-		query += fmt.Sprintf(
-			" ON CONFLICT (%s) DO UPDATE SET %s = EXCLUDED.%s",
-			timestampColumn,
-			valueColumn,
-			valueColumn,
-		)
-	}
-
-	return query, args, nil
-}
-
-func buildPlaceholders(kind schema.DatabaseConnectorKind, count int) []string {
-	placeholders := make([]string, 0, count)
-	for i := 0; i < count; i++ {
-		switch kind {
-		case schema.DatabaseConnectorKindPostgres:
-			placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
-		default:
-			placeholders = append(placeholders, "?")
-		}
-	}
-	return placeholders
-}
-
-func quoteIdentifier(kind schema.DatabaseConnectorKind, name string) string {
-	escaped := strings.ReplaceAll(strings.TrimSpace(name), `"`, `""`)
-	return `"` + escaped + `"`
-}
-
-func qualifiedTableName(kind schema.DatabaseConnectorKind, schemaName string, tableName string) string {
-	quotedTable := quoteIdentifier(kind, tableName)
-	if strings.TrimSpace(schemaName) == "" || kind == schema.DatabaseConnectorKindSQLite {
-		return quotedTable
-	}
-	return quoteIdentifier(kind, schemaName) + "." + quotedTable
-}
-
-func normalizeDBValue(value any) any {
-	switch typed := value.(type) {
-	case nil:
-		return nil
-	case map[string]any, []any:
-		data, err := json.Marshal(typed)
-		if err != nil {
-			return fmt.Sprintf("%v", typed)
-		}
-		return string(data)
-	case time.Time:
-		return typed.UTC()
-	default:
-		return value
-	}
 }
 
 var _ interface {

@@ -14,10 +14,11 @@ const statusRefreshInterval = time.Second
 
 // RuntimeStatusSnapshot describes the runtime monitoring snapshot payload.
 type RuntimeStatusSnapshot struct {
-	Running       bool                  `json:"running"`
-	UptimeSeconds int64                 `json:"uptime_seconds"`
-	Metrics       Stats                 `json:"metrics"`
-	Collectors    []DeviceRuntimeStatus `json:"collectors"`
+	Running          bool                         `json:"running"`
+	UptimeSeconds    int64                        `json:"uptime_seconds"`
+	Metrics          Stats                        `json:"metrics"`
+	Collectors       []DeviceRuntimeStatus        `json:"collectors"`
+	DatabaseDelivery []DatabaseDeliveryDiagnostic `json:"database_delivery"`
 }
 
 // DeviceRuntimeStatus describes one device runtime summary shared by snapshot and stream.
@@ -63,10 +64,11 @@ func (s *Service) RuntimeStatusSnapshot(ctx context.Context, deviceID string) (R
 	s.attachProjectionStates(ctx, collectors, devices)
 
 	return RuntimeStatusSnapshot{
-		Running:       s.IsRunning(),
-		UptimeSeconds: s.UptimeSeconds(),
-		Metrics:       s.Snapshot(),
-		Collectors:    collectors,
+		Running:          s.IsRunning(),
+		UptimeSeconds:    s.UptimeSeconds(),
+		Metrics:          s.Snapshot(),
+		Collectors:       collectors,
+		DatabaseDelivery: s.databaseDeliveryDiagnostics(deviceID),
 	}, nil
 }
 

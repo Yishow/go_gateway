@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
@@ -21,8 +20,12 @@ func NewSQLConnectorRepository(db *sql.DB) *SQLConnectorRepository {
 
 func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.DatabaseConnector) error {
 	query := `INSERT INTO database_connectors (
-		id, name, kind, connection_config, status, last_check_at, last_check_error, enabled, default_write_interval_seconds, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		id, name, kind, connection_config, status, last_check_at, last_check_error, enabled, default_write_interval_seconds,
+		last_schema_ensure_at, last_schema_ensure_status, last_schema_ensure_error,
+		last_write_at, last_write_status, last_write_error,
+		last_flush_at, last_flush_status, last_flush_error,
+		created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(
 		ctx,
@@ -36,6 +39,15 @@ func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.D
 		connector.LastCheckError,
 		connector.Enabled,
 		connector.DefaultWriteIntervalSeconds,
+		connector.LastSchemaEnsureAt,
+		connector.LastSchemaEnsureStatus,
+		connector.LastSchemaEnsureError,
+		connector.LastWriteAt,
+		connector.LastWriteStatus,
+		connector.LastWriteError,
+		connector.LastFlushAt,
+		connector.LastFlushStatus,
+		connector.LastFlushError,
 		connector.CreatedAt,
 		connector.UpdatedAt,
 	)
@@ -47,7 +59,12 @@ func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.D
 
 func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.DatabaseConnector) error {
 	query := `UPDATE database_connectors
-		SET name = ?, kind = ?, connection_config = ?, status = ?, last_check_at = ?, last_check_error = ?, enabled = ?, default_write_interval_seconds = ?, updated_at = ?
+		SET name = ?, kind = ?, connection_config = ?, status = ?, last_check_at = ?, last_check_error = ?,
+			enabled = ?, default_write_interval_seconds = ?,
+			last_schema_ensure_at = ?, last_schema_ensure_status = ?, last_schema_ensure_error = ?,
+			last_write_at = ?, last_write_status = ?, last_write_error = ?,
+			last_flush_at = ?, last_flush_status = ?, last_flush_error = ?,
+			updated_at = ?
 		WHERE id = ?`
 
 	result, err := r.db.ExecContext(
@@ -61,6 +78,15 @@ func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.D
 		connector.LastCheckError,
 		connector.Enabled,
 		connector.DefaultWriteIntervalSeconds,
+		connector.LastSchemaEnsureAt,
+		connector.LastSchemaEnsureStatus,
+		connector.LastSchemaEnsureError,
+		connector.LastWriteAt,
+		connector.LastWriteStatus,
+		connector.LastWriteError,
+		connector.LastFlushAt,
+		connector.LastFlushStatus,
+		connector.LastFlushError,
 		connector.UpdatedAt,
 		connector.ID,
 	)
@@ -95,9 +121,7 @@ func (r *SQLConnectorRepository) Delete(ctx context.Context, id string) error {
 }
 
 func (r *SQLConnectorRepository) GetByID(ctx context.Context, id string) (*schema.DatabaseConnector, error) {
-	query := `SELECT
-		id, name, kind, connection_config, status, COALESCE(CAST(last_check_at AS TEXT), ''),
-		last_check_error, enabled, default_write_interval_seconds, CAST(created_at AS TEXT), CAST(updated_at AS TEXT)
+	query := `SELECT ` + connectorSelectColumns + `
 	FROM database_connectors
 	WHERE id = ?`
 
@@ -106,9 +130,7 @@ func (r *SQLConnectorRepository) GetByID(ctx context.Context, id string) (*schem
 }
 
 func (r *SQLConnectorRepository) List(ctx context.Context, filter ConnectorListFilter) ([]*schema.DatabaseConnector, error) {
-	query := `SELECT
-		id, name, kind, connection_config, status, COALESCE(CAST(last_check_at AS TEXT), ''),
-		last_check_error, enabled, default_write_interval_seconds, CAST(created_at AS TEXT), CAST(updated_at AS TEXT)
+	query := `SELECT ` + connectorSelectColumns + `
 	FROM database_connectors
 	WHERE 1=1`
 	args := []any{}
@@ -267,104 +289,6 @@ func (r *SQLTargetMappingRepository) List(ctx context.Context, filter TargetMapp
 	defer rows.Close()
 
 	return scanTargetMappingRows(rows)
-}
-
-func scanConnectorRow(row *sql.Row) (*schema.DatabaseConnector, error) {
-	var connector schema.DatabaseConnector
-	var lastCheckAt, createdAt, updatedAt string
-
-	err := row.Scan(
-		&connector.ID,
-		&connector.Name,
-		&connector.Kind,
-		&connector.ConnectionConfig,
-		&connector.Status,
-		&lastCheckAt,
-		&connector.LastCheckError,
-		&connector.Enabled,
-		&connector.DefaultWriteIntervalSeconds,
-		&createdAt,
-		&updatedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("資料庫連接器不存在")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("掃描資料庫連接器失敗: %w", err)
-	}
-
-	parsedCreatedAt, err := common.ParseTimeString(createdAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析資料庫連接器建立時間失敗: %w", err)
-	}
-	parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析資料庫連接器更新時間失敗: %w", err)
-	}
-	connector.CreatedAt = parsedCreatedAt
-	connector.UpdatedAt = parsedUpdatedAt
-
-	if strings.TrimSpace(lastCheckAt) != "" {
-		parsedLastCheckAt, err := common.ParseTimeString(lastCheckAt)
-		if err != nil {
-			return nil, fmt.Errorf("解析資料庫連接器檢查時間失敗: %w", err)
-		}
-		connector.LastCheckAt = &parsedLastCheckAt
-	}
-
-	return &connector, nil
-}
-
-func scanConnectorRows(rows *sql.Rows) ([]*schema.DatabaseConnector, error) {
-	var connectors []*schema.DatabaseConnector
-
-	for rows.Next() {
-		var connector schema.DatabaseConnector
-		var lastCheckAt, createdAt, updatedAt string
-
-		if err := rows.Scan(
-			&connector.ID,
-			&connector.Name,
-			&connector.Kind,
-			&connector.ConnectionConfig,
-			&connector.Status,
-			&lastCheckAt,
-			&connector.LastCheckError,
-			&connector.Enabled,
-			&connector.DefaultWriteIntervalSeconds,
-			&createdAt,
-			&updatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("掃描資料庫連接器失敗: %w", err)
-		}
-
-		parsedCreatedAt, err := common.ParseTimeString(createdAt)
-		if err != nil {
-			return nil, fmt.Errorf("解析資料庫連接器建立時間失敗: %w", err)
-		}
-		parsedUpdatedAt, err := common.ParseTimeString(updatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("解析資料庫連接器更新時間失敗: %w", err)
-		}
-		connector.CreatedAt = parsedCreatedAt
-		connector.UpdatedAt = parsedUpdatedAt
-
-		if strings.TrimSpace(lastCheckAt) != "" {
-			parsedLastCheckAt, err := common.ParseTimeString(lastCheckAt)
-			if err != nil {
-				return nil, fmt.Errorf("解析資料庫連接器檢查時間失敗: %w", err)
-			}
-			connector.LastCheckAt = &parsedLastCheckAt
-		}
-
-		connectors = append(connectors, &connector)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("遍歷資料庫連接器失敗: %w", err)
-	}
-
-	return connectors, nil
 }
 
 func scanTargetMappingRow(row *sql.Row) (*schema.DatabaseTargetMapping, error) {

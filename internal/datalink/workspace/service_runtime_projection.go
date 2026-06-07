@@ -117,11 +117,11 @@ func (s *Service) RuntimeProjection(ctx context.Context) (*RuntimeProjection, er
 	if err != nil {
 		return nil, err
 	}
-	points, err := s.runtimeProjectionPoints(ctx, record.OrderedDeviceIDs)
+	points, err := s.runtimeProjectionPoints(ctx, record.OrderedDeviceIDs, links)
 	if err != nil {
 		return nil, err
 	}
-	mappings, tags, err := s.runtimeProjectionMappings(ctx, points)
+	mappings, tags, err := s.runtimeProjectionMappings(ctx, points, links)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,8 @@ func (s *Service) runtimeProjectionRules(
 	return rules, links, nil
 }
 
-func (s *Service) runtimeProjectionPoints(ctx context.Context, deviceIDs []string) ([]*schema.Point, error) {
+func (s *Service) runtimeProjectionPoints(ctx context.Context, deviceIDs []string, links []*schema.SourceRuleLink) ([]*schema.Point, error) {
+	livePointIDs := runtimeProjectionLinkPointIDs(links)
 	points := make([]*schema.Point, 0)
 	for _, deviceID := range deviceIDs {
 		devicePoints, err := s.projectionPoints.List(ctx, point.ListFilter{DeviceID: &deviceID, Limit: 100000})
@@ -224,13 +225,19 @@ func (s *Service) runtimeProjectionPoints(ctx context.Context, deviceIDs []strin
 		sort.SliceStable(devicePoints, func(i, j int) bool {
 			return devicePoints[i].ID < devicePoints[j].ID
 		})
-		points = append(points, devicePoints...)
+		for _, pointRecord := range devicePoints {
+			if _, live := livePointIDs[pointRecord.ID]; !live {
+				continue
+			}
+			points = append(points, pointRecord)
+		}
 	}
 	return points, nil
 }
 
-func (s *Service) runtimeProjectionMappings(ctx context.Context, points []*schema.Point) ([]*schema.Mapping, []*schema.Tag, error) {
+func (s *Service) runtimeProjectionMappings(ctx context.Context, points []*schema.Point, links []*schema.SourceRuleLink) ([]*schema.Mapping, []*schema.Tag, error) {
 	enabled := true
+	liveMappingIDs := runtimeProjectionLinkMappingIDs(links)
 	mappings := make([]*schema.Mapping, 0)
 	tagIDs := make([]string, 0)
 	seenTags := make(map[string]struct{})
@@ -248,6 +255,9 @@ func (s *Service) runtimeProjectionMappings(ctx context.Context, points []*schem
 			return pointMappings[i].ID < pointMappings[j].ID
 		})
 		for _, mappingRecord := range pointMappings {
+			if _, live := liveMappingIDs[mappingRecord.ID]; !live {
+				continue
+			}
 			mappings = append(mappings, mappingRecord)
 			if _, ok := seenTags[mappingRecord.TagID]; ok {
 				continue

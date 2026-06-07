@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
@@ -30,21 +31,34 @@ func (s *ConnectorService) GenerateSchema(
 	if err != nil {
 		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
 	}
+	recordFailure := func(cause error) (*SchemaGenerateResult, error) {
+		if !req.DryRun {
+			if outcomeErr := s.recordSchemaEnsureOutcome(ctx, connector, time.Now(), deliveryOutcomeFailed, cause.Error()); outcomeErr != nil {
+				return nil, fmt.Errorf("%w; %v", cause, outcomeErr)
+			}
+		}
+		return nil, cause
+	}
+	recordSuccess := func(result *SchemaGenerateResult) (*SchemaGenerateResult, error) {
+		if !req.DryRun {
+			if outcomeErr := s.recordSchemaEnsureOutcome(ctx, connector, time.Now(), deliveryOutcomeSuccess, ""); outcomeErr != nil {
+				return nil, outcomeErr
+			}
+		}
+		return result, nil
+	}
 	if s.mappingRepo == nil {
-		return nil, fmt.Errorf("資料庫目標映射儲存庫未配置")
+		return recordFailure(fmt.Errorf("資料庫目標映射儲存庫未配置"))
 	}
 
-	filter := TargetMappingListFilter{ConnectorID: &connectorID}
-	mappings, err := s.mappingRepo.List(ctx, filter)
+	projection, err := listLiveTargetProjection(
+		ctx,
+		s.mappingRepo,
+		TargetMappingListFilter{ConnectorID: &connectorID},
+		s.connectorTagReader(),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("列出資料庫目標映射失敗: %w", err)
-	}
-	enabledMappings := make([]*schema.DatabaseTargetMapping, 0, len(mappings))
-	for _, mappingRecord := range mappings {
-		if mappingRecord == nil || !mappingRecord.Enabled {
-			continue
-		}
-		enabledMappings = append(enabledMappings, mappingRecord)
+		return recordFailure(err)
 	}
 
 	result := &SchemaGenerateResult{
@@ -53,49 +67,49 @@ func (s *ConnectorService) GenerateSchema(
 		Statements:  []string{},
 		Executed:    0,
 	}
-	if len(enabledMappings) == 0 {
-		return result, nil
+	if len(projection.Mappings) == 0 {
+		return recordSuccess(result)
 	}
 
 	tables, err := inspectTables(ctx, connector)
 	if err != nil {
-		return nil, fmt.Errorf("檢查資料庫目標表結構失敗: %w", err)
+		return recordFailure(fmt.Errorf("檢查資料庫目標表結構失敗: %w", err))
 	}
 
 	statements, err := buildSchemaGenerateStatements(
 		ctx,
 		connector.Kind,
-		enabledMappings,
+		projection.Mappings,
 		tables,
 		s.connectorTagReader(),
 	)
 	if err != nil {
-		return nil, err
+		return recordFailure(err)
 	}
 
 	result.Statements = statements
 	if req.DryRun || len(statements) == 0 {
-		return result, nil
+		return recordSuccess(result)
 	}
 
 	connectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
-		return nil, err
+		return recordFailure(err)
 	}
 	manager, err := openExternalDBManager(connector.Kind, connectionConfig)
 	if err != nil {
-		return nil, err
+		return recordFailure(err)
 	}
 	defer manager.Close()
 
 	for _, statement := range statements {
 		if _, execErr := manager.DB().ExecContext(ctx, statement); execErr != nil {
-			return nil, fmt.Errorf("執行 schema statement 失敗: %w", execErr)
+			return recordFailure(fmt.Errorf("執行 schema statement 失敗: %w", execErr))
 		}
 	}
 
 	result.Executed = len(statements)
-	return result, nil
+	return recordSuccess(result)
 }
 
 func (s *ConnectorService) ListWriteHistory(
@@ -119,14 +133,13 @@ func (s *MappingService) DryRun(
 		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
 	}
 
-	filter := TargetMappingListFilter{ConnectorID: &connectorID}
-	mappings, err := s.repo.List(ctx, filter)
+	projection, err := listLiveTargetProjection(ctx, s.repo, TargetMappingListFilter{ConnectorID: &connectorID}, s.tagService)
 	if err != nil {
-		return nil, fmt.Errorf("列出資料庫目標映射失敗: %w", err)
+		return nil, err
 	}
 
-	normalizedCandidateIDs, unknownCandidateIDs := normalizeDryRunCandidateIDs(req.CandidateIDs, mappings)
-	selectedMappings := selectMappingsForDryRun(mappings, normalizedCandidateIDs)
+	normalizedCandidateIDs, unknownCandidateIDs := normalizeDryRunCandidateIDs(req.CandidateIDs, projection.Mappings)
+	selectedMappings := selectMappingsForDryRun(projection.Mappings, normalizedCandidateIDs)
 	results := make([]MappingDryRunCandidateResult, 0, len(selectedMappings)+len(unknownCandidateIDs))
 
 	tables, inspectErr := inspectTables(ctx, connector)
@@ -156,17 +169,21 @@ func (s *MappingService) DryRun(
 	}
 
 	for _, mappingRecord := range selectedMappings {
-		tagEntity, getTagErr := s.tagService.GetByID(ctx, mappingRecord.TagID)
-		if getTagErr != nil {
-			results = append(results, MappingDryRunCandidateResult{
-				CandidateID: mappingRecord.ID,
-				MappingID:   mappingRecord.ID,
-				TagID:       mappingRecord.TagID,
-				Status:      "blocked",
-				Code:        "schema_missing",
-				Reason:      getTagErr.Error(),
-			})
-			continue
+		tagEntity := projection.TagsByMappingID[mappingRecord.ID]
+		if tagEntity == nil {
+			var getTagErr error
+			tagEntity, getTagErr = s.tagService.GetByID(ctx, mappingRecord.TagID)
+			if getTagErr != nil {
+				results = append(results, MappingDryRunCandidateResult{
+					CandidateID: mappingRecord.ID,
+					MappingID:   mappingRecord.ID,
+					TagID:       mappingRecord.TagID,
+					Status:      "blocked",
+					Code:        "schema_missing",
+					Reason:      getTagErr.Error(),
+				})
+				continue
+			}
 		}
 
 		issues := validateMappingAgainstTables(*mappingRecord, *tagEntity, tables)

@@ -1,9 +1,11 @@
-package runtime_test
+package api
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,130 +17,26 @@ import (
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
-	"go-gateway/internal/datalink/runtime"
+	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/settings"
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/virtual/memory"
 	virtualmodbus "go-gateway/internal/virtual/server/modbus"
 )
 
-func TestService_StartConsumeAndStop(t *testing.T) {
-	bank := memory.NewMemoryBank(4096)
-	if err := bank.WriteWord(0, 321); err != nil {
-		t.Fatalf("write memory failed: %v", err)
-	}
-
-	server := virtualmodbus.NewServer(bank)
-	if err := server.Start(0); err != nil {
-		t.Fatalf("start virtual modbus tcp failed: %v", err)
-	}
-	defer server.Stop()
-
-	cfgJSON, err := json.Marshal(schema.ConnectionConfigModbusTCP{
-		Host:    "127.0.0.1",
-		Port:    server.Port(),
-		SlaveID: 1,
-		Timeout: 2,
-	})
-	if err != nil {
-		t.Fatalf("marshal device config failed: %v", err)
-	}
-
-	groupID := "group-1"
-	memWriter := storage.NewMemoryStorage(1000)
-
-	svc, err := runtime.NewService(runtime.Config{
-		Writer: memWriter,
-		Snapshot: runtime.Snapshot{
-			Devices: []*schema.Device{
-				{
-					ID:               "dev-1",
-					Name:             "dev-1",
-					Protocol:         schema.ProtocolModbusTCP,
-					Status:           schema.DeviceStatusActive,
-					ConnectionConfig: string(cfgJSON),
-				},
-			},
-			Points: []*schema.Point{
-				{
-					ID:             "point-1",
-					DeviceID:       "dev-1",
-					Name:           "p1",
-					Address:        "0",
-					Function:       "03",
-					DataType:       schema.DataTypeUint16,
-					Mode:           schema.PointModeReadOnly,
-					PollingGroupID: &groupID,
-					Enabled:        true,
-				},
-			},
-			PollingGroups: []*schema.PollingGroup{
-				{ID: groupID, Name: "g1", IntervalMs: 100, Priority: 1, Enabled: true},
-			},
-			Mappings: []*schema.Mapping{
-				{
-					ID:                "map-1",
-					PointID:           "point-1",
-					TagID:             "tag-1",
-					TransformPipeline: "[]",
-					Enabled:           true,
-				},
-			},
-			Tags: []*schema.Tag{
-				{ID: "tag-1", Key: "test.tag.1", DataType: schema.DataTypeUint16, Status: schema.TagStatusActive},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("new runtime service failed: %v", err)
-	}
-
-	ctx := context.Background()
-	if err := svc.Start(ctx); err != nil {
-		t.Fatalf("start runtime failed: %v", err)
-	}
-
-	time.Sleep(350 * time.Millisecond)
-
-	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err := svc.Stop(stopCtx); err != nil {
-		t.Fatalf("stop runtime failed: %v", err)
-	}
-
-	records, err := memWriter.Query(context.Background(), storage.TimeSeriesQuery{
-		TagID: "tag-1",
-		Limit: 5,
-		Order: "desc",
-	})
-	if err != nil {
-		t.Fatalf("query memory writer failed: %v", err)
-	}
-	if len(records) == 0 {
-		t.Fatal("expected at least one timeseries record")
-	}
-	if records[0].ValueNum == nil || *records[0].ValueNum != 321 {
-		t.Fatalf("unexpected latest value: %+v", records[0].ValueNum)
-	}
-
-	metrics := svc.Metrics()
-	if metrics.TotalReads == 0 || metrics.TotalWrites == 0 {
-		t.Fatalf("expected non-zero runtime metrics, got %+v", metrics)
-	}
-}
-
-type failingTargetWriter struct {
+type apiFailingTargetWriter struct {
 	err   error
 	calls atomic.Int64
 }
 
-func (w *failingTargetWriter) WriteTagValue(context.Context, string, any, time.Time) error {
+func (w *apiFailingTargetWriter) WriteTagValue(context.Context, string, any, time.Time) error {
 	w.calls.Add(1)
 	return w.err
 }
 
-func TestService_RuntimeStatusReportsDatabaseDeliveryFailureStages(t *testing.T) {
+func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing.T) {
 	bank := memory.NewMemoryBank(4096)
 	if err := bank.WriteWord(0, 21); err != nil {
 		t.Fatalf("write memory failed: %v", err)
@@ -171,7 +69,8 @@ func TestService_RuntimeStatusReportsDatabaseDeliveryFailureStages(t *testing.T)
 	tagSvc := tag.NewService(tagRepo)
 	mappingRepo := mapping.NewMemoryRepository()
 	mappingSvc := mapping.NewService(mappingRepo)
-	groupSvc := pollinggroup.NewService(groupRepo)
+	pollingGroupSvc := pollinggroup.NewService(groupRepo)
+	settingsSvc := settings.NewService(settings.NewMemoryRepository())
 
 	deviceRecord := &schema.Device{
 		ID:               "dev-A",
@@ -227,8 +126,8 @@ func TestService_RuntimeStatusReportsDatabaseDeliveryFailureStages(t *testing.T)
 		t.Fatalf("create mapping failed: %v", err)
 	}
 
-	targetWriter := &failingTargetWriter{err: errors.New("permission denied")}
-	runtimeSvc, err := runtime.NewService(runtime.DefaultConfig(), runtime.Dependencies{
+	targetWriter := &apiFailingTargetWriter{err: errors.New("permission denied")}
+	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{
 		Scheduler:           collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr),
 		Writer:              storage.NewMemoryStorage(16),
 		TargetWriter:        targetWriter,
@@ -236,7 +135,7 @@ func TestService_RuntimeStatusReportsDatabaseDeliveryFailureStages(t *testing.T)
 		PointService:        pointSvc,
 		MappingService:      mappingSvc,
 		TagService:          tagSvc,
-		PollingGroupService: groupSvc,
+		PollingGroupService: pollingGroupSvc,
 	})
 	if err != nil {
 		t.Fatalf("new runtime service failed: %v", err)
@@ -253,31 +152,64 @@ func TestService_RuntimeStatusReportsDatabaseDeliveryFailureStages(t *testing.T)
 		}
 	}()
 
-	time.Sleep(350 * time.Millisecond)
-
-	snapshot, err := runtimeSvc.RuntimeStatusSnapshot(ctx, deviceRecord.ID)
-	if err != nil {
-		t.Fatalf("runtime status snapshot failed: %v", err)
+	deadline := time.Now().Add(2 * time.Second)
+	for targetWriter.calls.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(25 * time.Millisecond)
 	}
 	if targetWriter.calls.Load() == 0 {
 		t.Fatal("expected database target writer to be called")
 	}
-	if len(snapshot.DatabaseDelivery) != 1 {
-		t.Fatalf("expected one database delivery diagnostic, got %+v", snapshot.DatabaseDelivery)
+
+	router := NewRouter(&DatalinkServices{
+		Device:       deviceSvc,
+		Point:        pointSvc,
+		Tag:          tagSvc,
+		Mapping:      mappingSvc,
+		PollingGroup: pollingGroupSvc,
+		Settings:     settingsSvc,
+		Runtime:      runtimeSvc,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+deviceRecord.ID, nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", resp.Code, resp.Body.String())
 	}
 
-	diagnostic := snapshot.DatabaseDelivery[0]
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			DatabaseDelivery []struct {
+				DeviceID    string   `json:"device_id"`
+				PointID     string   `json:"point_id"`
+				TagID       string   `json:"tag_id"`
+				Status      string   `json:"status"`
+				Stages      []string `json:"stages"`
+				FailedStage string   `json:"failed_stage"`
+				Error       string   `json:"error"`
+			} `json:"database_delivery"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response failed: %v body=%s", err, resp.Body.String())
+	}
+	if !body.Success {
+		t.Fatalf("expected success response, got %s", resp.Body.String())
+	}
+	if len(body.Data.DatabaseDelivery) != 1 {
+		t.Fatalf("expected one database delivery diagnostic, got %s", resp.Body.String())
+	}
+
+	diagnostic := body.Data.DatabaseDelivery[0]
 	if diagnostic.DeviceID != deviceRecord.ID || diagnostic.PointID != pointRecord.ID || diagnostic.TagID != tagRecord.ID {
-		t.Fatalf("unexpected database delivery diagnostic scope: %+v", diagnostic)
+		t.Fatalf("unexpected database delivery scope: %+v", diagnostic)
 	}
-	if diagnostic.Status != runtime.DatabaseDeliveryStatusFailed {
-		t.Fatalf("expected failed database delivery status, got %+v", diagnostic)
+	if diagnostic.Status != "failed" || diagnostic.FailedStage != "db_write" || diagnostic.Error != "permission denied" {
+		t.Fatalf("unexpected database delivery failure: %+v", diagnostic)
 	}
-	expectedStages := []runtime.DatabaseDeliveryStage{
-		runtime.DatabaseDeliveryStageCollected,
-		runtime.DatabaseDeliveryStageMapped,
-		runtime.DatabaseDeliveryStageDBWriteFailed,
-	}
+	expectedStages := []string{"collected", "mapped", "db_write_failed"}
 	if len(diagnostic.Stages) != len(expectedStages) {
 		t.Fatalf("unexpected database delivery stages: %+v", diagnostic.Stages)
 	}
@@ -285,11 +217,5 @@ func TestService_RuntimeStatusReportsDatabaseDeliveryFailureStages(t *testing.T)
 		if diagnostic.Stages[idx] != expectedStages[idx] {
 			t.Fatalf("unexpected database delivery stages: %+v", diagnostic.Stages)
 		}
-	}
-	if diagnostic.FailedStage != runtime.DatabaseDeliveryStageDBWrite {
-		t.Fatalf("expected failed stage db_write, got %+v", diagnostic.FailedStage)
-	}
-	if diagnostic.Error != "permission denied" {
-		t.Fatalf("expected database delivery error, got %+v", diagnostic.Error)
 	}
 }

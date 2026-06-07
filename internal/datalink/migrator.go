@@ -69,6 +69,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteDatabaseTargetGroupingColumns(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteDatabaseDeliveryOutcomeColumns(db); err != nil {
+			return err
+		}
 
 		const sqliteSourceRuleMigration = "005_source_rules_sqlite.up.sql"
 		content, err = migrations.FS.ReadFile(sqliteSourceRuleMigration)

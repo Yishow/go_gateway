@@ -32,6 +32,10 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 	}
 
 	meta := s.lookupPointMeta(cv.PointID)
+	deviceID := cv.DeviceID
+	if deviceID == "" {
+		deviceID = meta.DeviceID
+	}
 	transformedValue := cv.Value
 
 	s.mappingMu.RLock()
@@ -62,14 +66,29 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		if s.target != nil {
 			if err := s.target.WriteTagValue(ctx, b.TagID, finalValue, cv.Timestamp); err != nil {
 				s.writeError.Add(1)
+				s.recordDatabaseDeliveryDiagnostic(DatabaseDeliveryDiagnostic{
+					DeviceID:    deviceID,
+					PointID:     cv.PointID,
+					TagID:       b.TagID,
+					Status:      DatabaseDeliveryStatusFailed,
+					Stages:      databaseDeliveryFailureStages(),
+					FailedStage: DatabaseDeliveryStageDBWrite,
+					Error:       err.Error(),
+					ObservedAt:  cv.Timestamp,
+				})
+			} else {
+				s.recordDatabaseDeliveryDiagnostic(DatabaseDeliveryDiagnostic{
+					DeviceID:   deviceID,
+					PointID:    cv.PointID,
+					TagID:      b.TagID,
+					Status:     DatabaseDeliveryStatusSucceeded,
+					Stages:     databaseDeliverySuccessStages(),
+					ObservedAt: cv.Timestamp,
+				})
 			}
 		}
 	}
 
-	deviceID := cv.DeviceID
-	if deviceID == "" {
-		deviceID = meta.DeviceID
-	}
 	s.broadcastValueEvent(ValueEvent{
 		DeviceID:         deviceID,
 		PointID:          cv.PointID,
@@ -82,6 +101,22 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 	})
 	if deviceID != "" {
 		s.publishDerivedStatus(deviceID)
+	}
+}
+
+func databaseDeliveryFailureStages() []DatabaseDeliveryStage {
+	return []DatabaseDeliveryStage{
+		DatabaseDeliveryStageCollected,
+		DatabaseDeliveryStageMapped,
+		DatabaseDeliveryStageDBWriteFailed,
+	}
+}
+
+func databaseDeliverySuccessStages() []DatabaseDeliveryStage {
+	return []DatabaseDeliveryStage{
+		DatabaseDeliveryStageCollected,
+		DatabaseDeliveryStageMapped,
+		DatabaseDeliveryStageDBWriteSucceeded,
 	}
 }
 

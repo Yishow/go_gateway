@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ func (m *mockWriter) Close() error                    { return nil }
 
 type mockTargetWriter struct {
 	calls []targetWriteCall
+	err   error
 }
 
 type targetWriteCall struct {
@@ -45,6 +47,9 @@ func (m *mockTargetWriter) WriteTagValue(ctx context.Context, tagID string, valu
 		value:      value,
 		observedAt: observedAt,
 	})
+	if m.err != nil {
+		return m.err
+	}
 	return nil
 }
 
@@ -126,4 +131,55 @@ func TestHandleCollectedValue_WritesToTargetWriter(t *testing.T) {
 	require.Equal(t, "t1", targetWriter.calls[0].tagID)
 	require.Equal(t, 10.0, targetWriter.calls[0].value)
 	require.Equal(t, ts, targetWriter.calls[0].observedAt)
+}
+
+func TestHandleCollectedValue_RuntimeStatusReportsDatabaseDeliveryFailureStages(t *testing.T) {
+	mw := &mockWriter{}
+	targetWriter := &mockTargetWriter{err: errors.New("permission denied")}
+	ts := time.Date(2026, 3, 16, 10, 5, 0, 0, time.UTC)
+	s := &Service{
+		config: Config{UpdatePointState: false},
+		writer: mw,
+		target: targetWriter,
+		mappingIndex: map[string][]mappingBinding{
+			"pt-A": {
+				{
+					TagID:             "tag-A",
+					TagDataType:       schema.DataTypeFloat64,
+					TransformPipeline: `[{"type":"scale","order":1,"params":{"scale":2}}]`,
+				},
+			},
+		},
+		pointMetaIndex: map[string]pointMeta{
+			"pt-A": {DeviceID: "dev-A", Address: "40001"},
+		},
+	}
+
+	s.handleCollectedValue(context.Background(), collector.CollectedValue{
+		DeviceID:  "dev-A",
+		PointID:   "pt-A",
+		Value:     21.0,
+		Timestamp: ts,
+		Quality:   schema.QualityGood,
+	})
+
+	snapshot, err := s.RuntimeStatusSnapshot(context.Background(), "")
+	require.NoError(t, err)
+	require.Len(t, mw.records, 1)
+	require.Equal(t, "tag-A", mw.records[0].TagID)
+	require.Len(t, snapshot.DatabaseDelivery, 1)
+
+	diagnostic := snapshot.DatabaseDelivery[0]
+	require.Equal(t, "dev-A", diagnostic.DeviceID)
+	require.Equal(t, "pt-A", diagnostic.PointID)
+	require.Equal(t, "tag-A", diagnostic.TagID)
+	require.Equal(t, DatabaseDeliveryStatusFailed, diagnostic.Status)
+	require.Equal(t, []DatabaseDeliveryStage{
+		DatabaseDeliveryStageCollected,
+		DatabaseDeliveryStageMapped,
+		DatabaseDeliveryStageDBWriteFailed,
+	}, diagnostic.Stages)
+	require.Equal(t, DatabaseDeliveryStageDBWrite, diagnostic.FailedStage)
+	require.Contains(t, diagnostic.Error, "permission denied")
+	require.Equal(t, ts, diagnostic.ObservedAt)
 }

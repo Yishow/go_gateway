@@ -106,3 +106,67 @@ func TestService_RuntimeProjectionRebuildsSamePersistedWorkspaceForActivationAnd
 		t.Fatalf("restart projection drifted\nactivation: %+v\n   restart: %+v", got, restartGot)
 	}
 }
+
+func TestService_RuntimeProjectionIsolatesOrphanedRuleDerivedDatabaseTargets(t *testing.T) {
+	ctx := context.Background()
+	workspaceSvc := NewService(NewMemoryRepository())
+	workspaceSvc.now = func() time.Time { return time.Unix(100, 0).UTC() }
+	workspaceSvc.newID = func() string { return "ws-1" }
+
+	devices := runtimeProjectionDeviceStub{records: map[string]*schema.Device{
+		"dev-A": {ID: "dev-A", Name: "Device A", Status: schema.DeviceStatusActive},
+	}}
+	rules := runtimeProjectionRuleStub{
+		rules: []*schema.SourceRule{
+			{ID: "rule-B", DeviceID: "dev-A", StartAddress: "40010", Count: 1, DataType: schema.DataTypeInt16, Enabled: true},
+		},
+		links: map[string][]*schema.SourceRuleLink{
+			"rule-B": {{ID: "link-B", RuleID: "rule-B", Address: "40010", PointID: "point-B", TagID: stringPtr("tag-B"), MappingID: stringPtr("map-B")}},
+		},
+	}
+	points := runtimeProjectionPointStub{records: []*schema.Point{
+		{ID: "point-A", DeviceID: "dev-A", Name: "removed rule point", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true},
+		{ID: "point-B", DeviceID: "dev-A", Name: "live rule point", Address: "40010", DataType: schema.DataTypeInt16, Enabled: true},
+	}}
+	mappings := runtimeProjectionMappingStub{records: []*schema.Mapping{
+		{ID: "map-A", PointID: "point-A", TagID: "tag-A", Enabled: true},
+		{ID: "map-B", PointID: "point-B", TagID: "tag-B", Enabled: true},
+	}}
+	tags := runtimeProjectionTagStub{records: map[string]*schema.Tag{
+		"tag-A": {ID: "tag-A", Key: "removed.rule", DataType: schema.DataTypeInt16, Status: schema.TagStatusActive},
+		"tag-B": {ID: "tag-B", Key: "live.rule", DataType: schema.DataTypeInt16, Status: schema.TagStatusActive},
+	}}
+	targets := runtimeProjectionTargetStub{records: []*schema.DatabaseTargetMapping{
+		{ID: "target-A", ConnectorID: "db-main", TagID: "tag-A", TableName: "readings", ColumnName: "a", Enabled: true},
+		{ID: "target-B", ConnectorID: "db-main", TagID: "tag-B", TableName: "readings", ColumnName: "b", Enabled: true},
+	}}
+	groups := runtimeProjectionGroupStub{}
+
+	workspaceSvc.WithRuntimeProjectionServices(&devices, &rules, &points, &mappings, &tags, nil, &targets, &groups)
+	if _, err := workspaceSvc.AttachDevice(ctx, "dev-A"); err != nil {
+		t.Fatalf("attach dev-A failed: %v", err)
+	}
+	if _, err := workspaceSvc.BindDatabaseConnector(ctx, "db-main"); err != nil {
+		t.Fatalf("bind database connector failed: %v", err)
+	}
+
+	projection, err := workspaceSvc.RuntimeProjection(ctx)
+	if err != nil {
+		t.Fatalf("build runtime projection failed: %v", err)
+	}
+
+	got := summarizeRuntimeProjection(projection)
+	want := runtimeProjectionSummary{
+		DeviceIDs:      []string{"dev-A"},
+		RuleIDs:        []string{"rule-B"},
+		RuleLinkIDs:    []string{"link-B"},
+		PointIDs:       []string{"point-B"},
+		MappingIDs:     []string{"map-B"},
+		TagIDs:         []string{"tag-B"},
+		DatabaseTarget: []string{"target-B"},
+		PollingGroups:  []string{},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected projection summary\nwant: %+v\n got: %+v", want, got)
+	}
+}

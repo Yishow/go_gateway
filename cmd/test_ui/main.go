@@ -166,7 +166,11 @@ func main() {
 	dbTargetConnectorSvc := dbtarget.NewConnectorService(dbTargetConnectorRepo, dbTargetMappingRepo)
 	dbTargetConnectorSvc.SetTagReader(tagSvc)
 	dbTargetMappingSvc := dbtarget.NewMappingService(dbTargetMappingRepo, dbTargetConnectorRepo, tagSvc)
-	dbTargetWriter := dbtarget.NewWriter(dbTargetConnectorRepo, dbTargetMappingRepo)
+	dbTargetWriter := dbtarget.NewWriterWithConfig(
+		dbTargetConnectorRepo,
+		dbTargetMappingRepo,
+		dbtarget.WriterConfig{TagReader: tagSvc},
+	)
 
 	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr)
 	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig())

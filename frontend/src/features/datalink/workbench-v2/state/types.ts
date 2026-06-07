@@ -1,4 +1,5 @@
 import type { StudioV2AvailabilityStatus } from '../../../../types/studioV2Availability';
+import type { DatabaseDeliveryOutcomeFields } from '../../../../types/databaseDelivery';
 
 /**
  * Workbench V2 資料狀態型別定義
@@ -136,7 +137,7 @@ export interface Mapping {
   save_error?: string | null;
 }
 
-export interface DbConnector {
+export interface DbConnector extends DatabaseDeliveryOutcomeFields {
   kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
   name: string;
   host: string;

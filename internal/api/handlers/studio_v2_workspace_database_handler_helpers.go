@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
@@ -36,26 +37,35 @@ func workspaceDatabasePasswordRequired(kind schema.DatabaseConnectorKind) bool {
 }
 
 type studioV2WorkspaceDatabaseConfigResponse struct {
-	ID                   string                         `json:"id"`
-	WorkspaceID          string                         `json:"workspace_id"`
-	Kind                 schema.DatabaseConnectorKind   `json:"kind"`
-	Name                 string                         `json:"name"`
-	Host                 string                         `json:"host"`
-	Port                 int                            `json:"port"`
-	Database             string                         `json:"database"`
-	Username             string                         `json:"username"`
-	Schema               string                         `json:"schema"`
-	Table                string                         `json:"table"`
-	WriteMode            schema.DatabaseWriteMode       `json:"write_mode"`
-	WriteIntervalSeconds int                            `json:"write_interval_seconds"`
-	TimestampColumn      string                         `json:"timestamp_column"`
-	Status               schema.DatabaseConnectorStatus `json:"status"`
-	SaveState            string                         `json:"save_state"`
-	RuntimeApplyStatus   string                         `json:"runtime_apply_status,omitempty"`
-	RuntimeApplyMessage  string                         `json:"runtime_apply_message,omitempty"`
-	RuntimeApplyIssues   []workspace.ReadinessIssue     `json:"runtime_apply_issues,omitempty"`
-	CreatedAt            any                            `json:"created_at"`
-	UpdatedAt            any                            `json:"updated_at"`
+	ID                     string                         `json:"id"`
+	WorkspaceID            string                         `json:"workspace_id"`
+	Kind                   schema.DatabaseConnectorKind   `json:"kind"`
+	Name                   string                         `json:"name"`
+	Host                   string                         `json:"host"`
+	Port                   int                            `json:"port"`
+	Database               string                         `json:"database"`
+	Username               string                         `json:"username"`
+	Schema                 string                         `json:"schema"`
+	Table                  string                         `json:"table"`
+	WriteMode              schema.DatabaseWriteMode       `json:"write_mode"`
+	WriteIntervalSeconds   int                            `json:"write_interval_seconds"`
+	TimestampColumn        string                         `json:"timestamp_column"`
+	Status                 schema.DatabaseConnectorStatus `json:"status"`
+	LastSchemaEnsureAt     *time.Time                     `json:"last_schema_ensure_at,omitempty"`
+	LastSchemaEnsureStatus string                         `json:"last_schema_ensure_status,omitempty"`
+	LastSchemaEnsureError  string                         `json:"last_schema_ensure_error,omitempty"`
+	LastWriteAt            *time.Time                     `json:"last_write_at,omitempty"`
+	LastWriteStatus        string                         `json:"last_write_status,omitempty"`
+	LastWriteError         string                         `json:"last_write_error,omitempty"`
+	LastFlushAt            *time.Time                     `json:"last_flush_at,omitempty"`
+	LastFlushStatus        string                         `json:"last_flush_status,omitempty"`
+	LastFlushError         string                         `json:"last_flush_error,omitempty"`
+	SaveState              string                         `json:"save_state"`
+	RuntimeApplyStatus     string                         `json:"runtime_apply_status,omitempty"`
+	RuntimeApplyMessage    string                         `json:"runtime_apply_message,omitempty"`
+	RuntimeApplyIssues     []workspace.ReadinessIssue     `json:"runtime_apply_issues,omitempty"`
+	CreatedAt              any                            `json:"created_at"`
+	UpdatedAt              any                            `json:"updated_at"`
 }
 
 type studioV2WorkspaceDatabaseTargetRequest struct {
@@ -218,23 +228,32 @@ func (h *StudioV2WorkspaceDatabaseHandler) listWorkspacePointBindings(c *gin.Con
 
 func buildWorkspaceDatabaseConfigResponse(workspaceID string, connector *schema.DatabaseConnector) studioV2WorkspaceDatabaseConfigResponse {
 	return studioV2WorkspaceDatabaseConfigResponse{
-		ID:                   connector.ID,
-		WorkspaceID:          workspaceID,
-		Kind:                 connector.Kind,
-		Name:                 connector.Name,
-		Host:                 connectorConfigString(connector, "host"),
-		Port:                 connectorConfigInt(connector, "port"),
-		Database:             connectorConfigString(connector, "database"),
-		Username:             connectorConfigString(connector, "user"),
-		Schema:               connectorConfigString(connector, "schema"),
-		Table:                connectorConfigString(connector, "table"),
-		WriteMode:            connectorConfigWriteMode(connector),
-		WriteIntervalSeconds: connector.DefaultWriteIntervalSeconds,
-		TimestampColumn:      connectorConfigString(connector, "timestamp_column"),
-		Status:               connector.Status,
-		SaveState:            "saved",
-		CreatedAt:            connector.CreatedAt,
-		UpdatedAt:            connector.UpdatedAt,
+		ID:                     connector.ID,
+		WorkspaceID:            workspaceID,
+		Kind:                   connector.Kind,
+		Name:                   connector.Name,
+		Host:                   connectorConfigString(connector, "host"),
+		Port:                   connectorConfigInt(connector, "port"),
+		Database:               connectorConfigString(connector, "database"),
+		Username:               connectorConfigString(connector, "user"),
+		Schema:                 connectorConfigString(connector, "schema"),
+		Table:                  connectorConfigString(connector, "table"),
+		WriteMode:              connectorConfigWriteMode(connector),
+		WriteIntervalSeconds:   connector.DefaultWriteIntervalSeconds,
+		TimestampColumn:        connectorConfigString(connector, "timestamp_column"),
+		Status:                 connector.Status,
+		LastSchemaEnsureAt:     connector.LastSchemaEnsureAt,
+		LastSchemaEnsureStatus: connector.LastSchemaEnsureStatus,
+		LastSchemaEnsureError:  connector.LastSchemaEnsureError,
+		LastWriteAt:            connector.LastWriteAt,
+		LastWriteStatus:        connector.LastWriteStatus,
+		LastWriteError:         connector.LastWriteError,
+		LastFlushAt:            connector.LastFlushAt,
+		LastFlushStatus:        connector.LastFlushStatus,
+		LastFlushError:         connector.LastFlushError,
+		SaveState:              "saved",
+		CreatedAt:              connector.CreatedAt,
+		UpdatedAt:              connector.UpdatedAt,
 	}
 }
 

@@ -25,10 +25,11 @@ type RuntimeHandler struct {
 }
 
 type runtimeStatusResponse struct {
-	Running       bool                       `json:"running"`
-	UptimeSeconds int64                      `json:"uptime_seconds"`
-	Metrics       datalinkruntime.Stats      `json:"metrics"`
-	Collectors    []runtimeCollectorResponse `json:"collectors"`
+	Running          bool                                         `json:"running"`
+	UptimeSeconds    int64                                        `json:"uptime_seconds"`
+	Metrics          datalinkruntime.Stats                        `json:"metrics"`
+	Collectors       []runtimeCollectorResponse                   `json:"collectors"`
+	DatabaseDelivery []datalinkruntime.DatabaseDeliveryDiagnostic `json:"database_delivery,omitempty"`
 }
 
 type runtimeCollectorResponse struct {
@@ -165,10 +166,11 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 		}
 
 		response := runtimeStatusResponse{
-			Running:       snapshot.Running,
-			UptimeSeconds: snapshot.UptimeSeconds,
-			Metrics:       snapshot.Metrics,
-			Collectors:    make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
+			Running:          snapshot.Running,
+			UptimeSeconds:    snapshot.UptimeSeconds,
+			Metrics:          snapshot.Metrics,
+			Collectors:       make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
+			DatabaseDelivery: snapshot.DatabaseDelivery,
 		}
 		for _, collector := range snapshot.Collectors {
 			response.Collectors = append(response.Collectors, mapRuntimeCollectorResponse(collector))

@@ -11,9 +11,13 @@ import type {
   StudioV2WorkspaceDatabaseConfigRequest,
   StudioV2WorkspaceDatabaseTargetRequest,
 } from '../../../../services/studioV2WorkspaceDatabase';
+import type { DatabaseDeliveryOutcomeFields } from '../../../../types/databaseDelivery';
+
+type StudioV2WorkspaceDatabaseConfigWithDelivery =
+  StudioV2WorkspaceDatabaseConfigRecord & DatabaseDeliveryOutcomeFields;
 
 export function hydrateStudioV2DatabaseConnector(
-  record: StudioV2WorkspaceDatabaseConfigRecord,
+  record: StudioV2WorkspaceDatabaseConfigWithDelivery,
 ): DbConnector {
   return {
     kind: record.kind,
@@ -29,6 +33,15 @@ export function hydrateStudioV2DatabaseConnector(
     timestamp_column: record.timestamp_column,
     password: undefined,
     status: record.status,
+    last_schema_ensure_at: record.last_schema_ensure_at ?? null,
+    last_schema_ensure_status: record.last_schema_ensure_status ?? '',
+    last_schema_ensure_error: record.last_schema_ensure_error ?? '',
+    last_write_at: record.last_write_at ?? null,
+    last_write_status: record.last_write_status ?? '',
+    last_write_error: record.last_write_error ?? '',
+    last_flush_at: record.last_flush_at ?? null,
+    last_flush_status: record.last_flush_status ?? '',
+    last_flush_error: record.last_flush_error ?? '',
     connector_id: record.id,
     workspace_id: record.workspace_id,
     persisted: true,

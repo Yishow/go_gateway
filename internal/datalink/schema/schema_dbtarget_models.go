@@ -37,6 +37,15 @@ type DatabaseConnector struct {
 	LastCheckError              string                  `json:"last_check_error,omitempty" db:"last_check_error"`
 	Enabled                     bool                    `json:"enabled" db:"enabled"`
 	DefaultWriteIntervalSeconds int                     `json:"default_write_interval_seconds" db:"default_write_interval_seconds"`
+	LastSchemaEnsureAt          *time.Time              `json:"last_schema_ensure_at,omitempty" db:"last_schema_ensure_at"`
+	LastSchemaEnsureStatus      string                  `json:"last_schema_ensure_status,omitempty" db:"last_schema_ensure_status"`
+	LastSchemaEnsureError       string                  `json:"last_schema_ensure_error,omitempty" db:"last_schema_ensure_error"`
+	LastWriteAt                 *time.Time              `json:"last_write_at,omitempty" db:"last_write_at"`
+	LastWriteStatus             string                  `json:"last_write_status,omitempty" db:"last_write_status"`
+	LastWriteError              string                  `json:"last_write_error,omitempty" db:"last_write_error"`
+	LastFlushAt                 *time.Time              `json:"last_flush_at,omitempty" db:"last_flush_at"`
+	LastFlushStatus             string                  `json:"last_flush_status,omitempty" db:"last_flush_status"`
+	LastFlushError              string                  `json:"last_flush_error,omitempty" db:"last_flush_error"`
 	CreatedAt                   time.Time               `json:"created_at" db:"created_at"`
 	UpdatedAt                   time.Time               `json:"updated_at" db:"updated_at"`
 }

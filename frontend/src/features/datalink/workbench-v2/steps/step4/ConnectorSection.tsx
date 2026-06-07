@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { KindSelector } from './KindSelector';
 import { WriteStrategy } from './WriteStrategy';
+import { DeliveryTruthStrip } from './DeliveryTruthStrip';
 import type { DbConnector } from '../../state/types';
 
 /**
@@ -54,6 +55,8 @@ export function ConnectorSection({
           {t('step4.connector_subtitle', '設定目標資料寫入的資料庫連線參數與策略')}
         </p>
       </div>
+
+      <DeliveryTruthStrip connector={connector} />
 
       {/* 1. 資料庫種類選擇 */}
       <KindSelector
