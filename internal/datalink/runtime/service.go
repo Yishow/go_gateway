@@ -16,6 +16,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/storage"
 	"go-gateway/internal/datalink/tag"
+	"go-gateway/internal/datalink/workspace"
 )
 
 // Config runtime 設定。
@@ -40,6 +41,7 @@ type Dependencies struct {
 	Scheduler           *collector.Scheduler
 	Writer              storage.Writer
 	TargetWriter        TargetWriter
+	WorkspaceProjection WorkspaceProjectionReader
 	DeviceService       *device.Service
 	PointService        *point.Service
 	MappingService      *mapping.Service
@@ -49,6 +51,11 @@ type Dependencies struct {
 
 type TargetWriter interface {
 	WriteTagValue(ctx context.Context, tagID string, value any, observedAt time.Time) error
+}
+
+// WorkspaceProjectionReader rebuilds persisted workspace scope for runtime bootstrap.
+type WorkspaceProjectionReader interface {
+	RuntimeProjection(ctx context.Context) (*workspace.RuntimeProjection, error)
 }
 
 // Stats runtime 指標。
@@ -79,6 +86,7 @@ type Service struct {
 	mappingSvc *mapping.Service
 	tagSvc     *tag.Service
 	groupSvc   *pollinggroup.Service
+	workspace  WorkspaceProjectionReader
 
 	// snapshot mode 使用
 	snapshot Snapshot
@@ -87,6 +95,8 @@ type Service struct {
 	mappingIndex   map[string][]mappingBinding // pointID -> mappings
 	pointMetaMu    sync.RWMutex
 	pointMetaIndex map[string]pointMeta
+	projectionMu   sync.RWMutex
+	projections    map[string]runtimeProjectionDeviceState
 
 	subscriberMu       sync.RWMutex
 	subscribers        map[int64]valueSubscriber
@@ -117,6 +127,7 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		config:            config,
 		mappingIndex:      make(map[string][]mappingBinding),
 		pointMetaIndex:    make(map[string]pointMeta),
+		projections:       make(map[string]runtimeProjectionDeviceState),
 		subscribers:       make(map[int64]valueSubscriber),
 		statusSubscribers: make(map[int64]statusSubscriber),
 		lastStatuses:      make(map[string]DeviceRuntimeStatus),
@@ -137,6 +148,7 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		s.scheduler = deps.Scheduler
 		s.writer = deps.Writer
 		s.target = deps.TargetWriter
+		s.workspace = deps.WorkspaceProjection
 		s.deviceSvc = deps.DeviceService
 		s.pointSvc = deps.PointService
 		s.mappingSvc = deps.MappingService
@@ -235,6 +247,14 @@ func (s *Service) IsRunning() bool {
 	return s.running.Load()
 }
 
+// SetWorkspaceProjectionReader sets the persisted workspace projection reader used by runtime restart.
+func (s *Service) SetWorkspaceProjectionReader(reader WorkspaceProjectionReader) {
+	if s == nil {
+		return
+	}
+	s.workspace = reader
+}
+
 // UptimeSeconds returns elapsed runtime seconds since the latest successful start.
 func (s *Service) UptimeSeconds() int64 {
 	if !s.IsRunning() {
@@ -290,6 +310,14 @@ func (s *Service) bootstrap(ctx context.Context) error {
 }
 
 func (s *Service) bootstrapFromServices(ctx context.Context) error {
+	if s.workspace != nil {
+		projection, err := s.workspace.RuntimeProjection(ctx)
+		if err != nil {
+			return fmt.Errorf("載入 workspace runtime projection 失敗: %w", err)
+		}
+		return s.bootstrapFromWorkspaceProjection(ctx, projection)
+	}
+
 	active := schema.DeviceStatusActive
 	devices, err := s.deviceSvc.List(ctx, device.ListFilter{Status: &active, Limit: 100000})
 	if err != nil {

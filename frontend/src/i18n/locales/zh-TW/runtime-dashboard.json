@@ -49,7 +49,11 @@
     "pointsStale": "陳舊點位",
     "pointsError": "錯誤點位",
     "lastReadAt": "最後讀取時間",
-    "breakerState": "Breaker 狀態"
+    "breakerState": "Breaker 狀態",
+    "projectionAlignment": "Projection 對齊狀態",
+    "runtimeProjectionVersion": "Runtime projection",
+    "workspaceProjectionVersion": "Workspace projection",
+    "projectionMessage": "Projection 訊息"
   },
   "points": {
     "title": "即時點位",

@@ -6,10 +6,21 @@ import {
   useUpdateStudioV2RuleMutation,
 } from '@/hooks/datalink/useStudioV2Rules';
 import { studioV2RulesAPI } from '@/services/studioV2Rules';
+import type { SourceRuleRecord } from '@/types/datalink';
+import type { StudioV2RuntimeAppliedRecord, StudioV2RuntimeApplyStatus } from '@/types/studioV2RuntimeApply';
 
 const useMutationMock = vi.fn();
 const useQueryMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
+
+function studioV2RuleRuntimeResponse(
+  status: StudioV2RuntimeApplyStatus,
+): StudioV2RuntimeAppliedRecord<SourceRuleRecord> {
+  return {
+    id: 'rule-01',
+    runtime_apply_status: status,
+  } as StudioV2RuntimeAppliedRecord<SourceRuleRecord>;
+}
 
 vi.mock('@tanstack/react-query', async () => {
   const actual =
@@ -76,10 +87,9 @@ describe('useStudioV2Rules hooks', () => {
       onSuccess: () => Promise<void>;
     };
 
-    vi.mocked(studioV2RulesAPI.create).mockResolvedValueOnce({
-      id: 'rule-01',
-      runtime_apply_status: 'applied',
-    } as any);
+    vi.mocked(studioV2RulesAPI.create).mockResolvedValueOnce(
+      studioV2RuleRuntimeResponse('applied'),
+    );
     await expect(options.mutationFn({ id: 'rule-01' })).resolves.toEqual({
       id: 'rule-01',
       runtime_apply_status: 'applied',
@@ -94,7 +104,7 @@ describe('useStudioV2Rules hooks', () => {
     });
   });
 
-  it('updates one workspace source rule and invalidates the rule query', async () => {
+  it('updates one workspace source rule and preserves aligned runtime status', async () => {
     useMutationMock.mockReturnValue({ mutateAsync: vi.fn() });
 
     useUpdateStudioV2RuleMutation();
@@ -104,13 +114,12 @@ describe('useStudioV2Rules hooks', () => {
       onSuccess: () => Promise<void>;
     };
 
-    vi.mocked(studioV2RulesAPI.update).mockResolvedValueOnce({
-      id: 'rule-01',
-      runtime_apply_status: 'not_running',
-    } as any);
+    vi.mocked(studioV2RulesAPI.update).mockResolvedValueOnce(
+      studioV2RuleRuntimeResponse('aligned'),
+    );
     await expect(
       options.mutationFn({ ruleId: 'rule-01', request: { naming_prefix: 'LINE_' } }),
-    ).resolves.toEqual({ id: 'rule-01', runtime_apply_status: 'not_running' });
+    ).resolves.toEqual({ id: 'rule-01', runtime_apply_status: 'aligned' });
 
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({

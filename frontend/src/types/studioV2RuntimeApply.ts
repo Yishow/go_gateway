@@ -1,6 +1,6 @@
 import type { StudioV2WorkspaceReadinessIssue } from './studioV2WorkspaceReadiness';
 
-export type StudioV2RuntimeApplyStatus = 'not_running' | 'applied' | 'apply_failed' | 'deferred';
+export type StudioV2RuntimeApplyStatus = 'not_running' | 'applied' | 'aligned' | 'apply_failed' | 'deferred' | 'restart-required' | 'stale';
 
 export interface StudioV2RuntimeApply {
   runtime_apply_status: StudioV2RuntimeApplyStatus;

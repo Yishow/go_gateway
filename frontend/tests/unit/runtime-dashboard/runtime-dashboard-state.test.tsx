@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeDashboardRoute } from '../../../src/features/datalink/runtime-dashboard/RuntimeDashboardRoute';
-import type { Point, RuntimeStatus } from '../../../src/types/datalink';
+import type { Point, RuntimeCollectorStatus, RuntimeStatus } from '../../../src/types/datalink';
 
 const {
   mockRuntimeContext,
@@ -274,6 +274,53 @@ describe('runtime dashboard route state', () => {
     await waitFor(() => {
       expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('live');
     });
+  });
+
+  it('surfaces projection drift from the runtime snapshot', async () => {
+    const staleCollector: RuntimeCollectorStatus & {
+      projection_alignment: string;
+      runtime_projection_version: string;
+      workspace_projection_version: string;
+    } = {
+      device_id: 'device-A',
+      device_name: 'Mixer PLC',
+      protocol: 'modbus_tcp',
+      status: 'running',
+      availability_status: 'available',
+      availability_reason: null,
+      running: true,
+      points_total: 1,
+      points_healthy: 1,
+      points_stale: 0,
+      points_error: 0,
+      last_read_at: '2026-05-29T00:00:00Z',
+      last_error: null,
+      breaker_state: 'closed',
+      projection_alignment: 'stale',
+      runtime_projection_version: 'projection-v12',
+      workspace_projection_version: 'projection-v13',
+    };
+    mockRuntimeStatus.mockResolvedValueOnce({
+      running: true,
+      uptime_seconds: 12,
+      collectors: [staleCollector],
+    });
+
+    renderRoute('/studio/runtime?device_id=device-A');
+
+    await waitFor(() => {
+      expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A');
+    });
+    act(() => {
+      mockEventSources[0].open();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('live');
+    });
+    expect(screen.getByTestId('runtime-dashboard-health-panel')).toHaveTextContent('stale');
+    expect(screen.getByTestId('runtime-dashboard-health-panel')).toHaveTextContent('projection-v12');
+    expect(screen.getByTestId('runtime-dashboard-health-panel')).toHaveTextContent('projection-v13');
   });
 
   it('keeps the last snapshot and enters degraded when the stream fails', async () => {

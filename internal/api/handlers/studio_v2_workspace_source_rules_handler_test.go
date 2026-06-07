@@ -167,3 +167,105 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateDefersLiveApplyWhenReadinessB
 	require.Contains(t, resp.Body.String(), `"runtime_apply_status":"deferred"`)
 	require.Contains(t, resp.Body.String(), "tag-missing")
 }
+
+func TestStudioV2WorkspaceSourceRulesHandler_UpdateReturnsRuntimeReconcileOutcome(t *testing.T) {
+	fixture := newWorkspaceSourceRuleReconcileFixture(t)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", bytes.NewBufferString(`{
+		"naming_prefix":"LINE_"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+	c.Params = gin.Params{{Key: "id", Value: "rule-A"}}
+
+	fixture.handler.Update(c)
+
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	require.Contains(t, resp.Body.String(), `"runtime_apply_status":"aligned"`)
+	require.Contains(t, resp.Body.String(), `"runtime_apply_message":"projection aligned"`)
+	require.Len(t, fixture.runtimeSync.reconcileRequests, 1)
+	require.Equal(t, sourcerule.RuntimeReconcileOperationUpdate, fixture.runtimeSync.reconcileRequests[0].Operation)
+	require.Equal(t, "rule-A", fixture.runtimeSync.reconcileRequests[0].Scope.RuleID)
+	require.Equal(t, "dev-A", fixture.runtimeSync.reconcileRequests[0].Scope.DeviceID)
+}
+
+func TestStudioV2WorkspaceSourceRulesHandler_DeleteReturnsRuntimeReconcileOutcome(t *testing.T) {
+	fixture := newWorkspaceSourceRuleReconcileFixture(t)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", nil)
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+	c.Params = gin.Params{{Key: "id", Value: "rule-A"}}
+
+	fixture.handler.Delete(c)
+
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	require.Contains(t, resp.Body.String(), `"runtime_apply_status":"aligned"`)
+	require.Contains(t, resp.Body.String(), `"runtime_apply_message":"projection aligned"`)
+	require.Len(t, fixture.runtimeSync.reconcileRequests, 1)
+	require.Equal(t, sourcerule.RuntimeReconcileOperationDelete, fixture.runtimeSync.reconcileRequests[0].Operation)
+	require.Equal(t, "rule-A", fixture.runtimeSync.reconcileRequests[0].Scope.RuleID)
+	require.Equal(t, "dev-A", fixture.runtimeSync.reconcileRequests[0].Scope.DeviceID)
+}
+
+type workspaceSourceRuleReconcileFixture struct {
+	handler     *StudioV2WorkspaceSourceRulesHandler
+	runtimeSync *sourceRuleRuntimeReconcileRecorder
+}
+
+func newWorkspaceSourceRuleReconcileFixture(t *testing.T) workspaceSourceRuleReconcileFixture {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	deviceRepo := device.NewMemoryRepository()
+	seedRunningWorkspaceRuleDevice(t, deviceRepo, "dev-A")
+
+	pointSvc := point.NewService(point.NewMemoryRepository(), nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	runtimeSync := &sourceRuleRuntimeReconcileRecorder{
+		outcome: sourcerule.RuntimeReconcileOutcome{
+			Status:  sourcerule.RuntimeReconcileStatusAligned,
+			Message: "projection aligned",
+		},
+	}
+	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, pointSvc, runtimeSync)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository()).WithReadinessServices(deviceSvc, ruleSvc, nil, nil)
+	_, err := workspaceSvc.AttachDevice(context.Background(), "dev-A")
+	require.NoError(t, err)
+
+	_, err = ruleSvc.Create(context.Background(), sourcerule.CreateRuleRequest{
+		ID:           "rule-A",
+		DeviceID:     "dev-A",
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "A_",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+
+	return workspaceSourceRuleReconcileFixture{
+		handler:     NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc),
+		runtimeSync: runtimeSync,
+	}
+}
+
+type sourceRuleRuntimeReconcileRecorder struct {
+	outcome           sourcerule.RuntimeReconcileOutcome
+	reconcileRequests []sourcerule.RuntimeReconcileRequest
+}
+
+func (r *sourceRuleRuntimeReconcileRecorder) UpsertPoint(*schema.Point) {}
+
+func (r *sourceRuleRuntimeReconcileRecorder) RemovePoint(string) {}
+
+func (r *sourceRuleRuntimeReconcileRecorder) ReconcileSourceRule(_ context.Context, req sourcerule.RuntimeReconcileRequest) sourcerule.RuntimeReconcileOutcome {
+	r.reconcileRequests = append(r.reconcileRequests, req)
+	if r.outcome.Scope.RuleID == "" {
+		r.outcome.Scope = req.Scope
+	}
+	return r.outcome
+}

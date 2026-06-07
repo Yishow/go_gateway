@@ -49,7 +49,11 @@
     "pointsStale": "Points stale",
     "pointsError": "Points error",
     "lastReadAt": "Last read at",
-    "breakerState": "Breaker state"
+    "breakerState": "Breaker state",
+    "projectionAlignment": "Projection alignment",
+    "runtimeProjectionVersion": "Runtime projection",
+    "workspaceProjectionVersion": "Workspace projection",
+    "projectionMessage": "Projection message"
   },
   "points": {
     "title": "Live points",

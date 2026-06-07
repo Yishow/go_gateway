@@ -113,7 +113,7 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
 		return
 	}
 
-	updatedRule, err := h.ruleSvc.Update(c.Request.Context(), c.Param("id"), req.UpdateRuleRequest)
+	updatedRule, reconcileOutcome, err := h.ruleSvc.UpdateWithRuntimeReconcile(c.Request.Context(), c.Param("id"), req.UpdateRuleRequest)
 	if err != nil {
 		renderStudioV2WorkspaceSourceRuleError(c, err)
 		return
@@ -122,12 +122,7 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
 	payload := mapSourceRuleResponse(updatedRule)
 	payload.WorkspaceID = record.ID
 	payload.SaveState = "saved"
-	links, err := h.ruleSvc.ListLinks(c.Request.Context(), updatedRule.ID)
-	if err != nil {
-		renderStudioV2WorkspaceSourceRuleError(c, err)
-		return
-	}
-	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{updatedRule.DeviceID}, workspaceRuleApplyScopes(updatedRule.DeviceID, links))
+	applyOutcome := mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
 	payload.RuntimeApplyIssues = applyOutcome.Issues
@@ -135,16 +130,21 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
 }
 
 func (h *StudioV2WorkspaceSourceRulesHandler) Delete(c *gin.Context) {
-	if _, _, ok := h.requireWorkspaceRule(c); !ok {
+	_, rule, ok := h.requireWorkspaceRule(c)
+	if !ok {
 		return
 	}
 
-	if err := h.ruleSvc.Delete(c.Request.Context(), c.Param("id")); err != nil {
+	reconcileOutcome, err := h.ruleSvc.DeleteWithRuntimeReconcile(c.Request.Context(), rule.ID)
+	if err != nil {
 		renderStudioV2WorkspaceSourceRuleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    mapStudioV2RuntimeApplyResponse(mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)),
+	})
 }
 
 func (h *StudioV2WorkspaceSourceRulesHandler) requireWorkspaceRule(c *gin.Context) (*workspace.Record, *schema.SourceRule, bool) {

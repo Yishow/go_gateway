@@ -50,6 +50,7 @@ func (s *Service) UpsertDevice(ctx context.Context, device *schema.Device) error
 		s.scheduler.AddPoint(pt)
 	}
 
+	s.markDeviceProjectionAlignedFromWorkspace(ctx, device)
 	return nil
 }
 
@@ -64,6 +65,7 @@ func (s *Service) RemoveDevice(deviceID string) {
 	if s.scheduler != nil {
 		s.scheduler.RemoveDevice(deviceID)
 	}
+	s.clearDeviceProjection(deviceID)
 }
 
 // removeDevicePointMeta 清除指定設備的 point metadata，避免停用後仍保留舊事件標記。

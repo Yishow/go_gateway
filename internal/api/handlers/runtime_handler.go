@@ -32,20 +32,24 @@ type runtimeStatusResponse struct {
 }
 
 type runtimeCollectorResponse struct {
-	DeviceID           string     `json:"device_id"`
-	DeviceName         string     `json:"device_name"`
-	Protocol           string     `json:"protocol"`
-	Status             string     `json:"status"`
-	AvailabilityStatus string     `json:"availability_status"`
-	AvailabilityReason *string    `json:"availability_reason,omitempty"`
-	Running            bool       `json:"running"`
-	PointsTotal        int        `json:"points_total"`
-	PointsHealthy      int        `json:"points_healthy"`
-	PointsStale        int        `json:"points_stale"`
-	PointsError        int        `json:"points_error"`
-	LastReadAt         *time.Time `json:"last_read_at"`
-	LastError          *string    `json:"last_error"`
-	BreakerState       string     `json:"breaker_state"`
+	DeviceID                   string     `json:"device_id"`
+	DeviceName                 string     `json:"device_name"`
+	Protocol                   string     `json:"protocol"`
+	Status                     string     `json:"status"`
+	AvailabilityStatus         string     `json:"availability_status"`
+	AvailabilityReason         *string    `json:"availability_reason,omitempty"`
+	Running                    bool       `json:"running"`
+	PointsTotal                int        `json:"points_total"`
+	PointsHealthy              int        `json:"points_healthy"`
+	PointsStale                int        `json:"points_stale"`
+	PointsError                int        `json:"points_error"`
+	LastReadAt                 *time.Time `json:"last_read_at"`
+	LastError                  *string    `json:"last_error"`
+	BreakerState               string     `json:"breaker_state"`
+	ProjectionAlignment        string     `json:"projection_alignment,omitempty"`
+	RuntimeProjectionVersion   string     `json:"runtime_projection_version,omitempty"`
+	WorkspaceProjectionVersion string     `json:"workspace_projection_version,omitempty"`
+	ProjectionMessage          string     `json:"projection_message,omitempty"`
 }
 
 type runtimeWorkspaceContextResponse struct {
@@ -55,12 +59,16 @@ type runtimeWorkspaceContextResponse struct {
 }
 
 type runtimeWorkspaceContextDeviceEntry struct {
-	DeviceID           string  `json:"device_id"`
-	Name               string  `json:"name"`
-	Protocol           string  `json:"protocol"`
-	Running            bool    `json:"running"`
-	AvailabilityStatus string  `json:"availability_status"`
-	AvailabilityReason *string `json:"availability_reason,omitempty"`
+	DeviceID                   string  `json:"device_id"`
+	Name                       string  `json:"name"`
+	Protocol                   string  `json:"protocol"`
+	Running                    bool    `json:"running"`
+	AvailabilityStatus         string  `json:"availability_status"`
+	AvailabilityReason         *string `json:"availability_reason,omitempty"`
+	ProjectionAlignment        string  `json:"projection_alignment,omitempty"`
+	RuntimeProjectionVersion   string  `json:"runtime_projection_version,omitempty"`
+	WorkspaceProjectionVersion string  `json:"workspace_projection_version,omitempty"`
+	ProjectionMessage          string  `json:"projection_message,omitempty"`
 }
 
 func NewRuntimeHandler(
@@ -163,22 +171,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 			Collectors:    make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
 		}
 		for _, collector := range snapshot.Collectors {
-			response.Collectors = append(response.Collectors, runtimeCollectorResponse{
-				DeviceID:      collector.DeviceID,
-				DeviceName:    collector.DeviceName,
-				Protocol:      collector.Protocol,
-				Status:        collector.Status,
-				AvailabilityStatus: collector.AvailabilityStatus,
-				AvailabilityReason: collector.AvailabilityReason,
-				Running:       collector.Running,
-				PointsTotal:   collector.PointsTotal,
-				PointsHealthy: collector.PointsHealthy,
-				PointsStale:   collector.PointsStale,
-				PointsError:   collector.PointsError,
-				LastReadAt:    collector.LastReadAt,
-				LastError:     collector.LastError,
-				BreakerState:  collector.BreakerState,
-			})
+			response.Collectors = append(response.Collectors, mapRuntimeCollectorResponse(collector))
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -357,5 +350,32 @@ func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus 
 	response.Running = runtimeStatus.Running
 	response.AvailabilityStatus = runtimeStatus.AvailabilityStatus
 	response.AvailabilityReason = runtimeStatus.AvailabilityReason
+	response.ProjectionAlignment = runtimeStatus.ProjectionAlignment
+	response.RuntimeProjectionVersion = runtimeStatus.RuntimeProjectionVersion
+	response.WorkspaceProjectionVersion = runtimeStatus.WorkspaceProjectionVersion
+	response.ProjectionMessage = runtimeStatus.ProjectionMessage
 	return response
+}
+
+func mapRuntimeCollectorResponse(collector datalinkruntime.DeviceRuntimeStatus) runtimeCollectorResponse {
+	return runtimeCollectorResponse{
+		DeviceID:                   collector.DeviceID,
+		DeviceName:                 collector.DeviceName,
+		Protocol:                   collector.Protocol,
+		Status:                     collector.Status,
+		AvailabilityStatus:         collector.AvailabilityStatus,
+		AvailabilityReason:         collector.AvailabilityReason,
+		Running:                    collector.Running,
+		PointsTotal:                collector.PointsTotal,
+		PointsHealthy:              collector.PointsHealthy,
+		PointsStale:                collector.PointsStale,
+		PointsError:                collector.PointsError,
+		LastReadAt:                 collector.LastReadAt,
+		LastError:                  collector.LastError,
+		BreakerState:               collector.BreakerState,
+		ProjectionAlignment:        collector.ProjectionAlignment,
+		RuntimeProjectionVersion:   collector.RuntimeProjectionVersion,
+		WorkspaceProjectionVersion: collector.WorkspaceProjectionVersion,
+		ProjectionMessage:          collector.ProjectionMessage,
+	}
 }

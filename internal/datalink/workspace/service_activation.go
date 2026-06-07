@@ -40,6 +40,10 @@ type activationRuntimeSyncer interface {
 	RemoveDevice(deviceID string)
 }
 
+type activationRuntimeProjectionSyncer interface {
+	ApplyWorkspaceProjection(ctx context.Context, projection *RuntimeProjection) error
+}
+
 type ActivationService struct {
 	workspaceSvc *Service
 	deviceSvc    activationDeviceService
@@ -79,6 +83,8 @@ func (s *ActivationService) ActivateEligible(ctx context.Context) (*ActivationRe
 		WorkspaceID: record.ID,
 		Results:     []ActivationResult{},
 	}
+	projectionSyncer, syncProjection := s.runtimeSync.(activationRuntimeProjectionSyncer)
+	activatedIDs := make([]string, 0, len(record.OrderedDeviceIDs))
 
 	for _, deviceID := range record.OrderedDeviceIDs {
 		savedDevice, err := s.deviceSvc.GetByID(ctx, deviceID)
@@ -102,11 +108,11 @@ func (s *ActivationService) ActivateEligible(ctx context.Context) (*ActivationRe
 		if err != nil {
 			return nil, fmt.Errorf("reload activated device %s: %w", deviceID, err)
 		}
-		if s.runtimeSync != nil {
+		if s.runtimeSync != nil && !syncProjection {
 			if err := s.runtimeSync.UpsertDevice(ctx, activatedDevice); err != nil {
 				s.runtimeSync.RemoveDevice(deviceID)
 				if disableErr := s.deviceSvc.Disable(ctx, deviceID); disableErr != nil {
-					err = fmt.Errorf("%w; rollback device status: %v", err, disableErr)
+					err = fmt.Errorf("%w; rollback device status: %w", err, disableErr)
 				}
 				response.Results = append(response.Results, ActivationResult{
 					DeviceID: deviceID,
@@ -116,6 +122,10 @@ func (s *ActivationService) ActivateEligible(ctx context.Context) (*ActivationRe
 				continue
 			}
 		}
+		if syncProjection {
+			activatedIDs = append(activatedIDs, deviceID)
+			continue
+		}
 
 		response.Results = append(response.Results, ActivationResult{
 			DeviceID: deviceID,
@@ -124,11 +134,51 @@ func (s *ActivationService) ActivateEligible(ctx context.Context) (*ActivationRe
 		})
 	}
 
+	if syncProjection && len(activatedIDs) > 0 {
+		s.applyActivationProjection(ctx, projectionSyncer, activatedIDs, response)
+	}
+
 	if len(response.Results) == 0 {
 		response.Message = noEligibleActivationMessage
 	}
 
 	return response, nil
+}
+
+func (s *ActivationService) applyActivationProjection(
+	ctx context.Context,
+	projectionSyncer activationRuntimeProjectionSyncer,
+	activatedIDs []string,
+	response *ActivationResponse,
+) {
+	projection, err := s.workspaceSvc.RuntimeProjection(ctx)
+	if err == nil {
+		err = projectionSyncer.ApplyWorkspaceProjection(ctx, projection)
+	}
+	if err != nil {
+		for _, deviceID := range activatedIDs {
+			s.runtimeSync.RemoveDevice(deviceID)
+			rollbackErr := s.deviceSvc.Disable(ctx, deviceID)
+			message := err.Error()
+			if rollbackErr != nil {
+				message = fmt.Sprintf("%s; rollback device status: %v", message, rollbackErr)
+			}
+			response.Results = append(response.Results, ActivationResult{
+				DeviceID: deviceID,
+				Status:   ActivationResultStatusFailed,
+				Message:  message,
+			})
+		}
+		return
+	}
+
+	for _, deviceID := range activatedIDs {
+		response.Results = append(response.Results, ActivationResult{
+			DeviceID: deviceID,
+			Status:   ActivationResultStatusSuccess,
+			Message:  "activated",
+		})
+	}
 }
 
 func isEligibleForFirstActivation(savedDevice *schema.Device) bool {

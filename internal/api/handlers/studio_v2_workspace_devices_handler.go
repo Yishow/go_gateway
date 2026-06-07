@@ -19,6 +19,10 @@ type StudioV2WorkspaceDevicesHandler struct {
 	runtimeSync  deviceRuntimeSyncer
 }
 
+type deviceRuntimeProjectionMarker interface {
+	MarkDeviceProjectionRestartRequired(ctx context.Context, deviceID string, message string)
+}
+
 type studioV2WorkspaceDeviceOrderRequest struct {
 	OrderedDeviceIDs []string `json:"ordered_device_ids"`
 }
@@ -134,7 +138,7 @@ func (h *StudioV2WorkspaceDevicesHandler) Update(c *gin.Context) {
 		return
 	}
 
-	runtimeApplyStatus, runtimeApplyMessage := h.applyRuntimeDeviceUpdate(c.Request.Context(), savedDevice)
+	runtimeApplyStatus, runtimeApplyMessage := h.applyRuntimeDeviceUpdate(c.Request.Context(), savedDevice, req.ConnectionConfig != nil)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -272,9 +276,16 @@ func renderStudioV2WorkspaceDeviceError(c *gin.Context, err error) {
 	}
 }
 
-func (h *StudioV2WorkspaceDevicesHandler) applyRuntimeDeviceUpdate(ctx context.Context, savedDevice *schema.Device) (string, string) {
+func (h *StudioV2WorkspaceDevicesHandler) applyRuntimeDeviceUpdate(ctx context.Context, savedDevice *schema.Device, connectionChanged bool) (string, string) {
 	if savedDevice == nil || savedDevice.Status != schema.DeviceStatusActive {
 		return "not_running", ""
+	}
+	if connectionChanged {
+		message := "device connection change requires runtime restart"
+		if marker, ok := h.runtimeSync.(deviceRuntimeProjectionMarker); ok {
+			marker.MarkDeviceProjectionRestartRequired(ctx, savedDevice.ID, message)
+		}
+		return "restart-required", message
 	}
 	if h.runtimeSync == nil {
 		return "applied", ""

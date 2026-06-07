@@ -22,20 +22,24 @@ type RuntimeStatusSnapshot struct {
 
 // DeviceRuntimeStatus describes one device runtime summary shared by snapshot and stream.
 type DeviceRuntimeStatus struct {
-	DeviceID      string     `json:"device_id"`
-	DeviceName    string     `json:"device_name,omitempty"`
-	Protocol      string     `json:"protocol,omitempty"`
-	Status        string     `json:"status"`
-	AvailabilityStatus string `json:"availability_status"`
-	AvailabilityReason *string `json:"availability_reason,omitempty"`
-	Running       bool       `json:"running"`
-	PointsTotal   int        `json:"points_total"`
-	PointsHealthy int        `json:"points_healthy"`
-	PointsStale   int        `json:"points_stale"`
-	PointsError   int        `json:"points_error"`
-	LastReadAt    *time.Time `json:"last_read_at"`
-	LastError     *string    `json:"last_error"`
-	BreakerState  string     `json:"breaker_state"`
+	DeviceID                   string     `json:"device_id"`
+	DeviceName                 string     `json:"device_name,omitempty"`
+	Protocol                   string     `json:"protocol,omitempty"`
+	Status                     string     `json:"status"`
+	AvailabilityStatus         string     `json:"availability_status"`
+	AvailabilityReason         *string    `json:"availability_reason,omitempty"`
+	Running                    bool       `json:"running"`
+	PointsTotal                int        `json:"points_total"`
+	PointsHealthy              int        `json:"points_healthy"`
+	PointsStale                int        `json:"points_stale"`
+	PointsError                int        `json:"points_error"`
+	LastReadAt                 *time.Time `json:"last_read_at"`
+	LastError                  *string    `json:"last_error"`
+	BreakerState               string     `json:"breaker_state"`
+	ProjectionAlignment        string     `json:"projection_alignment,omitempty"`
+	RuntimeProjectionVersion   string     `json:"runtime_projection_version,omitempty"`
+	WorkspaceProjectionVersion string     `json:"workspace_projection_version,omitempty"`
+	ProjectionMessage          string     `json:"projection_message,omitempty"`
 }
 
 // RuntimeStatusSnapshot returns the derived runtime monitoring snapshot.
@@ -55,11 +59,14 @@ func (s *Service) RuntimeStatusSnapshot(ctx context.Context, deviceID string) (R
 		return RuntimeStatusSnapshot{}, err
 	}
 
+	collectors := s.deriveDeviceStatuses(devices, points, groups, deviceID, time.Now())
+	s.attachProjectionStates(ctx, collectors, devices)
+
 	return RuntimeStatusSnapshot{
 		Running:       s.IsRunning(),
 		UptimeSeconds: s.UptimeSeconds(),
 		Metrics:       s.Snapshot(),
-		Collectors:    s.deriveDeviceStatuses(devices, points, groups, deviceID, time.Now()),
+		Collectors:    collectors,
 	}, nil
 }
 
@@ -240,6 +247,24 @@ func deriveRuntimeDeviceState(status DeviceRuntimeStatus, running bool) string {
 	}
 }
 
+func (s *Service) attachProjectionStates(ctx context.Context, collectors []DeviceRuntimeStatus, devices []*schema.Device) {
+	states := s.projectionStatesForDevices(ctx, devices)
+	if len(states) == 0 {
+		return
+	}
+
+	for idx := range collectors {
+		state, ok := states[collectors[idx].DeviceID]
+		if !ok || state.Alignment == "" {
+			continue
+		}
+		collectors[idx].ProjectionAlignment = string(state.Alignment)
+		collectors[idx].RuntimeProjectionVersion = state.RuntimeVersion
+		collectors[idx].WorkspaceProjectionVersion = state.WorkspaceVersion
+		collectors[idx].ProjectionMessage = state.Message
+	}
+}
+
 func (s *Service) runtimeBreakerState(deviceID string) string {
 	if s.scheduler == nil {
 		return "closed"
@@ -306,6 +331,9 @@ func (s *Service) emitStatusIfChanged(status DeviceRuntimeStatus) {
 func (s *Service) recordLatestStatus(status DeviceRuntimeStatus) bool {
 	s.lastStatusMu.Lock()
 	defer s.lastStatusMu.Unlock()
+	if s.lastStatuses == nil {
+		s.lastStatuses = make(map[string]DeviceRuntimeStatus)
+	}
 
 	previous, exists := s.lastStatuses[status.DeviceID]
 	if exists && runtimeStatusEqual(previous, status) {
@@ -325,7 +353,11 @@ func runtimeStatusEqual(left, right DeviceRuntimeStatus) bool {
 		left.PointsHealthy != right.PointsHealthy ||
 		left.PointsStale != right.PointsStale ||
 		left.PointsError != right.PointsError ||
-		left.BreakerState != right.BreakerState {
+		left.BreakerState != right.BreakerState ||
+		left.ProjectionAlignment != right.ProjectionAlignment ||
+		left.RuntimeProjectionVersion != right.RuntimeProjectionVersion ||
+		left.WorkspaceProjectionVersion != right.WorkspaceProjectionVersion ||
+		left.ProjectionMessage != right.ProjectionMessage {
 		return false
 	}
 

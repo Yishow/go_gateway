@@ -11,6 +11,7 @@ import (
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/workspace"
 
 	"github.com/stretchr/testify/require"
 )
@@ -182,4 +183,102 @@ func TestService_StatusEventMatchesAlignedRuntimeSnapshot(t *testing.T) {
 	require.Equal(t, snapshot.Collectors[0].PointsStale, staleEvent.PointsStale)
 	require.Equal(t, snapshot.Collectors[0].PointsError, staleEvent.PointsError)
 	require.Equal(t, snapshot.Collectors[0].BreakerState, staleEvent.BreakerState)
+}
+
+func TestService_RuntimeStatusSnapshotAndStreamReportStaleProjection(t *testing.T) {
+	ctx := t.Context()
+	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), nil)
+	deviceRecord := &schema.Device{
+		ID:               "dev-A",
+		Name:             "Device A",
+		Protocol:         schema.ProtocolModbusTCP,
+		Status:           schema.DeviceStatusActive,
+		ConnectionConfig: `{"host":"127.0.0.1","port":502,"slave_id":1,"timeout":1}`,
+	}
+	activeProjection := &workspace.RuntimeProjection{
+		WorkspaceID: "ws-1",
+		Version:     "projection-v12",
+		Alignment:   workspace.RuntimeProjectionAlignmentAligned,
+		DeviceIDs:   []string{deviceRecord.ID},
+		Devices:     []*schema.Device{deviceRecord},
+	}
+	latestProjection := &workspace.RuntimeProjection{
+		WorkspaceID: "ws-1",
+		Version:     "projection-v13",
+		Alignment:   workspace.RuntimeProjectionAlignmentAligned,
+		DeviceIDs:   []string{deviceRecord.ID},
+		Devices:     []*schema.Device{deviceRecord},
+	}
+	svc := &Service{
+		scheduler:      scheduler,
+		workspace:      workspaceProjectionStub{projection: latestProjection},
+		snapshot:       Snapshot{Devices: []*schema.Device{deviceRecord}},
+		mappingIndex:   map[string][]mappingBinding{},
+		pointMetaIndex: map[string]pointMeta{},
+	}
+	require.NoError(t, svc.ApplyWorkspaceProjection(ctx, activeProjection))
+	svc.running.Store(true)
+
+	snapshot, err := svc.RuntimeStatusSnapshot(ctx, deviceRecord.ID)
+	require.NoError(t, err)
+	require.Len(t, snapshot.Collectors, 1)
+	require.Equal(t, "stale", snapshot.Collectors[0].ProjectionAlignment)
+	require.Equal(t, "projection-v12", snapshot.Collectors[0].RuntimeProjectionVersion)
+	require.Equal(t, "projection-v13", snapshot.Collectors[0].WorkspaceProjectionVersion)
+
+	statusStream, unsubscribe := svc.SubscribeStatusEvents(deviceRecord.ID)
+	defer unsubscribe()
+
+	select {
+	case event := <-statusStream:
+		require.Equal(t, "stale", event.ProjectionAlignment)
+		require.Equal(t, "projection-v12", event.RuntimeProjectionVersion)
+		require.Equal(t, "projection-v13", event.WorkspaceProjectionVersion)
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime status event with projection alignment")
+	}
+}
+
+func TestService_RuntimeStatusSnapshotReportsRestartRequiredProjection(t *testing.T) {
+	ctx := t.Context()
+	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), nil)
+	deviceRecord := &schema.Device{
+		ID:               "dev-A",
+		Name:             "Device A",
+		Protocol:         schema.ProtocolModbusTCP,
+		Status:           schema.DeviceStatusActive,
+		ConnectionConfig: `{"host":"127.0.0.1","port":502,"slave_id":1,"timeout":1}`,
+	}
+	activeProjection := &workspace.RuntimeProjection{
+		WorkspaceID: "ws-1",
+		Version:     "projection-v12",
+		Alignment:   workspace.RuntimeProjectionAlignmentAligned,
+		DeviceIDs:   []string{deviceRecord.ID},
+		Devices:     []*schema.Device{deviceRecord},
+	}
+	latestProjection := &workspace.RuntimeProjection{
+		WorkspaceID: "ws-1",
+		Version:     "projection-v13",
+		Alignment:   workspace.RuntimeProjectionAlignmentAligned,
+		DeviceIDs:   []string{deviceRecord.ID},
+		Devices:     []*schema.Device{deviceRecord},
+	}
+	svc := &Service{
+		scheduler:      scheduler,
+		workspace:      workspaceProjectionStub{projection: latestProjection},
+		snapshot:       Snapshot{Devices: []*schema.Device{deviceRecord}},
+		mappingIndex:   map[string][]mappingBinding{},
+		pointMetaIndex: map[string]pointMeta{},
+	}
+	require.NoError(t, svc.ApplyWorkspaceProjection(ctx, activeProjection))
+	svc.running.Store(true)
+	svc.MarkDeviceProjectionRestartRequired(ctx, deviceRecord.ID, "device connection change requires runtime restart")
+
+	snapshot, err := svc.RuntimeStatusSnapshot(ctx, deviceRecord.ID)
+	require.NoError(t, err)
+	require.Len(t, snapshot.Collectors, 1)
+	require.Equal(t, "restart-required", snapshot.Collectors[0].ProjectionAlignment)
+	require.Equal(t, "projection-v12", snapshot.Collectors[0].RuntimeProjectionVersion)
+	require.Equal(t, "projection-v13", snapshot.Collectors[0].WorkspaceProjectionVersion)
+	require.Equal(t, "device connection change requires runtime restart", snapshot.Collectors[0].ProjectionMessage)
 }

@@ -1,8 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import type { RuntimeCollectorStatus } from '../../../types/datalink';
 
+type RuntimeCollectorProjectionStatus = RuntimeCollectorStatus & {
+  projection_alignment?: string;
+  runtime_projection_version?: string;
+  workspace_projection_version?: string;
+  projection_message?: string;
+};
+
 interface CollectorHealthPanelProps {
-  collector: RuntimeCollectorStatus | null;
+  collector: RuntimeCollectorProjectionStatus | null;
 }
 
 export function CollectorHealthPanel({ collector }: CollectorHealthPanelProps) {
@@ -33,6 +40,30 @@ export function CollectorHealthPanel({ collector }: CollectorHealthPanelProps) {
     { label: t('health.lastReadAt', 'Last read at'), value: collector.last_read_at ?? '-' },
     { label: t('health.breakerState', 'Breaker state'), value: collector.breaker_state },
   ];
+  if (collector.projection_alignment) {
+    rows.push({
+      label: t('health.projectionAlignment', 'Projection alignment'),
+      value: collector.projection_alignment,
+    });
+  }
+  if (collector.runtime_projection_version) {
+    rows.push({
+      label: t('health.runtimeProjectionVersion', 'Runtime projection'),
+      value: collector.runtime_projection_version,
+    });
+  }
+  if (collector.workspace_projection_version) {
+    rows.push({
+      label: t('health.workspaceProjectionVersion', 'Workspace projection'),
+      value: collector.workspace_projection_version,
+    });
+  }
+  if (collector.projection_message) {
+    rows.push({
+      label: t('health.projectionMessage', 'Projection message'),
+      value: collector.projection_message,
+    });
+  }
 
   return (
     <section

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 
 	"github.com/gin-gonic/gin"
@@ -75,13 +75,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateReturnsAppliedForRunningDevice(t 
 	syncer := &stubDeviceRuntimeSyncer{}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
-		"name": "Line A Saved",
-		"connection_config": {
-			"host": "192.168.10.20",
-			"port": 502,
-			"slave_id": 1,
-			"timeout": 5
-		}
+		"name": "Line A Saved"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
@@ -136,13 +130,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateReturnsApplyFailedWhenRuntimeAppl
 	syncer := &stubDeviceRuntimeSyncer{upsertErr: context.DeadlineExceeded}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
-		"name": "Line A Saved",
-		"connection_config": {
-			"host": "192.168.10.20",
-			"port": 502,
-			"slave_id": 1,
-			"timeout": 5
-		}
+		"name": "Line A Saved"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()

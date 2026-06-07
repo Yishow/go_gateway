@@ -5,7 +5,10 @@ import {
   useStudioV2WorkspaceDevicesQuery,
   useUpdateStudioV2WorkspaceDeviceMutation,
 } from '@/hooks/datalink/useStudioV2WorkspaceDevices';
-import { studioV2WorkspaceDevicesAPI } from '@/services/studioV2WorkspaceDevices';
+import {
+  type StudioV2WorkspaceDeviceRecord,
+  studioV2WorkspaceDevicesAPI,
+} from '@/services/studioV2WorkspaceDevices';
 
 const useMutationMock = vi.fn();
 const useQueryMock = vi.fn();
@@ -77,7 +80,8 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
       onSuccess: () => Promise<void>;
     };
 
-    vi.mocked(studioV2WorkspaceDevicesAPI.create).mockResolvedValueOnce({ id: 'dev-01' } as any);
+    const createdDevice = { id: 'dev-01' } as StudioV2WorkspaceDeviceRecord;
+    vi.mocked(studioV2WorkspaceDevicesAPI.create).mockResolvedValueOnce(createdDevice);
     await expect(options.mutationFn({ id: 'dev-01' })).resolves.toEqual({ id: 'dev-01' });
 
     await options.onSuccess();
@@ -96,10 +100,17 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
       onSuccess: () => Promise<void>;
     };
 
-    vi.mocked(studioV2WorkspaceDevicesAPI.update).mockResolvedValueOnce({ id: 'dev-01' } as any);
+    const restartRequiredDevice = {
+      id: 'dev-01',
+      runtime_apply_status: 'restart-required',
+    } as StudioV2WorkspaceDeviceRecord;
+    vi.mocked(studioV2WorkspaceDevicesAPI.update).mockResolvedValueOnce(restartRequiredDevice);
     await expect(
-      options.mutationFn({ deviceId: 'dev-01', request: { name: 'Saved' } }),
-    ).resolves.toEqual({ id: 'dev-01' });
+      options.mutationFn({
+        deviceId: 'dev-01',
+        request: { connection_config: { host: '192.168.10.20' } },
+      }),
+    ).resolves.toEqual({ id: 'dev-01', runtime_apply_status: 'restart-required' });
 
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({

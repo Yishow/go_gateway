@@ -5,6 +5,7 @@ import (
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
 )
 
@@ -29,6 +30,20 @@ func mapStudioV2RuntimeApplyResponse(outcome studioV2RuntimeApplyOutcome) studio
 		RuntimeApplyStatus:  outcome.Status,
 		RuntimeApplyMessage: outcome.Message,
 		RuntimeApplyIssues:  outcome.Issues,
+	}
+}
+
+func mapSourceRuleRuntimeReconcileOutcome(outcome sourcerule.RuntimeReconcileOutcome) studioV2RuntimeApplyOutcome {
+	status := string(outcome.Status)
+	if outcome.Status == sourcerule.RuntimeReconcileStatusNotRunning {
+		status = "not_running"
+	}
+	if status == "" {
+		status = string(sourcerule.RuntimeReconcileStatusStale)
+	}
+	return studioV2RuntimeApplyOutcome{
+		Status:  status,
+		Message: outcome.Message,
 	}
 }
 

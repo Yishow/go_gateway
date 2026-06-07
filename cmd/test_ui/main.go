@@ -216,6 +216,17 @@ func main() {
 		}),
 	)
 	workspaceSvc.WithReadinessServices(devSvc, sourceRuleSvc, dbTargetConnectorSvc, dbTargetMappingSvc)
+	workspaceSvc.WithRuntimeProjectionServices(
+		devSvc,
+		sourceRuleSvc,
+		pointSvc,
+		mappingSvc,
+		tagSvc,
+		dbTargetConnectorSvc,
+		dbTargetMappingSvc,
+		pgSvc,
+	)
+	runtimeSvc.SetWorkspaceProjectionReader(workspaceSvc)
 	sourceRuleSvc.SetLocalModbusMappingReader(
 		sourcerule.LocalModbusMappingListFunc(func(context.Context) ([]sourcerule.LocalModbusMappingRecord, error) {
 			mappings := modbusShareSvc.ListMappings()
