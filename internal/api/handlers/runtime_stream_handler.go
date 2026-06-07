@@ -22,6 +22,11 @@ type RuntimeStreamHandler struct {
 	heartbeatInterval time.Duration
 }
 
+type runtimeStreamStateResponse struct {
+	DeviceID    string                            `json:"device_id"`
+	StreamState datalinkruntime.RuntimeTruthState `json:"stream_state"`
+}
+
 func NewRuntimeStreamHandler(source runtimeValueStreamSource) *RuntimeStreamHandler {
 	return &RuntimeStreamHandler{
 		source:            source,
@@ -34,6 +39,7 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"success": false,
 			"error":   gin.H{"message": "runtime stream unavailable"},
+			"data":    runtimeStreamUnavailableResponse("", "runtime stream unavailable"),
 		})
 		return
 	}
@@ -49,11 +55,6 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 
 	pointIDs := parseRuntimePointIDs(c.Query("point_ids"))
 
-	c.Writer.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -66,14 +67,26 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 	valueStream, unsubscribeValues := h.source.SubscribeValueEvents(deviceID, pointIDs)
 	statusStream, unsubscribeStatus := h.source.SubscribeStatusEvents(deviceID)
 	if valueStream == nil || statusStream == nil {
+		if unsubscribeValues != nil {
+			unsubscribeValues()
+		}
+		if unsubscribeStatus != nil {
+			unsubscribeStatus()
+		}
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"success": false,
 			"error":   gin.H{"message": "runtime stream unavailable"},
+			"data":    runtimeStreamUnavailableResponse(deviceID, "runtime stream unavailable"),
 		})
 		return
 	}
 	defer unsubscribeValues()
 	defer unsubscribeStatus()
+
+	c.Writer.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 	heartbeatInterval := h.heartbeatInterval
 	if heartbeatInterval <= 0 {
@@ -82,12 +95,25 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
+	if err := writeRuntimeSSE(c.Writer, flusher, "stream_state", datalinkruntime.RuntimeStreamStateEvent{
+		DeviceID:    deviceID,
+		StreamState: datalinkruntime.RuntimeReadyTruthState(),
+		Timestamp:   time.Now().UTC(),
+	}); err != nil {
+		return
+	}
+
 	for {
 		select {
 		case <-c.Request.Context().Done():
 			return
 		case evt, ok := <-valueStream:
 			if !ok {
+				_ = writeRuntimeSSE(c.Writer, flusher, "stream_state", datalinkruntime.RuntimeStreamStateEvent{
+					DeviceID:    deviceID,
+					StreamState: datalinkruntime.RuntimeUnavailableTruthState("runtime value stream closed"),
+					Timestamp:   time.Now().UTC(),
+				})
 				return
 			}
 			if err := writeRuntimeSSE(c.Writer, flusher, "value", evt); err != nil {
@@ -95,6 +121,11 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 			}
 		case evt, ok := <-statusStream:
 			if !ok {
+				_ = writeRuntimeSSE(c.Writer, flusher, "stream_state", datalinkruntime.RuntimeStreamStateEvent{
+					DeviceID:    deviceID,
+					StreamState: datalinkruntime.RuntimeUnavailableTruthState("runtime status stream closed"),
+					Timestamp:   time.Now().UTC(),
+				})
 				return
 			}
 			if err := writeRuntimeSSE(c.Writer, flusher, "status", evt); err != nil {
@@ -106,6 +137,13 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 				return
 			}
 		}
+	}
+}
+
+func runtimeStreamUnavailableResponse(deviceID string, reason string) runtimeStreamStateResponse {
+	return runtimeStreamStateResponse{
+		DeviceID:    strings.TrimSpace(deviceID),
+		StreamState: datalinkruntime.RuntimeUnavailableTruthState(reason),
 	}
 }
 

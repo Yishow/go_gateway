@@ -94,6 +94,24 @@ describe('RuntimeDashboardPage', () => {
     expect(screen.getByTestId('runtime-dashboard-logs-panel')).toBeInTheDocument();
   });
 
+  it('marks unsupported summary metrics unavailable instead of filling zero defaults', () => {
+    const snapshotWithoutMetrics = {
+      ...baseState.snapshot,
+      metrics: undefined,
+    };
+
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        snapshot={snapshotWithoutMetrics}
+      />,
+    );
+
+    const summary = screen.getByTestId('runtime-dashboard-summary-panel');
+    expect(summary).toHaveTextContent('Write success total');
+    expect(summary).toHaveTextContent('Unavailable');
+  });
+
   it('keeps the last successful data visible while showing a degraded banner', () => {
     render(
       <RuntimeDashboardPage
@@ -132,6 +150,42 @@ describe('RuntimeDashboardPage', () => {
 
     expect(screen.getByTestId('runtime-dashboard-missing-device-context')).toBeInTheDocument();
     expect(screen.queryByTestId('runtime-dashboard-summary-panel')).not.toBeInTheDocument();
+  });
+
+  it('renders backend empty snapshot state without showing synthetic summary panels', () => {
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        routeState="empty"
+        snapshot={null}
+        liveValues={{}}
+      />,
+    );
+
+    expect(screen.getByTestId('runtime-dashboard-empty-snapshot')).toBeInTheDocument();
+    expect(screen.queryByTestId('runtime-dashboard-summary-panel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('runtime-dashboard-health-panel')).not.toBeInTheDocument();
+  });
+
+  it('does not borrow another device collector when selected device has no collector', () => {
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        snapshot={{
+          ...baseState.snapshot,
+          collectors: [{
+            ...baseState.snapshot.collectors[0],
+            device_id: 'device-B',
+            device_name: 'Filler PLC',
+            points_total: 9,
+          }],
+        }}
+      />,
+    );
+
+    const healthPanel = screen.getByTestId('runtime-dashboard-health-panel');
+    expect(healthPanel).toHaveTextContent('Collector status will appear after the first runtime snapshot.');
+    expect(healthPanel).not.toHaveTextContent('9');
   });
 
   it('keeps unavailable devices visible in the switcher with their reason', () => {

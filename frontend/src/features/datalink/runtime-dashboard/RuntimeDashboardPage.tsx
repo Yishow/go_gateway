@@ -24,9 +24,7 @@ export function RuntimeDashboardPage({
 }: RuntimeDashboardPageProps) {
   const { t } = useTranslation('runtime-dashboard');
   const collector =
-    snapshot?.collectors.find((item) => item.device_id === selectedDeviceId) ??
-    snapshot?.collectors[0] ??
-    null;
+    snapshot?.collectors.find((item) => item.device_id === selectedDeviceId) ?? null;
 
   if (routeState === 'empty-workspace') {
     return (
@@ -35,6 +33,16 @@ export function RuntimeDashboardPage({
         data-testid="runtime-dashboard-empty-workspace"
       >
         <div className="mx-auto max-w-6xl space-y-6">
+          <div className="sr-only" data-testid="runtime-dashboard-route-state">
+            empty-workspace
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-selected-device">
+            {selectedDevice?.name ?? selectedDeviceId ?? ''}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-collector-count">
+            {snapshot?.collectors.length ?? 0}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-stream-state">{streamState}</div>
           <FocusedDeviceHeader
             selectedDeviceId={selectedDeviceId}
             selectedDevice={selectedDevice}
@@ -70,6 +78,16 @@ export function RuntimeDashboardPage({
         data-testid="runtime-dashboard-missing-device-context"
       >
         <div className="mx-auto max-w-6xl space-y-6">
+          <div className="sr-only" data-testid="runtime-dashboard-route-state">
+            missing-device-context
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-selected-device">
+            {selectedDevice?.name ?? selectedDeviceId ?? ''}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-collector-count">
+            {snapshot?.collectors.length ?? 0}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-stream-state">{streamState}</div>
           <FocusedDeviceHeader
             selectedDeviceId={selectedDeviceId}
             selectedDevice={selectedDevice}
@@ -84,6 +102,45 @@ export function RuntimeDashboardPage({
               {t(
                 'empty.description',
                 'This page stays focused on one committed device and does not switch to a fleet-wide dashboard.',
+              )}
+            </p>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  if (routeState === 'empty') {
+    return (
+      <div className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100" data-testid="runtime-dashboard-route">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="sr-only" data-testid="runtime-dashboard-route-state">
+            empty
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-selected-device">
+            {selectedDevice?.name ?? selectedDeviceId ?? ''}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-collector-count">
+            {snapshot?.collectors.length ?? 0}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-stream-state">{streamState}</div>
+          <FocusedDeviceHeader
+            selectedDeviceId={selectedDeviceId}
+            selectedDevice={selectedDevice}
+            devices={devices}
+            onSelectDevice={onSelectDevice}
+          />
+          <section
+            className="rounded-3xl border border-dashed border-slate-700 bg-slate-900/60 p-8"
+            data-testid="runtime-dashboard-empty-snapshot"
+          >
+            <h2 className="text-xl font-semibold text-slate-50">
+              {t('emptySnapshot.title', 'Runtime data is not available yet')}
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              {t(
+                'emptySnapshot.description',
+                'The backend has not produced a runtime snapshot for the selected device yet.',
               )}
             </p>
           </section>

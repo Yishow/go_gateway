@@ -11,13 +11,8 @@ function formatRunningState(running: boolean) {
 
 export function RuntimeSummaryPanel({ snapshot }: RuntimeSummaryPanelProps) {
   const { t } = useTranslation('runtime-dashboard');
-  const metrics = snapshot.metrics ?? {
-    collected_total: 0,
-    write_success_total: 0,
-    write_error_total: 0,
-    mapping_error_total: 0,
-    point_state_error_total: 0,
-  };
+  const metrics = snapshot.metrics;
+  const unavailable = t('summary.unavailable', 'Unavailable');
 
   const cards = [
     {
@@ -30,23 +25,23 @@ export function RuntimeSummaryPanel({ snapshot }: RuntimeSummaryPanelProps) {
     },
     {
       label: t('summary.collectedTotal', 'Collected total'),
-      value: String(metrics.collected_total),
+      value: formatMetric(metrics?.collected_total, unavailable),
     },
     {
       label: t('summary.writeSuccessTotal', 'Write success total'),
-      value: String(metrics.write_success_total),
+      value: formatMetric(metrics?.write_success_total, unavailable),
     },
     {
       label: t('summary.writeErrorTotal', 'Write error total'),
-      value: String(metrics.write_error_total),
+      value: formatMetric(metrics?.write_error_total, unavailable),
     },
     {
       label: t('summary.mappingErrorTotal', 'Mapping error total'),
-      value: String(metrics.mapping_error_total),
+      value: formatMetric(metrics?.mapping_error_total, unavailable),
     },
     {
       label: t('summary.pointStateErrorTotal', 'Point state error total'),
-      value: String(metrics.point_state_error_total),
+      value: formatMetric(metrics?.point_state_error_total, unavailable),
     },
   ];
 
@@ -77,4 +72,8 @@ export function RuntimeSummaryPanel({ snapshot }: RuntimeSummaryPanelProps) {
       </dl>
     </section>
   );
+}
+
+function formatMetric(value: number | undefined, unavailable: string): string {
+  return typeof value === 'number' ? String(value) : unavailable;
 }

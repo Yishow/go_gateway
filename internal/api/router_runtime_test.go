@@ -326,3 +326,66 @@ func TestNewRouter_RuntimeStatusUsesRuntimeServiceState(t *testing.T) {
 		t.Fatalf("expected runtime uptime to be populated, got %+v", body.Data)
 	}
 }
+
+func TestNewRouter_RuntimeStatusMarksSelectedDeviceEmptySnapshot(t *testing.T) {
+	deviceSvc := device.NewService(device.NewMemoryRepository(), nil)
+	pointSvc := point.NewService(point.NewMemoryRepository(), nil)
+	tagSvc := tag.NewService(tag.NewMemoryRepository())
+	mappingSvc := mapping.NewService(mapping.NewMemoryRepository())
+	pollingGroupSvc := pollinggroup.NewService(pollinggroup.NewMemoryRepository())
+	settingsSvc := settings.NewService(settings.NewMemoryRepository())
+
+	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.Config{
+		Writer: storage.NewMemoryStorage(8),
+		Snapshot: datalinkruntime.Snapshot{
+			Devices: []*schema.Device{
+				{
+					ID:       "dev-A",
+					Name:     "Mixer PLC",
+					Protocol: schema.ProtocolModbusTCP,
+					Status:   schema.DeviceStatusActive,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("new runtime service failed: %v", err)
+	}
+
+	router := NewRouter(&DatalinkServices{
+		Device:       deviceSvc,
+		Point:        pointSvc,
+		Tag:          tagSvc,
+		Mapping:      mappingSvc,
+		PollingGroup: pollingGroupSvc,
+		Settings:     settingsSvc,
+		Runtime:      runtimeSvc,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id=dev-A", nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", resp.Code, resp.Body.String())
+	}
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			SnapshotState struct {
+				State string `json:"state"`
+				Empty bool   `json:"empty"`
+			} `json:"snapshot_state"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response failed: %v", err)
+	}
+	if !body.Success {
+		t.Fatalf("expected success body, got %s", resp.Body.String())
+	}
+	if body.Data.SnapshotState.State != "empty" || !body.Data.SnapshotState.Empty {
+		t.Fatalf("expected explicit empty snapshot state, got %s", resp.Body.String())
+	}
+}

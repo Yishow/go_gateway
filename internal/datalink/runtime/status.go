@@ -16,6 +16,7 @@ const statusRefreshInterval = time.Second
 type RuntimeStatusSnapshot struct {
 	Running          bool                         `json:"running"`
 	UptimeSeconds    int64                        `json:"uptime_seconds"`
+	SnapshotState    RuntimeTruthState            `json:"snapshot_state"`
 	Metrics          Stats                        `json:"metrics"`
 	Collectors       []DeviceRuntimeStatus        `json:"collectors"`
 	DatabaseDelivery []DatabaseDeliveryDiagnostic `json:"database_delivery"`
@@ -66,6 +67,7 @@ func (s *Service) RuntimeStatusSnapshot(ctx context.Context, deviceID string) (R
 	return RuntimeStatusSnapshot{
 		Running:          s.IsRunning(),
 		UptimeSeconds:    s.UptimeSeconds(),
+		SnapshotState:    DeriveSnapshotTruthState(collectors, deviceID),
 		Metrics:          s.Snapshot(),
 		Collectors:       collectors,
 		DatabaseDelivery: s.databaseDeliveryDiagnostics(deviceID),

@@ -4,15 +4,22 @@ import { useStudioV2RuntimeContextQuery } from '../../../hooks/datalink/useStudi
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
 import type {
   RuntimeStatus,
-  RuntimeStreamConnectionState,
   StudioV2RuntimeContextDevice,
   RuntimeValueEvent,
 } from '../../../types/datalink';
+import type { RuntimeTruthState } from '../../../types/runtimeTruth';
 import { useRuntimeStatus } from './useRuntimeStatus';
 import { useRuntimeDashboardStream } from './useRuntimeStream';
-import type { RuntimeDashboardLog } from './useRuntimeStream';
+import type {
+  RuntimeDashboardLog,
+  RuntimeDashboardStreamConnectionState,
+} from './useRuntimeStream';
 
 const degradedPollingIntervalMs = 5000;
+
+type RuntimeStatusWithTruth = RuntimeStatus & {
+  snapshot_state?: RuntimeTruthState;
+};
 
 function isMissingRuntimeDeviceError(message: string | null): boolean {
   if (!message) {
@@ -25,6 +32,7 @@ function isMissingRuntimeDeviceError(message: string | null): boolean {
 export type RuntimeDashboardRouteState =
   | 'missing-device-context'
   | 'empty-workspace'
+  | 'empty'
   | 'loading'
   | 'live'
   | 'degraded'
@@ -38,29 +46,16 @@ export interface RuntimeDashboardState {
   snapshot: RuntimeStatus | null;
   snapshotError: string | null;
   liveValues: Record<string, RuntimeValueEvent>;
-  streamState: RuntimeStreamConnectionState;
+  streamState: RuntimeDashboardStreamConnectionState;
   logs?: RuntimeDashboardLog[];
   onSelectDevice: (deviceId: string) => void;
   onRetrySnapshot: () => Promise<unknown>;
 }
 
-const emptySnapshot: RuntimeStatus = {
-  running: false,
-  uptime_seconds: 0,
-  metrics: {
-    collected_total: 0,
-    write_success_total: 0,
-    write_error_total: 0,
-    mapping_error_total: 0,
-    point_state_error_total: 0,
-  },
-  collectors: [],
-};
-
 export function useRuntimeDashboardState(): RuntimeDashboardState {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryDeviceId = searchParams.get('device_id');
-  const [lastSnapshot, setLastSnapshot] = useState<RuntimeStatus | null>(null);
+  const [lastSnapshot, setLastSnapshot] = useState<RuntimeStatusWithTruth | null>(null);
   const [isDegraded, setIsDegraded] = useState(false);
 
   const runtimeContextQuery = useStudioV2RuntimeContextQuery();
@@ -69,18 +64,22 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     [runtimeContextQuery.data],
   );
   const selectedDeviceId = useMemo(() => {
-    if (queryDeviceId && devices.some((device) => device.device_id === queryDeviceId)) {
+    if (queryDeviceId) {
       return queryDeviceId;
     }
     return runtimeContextQuery.data?.default_device_id ?? null;
-  }, [devices, queryDeviceId, runtimeContextQuery.data]);
+  }, [queryDeviceId, runtimeContextQuery.data]);
   const selectedDevice = useMemo(
     () => devices.find((device) => device.device_id === selectedDeviceId) ?? null,
     [devices, selectedDeviceId],
   );
+  const selectedDeviceContextMissing = Boolean(
+    runtimeContextQuery.data && selectedDeviceId && !selectedDevice,
+  );
+  const observableDeviceId = selectedDeviceContextMissing ? null : selectedDeviceId;
 
   const pointsQuery = usePointsQuery(
-    selectedDeviceId ? { device_id: selectedDeviceId } : undefined,
+    observableDeviceId ? { device_id: observableDeviceId } : undefined,
   );
   const pointIds = useMemo(
     () => (pointsQuery.data ?? []).map((point) => point.id),
@@ -88,7 +87,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
   );
 
   const snapshotQuery = useRuntimeStatus({
-    deviceId: selectedDeviceId,
+    deviceId: observableDeviceId,
     pollingIntervalMs: isDegraded ? degradedPollingIntervalMs : false,
   });
   const snapshotQueryError =
@@ -98,7 +97,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
   const snapshotError = runtimeContextError ?? snapshotQueryError;
 
   const stream = useRuntimeDashboardStream({
-    deviceId: selectedDeviceId,
+    deviceId: observableDeviceId,
     pointIds,
   });
 
@@ -109,7 +108,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
 
   useEffect(() => {
     if (snapshotQuery.data) {
-      setLastSnapshot(snapshotQuery.data);
+      setLastSnapshot(snapshotQuery.data as RuntimeStatusWithTruth);
     }
   }, [snapshotQuery.data]);
 
@@ -124,6 +123,10 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     }
   }, [lastSnapshot, stream.connectionState]);
 
+  const currentSnapshot =
+    lastSnapshot ?? (snapshotQuery.data as RuntimeStatusWithTruth | undefined) ?? null;
+  const snapshotState = currentSnapshot?.snapshot_state;
+
   const routeState = useMemo<RuntimeDashboardRouteState>(() => {
     if (!runtimeContextQuery.data && (runtimeContextQuery.isLoading || runtimeContextQuery.isFetching)) {
       return 'loading';
@@ -137,6 +140,10 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return 'empty-workspace';
     }
 
+    if (selectedDeviceContextMissing) {
+      return 'missing-device-context';
+    }
+
     if (!lastSnapshot && isMissingRuntimeDeviceError(snapshotError)) {
       return 'missing-device-context';
     }
@@ -145,11 +152,22 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return 'error';
     }
 
+    if (snapshotState?.empty) {
+      return 'empty';
+    }
+
     if (!lastSnapshot && (snapshotQuery.isLoading || snapshotQuery.isFetching)) {
       return 'loading';
     }
 
-    if (isDegraded || stream.connectionState === 'error') {
+    if (
+      snapshotState?.degraded ||
+      snapshotState?.unavailable ||
+      snapshotState?.stale ||
+      isDegraded ||
+      stream.connectionState === 'unavailable' ||
+      stream.connectionState === 'error'
+    ) {
       return 'degraded';
     }
 
@@ -165,8 +183,13 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     runtimeContextQuery.isError,
     runtimeContextQuery.isFetching,
     runtimeContextQuery.isLoading,
+    selectedDeviceContextMissing,
     selectedDeviceId,
     snapshotError,
+    snapshotState?.degraded,
+    snapshotState?.empty,
+    snapshotState?.stale,
+    snapshotState?.unavailable,
     snapshotQuery.isError,
     snapshotQuery.isFetching,
     snapshotQuery.isLoading,
@@ -178,7 +201,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     selectedDeviceId,
     selectedDevice,
     devices,
-    snapshot: lastSnapshot ?? snapshotQuery.data ?? emptySnapshot,
+    snapshot: currentSnapshot,
     snapshotError,
     liveValues: stream.liveValues,
     streamState: stream.connectionState,

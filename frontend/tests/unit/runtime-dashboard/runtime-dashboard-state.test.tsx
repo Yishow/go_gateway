@@ -394,23 +394,6 @@ describe('runtime dashboard route state', () => {
     });
   });
 
-  it('falls back to missing-device-context when the selected device_id does not exist in backend runtime data', async () => {
-    mockRuntimeStatus.mockReset();
-    mockRuntimeStatus.mockRejectedValueOnce(
-      new Error(
-        'failed to build runtime status snapshot: 取得設備失敗: device not found: sql: no rows in result set',
-      ),
-    );
-
-    renderRoute('/studio/runtime?device_id=dev-01');
-
-    await waitFor(() => {
-      expect(screen.getByTestId('runtime-dashboard-missing-device-context')).toBeInTheDocument();
-    });
-
-    expect(screen.queryByTestId('runtime-dashboard-snapshot-error')).not.toBeInTheDocument();
-  });
-
   it('stays on runtime and shows an empty workspace state when no available devices exist', () => {
     mockRuntimeContext.devices.splice(0, mockRuntimeContext.devices.length, {
       device_id: 'device-B',

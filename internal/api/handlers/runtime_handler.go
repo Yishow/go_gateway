@@ -27,6 +27,7 @@ type RuntimeHandler struct {
 type runtimeStatusResponse struct {
 	Running          bool                                         `json:"running"`
 	UptimeSeconds    int64                                        `json:"uptime_seconds"`
+	SnapshotState    datalinkruntime.RuntimeTruthState            `json:"snapshot_state"`
 	Metrics          datalinkruntime.Stats                        `json:"metrics"`
 	Collectors       []runtimeCollectorResponse                   `json:"collectors"`
 	DatabaseDelivery []datalinkruntime.DatabaseDeliveryDiagnostic `json:"database_delivery,omitempty"`
@@ -168,6 +169,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 		response := runtimeStatusResponse{
 			Running:          snapshot.Running,
 			UptimeSeconds:    snapshot.UptimeSeconds,
+			SnapshotState:    snapshot.SnapshotState,
 			Metrics:          snapshot.Metrics,
 			Collectors:       make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
 			DatabaseDelivery: snapshot.DatabaseDelivery,
@@ -241,6 +243,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 	response := runtimeStatusResponse{
 		Running:       running,
 		UptimeSeconds: uptimeSeconds,
+		SnapshotState: datalinkruntime.RuntimeEmptyTruthState("runtime has no device snapshot"),
 		Metrics:       datalinkruntime.Stats{},
 		Collectors:    make([]runtimeCollectorResponse, 0, len(devices)),
 	}
@@ -326,6 +329,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 
 		response.Collectors = append(response.Collectors, collectorResp)
 	}
+	response.SnapshotState = runtimeSnapshotStateFromCollectorResponses(response.Collectors, deviceIDFilter)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -357,6 +361,30 @@ func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus 
 	response.WorkspaceProjectionVersion = runtimeStatus.WorkspaceProjectionVersion
 	response.ProjectionMessage = runtimeStatus.ProjectionMessage
 	return response
+}
+
+func runtimeSnapshotStateFromCollectorResponses(
+	collectors []runtimeCollectorResponse,
+	deviceID string,
+) datalinkruntime.RuntimeTruthState {
+	statuses := make([]datalinkruntime.DeviceRuntimeStatus, 0, len(collectors))
+	for _, collector := range collectors {
+		statuses = append(statuses, datalinkruntime.DeviceRuntimeStatus{
+			DeviceID:                   collector.DeviceID,
+			Status:                     collector.Status,
+			AvailabilityStatus:         collector.AvailabilityStatus,
+			PointsTotal:                collector.PointsTotal,
+			PointsStale:                collector.PointsStale,
+			PointsError:                collector.PointsError,
+			LastReadAt:                 collector.LastReadAt,
+			BreakerState:               collector.BreakerState,
+			ProjectionAlignment:        collector.ProjectionAlignment,
+			RuntimeProjectionVersion:   collector.RuntimeProjectionVersion,
+			WorkspaceProjectionVersion: collector.WorkspaceProjectionVersion,
+			ProjectionMessage:          collector.ProjectionMessage,
+		})
+	}
+	return datalinkruntime.DeriveSnapshotTruthState(statuses, deviceID)
 }
 
 func mapRuntimeCollectorResponse(collector datalinkruntime.DeviceRuntimeStatus) runtimeCollectorResponse {

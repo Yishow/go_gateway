@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -54,6 +55,46 @@ func TestRuntimeStreamHandler_StreamRequiresDeviceID(t *testing.T) {
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestRuntimeStreamHandler_StreamUnavailableIsExplicit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler := NewRuntimeStreamHandler(&stubRuntimeStreamSource{})
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=device-1", nil)
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = req
+
+	handler.Stream(c)
+
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status 503, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			DeviceID    string `json:"device_id"`
+			StreamState struct {
+				State       string `json:"state"`
+				Unavailable bool   `json:"unavailable"`
+			} `json:"stream_state"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response failed: %v body=%s", err, recorder.Body.String())
+	}
+	if body.Success {
+		t.Fatalf("expected unsuccessful response, got %s", recorder.Body.String())
+	}
+	if body.Data.DeviceID != "device-1" {
+		t.Fatalf("expected selected device id in stream state, got %s", recorder.Body.String())
+	}
+	if body.Data.StreamState.State != "unavailable" || !body.Data.StreamState.Unavailable {
+		t.Fatalf("expected explicit unavailable stream state, got %s", recorder.Body.String())
 	}
 }
 

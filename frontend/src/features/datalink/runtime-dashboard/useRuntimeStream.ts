@@ -5,6 +5,7 @@ import type {
   RuntimeStreamConnectionState,
   RuntimeValueEvent,
 } from '../../../types/datalink';
+import type { RuntimeTruthState } from '../../../types/runtimeTruth';
 
 interface UseRuntimeStreamOptions {
   deviceId: string | null;
@@ -17,8 +18,18 @@ export interface RuntimeDashboardLog {
   message: string;
 }
 
+export type RuntimeDashboardStreamConnectionState =
+  | RuntimeStreamConnectionState
+  | 'unavailable';
+
+interface RuntimeStreamStateEvent {
+  device_id?: string;
+  stream_state?: RuntimeTruthState;
+  timestamp?: string;
+}
+
 interface UseRuntimeStreamResult {
-  connectionState: RuntimeStreamConnectionState;
+  connectionState: RuntimeDashboardStreamConnectionState;
   liveValues: Record<string, RuntimeValueEvent>;
   latestStatus: RuntimeDeviceStatusEvent | null;
   logs: RuntimeDashboardLog[];
@@ -29,7 +40,7 @@ export function useRuntimeDashboardStream({
   pointIds = [],
 }: UseRuntimeStreamOptions): UseRuntimeStreamResult {
   const [connectionState, setConnectionState] =
-    useState<RuntimeStreamConnectionState>('disconnected');
+    useState<RuntimeDashboardStreamConnectionState>('disconnected');
   const [liveValues, setLiveValues] = useState<Record<string, RuntimeValueEvent>>(
     {},
   );
@@ -138,6 +149,37 @@ export function useRuntimeDashboardStream({
       }
     };
 
+    const handleStreamStateEvent = (event: Event) => {
+      const payload = JSON.parse((event as MessageEvent<string>).data) as RuntimeStreamStateEvent;
+      if (payload.device_id && payload.device_id !== deviceId) {
+        return;
+      }
+
+      const streamTruth = payload.stream_state;
+      if (!streamTruth) {
+        return;
+      }
+
+      if (streamTruth.state === 'ready') {
+        setConnectionState('connected');
+        return;
+      }
+
+      if (streamTruth.unavailable || streamTruth.state === 'unavailable') {
+        setConnectionState('unavailable');
+        setLogs((current) => [
+          ...current.slice(-99),
+          {
+            timestamp: payload.timestamp ?? new Date().toISOString(),
+            level: 'warn',
+            message: streamTruth.reason
+              ? `Runtime stream unavailable: ${streamTruth.reason}`
+              : 'Runtime stream unavailable.',
+          },
+        ]);
+      }
+    };
+
     eventSource.onopen = () => {
       setConnectionState('connected');
       setLogs((current) => [
@@ -164,6 +206,7 @@ export function useRuntimeDashboardStream({
 
     eventSource.addEventListener('value', handleValueEvent);
     eventSource.addEventListener('status', handleStatusEvent);
+    eventSource.addEventListener('stream_state', handleStreamStateEvent);
 
     // 每 200ms 批量合併並寫入 React 狀態，防止 DOM 重繪頻率過高造成卡頓
     const interval = setInterval(() => {
@@ -179,6 +222,7 @@ export function useRuntimeDashboardStream({
       clearInterval(interval);
       eventSource.removeEventListener('value', handleValueEvent);
       eventSource.removeEventListener('status', handleStatusEvent);
+      eventSource.removeEventListener('stream_state', handleStreamStateEvent);
       eventSource.close();
       setConnectionState('disconnected');
     };
