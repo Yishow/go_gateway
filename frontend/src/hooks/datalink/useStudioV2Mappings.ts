@@ -22,6 +22,7 @@ export function useCreateStudioV2MappingMutation() {
     mutationFn: (request: StudioV2WorkspaceMappingRequest) => studioV2MappingsAPI.create(request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }
@@ -34,6 +35,7 @@ export function useUpdateStudioV2MappingMutation() {
       studioV2MappingsAPI.update(mappingId, request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }
@@ -45,6 +47,7 @@ export function useDeleteStudioV2MappingMutation() {
     mutationFn: (mappingId: string) => studioV2MappingsAPI.remove(mappingId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }

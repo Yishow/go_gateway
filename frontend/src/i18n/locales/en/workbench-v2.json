@@ -281,6 +281,14 @@
     "scheduler_running": "scheduler running",
     "scheduler_idle": "scheduler idle"
   },
+  "workspace_readiness": {
+    "title": "Workspace Readiness",
+    "blocked": "Blocking issues still need attention before live apply can fully proceed.",
+    "ready": "Workspace is activation-ready. Warnings are still shown when attention is needed.",
+    "blocking_count": "{{count}} blockers",
+    "warning_count": "{{count}} warnings",
+    "no_issues": "No blockers or warnings are currently reported."
+  },
   "settings": {
     "title": "System Settings",
     "subtitle": "Manage global gateway connections, storage schedules, byte mapping forwarding, and developer diagnostics tools.",

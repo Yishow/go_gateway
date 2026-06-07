@@ -1,9 +1,12 @@
 import * as React from 'react';
 import type { WorkbenchV2State } from '../state/types';
 import { Icon } from '../components';
+import type { StudioV2WorkspaceReadinessSummary } from '../../../../types/studioV2WorkspaceReadiness';
+import { WorkspaceReadinessPanel } from '../components/WorkspaceReadinessPanel';
 
 export interface SummaryRailProps {
   state: WorkbenchV2State;
+  workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
 }
 
 /**
@@ -13,7 +16,7 @@ export interface SummaryRailProps {
  * 根據 state 即時推導並顯示設備、接入規則、點位映射與資料庫摘要，
  * 並在視窗寬度 < 1280px 時完全不渲染至 DOM 中。
  */
-export const SummaryRail: React.FC<SummaryRailProps> = ({ state }) => {
+export const SummaryRail: React.FC<SummaryRailProps> = ({ state, workspaceReadiness }) => {
   const [isWide, setIsWide] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 1280;
@@ -78,6 +81,8 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({ state }) => {
 
   return (
     <div className="space-y-3 w-[260px] flex-shrink-0" data-testid="summary-rail">
+      <WorkspaceReadinessPanel summary={workspaceReadiness} dataTestId="summary-rail-readiness" maxIssues={3} />
+
       {/* 設備卡片 */}
       <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
         <div className="flex items-center gap-2 mb-2">

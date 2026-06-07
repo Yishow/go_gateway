@@ -7,6 +7,7 @@ import { workbenchV2Reducer } from '../../../src/features/datalink/workbench-v2/
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import type { WorkbenchV2Action } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { StudioV2ActivationResponse } from '../../../src/types/studioV2Activation';
+import type { StudioV2WorkspaceReadinessSummary } from '../../../src/types/studioV2WorkspaceReadiness';
 
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
@@ -166,7 +167,7 @@ describe('Step 4 first activation flow integration', () => {
     render(
       <Step4Database
         state={mockState}
-        dispatch={() => {}}
+        dispatch={() => { }}
         activateWorkspace={activateWorkspace}
       />
     );
@@ -232,5 +233,67 @@ describe('Step 4 first activation flow integration', () => {
 
     expect(screen.getByTestId('step4-shell-location')).toHaveTextContent('/studio/runtime');
     expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('shows readiness blockers and disables activation before start', () => {
+    const readinessSummary: StudioV2WorkspaceReadinessSummary = {
+      ready: false,
+      blocking_count: 1,
+      warning_count: 0,
+      issues: [
+        {
+          code: 'device-probe-required',
+          severity: 'blocking',
+          step: 'Step 1',
+          scope: 'd-1',
+          message: 'probe diagnostics failed',
+        },
+      ],
+    };
+    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>();
+
+    render(
+      <Step4Database
+        state={mockState}
+        dispatch={() => { }}
+        activateWorkspace={activateWorkspace}
+        workspaceReadiness={readinessSummary}
+      />,
+    );
+
+    const activateButton = screen.getByText('step4.activate_btn').closest('button');
+    expect(screen.getByTestId('step4-readiness-panel')).toHaveTextContent('device-probe-required');
+    expect(activateButton).toBeDisabled();
+    fireEvent.click(screen.getByText('step4.activate_btn'));
+    expect(activateWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('shows readiness warnings but keeps activation enabled', () => {
+    const readinessSummary: StudioV2WorkspaceReadinessSummary = {
+      ready: true,
+      blocking_count: 0,
+      warning_count: 1,
+      issues: [
+        {
+          code: 'database-connector-unreachable',
+          severity: 'warning',
+          step: 'Step 4',
+          scope: 'db-main',
+          message: 'database connector requires attention',
+        },
+      ],
+    };
+
+    render(
+      <Step4Database
+        state={mockState}
+        dispatch={() => { }}
+        workspaceReadiness={readinessSummary}
+      />,
+    );
+
+    const activateButton = screen.getByText('step4.activate_btn').closest('button');
+    expect(screen.getByTestId('step4-readiness-panel')).toHaveTextContent('database-connector-unreachable');
+    expect(activateButton).not.toBeDisabled();
   });
 });

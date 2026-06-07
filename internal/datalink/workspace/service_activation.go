@@ -59,6 +59,17 @@ func NewActivationService(workspaceSvc *Service, deviceSvc activationDeviceServi
 }
 
 func (s *ActivationService) ActivateEligible(ctx context.Context) (*ActivationResponse, error) {
+	readiness, err := s.workspaceSvc.Readiness(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("evaluate workspace readiness before activation: %w", err)
+	}
+	if readiness != nil && readiness.BlockingCount > 0 {
+		return nil, &ReadinessBlockedError{
+			Operation: "activation",
+			Summary:   readiness,
+		}
+	}
+
 	record, err := s.workspaceSvc.GetOrCreate(ctx)
 	if err != nil {
 		return nil, err

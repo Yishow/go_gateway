@@ -281,6 +281,14 @@
     "scheduler_running": "scheduler running",
     "scheduler_idle": "scheduler idle"
   },
+  "workspace_readiness": {
+    "title": "工作區 Readiness",
+    "blocked": "仍有 blocker，暫時不可完整套用",
+    "ready": "目前可啟動，若有 warning 仍建議先處理",
+    "blocking_count": "{{count}} blocker",
+    "warning_count": "{{count}} warning",
+    "no_issues": "目前沒有 blocker 或 warning。"
+  },
   "settings": {
     "title": "系統設定",
     "subtitle": "管理閘道全局連線、儲存排程、位元組映射轉發以及開發人員診斷工具。",

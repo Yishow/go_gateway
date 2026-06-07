@@ -8,6 +8,7 @@ import (
 
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
+	"go-gateway/internal/datalink/workspace"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,6 +46,8 @@ type sourceRuleResponse struct {
 	RuntimeApplyStatus string `json:"runtime_apply_status,omitempty"`
 	// RuntimeApplyMessage 只在 apply_failed 時帶出錯誤說明。
 	RuntimeApplyMessage string `json:"runtime_apply_message,omitempty"`
+	// RuntimeApplyIssues carries normalized readiness issues when live apply is deferred or warned.
+	RuntimeApplyIssues []workspace.ReadinessIssue `json:"runtime_apply_issues,omitempty"`
 }
 
 func NewSourceRuleHandler(svc *sourcerule.Service) *SourceRuleHandler {

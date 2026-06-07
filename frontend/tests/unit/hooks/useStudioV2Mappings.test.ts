@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import {
   useCreateStudioV2MappingMutation,
+  useDeleteStudioV2MappingMutation,
   useStudioV2MappingsQuery,
   useUpdateStudioV2MappingMutation,
 } from '@/hooks/datalink/useStudioV2Mappings';
@@ -89,6 +90,9 @@ describe('useStudioV2Mappings hooks', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.mappings(),
     });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
+    });
   });
 
   it('updates one workspace mapping row and preserves not_running runtime status', async () => {
@@ -112,6 +116,53 @@ describe('useStudioV2Mappings hooks', () => {
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.mappings(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
+    });
+  });
+
+  it('deletes one workspace mapping row and preserves deferred runtime status', async () => {
+    useMutationMock.mockReturnValue({ mutateAsync: vi.fn() });
+
+    useDeleteStudioV2MappingMutation();
+
+    const options = useMutationMock.mock.calls.at(-1)?.[0] as {
+      mutationFn: (mappingId: string) => Promise<unknown>;
+      onSuccess: () => Promise<void>;
+    };
+
+    vi.mocked(studioV2MappingsAPI.remove).mockResolvedValueOnce({
+      runtime_apply_status: 'deferred',
+      runtime_apply_issues: [
+        {
+          code: 'tag-missing',
+          severity: 'blocking',
+          step: 'Step 2',
+          scope: 'pt-1',
+          message: 'derived point is missing its persisted tag',
+        },
+      ],
+    } as any);
+    await expect(options.mutationFn('mapping-01')).resolves.toEqual({
+      runtime_apply_status: 'deferred',
+      runtime_apply_issues: [
+        {
+          code: 'tag-missing',
+          severity: 'blocking',
+          step: 'Step 2',
+          scope: 'pt-1',
+          message: 'derived point is missing its persisted tag',
+        },
+      ],
+    });
+
+    await options.onSuccess();
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.mappings(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
 });

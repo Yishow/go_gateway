@@ -29,17 +29,20 @@ func TestNewRouter_StudioV2WorkspaceActivateEndpointReturnsPartialResults(t *tes
 	}
 	defer server.Stop()
 
+	deviceSvc := device.NewService(
+		device.NewMemoryRepository(),
+		connector.NewConnectionManager(connector.DefaultConnectionManagerConfig()),
+	)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository()).WithReadinessServices(deviceSvc, nil, nil, nil)
+
 	router := NewRouter(&DatalinkServices{
-		Device: device.NewService(
-			device.NewMemoryRepository(),
-			connector.NewConnectionManager(connector.DefaultConnectionManagerConfig()),
-		),
+		Device:       deviceSvc,
 		Point:        point.NewService(point.NewMemoryRepository(), nil),
 		Tag:          tag.NewService(tag.NewMemoryRepository()),
 		Mapping:      mapping.NewService(mapping.NewMemoryRepository()),
 		PollingGroup: pollinggroup.NewService(pollinggroup.NewMemoryRepository()),
 		Settings:     settings.NewService(settings.NewMemoryRepository()),
-		Workspace:    workspace.NewService(workspace.NewMemoryRepository()),
+		Workspace:    workspaceSvc,
 	})
 
 	createA := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/devices", map[string]any{
@@ -56,22 +59,28 @@ func TestNewRouter_StudioV2WorkspaceActivateEndpointReturnsPartialResults(t *tes
 	if createA.Code != http.StatusCreated {
 		t.Fatalf("expected createA 201, got %d body=%s", createA.Code, createA.Body.String())
 	}
+	testA := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/devices/dev-A/test", nil)
+	if testA.Code != http.StatusOK {
+		t.Fatalf("expected testA 200, got %d body=%s", testA.Code, testA.Body.String())
+	}
 
 	createB := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/devices", map[string]any{
 		"id":       "dev-B",
 		"name":     "Line B PLC",
 		"protocol": "modbus_tcp",
 		"connection_config": map[string]any{
-			"host":           "127.0.0.1",
-			"port":           server.Port(),
-			"slave_id":       1,
-			"timeout":        2,
-			"probe_address":  "49999",
-			"probe_function": "03",
+			"host":     "127.0.0.1",
+			"port":     server.Port(),
+			"slave_id": 1,
+			"timeout":  2,
 		},
 	})
 	if createB.Code != http.StatusCreated {
 		t.Fatalf("expected createB 201, got %d body=%s", createB.Code, createB.Body.String())
+	}
+	testB := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/devices/dev-B/test", nil)
+	if testB.Code != http.StatusOK {
+		t.Fatalf("expected testB 200, got %d body=%s", testB.Code, testB.Body.String())
 	}
 
 	activateResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)

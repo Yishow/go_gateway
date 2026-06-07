@@ -53,6 +53,7 @@ type studioV2WorkspaceDatabaseConfigResponse struct {
 	SaveState            string                         `json:"save_state"`
 	RuntimeApplyStatus   string                         `json:"runtime_apply_status,omitempty"`
 	RuntimeApplyMessage  string                         `json:"runtime_apply_message,omitempty"`
+	RuntimeApplyIssues   []workspace.ReadinessIssue     `json:"runtime_apply_issues,omitempty"`
 	CreatedAt            any                            `json:"created_at"`
 	UpdatedAt            any                            `json:"updated_at"`
 }
@@ -63,17 +64,18 @@ type studioV2WorkspaceDatabaseTargetRequest struct {
 }
 
 type studioV2WorkspaceDatabaseTargetResponse struct {
-	ID                  string `json:"id"`
-	WorkspaceID         string `json:"workspace_id"`
-	PointID             string `json:"point_id"`
-	TagID               string `json:"tag_id"`
-	ColumnName          string `json:"column_name"`
-	Enabled             bool   `json:"enabled"`
-	SaveState           string `json:"save_state"`
-	RuntimeApplyStatus  string `json:"runtime_apply_status,omitempty"`
-	RuntimeApplyMessage string `json:"runtime_apply_message,omitempty"`
-	CreatedAt           any    `json:"created_at"`
-	UpdatedAt           any    `json:"updated_at"`
+	ID                  string                     `json:"id"`
+	WorkspaceID         string                     `json:"workspace_id"`
+	PointID             string                     `json:"point_id"`
+	TagID               string                     `json:"tag_id"`
+	ColumnName          string                     `json:"column_name"`
+	Enabled             bool                       `json:"enabled"`
+	SaveState           string                     `json:"save_state"`
+	RuntimeApplyStatus  string                     `json:"runtime_apply_status,omitempty"`
+	RuntimeApplyMessage string                     `json:"runtime_apply_message,omitempty"`
+	RuntimeApplyIssues  []workspace.ReadinessIssue `json:"runtime_apply_issues,omitempty"`
+	CreatedAt           any                        `json:"created_at"`
+	UpdatedAt           any                        `json:"updated_at"`
 }
 
 type workspacePointBinding struct {

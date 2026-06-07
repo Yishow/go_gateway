@@ -20,6 +20,7 @@ export function useCreateStudioV2RuleMutation() {
     mutationFn: (request: CreateSourceRuleRequest) => studioV2RulesAPI.create(request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }
@@ -32,6 +33,7 @@ export function useUpdateStudioV2RuleMutation() {
       studioV2RulesAPI.update(ruleId, request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }
@@ -43,6 +45,7 @@ export function useDeleteStudioV2RuleMutation() {
     mutationFn: (ruleId: string) => studioV2RulesAPI.remove(ruleId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.sourceRules() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }

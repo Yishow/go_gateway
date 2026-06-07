@@ -65,7 +65,10 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 	payload := buildWorkspaceDatabaseConfigResponse(record.ID, savedConnector)
-	payload.RuntimeApplyStatus, payload.RuntimeApplyMessage = resolveStudioV2WorkspaceRuntimeApplyStatus(c.Request.Context(), h.deviceSvc, record.OrderedDeviceIDs)
+	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, record.OrderedDeviceIDs, nil)
+	payload.RuntimeApplyStatus = applyOutcome.Status
+	payload.RuntimeApplyMessage = applyOutcome.Message
+	payload.RuntimeApplyIssues = applyOutcome.Issues
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 }
 
@@ -221,6 +224,9 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 		CreatedAt:   savedRow.CreatedAt,
 		UpdatedAt:   savedRow.UpdatedAt,
 	}
-	payload.RuntimeApplyStatus, payload.RuntimeApplyMessage = resolveStudioV2WorkspaceRuntimeApplyStatus(c.Request.Context(), h.deviceSvc, record.OrderedDeviceIDs)
+	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, record.OrderedDeviceIDs, []string{binding.PointID, connector.ID})
+	payload.RuntimeApplyStatus = applyOutcome.Status
+	payload.RuntimeApplyMessage = applyOutcome.Message
+	payload.RuntimeApplyIssues = applyOutcome.Issues
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 }

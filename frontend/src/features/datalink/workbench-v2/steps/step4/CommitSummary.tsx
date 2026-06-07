@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DbConnector } from '../../state/types';
 import { studioV2WorkspaceDatabaseAPI } from '../../../../../services/studioV2WorkspaceDatabase';
+import type { StudioV2WorkspaceReadinessSummary } from '../../../../../types/studioV2WorkspaceReadiness';
+import { WorkspaceReadinessPanel } from '../../components/WorkspaceReadinessPanel';
 
 /**
  * CommitSummary 元件屬性
@@ -16,6 +18,7 @@ interface CommitSummaryProps {
   hasConflict: boolean;
   schemaActionsDisabled?: boolean;
   schemaPreviewSignature?: string;
+  readinessSummary?: StudioV2WorkspaceReadinessSummary | null;
   onActivate: () => void;
 }
 
@@ -33,6 +36,7 @@ export function CommitSummary({
   hasConflict,
   schemaActionsDisabled = false,
   schemaPreviewSignature,
+  readinessSummary,
   onActivate,
 }: CommitSummaryProps) {
   const { t } = useTranslation('workbench-v2');
@@ -87,7 +91,8 @@ export function CommitSummary({
     : `${kind} → ${schema}.${table}`;
 
   // 提交按鈕不可用條件：有衝突，或者啟用的寫入欄位為 0
-  const isSubmitDisabled = hasConflict || enabledTargetCount === 0;
+  const hasReadinessBlocker = (readinessSummary?.blocking_count ?? 0) > 0;
+  const isSubmitDisabled = hasConflict || enabledTargetCount === 0 || hasReadinessBlocker;
 
   const summaryItems = [
     { label: t('step4.summary_devices', '採集裝置'), value: `${deviceCount} 台` },
@@ -124,6 +129,8 @@ export function CommitSummary({
       </div>
 
       <div className="mt-8 space-y-3">
+        <WorkspaceReadinessPanel summary={readinessSummary} dataTestId="step4-readiness-panel" maxIssues={4} />
+
         {/* 提示訊息 */}
         {enabledTargetCount === 0 && !hasConflict && (
           <p className="text-xs text-amber-500 text-center select-none">

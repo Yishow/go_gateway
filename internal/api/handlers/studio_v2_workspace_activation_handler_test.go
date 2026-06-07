@@ -122,6 +122,42 @@ func TestStudioV2WorkspaceActivationHandler_Returns422ForValidationSchemaEnsureE
 	}
 }
 
+func TestStudioV2WorkspaceActivationHandler_ReturnsBlockingReadinessIssues(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler := NewStudioV2WorkspaceActivationHandler(&stubWorkspaceActivator{
+		err: &workspace.ReadinessBlockedError{
+			Operation: "activation",
+			Summary: &workspace.ReadinessSummary{
+				BlockingCount: 1,
+				Issues: []workspace.ReadinessIssue{
+					{
+						Code:     "device-probe-required",
+						Severity: workspace.ReadinessSeverityBlocking,
+						Step:     workspace.ReadinessStep1,
+						Scope:    "dev-A",
+						Message:  "probe diagnostics failed",
+					},
+				},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	handler.Activate(c)
+
+	if resp.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status 422, got %d body=%s", resp.Code, resp.Body.String())
+	}
+	if body := resp.Body.String(); !containsAll(body, "success", "false", "readiness_blocked", "device-probe-required", "dev-A") {
+		t.Fatalf("expected readiness blocker payload, got %s", body)
+	}
+}
+
 func containsAll(body string, parts ...string) bool {
 	for _, part := range parts {
 		if !strings.Contains(body, part) {

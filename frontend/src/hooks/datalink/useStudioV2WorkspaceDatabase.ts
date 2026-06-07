@@ -34,6 +34,7 @@ export function useUpdateStudioV2DatabaseConfigMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseConfig() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseTargets() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }
@@ -46,6 +47,7 @@ export function useUpsertStudioV2DatabaseTargetMutation() {
       studioV2WorkspaceDatabaseAPI.upsertTarget(pointId, request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseTargets() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }

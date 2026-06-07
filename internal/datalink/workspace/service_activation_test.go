@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"go-gateway/internal/datalink/device"
@@ -13,6 +14,7 @@ import (
 
 type stubActivationDeviceService struct {
 	devices       map[string]*schema.Device
+	readiness     map[string]*schema.DeviceReadiness
 	activateCalls []string
 	disableCalls  []string
 	activateErrs  map[string]error
@@ -42,6 +44,44 @@ func (s *stubActivationDeviceService) Disable(_ context.Context, id string) erro
 	record := s.devices[id]
 	record.Status = schema.DeviceStatusDisabled
 	return nil
+}
+
+func (s *stubActivationDeviceService) CheckReadiness(_ context.Context, id string) (*schema.DeviceReadiness, error) {
+	if s.readiness != nil {
+		readiness, ok := s.readiness[id]
+		if !ok {
+			return nil, errors.New("readiness not found")
+		}
+		cloned := *readiness
+		cloned.BlockingReasons = append([]string{}, readiness.BlockingReasons...)
+		cloned.Checks = append([]schema.ReadinessCheck{}, readiness.Checks...)
+		return &cloned, nil
+	}
+
+	record, ok := s.devices[id]
+	if !ok {
+		return nil, errors.New("device not found")
+	}
+	status, reason := device.AvailabilityOf(record)
+	readiness := &schema.DeviceReadiness{
+		DeviceID:           id,
+		PlanningAllowed:    status == device.AvailabilityStatusAvailable,
+		ActivationAllowed:  status == device.AvailabilityStatusAvailable,
+		ApplyAllowed:       status == device.AvailabilityStatusAvailable,
+		AvailabilityStatus: status,
+		AvailabilityReason: reason,
+	}
+	if readiness.ActivationAllowed {
+		readiness.ConnectStatus = schema.ReadinessStageStatusSuccess
+		readiness.ProbeStatus = schema.ReadinessStageStatusSuccess
+		return readiness, nil
+	}
+	readiness.ConnectStatus = schema.ReadinessStageStatusFailed
+	readiness.ProbeStatus = schema.ReadinessStageStatusUnknown
+	if strings.TrimSpace(reason) != "" {
+		readiness.BlockingReasons = []string{reason}
+	}
+	return readiness, nil
 }
 
 type stubActivationRuntimeSyncer struct {
@@ -88,6 +128,7 @@ func TestActivationService_ActivateEligibleSkipsAlreadyRunningDevices(t *testing
 		},
 		activateErrs: map[string]error{},
 	}
+	workspaceSvc.WithReadinessServices(deviceSvc, nil, nil, nil)
 
 	service := NewActivationService(workspaceSvc, deviceSvc)
 	response, err := service.ActivateEligible(context.Background())
@@ -109,7 +150,7 @@ func TestActivationService_ActivateEligibleSkipsAlreadyRunningDevices(t *testing
 	}
 }
 
-func TestActivationService_ActivateEligibleReturnsActionableEmptyResultWhenNoDevicesCanStart(t *testing.T) {
+func TestActivationService_ActivateEligibleRejectsWorkspaceWhenNoDevicesAreReady(t *testing.T) {
 	workspaceSvc := NewService(NewMemoryRepository())
 	if _, err := workspaceSvc.AttachDevice(context.Background(), "dev-running"); err != nil {
 		t.Fatalf("attach running device failed: %v", err)
@@ -144,20 +185,81 @@ func TestActivationService_ActivateEligibleReturnsActionableEmptyResultWhenNoDev
 		},
 		activateErrs: map[string]error{},
 	}
+	workspaceSvc.WithReadinessServices(deviceSvc, nil, nil, nil)
 
 	service := NewActivationService(workspaceSvc, deviceSvc)
 	response, err := service.ActivateEligible(context.Background())
-	if err != nil {
-		t.Fatalf("activate eligible failed: %v", err)
+	if response != nil {
+		t.Fatalf("expected nil response when workspace readiness blocks activation, got %+v", response)
 	}
 
-	if len(response.Results) != 0 {
-		t.Fatalf("expected no attempted devices, got %+v", response.Results)
+	var blockedErr *ReadinessBlockedError
+	if !errors.As(err, &blockedErr) {
+		t.Fatalf("expected ReadinessBlockedError, got %v", err)
 	}
-	if response.Message == "" {
-		t.Fatalf("expected actionable empty result message, got %+v", response)
+	issues := blockedErr.BlockingIssues()
+	if len(issues) != 1 {
+		t.Fatalf("expected one blocking issue, got %+v", issues)
+	}
+	if issues[0].Scope != "dev-unavailable" {
+		t.Fatalf("expected blocker scope dev-unavailable, got %+v", issues[0])
 	}
 	if len(deviceSvc.activateCalls) != 0 {
 		t.Fatalf("expected no activation calls, got %v", deviceSvc.activateCalls)
+	}
+}
+
+func TestActivationService_ActivateEligibleRejectsBlockingWorkspaceReadiness(t *testing.T) {
+	workspaceSvc := NewService(NewMemoryRepository())
+	if _, err := workspaceSvc.AttachDevice(context.Background(), "dev-blocked"); err != nil {
+		t.Fatalf("attach blocked device failed: %v", err)
+	}
+
+	deviceSvc := &stubActivationDeviceService{
+		devices: map[string]*schema.Device{
+			"dev-blocked": {
+				ID:     "dev-blocked",
+				Name:   "Blocked PLC",
+				Status: schema.DeviceStatusDraft,
+			},
+		},
+		readiness: map[string]*schema.DeviceReadiness{
+			"dev-blocked": {
+				DeviceID:          "dev-blocked",
+				ConnectStatus:     schema.ReadinessStageStatusSuccess,
+				ProbeStatus:       schema.ReadinessStageStatusFailed,
+				PlanningAllowed:   true,
+				ActivationAllowed: false,
+				ApplyAllowed:      false,
+				BlockingReasons:   []string{"讀取探測失敗: timeout"},
+			},
+		},
+		activateErrs: map[string]error{},
+	}
+	workspaceSvc.WithReadinessServices(deviceSvc, nil, nil, nil)
+	runtimeSync := &stubActivationRuntimeSyncer{}
+
+	service := NewActivationService(workspaceSvc, deviceSvc, runtimeSync)
+	response, err := service.ActivateEligible(context.Background())
+	if response != nil {
+		t.Fatalf("expected nil activation response when readiness blocks activation, got %+v", response)
+	}
+
+	var blockedErr *ReadinessBlockedError
+	if !errors.As(err, &blockedErr) {
+		t.Fatalf("expected ReadinessBlockedError, got %v", err)
+	}
+	issues := blockedErr.BlockingIssues()
+	if len(issues) != 1 {
+		t.Fatalf("expected one blocking issue, got %+v", issues)
+	}
+	if issues[0].Code != "device-probe-required" || issues[0].Scope != "dev-blocked" {
+		t.Fatalf("expected device-probe-required for dev-blocked, got %+v", issues[0])
+	}
+	if len(deviceSvc.activateCalls) != 0 {
+		t.Fatalf("expected no activation attempts, got %v", deviceSvc.activateCalls)
+	}
+	if len(runtimeSync.upserted) != 0 {
+		t.Fatalf("expected no runtime sync attempts, got %v", runtimeSync.upserted)
 	}
 }

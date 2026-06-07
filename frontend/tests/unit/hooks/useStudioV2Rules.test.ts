@@ -89,6 +89,9 @@ describe('useStudioV2Rules hooks', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.sourceRules(),
     });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
+    });
   });
 
   it('updates one workspace source rule and invalidates the rule query', async () => {
@@ -112,6 +115,9 @@ describe('useStudioV2Rules hooks', () => {
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.sourceRules(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
 });

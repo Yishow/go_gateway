@@ -33,6 +33,22 @@ func seedWorkspaceRuleDevice(t *testing.T, repo *device.MemoryRepository, id str
 	}))
 }
 
+func seedRunningWorkspaceRuleDevice(t *testing.T, repo *device.MemoryRepository, id string) {
+	t.Helper()
+
+	lastTestSuccess := true
+	require.NoError(t, repo.Create(context.Background(), &schema.Device{
+		ID:               id,
+		Name:             id,
+		Protocol:         schema.ProtocolModbusTCP,
+		Status:           schema.DeviceStatusActive,
+		ConnectionConfig: `{"host":"127.0.0.1","port":502,"slave_id":1,"timeout":5}`,
+		LastTestSuccess:  &lastTestSuccess,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}))
+}
+
 func TestStudioV2WorkspaceSourceRulesHandler_UpdateRejectsOwnershipMismatch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -114,4 +130,40 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateReturnsValidationErrorMessage
 
 	require.Equal(t, http.StatusBadRequest, resp.Code)
 	require.Contains(t, resp.Body.String(), "start_address is required")
+}
+
+func TestStudioV2WorkspaceSourceRulesHandler_CreateDefersLiveApplyWhenReadinessBlocks(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	deviceRepo := device.NewMemoryRepository()
+	seedRunningWorkspaceRuleDevice(t, deviceRepo, "dev-A")
+
+	pointSvc := point.NewService(point.NewMemoryRepository(), nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, pointSvc, nil)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository()).WithReadinessServices(deviceSvc, ruleSvc, nil, nil)
+	_, err := workspaceSvc.AttachDevice(context.Background(), "dev-A")
+	require.NoError(t, err)
+
+	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
+		"id":"rule-A",
+		"device_id":"dev-A",
+		"start_address":"40001",
+		"count":1,
+		"data_type":"int16",
+		"naming_prefix":"A_",
+		"enabled":true
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	handler.Create(c)
+
+	require.Equal(t, http.StatusCreated, resp.Code, resp.Body.String())
+	require.Contains(t, resp.Body.String(), `"runtime_apply_status":"deferred"`)
+	require.Contains(t, resp.Body.String(), "tag-missing")
 }

@@ -10,6 +10,7 @@ import { getColumnsFor, getDefaultConnector } from '../../state/dbSchemas';
 import type { WorkbenchV2State, DbConnector, DbTarget, CommitLog } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import type { StudioV2ActivationResponse } from '../../../../../types/studioV2Activation';
+import type { StudioV2WorkspaceReadinessSummary } from '../../../../../types/studioV2WorkspaceReadiness';
 
 /**
  * Step4Database 元件屬性
@@ -19,6 +20,7 @@ interface Step4DatabaseProps {
   dispatch: React.Dispatch<WorkbenchV2Action>;
   onCommit?: () => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
+  workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
 }
 
 /**
@@ -39,6 +41,7 @@ export function Step4Database({
   dispatch,
   onCommit,
   activateWorkspace,
+  workspaceReadiness,
 }: Step4DatabaseProps) {
   const isReadonly = useStep4Readonly();
   const [activationState, setActivationState] = React.useState<{
@@ -230,6 +233,7 @@ export function Step4Database({
               hasConflict={hasConflict}
               schemaActionsDisabled={schemaActionsDisabled}
               schemaPreviewSignature={schemaPreviewSignature}
+              readinessSummary={workspaceReadiness}
               onActivate={handleStartActivation}
             />
           ) : activationState.phase === 'activating' ? (

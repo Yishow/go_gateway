@@ -11,6 +11,8 @@ import {
   resolveRuntimeDashboardDevice,
 } from './resolveRuntimeDashboardDevice';
 import type { StudioV2ActivationResponse } from '../../../../types/studioV2Activation';
+import type { StudioV2WorkspaceReadinessSummary } from '../../../../types/studioV2WorkspaceReadiness';
+import { WorkspaceReadinessPanel } from '../components/WorkspaceReadinessPanel';
 
 // 導入真實的步驟元件與設定頁面
 import { SettingsPage } from '../settings';
@@ -26,6 +28,7 @@ export interface WorkbenchV2ShellProps {
   actions: ReturnType<typeof useWorkbenchV2State>;
   navigateTo?: (target: string) => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
+  workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
 }
 
 /**
@@ -39,6 +42,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   actions,
   navigateTo,
   activateWorkspace,
+  workspaceReadiness,
 }) => {
   const {
     view,
@@ -78,7 +82,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
 
         e.preventDefault();
         toggleSidebar();
-        
+
         // 寫入 localStorage 持久化
         try {
           if (typeof window !== 'undefined' && window.localStorage) {
@@ -174,6 +178,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             dispatch={actions.dispatch}
             onCommit={handleRuntimeDashboardHandoff}
             activateWorkspace={activateWorkspace}
+            workspaceReadiness={workspaceReadiness}
           />
         );
       default:
@@ -266,6 +271,15 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                 </div>
               </div>
 
+              <div className="mb-4">
+                <WorkspaceReadinessPanel
+                  summary={workspaceReadiness}
+                  dataTestId="workbench-v2-readiness-banner"
+                  compact
+                  maxIssues={2}
+                />
+              </div>
+
               {/* 步驟元件 */}
               {renderContent()}
 
@@ -303,7 +317,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2 px-1">
                 即時設定摘要
               </div>
-              <SummaryRail state={state} />
+              <SummaryRail state={state} workspaceReadiness={workspaceReadiness} />
             </div>
           </aside>
         )}

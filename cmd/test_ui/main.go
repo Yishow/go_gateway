@@ -215,6 +215,7 @@ func main() {
 			}, nil
 		}),
 	)
+	workspaceSvc.WithReadinessServices(devSvc, sourceRuleSvc, dbTargetConnectorSvc, dbTargetMappingSvc)
 	sourceRuleSvc.SetLocalModbusMappingReader(
 		sourcerule.LocalModbusMappingListFunc(func(context.Context) ([]sourcerule.LocalModbusMappingRecord, error) {
 			mappings := modbusShareSvc.ListMappings()

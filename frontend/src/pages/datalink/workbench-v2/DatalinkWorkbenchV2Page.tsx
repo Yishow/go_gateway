@@ -116,6 +116,7 @@ export default function DatalinkWorkbenchV2Page({
         actions={autosave.actions}
         navigateTo={navigateTo}
         activateWorkspace={() => activationMutation.mutateAsync()}
+        workspaceReadiness={workspace.readiness_summary}
       />
     </div>
   );

@@ -44,10 +44,14 @@ type Repository interface {
 // 所有 read-modify-write 方法持有 mu 期間執行完整週期，
 // 確保單程序內的 goroutine 不會互相覆寫。
 type Service struct {
-	mu    sync.Mutex
-	repo  Repository
-	now   func() time.Time
-	newID func() string
+	mu                  sync.Mutex
+	repo                Repository
+	now                 func() time.Time
+	newID               func() string
+	readinessDevices    readinessDeviceService
+	readinessRules      readinessSourceRuleService
+	readinessConnectors readinessConnectorService
+	readinessMappings   readinessDBTargetService
 }
 
 func NewService(repo Repository) *Service {

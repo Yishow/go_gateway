@@ -85,7 +85,15 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 	payload := mapSourceRuleResponse(rule)
 	payload.WorkspaceID = record.ID
 	payload.SaveState = "saved"
-	payload.RuntimeApplyStatus, payload.RuntimeApplyMessage = resolveStudioV2RuntimeApplyStatus(c.Request.Context(), h.deviceSvc, rule.DeviceID)
+	links, err := h.ruleSvc.ListLinks(c.Request.Context(), rule.ID)
+	if err != nil {
+		renderStudioV2WorkspaceSourceRuleError(c, err)
+		return
+	}
+	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{rule.DeviceID}, workspaceRuleApplyScopes(rule.DeviceID, links))
+	payload.RuntimeApplyStatus = applyOutcome.Status
+	payload.RuntimeApplyMessage = applyOutcome.Message
+	payload.RuntimeApplyIssues = applyOutcome.Issues
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": payload})
 }
 
@@ -114,7 +122,15 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
 	payload := mapSourceRuleResponse(updatedRule)
 	payload.WorkspaceID = record.ID
 	payload.SaveState = "saved"
-	payload.RuntimeApplyStatus, payload.RuntimeApplyMessage = resolveStudioV2RuntimeApplyStatus(c.Request.Context(), h.deviceSvc, updatedRule.DeviceID)
+	links, err := h.ruleSvc.ListLinks(c.Request.Context(), updatedRule.ID)
+	if err != nil {
+		renderStudioV2WorkspaceSourceRuleError(c, err)
+		return
+	}
+	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{updatedRule.DeviceID}, workspaceRuleApplyScopes(updatedRule.DeviceID, links))
+	payload.RuntimeApplyStatus = applyOutcome.Status
+	payload.RuntimeApplyMessage = applyOutcome.Message
+	payload.RuntimeApplyIssues = applyOutcome.Issues
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 }
 
@@ -204,4 +220,20 @@ func workspaceOwnsDevice(record *workspace.Record, deviceID string) bool {
 		}
 	}
 	return false
+}
+
+func workspaceRuleApplyScopes(deviceID string, links []*schema.SourceRuleLink) []string {
+	scopes := make([]string, 0, len(links)+1)
+	if deviceID != "" {
+		scopes = append(scopes, deviceID)
+	}
+	for _, link := range links {
+		if link == nil {
+			continue
+		}
+		if link.PointID != "" {
+			scopes = append(scopes, link.PointID)
+		}
+	}
+	return scopes
 }

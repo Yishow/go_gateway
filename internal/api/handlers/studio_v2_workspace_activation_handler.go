@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"go-gateway/internal/datalink/workspace"
@@ -43,6 +44,19 @@ func (h *StudioV2WorkspaceActivationHandler) Activate(c *gin.Context) {
 
 	response, err := h.activator.ActivateEligible(c.Request.Context())
 	if err != nil {
+		var blockedErr *workspace.ReadinessBlockedError
+		if errors.As(err, &blockedErr) {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"success": false,
+				"error": gin.H{
+					"code":    "readiness_blocked",
+					"message": blockedErr.Error(),
+					"issues":  blockedErr.BlockingIssues(),
+					"summary": blockedErr.Summary,
+				},
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error": gin.H{

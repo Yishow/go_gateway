@@ -1,5 +1,5 @@
 import type { APIResponse, StudioV2WorkspaceMappingRecord } from '../types/datalink';
-import type { StudioV2RuntimeAppliedRecord } from '../types/studioV2RuntimeApply';
+import type { StudioV2RuntimeAppliedRecord, StudioV2RuntimeApply } from '../types/studioV2RuntimeApply';
 import { studioV2DatalinkApi } from './studioV2Workspace';
 
 export interface StudioV2WorkspaceMappingRequest {
@@ -30,7 +30,8 @@ export const studioV2MappingsAPI = {
     return res.data.data!;
   },
 
-  async remove(mappingId: string): Promise<void> {
-    await studioV2DatalinkApi.delete(`/studio-v2/workspace/mappings/${mappingId}`);
+  async remove(mappingId: string): Promise<StudioV2RuntimeApply> {
+    const res = await studioV2DatalinkApi.delete<APIResponse<StudioV2RuntimeApply>>(`/studio-v2/workspace/mappings/${mappingId}`);
+    return res.data.data!;
   },
 };

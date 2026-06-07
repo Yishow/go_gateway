@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"go-gateway/internal/datalink/device"
@@ -16,14 +17,17 @@ import (
 )
 
 func TestNewRouter_StudioV2WorkspaceBootstrapEndpoint(t *testing.T) {
+	deviceSvc := device.NewService(device.NewMemoryRepository(), nil)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository()).WithReadinessServices(deviceSvc, nil, nil, nil)
+
 	router := NewRouter(&DatalinkServices{
-		Device:       device.NewService(device.NewMemoryRepository(), nil),
+		Device:       deviceSvc,
 		Point:        point.NewService(point.NewMemoryRepository(), nil),
 		Tag:          tag.NewService(tag.NewMemoryRepository()),
 		Mapping:      mapping.NewService(mapping.NewMemoryRepository()),
 		PollingGroup: pollinggroup.NewService(pollinggroup.NewMemoryRepository()),
 		Settings:     settings.NewService(settings.NewMemoryRepository()),
-		Workspace:    workspace.NewService(workspace.NewMemoryRepository()),
+		Workspace:    workspaceSvc,
 	})
 
 	firstReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace", nil)
@@ -41,8 +45,13 @@ func TestNewRouter_StudioV2WorkspaceBootstrapEndpoint(t *testing.T) {
 			Kind             string   `json:"kind"`
 			Status           string   `json:"status"`
 			OrderedDeviceIDs []string `json:"ordered_device_ids"`
-			CreatedAt        string   `json:"created_at"`
-			UpdatedAt        string   `json:"updated_at"`
+			ReadinessSummary struct {
+				Ready         bool `json:"ready"`
+				BlockingCount int  `json:"blocking_count"`
+				WarningCount  int  `json:"warning_count"`
+			} `json:"readiness_summary"`
+			CreatedAt string `json:"created_at"`
+			UpdatedAt string `json:"updated_at"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(firstResp.Body.Bytes(), &firstBody); err != nil {
@@ -63,6 +72,12 @@ func TestNewRouter_StudioV2WorkspaceBootstrapEndpoint(t *testing.T) {
 	}
 	if firstBody.Data.OrderedDeviceIDs == nil {
 		t.Fatalf("expected ordered_device_ids array, got %s", firstResp.Body.String())
+	}
+	if firstBody.Data.ReadinessSummary.Ready || firstBody.Data.ReadinessSummary.BlockingCount != 1 || firstBody.Data.ReadinessSummary.WarningCount != 0 {
+		t.Fatalf("expected empty workspace readiness blocker, got %s", firstResp.Body.String())
+	}
+	if !strings.Contains(firstResp.Body.String(), "workspace-device-missing") {
+		t.Fatalf("expected empty workspace readiness issue code, got %s", firstResp.Body.String())
 	}
 	if firstBody.Data.CreatedAt == "" || firstBody.Data.UpdatedAt == "" {
 		t.Fatalf("expected timestamps, got %s", firstResp.Body.String())

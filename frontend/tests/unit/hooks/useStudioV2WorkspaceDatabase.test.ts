@@ -104,6 +104,7 @@ describe('useStudioV2WorkspaceDatabase hooks', () => {
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: studioV2WorkspaceKeys.databaseConfig() });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: studioV2WorkspaceKeys.databaseTargets() });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: studioV2WorkspaceKeys.bootstrap() });
   });
 
   it('upserts one workspace database target row and invalidates targets query', async () => {
@@ -126,5 +127,6 @@ describe('useStudioV2WorkspaceDatabase hooks', () => {
 
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: studioV2WorkspaceKeys.databaseTargets() });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: studioV2WorkspaceKeys.bootstrap() });
   });
 });
