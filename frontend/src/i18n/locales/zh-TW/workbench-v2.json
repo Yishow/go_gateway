@@ -288,6 +288,9 @@
     "schema_error": "建表失敗",
     "activate_btn": "第一次啟動設備",
     "activate_info": "系統會逐台啟動符合條件的設備，並保留每台成功或失敗結果。",
+    "blocker_resolution_title": "要讓它可套用，先完成：",
+    "blocker_resolution_subtitle": "這些 blocker 解除後，啟動按鈕會恢復可用。",
+    "fix_step_action": "前往 {{step}}",
     "progress_title": "第一次啟動設備",
     "progress_subtitle": "正在逐台啟動符合條件的設備...",
     "waiting_logs": "準備發送指令...",
@@ -302,12 +305,25 @@
     "scheduler_idle": "scheduler idle"
   },
   "workspace_readiness": {
-    "title": "工作區 Readiness",
-    "blocked": "仍有 blocker，暫時不可完整套用",
-    "ready": "目前可啟動，若有 warning 仍建議先處理",
+    "title": "工作區狀態",
+    "blocked": "還有設定要修正",
+    "ready": "目前可啟動，warning 不會阻擋套用",
     "blocking_count": "{{count}} blocker",
     "warning_count": "{{count}} warning",
-    "no_issues": "目前沒有 blocker 或 warning。"
+    "no_issues": "目前沒有 blocker 或 warning。",
+    "go_to_step": "前往 {{step}}",
+    "solution_step1": "到 Step 1 測試或修正設備連線，讓設備有可啟動的後端設定。",
+    "solution_step2": "到 Step 2 建立或修正接入規則，確保可產生有效點位。",
+    "solution_point_missing": "重新保存此接入規則，讓後端重建缺失的衍生點位與 link。",
+    "solution_step3": "到 Step 3 補齊點位與 Tag 映射，讓資料能投影到 runtime。",
+    "solution_step4": "到 Step 4 啟用資料庫寫入目標，或修正 connector/schema 後再套用。"
+  },
+  "runtime_return": {
+    "title": "Runtime 回報 {{step}} 需要修正",
+    "description": "已回到 Runtime 指出的設定位置。已保存的設定仍會保留，不需要重跑前面的步驟。",
+    "action": "停在 {{step}} 修正",
+    "point_missing_action": "重新保存此接入規則，系統會重建缺失的衍生點位與 link。",
+    "scope": "範圍：{{scope}}"
   },
   "settings": {
     "title": "系統設定",

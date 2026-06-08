@@ -10,7 +10,15 @@ vi.mock('../../../src/pages/datalink/workbench/DatalinkWorkbenchPage', () => ({
 }));
 
 vi.mock('../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', () => ({
-  default: () => <div data-testid="workbench-v2-root">Workbench V2</div>,
+  default: (props: { runtimeReturnFocus?: { step?: number; issueCode?: string | null } | null }) => (
+    <div
+      data-testid="workbench-v2-root"
+      data-focus-step={props.runtimeReturnFocus?.step ?? ''}
+      data-focus-issue={props.runtimeReturnFocus?.issueCode ?? ''}
+    >
+      Workbench V2
+    </div>
+  ),
 }));
 
 // Mock i18next
@@ -80,5 +88,15 @@ describe('App Routing Integration', () => {
 
     expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
+  });
+
+  it('passes runtime readiness focus query into /studio/v2', () => {
+    renderRoute('/studio/v2?step=4&focus=readiness&issue=database-target-missing');
+
+    expect(screen.getByTestId('workbench-v2-root')).toHaveAttribute('data-focus-step', '4');
+    expect(screen.getByTestId('workbench-v2-root')).toHaveAttribute(
+      'data-focus-issue',
+      'database-target-missing',
+    );
   });
 });

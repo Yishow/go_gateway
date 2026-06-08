@@ -55,6 +55,51 @@
     "workspaceProjectionVersion": "Workspace projection",
     "projectionMessage": "Projection 訊息"
   },
+  "setup": {
+    "title": "工作區可套用狀態",
+    "description": "這裡顯示目前 Studio V2 已保存、Runtime 正在依據的設定條件。",
+    "returnToStudio": "返回 Studio V2",
+    "fixInStudio": "前往 {{step}} 修正",
+    "moreSuffix": "筆未顯示",
+    "projectionStale": "Projection 已過期",
+    "runtimeProjection": "Runtime projection",
+    "workspaceProjection": "Workspace projection",
+    "readiness": {
+      "title": "可套用檢查",
+      "ready": "可套用",
+      "blockerUnit": "個 blocker",
+      "empty": "目前沒有 readiness blocker。"
+    },
+    "rules": {
+      "title": "已設定來源規則",
+      "pointUnit": "點",
+      "empty": "尚未保存來源規則。"
+    },
+    "mappings": {
+      "title": "已設定 Mapping",
+      "unbound": "尚未綁定 tag",
+      "empty": "尚未保存 mapping。"
+    },
+    "database": {
+      "title": "Database 設定",
+      "connector": "連接器",
+      "database": "資料庫",
+      "table": "資料表",
+      "interval": "寫入間隔",
+      "status": "狀態",
+      "targets": "Target 數",
+      "noTargets": "尚未保存 database target",
+      "empty": "尚未保存 database config。"
+    },
+    "actions": {
+      "pointMissing": "修正方式：到 Step 2 重新保存此接入規則，重建缺失的衍生點位。",
+      "databaseTargetMissing": "修正方式：到 Step 4 為此衍生點位建立 database target。",
+      "tagMissing": "修正方式：到 Step 3 補齊此衍生點位的 Tag 映射。",
+      "mappingMissing": "修正方式：到 Step 3 保存 point-to-tag mapping。",
+      "deviceProbeRequired": "修正方式：到 Step 1 通過連線與探測檢查後再套用。",
+      "default": "請回 Studio V2，修正上方標示的所屬步驟。"
+    }
+  },
   "points": {
     "title": "即時點位",
     "description": "第一筆 runtime value event 到達後，這裡會開始更新即時點位列。",

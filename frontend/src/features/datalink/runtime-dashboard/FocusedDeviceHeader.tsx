@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { StudioV2RuntimeContextDevice } from '../../../types/datalink';
+import type { StudioV2RuntimeContextDevice } from '../../../types/studioV2RuntimeContext';
 
 interface FocusedDeviceHeaderProps {
   selectedDeviceId: string | null;

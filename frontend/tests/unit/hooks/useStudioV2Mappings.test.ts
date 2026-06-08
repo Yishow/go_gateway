@@ -138,7 +138,7 @@ describe('useStudioV2Mappings hooks', () => {
         {
           code: 'tag-missing',
           severity: 'blocking',
-          step: 'Step 2',
+          step: 'Step 3',
           scope: 'pt-1',
           message: 'derived point is missing its persisted tag',
         },
@@ -150,7 +150,7 @@ describe('useStudioV2Mappings hooks', () => {
         {
           code: 'tag-missing',
           severity: 'blocking',
-          step: 'Step 2',
+          step: 'Step 3',
           scope: 'pt-1',
           message: 'derived point is missing its persisted tag',
         },

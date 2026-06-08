@@ -3,10 +3,12 @@ import { useActivateStudioV2WorkspaceMutation } from '../../../hooks/datalink/us
 import { useStudioV2WorkspaceQuery } from '../../../hooks/datalink/useStudioV2Workspace';
 import { useStudioV2WorkspaceAuditHistoryQuery } from '../../../hooks/datalink/useStudioV2WorkspaceAuditHistory';
 import { useStudioV2AutosaveState } from './useStudioV2AutosaveState';
+import type { WorkbenchV2RuntimeReturnFocus } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 
 interface DatalinkWorkbenchV2PageProps {
   navigateTo?: (target: string) => void;
+  runtimeReturnFocus?: WorkbenchV2RuntimeReturnFocus | null;
 }
 
 interface WorkbenchV2BootstrapStateProps {
@@ -64,6 +66,7 @@ function WorkbenchV2BootstrapState({ status }: WorkbenchV2BootstrapStateProps) {
  */
 export default function DatalinkWorkbenchV2Page({
   navigateTo,
+  runtimeReturnFocus,
 }: DatalinkWorkbenchV2PageProps) {
   const workspaceQuery = useStudioV2WorkspaceQuery();
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(workspaceQuery.isSuccess);
@@ -121,6 +124,7 @@ export default function DatalinkWorkbenchV2Page({
         workspaceReadiness={workspace.readiness_summary}
         workspaceAuditHistory={auditHistoryQuery.data?.entries ?? []}
         workspaceAuditUnavailable={auditHistoryQuery.isError}
+        runtimeReturnFocus={runtimeReturnFocus}
       />
     </div>
   );

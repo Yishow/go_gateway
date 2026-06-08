@@ -2,12 +2,15 @@ package workspace
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
+	"go-gateway/internal/datalink/tag"
 )
 
 var ErrReadinessUnavailable = errors.New("workspace readiness unavailable")
@@ -28,6 +31,22 @@ type readinessConnectorService interface {
 
 type readinessDBTargetService interface {
 	List(ctx context.Context, filter dbtarget.TargetMappingListFilter) ([]*schema.DatabaseTargetMapping, error)
+}
+
+type readinessTagService interface {
+	GetByID(ctx context.Context, id string) (*schema.Tag, error)
+}
+
+type readinessMappingRecordService interface {
+	GetByID(ctx context.Context, id string) (*schema.Mapping, error)
+	List(ctx context.Context, filter mapping.ListFilter) ([]*schema.Mapping, error)
+}
+
+type readinessResolvedBinding struct {
+	tagID        string
+	mappingID    string
+	tagValid     bool
+	mappingValid bool
 }
 
 // ReadinessSeverity identifies whether a readiness issue blocks activation or only warns the operator.
@@ -103,6 +122,14 @@ func (s *Service) WithReadinessServices(deviceSvc readinessDeviceService, ruleSv
 	return s
 }
 
+// WithReadinessSetupReaders configures persisted tag and mapping readers used to
+// verify source-rule links still point at existing Step 3 rows.
+func (s *Service) WithReadinessSetupReaders(tagSvc readinessTagService, mappingSvc readinessMappingRecordService) *Service {
+	s.readinessTags = tagSvc
+	s.readinessLinkRecords = mappingSvc
+	return s
+}
+
 // Readiness evaluates the persisted workspace snapshot into one normalized readiness summary.
 func (s *Service) Readiness(ctx context.Context) (*ReadinessSummary, error) {
 	if s.readinessDevices == nil {
@@ -134,25 +161,38 @@ func (s *Service) Readiness(ctx context.Context) (*ReadinessSummary, error) {
 		}
 	}
 
-	downstreamIssues, err := s.downstreamReadinessIssues(ctx, record.OrderedDeviceIDs, strings.TrimSpace(record.DatabaseConnectorID))
-	if err != nil {
-		return nil, err
-	}
-	issues = append(issues, downstreamIssues...)
-
 	connectorID := strings.TrimSpace(record.DatabaseConnectorID)
+	effectiveConnectorID := connectorID
 	if connectorID != "" {
 		if s.readinessConnectors == nil {
 			return nil, ErrReadinessUnavailable
 		}
 		connector, err := s.readinessConnectors.GetByID(ctx, connectorID)
 		if err != nil {
-			return nil, fmt.Errorf("evaluate workspace database connector readiness %s: %w", connectorID, err)
-		}
-		if issue, ok := databaseConnectorReadinessIssue(connector); ok {
-			issues = append(issues, issue)
+			if isMissingDatabaseConnectorError(err) {
+				issues = append(issues, ReadinessIssue{
+					Code:     "database-connector-missing",
+					Severity: ReadinessSeverityBlocking,
+					Step:     ReadinessStep4,
+					Scope:    connectorID,
+					Message:  "workspace database connector binding no longer exists",
+				})
+				effectiveConnectorID = ""
+			} else {
+				return nil, fmt.Errorf("evaluate workspace database connector readiness %s: %w", connectorID, err)
+			}
+		} else {
+			if issue, ok := databaseConnectorReadinessIssue(connector); ok {
+				issues = append(issues, issue)
+			}
 		}
 	}
+
+	downstreamIssues, err := s.downstreamReadinessIssues(ctx, record.OrderedDeviceIDs, effectiveConnectorID)
+	if err != nil {
+		return nil, err
+	}
+	issues = append(issues, downstreamIssues...)
 
 	summary := &ReadinessSummary{Issues: issues}
 	for _, issue := range issues {
@@ -215,24 +255,36 @@ func (s *Service) downstreamLinkIssue(ctx context.Context, connectorID string, l
 			Message:  "source rule link is missing its derived point",
 		}, true, nil
 	}
+	binding, err := s.resolveReadinessBinding(ctx, link)
+	if err != nil {
+		return ReadinessIssue{}, false, err
+	}
 
-	if link.TagID == nil || strings.TrimSpace(*link.TagID) == "" {
+	if !binding.tagValid {
+		message := "derived point is missing its persisted tag"
+		if binding.tagID != "" {
+			message = "derived point is not bound to a persisted tag owned by this source rule"
+		}
 		return ReadinessIssue{
 			Code:     "tag-missing",
 			Severity: ReadinessSeverityBlocking,
-			Step:     ReadinessStep2,
+			Step:     ReadinessStep3,
 			Scope:    pointID,
-			Message:  "derived point is missing its persisted tag",
+			Message:  message,
 		}, true, nil
 	}
 
-	if link.MappingID == nil || strings.TrimSpace(*link.MappingID) == "" {
+	if !binding.mappingValid {
+		message := "derived point is missing its persisted mapping"
+		if binding.mappingID != "" {
+			message = "derived point is not bound to a persisted mapping owned by this source rule"
+		}
 		return ReadinessIssue{
 			Code:     "mapping-missing",
 			Severity: ReadinessSeverityBlocking,
 			Step:     ReadinessStep3,
 			Scope:    pointID,
-			Message:  "derived point is missing its persisted mapping",
+			Message:  message,
 		}, true, nil
 	}
 
@@ -243,13 +295,12 @@ func (s *Service) downstreamLinkIssue(ctx context.Context, connectorID string, l
 		return ReadinessIssue{}, false, ErrReadinessUnavailable
 	}
 
-	tagID := strings.TrimSpace(*link.TagID)
 	rows, err := s.readinessMappings.List(ctx, dbtarget.TargetMappingListFilter{
 		ConnectorID: &connectorID,
-		TagID:       &tagID,
+		TagID:       &binding.tagID,
 	})
 	if err != nil {
-		return ReadinessIssue{}, false, fmt.Errorf("list database targets for readiness tag %s: %w", tagID, err)
+		return ReadinessIssue{}, false, fmt.Errorf("list database targets for readiness tag %s: %w", binding.tagID, err)
 	}
 	if len(rows) == 0 {
 		return ReadinessIssue{
@@ -262,6 +313,170 @@ func (s *Service) downstreamLinkIssue(ctx context.Context, connectorID string, l
 	}
 
 	return ReadinessIssue{}, false, nil
+}
+
+func (s *Service) resolveReadinessBinding(ctx context.Context, link *schema.SourceRuleLink) (readinessResolvedBinding, error) {
+	binding := readinessResolvedBinding{
+		tagID:        trimOptionalString(link.TagID),
+		mappingID:    trimOptionalString(link.MappingID),
+		tagValid:     trimOptionalString(link.TagID) != "",
+		mappingValid: trimOptionalString(link.MappingID) != "",
+	}
+	pointID := strings.TrimSpace(link.PointID)
+	if pointID == "" || s.readinessTags == nil || s.readinessLinkRecords == nil {
+		return binding, nil
+	}
+	binding.tagValid = false
+	binding.mappingValid = false
+
+	if mappingRecord, tagRecord, ok, err := s.resolveReadinessDirectMapping(ctx, link); err != nil {
+		return readinessResolvedBinding{}, err
+	} else if ok {
+		binding.mappingID = mappingRecord.ID
+		binding.tagID = tagRecord.ID
+		binding.mappingValid = true
+		binding.tagValid = true
+		return binding, nil
+	}
+
+	if mappingRecord, tagRecord, ok, err := s.resolveReadinessRecoveredMapping(ctx, link, pointID); err != nil {
+		return readinessResolvedBinding{}, err
+	} else if ok {
+		binding.mappingID = mappingRecord.ID
+		binding.tagID = tagRecord.ID
+		binding.mappingValid = true
+		binding.tagValid = true
+		return binding, nil
+	}
+
+	if tagRecord, ok, err := s.resolveReadinessDirectTag(ctx, link); err != nil {
+		return readinessResolvedBinding{}, err
+	} else if ok {
+		binding.tagID = tagRecord.ID
+		binding.tagValid = true
+	}
+
+	return binding, nil
+}
+
+func (s *Service) resolveReadinessDirectMapping(ctx context.Context, link *schema.SourceRuleLink) (*schema.Mapping, *schema.Tag, bool, error) {
+	mappingID := trimOptionalString(link.MappingID)
+	if mappingID == "" {
+		return nil, nil, false, nil
+	}
+	mappingRecord, err := s.readinessLinkRecords.GetByID(ctx, mappingID)
+	if err != nil {
+		if errors.Is(err, mapping.ErrMappingNotFound) {
+			return nil, nil, false, nil
+		}
+		return nil, nil, false, fmt.Errorf("load readiness mapping %s: %w", mappingID, err)
+	}
+	return s.matchReadinessMapping(ctx, link, mappingRecord)
+}
+
+func (s *Service) resolveReadinessRecoveredMapping(ctx context.Context, link *schema.SourceRuleLink, pointID string) (*schema.Mapping, *schema.Tag, bool, error) {
+	records, err := s.readinessLinkRecords.List(ctx, mapping.ListFilter{PointID: &pointID})
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("list readiness mappings for point %s: %w", pointID, err)
+	}
+	matches := make([]struct {
+		mapping *schema.Mapping
+		tag     *schema.Tag
+	}, 0, len(records))
+	for _, record := range records {
+		mappingRecord, tagRecord, ok, matchErr := s.matchReadinessMapping(ctx, link, record)
+		if matchErr != nil {
+			return nil, nil, false, matchErr
+		}
+		if ok {
+			matches = append(matches, struct {
+				mapping *schema.Mapping
+				tag     *schema.Tag
+			}{mapping: mappingRecord, tag: tagRecord})
+		}
+	}
+	if len(matches) != 1 {
+		return nil, nil, false, nil
+	}
+	return matches[0].mapping, matches[0].tag, true, nil
+}
+
+func (s *Service) matchReadinessMapping(ctx context.Context, link *schema.SourceRuleLink, mappingRecord *schema.Mapping) (*schema.Mapping, *schema.Tag, bool, error) {
+	if mappingRecord == nil {
+		return nil, nil, false, nil
+	}
+	if strings.TrimSpace(mappingRecord.PointID) != strings.TrimSpace(link.PointID) {
+		return nil, nil, false, nil
+	}
+	tagRecord, err := s.readinessTags.GetByID(ctx, mappingRecord.TagID)
+	if err != nil {
+		if errors.Is(err, tag.ErrTagNotFound) {
+			return nil, nil, false, nil
+		}
+		return nil, nil, false, fmt.Errorf("load readiness tag %s: %w", mappingRecord.TagID, err)
+	}
+	if !isReadinessRuleManagedTagOwnedBy(tagRecord, link.RuleID, link.Address) && !isLegacyReadinessDirectBinding(link, mappingRecord, tagRecord) {
+		return nil, nil, false, nil
+	}
+	return mappingRecord, tagRecord, true, nil
+}
+
+func (s *Service) resolveReadinessDirectTag(ctx context.Context, link *schema.SourceRuleLink) (*schema.Tag, bool, error) {
+	tagID := trimOptionalString(link.TagID)
+	if tagID == "" {
+		return nil, false, nil
+	}
+	tagRecord, err := s.readinessTags.GetByID(ctx, tagID)
+	if err != nil {
+		if errors.Is(err, tag.ErrTagNotFound) {
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("load readiness tag %s: %w", tagID, err)
+	}
+	if !isReadinessRuleManagedTagOwnedBy(tagRecord, link.RuleID, link.Address) {
+		return nil, false, nil
+	}
+	return tagRecord, true, nil
+}
+
+func isReadinessRuleManagedTagOwnedBy(tagRecord *schema.Tag, ruleID string, address string) bool {
+	if tagRecord == nil || strings.TrimSpace(tagRecord.Labels) == "" {
+		return false
+	}
+	var labels map[string]string
+	if err := json.Unmarshal([]byte(tagRecord.Labels), &labels); err != nil {
+		return false
+	}
+	return labels["source"] == "source-rule" &&
+		labels["source_rule_id"] == strings.TrimSpace(ruleID) &&
+		strings.ToUpper(strings.TrimSpace(labels["source_rule_address"])) == strings.ToUpper(strings.TrimSpace(address))
+}
+
+func isLegacyReadinessDirectBinding(link *schema.SourceRuleLink, mappingRecord *schema.Mapping, tagRecord *schema.Tag) bool {
+	if link == nil || mappingRecord == nil || tagRecord == nil {
+		return false
+	}
+	if strings.TrimSpace(tagRecord.Labels) != "" {
+		return false
+	}
+	if link.MappingID == nil || link.TagID == nil {
+		return false
+	}
+	return strings.TrimSpace(*link.MappingID) == strings.TrimSpace(mappingRecord.ID) &&
+		strings.TrimSpace(*link.TagID) == strings.TrimSpace(tagRecord.ID) &&
+		strings.TrimSpace(mappingRecord.PointID) == strings.TrimSpace(link.PointID) &&
+		strings.TrimSpace(mappingRecord.TagID) == strings.TrimSpace(tagRecord.ID)
+}
+
+func trimOptionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
+}
+
+func isMissingDatabaseConnectorError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "資料庫連接器不存在")
 }
 
 func deviceReadinessIssue(deviceID string, readiness *schema.DeviceReadiness) (ReadinessIssue, bool) {

@@ -168,6 +168,12 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkServices.Scheduler,
 				datalinkServices.Runtime,
 				datalinkServices.Workspace,
+			).WithSetupContextServices(
+				datalinkServices.SourceRule,
+				datalinkServices.Tag,
+				datalinkServices.Mapping,
+				datalinkServices.DBTarget,
+				datalinkServices.DBMapping,
 			)
 			datalinkGroup.GET("/runtime/status", runtimeHandler.Status)
 			runtimeStreamHandler := handlers.NewRuntimeStreamHandler(datalinkServices.Runtime)

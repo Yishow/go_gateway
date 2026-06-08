@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
 
@@ -22,6 +24,7 @@ func TestRuntimeHandler_WorkspaceContextReturnsOrderedDevicesAndDefaultDeviceID(
 	deviceRepo := device.NewMemoryRepository()
 	deviceSvc := device.NewService(deviceRepo, nil)
 	now := time.Now().UTC()
+	lastTestSuccess := true
 
 	if err := deviceRepo.Create(context.Background(), &schema.Device{
 		ID:               "device-B",
@@ -41,6 +44,7 @@ func TestRuntimeHandler_WorkspaceContextReturnsOrderedDevicesAndDefaultDeviceID(
 		Protocol:         schema.ProtocolModbusTCP,
 		Status:           schema.DeviceStatusActive,
 		ConnectionConfig: `{"host":"192.168.1.10","port":502,"slave_id":1,"timeout":5}`,
+		LastTestSuccess:  &lastTestSuccess,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}); err != nil {
@@ -54,6 +58,7 @@ func TestRuntimeHandler_WorkspaceContextReturnsOrderedDevicesAndDefaultDeviceID(
 		t.Fatalf("attach device-A failed: %v", err)
 	}
 
+	workspaceSvc.WithReadinessServices(deviceSvc, nil, nil, nil)
 	handler := NewRuntimeHandler(deviceSvc, nil, nil, nil, nil, workspaceSvc)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
 	resp := httptest.NewRecorder()
@@ -78,6 +83,9 @@ func TestRuntimeHandler_WorkspaceContextReturnsOrderedDevicesAndDefaultDeviceID(
 				AvailabilityStatus string  `json:"availability_status"`
 				AvailabilityReason *string `json:"availability_reason"`
 			} `json:"devices"`
+			Setup struct {
+				ReadinessSummary *workspace.ReadinessSummary `json:"readiness_summary"`
+			} `json:"setup"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
@@ -105,4 +113,226 @@ func TestRuntimeHandler_WorkspaceContextReturnsOrderedDevicesAndDefaultDeviceID(
 	if body.Data.DefaultDeviceID == nil || *body.Data.DefaultDeviceID != "device-A" {
 		t.Fatalf("expected default device-A, got %+v", body.Data.DefaultDeviceID)
 	}
+	if body.Data.Setup.ReadinessSummary == nil {
+		t.Fatalf("expected readiness summary in runtime context, got %s", resp.Body.String())
+	}
+	if body.Data.Setup.ReadinessSummary.Ready {
+		t.Fatalf("expected workspace readiness to block unavailable device, got %+v", body.Data.Setup.ReadinessSummary)
+	}
+	if body.Data.Setup.ReadinessSummary.BlockingCount != 1 {
+		t.Fatalf("expected one readiness blocker, got %+v", body.Data.Setup.ReadinessSummary)
+	}
+}
+
+func TestRuntimeHandler_WorkspaceContextReturnsSetupConditions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	ctx := context.Background()
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository())
+	deviceRepo := device.NewMemoryRepository()
+	deviceSvc := device.NewService(deviceRepo, nil)
+	now := time.Now().UTC()
+	if err := deviceRepo.Create(ctx, &schema.Device{
+		ID:               "device-A",
+		Name:             "Mixer PLC",
+		Protocol:         schema.ProtocolModbusTCP,
+		Status:           schema.DeviceStatusActive,
+		ConnectionConfig: `{"host":"192.168.1.10","port":502,"slave_id":1,"timeout":5}`,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}); err != nil {
+		t.Fatalf("create device-A failed: %v", err)
+	}
+	if _, err := workspaceSvc.AttachDevice(ctx, "device-A"); err != nil {
+		t.Fatalf("attach device-A failed: %v", err)
+	}
+	if _, err := workspaceSvc.BindDatabaseConnector(ctx, "db-1"); err != nil {
+		t.Fatalf("bind database failed: %v", err)
+	}
+
+	mappingID := "mapping-1"
+	tagID := "tag-1"
+	handler := NewRuntimeHandler(deviceSvc, nil, nil, nil, nil, workspaceSvc)
+	handler.sourceRuleReader = runtimeSetupRuleReaderStub{
+		rules: []*schema.SourceRule{{
+			ID:           "rule-1",
+			DeviceID:     "device-A",
+			StartAddress: "40001",
+			Count:        8,
+			DataType:     schema.DataTypeInt16,
+			NamingPrefix: "LINE_",
+			Enabled:      true,
+			RevisionID:   "rule-v1",
+		}},
+		links: map[string][]*schema.SourceRuleLink{
+			"rule-1": {{
+				ID:        "link-1",
+				RuleID:    "rule-1",
+				Address:   "40001",
+				PointID:   "point-1",
+				TagID:     &tagID,
+				MappingID: &mappingID,
+			}},
+		},
+	}
+	handler.mappingReader = runtimeSetupMappingReaderStub{
+		records: map[string]*schema.Mapping{
+			"mapping-1": {
+				ID:      "mapping-1",
+				PointID: "point-1",
+				TagID:   "tag-1",
+				Status:  schema.MappingStatusActive,
+				Enabled: true,
+			},
+		},
+	}
+	handler.tagReader = runtimeSetupTagReaderStub{
+		records: map[string]*schema.Tag{
+			"tag-1": {
+				ID:          "tag-1",
+				Key:         "line01.temp.inlet",
+				DisplayName: "入口溫度",
+				Unit:        "°C",
+				DataType:    schema.DataTypeInt16,
+			},
+		},
+	}
+	handler.dbConnectorReader = runtimeSetupConnectorReaderStub{
+		record: &schema.DatabaseConnector{
+			ID:                          "db-1",
+			Name:                        "PostgreSQL Connector",
+			Kind:                        schema.DatabaseConnectorKindPostgres,
+			ConnectionConfig:            `{"database":"gateway_metrics","schema":"public","table":"sensor_readings","write_mode":"insert"}`,
+			Status:                      schema.DatabaseConnectorStatusReady,
+			DefaultWriteIntervalSeconds: 5,
+			CreatedAt:                   now,
+			UpdatedAt:                   now,
+		},
+	}
+	handler.dbTargetReader = runtimeSetupTargetReaderStub{
+		records: []*schema.DatabaseTargetMapping{{
+			ID:          "target-1",
+			TagID:       "tag-1",
+			ConnectorID: "db-1",
+			TableSchema: "public",
+			TableName:   "sensor_readings",
+			ColumnName:  "value",
+			WriteMode:   schema.DatabaseWriteModeInsert,
+			Enabled:     true,
+		}},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	handler.WorkspaceContext(c)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d body=%s", resp.Code, resp.Body.String())
+	}
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Setup struct {
+				SourceRules []struct {
+					StartAddress string `json:"start_address"`
+					Count        int    `json:"count"`
+				} `json:"source_rules"`
+				Mappings []struct {
+					Address     string `json:"address"`
+					TagKey      string `json:"tag_key"`
+					DisplayName string `json:"display_name"`
+					Unit        string `json:"unit"`
+				} `json:"mappings"`
+				DatabaseConfig *struct {
+					Name                 string `json:"name"`
+					Database             string `json:"database"`
+					Table                string `json:"table"`
+					WriteIntervalSeconds int    `json:"write_interval_seconds"`
+				} `json:"database_config"`
+				DatabaseTargets []struct {
+					ColumnName string `json:"column_name"`
+				} `json:"database_targets"`
+			} `json:"setup"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response failed: %v body=%s", err, resp.Body.String())
+	}
+	if !body.Success {
+		t.Fatalf("expected success response, got %s", resp.Body.String())
+	}
+	if len(body.Data.Setup.SourceRules) != 1 || body.Data.Setup.SourceRules[0].StartAddress != "40001" || body.Data.Setup.SourceRules[0].Count != 8 {
+		t.Fatalf("expected source rule summary, got %+v", body.Data.Setup.SourceRules)
+	}
+	if len(body.Data.Setup.Mappings) != 1 || body.Data.Setup.Mappings[0].TagKey != "line01.temp.inlet" || body.Data.Setup.Mappings[0].DisplayName != "入口溫度" {
+		t.Fatalf("expected mapping summary with tag display data, got %+v", body.Data.Setup.Mappings)
+	}
+	if body.Data.Setup.DatabaseConfig == nil || body.Data.Setup.DatabaseConfig.Name != "PostgreSQL Connector" || body.Data.Setup.DatabaseConfig.Database != "gateway_metrics" {
+		t.Fatalf("expected database config summary, got %+v", body.Data.Setup.DatabaseConfig)
+	}
+	if len(body.Data.Setup.DatabaseTargets) != 1 || body.Data.Setup.DatabaseTargets[0].ColumnName != "value" {
+		t.Fatalf("expected database target summary, got %+v", body.Data.Setup.DatabaseTargets)
+	}
+}
+
+type runtimeSetupRuleReaderStub struct {
+	rules []*schema.SourceRule
+	links map[string][]*schema.SourceRuleLink
+}
+
+func (s runtimeSetupRuleReaderStub) ListByDeviceIDs(context.Context, []string) ([]*schema.SourceRule, error) {
+	return s.rules, nil
+}
+
+func (s runtimeSetupRuleReaderStub) ListLinks(_ context.Context, ruleID string) ([]*schema.SourceRuleLink, error) {
+	return s.links[ruleID], nil
+}
+
+type runtimeSetupMappingReaderStub struct {
+	records map[string]*schema.Mapping
+}
+
+func (s runtimeSetupMappingReaderStub) GetByID(_ context.Context, id string) (*schema.Mapping, error) {
+	return s.records[id], nil
+}
+
+func (s runtimeSetupMappingReaderStub) List(_ context.Context, filter mapping.ListFilter) ([]*schema.Mapping, error) {
+	if filter.PointID == nil {
+		return nil, nil
+	}
+	result := make([]*schema.Mapping, 0)
+	for _, record := range s.records {
+		if record != nil && record.PointID == *filter.PointID {
+			result = append(result, record)
+		}
+	}
+	return result, nil
+}
+
+type runtimeSetupTagReaderStub struct {
+	records map[string]*schema.Tag
+}
+
+func (s runtimeSetupTagReaderStub) GetByID(_ context.Context, id string) (*schema.Tag, error) {
+	return s.records[id], nil
+}
+
+type runtimeSetupConnectorReaderStub struct {
+	record *schema.DatabaseConnector
+}
+
+func (s runtimeSetupConnectorReaderStub) GetByID(context.Context, string) (*schema.DatabaseConnector, error) {
+	return s.record, nil
+}
+
+type runtimeSetupTargetReaderStub struct {
+	records []*schema.DatabaseTargetMapping
+}
+
+func (s runtimeSetupTargetReaderStub) List(context.Context, dbtarget.TargetMappingListFilter) ([]*schema.DatabaseTargetMapping, error) {
+	return s.records, nil
 }

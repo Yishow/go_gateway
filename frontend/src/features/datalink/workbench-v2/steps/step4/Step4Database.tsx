@@ -11,6 +11,7 @@ import type { WorkbenchV2State, DbConnector, DbTarget, CommitLog } from '../../s
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import type { StudioV2ActivationResponse } from '../../../../../types/studioV2Activation';
 import type { StudioV2WorkspaceReadinessSummary } from '../../../../../types/studioV2WorkspaceReadiness';
+import type { WorkspaceReadinessStepNumber } from '../../components/WorkspaceReadinessPanel';
 
 /**
  * Step4Database 元件屬性
@@ -21,6 +22,7 @@ interface Step4DatabaseProps {
   onCommit?: () => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
+  onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
 }
 
 /**
@@ -42,6 +44,7 @@ export function Step4Database({
   onCommit,
   activateWorkspace,
   workspaceReadiness,
+  onNavigateStep,
 }: Step4DatabaseProps) {
   const isReadonly = useStep4Readonly();
   const [activationState, setActivationState] = React.useState<{
@@ -235,6 +238,7 @@ export function Step4Database({
               schemaPreviewSignature={schemaPreviewSignature}
               readinessSummary={workspaceReadiness}
               onActivate={handleStartActivation}
+              onNavigateStep={onNavigateStep}
             />
           ) : activationState.phase === 'activating' ? (
             <CommitProgress

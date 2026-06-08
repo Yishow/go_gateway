@@ -2,8 +2,16 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DbConnector } from '../../state/types';
 import { studioV2WorkspaceDatabaseAPI } from '../../../../../services/studioV2WorkspaceDatabase';
-import type { StudioV2WorkspaceReadinessSummary } from '../../../../../types/studioV2WorkspaceReadiness';
-import { WorkspaceReadinessPanel } from '../../components/WorkspaceReadinessPanel';
+import type {
+  StudioV2WorkspaceReadinessIssue,
+  StudioV2WorkspaceReadinessSummary,
+} from '../../../../../types/studioV2WorkspaceReadiness';
+import {
+  readinessIssueSolution,
+  readinessStepNumber,
+  WorkspaceReadinessPanel,
+  type WorkspaceReadinessStepNumber,
+} from '../../components/WorkspaceReadinessPanel';
 
 /**
  * CommitSummary 元件屬性
@@ -20,6 +28,7 @@ interface CommitSummaryProps {
   schemaPreviewSignature?: string;
   readinessSummary?: StudioV2WorkspaceReadinessSummary | null;
   onActivate: () => void;
+  onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
 }
 
 /**
@@ -38,6 +47,7 @@ export function CommitSummary({
   schemaPreviewSignature,
   readinessSummary,
   onActivate,
+  onNavigateStep,
 }: CommitSummaryProps) {
   const { t } = useTranslation('workbench-v2');
 
@@ -92,6 +102,9 @@ export function CommitSummary({
 
   // 提交按鈕不可用條件：有衝突，或者啟用的寫入欄位為 0
   const hasReadinessBlocker = (readinessSummary?.blocking_count ?? 0) > 0;
+  const blockingIssues = readinessSummary?.issues
+    .filter((issue) => issue.severity === 'blocking')
+    .slice(0, 3) ?? [];
   const isSubmitDisabled = hasConflict || enabledTargetCount === 0 || hasReadinessBlocker;
 
   const summaryItems = [
@@ -129,7 +142,35 @@ export function CommitSummary({
       </div>
 
       <div className="mt-8 space-y-3">
-        <WorkspaceReadinessPanel summary={readinessSummary} dataTestId="step4-readiness-panel" maxIssues={4} />
+        <WorkspaceReadinessPanel
+          summary={readinessSummary}
+          dataTestId="step4-readiness-panel"
+          maxIssues={4}
+          onNavigateStep={onNavigateStep}
+        />
+
+        {hasReadinessBlocker && blockingIssues.length > 0 && (
+          <div
+            className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3"
+            data-testid="step4-blocker-resolution"
+          >
+            <div className="text-xs font-semibold text-amber-100">
+              {t('step4.blocker_resolution_title', '要讓它可套用，先完成：')}
+            </div>
+            <div className="mt-1 text-[11px] leading-5 text-amber-100/80">
+              {t('step4.blocker_resolution_subtitle', '這些 blocker 解除後，啟動按鈕會恢復可用。')}
+            </div>
+            <div className="mt-3 space-y-2">
+              {blockingIssues.map((issue) => (
+                <BlockerResolutionItem
+                  key={`${issue.code}-${issue.scope}`}
+                  issue={issue}
+                  onNavigateStep={onNavigateStep}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 提示訊息 */}
         {enabledTargetCount === 0 && !hasConflict && (
@@ -215,6 +256,43 @@ export function CommitSummary({
         <p className="text-[10px] text-gray-500 text-center leading-normal select-none">
           {t('step4.activate_info', '系統會逐台啟動符合條件的設備，並保留每台成功或失敗結果。')}
         </p>
+      </div>
+    </div>
+  );
+}
+
+interface BlockerResolutionItemProps {
+  issue: StudioV2WorkspaceReadinessIssue;
+  onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
+}
+
+function BlockerResolutionItem({ issue, onNavigateStep }: BlockerResolutionItemProps) {
+  const { t } = useTranslation('workbench-v2');
+  const targetStep = readinessStepNumber(issue.step);
+
+  return (
+    <div className="rounded-lg border border-slate-800/70 bg-slate-950/50 px-3 py-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-mono text-[11px] font-semibold text-amber-100">
+            {issue.code}
+          </div>
+          <div className="mt-1 text-[11px] leading-5 text-slate-300">
+            {issue.message}
+          </div>
+          <div className="mt-1 text-[11px] leading-5 text-slate-400">
+            {readinessIssueSolution(issue, t)}
+          </div>
+        </div>
+        <button
+          type="button"
+          data-testid={`step4-blocker-action-${issue.code}`}
+          disabled={!onNavigateStep}
+          onClick={() => onNavigateStep?.(targetStep)}
+          className="shrink-0 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t('step4.fix_step_action', { step: issue.step })}
+        </button>
       </div>
     </div>
   );

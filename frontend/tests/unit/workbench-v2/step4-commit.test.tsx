@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { WorkbenchV2Shell, type WorkbenchV2ShellProps } from '../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell';
-import { workbenchV2Reducer } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
+import { INITIAL_STATE, workbenchV2Reducer } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import type { WorkbenchV2Action } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { StudioV2ActivationResponse } from '../../../src/types/studioV2Activation';
@@ -12,7 +12,7 @@ import type { StudioV2WorkspaceReadinessSummary } from '../../../src/types/studi
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: any) => {
+    t: (key: string, options?: { interval?: number }) => {
       if (options && options.interval !== undefined) {
         return `${key}_interval_${options.interval}`;
       }
@@ -101,7 +101,7 @@ describe('Step 4 first activation flow integration', () => {
         'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_in_c', enabled: true }
       }
     },
-    settings: {} as any,
+    settings: INITIAL_STATE.settings,
     committed: false,
   };
 
@@ -251,6 +251,7 @@ describe('Step 4 first activation flow integration', () => {
       ],
     };
     const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>();
+    const onNavigateStep = vi.fn();
 
     render(
       <Step4Database
@@ -258,11 +259,15 @@ describe('Step 4 first activation flow integration', () => {
         dispatch={() => { }}
         activateWorkspace={activateWorkspace}
         workspaceReadiness={readinessSummary}
+        onNavigateStep={onNavigateStep}
       />,
     );
 
     const activateButton = screen.getByText('step4.activate_btn').closest('button');
     expect(screen.getByTestId('step4-readiness-panel')).toHaveTextContent('device-probe-required');
+    expect(screen.getByTestId('step4-blocker-resolution')).toHaveTextContent('step4.blocker_resolution_title');
+    fireEvent.click(screen.getByTestId('step4-blocker-action-device-probe-required'));
+    expect(onNavigateStep).toHaveBeenCalledWith(1);
     expect(activateButton).toBeDisabled();
     fireEvent.click(screen.getByText('step4.activate_btn'));
     expect(activateWorkspace).not.toHaveBeenCalled();

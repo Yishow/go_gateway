@@ -170,7 +170,7 @@ func TestService_ReadinessSurfacesMissingDownstreamRelationships(t *testing.T) {
 	requireReadinessIssue(t, summary, ReadinessIssue{
 		Code:     "tag-missing",
 		Severity: ReadinessSeverityBlocking,
-		Step:     ReadinessStep2,
+		Step:     ReadinessStep3,
 		Scope:    links[0].PointID,
 	})
 	requireReadinessIssue(t, summary, ReadinessIssue{

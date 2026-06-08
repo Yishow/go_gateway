@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { RuntimeDashboardPage } from '../../../src/features/datalink/runtime-dashboard/RuntimeDashboardPage';
+import { createRuntimeSetupFixture } from './runtimeSetupFixture';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -69,6 +70,7 @@ const baseState = {
     },
   },
   streamState: 'connected' as const,
+  setupContext: createRuntimeSetupFixture(),
   onSelectDevice: vi.fn(),
   onRetrySnapshot: vi.fn(),
 };
@@ -82,6 +84,113 @@ describe('RuntimeDashboardPage', () => {
     expect(screen.getByTestId('runtime-dashboard-summary-panel')).toBeInTheDocument();
     expect(screen.getByTestId('runtime-dashboard-health-panel')).toBeInTheDocument();
     expect(screen.getByTestId('runtime-dashboard-live-points-table')).toBeInTheDocument();
+  });
+
+  it('shows configured workspace setup even when runtime data is only live counters', () => {
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        selectedDevice={{
+          ...baseState.selectedDevice,
+          projection_alignment: 'stale',
+          runtime_projection_version: 'projection-v12',
+          workspace_projection_version: 'projection-v13',
+        }}
+      />,
+    );
+
+    const panel = screen.getByTestId('runtime-dashboard-setup-context');
+    expect(panel).toHaveTextContent('Workspace readiness');
+    expect(panel).toHaveTextContent('2 blockers');
+    expect(panel).toHaveTextContent('Step 4');
+    expect(panel).toHaveTextContent('database-target-missing');
+    expect(panel).toHaveTextContent('40001');
+    expect(panel).toHaveTextContent('8');
+    expect(panel).toHaveTextContent('line01.temp.inlet');
+    expect(panel).toHaveTextContent('入口溫度');
+    expect(panel).toHaveTextContent('PostgreSQL Connector');
+    expect(panel).toHaveTextContent('gateway_metrics');
+    expect(panel).toHaveTextContent('sensor_readings');
+    expect(panel).toHaveTextContent('Projection stale');
+    expect(panel).toHaveTextContent('projection-v12');
+    expect(panel).toHaveTextContent('projection-v13');
+  });
+
+  it('links readiness blockers back to their Studio V2 owner step', () => {
+    render(<RuntimeDashboardPage {...baseState} />);
+
+    expect(screen.getByTestId('runtime-dashboard-setup-return-link')).toHaveAttribute(
+      'href',
+      '/studio/v2?step=4&focus=readiness&issue=database-target-missing',
+    );
+    expect(screen.getByTestId('runtime-dashboard-setup-fix-database-target-missing')).toHaveAttribute(
+      'href',
+      '/studio/v2?step=4&focus=readiness&issue=database-target-missing',
+    );
+    expect(screen.getByTestId('runtime-dashboard-setup-fix-tag-missing')).toHaveAttribute(
+      'href',
+      '/studio/v2?step=3&focus=readiness&issue=tag-missing',
+    );
+  });
+
+  it('normalizes tag-missing blockers to Step 3 even if the backend step is stale', () => {
+    const setupContext = createRuntimeSetupFixture();
+    setupContext.readiness_summary!.issues = [{
+      code: 'tag-missing',
+      severity: 'blocking',
+      step: 'Step 2',
+      scope: 'point-2',
+      message: 'derived point is missing its persisted tag',
+    }];
+
+    render(<RuntimeDashboardPage {...baseState} setupContext={setupContext} />);
+
+    const panel = screen.getByTestId('runtime-dashboard-setup-context');
+    expect(panel).toHaveTextContent('Step 3');
+    expect(panel).not.toHaveTextContent('Step 2');
+    expect(screen.getByTestId('runtime-dashboard-setup-return-link')).toHaveAttribute(
+      'href',
+      '/studio/v2?step=3&focus=readiness&issue=tag-missing',
+    );
+    expect(screen.getByTestId('runtime-dashboard-setup-fix-tag-missing')).toHaveTextContent(
+      'Fix in Step 3',
+    );
+  });
+
+  it('explains point-missing blockers as a Step 2 source rule re-save', () => {
+    const setupContext = createRuntimeSetupFixture();
+    setupContext.readiness_summary!.issues = [{
+      code: 'point-missing',
+      severity: 'blocking',
+      step: 'Step 2',
+      scope: 'rule-A',
+      message: 'source rule link is missing its derived point',
+    }];
+
+    render(<RuntimeDashboardPage {...baseState} setupContext={setupContext} />);
+
+    const panel = screen.getByTestId('runtime-dashboard-setup-context');
+    expect(panel).toHaveTextContent('Step 2');
+    expect(panel).toHaveTextContent('point-missing');
+    expect(panel).toHaveTextContent(
+      'Fix in Step 2: re-save this source rule to rebuild the missing derived point.',
+    );
+    expect(screen.getByTestId('runtime-dashboard-setup-fix-point-missing')).toHaveAttribute(
+      'href',
+      '/studio/v2?step=2&focus=readiness&issue=point-missing',
+    );
+  });
+
+  it('uses SPA navigation for Studio V2 readiness fixes when available', () => {
+    const navigateTo = vi.fn();
+
+    render(<RuntimeDashboardPage {...baseState} navigateTo={navigateTo} />);
+
+    fireEvent.click(screen.getByTestId('runtime-dashboard-setup-fix-database-target-missing'));
+
+    expect(navigateTo).toHaveBeenCalledWith(
+      '/studio/v2?step=4&focus=readiness&issue=database-target-missing',
+    );
   });
 
   it('shows only backend-supported summary and health contract fields', () => {

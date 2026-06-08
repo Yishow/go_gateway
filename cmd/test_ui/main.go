@@ -222,6 +222,7 @@ func main() {
 		}),
 	)
 	workspaceSvc.WithReadinessServices(devSvc, sourceRuleSvc, dbTargetConnectorSvc, dbTargetMappingSvc)
+	workspaceSvc.WithReadinessSetupReaders(tagSvc, mappingSvc)
 	workspaceSvc.WithRuntimeProjectionServices(
 		devSvc,
 		sourceRuleSvc,

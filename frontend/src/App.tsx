@@ -38,9 +38,38 @@ function LegacyTestToolRedirect() {
   return <Navigate to="/test" replace />
 }
 
+type RuntimeReturnFocus = {
+  step: 1 | 2 | 3 | 4
+  issueCode: string | null
+}
+
+function parseRuntimeReturnFocus(searchParams: URLSearchParams): RuntimeReturnFocus | null {
+  if (searchParams.get('focus') !== 'readiness') {
+    return null
+  }
+
+  const step = Number(searchParams.get('step'))
+  if (step !== 1 && step !== 2 && step !== 3 && step !== 4) {
+    return null
+  }
+
+  return {
+    step,
+    issueCode: searchParams.get('issue'),
+  }
+}
+
 function DatalinkWorkbenchV2Route() {
   const navigate = useNavigate()
-  return <DatalinkWorkbenchV2Page navigateTo={navigate} />
+  const [searchParams] = useSearchParams()
+  const runtimeReturnFocus = parseRuntimeReturnFocus(searchParams)
+
+  return (
+    <DatalinkWorkbenchV2Page
+      navigateTo={navigate}
+      runtimeReturnFocus={runtimeReturnFocus}
+    />
+  )
 }
 
 /**

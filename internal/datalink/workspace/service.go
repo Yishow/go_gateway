@@ -52,6 +52,8 @@ type Service struct {
 	readinessRules       readinessSourceRuleService
 	readinessConnectors  readinessConnectorService
 	readinessMappings    readinessDBTargetService
+	readinessTags        readinessTagService
+	readinessLinkRecords readinessMappingRecordService
 	projectionDevices    runtimeProjectionDeviceService
 	projectionRules      runtimeProjectionSourceRuleService
 	projectionPoints     runtimeProjectionPointService

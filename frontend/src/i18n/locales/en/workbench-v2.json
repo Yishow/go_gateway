@@ -288,6 +288,9 @@
     "schema_error": "Schema creation failed",
     "activate_btn": "First Activate Devices",
     "activate_info": "The system will attempt eligible devices one by one and keep each success or failure result.",
+    "blocker_resolution_title": "To make it applicable, finish:",
+    "blocker_resolution_subtitle": "The activation button becomes available after these blockers are cleared.",
+    "fix_step_action": "Go to {{step}}",
     "progress_title": "First Device Activation",
     "progress_subtitle": "Activating every eligible workspace device...",
     "waiting_logs": "Preparing command queue...",
@@ -302,12 +305,25 @@
     "scheduler_idle": "scheduler idle"
   },
   "workspace_readiness": {
-    "title": "Workspace Readiness",
-    "blocked": "Blocking issues still need attention before live apply can fully proceed.",
-    "ready": "Workspace is activation-ready. Warnings are still shown when attention is needed.",
+    "title": "Workspace Status",
+    "blocked": "Setup still needs fixes",
+    "ready": "Activation is available. Warnings do not block apply.",
     "blocking_count": "{{count}} blockers",
     "warning_count": "{{count}} warnings",
-    "no_issues": "No blockers or warnings are currently reported."
+    "no_issues": "No blockers or warnings are currently reported.",
+    "go_to_step": "Go to {{step}}",
+    "solution_step1": "Go to Step 1 to test or fix the device connection so the backend has a runnable device config.",
+    "solution_step2": "Go to Step 2 to create or fix source rules so valid points can be generated.",
+    "solution_point_missing": "Re-save this source rule so the backend rebuilds the missing derived point and link.",
+    "solution_step3": "Go to Step 3 to complete point and tag mappings so values can project into runtime.",
+    "solution_step4": "Go to Step 4 to enable database targets, or fix the connector/schema before applying."
+  },
+  "runtime_return": {
+    "title": "Runtime reported a fix in {{step}}",
+    "description": "You are back at the setup location reported by Runtime. Saved setup stays loaded; you do not need to rerun earlier steps.",
+    "action": "Stay on {{step}}",
+    "point_missing_action": "Re-save this source rule to rebuild the missing derived point and link.",
+    "scope": "Scope: {{scope}}"
   },
   "settings": {
     "title": "System Settings",

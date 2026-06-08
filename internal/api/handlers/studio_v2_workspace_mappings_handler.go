@@ -67,16 +67,34 @@ func (h *StudioV2WorkspaceMappingsHandler) List(c *gin.Context) {
 			renderStudioV2WorkspaceMappingError(c, err)
 			return
 		}
+		linksChanged := false
 		for _, link := range links {
-			if link == nil || link.MappingID == nil || link.TagID == nil {
+			mappingRecord, ok, changed, err := h.recoverWorkspaceLinkMapping(c.Request.Context(), link)
+			if err != nil {
+				if errors.Is(err, tag.ErrTagNotFound) {
+					continue
+				}
+				renderStudioV2WorkspaceMappingError(c, err)
+				return
+			}
+			if changed {
+				linksChanged = true
+			}
+			if !ok {
 				continue
 			}
-			item, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, *link.MappingID, *link.TagID)
+			item, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, mappingRecord.ID, mappingRecord.TagID)
 			if err != nil {
 				renderStudioV2WorkspaceMappingError(c, err)
 				return
 			}
 			payload = append(payload, item)
+		}
+		if linksChanged {
+			if err := h.ruleSvc.ReplaceLinks(c.Request.Context(), rule.ID, links); err != nil {
+				renderStudioV2WorkspaceMappingError(c, err)
+				return
+			}
 		}
 	}
 
@@ -88,8 +106,25 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if link.MappingID != nil {
-		renderStudioV2WorkspaceValidationError(c, errors.New("mapping row already exists"))
+	if mappingRecord, found, _, err := h.recoverWorkspaceLinkMappingForMutation(c.Request.Context(), link); err != nil {
+		renderStudioV2WorkspaceMappingError(c, err)
+		return
+	} else if found {
+		mappingRecord, err = h.saveExistingWorkspaceMapping(c.Request.Context(), rule, links, link, mappingRecord, req)
+		if err != nil {
+			renderStudioV2WorkspaceMappingError(c, err)
+			return
+		}
+		payload, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, mappingRecord.ID, mappingRecord.TagID)
+		if err != nil {
+			renderStudioV2WorkspaceMappingError(c, err)
+			return
+		}
+		applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{rule.DeviceID}, []string{rule.DeviceID, link.PointID})
+		payload.RuntimeApplyStatus = applyOutcome.Status
+		payload.RuntimeApplyMessage = applyOutcome.Message
+		payload.RuntimeApplyIssues = applyOutcome.Issues
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 		return
 	}
 
@@ -148,42 +183,13 @@ func (h *StudioV2WorkspaceMappingsHandler) Update(c *gin.Context) {
 		return
 	}
 
-	pointRecord, err := h.pointSvc.GetByID(c.Request.Context(), link.PointID)
-	if err != nil {
-		renderStudioV2WorkspaceMappingError(c, err)
-		return
-	}
-	oldTagID := mappingRecord.TagID
-	tagRecord, err := h.upsertTag(c.Request.Context(), rule.ID, req, link.Address)
-	if err != nil {
-		renderStudioV2WorkspaceMappingError(c, err)
-		return
-	}
-	mappingRecord, err = h.mappingSvc.Update(c.Request.Context(), mappingRecord.ID, mapping.UpdateMappingRequest{
-		TagID:             cloneStringPtr(tagRecord.ID),
-		Enabled:           boolPtr(req.Enabled),
-		TransformPipeline: buildWorkspaceMappingPipeline(pointRecord.DataType, req.TargetType, req.Scale, req.Offset),
-	})
+	mappingRecord, err := h.saveExistingWorkspaceMapping(c.Request.Context(), rule, links, link, mappingRecord, req)
 	if err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
 
-	link.TagID = cloneStringPtr(tagRecord.ID)
-	link.MappingID = cloneStringPtr(mappingRecord.ID)
-	link.UpdatedAt = time.Now()
-	if err := h.ruleSvc.ReplaceLinks(c.Request.Context(), rule.ID, links); err != nil {
-		renderStudioV2WorkspaceMappingError(c, err)
-		return
-	}
-	if oldTagID != tagRecord.ID {
-		if err := h.deleteOrphanRuleManagedTag(c.Request.Context(), oldTagID); err != nil {
-			renderStudioV2WorkspaceMappingError(c, err)
-			return
-		}
-	}
-
-	payload, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, mappingRecord.ID, tagRecord.ID)
+	payload, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, mappingRecord.ID, mappingRecord.TagID)
 	if err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
@@ -258,11 +264,17 @@ func (h *StudioV2WorkspaceMappingsHandler) requireWorkspaceMapping(c *gin.Contex
 			return nil, nil, nil, nil, nil, studioV2WorkspaceMappingRequest{}, false
 		}
 		for _, link := range links {
-			if link != nil && link.MappingID != nil && *link.MappingID == c.Param("id") {
-				mappingRecord, err := h.mappingSvc.GetByID(c.Request.Context(), *link.MappingID)
-				if err != nil {
-					renderStudioV2WorkspaceMappingError(c, err)
-					return nil, nil, nil, nil, nil, studioV2WorkspaceMappingRequest{}, false
+			mappingRecord, found, changed, err := h.recoverWorkspaceLinkMappingForMutation(c.Request.Context(), link)
+			if err != nil {
+				renderStudioV2WorkspaceMappingError(c, err)
+				return nil, nil, nil, nil, nil, studioV2WorkspaceMappingRequest{}, false
+			}
+			if found && mappingRecord.ID == c.Param("id") {
+				if changed {
+					if err := h.ruleSvc.ReplaceLinks(c.Request.Context(), rule.ID, links); err != nil {
+						renderStudioV2WorkspaceMappingError(c, err)
+						return nil, nil, nil, nil, nil, studioV2WorkspaceMappingRequest{}, false
+					}
 				}
 				return record, rule, links, link, mappingRecord, req, true
 			}
@@ -437,6 +449,22 @@ func isRuleManagedWorkspaceTagOwnedBy(tagRecord *schema.Tag, ruleID string, addr
 		return false
 	}
 	return normalizeWorkspaceAddress(labels[ruleManagedTagLabelAddress]) == normalizeWorkspaceAddress(address)
+}
+
+func isLegacyDirectWorkspaceBinding(link *schema.SourceRuleLink, mappingRecord *schema.Mapping, tagRecord *schema.Tag) bool {
+	if link == nil || mappingRecord == nil || tagRecord == nil {
+		return false
+	}
+	if strings.TrimSpace(tagRecord.Labels) != "" {
+		return false
+	}
+	if link.MappingID == nil || link.TagID == nil {
+		return false
+	}
+	return strings.TrimSpace(*link.MappingID) == strings.TrimSpace(mappingRecord.ID) &&
+		strings.TrimSpace(*link.TagID) == strings.TrimSpace(tagRecord.ID) &&
+		strings.TrimSpace(mappingRecord.PointID) == strings.TrimSpace(link.PointID) &&
+		strings.TrimSpace(mappingRecord.TagID) == strings.TrimSpace(tagRecord.ID)
 }
 
 func decodeRuleManagedWorkspaceTagLabels(tagRecord *schema.Tag) (map[string]string, bool) {

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useStudioV2RuntimeContextQuery } from '../../../hooks/datalink/useStudioV2RuntimeContext';
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
+import type { RuntimeValueEvent } from '../../../types/datalink';
 import type {
   StudioV2RuntimeContextDevice,
-  RuntimeValueEvent,
-} from '../../../types/datalink';
+  StudioV2RuntimeSetupContext,
+} from '../../../types/studioV2RuntimeContext';
 import type { RuntimeStatusWithDiagnostics } from '../../../types/runtimeDiagnostics';
 import { useRuntimeStatus } from './useRuntimeStatus';
 import { useRuntimeDashboardStream } from './useRuntimeStream';
@@ -38,6 +39,7 @@ export interface RuntimeDashboardState {
   selectedDeviceId: string | null;
   selectedDevice: StudioV2RuntimeContextDevice | null;
   devices: StudioV2RuntimeContextDevice[];
+  setupContext: StudioV2RuntimeSetupContext | null;
   snapshot: RuntimeStatusWithDiagnostics | null;
   snapshotError: string | null;
   liveValues: Record<string, RuntimeValueEvent>;
@@ -58,6 +60,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     () => runtimeContextQuery.data?.devices ?? [],
     [runtimeContextQuery.data],
   );
+  const setupContext = runtimeContextQuery.data?.setup ?? null;
   const selectedDeviceId = useMemo(() => {
     if (queryDeviceId) {
       return queryDeviceId;
@@ -196,6 +199,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     selectedDeviceId,
     selectedDevice,
     devices,
+    setupContext,
     snapshot: currentSnapshot,
     snapshotError,
     liveValues: stream.liveValues,

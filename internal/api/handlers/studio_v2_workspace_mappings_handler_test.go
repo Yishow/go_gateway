@@ -197,3 +197,121 @@ func TestStudioV2WorkspaceMappingsHandler_CreateRejectsExistingUnmanagedTagKey(t
 	require.Equal(t, http.StatusBadRequest, createResp.Code)
 	require.Contains(t, createResp.Body.String(), "ownership mismatch")
 }
+
+func TestStudioV2WorkspaceMappingsHandler_ListRecoversExistingPointMappingWhenRuleLinkLost(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, mappingSvc, ruleSvc, tagSvc := newWorkspaceMappingHandler(t)
+	ctx := context.Background()
+	links, err := ruleSvc.ListLinks(ctx, "rule-A")
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+	require.Nil(t, links[0].MappingID)
+
+	tagRecord, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "line.a.saved",
+		DisplayName: "Line A Temp",
+		Unit:        "C",
+		DataType:    schema.DataTypeFloat64,
+		Labels: map[string]string{
+			ruleManagedTagLabelSource:  ruleManagedTagLabelValue,
+			ruleManagedTagLabelRuleID:  "rule-A",
+			ruleManagedTagLabelAddress: "40001",
+		},
+	})
+	require.NoError(t, err)
+	mappingRecord, err := mappingSvc.Create(ctx, mapping.CreateMappingRequest{
+		PointID:           links[0].PointID,
+		TagID:             tagRecord.ID,
+		Enabled:           boolPtr(true),
+		TransformPipeline: buildWorkspaceMappingPipeline(schema.DataTypeInt16, schema.DataTypeFloat64, 1, 0),
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/mappings", nil)
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	handler.List(c)
+
+	require.Equal(t, http.StatusOK, resp.Code)
+	body := decodeWorkspaceMappingBody(t, resp)
+	rows := body["data"].([]any)
+	require.Len(t, rows, 1)
+	row := rows[0].(map[string]any)
+	require.Equal(t, mappingRecord.ID, row["id"])
+	require.Equal(t, "line.a.saved", row["tag_key"])
+
+	links, err = ruleSvc.ListLinks(ctx, "rule-A")
+	require.NoError(t, err)
+	require.NotNil(t, links[0].MappingID)
+	require.Equal(t, mappingRecord.ID, *links[0].MappingID)
+	require.NotNil(t, links[0].TagID)
+	require.Equal(t, tagRecord.ID, *links[0].TagID)
+}
+
+func TestStudioV2WorkspaceMappingsHandler_CreateAdoptsExistingPointMappingWhenRuleLinkLost(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, mappingSvc, ruleSvc, tagSvc := newWorkspaceMappingHandler(t)
+	ctx := context.Background()
+	links, err := ruleSvc.ListLinks(ctx, "rule-A")
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+	require.Nil(t, links[0].MappingID)
+
+	tagRecord, err := tagSvc.Create(ctx, tag.CreateTagRequest{
+		Key:         "line.a.saved",
+		DisplayName: "Line A Temp",
+		Unit:        "C",
+		DataType:    schema.DataTypeFloat64,
+		Labels: map[string]string{
+			ruleManagedTagLabelSource:  ruleManagedTagLabelValue,
+			ruleManagedTagLabelRuleID:  "rule-A",
+			ruleManagedTagLabelAddress: "40001",
+		},
+	})
+	require.NoError(t, err)
+	mappingRecord, err := mappingSvc.Create(ctx, mapping.CreateMappingRequest{
+		PointID:           links[0].PointID,
+		TagID:             tagRecord.ID,
+		Enabled:           boolPtr(true),
+		TransformPipeline: buildWorkspaceMappingPipeline(schema.DataTypeInt16, schema.DataTypeFloat64, 1, 0),
+	})
+	require.NoError(t, err)
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
+		"rule_id":"rule-A",
+		"address":"40001",
+		"tag_key":"line.a.saved",
+		"display_name":"Line A Temp",
+		"unit":"C",
+		"target_type":"float64",
+		"scale":2,
+		"offset":1,
+		"enabled":true
+	}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp := httptest.NewRecorder()
+	createCtx, _ := gin.CreateTestContext(createResp)
+	createCtx.Request = createReq
+
+	handler.Create(createCtx)
+
+	require.Equal(t, http.StatusOK, createResp.Code)
+	body := decodeWorkspaceMappingBody(t, createResp)
+	row := body["data"].(map[string]any)
+	require.Equal(t, mappingRecord.ID, row["id"])
+	require.Equal(t, float64(2), row["scale"])
+	require.Equal(t, float64(1), row["offset"])
+
+	allMappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
+	require.NoError(t, err)
+	require.Len(t, allMappings, 1)
+
+	links, err = ruleSvc.ListLinks(ctx, "rule-A")
+	require.NoError(t, err)
+	require.NotNil(t, links[0].MappingID)
+	require.Equal(t, mappingRecord.ID, *links[0].MappingID)
+}

@@ -4,6 +4,8 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeDashboardRoute } from '../../../src/features/datalink/runtime-dashboard/RuntimeDashboardRoute';
 import type { Point, RuntimeCollectorStatus, RuntimeStatus } from '../../../src/types/datalink';
+import type { StudioV2RuntimeSetupContext } from '../../../src/types/studioV2RuntimeContext';
+import { createRuntimeSetupFixture } from './runtimeSetupFixture';
 
 const {
   mockRuntimeContext,
@@ -22,6 +24,7 @@ const {
       availability_reason: string | null;
     }>,
     default_device_id: null as string | null,
+    setup: null as StudioV2RuntimeSetupContext | null,
   },
   mockPoints: [] as Point[],
   mockRuntimeStatus: vi.fn<() => Promise<RuntimeStatus>>(),
@@ -29,18 +32,15 @@ const {
 }));
 
 type EventHandler = (event: MessageEvent<string>) => void;
-
 class MockEventSource {
   url: string;
   onopen: ((event: Event) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
   private listeners = new Map<string, Set<EventHandler>>();
-
   constructor(url: string) {
     this.url = url;
     mockEventSources.push(this);
   }
-
   addEventListener(type: string, listener: EventHandler) {
     const existing = this.listeners.get(type) ?? new Set<EventHandler>();
     existing.add(listener);
@@ -50,14 +50,11 @@ class MockEventSource {
   removeEventListener(type: string, listener: EventHandler) {
     this.listeners.get(type)?.delete(listener);
   }
-
   close() {}
-
   emit(type: string, data: unknown) {
     const payload = { data: JSON.stringify(data) } as MessageEvent<string>;
     this.listeners.get(type)?.forEach((listener) => listener(payload));
   }
-
   fail() {
     this.onerror?.(new Event('error'));
   }
@@ -160,6 +157,7 @@ describe('runtime dashboard route state', () => {
       availability_reason: null,
     });
     mockRuntimeContext.default_device_id = 'device-A';
+    mockRuntimeContext.setup = createRuntimeSetupFixture();
 
     mockPoints.splice(0, mockPoints.length, {
       id: 'point-1',
@@ -232,6 +230,25 @@ describe('runtime dashboard route state', () => {
     expect(screen.getByTestId('runtime-dashboard-selected-device')).toHaveTextContent('Mixer PLC');
     expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('invalid Step 1 configuration');
     expect(screen.getByTestId('runtime-dashboard-location')).toHaveTextContent('');
+  });
+
+  it('passes configured setup context from runtime context to the dashboard', async () => {
+    renderRoute('/studio/runtime?device_id=device-A');
+
+    await waitFor(() => {
+      expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A');
+    });
+    act(() => {
+      mockEventSources[0].open();
+    });
+
+    const panel = await screen.findByTestId('runtime-dashboard-setup-context');
+    expect(panel).toHaveTextContent('database-target-missing');
+    expect(panel).toHaveTextContent('40001');
+    expect(panel).toHaveTextContent('line01.temp.inlet');
+    expect(panel).toHaveTextContent('入口溫度');
+    expect(panel).toHaveTextContent('PostgreSQL Connector');
+    expect(panel).toHaveTextContent('gateway_metrics');
   });
 
   it('updates query state when switching device', async () => {

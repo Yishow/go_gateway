@@ -22,6 +22,12 @@ type RuntimeHandler struct {
 	scheduler    *collector.Scheduler
 	runtimeSvc   *datalinkruntime.Service
 	workspaceSvc *workspace.Service
+
+	sourceRuleReader  runtimeWorkspaceSourceRuleReader
+	tagReader         runtimeWorkspaceTagReader
+	mappingReader     runtimeWorkspaceMappingReader
+	dbConnectorReader runtimeWorkspaceDatabaseConnectorReader
+	dbTargetReader    runtimeWorkspaceDatabaseTargetReader
 }
 
 type runtimeStatusResponse struct {
@@ -59,6 +65,7 @@ type runtimeWorkspaceContextResponse struct {
 	WorkspaceID     string                               `json:"workspace_id"`
 	Devices         []runtimeWorkspaceContextDeviceEntry `json:"devices"`
 	DefaultDeviceID *string                              `json:"default_device_id"`
+	Setup           runtimeWorkspaceSetupContextResponse `json:"setup"`
 }
 
 type runtimeWorkspaceContextDeviceEntry struct {
@@ -130,6 +137,17 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 		WorkspaceID: record.ID,
 		Devices:     make([]runtimeWorkspaceContextDeviceEntry, 0, len(record.OrderedDeviceIDs)),
 	}
+	setup, err := h.buildWorkspaceSetupContext(c.Request.Context(), record)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"message": "failed to build workspace setup context: " + err.Error(),
+			},
+		})
+		return
+	}
+	response.Setup = setup
 	for _, deviceID := range record.OrderedDeviceIDs {
 		savedDevice, err := h.deviceSvc.GetByID(c.Request.Context(), deviceID)
 		if err != nil {

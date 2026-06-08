@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { WorkbenchV2State } from '../state/types';
 import { useWorkbenchV2State } from '../state/useWorkbenchV2State';
 import { TopBar } from './TopBar';
@@ -12,8 +14,15 @@ import {
 } from './resolveRuntimeDashboardDevice';
 import type { StudioV2ActivationResponse } from '../../../../types/studioV2Activation';
 import type { StudioV2WorkspaceAuditEntry } from '../../../../types/studioV2WorkspaceAudit';
-import type { StudioV2WorkspaceReadinessSummary } from '../../../../types/studioV2WorkspaceReadiness';
-import { WorkspaceReadinessPanel } from '../components/WorkspaceReadinessPanel';
+import type {
+  StudioV2WorkspaceReadinessIssue,
+  StudioV2WorkspaceReadinessSummary,
+} from '../../../../types/studioV2WorkspaceReadiness';
+import {
+  readinessStepNumber,
+  WorkspaceReadinessPanel,
+  type WorkspaceReadinessStepNumber,
+} from '../components/WorkspaceReadinessPanel';
 
 // 導入真實的步驟元件與設定頁面
 import { SettingsPage } from '../settings';
@@ -32,6 +41,12 @@ export interface WorkbenchV2ShellProps {
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
   workspaceAuditHistory?: StudioV2WorkspaceAuditEntry[];
   workspaceAuditUnavailable?: boolean;
+  runtimeReturnFocus?: WorkbenchV2RuntimeReturnFocus | null;
+}
+
+export interface WorkbenchV2RuntimeReturnFocus {
+  step: WorkspaceReadinessStepNumber;
+  issueCode?: string | null;
 }
 
 /**
@@ -48,7 +63,9 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   workspaceReadiness,
   workspaceAuditHistory,
   workspaceAuditUnavailable,
+  runtimeReturnFocus,
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const {
     view,
     current,
@@ -106,6 +123,34 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   }, [sidebarCollapsed, toggleSidebar]);
 
   const stepMeta = STEPS.find((s) => s.id === current);
+  const runtimeFocusStep = runtimeReturnFocus?.step;
+  const runtimeFocusIssueCode = runtimeReturnFocus?.issueCode ?? null;
+  const runtimeFocusedIssue = React.useMemo(() => {
+    if (!runtimeFocusStep) {
+      return null;
+    }
+
+    const issues = workspaceReadiness?.issues ?? [];
+    const exactIssue = runtimeFocusIssueCode
+      ? issues.find((issue) => issue.code === runtimeFocusIssueCode)
+      : null;
+
+    return exactIssue ?? issues.find((issue) => readinessStepNumber(issue.step) === runtimeFocusStep) ?? null;
+  }, [runtimeFocusIssueCode, runtimeFocusStep, workspaceReadiness?.issues]);
+  const runtimeFocusGuidance = runtimeFocusedIssue
+    ? runtimeReturnGuidanceFor(runtimeFocusedIssue, t)
+    : null;
+  const runtimeFocusScope = runtimeFocusedIssue?.scope.trim();
+
+  React.useEffect(() => {
+    if (!runtimeFocusStep) {
+      return;
+    }
+
+    setView('flow');
+    setCurrent(runtimeFocusStep);
+    document.getElementById('step-content')?.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }, [runtimeFocusStep, runtimeFocusIssueCode, setCurrent, setView]);
 
   const goBack = () => {
     if (current > 1) {
@@ -134,6 +179,11 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     const target = buildRuntimeDashboardTarget(resolveRuntimeDashboardDevice(state));
     navigateTo?.(target);
   }, [navigateTo, state]);
+
+  const handleNavigateStep = React.useCallback((step: WorkspaceReadinessStepNumber) => {
+    setCurrent(step);
+    document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [setCurrent]);
 
   // 渲染中央步驟內容
   const renderContent = () => {
@@ -184,6 +234,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             onCommit={handleRuntimeDashboardHandoff}
             activateWorkspace={activateWorkspace}
             workspaceReadiness={workspaceReadiness}
+            onNavigateStep={handleNavigateStep}
           />
         );
       default:
@@ -285,6 +336,52 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                 />
               </div>
 
+              {runtimeFocusStep ? (
+                <section
+                  data-testid="workbench-v2-runtime-return-focus"
+                  className="mb-4 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-amber-50"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-semibold">
+                        {t('runtime_return.title', { step: `Step ${runtimeFocusStep}` })}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-amber-100/80">
+                        {runtimeFocusedIssue?.message ?? t('runtime_return.description')}
+                      </p>
+                      {runtimeFocusedIssue ? (
+                        <p className="mt-1 font-mono text-[11px] text-amber-200/90">
+                          {runtimeFocusedIssue.code}
+                        </p>
+                      ) : null}
+                      {runtimeFocusGuidance ? (
+                        <p
+                          data-testid="workbench-v2-runtime-return-guidance"
+                          className="mt-2 text-xs leading-5 text-amber-50"
+                        >
+                          {runtimeFocusGuidance}
+                        </p>
+                      ) : null}
+                      {runtimeFocusScope ? (
+                        <p
+                          data-testid="workbench-v2-runtime-return-scope"
+                          className="mt-1 font-mono text-[11px] text-amber-200/90"
+                        >
+                          {t('runtime_return.scope', { scope: runtimeFocusScope })}
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateStep(runtimeFocusStep)}
+                      className="shrink-0 rounded-lg border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-50 transition hover:bg-amber-300/20"
+                    >
+                      {t('runtime_return.action', { step: `Step ${runtimeFocusStep}` })}
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
               {/* 步驟元件 */}
               {renderContent()}
 
@@ -327,6 +424,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                 workspaceReadiness={workspaceReadiness}
                 workspaceAuditHistory={workspaceAuditHistory}
                 workspaceAuditUnavailable={workspaceAuditUnavailable}
+                onOpenRuntime={handleRuntimeDashboardHandoff}
               />
             </div>
           </aside>
@@ -344,4 +442,17 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     </div>
   );
 };
+
+function runtimeReturnGuidanceFor(
+  issue: StudioV2WorkspaceReadinessIssue,
+  t: TFunction<'workbench-v2'>,
+): string | null {
+  switch (issue.code) {
+    case 'point-missing':
+      return t('runtime_return.point_missing_action');
+    default:
+      return null;
+  }
+}
+
 export default WorkbenchV2Shell;

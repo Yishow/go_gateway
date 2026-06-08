@@ -11,6 +11,7 @@ export interface SummaryRailProps {
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
   workspaceAuditHistory?: StudioV2WorkspaceAuditEntry[];
   workspaceAuditUnavailable?: boolean;
+  onOpenRuntime?: () => void;
 }
 
 /**
@@ -25,6 +26,7 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
   workspaceReadiness,
   workspaceAuditHistory,
   workspaceAuditUnavailable,
+  onOpenRuntime,
 }) => {
   const [isWide, setIsWide] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -87,10 +89,15 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
     .filter((r) => r.enabled)
     .reduce((sum, r) => sum + r.count - (r.skipped_addresses?.length || 0), 0);
   const testedDevs = devices.filter((d) => d.test?.status === 'success').length;
+  const hasRunningDevice = state.devices.some((device) => device.running);
 
   return (
     <div className="space-y-3 w-[260px] flex-shrink-0" data-testid="summary-rail">
-      <WorkspaceReadinessPanel summary={workspaceReadiness} dataTestId="summary-rail-readiness" maxIssues={3} />
+      <WorkspaceReadinessPanel
+        summary={workspaceReadiness}
+        dataTestId="summary-rail-readiness"
+        compact
+      />
       <WorkspaceAuditHistoryPanel
         entries={workspaceAuditHistory}
         unavailable={workspaceAuditUnavailable}
@@ -185,13 +192,27 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
       </div>
 
       {/* 部署成功提示 */}
-      {state.devices.some((device) => device.running) && (
+      {hasRunningDevice && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] p-3 sweep-in">
-          <div className="flex items-center gap-2 text-emerald-200 text-xs font-semibold">
-            <Icon name="check" className="w-3.5 h-3.5" />
-            已有設備在 Runtime 執行
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-emerald-200 text-xs font-semibold">
+                <Icon name="check" className="w-3.5 h-3.5" />
+                已有設備在 Runtime 執行
+              </div>
+              <div className="text-[10px] text-emerald-300/70 mt-1">
+                可直接進入 Runtime 觀察已成功啟動的設備。
+              </div>
+            </div>
+            <button
+              type="button"
+              data-testid="summary-rail-runtime-link"
+              onClick={onOpenRuntime}
+              className="shrink-0 rounded-md border border-emerald-400/40 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold text-emerald-100 transition-colors hover:bg-emerald-400/20"
+            >
+              前往 Runtime
+            </button>
           </div>
-          <div className="text-[10px] text-emerald-300/70 mt-1">可前往 Runtime 觀察已成功啟動的設備。</div>
         </div>
       )}
     </div>

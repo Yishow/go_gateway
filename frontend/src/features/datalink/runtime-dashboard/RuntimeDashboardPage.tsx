@@ -6,26 +6,38 @@ import { LiveStateBanner } from './LiveStateBanner';
 import { RuntimeDiagnosticsPanel } from './RuntimeDiagnosticsPanel';
 import { RuntimeSummaryPanel } from './RuntimeSummaryPanel';
 import { RealtimeLogsPanel } from './RealtimeLogsPanel';
+import { RuntimeSetupContextPanel } from './RuntimeSetupContextPanel';
 import type { RuntimeDashboardState } from './useRuntimeDashboardState';
 
-export interface RuntimeDashboardPageProps extends RuntimeDashboardState {}
+export interface RuntimeDashboardPageProps extends RuntimeDashboardState {
+  navigateTo?: (target: string) => void;
+}
 
 export function RuntimeDashboardPage({
   routeState,
   selectedDeviceId,
   selectedDevice,
   devices,
+  setupContext,
   snapshot,
   snapshotError,
   liveValues,
   streamState,
   logs = [],
+  navigateTo,
   onSelectDevice,
   onRetrySnapshot,
 }: RuntimeDashboardPageProps) {
   const { t } = useTranslation('runtime-dashboard');
   const collector =
     snapshot?.collectors.find((item) => item.device_id === selectedDeviceId) ?? null;
+  const setupPanel = (
+    <RuntimeSetupContextPanel
+      setupContext={setupContext}
+      selectedDevice={selectedDevice}
+      navigateTo={navigateTo}
+    />
+  );
 
   if (routeState === 'empty-workspace') {
     return (
@@ -50,6 +62,7 @@ export function RuntimeDashboardPage({
             devices={devices}
             onSelectDevice={onSelectDevice}
           />
+          {setupPanel}
           <section className="rounded-3xl border border-dashed border-slate-700 bg-slate-900/60 p-8">
             <h2 className="text-xl font-semibold text-slate-50">
               {t('emptyWorkspace.title', 'No available runtime device yet')}
@@ -95,6 +108,7 @@ export function RuntimeDashboardPage({
             devices={devices}
             onSelectDevice={onSelectDevice}
           />
+          {setupPanel}
           <section className="rounded-3xl border border-dashed border-slate-700 bg-slate-900/60 p-8">
             <h2 className="text-xl font-semibold text-slate-50">
               {t('empty.title', 'Choose a runtime device')}
@@ -131,6 +145,7 @@ export function RuntimeDashboardPage({
             devices={devices}
             onSelectDevice={onSelectDevice}
           />
+          {setupPanel}
           <section
             className="rounded-3xl border border-dashed border-slate-700 bg-slate-900/60 p-8"
             data-testid="runtime-dashboard-empty-snapshot"
@@ -153,19 +168,20 @@ export function RuntimeDashboardPage({
   if (routeState === 'loading') {
     return (
       <div className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100" data-testid="runtime-dashboard-route">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div data-testid="runtime-dashboard-route-state">loading</div>
-        <div className="sr-only" data-testid="runtime-dashboard-selected-device">
-          {selectedDevice?.name ?? selectedDeviceId ?? ''}
-        </div>
-        <div className="sr-only" data-testid="runtime-dashboard-collector-count">0</div>
-        <div className="sr-only" data-testid="runtime-dashboard-stream-state">{streamState}</div>
-        <FocusedDeviceHeader
-          selectedDeviceId={selectedDeviceId}
-          selectedDevice={selectedDevice}
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div data-testid="runtime-dashboard-route-state">loading</div>
+          <div className="sr-only" data-testid="runtime-dashboard-selected-device">
+            {selectedDevice?.name ?? selectedDeviceId ?? ''}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-collector-count">0</div>
+          <div className="sr-only" data-testid="runtime-dashboard-stream-state">{streamState}</div>
+          <FocusedDeviceHeader
+            selectedDeviceId={selectedDeviceId}
+            selectedDevice={selectedDevice}
             devices={devices}
             onSelectDevice={onSelectDevice}
           />
+          {setupPanel}
           <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 text-sm text-slate-400">
             {t('loading.message', 'Loading the latest runtime snapshot...')}
           </section>
@@ -177,21 +193,22 @@ export function RuntimeDashboardPage({
   if (routeState === 'error') {
     return (
       <div className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100" data-testid="runtime-dashboard-route">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div data-testid="runtime-dashboard-route-state">error</div>
-        <div className="sr-only" data-testid="runtime-dashboard-selected-device">
-          {selectedDevice?.name ?? selectedDeviceId ?? ''}
-        </div>
-        <div className="sr-only" data-testid="runtime-dashboard-collector-count">
-          {snapshot?.collectors.length ?? 0}
-        </div>
-        <div className="sr-only" data-testid="runtime-dashboard-stream-state">{streamState}</div>
-        <FocusedDeviceHeader
-          selectedDeviceId={selectedDeviceId}
-          selectedDevice={selectedDevice}
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div data-testid="runtime-dashboard-route-state">error</div>
+          <div className="sr-only" data-testid="runtime-dashboard-selected-device">
+            {selectedDevice?.name ?? selectedDeviceId ?? ''}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-collector-count">
+            {snapshot?.collectors.length ?? 0}
+          </div>
+          <div className="sr-only" data-testid="runtime-dashboard-stream-state">{streamState}</div>
+          <FocusedDeviceHeader
+            selectedDeviceId={selectedDeviceId}
+            selectedDevice={selectedDevice}
             devices={devices}
             onSelectDevice={onSelectDevice}
           />
+          {setupPanel}
           <section className="rounded-3xl border border-rose-500/30 bg-rose-500/10 p-8">
             <h2 className="text-xl font-semibold text-rose-100">
               {t('error.title', 'Runtime snapshot unavailable')}
@@ -236,6 +253,7 @@ export function RuntimeDashboardPage({
           devices={devices}
           onSelectDevice={onSelectDevice}
         />
+        {setupPanel}
         <LiveStateBanner routeState={routeState} />
         {snapshot ? (
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">

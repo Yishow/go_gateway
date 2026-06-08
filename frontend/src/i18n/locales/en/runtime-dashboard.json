@@ -55,6 +55,51 @@
     "workspaceProjectionVersion": "Workspace projection",
     "projectionMessage": "Projection message"
   },
+  "setup": {
+    "title": "Workspace readiness",
+    "description": "Saved Studio V2 setup conditions used by this runtime view.",
+    "returnToStudio": "Return to Studio V2",
+    "fixInStudio": "Fix in {{step}}",
+    "moreSuffix": "more",
+    "projectionStale": "Projection stale",
+    "runtimeProjection": "Runtime projection",
+    "workspaceProjection": "Workspace projection",
+    "readiness": {
+      "title": "Readiness result",
+      "ready": "Ready",
+      "blockerUnit": "blockers",
+      "empty": "No readiness blockers reported."
+    },
+    "rules": {
+      "title": "Configured source rules",
+      "pointUnit": "points",
+      "empty": "No persisted source rules."
+    },
+    "mappings": {
+      "title": "Configured mappings",
+      "unbound": "unbound tag",
+      "empty": "No persisted mappings."
+    },
+    "database": {
+      "title": "Database setup",
+      "connector": "Connector",
+      "database": "Database",
+      "table": "Table",
+      "interval": "Interval",
+      "status": "Status",
+      "targets": "Targets",
+      "noTargets": "No persisted database targets",
+      "empty": "No persisted database config."
+    },
+    "actions": {
+      "pointMissing": "Fix in Step 2: re-save this source rule to rebuild the missing derived point.",
+      "databaseTargetMissing": "Fix in Step 4: create a database target for this derived point.",
+      "tagMissing": "Fix in Step 3: complete the tag mapping for this derived point.",
+      "mappingMissing": "Fix in Step 3: save the point-to-tag mapping.",
+      "deviceProbeRequired": "Fix in Step 1: pass connection/probe readiness before activation.",
+      "default": "Open Studio V2 and resolve the owning step shown above."
+    }
+  },
   "points": {
     "title": "Live points",
     "description": "Live point rows update after the first runtime value event arrives.",

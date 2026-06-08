@@ -1,4 +1,5 @@
-import type { APIResponse, StudioV2RuntimeContext } from '../types/datalink';
+import type { APIResponse } from '../types/datalink';
+import type { StudioV2RuntimeContext } from '../types/studioV2RuntimeContext';
 import { studioV2DatalinkApi } from './studioV2Workspace';
 
 export const studioV2RuntimeContextAPI = {
