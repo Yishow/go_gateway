@@ -811,3 +811,457 @@ tests:
   - internal/datalink/mapping/service_workspace_scope_test.go
   - internal/api/handlers/point_handler_poll_contract_test.go
 -->
+
+---
+### Requirement: Workspace runtime view exposes projection alignment state
+
+The workspace-scoped runtime view SHALL expose whether the current runtime projection is aligned with the latest persisted workspace state.
+
+#### Scenario: Runtime view shows projection drift
+
+- **WHEN** runtime is still running an older projection than the current persisted workspace state
+- **THEN** the workspace runtime view reports that the projection is out of date
+- **AND** the operator can see whether the next step is targeted reconcile, restart, or reactivation
+
+##### Example: view shows stale projection after saved mapping change
+
+- **GIVEN** mapping m-2 was persisted after runtime last reconciled projection version v12
+- **WHEN** the workspace runtime view loads against still-running projection v12
+- **THEN** the view reports drift between persisted state and active runtime projection
+
+<!-- @trace
+source: reconcile-runtime-with-workspace
+updated: 2026-06-09
+code:
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/index.ts
+  - internal/datalink/workspace/service_activation.go
+  - tests/shell/start-frontend-readiness.sh
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceAuditHistory.ts
+  - start.sh
+  - internal/api/handlers/studio_v2_workspace_database_handler_helpers.go
+  - internal/datalink/runtime/service_device_sync.go
+  - frontend/src/features/datalink/workbench-v2/state/dbReducer.ts
+  - internal/api/handlers/studio_v2_workspace_audit_history_handler.go
+  - internal/datalink/dbtarget/live_projection.go
+  - internal/api/handlers/runtime_workspace_setup_types.go
+  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
+  - internal/datalink/audit/sql_repository.go
+  - internal/datalink/schema/migrations/015_database_delivery_outcomes.down.sql
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/schema/migrations/015_database_delivery_outcomes_sqlite.up.sql
+  - frontend/src/features/datalink/runtime-dashboard/CollectorHealthPanel.tsx
+  - internal/datalink/audit/service.go
+  - frontend/src/types/studioV2RuntimeContext.ts
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
+  - internal/datalink/workspace/service_runtime_projection_scope.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
+  - internal/datalink/workspace/service_runtime_projection.go
+  - frontend/studio-v2-diagnostic.cjs
+  - internal/api/handlers/source_rule_handler.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/DeliveryTruthStrip.tsx
+  - internal/datalink/migrator_database_delivery_outcomes.go
+  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - internal/api/handlers/studio_v2_workspace_mappings_handler.go
+  - internal/datalink/workspace/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/runtime/delivery_diagnostic.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
+  - Makefile
+  - internal/datalink/migrator.go
+  - internal/datalink/dbtarget/delivery_outcome.go
+  - frontend/src/App.tsx
+  - internal/api/handlers/studio_v2_workspace_audit.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
+  - internal/datalink/runtime/status.go
+  - frontend/src/types/runtimeDiagnostics.ts
+  - internal/api/handlers/studio_v2_workspace_mappings_delete.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/TargetTypeQuickActions.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
+  - internal/datalink/runtime/service.go
+  - frontend/src/hooks/datalink/useStudioV2Mappings.ts
+  - internal/datalink/runtime/truth_state.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDiagnosticsPanel.tsx
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
+  - frontend/src/hooks/datalink/keys.ts
+  - internal/api/handlers/runtime_handler.go
+  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
+  - internal/datalink/schema/schema_dbtarget_models.go
+  - frontend/src/types/runtimeTruth.ts
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - frontend/src/types/studioV2WorkspaceReadiness.ts
+  - frontend/src/types/studioV2WorkspaceAudit.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - tests/shell/start-frontend-install-failure.sh
+  - internal/datalink/audit/memory_repository.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - frontend/src/types/studioV2Workspace.ts
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSummaryPanel.tsx
+  - frontend/src/hooks/datalink/useStudioV2Rules.ts
+  - internal/api/handlers/studio_v2_workspace_database_handler.go
+  - internal/api/handlers/studio_v2_workspace_handler.go
+  - frontend/src/services/studioV2RuntimeContext.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingPayloadDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
+  - internal/datalink/runtime/service_projection_state.go
+  - internal/datalink/dbtarget/sql_repository.go
+  - frontend/e2e-studio-v2-live.cjs
+  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/TargetMappingTable.tsx
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSetupContextPanel.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CollapsibleSupportCard.tsx
+  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/types/studioV2RuntimeApply.ts
+  - frontend/src/types/datalink.ts
+  - internal/api/handlers/runtime_stream_handler.go
+  - internal/api/handlers/runtime_workspace_setup_context.go
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/services/studioV2WorkspaceAudit.ts
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - internal/datalink/workspace/service_runtime_projection_link_scope.go
+  - internal/datalink/workspace/service_readiness.go
+  - internal/api/handlers/studio_v2_workspace_mapping_types.go
+  - frontend/src/types/databaseDelivery.ts
+  - internal/api/handlers/studio_v2_workspace_activation_handler.go
+  - frontend/studio-v2-real-check.cjs
+  - internal/datalink/runtime/ingestor.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/DestinationOverviewCard.tsx
+  - frontend/src/services/studioV2Mappings.ts
+  - internal/api/handlers/studio_v2_runtime_apply.go
+  - frontend/src/features/datalink/workbench-v2/shell/WorkspaceAuditHistoryPanel.tsx
+  - frontend/src/features/datalink/workbench-v2/components/WorkspaceReadinessPanel.tsx
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardRoute.tsx
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
+  - internal/datalink/schema/migrations/016_workspace_audit_history_sqlite.up.sql
+  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
+  - internal/api/router.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/SchemaSetupSection.tsx
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
+  - internal/datalink/dbtarget/writer.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - internal/datalink/schema/migrations/015_database_delivery_outcomes.up.sql
+  - internal/datalink/runtime/service_source_rule_reconcile.go
+  - tests/shell/start-frontend-deps.sh
+  - internal/datalink/runtime/service_workspace_projection.go
+  - internal/datalink/dbtarget/sql_repository_connector_scan.go
+  - internal/datalink/audit/types.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingPreviewCells.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - internal/datalink/dbtarget/writer_statements.go
+tests:
+  - internal/api/handlers/studio_v2_workspace_mappings_readiness_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-diagnostics-state.test.tsx
+  - internal/datalink/dbtarget/live_projection_test.go
+  - frontend/tests/unit/workbench-v2/shell-readiness.test.tsx
+  - internal/api/handlers/studio_v2_workspace_audit_handler_test.go
+  - frontend/tests/unit/workbench-v2/workspace-readiness-panel.test.tsx
+  - internal/api/handlers/runtime_stream_handler_test.go
+  - frontend/tests/unit/hooks/useStudioV2Rules.test.ts
+  - internal/api/handlers/studio_v2_workspace_database_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
+  - internal/api/handlers/runtime_handler_test.go
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceAuditHistory.test.ts
+  - internal/datalink/workspace/service_readiness_stale_relationships_test.go
+  - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
+  - internal/api/handlers/studio_v2_workspace_mappings_handler_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-truth-state.test.tsx
+  - internal/datalink/workspace/service_readiness_test.go
+  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceDevices.test.ts
+  - frontend/tests/unit/workbench-v2/reducer-step4.test.ts
+  - internal/datalink/workspace/service_runtime_projection_helpers_test.go
+  - frontend/tests/unit/runtime-dashboard/runtimeSetupFixture.ts
+  - internal/api/handlers/studio_v2_workspace_database_readiness_test.go
+  - internal/datalink/workspace/service_runtime_projection_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
+  - internal/api/router_runtime_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_recovery_test.go
+  - internal/datalink/runtime/service_workspace_projection_test.go
+  - frontend/tests/unit/workbench-v2/routing.test.tsx
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/api/handlers/studio_v2_workspace_database_delivery_truth_test.go
+  - internal/api/router_runtime_database_delivery_test.go
+  - cmd/test_ui/main.go
+  - internal/api/handlers/studio_v2_workspace_activation_handler_test.go
+  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-delivery-truth.test.tsx
+  - internal/datalink/runtime/service_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.test.tsx
+  - frontend/tests/unit/workbench-v2/shell.test.tsx
+  - internal/api/handlers/studio_v2_workspace_handler_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_regression_test.go
+  - internal/datalink/dbtarget/service_postgres_test.go
+  - internal/api/router_studio_v2_workspace_activation_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
+  - internal/api/handlers/runtime_handler_projection_test.go
+  - internal/datalink/workspace/service_readiness_connector_missing_test.go
+  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
+  - frontend/tests/unit/workbench-v2/workspace-boot.test.tsx
+  - internal/datalink/runtime/ingestor_test.go
+  - internal/datalink/workspace/service_activation_test.go
+  - internal/datalink/workspace/service_activation_projection_test.go
+  - internal/datalink/sourcerule/service_runtime_reconcile_test.go
+  - internal/datalink/workspace/service_readiness_empty_test.go
+  - internal/datalink/workspace/service_readiness_recovery_test.go
+  - frontend/tests/unit/workbench-v2/shell-redesign.test.tsx
+  - frontend/tests/unit/hooks/useStudioV2Mappings.test.ts
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceDatabase.test.ts
+  - internal/datalink/dbtarget/delivery_outcome_test.go
+  - internal/api/router_studio_v2_workspace_test.go
+  - cmd/test_ui/static/index.html
+  - internal/datalink/audit/service_test.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
+  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - internal/api/handlers/studio_v2_workspace_devices_reconcile_test.go
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery_regression_test.go
+  - frontend/tests/unit/workbench-v2/step3-target-type-shortcuts.test.tsx
+  - internal/datalink/runtime/service_source_rule_reconcile_test.go
+  - internal/datalink/runtime/status_test.go
+-->
+
+---
+### Requirement: Workspace runtime view stays aligned to the selected device truth
+
+The workspace-scoped runtime view SHALL stay aligned to the selected device truth from runtime backend data.
+
+#### Scenario: Workspace runtime view refuses cross-device synthetic summary
+
+- **WHEN** the selected device lacks runtime data while another device has runtime data
+- **THEN** the workspace runtime view reports the selected device as missing or degraded
+- **AND** it SHALL NOT display another device's runtime summary as a substitute
+
+##### Example: runtime view keeps selected scope truthful
+
+- **GIVEN** selected device dev-A has no runtime summary and dev-B has one
+- **WHEN** the workspace runtime view loads for dev-A
+- **THEN** the view keeps dev-A in missing or degraded state instead of borrowing dev-B data
+
+<!-- @trace
+source: make-runtime-dashboard-truthful
+updated: 2026-06-09
+code:
+  - internal/datalink/schema/migrations/015_database_delivery_outcomes.up.sql
+  - internal/datalink/schema/schema_dbtarget_models.go
+  - frontend/src/hooks/datalink/keys.ts
+  - internal/datalink/runtime/ingestor.go
+  - internal/datalink/workspace/service_runtime_projection.go
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/audit/service.go
+  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
+  - frontend/src/types/studioV2WorkspaceAudit.ts
+  - internal/datalink/runtime/service_projection_state.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - start.sh
+  - internal/api/handlers/studio_v2_workspace_mappings_handler.go
+  - internal/api/handlers/studio_v2_workspace_database_handler_helpers.go
+  - tests/shell/start-frontend-install-failure.sh
+  - internal/api/handlers/studio_v2_workspace_audit.go
+  - internal/datalink/audit/types.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/runtime/service_workspace_projection.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardRoute.tsx
+  - internal/datalink/runtime/service_device_sync.go
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
+  - frontend/src/types/studioV2RuntimeApply.ts
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - internal/datalink/dbtarget/service_validate.go
+  - internal/datalink/dbtarget/sql_repository_connector_scan.go
+  - frontend/e2e-studio-v2-live.cjs
+  - internal/api/handlers/runtime_handler.go
+  - internal/datalink/workspace/service_readiness.go
+  - frontend/src/services/studioV2WorkspaceAudit.ts
+  - frontend/src/types/studioV2WorkspaceReadiness.ts
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSummaryPanel.tsx
+  - tests/shell/start-frontend-deps.sh
+  - Makefile
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceAuditHistory.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
+  - internal/datalink/runtime/truth_state.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - internal/datalink/workspace/service_runtime_projection_scope.go
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - internal/datalink/runtime/status.go
+  - frontend/src/types/datalink.ts
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - internal/datalink/runtime/service.go
+  - internal/api/handlers/studio_v2_workspace_mappings_delete.go
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
+  - frontend/src/services/studioV2RuntimeContext.ts
+  - internal/datalink/dbtarget/delivery_outcome.go
+  - frontend/src/App.tsx
+  - frontend/studio-v2-diagnostic.cjs
+  - internal/datalink/audit/memory_repository.go
+  - internal/datalink/schema/migrations/016_workspace_audit_history_sqlite.up.sql
+  - frontend/src/hooks/datalink/useStudioV2Rules.ts
+  - internal/datalink/dbtarget/live_projection.go
+  - internal/api/handlers/studio_v2_workspace_handler.go
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
+  - frontend/src/types/runtimeTruth.ts
+  - internal/api/handlers/runtime_stream_handler.go
+  - internal/api/handlers/studio_v2_runtime_apply.go
+  - internal/datalink/schema/migrations/015_database_delivery_outcomes.down.sql
+  - frontend/src/types/runtimeDiagnostics.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingPayloadDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
+  - internal/datalink/workspace/service_runtime_projection_link_scope.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/DeliveryTruthStrip.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts
+  - internal/api/handlers/runtime_workspace_setup_types.go
+  - internal/api/router.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - internal/datalink/dbtarget/sql_repository.go
+  - frontend/src/features/datalink/runtime-dashboard/CollectorHealthPanel.tsx
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/datalink/dbtarget/writer_statements.go
+  - tests/shell/start-frontend-readiness.sh
+  - frontend/src/features/datalink/workbench-v2/state/dbReducer.ts
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeSetupContextPanel.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
+  - internal/datalink/audit/sql_repository.go
+  - internal/datalink/workspace/service_activation.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingPreviewCells.tsx
+  - internal/api/handlers/studio_v2_workspace_activation_handler.go
+  - frontend/src/types/studioV2Workspace.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - internal/datalink/runtime/delivery_diagnostic.go
+  - internal/datalink/workspace/service.go
+  - internal/api/handlers/runtime_workspace_setup_context.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/TargetMappingTable.tsx
+  - internal/datalink/schema/migrations/015_database_delivery_outcomes_sqlite.up.sql
+  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
+  - internal/api/handlers/studio_v2_workspace_database_handler.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/SchemaSetupSection.tsx
+  - internal/datalink/dbtarget/service.go
+  - internal/api/handlers/studio_v2_workspace_mapping_types.go
+  - frontend/src/services/studioV2Mappings.ts
+  - frontend/src/types/databaseDelivery.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
+  - internal/api/handlers/studio_v2_workspace_audit_history_handler.go
+  - internal/datalink/migrator_database_delivery_outcomes.go
+  - internal/api/handlers/source_rule_handler.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CollapsibleSupportCard.tsx
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery.go
+  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/DestinationOverviewCard.tsx
+  - frontend/src/types/studioV2RuntimeContext.ts
+  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
+  - frontend/src/features/datalink/workbench-v2/shell/WorkspaceAuditHistoryPanel.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/TargetTypeQuickActions.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/index.ts
+  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/components/WorkspaceReadinessPanel.tsx
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDiagnosticsPanel.tsx
+  - frontend/src/hooks/datalink/useStudioV2Mappings.ts
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - frontend/studio-v2-real-check.cjs
+  - internal/datalink/runtime/service_source_rule_reconcile.go
+tests:
+  - frontend/tests/unit/workbench-v2/step4-delivery-truth.test.tsx
+  - internal/datalink/audit/service_test.go
+  - internal/api/router_runtime_database_delivery_test.go
+  - internal/datalink/dbtarget/service_postgres_test.go
+  - internal/datalink/workspace/service_readiness_empty_test.go
+  - internal/api/handlers/runtime_stream_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_readiness_test.go
+  - internal/api/handlers/studio_v2_workspace_database_handler_test.go
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - internal/api/handlers/studio_v2_workspace_database_readiness_test.go
+  - internal/api/handlers/studio_v2_workspace_database_delivery_truth_test.go
+  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
+  - frontend/tests/unit/workbench-v2/shell-readiness.test.tsx
+  - frontend/tests/unit/workbench-v2/reducer-step4.test.ts
+  - frontend/tests/unit/workbench-v2/workspace-boot.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-truth-state.test.tsx
+  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery_regression_test.go
+  - internal/datalink/workspace/service_runtime_projection_test.go
+  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
+  - internal/api/router_runtime_test.go
+  - internal/datalink/runtime/service_workspace_projection_test.go
+  - internal/api/handlers/runtime_handler_test.go
+  - cmd/test_ui/static/index.html
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - frontend/tests/unit/workbench-v2/shell.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - internal/datalink/runtime/ingestor_test.go
+  - internal/api/router_studio_v2_workspace_activation_test.go
+  - internal/api/router_studio_v2_workspace_test.go
+  - frontend/tests/unit/workbench-v2/step3-target-type-shortcuts.test.tsx
+  - frontend/tests/unit/workbench-v2/shell-redesign.test.tsx
+  - frontend/tests/unit/workbench-v2/routing.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtimeSetupFixture.ts
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceDevices.test.ts
+  - internal/datalink/runtime/status_test.go
+  - frontend/tests/unit/workbench-v2/workspace-readiness-panel.test.tsx
+  - cmd/test_ui/main.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-diagnostics-state.test.tsx
+  - internal/datalink/workspace/service_activation_projection_test.go
+  - internal/datalink/workspace/service_activation_test.go
+  - internal/api/handlers/studio_v2_workspace_activation_handler_test.go
+  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
+  - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
+  - internal/datalink/runtime/service_source_rule_reconcile_test.go
+  - internal/datalink/dbtarget/delivery_outcome_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_reconcile_test.go
+  - internal/datalink/workspace/service_readiness_test.go
+  - internal/datalink/workspace/service_readiness_recovery_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_recovery_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
+  - internal/api/handlers/runtime_workspace_setup_context_regression_test.go
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceAuditHistory.test.ts
+  - internal/api/handlers/runtime_handler_projection_test.go
+  - internal/datalink/workspace/service_readiness_stale_relationships_test.go
+  - internal/datalink/sourcerule/service_runtime_reconcile_test.go
+  - internal/api/handlers/studio_v2_workspace_audit_handler_test.go
+  - internal/datalink/workspace/service_runtime_projection_helpers_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - internal/api/handlers/studio_v2_workspace_handler_test.go
+  - internal/datalink/workspace/service_readiness_connector_missing_test.go
+  - internal/datalink/dbtarget/live_projection_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
+  - frontend/tests/unit/hooks/useStudioV2Mappings.test.ts
+  - internal/api/handlers/studio_v2_workspace_mappings_handler_test.go
+  - frontend/tests/unit/hooks/useStudioV2Rules.test.ts
+  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceDatabase.test.ts
+  - internal/datalink/runtime/service_test.go
+-->
