@@ -7,6 +7,7 @@ import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2Works
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
+import type { StudioV2WorkspaceDatabaseRowGroupRecord } from '../../../src/types/datalink';
 
 const dbPoints = [
   {
@@ -521,7 +522,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
 
   it('clears stale row groups before saving a table change and defers target updates until the connector save completes', async () => {
     let resolveScopeChangeSave: ((value: Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.updateConfig>>) => void) | undefined;
-    const buildSavedConfig = (table: string, rowGroups: Array<Record<string, unknown>> = []) => ({
+    const buildSavedConfig = (table: string, rowGroups: StudioV2WorkspaceDatabaseRowGroupRecord[] = []) => ({
       id: 'db-1',
       workspace_id: 'workspace-1',
       kind: 'sqlite',
