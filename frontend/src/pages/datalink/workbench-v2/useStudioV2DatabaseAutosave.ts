@@ -349,6 +349,9 @@ export function useStudioV2DatabaseAutosave(
       case 'updateDbTarget':
         queueTargetSave(action.pointId);
         break;
+      case 'setAllDbTargetsEnabled':
+        Object.keys(nextState.db.targets).forEach(queueTargetSave);
+        break;
       case 'autoAssignDbTargets':
         Object.keys(nextState.db.targets).forEach(queueTargetSave);
         break;

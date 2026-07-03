@@ -169,7 +169,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) ListTargets(c *gin.Context) {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
-	rowGroupByPoint := workspaceDatabaseTargetRefsByPoint(record.DatabaseTargetRefs)
+	rowGroupByPoint := workspaceDatabaseTargetRefsByPoint(record.DatabaseTargetRefs, record.DatabaseRowGroups)
 
 	payload := make([]studioV2WorkspaceDatabaseTargetResponse, 0, len(rows))
 	for _, row := range rows {
@@ -210,9 +210,15 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 		return
 	}
 	rowGroupID := strings.TrimSpace(req.RowGroupID)
-	if rowGroupID != "" && !workspaceDatabaseRowGroupExists(record.DatabaseRowGroups, rowGroupID) {
-		renderStudioV2WorkspaceValidationError(c, errors.New("database target row group does not exist"))
-		return
+	if rowGroupID != "" {
+		if !workspaceDatabaseRowGroupExists(record.DatabaseRowGroups, rowGroupID) {
+			renderStudioV2WorkspaceValidationError(c, errors.New("database target row group does not exist"))
+			return
+		}
+		if !workspaceDatabaseRowGroupContainsPoint(record.DatabaseRowGroups, rowGroupID, binding.PointID) {
+			renderStudioV2WorkspaceValidationError(c, errors.New("database target row group does not contain point"))
+			return
+		}
 	}
 
 	var savedRow *schema.DatabaseTargetMapping

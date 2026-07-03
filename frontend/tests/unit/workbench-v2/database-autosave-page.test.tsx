@@ -102,14 +102,26 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
           actions.dispatch({ type: 'updateDbConnector', patch: { table: 'sensor_values_v2' } });
         }}
       />
+      <button
+        type="button"
+        data-testid="disable-all-db-targets"
+        onClick={() => actions.dispatch({ type: 'setAllDbTargetsEnabled', enabled: false })}
+      />
+      <button
+        type="button"
+        data-testid="enable-all-db-targets"
+        onClick={() => actions.dispatch({ type: 'setAllDbTargetsEnabled', enabled: true })}
+      />
       <div data-testid="connector-table">{state.db.connector.table}</div>
       <div data-testid="connector-save-state">{state.db.connector.save_state}</div>
       <div data-testid="point-count">{state.points.length}</div>
       <div data-testid="row-group-count">{state.db.row_groups?.length ?? 0}</div>
       <div data-testid="target-column-point-A">{state.db.targets['point-A']?.column_name ?? ''}</div>
+      <div data-testid="target-enabled-point-A">{String(state.db.targets['point-A']?.enabled ?? false)}</div>
       <div data-testid="target-save-state-point-A">{state.db.targets['point-A']?.save_state ?? ''}</div>
       <div data-testid="target-save-error-point-A">{state.db.targets['point-A']?.save_error ?? ''}</div>
       <div data-testid="target-column-point-B">{state.db.targets['point-B']?.column_name ?? ''}</div>
+      <div data-testid="target-enabled-point-B">{String(state.db.targets['point-B']?.enabled ?? false)}</div>
       <div data-testid="target-save-state-point-B">{state.db.targets['point-B']?.save_state ?? ''}</div>
       <div data-testid="target-save-error-point-B">{state.db.targets['point-B']?.save_error ?? ''}</div>
     </div>
@@ -607,6 +619,51 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       expect(studioV2WorkspaceDatabaseAPI.upsertTarget).toHaveBeenCalledWith('persisted-point-B', expect.objectContaining({
         row_group_id: undefined,
       }));
+    });
+  });
+
+  it('autosaves bulk database target enable toggles for every persisted row', async () => {
+    vi.mocked(studioV2WorkspaceDatabaseAPI.upsertTarget).mockImplementation(async (pointId, request) => ({
+      id: pointId === 'persisted-point-A' ? 'row-A' : 'row-B',
+      workspace_id: 'workspace-1',
+      point_id: pointId,
+      tag_id: pointId === 'persisted-point-A' ? 'tag-A' : 'tag-B',
+      column_name: request.column_name,
+      enabled: request.enabled,
+      row_group_id: request.row_group_id,
+      save_state: 'saved',
+      runtime_apply_status: 'not_running',
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    }) as any);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('database-autosave-shell')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('prime-mappings'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('target-enabled-point-A')).toHaveTextContent('true');
+      expect(screen.getByTestId('target-enabled-point-B')).toHaveTextContent('true');
+    });
+
+    fireEvent.click(screen.getByTestId('disable-all-db-targets'));
+
+    await waitFor(() => {
+      expect(studioV2WorkspaceDatabaseAPI.upsertTarget).toHaveBeenCalledWith('persisted-point-A', expect.objectContaining({ enabled: false }));
+      expect(studioV2WorkspaceDatabaseAPI.upsertTarget).toHaveBeenCalledWith('persisted-point-B', expect.objectContaining({ enabled: false }));
+    });
+
+    vi.mocked(studioV2WorkspaceDatabaseAPI.upsertTarget).mockClear();
+
+    fireEvent.click(screen.getByTestId('enable-all-db-targets'));
+
+    await waitFor(() => {
+      expect(studioV2WorkspaceDatabaseAPI.upsertTarget).toHaveBeenCalledWith('persisted-point-A', expect.objectContaining({ enabled: true }));
+      expect(studioV2WorkspaceDatabaseAPI.upsertTarget).toHaveBeenCalledWith('persisted-point-B', expect.objectContaining({ enabled: true }));
     });
   });
 });

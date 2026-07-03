@@ -117,6 +117,22 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
           patch: { start_address: '40021' },
         })}
       />
+      <button
+        type="button"
+        data-testid="disable-all-mappings"
+        onClick={() => actions.dispatch({
+          type: 'setAllMappingsEnabled',
+          enabled: false,
+        })}
+      />
+      <button
+        type="button"
+        data-testid="enable-all-mappings"
+        onClick={() => actions.dispatch({
+          type: 'setAllMappingsEnabled',
+          enabled: true,
+        })}
+      />
     </div>
   ),
 }));
@@ -587,6 +603,110 @@ describe('DatalinkWorkbenchV2Page mapping autosave orchestration', () => {
     await waitFor(() => {
       expect(studioV2MappingsAPI.create).not.toHaveBeenCalled();
       expect(studioV2MappingsAPI.update).not.toHaveBeenCalled();
+    });
+  });
+
+  it('autosaves bulk mapping enable toggles for every persisted row', async () => {
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([
+      {
+        id: 'mapping-A',
+        workspace_id: 'workspace-1',
+        point_id: 'point-A',
+        rule_id: 'rule-A',
+        device_id: 'dev-A',
+        address: '40001',
+        tag_id: 'tag-A',
+        tag_key: 'line.a.persisted',
+        display_name: 'Line A Temp',
+        unit: 'C',
+        target_type: 'float64',
+        scale: 1,
+        offset: 0,
+        enabled: true,
+        save_state: 'saved',
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      },
+      {
+        id: 'mapping-B',
+        workspace_id: 'workspace-1',
+        point_id: 'point-B',
+        rule_id: 'rule-B',
+        device_id: 'dev-B',
+        address: '40011',
+        tag_id: 'tag-B',
+        tag_key: 'line.b.persisted',
+        display_name: 'Line B Temp',
+        unit: 'C',
+        target_type: 'float64',
+        scale: 1,
+        offset: 0,
+        enabled: true,
+        save_state: 'saved',
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      },
+    ]);
+    vi.mocked(studioV2MappingsAPI.update).mockImplementation(async (mappingId, payload) => ({
+      id: mappingId,
+      workspace_id: 'workspace-1',
+      point_id: mappingId === 'mapping-A' ? 'point-A' : 'point-B',
+      rule_id: mappingId === 'mapping-A' ? 'rule-A' : 'rule-B',
+      device_id: mappingId === 'mapping-A' ? 'dev-A' : 'dev-B',
+      address: mappingId === 'mapping-A' ? '40001' : '40011',
+      tag_id: mappingId === 'mapping-A' ? 'tag-A' : 'tag-B',
+      tag_key: String(payload.tag_key),
+      display_name: mappingId === 'mapping-A' ? 'Line A Temp' : 'Line B Temp',
+      unit: 'C',
+      target_type: 'float64',
+      scale: 1,
+      offset: 0,
+      enabled: Boolean(payload.enabled),
+      save_state: 'saved',
+      runtime_apply_status: 'not_running',
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    }) as any);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('prime-mappings'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mapping-tag-key-rule-A-p-0')).toHaveTextContent('line.a.persisted');
+      expect(screen.getByTestId('mapping-tag-key-rule-B-p-0')).toHaveTextContent('line.b.persisted');
+    });
+
+    fireEvent.click(screen.getByTestId('disable-all-mappings'));
+
+    await waitFor(() => {
+      expect(studioV2MappingsAPI.update).toHaveBeenCalledWith(
+        'mapping-A',
+        expect.objectContaining({ enabled: false }),
+      );
+      expect(studioV2MappingsAPI.update).toHaveBeenCalledWith(
+        'mapping-B',
+        expect.objectContaining({ enabled: false }),
+      );
+    });
+
+    vi.mocked(studioV2MappingsAPI.update).mockClear();
+
+    fireEvent.click(screen.getByTestId('enable-all-mappings'));
+
+    await waitFor(() => {
+      expect(studioV2MappingsAPI.update).toHaveBeenCalledWith(
+        'mapping-A',
+        expect.objectContaining({ enabled: true }),
+      );
+      expect(studioV2MappingsAPI.update).toHaveBeenCalledWith(
+        'mapping-B',
+        expect.objectContaining({ enabled: true }),
+      );
     });
   });
 });

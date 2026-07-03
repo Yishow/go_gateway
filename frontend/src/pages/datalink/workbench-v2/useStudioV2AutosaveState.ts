@@ -1,15 +1,15 @@
 import * as React from 'react';
 import { useCreateStudioV2WorkspaceDeviceMutation, useDeleteStudioV2WorkspaceDeviceMutation, useStudioV2WorkspaceDevicesQuery, useUpdateStudioV2WorkspaceDeviceAvailabilityMutation, useUpdateStudioV2WorkspaceDeviceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceDevices';
 import { hydrateStudioV2Device, isStudioV2DeviceValid, toStudioV2DeviceCreateRequest, toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
-import { hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
+import { canHydrateStudioV2Rule, hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { hydrateStudioV2Mapping } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
-import type { DbTarget, Device, Mapping, Point, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import type { DbTarget, Device, Mapping, Point, Rule, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import { useWorkbenchV2State, workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { useStudioV2RulesQuery } from '../../../hooks/datalink/useStudioV2Rules';
 import { useStudioV2RuleAutosave } from './useStudioV2RuleAutosave';
 import { useStudioV2MappingAutosave } from './useStudioV2MappingAutosave';
 import { useStudioV2DatabaseAutosave } from './useStudioV2DatabaseAutosave';
-import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
+import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { deriveAllPoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
 import type { StudioV2WorkspaceMappingRecord, StudioV2WorkspaceDatabaseTargetRecord } from '../../../types/datalink';
 
@@ -93,6 +93,19 @@ function buildBootstrapTargets(
   }, {});
 }
 
+function inferHydratedProgress(
+  devices: Device[],
+  rules: Rule[],
+  mappings: Record<string, Mapping>,
+): Pick<WorkbenchV2State, 'current' | 'completed'> {
+  const completed = new Set<number>();
+  if (devices.length > 0) completed.add(1);
+  if (rules.length > 0) completed.add(2);
+  if (Object.values(mappings).some((mapping) => mapping.persisted && mapping.enabled && mapping.tag_id)) completed.add(3);
+  const current: WorkbenchV2State['current'] = completed.has(3) ? 4 : completed.has(2) ? 3 : completed.has(1) ? 2 : 1;
+  return { current, completed };
+}
+
 function isDraftPending(saveState?: string): boolean {
   return saveState === 'saving' || saveState === 'save-error' || saveState === 'draft-invalid';
 }
@@ -141,11 +154,14 @@ function isSetupMutationAction(action: WorkbenchV2Action): boolean {
     case 'updateRuleShareStride':
     case 'updateMapping':
     case 'toggleMappingEnabled':
+    case 'setAllMappingsEnabled':
     case 'bulkApplyTransform':
     case 'updateDbConnector':
     case 'upsertDbTarget':
     case 'updateDbTarget':
+    case 'setAllDbTargetsEnabled':
     case 'autoAssignDbTargets':
+    case 'setDbRowGroups':
       return true;
     default:
       return false;
@@ -189,12 +205,17 @@ export function useStudioV2AutosaveState(enabled: boolean) {
 
     hydratedRef.current = true;
     const hydratedDevices = devicesQuery.data.map(hydrateStudioV2Device);
-    const hydratedRules = rulesQuery.data.map(hydrateStudioV2Rule);
+    const hydratedRules = rulesQuery.data
+      .filter(canHydrateStudioV2Rule)
+      .map(hydrateStudioV2Rule);
     const fallbackDeviceId = hydratedDevices[0]?.id || 'dev-01';
     const enabledPoints = deriveAllPoints(hydratedRules, fallbackDeviceId).filter((point) => point.enabled && !point.skipped);
     const hydratedConnector = databaseAutosave.databaseConfigQuery.data
       ? hydrateStudioV2DatabaseConnector(databaseAutosave.databaseConfigQuery.data)
       : stateRef.current.db.connector;
+    const hydratedRowGroups = databaseAutosave.databaseConfigQuery.data
+      ? hydrateStudioV2DatabaseRowGroups(databaseAutosave.databaseConfigQuery.data.row_groups)
+      : stateRef.current.db.row_groups ?? [];
 
     const baseState = workbenchV2Reducer(stateRef.current, {
       type: 'SET_STATE',
@@ -206,6 +227,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
         mappings: {},
         db: {
           connector: hydratedConnector,
+          row_groups: hydratedRowGroups,
           targets: {},
         },
       },
@@ -213,13 +235,16 @@ export function useStudioV2AutosaveState(enabled: boolean) {
 
     const { mappings: hydratedMappings, persistedPointAliases } = buildBootstrapMappings(baseState, enabledPoints, mappingAutosave.mappingsQuery.data);
     const hydratedTargets = buildBootstrapTargets(persistedPointAliases, databaseAutosave.databaseTargetsQuery.data);
+    const hydratedProgress = inferHydratedProgress(hydratedDevices, hydratedRules, hydratedMappings);
     const nextState = workbenchV2Reducer(baseState, {
       type: 'SET_STATE',
       payload: {
+        ...hydratedProgress,
         points: enabledPoints,
         mappings: hydratedMappings,
         db: {
           connector: hydratedConnector,
+          row_groups: hydratedRowGroups,
           targets: hydratedTargets,
         },
       },
@@ -229,6 +254,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
     actions.dispatch({
       type: 'SET_STATE',
       payload: {
+        ...hydratedProgress,
         devices: hydratedDevices,
         rules: hydratedRules,
         selectedRuleId: hydratedRules[0]?.id ?? null,
@@ -236,6 +262,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
         mappings: hydratedMappings,
         db: {
           connector: hydratedConnector,
+          row_groups: hydratedRowGroups,
           targets: hydratedTargets,
         },
       },
@@ -454,7 +481,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
     ruleAutosave.afterRuleAction(action);
     mappingAutosave.afterMappingAction(previousState, action, nextState);
     databaseAutosave.afterDatabaseAction(action, nextState);
-  }, [actions, applyDevicePatch, databaseAutosave, deleteDeviceMutation, mappingAutosave, queueDeviceSave, ruleAutosave]);
+  }, [actions, applyDevicePatch, databaseAutosave, deleteDeviceMutation, mappingAutosave, queueDeviceSave, ruleAutosave, workspaceHydrated]);
 
   return {
     actions: {

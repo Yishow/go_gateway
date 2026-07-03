@@ -178,9 +178,9 @@ export function useStudioV2MappingAutosave(
     try {
       const savedMapping = currentMapping.mapping_id
         ? await updateMappingMutation.mutateAsync({
-            mappingId: currentMapping.mapping_id,
-            request: toStudioV2MappingUpdateRequest(point, currentMapping),
-          })
+          mappingId: currentMapping.mapping_id,
+          request: toStudioV2MappingUpdateRequest(point, currentMapping),
+        })
         : await createMappingMutation.mutateAsync(toStudioV2MappingCreateRequest(point, currentMapping));
 
       applyMappingPatch(pointId, hydrateStudioV2Mapping(point, savedMapping));
@@ -228,6 +228,9 @@ export function useStudioV2MappingAutosave(
         break;
       case 'toggleMappingEnabled':
         queueMappingSave(action.pointId);
+        break;
+      case 'setAllMappingsEnabled':
+        Object.keys(nextState.mappings).forEach(queueMappingSave);
         break;
       case 'bulkApplyTransform':
         Object.keys(nextState.mappings).forEach(queueMappingSave);

@@ -68,8 +68,13 @@ func (s *Service) SaveDatabaseTargetReference(ctx context.Context, pointID strin
 	if err != nil {
 		return nil, err
 	}
-	if rowGroupID != "" && !databaseRowGroupExists(record.DatabaseRowGroups, rowGroupID) {
-		return nil, workspaceValidationError("database target row group does not exist")
+	if rowGroupID != "" {
+		if !databaseRowGroupExists(record.DatabaseRowGroups, rowGroupID) {
+			return nil, workspaceValidationError("database target row group does not exist")
+		}
+		if !databaseRowGroupContainsPoint(record.DatabaseRowGroups, rowGroupID, pointID) {
+			return nil, workspaceValidationError("database target row group does not contain point")
+		}
 	}
 
 	refs := make([]DatabaseTargetRef, 0, len(record.DatabaseTargetRefs)+1)
@@ -121,8 +126,17 @@ func normalizeDatabaseRowGroups(connectorID string, tableSchema string, tableNam
 func filterDatabaseTargetRefs(refs []DatabaseTargetRef, groups []DatabaseRowGroup) []DatabaseTargetRef {
 	out := make([]DatabaseTargetRef, 0, len(refs))
 	for _, ref := range refs {
-		if strings.TrimSpace(ref.RowGroupID) == "" || databaseRowGroupExists(groups, ref.RowGroupID) {
-			out = append(out, ref)
+		pointID := strings.TrimSpace(ref.PointID)
+		rowGroupID := strings.TrimSpace(ref.RowGroupID)
+		if pointID == "" {
+			continue
+		}
+		if rowGroupID == "" {
+			out = append(out, DatabaseTargetRef{PointID: pointID})
+			continue
+		}
+		if databaseRowGroupContainsPoint(groups, rowGroupID, pointID) {
+			out = append(out, DatabaseTargetRef{PointID: pointID, RowGroupID: rowGroupID})
 		}
 	}
 	return out
@@ -131,6 +145,17 @@ func filterDatabaseTargetRefs(refs []DatabaseTargetRef, groups []DatabaseRowGrou
 func databaseRowGroupExists(groups []DatabaseRowGroup, id string) bool {
 	return slices.ContainsFunc(groups, func(group DatabaseRowGroup) bool {
 		return group.ID == id
+	})
+}
+
+func databaseRowGroupContainsPoint(groups []DatabaseRowGroup, id string, pointID string) bool {
+	id = strings.TrimSpace(id)
+	pointID = strings.TrimSpace(pointID)
+	if id == "" || pointID == "" {
+		return false
+	}
+	return slices.ContainsFunc(groups, func(group DatabaseRowGroup) bool {
+		return group.ID == id && slices.Contains(group.MemberPointIDs, pointID)
 	})
 }
 
