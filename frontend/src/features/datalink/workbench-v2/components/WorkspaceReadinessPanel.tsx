@@ -9,12 +9,115 @@ import type {
 
 export type WorkspaceReadinessStepNumber = 1 | 2 | 3 | 4;
 
+export interface GroupedWorkspaceReadinessIssue {
+  issue: StudioV2WorkspaceReadinessIssue;
+  count: number;
+}
+
 interface WorkspaceReadinessPanelProps {
   summary?: StudioV2WorkspaceReadinessSummary | null;
   dataTestId: string;
   compact?: boolean;
   maxIssues?: number;
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
+}
+
+export function groupWorkspaceReadinessIssues(
+  issues: StudioV2WorkspaceReadinessIssue[],
+): GroupedWorkspaceReadinessIssue[] {
+  const groups = new Map<string, GroupedWorkspaceReadinessIssue>();
+
+  issues.forEach((issue) => {
+    const key = [
+      issue.severity,
+      issue.step,
+      issue.code,
+      issue.message,
+    ].join('|');
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.count += 1;
+      return;
+    }
+
+    groups.set(key, { issue, count: 1 });
+  });
+
+  return Array.from(groups.values());
+}
+
+export function summarizeWorkspaceReadiness(
+  summary?: StudioV2WorkspaceReadinessSummary | null,
+): {
+  hasBlockers: boolean;
+  blockingCount: number;
+  warningCount: number;
+  issues: GroupedWorkspaceReadinessIssue[];
+} {
+  const groupedIssues = groupWorkspaceReadinessIssues(summary?.issues ?? []);
+  const fallbackBlockingCount = groupedIssues
+    .filter((group) => group.issue.severity === 'blocking')
+    .reduce((total, group) => total + group.count, 0);
+  const fallbackWarningCount = groupedIssues
+    .filter((group) => group.issue.severity === 'warning')
+    .reduce((total, group) => total + group.count, 0);
+  const blockingCount = summary?.blocking_count ?? fallbackBlockingCount;
+  const warningCount = summary?.warning_count ?? fallbackWarningCount;
+
+  return {
+    hasBlockers: blockingCount > 0,
+    blockingCount,
+    warningCount,
+    issues: groupedIssues,
+  };
+}
+
+export function readinessIssueLabel(
+  issue: StudioV2WorkspaceReadinessIssue,
+  t: TFunction<'workbench-v2'>,
+): string {
+  return t(`workspace_readiness.issue_labels.${issue.code}`, issue.code);
+}
+
+export function readinessIssueMessage(
+  issue: StudioV2WorkspaceReadinessIssue,
+  t: TFunction<'workbench-v2'>,
+): string {
+  return t(`workspace_readiness.issue_messages.${issue.code}`, issue.message);
+}
+
+export function groupedIssueScopeLabel(
+  issue: StudioV2WorkspaceReadinessIssue,
+  count: number,
+  t?: TFunction<'workbench-v2'>,
+): string {
+  if (count <= 1) {
+    return issue.scope;
+  }
+  if (!t) {
+    return `${issue.scope} +${count - 1}`;
+  }
+  return t('workspace_readiness.scope_grouped', {
+    scope: issue.scope,
+    count: count - 1,
+  });
+}
+
+export function compactReadinessGuidance(
+  groupedIssue: GroupedWorkspaceReadinessIssue | undefined,
+  t: TFunction<'workbench-v2'>,
+): string | null {
+  if (!groupedIssue) {
+    return null;
+  }
+
+  const label = readinessIssueLabel(groupedIssue.issue, t);
+  const action = readinessIssueSolution(groupedIssue.issue, t);
+  return t('workspace_readiness.compact_fix', {
+    label,
+    action,
+  });
 }
 
 export const WorkspaceReadinessPanel: React.FC<WorkspaceReadinessPanelProps> = ({
@@ -30,8 +133,10 @@ export const WorkspaceReadinessPanel: React.FC<WorkspaceReadinessPanelProps> = (
     return null;
   }
 
-  const hasBlockers = summary.blocking_count > 0;
-  const issues = compact ? [] : summary.issues.slice(0, maxIssues);
+  const readinessView = summarizeWorkspaceReadiness(summary);
+  const issues = compact ? [] : readinessView.issues.slice(0, maxIssues);
+  const primaryIssue = readinessView.issues[0];
+  const compactGuidance = compactReadinessGuidance(primaryIssue, t);
   const containerClassName = compact
     ? 'rounded-xl border border-slate-700/60 bg-slate-950/50 px-4 py-2'
     : 'rounded-xl border border-slate-700/60 bg-slate-900/40 p-3';
@@ -43,33 +148,44 @@ export const WorkspaceReadinessPanel: React.FC<WorkspaceReadinessPanelProps> = (
           <div className="text-[10px] uppercase tracking-wider text-slate-500">
             {t('workspace_readiness.title')}
           </div>
-          <div className={`mt-1 text-sm font-semibold ${hasBlockers ? 'text-amber-200' : 'text-emerald-200'}`}>
-            {hasBlockers ? t('workspace_readiness.blocked') : t('workspace_readiness.ready')}
+          <div className={`mt-1 text-sm font-semibold ${readinessView.hasBlockers ? 'text-amber-200' : 'text-emerald-200'}`}>
+            {readinessView.hasBlockers ? t('workspace_readiness.blocked') : t('workspace_readiness.ready')}
           </div>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-mono">
           <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-200">
-            {t('workspace_readiness.blocking_count', { count: summary.blocking_count })}
+            {t('workspace_readiness.blocking_count', { count: readinessView.blockingCount })}
           </span>
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-200">
-            {t('workspace_readiness.warning_count', { count: summary.warning_count })}
+            {t('workspace_readiness.warning_count', { count: readinessView.warningCount })}
           </span>
         </div>
       </div>
 
+      {compact && compactGuidance ? (
+        <p className="mt-2 text-[11px] leading-5 text-slate-400">
+          {compactGuidance}
+        </p>
+      ) : null}
+
       {!compact && issues.length > 0 ? (
         <div className="mt-3 space-y-2">
-          {issues.map((issue) => (
-            <div key={`${issue.code}-${issue.scope}`} className="rounded-lg border border-slate-800/70 bg-black/20 px-3 py-2">
+          {issues.map(({ issue, count }) => (
+            <div key={`${issue.code}-${issue.step}-${issue.message}`} className="rounded-lg border border-slate-800/70 bg-black/20 px-3 py-2">
               <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span className={`font-semibold ${issue.severity === 'blocking' ? 'text-rose-200' : 'text-amber-200'}`}>
-                  {issue.code}
+                <span className={`flex items-center gap-2 font-semibold ${issue.severity === 'blocking' ? 'text-rose-200' : 'text-amber-200'}`}>
+                  <span>{readinessIssueLabel(issue, t)}</span>
+                  {count > 1 ? (
+                    <span className="rounded-full border border-current/30 px-1.5 py-0.5 text-[10px]">
+                      x{count}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="text-slate-500">
-                  {issue.step} · {issue.scope}
+                  {issue.step} · {groupedIssueScopeLabel(issue, count, t)}
                 </span>
               </div>
-              <p className="mt-1 text-[11px] leading-5 text-slate-400">{issue.message}</p>
+              <p className="mt-1 text-[11px] leading-5 text-slate-400">{readinessIssueMessage(issue, t)}</p>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <p className="text-[11px] leading-5 text-slate-300">
                   {readinessIssueSolution(issue, t)}
