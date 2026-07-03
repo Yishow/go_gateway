@@ -1,4 +1,4 @@
-.PHONY: build-frontend build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke check-lines
+.PHONY: build-frontend sync-frontend-static build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke check-lines
 
 GATE_WORKDIR ?= $(CURDIR)
 GATE_SMOKE_DURATION ?= 60s
@@ -16,8 +16,13 @@ build-frontend:
 	cd frontend && npm install
 	cd frontend && npm run build
 
+# 同步前端 build 到 embed 目錄
+sync-frontend-static: build-frontend
+	mkdir -p cmd/test_ui/static
+	cp -R frontend/dist/. cmd/test_ui/static/
+
 # 建置後端（包含前端）
-build-backend: build-frontend
+build-backend: sync-frontend-static
 	go build -o bin/test-ui.exe ./cmd/test_ui
 
 # 建置測試工具
