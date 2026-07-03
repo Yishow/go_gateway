@@ -1,13 +1,17 @@
 import * as React from 'react';
 import { useMemo, useCallback } from 'react';
-import { ConnectorSection } from './ConnectorSection';
 import { TargetMappingTable } from './TargetMappingTable';
 import { CommitSummary } from './CommitSummary';
 import { CommitProgress } from './CommitProgress';
 import { CommitSuccessCard } from './CommitSuccessCard';
+import { DestinationOverviewCard } from './DestinationOverviewCard';
+import { SchemaSetupSection } from './SchemaSetupSection';
+import { Step4SupportPanels } from './Step4SupportPanels';
+import { RowGroupPlanner } from './RowGroupPlanner';
 import { autoAssignTargets } from '../../state/autoAssignTargets';
 import { getColumnsFor, getDefaultConnector } from '../../state/dbSchemas';
-import type { WorkbenchV2State, DbConnector, DbTarget, CommitLog } from '../../state/types';
+import { hasRowGroupColumnConflict, hasUnsafeRowGroupUpsert } from '../../state/rowGroupValidation';
+import type { WorkbenchV2State, DbConnector, DbRowGroup, DbTarget, CommitLog } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import type { StudioV2ActivationResponse } from '../../../../../types/studioV2Activation';
 import type { StudioV2WorkspaceReadinessSummary } from '../../../../../types/studioV2WorkspaceReadiness';
@@ -34,6 +38,46 @@ export function useStep4Readonly(): boolean {
   return false;
 }
 
+function isRowGroupScopeChange(connector: DbConnector, patch: Partial<DbConnector>): boolean {
+  return (
+    (patch.kind !== undefined && patch.kind !== connector.kind) ||
+    (patch.schema !== undefined && patch.schema !== connector.schema) ||
+    (patch.table !== undefined && patch.table !== connector.table)
+  );
+}
+
+function rowGroupsForConnector(connector: DbConnector, rowGroups: DbRowGroup[]): DbRowGroup[] {
+  return rowGroups.filter((group) => (
+    group.table_name === connector.table &&
+    (group.table_schema ?? '') === (connector.schema ?? '')
+  ));
+}
+
+function clearTargetRowGroupAssignments(targets: Record<string, DbTarget>): Record<string, DbTarget> {
+  return Object.fromEntries(
+    Object.entries(targets).map(([pointId, target]) => [
+      pointId,
+      target.row_group_id
+        ? { ...target, row_group_id: undefined }
+        : target,
+    ]),
+  );
+}
+
+function syncTargetRowGroupMembership(
+  rowGroups: DbRowGroup[],
+  pointId: string,
+  rowGroupID: string | undefined,
+): DbRowGroup[] {
+  return rowGroups.map((group) => {
+    const memberPointIDs = group.member_point_ids.filter((memberPointId) => memberPointId !== pointId);
+    if (group.id !== rowGroupID) {
+      return { ...group, member_point_ids: memberPointIDs };
+    }
+    return { ...group, member_point_ids: [...memberPointIDs, pointId] };
+  });
+}
+
 /**
  * Step 4 Database 主頁面元件
  * 落地設計決策：「拆檔策略：8 個元件 + 3 個 state module」 與 「Commit log 序列：純函式 + reducer 串聯」
@@ -56,6 +100,8 @@ export function Step4Database({
   });
 
   const { connector, targets } = state.db;
+  const rowGroups = useMemo(() => state.db.row_groups ?? [], [state.db.row_groups]);
+  const scopedRowGroups = useMemo(() => rowGroupsForConnector(connector, rowGroups), [connector, rowGroups]);
   const enabledPoints = useMemo(() => state.points.filter(p => p.enabled), [state.points]);
 
   // 取得目前資料庫種類的欄位定義
@@ -68,6 +114,19 @@ export function Step4Database({
     dispatch({ type: 'autoAssignDbTargets', targets: initialTargets });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const clearRowGroupScope = useCallback(() => {
+    if (rowGroups.length > 0) {
+      dispatch({ type: 'setDbRowGroups', rowGroups: [] });
+    }
+
+    Object.entries(targets).forEach(([pointId, target]) => {
+      if (!target.row_group_id) {
+        return;
+      }
+      dispatch({ type: 'updateDbTarget', pointId, patch: { row_group_id: undefined } });
+    });
+  }, [dispatch, rowGroups, targets]);
 
   // 2. 切換資料庫種類 Handler
   const handleKindChange = useCallback((kind: DbConnector['kind']) => {
@@ -88,18 +147,42 @@ export function Step4Database({
       patch.port = connector.port || defaultConn.port;
     }
 
+    const scopeChanged = isRowGroupScopeChange(connector, patch);
+    const baseTargets = scopeChanged ? clearTargetRowGroupAssignments(targets) : targets;
+
+    if (scopeChanged) {
+      clearRowGroupScope();
+    }
+
     dispatch({ type: 'updateDbConnector', patch });
 
     // 同步重算欄位對應
     const nextColumns = getColumnsFor(kind);
     const nextColumnNames = nextColumns.filter(c => !c.primary_key).map(c => c.name);
-    const nextTargets = autoAssignTargets(enabledPoints, state.mappings, nextColumnNames, targets);
+    const nextTargets = autoAssignTargets(enabledPoints, state.mappings, nextColumnNames, baseTargets);
     dispatch({ type: 'autoAssignDbTargets', targets: nextTargets });
-  }, [connector, enabledPoints, targets, state.mappings, dispatch]);
+  }, [clearRowGroupScope, connector, enabledPoints, targets, state.mappings, dispatch]);
+
+  const handleUpdateConnector = useCallback((patch: Partial<DbConnector>) => {
+    if (isRowGroupScopeChange(connector, patch)) {
+      clearRowGroupScope();
+    }
+    dispatch({ type: 'updateDbConnector', patch });
+  }, [clearRowGroupScope, connector, dispatch]);
 
   // 3. 更新 Target 對應 Handler
   const handleUpdateTarget = useCallback((pointId: string, patch: Partial<DbTarget>) => {
+    if (Object.prototype.hasOwnProperty.call(patch, 'row_group_id')) {
+      dispatch({
+        type: 'setDbRowGroups',
+        rowGroups: syncTargetRowGroupMembership(scopedRowGroups, pointId, patch.row_group_id),
+      });
+    }
     dispatch({ type: 'updateDbTarget', pointId, patch });
+  }, [dispatch, scopedRowGroups]);
+
+  const handleSetRowGroups = useCallback((nextRowGroups: DbRowGroup[]) => {
+    dispatch({ type: 'setDbRowGroups', rowGroups: nextRowGroups });
   }, [dispatch]);
 
   const handleStartActivation = useCallback(async () => {
@@ -139,20 +222,10 @@ export function Step4Database({
     }
   }, [activateWorkspace, dispatch]);
 
-  // 5. 計算是否有衝突 (有多個已啟用的對應指向同一個 column)
   const hasConflict = useMemo(() => {
-    const counts: Record<string, number> = {};
-    const visiblePoints = state.points.filter(p => p.enabled && state.mappings[p.id]);
-
-    visiblePoints.forEach(p => {
-      const target = targets[p.id];
-      if (target && target.enabled) {
-        counts[target.column_name] = (counts[target.column_name] || 0) + 1;
-      }
-    });
-
-    return Object.values(counts).some(count => count > 1);
-  }, [state.points, state.mappings, targets]);
+    return hasRowGroupColumnConflict(state.points, state.mappings, targets, scopedRowGroups) ||
+      hasUnsafeRowGroupUpsert(state.points, state.mappings, targets, scopedRowGroups, connector.write_mode);
+  }, [connector.write_mode, scopedRowGroups, state.points, state.mappings, targets]);
 
   // 6. 計算啟用中的 db targets 數量
   const enabledTargetCount = useMemo(() => {
@@ -202,64 +275,80 @@ export function Step4Database({
 
   return (
     <div className="space-y-6">
-      {/* 連接器設定卡片 */}
-      <ConnectorSection
+      <DestinationOverviewCard
         connector={connector}
-        onUpdateConnector={(patch) => dispatch({ type: 'updateDbConnector', patch })}
-        onKindChange={handleKindChange}
+        rules={state.rules}
+        points={state.points}
+        mappings={state.mappings}
+        targets={targets}
+        hasConflict={hasConflict}
+      />
+
+      <RowGroupPlanner
+        connector={connector}
+        points={state.points}
+        mappings={state.mappings}
+        rowGroups={scopedRowGroups}
+        onSetRowGroups={handleSetRowGroups}
         disabled={isReadonly}
       />
 
-      {/* 下方雙欄格局 (表格 7 欄，右側卡片 5 欄) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7">
-          <TargetMappingTable
-            points={state.points}
-            mappings={state.mappings}
-            targets={targets}
-            columns={columns}
-            onUpdateTarget={handleUpdateTarget}
-            disabled={isReadonly}
-          />
-        </div>
+      <TargetMappingTable
+        points={state.points}
+        mappings={state.mappings}
+        targets={targets}
+        rowGroups={scopedRowGroups}
+        columns={columns}
+        onUpdateTarget={handleUpdateTarget}
+        onSetAllEnabled={(enabled) => dispatch({ type: 'setAllDbTargetsEnabled', enabled })}
+        disabled={isReadonly}
+      />
 
-        {/* 右側三態面板 */}
-        <div className="lg:col-span-5">
-          {activationState.phase === 'idle' ? (
-            <CommitSummary
-              deviceCount={state.devices.length}
-              ruleCount={state.rules.filter(r => r.enabled).length}
-              pointCount={enabledPoints.length}
-              mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
-              connector={connector}
-              enabledTargetCount={enabledTargetCount}
-              hasConflict={hasConflict}
-              schemaActionsDisabled={schemaActionsDisabled}
-              schemaPreviewSignature={schemaPreviewSignature}
-              readinessSummary={workspaceReadiness}
-              onActivate={handleStartActivation}
-              onNavigateStep={onNavigateStep}
-            />
-          ) : activationState.phase === 'activating' ? (
-            <CommitProgress
-              logs={activationLogs}
-              status="committing"
-            />
-          ) : (
-            <CommitSuccessCard
-              response={activationState.response ?? { workspace_id: '', results: [] }}
-              canContinue={canContinueToRuntime}
-              onCommit={onCommit || (() => { })}
-              onReset={() => {
-                setActivationState({
-                  phase: 'idle',
-                  response: null,
-                });
-              }}
-            />
-          )}
-        </div>
-      </div>
+      <Step4SupportPanels
+        connector={connector}
+        onUpdateConnector={handleUpdateConnector}
+        onKindChange={handleKindChange}
+        tableSetup={
+          <SchemaSetupSection
+            connector={connector}
+            schemaActionsDisabled={schemaActionsDisabled}
+            schemaPreviewSignature={schemaPreviewSignature}
+          />
+        }
+        disabled={isReadonly}
+      />
+
+      {activationState.phase === 'idle' ? (
+        <CommitSummary
+          deviceCount={state.devices.length}
+          ruleCount={state.rules.filter(r => r.enabled).length}
+          pointCount={enabledPoints.length}
+          mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
+          connector={connector}
+          enabledTargetCount={enabledTargetCount}
+          hasConflict={hasConflict}
+          readinessSummary={workspaceReadiness}
+          onActivate={handleStartActivation}
+          onNavigateStep={onNavigateStep}
+        />
+      ) : activationState.phase === 'activating' ? (
+        <CommitProgress
+          logs={activationLogs}
+          status="committing"
+        />
+      ) : (
+        <CommitSuccessCard
+          response={activationState.response ?? { workspace_id: '', results: [] }}
+          canContinue={canContinueToRuntime}
+          onCommit={onCommit || (() => { })}
+          onReset={() => {
+            setActivationState({
+              phase: 'idle',
+              response: null,
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

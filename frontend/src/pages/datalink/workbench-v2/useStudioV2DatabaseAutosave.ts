@@ -7,9 +7,11 @@ import {
 } from '../../../hooks/datalink/useStudioV2WorkspaceDatabase';
 import {
   hydrateStudioV2DatabaseConnector,
+  hydrateStudioV2DatabaseRowGroups,
   hydrateStudioV2DatabaseTarget,
   isStudioV2DatabaseConnectorValid,
   isStudioV2DatabaseTargetValid,
+  resolveStudioV2DatabaseTargetPointID,
   toStudioV2DatabaseConfigRequest,
   toStudioV2DatabaseTargetRequest,
 } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
@@ -27,6 +29,7 @@ function sameDatabaseTarget(current: DbTarget | undefined, next: DbTarget): bool
     current?.tag_id === next.tag_id &&
     current?.column_name === next.column_name &&
     current?.enabled === next.enabled &&
+    current?.row_group_id === next.row_group_id &&
     current?.point_id === next.point_id &&
     current?.row_id === next.row_id &&
     current?.workspace_id === next.workspace_id &&
@@ -87,6 +90,9 @@ export function useStudioV2DatabaseAutosave(
   const lastConfigSignatureRef = React.useRef<string | null>(null);
   const lastTargetsSignatureRef = React.useRef<string | null>(null);
   const connectorSaveMetaRef = React.useRef<SaveMeta>({ inFlight: false, pending: false });
+  const pendingConnectorStateRef = React.useRef<WorkbenchV2State | null>(null);
+  const deferredTargetSaveRef = React.useRef<Set<string>>(new Set());
+  const flushTargetSaveRef = React.useRef<(pointId: string) => void>(() => undefined);
   const targetSaveMetaRef = React.useRef<Record<string, SaveMeta>>({});
 
   const applyConnectorPatch = React.useCallback((patch: Partial<DbConnector>) => {
@@ -133,8 +139,25 @@ export function useStudioV2DatabaseAutosave(
       return;
     }
     lastConfigSignatureRef.current = signature;
-    applyConnectorPatch(hydrateStudioV2DatabaseConnector(databaseConfigQuery.data));
-  }, [applyConnectorPatch, databaseConfigQuery.data, databaseConfigQuery.isSuccess, enabled]);
+    stateRef.current = workbenchV2Reducer(stateRef.current, {
+      type: 'SET_STATE',
+      payload: {
+        db: {
+          ...stateRef.current.db,
+          connector: hydrateStudioV2DatabaseConnector(databaseConfigQuery.data),
+          row_groups: hydrateStudioV2DatabaseRowGroups(databaseConfigQuery.data.row_groups),
+        },
+      },
+    });
+    actions.dispatch({
+      type: 'SET_STATE',
+      payload: {
+        db: {
+          ...stateRef.current.db,
+        },
+      },
+    });
+  }, [actions, databaseConfigQuery.data, databaseConfigQuery.isSuccess, enabled, stateRef]);
 
   const reconcilePersistedTargets = React.useCallback(() => {
     if (!databaseTargetsQuery.isSuccess) {
@@ -186,9 +209,10 @@ export function useStudioV2DatabaseAutosave(
     reconcilePersistedTargets();
   }, [reconcilePersistedTargets]);
 
-  const flushConnectorSave = React.useCallback(async () => {
+  const flushConnectorSave = React.useCallback(async (snapshot?: WorkbenchV2State) => {
     const meta = connectorSaveMetaRef.current;
-    const currentConnector = stateRef.current.db.connector;
+    const saveState = snapshot ?? stateRef.current;
+    const currentConnector = saveState.db.connector;
     if (!isStudioV2DatabaseConnectorValid(currentConnector)) {
       applyConnectorPatch({ save_state: 'draft-invalid', save_error: null });
       meta.inFlight = false;
@@ -198,30 +222,61 @@ export function useStudioV2DatabaseAutosave(
 
     meta.inFlight = true;
     applyConnectorPatch({ save_state: 'saving', save_error: null });
+    let savedConfig = false;
+    let pendingConnectorState: WorkbenchV2State | null | undefined;
+    let pendingTargetIds: string[] = [];
     try {
       const savedConnector = await updateConfigMutation.mutateAsync(
-        toStudioV2DatabaseConfigRequest(stateRef.current.db.connector),
+        toStudioV2DatabaseConfigRequest(currentConnector, saveState.db.row_groups ?? []),
       );
-      applyConnectorPatch(hydrateStudioV2DatabaseConnector(savedConnector));
+      savedConfig = true;
+      stateRef.current = workbenchV2Reducer(stateRef.current, {
+        type: 'SET_STATE',
+        payload: {
+          db: {
+            ...stateRef.current.db,
+            connector: hydrateStudioV2DatabaseConnector(savedConnector),
+            row_groups: hydrateStudioV2DatabaseRowGroups(savedConnector.row_groups),
+          },
+        },
+      });
+      actions.dispatch({
+        type: 'SET_STATE',
+        payload: {
+          db: {
+            ...stateRef.current.db,
+          },
+        },
+      });
     } catch (error) {
       applyConnectorPatch({ save_state: 'save-error', save_error: errorMessageOf(error) });
     } finally {
       meta.inFlight = false;
       if (meta.pending) {
         meta.pending = false;
-        void flushConnectorSave();
+        pendingConnectorState = pendingConnectorStateRef.current;
+        pendingConnectorStateRef.current = null;
+      } else if (savedConfig) {
+        pendingTargetIds = Array.from(deferredTargetSaveRef.current);
+        deferredTargetSaveRef.current.clear();
       }
     }
-  }, [applyConnectorPatch, updateConfigMutation]);
+    if (pendingConnectorState !== undefined) {
+      void flushConnectorSave(pendingConnectorState ?? undefined);
+      return;
+    }
+    pendingTargetIds.forEach((pointId) => flushTargetSaveRef.current(pointId));
+  }, [actions, applyConnectorPatch, stateRef, updateConfigMutation]);
 
-  const queueConnectorSave = React.useCallback(() => {
+  const queueConnectorSave = React.useCallback((snapshot?: WorkbenchV2State) => {
     const meta = connectorSaveMetaRef.current;
     if (meta.inFlight) {
       meta.pending = true;
+      pendingConnectorStateRef.current = snapshot ?? stateRef.current;
       return;
     }
-    void flushConnectorSave();
-  }, [flushConnectorSave]);
+    void flushConnectorSave(snapshot ?? stateRef.current);
+  }, [flushConnectorSave, stateRef]);
 
   const flushTargetSave = React.useCallback(async (pointId: string) => {
     const meta = saveMetaFor(targetSaveMetaRef.current, pointId);
@@ -231,8 +286,21 @@ export function useStudioV2DatabaseAutosave(
       delete targetSaveMetaRef.current[pointId];
       return;
     }
+    if (connectorSaveMetaRef.current.inFlight) {
+      deferredTargetSaveRef.current.add(pointId);
+      meta.inFlight = false;
+      meta.pending = false;
+      return;
+    }
 
     if (!isStudioV2DatabaseConnectorValid(stateRef.current.db.connector) || !isStudioV2DatabaseTargetValid(currentTarget, currentMapping)) {
+      applyTargetPatch(pointId, { save_state: 'draft-invalid', save_error: null });
+      meta.inFlight = false;
+      meta.pending = false;
+      return;
+    }
+    const requestPointId = resolveStudioV2DatabaseTargetPointID(pointId, currentMapping);
+    if (!requestPointId) {
       applyTargetPatch(pointId, { save_state: 'draft-invalid', save_error: null });
       meta.inFlight = false;
       meta.pending = false;
@@ -243,7 +311,7 @@ export function useStudioV2DatabaseAutosave(
     applyTargetPatch(pointId, { save_state: 'saving', save_error: null });
     try {
       const savedTarget = await upsertTargetMutation.mutateAsync({
-        pointId,
+        pointId: requestPointId,
         request: toStudioV2DatabaseTargetRequest(currentTarget),
       });
       applyTargetPatch(pointId, hydrateStudioV2DatabaseTarget(savedTarget, currentTarget));
@@ -257,6 +325,7 @@ export function useStudioV2DatabaseAutosave(
       }
     }
   }, [applyTargetPatch, stateRef, upsertTargetMutation]);
+  flushTargetSaveRef.current = flushTargetSave;
 
   const queueTargetSave = React.useCallback((pointId: string) => {
     const meta = saveMetaFor(targetSaveMetaRef.current, pointId);
@@ -273,7 +342,8 @@ export function useStudioV2DatabaseAutosave(
         reconcilePersistedTargets();
         break;
       case 'updateDbConnector':
-        queueConnectorSave();
+      case 'setDbRowGroups':
+        queueConnectorSave(nextState);
         break;
       case 'upsertDbTarget':
       case 'updateDbTarget':
