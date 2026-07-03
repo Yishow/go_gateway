@@ -4,3 +4,4 @@ export { TargetMappingTable } from './TargetMappingTable';
 export { CommitSummary } from './CommitSummary';
 export { CommitProgress } from './CommitProgress';
 export { CommitSuccessCard } from './CommitSuccessCard';
+export { Step4SupportPanels } from './Step4SupportPanels';

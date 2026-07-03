@@ -98,7 +98,7 @@ func (h *RuntimeHandler) buildWorkspaceSetupContext(ctx context.Context, record 
 				return response, fmt.Errorf("load workspace database connector %s: %w", connectorID, err)
 			}
 		} else {
-			config := buildWorkspaceDatabaseConfigResponse(record.ID, connector)
+			config := buildWorkspaceDatabaseConfigResponse(record.ID, connector, record.DatabaseRowGroups)
 			response.DatabaseConfig = &config
 		}
 	}

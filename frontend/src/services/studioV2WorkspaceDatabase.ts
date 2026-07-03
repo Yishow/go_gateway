@@ -1,6 +1,7 @@
 import type {
   APIResponse,
   StudioV2WorkspaceDatabaseConfigRecord,
+  StudioV2WorkspaceDatabaseRowGroupRecord,
   StudioV2WorkspaceDatabaseTargetRecord,
 } from '../types/datalink';
 import type { StudioV2RuntimeAppliedRecord } from '../types/studioV2RuntimeApply';
@@ -19,11 +20,13 @@ export interface StudioV2WorkspaceDatabaseConfigRequest {
   write_mode: StudioV2WorkspaceDatabaseConfigRecord['write_mode'];
   write_interval_seconds: number;
   timestamp_column: string;
+  row_groups?: StudioV2WorkspaceDatabaseRowGroupRecord[];
 }
 
 export interface StudioV2WorkspaceDatabaseTargetRequest {
   column_name: string;
   enabled: boolean;
+  row_group_id?: string;
 }
 
 export interface StudioV2WorkspaceSchemaGenerateResult {

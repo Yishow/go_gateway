@@ -1,5 +1,5 @@
 import { expectTypeOf } from 'vitest';
-import type { DbConnector, DbTarget, CommitLog, CommitState, WorkbenchV2State } from './types';
+import type { DbConnector, DbRowGroup, DbTarget, CommitLog, CommitState, WorkbenchV2State } from './types';
 
 /**
  * @file types-step4.test-d.ts
@@ -16,6 +16,8 @@ expectTypeOf<DbConnector['host']>().toEqualTypeOf<string>();
 expectTypeOf<DbTarget['tag_id']>().toEqualTypeOf<string>();
 expectTypeOf<DbTarget['column_name']>().toEqualTypeOf<string>();
 expectTypeOf<DbTarget['enabled']>().toEqualTypeOf<boolean>();
+expectTypeOf<DbTarget['row_group_id']>().toEqualTypeOf<string | undefined>();
+expectTypeOf<DbRowGroup['member_point_ids']>().toEqualTypeOf<string[]>();
 
 // 3. 斷言 CommitLog 結構與型別
 expectTypeOf<CommitLog['label']>().toEqualTypeOf<string>();
@@ -29,6 +31,7 @@ expectTypeOf<CommitState['logs']>().toEqualTypeOf<CommitLog[]>();
 // 5. 斷言 WorkbenchV2State 中包含 db 與 commit 結構
 expectTypeOf<WorkbenchV2State['db']>().toEqualTypeOf<{
   connector: DbConnector;
+  row_groups?: DbRowGroup[];
   targets: Record<string, DbTarget>;
 }>();
 expectTypeOf<WorkbenchV2State['committed']>().toEqualTypeOf<boolean>();

@@ -26,13 +26,15 @@ const (
 )
 
 type Record struct {
-	ID                  string    `json:"id"`
-	Kind                Kind      `json:"kind"`
-	Status              Status    `json:"status"`
-	DatabaseConnectorID string    `json:"database_connector_id,omitempty"`
-	OrderedDeviceIDs    []string  `json:"ordered_device_ids"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                  string              `json:"id"`
+	Kind                Kind                `json:"kind"`
+	Status              Status              `json:"status"`
+	DatabaseConnectorID string              `json:"database_connector_id,omitempty"`
+	DatabaseRowGroups   []DatabaseRowGroup  `json:"database_row_groups,omitempty"`
+	DatabaseTargetRefs  []DatabaseTargetRef `json:"database_target_refs,omitempty"`
+	OrderedDeviceIDs    []string            `json:"ordered_device_ids"`
+	CreatedAt           time.Time           `json:"created_at"`
+	UpdatedAt           time.Time           `json:"updated_at"`
 }
 
 type Repository interface {
@@ -117,6 +119,8 @@ func cloneRecord(record *Record) *Record {
 
 	cloned := *record
 	cloned.OrderedDeviceIDs = append([]string{}, record.OrderedDeviceIDs...)
+	cloned.DatabaseRowGroups = cloneDatabaseRowGroups(record.DatabaseRowGroups)
+	cloned.DatabaseTargetRefs = cloneDatabaseTargetRefs(record.DatabaseTargetRefs)
 
 	return &cloned
 }

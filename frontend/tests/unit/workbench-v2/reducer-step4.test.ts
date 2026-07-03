@@ -41,7 +41,7 @@ describe('reducer-step4', () => {
     expect(newState.db.targets['p-1']).toEqual(target);
   });
 
-  it('updateDbTarget: 應修改已存在的點位資料庫寫入目標，若不存在則忽略', () => {
+  it('updateDbTarget: 應修改已存在的點位資料庫寫入目標，一般 patch 若不存在則忽略', () => {
     // 1. 不存在時
     const stateNoTarget = workbenchV2Reducer(INITIAL_STATE, {
       type: 'updateDbTarget',
@@ -65,6 +65,36 @@ describe('reducer-step4', () => {
     expect(newState.db.targets['p-1'].enabled).toBe(false);
   });
 
+  it('updateDbTarget: row group 建立時可初始化尚未存在的 target reference', () => {
+    const newState = workbenchV2Reducer(INITIAL_STATE, {
+      type: 'updateDbTarget',
+      pointId: 'p-1',
+      patch: { row_group_id: 'row-group-1' }
+    });
+
+    expect(newState.db.targets['p-1']).toMatchObject({
+      row_group_id: 'row-group-1',
+      enabled: true,
+    });
+  });
+
+  it('setDbRowGroups: 應透過總 reducer 寫入 row group 規劃', () => {
+    const newState = workbenchV2Reducer(INITIAL_STATE, {
+      type: 'setDbRowGroups',
+      rowGroups: [{
+        id: 'row-group-1',
+        table_schema: 'main',
+        table_name: 'sensor_values',
+        member_point_ids: ['p-1', 'p-2'],
+        group_key_columns: ['ts'],
+      }],
+    });
+
+    expect(newState.db.row_groups).toEqual([
+      expect.objectContaining({ id: 'row-group-1', member_point_ids: ['p-1', 'p-2'] }),
+    ]);
+  });
+
   it('autoAssignDbTargets: 應整批更新/設定 targets', () => {
     const targets: Record<string, DbTarget> = {
       'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_in_c', enabled: true },
@@ -76,6 +106,30 @@ describe('reducer-step4', () => {
     });
 
     expect(newState.db.targets).toEqual(targets);
+  });
+
+  it('setAllDbTargetsEnabled: 應整批切換所有資料表欄位的啟用狀態', () => {
+    const withTargets = workbenchV2Reducer(INITIAL_STATE, {
+      type: 'autoAssignDbTargets',
+      targets: {
+        'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_in_c', enabled: true },
+        'p-2': { tag_id: 'tag.line1.t_2', column_name: 'temp_out_c', enabled: false },
+      },
+    });
+
+    const disabledState = workbenchV2Reducer(withTargets, {
+      type: 'setAllDbTargetsEnabled',
+      enabled: false,
+    });
+    expect(disabledState.db.targets['p-1'].enabled).toBe(false);
+    expect(disabledState.db.targets['p-2'].enabled).toBe(false);
+
+    const enabledState = workbenchV2Reducer(disabledState, {
+      type: 'setAllDbTargetsEnabled',
+      enabled: true,
+    });
+    expect(enabledState.db.targets['p-1'].enabled).toBe(true);
+    expect(enabledState.db.targets['p-2'].enabled).toBe(true);
   });
 
   it('Commit Lifecycle: startCommit -> appendCommitLog -> completeCommit -> resetCommit', () => {

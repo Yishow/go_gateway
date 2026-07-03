@@ -163,6 +163,7 @@ func (s *Service) Readiness(ctx context.Context) (*ReadinessSummary, error) {
 
 	connectorID := strings.TrimSpace(record.DatabaseConnectorID)
 	effectiveConnectorID := connectorID
+	var connectorRecord *schema.DatabaseConnector
 	if connectorID != "" {
 		if s.readinessConnectors == nil {
 			return nil, ErrReadinessUnavailable
@@ -182,6 +183,7 @@ func (s *Service) Readiness(ctx context.Context) (*ReadinessSummary, error) {
 				return nil, fmt.Errorf("evaluate workspace database connector readiness %s: %w", connectorID, err)
 			}
 		} else {
+			connectorRecord = connector
 			if issue, ok := databaseConnectorReadinessIssue(connector); ok {
 				issues = append(issues, issue)
 			}
@@ -193,6 +195,11 @@ func (s *Service) Readiness(ctx context.Context) (*ReadinessSummary, error) {
 		return nil, err
 	}
 	issues = append(issues, downstreamIssues...)
+	rowGroupIssues, err := s.databaseRowGroupReadinessIssues(ctx, record, connectorRecord)
+	if err != nil {
+		return nil, err
+	}
+	issues = append(issues, rowGroupIssues...)
 
 	summary := &ReadinessSummary{Issues: issues}
 	for _, issue := range issues {
@@ -502,40 +509,4 @@ func deviceReadinessIssue(deviceID string, readiness *schema.DeviceReadiness) (R
 		Scope:    strings.TrimSpace(deviceID),
 		Message:  message,
 	}, true
-}
-
-func databaseConnectorReadinessIssue(connector *schema.DatabaseConnector) (ReadinessIssue, bool) {
-	if connector == nil || !connector.Enabled {
-		return ReadinessIssue{}, false
-	}
-
-	code := ""
-	switch connector.Status {
-	case schema.DatabaseConnectorStatusUnreachable:
-		code = "database-connector-unreachable"
-	case schema.DatabaseConnectorStatusAuthFailed:
-		code = "database-connector-auth-failed"
-	case schema.DatabaseConnectorStatusError:
-		code = "database-connector-error"
-	default:
-		return ReadinessIssue{}, false
-	}
-
-	message := firstReadinessMessage(connector.LastCheckError, "database connector requires attention")
-	return ReadinessIssue{
-		Code:     code,
-		Severity: ReadinessSeverityWarning,
-		Step:     ReadinessStep4,
-		Scope:    strings.TrimSpace(connector.ID),
-		Message:  message,
-	}, true
-}
-
-func firstReadinessMessage(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
 }

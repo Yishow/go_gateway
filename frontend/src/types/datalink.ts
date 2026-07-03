@@ -292,21 +292,21 @@ export interface StudioV2WorkspaceDatabaseConfigRecord {
   write_interval_seconds: number;
   timestamp_column: string;
   status: string;
+  row_groups?: StudioV2WorkspaceDatabaseRowGroupRecord[];
   save_state?: 'saved';
   created_at: string;
   updated_at: string;
 }
 
+export interface StudioV2WorkspaceDatabaseRowGroupRecord { id: string; connector_id?: string; table_schema?: string; table_name: string; member_point_ids: string[]; group_key_columns?: string[]; unique_key_columns?: string[] }
+
 export interface StudioV2WorkspaceDatabaseTargetRecord {
   id: string;
   workspace_id: string;
-  point_id: string;
-  tag_id: string;
-  column_name: string;
-  enabled: boolean;
-  save_state?: 'saved';
-  created_at: string;
-  updated_at: string;
+  point_id: string; tag_id: string;
+  column_name: string; enabled: boolean;
+  row_group_id?: string; save_state?: 'saved';
+  created_at: string; updated_at: string;
 }
 
 /** 輪詢群組 */

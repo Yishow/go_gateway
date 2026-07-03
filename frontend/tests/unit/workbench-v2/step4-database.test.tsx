@@ -212,6 +212,7 @@ describe('Step 4 Database UI Components & Integration', () => {
 
       expect(screen.queryByText('step4.conflict_banner_title')).not.toBeInTheDocument();
     });
+
   });
 
   describe('CommitSummary', () => {

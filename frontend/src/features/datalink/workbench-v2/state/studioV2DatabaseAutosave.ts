@@ -1,10 +1,12 @@
 import type {
   DbConnector,
+  DbRowGroup,
   DbTarget,
   Mapping,
 } from './types';
 import type {
   StudioV2WorkspaceDatabaseConfigRecord,
+  StudioV2WorkspaceDatabaseRowGroupRecord,
   StudioV2WorkspaceDatabaseTargetRecord,
 } from '../../../../types/datalink';
 import type {
@@ -50,6 +52,20 @@ export function hydrateStudioV2DatabaseConnector(
   };
 }
 
+export function hydrateStudioV2DatabaseRowGroups(
+  records: StudioV2WorkspaceDatabaseRowGroupRecord[] | undefined,
+): DbRowGroup[] {
+  return (records ?? []).map((record) => ({
+    id: record.id,
+    connector_id: record.connector_id,
+    table_schema: record.table_schema,
+    table_name: record.table_name,
+    member_point_ids: [...record.member_point_ids],
+    group_key_columns: record.group_key_columns ? [...record.group_key_columns] : undefined,
+    unique_key_columns: record.unique_key_columns ? [...record.unique_key_columns] : undefined,
+  }));
+}
+
 export function hydrateStudioV2DatabaseTarget(
   record: StudioV2WorkspaceDatabaseTargetRecord,
   current?: DbTarget,
@@ -59,6 +75,7 @@ export function hydrateStudioV2DatabaseTarget(
     tag_id: record.tag_id,
     column_name: record.column_name,
     enabled: record.enabled,
+    row_group_id: record.row_group_id,
     point_id: record.point_id,
     row_id: record.id,
     workspace_id: record.workspace_id,
@@ -89,8 +106,19 @@ export function isStudioV2DatabaseTargetValid(target: DbTarget, mapping: Mapping
   );
 }
 
+export function resolveStudioV2DatabaseTargetPointID(
+  pointId: string,
+  mapping: Mapping | undefined,
+): string | undefined {
+  if (!mapping?.persisted) {
+    return undefined;
+  }
+  return mapping.persisted_point_id || pointId;
+}
+
 export function toStudioV2DatabaseConfigRequest(
   connector: DbConnector,
+  rowGroups: DbRowGroup[] = [],
 ): StudioV2WorkspaceDatabaseConfigRequest {
   const request: StudioV2WorkspaceDatabaseConfigRequest = {
     kind: connector.kind,
@@ -104,6 +132,7 @@ export function toStudioV2DatabaseConfigRequest(
     write_mode: connector.write_mode,
     write_interval_seconds: connector.write_interval_seconds,
     timestamp_column: connector.timestamp_column,
+    row_groups: rowGroups,
   };
   // 留空表示沿用既有密碼；只有實際輸入時才送出，避免後端被覆寫成空字串。
   if (connector.kind !== 'sqlite' && connector.password && connector.password.length > 0) {
@@ -118,5 +147,6 @@ export function toStudioV2DatabaseTargetRequest(
   return {
     column_name: target.column_name,
     enabled: target.enabled,
+    row_group_id: target.row_group_id,
   };
 }

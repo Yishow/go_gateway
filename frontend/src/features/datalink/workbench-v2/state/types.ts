@@ -158,10 +158,21 @@ export interface DbConnector extends DatabaseDeliveryOutcomeFields {
   save_error?: string | null;
 }
 
+export interface DbRowGroup {
+  id: string;
+  connector_id?: string;
+  table_schema?: string;
+  table_name: string;
+  member_point_ids: string[];
+  group_key_columns?: string[];
+  unique_key_columns?: string[];
+}
+
 export interface DbTarget {
   tag_id: string;
   column_name: string;
   enabled: boolean;
+  row_group_id?: string;
   point_id?: string;
   row_id?: string;
   workspace_id?: string;
@@ -265,6 +276,7 @@ export interface WorkbenchV2State {
   mappings: Record<string, Mapping>; // key: pointId
   db: {
     connector: DbConnector;
+    row_groups?: DbRowGroup[];
     targets: Record<string, DbTarget>; // key: pointId
   };
   settings: Settings;

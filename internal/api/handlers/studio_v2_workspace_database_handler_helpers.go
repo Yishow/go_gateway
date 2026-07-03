@@ -30,6 +30,7 @@ type studioV2WorkspaceDatabaseConfigRequest struct {
 	WriteMode            schema.DatabaseWriteMode     `json:"write_mode"`
 	WriteIntervalSeconds int                          `json:"write_interval_seconds"`
 	TimestampColumn      string                       `json:"timestamp_column"`
+	RowGroups            []workspace.DatabaseRowGroup `json:"row_groups"`
 }
 
 func workspaceDatabasePasswordRequired(kind schema.DatabaseConnectorKind) bool {
@@ -64,6 +65,7 @@ type studioV2WorkspaceDatabaseConfigResponse struct {
 	RuntimeApplyStatus     string                         `json:"runtime_apply_status,omitempty"`
 	RuntimeApplyMessage    string                         `json:"runtime_apply_message,omitempty"`
 	RuntimeApplyIssues     []workspace.ReadinessIssue     `json:"runtime_apply_issues,omitempty"`
+	RowGroups              []workspace.DatabaseRowGroup   `json:"row_groups,omitempty"`
 	CreatedAt              any                            `json:"created_at"`
 	UpdatedAt              any                            `json:"updated_at"`
 }
@@ -71,6 +73,7 @@ type studioV2WorkspaceDatabaseConfigResponse struct {
 type studioV2WorkspaceDatabaseTargetRequest struct {
 	ColumnName string `json:"column_name"`
 	Enabled    bool   `json:"enabled"`
+	RowGroupID string `json:"row_group_id"`
 }
 
 type studioV2WorkspaceDatabaseTargetResponse struct {
@@ -80,6 +83,7 @@ type studioV2WorkspaceDatabaseTargetResponse struct {
 	TagID               string                     `json:"tag_id"`
 	ColumnName          string                     `json:"column_name"`
 	Enabled             bool                       `json:"enabled"`
+	RowGroupID          string                     `json:"row_group_id,omitempty"`
 	SaveState           string                     `json:"save_state"`
 	RuntimeApplyStatus  string                     `json:"runtime_apply_status,omitempty"`
 	RuntimeApplyMessage string                     `json:"runtime_apply_message,omitempty"`
@@ -226,7 +230,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) listWorkspacePointBindings(c *gin.Con
 	return bindings, nil
 }
 
-func buildWorkspaceDatabaseConfigResponse(workspaceID string, connector *schema.DatabaseConnector) studioV2WorkspaceDatabaseConfigResponse {
+func buildWorkspaceDatabaseConfigResponse(workspaceID string, connector *schema.DatabaseConnector, rowGroups []workspace.DatabaseRowGroup) studioV2WorkspaceDatabaseConfigResponse {
 	return studioV2WorkspaceDatabaseConfigResponse{
 		ID:                     connector.ID,
 		WorkspaceID:            workspaceID,
@@ -252,6 +256,7 @@ func buildWorkspaceDatabaseConfigResponse(workspaceID string, connector *schema.
 		LastFlushStatus:        connector.LastFlushStatus,
 		LastFlushError:         connector.LastFlushError,
 		SaveState:              "saved",
+		RowGroups:              rowGroups,
 		CreatedAt:              connector.CreatedAt,
 		UpdatedAt:              connector.UpdatedAt,
 	}

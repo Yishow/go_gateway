@@ -37,7 +37,12 @@ export function dbReducer(state: WorkbenchV2State, action: WorkbenchV2Action): W
 
     case 'updateDbTarget': {
       const existing = state.db.targets[action.pointId];
-      if (!existing) return state;
+      if (!existing && !action.patch.row_group_id) return state;
+      const baseTarget = existing ?? {
+        tag_id: '',
+        column_name: '',
+        enabled: true,
+      };
       return {
         ...state,
         db: {
@@ -45,13 +50,30 @@ export function dbReducer(state: WorkbenchV2State, action: WorkbenchV2Action): W
           targets: {
             ...state.db.targets,
             [action.pointId]: {
-              ...existing,
+              ...baseTarget,
               ...action.patch
             }
           }
         }
       };
     }
+
+    case 'setAllDbTargetsEnabled':
+      return {
+        ...state,
+        db: {
+          ...state.db,
+          targets: Object.fromEntries(
+            Object.entries(state.db.targets).map(([pointId, target]) => [
+              pointId,
+              {
+                ...target,
+                enabled: action.enabled,
+              },
+            ]),
+          ),
+        },
+      };
 
     case 'autoAssignDbTargets':
       return {
@@ -61,6 +83,15 @@ export function dbReducer(state: WorkbenchV2State, action: WorkbenchV2Action): W
           targets: {
             ...action.targets
           }
+        }
+      };
+
+    case 'setDbRowGroups':
+      return {
+        ...state,
+        db: {
+          ...state.db,
+          row_groups: action.rowGroups
         }
       };
 

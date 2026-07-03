@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { KindSelector } from './KindSelector';
 import { WriteStrategy } from './WriteStrategy';
-import { DeliveryTruthStrip } from './DeliveryTruthStrip';
 import type { DbConnector } from '../../state/types';
 
 /**
@@ -45,35 +44,21 @@ export function ConnectorSection({
   const hasSchema = kind === 'postgres' || kind === 'sqlserver';
 
   return (
-    <div className="space-y-6 bg-gray-900/10 border border-gray-800 rounded-2xl p-6 backdrop-blur-sm">
-      {/* 區塊標題 */}
-      <div>
-        <h3 className="text-lg font-semibold text-white">
-          {t('step4.connector_title', '資料庫連接器')}
-        </h3>
-        <p className="text-xs text-gray-500 mt-1">
-          {t('step4.connector_subtitle', '設定目標資料寫入的資料庫連線參數與策略')}
-        </p>
-      </div>
-
-      <DeliveryTruthStrip connector={connector} />
-
-      {/* 1. 資料庫種類選擇 */}
+    <div className="space-y-6">
       <KindSelector
         value={kind}
         onChange={onKindChange}
         disabled={disabled}
       />
 
-      {/* 2. 連線欄位設定 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* 連線名稱 */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-400">
             {t('step4.field_name', '連線名稱')}
           </label>
           <input
             type="text"
+            aria-label={t('step4.field_name', '連線名稱')}
             value={name}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ name: e.target.value })}
@@ -82,16 +67,15 @@ export function ConnectorSection({
           />
         </div>
 
-        {/* SQLite 不需要 Host, Port, Username, Schema */}
         {!isSqlite && (
           <>
-            {/* Host */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-400">
                 {t('step4.field_host', '主機位址 (Host)')}
               </label>
               <input
                 type="text"
+                aria-label={t('step4.field_host', '主機位址 (Host)')}
                 value={host}
                 disabled={disabled}
                 onChange={(e) => onUpdateConnector({ host: e.target.value })}
@@ -100,13 +84,13 @@ export function ConnectorSection({
               />
             </div>
 
-            {/* Port */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-400">
                 {t('step4.field_port', '通訊埠 (Port)')}
               </label>
               <input
                 type="number"
+                aria-label={t('step4.field_port', '通訊埠 (Port)')}
                 value={port}
                 disabled={disabled}
                 onChange={(e) => onUpdateConnector({ port: parseInt(e.target.value) || 0 })}
@@ -117,13 +101,13 @@ export function ConnectorSection({
           </>
         )}
 
-        {/* Database 名稱 / SQLite 為檔案路徑 */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-400">
             {isSqlite ? t('step4.field_db_sqlite', '資料庫檔案路徑') : t('step4.field_database', '資料庫名稱')}
           </label>
           <input
             type="text"
+            aria-label={isSqlite ? t('step4.field_db_sqlite', '資料庫檔案路徑') : t('step4.field_database', '資料庫名稱')}
             value={database}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ database: e.target.value })}
@@ -132,7 +116,6 @@ export function ConnectorSection({
           />
         </div>
 
-        {/* SQLite 不需要 Username */}
         {!isSqlite && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400">
@@ -140,6 +123,7 @@ export function ConnectorSection({
             </label>
             <input
               type="text"
+              aria-label={t('step4.field_username', '使用者名稱')}
               value={username}
               disabled={disabled}
               onChange={(e) => onUpdateConnector({ username: e.target.value })}
@@ -149,7 +133,6 @@ export function ConnectorSection({
           </div>
         )}
 
-        {/* SQLite 不需要密碼；留空表示沿用既有密碼（更新時不覆寫） */}
         {!isSqlite && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400">
@@ -157,6 +140,7 @@ export function ConnectorSection({
             </label>
             <input
               type="password"
+              aria-label={t('step4.field_password', '密碼')}
               value={password ?? ''}
               disabled={disabled}
               autoComplete="new-password"
@@ -167,7 +151,6 @@ export function ConnectorSection({
           </div>
         )}
 
-        {/* 只有 Postgres / SQL Server 需要 Schema */}
         {hasSchema && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400">
@@ -175,6 +158,7 @@ export function ConnectorSection({
             </label>
             <input
               type="text"
+              aria-label={t('step4.field_schema', '綱要 (Schema)')}
               value={schema}
               disabled={disabled}
               onChange={(e) => onUpdateConnector({ schema: e.target.value })}
@@ -184,13 +168,13 @@ export function ConnectorSection({
           </div>
         )}
 
-        {/* 資料表名稱 */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-400">
             {t('step4.field_table', '資料表名稱')}
           </label>
           <input
             type="text"
+            aria-label={t('step4.field_table', '資料表名稱')}
             value={table}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ table: e.target.value })}
@@ -200,7 +184,6 @@ export function ConnectorSection({
         </div>
       </div>
 
-      {/* 3. 寫入策略 */}
       <WriteStrategy
         writeMode={write_mode}
         writeIntervalSeconds={write_interval_seconds}
