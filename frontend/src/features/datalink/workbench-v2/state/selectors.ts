@@ -57,11 +57,14 @@ export function useConflictAddrs(allPoints: Point[]): Set<string> {
  * @returns 點位陣列
  */
 export function useRulePoints(
-  rule: Rule,
+  rule: Rule | null | undefined,
   deviceId: string,
   skippedSet: Set<string>
 ): Point[] {
   return useMemo(() => {
+    if (!rule) {
+      return [];
+    }
     return derivePoints(rule, deviceId, skippedSet);
   }, [rule, deviceId, skippedSet]);
 }

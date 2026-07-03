@@ -14,6 +14,25 @@ export const POINT_SEMANTIC = [
 
 export const RAW_VALUE_SEEDS = [243, 251, 1024, 985, 67, 542, 18, 1450];
 
+function slugifySegment(value: string): string {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .replace(/\.+/g, '.');
+
+  return normalized || 'point';
+}
+
+function buildDefaultTagKey(point: Point): string {
+  return [
+    slugifySegment(point.device_id),
+    slugifySegment(point.name),
+    `r${point.address.replace(/[^0-9a-z]/gi, '').toLowerCase()}`,
+  ].join('.');
+}
+
 /**
  * 根據點位與索引建立預設的 Mapping 物件
  * 
@@ -21,12 +40,11 @@ export const RAW_VALUE_SEEDS = [243, 251, 1024, 985, 67, 542, 18, 1450];
  * @param idx 索引
  * @returns 預設 Mapping 物件
  */
-export function buildDefaultMapping(point: Point, idx: number): Mapping {
-  const semantic = POINT_SEMANTIC[idx % POINT_SEMANTIC.length];
+export function buildDefaultMapping(point: Point, _idx: number): Mapping {
   const value = {
-    tag_key: semantic.tag_key,
-    display_name: semantic.display,
-    unit: semantic.unit,
+    tag_key: buildDefaultTagKey(point),
+    display_name: point.display?.trim() || point.name,
+    unit: point.unit?.trim() || '',
     target_type: 'float64' as const,
     scale: point._rule_scale,
     offset: point._rule_offset,

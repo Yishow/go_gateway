@@ -50,10 +50,10 @@ describe('mappingReducer', () => {
       });
 
       expect(nextState.mappings['p-01']).toBeDefined();
-      expect(nextState.mappings['p-01'].tag_key).toBe('line01.temp.inlet');
+      expect(nextState.mappings['p-01'].tag_key).toBe('dev.01.sensor.1.r40001');
       expect(nextState.mappings['p-01'].scale).toBe(0.1);
       expect(nextState.mappings['p-02']).toBeDefined();
-      expect(nextState.mappings['p-02'].tag_key).toBe('line01.temp.outlet');
+      expect(nextState.mappings['p-02'].tag_key).toBe('dev.01.sensor.2.r40002');
     });
 
     it('should preserve existing user edits and remove orphans', () => {
@@ -187,8 +187,52 @@ describe('mappingReducer', () => {
     });
   });
 
+  describe('setAllMappingsEnabled', () => {
+    it('should enable or disable every mapping row at once', () => {
+      const state: WorkbenchV2State = {
+        ...INITIAL_STATE,
+        mappings: {
+          'p-01': {
+            point_id: 'p-01',
+            tag_key: 'tag.01',
+            display_name: 'n1',
+            unit: 'U',
+            target_type: 'float64',
+            scale: 1,
+            offset: 0,
+            enabled: true,
+          },
+          'p-02': {
+            point_id: 'p-02',
+            tag_key: 'tag.02',
+            display_name: 'n2',
+            unit: 'U',
+            target_type: 'float64',
+            scale: 1,
+            offset: 0,
+            enabled: false,
+          },
+        },
+      };
+
+      const disabledState = mappingReducer(state, {
+        type: 'setAllMappingsEnabled',
+        enabled: false,
+      });
+      expect(disabledState.mappings['p-01'].enabled).toBe(false);
+      expect(disabledState.mappings['p-02'].enabled).toBe(false);
+
+      const enabledState = mappingReducer(disabledState, {
+        type: 'setAllMappingsEnabled',
+        enabled: true,
+      });
+      expect(enabledState.mappings['p-01'].enabled).toBe(true);
+      expect(enabledState.mappings['p-02'].enabled).toBe(true);
+    });
+  });
+
   describe('bulkApplyTransform', () => {
-    it('should copy specified fields from source mapping to all mappings', () => {
+    it('should copy specified fields from source mapping to enabled mappings only', () => {
       const state: WorkbenchV2State = {
         ...INITIAL_STATE,
         mappings: {
@@ -206,11 +250,21 @@ describe('mappingReducer', () => {
             point_id: 'p-02',
             tag_key: 'tag.02',
             display_name: 'n2',
-            unit: 'U',
+            unit: 'bar',
             target_type: 'float64',
             scale: 1.0,
             offset: 0,
             enabled: true,
+          },
+          'p-03': {
+            point_id: 'p-03',
+            tag_key: 'tag.03',
+            display_name: 'n3',
+            unit: 'skip-me',
+            target_type: 'float64',
+            scale: 9.0,
+            offset: 99,
+            enabled: false,
           },
         },
       };
@@ -218,13 +272,18 @@ describe('mappingReducer', () => {
       const nextState = mappingReducer(state, {
         type: 'bulkApplyTransform',
         fromPointId: 'p-01',
-        fields: ['scale', 'offset', 'target_type'],
+        fields: ['scale', 'offset', 'target_type', 'unit'],
       });
 
       expect(nextState.mappings['p-02'].scale).toBe(5.0);
       expect(nextState.mappings['p-02'].offset).toBe(10);
       expect(nextState.mappings['p-02'].target_type).toBe('int32');
+      expect(nextState.mappings['p-02'].unit).toBe('U');
       expect(nextState.mappings['p-02'].tag_key).toBe('tag.02');
+      expect(nextState.mappings['p-03'].scale).toBe(9.0);
+      expect(nextState.mappings['p-03'].offset).toBe(99);
+      expect(nextState.mappings['p-03'].target_type).toBe('float64');
+      expect(nextState.mappings['p-03'].unit).toBe('skip-me');
     });
 
     it('should return original state if source point mapping does not exist', () => {

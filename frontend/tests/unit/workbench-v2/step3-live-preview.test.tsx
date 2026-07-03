@@ -1,20 +1,9 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TransformPreview } from '../../../src/features/datalink/workbench-v2/steps/step3/TransformPreview';
+import { MappingPreviewCells } from '../../../src/features/datalink/workbench-v2/steps/step3/MappingPreviewCells';
 import { mappingAPI } from '../../../src/services/datalink';
 import type { Point, Mapping } from '../../../src/features/datalink/workbench-v2/state/types';
 import type { MappingPreviewResponse } from '../../../src/types/datalink';
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, options?: { type?: string }) => {
-      if (options?.type) {
-        return `${key}_${options.type}`;
-      }
-      return key;
-    },
-  }),
-}));
 
 vi.mock('../../../src/services/datalink', () => ({
   mappingAPI: {
@@ -56,27 +45,9 @@ function createPreviewResponse(
     raw_value: 243,
     final_value: 24.3,
     step_results: [
-      {
-        step_index: 1,
-        step_type: 'decode',
-        input_value: 243,
-        output_value: 243,
-        error: '',
-      },
-      {
-        step_index: 2,
-        step_type: 'scale',
-        input_value: 243,
-        output_value: 24.3,
-        error: '',
-      },
-      {
-        step_index: 3,
-        step_type: 'cast',
-        input_value: 24.3,
-        output_value: 24.3,
-        error: '',
-      },
+      { step_index: 1, step_type: 'decode', input_value: 243, output_value: 243, error: '' },
+      { step_index: 2, step_type: 'scale', input_value: 243, output_value: 24.3, error: '' },
+      { step_index: 3, step_type: 'cast', input_value: 24.3, output_value: 24.3, error: '' },
     ],
     ...overrides,
   };
@@ -84,15 +55,25 @@ function createPreviewResponse(
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
+  const promise = new Promise<T>((res) => {
     resolve = res;
-    reject = rej;
   });
-  return { promise, resolve, reject };
+  return { promise, resolve };
 }
 
-describe('Step 3 live preview', () => {
+function renderPreviewCells(nextMapping: Mapping = mapping, rawValue: unknown = 243) {
+  return render(
+    <table>
+      <tbody>
+        <tr>
+          <MappingPreviewCells point={point} mapping={nextMapping} rawValue={rawValue} />
+        </tr>
+      </tbody>
+    </table>,
+  );
+}
+
+describe('Step 3 live preview cells', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
@@ -102,111 +83,86 @@ describe('Step 3 live preview', () => {
     vi.useRealTimers();
   });
 
-  it('sends preview request for the selected row after debounce and renders backend result', async () => {
+  it('sends preview request after debounce and updates the final cell with backend result', async () => {
     vi.mocked(mappingAPI.preview).mockResolvedValue(
-      createPreviewResponse({
-        final_value: 987.65,
-        step_results: [
-          {
-            step_index: 1,
-            step_type: 'decode',
-            input_value: 243,
-            output_value: 243,
-            error: '',
-          },
-          {
-            step_index: 2,
-            step_type: 'scale',
-            input_value: 243,
-            output_value: 987.65,
-            error: '',
-          },
-          {
-            step_index: 3,
-            step_type: 'cast',
-            input_value: 987.65,
-            output_value: 987.65,
-            error: '',
-          },
-        ],
-      }),
+      createPreviewResponse({ final_value: 987.65 }),
     );
 
-    render(<TransformPreview point={point} mapping={mapping} rawValue={243} />);
+    renderPreviewCells();
 
     expect(mappingAPI.preview).not.toHaveBeenCalled();
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.30');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(mappingAPI.preview).toHaveBeenCalledTimes(1);
     expect(mappingAPI.preview).toHaveBeenCalledWith({
       raw_value: 243,
       transform_pipeline: expect.any(Array),
     });
-
-    expect(screen.getByTestId('step-final')).toHaveTextContent('987.65');
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('987.65');
   });
 
-  it('shows explicit loading state while preview request is in flight', async () => {
+  it('keeps local fallback values visible while preview request is in flight', async () => {
     const pending = deferred<MappingPreviewResponse>();
     vi.mocked(mappingAPI.preview).mockReturnValue(pending.promise);
 
-    render(<TransformPreview point={point} mapping={mapping} rawValue={243} />);
+    renderPreviewCells();
+
+    expect(screen.getByTestId('preview-scale-p-01')).toHaveTextContent('24.30');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(screen.getByTestId('preview-loading')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.30');
 
-    pending.resolve(
-      createPreviewResponse({
-        final_value: 987.65,
-      }),
-    );
+    pending.resolve(createPreviewResponse({ final_value: 654.32 }));
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByTestId('step-final')).toHaveTextContent('987.65');
+
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('654.32');
   });
 
-  it('shows actionable error when preview request fails', async () => {
+  it('keeps local fallback values when preview request fails', async () => {
     vi.mocked(mappingAPI.preview).mockRejectedValue(new Error('preview failed from backend'));
 
-    render(<TransformPreview point={point} mapping={mapping} rawValue={243} />);
+    renderPreviewCells();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(screen.getByTestId('preview-error')).toHaveTextContent(
-      'preview failed from backend',
-    );
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.30');
   });
 
-  it('keeps the latest preview result when an older request resolves later', async () => {
+  it('ignores stale preview responses after the row mapping changes', async () => {
     const first = deferred<MappingPreviewResponse>();
     const second = deferred<MappingPreviewResponse>();
     vi.mocked(mappingAPI.preview)
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    const { rerender } = render(
-      <TransformPreview point={point} mapping={mapping} rawValue={243} />,
-    );
+    const { rerender } = renderPreviewCells();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
     rerender(
-      <TransformPreview
-        point={point}
-        mapping={{ ...mapping, scale: 0.2 }}
-        rawValue={243}
-      />,
+      <table>
+        <tbody>
+          <tr>
+            <MappingPreviewCells
+              point={point}
+              mapping={{ ...mapping, scale: 0.2 }}
+              rawValue={243}
+            />
+          </tr>
+        </tbody>
+      </table>,
     );
 
     await act(async () => {
@@ -217,42 +173,23 @@ describe('Step 3 live preview', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByTestId('step-final')).toHaveTextContent('654.32');
 
     first.resolve(createPreviewResponse({ final_value: 24.3 }));
-
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByTestId('step-final')).toHaveTextContent('654.32');
+
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('654.32');
   });
 
-  it('does not send preview request when there is no selected row', async () => {
-    render(<TransformPreview point={null} mapping={null} rawValue={null} />);
+  it('does not send preview request when there is no live raw value yet', async () => {
+    renderPreviewCells(mapping, null);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
     expect(mappingAPI.preview).not.toHaveBeenCalled();
-    expect(screen.getByTestId('preview-empty')).toBeInTheDocument();
-  });
-
-  it('waits for live device value instead of sending preview request with a mock seed', async () => {
-    render(
-      <TransformPreview
-        point={point}
-        mapping={mapping}
-        rawValue={null}
-        connectionState="connected"
-      />,
-    );
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(250);
-    });
-
-    expect(mappingAPI.preview).not.toHaveBeenCalled();
-    expect(screen.getByTestId('preview-waiting')).toHaveTextContent('step3.preview.waiting');
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
   });
 });

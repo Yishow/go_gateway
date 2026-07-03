@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TargetType, WorkbenchV2State } from '../../state/types';
-import { useAllPoints, useMappingValidation, useSelectedMapping } from '../../state/selectors';
+import type { WorkbenchV2State } from '../../state/types';
+import { useAllPoints, useMappingValidation } from '../../state/selectors';
 import { MappingTable } from './MappingTable';
-import { TransformPreview } from './TransformPreview';
 import { useStep3LiveValues } from './useStep3LiveValues';
 
 export interface Step3MappingProps {
@@ -18,7 +17,7 @@ export interface Step3MappingProps {
  * 點位映射步驟容器元件 (Step 3)
  * 
  * 落地設計決策：「自動 mapping 初始化：reducer action 而非 component setState」
- * 組合映射編輯表 MappingTable 與管線預覽 TransformPreview，管理選取列狀態與底部繼續閥。
+ * 組合映射編輯表與表格內預覽欄位，管理選取列狀態與底部繼續閥。
  */
 export const Step3Mapping: React.FC<Step3MappingProps> = ({
   state,
@@ -51,43 +50,12 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledPointsIdStr]);
 
-  // 4. 衍生 validation 與選取 mapping 資料
+  // 4. 衍生 validation 與表格即時值
   const { canContinue, emptyTagCount, enabledCount, totalCount } = useMappingValidation(
     state.mappings
   );
 
-  const selectedData = useSelectedMapping(selectedIdx, enabledPoints, state.mappings);
   const liveValues = useStep3LiveValues(enabledPoints, state.mappings);
-  const selectedLiveValue = selectedData
-    ? liveValues.rawValues[selectedData.point.id] ?? null
-    : null;
-  const selectedConnectionState = selectedData
-    ? liveValues.connectionByDevice[selectedData.point.device_id] ?? 'disconnected'
-    : 'disconnected';
-
-  const handleSelectTargetType = (targetType: TargetType) => {
-    if (!selectedData) {
-      return;
-    }
-
-    dispatch({
-      type: 'updateMapping',
-      pointId: selectedData.point.id,
-      patch: { target_type: targetType },
-    });
-  };
-
-  const handleApplyTargetTypeToAll = () => {
-    if (!selectedData) {
-      return;
-    }
-
-    dispatch({
-      type: 'bulkApplyTransform',
-      fromPointId: selectedData.point.id,
-      fields: ['target_type'],
-    });
-  };
 
   return (
     <div className="space-y-6" data-testid="step3-mapping-container">
@@ -101,34 +69,16 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
         </p>
       </div>
 
-      {/* 12-col 格狀排版 */}
-      <div className="grid grid-cols-12 gap-6 items-start">
-        {/* 左: 表格 (8-col) */}
-        <div className="col-span-8">
-          <MappingTable
-            points={enabledPoints}
-            mappings={state.mappings}
-            selectedIdx={selectedIdx}
-            setSelectedIdx={setSelectedIdx}
-            devices={state.devices}
-            rawValues={liveValues.rawValues}
-            connectionByDevice={liveValues.connectionByDevice}
-            dispatch={dispatch}
-          />
-        </div>
-
-        {/* 右: 預覽卡片 (4-col) */}
-        <div className="col-span-4">
-          <TransformPreview
-            point={selectedData ? selectedData.point : null}
-            mapping={selectedData ? selectedData.mapping : null}
-            rawValue={selectedLiveValue}
-            connectionState={selectedConnectionState}
-            onApplyTargetTypeToAll={handleApplyTargetTypeToAll}
-            onSelectTargetType={handleSelectTargetType}
-          />
-        </div>
-      </div>
+      <MappingTable
+        points={enabledPoints}
+        mappings={state.mappings}
+        selectedIdx={selectedIdx}
+        setSelectedIdx={setSelectedIdx}
+        devices={state.devices}
+        rawValues={liveValues.rawValues}
+        connectionByDevice={liveValues.connectionByDevice}
+        dispatch={dispatch}
+      />
 
       {/* 底部導覽 Footer */}
       <div className="flex items-center justify-between pt-6 border-t border-slate-900">

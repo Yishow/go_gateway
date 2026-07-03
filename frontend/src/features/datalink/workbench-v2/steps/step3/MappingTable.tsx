@@ -37,18 +37,46 @@ export const MappingTable: React.FC<MappingTableProps> = ({
   const selectedMapping = selectedPoint ? mappings[selectedPoint.id] : null;
   const tagShort = selectedMapping ? (selectedMapping.tag_key || selectedPoint?.name || '') : '';
 
-  const handleBulkApply = () => {
+  const handleBulkApply = (fields: ('scale' | 'offset' | 'target_type' | 'unit')[]) => {
     if (!selectedPoint) return;
     dispatch({
       type: 'bulkApplyTransform',
       fromPointId: selectedPoint.id,
-      fields: ['scale', 'offset', 'target_type'],
+      fields,
     });
   };
 
   return (
     <div className="flex flex-col h-full bg-slate-950/40 border border-slate-900 rounded-lg overflow-hidden" data-testid="mapping-table-wrapper">
-      <div className="flex-1 overflow-y-auto max-h-[500px] scrollbar-thin">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-900 bg-slate-950/40 px-3 py-2">
+        <div className="text-[11px] text-slate-500">
+          {t('step3.table.enabledSummary', {
+            defaultValue: '已載入 {{count}} 個映射點位',
+            count: points.length,
+          })}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'setAllMappingsEnabled', enabled: false })}
+            disabled={points.length === 0}
+            className="rounded-md border border-slate-800 px-2.5 py-1 text-[11px] text-slate-300 transition-colors hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="btn-disable-all-mappings"
+          >
+            {t('step3.table.disableAll', { defaultValue: '全部停用' })}
+          </button>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'setAllMappingsEnabled', enabled: true })}
+            disabled={points.length === 0}
+            className="rounded-md border border-blue-700/70 px-2.5 py-1 text-[11px] text-blue-300 transition-colors hover:bg-blue-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="btn-enable-all-mappings"
+          >
+            {t('step3.table.enableAll', { defaultValue: '全部啟用' })}
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto max-h-[520px] scrollbar-thin">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-900 bg-slate-950/60 sticky top-0 z-10">
@@ -57,9 +85,6 @@ export const MappingTable: React.FC<MappingTableProps> = ({
               </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-20">
                 {t('step3.columns.register', { defaultValue: '暫存器' })}
-              </th>
-              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
-                {t('step3.columns.deviceValue', { defaultValue: '裝置值' })}
               </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans">
                 {t('step3.columns.tagKey', { defaultValue: 'Tag Key' })}
@@ -76,6 +101,21 @@ export const MappingTable: React.FC<MappingTableProps> = ({
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-36">
                 {t('step3.columns.transform', { defaultValue: '× Scale + Offset' })}
               </th>
+              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
+                {t('step3.columns.deviceValue', { defaultValue: '讀值' })}
+              </th>
+              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
+                {t('step3.columns.scaleResult', { defaultValue: 'scale' })}
+              </th>
+              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
+                {t('step3.columns.castResult', { defaultValue: 'cast' })}
+              </th>
+              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
+                {t('step3.columns.finalResult', { defaultValue: 'final' })}
+              </th>
+              <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-20 text-center">
+                {t('step3.columns.payload', { defaultValue: 'API payload' })}
+              </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans text-center w-14">
                 {t('step3.columns.enabled', { defaultValue: '啟用' })}
               </th>
@@ -84,7 +124,7 @@ export const MappingTable: React.FC<MappingTableProps> = ({
           <tbody>
             {points.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-8 text-center text-slate-500 text-xs">
+                <td colSpan={13} className="p-8 text-center text-slate-500 text-xs">
                   {t('step3.table.noPoints', { defaultValue: '無啟用的點位，請回上一步新增或啟用規則。' })}
                 </td>
               </tr>
@@ -112,25 +152,63 @@ export const MappingTable: React.FC<MappingTableProps> = ({
       </div>
 
       {/* 表尾批次套用 */}
-      <div className="p-3 border-t border-slate-900 bg-slate-950/20 flex items-center justify-between">
+      <div className="p-3 border-t border-slate-900 bg-slate-950/20 flex items-center justify-between gap-3">
         {selectedMapping ? (
-          <button
-            type="button"
-            onClick={handleBulkApply}
-            className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors flex items-center gap-1 focus:outline-none"
-            data-testid="btn-bulk-apply"
-          >
-            <span>⚡</span>
-            {t('step3.table.bulkApplyText', {
-              defaultValue: '將此轉換套用至全部：使用 {{tag}} 的 Scale / Offset / 型態',
-              tag: tagShort,
-            })}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-slate-500 font-mono">
+              {t('step3.table.bulkApplySource', {
+                defaultValue: '來源：{{tag}}',
+                tag: tagShort,
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleBulkApply(['scale', 'offset', 'target_type', 'unit'])}
+              className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+              data-testid="btn-bulk-apply-all"
+            >
+              {t('step3.table.bulkApplyAll', {
+                defaultValue: '套用轉換+單位到全部列',
+                tag: tagShort,
+              })}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkApply(['scale'])}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              data-testid="btn-bulk-apply-scale"
+            >
+              {t('step3.table.bulkApplyScale', { defaultValue: 'Scale' })}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkApply(['offset'])}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              data-testid="btn-bulk-apply-offset"
+            >
+              {t('step3.table.bulkApplyOffset', { defaultValue: 'Offset' })}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkApply(['target_type'])}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              data-testid="btn-bulk-apply-target-type"
+            >
+              {t('step3.table.bulkApplyTargetType', { defaultValue: '型態' })}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkApply(['unit'])}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              data-testid="btn-bulk-apply-unit"
+            >
+              {t('step3.table.bulkApplyUnit', { defaultValue: '單位' })}
+            </button>
+          </div>
         ) : (
-          <span className="text-xs text-slate-600 flex items-center gap-1 cursor-not-allowed" data-testid="btn-bulk-apply-disabled">
-            <span>⚡</span>
+          <span className="text-xs text-slate-600 flex items-center gap-1 cursor-not-allowed" data-testid="btn-bulk-apply-all-disabled">
             {t('step3.table.bulkApplyPlaceholder', {
-              defaultValue: '點擊任一列以將該列的 Scale / Offset / 型態套用到全部點位',
+              defaultValue: '點擊任一列後，才能套用轉換或單位到全部啟用列',
             })}
           </span>
         )}

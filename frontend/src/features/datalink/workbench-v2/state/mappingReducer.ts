@@ -86,6 +86,22 @@ export function mappingReducer(state: WorkbenchV2State, action: any): WorkbenchV
         },
       };
     }
+    case 'setAllMappingsEnabled': {
+      const nextMappings = Object.fromEntries(
+        Object.entries(state.mappings).map(([pointId, mapping]) => [
+          pointId,
+          withLocalValue({
+            ...mapping,
+            enabled: action.enabled,
+          }),
+        ]),
+      );
+
+      return {
+        ...state,
+        mappings: nextMappings,
+      };
+    }
     case 'bulkApplyTransform': {
       const source = state.mappings[action.fromPointId];
       if (!source) return state;
@@ -93,11 +109,15 @@ export function mappingReducer(state: WorkbenchV2State, action: any): WorkbenchV
       const nextMappings = { ...state.mappings };
       Object.keys(nextMappings).forEach((pointId) => {
         const m = nextMappings[pointId];
+        if (!m.enabled) {
+          return;
+        }
         const updated = { ...m };
-        action.fields.forEach((field: 'scale' | 'offset' | 'target_type') => {
+        action.fields.forEach((field: 'scale' | 'offset' | 'target_type' | 'unit') => {
           if (field === 'scale') updated.scale = source.scale;
           if (field === 'offset') updated.offset = source.offset;
           if (field === 'target_type') updated.target_type = source.target_type;
+          if (field === 'unit') updated.unit = source.unit;
         });
         nextMappings[pointId] = withLocalValue(updated);
       });

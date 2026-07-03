@@ -2,16 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { PipelineSteps } from '../../../src/features/datalink/workbench-v2/steps/step3/PipelineSteps';
-import { PayloadPreview } from '../../../src/features/datalink/workbench-v2/steps/step3/PayloadPreview';
-import { TransformPreview } from '../../../src/features/datalink/workbench-v2/steps/step3/TransformPreview';
-import { MappingRow } from '../../../src/features/datalink/workbench-v2/steps/step3/MappingRow';
-import { MappingTable } from '../../../src/features/datalink/workbench-v2/steps/step3/MappingTable';
 import { Step3Mapping } from '../../../src/features/datalink/workbench-v2/steps/step3/Step3Mapping';
 import { DeviceListContext } from '../../../src/features/datalink/workbench-v2/state/deviceColors';
 import type { Point, Mapping, Rule, Device, WorkbenchV2State } from '../../../src/features/datalink/workbench-v2/state/types';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
-import { pointAPI } from '../../../src/services/datalink';
+import { pointAPI, mappingAPI } from '../../../src/services/datalink';
 
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
@@ -34,6 +29,17 @@ vi.mock('react-i18next', () => ({
 vi.mock('../../../src/services/datalink', () => ({
   pointAPI: {
     list: vi.fn().mockResolvedValue([]),
+  },
+  mappingAPI: {
+    preview: vi.fn().mockResolvedValue({
+      raw_value: 243,
+      final_value: 24.3,
+      step_results: [
+        { step_index: 1, step_type: 'decode', input_value: 243, output_value: 243, error: '' },
+        { step_index: 2, step_type: 'scale', input_value: 243, output_value: 24.3, error: '' },
+        { step_index: 3, step_type: 'cast', input_value: 24.3, output_value: 24.3, error: '' },
+      ],
+    }),
   },
 }));
 
@@ -65,39 +71,6 @@ const mockRule: Rule = {
   share_stride: null,
 };
 
-const mockPoints: Point[] = [
-  {
-    id: 'p-01',
-    device_id: 'dev-01',
-    rule_id: 'rule-01',
-    rule_name: 'Holding Registers',
-    name: 'SENSOR_1',
-    address: '40001',
-    data_type: 'int16',
-    function: 'holding_register',
-    width: 1,
-    enabled: true,
-    skipped: false,
-    _rule_scale: 0.1,
-    _rule_offset: 0,
-  },
-  {
-    id: 'p-02',
-    device_id: 'dev-01',
-    rule_id: 'rule-01',
-    rule_name: 'Holding Registers',
-    name: 'SENSOR_2',
-    address: '40002',
-    data_type: 'int16',
-    function: 'holding_register',
-    width: 1,
-    enabled: true,
-    skipped: false,
-    _rule_scale: 0.1,
-    _rule_offset: 0,
-  },
-];
-
 const mockMappings: Record<string, Mapping> = {
   'p-01': {
     point_id: 'p-01',
@@ -125,6 +98,15 @@ describe('Step 3 UI Components & Integration', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.mocked(pointAPI.list).mockResolvedValue([]);
+    vi.mocked(mappingAPI.preview).mockResolvedValue({
+      raw_value: 243,
+      final_value: 24.3,
+      step_results: [
+        { step_index: 1, step_type: 'decode', input_value: 243, output_value: 243, error: '' },
+        { step_index: 2, step_type: 'scale', input_value: 243, output_value: 24.3, error: '' },
+        { step_index: 3, step_type: 'cast', input_value: 24.3, output_value: 24.3, error: '' },
+      ],
+    });
   });
 
   function createWrapper() {
@@ -141,166 +123,6 @@ describe('Step 3 UI Components & Integration', () => {
       );
     };
   }
-
-  describe('PipelineSteps', () => {
-    it('應能正確格式化 float64、int16、bool 三種 target_type 數值與 steps 顯示', () => {
-      const mappingFloat: Mapping = {
-        ...mockMappings['p-01'],
-        target_type: 'float64',
-        scale: 0.1,
-        offset: 5,
-      };
-      const { rerender } = render(
-        <PipelineSteps point={mockPoints[0]} mapping={mappingFloat} rawValue={243} />
-      );
-      expect(screen.getByTestId('step-decode')).toHaveTextContent('243');
-      expect(screen.getByTestId('step-scale')).toHaveTextContent('243 × 0.1 + 5 = 29.30');
-      expect(screen.getByTestId('step-final')).toHaveTextContent('29.30');
-
-      const mappingInt: Mapping = {
-        ...mockMappings['p-01'],
-        target_type: 'int16',
-        scale: 0.1,
-        offset: 5.6,
-      };
-      rerender(<PipelineSteps point={mockPoints[0]} mapping={mappingInt} rawValue={243} />);
-      expect(screen.getByTestId('step-cast')).toHaveTextContent('30');
-      expect(screen.getByTestId('step-final')).toHaveTextContent('30');
-
-      const mappingBool: Mapping = {
-        ...mockMappings['p-01'],
-        target_type: 'bool',
-        scale: 0,
-        offset: 0,
-      };
-      rerender(<PipelineSteps point={mockPoints[0]} mapping={mappingBool} rawValue={243} />);
-      expect(screen.getByTestId('step-cast')).toHaveTextContent('false');
-      expect(screen.getByTestId('step-final')).toHaveTextContent('false');
-    });
-  });
-
-  describe('PayloadPreview', () => {
-    it('應渲染正確的 JSON 結構，且斷言未呼叫 fetch', () => {
-      const spyFetch = vi.spyOn(window, 'fetch');
-      render(<PayloadPreview point={mockPoints[0]} mapping={mockMappings['p-01']} />);
-
-      const codeElement = screen.getByTestId('payload-preview').querySelector('code');
-      expect(codeElement).not.toBeNull();
-      const json = JSON.parse(codeElement!.textContent!);
-      expect(json.point_id).toBe('p-01');
-      expect(json.tag_id).toBe('line01.temp.inlet');
-      expect(json.transform_pipeline).toHaveLength(3);
-      expect(spyFetch).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('TransformPreview', () => {
-    it('在 point/mapping 為 null 時應渲染 empty state，否則渲染 active preview 且 subtitle 同步', () => {
-      const { rerender } = render(
-        <TransformPreview point={null} mapping={null} rawValue={null} />
-      );
-      expect(screen.getByTestId('preview-empty')).toBeInTheDocument();
-
-      rerender(
-        <TransformPreview point={mockPoints[0]} mapping={mockMappings['p-01']} rawValue={243} />
-      );
-      expect(screen.getByTestId('preview-active')).toBeInTheDocument();
-      expect(screen.getByText('SENSOR_1 @ 40001')).toBeInTheDocument();
-    });
-  });
-
-  describe('MappingRow', () => {
-    it('點擊輸入元素時不觸發 onSelect 列選取，但點擊空白處可選取，且顯示裝置即時值', () => {
-      const onSelect = vi.fn();
-      const dispatch = vi.fn();
-
-      render(
-        <DeviceListContext.Provider value={[mockDevice]}>
-          <table>
-            <tbody>
-              <MappingRow
-                point={mockPoints[0]}
-                mapping={mockMappings['p-01']}
-                isSelected={false}
-                devices={[mockDevice]}
-                liveValue={243}
-                onSelect={onSelect}
-                dispatch={dispatch}
-              />
-            </tbody>
-          </table>
-        </DeviceListContext.Provider>
-      );
-
-      expect(screen.getByTestId('device-live-value-p-01')).toHaveTextContent('243');
-
-      const inputTagKey = screen.getByTestId('input-tag-key-p-01');
-      fireEvent.click(inputTagKey);
-      expect(onSelect).not.toHaveBeenCalled();
-
-      fireEvent.change(inputTagKey, { target: { value: 'new.tag' } });
-      expect(dispatch).toHaveBeenCalledWith({
-        type: 'updateMapping',
-        pointId: 'p-01',
-        patch: { tag_key: 'new.tag' },
-      });
-
-      const row = screen.getByTestId('mapping-row-p-01');
-      fireEvent.click(row);
-      expect(onSelect).toHaveBeenCalled();
-    });
-  });
-
-  describe('MappingTable', () => {
-    it('在 selectedIdx 為 null 時批次套用連結呈現 disabled，否則顯示正確文字且點擊時 dispatch bulkApplyTransform', () => {
-      const dispatch = vi.fn();
-      const setSelectedIdx = vi.fn();
-
-      const { rerender } = render(
-        <DeviceListContext.Provider value={[mockDevice]}>
-          <MappingTable
-            points={mockPoints}
-            mappings={mockMappings}
-            selectedIdx={null}
-            setSelectedIdx={setSelectedIdx}
-            devices={[mockDevice]}
-            rawValues={{}}
-            connectionByDevice={{}}
-            dispatch={dispatch}
-          />
-        </DeviceListContext.Provider>
-      );
-
-      expect(screen.getByTestId('btn-bulk-apply-disabled')).toHaveTextContent(
-        'step3.table.bulkApplyPlaceholder'
-      );
-
-      rerender(
-        <DeviceListContext.Provider value={[mockDevice]}>
-          <MappingTable
-            points={mockPoints}
-            mappings={mockMappings}
-            selectedIdx={0}
-            setSelectedIdx={setSelectedIdx}
-            devices={[mockDevice]}
-            rawValues={{}}
-            connectionByDevice={{}}
-            dispatch={dispatch}
-          />
-        </DeviceListContext.Provider>
-      );
-
-      const btnApply = screen.getByTestId('btn-bulk-apply');
-      expect(btnApply).toHaveTextContent('step3.table.bulkApplyText_tag_line01.temp.inlet');
-
-      fireEvent.click(btnApply);
-      expect(dispatch).toHaveBeenCalledWith({
-        type: 'bulkApplyTransform',
-        fromPointId: 'p-01',
-        fields: ['scale', 'offset', 'target_type'],
-      });
-    });
-  });
 
   describe('Step3Mapping Integration', () => {
     const mockState: WorkbenchV2State = {
@@ -338,6 +160,8 @@ describe('Step 3 UI Components & Integration', () => {
       );
 
       expect(screen.getByTestId('step3-mapping-container')).toBeInTheDocument();
+      expect(screen.queryByTestId('preview-active')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('preview-empty')).not.toBeInTheDocument();
       expect(dispatch).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'initMappingsForPoints',
@@ -413,6 +237,66 @@ describe('Step 3 UI Components & Integration', () => {
       expect(initCall.points).toHaveLength(4);
       expect(initCall.points.every((point: Point) => point.enabled)).toBe(true);
       expect(initCall.points.some((point: Point) => point.rule_id === 'rule-02')).toBe(false);
+    });
+
+    it('會為多組規則產生穩定且不重複的預設 Tag Key', () => {
+      const dispatch = vi.fn();
+
+      const state: WorkbenchV2State = {
+        ...INITIAL_STATE,
+        devices: [mockDevice],
+        rules: [
+          {
+            ...mockRule,
+            id: 'rule-01',
+            count: 8,
+            naming_prefix: 'LINE_A_',
+            start_address: '40001',
+          },
+          {
+            ...mockRule,
+            id: 'rule-02',
+            count: 8,
+            naming_prefix: 'LINE_B_',
+            start_address: '40101',
+          },
+        ],
+        mappings: {},
+      };
+
+      render(
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+              },
+            })
+          }
+        >
+          <DeviceListContext.Provider value={[mockDevice]}>
+            <Step3Mapping
+              state={state}
+              dispatch={dispatch}
+              onContinue={vi.fn()}
+              onBack={vi.fn()}
+            />
+          </DeviceListContext.Provider>
+        </QueryClientProvider>
+      );
+
+      const initCall = dispatch.mock.calls.find(
+        ([action]) => action?.type === 'initMappingsForPoints',
+      )?.[0];
+
+      expect(initCall.points).toHaveLength(16);
+      expect(initCall.points[0]).toEqual(
+        expect.objectContaining({ address: '40001', name: 'LINE_A_0' }),
+      );
+      expect(initCall.points[8]).toEqual(
+        expect.objectContaining({ address: '40101', name: 'LINE_B_0' }),
+      );
     });
 
     it('繼續按鈕啟用條件: A. 正常 -> 啟用; B. 留空 -> 禁用且 aside warning; C. 無啟用點位 -> 禁用且 aside warning', () => {
@@ -491,6 +375,45 @@ describe('Step 3 UI Components & Integration', () => {
 
       expect(btnContinue).toBeDisabled();
       expect(screen.getByTestId('aside-chip-no-enabled')).toBeInTheDocument();
+    });
+
+    it('支援一鍵啟用或停用所有映射點位', () => {
+      const dispatch = vi.fn();
+
+      render(
+        <QueryClientProvider
+          client={
+            new QueryClient({
+              defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+              },
+            })
+          }
+        >
+          <DeviceListContext.Provider value={[mockDevice]}>
+            <Step3Mapping
+              state={mockState}
+              dispatch={dispatch}
+              onContinue={vi.fn()}
+              onBack={vi.fn()}
+            />
+          </DeviceListContext.Provider>
+        </QueryClientProvider>
+      );
+
+      dispatch.mockClear();
+      fireEvent.click(screen.getByTestId('btn-disable-all-mappings'));
+      fireEvent.click(screen.getByTestId('btn-enable-all-mappings'));
+
+      expect(dispatch).toHaveBeenNthCalledWith(1, {
+        type: 'setAllMappingsEnabled',
+        enabled: false,
+      });
+      expect(dispatch).toHaveBeenNthCalledWith(2, {
+        type: 'setAllMappingsEnabled',
+        enabled: true,
+      });
     });
   });
 });

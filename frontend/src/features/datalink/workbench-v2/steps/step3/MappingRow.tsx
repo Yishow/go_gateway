@@ -2,6 +2,8 @@ import * as React from 'react';
 import type { Point, Mapping, Device } from '../../state/types';
 import { useDeviceColor } from '../../state/deviceColors';
 import type { RuntimeStreamConnectionState } from '../../../../../types/datalink';
+import { MappingPreviewCells } from './MappingPreviewCells';
+import { MappingPayloadDialog } from './MappingPayloadDialog';
 
 const MAPPING_SAVE_STATE_LABELS = {
   saving: '儲存中',
@@ -111,12 +113,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         {point.address}
       </td>
 
-      {/* 3. 裝置即時值 */}
-      <td className="p-3 text-xs font-mono text-slate-300">
-        <span data-testid={`device-live-value-${point.id}`}>{deviceValueLabel}</span>
-      </td>
-
-      {/* 4. Tag Key (可編輯) */}
+      {/* 3. Tag Key (可編輯) */}
       <td className="p-2">
         <input
           type="text"
@@ -147,7 +144,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         )}
       </td>
 
-      {/* 5. 顯示名稱 (可編輯) */}
+      {/* 4. 顯示名稱 (可編輯) */}
       <td className="p-2">
         <input
           type="text"
@@ -161,7 +158,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         />
       </td>
 
-      {/* 6. 單位 (可編輯) */}
+      {/* 5. 單位 (可編輯) */}
       <td className="p-2">
         <input
           type="text"
@@ -175,7 +172,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         />
       </td>
 
-      {/* 7. 目標型態 (可編輯) */}
+      {/* 6. 目標型態 (可編輯) */}
       <td className="p-2">
         <select
           value={mapping.target_type}
@@ -198,7 +195,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
         </select>
       </td>
 
-      {/* 8. Scale / Offset (可編輯) */}
+      {/* 7. Scale / Offset (可編輯) */}
       <td className="p-2">
         <div className="flex items-center gap-1">
           <input
@@ -224,6 +221,15 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           />
         </div>
       </td>
+
+      {/* 8. 讀值 (raw/decode) */}
+      <td className="p-3 text-xs font-mono text-slate-300">
+        <span data-testid={`device-live-value-${point.id}`}>{deviceValueLabel}</span>
+      </td>
+
+      <MappingPreviewCells point={point} mapping={mapping} rawValue={liveValue} />
+
+      <MappingPayloadDialog point={point} mapping={mapping} />
 
       {/* 9. 啟用 Toggle */}
       <td className="p-3 text-center">
