@@ -97,7 +97,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 ## 測試指引與測試要求
 - 後端使用 Go `testing`，必要時搭配 `testify`。
 - 前端使用 Vitest + Testing Library（`frontend/src/setupTests.ts`），E2E 使用 Playwright。
-- 任何行為變更都要同步新增或調整測試，尤其是協議解析、映射流程、排程邏輯、runtime lifecycle 與 output binding。
+- 任何行為變更都要同步新增或調整測試，尤其是協議解析、映射流程、排程邏輯、runtime lifecycle 與 output binding；確實無法補測時，必須明確說明技術原因，不可默默略過。
 - 後端先補精準單元測試，再補資料庫 / 協議邊界的整合測試。
 - 前端 UI / UX 調整採 TDD 先行：先補測試，再改介面；至少覆蓋 `Studio` 主流程與 `TestPage` 的主要互動流程。
 - 前端測試統一以 `frontend/tests/` 作為正式入口並分類管理：
@@ -105,8 +105,8 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
   - `frontend/tests/integration/`：Vitest 跨模組整合測試。
   - `frontend/tests/e2e/`：Playwright 端對端測試。
 - Go `*_test.go` 維持與實作檔相鄰，不搬到 root `tests/`，以符合 Go 工具鏈與 package 慣例。
-- 前端本地驗證建議至少執行 `cd frontend && npm run lint && npm run test && npm run build`；CI / 非 watch 模式可使用 `npm test -- --run`。
-- 後端本地驗證建議至少執行 `go test ./... && go vet ./... && golangci-lint run ./...`。
+- 前端本地驗證最低基準（強制）：`cd frontend && npm run lint && npm run test && npm run build`；CI / 非 watch 模式可使用 `npm test -- --run`。
+- 後端本地驗證最低基準（強制）：`go test ./... && go vet ./... && golangci-lint run ./...`。
 
 ## 安全考量
 - 不要把真實帳號、密碼、Token、DSN、設備憑證或其他 secrets 寫入程式碼、測試、文件、OpenSpec 或 commit message。
