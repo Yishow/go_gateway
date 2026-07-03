@@ -7,6 +7,7 @@ import { RuleEditor } from '../../../src/features/datalink/workbench-v2/steps/st
 import { MergedPointTable } from '../../../src/features/datalink/workbench-v2/steps/step2/MergedPointTable';
 import { Step2Rule } from '../../../src/features/datalink/workbench-v2/steps/step2/Step2Rule';
 import type { Rule, Device, Point } from '../../../src/features/datalink/workbench-v2/state/types';
+import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 
 // Mock 基礎資料
 const mockDevices: Device[] = [
@@ -52,6 +53,31 @@ describe('RuleTabRail 元件', () => {
     fireEvent.click(screen.getByTestId('rule-add-btn'));
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'addRule', rule: expect.any(Object) })
+    );
+  });
+
+  it('新增第二條規則時應給唯一的預設點位名稱前綴，避免與既有規則重名', () => {
+    const dispatch = vi.fn();
+
+    render(
+      <RuleTabRail
+        rules={mockRules}
+        devices={mockDevices}
+        selectedRuleId="rule-1"
+        dispatch={dispatch}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('rule-add-btn'));
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'addRule',
+        rule: expect.objectContaining({
+          name: 'Rule 2',
+          naming_prefix: 'BLOCK2_',
+        }),
+      }),
     );
   });
 
@@ -266,6 +292,32 @@ describe('MergedPointTable 元件', () => {
   });
 });
 
+describe('Step2Rule 元件', () => {
+  it('當目前沒有任何規則時仍保留新增入口與 Step 2 骨架', () => {
+    const dispatch = vi.fn();
+
+    render(
+      <Step2Rule
+        state={{
+          ...INITIAL_STATE,
+          devices: mockDevices,
+          rules: [],
+          selectedRuleId: 'missing-rule',
+        }}
+        dispatch={dispatch}
+        onContinue={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('暫無配置規則，請先新增接入規則。')).toBeInTheDocument();
+    expect(screen.getByTestId('rule-tab-rail')).toBeInTheDocument();
+    expect(screen.getByTestId('rule-add-btn')).toBeInTheDocument();
+    expect(screen.queryByTestId('rule-editor')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('point-grid')).not.toBeInTheDocument();
+    expect(screen.getByTestId('merged-point-table-container')).toBeInTheDocument();
+  });
+});
+
 describe('Step2Rule 整合元件', () => {
   it('renders full Step 2 with default state', () => {
     const dispatch = vi.fn();
@@ -345,4 +397,3 @@ describe('Step2Rule 整合元件', () => {
     expect(screen.getByTestId('merged-point-table-container')).toBeInTheDocument();
   });
 });
-

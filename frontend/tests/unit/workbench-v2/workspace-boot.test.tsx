@@ -7,11 +7,14 @@ import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2Works
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
+import type { StudioV2WorkspaceDatabaseConfigRecord, StudioV2WorkspaceDatabaseTargetRecord } from '../../../src/types/datalink';
 
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
-  WorkbenchV2Shell: ({ state }: { state: { devices: Array<{ running?: boolean }>; rules: unknown[]; points: unknown[]; mappings: Record<string, unknown>; db: { targets: Record<string, unknown> } } }) => (
+  WorkbenchV2Shell: ({ state }: { state: { current: number; completed: Set<number>; devices: Array<{ running?: boolean }>; rules: unknown[]; points: unknown[]; mappings: Record<string, unknown>; db: { targets: Record<string, unknown> } } }) => (
     <div
       data-testid="boot-shell"
+      data-current={state.current}
+      data-completed={Array.from(state.completed).join(',')}
       data-device-count={state.devices.length}
       data-rule-count={state.rules.length}
       data-point-count={state.points.length}
@@ -260,7 +263,7 @@ describe('DatalinkWorkbenchV2Page workspace bootstrap', () => {
         updated_at: '2026-05-30T00:00:00Z',
       },
     ]);
-    vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue({
+    const persistedDatabaseConfig: StudioV2WorkspaceDatabaseConfigRecord = {
       id: 'db-1',
       workspace_id: 'workspace-persisted',
       kind: 'sqlite',
@@ -276,15 +279,14 @@ describe('DatalinkWorkbenchV2Page workspace bootstrap', () => {
       timestamp_column: 'ts',
       status: 'ready',
       save_state: 'saved',
-      runtime_apply_status: 'not_running',
       created_at: '2026-05-30T00:00:00Z',
       updated_at: '2026-05-30T00:00:00Z',
-    } as any);
-    vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([
+    };
+    const persistedDatabaseTargets: StudioV2WorkspaceDatabaseTargetRecord[] = [
       {
         id: 'target-A',
         workspace_id: 'workspace-persisted',
-        point_id: 'rule-A-p-0',
+        point_id: 'persisted-point-A',
         tag_id: 'tag-A',
         column_name: 'line_a',
         enabled: true,
@@ -303,7 +305,9 @@ describe('DatalinkWorkbenchV2Page workspace bootstrap', () => {
         created_at: '2026-05-30T00:00:00Z',
         updated_at: '2026-05-30T00:00:00Z',
       },
-    ] as any);
+    ];
+    vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(persistedDatabaseConfig);
+    vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue(persistedDatabaseTargets);
 
     renderPage();
 
@@ -315,7 +319,68 @@ describe('DatalinkWorkbenchV2Page workspace bootstrap', () => {
     expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-point-count', '1');
     expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-mapping-count', '1');
     expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-target-count', '1');
+    expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-current', '4');
+    expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-completed', '1,2,3');
   });
+
+  it('ignores malformed source-rule records instead of crashing step 1 bootstrap', async () => {
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+      id: 'workspace-bad-rule',
+      kind: 'single',
+      status: 'ready',
+      ordered_device_ids: ['dev-A'],
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    });
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
+      {
+        id: 'dev-A',
+        name: 'Line A PLC',
+        description: '',
+        protocol: 'modbus_tcp',
+        status: 'draft',
+        connection_config: '{"host":"192.168.10.10","port":502,"slave_id":1,"timeout":5}',
+        last_test_at: null,
+        last_test_success: null,
+        last_test_error: '',
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      },
+    ]);
+    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([
+      {
+        id: 'rule-bad',
+        device_id: 'dev-A',
+        workspace_id: 'workspace-bad-rule',
+        count: 1,
+        data_type: 'int16',
+        naming_prefix: 'BROKEN_',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        skipped_addresses: [],
+        revision_id: 'rev-bad',
+        scale_multiplier: 1,
+        scale_offset: 0,
+        data_format: '',
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      } as never,
+    ]);
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
+    vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-rule-count', '0');
+    expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-point-count', '0');
+  });
+
   it('shows an unrecovered draft warning after reload when prior local draft was not saved', async () => {
     window.sessionStorage.setItem('wbv2_unrecovered_draft', '1');
 

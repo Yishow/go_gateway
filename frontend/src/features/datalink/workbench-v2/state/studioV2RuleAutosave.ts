@@ -4,6 +4,29 @@ import type { Rule } from './types';
 
 const VALID_DATA_FORMATS = new Set(['', 'ABCD', 'BADC', 'CDAB', 'DCBA']);
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+export function canHydrateStudioV2Rule(record: SourceRuleRecord | null | undefined): record is SourceRuleRecord {
+  if (!record) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(record.id) &&
+    isNonEmptyString(record.device_id) &&
+    isNonEmptyString(record.start_address) &&
+    isNonNegativeNumber(record.count) &&
+    isNonEmptyString(record.naming_prefix) &&
+    Array.isArray(record.skipped_addresses)
+  );
+}
+
 export function isStudioV2RuleValid(rule: Rule): boolean {
   return Boolean(
     rule.device_id.trim() !== '' &&

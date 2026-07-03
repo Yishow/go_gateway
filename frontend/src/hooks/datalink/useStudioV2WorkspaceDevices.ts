@@ -20,6 +20,7 @@ export function useCreateStudioV2WorkspaceDeviceMutation() {
   return useMutation({
     mutationFn: (request: CreateDeviceRequest) => studioV2WorkspaceDevicesAPI.create(request),
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
     },
   });
@@ -32,6 +33,7 @@ export function useUpdateStudioV2WorkspaceDeviceMutation() {
     mutationFn: ({ deviceId, request }: { deviceId: string; request: UpdateDeviceRequest }) =>
       studioV2WorkspaceDevicesAPI.update(deviceId, request),
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
     },
   });
@@ -43,6 +45,7 @@ export function useDeleteStudioV2WorkspaceDeviceMutation() {
   return useMutation({
     mutationFn: (deviceId: string) => studioV2WorkspaceDevicesAPI.remove(deviceId),
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
     },
   });
@@ -55,6 +58,7 @@ export function useUpdateStudioV2WorkspaceDeviceAvailabilityMutation() {
     mutationFn: ({ deviceId, request }: { deviceId: string; request: StudioV2AvailabilityRequest }) =>
       studioV2WorkspaceDevicesAPI.updateAvailability(deviceId, request),
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
     },
   });

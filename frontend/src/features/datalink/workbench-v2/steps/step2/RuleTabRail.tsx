@@ -170,11 +170,11 @@ export const RuleTabRail: React.FC<RuleTabRailProps> = ({
     const newRule: Rule = {
       id: newId,
       device_id: defaultDevId,
-      name: `規則 ${rules.length + 1}`,
+      name: `Rule ${rules.length + 1}`,
       start_address: '40001',
       count: 8,
       data_type: 'int16',
-      naming_prefix: 'TAG_',
+      naming_prefix: `BLOCK${rules.length + 1}_`,
       enabled: true,
       scale_multiplier: 1,
       scale_offset: 0,

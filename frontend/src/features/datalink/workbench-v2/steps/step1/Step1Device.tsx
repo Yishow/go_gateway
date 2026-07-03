@@ -1,8 +1,10 @@
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2State, Device, ProtocolId } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
-import { useTestDraftConnectionMutation } from '../../../../../hooks/datalink/useDevices';
+import { studioV2WorkspaceKeys } from '../../../../../hooks/datalink/keys';
+import { useTestConnectionMutation, useTestDraftConnectionMutation } from '../../../../../hooks/datalink/useDevices';
 import { DeviceTabRail } from './DeviceTabRail';
 import { DeviceEditor } from './DeviceEditor';
 import { ConnectionTestPanel } from './ConnectionTestPanel';
@@ -28,7 +30,9 @@ export interface Step1DeviceProps {
  */
 export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onContinue }) => {
   const { t } = useTranslation('workbench-v2');
+  const queryClient = useQueryClient();
   const testDraftConnectionMutation = useTestDraftConnectionMutation();
+  const testConnectionMutation = useTestConnectionMutation();
 
   // 1. 本地所選設備狀態
   const [selectedId, setSelectedId] = React.useState<string>(() => {
@@ -59,10 +63,15 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
 
     dispatch({ type: 'startDeviceTest', deviceId });
     try {
-      const result = await testDraftConnectionMutation.mutateAsync({
+      let result = await testDraftConnectionMutation.mutateAsync({
         protocol: dev.protocol,
         connection_config: dev.config,
       });
+      if (result.success && dev.persisted && dev.save_state === 'saved') {
+        result = await testConnectionMutation.mutateAsync(dev.id);
+        await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
+        await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
+      }
       dispatch({ type: 'resolveDeviceTest', deviceId, result });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'diagnostics request failed';

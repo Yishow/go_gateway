@@ -1,14 +1,12 @@
 import * as React from 'react';
 import { useReducer, useCallback } from 'react';
 import type { ConnectionTestResult } from '../../../../types/datalink';
-import type { WorkbenchV2State, Device, Rule, Mapping, Point } from './types';
+import type { WorkbenchV2State, Device, Rule, Mapping, Point, DbRowGroup, ProtocolId, DbConnector, DbTarget, CommitLog, Settings, SettingsConnector } from './types';
 import { getDefaultConfig } from './protocols';
-import type { ProtocolId } from './types';
 import { ruleReducer } from './ruleReducer';
 import { mappingReducer } from './mappingReducer';
 import { dbReducer } from './dbReducer';
 import { settingsReducer } from './settingsReducer';
-import type { DbConnector, DbTarget, CommitLog, Settings, SettingsConnector } from './types';
 
 export type WorkbenchV2Action =
   | { type: 'SET_VIEW'; payload: 'flow' | 'settings' }
@@ -44,11 +42,13 @@ export type WorkbenchV2Action =
   | { type: 'initMappingsForPoints'; points: Point[] }
   | { type: 'updateMapping'; pointId: string; patch: Partial<Mapping> }
   | { type: 'toggleMappingEnabled'; pointId: string }
-  | { type: 'bulkApplyTransform'; fromPointId: string; fields: ('scale' | 'offset' | 'target_type')[] }
+  | { type: 'setAllMappingsEnabled' | 'setAllDbTargetsEnabled'; enabled: boolean }
+  | { type: 'bulkApplyTransform'; fromPointId: string; fields: ('scale' | 'offset' | 'target_type' | 'unit')[] }
   | { type: 'updateDbConnector'; patch: Partial<DbConnector> }
   | { type: 'upsertDbTarget'; pointId: string; target: DbTarget }
   | { type: 'updateDbTarget'; pointId: string; patch: Partial<DbTarget> }
   | { type: 'autoAssignDbTargets'; targets: Record<string, DbTarget> }
+  | { type: 'setDbRowGroups'; rowGroups: DbRowGroup[] }
   | { type: 'startCommit' }
   | { type: 'appendCommitLog'; log: CommitLog }
   | { type: 'completeCommit' }
@@ -138,6 +138,7 @@ export const INITIAL_STATE: WorkbenchV2State = {
       save_state: 'idle',
       save_error: null,
     },
+    row_groups: [],
     targets: {},
   },
   settings: {
@@ -423,12 +424,14 @@ export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2A
     case 'initMappingsForPoints':
     case 'updateMapping':
     case 'toggleMappingEnabled':
+    case 'setAllMappingsEnabled':
     case 'bulkApplyTransform':
       return mappingReducer(state, action);
     case 'updateDbConnector':
     case 'upsertDbTarget':
     case 'updateDbTarget':
-    case 'autoAssignDbTargets':
+    case 'setAllDbTargetsEnabled':
+    case 'autoAssignDbTargets': case 'setDbRowGroups':
     case 'startCommit':
     case 'appendCommitLog':
     case 'completeCommit':
@@ -478,15 +481,12 @@ export function useWorkbenchV2State(initialState: WorkbenchV2State = INITIAL_STA
   const setView = useCallback((view: 'flow' | 'settings') => {
     dispatch({ type: 'SET_VIEW', payload: view });
   }, []);
-
   const setCurrent = useCallback((current: 1 | 2 | 3 | 4) => {
     dispatch({ type: 'SET_CURRENT', payload: current });
   }, []);
-
   const completeStep = useCallback((stepId: number) => {
     dispatch({ type: 'COMPLETE_STEP', payload: stepId });
   }, []);
-
   const toggleSidebar = useCallback(() => {
     dispatch({ type: 'TOGGLE_SIDEBAR' });
   }, []);

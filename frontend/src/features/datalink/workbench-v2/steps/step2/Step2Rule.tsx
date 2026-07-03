@@ -56,6 +56,10 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
 
   // 4. 點位略過/啟用批次修改 Callback
   const handleBatchToggleSkip = (addresses: string[], shouldSkip: boolean) => {
+    if (!currentRule) {
+      return;
+    }
+
     const currentSkipped = currentRule.skipped_addresses || [];
     let nextSkipped: string[];
 
@@ -75,6 +79,10 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
 
   // 5. 處理單一略過 Toggle
   const handleToggleSkip = (address: string) => {
+    if (!currentRule) {
+      return;
+    }
+
     dispatch({
       type: 'toggleRuleSkippedAddress',
       ruleId: currentRule.id,
@@ -151,65 +159,68 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
     }
   };
 
-  if (!currentRule) {
-    return (
-      <div className="p-8 text-center text-slate-500">
-        暫無配置規則，請先新增接入規則。
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6" data-testid="step2-rule-container">
       {/* 規則分頁切換列 */}
       <RuleTabRail
         rules={rules}
         devices={devices}
-        selectedRuleId={currentRule.id}
+        selectedRuleId={currentRule?.id || null}
         dispatch={dispatch}
       />
 
       {/* 雙欄核心配置區 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 左側：規則參數編輯器 */}
-        <div className="lg:col-span-5">
-          <RuleEditor
-            rule={currentRule}
-            devices={devices}
-            globalShareEnabled={settings.modbus_share.enabled}
-            dispatch={dispatch}
-          />
-        </div>
+        {currentRule ? (
+          <>
+            {/* 左側：規則參數編輯器 */}
+            <div className="lg:col-span-5">
+              <RuleEditor
+                rule={currentRule}
+                devices={devices}
+                globalShareEnabled={settings.modbus_share.enabled}
+                dispatch={dispatch}
+              />
+            </div>
 
-        {/* 右側：點位狀態網格與批次控制列 */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <h4 className="text-xs font-semibold text-slate-300">
-              當前規則點位網格
-            </h4>
-            <p className="text-[10px] text-slate-500 leading-normal">
-              單擊網格以略過點位；配合 Shift + 點擊可批次選取區段；配合 Ctrl / ⌘ + 點擊可多選。被略過的點位將不參與後續映射轉發。
+            {/* 右側：點位狀態網格與批次控制列 */}
+            <div className="lg:col-span-7 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <h4 className="text-xs font-semibold text-slate-300">
+                  當前規則點位網格
+                </h4>
+                <p className="text-[10px] text-slate-500 leading-normal">
+                  單擊網格以略過點位；配合 Shift + 點擊可批次選取區段；配合 Ctrl / ⌘ + 點擊可多選。被略過的點位將不參與後續映射轉發。
+                </p>
+              </div>
+
+              <PointGridToolbar
+                gridSelection={gridSelection}
+                totalCount={currentRulePoints.length}
+                stride={currentRulePoints[0]?.width || 1}
+                onAction={handleToolbarAction}
+              />
+
+              <PointGrid
+                ruleId={currentRule.id}
+                points={currentRulePoints}
+                conflictAddrs={conflictAddrs}
+                shareLayout={currentShareLayout}
+                gridSelection={gridSelection}
+                setGridSelection={setGridSelection}
+                onToggleSkipAddress={handleToggleSkip}
+                onBatchToggleSkipAddresses={handleBatchToggleSkip}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="lg:col-span-12 rounded-xl border border-dashed border-slate-800 bg-slate-900/20 p-8 text-center">
+            <h3 className="text-sm font-semibold text-slate-200">尚未建立接入規則</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              暫無配置規則，請先新增接入規則。
             </p>
           </div>
-
-          <PointGridToolbar
-            gridSelection={gridSelection}
-            totalCount={currentRulePoints.length}
-            stride={currentRulePoints[0]?.width || 1}
-            onAction={handleToolbarAction}
-          />
-
-          <PointGrid
-            ruleId={currentRule.id}
-            points={currentRulePoints}
-            conflictAddrs={conflictAddrs}
-            shareLayout={currentShareLayout}
-            gridSelection={gridSelection}
-            setGridSelection={setGridSelection}
-            onToggleSkipAddress={handleToggleSkip}
-            onBatchToggleSkipAddresses={handleBatchToggleSkip}
-          />
-        </div>
+        )}
       </div>
 
       {/* 全域點位合併表與工作流導航 */}

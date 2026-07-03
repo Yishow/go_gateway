@@ -54,11 +54,14 @@ describe('Step 1 Components & Integration', () => {
       },
     });
 
-    return render(
-      <QueryClientProvider client={queryClient}>
-        {ui}
-      </QueryClientProvider>,
-    );
+    return {
+      queryClient,
+      ...render(
+        <QueryClientProvider client={queryClient}>
+          {ui}
+        </QueryClientProvider>,
+      ),
+    };
   };
 
   const Step1Harness = ({
@@ -337,8 +340,20 @@ describe('Step 1 Components & Integration', () => {
       const diagnosticsSpy = vi
         .spyOn(deviceAPI, 'testDraftConnection')
         .mockReturnValue(diagnosticsPromise);
+      const persistedDiagnosticsSpy = vi
+        .spyOn(deviceAPI, 'testConnection')
+        .mockResolvedValue(buildSuccessResult());
 
-      renderWithQueryClient(<Step1Harness onContinue={onContinue} />);
+      const { queryClient } = renderWithQueryClient(
+        <Step1Harness
+          onContinue={onContinue}
+          initialState={{
+            ...INITIAL_STATE,
+            devices: [{ ...mockDevice }],
+          }}
+        />,
+      );
+      const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const runBtn = screen.getByTestId('run-test-button');
       const continueBtn = screen.getByTestId('btn-continue-step1');
@@ -366,7 +381,16 @@ describe('Step 1 Components & Integration', () => {
       resolveResult(buildSuccessResult());
 
       await waitFor(() => {
+        expect(persistedDiagnosticsSpy).toHaveBeenCalledWith('dev-01');
+      });
+      await waitFor(() => {
         expect(screen.getByTestId('success-readiness-card')).toBeInTheDocument();
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: ['studio-v2-workspace', 'bootstrap'],
+      });
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: ['studio-v2-workspace', 'devices'],
       });
       expect(screen.getByTestId('btn-continue-step1')).not.toBeDisabled();
 

@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
 import {
   useCreateStudioV2WorkspaceDeviceMutation,
+  useDeleteStudioV2WorkspaceDeviceMutation,
   useStudioV2WorkspaceDevicesQuery,
+  useUpdateStudioV2WorkspaceDeviceAvailabilityMutation,
   useUpdateStudioV2WorkspaceDeviceMutation,
 } from '@/hooks/datalink/useStudioV2WorkspaceDevices';
 import {
@@ -35,6 +37,7 @@ vi.mock('@/services/studioV2WorkspaceDevices', () => ({
     list: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    updateAvailability: vi.fn(),
     remove: vi.fn(),
     updateOrder: vi.fn(),
   },
@@ -86,6 +89,9 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
 
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
   });
@@ -113,6 +119,62 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     ).resolves.toEqual({ id: 'dev-01', runtime_apply_status: 'restart-required' });
 
     await options.onSuccess();
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.devices(),
+    });
+  });
+
+  it('updates availability and invalidates both the workspace bootstrap and device query', async () => {
+    useMutationMock.mockReturnValue({ mutateAsync: vi.fn() });
+
+    useUpdateStudioV2WorkspaceDeviceAvailabilityMutation();
+
+    const options = useMutationMock.mock.calls.at(-1)?.[0] as {
+      mutationFn: (payload: { deviceId: string; request: unknown }) => Promise<unknown>;
+      onSuccess: () => Promise<void>;
+    };
+
+    const unavailableDevice = {
+      id: 'dev-01',
+      availability_status: 'unavailable',
+    } as StudioV2WorkspaceDeviceRecord;
+    vi.mocked(studioV2WorkspaceDevicesAPI.updateAvailability).mockResolvedValueOnce(unavailableDevice);
+    await expect(
+      options.mutationFn({
+        deviceId: 'dev-01',
+        request: { availability_status: 'unavailable', availability_reason: 'device form is invalid' },
+      }),
+    ).resolves.toEqual({ id: 'dev-01', availability_status: 'unavailable' });
+
+    await options.onSuccess();
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.devices(),
+    });
+  });
+
+  it('deletes one workspace device and invalidates both the workspace bootstrap and device query', async () => {
+    useMutationMock.mockReturnValue({ mutateAsync: vi.fn() });
+
+    useDeleteStudioV2WorkspaceDeviceMutation();
+
+    const options = useMutationMock.mock.calls.at(-1)?.[0] as {
+      mutationFn: (deviceId: string) => Promise<void>;
+      onSuccess: () => Promise<void>;
+    };
+
+    vi.mocked(studioV2WorkspaceDevicesAPI.remove).mockResolvedValueOnce();
+    await expect(options.mutationFn('dev-01')).resolves.toBeUndefined();
+
+    await options.onSuccess();
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
+    });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
