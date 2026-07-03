@@ -32,6 +32,7 @@ type workspaceDatabaseFixture struct {
 	handler       *StudioV2WorkspaceDatabaseHandler
 	ruleSvc       *sourcerule.Service
 	connectorSvc  *dbtarget.ConnectorService
+	dbMappingSvc  *dbtarget.MappingService
 	connectorRepo dbtarget.ConnectorRepository
 	workspaceSvc  *workspace.Service
 	auditSvc      *audit.Service
@@ -233,6 +234,65 @@ func TestStudioV2WorkspaceDatabaseHandler_SwitchToSQLiteClearsPersistedPassword(
 	require.NotContains(t, connectorAfter.ConnectionConfig, "s3cret-pw", "切換到 sqlite 時應清掉既有密碼")
 }
 
+func TestStudioV2WorkspaceDatabaseHandler_InvalidRowGroupsDoNotPartiallyUpdateConnector(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	fixture := newWorkspaceDatabaseFixture(t)
+	ctx := context.Background()
+
+	updateWorkspaceDatabaseConfig(t, fixture, `{
+		"kind":"sqlite",
+		"name":"Line A SQLite",
+		"database":"`+fixture.targetDB+`",
+		"schema":"main",
+		"table":"sensor_values",
+		"write_mode":"insert",
+		"write_interval_seconds":5,
+		"timestamp_column":"ts"
+	}`)
+
+	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
+	require.NoError(t, err)
+	connectorBefore, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
+	require.NoError(t, err)
+	require.Equal(t, "sensor_values", connectorConfigString(connectorBefore, "table"))
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(`{
+		"kind":"sqlite",
+		"name":"Line A SQLite",
+		"database":"`+fixture.targetDB+`",
+		"schema":"main",
+		"table":"sensor_values_v2",
+		"write_mode":"insert",
+		"write_interval_seconds":5,
+		"timestamp_column":"ts",
+		"row_groups":[{
+			"id":"group-stale-scope",
+			"table_schema":"main",
+			"table_name":"sensor_values",
+			"member_point_ids":["`+fixture.pointIDs[0]+`"],
+			"group_key_columns":["ts"]
+		}]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	fixture.handler.UpdateConfig(c)
+
+	require.Equal(t, http.StatusBadRequest, resp.Code, resp.Body.String())
+	require.Contains(t, resp.Body.String(), "database row group scope must match workspace database config")
+
+	connectorAfter, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
+	require.NoError(t, err)
+	require.Equal(t, "sensor_values", connectorConfigString(connectorAfter, "table"), "row-group 驗證失敗時不應部分更新 connector")
+
+	recordAfter, err := fixture.workspaceSvc.GetOrCreate(ctx)
+	require.NoError(t, err)
+	require.Empty(t, recordAfter.DatabaseRowGroups)
+	}
+
 func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -361,6 +421,7 @@ func newWorkspaceDatabaseFixture(t *testing.T) workspaceDatabaseFixture {
 		handler:       handler,
 		ruleSvc:       ruleSvc,
 		connectorSvc:  dbConnectorSvc,
+		dbMappingSvc:  dbMappingSvc,
 		connectorRepo: dbConnectorRepo,
 		workspaceSvc:  workspaceSvc,
 		auditSvc:      auditSvc,

@@ -51,7 +51,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetConfig(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": buildWorkspaceDatabaseConfigResponse(record.ID, connector)})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": buildWorkspaceDatabaseConfigResponse(record.ID, connector, record.DatabaseRowGroups)})
 }
 
 func (h *StudioV2WorkspaceDatabaseHandler) UpdateConfig(c *gin.Context) {
@@ -59,13 +59,38 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpdateConfig(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if req.RowGroups != nil {
+		if err := workspace.ValidateDatabaseRowGroups(record.DatabaseConnectorID, req.Schema, req.Table, req.RowGroups); err != nil {
+			renderStudioV2WorkspaceDatabaseError(c, err)
+			return
+		}
+	}
 
 	savedConnector, err := h.saveWorkspaceConnector(c, record, req)
 	if err != nil {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
-	payload := buildWorkspaceDatabaseConfigResponse(record.ID, savedConnector)
+	if req.RowGroups != nil {
+		record, err = h.workspaceSvc.SaveDatabaseRowGroups(
+			c.Request.Context(),
+			savedConnector.ID,
+			connectorConfigString(savedConnector, "schema"),
+			connectorConfigString(savedConnector, "table"),
+			req.RowGroups,
+		)
+		if err != nil {
+			renderStudioV2WorkspaceDatabaseError(c, err)
+			return
+		}
+	} else {
+		record, err = h.workspaceSvc.GetOrCreate(c.Request.Context())
+		if err != nil {
+			renderStudioV2WorkspaceBootstrapError(c)
+			return
+		}
+	}
+	payload := buildWorkspaceDatabaseConfigResponse(record.ID, savedConnector, record.DatabaseRowGroups)
 	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, record.OrderedDeviceIDs, nil)
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
@@ -144,6 +169,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) ListTargets(c *gin.Context) {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
+	rowGroupByPoint := workspaceDatabaseTargetRefsByPoint(record.DatabaseTargetRefs)
 
 	payload := make([]studioV2WorkspaceDatabaseTargetResponse, 0, len(rows))
 	for _, row := range rows {
@@ -158,6 +184,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) ListTargets(c *gin.Context) {
 			TagID:       row.TagID,
 			ColumnName:  row.ColumnName,
 			Enabled:     row.Enabled,
+			RowGroupID:  rowGroupByPoint[pointID],
 			SaveState:   "saved",
 			CreatedAt:   row.CreatedAt,
 			UpdatedAt:   row.UpdatedAt,
@@ -182,6 +209,11 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
+	rowGroupID := strings.TrimSpace(req.RowGroupID)
+	if rowGroupID != "" && !workspaceDatabaseRowGroupExists(record.DatabaseRowGroups, rowGroupID) {
+		renderStudioV2WorkspaceValidationError(c, errors.New("database target row group does not exist"))
+		return
+	}
 
 	var savedRow *schema.DatabaseTargetMapping
 	if len(rows) == 0 {
@@ -193,6 +225,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 			ColumnName:           strings.TrimSpace(req.ColumnName),
 			WriteMode:            connectorConfigWriteMode(connector),
 			TimestampColumn:      workspaceOptionalString(connectorConfigString(connector, "timestamp_column")),
+			GroupKey:             workspaceOptionalString(rowGroupTargetKey(rowGroupID, binding.PointID)),
 			WriteIntervalSeconds: workspaceOptionalInt(connector.DefaultWriteIntervalSeconds),
 			Enabled:              boolPtr(req.Enabled),
 			// 允許在目標表/欄位尚未建立時先儲存，稍後由建表流程補建。
@@ -205,12 +238,17 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 			ColumnName:           workspaceOptionalString(strings.TrimSpace(req.ColumnName)),
 			WriteMode:            workspaceOptionalWriteMode(connectorConfigWriteMode(connector)),
 			TimestampColumn:      workspaceOptionalString(connectorConfigString(connector, "timestamp_column")),
+			GroupKey:             workspaceOptionalString(rowGroupTargetKey(rowGroupID, binding.PointID)),
 			WriteIntervalSeconds: workspaceOptionalInt(connector.DefaultWriteIntervalSeconds),
 			Enabled:              boolPtr(req.Enabled),
 			AllowMissingTable:    true,
 		})
 	}
 	if err != nil {
+		renderStudioV2WorkspaceDatabaseError(c, err)
+		return
+	}
+	if _, err := h.workspaceSvc.SaveDatabaseTargetReference(c.Request.Context(), binding.PointID, rowGroupID); err != nil {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
@@ -222,6 +260,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpsertTarget(c *gin.Context) {
 		TagID:       savedRow.TagID,
 		ColumnName:  savedRow.ColumnName,
 		Enabled:     savedRow.Enabled,
+		RowGroupID:  rowGroupID,
 		SaveState:   "saved",
 		CreatedAt:   savedRow.CreatedAt,
 		UpdatedAt:   savedRow.UpdatedAt,
