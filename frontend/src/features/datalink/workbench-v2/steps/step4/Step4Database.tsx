@@ -31,11 +31,11 @@ interface Step4DatabaseProps {
 
 /**
  * 唯讀狀態自訂 Hook
- * 落地設計決策：「Commit 後 form 只讀」
+ * 落地設計決策：「啟動中與結果畫面期間 form 只讀，reset 後恢復編輯」
  * @returns 是否唯讀
  */
-export function useStep4Readonly(): boolean {
-  return false;
+export function useStep4Readonly(phase: 'idle' | 'activating' | 'done'): boolean {
+  return phase !== 'idle';
 }
 
 function isRowGroupScopeChange(connector: DbConnector, patch: Partial<DbConnector>): boolean {
@@ -90,7 +90,6 @@ export function Step4Database({
   workspaceReadiness,
   onNavigateStep,
 }: Step4DatabaseProps) {
-  const isReadonly = useStep4Readonly();
   const [activationState, setActivationState] = React.useState<{
     phase: 'idle' | 'activating' | 'done';
     response: StudioV2ActivationResponse | null;
@@ -99,6 +98,7 @@ export function Step4Database({
     response: null,
   });
 
+  const isReadonly = useStep4Readonly(activationState.phase);
   const { connector, targets } = state.db;
   const rowGroups = useMemo(() => state.db.row_groups ?? [], [state.db.row_groups]);
   const scopedRowGroups = useMemo(() => rowGroupsForConnector(connector, rowGroups), [connector, rowGroups]);
