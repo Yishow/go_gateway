@@ -40,12 +40,7 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 	mappingSvc := NewMappingService(mappingRepo, connectorRepo, tagSvc)
 	tickCh := make(chan time.Time, 2)
 	writer := NewWriterWithConfig(connectorRepo, mappingRepo, WriterConfig{FlushTick: tickCh})
-	closeStarted := false
 	t.Cleanup(func() {
-		if closeStarted {
-			// A timed-out close may still be waiting for the flush loop; calling Close again cannot interrupt it.
-			return
-		}
 		require.NoError(t, writer.Close(context.Background()))
 	})
 
@@ -102,19 +97,18 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 	require.NoError(t, writer.WriteTagValue(ctx, tagB.ID, 23.75, observedAt.Add(time.Second)))
 
 	tickCh <- time.Date(2026, 6, 9, 10, 30, 15, 0, time.UTC)
-	flushCtx, cancelFlush := context.WithTimeout(ctx, time.Second)
-	defer cancelFlush()
-	closeStarted = true
-	closeDone := make(chan error, 1)
-	go func() {
-		closeDone <- writer.Close(flushCtx)
-	}()
-	select {
-	case err := <-closeDone:
-		require.NoError(t, err)
-	case <-flushCtx.Done():
-		t.Fatalf("writer close did not complete before timeout: %v", flushCtx.Err())
+
+	// cross-platform-test-contracts 契約：以有限 timeout 等待明確 row-count
+	// predicate；逾時必須附上觀測 count／query error 診斷，不得無限等待。
+	observedCount, countQueryErr := waitForRowCount(ctx, targetDB, 2, 2*time.Second)
+	if countQueryErr != nil {
+		t.Fatalf("row-group row-count probe failed before timeout: %v", countQueryErr)
 	}
+	if observedCount != 2 {
+		t.Fatalf("row-group flush did not emit both rows before timeout: observed=%d, want=2", observedCount)
+	}
+
+	require.NoError(t, writer.Close(ctx))
 
 	rows, err := targetDB.QueryContext(ctx, `SELECT temperature_c FROM row_group_values`)
 	require.NoError(t, err)
@@ -129,4 +123,22 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 	require.NoError(t, rows.Err())
 	sort.Float64s(values)
 	require.Equal(t, []float64{21.5, 23.75}, values)
+}
+
+// waitForRowCount polls the row-group target table until the row count reaches
+// want or the bounded timeout elapses. On timeout it returns the last observed
+// count and query error so the caller can fail with diagnostics instead of an
+// unbounded wait (cross-platform-test-contracts spec).
+func waitForRowCount(ctx context.Context, db *sql.DB, want int, timeout time.Duration) (int, error) {
+	deadline := time.Now().Add(timeout)
+	var observed int
+	var queryErr error
+	for time.Now().Before(deadline) {
+		queryErr = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM row_group_values`).Scan(&observed)
+		if queryErr == nil && observed >= want {
+			return observed, nil
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return observed, queryErr
 }

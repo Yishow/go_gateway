@@ -1,4 +1,4 @@
-.PHONY: build-frontend sync-frontend-static build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke check-lines
+.PHONY: build-frontend sync-frontend-static build-backend build clean test-ui gen-docs gate-smoke gate-final gate-soak gatev11 gatev12 points-precheck-up points-precheck-down points-migrate-up points-migrate-down longtask-smoke cross-platform-loop check-lines
 
 GATE_WORKDIR ?= $(CURDIR)
 GATE_SMOKE_DURATION ?= 60s
@@ -98,6 +98,10 @@ points-migrate-down:
 # 長任務提醒機制 smoke test（controller start/finish + reconcile）
 longtask-smoke:
 	bash ./scripts/longtask_smoke.sh
+
+# 跨平台測試契約驗證序列（Vite x2 → handler → row-group -count=20 → 全域）
+cross-platform-loop:
+	bash ./scripts/run_cross_platform_contract_loop.sh
 
 # 檔案行數規範檢查（預設檢查本次變更）
 check-lines:

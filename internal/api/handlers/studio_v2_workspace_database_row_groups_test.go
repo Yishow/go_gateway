@@ -17,15 +17,12 @@ func TestStudioV2WorkspaceDatabaseHandler_RowGroupsRoundTripWithTargetRefs(t *te
 
 	fixture := newWorkspaceDatabaseFixture(t)
 
-	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
-		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
-		Schema: "main", Table: "sensor_values", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-		RowGroups: []workspaceDatabaseRowGroup{{
-			ID: "group-shared-temp", TableSchema: "main", TableName: "sensor_values",
-			MemberPointIDs: fixture.pointIDs, GroupKeyColumns: []string{"ts", "line_id"},
-		}},
-	})
+	sharedGroupConfig := validSQLiteConfigRequest(fixture)
+	sharedGroupConfig.RowGroups = []workspaceDatabaseRowGroup{{
+		ID: "group-shared-temp", TableSchema: "main", TableName: "sensor_values",
+		MemberPointIDs: fixture.pointIDs, GroupKeyColumns: []string{"ts", "line_id"},
+	}}
+	updateWorkspaceDatabaseConfig(t, fixture, sharedGroupConfig)
 
 	targetReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[0], workspaceDatabaseTargetRequest{
 		ColumnName: "temperature_c", Enabled: true, RowGroupID: "group-shared-temp",
@@ -108,15 +105,12 @@ func TestStudioV2WorkspaceDatabaseHandler_RowGroupTargetRequiresPointMembership(
 
 	fixture := newWorkspaceDatabaseFixture(t)
 
-	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
-		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
-		Schema: "main", Table: "sensor_values", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-		RowGroups: []workspaceDatabaseRowGroup{{
-			ID: "group-shared-temp", TableSchema: "main", TableName: "sensor_values",
-			MemberPointIDs: []string{fixture.pointIDs[0]}, GroupKeyColumns: []string{"ts"},
-		}},
-	})
+	singleMemberConfig := validSQLiteConfigRequest(fixture)
+	singleMemberConfig.RowGroups = []workspaceDatabaseRowGroup{{
+		ID: "group-shared-temp", TableSchema: "main", TableName: "sensor_values",
+		MemberPointIDs: []string{fixture.pointIDs[0]}, GroupKeyColumns: []string{"ts"},
+	}}
+	updateWorkspaceDatabaseConfig(t, fixture, singleMemberConfig)
 
 	targetReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[1], workspaceDatabaseTargetRequest{
 		ColumnName: "temperature_c", Enabled: true, RowGroupID: "group-shared-temp",

@@ -32,8 +32,8 @@
   - Modified: frontend/tests/unit/utils/viteConfig.test.ts
   - Modified: internal/api/handlers/studio_v2_workspace_database_handler_test.go
   - Modified: internal/api/handlers/studio_v2_workspace_database_row_groups_test.go
-  - Modified: internal/api/handlers/studio_v2_workspace_audit_handler_test.go
-  - Modified: internal/api/handlers/studio_v2_workspace_database_delivery_truth_test.go
+  - Modified (經由共享 typed fixture／request builder 間接覆蓋，檔案本身未改動): internal/api/handlers/studio_v2_workspace_audit_handler_test.go
+  - Modified (經由共享 typed fixture／request builder 間接覆蓋，檔案本身未改動): internal/api/handlers/studio_v2_workspace_database_delivery_truth_test.go
   - Modified: internal/api/handlers/device_handler_extended_test.go
   - Modified: internal/datalink/dbtarget/writer_row_groups_test.go
   - New: openspec/specs/cross-platform-test-contracts/spec.md

@@ -1,4 +1,9 @@
 // @vitest-environment node
+//
+// 注意：buildConfigWithoutAmbientEnv 會以 process.chdir 切換全域工作目錄來
+// 隔離 ambient .env。這只在 Vitest 以 per-file worker 隔離執行時安全
+// （每個測試檔有獨立 process）；請勿將本檔併入與其他測試共用 process 的
+// pool（例如 pool: "threads" 共用執行緒的設定）。
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -84,21 +84,33 @@ func newWorkspaceDatabaseJSONRequest(t *testing.T, method string, target string,
 	return req
 }
 
+// validSQLiteConfigRequest returns the canonical valid sqlite config payload;
+// tests override individual fields (Table, RowGroups…) on top of it.
+func validSQLiteConfigRequest(fixture workspaceDatabaseFixture) workspaceDatabaseConfigRequest {
+	return workspaceDatabaseConfigRequest{
+		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
+		Schema: "main", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+	}
+}
+
+// validPostgresConfigRequest returns the canonical valid postgres payload with
+// a dummy password; 127.0.0.1:1 fails fast on probe but still persists.
+func validPostgresConfigRequest() workspaceDatabaseConfigRequest {
+	return workspaceDatabaseConfigRequest{
+		Kind: "postgres", Name: "Line A PG", Host: "127.0.0.1", Port: 1,
+		Database: "gateway", Username: "gw_writer", Password: "s3cret-pw",
+		Schema: "public", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+	}
+}
+
 func TestStudioV2WorkspaceDatabaseHandler_SaveConfigAndOneTarget(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	fixture := newWorkspaceDatabaseFixture(t)
 
-	configReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", workspaceDatabaseConfigRequest{
-		Kind:                 "sqlite",
-		Name:                 "Line A SQLite",
-		Database:             fixture.targetDB,
-		Schema:               "main",
-		Table:                "sensor_values",
-		WriteMode:            "insert",
-		WriteIntervalSeconds: 5,
-		TimestampColumn:      "ts",
-	})
+	configReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", validSQLiteConfigRequest(fixture))
 	configResp := httptest.NewRecorder()
 	configCtx, _ := gin.CreateTestContext(configResp)
 	configCtx.Request = configReq
@@ -191,12 +203,7 @@ func TestStudioV2WorkspaceDatabaseHandler_PasswordPersistedAndPreservedOnUpdate(
 	ctx := context.Background()
 
 	// 首次儲存帶密碼的 postgres connector（127.0.0.1:1 會立即 refused，probe 失敗但仍會儲存）。
-	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
-		Kind: "postgres", Name: "Line A PG", Host: "127.0.0.1", Port: 1,
-		Database: "gateway", Username: "gw_writer", Password: "s3cret-pw",
-		Schema: "public", Table: "sensor_values", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-	})
+	updateWorkspaceDatabaseConfig(t, fixture, validPostgresConfigRequest())
 
 	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
@@ -207,12 +214,10 @@ func TestStudioV2WorkspaceDatabaseHandler_PasswordPersistedAndPreservedOnUpdate(
 	require.Contains(t, connector.ConnectionConfig, "s3cret-pw", "password 應被寫入 ConnectionConfig")
 
 	// 不帶 password 再次更新（例如只改 write interval），應保留既有密碼。
-	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
-		Kind: "postgres", Name: "Line A PG", Host: "127.0.0.1", Port: 1,
-		Database: "gateway", Username: "gw_writer", Schema: "public",
-		Table: "sensor_values", WriteMode: "insert", WriteIntervalSeconds: 10,
-		TimestampColumn: "ts",
-	})
+	pgUpdate := validPostgresConfigRequest()
+	pgUpdate.Password = ""
+	pgUpdate.WriteIntervalSeconds = 10
+	updateWorkspaceDatabaseConfig(t, fixture, pgUpdate)
 
 	connectorAfter, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
 	require.NoError(t, err)
@@ -225,21 +230,12 @@ func TestStudioV2WorkspaceDatabaseHandler_SwitchToSQLiteClearsPersistedPassword(
 	fixture := newWorkspaceDatabaseFixture(t)
 	ctx := context.Background()
 
-	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
-		Kind: "postgres", Name: "Line A PG", Host: "127.0.0.1", Port: 1,
-		Database: "gateway", Username: "gw_writer", Password: "s3cret-pw",
-		Schema: "public", Table: "sensor_values", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-	})
+	updateWorkspaceDatabaseConfig(t, fixture, validPostgresConfigRequest())
 
 	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
 
-	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
-		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
-		Schema: "main", Table: "sensor_values", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-	})
+	updateWorkspaceDatabaseConfig(t, fixture, validSQLiteConfigRequest(fixture))
 
 	connectorAfter, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
 	require.NoError(t, err)
@@ -252,11 +248,7 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidRowGroupsDoNotPartiallyUpdateCo
 	fixture := newWorkspaceDatabaseFixture(t)
 	ctx := context.Background()
 
-	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
-		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
-		Schema: "main", Table: "sensor_values", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-	})
+	updateWorkspaceDatabaseConfig(t, fixture, validSQLiteConfigRequest(fixture))
 
 	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
@@ -264,15 +256,13 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidRowGroupsDoNotPartiallyUpdateCo
 	require.NoError(t, err)
 	require.Equal(t, "sensor_values", connectorConfigString(connectorBefore, "table"))
 
-	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", workspaceDatabaseConfigRequest{
-		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
-		Schema: "main", Table: "sensor_values_v2", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-		RowGroups: []workspaceDatabaseRowGroup{{
-			ID: "group-stale-scope", TableSchema: "main", TableName: "sensor_values",
-			MemberPointIDs: []string{fixture.pointIDs[0]}, GroupKeyColumns: []string{"ts"},
-		}},
-	})
+	scopeMismatch := validSQLiteConfigRequest(fixture)
+	scopeMismatch.Table = "sensor_values_v2"
+	scopeMismatch.RowGroups = []workspaceDatabaseRowGroup{{
+		ID: "group-stale-scope", TableSchema: "main", TableName: "sensor_values",
+		MemberPointIDs: []string{fixture.pointIDs[0]}, GroupKeyColumns: []string{"ts"},
+	}}
+	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", scopeMismatch)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -320,7 +310,7 @@ func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.
 	require.Equal(t, "sensor_values", name)
 }
 
-func updateWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture, payload any) {
+func updateWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture, payload workspaceDatabaseConfigRequest) {
 	t.Helper()
 
 	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", payload)
@@ -443,17 +433,7 @@ func newWorkspaceDatabaseFixtureEmptyTarget(t *testing.T) workspaceDatabaseFixtu
 func saveWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture) {
 	t.Helper()
 
-	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", workspaceDatabaseConfigRequest{
-		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
-		Schema: "main", Table: "sensor_values", WriteMode: "insert",
-		WriteIntervalSeconds: 5, TimestampColumn: "ts",
-	})
-	resp := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(resp)
-	c.Request = req
-
-	fixture.handler.UpdateConfig(c)
-	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	updateWorkspaceDatabaseConfig(t, fixture, validSQLiteConfigRequest(fixture))
 }
 
 func saveValidTarget(t *testing.T, fixture workspaceDatabaseFixture, pointID string, columnName string) {
