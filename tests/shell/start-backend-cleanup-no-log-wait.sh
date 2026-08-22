@@ -11,6 +11,8 @@ trap cleanup EXIT
 mkdir -p "$TEST_TMP_DIR/scripts"
 cp "$REPO_ROOT/start.sh" "$TEST_TMP_DIR/start.sh"
 cp "$REPO_ROOT/scripts/load-env.sh" "$TEST_TMP_DIR/scripts/load-env.sh"
+cp "$REPO_ROOT/scripts/start-log-utils.sh" "$TEST_TMP_DIR/scripts/start-log-utils.sh"
+cp "$REPO_ROOT/scripts/start-process-utils.sh" "$TEST_TMP_DIR/scripts/start-process-utils.sh"
 
 cd "$TEST_TMP_DIR"
 REPO_ROOT="$TEST_TMP_DIR"

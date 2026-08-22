@@ -11,6 +11,8 @@ trap cleanup EXIT
 mkdir -p "$TEST_TMP_DIR/scripts" "$TEST_TMP_DIR/frontend"
 cp "$REPO_ROOT/start.sh" "$TEST_TMP_DIR/start.sh"
 cp "$REPO_ROOT/scripts/load-env.sh" "$TEST_TMP_DIR/scripts/load-env.sh"
+cp "$REPO_ROOT/scripts/start-log-utils.sh" "$TEST_TMP_DIR/scripts/start-log-utils.sh"
+cp "$REPO_ROOT/scripts/start-process-utils.sh" "$TEST_TMP_DIR/scripts/start-process-utils.sh"
 
 cat > "$TEST_TMP_DIR/.env" <<'EOF'
 PORT=3333
@@ -86,26 +88,52 @@ if [[ "$killed_pids" != *"5678"* ]]; then
   exit 1
 fi
 
-captured_command_file="$TEST_TMP_DIR/frontend-command.txt"
+# 現行 start_frontend_dev_server 以子 shell 執行 `pnpm exec vite`；
+# 以 fake pnpm/vite 捕獲實際指令參數
+captured_command_file="$TEST_TMP_DIR/vite-args.txt"
+mkdir -p "$TEST_TMP_DIR/frontend/node_modules/.bin" "$TEST_TMP_DIR/bin"
+cat >"$TEST_TMP_DIR/frontend/node_modules/.bin/vite" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >"$captured_command_file"
+exit 0
+EOF
+chmod +x "$TEST_TMP_DIR/frontend/node_modules/.bin/vite"
+
+cat >"$TEST_TMP_DIR/bin/pnpm" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" != "exec" ]]; then
+  printf 'unexpected pnpm args: %s\n' "$*" >&2
+  exit 1
+fi
+
+shift
+exec "./node_modules/.bin/$1" "${@:2}"
+EOF
+chmod +x "$TEST_TMP_DIR/bin/pnpm"
+
+export PATH="$TEST_TMP_DIR/bin:$PATH"
 clear_frontend_port() {
   return 0
 }
-has_cmd() {
-  [[ "$1" == "setsid" ]]
-}
-setsid() {
-  printf '%s\n' "$*" >"$captured_command_file"
-}
 
 start_frontend_dev_server
-sleep 0.1
-frontend_command="$(cat "$captured_command_file")"
+for _ in $(seq 1 20); do
+  [[ -f "$captured_command_file" ]] && break
+  sleep 0.1
+done
+frontend_command="$(cat "$captured_command_file" 2>/dev/null || true)"
+if [[ -z "$frontend_command" ]]; then
+  printf 'expected frontend dev server to invoke vite, got no command captured\n' >&2
+  exit 1
+fi
 if [[ "$frontend_command" != *"--strictPort"* ]]; then
   printf 'expected frontend dev server command to enforce a fixed port, got:\n%s\n' "$frontend_command" >&2
   exit 1
 fi
-if [[ "$frontend_command" != *"pnpm exec vite"* ]]; then
-  printf 'expected frontend dev server command to invoke vite directly, got:\n%s\n' "$frontend_command" >&2
+if [[ "$frontend_command" != *"--port 4173"* ]]; then
+  printf 'expected frontend dev server command to use configured port, got:\n%s\n' "$frontend_command" >&2
   exit 1
 fi
 
@@ -122,8 +150,17 @@ pid_on_port() {
   esac
 }
 read() {
-  prompted=true
-  return 1
+  # 僅將帶 -p 的互動提示視為 prompting；
+  # kill_process_tree 內部也會用 `read -r child` 迭代子進程，不可計入
+  case "$*" in
+    *-p*)
+      prompted=true
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 kill() {
   killed_pids+="$*;"

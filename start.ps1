@@ -25,7 +25,8 @@
 #   .\start.ps1                    # 顯示主選單
 #   .\start.ps1 -DevMode           # 開發模式（使用 go run，無需編譯 exe）
 #   .\start.ps1 -AirMode           # 熱重載模式（使用 Air，自動檢測變更並重啟）
-#   .\start.ps1 -QuickStart        # 一鍵啟動專案（構建 + 啟動）
+#   .\start.ps1 -DevMode -SyncEmbed # 開發模式（啟動前同步 embedded 前端快照）
+#   .\start.ps1 -QuickStart        # 一鍵啟動專案（lint + 同步前端 + 構建 + 啟動）
 #   .\start.ps1 -Start             # 構建後啟動服務
 #   .\start.ps1 -SkipTest          # 跳過測試
 #   .\start.ps1 -SkipBuild -Start  # 僅啟動（不構建）
@@ -48,6 +49,7 @@ param(
     [switch]$SkipLint,            # 跳過 lint 檢查
     [switch]$SkipTest,            # 跳過測試
     [switch]$SkipBuild,           # 跳過構建
+    [switch]$SyncEmbed,           # 開發/熱重載模式啟動前同步 embedded 前端快照
     [switch]$SkipQuality,         # 跳過代碼質量檢查
     [switch]$Start,               # 構建後啟動服務
     [string]$Target = "",         # 已廢棄：統一為 gateway 服務
@@ -91,6 +93,18 @@ $script:ErrorSummary = New-Object System.Collections.Generic.List[string]
 $script:SuccessSummary = New-Object System.Collections.Generic.List[string]
 $script:StepCounter = 0
 $script:TotalSteps = 0
+
+# 背景進程與啟動鎖狀態（與 start.sh 的變數語意對齊）
+$script:FrontendProcess = $null
+$script:BackendProcess = $null
+$script:BackendLogFile = $null
+$script:RunLockDir = $null
+
+# 執行期日誌與進程/端口/啟動鎖工具（架構同 start.sh 的 scripts/start-*-utils.sh）
+# 以 $PSScriptRoot 解析，避免從其他 cwd 執行時載入到外部同名腳本
+. (Join-Path $PSScriptRoot "scripts/start-log-utils.ps1")
+. (Join-Path $PSScriptRoot "scripts/start-process-utils.ps1")
+. (Join-Path $PSScriptRoot "scripts/start-port-utils.ps1")
 
 function Import-DotEnvFile {
     param([string]$Path)
@@ -139,6 +153,12 @@ if ([string]::IsNullOrWhiteSpace($script:FrontendDevPort)) {
 }
 if ([string]::IsNullOrWhiteSpace($script:FrontendDevPort)) {
     $script:FrontendDevPort = "5173"
+}
+
+# Local Modbus share 端口（與 start.sh 的 MODBUS_SHARE_PORT 對齊）
+$script:ModbusSharePort = [System.Environment]::GetEnvironmentVariable("MODBUS_SHARE_PORT")
+if ([string]::IsNullOrWhiteSpace($script:ModbusSharePort)) {
+    $script:ModbusSharePort = "5020"
 }
 
 # 顏色輸出函數 / 顯示框架
@@ -246,8 +266,14 @@ function Write-FrontendDevHostHint {
 }
 
 function Write-EmbeddedFrontendHint {
-    Write-Info "💡 :$Port 會使用本次啟動前同步好的 embedded 前端快照"
-    Write-Info "💡 前端在啟動後若還有新修改，:$script:FrontendDevPort 會即時更新；:$Port 需重新執行 start.ps1 才會刷新"
+    if ($SyncEmbed) {
+        Write-Info "💡 :$Port 會使用本次啟動前同步好的 embedded 前端快照"
+        Write-Info "💡 前端在啟動後若還有新修改，:$script:FrontendDevPort 會即時更新；:$Port 需重新執行 start.ps1 -SyncEmbed 才會刷新"
+    }
+    else {
+        Write-Info "💡 開發模式預設不重建 embedded 前端；即時開發請使用 :$script:FrontendDevPort"
+        Write-Info "💡 若需要刷新 :$Port 的 embedded 前端，重新執行時加上 -SyncEmbed"
+    }
 }
 
 function Get-FrontendProxyTarget {
@@ -258,26 +284,7 @@ function Get-FrontendProxyTarget {
     return $proxyTarget
 }
 
-function Get-ManagedPorts {
-    $ports = [System.Collections.Generic.List[int]]::new()
-    foreach ($candidate in @($Port, $script:FrontendDevPort, 8080..8090)) {
-        if ($null -eq $candidate) {
-            continue
-        }
-
-        $text = "$candidate"
-        if ($text -notmatch '^\d+$') {
-            continue
-        }
-
-        $value = [int]$text
-        if (-not $ports.Contains($value)) {
-            $ports.Add($value)
-        }
-    }
-
-    return $ports
-}
+# Get-ManagedPorts 定義於 scripts/start-port-utils.ps1
 
 function Invoke-WithPortEnvironment {
     param(
@@ -343,103 +350,8 @@ function Show-ExitHint {
 
 $script:LogNoiseCounters = @{}
 
-function Get-LogNoiseCategory {
-    param([string]$Line)
-    if ($Line -match "CMD will not recognize non \.exe file for execution") { return "air-warning" }
-    if ($Line -match "^watching\b|^building\.\.\.|^!exclude\b|^\s*/ /\\|^/_/--\\|^v\d+\.\d+\.\d+") { return "air-watcher" }
-    if ($Line -match "/api/v1/datalink/modbus-share/status") { return "status-polling" }
-    if ($Line -match "\] ::1 GET /api/v1/datalink/(devices|polling-groups|points|mappings|tags)\b") { return "dashboard-refresh" }
-    if ($Line -match "資料庫路徑|Executing SQLite migration|ConnectionManager 已初始化|已註冊的協議") { return "startup-detail" }
-    return $null
-}
-
-function Write-RuntimeLogLine {
-    param([string]$Line)
-    if ([string]::IsNullOrWhiteSpace($Line)) { return }
-
-    if ($Line -match "^\[(?<ts>[^\]]+)\]\s+\S+\s+(?<method>GET|POST|PUT|DELETE|PATCH)\s+(?<path>\S+)\s+(?<status>\d{3})\s+(?<latency>\S+)") {
-        $method = $Matches.method
-        $path = $Matches.path
-        $status = [int]$Matches.status
-        $latency = $Matches.latency
-        $tsRaw = $Matches.ts
-        $timePart = if ($tsRaw -match "(?<hh>\d{2}:\d{2}:\d{2})$") { $Matches.hh } else { "--:--:--" }
-        $category = if ($method -eq "GET" -and $status -eq 200 -and $path -match "^/api/v1/datalink/(devices|polling-groups|points|mappings|tags|modbus-share/status)$") { "dashboard-refresh" } else { $null }
-        if ($category -and -not $Verbose) {
-            if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
-            $script:LogNoiseCounters[$category]++
-            return
-        }
-        $methodCol = Format-FixedColumn -Text $method -Width 6
-        $pathCol = $path
-        $statusCol = ("{0,3}" -f $status)
-        $latencyCol = ("{0,9}" -f $latency)
-        $formatted = "[HTTP] $timePart  $methodCol $pathCol $statusCol $latencyCol"
-        $color = if ($status -ge 500) { "Red" } elseif ($status -ge 400) { "Yellow" } else { "DarkGray" }
-        Write-ColorOutput $formatted $color
-        return
-    }
-
-    if ($Line -match "^(?<ts>\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+[^:]+:\d+:\s+(?<msg>.+)$") {
-        $msg = $Matches.msg
-        $category = Get-LogNoiseCategory -Line $Line
-        if ($category -and -not $Verbose) {
-            if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
-            $script:LogNoiseCounters[$category]++
-            return
-        }
-        if ($msg -match "127\.0\.0\.1:5020") {
-            Write-ColorOutput "[BOOT] Local Modbus share started on 127.0.0.1:5020" "Green"
-        } elseif ($msg -match "測試工具伺服器啟動於\s*(?<url>https?://\S+)") {
-            Write-ColorOutput ("[BOOT] Server started at {0}" -f $Matches.url) "Green"
-        } elseif ($msg -match "測試工具伺服器啟動於") {
-            Write-ColorOutput "[BOOT] Server started" "Green"
-        } elseif ($msg -match "資料庫路徑") {
-            Write-ColorOutput "[BOOT] Database initialized" "DarkGray"
-        } elseif ($Verbose) {
-            Write-ColorOutput ("[BOOT] {0}" -f $msg) "DarkGray"
-        }
-        return
-    }
-
-    $category = Get-LogNoiseCategory -Line $Line
-    if ($category -and -not $Verbose) {
-        if (-not $script:LogNoiseCounters.ContainsKey($category)) { $script:LogNoiseCounters[$category] = 0 }
-        $script:LogNoiseCounters[$category]++
-        return
-    }
-
-    if ($Line -match "ERROR|Error|panic|FATAL|❌") {
-        Write-ColorOutput $Line "Red"
-    } elseif ($Line -match "WARN|Warning|⚠") {
-        Write-ColorOutput $Line "Yellow"
-    } elseif ($Line -match "啟動於|本機 Modbus 分享服務已啟動") {
-        Write-ColorOutput $Line "Green"
-    } else {
-        Write-ColorOutput $Line "DarkGray"
-    }
-}
-
-function Format-FixedColumn {
-    param(
-        [string]$Text,
-        [int]$Width
-    )
-    if ($null -eq $Text) { $Text = "" }
-    if ($Text.Length -gt $Width) {
-        return ($Text.Substring(0, [Math]::Max(0, $Width - 1)) + "…")
-    }
-    return $Text.PadRight($Width)
-}
-
-function Show-LogNoiseSummary {
-    if ($script:LogNoiseCounters.Count -eq 0 -or $Verbose) { return }
-    Write-Section "已隱藏雜訊日誌"
-    $script:LogNoiseCounters.GetEnumerator() | ForEach-Object {
-        Write-ColorOutput "- $($_.Key): $($_.Value) 行" "DarkYellow"
-    }
-    Write-Info "可加上 -Verbose 顯示全部原始日誌。"
-}
+# Get-LogNoiseCategory / Write-RuntimeLogLine / Format-FixedColumn /
+# Show-LogNoiseSummary 定義於 scripts/start-log-utils.ps1
 
 # ============================================
 # 工具函數
@@ -735,7 +647,21 @@ function Stop-AllServices {
             }
         }
     }
-    
+
+    # 清理本 repo 相關進程（air、vite 等孤兒進程；與 start.sh related_process_pids 對齊）
+    foreach ($relatedPid in (Get-RelatedProcessPids)) {
+        if ($relatedPid -ne $PID) {
+            Stop-ProcessTree -ProcId $relatedPid -Label "服務進程"
+            $stopped++
+        }
+    }
+
+    # 清理過期啟動鎖
+    if (Test-Path $script:TMP_DIR) {
+        Get-ChildItem -Path $script:TMP_DIR -Directory -Filter "start-*.lock" -ErrorAction SilentlyContinue |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
     if ($stopped -eq 0) {
         Write-Info "未發現需要停止的服務"
     }
@@ -770,18 +696,25 @@ function Start-Diagnose {
         $issues += "應用程式目錄不存在: $script:APP_PATH"
     }
     
-    # 檢查端口
+    # 檢查端口（與 start.sh diagnose 相同使用 managed_ports 集合）
     Write-Info "3. 檢查端口狀態..."
-    foreach ($managedPort in @($Port, [int]$script:FrontendDevPort)) {
+    foreach ($managedPort in (Get-ManagedPorts)) {
         if (Test-PortInUse -Port $managedPort) {
             $proc = Get-ProcessByPort -Port $managedPort
             if ($proc) {
-                if ($managedPort -eq $Port) {
-                    $issues += "後端端口 $managedPort 已被 $($proc.ProcessName) 佔用，啟動前會自動清理"
+                $portLabel = if ($managedPort -eq $Port) {
+                    "後端端口"
+                }
+                elseif ("$managedPort" -eq "$script:FrontendDevPort") {
+                    "前端端口"
+                }
+                elseif ("$managedPort" -eq "$script:ModbusSharePort") {
+                    "Modbus share 端口"
                 }
                 else {
-                    $issues += "前端端口 $managedPort 已被 $($proc.ProcessName) 佔用，啟動前會自動清理"
+                    "端口"
                 }
+                $issues += "$portLabel $managedPort 已被 $($proc.ProcessName) 佔用，啟動前會自動清理"
             }
         }
     }
@@ -838,7 +771,7 @@ function Start-FrontendDevServer {
         $originalLocation = Get-Location
         try {
             Push-Location $script:FRONTEND_DIR
-            pnpm install
+            pnpm install | Out-Host
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "前端依賴安裝失敗"
                 return $null
@@ -875,24 +808,29 @@ function Start-FrontendDevServer {
         $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $frontendCommand -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
         
         if ($frontendProcess) {
+            # 輪詢等待端口綁定（與 start.sh start_frontend_dev_server 一致）
+            $frontendReady = $false
+            for ($i = 0; $i -lt 100; $i++) {
+                if (Test-PortInUse -Port ([int]$script:FrontendDevPort)) {
+                    $frontendReady = $true
+                    break
+                }
+                if (-not (Get-Process -Id $frontendProcess.Id -ErrorAction SilentlyContinue)) {
+                    break
+                }
+                Start-Sleep -Milliseconds 100
+            }
+
+            if (-not $frontendReady) {
+                Stop-ProcessTree -ProcId $frontendProcess.Id -Label "前端開發伺服器"
+                Write-Error "前端開發伺服器未成功啟動（port $script:FrontendDevPort）"
+                return $null
+            }
+
             Write-Success "前端開發伺服器已啟動（PID: $($frontendProcess.Id)）"
             Write-FrontendDevHostHint
             Write-EmbeddedFrontendHint
             Write-Info "💡 前端修改會自動熱重載"
-            
-            # 等待一小段時間確認伺服器啟動
-            Start-Sleep -Milliseconds 1000
-            
-            # 檢查進程與端口是否仍在運行
-            if (-not (Get-Process -Id $frontendProcess.Id -ErrorAction SilentlyContinue)) {
-                Write-Warning "前端開發伺服器可能啟動失敗"
-                return $null
-            }
-            if (-not (Test-PortInUse -Port ([int]$script:FrontendDevPort))) {
-                Write-Warning "前端開發伺服器未成功綁定端口 $script:FrontendDevPort"
-                return $null
-            }
-            
             return $frontendProcess
         }
         else {
@@ -910,24 +848,107 @@ function Start-FrontendDevServer {
     }
 }
 
-# 停止前端開發伺服器
-function Stop-FrontendDevServer {
-    [CmdletBinding()]
-    param(
-        [System.Diagnostics.Process]$Process
-    )
-    
-    if ($Process -and -not $Process.HasExited) {
-        Write-Info "正在停止前端開發伺服器（PID: $($Process.Id)）..."
-        try {
-            $Process.Kill()
-            $Process.WaitForExit(3000)
-            Write-Success "前端開發伺服器已停止"
-        }
-        catch {
-            Write-Warning "停止前端開發伺服器時發生錯誤: $_"
-        }
+# 清理前端開發伺服器及其子進程樹（避免殘留 node 孤兒進程）
+function Cleanup-Frontend {
+    if ($script:FrontendProcess) {
+        Stop-ProcessTree -ProcId $script:FrontendProcess.Id -Label "前端開發伺服器"
+        Write-Success "前端開發伺服器已停止"
+        $script:FrontendProcess = $null
     }
+}
+
+# 清理後端背景進程樹與暫存 log
+function Cleanup-Backend {
+    if ($script:BackendProcess -and -not $script:BackendProcess.HasExited) {
+        Stop-ProcessTree -ProcId $script:BackendProcess.Id -Label "後端服務"
+        Write-Success "後端服務已停止"
+    }
+    $script:BackendProcess = $null
+
+    if ($script:BackendLogFile -and (Test-Path -LiteralPath $script:BackendLogFile)) {
+        Remove-Item -LiteralPath $script:BackendLogFile -Force -ErrorAction SilentlyContinue
+    }
+    $script:BackendLogFile = $null
+}
+
+# 清理所有背景進程、啟動鎖並顯示雜訊統計
+function Cleanup-All {
+    Cleanup-Frontend
+    Cleanup-Backend
+    Release-RunLock
+    Show-LogNoiseSummary
+}
+
+# 背景啟動後端並將輸出重定向至 log 檔（與 start.sh start_backend_process 對齊）
+function Start-BackendProcess {
+    param(
+        [string]$Command,
+        [string]$WorkingDirectory
+    )
+
+    # log 檔路徑必須解析為絕對路徑：cmd 會先 cd 到工作目錄再重定向，
+    # 相對路徑會指向不存在的子目錄導致 cmd 立即退出
+    $logDir = (New-Item -ItemType Directory -Path $script:TMP_DIR -Force).FullName
+    $script:BackendLogFile = Join-Path $logDir ("backend.{0:x}.log" -f (Get-Random))
+
+    # cmd /c 負責切換目錄與重定向 stdout/stderr，便於事後 tail
+    $fullCommand = "cd /d `"$WorkingDirectory`" && $Command 1>`"$($script:BackendLogFile)`" 2>&1"
+    $script:BackendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $fullCommand -PassThru -WindowStyle Hidden
+}
+
+# 持續讀取後端 log 並過濾輸出，直到後端退出；回傳退出碼
+function Wait-BackendExit {
+    $exitCode = 0
+    $reader = $null
+    $stream = $null
+    try {
+        # 等待 log 檔建立（cmd 啟動需一點時間）
+        for ($i = 0; $i -lt 50 -and -not (Test-Path -LiteralPath $script:BackendLogFile); $i++) {
+            Start-Sleep -Milliseconds 100
+        }
+        if (Test-Path -LiteralPath $script:BackendLogFile) {
+            $stream = [System.IO.FileStream]::new($script:BackendLogFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, ([System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete))
+            $reader = [System.IO.StreamReader]::new($stream)
+        }
+
+        while ($true) {
+            if ($reader) {
+                while ($reader.Peek() -ge 0) {
+                    $line = $reader.ReadLine()
+                    if ($null -ne $line) { Write-RuntimeLogLine -Line $line }
+                }
+            }
+            if ($script:BackendProcess.HasExited) { break }
+            Start-Sleep -Milliseconds 200
+        }
+
+        # 後端退出後 drain 剩餘日誌
+        if ($reader) {
+            while ($reader.Peek() -ge 0) {
+                $line = $reader.ReadLine()
+                if ($null -ne $line) { Write-RuntimeLogLine -Line $line }
+            }
+        }
+
+        $script:BackendProcess.WaitForExit()
+        $exitCode = $script:BackendProcess.ExitCode
+    }
+    finally {
+        if ($reader) { $reader.Dispose() }
+        elseif ($stream) { $stream.Dispose() }
+    }
+    return $exitCode
+}
+
+# 依 -SyncEmbed 決定是否同步 embedded 前端（與 start.sh sync_embedded_frontend_if_requested 對齊）
+function Sync-EmbeddedFrontendIfRequested {
+    if (-not $SyncEmbed) {
+        Write-Info "略過 embedded 前端同步（開發模式預設使用 Vite 即時伺服器）"
+        return $true
+    }
+
+    Write-Info "📦 同步 embedded 前端資產..."
+    return (Build-Frontend)
 }
 
 # 建置前端（如果需要）
@@ -1020,7 +1041,7 @@ function Build-Frontend {
             Write-Info "📥 安裝前端依賴..."
             Push-Location $script:FRONTEND_DIR
             try {
-                pnpm install
+                pnpm install | Out-Host
                 if ($LASTEXITCODE -ne 0) {
                     Write-Error "前端依賴安裝失敗"
                     return $false
@@ -1035,7 +1056,7 @@ function Build-Frontend {
         Write-Info "🔨 建置前端..."
         Push-Location $script:FRONTEND_DIR
         try {
-            pnpm run build
+            pnpm run build | Out-Host
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "前端建置失敗"
                 return $false
@@ -1270,194 +1291,25 @@ function Start-Application {
     }
 }
 
-# 檢查端口是否被佔用
-function Test-PortInUse {
-    param([int]$Port)
-    
-    try {
-        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-        return $null -ne $connection
-    }
-    catch {
-        # 如果 Get-NetTCPConnection 不可用，使用 netstat
-        $netstatOutput = netstat -ano | Select-String ":$Port\s"
-        return $null -ne $netstatOutput
-    }
-}
+# Test-PortInUse / Get-ProcessByPort 定義於 scripts/start-process-utils.ps1
+# Get-ProcessExecutablePath / Test-ManagedProcess / Stop-ProcessByPort /
+# Clear-PortForService 定義於 scripts/start-port-utils.ps1
 
-# 取得佔用指定端口的進程資訊
-function Get-ProcessByPort {
-    param([int]$Port)
-    
-    try {
-        $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
-        if ($connection) {
-            $processId = $connection.OwningProcess | Select-Object -First 1
-            if ($processId) {
-                return Get-Process -Id $processId -ErrorAction SilentlyContinue
-            }
-        }
-    }
-    catch {
-        # 回退到使用 netstat
-        $netstatLine = netstat -ano | Select-String ":$Port\s" | Select-Object -First 1
-        if ($netstatLine) {
-            $parts = $netstatLine -split '\s+'
-            $processId = $parts[-1]
-            if ($processId -match '^\d+$') {
-                return Get-Process -Id ([int]$processId) -ErrorAction SilentlyContinue
-            }
-        }
-    }
-    return $null
-}
-
-function Get-ProcessExecutablePath {
-    param([System.Diagnostics.Process]$Process)
-
-    if (-not $Process) {
-        return $null
-    }
-
-    if ($Process.Path) {
-        return $Process.Path
-    }
-
-    try {
-        return $Process.MainModule.FileName
-    }
-    catch {
-        try {
-            $processInfo = Get-CimInstance Win32_Process -Filter "ProcessId = $($Process.Id)" -ErrorAction Stop
-            return $processInfo.ExecutablePath
-        }
-        catch {
-            return $null
-        }
-    }
-}
-
-function Test-ManagedProcess {
-    param([System.Diagnostics.Process]$Process)
-
-    if (-not $Process) {
-        return $false
-    }
-
-    $name = $Process.ProcessName.ToLowerInvariant()
-    if ($name -in @("gateway", "test-ui")) {
+# QuickStart 專用 lint 檢查（未安裝則略過；與 start.sh run_lint 對齊）
+function Invoke-QuickStartLint {
+    if (-not (Test-Command "golangci-lint")) {
+        Write-Warning "golangci-lint 未安裝，略過 lint 檢查"
         return $true
     }
 
-    $executablePath = Get-ProcessExecutablePath -Process $Process
-    if ([string]::IsNullOrWhiteSpace($executablePath)) {
+    Write-Info "執行 golangci-lint..."
+    $lintOutput = golangci-lint run ./... 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host $lintOutput
+        Write-Error "golangci-lint 發現問題，無法繼續一鍵啟動"
         return $false
     }
-
-    return (
-        $executablePath -match '[\\/]gateway(\.exe)?$' -or
-        $executablePath -match '[\\/]test_ui(\.exe)?$' -or
-        $executablePath -like '*frontend*node_modules*vite*'
-    )
-}
-
-# 終止佔用指定端口的進程
-function Stop-ProcessByPort {
-    param(
-        [int]$Port,
-        [switch]$Force
-    )
-    
-    $process = Get-ProcessByPort -Port $Port
-    if ($process) {
-        Write-Warning "發現端口 $Port 被進程佔用：$($process.ProcessName) (PID: $($process.Id))"
-        
-        try {
-            if ($Force) {
-                Stop-Process -Id $process.Id -Force -ErrorAction Stop
-                Write-Success "已強制終止進程 $($process.ProcessName) (PID: $($process.Id))"
-            }
-            else {
-                Stop-Process -Id $process.Id -ErrorAction Stop
-                Write-Success "已終止進程 $($process.ProcessName) (PID: $($process.Id))"
-            }
-            
-            # 等待進程完全終止
-            Start-Sleep -Milliseconds 500
-            
-            # 驗證端口是否已釋放
-            if (Test-PortInUse -Port $Port) {
-                Write-Warning "端口 $Port 仍被佔用，嘗試強制終止..."
-                $process = Get-ProcessByPort -Port $Port
-                if ($process) {
-                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-                    Start-Sleep -Milliseconds 500
-                }
-            }
-            
-            return $true
-        }
-        catch {
-            Write-Error "無法終止進程 $($process.ProcessName) (PID: $($process.Id)): $_"
-            return $false
-        }
-    }
-    else {
-        Write-Info "端口 $Port 未被佔用"
-        return $true
-    }
-}
-
-# 清理端口並準備啟動服務
-function Clear-PortForService {
-    param(
-        [int]$Port = 8080,
-        [switch]$AutoKill
-    )
-    
-    if (Test-PortInUse -Port $Port) {
-        Write-Info "檢測到端口 $Port 被佔用，正在清理..."
-        
-        if ($AutoKill) {
-            $result = Stop-ProcessByPort -Port $Port -Force
-            if (-not $result) {
-                Write-Error "無法清理端口 $Port，請手動處理"
-                return $false
-            }
-        }
-        else {
-            $process = Get-ProcessByPort -Port $Port
-            if ($process) {
-                Write-Warning "端口 $Port 被進程佔用：$($process.ProcessName) (PID: $($process.Id))"
-                Write-Info "是否要終止該進程？(Y/N)"
-                $response = Read-Host
-                
-                if ($response -eq "Y" -or $response -eq "y") {
-                    $result = Stop-ProcessByPort -Port $Port -Force
-                    if (-not $result) {
-                        Write-Error "無法清理端口 $Port"
-                        return $false
-                    }
-                }
-                else {
-                    Write-Warning "跳過端口清理，服務可能無法啟動"
-                    return $false
-                }
-            }
-        }
-        
-        # 再次檢查端口是否已釋放
-        if (Test-PortInUse -Port $Port) {
-            Write-Error "端口 $Port 清理失敗，仍被佔用"
-            return $false
-        }
-        
-        Write-Success "端口 $Port 已清理完成"
-    }
-    else {
-        Write-Info "端口 $Port 可用"
-    }
-    
+    Write-Success "lint 完成"
     return $true
 }
 
@@ -1470,7 +1322,7 @@ function Show-MainMenu {
     Write-ColorOutput "請選擇要執行的操作：" "Yellow"
     Write-ColorOutput "  [1] 🚀 開發模式（go run，無需編譯 exe）" "Green"
     Write-ColorOutput "  [2] 🔥 熱重載模式（Air，自動檢測變更並重啟）" "Magenta"
-    Write-ColorOutput "  [3] 一鍵啟動專案（構建 + 啟動服務）" "Cyan"
+    Write-ColorOutput "  [3] 一鍵啟動（lint + 同步前端 + 構建 + 啟動）" "Cyan"
     Write-ColorOutput "  [4] 完整流程（Lint + 構建 + 測試）" "Cyan"
     Write-ColorOutput "  [5] 僅構建可執行文件" "Cyan"
     Write-ColorOutput "  [6] 僅啟動服務" "Cyan"
@@ -1502,88 +1354,92 @@ function Start-AirMode {
     Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
 
-    Write-Info "📦 啟動前同步 embedded 前端資產..."
-    if (-not (Build-Frontend -Force)) {
-        Write-Error "前端建置失敗，無法啟動 Air 模式"
+    if (-not (Acquire-RunLock)) {
+        $script:ExitCode = 1
         return
     }
-    
-    # 詢問是否開啟瀏覽器
-    Request-OpenBrowser | Out-Null
-    
-    # 檢查 Air 是否安裝
-    if (-not (Test-Command "air")) {
-        Write-Warning "Air 工具未安裝，正在嘗試安裝..."
-        try {
-            # Air 專案已遷移到新倉庫: github.com/air-verse/air
-            go install github.com/air-verse/air@latest
-            if (-not (Test-Command "air")) {
-                Write-Error "無法安裝 Air，請手動安裝："
-                Write-Info "  go install github.com/air-verse/air@latest"
-                Write-Info "  或訪問: https://github.com/air-verse/air"
-                Write-Info ""
+
+    try {
+        Sync-EmbeddedFrontendIfRequested | Out-Null
+
+        # 詢問是否開啟瀏覽器
+        Request-OpenBrowser | Out-Null
+
+        # 檢查 Air 是否安裝
+        if (-not (Test-Command "air")) {
+            Write-Warning "Air 工具未安裝，正在嘗試安裝..."
+            try {
+                # Air 專案已遷移到新倉庫: github.com/air-verse/air
+                go install github.com/air-verse/air@latest
+                if (-not (Test-Command "air")) {
+                    Write-Error "無法安裝 Air，請手動安裝："
+                    Write-Info "  go install github.com/air-verse/air@latest"
+                    Write-Info "  或訪問: https://github.com/air-verse/air"
+                    Write-Info ""
+                    Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
+                    $script:ExitCode = 1
+                    return
+                }
+                else {
+                    Write-Success "Air 安裝成功"
+                }
+            }
+            catch {
+                Write-Error "安裝 Air 失敗: $_"
                 Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
+                $script:ExitCode = 1
                 return
             }
-            else {
-                Write-Success "Air 安裝成功"
-            }
         }
-        catch {
-            Write-Error "安裝 Air 失敗: $_"
-            Write-Info "💡 建議: 使用選項 [1] 開發模式（go run）作為替代方案"
+
+        if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
+            Write-Error "後端端口 $Port 清理失敗，無法啟動 Air 模式"
+            $script:ExitCode = 1
             return
         }
-    }
-    
-    # 啟動前端開發伺服器
-    $frontendProcess = Start-FrontendDevServer
-    if (-not $frontendProcess) {
-        Write-Warning "前端開發伺服器啟動失敗，繼續啟動後端服務..."
-    }
-    
-    Write-ColorOutput ""
 
-    if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
-        Write-Error "後端端口 $Port 清理失敗，無法啟動 Air 模式"
-        return
-    }
-    
-    # 檢查 .air.toml 是否存在
-    if (-not (Test-Path ".air.toml")) {
-        Write-Warning ".air.toml 配置檔案不存在，Air 將使用預設配置"
-    }
-    
-    # 運行 Air（Air 會在專案根目錄運行）
-    Write-Info "▶️  啟動 Air 熱重載..."
-    Write-Info "💡 修改程式碼後，Air 會自動檢測並使用 go run 重新運行"
-    Write-Info "💡 注意: 如果看到 'CMD will not recognize' 警告，可忽略（Air 在 Windows 上的已知提示）"
-    Write-ColorOutput ""
-    
-    try {
-        # 確保在專案根目錄運行 Air
-        Set-Location $script:ROOT_DIR
-        # 將環境變數傳遞給 Air（Air 會傳遞給子進程）
-        $script:LogNoiseCounters = @{}
-        Invoke-WithPortEnvironment -Port $Port -Action {
-            air 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        # 檢查 .air.toml 是否存在
+        if (-not (Test-Path ".air.toml")) {
+            Write-Warning ".air.toml 配置檔案不存在，Air 將使用預設配置"
         }
-        Show-LogNoiseSummary
-    }
-    catch {
-        Write-Error "啟動 Air 失敗: $_"
+
+        # 後端（Air）先啟動，待端口就緒再啟動前端（確保 Vite proxy 目標可用）
+        Write-Info "▶️  啟動 Air 熱重載..."
+        Write-Info "💡 修改程式碼後，Air 會自動檢測並使用 go run 重新運行"
+        Write-Info "💡 若出現 'CMD will not recognize non .exe file' 警告，代表 .air.toml 的 entrypoint 缺 .exe 副檔名，Air 將不會啟動後端"
+        $script:LogNoiseCounters = @{}
+        Start-BackendProcess -Command "set PORT=$Port&& air" -WorkingDirectory $script:ROOT_DIR
+        if (-not (Wait-PortReady -TargetPort $Port -Label "後端端口" -Attempts 300)) {
+            $script:ExitCode = 1
+            return
+        }
+
+        if (Test-Path (Join-Path $script:FRONTEND_DIR "package.json")) {
+            Write-Info "🎨 啟動前端開發伺服器... (host=$script:FrontendDevHost)"
+            $script:FrontendProcess = Start-FrontendDevServer
+            if (-not $script:FrontendProcess) {
+                Write-Error "前端開發伺服器啟動失敗，無法繼續熱重載模式"
+                $script:ExitCode = 1
+                return
+            }
+            Write-Info "💡 前端修改會自動熱重載"
+        }
+        Write-ColorOutput ""
+
+        $serviceExitCode = Wait-BackendExit
+        if ($serviceExitCode -eq 0) {
+            Write-Success "服務正常退出"
+        }
+        else {
+            Write-Warning "服務退出，退出碼: $serviceExitCode"
+            # 與 start.sh 對齊：後端退出碼傳播為腳本退出碼
+            $script:ExitCode = $serviceExitCode
+        }
     }
     finally {
-        # 確保回到專案根目錄
-        Set-Location $script:ROOT_DIR
-        
-        # 停止前端開發伺服器
-        if ($frontendProcess) {
-            Stop-FrontendDevServer -Process $frontendProcess
-        }
-        
-        # 清理環境變數
+        Cleanup-All
         Remove-Item Env:\AUTO_OPEN_BROWSER -ErrorAction SilentlyContinue
+        Set-Location $script:ROOT_DIR
     }
 }
 
@@ -1615,84 +1471,100 @@ function Start-DevMode {
     Write-Info "💡 將同時啟動前端開發伺服器和後端服務"
     Write-ColorOutput ""
 
-    Write-Info "📦 啟動前同步 embedded 前端資產..."
-    if (-not (Build-Frontend -Force)) {
-        Write-Error "前端建置失敗，無法啟動開發模式"
+    if (-not (Acquire-RunLock)) {
+        $script:ExitCode = 1
         return
     }
-    
-    # 詢問是否開啟瀏覽器
-    Request-OpenBrowser | Out-Null
-    
-    # 檢查應用程式路徑
-    if (-not (Test-Path $script:APP_PATH)) {
-        Write-Error "找不到應用程式: $script:APP_PATH"
-        return
-    }
-    
-    # 啟動前端開發伺服器
-    $frontendProcess = Start-FrontendDevServer
-    if (-not $frontendProcess) {
-        Write-Warning "前端開發伺服器啟動失敗，繼續啟動後端服務..."
-    }
-    
-    Write-ColorOutput ""
 
-    if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
-        Write-Error "後端端口 $Port 清理失敗，無法啟動開發模式"
-        return
-    }
-    
-    # 運行應用程式
-    Write-Info "▶️  啟動後端應用程式（使用 go run）..."
-    Write-Info "💡 修改程式碼後，請按 Ctrl+C 停止並重新運行此選項"
-    Write-ColorOutput ""
-    
     try {
-        Push-Location $script:APP_PATH
-        $script:LogNoiseCounters = @{}
-        Invoke-WithPortEnvironment -Port $Port -Action {
-            go run . 2>&1 | ForEach-Object { Write-RuntimeLogLine -Line "$_" }
+        Sync-EmbeddedFrontendIfRequested | Out-Null
+
+        # 詢問是否開啟瀏覽器
+        Request-OpenBrowser | Out-Null
+
+        # 檢查應用程式路徑
+        if (-not (Test-Path $script:APP_PATH)) {
+            Write-Error "找不到應用程式: $script:APP_PATH"
+            $script:ExitCode = 1
+            return
         }
-        Show-LogNoiseSummary
-    }
-    catch {
-        Write-Error "啟動應用程式失敗: $_"
+
+        if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
+            Write-Error "後端端口 $Port 清理失敗，無法啟動開發模式"
+            $script:ExitCode = 1
+            return
+        }
+
+        # 後端先啟動，待端口就緒再啟動前端（確保 Vite proxy 目標可用）
+        Write-Info "▶️  啟動後端應用程式（使用 go run）..."
+        Write-Info "💡 修改程式碼後，請按 Ctrl+C 停止並重新運行此選項"
+        $script:LogNoiseCounters = @{}
+        Start-BackendProcess -Command "set PORT=$Port&& go run ." -WorkingDirectory (Join-Path $script:ROOT_DIR $script:APP_PATH)
+        if (-not (Wait-PortReady -TargetPort $Port -Label "後端端口" -Attempts 300)) {
+            $script:ExitCode = 1
+            return
+        }
+
+        if (Test-Path (Join-Path $script:FRONTEND_DIR "package.json")) {
+            Write-Info "🎨 啟動前端開發伺服器... (host=$script:FrontendDevHost)"
+            $script:FrontendProcess = Start-FrontendDevServer
+            if (-not $script:FrontendProcess) {
+                Write-Error "前端開發伺服器啟動失敗，無法繼續開發模式"
+                $script:ExitCode = 1
+                return
+            }
+        }
+        Write-ColorOutput ""
+
+        $serviceExitCode = Wait-BackendExit
+        if ($serviceExitCode -eq 0) {
+            Write-Success "服務正常退出"
+        }
+        else {
+            Write-Warning "服務退出，退出碼: $serviceExitCode"
+            # 與 start.sh 對齊：後端退出碼傳播為腳本退出碼
+            $script:ExitCode = $serviceExitCode
+        }
     }
     finally {
-        # 確保回到專案根目錄
-        Pop-Location
-        Set-Location $script:ROOT_DIR
-        
-        # 停止前端開發伺服器
-        if ($frontendProcess) {
-            Stop-FrontendDevServer -Process $frontendProcess
-        }
-        
-        # 清理環境變數
+        Cleanup-All
         Remove-Item Env:\AUTO_OPEN_BROWSER -ErrorAction SilentlyContinue
+        Set-Location $script:ROOT_DIR
     }
 }
 
-# 一鍵啟動專案（構建 + 啟動）
+# 一鍵啟動專案（lint + 同步前端 + 構建 + 啟動）
 function Start-QuickStart {
     Write-ColorOutput "`n============================================" "Cyan"
     Write-ColorOutput "   一鍵啟動專案" "Cyan"
     Write-ColorOutput "============================================`n" "Cyan"
-    
-    # 1. 構建可執行文件
-    Write-ColorOutput "[1/2] 構建可執行文件..." "Yellow"
-    
-    $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
-    $sourcePath = "./$script:APP_PATH"
-    
-    if (-not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
-        Write-Error "構建失敗，無法啟動服務"
+
+    # 1. 執行 golangci-lint（與 start.sh quick-start 對齊）
+    Write-ColorOutput "[1/3] 執行 golangci-lint..." "Yellow"
+    if (-not (Invoke-QuickStartLint)) {
+        $script:ExitCode = 1
         return
     }
-    
-    # 2. 啟動後端 API 服務
-    Write-ColorOutput "`n[2/2] 啟動後端 API 服務..." "Yellow"
+
+    # 2. 同步前端 + 構建可執行文件
+    Write-ColorOutput "`n[2/3] 同步前端並構建可執行文件..." "Yellow"
+
+    $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+    $sourcePath = "./$script:APP_PATH"
+
+    if (-not (Build-Frontend)) {
+        Write-Error "前端建置失敗，無法啟動服務"
+        $script:ExitCode = 1
+        return
+    }
+    if (-not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
+        Write-Error "構建失敗，無法啟動服務"
+        $script:ExitCode = 1
+        return
+    }
+
+    # 3. 啟動後端 API 服務
+    Write-ColorOutput "`n[3/3] 啟動後端 API 服務..." "Yellow"
     
     # 檢查並清理端口
     Write-Info "檢查端口 $Port 狀態..."
@@ -1708,6 +1580,10 @@ function Start-QuickStart {
         $script:ExitCode = 1
     }
 }
+
+# 供測試以 dot-source 載入函數：設定 GATEWAY_START_PS1_LIBRARY_ONLY=1 後載入，
+# 僅定義函數不進入主流程（語意同 start.sh 的 BASH_SOURCE guard）
+if ($env:GATEWAY_START_PS1_LIBRARY_ONLY -eq "1") { return }
 
 # 處理特殊功能參數
 if ($CheckEnv) {
@@ -1955,41 +1831,61 @@ if (-not $SkipLint) {
     }
 }
 
-# 3. 構建可執行文件
+# 3. 構建可執行文件（含前端同步，與 start.sh build_app 對齊）
 if (-not $SkipBuild) {
-    $stepTimer = Write-StepStart "構建可執行文件"
-    
+    $stepTimer = Write-StepStart "同步前端並構建可執行文件"
+
     $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
     $sourcePath = "./$script:APP_PATH"
-    
-    if (-not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
+
+    if (-not (Build-Frontend)) {
         $script:ExitCode = 1
-        Write-StepEnd -Name "構建可執行文件" -Stopwatch $stepTimer -Success $false -Details "Build-Application 回傳失敗"
+        Write-StepEnd -Name "同步前端並構建可執行文件" -Stopwatch $stepTimer -Success $false -Details "前端建置失敗"
+    }
+    elseif (-not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
+        $script:ExitCode = 1
+        Write-StepEnd -Name "同步前端並構建可執行文件" -Stopwatch $stepTimer -Success $false -Details "Build-Application 回傳失敗"
     } else {
-        Write-StepEnd -Name "構建可執行文件" -Stopwatch $stepTimer -Success $true
+        Write-StepEnd -Name "同步前端並構建可執行文件" -Stopwatch $stepTimer -Success $true
     }
 }
 
 # 4. 啟動服務（可選）
 if ($Start) {
     $stepTimer = Write-StepStart "啟動服務"
-    
-    # 檢查並清理端口
-    Write-Info "檢查端口 $Port 狀態..."
-    if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
-        Write-Error "端口 $Port 清理失敗，無法啟動服務"
-        $script:ExitCode = 1
-        Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "端口清理失敗"
-    }
-    else {
-        $exePath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
-        $isGUIApp = $true  # gateway/test-ui 是 GUI 應用
-        
-        if (-not (Start-Application -ExePath $exePath -Port $Port -IsGUI:$isGUIApp)) {
+    $rebuildFailed = $false
+
+    if ($SkipBuild) {
+        # 與 start.sh 對齊：避免 $Port 服務過期 embedded 前端
+        Write-Warning "偵測到 -Start -SkipBuild。為避免 $Port 使用過期 embedded 前端，將自動重新建置。"
+        $outputPath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+        $sourcePath = "./$script:APP_PATH"
+        if (-not (Build-Frontend) -or -not (Build-Application -OutputPath $outputPath -SourcePath $sourcePath)) {
+            Write-Error "重新建置失敗，無法啟動服務（不啟動舊產物，避免服務過期前端）"
             $script:ExitCode = 1
-            Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "啟動應用失敗"
-        } else {
-            Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $true
+            $rebuildFailed = $true
+            Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "重新建置失敗"
+        }
+    }
+
+    if (-not $rebuildFailed) {
+        # 檢查並清理端口
+        Write-Info "檢查端口 $Port 狀態..."
+        if (-not (Clear-PortForService -Port $Port -AutoKill:$true)) {
+            Write-Error "端口 $Port 清理失敗，無法啟動服務"
+            $script:ExitCode = 1
+            Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "端口清理失敗"
+        }
+        else {
+            $exePath = Join-Path $script:BUILD_DIR "$($script:APP_NAME).exe"
+            $isGUIApp = $true  # gateway/test-ui 是 GUI 應用
+
+            if (-not (Start-Application -ExePath $exePath -Port $Port -IsGUI:$isGUIApp)) {
+                $script:ExitCode = 1
+                Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $false -Details "啟動應用失敗"
+            } else {
+                Write-StepEnd -Name "啟動服務" -Stopwatch $stepTimer -Success $true
+            }
         }
     }
 }

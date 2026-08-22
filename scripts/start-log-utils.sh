@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# dashboard 輪詢的 datalink 實體清單（單一來源，兩處比對共用；與 start-log-utils.ps1 對齊）
+DATALINK_DASHBOARD_ENTITIES='devices|polling-groups|points|mappings|tags'
+
 get_log_noise_category() {
   local line="$1"
   if [[ "$line" =~ ^watching|^building\.\.\.|^\!exclude|^[[:space:]]*/|^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
@@ -10,7 +13,7 @@ get_log_noise_category() {
     printf "status-polling"
     return
   fi
-  if [[ "$line" =~ \/api\/v1\/datalink\/(devices|polling-groups|points|mappings|tags) ]]; then
+  if [[ "$line" =~ /api/v1/datalink/(${DATALINK_DASHBOARD_ENTITIES}) ]]; then
     printf "dashboard-refresh"
     return
   fi
@@ -38,7 +41,7 @@ runtime_log_line() {
       time_part="--:--:--"
     fi
 
-    if [[ "$method" == "GET" && "$status" == "200" && "$path" =~ ^/api/v1/datalink/(devices|polling-groups|points|mappings|tags|modbus-share/status)$ ]]; then
+    if [[ "$method" == "GET" && "$status" == "200" && "$path" =~ ^/api/v1/datalink/(${DATALINK_DASHBOARD_ENTITIES}|modbus-share/status)$ ]]; then
       if [[ "$VERBOSE" != true ]]; then
         LOG_NOISE_COUNTERS["dashboard-refresh"]=$(( ${LOG_NOISE_COUNTERS["dashboard-refresh"]:-0} + 1 ))
         return

@@ -11,6 +11,8 @@ trap cleanup EXIT
 mkdir -p "$TEST_TMP_DIR/scripts" "$TEST_TMP_DIR/frontend" "$TEST_TMP_DIR/cmd/test_ui"
 cp "$REPO_ROOT/start.sh" "$TEST_TMP_DIR/start.sh"
 cp "$REPO_ROOT/scripts/load-env.sh" "$TEST_TMP_DIR/scripts/load-env.sh"
+cp "$REPO_ROOT/scripts/start-log-utils.sh" "$TEST_TMP_DIR/scripts/start-log-utils.sh"
+cp "$REPO_ROOT/scripts/start-process-utils.sh" "$TEST_TMP_DIR/scripts/start-process-utils.sh"
 
 cd "$TEST_TMP_DIR"
 REPO_ROOT="$TEST_TMP_DIR"
@@ -18,6 +20,8 @@ source ./start.sh >/dev/null 2>&1 || true
 
 APP_PATH="cmd/test_ui"
 FRONTEND_DIR="frontend"
+# sync-embed 改為 opt-in 後，測試需顯式啟用才會觸發 build_frontend 步驟
+SYNC_EMBED=true
 
 order=()
 record_step() {

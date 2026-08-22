@@ -10,8 +10,9 @@ tmp_dir = "bin/tmp"
 
 [build]
   args_bin = []
-  bin = "./bin/tmp/gateway-air"
-  cmd = "go build -o ./bin/tmp/gateway-air ./cmd/test_ui"
+  # Windows 上 Air 只會執行副檔名為 .exe 的進入點，輸出與 entrypoint 都必須帶 .exe
+  entrypoint = "./bin/tmp/gateway-air.exe"
+  cmd = "go build -o ./bin/tmp/gateway-air.exe ./cmd/test_ui"
   delay = 1000
   # 只監控必要的目錄，排除其他 cmd 子目錄和不需要的目錄
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "bin", "frontend", "node_modules", ".git", "docs", "lib", "cmd/fatek_test", "cmd/gateway", "cmd/test_all", "conductor"]

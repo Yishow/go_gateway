@@ -9,6 +9,10 @@ cleanup() {
 trap cleanup EXIT
 
 cp "$REPO_ROOT/start.sh" "$TMP_DIR/start.sh"
+mkdir -p "$TMP_DIR/scripts"
+cp "$REPO_ROOT/scripts/load-env.sh" "$TMP_DIR/scripts/load-env.sh"
+cp "$REPO_ROOT/scripts/start-log-utils.sh" "$TMP_DIR/scripts/start-log-utils.sh"
+cp "$REPO_ROOT/scripts/start-process-utils.sh" "$TMP_DIR/scripts/start-process-utils.sh"
 mkdir -p "$TMP_DIR/frontend"
 cat > "$TMP_DIR/.env" <<'EOF'
 PORT=3333

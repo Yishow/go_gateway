@@ -11,7 +11,7 @@ trap cleanup EXIT
 
 PORT=3333
 TMP_DIR="$TEST_TMP_DIR/bin/tmp"
-AIR_BIN="$TEST_TMP_DIR/bin/tmp/gateway-air"
+AIR_BIN="$TEST_TMP_DIR/bin/tmp/gateway-air.exe"
 APP_PATH="cmd/test_ui"
 FRONTEND_DIR="frontend"
 
