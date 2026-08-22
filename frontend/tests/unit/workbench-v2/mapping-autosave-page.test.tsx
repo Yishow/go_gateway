@@ -51,7 +51,24 @@ const shiftedMappingPoints = [
 ];
 
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
-  WorkbenchV2Shell: ({ state, actions }: any) => (
+  WorkbenchV2Shell: ({
+    state,
+    actions,
+  }: {
+    state: {
+      mappings: Record<
+        string,
+        {
+          tag_key: string;
+          local_value?: { tag_key?: string } | null;
+          persisted_value?: { tag_key?: string } | null;
+          save_state: string;
+          save_error?: string | null;
+        }
+      >;
+    };
+    actions: { dispatch: (action: unknown) => void };
+  }) => (
     <div data-testid="mapping-autosave-shell">
       <button
         type="button"
@@ -63,7 +80,7 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
         data-testid="shift-rule-A-points"
         onClick={() => actions.dispatch({ type: 'initMappingsForPoints', points: shiftedMappingPoints })}
       />
-      {Object.entries(state.mappings).map(([pointId, mapping]: any) => (
+      {Object.entries(state.mappings).map(([pointId, mapping]) => (
         <div key={pointId}>
           <div data-testid={`mapping-tag-key-${pointId}`}>{mapping.tag_key}</div>
           <div data-testid={`mapping-local-tag-key-${pointId}`}>{mapping.local_value?.tag_key ?? ''}</div>
@@ -466,7 +483,7 @@ describe('DatalinkWorkbenchV2Page mapping autosave orchestration', () => {
         runtime_apply_status: 'not_running',
         created_at: '2026-05-30T00:00:00Z',
         updated_at: '2026-05-30T00:00:00Z',
-      } as any;
+      } as unknown as Awaited<ReturnType<typeof studioV2MappingsAPI.update>>;
     });
 
     renderPage();
@@ -666,7 +683,7 @@ describe('DatalinkWorkbenchV2Page mapping autosave orchestration', () => {
       runtime_apply_status: 'not_running',
       created_at: '2026-05-30T00:00:00Z',
       updated_at: '2026-05-30T00:00:00Z',
-    }) as any);
+    }) as unknown as Awaited<ReturnType<typeof studioV2MappingsAPI.update>>);
 
     renderPage();
 

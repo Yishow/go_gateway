@@ -54,7 +54,7 @@ export type WorkbenchV2Action =
   | { type: 'completeCommit' }
   | { type: 'resetCommit' }
   | { type: 'updateSettings'; patch: Partial<Settings> }
-  | { type: 'updateSettingsSection'; section: keyof Settings; patch: Record<string, any> }
+  | { type: 'updateSettingsSection'; section: keyof Settings; patch: Record<string, unknown> }
   | { type: 'addConnector' }
   | { type: 'updateConnector'; id: string; patch: Partial<SettingsConnector> }
   | { type: 'removeConnector'; id: string }

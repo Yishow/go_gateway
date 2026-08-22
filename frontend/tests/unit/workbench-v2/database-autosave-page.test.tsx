@@ -43,7 +43,34 @@ const dbPoints = [
 ];
 
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
-  WorkbenchV2Shell: ({ state, actions }: any) => (
+  WorkbenchV2Shell: ({
+    state,
+    actions,
+  }: {
+    state: {
+      points: Array<{ id: string }>;
+      db: {
+        connector: {
+          connector_id: string;
+          table: string;
+          schema?: string;
+          timestamp_column?: string;
+          save_state?: string;
+        };
+        row_groups?: Array<{ id: string }> | null;
+        targets: Record<
+          string,
+          {
+            column_name?: string;
+            enabled?: boolean;
+            save_state?: string;
+            save_error?: string | null;
+          } | undefined
+        >;
+      };
+    };
+    actions: { dispatch: (action: unknown) => void };
+  }) => (
     <div data-testid="database-autosave-shell">
       <button
         type="button"
@@ -290,7 +317,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       runtime_apply_status: 'not_running',
       created_at: '2026-05-30T00:00:00Z',
       updated_at: '2026-05-30T00:00:00Z',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.getConfig>>);
     vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([
       {
         id: 'row-A',
@@ -314,7 +341,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
         created_at: '2026-05-30T00:00:00Z',
         updated_at: '2026-05-30T00:00:00Z',
       },
-    ] as any);
+    ] as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.listTargets>>);
   });
 
   it('hydrates persisted database config and targets onto the same point rows', async () => {
@@ -354,7 +381,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       runtime_apply_status: 'not_running',
       created_at: '2026-05-30T00:00:00Z',
       updated_at: '2026-05-30T00:00:00Z',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.updateConfig>>);
 
     renderPage();
 
@@ -398,7 +425,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
         runtime_apply_status: 'not_running',
         created_at: '2026-05-30T00:00:00Z',
         updated_at: '2026-05-30T00:00:00Z',
-      } as any;
+      } as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.upsertTarget>>;
     });
 
     renderPage();
@@ -522,7 +549,10 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
 
   it('clears stale row groups before saving a table change and defers target updates until the connector save completes', async () => {
     let resolveScopeChangeSave: ((value: Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.updateConfig>>) => void) | undefined;
-    const buildSavedConfig = (table: string, rowGroups: StudioV2WorkspaceDatabaseRowGroupRecord[] = []) => ({
+    const buildSavedConfig = (
+      table: string,
+      rowGroups: StudioV2WorkspaceDatabaseRowGroupRecord[] = [],
+    ): Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.updateConfig>> => ({
       id: 'db-1',
       workspace_id: 'workspace-1',
       kind: 'sqlite',
@@ -550,7 +580,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
           resolveScopeChangeSave = resolve;
         });
       }
-      return Promise.resolve(buildSavedConfig(request.table, request.row_groups ?? []) as any);
+      return Promise.resolve(buildSavedConfig(request.table, request.row_groups ?? []));
     });
     vi.mocked(studioV2WorkspaceDatabaseAPI.upsertTarget).mockImplementation(async (pointId, request) => ({
       id: pointId === 'persisted-point-A' ? 'row-A' : 'row-B',
@@ -564,7 +594,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       runtime_apply_status: 'not_running',
       created_at: '2026-05-30T00:00:00Z',
       updated_at: '2026-05-30T00:00:00Z',
-    }) as any);
+    }) as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.upsertTarget>>);
 
     renderPage();
 
@@ -610,7 +640,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
 
     expect(studioV2WorkspaceDatabaseAPI.upsertTarget).not.toHaveBeenCalled();
 
-    resolveScopeChangeSave?.(buildSavedConfig('sensor_values_v2') as any);
+    resolveScopeChangeSave?.(buildSavedConfig('sensor_values_v2'));
 
     await waitFor(() => {
       expect(screen.getByTestId('connector-table')).toHaveTextContent('sensor_values_v2');
@@ -636,7 +666,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       runtime_apply_status: 'not_running',
       created_at: '2026-05-30T00:00:00Z',
       updated_at: '2026-05-30T00:00:00Z',
-    }) as any);
+    }) as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.upsertTarget>>);
 
     renderPage();
 

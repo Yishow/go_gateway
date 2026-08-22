@@ -20,7 +20,7 @@ import { DeviceListContext } from '../../../src/features/datalink/workbench-v2/s
 // Mock i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: any) => {
+    t: (key: string, options?: { latency?: number }) => {
       if (key === 'step1.panels.test_success_desc') {
         return `Successfully tested. Latency ${options?.latency} ms`;
       }

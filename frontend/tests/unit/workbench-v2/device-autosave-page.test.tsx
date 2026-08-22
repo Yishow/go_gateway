@@ -9,10 +9,26 @@ import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
 
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
-  WorkbenchV2Shell: ({ state, actions }: any) => (
+  WorkbenchV2Shell: ({
+    state,
+    actions,
+  }: {
+    state: {
+      devices: Array<{
+        id: string;
+        name: string;
+        save_state: string;
+        save_error?: string | null;
+        runtime_apply_status?: string | null;
+        availability_status?: string;
+        running?: boolean;
+      }>;
+    };
+    actions: { dispatch: (action: unknown) => void };
+  }) => (
     <div data-testid="autosave-shell">
-      <div data-testid="device-order">{state.devices.map((device: any) => device.id).join(',')}</div>
-      {state.devices.map((device: any) => (
+      <div data-testid="device-order">{state.devices.map((device) => device.id).join(',')}</div>
+      {state.devices.map((device) => (
         <div key={device.id}>
           <div data-testid={`device-name-${device.id}`}>{device.name}</div>
           <div data-testid={`device-save-state-${device.id}`}>{device.save_state}</div>
@@ -231,7 +247,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
         created_at: '2026-05-30T00:00:00Z',
         updated_at: '2026-05-30T00:00:00Z',
       },
-    ] as any);
+    ] as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDevicesAPI.list>>);
 
     renderPage();
 
@@ -241,7 +257,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
   });
 
   it('saves one valid local device and marks it saved', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({
       id: 'workspace-1',
       kind: 'single',
       status: 'empty',
@@ -343,7 +359,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
   });
 
   it('keeps an invalid running device visible while marking it unavailable', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({
       id: 'workspace-1',
       kind: 'single',
       status: 'ready',
@@ -382,7 +398,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
       availability_status: 'unavailable',
       availability_reason: 'device form is invalid',
       running: false,
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDevicesAPI.updateAvailability>>);
 
     renderPage();
 
@@ -406,7 +422,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
   });
 
   it('isolates save failure per device without blocking another valid save', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({
       id: 'workspace-1',
       kind: 'single',
       status: 'ready',
@@ -491,7 +507,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
   });
 
   it('keeps apply_failed visible instead of flattening it into saved', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({
       id: 'workspace-1',
       kind: 'single',
       status: 'ready',
@@ -546,7 +562,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
   });
 
   it('does not mark apply_failed as unrecovered draft loss', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({
       id: 'workspace-1',
       kind: 'single',
       status: 'ready',

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Point, Mapping, Device } from '../../state/types';
+import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { MappingRow } from './MappingRow';
 import type { RuntimeStreamConnectionState } from '../../../../../types/datalink';
 
@@ -12,7 +13,7 @@ export interface MappingTableProps {
   devices: Device[];
   rawValues: Record<string, unknown>;
   connectionByDevice: Record<string, RuntimeStreamConnectionState>;
-  dispatch: React.Dispatch<any>;
+  dispatch: React.Dispatch<WorkbenchV2Action>;
 }
 
 /**

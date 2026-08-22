@@ -153,7 +153,7 @@ describe('Workbench V2 Step 1 Reducer Actions', () => {
     expect(state2.devices[0].status).toBe('draft');
     expect(state2.devices[0].test?.status).toBe('failed');
     expect(state2.devices[0].test?.stages.connect.status).toBe('failed');
-    expect((state2.devices[0].test?.stages.connect as any).message).toBe('Connection timed out');
+    expect((state2.devices[0].test?.stages.connect as { message?: string }).message).toBe('Connection timed out');
   });
 
   it('cascadeRemoveDevice 應連動清除與該設備關聯的規則、點位、Mappings 與 DB Targets', () => {

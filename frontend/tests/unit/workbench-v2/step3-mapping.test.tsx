@@ -11,7 +11,7 @@ import { pointAPI, mappingAPI } from '../../../src/services/datalink';
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: any) => {
+    t: (key: string, options?: { count?: number; type?: string; tag?: string }) => {
       if (options && options.count !== undefined) {
         return `${key}_count_${options.count}`;
       }

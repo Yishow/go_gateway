@@ -48,52 +48,52 @@ describe('App Routing Integration', () => {
     );
   }
 
-  it('renders DatalinkWorkbenchV2Page on /', () => {
+  it('renders DatalinkWorkbenchV2Page on /', async () => {
     renderRoute('/');
 
-    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
   });
 
-  it('renders DatalinkWorkbenchV2Page on an unknown route fallback', () => {
+  it('renders DatalinkWorkbenchV2Page on an unknown route fallback', async () => {
     renderRoute('/does-not-exist');
 
-    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
   });
 
-  it('renders DatalinkWorkbenchV2Page on /datalink', () => {
+  it('renders DatalinkWorkbenchV2Page on /datalink', async () => {
     renderRoute('/datalink');
 
-    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
   });
 
-  it('renders DatalinkWorkbenchV2Page on /datalink/workbench', () => {
+  it('renders DatalinkWorkbenchV2Page on /datalink/workbench', async () => {
     renderRoute('/datalink/workbench');
 
-    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
   });
 
-  it('renders Legacy DatalinkWorkbenchPage on /studio', () => {
+  it('renders Legacy DatalinkWorkbenchPage on /studio', async () => {
     renderRoute('/studio');
 
-    expect(screen.getByTestId('legacy-workbench')).toBeInTheDocument();
+    expect(await screen.findByTestId('legacy-workbench')).toBeInTheDocument();
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
   });
 
-  it('renders DatalinkWorkbenchV2Page on /studio/v2', () => {
+  it('renders DatalinkWorkbenchV2Page on /studio/v2', async () => {
     renderRoute('/studio/v2');
 
-    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
   });
 
-  it('passes runtime readiness focus query into /studio/v2', () => {
+  it('passes runtime readiness focus query into /studio/v2', async () => {
     renderRoute('/studio/v2?step=4&focus=readiness&issue=database-target-missing');
 
-    expect(screen.getByTestId('workbench-v2-root')).toHaveAttribute('data-focus-step', '4');
+    expect(await screen.findByTestId('workbench-v2-root')).toHaveAttribute('data-focus-step', '4');
     expect(screen.getByTestId('workbench-v2-root')).toHaveAttribute(
       'data-focus-issue',
       'database-target-missing',

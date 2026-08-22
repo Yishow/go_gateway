@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { Point, Mapping, Device } from '../../state/types';
+import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { useDeviceColor } from '../../state/deviceColors';
 import type { RuntimeStreamConnectionState } from '../../../../../types/datalink';
 import { MappingPreviewCells } from './MappingPreviewCells';
@@ -20,7 +21,7 @@ export interface MappingRowProps {
   liveValue?: unknown;
   connectionState?: RuntimeStreamConnectionState;
   onSelect: () => void;
-  dispatch: React.Dispatch<any>;
+  dispatch: React.Dispatch<WorkbenchV2Action>;
 }
 
 function formatDeviceValue(value: unknown): string {

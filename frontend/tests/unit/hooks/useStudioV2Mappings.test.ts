@@ -80,7 +80,7 @@ describe('useStudioV2Mappings hooks', () => {
     vi.mocked(studioV2MappingsAPI.create).mockResolvedValueOnce({
       id: 'mapping-01',
       runtime_apply_status: 'applied',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2MappingsAPI.create>>);
     await expect(options.mutationFn({ rule_id: 'rule-01' })).resolves.toEqual({
       id: 'mapping-01',
       runtime_apply_status: 'applied',
@@ -108,7 +108,7 @@ describe('useStudioV2Mappings hooks', () => {
     vi.mocked(studioV2MappingsAPI.update).mockResolvedValueOnce({
       id: 'mapping-01',
       runtime_apply_status: 'not_running',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2MappingsAPI.update>>);
     await expect(
       options.mutationFn({ mappingId: 'mapping-01', request: { tag_key: 'line.a.temp' } }),
     ).resolves.toEqual({ id: 'mapping-01', runtime_apply_status: 'not_running' });
@@ -143,7 +143,7 @@ describe('useStudioV2Mappings hooks', () => {
           message: 'derived point is missing its persisted tag',
         },
       ],
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2MappingsAPI.remove>>);
     await expect(options.mutationFn('mapping-01')).resolves.toEqual({
       runtime_apply_status: 'deferred',
       runtime_apply_issues: [

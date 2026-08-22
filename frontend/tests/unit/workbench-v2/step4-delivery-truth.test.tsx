@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ConnectorSection } from '../../../src/features/datalink/workbench-v2/steps/step4/ConnectorSection';
+import { DeliveryTruthStrip } from '../../../src/features/datalink/workbench-v2/steps/step4/DeliveryTruthStrip';
 import { hydrateStudioV2DatabaseConnector } from '../../../src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 
 vi.mock('react-i18next', () => ({
@@ -41,10 +41,8 @@ describe('Step 4 database delivery truth', () => {
     connector.save_error = 'autosave failed';
 
     render(
-      <ConnectorSection
+      <DeliveryTruthStrip
         connector={connector}
-        onUpdateConnector={() => { }}
-        onKindChange={() => { }}
       />,
     );
 

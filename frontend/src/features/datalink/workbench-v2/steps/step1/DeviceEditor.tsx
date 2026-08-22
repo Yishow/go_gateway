@@ -13,7 +13,7 @@ export interface DeviceEditorProps {
   /** 更新設備基本屬性的 callback */
   onUpdate: (patch: Partial<Device>) => void;
   /** 更新設備配置參數的 callback */
-  onUpdateConfig: (patch: Record<string, any>) => void;
+  onUpdateConfig: (patch: Record<string, unknown>) => void;
   /** 變更設備協議的 callback */
   onChangeProtocol: (protocol: ProtocolId) => void;
 }

@@ -12,11 +12,14 @@ function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {
 
 describe('ErrorBoundary', () => {
   // Suppress console.error for these tests
+  // eslint-disable-next-line no-console
   const originalError = console.error;
   beforeAll(() => {
+    // eslint-disable-next-line no-console
     console.error = vi.fn();
   });
   afterAll(() => {
+    // eslint-disable-next-line no-console
     console.error = originalError;
   });
 

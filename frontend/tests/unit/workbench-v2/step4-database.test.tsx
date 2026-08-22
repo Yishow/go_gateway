@@ -14,7 +14,7 @@ import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2Work
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: any) => {
+    t: (key: string, options?: { interval?: number }) => {
       if (options && options.interval !== undefined) {
         return `${key}_interval_${options.interval}`;
       }

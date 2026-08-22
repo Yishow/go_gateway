@@ -1,6 +1,7 @@
 import type { WorkbenchV2State, Mapping, MappingValue } from './types';
 import { buildDefaultMapping } from './mappingDefaults';
 import type { Point } from './types';
+import type { WorkbenchV2Action } from './useWorkbenchV2State';
 
 /**
  * 處理點位映射相關狀態轉移的 Sub-Reducer
@@ -40,11 +41,11 @@ function isSamePointRow(mapping: Mapping, point: Point): boolean {
   return true;
 }
 
-export function mappingReducer(state: WorkbenchV2State, action: any): WorkbenchV2State {
+export function mappingReducer(state: WorkbenchV2State, action: WorkbenchV2Action): WorkbenchV2State {
   switch (action.type) {
     case 'initMappingsForPoints': {
       const nextMappings: Record<string, Mapping> = {};
-      action.points.forEach((p: any, idx: number) => {
+      action.points.forEach((p: Point, idx: number) => {
         const current = state.mappings[p.id];
         if (current && isSamePointRow(current, p)) {
           nextMappings[p.id] = current;

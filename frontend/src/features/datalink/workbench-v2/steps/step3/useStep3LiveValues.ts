@@ -57,6 +57,14 @@ function buildGroups(subscriptions: Step3LiveSubscription[]): DevicePointGroup[]
     }));
 }
 
+/**
+ * 依賴陣列策略說明：
+ * 本 hook 以「語意 key」（pointIdentityKey / mappingPersistedKey / snapshotPointDataKey /
+ * subscriptionKey 等）取代物件參考作為 useMemo/useEffect 依賴。
+ * 原因：points / mappings / pointQueries（useQueries 每次渲染回傳新陣列）等物件
+ * 參考不穩定，若直接作為依賴會導致 subscription 重建與 SSE 重新連線。
+ * 因此以下的 exhaustive-deps 警告為刻意例外，以 eslint-disable 標注。
+ */
 export function useStep3LiveValues(
   points: Point[],
   mappings: Record<string, Mapping>,
@@ -70,6 +78,7 @@ export function useStep3LiveValues(
     .join('|');
   const deviceIds = React.useMemo(
     () => Array.from(new Set(points.map((point) => point.device_id))).sort(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
     [pointIdentityKey],
   );
   const pointAddressToLocalPointId = React.useMemo(() => {
@@ -78,6 +87,7 @@ export function useStep3LiveValues(
       lookup[`${point.device_id}::${point.address}`] = point.id;
     });
     return lookup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
   }, [pointIdentityKey]);
   const mappingPersistedPointIdByLocalPointId = React.useMemo(() => {
     const lookup: Record<string, string> = {};
@@ -87,6 +97,7 @@ export function useStep3LiveValues(
       }
     });
     return lookup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
   }, [mappingPersistedKey]);
   const [connectionByDevice, setConnectionByDevice] = React.useState<
     Record<string, RuntimeStreamConnectionState>
@@ -126,12 +137,14 @@ export function useStep3LiveValues(
       });
     });
     return lookup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
   }, [pointAddressToLocalPointId, snapshotPointDataKey]);
   const persistedPointIdByLocalPointId = React.useMemo(
     () => ({
       ...snapshotPersistedPointIdByLocalPointId,
       ...mappingPersistedPointIdByLocalPointId,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
     [mappingPersistedKey, snapshotPointDataKey],
   );
   const subscriptionKey = React.useMemo(
@@ -142,10 +155,12 @@ export function useStep3LiveValues(
           return `${point.id}:${point.device_id}:${point.address}:${persistedPointId}`;
         })
         .join('|'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
     [pointIdentityKey, mappingPersistedKey, snapshotPointDataKey],
   );
   const subscriptions = React.useMemo(
     () => buildSubscriptions(points, persistedPointIdByLocalPointId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
     [subscriptionKey],
   );
   const groups = React.useMemo(() => buildGroups(subscriptions), [subscriptions]);
@@ -202,6 +217,7 @@ export function useStep3LiveValues(
       });
     });
     return values;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
   }, [persistedToLocalPointId, pointAddressToLocalPointId, snapshotPointDataKey]);
   const polledRawValues = React.useMemo(() => {
     const values: Record<string, unknown> = {};

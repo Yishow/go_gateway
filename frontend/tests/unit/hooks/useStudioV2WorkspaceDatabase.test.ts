@@ -94,7 +94,7 @@ describe('useStudioV2WorkspaceDatabase hooks', () => {
       id: 'db-01',
       runtime_apply_status: 'apply_failed',
       runtime_apply_message: 'runtime sync failed',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.updateConfig>>);
     await expect(options.mutationFn({ name: 'Line A SQLite' })).resolves.toEqual({
       id: 'db-01',
       runtime_apply_status: 'apply_failed',
@@ -120,7 +120,7 @@ describe('useStudioV2WorkspaceDatabase hooks', () => {
     vi.mocked(studioV2WorkspaceDatabaseAPI.upsertTarget).mockResolvedValueOnce({
       id: 'row-01',
       runtime_apply_status: 'not_running',
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof studioV2WorkspaceDatabaseAPI.upsertTarget>>);
     await expect(
       options.mutationFn({ pointId: 'point-01', request: { column_name: 'line_a', enabled: true } }),
     ).resolves.toEqual({ id: 'row-01', runtime_apply_status: 'not_running' });

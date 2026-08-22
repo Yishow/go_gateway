@@ -48,7 +48,7 @@ describe('commitLog', () => {
         'p-2': { tag_id: 'tag.line1.c_1', column_name: 'temp_out_c', enabled: true }
       }
     },
-    settings: {} as any,
+    settings: {} as WorkbenchV2State['settings'],
     committed: false
   };
 

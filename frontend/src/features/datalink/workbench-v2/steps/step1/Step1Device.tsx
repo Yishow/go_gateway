@@ -118,7 +118,7 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
   };
 
   // 7. 更新配置
-  const handleUpdateConfig = (patch: Record<string, any>) => {
+  const handleUpdateConfig = (patch: Record<string, unknown>) => {
     dispatch({ type: 'updateDeviceConfig', deviceId: selectedId, patch });
   };
 

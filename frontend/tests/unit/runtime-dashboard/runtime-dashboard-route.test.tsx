@@ -68,25 +68,25 @@ describe('runtime dashboard route', () => {
     );
   }
 
-  it('renders the dedicated runtime dashboard route when device_id is present', () => {
+  it('renders the dedicated runtime dashboard route when device_id is present', async () => {
     renderRoutes(['/studio/runtime?device_id=device-A']);
 
-    expect(screen.getByTestId('runtime-dashboard-route')).toBeInTheDocument();
+    expect(await screen.findByTestId('runtime-dashboard-route')).toBeInTheDocument();
     expect(screen.getByTestId('runtime-dashboard-route-state')).toHaveTextContent('live');
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
   });
 
-  it('renders the dedicated runtime dashboard route when device_id is absent', () => {
+  it('renders the dedicated runtime dashboard route when device_id is absent', async () => {
     renderRoutes(['/studio/runtime']);
 
-    expect(screen.getByTestId('runtime-dashboard-route')).toBeInTheDocument();
+    expect(await screen.findByTestId('runtime-dashboard-route')).toBeInTheDocument();
     expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
   });
 
-  it('keeps /studio/v2 on the setup flow', () => {
+  it('keeps /studio/v2 on the setup flow', async () => {
     renderRoutes(['/studio/v2']);
 
-    expect(screen.getByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
     expect(screen.queryByTestId('runtime-dashboard-route')).not.toBeInTheDocument();
   });
 });

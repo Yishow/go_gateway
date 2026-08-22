@@ -2,13 +2,14 @@ import * as React from 'react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2State } from '../../state/types';
+import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { useAllPoints, useMappingValidation } from '../../state/selectors';
 import { MappingTable } from './MappingTable';
 import { useStep3LiveValues } from './useStep3LiveValues';
 
 export interface Step3MappingProps {
   state: WorkbenchV2State;
-  dispatch: React.Dispatch<any>;
+  dispatch: React.Dispatch<WorkbenchV2Action>;
   onContinue: () => void;
   onBack: () => void;
 }

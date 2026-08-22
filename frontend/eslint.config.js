@@ -65,6 +65,14 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', '*.config.js', '*.config.cjs', '*.config.mjs'],
+    // *.cjs 為手動執行的 Node 診斷腳本（非 app 程式碼），不纳入 lint
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      '*.config.js',
+      '*.config.cjs',
+      '*.config.mjs',
+      '**/*.cjs',
+    ],
   },
 ]

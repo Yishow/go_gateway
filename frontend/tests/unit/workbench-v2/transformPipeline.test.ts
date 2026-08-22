@@ -90,7 +90,12 @@ describe('transformPipeline', () => {
         enabled: true,
       };
 
-      const payload = buildPayload(mapping, point) as any;
+      const payload = buildPayload(mapping, point) as {
+        point_id: string;
+        tag_id: string;
+        enabled: boolean;
+        transform_pipeline: Array<{ type: string; order: number; params: Record<string, unknown> }>;
+      };
 
       expect(payload.point_id).toBe('p-01');
       expect(payload.tag_id).toBe('line01.temp.inlet');

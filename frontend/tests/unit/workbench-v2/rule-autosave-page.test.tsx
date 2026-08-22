@@ -9,10 +9,24 @@ import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
 
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
-  WorkbenchV2Shell: ({ state, actions }: any) => (
+  WorkbenchV2Shell: ({
+    state,
+    actions,
+  }: {
+    state: {
+      rules: Array<{
+        id: string;
+        device_id: string;
+        naming_prefix: string;
+        save_state: string;
+        save_error?: string | null;
+      }>;
+    };
+    actions: { dispatch: (action: unknown) => void };
+  }) => (
     <div data-testid="rule-autosave-shell">
-      <div data-testid="rule-ownership">{state.rules.map((rule: any) => `${rule.id}:${rule.device_id}`).join(',')}</div>
-      {state.rules.map((rule: any) => (
+      <div data-testid="rule-ownership">{state.rules.map((rule) => `${rule.id}:${rule.device_id}`).join(',')}</div>
+      {state.rules.map((rule) => (
         <div key={rule.id}>
           <div data-testid={`rule-prefix-${rule.id}`}>{rule.naming_prefix}</div>
           <div data-testid={`rule-save-state-${rule.id}`}>{rule.save_state}</div>
