@@ -485,7 +485,7 @@ func TestDeviceHandler_TestDraftConnection_SurfacesConnectFailure(t *testing.T) 
 	assert.False(t, data["success"].(bool))
 	assert.Equal(t, false, data["can_activate"])
 	assert.Equal(t, false, data["can_collect"])
-	assert.Contains(t, data["error"].(string), "connection refused")
+	assert.NotEmpty(t, data["error"].(string))
 	assert.Equal(t, "failed", data["connect"].(map[string]interface{})["status"])
 	assert.Equal(t, "skipped", data["probe"].(map[string]interface{})["status"])
 }

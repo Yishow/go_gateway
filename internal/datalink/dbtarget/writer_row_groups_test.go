@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -39,7 +40,12 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 	mappingSvc := NewMappingService(mappingRepo, connectorRepo, tagSvc)
 	tickCh := make(chan time.Time, 2)
 	writer := NewWriterWithConfig(connectorRepo, mappingRepo, WriterConfig{FlushTick: tickCh})
+	closeStarted := false
 	t.Cleanup(func() {
+		if closeStarted {
+			// A timed-out close may still be waiting for the flush loop; calling Close again cannot interrupt it.
+			return
+		}
 		require.NoError(t, writer.Close(context.Background()))
 	})
 
@@ -96,13 +102,21 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 	require.NoError(t, writer.WriteTagValue(ctx, tagB.ID, 23.75, observedAt.Add(time.Second)))
 
 	tickCh <- time.Date(2026, 6, 9, 10, 30, 15, 0, time.UTC)
-	require.Eventually(t, func() bool {
-		var rowCount int
-		queryErr := targetDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM row_group_values`).Scan(&rowCount)
-		return queryErr == nil && rowCount == 2
-	}, time.Second, 10*time.Millisecond)
+	flushCtx, cancelFlush := context.WithTimeout(ctx, time.Second)
+	defer cancelFlush()
+	closeStarted = true
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- writer.Close(flushCtx)
+	}()
+	select {
+	case err := <-closeDone:
+		require.NoError(t, err)
+	case <-flushCtx.Done():
+		t.Fatalf("writer close did not complete before timeout: %v", flushCtx.Err())
+	}
 
-	rows, err := targetDB.QueryContext(ctx, `SELECT temperature_c FROM row_group_values ORDER BY id`)
+	rows, err := targetDB.QueryContext(ctx, `SELECT temperature_c FROM row_group_values`)
 	require.NoError(t, err)
 	defer rows.Close()
 
@@ -113,5 +127,6 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 		values = append(values, value)
 	}
 	require.NoError(t, rows.Err())
+	sort.Float64s(values)
 	require.Equal(t, []float64{21.5, 23.75}, values)
 }

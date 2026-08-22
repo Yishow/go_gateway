@@ -40,22 +40,65 @@ type workspaceDatabaseFixture struct {
 	pointIDs      []string
 }
 
+type workspaceDatabaseConfigRequest struct {
+	Kind                 string                      `json:"kind"`
+	Name                 string                      `json:"name"`
+	Database             string                      `json:"database,omitempty"`
+	Schema               string                      `json:"schema,omitempty"`
+	Table                string                      `json:"table,omitempty"`
+	WriteMode            string                      `json:"write_mode,omitempty"`
+	WriteIntervalSeconds int                         `json:"write_interval_seconds,omitempty"`
+	TimestampColumn      string                      `json:"timestamp_column,omitempty"`
+	Host                 string                      `json:"host,omitempty"`
+	Port                 int                         `json:"port,omitempty"`
+	Username             string                      `json:"username,omitempty"`
+	Password             string                      `json:"password,omitempty"`
+	RowGroups            []workspaceDatabaseRowGroup `json:"row_groups,omitempty"`
+}
+
+type workspaceDatabaseRowGroup struct {
+	ID              string   `json:"id"`
+	TableSchema     string   `json:"table_schema"`
+	TableName       string   `json:"table_name"`
+	MemberPointIDs  []string `json:"member_point_ids"`
+	GroupKeyColumns []string `json:"group_key_columns"`
+}
+
+type workspaceDatabaseTargetRequest struct {
+	ColumnName string `json:"column_name"`
+	Enabled    bool   `json:"enabled"`
+	RowGroupID string `json:"row_group_id,omitempty"`
+}
+
+type workspaceDatabaseSchemaRequest struct {
+	DryRun bool `json:"dry_run"`
+}
+
+func newWorkspaceDatabaseJSONRequest(t *testing.T, method string, target string, payload any) *http.Request {
+	t.Helper()
+
+	body, err := json.Marshal(payload)
+	require.NoError(t, err)
+	req := httptest.NewRequest(method, target, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
 func TestStudioV2WorkspaceDatabaseHandler_SaveConfigAndOneTarget(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	fixture := newWorkspaceDatabaseFixture(t)
 
-	configReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(`{
-		"kind":"sqlite",
-		"name":"Line A SQLite",
-		"database":"`+fixture.targetDB+`",
-		"schema":"main",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts"
-	}`))
-	configReq.Header.Set("Content-Type", "application/json")
+	configReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", workspaceDatabaseConfigRequest{
+		Kind:                 "sqlite",
+		Name:                 "Line A SQLite",
+		Database:             fixture.targetDB,
+		Schema:               "main",
+		Table:                "sensor_values",
+		WriteMode:            "insert",
+		WriteIntervalSeconds: 5,
+		TimestampColumn:      "ts",
+	})
 	configResp := httptest.NewRecorder()
 	configCtx, _ := gin.CreateTestContext(configResp)
 	configCtx.Request = configReq
@@ -70,11 +113,10 @@ func TestStudioV2WorkspaceDatabaseHandler_SaveConfigAndOneTarget(t *testing.T) {
 	require.Equal(t, "saved", configData["save_state"])
 	require.Equal(t, "not_running", configData["runtime_apply_status"])
 
-	targetReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[0], bytes.NewBufferString(`{
-		"column_name":"line_a",
-		"enabled":true
-	}`))
-	targetReq.Header.Set("Content-Type", "application/json")
+	targetReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[0], workspaceDatabaseTargetRequest{
+		ColumnName: "line_a",
+		Enabled:    true,
+	})
 	targetResp := httptest.NewRecorder()
 	targetCtx, _ := gin.CreateTestContext(targetResp)
 	targetCtx.Request = targetReq
@@ -115,11 +157,9 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidTargetDoesNotTouchSavedRows(t *
 	// 空 column_name 為真正無效的請求（handler 層硬擋），不應影響既有已存列。
 	// 註：欄位「不存在」在 Studio V2 已改為放行（degraded），由建表流程補建，
 	// 因此這裡用空欄位名而非 missing_column 來測無效情境。
-	invalidReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[1], bytes.NewBufferString(`{
-		"column_name":"",
-		"enabled":true
-	}`))
-	invalidReq.Header.Set("Content-Type", "application/json")
+	invalidReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[1], workspaceDatabaseTargetRequest{
+		Enabled: true,
+	})
 	invalidResp := httptest.NewRecorder()
 	invalidCtx, _ := gin.CreateTestContext(invalidResp)
 	invalidCtx.Request = invalidReq
@@ -151,20 +191,12 @@ func TestStudioV2WorkspaceDatabaseHandler_PasswordPersistedAndPreservedOnUpdate(
 	ctx := context.Background()
 
 	// 首次儲存帶密碼的 postgres connector（127.0.0.1:1 會立即 refused，probe 失敗但仍會儲存）。
-	updateWorkspaceDatabaseConfig(t, fixture, `{
-		"kind":"postgres",
-		"name":"Line A PG",
-		"host":"127.0.0.1",
-		"port":1,
-		"database":"gateway",
-		"username":"gw_writer",
-		"password":"s3cret-pw",
-		"schema":"public",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts"
-	}`)
+	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
+		Kind: "postgres", Name: "Line A PG", Host: "127.0.0.1", Port: 1,
+		Database: "gateway", Username: "gw_writer", Password: "s3cret-pw",
+		Schema: "public", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+	})
 
 	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
@@ -175,19 +207,12 @@ func TestStudioV2WorkspaceDatabaseHandler_PasswordPersistedAndPreservedOnUpdate(
 	require.Contains(t, connector.ConnectionConfig, "s3cret-pw", "password 應被寫入 ConnectionConfig")
 
 	// 不帶 password 再次更新（例如只改 write interval），應保留既有密碼。
-	updateWorkspaceDatabaseConfig(t, fixture, `{
-		"kind":"postgres",
-		"name":"Line A PG",
-		"host":"127.0.0.1",
-		"port":1,
-		"database":"gateway",
-		"username":"gw_writer",
-		"schema":"public",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":10,
-		"timestamp_column":"ts"
-	}`)
+	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
+		Kind: "postgres", Name: "Line A PG", Host: "127.0.0.1", Port: 1,
+		Database: "gateway", Username: "gw_writer", Schema: "public",
+		Table: "sensor_values", WriteMode: "insert", WriteIntervalSeconds: 10,
+		TimestampColumn: "ts",
+	})
 
 	connectorAfter, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
 	require.NoError(t, err)
@@ -200,34 +225,21 @@ func TestStudioV2WorkspaceDatabaseHandler_SwitchToSQLiteClearsPersistedPassword(
 	fixture := newWorkspaceDatabaseFixture(t)
 	ctx := context.Background()
 
-	updateWorkspaceDatabaseConfig(t, fixture, `{
-		"kind":"postgres",
-		"name":"Line A PG",
-		"host":"127.0.0.1",
-		"port":1,
-		"database":"gateway",
-		"username":"gw_writer",
-		"password":"s3cret-pw",
-		"schema":"public",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts"
-	}`)
+	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
+		Kind: "postgres", Name: "Line A PG", Host: "127.0.0.1", Port: 1,
+		Database: "gateway", Username: "gw_writer", Password: "s3cret-pw",
+		Schema: "public", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+	})
 
 	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
 
-	updateWorkspaceDatabaseConfig(t, fixture, `{
-		"kind":"sqlite",
-		"name":"Line A SQLite",
-		"database":"`+fixture.targetDB+`",
-		"schema":"main",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts"
-	}`)
+	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
+		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
+		Schema: "main", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+	})
 
 	connectorAfter, err := fixture.connectorSvc.GetByID(ctx, record.DatabaseConnectorID)
 	require.NoError(t, err)
@@ -240,16 +252,11 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidRowGroupsDoNotPartiallyUpdateCo
 	fixture := newWorkspaceDatabaseFixture(t)
 	ctx := context.Background()
 
-	updateWorkspaceDatabaseConfig(t, fixture, `{
-		"kind":"sqlite",
-		"name":"Line A SQLite",
-		"database":"`+fixture.targetDB+`",
-		"schema":"main",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts"
-	}`)
+	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
+		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
+		Schema: "main", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+	})
 
 	record, err := fixture.workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
@@ -257,24 +264,15 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidRowGroupsDoNotPartiallyUpdateCo
 	require.NoError(t, err)
 	require.Equal(t, "sensor_values", connectorConfigString(connectorBefore, "table"))
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(`{
-		"kind":"sqlite",
-		"name":"Line A SQLite",
-		"database":"`+fixture.targetDB+`",
-		"schema":"main",
-		"table":"sensor_values_v2",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts",
-		"row_groups":[{
-			"id":"group-stale-scope",
-			"table_schema":"main",
-			"table_name":"sensor_values",
-			"member_point_ids":["`+fixture.pointIDs[0]+`"],
-			"group_key_columns":["ts"]
-		}]
-	}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", workspaceDatabaseConfigRequest{
+		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
+		Schema: "main", Table: "sensor_values_v2", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+		RowGroups: []workspaceDatabaseRowGroup{{
+			ID: "group-stale-scope", TableSchema: "main", TableName: "sensor_values",
+			MemberPointIDs: []string{fixture.pointIDs[0]}, GroupKeyColumns: []string{"ts"},
+		}},
+	})
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -291,7 +289,7 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidRowGroupsDoNotPartiallyUpdateCo
 	recordAfter, err := fixture.workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
 	require.Empty(t, recordAfter.DatabaseRowGroups)
-	}
+}
 
 func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -300,8 +298,7 @@ func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.
 	saveWorkspaceDatabaseConfig(t, fixture)
 	saveValidTarget(t, fixture, fixture.pointIDs[0], "line_a")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/database-schema/generate", bytes.NewBufferString(`{"dry_run":false}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/database-schema/generate", workspaceDatabaseSchemaRequest{DryRun: false})
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -323,11 +320,10 @@ func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.
 	require.Equal(t, "sensor_values", name)
 }
 
-func updateWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture, payload string) {
+func updateWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture, payload any) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(payload))
-	req.Header.Set("Content-Type", "application/json")
+	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", payload)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -447,17 +443,11 @@ func newWorkspaceDatabaseFixtureEmptyTarget(t *testing.T) workspaceDatabaseFixtu
 func saveWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(`{
-		"kind":"sqlite",
-		"name":"Line A SQLite",
-		"database":"`+fixture.targetDB+`",
-		"schema":"main",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts"
-	}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", workspaceDatabaseConfigRequest{
+		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
+		Schema: "main", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+	})
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -469,11 +459,10 @@ func saveWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture)
 func saveValidTarget(t *testing.T, fixture workspaceDatabaseFixture, pointID string, columnName string) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+pointID, bytes.NewBufferString(`{
-		"column_name":"`+columnName+`",
-		"enabled":true
-	}`))
-	req.Header.Set("Content-Type", "application/json")
+	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+pointID, workspaceDatabaseTargetRequest{
+		ColumnName: columnName,
+		Enabled:    true,
+	})
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -18,30 +17,19 @@ func TestStudioV2WorkspaceDatabaseHandler_RowGroupsRoundTripWithTargetRefs(t *te
 
 	fixture := newWorkspaceDatabaseFixture(t)
 
-	updateWorkspaceDatabaseConfig(t, fixture, `{
-		"kind":"sqlite",
-		"name":"Line A SQLite",
-		"database":"`+fixture.targetDB+`",
-		"schema":"main",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts",
-		"row_groups":[{
-			"id":"group-shared-temp",
-			"table_schema":"main",
-			"table_name":"sensor_values",
-			"member_point_ids":["`+fixture.pointIDs[0]+`","`+fixture.pointIDs[1]+`"],
-			"group_key_columns":["ts","line_id"]
-		}]
-	}`)
+	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
+		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
+		Schema: "main", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+		RowGroups: []workspaceDatabaseRowGroup{{
+			ID: "group-shared-temp", TableSchema: "main", TableName: "sensor_values",
+			MemberPointIDs: fixture.pointIDs, GroupKeyColumns: []string{"ts", "line_id"},
+		}},
+	})
 
-	targetReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[0], bytes.NewBufferString(`{
-		"column_name":"temperature_c",
-		"enabled":true,
-		"row_group_id":"group-shared-temp"
-	}`))
-	targetReq.Header.Set("Content-Type", "application/json")
+	targetReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[0], workspaceDatabaseTargetRequest{
+		ColumnName: "temperature_c", Enabled: true, RowGroupID: "group-shared-temp",
+	})
 	targetResp := httptest.NewRecorder()
 	targetCtx, _ := gin.CreateTestContext(targetResp)
 	targetCtx.Request = targetReq
@@ -120,30 +108,19 @@ func TestStudioV2WorkspaceDatabaseHandler_RowGroupTargetRequiresPointMembership(
 
 	fixture := newWorkspaceDatabaseFixture(t)
 
-	updateWorkspaceDatabaseConfig(t, fixture, `{
-		"kind":"sqlite",
-		"name":"Line A SQLite",
-		"database":"`+fixture.targetDB+`",
-		"schema":"main",
-		"table":"sensor_values",
-		"write_mode":"insert",
-		"write_interval_seconds":5,
-		"timestamp_column":"ts",
-		"row_groups":[{
-			"id":"group-shared-temp",
-			"table_schema":"main",
-			"table_name":"sensor_values",
-			"member_point_ids":["`+fixture.pointIDs[0]+`"],
-			"group_key_columns":["ts"]
-		}]
-	}`)
+	updateWorkspaceDatabaseConfig(t, fixture, workspaceDatabaseConfigRequest{
+		Kind: "sqlite", Name: "Line A SQLite", Database: fixture.targetDB,
+		Schema: "main", Table: "sensor_values", WriteMode: "insert",
+		WriteIntervalSeconds: 5, TimestampColumn: "ts",
+		RowGroups: []workspaceDatabaseRowGroup{{
+			ID: "group-shared-temp", TableSchema: "main", TableName: "sensor_values",
+			MemberPointIDs: []string{fixture.pointIDs[0]}, GroupKeyColumns: []string{"ts"},
+		}},
+	})
 
-	targetReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[1], bytes.NewBufferString(`{
-		"column_name":"temperature_c",
-		"enabled":true,
-		"row_group_id":"group-shared-temp"
-	}`))
-	targetReq.Header.Set("Content-Type", "application/json")
+	targetReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[1], workspaceDatabaseTargetRequest{
+		ColumnName: "temperature_c", Enabled: true, RowGroupID: "group-shared-temp",
+	})
 	targetResp := httptest.NewRecorder()
 	targetCtx, _ := gin.CreateTestContext(targetResp)
 	targetCtx.Request = targetReq
