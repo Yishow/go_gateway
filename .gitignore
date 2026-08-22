@@ -7,7 +7,10 @@
 .gocache
 .gotmp
 graphify-out/
-cmd/test_ui/static/
+# cmd/test_ui/static 為前端 build 產物（scripts/build.ps1 / start.ps1 會從 frontend/dist 同步）
+# 僅追蹤佔位檔，確保 fresh clone 後 go:embed static 可編譯
+cmd/test_ui/static/*
+!cmd/test_ui/static/embed-placeholder.txt
 
 # Test binary, built with `go test -c`
 *.test

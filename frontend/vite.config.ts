@@ -39,6 +39,44 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       emptyOutDir: true,
+      rollupOptions: {
+        output: {
+          /**
+           * 將大型第三方依賴拆分為獨立 chunk：
+           * - 避免單一 chunk 超過 500 kB 觸發 Rollup 警告
+           * - 各 vendor hash 獨立，嵌入式部署時可善用瀏覽器快取
+           */
+          manualChunks(id: string) {
+            if (!id.includes("node_modules")) {
+              return undefined;
+            }
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
+              return "react-vendor";
+            }
+            if (/[\\/]node_modules[\\/](@mui|@emotion)[\\/]/.test(id)) {
+              return "mui-vendor";
+            }
+            if (
+              /[\\/]node_modules[\\/](recharts|victory-vendor|react-smooth|recharts-scale|d3-[^\\/]+|internmap)[\\/]/.test(
+                id,
+              )
+            ) {
+              return "charts-vendor";
+            }
+            if (
+              /[\\/]node_modules[\\/](?:@monaco-editor|monaco-editor|monaco-editor-core|mermaid|@mermaid-js|reactflow|@xyflow|elkjs|dagre)[\\/]/.test(
+                id,
+              )
+            ) {
+              return "editor-vendor";
+            }
+            if (/[\\/]node_modules[\\/](@tanstack|react-router|react-i18next|i18next)[\\/]/.test(id)) {
+              return "app-vendor";
+            }
+            return "misc-vendor";
+          },
+        },
+      },
     },
     server: {
       fs: {

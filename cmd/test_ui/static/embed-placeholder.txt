@@ -1,0 +1,4 @@
+此佔位檔確保 cmd/test_ui/static 目錄存在，讓 //go:embed static 在 fresh clone 後可直接編譯。
+實際前端資產由建置流程產生：
+- powershell -File scripts/build.ps1
+- .\start.ps1（任一啟動模式都會先同步 embedded 前端）

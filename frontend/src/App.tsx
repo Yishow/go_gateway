@@ -1,10 +1,10 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { CardMinimizeProvider } from './components/CardMinimizeProvider'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import TestPage from './pages/TestPage'
-import TestPageShell from './pages/TestPageShell'
 import {
   buildWorkbenchRedirect,
   buildWorkbenchV2EntryRedirect,
@@ -12,10 +12,38 @@ import {
   buildLegacyMigrationRedirect,
   buildLocalModbusCompatRedirect,
 } from './features/datalink/legacyRoutes'
-import DatalinkWorkbenchPage from './pages/datalink/workbench/DatalinkWorkbenchPage'
-import DatalinkWorkbenchV2Page from './pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'
-import { RuntimeDashboardRoute } from './features/datalink/runtime-dashboard/RuntimeDashboardRoute'
-import { GatewayCreateEntryRedirect, GatewayEntryRoute, GatewayExpertWorkbenchRoute, GatewayQuickSetupRoute } from './router/gateway'
+
+// 路由級代碼分割：各重型頁面改為 lazy chunk，縮小主 bundle 體積
+const DatalinkWorkbenchPage = lazy(
+  () => import('./pages/datalink/workbench/DatalinkWorkbenchPage'),
+)
+const TestPage = lazy(() => import('./pages/TestPage'))
+const TestPageShell = lazy(() => import('./pages/TestPageShell'))
+const DatalinkWorkbenchV2Page = lazy(
+  () => import('./pages/datalink/workbench-v2/DatalinkWorkbenchV2Page'),
+)
+const RuntimeDashboardRoute = lazy(() =>
+  import('./features/datalink/runtime-dashboard/RuntimeDashboardRoute').then((m) => ({
+    default: m.RuntimeDashboardRoute,
+  })),
+)
+const GatewayCreateEntryRedirect = lazy(() =>
+  import('./router/gateway').then((m) => ({ default: m.GatewayCreateEntryRedirect })),
+)
+const GatewayEntryRoute = lazy(() =>
+  import('./router/gateway').then((m) => ({ default: m.GatewayEntryRoute })),
+)
+const GatewayQuickSetupRoute = lazy(() =>
+  import('./router/gateway').then((m) => ({ default: m.GatewayQuickSetupRoute })),
+)
+const GatewayExpertWorkbenchRoute = lazy(() =>
+  import('./router/gateway').then((m) => ({ default: m.GatewayExpertWorkbenchRoute })),
+)
+
+function RouteFallback() {
+  const { t } = useTranslation()
+  return <div className="flex h-full min-h-screen items-center justify-center text-sm text-slate-400">{t('common.loading')}</div>
+}
 
 function LocalModbusCompatRoute() {
   const [searchParams] = useSearchParams()
@@ -83,7 +111,8 @@ function DatalinkWorkbenchV2Route() {
  */
 export function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
       {/* 首頁重定向到 studio/v2 */}
       <Route path="/" element={<GuidedWorkbenchEntryRedirect />} />
 
@@ -123,7 +152,8 @@ export function AppRoutes() {
 
       {/* Unknown routes fallback */}
       <Route path="*" element={<GuidedWorkbenchEntryRedirect />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 

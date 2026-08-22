@@ -410,9 +410,9 @@ clear_frontend_port() {
 }
 
 build_frontend() {
-  if [[ ! -d "$FRONTEND_DIR" ]]; then
-    warn "找不到 frontend 目錄，略過前端建置"
-    return 0
+  if [[ ! -d "$FRONTEND_DIR" || ! -f "$FRONTEND_DIR/package.json" ]]; then
+    err "找不到 frontend source 或 package.json"
+    return 1
   fi
 
   pushd "$FRONTEND_DIR" >/dev/null
@@ -424,8 +424,8 @@ build_frontend() {
   pnpm run build
   popd >/dev/null
 
-  rm -rf "$APP_PATH/static"
   mkdir -p "$APP_PATH/static"
+  find "$APP_PATH/static" -mindepth 1 -maxdepth 1 ! -name 'embed-placeholder.txt' -exec rm -rf {} +
   cp -R "$FRONTEND_DIR/dist/." "$APP_PATH/static/"
   success "前端建置完成"
 }
@@ -441,7 +441,7 @@ sync_embedded_frontend_if_requested() {
 }
 
 build_app() {
-  build_frontend
+  build_frontend || return 1
   mkdir -p "$BUILD_DIR"
   info "建置後端..."
   go build -ldflags "-s -w" -trimpath -o "$BUILD_DIR/$APP_NAME" "./$APP_PATH"
@@ -449,7 +449,7 @@ build_app() {
 }
 
 build_single() {
-  build_frontend
+  build_frontend || return 1
   mkdir -p "$BUILD_DIR"
   info "建置單一執行檔 (embed)..."
   go build -tags embed -ldflags "-s -w" -trimpath -o "$BUILD_DIR/$APP_NAME" "./$APP_PATH"

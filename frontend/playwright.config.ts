@@ -8,14 +8,14 @@ export default defineConfig({
   },
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: 'http://127.0.0.1:4173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'VITE_DEV_PORT=4173 npm run dev',
-    url: 'http://localhost:4173',
+    command: 'npm run dev -- --port 4173 --host 127.0.0.1',
+    url: 'http://127.0.0.1:4173',
     reuseExistingServer: true,
     timeout: 120_000,
   },

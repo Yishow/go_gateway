@@ -1045,11 +1045,11 @@ function Build-Frontend {
             Pop-Location
         }
         
-        # 複製前端檔案
-        if (Test-Path $script:STATIC_DIR) {
-            Remove-Item -Recurse -Force $script:STATIC_DIR
-        }
-        Copy-Item -Recurse $script:DIST_DIR $script:STATIC_DIR
+        # 複製前端檔案（保留 git 追蹤的 embed 佔位檔，fresh clone 後 go:embed static 才能編譯）
+        New-Item -ItemType Directory -Path $script:STATIC_DIR -Force | Out-Null
+        Get-ChildItem -Path $script:STATIC_DIR -Force |
+            Where-Object { $_.Name -ne "embed-placeholder.txt" } | Remove-Item -Recurse -Force
+        Copy-Item -Recurse -Force (Join-Path $script:DIST_DIR "*") $script:STATIC_DIR
         Write-Success "前端建置完成"
         return $true
     }
