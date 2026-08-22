@@ -1,29 +1,32 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { studioV2WorkspaceAPI } from '../../../src/services/studioV2Workspace';
 import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2WorkspaceDevices';
 import { studioV2MappingsAPI } from '../../../src/services/studioV2Mappings';
 import { studioV2RulesAPI } from '../../../src/services/studioV2Rules';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
+import type { WorkbenchV2ShellMockProps } from './helpers/workbenchV2PageHarness';
+import {
+  deviceFixture,
+  renderWorkbenchV2Page as renderPage,
+  ruleFixture,
+  runtimeApplied,
+  workspaceFixture,
+} from './helpers/workbenchV2PageHarness';
 
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
   WorkbenchV2Shell: ({
     state,
     actions,
-  }: {
-    state: {
-      rules: Array<{
-        id: string;
-        device_id: string;
-        naming_prefix: string;
-        save_state: string;
-        save_error?: string | null;
-      }>;
-    };
-    actions: { dispatch: (action: unknown) => void };
-  }) => (
+  }: WorkbenchV2ShellMockProps<{
+    rules: Array<{
+      id: string;
+      device_id: string;
+      naming_prefix: string;
+      save_state: string;
+      save_error?: string | null;
+    }>;
+  }>) => (
     <div data-testid="rule-autosave-shell">
       <div data-testid="rule-ownership">{state.rules.map((rule) => `${rule.id}:${rule.device_id}`).join(',')}</div>
       {state.rules.map((rule) => (
@@ -100,90 +103,39 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
   ),
 }));
 
-vi.mock('../../../src/services/studioV2Workspace', () => ({
-  studioV2WorkspaceAPI: {
-    get: vi.fn(),
-  },
-}));
+vi.mock('../../../src/services/studioV2Workspace', async () => {
+  const { studioV2ServiceMocks } = await import('./helpers/studioV2ServiceMocks');
+  return { studioV2WorkspaceAPI: studioV2ServiceMocks.workspace };
+});
 
-vi.mock('../../../src/services/studioV2WorkspaceDevices', () => ({
-  studioV2WorkspaceDevicesAPI: {
-    list: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
-    updateOrder: vi.fn(),
-  },
-}));
+vi.mock('../../../src/services/studioV2WorkspaceDevices', async () => {
+  const { studioV2ServiceMocks } = await import('./helpers/studioV2ServiceMocks');
+  return { studioV2WorkspaceDevicesAPI: studioV2ServiceMocks.devices };
+});
 
-vi.mock('../../../src/services/studioV2Rules', () => ({
-  studioV2RulesAPI: {
-    list: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
-  },
-}));
+vi.mock('../../../src/services/studioV2Rules', async () => {
+  const { studioV2ServiceMocks } = await import('./helpers/studioV2ServiceMocks');
+  return { studioV2RulesAPI: studioV2ServiceMocks.rules };
+});
 
-vi.mock('../../../src/services/studioV2Mappings', () => ({
-  studioV2MappingsAPI: {
-    list: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
-  },
-}));
+vi.mock('../../../src/services/studioV2Mappings', async () => {
+  const { studioV2ServiceMocks } = await import('./helpers/studioV2ServiceMocks');
+  return { studioV2MappingsAPI: studioV2ServiceMocks.mappings };
+});
 
-vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
-  studioV2WorkspaceDatabaseAPI: {
-    getConfig: vi.fn(),
-    updateConfig: vi.fn(),
-    listTargets: vi.fn(),
-    upsertTarget: vi.fn(),
-  },
-}));
-
-function renderPage() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
-  render(
-    <QueryClientProvider client={queryClient}>
-      <DatalinkWorkbenchV2Page />
-    </QueryClientProvider>,
-  );
-}
+vi.mock('../../../src/services/studioV2WorkspaceDatabase', async () => {
+  const { studioV2ServiceMocks } = await import('./helpers/studioV2ServiceMocks');
+  return { studioV2WorkspaceDatabaseAPI: studioV2ServiceMocks.database };
+});
 
 describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({
-      id: 'workspace-1',
-      kind: 'single',
-      status: 'ready',
-      ordered_device_ids: ['dev-01'],
-      created_at: '2026-05-30T00:00:00Z',
-      updated_at: '2026-05-30T00:00:00Z',
-    });
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue(
+      workspaceFixture({ ordered_device_ids: ['dev-01'] }),
+    );
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
-      {
-        id: 'dev-01',
-        name: 'Line A PLC',
-        description: '',
-        protocol: 'modbus_tcp',
-        status: 'draft',
-        connection_config: '{"host":"192.168.10.10","port":502,"slave_id":1,"timeout":5}',
-        last_test_at: null,
-        last_test_success: null,
-        last_test_error: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
+      deviceFixture({ id: 'dev-01' }),
     ]);
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([]);
     vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
@@ -192,81 +144,22 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
   });
 
   it('hydrates persisted rules under the same owning devices on reload', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
-      id: 'workspace-1',
-      kind: 'single',
-      status: 'ready',
-      ordered_device_ids: ['dev-B', 'dev-A'],
-      created_at: '2026-05-30T00:00:00Z',
-      updated_at: '2026-05-30T00:00:00Z',
-    });
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(
+      workspaceFixture({ ordered_device_ids: ['dev-B', 'dev-A'] }),
+    );
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
-      {
-        id: 'dev-B',
-        name: 'Line B PLC',
-        description: '',
-        protocol: 'modbus_tcp',
-        status: 'draft',
-        connection_config: '{"host":"192.168.10.11","port":502,"slave_id":2,"timeout":5}',
-        last_test_at: null,
-        last_test_success: null,
-        last_test_error: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
-      {
-        id: 'dev-A',
-        name: 'Line A PLC',
-        description: '',
-        protocol: 'modbus_tcp',
-        status: 'draft',
-        connection_config: '{"host":"192.168.10.10","port":502,"slave_id":1,"timeout":5}',
-        last_test_at: null,
-        last_test_success: null,
-        last_test_error: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
+      deviceFixture({ id: 'dev-B', name: 'Line B PLC', connection_config: '{"host":"192.168.10.11","port":502,"slave_id":2,"timeout":5}' }),
+      deviceFixture(),
     ]);
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([
-      {
+      ruleFixture({
         id: 'rule-B',
         device_id: 'dev-B',
-        workspace_id: 'workspace-1',
         start_address: '40011',
-        count: 1,
-        data_type: 'int16',
         naming_prefix: 'B_',
-        enabled: true,
-        locked: false,
-        origin: 'manual',
-        skipped_addresses: [],
         revision_id: 'rev-B',
-        scale_multiplier: 1,
-        scale_offset: 0,
-        data_format: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
-      {
-        id: 'rule-A',
-        device_id: 'dev-A',
-        workspace_id: 'workspace-1',
-        start_address: '40001',
-        count: 1,
-        data_type: 'int16',
-        naming_prefix: 'A_',
-        enabled: true,
-        locked: false,
-        origin: 'manual',
-        skipped_addresses: [],
-        revision_id: 'rev-A',
-        scale_multiplier: 1,
-        scale_offset: 0,
-        data_format: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
+      }),
+      ruleFixture(),
     ]);
 
     renderPage();
@@ -277,34 +170,19 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
   });
 
   it('saves one valid draft rule and marks it saved', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
-      id: 'workspace-1',
-      kind: 'single',
-      status: 'ready',
-      ordered_device_ids: ['dev-01'],
-      created_at: '2026-05-30T00:00:00Z',
-      updated_at: '2026-05-30T00:00:00Z',
-    });
-    vi.mocked(studioV2RulesAPI.create).mockResolvedValueOnce({
-      id: 'rule-01',
-      device_id: 'dev-01',
-      workspace_id: 'workspace-1',
-      start_address: '40001',
-      count: 8,
-      data_type: 'int16',
-      naming_prefix: 'LINE_',
-      enabled: true,
-      locked: false,
-      origin: 'manual',
-      skipped_addresses: [],
-      revision_id: 'rev-1',
-      scale_multiplier: 1,
-      scale_offset: 0,
-      data_format: '',
-      runtime_apply_status: 'not_running',
-      created_at: '2026-05-30T00:00:00Z',
-      updated_at: '2026-05-30T00:00:00Z',
-    });
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(
+      workspaceFixture({ ordered_device_ids: ['dev-01'] }),
+    );
+    vi.mocked(studioV2RulesAPI.create).mockResolvedValueOnce(
+      runtimeApplied(ruleFixture({
+        id: 'rule-01',
+        device_id: 'dev-01',
+        start_address: '40001',
+        count: 8,
+        naming_prefix: 'LINE_',
+        revision_id: 'rev-1',
+      })),
+    );
 
     renderPage();
 
@@ -331,14 +209,9 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
   });
 
   it('keeps invalid local rule edits without overwriting the backend', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
-      id: 'workspace-1',
-      kind: 'single',
-      status: 'ready',
-      ordered_device_ids: ['dev-01'],
-      created_at: '2026-05-30T00:00:00Z',
-      updated_at: '2026-05-30T00:00:00Z',
-    });
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(
+      workspaceFixture({ ordered_device_ids: ['dev-01'] }),
+    );
 
     renderPage();
 
@@ -358,107 +231,35 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
   });
 
   it('isolates one rule save failure without blocking another valid rule', async () => {
-    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
-      id: 'workspace-1',
-      kind: 'single',
-      status: 'ready',
-      ordered_device_ids: ['dev-A', 'dev-B'],
-      created_at: '2026-05-30T00:00:00Z',
-      updated_at: '2026-05-30T00:00:00Z',
-    });
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(
+      workspaceFixture({ ordered_device_ids: ['dev-A', 'dev-B'] }),
+    );
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
-      {
-        id: 'dev-A',
-        name: 'Line A PLC',
-        description: '',
-        protocol: 'modbus_tcp',
-        status: 'draft',
-        connection_config: '{"host":"192.168.10.10","port":502,"slave_id":1,"timeout":5}',
-        last_test_at: null,
-        last_test_success: null,
-        last_test_error: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
-      {
-        id: 'dev-B',
-        name: 'Line B PLC',
-        description: '',
-        protocol: 'modbus_tcp',
-        status: 'draft',
-        connection_config: '{"host":"192.168.10.11","port":502,"slave_id":2,"timeout":5}',
-        last_test_at: null,
-        last_test_success: null,
-        last_test_error: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
+      deviceFixture(),
+      deviceFixture({ id: 'dev-B', name: 'Line B PLC', connection_config: '{"host":"192.168.10.11","port":502,"slave_id":2,"timeout":5}' }),
     ]);
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([
-      {
-        id: 'rule-A',
-        device_id: 'dev-A',
-        workspace_id: 'workspace-1',
-        start_address: '40001',
-        count: 1,
-        data_type: 'int16',
-        naming_prefix: 'A_',
-        enabled: true,
-        locked: false,
-        origin: 'manual',
-        skipped_addresses: [],
-        revision_id: 'rev-A',
-        scale_multiplier: 1,
-        scale_offset: 0,
-        data_format: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
-      {
+      ruleFixture(),
+      ruleFixture({
         id: 'rule-B',
         device_id: 'dev-B',
-        workspace_id: 'workspace-1',
         start_address: '40011',
-        count: 1,
-        data_type: 'int16',
         naming_prefix: 'B_',
-        enabled: true,
-        locked: false,
-        origin: 'manual',
-        skipped_addresses: [],
         revision_id: 'rev-B',
-        scale_multiplier: 1,
-        scale_offset: 0,
-        data_format: '',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      },
+      }),
     ]);
     vi.mocked(studioV2RulesAPI.update).mockImplementation(async (ruleId, payload) => {
       if (ruleId === 'rule-A') {
         throw new Error('save failed');
       }
 
-      return {
+      return runtimeApplied(ruleFixture({
         id: ruleId,
         device_id: String(payload.device_id),
-        workspace_id: 'workspace-1',
         start_address: '40011',
-        count: 1,
-        data_type: 'int16',
         naming_prefix: String(payload.naming_prefix),
-        enabled: true,
-        locked: false,
-        origin: 'manual',
-        skipped_addresses: [],
         revision_id: `rev-${ruleId}`,
-        scale_multiplier: 1,
-        scale_offset: 0,
-        data_format: '',
-        runtime_apply_status: 'not_running',
-        created_at: '2026-05-30T00:00:00Z',
-        updated_at: '2026-05-30T00:00:00Z',
-      };
+      }));
     });
 
     renderPage();
