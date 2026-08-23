@@ -61,16 +61,26 @@ func (c *MCClient) Close() error {
 	return c.transport.Close()
 }
 
-func (c *MCClient) SetTimeout(d time.Duration) { if c.transport != nil { if tt, ok := c.transport.(*TCPTransport); ok { tt.Timeout = d } } }
+// timeoutSetter 由支援在建構後動態調整逾時的傳輸層實作
+// （TCPTransport、SerialTransport 皆實作此介面）
+type timeoutSetter interface {
+	SetTimeout(d time.Duration)
+}
 
-func (c *MCClient) SetFrame(net, pc, station byte, ioNo uint16, timer uint16) {
-	c.frame.NetworkNo = net
-	c.frame.PCNo = pc
-	c.frame.StationNo = station
-	c.frame.IONo = ioNo
-	if timer != 0 {
-		c.frame.Timer = timer
+// SetTimeout 調整傳輸層逾時；傳輸層不支援動態調整時保留建構時的逾時設定
+func (c *MCClient) SetTimeout(d time.Duration) {
+	if c.transport == nil {
+		return
 	}
+	if ts, ok := c.transport.(timeoutSetter); ok {
+		ts.SetTimeout(d)
+	}
+}
+
+// SetFrame 以完整 RequestFrame 覆寫請求標頭欄位（NetworkNo/PCNo/IONo/StationNo/Timer）；
+// 呼叫端應以 NewRequestFrame 取得預設值（IONo 0x03FF、Timer 0x0010）後再覆寫需要的欄位
+func (c *MCClient) SetFrame(frame RequestFrame) {
+	c.frame = frame
 }
 
 // BatchReadWord reads 16-bit words

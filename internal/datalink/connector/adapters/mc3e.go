@@ -42,7 +42,7 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 		c.config.Port = 5000
 	}
 	if c.config.Timeout == 0 {
-		c.config.Timeout = 5
+		c.config.Timeout = 5 // 秒；與 mcprotocol.NewTCPTransport 的預設逾時對齊（慢速 PLC 需餘裕）
 	}
 
 	// 初始化 hsllogic 數據轉換器 (三菱使用 CDAB 格式：低位 word 在前)
@@ -55,6 +55,7 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 	// 建立客戶端
 	c.client = mcprotocol.NewClient(c.config.Host, c.config.Port)
 	// 套用 station/pc/network/io_no 設定（原本被 hardcode 0 忽略的 bug）
+	// io_no 為 0 時重映射為 3E 標準自站預設 0x03FF（JSON 未填 io_no 時預設 0）
 	ioNo := c.config.IONo
 	if ioNo == 0 {
 		ioNo = 0x03FF
@@ -64,13 +65,11 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 		// JSON 未填 pc_no 時預設 0，會被寫死覆蓋掉原本的 0xFF，需還原為 0xFF (自站)
 		pcNo = 0xFF
 	}
-	c.client.SetFrame(c.config.NetworkNo, pcNo, c.config.StationNo, ioNo, 0)
-	// extend timeout to 5s for slow PLC (raw is instant but framework needs margin)
-	if c.config.Timeout > 0 {
-		c.client.SetTimeout(time.Duration(c.config.Timeout) * time.Second)
-	} else {
-		c.client.SetTimeout(5 * time.Second)
-	}
+	frame := mcprotocol.NewRequestFrame(c.config.NetworkNo, pcNo, c.config.StationNo)
+	frame.IONo = ioNo
+	c.client.SetFrame(frame)
+	// 逾時已於上方正規化為非零值（預設 5 秒），直接套用
+	c.client.SetTimeout(time.Duration(c.config.Timeout) * time.Second)
 
 	// 預設使用長連接模式
 	if !c.persistentMode {
@@ -306,4 +305,3 @@ func (c *MC3EConnector) afterOperation() {
 func init() {
 	connector.Register(schema.ProtocolMC3E, NewMC3EConnector)
 }
-

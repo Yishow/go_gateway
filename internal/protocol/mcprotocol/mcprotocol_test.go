@@ -121,9 +121,10 @@ func TestBuildPacket(t *testing.T) {
 		t.Errorf("Expected packet length >= 15, got %d", len(packet))
 	}
 
-	// 驗證標頭
-	if packet[0] != 0x00 || packet[1] != 0x50 {
-		t.Errorf("Expected subheader 0x5000, got 0x%02X%02X", packet[1], packet[0])
+	// 驗證標頭：SubHeader 為 Big Endian（0x5000 → bytes [0x50, 0x00]）
+	if got := binary.BigEndian.Uint16(packet[0:]); got != ReqSubHeader {
+		t.Errorf("Expected subheader 0x%04X (BE), got 0x%04X (bytes [%02X %02X])",
+			ReqSubHeader, got, packet[0], packet[1])
 	}
 }
 

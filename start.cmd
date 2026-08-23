@@ -2,10 +2,11 @@
 setlocal
 REM Go Gateway launcher - ASCII only to avoid codepage issues
 
-REM Ensure Go and nodejs on PATH (append if missing)
-echo %PATH% | "%SystemRoot%\System32\findstr.exe" /i "Go\\bin" >nul || set "PATH=%PATH%;C:\Program Files\Go\bin"
-echo %PATH% | "%SystemRoot%\System32\findstr.exe" /i "user\\go\\bin" >nul || set "PATH=%PATH%;%USERPROFILE%\go\bin"
-echo %PATH% | "%SystemRoot%\System32\findstr.exe" /i "nodejs" >nul || set "PATH=%PATH%;C:\Program Files\nodejs"
+REM Ensure Go and nodejs on PATH (resolve tools directly to avoid
+REM substring false-positives such as "Go\bin" matching "...\Cargo\bin")
+where go >nul 2>&1 || set "PATH=%PATH%;C:\Program Files\Go\bin"
+echo %PATH% | "%SystemRoot%\System32\findstr.exe" /i /l /c:"%USERPROFILE%\go\bin" >nul || set "PATH=%PATH%;%USERPROFILE%\go\bin"
+where node >nul 2>&1 || set "PATH=%PATH%;C:\Program Files\nodejs"
 where pwsh >nul 2>&1 || set "PATH=%PATH%;C:\Program Files\PowerShell\7"
 
 REM Enable pnpm via corepack if missing

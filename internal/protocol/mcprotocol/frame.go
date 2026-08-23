@@ -6,6 +6,7 @@ import (
 )
 
 // Header Constants
+// SubHeader 以 Big Endian 寫入線上封包（0x5000 → bytes [0x50, 0x00]）
 const (
 	ReqSubHeader = 0x5000
 	ResSubHeader = 0xD000
@@ -42,9 +43,8 @@ func (f RequestFrame) BuildPacket(cmd, subCmd uint16, data []byte) []byte {
 
 	buf := make([]byte, totalSize)
 
-	// Header
-	buf[0] = 0x50
-	buf[1] = 0x00
+	// Header：SubHeader 為 Big Endian（線上位元組序 [0x50, 0x00]），其餘欄位為 Little Endian
+	binary.BigEndian.PutUint16(buf[0:], ReqSubHeader)
 	buf[2] = f.NetworkNo
 	buf[3] = f.PCNo
 	binary.LittleEndian.PutUint16(buf[4:], f.IONo)

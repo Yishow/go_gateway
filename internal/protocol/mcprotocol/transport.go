@@ -150,6 +150,16 @@ func (t *TCPTransport) internalClose() {
 	}
 }
 
+// SetTimeout 調整連線、讀取與寫入的逾時時間；d <= 0 時不變更
+func (t *TCPTransport) SetTimeout(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.Timeout = d
+}
+
 // SerialTransport MC Protocol 串列埠傳輸實作
 type SerialTransport struct {
 	Port     string
@@ -304,4 +314,14 @@ func (s *SerialTransport) internalClose() {
 		s.port = nil
 		s.reader = nil
 	}
+}
+
+// SetTimeout 調整串列埠讀取逾時；d <= 0 時不變更
+func (s *SerialTransport) SetTimeout(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Timeout = d
 }

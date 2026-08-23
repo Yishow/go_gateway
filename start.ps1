@@ -68,21 +68,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# ---------- PATH 自癒：避免舊進程 PATH 過期導致 go/pnpm 找不到 ----------
-try {
-    $regMachine = [Environment]::GetEnvironmentVariable("PATH","Machine")
-    $regUser    = [Environment]::GetEnvironmentVariable("PATH","User")
-    if ($regMachine -and $regUser) { $env:PATH = "$regMachine;$regUser" }
-    elseif ($regMachine) { $env:PATH = $regMachine }
-    # 補常見缺口
-    if ($env:PATH -notlike "*Go\bin*") { $env:PATH += ";C:\Program Files\Go\bin" }
-    if ($env:PATH -notlike "*user\go\bin*") { $env:PATH += ";$env:USERPROFILE\go\bin" }
-    if ($env:PATH -notlike "*nodejs*")  { $env:PATH += ";C:\Program Files\nodejs" }
-    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-        try { & corepack enable 2>$null | Out-Null } catch {}
-    }
-} catch {}
-# -------------------------------------------------------------------
 $script:ExitCode = 0
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
@@ -1600,6 +1585,20 @@ function Start-QuickStart {
 # 供測試以 dot-source 載入函數：設定 GATEWAY_START_PS1_LIBRARY_ONLY=1 後載入，
 # 僅定義函數不進入主流程（語意同 start.sh 的 BASH_SOURCE guard）
 if ($env:GATEWAY_START_PS1_LIBRARY_ONLY -eq "1") { return }
+
+# ---------- PATH 自癒：避免舊進程 PATH 過時導致 go/node/pnpm 找不到（best-effort）----------
+# 在 library guard 後執行；以工具可解析性為準（避免 "Go\bin" 誤中 "...\Cargo\bin"），
+# registry PATH 僅附加不取代，保留 process-local 條目（可攜安裝、測試 stub 注入路徑）
+try {
+    if (-not (Get-Command go -ErrorAction SilentlyContinue) -or -not (Get-Command node -ErrorAction SilentlyContinue)) {
+        $env:PATH += ";" + ((@([Environment]::GetEnvironmentVariable("PATH", "Machine"), [Environment]::GetEnvironmentVariable("PATH", "User")) -ne $null) -join ";")
+    }
+    if (-not (Get-Command go   -ErrorAction SilentlyContinue)) { $env:PATH += ";C:\Program Files\Go\bin" }
+    if ($env:PATH -notlike "*$env:USERPROFILE\go\bin*")        { $env:PATH += ";$env:USERPROFILE\go\bin" }
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) { $env:PATH += ";C:\Program Files\nodejs" }
+    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { try { & corepack enable 2>$null | Out-Null } catch {} }
+} catch {}
+# -------------------------------------------------------------------
 
 # 處理特殊功能參數
 if ($CheckEnv) {
