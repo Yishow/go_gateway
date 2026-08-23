@@ -43,7 +43,8 @@ func (f RequestFrame) BuildPacket(cmd, subCmd uint16, data []byte) []byte {
 	buf := make([]byte, totalSize)
 
 	// Header
-	binary.LittleEndian.PutUint16(buf[0:], ReqSubHeader)
+	buf[0] = 0x50
+	buf[1] = 0x00
 	buf[2] = f.NetworkNo
 	buf[3] = f.PCNo
 	binary.LittleEndian.PutUint16(buf[4:], f.IONo)

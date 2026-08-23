@@ -3,6 +3,7 @@ package mcprotocol
 import (
 	"encoding/binary"
 	"fmt"
+	"time"
 )
 
 // 最小回應長度常數
@@ -58,6 +59,18 @@ func (c *MCClient) Connect() error {
 
 func (c *MCClient) Close() error {
 	return c.transport.Close()
+}
+
+func (c *MCClient) SetTimeout(d time.Duration) { if c.transport != nil { if tt, ok := c.transport.(*TCPTransport); ok { tt.Timeout = d } } }
+
+func (c *MCClient) SetFrame(net, pc, station byte, ioNo uint16, timer uint16) {
+	c.frame.NetworkNo = net
+	c.frame.PCNo = pc
+	c.frame.StationNo = station
+	c.frame.IONo = ioNo
+	if timer != 0 {
+		c.frame.Timer = timer
+	}
 }
 
 // BatchReadWord reads 16-bit words

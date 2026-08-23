@@ -54,6 +54,23 @@ func (c *MC3EConnector) Connect(ctx context.Context, configJSON string) error {
 
 	// 建立客戶端
 	c.client = mcprotocol.NewClient(c.config.Host, c.config.Port)
+	// 套用 station/pc/network/io_no 設定（原本被 hardcode 0 忽略的 bug）
+	ioNo := c.config.IONo
+	if ioNo == 0 {
+		ioNo = 0x03FF
+	}
+	pcNo := c.config.PCNo
+	if pcNo == 0 {
+		// JSON 未填 pc_no 時預設 0，會被寫死覆蓋掉原本的 0xFF，需還原為 0xFF (自站)
+		pcNo = 0xFF
+	}
+	c.client.SetFrame(c.config.NetworkNo, pcNo, c.config.StationNo, ioNo, 0)
+	// extend timeout to 5s for slow PLC (raw is instant but framework needs margin)
+	if c.config.Timeout > 0 {
+		c.client.SetTimeout(time.Duration(c.config.Timeout) * time.Second)
+	} else {
+		c.client.SetTimeout(5 * time.Second)
+	}
 
 	// 預設使用長連接模式
 	if !c.persistentMode {
@@ -289,3 +306,4 @@ func (c *MC3EConnector) afterOperation() {
 func init() {
 	connector.Register(schema.ProtocolMC3E, NewMC3EConnector)
 }
+

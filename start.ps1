@@ -67,6 +67,22 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# ---------- PATH 自癒：避免舊進程 PATH 過期導致 go/pnpm 找不到 ----------
+try {
+    $regMachine = [Environment]::GetEnvironmentVariable("PATH","Machine")
+    $regUser    = [Environment]::GetEnvironmentVariable("PATH","User")
+    if ($regMachine -and $regUser) { $env:PATH = "$regMachine;$regUser" }
+    elseif ($regMachine) { $env:PATH = $regMachine }
+    # 補常見缺口
+    if ($env:PATH -notlike "*Go\bin*") { $env:PATH += ";C:\Program Files\Go\bin" }
+    if ($env:PATH -notlike "*user\go\bin*") { $env:PATH += ";$env:USERPROFILE\go\bin" }
+    if ($env:PATH -notlike "*nodejs*")  { $env:PATH += ";C:\Program Files\nodejs" }
+    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+        try { & corepack enable 2>$null | Out-Null } catch {}
+    }
+} catch {}
+# -------------------------------------------------------------------
 $script:ExitCode = 0
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
@@ -804,7 +820,7 @@ function Start-FrontendDevServer {
         
         # 使用 Start-Process 在背景啟動前端伺服器
         # 使用 cmd.exe 來正確處理 pnpm 命令，避免 PowerShell 的問題
-        $frontendCommand = "set PORT=$Port && set VITE_API_PROXY_TARGET=$proxyTarget && set VITE_DEV_PORT=$script:FrontendDevPort && pnpm exec vite --host $script:FrontendDevHost --port $script:FrontendDevPort --strictPort"
+        $frontendCommand = "set PORT=$Port && set VITE_API_PROXY_TARGET=$proxyTarget && set CI=true&& set VITE_DEV_PORT=$script:FrontendDevPort && npx --yes vite --host $script:FrontendDevHost --port $script:FrontendDevPort --strictPort"
         $frontendProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $frontendCommand -PassThru -WindowStyle Hidden -WorkingDirectory (Get-Location).Path
         
         if ($frontendProcess) {

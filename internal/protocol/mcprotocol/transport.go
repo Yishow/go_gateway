@@ -33,7 +33,7 @@ func NewTCPTransport(host string, port int) *TCPTransport {
 	return &TCPTransport{
 		Host:        host,
 		Port:        port,
-		Timeout:     2 * time.Second,
+		Timeout:     5 * time.Second,
 		MaxBodySize: 32 * 1024, // 32KB Limit
 	}
 }
