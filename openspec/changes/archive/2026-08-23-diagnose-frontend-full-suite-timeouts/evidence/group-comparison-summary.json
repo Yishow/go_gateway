@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "mode": "GroupComparison",
+  "result": "completed-with-blocked-default-records",
+  "diagnosisOnly": true,
+  "sourceSummaryPath": "C:\\AIProject\\go_gateway\\openspec\\changes\\diagnose-frontend-full-suite-timeouts\\evidence\\normal-full-summary.json",
+  "sourceSummarySha256": "F52F9F716420FEE9EC35153FD9629812927AB5BA52CD6614668AC167E3033086",
+  "sourceFileCount": 23,
+  "derivation": "ordered dynamic union of current NormalFull records.failureSet.file; not a fixed path list",
+  "groupFiles": [
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchOutputStep.modbus-bindings.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchOutputStep.database-schema-columns.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/MuiSourceIncidentDesk.reopen.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.inline-editing.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.batch-selection.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.rule-actions.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.planning.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchTagStep.tag-results.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchOutputStep.modbus-surface.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchOutputStep.database-schema.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchFoundation.device-list.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchFoundation.device-editor.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchOutputStep.database-targets.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.datatype-span.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceRuleTargetDatatype.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchOutputStep.modbus-canvas.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.inspector.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.conflict-queue.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.canvas-overlays.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourcePreview.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.visual-span.test.tsx",
+    "frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchOutputStep.cross-step-handoff.test.tsx",
+    "frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx"
+  ],
+  "phases": [
+    {
+      "mode": "DefaultGroup",
+      "repeat": 2,
+      "rawLocation": "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-788e5cfdf18e4e66a3acb92b6237328d",
+      "rawSummary": "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-788e5cfdf18e4e66a3acb92b6237328d\\group-summary.json",
+      "commandContract": "npm --prefix frontend run test -- --run followed by the same validated tests/... selectors",
+      "workerMode": "default",
+      "workerArgs": [],
+      "recordCount": 2,
+      "result": "blocked-records-preserved",
+      "classificationTotals": {
+        "pass": 0,
+        "assertion": 0,
+        "testTimeout": 0,
+        "workerHang": 0,
+        "resourceLeak": 0,
+        "environment": 0,
+        "unknown": 2
+      },
+      "runMetrics": [
+        { "runId": "3d713659176148eab9357996f7f1fd3b", "repeatIndex": 1, "durationMs": 32700, "tests": 119, "passed": 104, "failed": 15, "timedOut": 13, "timeoutMarkerCount": 26, "assertionCount": 2, "classification": "unknown", "result": "blocked" },
+        { "runId": "fdb7213f4bee445c8b9dc8980595cb30", "repeatIndex": 2, "durationMs": 32257, "tests": 119, "passed": 104, "failed": 15, "timedOut": 13, "timeoutMarkerCount": 26, "assertionCount": 2, "classification": "unknown", "result": "blocked" }
+      ],
+      "durationMs": { "min": 32257, "max": 32700, "median": 32478.5 },
+      "sequential": true,
+      "overlapCount": 0,
+      "artifactIntegrity": { "checked": 6, "allPresent": true, "allHashesMatch": true },
+      "externalWatchdogTriggered": false
+    },
+    {
+      "mode": "SingleWorkerGroup",
+      "repeat": 2,
+      "rawLocation": "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-1bf0cd4950624d159656bf0a18a71940",
+      "rawSummary": "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-1bf0cd4950624d159656bf0a18a71940\\group-summary.json",
+      "commandContract": "npm --prefix frontend run test -- --run followed by the same validated tests/... selectors",
+      "workerMode": "single",
+      "workerArgs": ["--no-file-parallelism", "--maxWorkers=1", "--minWorkers=1"],
+      "recordCount": 2,
+      "result": "completed",
+      "classificationTotals": {
+        "pass": 2,
+        "assertion": 0,
+        "testTimeout": 0,
+        "workerHang": 0,
+        "resourceLeak": 0,
+        "environment": 0,
+        "unknown": 0
+      },
+      "runMetrics": [
+        { "runId": "847b150f208742ea9f9856457b8fb8b9", "repeatIndex": 1, "durationMs": 127607, "tests": 119, "passed": 119, "failed": 0, "timedOut": 0, "timeoutMarkerCount": 0, "assertionCount": 0, "classification": "pass", "result": "pass" },
+        { "runId": "71088c705535490891f1e4a39f341c61", "repeatIndex": 2, "durationMs": 120916, "tests": 119, "passed": 119, "failed": 0, "timedOut": 0, "timeoutMarkerCount": 0, "assertionCount": 0, "classification": "pass", "result": "pass" }
+      ],
+      "durationMs": { "min": 120916, "max": 127607, "median": 124261.5 },
+      "sequential": true,
+      "overlapCount": 0,
+      "artifactIntegrity": { "checked": 6, "allPresent": true, "allHashesMatch": true },
+      "externalWatchdogTriggered": false
+    }
+  ],
+  "comparison": {
+    "filesEqual": true,
+    "orderEqual": true,
+    "sourceHashEqual": true,
+    "nonWorkerSettingsDiff": [],
+    "changedWorkerSettings": ["workers", "workerMode", "workerArgs"],
+    "defaultCommandWorkerFlags": [],
+    "singleCommandWorkerFlags": ["--no-file-parallelism", "--maxWorkers=1", "--minWorkers=1"],
+    "singleWorkerDiagnosisOnly": true
+  },
+  "aggregate": {
+    "recordCount": 4,
+    "uniqueRunIdCount": 4,
+    "sequential": true,
+    "overlapCount": 0,
+    "artifactIntegrity": { "checked": 12, "allPresent": true, "allHashesMatch": true },
+    "externalWatchdogTriggered": false,
+    "unsupportedMetrics": {
+      "childPids": "unavailable",
+      "workerCount": "unavailable",
+      "peakWorkingSetBytes": "unavailable",
+      "heapUsedBytes": "unavailable"
+    }
+  },
+  "failureIdentity": {
+    "dynamic": true,
+    "fixedSuiteAssumption": false,
+    "defaultGroupFailureSetStoredInRawRecords": true,
+    "singleWorkerGroupFailureSetStoredInRawRecords": true,
+    "defaultMixedEvidence": "13 unique test-timeout failures plus 2 assertion failures per run; fail-closed classification is unknown/blocked",
+    "singleWorkerEvidence": "zero failures in both runs"
+  }
+}

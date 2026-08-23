@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "mode": "ProcessSafetyReview",
+  "result": "pass/no-code",
+  "scope": "diagnosis-only; no source repair",
+  "staticReview": {
+    "reviewedPaths": [
+      "scripts/diagnose-frontend-vitest-matrix.ps1",
+      "scripts/lib/FrontendVitestMatrix.psm1",
+      "scripts/lib/FrontendVitestFreshIsolated.psm1",
+      "scripts/lib/FrontendVitestGroups.psm1"
+    ],
+    "fixedCommandsOnly": true,
+    "commandContract": "runner and helpers construct fixed npm test-owned arguments with validated selectors; no arbitrary command parameter",
+    "noInvokeExpression": true,
+    "noGlobalNameKill": true,
+    "noTaskkill": true,
+    "noStopProcess": true,
+    "watchdogAndTestTimeoutSeparated": true,
+    "uniqueOutputOwnershipAndPathValidation": true,
+    "unsafeOwnershipRefusesTermination": true
+  },
+  "actualProcessProbe": {
+    "probeId": "owned-tree-probe-a-b",
+    "probeType": "two test-owned harmless sleep processes",
+    "durationBoundMs": 10000,
+    "killEntireProcessTree": true,
+    "aExitedAfterOwnedTreeKill": true,
+    "bAliveAfterAKill": true,
+    "aCleanupOutcome": "owned-tree-kill-requested",
+    "bCleanupOutcome": "owned-tree-kill-requested",
+    "commandLineRecorded": false,
+    "environmentRecorded": false,
+    "pidsRetained": false,
+    "noGlobalKill": true
+  },
+  "tempOwnershipProbe": {
+    "probeId": "owned-temp-probe-1",
+    "uniqueOwnedDirectory": true,
+    "ownedDirectoryRemoved": true,
+    "externalSentinelPreserved": true,
+    "externalSentinelRemoved": true,
+    "broadPathOrGlobUsed": false
+  },
+  "unsafeOwnershipScenario": {
+    "probeId": "unsafe-owner-synthetic-1",
+    "action": "refuse/no-kill",
+    "killAttempted": false,
+    "classification": "unknown",
+    "result": "blocked"
+  },
+  "rollbackRehearsal": {
+    "dryRun": true,
+    "deletedAnyPath": false,
+    "plannedPaths": [
+      "scripts/diagnose-frontend-vitest-matrix.ps1",
+      "scripts/lib/FrontendVitestMatrix.psm1",
+      "scripts/lib/FrontendVitestFreshIsolated.psm1",
+      "scripts/lib/FrontendVitestGroups.psm1",
+      "scripts/tests/diagnose-frontend-vitest-matrix.Tests.ps1",
+      "scripts/tests/diagnose-frontend-classification-review.Tests.ps1",
+      "scripts/tests/diagnose-frontend-fresh-isolated.Tests.ps1",
+      "scripts/tests/diagnose-frontend-groups.Tests.ps1",
+      "scripts/tests/diagnose-frontend-repair-gate.Tests.ps1",
+      "scripts/tests/diagnose-frontend-stability-handoff.Tests.ps1",
+      "scripts/tests/diagnose-frontend-process-safety.Tests.ps1",
+      "scripts/tests/diagnose-frontend-final-audit.Tests.ps1",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/.openspec.yaml",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/design.md",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/proposal.md",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/specs/frontend-test-suite-stability/spec.md",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/tasks.md",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/final-audit-handoff.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/environment-capture.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/classification-review.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/normal-full-summary.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/fresh-isolated-summary.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/group-comparison-summary.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/repair-branch-handoff.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/stability-handoff.json",
+      "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/process-safety-review.json"
+    ],
+    "policy": "rollback only exact diagnosis/change paths; preserve unrelated dirty paths"
+  },
+  "linkedEvidence": {
+    "classificationReviewPath": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/classification-review.json",
+    "classificationReviewSha256": "D61FA76822EADD60BD152A40BB7C4C9B99709B6802F3E4FC1C670CC8AD55533F",
+    "repairBranchPath": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/repair-branch-handoff.json",
+    "repairBranchSha256": "6985CBFF2F09E285C1EC8BF8D031F428C961ADC0529BF8F7F1B16F72900E72CC",
+    "normalFullSummaryPath": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/normal-full-summary.json",
+    "normalFullSummarySha256": "F52F9F716420FEE9EC35153FD9629812927AB5BA52CD6614668AC167E3033086",
+    "rawEvidenceRetained": true,
+    "normalRunsWatchdogFalse": true
+  },
+  "risks": [
+    "Process and heap metrics in matrix evidence remain unavailable.",
+    "This safety probe demonstrates ownership boundaries only; it does not establish a product root cause.",
+    "No stability or source-repair claim is made."
+  ]
+}

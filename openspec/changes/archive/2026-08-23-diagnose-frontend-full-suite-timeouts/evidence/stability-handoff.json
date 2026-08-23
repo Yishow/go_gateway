@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "mode": "StabilityHandoff",
+  "result": "blocked/no-code/N/A",
+  "branch": "blocked/no-code",
+  "noStabilityClaim": true,
+  "reason": "The classification gate remains locked: worker-sensitive evidence is strong, but no test-local root cause or direct resource correlation is proven. Stability acceptance for a bounded repair is therefore not applicable.",
+  "repairGate": {
+    "status": "locked",
+    "sourceChangeAllowed": false,
+    "testLocalRootCauseProven": false
+  },
+  "baseline": {
+    "mode": "NormalFull",
+    "repeat": 3,
+    "command": "npm --prefix frontend run test -- --run",
+    "existingBaselineOnly": true,
+    "records": [
+      { "repeatIndex": 1, "failed": 7, "timedOut": 7, "classification": "test-timeout" },
+      { "repeatIndex": 2, "failed": 11, "timedOut": 11, "classification": "test-timeout" },
+      { "repeatIndex": 3, "failed": 38, "timedOut": 35, "assertion": 3, "classification": "unknown", "result": "blocked" }
+    ]
+  },
+  "noExtraStabilityFullRuns": true,
+  "notRun": {
+    "focusedRepeat": "not-applicable/no-repair",
+    "defaultGroup": "not-applicable/no-repair",
+    "normalFull": "existing-baseline-only",
+    "lint": "not-applicable/no-repair",
+    "build": "not-applicable/no-repair"
+  },
+  "sourceChangeAllowed": false,
+  "modifiedImpactPaths": [],
+  "linkedEvidence": {
+    "classificationReviewPath": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/classification-review.json",
+    "classificationReviewSha256": "D61FA76822EADD60BD152A40BB7C4C9B99709B6802F3E4FC1C670CC8AD55533F",
+    "repairBranchPath": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/repair-branch-handoff.json",
+    "repairBranchSha256": "6985CBFF2F09E285C1EC8BF8D031F428C961ADC0529BF8F7F1B16F72900E72CC",
+    "normalFullSummaryPath": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/normal-full-summary.json",
+    "normalFullSummarySha256": "F52F9F716420FEE9EC35153FD9629812927AB5BA52CD6614668AC167E3033086",
+    "rawEvidenceRetained": true,
+    "rawLocations": [
+      "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-fd712fe648de48f4bb373cc60d82ad69",
+      "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-ed4d77bfe6704d5c8014e6a4f9caf238",
+      "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-788e5cfdf18e4e66a3acb92b6237328d",
+      "C:\\Users\\Yishow\\AppData\\Local\\Temp\\frontend-vitest-matrix-1bf0cd4950624d159656bf0a18a71940"
+    ]
+  },
+  "links": {
+    "classificationReview": {
+      "path": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/classification-review.json",
+      "sha256": "D61FA76822EADD60BD152A40BB7C4C9B99709B6802F3E4FC1C670CC8AD55533F"
+    },
+    "repairBranch": {
+      "path": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/repair-branch-handoff.json",
+      "sha256": "6985CBFF2F09E285C1EC8BF8D031F428C961ADC0529BF8F7F1B16F72900E72CC"
+    },
+    "normalFull": {
+      "path": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/normal-full-summary.json",
+      "sha256": "F52F9F716420FEE9EC35153FD9629812927AB5BA52CD6614668AC167E3033086"
+    }
+  },
+  "acceptance": {
+    "focusedCorrectness": "not-applicable/no-repair",
+    "fullSuiteStability": "blocked/no-code; existing baseline preserved",
+    "lint": "not-applicable/no-repair",
+    "build": "not-applicable/no-repair",
+    "lineGate": "run separately; no repair branch files exceed limits"
+  },
+  "risks": [
+    "No production root-cause or stability claim is made.",
+    "Process, heap, and actual worker metrics remain unavailable.",
+    "Single-worker evidence remains diagnosis-only and is not a fix."
+  ]
+}

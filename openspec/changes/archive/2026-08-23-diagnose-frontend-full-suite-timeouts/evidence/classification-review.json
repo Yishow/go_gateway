@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "mode": "ClassificationReview",
+  "reviewId": "classification-review-2026-08-23",
+  "result": "blocked/no-code/N/A",
+  "secretsPresent": false,
+  "sourceEvidence": [
+    { "name": "environment", "path": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/environment-capture.json", "sha256": "B742D69911E2FF56571E47974A224757C00A379A398F3F8ACCD566365D039E0A", "role": "host inventory and reporter capability" },
+    { "name": "normalFull", "path": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/normal-full-summary.json", "sha256": "F52F9F716420FEE9EC35153FD9629812927AB5BA52CD6614668AC167E3033086", "role": "three-run dynamic baseline" },
+    { "name": "freshIsolated", "path": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/fresh-isolated-summary.json", "sha256": "16D6DE7218E45AF10D05A51AAC123CC135363A83FC17DAAA3DDD226F8C083845", "role": "corrected 23-file fresh-process matrix" },
+    { "name": "groupComparison", "path": "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/group-comparison-summary.json", "sha256": "7B470776D6D81A0D44B5B9B8F0E3204DE99E190CBE9758E23BEF653432111DAF", "role": "default versus single-worker comparison" }
+  ],
+  "hashValidation": { "sourceCount": 4, "allPresent": true, "allSha256Match": true, "rawEvidenceRetained": true },
+  "identityPolicy": {
+    "dynamicFailureSet": true,
+    "fixedTimeoutIdentity": false,
+    "statement": "Every phase retains the observed file/title set; the current union is evidence, not a permanent ten-suite identity."
+  },
+  "evidenceFacts": {
+    "environment": { "discoveredFiles": 181, "notFixedIdentity": true, "suiteExecuted": false, "diagnosticRunnerExecuted": false, "sandboxSpawnEpermIsSeparateLineage": true },
+    "normalFull": {
+      "recordCount": 3,
+      "failureRecordCounts": [7, 11, 38],
+      "failureFileCounts": [7, 11, 22],
+      "timeoutTestCounts": [7, 11, 35],
+      "timeoutMarkerCounts": [14, 22, 70],
+      "assertionCounts": [0, 0, 3],
+      "classifications": ["test-timeout", "test-timeout", "unknown"],
+      "identityDrift": true,
+      "externalWatchdogTriggered": false
+    },
+    "freshIsolated": {
+      "fileCount": 23,
+      "recordCount": 230,
+      "passCount": 230,
+      "timeoutCount": 0,
+      "assertionCount": 0,
+      "externalWatchdogTriggered": 0,
+      "durationMedianMsPerWholeFileProcess": 8366,
+      "durationInterpretation": "median duration is for each whole-file process, not a per-test timeout measurement"
+    },
+    "groupComparison": {
+      "recordCount": 4,
+      "filesEqual": true,
+      "orderEqual": true,
+      "nonWorkerSettingsDiff": [],
+      "defaultClassifications": ["unknown", "unknown"],
+      "singleWorkerClassifications": ["pass", "pass"],
+      "singleWorkerDiagnosisOnly": true
+    }
+  },
+  "rawValidation": {
+    "normalFull": { "hashChecks": 9, "allPresent": true, "allHashesMatch": true, "rawArtifactsPreserved": true },
+    "freshIsolated": { "artifactChecks": 690, "allPresent": true, "allHashesMatch": true, "rawArtifactsPreserved": true },
+    "groupComparison": { "artifactChecks": 12, "allPresent": true, "allHashesMatch": true, "rawArtifactsPreserved": true }
+  },
+  "classificationTable": [
+    { "identity": "NormalFull#1", "classification": "test-timeout", "result": "failed", "timeoutTests": 7, "timeoutMarkerCount": 14, "assertionCount": 0, "externalWatchdogTriggered": false },
+    { "identity": "NormalFull#2", "classification": "test-timeout", "result": "failed", "timeoutTests": 11, "timeoutMarkerCount": 22, "assertionCount": 0, "externalWatchdogTriggered": false },
+    { "identity": "NormalFull#3", "classification": "unknown", "result": "blocked", "timeoutTests": 35, "timeoutMarkerCount": 70, "assertionCount": 3, "mixedSignals": true, "externalWatchdogTriggered": false },
+    { "identity": "DefaultGroup#1", "classification": "unknown", "result": "blocked", "timeoutTests": 13, "timeoutMarkerCount": 26, "assertionCount": 2, "mixedSignals": true, "externalWatchdogTriggered": false },
+    { "identity": "DefaultGroup#2", "classification": "unknown", "result": "blocked", "timeoutTests": 13, "timeoutMarkerCount": 26, "assertionCount": 2, "mixedSignals": true, "externalWatchdogTriggered": false },
+    { "identity": "FreshIsolated#all", "classification": "pass", "result": "completed", "recordCount": 230, "timeoutTests": 0, "assertionCount": 0, "externalWatchdogTriggered": false },
+    { "identity": "SingleWorkerGroup#1", "classification": "pass", "result": "pass", "tests": 119, "passed": 119, "externalWatchdogTriggered": false },
+    { "identity": "SingleWorkerGroup#2", "classification": "pass", "result": "pass", "tests": 119, "passed": 119, "externalWatchdogTriggered": false }
+  ],
+  "classificationFacts": {
+    "unknownAlwaysBlocked": true,
+    "resourceLeakObserved": false,
+    "workerHangObserved": false,
+    "normalEnvironmentClassification": false,
+    "sandboxEnvironmentBoundary": "spawn EPERM before Vitest discovery; retained as separate environment/runner lineage",
+    "noResourceLeakClassificationReason": "process, heap, and actual worker-count correlation are unavailable"
+  },
+  "classificationBoundaries": [
+    { "classification": "assertion", "boundary": "normal process completion with assertion evidence and no timeout/watchdog signal" },
+    { "classification": "test-timeout", "boundary": "explicit Vitest timeout output with completed or complete timeout evidence" },
+    { "classification": "worker-hang", "boundary": "missing completion or owned process requiring external watchdog cleanup" },
+    { "classification": "resource leak", "boundary": "fresh pass plus repeated group failure with comparable process/heap/worker correlation", "observed": false },
+    { "classification": "environment", "boundary": "unchanged local run differs with host/process environment evidence", "normalBaseline": false },
+    { "classification": "unknown", "boundary": "insufficient or conflicting signals", "result": "blocked" }
+  ],
+  "hypotheses": [
+    {
+      "id": "worker-resource-saturation",
+      "status": "strongly-supported",
+      "falsificationTest": "Compare two normal/default group observations with the same 23-file order against two same-file single-worker observations, while contrasting the 230 fresh per-file passes.",
+      "evidenceLinks": ["normalFull", "freshIsolated", "groupComparison"],
+      "observations": ["DefaultGroup has mixed timeout/assertion failures twice while SingleWorkerGroup passes twice.", "FreshIsolated passes all 230 fresh processes while grouped default remains mixed."],
+      "limits": { "directResourceCorrelation": "unavailable", "processMetrics": "unavailable", "heapMetrics": "unavailable", "workerCountMetrics": "unavailable", "productionRootCauseProven": false },
+      "consequence": "Highest current hypothesis and diagnosis signal only; do not change worker or configuration and do not call SingleWorkerGroup a fix."
+    },
+    {
+      "id": "test-local-lifecycle",
+      "status": "not-supported-for-current-union",
+      "falsificationTest": "Repeat every observed file in a fresh owned process ten times and compare grouped failure identities.",
+      "evidenceLinks": ["freshIsolated", "groupComparison"],
+      "observations": ["230/230 fresh records pass with no timeout, assertion, or watchdog classification.", "Single-worker group also passes twice without source changes."],
+      "limits": { "scope": "current observed union only", "shared-setup-proof": "unavailable" },
+      "consequence": "No test-local lifecycle or cleanup repair gate is unlocked."
+    },
+    {
+      "id": "order-isolation-coupling",
+      "status": "insufficient-evidence",
+      "falsificationTest": "Change only isolate, order, or pool in a separate comparable branch while preserving files and command.",
+      "evidenceLinks": ["freshIsolated", "groupComparison"],
+      "observations": ["Fresh isolation and group worker comparison do not isolate order/isolation/pool as a single variable."],
+      "limits": { "branchNotRun": true },
+      "consequence": "Stop before opening OneVariable isolate/order/pool branches; record blocked/no-code decision."
+    },
+    {
+      "id": "deterministic-assertion-defect",
+      "status": "not-supported",
+      "falsificationTest": "Require repeated same-file assertion/title/message without timeout or worker-hang signal in fresh processes.",
+      "evidenceLinks": ["normalFull", "freshIsolated", "groupComparison"],
+      "observations": ["Three assertions appear only in the mixed NormalFull run and two assertions recur only in DefaultGroup; fresh and single-worker records have no assertions."],
+      "limits": { "deterministicFreshAssertion": false },
+      "consequence": "Do not create characterization RED or modify an evidence-selected test."
+    },
+    {
+      "id": "environment-effect",
+      "status": "separate-boundary-only",
+      "falsificationTest": "Compare unchanged normal settings after environment capture and distinguish sandbox process-start failure from normal Vitest output.",
+      "evidenceLinks": ["environment", "normalFull", "groupComparison"],
+      "observations": ["Sandbox spawn EPERM occurs before Vitest discovery and is retained as a separate boundary.", "Normal environment reaches Vitest and still reproduces worker-sensitive grouped failures."],
+      "limits": { "normalBaselineEnvironmentRootCause": false, "hostCorrelation": "unavailable" },
+      "consequence": "Environment explains the sandbox attempt only, not the normal baseline root cause; no environment workaround is authorized."
+    }
+  ],
+  "oneVariableBranch": {
+    "decision": "stopped",
+    "status": "blocked/no-code",
+    "opened": false,
+    "reason": "No isolate/order/pool/lifecycle branch is falsifiable from the available comparable evidence, and resource correlation is unavailable.",
+    "branches": [
+      { "name": "isolate", "status": "stopped", "reason": "insufficient evidence" },
+      { "name": "order", "status": "stopped", "reason": "insufficient evidence" },
+      { "name": "pool", "status": "stopped", "reason": "insufficient evidence" },
+      { "name": "process-lifetime", "status": "stopped", "reason": "insufficient evidence" }
+    ]
+  },
+  "repairGate": {
+    "status": "locked",
+    "decision": "blocked/no-code/N/A",
+    "sourceChangeAllowed": false,
+    "testLocalRootCauseProven": false,
+    "characterizationRedAllowed": false,
+    "reason": "Current evidence supports only a worker-sensitive diagnosis signal; it does not prove a test-local defect and required direct resource metrics are unavailable.",
+    "nextTasksBranch": "5.1/5.2/5.3 must use blocked/no-code/N/A evidence and make no source repair"
+  },
+  "risks": [
+    "Single-worker passes are diagnostic observations, not a product fix.",
+    "Unknown mixed classifications remain blocked because assertion and timeout signals coexist.",
+    "Failure identity drifts across NormalFull runs; no fixed suite identity is assumed.",
+    "No direct process, heap, or actual worker-count measurements are available."
+  ]
+}
