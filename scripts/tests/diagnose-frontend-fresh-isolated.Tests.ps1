@@ -76,6 +76,9 @@ try {
     $missingRejected = $false
     try { Get-FreshIsolatedFailureSet -SummaryPath (Join-Path (New-OwnedOutput) "missing.json") -RepoRoot $repoRoot | Out-Null } catch { $missingRejected = $true }
     Assert-True $missingRejected "missing NormalFull evidence fails loudly"
+    $relativeRejected = $false
+    try { Get-FreshIsolatedFailureSet -SummaryPath "relative-summary.json" -RepoRoot $repoRoot | Out-Null } catch { $relativeRejected = $true }
+    Assert-True $relativeRejected "relative SummaryPath is rejected by the evidence resolver"
 
     $groupRejectedOutput = & pwsh -NoProfile -File $runnerPath -Mode FreshIsolated -GroupFiles "frontend/tests/unit/app-routing-lazy-load.test.tsx" 2>&1
     Assert-True ($LASTEXITCODE -ne 0) "FreshIsolated rejects unrelated GroupFiles"
@@ -110,6 +113,31 @@ try {
     $freshSummary = Get-Content -Raw -LiteralPath (Join-Path $runOutput "fresh-isolated-summary.json") | ConvertFrom-Json
     Assert-Equal 2 @($freshSummary.perFile).Count "synthetic fresh summary keeps per-file aggregates"
     Assert-True (@($freshSummary.perFile | ForEach-Object repeatCount) -contains 2) "synthetic fresh per-file repeat counts are isolated"
+
+    $timeoutChild = {
+        param($RepoRoot, $FilePath, $RunId, $RepeatIndex, $WatchdogSeconds)
+        [ordered]@{ startedAtUtc = [DateTime]::UtcNow.ToString("o"); completedAtUtc = [DateTime]::UtcNow.ToString("o"); durationMs = 3; stdout = " FAIL  $($FilePath.Substring('frontend/'.Length)) > timeout suite > waits`n Error: Test timed out in 5000ms.`n Test Files  1 failed (1)`n Tests  1 failed (1)"; stderr = ""; exitCode = 1; runnerPid = "synthetic"; childPids = "unavailable"; peakWorkingSetBytes = "unavailable"; externalWatchdogTriggered = $false; cleanupOutcome = "not-required"; cleanupError = ""; startError = "" }
+    }
+    $timeoutOutput = New-OwnedOutput
+    $timeoutThrown = $false
+    try { Invoke-FrontendVitestFreshIsolated -RepoRoot $repoRoot -OutputDirectory $timeoutOutput -Repeat 1 -WatchdogSeconds 1 -FailureFiles $source.files -SummaryPath $summaryPath -ChildInvoker $timeoutChild | Out-Null } catch { $timeoutThrown = $true }
+    Assert-True $timeoutThrown "classified FreshIsolated failure is a non-zero gate"
+    $timeoutSummary = Get-Content -Raw (Join-Path $timeoutOutput "fresh-isolated-summary.json") | ConvertFrom-Json
+    Assert-Equal "failed" $timeoutSummary.result "classified FreshIsolated failure is failed"
+    Assert-True (@($timeoutSummary.records | Where-Object classification -eq "test-timeout").Count -gt 0) "FreshIsolated preserves timeout classification"
+    Assert-True (@($timeoutSummary.records | Where-Object result -eq "failed").Count -gt 0) "FreshIsolated preserves classified failed records"
+
+    $unknownChild = {
+        param($RepoRoot, $FilePath, $RunId, $RepeatIndex, $WatchdogSeconds)
+        [ordered]@{ startedAtUtc = [DateTime]::UtcNow.ToString("o"); completedAtUtc = [DateTime]::UtcNow.ToString("o"); durationMs = 1; stdout = "malformed"; stderr = ""; exitCode = 1; runnerPid = "synthetic"; childPids = "unavailable"; peakWorkingSetBytes = "unavailable"; externalWatchdogTriggered = $false; cleanupOutcome = "not-required"; cleanupError = ""; startError = "" }
+    }
+    $unknownOutput = New-OwnedOutput
+    $unknownThrown = $false
+    try { Invoke-FrontendVitestFreshIsolated -RepoRoot $repoRoot -OutputDirectory $unknownOutput -Repeat 1 -WatchdogSeconds 1 -FailureFiles $source.files -SummaryPath $summaryPath -ChildInvoker $unknownChild | Out-Null } catch { $unknownThrown = $true }
+    Assert-True $unknownThrown "unknown FreshIsolated output is a non-zero gate"
+    $unknownSummary = Get-Content -Raw (Join-Path $unknownOutput "fresh-isolated-summary.json") | ConvertFrom-Json
+    Assert-Equal "blocked" $unknownSummary.result "unknown FreshIsolated output is blocked"
+    Assert-True (@($unknownSummary.records | Where-Object classification -eq "unknown").Count -gt 0) "FreshIsolated preserves unknown classification"
 
     Write-Output "GREEN fresh-isolated contract checks passed"
     exit 0

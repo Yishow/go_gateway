@@ -1,8 +1,16 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$handoffPath = Join-Path $repoRoot "openspec\changes\diagnose-frontend-full-suite-timeouts\evidence\repair-branch-handoff.json"
-$reviewRelative = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/classification-review.json"
+$evidenceModule = Join-Path $repoRoot "scripts\lib\FrontendVitestEvidence.psm1"
+Import-Module $evidenceModule -Force -Global
+$handoffPath = Resolve-FrontendVitestEvidencePath -RepoRoot $repoRoot -FileName "repair-branch-handoff.json"
+$handoffEvidenceRoot = Split-Path -Parent $handoffPath
+$allowedCurrentPaths = @(
+    "scripts/diagnose-frontend-vitest-matrix.ps1",
+    "scripts/lib/FrontendVitestEvidence.psm1", "scripts/lib/FrontendVitestFreshIsolated.psm1", "scripts/lib/FrontendVitestGroups.psm1", "scripts/lib/FrontendVitestMatrix.psm1", "scripts/lib/FrontendVitestProcess.psm1",
+    "scripts/tests/diagnose-frontend-classification-review.Tests.ps1", "scripts/tests/diagnose-frontend-evidence-resolver.Tests.ps1", "scripts/tests/diagnose-frontend-final-audit.Tests.ps1", "scripts/tests/diagnose-frontend-fresh-isolated.Tests.ps1", "scripts/tests/diagnose-frontend-groups.Tests.ps1", "scripts/tests/diagnose-frontend-process-safety.Tests.ps1", "scripts/tests/diagnose-frontend-repair-gate.Tests.ps1", "scripts/tests/diagnose-frontend-stability-handoff.Tests.ps1", "scripts/tests/diagnose-frontend-vitest-matrix.Tests.ps1", "scripts/tests/diagnose-frontend-vitest-process-result.Tests.ps1",
+    "tests/powershell/start-process-tree.ps1"
+)
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "ASSERTION FAILED: $Message" }
@@ -12,8 +20,22 @@ function Assert-Equal($Expected, $Actual, [string]$Message) {
     if ($Expected -ne $Actual) { throw "ASSERTION FAILED: $Message (expected '$Expected', actual '$Actual')" }
 }
 
+function Test-ExactCurrentInventory([string[]]$Actual, [string[]]$Allowed) {
+    $actualSet = @($Actual | ForEach-Object { ([string]$_).Trim().Replace('\', '/') } | Where-Object { $_ } | Sort-Object -Unique)
+    $allowedSet = @($Allowed | ForEach-Object { ([string]$_).Trim().Replace('\', '/') } | Where-Object { $_ } | Sort-Object -Unique)
+    if ($actualSet.Count -eq 0) { return $true }
+    return $actualSet.Count -eq $allowedSet.Count -and (($actualSet -join "`n") -eq ($allowedSet -join "`n"))
+}
+
 function Get-GitInventory {
-    @(& rtk git ls-files --others --exclude-standard 2>$null | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ } | Sort-Object -Unique)
+    $trackedOutput = @(& rtk git diff --name-only HEAD 2>$null)
+    $trackedExitCode = $LASTEXITCODE
+    if ($trackedExitCode -ne 0) { throw "git diff inventory command failed with exit code $trackedExitCode" }
+    $untrackedOutput = @(& rtk git ls-files --others --exclude-standard 2>$null)
+    $untrackedExitCode = $LASTEXITCODE
+    if ($untrackedExitCode -ne 0) { throw "git ls-files inventory command failed with exit code $untrackedExitCode" }
+    @($trackedOutput + $untrackedOutput) |
+        ForEach-Object { ([string]$_).Trim().Replace('\', '/') } | Where-Object { $_ -and $_ -ne "Changes:" } | Sort-Object -Unique
 }
 
 try {
@@ -23,9 +45,9 @@ try {
     Assert-Equal "RepairBranchHandoff" $handoff.mode "handoff mode"
     Assert-Equal "blocked/no-code/N/A" $handoff.result "handoff result"
 
-    $reviewPath = Join-Path $repoRoot $reviewRelative
+    $reviewPath = Resolve-FrontendVitestLinkedEvidencePath -AnchorEvidenceRoot $handoffEvidenceRoot -Reference ([string]$handoff.classificationReview.path) -ExpectedFileName "classification-review.json"
     Assert-True (Test-Path -LiteralPath $reviewPath -PathType Leaf) "classification review exists"
-    Assert-Equal $reviewRelative $handoff.classificationReview.path "classification review path"
+    Assert-Equal "classification-review.json" ([IO.Path]::GetFileName(([string]$handoff.classificationReview.path))) "classification review path"
     Assert-Equal (Get-FileHash -Algorithm SHA256 -LiteralPath $reviewPath).Hash $handoff.classificationReview.sha256 "classification review hash"
     $review = Get-Content -Raw -LiteralPath $reviewPath | ConvertFrom-Json
     Assert-Equal "locked" $review.repairGate.status "linked repair gate is locked"
@@ -42,18 +64,19 @@ try {
 
     $actualInventory = Get-GitInventory
     $handoffInventory = @($handoff.sourceDiffProof.actualUntrackedPaths | ForEach-Object { ([string]$_).Replace('\', '/') } | Sort-Object -Unique)
-    Assert-Equal ($actualInventory -join "|") ($handoffInventory -join "|") "handoff matches actual untracked Git inventory"
-    $allowed = @(
-        "openspec/changes/diagnose-frontend-full-suite-timeouts/",
-        "scripts/diagnose-frontend-vitest-matrix.ps1",
-        "scripts/lib/FrontendVitest",
-        "scripts/tests/diagnose-frontend-"
-    )
+    Assert-True (@($handoffInventory).Count -gt 0) "archived handoff retains its recorded untracked inventory"
+    $inventorySource = Get-Content -Raw -LiteralPath $PSCommandPath
+    Assert-True ($inventorySource -match '\$trackedExitCode\s*=\s*\$LASTEXITCODE' -and $inventorySource -match '\$untrackedExitCode\s*=\s*\$LASTEXITCODE') "Git inventory checks both command exit codes"
+    Assert-Equal 17 @($allowedCurrentPaths).Count "current repair allowlist is exact"
+    if (@($actualInventory).Count -gt 0) { Assert-True (Test-ExactCurrentInventory -Actual $actualInventory -Allowed $allowedCurrentPaths) "non-empty current inventory exactly equals owned repair set" }
     foreach ($path in $actualInventory) {
-        $ok = $path.StartsWith($allowed[0], [StringComparison]::OrdinalIgnoreCase) -or $path -eq $allowed[1] -or $path.StartsWith($allowed[2], [StringComparison]::OrdinalIgnoreCase) -or $path.StartsWith($allowed[3], [StringComparison]::OrdinalIgnoreCase)
-        Assert-True $ok "path is inside diagnosis/change allowlist: $path"
+        Assert-True ($allowedCurrentPaths -contains $path) "path is exactly inside diagnosis/change allowlist: $path"
         Assert-True ($path -notmatch "^(frontend/|.*\.go$|.*package(-lock)?\.json$|.*\.config\.|\.line-limit-ignore$)") "path is outside forbidden scope: $path"
     }
+    $syntheticAllowed = @($allowedCurrentPaths | Sort-Object)
+    Assert-True (Test-ExactCurrentInventory -Actual $syntheticAllowed -Allowed $allowedCurrentPaths) "exact inventory helper accepts complete set"
+    Assert-True (-not (Test-ExactCurrentInventory -Actual @($syntheticAllowed | Select-Object -Skip 1) -Allowed $allowedCurrentPaths)) "exact inventory helper rejects missing path"
+    Assert-True (-not (Test-ExactCurrentInventory -Actual (@($syntheticAllowed | Select-Object -Skip 1) + @("scripts/tests/arbitrary-unowned.ps1")) -Allowed $allowedCurrentPaths)) "exact inventory helper rejects extra path"
     Assert-Equal 0 @($handoff.sourceDiffProof.forbiddenPathsFound).Count "no forbidden path is recorded"
     Assert-True $handoff.sourceDiffProof.scopePass "scope proof passes"
 

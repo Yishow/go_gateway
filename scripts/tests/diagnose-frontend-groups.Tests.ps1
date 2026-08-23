@@ -2,7 +2,9 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $runnerPath = Join-Path $repoRoot "scripts\diagnose-frontend-vitest-matrix.ps1"
-$summaryPath = Join-Path $repoRoot "openspec\changes\diagnose-frontend-full-suite-timeouts\evidence\normal-full-summary.json"
+$evidenceModule = Join-Path $repoRoot "scripts\lib\FrontendVitestEvidence.psm1"
+Import-Module $evidenceModule -Force -Global
+$summaryPath = Resolve-FrontendVitestEvidencePath -RepoRoot $repoRoot -FileName "normal-full-summary.json"
 $ownedOutputs = [System.Collections.Generic.List[string]]::new()
 
 function Assert-True([bool]$Condition, [string]$Message) {
@@ -44,6 +46,9 @@ try {
     Assert-Equal $fileB $source.files[1] "second observed selector order is retained"
     Assert-True ($source.derivation -match "ordered") "source derivation records ordered dynamic union"
     Assert-True (-not [string]::IsNullOrWhiteSpace($source.summarySha256)) "source summary hash is recorded"
+    $relativeRejected = $false
+    try { Get-FrontendVitestGroupSource -SummaryPath "relative-summary.json" -RepoRoot $repoRoot | Out-Null } catch { $relativeRejected = $true }
+    Assert-True $relativeRejected "relative SummaryPath is rejected by the evidence resolver"
 
     $defaultArgs = @(Get-FrontendVitestGroupCommandArguments -Mode DefaultGroup -Files $source.files)
     $singleArgs = @(Get-FrontendVitestGroupCommandArguments -Mode SingleWorkerGroup -Files $source.files)
@@ -92,6 +97,30 @@ try {
     Assert-Equal "pass" $record.classification "synthetic pass parser is retained"
     Assert-True ($record.stdout -match "artifact:") "stdout is captured as an artifact"
     Assert-True ($record.stderr -match "artifact:") "stderr is captured as an artifact"
+
+    $timeoutChild = {
+        param($RepoRoot, $Mode, $Files, $RunId, $RepeatIndex, $WatchdogSeconds)
+        [ordered]@{ startedAtUtc = [DateTime]::UtcNow.ToString("o"); completedAtUtc = [DateTime]::UtcNow.ToString("o"); durationMs = 4; stdout = " FAIL  $($Files[0].Substring('frontend/'.Length)) > timeout suite > waits`n Error: Test timed out in 5000ms.`n Test Files  1 failed (1)`n Tests  1 failed (1)"; stderr = ""; exitCode = 1; runnerPid = "synthetic"; childPids = "unavailable"; peakWorkingSetBytes = "unavailable"; externalWatchdogTriggered = $false; cleanupOutcome = "not-required"; cleanupError = ""; startError = "" }
+    }
+    $timeoutOutput = New-OwnedOutput
+    $timeoutThrown = $false
+    try { Invoke-FrontendVitestGroup -RepoRoot $repoRoot -OutputDirectory $timeoutOutput -Repeat 1 -WatchdogSeconds 1 -Mode DefaultGroup -SummaryPath $sourcePath -ChildInvoker $timeoutChild | Out-Null } catch { $timeoutThrown = $true }
+    Assert-True $timeoutThrown "classified group failure is a non-zero gate"
+    $timeoutSummary = Get-Content -Raw (Join-Path $timeoutOutput "group-summary.json") | ConvertFrom-Json
+    Assert-Equal "failed" $timeoutSummary.result "classified group failure is failed"
+    Assert-True (@($timeoutSummary.records | Where-Object classification -eq "test-timeout").Count -eq 1) "group preserves timeout classification"
+
+    $unknownChild = {
+        param($RepoRoot, $Mode, $Files, $RunId, $RepeatIndex, $WatchdogSeconds)
+        [ordered]@{ startedAtUtc = [DateTime]::UtcNow.ToString("o"); completedAtUtc = [DateTime]::UtcNow.ToString("o"); durationMs = 1; stdout = "malformed"; stderr = ""; exitCode = 1; runnerPid = "synthetic"; childPids = "unavailable"; peakWorkingSetBytes = "unavailable"; externalWatchdogTriggered = $false; cleanupOutcome = "not-required"; cleanupError = ""; startError = "" }
+    }
+    $unknownOutput = New-OwnedOutput
+    $unknownThrown = $false
+    try { Invoke-FrontendVitestGroup -RepoRoot $repoRoot -OutputDirectory $unknownOutput -Repeat 1 -WatchdogSeconds 1 -Mode DefaultGroup -SummaryPath $sourcePath -ChildInvoker $unknownChild | Out-Null } catch { $unknownThrown = $true }
+    Assert-True $unknownThrown "unknown group output is a non-zero gate"
+    $unknownSummary = Get-Content -Raw (Join-Path $unknownOutput "group-summary.json") | ConvertFrom-Json
+    Assert-Equal "blocked" $unknownSummary.result "unknown group output is blocked"
+    Assert-True (@($unknownSummary.records | Where-Object classification -eq "unknown").Count -eq 1) "group preserves unknown classification"
 
     $timeout = ConvertFrom-FrontendVitestOutput -Stdout " FAIL  tests/unit/timeout.test.tsx > waits`n Error: Test timed out in 5000ms.`n Test Files  1 failed (1)`n Tests  1 failed (1)" -Stderr "" -ExitCode 1 -DurationMs 5000 -Phase "DefaultGroup" -RunId "timeout" -RepeatIndex 1 -DiscoveredFiles @($fileA) -ExternalWatchdogTriggered:$false -WatchdogSeconds 600
     Assert-Equal "test-timeout" $timeout.classification "timeout parser remains separate"

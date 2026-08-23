@@ -1,9 +1,10 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$evidenceRoot = Join-Path $repoRoot "openspec\changes\diagnose-frontend-full-suite-timeouts\evidence"
-$handoffRelative = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/stability-handoff.json"
-$handoffPath = Join-Path $repoRoot ($handoffRelative -replace '/', '\')
+$evidenceModule = Join-Path $repoRoot "scripts\lib\FrontendVitestEvidence.psm1"
+Import-Module $evidenceModule -Force -Global
+$handoffPath = Resolve-FrontendVitestEvidencePath -RepoRoot $repoRoot -FileName "stability-handoff.json"
+$evidenceRoot = Split-Path -Parent $handoffPath
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "ASSERTION FAILED: $Message" }
@@ -15,15 +16,18 @@ function Assert-Equal($Expected, $Actual, [string]$Message) {
     }
 }
 
-function Read-Json([string]$RelativePath) {
-    $path = Join-Path $repoRoot ($RelativePath -replace '/', '\')
-    Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "evidence exists: $RelativePath"
+function Resolve-TestEvidencePath([string]$Reference, [string]$ExpectedFileName) {
+    return Resolve-FrontendVitestLinkedEvidencePath -AnchorEvidenceRoot $evidenceRoot -Reference $Reference -ExpectedFileName $ExpectedFileName
+}
+
+function Read-Json([string]$Reference, [string]$ExpectedFileName) {
+    $path = Resolve-TestEvidencePath $Reference $ExpectedFileName
+    Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "evidence exists: $Reference"
     return Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
 }
 
-function Get-Sha256([string]$RelativePath) {
-    $path = Join-Path $repoRoot ($RelativePath -replace '/', '\')
-    return (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash
+function Get-Sha256([string]$Reference, [string]$ExpectedFileName) {
+    return (Get-FileHash -Algorithm SHA256 -LiteralPath (Resolve-TestEvidencePath $Reference $ExpectedFileName)).Hash
 }
 
 try {
@@ -34,20 +38,23 @@ try {
     Assert-Equal "blocked/no-code/N/A" $handoff.result "stability result"
     Assert-True $handoff.noStabilityClaim "blocked branch makes no stability claim"
 
-    $reviewRelative = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/classification-review.json"
-    $review = Read-Json $reviewRelative
-    Assert-Equal (Get-Sha256 $reviewRelative) $handoff.links.classificationReview.sha256 "classification hash"
+    $reviewReference = [string]$handoff.links.classificationReview.path
+    $reviewFile = [IO.Path]::GetFileName($reviewReference)
+    $review = Read-Json $reviewReference "classification-review.json"
+    Assert-Equal (Get-Sha256 $reviewReference "classification-review.json") $handoff.links.classificationReview.sha256 "classification hash"
     Assert-Equal "locked" $review.repairGate.status "classification repair gate"
     Assert-True (-not $review.repairGate.sourceChangeAllowed) "source change remains locked"
 
-    $repairRelative = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/repair-branch-handoff.json"
-    $repair = Read-Json $repairRelative
-    Assert-Equal (Get-Sha256 $repairRelative) $handoff.links.repairBranch.sha256 "repair handoff hash"
+    $repairReference = [string]$handoff.links.repairBranch.path
+    $repairFile = [IO.Path]::GetFileName($repairReference)
+    $repair = Read-Json $repairReference "repair-branch-handoff.json"
+    Assert-Equal (Get-Sha256 $repairReference "repair-branch-handoff.json") $handoff.links.repairBranch.sha256 "repair handoff hash"
     Assert-Equal "blocked/no-code/N/A" $repair.result "repair branch remains blocked"
 
-    $normalRelative = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/normal-full-summary.json"
-    $normal = Read-Json $normalRelative
-    Assert-Equal (Get-Sha256 $normalRelative) $handoff.links.normalFull.sha256 "normal baseline hash"
+    $normalReference = [string]$handoff.links.normalFull.path
+    $normalFile = [IO.Path]::GetFileName($normalReference)
+    $normal = Read-Json $normalReference "normal-full-summary.json"
+    Assert-Equal (Get-Sha256 $normalReference "normal-full-summary.json") $handoff.links.normalFull.sha256 "normal baseline hash"
     Assert-Equal "NormalFull" $normal.mode "normal baseline mode"
     Assert-Equal 3 $normal.repeat "normal baseline repeat"
     $expected = @(

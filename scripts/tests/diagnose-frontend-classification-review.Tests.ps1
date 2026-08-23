@@ -1,7 +1,10 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$reviewPath = Join-Path $repoRoot "openspec\changes\diagnose-frontend-full-suite-timeouts\evidence\classification-review.json"
+$evidenceModule = Join-Path $repoRoot "scripts\lib\FrontendVitestEvidence.psm1"
+Import-Module $evidenceModule -Force -Global
+$reviewPath = Resolve-FrontendVitestEvidencePath -RepoRoot $repoRoot -FileName "classification-review.json"
+$evidenceRoot = Split-Path -Parent $reviewPath
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "ASSERTION FAILED: $Message" }
@@ -16,6 +19,14 @@ function Assert-HashArtifact([string]$Path, [string]$ExpectedHash, [string]$Mess
     Assert-Equal $ExpectedHash (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash "$Message hash"
 }
 
+function Resolve-ReviewEvidencePath([string]$Reference, [string]$ExpectedFileName) {
+    return Resolve-FrontendVitestLinkedEvidencePath -AnchorEvidenceRoot $evidenceRoot -Reference $Reference -ExpectedFileName $ExpectedFileName
+}
+
+function Get-ReviewSourcePath([string]$Name) {
+    return Resolve-ReviewEvidencePath -Reference ([string]$sourceEvidenceByName[$Name].path) -ExpectedFileName $expectedSources[$Name]
+}
+
 try {
     Assert-True (Test-Path -LiteralPath $reviewPath -PathType Leaf) "classification review artifact exists"
     $review = Get-Content -Raw -LiteralPath $reviewPath | ConvertFrom-Json
@@ -27,17 +38,19 @@ try {
     Assert-True ($review.identityPolicy.dynamicFailureSet -and -not $review.identityPolicy.fixedTimeoutIdentity) "failure identity remains dynamic"
 
     $expectedSources = [ordered]@{
-        environment = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/environment-capture.json"
-        normalFull = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/normal-full-summary.json"
-        freshIsolated = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/fresh-isolated-summary.json"
-        groupComparison = "openspec/changes/diagnose-frontend-full-suite-timeouts/evidence/group-comparison-summary.json"
+        environment = "environment-capture.json"
+        normalFull = "normal-full-summary.json"
+        freshIsolated = "fresh-isolated-summary.json"
+        groupComparison = "group-comparison-summary.json"
     }
+    $sourceEvidenceByName = @{}
     foreach ($name in $expectedSources.Keys) {
         $source = @($review.sourceEvidence | Where-Object name -eq $name)
         Assert-Equal 1 $source.Count "source '$name' is linked once"
         $relative = ([string]$source[0].path).Replace('\', '/')
-        Assert-Equal $expectedSources[$name] $relative "source '$name' path"
-        $full = Join-Path $repoRoot $relative
+        Assert-Equal $expectedSources[$name] ([IO.Path]::GetFileName($relative)) "source '$name' path"
+        $sourceEvidenceByName[$name] = $source[0]
+        $full = Resolve-ReviewEvidencePath -Reference ([string]$source[0].path) -ExpectedFileName $expectedSources[$name]
         Assert-True (Test-Path -LiteralPath $full -PathType Leaf) "source '$name' exists"
         Assert-Equal (Get-FileHash -Algorithm SHA256 -LiteralPath $full).Hash $source[0].sha256 "source '$name' hash"
     }
@@ -60,9 +73,9 @@ try {
     Assert-True ($review.rawValidation.freshIsolated.allPresent -and $review.rawValidation.freshIsolated.allHashesMatch) "FreshIsolated raw evidence integrity"
     Assert-True ($review.rawValidation.groupComparison.allPresent -and $review.rawValidation.groupComparison.allHashesMatch) "group raw evidence integrity"
 
-    $normal = Get-Content -Raw (Join-Path $repoRoot $expectedSources.normalFull) | ConvertFrom-Json
+    $normal = Get-Content -Raw (Get-ReviewSourcePath "normalFull") | ConvertFrom-Json
     foreach ($run in @($normal.records)) { foreach ($artifact in @($run.rawArtifacts)) { Assert-HashArtifact -Path $artifact.path -ExpectedHash $artifact.sha256 -Message "NormalFull raw artifact" } }
-    $fresh = Get-Content -Raw (Join-Path $repoRoot $expectedSources.freshIsolated) | ConvertFrom-Json
+    $fresh = Get-Content -Raw (Get-ReviewSourcePath "freshIsolated") | ConvertFrom-Json
     $freshRecords = @(Get-ChildItem -LiteralPath $fresh.currentRawLocation -Recurse -Filter "record.json" -File)
     Assert-Equal 230 $freshRecords.Count "FreshIsolated raw record count"
     foreach ($recordFile in $freshRecords) {
@@ -70,7 +83,7 @@ try {
         $runDir = Split-Path -Parent $recordFile.FullName
         foreach ($kind in @("stdout", "stderr")) { Assert-HashArtifact -Path (Join-Path $runDir ($kind + ".txt")) -ExpectedHash $record.artifactHashes.$kind -Message "FreshIsolated $kind artifact" }
     }
-    $group = Get-Content -Raw (Join-Path $repoRoot $expectedSources.groupComparison) | ConvertFrom-Json
+    $group = Get-Content -Raw (Get-ReviewSourcePath "groupComparison") | ConvertFrom-Json
     foreach ($phase in @($group.phases)) { foreach ($i in 1..2) { $runDir = Join-Path $phase.rawLocation ("run-{0:D3}" -f $i); $record = Get-Content -Raw (Join-Path $runDir "record.json") | ConvertFrom-Json; foreach ($kind in @("stdout", "stderr")) { Assert-HashArtifact -Path (Join-Path $runDir ($kind + ".txt")) -ExpectedHash $record.artifactHashes.$kind -Message "$($phase.mode) $kind artifact" } } }
 
     $expectedClassification = @{

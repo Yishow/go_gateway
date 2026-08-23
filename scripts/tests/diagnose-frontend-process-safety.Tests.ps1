@@ -1,8 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$evidenceRoot = Join-Path $repoRoot "openspec\changes\diagnose-frontend-full-suite-timeouts\evidence"
-$reviewPath = Join-Path $evidenceRoot "process-safety-review.json"
+$evidenceModule = Join-Path $repoRoot "scripts\lib\FrontendVitestEvidence.psm1"
+Import-Module $evidenceModule -Force -Global
+$reviewPath = Resolve-FrontendVitestEvidencePath -RepoRoot $repoRoot -FileName "process-safety-review.json"
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "ASSERTION FAILED: $Message" }
