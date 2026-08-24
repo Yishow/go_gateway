@@ -33,7 +33,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 專案目標：工業資料採集閘道，從 PLC 協議讀取資料，經 Datalink 映射後輸出到資料儲存或訊息系統，並提供嵌入式 Web UI。
 - 技術棧：後端為 Go 1.25.x（目前 `go.mod` 為 1.25.5）+ Gin；前端為 React 19 + TypeScript 5 + Vite 7。
 - 部署型態：以單一可執行檔整合 API 與嵌入式前端，主要入口是 `cmd/test_ui`；前端 build 產物會嵌入 `cmd/test_ui/static`。
-- 產品主線：`/studio/v2` 是目前 datalink 面向使用者的預設入口；`/studio` 保留為既有完整工作台 fallback，舊 datalink generic landing routes 應收斂 redirect 到 `/studio/v2`，工程測試工具則統一收斂到 `/test`。
+- 產品主線：`/studio/v2` 是 datalink 唯一面向使用者的 setup 入口；`/studio/runtime` 是 setup 後的 runtime 觀察面；`/studio` 不再是產品 surface，刪除後依既有 generic unknown-route policy 處理。舊 datalink generic landing routes 應收斂 redirect 到 `/studio/v2`，工程測試工具則統一收斂到 `/test`；`/gateway/*` 維持 experimental surface。
 - 目前輸出主線以 Local Modbus 與 Database 為主，其中 Database output 正式支援 `SQLite` 與 `PostgreSQL`。
 
 ## 文件閱讀要求（強制）
@@ -120,7 +120,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 - 禁止把 secrets（帳密、Token、DSN、憑證）提交到程式碼、測試、文件、OpenSpec 或 commit message。
 - 禁止跳過輸入驗證、正規化與參數化查詢，直接以字串拼接方式處理資料庫或指令。
 - 禁止把 lint 警告、未使用 import、未使用程式碼帶入主分支。
-- 禁止新增繞過 `/studio` 的平行產品入口；legacy 路由應以 redirect 收斂。
+- 禁止新增 `/studio` 專用 route、handler、tombstone、special redirect 或平行 legacy product entry；generic legacy landing routes 應依既有政策收斂到 `/studio/v2`。`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 的 route identity 不得因 legacy 刪除而改變。
 - 禁止未對齊 OpenSpec 既有規格就直接改寫需求語意；遇到衝突需先回報。
 
 ## 檔案行數規範（強制）

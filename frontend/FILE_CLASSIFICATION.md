@@ -1,27 +1,31 @@
 # Frontend 檔案分類
 
-更新時間：2026-03-20
+更新時間：2026-08-24
+
+> **目前 route contract**：`/studio/v2` 是唯一產品 setup 入口；`/studio/runtime` 是 setup 後 observer；`/test` 與 `/gateway/*` 保留。`/studio` dedicated surface 已移除，之後依 generic unknown-route policy 處理。本文件下方標示為 historical pre-delete 的 legacy 路徑，不代表現行產品檔案。
 
 ## 1) 路由與頁面分類
 
 ### 核心產品頁（現行）
-- `src/pages/datalink/workbench/DatalinkWorkbenchPage.tsx`（對外主入口對應 `/studio`）
+- `src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx`（`/studio/v2` setup）
+- `src/features/datalink/runtime-dashboard/RuntimeDashboardRoute.tsx`（`/studio/runtime` observer）
 
-### 相容/過渡路由（Legacy Redirect）
-- `/datalink`：redirect 到 `/studio`
-- `/datalink/workbench`：redirect 到 `/studio`
-- `/datalink/dashboard-legacy`：redirect 到 `/studio`
-- `/datalink/devices-legacy`：redirect 到 legacy intent 對應的新主線
+### 相容／unknown-route policy
+- `/studio`：沒有 dedicated route；依 generic unknown-route policy 收斂到 `/studio/v2`。
+- `/datalink`、`/datalink/workbench`、`/datalink/workbench/*`、`/datalink/dashboard-legacy`：相容入口收斂到 V2 generic entry，不再指向 `/studio`。
+- `/datalink/devices-legacy`：保留 legacy intent 相容路徑，不以 `/studio` 為目標。
 
 ### 協議測試工具頁（獨立於 Datalink 主流程）
 - `src/pages/TestPage.tsx`
 - `src/pages/TestPageShell.tsx`
 
-### 頁面測試
-- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchFoundation.test.tsx`
-- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchSourceStep.test.tsx`
-- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchTagStep.test.tsx`
-- `src/pages/datalink/workbench/__tests__/DatalinkWorkbenchOutputStep.test.tsx`
+### 現行頁面測試
+- `tests/unit/workbench-v2/**`
+- `tests/unit/runtime-dashboard/**`
+
+### Historical pre-delete 檔案（已移除，非現行）
+- `src/pages/datalink/workbench/DatalinkWorkbenchPage.tsx` 與 `src/pages/datalink/workbench/**`
+- 舊 workbench 測試路徑 `tests/unit/pages/datalink/workbench/**`
 
 ## 2) UI 與元件分類
 
@@ -65,13 +69,13 @@
 
 ## 5) 測試檔案分類
 
-- 頁面互動測試：`src/pages/**/__tests__`
-- 元件測試：`src/components/**/__tests__`
-- 邏輯測試：`src/features/**/__tests__`
-- Hook 測試：`src/hooks/**/__tests__`
-- Utils 測試：`src/utils/**/__tests__` 與 `*.test.ts`
+- 頁面互動測試：`tests/unit/pages/**`
+- 元件測試：`tests/unit/components/**`
+- 邏輯測試：`tests/unit/features/**`
+- Hook 測試：`tests/unit/hooks/**`
+- Utils 測試：`tests/unit/utils/**` 與 `*.test.ts`
 
-## 6) 本次去重已刪除檔案
+## 6) 歷史去重已刪除檔案
 
 以下檔案已確認無路由與無引用，已移除：
 

@@ -50,7 +50,7 @@ export function buildWorkbenchV2EntryRedirect(): string {
   return '/studio/v2';
 }
 
-export function buildWorkbenchRedirect(options?: {
+function buildWorkbenchV2Query(options?: {
   step?: WorkbenchCompatStep;
   target?: WorkbenchCompatTarget;
   section?: string | null;
@@ -66,11 +66,11 @@ export function buildWorkbenchRedirect(options?: {
     params.set('section', options.section);
   }
   const query = params.toString();
-  return query ? `/studio?${query}` : '/studio';
+  return query ? `${buildWorkbenchV2EntryRedirect()}?${query}` : buildWorkbenchV2EntryRedirect();
 }
 
 export function buildLocalModbusCompatRedirect(section?: string | null): string {
-  return buildWorkbenchRedirect({
+  return buildWorkbenchV2Query({
     step: 'output',
     target: 'modbus',
     section,

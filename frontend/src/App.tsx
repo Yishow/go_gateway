@@ -6,7 +6,6 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import {
-  buildWorkbenchRedirect,
   buildWorkbenchV2EntryRedirect,
   buildDashboardModalRedirect,
   buildLegacyMigrationRedirect,
@@ -14,9 +13,6 @@ import {
 } from './features/datalink/legacyRoutes'
 
 // 路由級代碼分割：各重型頁面改為 lazy chunk，縮小主 bundle 體積
-const DatalinkWorkbenchPage = lazy(
-  () => import('./pages/datalink/workbench/DatalinkWorkbenchPage'),
-)
 const TestPage = lazy(() => import('./pages/TestPage'))
 const TestPageShell = lazy(() => import('./pages/TestPageShell'))
 const DatalinkWorkbenchV2Page = lazy(
@@ -48,12 +44,6 @@ function RouteFallback() {
 function LocalModbusCompatRoute() {
   const [searchParams] = useSearchParams()
   return <Navigate to={buildLocalModbusCompatRedirect(searchParams.get('section'))} replace />
-}
-
-function LegacyStudioRedirect() {
-  const location = useLocation()
-  const destination = `${buildWorkbenchRedirect()}${location.search}${location.hash}`
-  return <Navigate to={destination} replace />
 }
 
 function GuidedWorkbenchEntryRedirect() {
@@ -105,7 +95,7 @@ function DatalinkWorkbenchV2Route() {
  * 
  * 路由配置：
  * - / -> 重定向到 /studio/v2
- * - /studio -> Datalink 主產品入口
+ * - /studio -> 依 wildcard generic fallback 收斂到 /studio/v2
  * - /datalink/* -> legacy 相容路由，generic landing 收斂到 /studio/v2
  * - /test -> 測試工具單頁入口
  */
@@ -116,16 +106,15 @@ export function AppRoutes() {
       {/* 首頁重定向到 studio/v2 */}
       <Route path="/" element={<GuidedWorkbenchEntryRedirect />} />
 
-      {/* Studio Main Route */}
+      {/* Studio Main Routes */}
       <Route path="/studio/v2" element={<DatalinkWorkbenchV2Route />} />
       <Route path="/studio/runtime" element={<RuntimeDashboardRoute />} />
-      <Route path="/studio" element={<DatalinkWorkbenchPage />} />
 
       {/* Datalink legacy routes */}
       <Route path="/datalink" element={<GuidedWorkbenchEntryRedirect />} />
       <Route path="/datalink/workbench" element={<GuidedWorkbenchEntryRedirect />} />
-      <Route path="/datalink/workbench/*" element={<LegacyStudioRedirect />} />
-      <Route path="/datalink/dashboard-legacy" element={<LegacyStudioRedirect />} />
+      <Route path="/datalink/workbench/*" element={<GuidedWorkbenchEntryRedirect />} />
+      <Route path="/datalink/dashboard-legacy" element={<GuidedWorkbenchEntryRedirect />} />
       <Route path="/datalink/devices-legacy" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
       <Route path="/datalink/devices" element={<Navigate to={buildDashboardModalRedirect('devices')} replace />} />
       <Route path="/datalink/devices/new" element={<GatewayCreateEntryRedirect />} />

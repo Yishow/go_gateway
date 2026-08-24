@@ -1,13 +1,13 @@
 const DOC = {
   decisions: [
-    { label: "/studio", tone: "paused", title: "完整版主線", detail: "功能應全面覆蓋需求面，但這一輪先暫停，只保留完整 inventory。" },
+    { label: "/studio", tone: "paused", title: "Legacy pre-delete inventory", detail: "已獲 owner 授權立即刪除 dedicated surface；刪除後走 generic unknown-route policy。" },
     { label: "/studio/v2", tone: "focus", title: "預設入口與重點施作", detail: "面向使用者，簡單、有指引、好觀察，應作為網站服務預設入口。" },
     { label: "/studio/runtime", tone: "info", title: "V2 的 post-setup observer", detail: "與 V2 一起補齊 setup 後觀察與 lifecycle 契約。" },
     { label: "/test + /gateway/*", tone: "experimental", title: "暫停 / 僅記錄", detail: "/test 先暫停，/gateway/* 保留 prototype 記錄，不列為近期主產品主線。" }
   ],
   tabs: [
     { id: "overview", label: "Overview", hint: "總覽、決策、圖表、驗證路徑" },
-    { id: "studio", label: "/studio", hint: "完整版主線 inventory，先暫停" },
+    { id: "studio", label: "/studio", hint: "legacy pre-delete inventory，立即刪除" },
     { id: "studio-v2", label: "/studio/v2", hint: "重點施作、預設入口" },
     { id: "runtime", label: "/studio/runtime", hint: "post-setup focused observer" },
     { id: "test", label: "/test", hint: "工程工具 inventory，先暫停" },
@@ -17,11 +17,11 @@ const DOC = {
   ],
   surfaces: {
     studio: {
-      title: "/studio 完整版主線",
+      title: "/studio Legacy Pre-delete Inventory",
       tone: "paused",
       audience: "進階操作者、維運人員、需要完整控制的人",
-      strategy: "先暫停，但保留完整盤點；未來要回來做完整版整理。",
-      role: "正式 datalink 主產品主線，功能最完整。",
+      strategy: "owner 已授權立即刪除 dedicated route 與 proven legacy-only graph members；本頁只保留刪除前證據。",
+      role: "已退場的 legacy datalink workbench，不是現行產品入口或 fallback。",
       sourceOfTruth: [
         "WorkbenchProvider cross-step context",
         "datalink persisted CRUD state",
@@ -54,12 +54,12 @@ const DOC = {
         { scope: "Tag", action: "tag/mapping CRUD 與 batch create", frontend: "TagBindingStudio", state: "queries + mutations", api: "GET/POST/DELETE /tags, POST /tags/batch, GET/POST/DELETE /mappings", status: "wired", notes: "目前仍以細粒度 CRUD 組裝主流程。" },
         { scope: "Output", action: "Local Modbus output 規劃、share server control、mapping sync", frontend: "LocalModbusBoard", state: "queries + imperative API calls", api: "modbus-share/*", status: "wired", notes: "Output 工具面成熟，但 review/apply contract 尚未完全收斂。" },
         { scope: "Output", action: "Database connector / table / schema / mapping / dry-run", frontend: "DatabaseTargetBoard", state: "query + imperative API calls", api: "db-targets/connectors/* + db-targets/mappings/*", status: "wired", notes: "是最完整的 operator output surface 之一。" },
-        { scope: "Apply Contract", action: "source-rule tags apply / output apply", frontend: "review surfaces only", state: "目前多由 CRUD 組裝", api: "POST /source-rules/:id/tags/apply, /database-outputs/apply, /local-modbus/apply", status: "exists-not-wired", notes: "未來簡化 /studio 的關鍵收斂點。" }
+        { scope: "Apply Contract", action: "source-rule tags apply / output apply", frontend: "review surfaces only", state: "目前多由 CRUD 組裝", api: "POST /source-rules/:id/tags/apply, /database-outputs/apply, /local-modbus/apply", status: "exists-not-wired", notes: "歷史 legacy owner；若保留 surface 需要，另以 V2/runtime contract 提案。" }
       ],
       gaps: [
         "功能完整但 interaction density 太高，複雜度問題大於 API 缺口。",
         "Tag / Output 雖有 apply endpoints，但主線仍大量靠細粒度 CRUD 組裝。",
-        "這一輪先暫停，不建議為配合 V2 先大改 /studio IA。"
+        "不應重新建立 /studio IA；刪除後與任意 unknown route 共用 generic unknown-route policy。"
       ]
     },
     "studio-v2": {
@@ -285,18 +285,18 @@ const DOC = {
     }
   ],
   roadmap: [
-    { priority: "P0", name: "make-studio-v2-default-entry", target: "/ -> /studio/v2", why: "入口要先對齊使用者方向", status: "focus", notes: "調整 router default、fallback、legacy redirects。" },
+    { priority: "P0", name: "retire-legacy-studio-and-polish-v2", target: "/studio -> generic unknown-route policy", why: "不再保留未使用的 dedicated legacy product surface", status: "focus", notes: "移除 proven route/import/chunk/test graph；保留 V2、runtime、test、gateway。" },
     { priority: "P0", name: "integrate-studio-v2-commit-with-runtime-lifecycle", target: "/studio/v2 -> /studio/runtime", why: "V2 必須從 local-only setup 變成正式主線", status: "focus", notes: "補 commit endpoint / orchestration contract / persisted handoff context。" },
     { priority: "P0", name: "normalize-runtime-lifecycle-status-contract", target: "/studio/runtime", why: "runtime 不能再靠錯誤字串判斷部分狀態", status: "focus", notes: "補 starting、not_committed、device_not_found 等正式語意。" },
     { priority: "P1", name: "promote-runtime-dashboard-to-post-setup-truth", target: "V2 post-setup observer", why: "讓 runtime 真正成為 V2 setup 後的真實觀察面", status: "info", notes: "補 focused summary 與 setup summary handoff。" },
-    { priority: "P1", name: "refactor-studio-mainline-surface-boundaries", target: "/studio", why: "完整版仍需要整理，但這輪先暫停", status: "paused", notes: "之後再處理 step boundary 與 review/apply 主線。" },
-    { priority: "P1", name: "promote-source-rule-apply-contracts-in-studio", target: "/studio", why: "減少 CRUD 組裝複雜度", status: "paused", notes: "存在但目前不列為主優先。" },
+    { priority: "P1", name: "refactor-studio-mainline-surface-boundaries", target: "歷史 pre-delete record", why: "立即刪除決策已取代 legacy surface 重整", status: "paused", notes: "不得重新建立 /studio；保留 surface 如需能力另立 V2/runtime contract。" },
+    { priority: "P1", name: "promote-source-rule-apply-contracts-in-studio", target: "backend capability / V2 contract", why: "歷史 legacy owner 的 CRUD 組裝缺口", status: "paused", notes: "只有保留 surface 明確需要時才另立 change。" },
     { priority: "P2", name: "align-gateway-pages-with-datalink-product-contract", target: "/gateway/*", why: "決定它是 prototype 還是正式產品線", status: "experimental", notes: "目前只保留記錄。" },
-    { priority: "P2", name: "promote-readiness-first-device-flow", target: "/studio, /studio/v2", why: "讓 staged readiness 成為正式語言", status: "info", notes: "設備 readiness API 已存在但未全面接線。" }
+    { priority: "P2", name: "promote-readiness-first-device-flow", target: "/studio/v2", why: "讓 staged readiness 成為正式語言", status: "info", notes: "設備 readiness API 已存在但未全面接線。" }
   ],
   verificationPaths: [
     "<code>/</code> -> <code>/studio/v2</code> -> Step 1~4 -> commit -> <code>/studio/runtime?device_id=...</code> -> snapshot -> SSE connected",
-    "<code>/studio</code> -> device CRUD -> source rules -> points -> tag review -> output planning -> runtime preview",
+    "<code>/studio</code>（pre-delete evidence only）-> device CRUD -> source rules -> points -> tag review -> output planning -> runtime preview",
     "<code>/test</code> -> connect -> read/write/batch -> monitor -> debug packets/logs",
     "<code>/gateway/entry</code> -> quick/expert -> <code>/test/connect</code>"
   ],
@@ -375,7 +375,7 @@ function renderTabs() {
 
 function renderOverview() {
   const surfaceMetrics = [
-    { label: "/studio", maturity: 88, priority: "暫停", color: "linear-gradient(90deg, #f0a338, #ffd390)" },
+    { label: "/studio", maturity: 88, priority: "立即刪除", color: "linear-gradient(90deg, #a986ff, #d2c0ff)" },
     { label: "/studio/v2", maturity: 44, priority: "重點施作", color: "linear-gradient(90deg, #18b97d, #84f2c6)" },
     { label: "/studio/runtime", maturity: 62, priority: "跟隨 V2", color: "linear-gradient(90deg, #57a8ff, #abd4ff)" },
     { label: "/test", maturity: 68, priority: "暫停", color: "linear-gradient(90deg, #f0a338, #ffd390)" },
@@ -388,7 +388,7 @@ function renderOverview() {
       <div class="summary-grid">
         <div class="summary-block">
           <strong>產品主線策略</strong>
-          <p class="muted"><code>/studio</code> 保留完整版定位但先暫停；<code>/studio/v2</code> 成為近期重點與預設入口；<code>/studio/runtime</code> 作為 V2 的 post-setup observer；<code>/test</code> 暫停；<code>/gateway/*</code> 僅保留實驗記錄。</p>
+          <p class="muted"><code>/studio</code> 已獲 owner 授權立即刪除，僅保留 pre-delete evidence；<code>/studio/v2</code> 是唯一產品 setup 入口；<code>/studio/runtime</code> 作為 V2 的 post-setup observer；<code>/test</code> 維持工程工具；<code>/gateway/*</code> 僅保留實驗記錄。</p>
         </div>
         <div class="summary-block">
           <strong>最重要的技術缺口</strong>
@@ -418,14 +418,14 @@ function renderOverview() {
     <section class="section-card">
       <h3>對應 Markdown</h3>
       <div class="link-list">${DOC.mdLinks.map((item) => `<a href="${item.href}">${item.label}</a>`).join("")}</div>
-    </section>
-  `;
+    </section>`;
 }
 
 function renderSurface(surface) {
   const actions = surface.actions.filter(matchesFilter);
-  const bannerTone = surface.tone === "focus" ? "focus" : surface.tone === "paused" ? "paused" : "gap";
-  const bannerLabel = surface.tone === "focus" ? "重點施作" : surface.tone === "paused" ? "先暫停" : surface.tone === "experimental" ? "experimental" : "追隨施作";
+  const retired = surface === DOC.surfaces.studio;
+  const bannerTone = retired ? "experimental" : surface.tone === "focus" ? "focus" : surface.tone === "paused" ? "paused" : "gap";
+  const bannerLabel = retired ? "立即刪除" : surface.tone === "focus" ? "重點施作" : surface.tone === "paused" ? "先暫停" : surface.tone === "experimental" ? "experimental" : "追隨施作";
 
   return `
     <section class="banner ${bannerTone}">
@@ -560,7 +560,7 @@ function renderRoadmap() {
         <li>先把預設入口切到 <code>/studio/v2</code>。</li>
         <li>再讓 V2 commit 變成正式 persisted lifecycle。</li>
         <li>接著把 runtime lifecycle semantics 補成產品契約。</li>
-        <li><code>/studio</code>、<code>/test</code>、<code>/gateway/*</code> 這輪只保留完整記錄，不擴張 scope。</li>
+        <li><code>/studio</code> dedicated surface 立即刪除，刪除後依 generic unknown-route policy；<code>/test</code> 與 <code>/gateway/*</code> 保留且不在本批刪除範圍。</li>
       </ol>
     </section>
   `;

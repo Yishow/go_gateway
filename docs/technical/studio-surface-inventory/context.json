@@ -5,8 +5,15 @@
     "/studio/v2",
     "/studio/runtime"
   ],
-  "paused_surfaces": [
+  "paused_surfaces": [],
+  "retired_surfaces": [
     "/studio"
+  ],
+  "preserved_surfaces": [
+    "/studio/v2",
+    "/studio/runtime",
+    "/test",
+    "/gateway/*"
   ],
   "tool_surfaces": [
     "/test"
@@ -16,12 +23,12 @@
   ],
   "surface_strategy": {
     "/studio": {
-      "role": "full-product-workbench-fallback",
-      "status": "paused",
+      "role": "retired-legacy-workbench",
+      "status": "retired",
       "notes": [
-        "功能面應全面覆蓋需求",
-        "目前保留為 fallback",
-        "本輪不列為重點施作"
+        "owner 已授權立即刪除 dedicated surface",
+        "刪除後與任意 unknown route 共用既有 generic unknown-route policy",
+        "Git rollback 僅恢復 tracked source/docs 與可重新建置的 assets，不恢復 runtime/deployment data 或 browser state"
       ]
     },
     "/studio/v2": {
@@ -71,7 +78,8 @@
     "test_tooling": "docs/technical/studio-surface-inventory/test-tooling.md",
     "gateway_experiments": "docs/technical/studio-surface-inventory/gateway-experiments.md",
     "api_registry": "docs/technical/studio-surface-inventory/backend-api-registry.md",
-    "roadmap": "docs/technical/studio-surface-inventory/gap-roadmap.md"
+    "roadmap": "docs/technical/studio-surface-inventory/gap-roadmap.md",
+    "retirement_record": "docs/releases/retire-legacy-studio-and-polish-v2.md"
   },
   "canonical_apis": {
     "runtime_status": "/api/v1/datalink/runtime/status",

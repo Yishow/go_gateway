@@ -49,7 +49,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 
 ## Repo 特定規則
 
-- 前端主線入口為 `/studio/v2`；`/studio` 保留為既有完整工作台 fallback；工程測試工具集中於 `/test`。前端 build 產物嵌入 `cmd/test_ui/static`。（此行與 AGENTS.md 重複，為下兩條 inventory 規則提供上下文，屬刻意錨點，維護時勿刪。）
+- 前端主線入口為 `/studio/v2`；`/studio/runtime` 是 setup 後觀察面；`/studio` 已退出產品契約，刪除後走既有 generic unknown-route policy；工程測試工具集中於 `/test`，`/gateway/*` 維持 experimental。前端 build 產物嵌入 `cmd/test_ui/static`。（此行與 AGENTS.md 重複，為下兩條 inventory 規則提供上下文，屬刻意錨點，維護時勿刪。）
 - Commit 訊息用繁中祈使句主旨（例：`補強...`、`完成...`，見 AGENTS.md），**不用**全域規範的 `<type>: <description>` 格式——專案慣例優先。
 - 任務涉及 `/studio`、`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 或 `docs/technical/studio-surface-inventory/` 時：先讀 `docs/technical/studio-surface-inventory/` 下的 `START_HERE.md`、`context.json`、`CURRENT_STATE.md`，不足以回答時才展開該目錄完整 md/html 文件。
 - 修改 `docs/technical/studio-surface-inventory/` 內任何文件，必須同步寫入該目錄的 `changelog.sqlite`；changelog 一律用 `go run ./cmd/studio_inventory_changelog ...` 管理，至少留下 `summary`、`surface`、`files`、`reason`。

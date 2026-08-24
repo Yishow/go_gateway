@@ -1,13 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppRoutes } from '../../../src/App';
-
-// Mock 舊版頁面以避免複雜的 Material-UI 和 Provider 依賴
-vi.mock('../../../src/pages/datalink/workbench/DatalinkWorkbenchPage', () => ({
-  default: () => <div data-testid="legacy-workbench">Legacy DatalinkWorkbenchPage</div>,
-}));
 
 vi.mock('../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', () => ({
   default: (props: { runtimeReturnFocus?: { step?: number; issueCode?: string | null } | null }) => (
@@ -30,6 +25,11 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('App Routing Integration', () => {
+  function LocationProbe() {
+    const location = useLocation();
+    return <output data-testid="location">{location.pathname}{location.search}{location.hash}</output>;
+  }
+
   function renderRoute(initialEntry: string) {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -43,6 +43,7 @@ describe('App Routing Integration', () => {
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[initialEntry]}>
           <AppRoutes />
+          <LocationProbe />
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -76,11 +77,28 @@ describe('App Routing Integration', () => {
     expect(screen.queryByTestId('legacy-workbench')).not.toBeInTheDocument();
   });
 
-  it('renders Legacy DatalinkWorkbenchPage on /studio', async () => {
+  it('converges nested legacy datalink routes directly to V2 with query and hash', async () => {
+    renderRoute('/datalink/workbench/legacy-output?step=output&target=database#legacy');
+
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/studio/v2?step=output&target=database#legacy',
+    );
+  });
+
+  it('projects only the supported Local Modbus section into V2', async () => {
+    renderRoute('/datalink/local-modbus?section=settings&step=device&target=database#legacy');
+
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/studio/v2?step=output&target=modbus&section=settings',
+    );
+  });
+
+  it('uses the generic V2 fallback on the retired /studio path', async () => {
     renderRoute('/studio');
 
-    expect(await screen.findByTestId('legacy-workbench')).toBeInTheDocument();
-    expect(screen.queryByTestId('workbench-v2-root')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('workbench-v2-root')).toBeInTheDocument();
   });
 
   it('renders DatalinkWorkbenchV2Page on /studio/v2', async () => {

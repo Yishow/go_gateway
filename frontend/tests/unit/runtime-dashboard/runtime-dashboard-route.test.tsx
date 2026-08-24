@@ -32,10 +32,6 @@ const routeStateMock = vi.hoisted(() => ({
   onRetrySnapshot: vi.fn(),
 }));
 
-vi.mock('../../../src/pages/datalink/workbench/DatalinkWorkbenchPage', () => ({
-  default: () => <div data-testid="legacy-workbench">Legacy DatalinkWorkbenchPage</div>,
-}));
-
 vi.mock('../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', () => ({
   default: () => <div data-testid="workbench-v2-root">Mock Workbench V2</div>,
 }));

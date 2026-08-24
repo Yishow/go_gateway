@@ -1,18 +1,19 @@
-# `/studio` Mainline Inventory
+# `/studio` Pre-delete Mainline Inventory
+
+> This document is retained as historical pre-delete evidence only. `/studio` is no longer a product fallback or supported dedicated surface. The immediate deletion scope, preserved surfaces, and Git rollback limits are recorded in [the retirement record](../../releases/retire-legacy-studio-and-polish-v2.md).
 
 ## 定位
 
 - Route: `/studio`
 - 受眾: 進階操作者、維運人員、需要完整控制的人
-- 狀態: 正式主產品主線
+- 狀態: legacy dedicated surface，待立即刪除
 - 問題: 功能完整，但資訊密度高、心智負擔高，後續仍需要大幅整理
-- 目前策略: **先暫停**
-- 未來目標: 保持它作為完整版 surface，功能面可全面覆蓋你要的需求
+- 目前策略: **立即刪除 dedicated route 與 proven legacy-only graph members**
+- 未來目標: 不重新建立 `/studio`；刪除後與任意 unknown route 共用既有 generic unknown-route policy
 
-## 暫停說明
+## Pre-delete 說明
 
-這份文件保留 `/studio` 的完整功能盤點，目的不是這一輪立刻改它，而是避免之後回來重整時還要重新摸一次資料流與 API 邊界。  
-因此這份文件偏向「完整 inventory」，而不是「近期 delivery 清單」。
+這份文件保留 `/studio` 的完整功能盤點，作為刪除前的 route/import/owner 追溯證據，避免刪除時誤移除 `/studio/v2`、`/studio/runtime`、`/test` 或 `/gateway/*` 共用的模組。它不再描述現行產品能力或未來重整計畫。
 
 ## Route / Shell / 共用狀態
 
@@ -55,7 +56,7 @@
 ### 維護觀察
 
 - `draft test` 與 `persisted test` 仍是兩套語意，文件與 UI 必須明確區分。
-- `readiness` API 已存在，但 `/studio` 主線尚未全面收斂到 readiness-first 的語言。
+- `readiness` API 已存在；這是 legacy pre-delete 主線的歷史缺口，不代表刪除後仍有 `/studio` owner。
 
 ## Step 2: Source
 
@@ -93,7 +94,7 @@
 ### 維護觀察
 
 - Source step 已經跨進 runtime / collector 領域，不只是規劃頁。
-- 規則規劃、point 生成、runtime cluster 是同一步驟裡的不同責任，後續 `/studio` 重整時應優先拆清楚。
+- 規則規劃、point 生成、runtime cluster 曾在 legacy 同一步驟裡交纏；若保留的 V2/runtime surface 需要相同能力，另以現行 route contract 拆分。
 
 ## Step 3: Tag
 
@@ -130,7 +131,7 @@
 ### 維護觀察
 
 - Tag step 同時存在「直接 CRUD」與「review/apply contract」兩套路徑。
-- `apply tags` API 已存在，但前端仍大量用明細 CRUD 組裝流程；這是未來簡化 `/studio` 的重要切點。
+- `apply tags` API 已存在，但 legacy 前端曾大量用明細 CRUD 組裝流程；若 V2 需要，另以 V2 contract 定義，不重新建立 `/studio`。
 
 ## Step 4: Output
 

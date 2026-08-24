@@ -1,13 +1,9 @@
 # Studio Surface Inventory: Current State
 
-Last updated: `2026-06-02`
+Last updated: `2026-08-24`
 
 ## One-screen Summary
 
-- `/studio`
-  - 既有完整版工作台。
-  - 目前保留為 fallback。
-  - 不要把近期工作重新拉回 `/studio` 首頁重整，除非使用者明確要求。
 - `/studio/v2`
   - 目前主重點。
   - 目標是面向使用者、簡單、有指引、好觀察。
@@ -23,6 +19,10 @@ Last updated: `2026-06-02`
 - `/gateway/*`
   - experimental surfaces。
   - 目前不是產品主線。
+- `/studio`
+  - legacy 完整工作台已獲 owner 授權立即刪除，不再保留 dedicated route。
+  - 刪除後與任意 unknown route 共用既有 generic unknown-route policy。
+  - pre-delete route/import/test inventory、保留邊界與 rollback 限制見 [retirement record](../../releases/retire-legacy-studio-and-polish-v2.md)。
 
 ## What Was Added Recently
 
@@ -37,9 +37,12 @@ Last updated: `2026-06-02`
    - 任務若涉及 `studio` surfaces / `studio-surface-inventory`
    - 先讀 onboarding 入口
    - 不要一開始就掃完整 md/html
-4. 目前實作已確認：
+4. pre-delete source review 已確認：
    - `frontend/src/App.tsx` 的 `/` 會 redirect 到 `/studio/v2`
    - unknown routes fallback 也會回到 `/studio/v2`
+   - pre-delete 的 `/studio` dedicated route 只由 `frontend/src/App.tsx` 掛載 legacy workbench lazy import；後端 source scan 未發現 exact `/studio` dedicated handler
+   - `frontend/src/pages/datalink/workbench/` 目前由 production source 只透過上述 lazy import 觸達；刪除候選仍須由 build/import graph 最終確認
+   - `/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 是本批明確保留 surface
    - `/test` 維持獨立頁而非掛回產品主流程
 
 ## Read This First Next Time
@@ -74,7 +77,7 @@ Last updated: `2026-06-02`
 ## What Not To Re-Do
 
 - 不要每次重新盤點全部 surface 與全部 API。
-- 不要把 `/studio` 或 `/gateway/*` 當成這一輪優先實作線，除非使用者改變方向。
+- 不要重新建立 `/studio` route 或把其 pre-delete inventory 當成產品主線；`/gateway/*` 仍只保留記錄與 prototype 說明。
 - 不要把 `/test` 誤當成產品主流程；它是獨立工程測試工具。
 - 不要只改 inventory 文件而不寫 changelog。
 - 不要直接跳進完整 HTML/長文檔，先用 onboarding 入口縮小範圍。
@@ -85,7 +88,8 @@ Last updated: `2026-06-02`
 
 1. `/studio/v2` 多台設備送出契約真正持久化到後端
 2. `/studio/runtime` 多台設備交接與 lifecycle contract
-3. inventory 文件持續和實作同步
+3. 完成 legacy `/studio` dedicated route/import/test/asset deletion 的 route、chunk、browser smoke 與 rollback evidence
+4. inventory 文件持續和實作同步
 
 ## Fast Commands
 

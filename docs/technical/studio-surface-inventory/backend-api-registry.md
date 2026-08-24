@@ -4,7 +4,7 @@
 
 這份表不是完整 Swagger 替代品，而是「哪些 backend APIs 對目前前端 surface 有關」的維護索引。  
 欄位中的 `主用頁面` 指的是目前實際或預期會依賴這組 API 的前端 surface。  
-這一輪解讀時請優先看 `/studio/v2` 與 `/studio/runtime`，`/studio` 與 `/test` 目前屬暫停維護盤點。
+這一輪解讀時請優先看 `/studio/v2` 與 `/studio/runtime`。表格中只標示 `/studio` 的項目是 legacy pre-delete historical owner，不代表刪除 backend API；API 是否仍由 V2、runtime 或其他保留 surface 使用，必須回讀現行 source。`/studio` 不再是 fallback，也不得因刪除 dedicated frontend route 而猜測刪除 backend domain capability。
 
 ## Datalink Core
 

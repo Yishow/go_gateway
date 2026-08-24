@@ -8,9 +8,11 @@
 - 部署型態：單一可執行檔整合 API 與前端（主要入口 `cmd/test_ui`）。
 - 前端嵌入：前端 build 產物嵌入 `cmd/test_ui/static`，由 `internal/web/embed.go` 提供 SPA 靜態資源。
 - 產品主線路由：
-  - `/studio`：datalink 主產品入口（唯一主線）。
-  - `/test`：工程測試工具入口。
-- `/datalink/*` 舊路由：收斂 redirect 到 `/studio`（compat 過渡）。
+  - `/studio/v2`：datalink 唯一面向使用者的 setup 入口。
+  - `/studio/runtime`：setup 後的 focused runtime 觀察面。
+  - `/test`：工程測試工具入口；`/gateway/*`：experimental surfaces。
+  - `/studio`：不再提供 dedicated route；刪除後與任意 unknown route 共用既有 generic policy。
+- `/datalink/*` 舊路由：generic landing 收斂到 `/studio/v2`；其他相容路徑須以 route inventory 與測試證據為準，不得重新引入 `/studio`。
 - 目前 output 主線：Local Modbus 與 Database，Database 正式支援 `SQLite` / `PostgreSQL`。
 
 ## 文件閱讀要求
@@ -123,7 +125,7 @@
 - 對外連線 probe 由 backend 主機發起；文件與 UX 文案必須避免誤導成瀏覽器直連。
 
 ## 禁止事項
-- 禁止繞過 `/studio` 再新增平行產品入口（legacy route 應做 redirect 收斂）。
+- 禁止新增 `/studio` 專用 route、handler、tombstone 或 special redirect；保留 `/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 的 route identity。
 - 禁止把 lint 警告、未使用程式碼、未清理 import 帶入主分支。
 - 禁止跳過 OpenSpec 既有規格就直接改需求語意。
 - 禁止在未對齊資料模型時，先行放入不完整契約（例如 parser 支援先行但 runtime/model 尚未打通）。

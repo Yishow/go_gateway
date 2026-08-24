@@ -1,10 +1,6 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../../src/pages/datalink/workbench/DatalinkWorkbenchPage', () => ({
-  default: () => <div>workbench</div>,
-}))
-
 vi.mock('../../../src/pages/TestPage', () => ({
   default: () => <div>test-page</div>,
 }))

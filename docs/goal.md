@@ -1,5 +1,5 @@
 # Studio V2 /goal 清單
-
+> **目前 route contract（2026-08-24）**：`/studio/v2` 是唯一產品 setup 入口，`/studio/runtime`、`/test`、`/gateway/*` 維持各自 route identity；legacy `/studio` dedicated surface 已獲 owner 授權立即刪除，刪除後依 generic unknown-route policy 處理。Git rollback 只恢復 tracked source/docs 與重新建置可恢復的 assets，不恢復 runtime/deployment data、外部 DB/設備狀態、bookmark 或 localStorage。下方較早的 `/studio` 直達要求屬 pre-delete 歷史證據，不能當成現行契約。
 這份清單是給 Codex CLI `/goal` 用的執行入口。目的不是重述 spec，而是把每個 change 都改寫成：
 
 - 先讀什麼
@@ -64,7 +64,7 @@ Scope: frontend/src/App.tsx, frontend/src/features/datalink/legacyRoutes.ts, fro
 
 Constraints:
   - Do not modify Step 1-4 behavior, workspace behavior, runtime behavior, or any backend API.
-  - Preserve direct /studio access; do not force /studio to redirect to /studio/v2.
+  - **（歷史要求，已被 immediate legacy deletion supersede）** Preserve direct /studio access; do not force /studio to redirect to /studio/v2.
   - Do not change task-specific legacy deep links outside generic landing routes.
   - Follow AGENTS.md and CLAUDE.md exactly.
   - Do not add dependencies.
@@ -72,7 +72,7 @@ Constraints:
 Done when:
   1. / and catch-all fallback both route to /studio/v2 in the actual route tree.
   2. Generic legacy landing routes /datalink and /datalink/workbench route to /studio/v2.
-  3. Direct /studio still opens the legacy workbench path and is covered by routing tests.
+  3. **（歷史 pre-delete evidence，已失效）** Direct /studio still opened the legacy workbench path and was covered by routing tests.
   4. frontend/tests/unit/workbench-v2/routing.test.tsx covers /, unknown route, /datalink, /datalink/workbench, and /studio; cite exact test names in the final summary.
   5. Run cd frontend && npm run test -- --run frontend/tests/unit/workbench-v2/routing.test.tsx and paste the summary.
   6. Run git diff --check and confirm the diff is limited to the route-entry surface.

@@ -7,17 +7,17 @@
 
 ## 目前優先級原則
 
-1. `/studio`：保留完整版定位，但這一輪先暫停
-2. `/studio/v2`：預設入口、重點施作
+1. `/studio`：立即刪除 dedicated route 與 proven legacy-only graph members；不再建立 fallback
+2. `/studio/v2`：唯一產品 setup 入口、重點施作
 3. `/studio/runtime`：作為 V2 的 post-setup observer 一起補齊
-4. `/test`：先暫停
+4. `/test`：維持工程工具入口
 5. `/gateway/*`：只保留記錄與 prototype 說明
 
 ## P0: 現在就該優先處理
 
 | Change 建議名 | 問題 | 主要影響面 | 為什麼優先 |
 | --- | --- | --- | --- |
-| `make-studio-v2-default-entry` | 使用者已決定直接把預設入口切到 `/studio/v2`，但 router 目前仍導向 `/studio` | router、入口 IA | 產品入口決策與實作現況不一致 |
+| `retire-legacy-studio-and-polish-v2` | `/studio` dedicated surface 已獲 owner 授權立即刪除，且刪除後必須與 generic unknown route 等價 | router、legacy import/chunk/test、inventory、release evidence | 先移除已不使用的 legacy surface，避免持續被誤認為產品契約 |
 | `integrate-studio-v2-multi-device-commit` | V2 commit 仍是前端模擬，且還不能一次送出多台設備到後端 | `/studio/v2`、後端 datalink contract | 不補這個，V2 仍只是草稿 shell |
 | `adapt-runtime-handoff-for-multi-device` | runtime 目前主要以單台 `device_id` handoff 為前提 | `/studio/v2`、`/studio/runtime` | 不補這個，多台 commit 成功後無法穩定交接 |
 | `normalize-runtime-lifecycle-status-contract` | runtime snapshot / SSE 缺正式 lifecycle semantics | `/studio/runtime`、未來 `/studio/v2` | 前端目前還要靠錯誤字串判斷狀態 |
@@ -26,8 +26,8 @@
 
 | Change 建議名 | 問題 | 主要影響面 | 說明 |
 | --- | --- | --- | --- |
-| `refactor-studio-mainline-surface-boundaries` | `/studio` 功能完整但過於複雜，步驟責任交纏 | `/studio` | 重要，但依目前決策先暫停 |
-| `promote-source-rule-apply-contracts-in-studio` | tags / outputs 的 apply endpoints 存在，但主線仍以細粒度 CRUD 組裝 | `/studio` | 可降低使用者操作複雜度 |
+| `refactor-studio-mainline-surface-boundaries` | `/studio` 歷史 inventory 曾建議整理 page boundary | pre-delete historical record | 已被立即刪除決策 supersede，不應重新建立 legacy surface |
+| `promote-source-rule-apply-contracts-in-studio` | tags / outputs 的 apply endpoints 曾由 legacy 主線使用 | backend capability / V2 contract | 只有在保留 surface 明確需要時另立 change，不以 `/studio` 為 owner |
 | `document-surface-api-inventory` | 這次新增的維護文件需要正式維護機制 | docs / review 流程 | 否則文件很快 drift |
 
 ## P2: 視方向決定是否要做
@@ -35,7 +35,7 @@
 | Change 建議名 | 問題 | 主要影響面 | 說明 |
 | --- | --- | --- | --- |
 | `align-gateway-pages-with-datalink-product-contract` | `/gateway/*` 是否要轉正仍未定義 | `/gateway/*` | 目前先不推進，只保留選項 |
-| `promote-readiness-first-device-flow` | `/devices/:id/readiness` 已存在但主線未全面採用 | `/studio`, `/studio/v2` | 可讓使用者看到更明確的 staged readiness |
+| `promote-readiness-first-device-flow` | `/devices/:id/readiness` 已存在但 V2 主線未全面採用 | `/studio/v2` | 可讓使用者看到更明確的 staged readiness |
 | `add-runtime-e2e-handoff-coverage` | setup -> runtime 的整條路徑仍缺完整 e2e | 前後端整合測試 | 補產品信心 |
 
 ## 建議缺口類型
@@ -117,14 +117,8 @@
 
 ### 5. `refactor-studio-mainline-surface-boundaries`
 
-- 目標: 降低 `/studio` 複雜度，但不破壞正式能力
-- 狀態: **先暫停**
-- 前端工作:
-  - 先重畫 step boundaries
-  - 把 runtime、review、output 邊界整理清楚
-- 驗證:
-  - 主線任務完成率不下降
-  - deep-link 與 shared context 不破
+- 狀態: **superseded by immediate legacy deletion**
+- 不再以 `/studio` 為新功能 owner；若保留的 V2/runtime surface 需要相同 capability，另以 typed contract 與現行 route 為範圍提出 change。
 
 ### 6. `align-gateway-pages-with-datalink-product-contract`
 

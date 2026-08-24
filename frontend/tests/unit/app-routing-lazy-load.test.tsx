@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AppRoutes } from '../../src/App'
@@ -11,10 +11,6 @@ type LazyImportControl = {
 }
 
 const controls = vi.hoisted(() => ({
-  legacy: {
-    pending: Promise.resolve(),
-    rejection: null,
-  } as LazyImportControl,
   workbenchV2: {
     pending: Promise.resolve(),
     rejection: null,
@@ -24,19 +20,6 @@ const controls = vi.hoisted(() => ({
     rejection: null,
   } as LazyImportControl,
 }))
-
-vi.mock('../../src/pages/datalink/workbench/DatalinkWorkbenchPage', async () => {
-  await controls.legacy.pending
-  if (controls.legacy.rejection) {
-    throw controls.legacy.rejection
-  }
-
-  return {
-    default: function LegacyWorkbenchRouteMock() {
-      return <div data-testid="legacy-workbench-resolved">Legacy workbench route</div>
-    },
-  }
-})
 
 vi.mock('../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', async () => {
   await controls.workbenchV2.pending
@@ -98,8 +81,6 @@ function renderApp(initialEntry: string) {
 }
 
 function resetControls() {
-  controls.legacy.pending = Promise.resolve()
-  controls.legacy.rejection = null
   controls.workbenchV2.pending = Promise.resolve()
   controls.workbenchV2.rejection = null
   controls.runtime.pending = Promise.resolve()
@@ -117,25 +98,21 @@ describe('AppRoutes lazy-load contract', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders one deterministic i18n loading fallback while a route import is pending', async () => {
-    let releasePending!: () => void
-    controls.legacy.pending = new Promise<void>((resolve) => {
-      releasePending = resolve
+  it('uses the same generic fallback for /studio and an arbitrary unknown route', async () => {
+    const studioRender = renderApp('/studio?step=output#legacy')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('/studio/v2?step=output#legacy')
     })
+    expect(await screen.findByTestId('workbench-v2-resolved')).toBeInTheDocument()
+    studioRender.unmount()
 
-    renderApp('/studio')
+    renderApp('/unknown-route-for-retirement?step=output#legacy')
 
-    try {
-      const loadingText = i18n.t('common.loading')
-      expect(await screen.findByText(loadingText)).toBeInTheDocument()
-      expect(screen.getAllByText(loadingText)).toHaveLength(1)
-    } finally {
-      await act(async () => {
-        releasePending()
-      })
-    }
-
-    expect(await screen.findByTestId('legacy-workbench-resolved')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('location')).toHaveTextContent('/studio/v2?step=output#legacy')
+    })
+    expect(await screen.findByTestId('workbench-v2-resolved')).toBeInTheDocument()
   })
 
   it('renders the selected route after its lazy import resolves', async () => {

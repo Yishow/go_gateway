@@ -10,23 +10,23 @@
 
 ## 目前產品決策
 
-1. `/studio`
-   - 既有完整版工作台。
-   - 需求面應可全面覆蓋。
-   - 目前保留為 fallback，不列為近期施作重點。
-2. `/studio/v2`
+1. `/studio/v2`
    - 面向使用者的簡化入口。
    - 要簡單、有指引、容易觀察。
    - 這是近期重點施作線，也是目前服務預設入口。
-3. `/studio/runtime`
+2. `/studio/runtime`
    - 跟著 `/studio/v2` 一起看。
    - 定位是 post-setup focused monitor，不是 fleet-first dashboard。
-4. `/test`
+3. `/test`
    - 獨立工程測試工具入口。
    - 不承載產品主流程，但要維持可用與完整記錄。
-5. `/gateway/*`
+4. `/gateway/*`
    - experimental / prototype surfaces。
    - 保留紀錄，不列入主產品優先線。
+5. `/studio`
+   - legacy 完整工作台已獲 owner 授權立即刪除。
+   - 不再保留 dedicated route、handler、tombstone 或 special redirect。
+   - 刪除後與任意 unknown route 共用既有 generic unknown-route policy；刪除清單與保留邊界見 [retirement record](../../releases/retire-legacy-studio-and-polish-v2.md)。
 
 ## 先讀哪些檔案
 
@@ -52,7 +52,7 @@
 | --- | --- |
 | 調整 `/studio/v2` 主流程 | `context.json`、`studio-v2-runtime.md`、`backend-api-registry.md` |
 | 調整 `/studio/runtime` 監看頁 | `context.json`、`studio-v2-runtime.md`、`backend-api-registry.md` |
-| 盤點 `/studio` 與 `/studio/v2` 差異 | `README.md`、`studio-mainline.md`、`studio-v2-runtime.md` |
+| 審查 `/studio` 立即刪除範圍 | `../../releases/retire-legacy-studio-and-polish-v2.md`、`context.json`、`CURRENT_STATE.md` |
 | 判斷某 API 是否已接前端 | `backend-api-registry.md`、對應 surface 文件 |
 | 規劃下一個 change | `gap-roadmap.md`、對應 surface 文件、最新 changelog |
 
@@ -82,6 +82,6 @@ go run ./cmd/studio_inventory_changelog add \
 
 - `/studio/v2` 是目前預設入口與重點線。
 - `/test` 是獨立工程測試工具，不是產品主流程。
-- `/studio` 保留為 fallback，不是近期主線。
+- `/studio` 不再是產品 surface；它的 pre-delete inventory 僅供刪除審查與 rollback 追溯。
 - `studio-surface-inventory` 不只是 route 清單，而是行為、API、狀態與缺口的維護台帳。
 - 接手時不要先掃全量 md；先看 `START_HERE.md`、`context.json`、`CURRENT_STATE.md`。

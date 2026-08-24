@@ -94,9 +94,20 @@ function observeAssetRequests(page: Page, origin: string) {
 
   return {
     assetCount: () => assets.size,
+    urls: () => [...assets],
     missing: () => [...missing],
     failed: () => [...failed],
   };
+}
+
+function assetPaths(observer: ReturnType<typeof observeAssetRequests>): string[] {
+  return [...new Set(observer.urls().map((url) => new URL(url).pathname))].sort();
+}
+
+function expectNoLegacyAssets(paths: string[]): void {
+  for (const path of paths) {
+    expect(path).not.toMatch(/DatalinkWorkbenchPage|workbench-frame|workbench-experiment/i);
+  }
 }
 
 test.describe.configure({ mode: 'serial', timeout: 180_000 });
@@ -142,6 +153,7 @@ test.describe('Embedded frontend delivery smoke', () => {
     await expect.poll(() => observer.assetCount()).toBeGreaterThan(0);
     expect(observer.missing()).toEqual([]);
     expect(observer.failed()).toEqual([]);
+    return observer;
   }
 
   test('/studio/v2 keeps the guided workbench route loadable', async ({ page }) => {
@@ -149,9 +161,49 @@ test.describe('Embedded frontend delivery smoke', () => {
     await expect(page).toHaveURL(/\/studio\/v2/);
   });
 
-  test('/studio keeps the full-workbench fallback loadable', async ({ page }) => {
-    await openRoute(page, '/studio', '[data-testid="workbench-frame"]');
-    await expect(page).toHaveURL(/\/studio$/);
+  test('/studio follows the generic V2 fallback after legacy deletion', async ({ page }) => {
+    await openRoute(page, '/studio', '[data-workbench-v2="true"]');
+    await expect(page).toHaveURL(/\/studio\/v2$/);
+  });
+
+  test('/studio and an arbitrary unknown path share the generic fallback', async ({ page }) => {
+    await openRoute(page, '/unknown-route-for-retirement', '[data-workbench-v2="true"]');
+    await expect(page).toHaveURL(/\/studio\/v2$/);
+  });
+
+  test('/studio and unknown route preserve navigation and request the same V2 assets', async ({ browser }) => {
+    const studioContext = await browser.newContext();
+    const unknownContext = await browser.newContext();
+
+    try {
+      const studioPage = await studioContext.newPage();
+      const unknownPage = await unknownContext.newPage();
+      const studioObserver = await openRoute(
+        studioPage,
+        '/studio?step=output&target=database#legacy',
+        '[data-workbench-v2="true"]',
+      );
+      const unknownObserver = await openRoute(
+        unknownPage,
+        '/unknown-route-for-retirement?step=output&target=database#legacy',
+        '[data-workbench-v2="true"]',
+      );
+
+      for (const url of [studioPage.url(), unknownPage.url()]) {
+        const finalURL = new URL(url);
+        expect(finalURL.pathname).toBe('/studio/v2');
+        expect(finalURL.search).toBe('?step=output&target=database');
+        expect(finalURL.hash).toBe('#legacy');
+      }
+
+      const studioAssets = assetPaths(studioObserver);
+      const unknownAssets = assetPaths(unknownObserver);
+      expect(studioAssets).toEqual(unknownAssets);
+      expectNoLegacyAssets(studioAssets);
+      expectNoLegacyAssets(unknownAssets);
+    } finally {
+      await Promise.all([studioContext.close(), unknownContext.close()]);
+    }
   });
 
   test('/studio/runtime keeps the focused monitor route loadable', async ({ page }) => {

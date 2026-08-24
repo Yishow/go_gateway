@@ -1,6 +1,8 @@
-# Datalink Workbench UI 設計原型（Design prototype）
+# Legacy `/studio` Workbench UI 設計原型（歷史 pre-delete evidence）
 
-> 更新重點：**主工作區（`WorkbenchFrame` / `main`）**與**右側檢查面板（`WorkbenchInspectorPanel`）**的現代化層次與可掃讀性；與 Step 3 Tag 候選列卡片語彙對齊。
+> **文件狀態（2026-08-24）**：本文件只保留 dedicated `/studio` 移除前的設計證據，不是 `/studio/v2` 的現行設計。`WorkbenchFrame`、`WorkbenchInspectorPanel`、`TagBindingStudio` 與 `frontend/src/pages/datalink/workbench/**` 均已隨 legacy surface 移除；目前 contract 為 `/studio/v2` setup、`/studio/runtime` observer、保留 `/test` 與 `/gateway/*`，而 `/studio` 依 generic unknown-route policy 處理。詳見 [退場紀錄](./releases/retire-legacy-studio-and-polish-v2.md)。
+
+> 更新重點（歷史）：**主工作區（`WorkbenchFrame` / `main`）**與**右側檢查面板（`WorkbenchInspectorPanel`）**的現代化層次與可掃讀性；與 Step 3 Tag 候選列卡片語彙對齊。
 > 設計取向依 **B2B／工業儀表板**：信任感、低炫光、資訊分塊（Miller’s Law／chunking），**刻意避免**大面積毛玻璃與「SaaS 紫／網格英雄區」等泛用 AI 版型。
 
 ---
@@ -20,7 +22,7 @@
 
 ### 2.0 統一外殼 `WB_SHELL_SURFACE`（第二輪收斂）
 
-**檔案**：`frontend/src/pages/datalink/workbench/workbenchShellTokens.ts`
+**歷史檔案（已刪除）**：`frontend/src/pages/datalink/workbench/workbenchShellTokens.ts`
 
 五區共用同一底層，避免各區各自漸層／重陰影／多層 ring 疊加造成的視覺疲勞與「數位炫光」感（呼應 frontend-design： restraint、solid hierarchy）。
 
@@ -28,8 +30,8 @@
 rounded-2xl border border-slate-800/70 bg-slate-900/95 shadow-sm shadow-black/30
 ```
 
-**套用元件**：`WorkbenchContextBar`、`WorkbenchStepRail`、`WorkbenchFrame` 的 `main`、`WorkbenchInspectorPanel` 的 `aside`、`WorkbenchBottomSummaryBar`。
-**外框網格**：`WorkbenchFrame` 根節點 `gap-3`、`p-3`，讓區塊之間有穩定呼吸（8pt 網格）。
+**套用元件（歷史 legacy，已刪除）**：`WorkbenchContextBar`、`WorkbenchStepRail`、`WorkbenchFrame` 的 `main`、`WorkbenchInspectorPanel` 的 `aside`、`WorkbenchBottomSummaryBar`。
+**外框網格（歷史 legacy，已刪除）**：`WorkbenchFrame` 根節點 `gap-3`、`p-3`，讓區塊之間有穩定呼吸（8pt 網格）。
 
 ### 2.1 主工作區 `main`（`workbench-primary-work-area`）
 
@@ -70,7 +72,7 @@ text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500
 
 ## 3. Tag 檢查面板（Step 3）專項
 
-與左側 **Tag 候選列**（`TagBindingStudio`）對齊：
+與左側 **Tag 候選列**（歷史 `TagBindingStudio`，已刪除）對齊：
 
 | 元素 | 設計 |
 |------|------|
@@ -92,9 +94,9 @@ text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500
 
 ---
 
-## 5. 實作對照（程式位置）
+## 5. 歷史實作對照（程式位置，檔案已刪除）
 
-| 區域 | 檔案 |
+| 歷史區域 | 歷史檔案（已刪除） |
 |------|------|
 | 外殼 token | `frontend/src/pages/datalink/workbench/workbenchShellTokens.ts` |
 | 網格與主工作區 | `frontend/src/pages/datalink/workbench/WorkbenchFrame.tsx` |
