@@ -5,7 +5,8 @@ import {
   registerSourceStepFixtures,
   renderPage,
 } from './DatalinkWorkbenchSourceStep.testHarness';
-const { mockSourceRules, mockToggleDeviceStatusMutation } = getSourceStepMocks();
+const { mockDevices, mockPoints, mockSourceRules, mockToggleDeviceStatusMutation } =
+  getSourceStepMocks();
 
 describe('DatalinkWorkbench source step', () => {
   registerSourceStepFixtures();
@@ -163,13 +164,15 @@ describe('DatalinkWorkbench source step', () => {
   });
 
   it('preserves draft rules per device when switching the selected device', async () => {
+    mockDevices[0].protocol = 'fatek_fbs';
+    mockPoints[0].address = 'D15';
     renderPage();
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.source/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
 
     fireEvent.change(screen.getByLabelText('workbench.source.planner.startAddress'), {
-      target: { value: '40001' },
+      target: { value: 'D10' },
     });
     fireEvent.change(screen.getByLabelText('workbench.source.planner.count'), {
       target: { value: '2' },
@@ -177,7 +180,7 @@ describe('DatalinkWorkbench source step', () => {
     fireEvent.click(screen.getByRole('button', { name: 'workbench.source.planner.addRule' }));
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
-    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-D10')).toHaveAttribute('data-status', 'planned');
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Fatek Cell' }));
@@ -195,7 +198,7 @@ describe('DatalinkWorkbench source step', () => {
 
     expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     expect(screen.getByTestId('address-cell-D0')).toHaveAttribute('data-status', 'planned');
-    expect(screen.queryByTestId('address-cell-40001')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('address-cell-D10')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /workbench.steps.device/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Mixer PLC' }));
@@ -204,7 +207,7 @@ describe('DatalinkWorkbench source step', () => {
     await waitFor(() => {
       expect(screen.getByTestId('source-rule-rule-1')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('address-cell-40001')).toHaveAttribute('data-status', 'planned');
+    expect(screen.getByTestId('address-cell-D10')).toHaveAttribute('data-status', 'planned');
     expect(screen.queryByTestId('address-cell-D0')).not.toBeInTheDocument();
   });
 

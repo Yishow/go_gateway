@@ -51,6 +51,11 @@ describe('mappingReducer', () => {
 
       expect(nextState.mappings['p-01']).toBeDefined();
       expect(nextState.mappings['p-01'].tag_key).toBe('dev.01.sensor.1.r40001');
+      expect(nextState.mappings['p-01']).toMatchObject({
+        rule_id: 'rule-01',
+        device_id: 'dev-01',
+        address: '40001',
+      });
       expect(nextState.mappings['p-01'].scale).toBe(0.1);
       expect(nextState.mappings['p-02']).toBeDefined();
       expect(nextState.mappings['p-02'].tag_key).toBe('dev.01.sensor.2.r40002');
@@ -59,6 +64,9 @@ describe('mappingReducer', () => {
     it('should preserve existing user edits and remove orphans', () => {
       const existingMapping: Mapping = {
         point_id: 'p-01',
+        rule_id: 'rule-01',
+        device_id: 'dev-01',
+        address: '40001',
         tag_key: 'custom.tag.key',
         display_name: '使用者編輯名稱',
         unit: '°F',
@@ -95,6 +103,92 @@ describe('mappingReducer', () => {
       expect(nextState.mappings['p-01']).toEqual(existingMapping);
       expect(nextState.mappings['p-orphan']).toBeUndefined();
       expect(nextState.mappings['p-02']).toBeUndefined();
+    });
+
+    it('rebuilds a mapping when the same point id moves to a new protocol address', () => {
+      const oldPoint: Point = {
+        ...mockPoints[0],
+        id: 'p-mc-01',
+        device_id: 'dev-mc-01',
+        rule_id: 'rule-mc-01',
+        rule_name: 'D Registers',
+        name: 'SENSOR_0',
+        address: 'D0',
+        function: 'D (Word)',
+      };
+      const movedPoint: Point = {
+        ...oldPoint,
+        address: 'D100',
+      };
+      const oldMapping = mappingReducer(
+        { ...INITIAL_STATE, mappings: {} },
+        { type: 'initMappingsForPoints', points: [oldPoint] },
+      ).mappings[oldPoint.id];
+      const state: WorkbenchV2State = {
+        ...INITIAL_STATE,
+        points: [oldPoint],
+        mappings: {
+          [oldPoint.id]: {
+            ...oldMapping,
+            tag_key: 'custom.d0',
+            display_name: 'Custom D0',
+          },
+        },
+      };
+
+      const nextState = mappingReducer(state, {
+        type: 'initMappingsForPoints',
+        points: [movedPoint],
+      });
+
+      expect(nextState.points).toEqual([movedPoint]);
+      expect(nextState.mappings[oldPoint.id]).toMatchObject({
+        point_id: oldPoint.id,
+        rule_id: 'rule-mc-01',
+        device_id: 'dev-mc-01',
+        address: 'D100',
+      });
+      expect(nextState.mappings[oldPoint.id].tag_key).toContain('rd100');
+      expect(nextState.mappings[oldPoint.id].display_name).toBe('SENSOR_0 (D100)');
+      expect(nextState.mappings[oldPoint.id].tag_key).not.toBe('custom.d0');
+    });
+
+    it('rebuilds a mapping when the same point id changes device or rule identity', () => {
+      const oldPoint = mockPoints[0];
+      const oldMapping = mappingReducer(
+        { ...INITIAL_STATE, mappings: {} },
+        { type: 'initMappingsForPoints', points: [oldPoint] },
+      ).mappings[oldPoint.id];
+      const state: WorkbenchV2State = {
+        ...INITIAL_STATE,
+        points: [oldPoint],
+        mappings: {
+          [oldPoint.id]: {
+            ...oldMapping,
+            tag_key: 'custom.identity',
+            display_name: 'Custom identity',
+          },
+        },
+      };
+
+      const nextState = mappingReducer(state, {
+        type: 'initMappingsForPoints',
+        points: [{
+          ...oldPoint,
+          device_id: 'dev-02',
+          rule_id: 'rule-02',
+          rule_name: 'Other Registers',
+          address: '40001',
+        }],
+      });
+
+      expect(nextState.mappings[oldPoint.id]).toMatchObject({
+        device_id: 'dev-02',
+        rule_id: 'rule-02',
+        address: '40001',
+      });
+      expect(nextState.mappings[oldPoint.id].tag_key).toBe('dev.02.sensor.1.r40001');
+      expect(nextState.mappings[oldPoint.id].tag_key).not.toBe('custom.identity');
     });
   });
 

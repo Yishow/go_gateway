@@ -39,7 +39,7 @@ describe('useAllPoints', () => {
     const firstResult = result.current;
 
     expect(firstResult).toHaveLength(2);
-    expect(firstResult[0].address).toBe('1');
+    expect(firstResult[0].address).toBe('00001');
 
     // 重新渲染，引數 reference 未改變
     rerender();

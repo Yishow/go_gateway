@@ -54,6 +54,12 @@ func TestMigrator_Migrate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "revision_id", colName)
 
+	for _, column := range []string{"share_enabled", "share_start_register", "share_stride"} {
+		err = db.QueryRow(`SELECT name FROM pragma_table_info('source_rules') WHERE name = ?`, column).Scan(&colName)
+		require.NoError(t, err)
+		assert.Equal(t, column, colName)
+	}
+
 	for _, column := range []string{
 		"status",
 		"rule_candidate_id",

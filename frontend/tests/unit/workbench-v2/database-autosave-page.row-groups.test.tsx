@@ -38,7 +38,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       }));
     });
 
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId('database-autosave-shell')).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       })),
     );
 
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId('database-autosave-shell')).toBeInTheDocument();
@@ -156,7 +156,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
         row_group_id: request.row_group_id,
       })));
 
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId('database-autosave-shell')).toBeInTheDocument();

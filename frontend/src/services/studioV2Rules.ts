@@ -13,6 +13,9 @@ export interface StudioV2UpdateSourceRuleRequest {
   scale_multiplier?: number;
   scale_offset?: number;
   data_format?: string;
+  share_enabled?: boolean;
+  share_start_register?: number | null;
+  share_stride?: number | null;
 }
 
 export const studioV2RulesAPI = {

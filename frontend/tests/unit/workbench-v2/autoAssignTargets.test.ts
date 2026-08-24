@@ -87,4 +87,79 @@ describe('autoAssignTargets', () => {
     expect(uniqueUsedColumns.size).toBeLessThan(8);
     expect(usedColumns).toContain('temp_in_c');
   });
+
+  it('Cross-protocol Modbus Share and database target binding: matches MC/FATEK tag keys with DB columns', () => {
+    const mcPoints: Point[] = [
+      {
+        id: 'p-mc-1',
+        device_id: 'dev-mc-1',
+        rule_id: 'rule-mc-1',
+        rule_name: 'D Registers',
+        name: 'SENSOR_D0',
+        address: 'D0',
+        data_type: 'int16',
+        function: 'D (Word)',
+        width: 1,
+        enabled: true,
+        skipped: false,
+        _rule_scale: 1,
+        _rule_offset: 0,
+      },
+      {
+        id: 'p-mc-2',
+        device_id: 'dev-mc-1',
+        rule_id: 'rule-mc-1',
+        rule_name: 'D Registers',
+        name: 'SENSOR_D1',
+        address: 'D1',
+        data_type: 'int16',
+        function: 'D (Word)',
+        width: 1,
+        enabled: true,
+        skipped: false,
+        _rule_scale: 1,
+        _rule_offset: 0,
+      },
+    ];
+
+    const mcMappings: Record<string, Mapping> = {
+      'p-mc-1': { point_id: 'p-mc-1', tag_key: 'line1.sensor_d0', display_name: 'Sensor D0', unit: '', target_type: 'float64', scale: 1, offset: 0, enabled: true },
+      'p-mc-2': { point_id: 'p-mc-2', tag_key: 'line1.sensor_d1', display_name: 'Sensor D1', unit: '', target_type: 'float64', scale: 1, offset: 0, enabled: true },
+    };
+
+    const mcColumns = ['sensor_d0', 'sensor_d1', 'other_col'];
+    const targets = autoAssignTargets(mcPoints, mcMappings, mcColumns, {});
+
+    expect(targets['p-mc-1'].column_name).toBe('sensor_d0');
+    expect(targets['p-mc-2'].column_name).toBe('sensor_d1');
+  });
+
+  it('matches tag keys having r prefix like rd0 with DB column sensor_d0 or d0', () => {
+    const points: Point[] = [
+      {
+        id: 'p-1',
+        device_id: 'dev-1',
+        rule_id: 'rule-1',
+        rule_name: 'D Registers',
+        name: 'SENSOR_D0',
+        address: 'D0',
+        data_type: 'int16',
+        function: 'D (Word)',
+        width: 1,
+        enabled: true,
+        skipped: false,
+        _rule_scale: 1,
+        _rule_offset: 0,
+      },
+    ];
+
+    const mappings: Record<string, Mapping> = {
+      'p-1': { point_id: 'p-1', tag_key: 'dev.mc.01.sensor.rd0', display_name: 'Sensor D0', unit: '', target_type: 'float64', scale: 1, offset: 0, enabled: true },
+    };
+
+    const columns = ['sensor_d0', 'ambient_temp'];
+    const targets = autoAssignTargets(points, mappings, columns, {});
+
+    expect(targets['p-1'].column_name).toBe('sensor_d0');
+  });
 });

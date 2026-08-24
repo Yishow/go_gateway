@@ -1,5 +1,10 @@
 import type { Point, Mapping, DbTarget } from './types';
 
+function matchesColumn(col: string, token: string): boolean {
+  if (!token) return false;
+  return col === token || col.endsWith(`_${token}`) || col.startsWith(`${token}_`);
+}
+
 /**
  * 自動欄位匹配演算法
  * 
@@ -48,14 +53,12 @@ export function autoAssignTargets(
     }
 
     const tagShort = m.tag_key.split('.').pop() ?? `col_${i + 1}`;
+    // 支援非 Modbus 點位帶有 r 前綴 (如 rd0) 時與資料庫欄位 (如 sensor_d0、d0) 之容錯匹配
+    const tagShortAlt = tagShort.startsWith('r') && tagShort.length > 1 ? tagShort.slice(1) : '';
     
-    // 1. 精確匹配：c === tagShort 或 endsWith('_' + tagShort) 或 startsWith(tagShort + '_')
+    // 1. 精確/前後綴匹配
     const exact = columnNames.find(c =>
-      !used.has(c) && (
-        c === tagShort || 
-        c.endsWith('_' + tagShort) || 
-        c.startsWith(tagShort + '_')
-      )
+      !used.has(c) && (matchesColumn(c, tagShort) || matchesColumn(c, tagShortAlt))
     );
 
     let chosenColumn = exact;

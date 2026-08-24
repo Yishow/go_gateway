@@ -32,7 +32,10 @@ function shouldAutosaveRulePatch(patch: Partial<Rule>): boolean {
     patch.skipped_addresses !== undefined ||
     patch.scale_multiplier !== undefined ||
     patch.scale_offset !== undefined ||
-    patch.data_format !== undefined
+    patch.data_format !== undefined ||
+    patch.share_enabled !== undefined ||
+    patch.share_start_register !== undefined ||
+    patch.share_stride !== undefined
   );
 }
 
@@ -170,6 +173,9 @@ export function useStudioV2RuleAutosave(
       case 'toggleRuleEnabled':
       case 'updateRuleSkipped':
       case 'toggleRuleSkippedAddress':
+      case 'toggleRuleShareEnabled':
+      case 'updateRuleShareStart':
+      case 'updateRuleShareStride':
         queueRuleSave(action.ruleId);
         break;
       default:

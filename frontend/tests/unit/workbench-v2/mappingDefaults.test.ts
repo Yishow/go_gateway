@@ -11,7 +11,7 @@ describe('mappingDefaults', () => {
     expect(RAW_VALUE_SEEDS).toHaveLength(8);
   });
 
-  it('should build default mapping correctly based on index', () => {
+  it('should build default mapping from the point identity and address', () => {
     const point: Point = {
       id: 'p-01',
       device_id: 'dev-01',
@@ -31,7 +31,10 @@ describe('mappingDefaults', () => {
     const mapping0 = buildDefaultMapping(point, 0);
     expect(mapping0.point_id).toBe('p-01');
     expect(mapping0.tag_key).toBe('dev.01.sensor.1.r40001');
-    expect(mapping0.display_name).toBe('SENSOR_1');
+    expect(mapping0.display_name).toBe('SENSOR_1 (40001)');
+    expect(mapping0.rule_id).toBe('rule-01');
+    expect(mapping0.device_id).toBe('dev-01');
+    expect(mapping0.address).toBe('40001');
     expect(mapping0.unit).toBe('');
     expect(mapping0.target_type).toBe('float64');
     expect(mapping0.scale).toBe(0.5);
@@ -69,5 +72,51 @@ describe('mappingDefaults', () => {
     expect(mappingA.tag_key).toBe('dev.01.line.a.0.r40001');
     expect(mappingB.tag_key).toBe('dev.01.line.b.0.r40101');
     expect(mappingA.tag_key).not.toBe(mappingB.tag_key);
+  });
+
+  it('Protocol-aware default tag key generation: MC 3E and FATEK points retain register area prefix', () => {
+    const mcPoint: Point = {
+      id: 'p-mc-01',
+      device_id: 'dev-mc-01',
+      rule_id: 'rule-mc-01',
+      rule_name: 'D Registers',
+      name: 'SENSOR_D0',
+      address: 'D100',
+      data_type: 'int16',
+      function: 'D (Word)',
+      width: 1,
+      enabled: true,
+      skipped: false,
+      _rule_scale: 1,
+      _rule_offset: 0,
+    };
+
+    const fatekPoint: Point = {
+      id: 'p-fatek-01',
+      device_id: 'dev-fatek-01',
+      rule_id: 'rule-fatek-01',
+      rule_name: 'R Registers',
+      name: 'RELAY_R0',
+      address: 'R0',
+      data_type: 'int16',
+      function: 'R (Word)',
+      width: 1,
+      enabled: true,
+      skipped: false,
+      _rule_scale: 1,
+      _rule_offset: 0,
+    };
+
+    const mcMapping = buildDefaultMapping(mcPoint, 0);
+    const fatekMapping = buildDefaultMapping(fatekPoint, 1);
+
+    expect(mcMapping.tag_key).toBe('dev.mc.01.sensor.d0.rd100');
+    expect(fatekMapping.tag_key).toBe('dev.fatek.01.relay.r0.rr0');
+    expect(mcMapping.display_name).toBe('SENSOR_D0 (D100)');
+    expect(mcMapping).toMatchObject({
+      rule_id: 'rule-mc-01',
+      device_id: 'dev-mc-01',
+      address: 'D100',
+    });
   });
 });

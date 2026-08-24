@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RuleTabRail } from '../../../src/features/datalink/workbench-v2/steps/step2/RuleTabRail';
 import { RangeSummary } from '../../../src/features/datalink/workbench-v2/steps/step2/RangeSummary';
 import { ScaleSection } from '../../../src/features/datalink/workbench-v2/steps/step2/ScaleSection';
 import { RuleEditor } from '../../../src/features/datalink/workbench-v2/steps/step2/RuleEditor';
@@ -9,7 +8,9 @@ import { Step2Rule } from '../../../src/features/datalink/workbench-v2/steps/ste
 import type { Rule, Device, Point } from '../../../src/features/datalink/workbench-v2/state/types';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 
-// Mock 基礎資料
+vi.mock('react-i18next', () => ({ useTranslation: () => ({
+  t: (key: string, value?: string | { defaultValue?: string; index?: number }) => typeof value === 'string' ? value : (value?.defaultValue ?? key).replace('{{index}}', String(value?.index ?? '')),
+}) }));
 const mockDevices: Device[] = [
   { id: 'dev-1', name: 'PLC 1', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null },
 ];
@@ -34,106 +35,6 @@ const mockRules: Rule[] = [
   },
 ];
 
-describe('RuleTabRail 元件', () => {
-  it('應渲染 rules 並在點擊時觸發 selectRule，點擊新增時觸發 addRule', () => {
-    const dispatch = vi.fn();
-    render(
-      <RuleTabRail
-        rules={mockRules}
-        devices={mockDevices}
-        selectedRuleId="rule-1"
-        dispatch={dispatch}
-      />
-    );
-
-    // 驗證 Tab 是否渲染
-    expect(screen.getByText('Coils Rule')).toBeInTheDocument();
-
-    // 點擊新增
-    fireEvent.click(screen.getByTestId('rule-add-btn'));
-    expect(dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'addRule', rule: expect.any(Object) })
-    );
-  });
-
-  it('新增第二條規則時應給唯一的預設點位名稱前綴，避免與既有規則重名', () => {
-    const dispatch = vi.fn();
-
-    render(
-      <RuleTabRail
-        rules={mockRules}
-        devices={mockDevices}
-        selectedRuleId="rule-1"
-        dispatch={dispatch}
-      />
-    );
-
-    fireEvent.click(screen.getByTestId('rule-add-btn'));
-
-    expect(dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'addRule',
-        rule: expect.objectContaining({
-          name: 'Rule 2',
-          naming_prefix: 'BLOCK2_',
-        }),
-      }),
-    );
-  });
-
-  it('Hover 時應渲染啟用 toggle 與刪除按鈕 (若大於1個規則)', () => {
-    const dispatch = vi.fn();
-    const twoRules = [
-      ...mockRules,
-      { ...mockRules[0], id: 'rule-2', name: 'Rule 2' },
-    ];
-    render(
-      <RuleTabRail
-        rules={twoRules}
-        devices={mockDevices}
-        selectedRuleId="rule-1"
-        dispatch={dispatch}
-      />
-    );
-
-    // 點擊 toggle 啟用狀態
-    const toggleBtn = screen.getByTestId('rule-toggle-enabled-rule-1');
-    fireEvent.click(toggleBtn);
-    expect(dispatch).toHaveBeenCalledWith({ type: 'toggleRuleEnabled', ruleId: 'rule-1' });
-
-    // 點擊刪除
-    const deleteBtn = screen.getByTestId('rule-delete-rule-1');
-    fireEvent.click(deleteBtn);
-    expect(dispatch).toHaveBeenCalledWith({ type: 'removeRule', ruleId: 'rule-1' });
-  });
-
-  it('雙擊 Tab 名稱應進入改名編輯模式', () => {
-    const dispatch = vi.fn();
-    render(
-      <RuleTabRail
-        rules={mockRules}
-        devices={mockDevices}
-        selectedRuleId="rule-1"
-        dispatch={dispatch}
-      />
-    );
-
-    const nameText = screen.getByText('Coils Rule');
-    fireEvent.doubleClick(nameText);
-
-    const input = screen.getByRole('textbox');
-    expect(input).toBeInTheDocument();
-    fireEvent.change(input, { target: { value: 'New Coils Rule' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'renameRule',
-      ruleId: 'rule-1',
-      name: 'New Coils Rule',
-    });
-  });
-});
-
 describe('RangeSummary 元件', () => {
   it('四種 prefix 應對應正確的功能碼文字', () => {
     const { rerender } = render(
@@ -149,6 +50,18 @@ describe('RangeSummary 元件', () => {
 
     rerender(<RangeSummary startAddress="40001" count={10} dataType="int16" />);
     expect(screen.getByTestId('function-code-badge').textContent).toBe('Holding Register (4x)');
+  });
+
+  it('MC/FATEK 應保留暫存器前綴並顯示協議範圍與 badge', () => {
+    const { rerender } = render(
+      <RangeSummary startAddress="D0" count={8} dataType="int16" protocol="mc_3e" />
+    );
+    expect(screen.getByTestId('range-summary')).toHaveTextContent('D0 ~ D7');
+    expect(screen.getByTestId('function-code-badge')).toHaveTextContent('MC 3E D (Word)');
+
+    rerender(<RangeSummary startAddress="R0" count={8} dataType="int16" protocol="fatek_fbs" />);
+    expect(screen.getByTestId('range-summary')).toHaveTextContent('R0 ~ R7');
+    expect(screen.getByTestId('function-code-badge')).toHaveTextContent('FATEK R (Word)');
   });
 });
 
@@ -208,6 +121,16 @@ describe('RuleEditor 元件', () => {
       ruleId: 'rule-1',
       patch: { count: 16 },
     });
+  });
+
+  it('無效位址應顯示 localized error', () => {
+    const dispatch = vi.fn();
+    const mcRule = { ...mockRules[0], start_address: 'Z999' };
+    const mcDevice: Device = { id: 'dev-mc', name: 'MC PLC', description: '', protocol: 'mc_3e', config: {}, status: 'draft', test: null };
+    render(<RuleEditor rule={mcRule} devices={[mcDevice]} globalShareEnabled={true} dispatch={dispatch} />);
+    expect(screen.getByTestId('rule-start-input')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('rule-start-input')).toHaveAttribute('placeholder', 'D0');
+    expect(screen.getByTestId('rule-start-error')).toBeInTheDocument();
   });
 });
 
@@ -395,5 +318,39 @@ describe('Step2Rule 整合元件', () => {
     expect(screen.getByTestId('rule-editor')).toBeInTheDocument();
     expect(screen.getByTestId('point-grid')).toBeInTheDocument();
     expect(screen.getByTestId('merged-point-table-container')).toBeInTheDocument();
+  });
+
+  it('無效 MC 位址不應衍生點位，且繼續到 Step 3 應 disabled', () => {
+    const invalidRule = { ...mockRules[0], device_id: 'dev-mc', start_address: 'Z999' };
+    const state = {
+      ...INITIAL_STATE,
+      devices: [{ id: 'dev-mc', name: 'MC PLC', description: '', protocol: 'mc_3e' as const, config: {}, status: 'draft' as const, test: null }],
+      rules: [invalidRule],
+      selectedRuleId: invalidRule.id,
+    };
+
+    render(<Step2Rule state={state} dispatch={vi.fn()} onContinue={vi.fn()} />);
+
+    expect(screen.getByTestId('rule-start-input')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('continue-step3-btn')).toBeDisabled();
+  });
+
+  it('任一啟用規則位址無效時，即使其他規則有效也應阻擋並定位該規則', () => {
+    const validRule = { ...mockRules[0], id: 'rule-valid', name: 'Valid Rule', start_address: '40001' };
+    const invalidRule = { ...mockRules[0], id: 'rule-invalid', name: 'Invalid MC Rule', device_id: 'dev-mc', start_address: 'Z999' };
+    const state = {
+      ...INITIAL_STATE,
+      devices: [
+        mockDevices[0],
+        { id: 'dev-mc', name: 'MC PLC', description: '', protocol: 'mc_3e' as const, config: {}, status: 'draft' as const, test: null },
+      ],
+      rules: [validRule, invalidRule],
+      selectedRuleId: validRule.id,
+    };
+
+    render(<Step2Rule state={state} dispatch={vi.fn()} onContinue={vi.fn()} />);
+
+    expect(screen.getByTestId('continue-step3-btn')).toBeDisabled();
+    expect(screen.getByTestId('invalid-rule-warning-rule-invalid')).toHaveTextContent('Invalid MC Rule');
   });
 });

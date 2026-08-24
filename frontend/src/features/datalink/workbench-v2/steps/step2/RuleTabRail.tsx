@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Rule, Device } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
-import { useDeviceColor } from '../../state/deviceColors';
+import { DEVICE_COLORS, getColorTheme, useDeviceColor } from '../../state/deviceColors';
 import { Icon } from '../../components';
 
 export interface RuleTabRailProps {
@@ -24,6 +25,7 @@ interface RuleTabItemProps {
   dispatch: React.Dispatch<WorkbenchV2Action>;
   handleRenameSubmit: (ruleId: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  ruleIndex: number;
 }
 
 /**
@@ -43,8 +45,13 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
   dispatch,
   handleRenameSubmit,
   inputRef,
+  ruleIndex,
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const colorTheme = useDeviceColor(rule.device_id);
+  const ruleColorTheme = getColorTheme(DEVICE_COLORS[ruleIndex % DEVICE_COLORS.length]);
+  const skippedCount = new Set(rule.skipped_addresses || []).size;
+  const enabledCount = rule.enabled ? Math.max(0, rule.count - skippedCount) : 0;
 
   return (
     <div
@@ -60,8 +67,13 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
       } ${!rule.enabled ? 'opacity-60' : ''}`}
       data-testid={`rule-tab-${rule.id}`}
     >
-      {/* Top Row: Name and Action Icons */}
+      {/* Top Row: Rule color, name and action icons */}
       <div className="flex items-center justify-between gap-2">
+        <span
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${ruleColorTheme.solid}`}
+          data-testid={`rule-color-dot-${rule.id}`}
+          aria-label={t('step2.rule_tabs.rule_color', 'rule color')}
+        />
         {editingRuleId === rule.id ? (
           <input
             ref={inputRef}
@@ -124,12 +136,18 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
 
       {/* Middle Row: Register Info */}
       <div className="text-[10px] text-slate-400 font-mono mt-1">
-        {rule.start_address} ({rule.data_type}) · {rule.count} Pts
+        {rule.start_address} · {rule.data_type} ·{' '}
+        <span data-testid={`rule-enabled-count-${rule.id}`}>
+          {enabledCount}/{rule.count}
+        </span>
       </div>
 
       {/* Bottom Row: Device Badge (shown if 2+ devices exist) */}
       {devices.length >= 2 ? (
-        <div className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-500">
+        <div
+          className="flex items-center gap-1.5 mt-2 text-[10px] text-slate-500"
+          data-testid={`rule-device-row-${rule.id}`}
+        >
           <span className={`w-1.5 h-1.5 rounded-full ${colorTheme.solid}`} />
           <span className="truncate max-w-[130px]">
             {devices.find((d) => d.id === rule.device_id)?.name || '未知裝置'}
@@ -147,12 +165,15 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
  * 
  * 落地設計決策：「Multi-rule tab management」與「簡潔改名互動」
  */
+import { getDefaultPlannerStartAddress } from '../../../../../utils/addressParser';
+
 export const RuleTabRail: React.FC<RuleTabRailProps> = ({
   rules,
   devices,
   selectedRuleId,
   dispatch,
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -165,16 +186,23 @@ export const RuleTabRail: React.FC<RuleTabRailProps> = ({
   }, [editingRuleId]);
 
   const handleAddRule = () => {
-    const defaultDevId = devices[0]?.id || 'dev-01';
+    const selectedRule = rules.find((r) => r.id === selectedRuleId);
+    const targetDevId = selectedRule?.device_id || devices[0]?.id || 'dev-01';
+    const targetDev = devices.find((d) => d.id === targetDevId);
+    const defaultStartAddr = getDefaultPlannerStartAddress(targetDev?.protocol);
+    const nextOrdinal = rules.length + 1;
     const newId = `rule-${Date.now()}`;
     const newRule: Rule = {
       id: newId,
-      device_id: defaultDevId,
-      name: `Rule ${rules.length + 1}`,
-      start_address: '40001',
+      device_id: targetDevId,
+      name: t('step2.rule_tabs.new_rule_name', {
+        defaultValue: `規則 ${nextOrdinal}`,
+        index: nextOrdinal,
+      }),
+      start_address: defaultStartAddr,
       count: 8,
       data_type: 'int16',
-      naming_prefix: `BLOCK${rules.length + 1}_`,
+      naming_prefix: `BLOCK${nextOrdinal}_`,
       enabled: true,
       scale_multiplier: 1,
       scale_offset: 0,
@@ -200,7 +228,7 @@ export const RuleTabRail: React.FC<RuleTabRailProps> = ({
       className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin"
       data-testid="rule-tab-rail"
     >
-      {rules.map((rule) => (
+      {rules.map((rule, index) => (
         <RuleTabItem
           key={rule.id}
           rule={rule}
@@ -214,6 +242,7 @@ export const RuleTabRail: React.FC<RuleTabRailProps> = ({
           dispatch={dispatch}
           handleRenameSubmit={handleRenameSubmit}
           inputRef={inputRef}
+          ruleIndex={index}
         />
       ))}
 

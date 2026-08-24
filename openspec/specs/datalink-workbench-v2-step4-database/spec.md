@@ -2885,3 +2885,145 @@ tests:
   - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
   - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
 -->
+
+---
+### Requirement: Cross-protocol Modbus Share and database target binding
+
+The system SHALL allow points derived from any supported protocol (Modbus, FATEK, MC 3E) to be mapped to database columns and optional Modbus Share slave registers. When Modbus Share is enabled for a non-Modbus source rule, the system MUST allocate continuous 40001+ Modbus holding registers for the output while maintaining source point linkage.
+
+#### Scenario: Non-Modbus source with Modbus Share output
+- **WHEN** an MC 3E rule with 4 points (`D0 ~ D3`) has Modbus Share enabled starting at `40001`
+- **THEN** the Step 4 summary displays Modbus Slave mapping as `40001 ~ 40004`
+- **AND** database column mapping operates independently without address collision
+
+#### Scenario: Rule-level Modbus Share survives hydration
+- **WHEN** a persisted source rule has Modbus Share enabled with a manual start register and stride
+- **THEN** the rule create/update/list/get contract preserves `share_enabled`, `share_start_register`, and `share_stride`
+- **AND** reloading the Studio V2 workspace hydrates the same Share settings instead of resetting them to disabled
+
+#### Scenario: Activation projects Share mappings fail-closed
+- **WHEN** the user activates a workspace containing persisted tags for enabled Modbus Share rules
+- **THEN** the system synchronizes those tags to runtime Modbus Share mappings before workspace activation
+- **AND** human holding register `40001` is sent to the runtime mapping API as zero-based register `0`
+- **AND** stale mappings are deleted only when durable source-rule/tag relationships prove that their tag belongs to the current workspace
+- **AND** a missing persisted tag or any synchronization failure prevents workspace activation
+
+#### Scenario: Global Share disable overrides rule-level enablement
+- **GIVEN** one or more source rules have `share_enabled=true`
+- **WHEN** `settings.modbus_share.enabled` is false
+- **THEN** Step 4 does not display active Share output mappings
+- **AND** workspace activation does not create, update, or delete runtime Share mappings for those rules
+
+#### Scenario: Unproven runtime mapping ownership is preserved
+- **GIVEN** the runtime contains a mapping whose `tag_id` is not present in the current workspace's durable persisted-tag ownership set
+- **WHEN** workspace Share mappings are synchronized
+- **THEN** the system does not delete that runtime mapping
+- **AND** a non-empty frontend mapping `tag_id` alone is not treated as ownership proof
+
+#### Scenario: Automatic target column matching for protocol tags
+- **WHEN** running autoAssignTargets on points with protocol tag keys (e.g. `line01.sensor.d0`)
+- **THEN** the algorithm matches columns matching the tag suffix (e.g. `sensor_d0` or `d0`)
+
+<!-- @trace
+source: fix-protocol-address-adaptation-v2
+updated: 2026-08-24
+code:
+  - .github/workflows/backend-ci.yml
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
+  - .github/prompts/spectra-commit.prompt.md
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - .github/prompts/spectra-discuss.prompt.md
+  - .github/instructions/go.instructions.md
+  - .github/skills/spectra-audit/SKILL.md
+  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
+  - internal/datalink/sourcerule/repository_memory.go
+  - .github/skills/openspec-apply-change/SKILL.md
+  - internal/datalink/migrator.go
+  - .github/prompts/spectra-audit.prompt.md
+  - internal/datalink/sourcerule/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ShareOutputSummary.tsx
+  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
+  - .github/workflows/frontend-ci.yml
+  - frontend/src/features/datalink/workbench-v2/state/defaults.ts
+  - .github/skills/openspec-propose/SKILL.md
+  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - .github/skills/spectra-drift/SKILL.md
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
+  - frontend/src/features/datalink/workbench-v2/state/studioV2ShareActivation.ts
+  - frontend/src/types/datalink.ts
+  - .github/prompts/spectra-apply.prompt.md
+  - .github/skills/spectra-archive/SKILL.md
+  - internal/api/handlers/source_rule_handler.go
+  - internal/datalink/schema/schema_source_rule_models.go
+  - internal/datalink/sourcerule/sql_rule_scan.go
+  - .github/prompts/spectra-archive.prompt.md
+  - .github/skills/spectra-propose/SKILL.md
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
+  - internal/datalink/schema/migrations/017_source_rule_modbus_share.down.sql
+  - .github/skills/openspec-archive-change/SKILL.md
+  - .github/prompts/spectra-ingest.prompt.md
+  - internal/datalink/schema/migrations/017_source_rule_modbus_share_sqlite.up.sql
+  - internal/datalink/sourcerule/protocol_address_planner.go
+  - .github/workflows/file-line-limit.yml
+  - .github/pull_request_template.md
+  - .github/skills/openspec-explore/SKILL.md
+  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
+  - .github/skills/spectra-ask/SKILL.md
+  - .github/prompts/spectra-propose.prompt.md
+  - frontend/src/features/datalink/workbench-v2/state/autoAssignTargets.ts
+  - .github/skills/spectra-commit/SKILL.md
+  - frontend/src/services/studioV2Rules.ts
+  - internal/datalink/sourcerule/sql_repo.go
+  - .github/instructions/typescript-5-es2022.instructions.md
+  - frontend/src/features/datalink/workbench-v2/state/deviceState.ts
+  - .github/prompts/opsx-explore.prompt.md
+  - .github/skills/spectra-discuss/SKILL.md
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - .github/prompts/spectra-debug.prompt.md
+  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
+  - .github/skills/spectra-debug/SKILL.md
+  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
+  - .antigravitycli/fd0ca231-1a9a-4e65-8569-14c49e7cfa1d.json
+  - .github/skills/spectra-ingest/SKILL.md
+  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - .github/skills/spectra-apply/SKILL.md
+  - frontend/src/utils/addressParser.ts
+  - .github/prompts/spectra-ask.prompt.md
+  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
+  - .github/instructions/reactjs.instructions.md
+  - .github/prompts/spectra-drift.prompt.md
+  - internal/datalink/schema/migrations/017_source_rule_modbus_share.up.sql
+  - internal/datalink/sourcerule/validation.go
+  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
+tests:
+  - frontend/tests/unit/workbench-v2/autoAssignTargets.test.ts
+  - frontend/tests/unit/workbench-v2/database-autosave-page.validation.test.tsx
+  - frontend/tests/unit/utils/addressParser.test.ts
+  - frontend/tests/unit/workbench-v2/database-autosave-page.bulk-toggle.test.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share.test.tsx
+  - internal/api/handlers/source_rule_handler_share_test.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler_share_test.go
+  - frontend/tests/unit/workbench-v2/database-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
+  - internal/datalink/sourcerule/protocol_address_test.go
+  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
+  - frontend/tests/unit/workbench-v2/studioV2RuleAutosave.test.ts
+  - internal/datalink/migrator_test.go
+  - frontend/tests/unit/pages/datalink/workbench/DatalinkWorkbenchSourceStep.planning.test.tsx
+  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
+  - frontend/tests/unit/workbench-v2/selectors.test.tsx
+  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
+  - frontend/tests/unit/workbench-v2/rule-tab-rail.test.tsx
+  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
+  - internal/datalink/sourcerule/share_persistence_test.go
+-->

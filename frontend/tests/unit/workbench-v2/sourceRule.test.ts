@@ -33,7 +33,7 @@ describe('SourceRule State Pure Helpers', () => {
       expect(fnFromAddr('30001')).toBe('input_register');
       expect(fnFromAddr('40001')).toBe('holding_register');
       expect(fnFromAddr(' 40010 ')).toBe('holding_register'); // 容忍空格
-      expect(fnFromAddr('invalid')).toBe('holding_register'); // 預設
+      expect(() => fnFromAddr('invalid')).toThrow();
     });
   });
 
@@ -95,6 +95,85 @@ describe('SourceRule State Pure Helpers', () => {
       expect(points[2].address).toBe('40005');
       expect(points[2].skipped).toBe(false);
       expect(points[2].enabled).toBe(true);
+    });
+
+    it('應正確衍生 Mitsubishi MC 3E (D0) 點位位址且保留 D 前綴', () => {
+      const mcRule: Rule = {
+        ...mockRule,
+        start_address: 'D0',
+        count: 4,
+        data_type: 'int16',
+      };
+      const points = derivePoints(mcRule, 'dev-mc', new Set(), 'mc_3e');
+      expect(points.map((p) => p.address)).toEqual(['D0', 'D1', 'D2', 'D3']);
+      expect(points[0].function).toBe('D (Word)');
+    });
+
+    it('應正確處理 MC 3E 32-bit stride 步進 (D100 -> D102)', () => {
+      const mcRule: Rule = {
+        ...mockRule,
+        start_address: 'D100',
+        count: 2,
+        data_type: 'int32',
+      };
+      const points = derivePoints(mcRule, 'dev-mc', new Set(), 'mc_3e');
+      expect(points.map((p) => p.address)).toEqual(['D100', 'D102']);
+    });
+
+    it('應正確衍生 MC 3E Bit 設備位址 (X0)', () => {
+      const mcRule: Rule = {
+        ...mockRule,
+        start_address: 'X0',
+        count: 3,
+        data_type: 'bool',
+      };
+      const points = derivePoints(mcRule, 'dev-mc', new Set(), 'mc_3e');
+      expect(points.map((p) => p.address)).toEqual(['X0', 'X1', 'X2']);
+      expect(points[0].function).toBe('X (Bit)');
+    });
+
+    it('應正確處理 MC 3E 十六進位接點跨位與進位步進 (XF -> X10 -> X11)', () => {
+      const mcRuleXF: Rule = {
+        ...mockRule,
+        start_address: 'XF',
+        count: 3,
+        data_type: 'bool',
+      };
+      const points = derivePoints(mcRuleXF, 'dev-mc', new Set(), 'mc_3e');
+      expect(points.map((p) => p.address)).toEqual(['XF', 'X10', 'X11']);
+      expect(points[0].function).toBe('X (Bit)');
+    });
+
+    it('應正確衍生 FATEK FBs 設備位址 (R0 與 D100)', () => {
+      const fatekRule: Rule = {
+        ...mockRule,
+        start_address: 'R0',
+        count: 3,
+        data_type: 'int16',
+      };
+      const points = derivePoints(fatekRule, 'dev-fatek', new Set(), 'fatek_fbs');
+      expect(points.map((p) => p.address)).toEqual(['R0', 'R1', 'R2']);
+      expect(points[0].function).toBe('R (Word)');
+    });
+
+    it('遇到不符合設備協議的位址時應 fail-closed，不得產生原字串或 Modbus 點位', () => {
+      const invalidRule: Rule = {
+        ...mockRule,
+        start_address: 'Z999',
+        count: 1,
+      };
+
+      expect(derivePoints(invalidRule, 'dev-mc', new Set(), 'mc_3e')).toEqual([]);
+    });
+
+    it('遇到空位址時應 fail-closed，不得套用協議預設位址', () => {
+      const emptyRule: Rule = {
+        ...mockRule,
+        start_address: '',
+        count: 1,
+      };
+
+      expect(derivePoints(emptyRule, 'dev-mc', new Set(), 'mc_3e')).toEqual([]);
     });
   });
 

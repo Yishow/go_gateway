@@ -28,7 +28,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
       runtimeApplied(sqliteConfigFixture({ table: 'sensor_values_v2' })),
     );
 
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId('database-autosave-shell')).toBeInTheDocument();

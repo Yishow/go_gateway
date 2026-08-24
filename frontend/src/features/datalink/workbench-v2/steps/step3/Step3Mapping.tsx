@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2State } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
-import { useAllPoints, useMappingValidation } from '../../state/selectors';
+import { useAllPoints, useMappingValidation, useDeviceProtocolMap } from '../../state/selectors';
 import { MappingTable } from './MappingTable';
 import { useStep3LiveValues } from './useStep3LiveValues';
 
@@ -28,17 +28,20 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 }) => {
   const { t } = useTranslation('workbench-v2');
 
-  // 1. 取得點位與啟用點位列表
-  const allPoints = useAllPoints(state.rules, state.devices[0]?.id || 'dev-01');
+  // 1. 取得設備協議對照表與點位與啟用點位列表
+  const deviceProtocolMap = useDeviceProtocolMap(state.devices);
+  const allPoints = useAllPoints(state.rules, state.devices[0]?.id || 'dev-01', deviceProtocolMap);
   const enabledPoints = useMemo(() => allPoints.filter((p) => p.enabled && !p.skipped), [allPoints]);
 
-  const enabledPointsIdStr = enabledPoints.map((p) => p.id).join(',');
+  const enabledPointsIdentityStr = enabledPoints
+    .map((p) => `${p.id}:${p.device_id}:${p.rule_id}:${p.address.trim().toUpperCase()}`)
+    .join(',');
 
   // 2. 自動 mapping 初始化效應
   useEffect(() => {
     dispatch({ type: 'initMappingsForPoints', points: enabledPoints });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledPointsIdStr, dispatch]);
+  }, [enabledPointsIdentityStr, dispatch]);
 
   // 3. 選取列管理
   const [selectedIdx, setSelectedIdx] = useState<number | null>(
@@ -49,7 +52,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   useEffect(() => {
     setSelectedIdx(enabledPoints.length > 0 ? 0 : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledPointsIdStr]);
+  }, [enabledPointsIdentityStr]);
 
   // 4. 衍生 validation 與表格即時值
   const { canContinue, emptyTagCount, enabledCount, totalCount } = useMappingValidation(

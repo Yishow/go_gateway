@@ -19,7 +19,7 @@ beforeEach(resetDatabaseAutosaveMocks);
 
 describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
   it('hydrates persisted database config and targets onto the same point rows', async () => {
-    renderPage();
+    await renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId('database-autosave-shell')).toBeInTheDocument();

@@ -70,6 +70,12 @@ type CreateRuleRequest struct {
 	ScaleOffset *float64 `json:"scale_offset,omitempty"`
 	// DataFormat 字節序格式（可空）。空字串表示使用設備連線預設。
 	DataFormat string `json:"data_format,omitempty"`
+	// ShareEnabled controls whether this rule is exposed through the local Modbus Share output.
+	ShareEnabled bool `json:"share_enabled"`
+	// ShareStartRegister is the optional local Modbus holding-register start address.
+	ShareStartRegister *int `json:"share_start_register"`
+	// ShareStride is the optional number of local Modbus registers allocated per point.
+	ShareStride *int `json:"share_stride"`
 }
 
 type UpdateRuleRequest struct {
@@ -93,6 +99,14 @@ type UpdateRuleRequest struct {
 	// DataFormat 字節序格式（可空）；傳 null 並搭配 DataFormatSet 可清空為連線預設。
 	DataFormat    *string `json:"data_format,omitempty"`
 	DataFormatSet bool    `json:"-"`
+	// ShareEnabled controls whether this rule is exposed through the local Modbus Share output.
+	ShareEnabled *bool `json:"share_enabled,omitempty"`
+	// ShareStartRegister is the optional local Modbus holding-register start address.
+	ShareStartRegister    *int `json:"share_start_register,omitempty"`
+	ShareStartRegisterSet bool `json:"-"`
+	// ShareStride is the optional number of local Modbus registers allocated per point.
+	ShareStride    *int `json:"share_stride,omitempty"`
+	ShareStrideSet bool `json:"-"`
 }
 
 type Service struct {
@@ -145,23 +159,30 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 	}
 	now := time.Now()
 	rule := &schema.SourceRule{
-		ID:               id,
-		DeviceID:         req.DeviceID,
-		StartAddress:     strings.TrimSpace(strings.ToUpper(req.StartAddress)),
-		Count:            req.Count,
-		DataType:         req.DataType,
-		NamingPrefix:     normalizeNamingPrefix(req.NamingPrefix),
-		Enabled:          enabled,
-		Locked:           req.Locked,
-		Origin:           normalizeOrigin(req.Origin),
-		TemplateName:     strings.TrimSpace(req.TemplateName),
-		SkippedAddresses: skippedJSON,
-		TargetDataType:   req.TargetDataType,
-		ScaleMultiplier:  req.ScaleMultiplier,
-		ScaleOffset:      req.ScaleOffset,
-		DataFormat:       normalizeDataFormat(req.DataFormat),
-		CreatedAt:        now,
-		UpdatedAt:        now,
+		ID:                 id,
+		DeviceID:           req.DeviceID,
+		StartAddress:       strings.TrimSpace(strings.ToUpper(req.StartAddress)),
+		Count:              req.Count,
+		DataType:           req.DataType,
+		NamingPrefix:       normalizeNamingPrefix(req.NamingPrefix),
+		Enabled:            enabled,
+		Locked:             req.Locked,
+		Origin:             normalizeOrigin(req.Origin),
+		TemplateName:       strings.TrimSpace(req.TemplateName),
+		SkippedAddresses:   skippedJSON,
+		TargetDataType:     req.TargetDataType,
+		ScaleMultiplier:    req.ScaleMultiplier,
+		ScaleOffset:        req.ScaleOffset,
+		DataFormat:         normalizeDataFormat(req.DataFormat),
+		ShareEnabled:       req.ShareEnabled,
+		ShareStartRegister: cloneIntPtr(req.ShareStartRegister),
+		ShareStride:        cloneIntPtr(req.ShareStride),
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+	plannedAddresses, err := buildPlannedPointAddresses(rule.StartAddress, rule.Count, rule.DataType, deviceRecord.Protocol)
+	if err != nil {
+		return nil, err
 	}
 	if err := assignRuleRevisionID(rule); err != nil {
 		return nil, err
@@ -177,7 +198,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		return nil, err
 	}
 
-	for _, address := range buildPlannedPointAddresses(rule.StartAddress, rule.Count, rule.DataType, deviceRecord.Protocol) {
+	for _, address := range plannedAddresses {
 		if containsAddress(req.SkippedAddresses, address) {
 			continue
 		}
@@ -344,6 +365,15 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 			next.DataFormat = ""
 		}
 	}
+	if req.ShareEnabled != nil {
+		next.ShareEnabled = *req.ShareEnabled
+	}
+	if req.ShareStartRegister != nil || req.ShareStartRegisterSet {
+		next.ShareStartRegister = cloneIntPtr(req.ShareStartRegister)
+	}
+	if req.ShareStride != nil || req.ShareStrideSet {
+		next.ShareStride = cloneIntPtr(req.ShareStride)
+	}
 	if req.Enabled != nil {
 		if err := s.ensureRuleActivationAllowed(ctx, rule.DeviceID, *req.Enabled); err != nil {
 			return nil, err
@@ -352,11 +382,15 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 
 	if err := validateCreateRequest(CreateRuleRequest{
-		DeviceID:     next.DeviceID,
-		StartAddress: next.StartAddress,
-		Count:        next.Count,
-		DataType:     next.DataType,
-		NamingPrefix: next.NamingPrefix,
+		DeviceID:           next.DeviceID,
+		StartAddress:       next.StartAddress,
+		Count:              next.Count,
+		DataType:           next.DataType,
+		NamingPrefix:       next.NamingPrefix,
+		Enabled:            next.Enabled,
+		ShareEnabled:       next.ShareEnabled,
+		ShareStartRegister: next.ShareStartRegister,
+		ShareStride:        next.ShareStride,
 	}); err != nil {
 		return nil, err
 	}
@@ -369,7 +403,10 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		return nil, fmt.Errorf("取得來源規則連結失敗: %w", err)
 	}
 
-	desiredAddresses := buildPlannedPointAddresses(next.StartAddress, next.Count, next.DataType, deviceRecord.Protocol)
+	desiredAddresses, err := buildPlannedPointAddresses(next.StartAddress, next.Count, next.DataType, deviceRecord.Protocol)
+	if err != nil {
+		return nil, err
+	}
 	skipped, err := parseSkippedAddresses(next.SkippedAddresses)
 	if err != nil {
 		return nil, err
@@ -851,67 +888,6 @@ func (s *Service) validateTagAvailability(ctx context.Context, tagRecord *schema
 	return nil
 }
 
-func validateCreateRequest(req CreateRuleRequest) error {
-	if strings.TrimSpace(req.DeviceID) == "" {
-		return validationError("device_id is required")
-	}
-	if strings.TrimSpace(req.StartAddress) == "" {
-		return validationError("start_address is required")
-	}
-	if req.Count <= 0 {
-		return validationError("count must be greater than zero")
-	}
-	if err := validateRuleDataType(req.DataType); err != nil {
-		return err
-	}
-	if err := validateRuleDataFormat(req.DataFormat); err != nil {
-		return err
-	}
-	return nil
-}
-
-func normalizeDataFormat(value string) string {
-	return strings.ToUpper(strings.TrimSpace(value))
-}
-
-func validateRuleDataFormat(dataFormat string) error {
-	normalized := normalizeDataFormat(dataFormat)
-	if normalized == "" {
-		return nil
-	}
-	switch normalized {
-	case "ABCD", "BADC", "CDAB", "DCBA":
-		return nil
-	default:
-		return validationError(fmt.Sprintf("unsupported data_format: %s", dataFormat))
-	}
-}
-
-func validateRuleDataType(dataType schema.DataType) error {
-	if dataType == "" {
-		return validationError("data_type is required")
-	}
-	switch dataType {
-	case schema.DataTypeBool,
-		schema.DataTypeInt16,
-		schema.DataTypeInt32,
-		schema.DataTypeInt64,
-		schema.DataTypeUint16,
-		schema.DataTypeUint32,
-		schema.DataTypeUint64,
-		schema.DataTypeFloat32,
-		schema.DataTypeFloat64,
-		schema.DataTypeString:
-		return nil
-	default:
-		return validationError(fmt.Sprintf("unsupported data_type: %s", dataType))
-	}
-}
-
-func validationError(message string) error {
-	return fmt.Errorf("%w: %s", ErrValidation, message)
-}
-
 func marshalSkippedAddresses(addresses []string) (string, error) {
 	if len(addresses) == 0 {
 		return "[]", nil
@@ -1000,92 +976,6 @@ func containsAddress(addresses []string, target string) bool {
 
 func normalizeAddressKey(address string) string {
 	return strings.ToUpper(strings.TrimSpace(address))
-}
-
-func buildPlannedPointAddresses(startAddress string, count int, dataType schema.DataType, protocol schema.ProtocolType) []string {
-	span := getDataTypeCellSpan(dataType)
-	addresses := make([]string, 0, count)
-	for index := 0; index < count; index++ {
-		addresses = append(addresses, offsetAddress(startAddress, index*span, protocol))
-	}
-	return addresses
-}
-
-func getDataTypeCellSpan(dataType schema.DataType) int {
-	switch dataType {
-	case schema.DataTypeInt32, schema.DataTypeUint32, schema.DataTypeFloat32:
-		return 2
-	case schema.DataTypeInt64, schema.DataTypeUint64, schema.DataTypeFloat64:
-		return 4
-	default:
-		return 1
-	}
-}
-
-func offsetAddress(address string, delta int, protocol schema.ProtocolType) string {
-	address = strings.ToUpper(strings.TrimSpace(address))
-	if address == "" || delta == 0 {
-		return address
-	}
-
-	switch protocol {
-	case schema.ProtocolModbusTCP, schema.ProtocolModbusRTU, schema.ProtocolModbusUDP:
-		if len(address) < 2 {
-			return address
-		}
-		prefix := address[:1]
-		number := address[1:]
-		value, ok := parseDecimal(number)
-		if !ok {
-			return address
-		}
-		next := value + delta
-		if next < 1 {
-			next = 1
-		}
-		return fmt.Sprintf("%s%04d", prefix, next)
-	case schema.ProtocolFatekFBs, schema.ProtocolMC3E:
-		area, number := splitAlphaNumeric(address)
-		if area == "" || number == "" {
-			return address
-		}
-		value, ok := parseDecimal(number)
-		if !ok {
-			return address
-		}
-		next := value + delta
-		if next < 0 {
-			next = 0
-		}
-		return fmt.Sprintf("%s%d", area, next)
-	default:
-		return address
-	}
-}
-
-func parseDecimal(raw string) (int, bool) {
-	value := 0
-	for _, ch := range raw {
-		if ch < '0' || ch > '9' {
-			return 0, false
-		}
-		value = value*10 + int(ch-'0')
-	}
-	return value, true
-}
-
-func splitAlphaNumeric(input string) (string, string) {
-	index := 0
-	for ; index < len(input); index++ {
-		ch := input[index]
-		if ch >= '0' && ch <= '9' {
-			break
-		}
-	}
-	if index == 0 || index >= len(input) {
-		return "", ""
-	}
-	return input[:index], input[index:]
 }
 
 func (s *Service) syncPoints(points []*schema.Point) {
@@ -1262,6 +1152,14 @@ func cloneDataTypePtr(value *schema.DataType) *schema.DataType {
 }
 
 func cloneFloat64Ptr(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
+}
+
+func cloneIntPtr(value *int) *int {
 	if value == nil {
 		return nil
 	}

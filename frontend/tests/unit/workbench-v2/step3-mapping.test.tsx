@@ -169,6 +169,71 @@ describe('Step 3 UI Components & Integration', () => {
       );
     });
 
+    it('同一 point id 的協議位址改變時，應再次初始化 mappings 並傳遞新位址', () => {
+      const dispatch = vi.fn();
+      const onContinue = vi.fn();
+      const onBack = vi.fn();
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false },
+          mutations: { retry: false },
+        },
+      });
+      const movedDevice: Device = {
+        ...mockDevice,
+        protocol: 'mc_3e',
+        description: 'Mitsubishi MC 3E',
+      };
+      const initialState: WorkbenchV2State = {
+        ...mockState,
+        devices: [movedDevice],
+        rules: [{ ...mockRule, start_address: 'D0' }],
+      };
+      const movedState: WorkbenchV2State = {
+        ...initialState,
+        devices: [movedDevice],
+        rules: [{ ...mockRule, start_address: 'D100' }],
+      };
+
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <DeviceListContext.Provider value={[movedDevice]}>
+            <Step3Mapping
+              state={initialState}
+              dispatch={dispatch}
+              onContinue={onContinue}
+              onBack={onBack}
+            />
+          </DeviceListContext.Provider>
+        </QueryClientProvider>,
+      );
+      dispatch.mockClear();
+
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <DeviceListContext.Provider value={[movedDevice]}>
+            <Step3Mapping
+              state={movedState}
+              dispatch={dispatch}
+              onContinue={onContinue}
+              onBack={onBack}
+            />
+          </DeviceListContext.Provider>
+        </QueryClientProvider>,
+      );
+
+      const initCalls = dispatch.mock.calls.filter(
+        ([action]) => action?.type === 'initMappingsForPoints',
+      );
+      expect(initCalls).toHaveLength(1);
+      expect(initCalls[0][0].points).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'rule-01-p-0', device_id: 'dev-01', rule_id: 'rule-01', address: 'D100' }),
+          expect.objectContaining({ id: 'rule-01-p-1', device_id: 'dev-01', rule_id: 'rule-01', address: 'D101' }),
+        ]),
+      );
+    });
+
     it('只應為 enabled points 初始化 Point → Tag rows', () => {
       const dispatch = vi.fn();
       const onContinue = vi.fn();

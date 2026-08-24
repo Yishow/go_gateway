@@ -145,6 +145,28 @@
       "enable_selected": "Enable Selected",
       "clear_selection": "Clear Selection"
     },
+    "editor": {
+      "addr_hint_modbus": "e.g. 40001",
+      "addr_hint_plc": "e.g. D0, M0, W0",
+      "addr_invalid": "Enter an address supported by the selected protocol."
+    },
+    "rule_tabs": {
+      "new_rule_name": "Rule {{index}}",
+      "rule_color": "rule color"
+    },
+    "summary": {
+      "range_label": "Address range:",
+      "register_count": "{{count}} registers (length {{stride}})",
+      "invalid_address": "Address is invalid for the selected protocol.",
+      "function": {
+        "fatek": "FATEK {{label}}",
+        "mc": "MC 3E {{label}}",
+        "coil": "Coil (0x)",
+        "discrete_input": "Discrete Input (1x)",
+        "input_register": "Input Register (3x)",
+        "holding_register": "Holding Register (4x)"
+      }
+    },
     "labels": {
       "current_grid": "Current Rule Points Grid",
       "function_code": "Modbus Function Code",
@@ -253,6 +275,8 @@
     "overview_scope": "Rules / points",
     "overview_scope_value": "{{rules}} rules / {{points}} points",
     "overview_targets": "Enabled columns",
+    "share_output_title": "Local Share output",
+    "share_output_subtitle": "Non-Modbus source points are exposed through holding registers independently of database targets.",
     "delivery_readiness": "Connection readiness",
     "delivery_readiness_ready": "Reachable",
     "delivery_readiness_unreachable": "Unreachable",

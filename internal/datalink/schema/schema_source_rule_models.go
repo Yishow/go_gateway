@@ -29,6 +29,12 @@ type SourceRule struct {
 	ScaleOffset *float64 `json:"scale_offset,omitempty" db:"scale_offset"`
 	// DataFormat 多暫存器／浮點解碼字節序（ABCD、BADC、CDAB、DCBA）；空字串表示使用設備連線預設。
 	DataFormat string `json:"data_format,omitempty" db:"data_format"`
+	// ShareEnabled controls whether this rule is exposed through the local Modbus Share output.
+	ShareEnabled bool `json:"share_enabled" db:"share_enabled"`
+	// ShareStartRegister is the optional local Modbus holding-register start address.
+	ShareStartRegister *int `json:"share_start_register" db:"share_start_register"`
+	// ShareStride is the optional number of local Modbus registers allocated per point.
+	ShareStride *int `json:"share_stride" db:"share_stride"`
 }
 
 // SourceRuleLink 記錄來源規則衍生出的下游實體關聯。

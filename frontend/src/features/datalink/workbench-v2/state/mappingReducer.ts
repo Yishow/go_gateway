@@ -28,14 +28,21 @@ function withLocalValue(mapping: Mapping): Mapping {
   };
 }
 
-function isSamePointRow(mapping: Mapping, point: Point): boolean {
-  if (mapping.rule_id && mapping.rule_id !== point.rule_id) {
+function normalizedAddress(address?: string): string | undefined {
+  return address?.trim().toUpperCase();
+}
+
+function isSamePointRow(mapping: Mapping, point: Point, previousPoint?: Point): boolean {
+  const ruleId = mapping.rule_id ?? previousPoint?.rule_id;
+  if (ruleId && ruleId !== point.rule_id) {
     return false;
   }
-  if (mapping.device_id && mapping.device_id !== point.device_id) {
+  const deviceId = mapping.device_id ?? previousPoint?.device_id;
+  if (deviceId && deviceId !== point.device_id) {
     return false;
   }
-  if (mapping.address && mapping.address.trim().toUpperCase() !== point.address.trim().toUpperCase()) {
+  const address = normalizedAddress(mapping.address ?? previousPoint?.address);
+  if (address && address !== normalizedAddress(point.address)) {
     return false;
   }
   return true;
@@ -47,7 +54,8 @@ export function mappingReducer(state: WorkbenchV2State, action: WorkbenchV2Actio
       const nextMappings: Record<string, Mapping> = {};
       action.points.forEach((p: Point, idx: number) => {
         const current = state.mappings[p.id];
-        if (current && isSamePointRow(current, p)) {
+        const previousPoint = state.points.find((candidate) => candidate.id === p.id);
+        if (current && isSamePointRow(current, p, previousPoint)) {
           nextMappings[p.id] = current;
         } else {
           nextMappings[p.id] = buildDefaultMapping(p, idx);

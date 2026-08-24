@@ -7,12 +7,14 @@ import {
   useShareLayout,
   useConflictAddrs,
   useRulePoints,
+  useDeviceProtocolMap,
 } from '../../state/selectors';
 import { RuleTabRail } from './RuleTabRail';
 import { RuleEditor } from './RuleEditor';
 import { PointGridToolbar } from './PointGridToolbar';
 import { PointGrid } from './PointGrid';
 import { MergedPointTable } from './MergedPointTable';
+import { addressParser } from '../../../../../utils/addressParser';
 
 export interface Step2RuleProps {
   state: WorkbenchV2State;
@@ -36,21 +38,30 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   const { rules, devices, selectedRuleId, settings } = state;
   const [gridSelection, setGridSelection] = useState<Set<string>>(new Set());
 
-  // 1. 取得備用設備 ID 並衍生全域點位與衝突
+  // 1. 取得備用設備 ID 與設備協議對照表並衍生全域點位與衝突
   const fallbackDeviceId = devices[0]?.id || 'dev-01';
-  const allPoints = useAllPoints(rules, fallbackDeviceId);
+  const deviceProtocolMap = useDeviceProtocolMap(devices);
+  const allPoints = useAllPoints(rules, fallbackDeviceId, deviceProtocolMap);
   const conflictAddrs = useConflictAddrs(allPoints);
+  const invalidEnabledRules = rules.filter((rule) => (
+    rule.enabled && !addressParser.validate(
+      rule.start_address,
+      deviceProtocolMap[rule.device_id] || 'modbus_tcp',
+    ).valid
+  ));
 
   // 2. 計算全域 Modbus Share 佈局
   const shareLayouts = useShareLayout(rules, settings.modbus_share.base_register);
 
   // 3. 取得當前選中規則及相關點位衍生狀態
   const currentRule = rules.find((r) => r.id === selectedRuleId) || rules[0];
+  const currentDevice = devices.find((d) => d.id === currentRule?.device_id);
   const skippedSet = new Set(currentRule?.skipped_addresses || []);
   const currentRulePoints = useRulePoints(
     currentRule,
     currentRule?.device_id || fallbackDeviceId,
-    skippedSet
+    skippedSet,
+    currentDevice?.protocol || 'modbus_tcp',
   );
   const currentShareLayout = shareLayouts[currentRule?.id] || null;
 
@@ -230,6 +241,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
         devices={devices}
         conflictAddrs={conflictAddrs}
         shareLayouts={shareLayouts}
+        invalidRules={invalidEnabledRules}
         onContinue={onContinue}
       />
     </div>

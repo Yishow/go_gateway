@@ -49,6 +49,9 @@ export function toStudioV2RuleCreateRequest(rule: Rule): CreateSourceRuleRequest
     scale_multiplier: rule.scale_multiplier,
     scale_offset: rule.scale_offset,
     data_format: rule.data_format,
+    share_enabled: rule.share_enabled,
+    share_start_register: rule.share_start_register,
+    share_stride: rule.share_stride,
   };
 }
 
@@ -64,6 +67,9 @@ export function toStudioV2RuleUpdateRequest(rule: Rule): StudioV2UpdateSourceRul
     scale_multiplier: rule.scale_multiplier,
     scale_offset: rule.scale_offset,
     data_format: rule.data_format,
+    share_enabled: rule.share_enabled,
+    share_start_register: rule.share_start_register,
+    share_stride: rule.share_stride,
   };
 }
 
@@ -83,9 +89,9 @@ export function hydrateStudioV2Rule(record: SourceRuleRecord): Rule {
     scale_offset: record.scale_offset ?? 0,
     data_format: (record.data_format ?? '') as Rule['data_format'],
     skipped_addresses: [...record.skipped_addresses],
-    share_enabled: false,
-    share_start_register: null,
-    share_stride: null,
+    share_enabled: record.share_enabled ?? false,
+    share_start_register: record.share_start_register ?? null,
+    share_stride: record.share_stride ?? null,
     persisted: true,
     save_state: 'saved',
     save_error: null,

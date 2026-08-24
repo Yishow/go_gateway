@@ -25,8 +25,11 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
       naming_prefix: string;
       save_state: string;
       save_error?: string | null;
+      share_enabled: boolean;
+      share_start_register: number | null;
+      share_stride: number | null;
     }>;
-  }>) => (
+    }>) => (
     <div data-testid="rule-autosave-shell">
       <div data-testid="rule-ownership">{state.rules.map((rule) => `${rule.id}:${rule.device_id}`).join(',')}</div>
       {state.rules.map((rule) => (
@@ -34,6 +37,9 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
           <div data-testid={`rule-prefix-${rule.id}`}>{rule.naming_prefix}</div>
           <div data-testid={`rule-save-state-${rule.id}`}>{rule.save_state}</div>
           <div data-testid={`rule-save-error-${rule.id}`}>{rule.save_error ?? ''}</div>
+          <div data-testid={`rule-share-${rule.id}`}>
+            {String(rule.share_enabled)}:{String(rule.share_start_register)}:{String(rule.share_stride)}
+          </div>
         </div>
       ))}
       <button
@@ -98,6 +104,30 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
           ruleId: 'rule-B',
           patch: { naming_prefix: 'B_SAVED_' },
         })}
+      />
+      <button
+        type="button"
+        data-testid="patch-rule-A-share"
+        onClick={() => actions.dispatch({
+          type: 'updateRule',
+          ruleId: 'rule-A',
+          patch: { share_enabled: true, share_start_register: 40001, share_stride: 1 },
+        })}
+      />
+      <button
+        type="button"
+        data-testid="toggle-rule-A-share"
+        onClick={() => actions.dispatch({ type: 'toggleRuleShareEnabled', ruleId: 'rule-A' })}
+      />
+      <button
+        type="button"
+        data-testid="update-rule-A-share-start"
+        onClick={() => actions.dispatch({ type: 'updateRuleShareStart', ruleId: 'rule-A', shareStart: 40011 })}
+      />
+      <button
+        type="button"
+        data-testid="update-rule-A-share-stride"
+        onClick={() => actions.dispatch({ type: 'updateRuleShareStride', ruleId: 'rule-A', shareStride: 2 })}
       />
     </div>
   ),
@@ -286,6 +316,78 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
       expect(screen.getByTestId('rule-save-state-rule-A')).toHaveTextContent('save-error');
       expect(screen.getByTestId('rule-save-state-rule-B')).toHaveTextContent('saved');
       expect(screen.getByTestId('rule-save-error-rule-A')).toHaveTextContent('save failed');
+    });
+  });
+
+  it('hydrates persisted Share fields and autosaves a direct Share patch', async () => {
+    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([
+      ruleFixture({ share_enabled: true, share_start_register: 40001, share_stride: 1 }),
+    ]);
+    vi.mocked(studioV2RulesAPI.update).mockResolvedValue(
+      runtimeApplied(ruleFixture({ share_enabled: true, share_start_register: 40001, share_stride: 1 })),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rule-share-rule-A')).toHaveTextContent('true:40001:1');
+    });
+
+    fireEvent.click(screen.getByTestId('patch-rule-A-share'));
+
+    await waitFor(() => {
+      expect(studioV2RulesAPI.update).toHaveBeenCalledWith(
+        'rule-A',
+        expect.objectContaining({
+          share_enabled: true,
+          share_start_register: 40001,
+          share_stride: 1,
+        }),
+      );
+    });
+  });
+
+  it('autosaves toggle, start-register, and stride Share actions', async () => {
+    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([
+      ruleFixture({ share_enabled: false, share_start_register: null, share_stride: null }),
+    ]);
+    vi.mocked(studioV2RulesAPI.update).mockImplementation(async (_ruleId, request) =>
+      runtimeApplied(ruleFixture({
+        share_enabled: request.share_enabled ?? false,
+        share_start_register: request.share_start_register ?? null,
+        share_stride: request.share_stride ?? null,
+      })),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('rule-share-rule-A')).toHaveTextContent('false:null:null');
+    });
+
+    fireEvent.click(screen.getByTestId('toggle-rule-A-share'));
+    await waitFor(() => {
+      expect(studioV2RulesAPI.update).toHaveBeenCalledWith(
+        'rule-A',
+        expect.objectContaining({ share_enabled: true }),
+      );
+    });
+
+    fireEvent.click(screen.getByTestId('update-rule-A-share-start'));
+    await waitFor(() => {
+      expect(studioV2RulesAPI.update).toHaveBeenCalledWith(
+        'rule-A',
+        expect.objectContaining({ share_start_register: 40011 }),
+      );
+    });
+
+    fireEvent.click(screen.getByTestId('update-rule-A-share-stride'));
+
+    await waitFor(() => {
+      expect(studioV2RulesAPI.update).toHaveBeenCalledWith(
+        'rule-A',
+        expect.objectContaining({ share_stride: 2 }),
+      );
     });
   });
 });

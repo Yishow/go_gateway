@@ -209,7 +209,7 @@ export interface SourceRuleRecord {
   /** 偏移量（可空）。 */
   scale_offset?: number;
   /** 多暫存器／浮點解碼字節序（可空）。空字串表示使用連線預設。 */
-  data_format?: string;
+  data_format?: string; share_enabled?: boolean; share_start_register?: number | null; share_stride?: number | null;
 }
 
 /** 建立來源規則請求 */
@@ -232,7 +232,7 @@ export interface CreateSourceRuleRequest {
   /** 偏移量（可空）。 */
   scale_offset?: number;
   /** 字節序格式（可空）。 */
-  data_format?: string;
+  data_format?: string; share_enabled?: boolean; share_start_register?: number | null; share_stride?: number | null;
 }
 
 /** 更新來源規則請求 */
@@ -254,7 +254,7 @@ export interface UpdateSourceRuleRequest {
   /**
    * 字節序格式；傳 `null` 可清空為連線預設（須與其他欄位一併送出以觸發後端更新）。
    */
-  data_format?: string | null;
+  data_format?: string | null; share_enabled?: boolean; share_start_register?: number | null; share_stride?: number | null;
 }
 
 export interface StudioV2WorkspaceMappingRecord {

@@ -83,6 +83,13 @@ export interface ShareLayout {
   auto: boolean;
 }
 
+export type PointFunctionType =
+  | 'coil'
+  | 'discrete_input'
+  | 'input_register'
+  | 'holding_register'
+  | (string & {});
+
 export interface Point {
   id: string;
   device_id: string;
@@ -91,7 +98,7 @@ export interface Point {
   name: string;
   address: string;
   data_type: string;
-  function: 'coil' | 'discrete_input' | 'input_register' | 'holding_register';
+  function: PointFunctionType;
   width: number;
   enabled: boolean;
   skipped: boolean;

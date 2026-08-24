@@ -11,7 +11,7 @@ import { useStudioV2MappingAutosave } from './useStudioV2MappingAutosave';
 import { useStudioV2DatabaseAutosave } from './useStudioV2DatabaseAutosave';
 import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { deriveAllPoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
-import type { StudioV2WorkspaceMappingRecord, StudioV2WorkspaceDatabaseTargetRecord } from '../../../types/datalink';
+import type { StudioV2WorkspaceMappingRecord, StudioV2WorkspaceDatabaseTargetRecord, ProtocolType } from '../../../types/datalink';
 
 type SaveMeta = {
   inFlight: boolean;
@@ -24,7 +24,6 @@ function saveMetaFor(store: Record<string, SaveMeta>, deviceId: string): SaveMet
   if (!store[deviceId]) {
     store[deviceId] = { inFlight: false, pending: false };
   }
-
   return store[deviceId];
 }
 
@@ -209,7 +208,8 @@ export function useStudioV2AutosaveState(enabled: boolean) {
       .filter(canHydrateStudioV2Rule)
       .map(hydrateStudioV2Rule);
     const fallbackDeviceId = hydratedDevices[0]?.id || 'dev-01';
-    const enabledPoints = deriveAllPoints(hydratedRules, fallbackDeviceId).filter((point) => point.enabled && !point.skipped);
+    const deviceProtocolMap: Record<string, ProtocolType> = Object.fromEntries(hydratedDevices.map((d) => [d.id, d.protocol]));
+    const enabledPoints = deriveAllPoints(hydratedRules, fallbackDeviceId, deviceProtocolMap).filter((point) => point.enabled && !point.skipped);
     const hydratedConnector = databaseAutosave.databaseConfigQuery.data
       ? hydrateStudioV2DatabaseConnector(databaseAutosave.databaseConfigQuery.data)
       : stateRef.current.db.connector;

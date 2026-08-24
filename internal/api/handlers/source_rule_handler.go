@@ -41,7 +41,10 @@ type sourceRuleResponse struct {
 	// ScaleOffset 偏移量（可空）
 	ScaleOffset *float64 `json:"scale_offset,omitempty"`
 	// DataFormat 字節序格式（可空）
-	DataFormat string `json:"data_format,omitempty"`
+	DataFormat         string `json:"data_format,omitempty"`
+	ShareEnabled       bool   `json:"share_enabled"`
+	ShareStartRegister *int   `json:"share_start_register"`
+	ShareStride        *int   `json:"share_stride"`
 	// RuntimeApplyStatus V2 autosave 成功後的 runtime 套用狀態。
 	RuntimeApplyStatus string `json:"runtime_apply_status,omitempty"`
 	// RuntimeApplyMessage 只在 apply_failed 時帶出錯誤說明。
@@ -126,6 +129,8 @@ func (h *SourceRuleHandler) Update(c *gin.Context) {
 	_, req.ScaleMultiplierSet = raw["scale_multiplier"]
 	_, req.ScaleOffsetSet = raw["scale_offset"]
 	_, req.DataFormatSet = raw["data_format"]
+	_, req.ShareStartRegisterSet = raw["share_start_register"]
+	_, req.ShareStrideSet = raw["share_stride"]
 
 	rule, err := h.svc.Update(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
@@ -188,23 +193,26 @@ func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 	}
 
 	return sourceRuleResponse{
-		ID:               rule.ID,
-		DeviceID:         rule.DeviceID,
-		StartAddress:     rule.StartAddress,
-		Count:            rule.Count,
-		DataType:         string(rule.DataType),
-		NamingPrefix:     rule.NamingPrefix,
-		Enabled:          rule.Enabled,
-		Locked:           rule.Locked,
-		Origin:           rule.Origin,
-		TemplateName:     rule.TemplateName,
-		SkippedAddresses: skipped,
-		CreatedAt:        rule.CreatedAt.Format(time.RFC3339Nano),
-		UpdatedAt:        rule.UpdatedAt.Format(time.RFC3339Nano),
-		RevisionID:       rule.RevisionID,
-		TargetDataType:   targetDataType,
-		ScaleMultiplier:  rule.ScaleMultiplier,
-		ScaleOffset:      rule.ScaleOffset,
-		DataFormat:       rule.DataFormat,
+		ID:                 rule.ID,
+		DeviceID:           rule.DeviceID,
+		StartAddress:       rule.StartAddress,
+		Count:              rule.Count,
+		DataType:           string(rule.DataType),
+		NamingPrefix:       rule.NamingPrefix,
+		Enabled:            rule.Enabled,
+		Locked:             rule.Locked,
+		Origin:             rule.Origin,
+		TemplateName:       rule.TemplateName,
+		SkippedAddresses:   skipped,
+		CreatedAt:          rule.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:          rule.UpdatedAt.Format(time.RFC3339Nano),
+		RevisionID:         rule.RevisionID,
+		TargetDataType:     targetDataType,
+		ScaleMultiplier:    rule.ScaleMultiplier,
+		ScaleOffset:        rule.ScaleOffset,
+		DataFormat:         rule.DataFormat,
+		ShareEnabled:       rule.ShareEnabled,
+		ShareStartRegister: rule.ShareStartRegister,
+		ShareStride:        rule.ShareStride,
 	}
 }

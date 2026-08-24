@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
@@ -23,9 +22,10 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 		INSERT INTO source_rules (
 			id, device_id, start_address, count, data_type, naming_prefix,
 			enabled, locked, origin, template_name, skipped_addresses,
-			target_data_type, scale_multiplier, scale_offset, data_format, revision_id,
+			target_data_type, scale_multiplier, scale_offset, data_format,
+			share_enabled, share_start_register, share_stride, revision_id,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var targetDataType interface{}
@@ -41,6 +41,16 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 	var scaleOffset interface{}
 	if rule.ScaleOffset != nil {
 		scaleOffset = *rule.ScaleOffset
+	}
+
+	var shareStartRegister interface{}
+	if rule.ShareStartRegister != nil {
+		shareStartRegister = *rule.ShareStartRegister
+	}
+
+	var shareStride interface{}
+	if rule.ShareStride != nil {
+		shareStride = *rule.ShareStride
 	}
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -59,6 +69,9 @@ func (r *SQLRepository) Create(ctx context.Context, rule *schema.SourceRule) err
 		scaleMultiplier,
 		scaleOffset,
 		rule.DataFormat,
+		rule.ShareEnabled,
+		shareStartRegister,
+		shareStride,
 		rule.RevisionID,
 		rule.CreatedAt,
 		rule.UpdatedAt,
@@ -75,6 +88,7 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		SET start_address = ?, count = ?, data_type = ?, naming_prefix = ?,
 		    enabled = ?, locked = ?, origin = ?, template_name = ?, skipped_addresses = ?,
 		    target_data_type = ?, scale_multiplier = ?, scale_offset = ?, data_format = ?,
+		    share_enabled = ?, share_start_register = ?, share_stride = ?,
 		    updated_at = ?, revision_id = ?
 		WHERE id = ?
 	`
@@ -94,6 +108,16 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		scaleOffset = *rule.ScaleOffset
 	}
 
+	var shareStartRegister interface{}
+	if rule.ShareStartRegister != nil {
+		shareStartRegister = *rule.ShareStartRegister
+	}
+
+	var shareStride interface{}
+	if rule.ShareStride != nil {
+		shareStride = *rule.ShareStride
+	}
+
 	result, err := r.db.ExecContext(ctx, query,
 		rule.StartAddress,
 		rule.Count,
@@ -108,6 +132,9 @@ func (r *SQLRepository) Update(ctx context.Context, rule *schema.SourceRule) err
 		scaleMultiplier,
 		scaleOffset,
 		rule.DataFormat,
+		rule.ShareEnabled,
+		shareStartRegister,
+		shareStride,
 		rule.UpdatedAt,
 		rule.RevisionID,
 		rule.ID,
@@ -145,6 +172,7 @@ func (r *SQLRepository) GetByID(ctx context.Context, id string) (*schema.SourceR
 		SELECT id, device_id, start_address, count, data_type, naming_prefix,
 		       enabled, locked, origin, template_name, skipped_addresses,
 		       target_data_type, scale_multiplier, scale_offset, data_format,
+		       share_enabled, share_start_register, share_stride,
 		       created_at, updated_at, revision_id
 		FROM source_rules WHERE id = ?
 	`, id)
@@ -156,6 +184,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 		SELECT id, device_id, start_address, count, data_type, naming_prefix,
 		       enabled, locked, origin, template_name, skipped_addresses,
 		       target_data_type, scale_multiplier, scale_offset, data_format,
+		       share_enabled, share_start_register, share_stride,
 		       created_at, updated_at, revision_id
 		FROM source_rules
 		WHERE 1 = 1
@@ -361,79 +390,6 @@ func (r *SQLRepository) DeleteCandidateSnapshots(ctx context.Context, ruleID, re
 		return fmt.Errorf("刪除候選快照失敗: %w", err)
 	}
 	return nil
-}
-
-type rowScanner interface {
-	Scan(dest ...interface{}) error
-}
-
-func scanRule(row rowScanner) (*schema.SourceRule, error) {
-	var rule schema.SourceRule
-	var templateName sql.NullString
-	var skipped sql.NullString
-	var targetDataType sql.NullString
-	var scaleMultiplier sql.NullFloat64
-	var scaleOffset sql.NullFloat64
-	var dataFormat sql.NullString
-	var createdAt string
-	var updatedAt string
-	err := row.Scan(
-		&rule.ID,
-		&rule.DeviceID,
-		&rule.StartAddress,
-		&rule.Count,
-		&rule.DataType,
-		&rule.NamingPrefix,
-		&rule.Enabled,
-		&rule.Locked,
-		&rule.Origin,
-		&templateName,
-		&skipped,
-		&targetDataType,
-		&scaleMultiplier,
-		&scaleOffset,
-		&dataFormat,
-		&createdAt,
-		&updatedAt,
-		&rule.RevisionID,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrSourceRuleNotFound
-		}
-		return nil, fmt.Errorf("掃描來源規則失敗: %w", err)
-	}
-
-	rule.TemplateName = strings.TrimSpace(templateName.String)
-	rule.SkippedAddresses = skipped.String
-
-	if targetDataType.Valid {
-		dt := schema.DataType(targetDataType.String)
-		rule.TargetDataType = &dt
-	}
-	if scaleMultiplier.Valid {
-		rule.ScaleMultiplier = &scaleMultiplier.Float64
-	}
-	if scaleOffset.Valid {
-		rule.ScaleOffset = &scaleOffset.Float64
-	}
-	if dataFormat.Valid {
-		rule.DataFormat = strings.TrimSpace(dataFormat.String)
-	}
-
-	rule.CreatedAt, err = common.ParseTimeString(createdAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析來源規則建立時間失敗: %w", err)
-	}
-	rule.UpdatedAt, err = common.ParseTimeString(updatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("解析來源規則更新時間失敗: %w", err)
-	}
-	return &rule, nil
-}
-
-func scanRuleRows(rows *sql.Rows) (*schema.SourceRule, error) {
-	return scanRule(rows)
 }
 
 func scanLinkRows(rows *sql.Rows) (*schema.SourceRuleLink, error) {

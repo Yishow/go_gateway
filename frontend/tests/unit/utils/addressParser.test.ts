@@ -10,6 +10,7 @@ describe('AddressParser', () => {
         area: 'HR',
         startNumber: 1,
         raw: '40001',
+        type: 'word',
       });
     });
 
@@ -27,6 +28,7 @@ describe('AddressParser', () => {
         area: 'D',
         startNumber: 100,
         raw: 'D0100',
+        type: 'word',
       });
     });
 
@@ -37,6 +39,7 @@ describe('AddressParser', () => {
         area: 'D',
         startNumber: 100,
         raw: 'D100', // raw is input
+        type: 'word',
       });
     });
   });
@@ -49,6 +52,18 @@ describe('AddressParser', () => {
         area: 'D',
         startNumber: 100,
         raw: 'D100',
+        type: 'word',
+      });
+    });
+
+    it('should parse X bit contact address as Hex', () => {
+      const result = addressParser.parse('X10', 'mc_3e');
+      expect(result).toEqual({
+        protocol: 'mc_3e',
+        area: 'X',
+        startNumber: 16,
+        raw: 'X10',
+        type: 'bit',
       });
     });
   });
@@ -70,6 +85,17 @@ describe('AddressParser', () => {
 
     it('should return invalid for incorrect format', () => {
       expect(addressParser.validate('INVALID', 'modbus_tcp').valid).toBe(false);
+    });
+
+    it('should fail explicitly when offset receives an invalid protocol address', () => {
+      expect(() => addressParser.offset('Z999', 1, 'mc_3e')).toThrow(/Invalid MC3E address/);
+      expect(() => addressParser.offset('', 1, 'mc_3e')).toThrow(/Invalid MC3E address/);
+    });
+
+    it('should advance MC3E X contacts using hexadecimal suffixes', () => {
+      expect(addressParser.offset('X0', 16, 'mc_3e')).toBe('X10');
+      expect(addressParser.offset('YF', 1, 'mc_3e')).toBe('Y10');
+      expect(addressParser.offset('B10', 1, 'mc_3e')).toBe('B11');
     });
   });
 });

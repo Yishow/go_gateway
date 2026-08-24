@@ -192,6 +192,8 @@ func parseStudioV2WorkspaceUpdateRuleRequest(c *gin.Context) (studioV2WorkspaceU
 	_, req.ScaleMultiplierSet = raw["scale_multiplier"]
 	_, req.ScaleOffsetSet = raw["scale_offset"]
 	_, req.DataFormatSet = raw["data_format"]
+	_, req.ShareStartRegisterSet = raw["share_start_register"]
+	_, req.ShareStrideSet = raw["share_stride"]
 
 	return req, nil
 }

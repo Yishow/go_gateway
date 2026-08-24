@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Rule, Device } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { Field } from '../../components/Field';
@@ -7,6 +8,7 @@ import { Toggle } from '../../components/Toggle';
 import { RangeSummary } from './RangeSummary';
 import { ScaleSection } from './ScaleSection';
 import { ShareSection } from './ShareSection';
+import { addressParser } from '../../../../../utils/addressParser';
 
 export interface RuleEditorProps {
   rule: Rule;
@@ -18,9 +20,9 @@ export interface RuleEditorProps {
 /**
  * 接入規則編輯器面板元件
  * 
- * 落地設計決策：「Rule editor with linked reset」
- * 提供設備選擇、名稱、前綴、起始暫存器與數量的 2x2 緊湊 Grid 編輯區。
- * 底下整合 RangeSummary、ScaleSection、ShareSection 展開區，以及控制該規則啟用的 Toggle。
+ * 落地設計決策：「局部 State vs Reducer：即時數值同步」
+ * 提供設備選擇、名稱、起始地址、點位數量、資料類型、
+ * 縮放比例/偏移、以及 Modbus Share 獨立覆蓋等配置，即時連動全域 Reducer。
  */
 export const RuleEditor: React.FC<RuleEditorProps> = ({
   rule,
@@ -28,6 +30,8 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
   globalShareEnabled,
   dispatch,
 }) => {
+  const { t } = useTranslation('workbench-v2');
+
   const handleTextChange = (field: keyof Rule, val: string) => {
     dispatch({
       type: 'updateRule',
@@ -44,6 +48,17 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
       patch: { [field]: isNaN(val) ? fallback : val },
     });
   };
+
+  const owningDevice = devices.find((d) => d.id === rule.device_id) || devices[0];
+  const protocol = owningDevice?.protocol ?? 'modbus_tcp';
+  const isModbus = protocol.startsWith('modbus');
+  const addressValidation = addressParser.validate(rule.start_address, protocol);
+  const hasValidAddress = rule.start_address.trim().length > 0 && addressValidation.valid;
+  const addressErrorId = `rule-start-error-${rule.id}`;
+  const addrHint = isModbus
+    ? t('step2.editor.addr_hint_modbus', '例: 40001')
+    : t('step2.editor.addr_hint_plc', '例: D0, M0, W0');
+  const addrPlaceholder = isModbus ? '40001' : 'D0';
 
   return (
     <div
@@ -82,13 +97,28 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {/* 起始位址 */}
-        <Field label="起始暫存器位址" hint="例: 40001">
+        <Field label="起始暫存器位址" hint={hasValidAddress ? addrHint : undefined}>
           <Input
             type="text"
             value={rule.start_address}
+            placeholder={addrPlaceholder}
             onChange={(e) => handleTextChange('start_address', e.target.value)}
+            aria-invalid={!hasValidAddress}
+            aria-describedby={!hasValidAddress ? addressErrorId : undefined}
             data-testid="rule-start-input"
           />
+          {!hasValidAddress && (
+            <span
+              id={addressErrorId}
+              data-testid="rule-start-error"
+              className="mt-1 flex items-center gap-1 text-xs text-red-300"
+            >
+              {t(
+                'step2.editor.addr_invalid',
+                '位址不符合所選協議格式，請輸入有效位址。',
+              )}
+            </span>
+          )}
         </Field>
 
         {/* 點位數量 */}
@@ -139,6 +169,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         startAddress={rule.start_address}
         count={rule.count}
         dataType={rule.data_type}
+        protocol={owningDevice?.protocol}
       />
 
       {/* 線性縮放 Details */}

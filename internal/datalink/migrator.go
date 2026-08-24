@@ -98,6 +98,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteSourceRuleTagReviewDecisionStaleColumns(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteSourceRuleModbusShareColumns(db); err != nil {
+			return err
+		}
 
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err
@@ -286,6 +289,44 @@ func ensureSQLiteSourceRuleCandidateSnapshotsTable(db *sql.DB) error {
 	log.Printf("Executing SQLite migration: %s", migrationName)
 	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
+	}
+
+	return nil
+}
+
+func ensureSQLiteSourceRuleModbusShareColumns(db *sql.DB) error {
+	const migrationName = "017_source_rule_modbus_share_sqlite.up.sql"
+
+	columns := []struct {
+		name string
+		ddl  string
+	}{
+		{
+			name: "share_enabled",
+			ddl:  "ALTER TABLE source_rules ADD COLUMN share_enabled INTEGER NOT NULL DEFAULT 0",
+		},
+		{
+			name: "share_start_register",
+			ddl:  "ALTER TABLE source_rules ADD COLUMN share_start_register INTEGER",
+		},
+		{
+			name: "share_stride",
+			ddl:  "ALTER TABLE source_rules ADD COLUMN share_stride INTEGER",
+		},
+	}
+
+	for _, column := range columns {
+		exists, err := sqliteColumnExists(db, "source_rules", column.name)
+		if err != nil {
+			return fmt.Errorf("failed to inspect sqlite column %s for migration %s: %w", column.name, migrationName, err)
+		}
+		if exists {
+			continue
+		}
+		log.Printf("Executing SQLite migration: %s (%s)", migrationName, column.name)
+		if _, err := db.ExecContext(context.Background(), column.ddl); err != nil {
+			return fmt.Errorf("failed to execute migration %s for column %s: %w", migrationName, column.name, err)
+		}
 	}
 
 	return nil

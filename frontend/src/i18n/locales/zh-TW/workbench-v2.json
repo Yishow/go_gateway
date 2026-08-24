@@ -145,6 +145,28 @@
       "enable_selected": "啟用選取",
       "clear_selection": "清除選取"
     },
+    "editor": {
+      "addr_hint_modbus": "例: 40001",
+      "addr_hint_plc": "例: D0, M0, W0",
+      "addr_invalid": "位址不符合所選協議格式，請輸入有效位址。"
+    },
+    "rule_tabs": {
+      "new_rule_name": "規則 {{index}}",
+      "rule_color": "規則色彩"
+    },
+    "summary": {
+      "range_label": "位址範圍：",
+      "register_count": "共 {{count}} 個暫存器 (長度 {{stride}})",
+      "invalid_address": "位址不符合所選協議格式。",
+      "function": {
+        "fatek": "FATEK {{label}}",
+        "mc": "MC 3E {{label}}",
+        "coil": "Coil (0x)",
+        "discrete_input": "Discrete Input (1x)",
+        "input_register": "Input Register (3x)",
+        "holding_register": "Holding Register (4x)"
+      }
+    },
     "labels": {
       "current_grid": "當前規則點位網格",
       "function_code": "Modbus 功能碼",
@@ -253,6 +275,8 @@
     "overview_scope": "規則 / 點位",
     "overview_scope_value": "{{rules}} 組 / {{points}} 點",
     "overview_targets": "已啟用欄位",
+    "share_output_title": "Local Share 輸出",
+    "share_output_subtitle": "非 Modbus 來源點位會獨立映射到 holding register，不受資料庫目標影響。",
     "delivery_readiness": "連線就緒狀態",
     "delivery_readiness_ready": "可連線",
     "delivery_readiness_unreachable": "無法連線",

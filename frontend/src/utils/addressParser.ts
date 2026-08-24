@@ -6,6 +6,7 @@ export interface ParsedAddress {
   area: string;
   startNumber: number;
   raw: string;
+  type: 'bit' | 'word';
 }
 
 export interface ValidationResult {
@@ -66,11 +67,13 @@ export class AddressParser {
       case '4': area = 'HR'; break; // Holding Register
     }
     
+    const isBit = prefix === '0' || prefix === '1';
     return {
       protocol,
       area,
-      startNumber, // Keep as is (e.g. 40001 -> 1) logic handled by driver usually, but for UI we parse what user sees
-      raw: address
+      startNumber,
+      raw: address,
+      type: isBit ? 'bit' : 'word',
     };
   }
 
@@ -81,39 +84,45 @@ export class AddressParser {
       throw new Error(`Invalid Fatek address: ${address}`);
     }
     
+    const area = match[1];
+    const isBit = ['X', 'Y', 'M', 'S', 'T', 'C'].includes(area);
     return {
       protocol,
-      area: match[1],
+      area,
       startNumber: parseInt(match[2], 10),
-      raw: address
+      raw: address,
+      type: isBit ? 'bit' : 'word',
     };
   }
 
   private parseMC3E(address: string, protocol: ProtocolType): ParsedAddress {
-    // MC3E: D, W, M, X, Y, B, etc.
-    const match = address.match(/^([DWMXYB])(\d+)$/); // Simplified regex
-    if (!match) {
-        // Try hex for X/Y/B if needed, but for MVP sticking to digit
-        // Mitsubishi X/Y are usually hex. 
-        // Let's support Hex for X/Y/B if it matches
-        const hexMatch = address.match(/^([XYB])([0-9A-F]+)$/);
-        if (hexMatch) {
-             return {
-                protocol,
-                area: hexMatch[1],
-                startNumber: parseInt(hexMatch[2], 16), // Treat as hex
-                raw: address
-            };
-        }
-        throw new Error(`Invalid MC3E address: ${address}`);
+    // 1. 接點 X, Y, B 恆為十六進位 (Hex) 接點
+    const hexMatch = address.match(/^([XYB])([0-9A-F]+)$/);
+    if (hexMatch) {
+      return {
+        protocol,
+        area: hexMatch[1],
+        startNumber: parseInt(hexMatch[2], 16),
+        raw: address,
+        type: 'bit',
+      };
     }
-    
-    return {
-      protocol,
-      area: match[1],
-      startNumber: parseInt(match[2], 10),
-      raw: address
-    };
+
+    // 2. 暫存器 D, W 與接點 M 採十進位 (Dec)
+    const decMatch = address.match(/^([DWM])(\d+)$/);
+    if (decMatch) {
+      const area = decMatch[1];
+      const isBit = area === 'M';
+      return {
+        protocol,
+        area,
+        startNumber: parseInt(decMatch[2], 10),
+        raw: address,
+        type: isBit ? 'bit' : 'word',
+      };
+    }
+
+    throw new Error(`Invalid MC3E address: ${address}`);
   }
 
   /**
@@ -167,17 +176,13 @@ export class AddressParser {
    * Modbus 位址最小維持 1；FATEK / MC3E 則允許從 0 起算。
    */
   offset(address: string, delta: number, protocol: ProtocolType = 'modbus_tcp'): string {
-    try {
-      const parsed = this.parse(address, protocol);
-      const minNumber =
-        protocol === 'fatek_fbs' || protocol === 'mc_3e'
-          ? 0
-          : 1;
-      const newNumber = Math.max(minNumber, parsed.startNumber + delta);
-      return this.format(parsed.area, newNumber, protocol, parsed.raw);
-    } catch {
-      return address;
-    }
+    const parsed = this.parse(address, protocol);
+    const minNumber =
+      protocol === 'fatek_fbs' || protocol === 'mc_3e'
+        ? 0
+        : 1;
+    const newNumber = Math.max(minNumber, parsed.startNumber + delta);
+    return this.format(parsed.area, newNumber, protocol, parsed.raw);
   }
 
   validate(address: string, protocol: ProtocolType = 'modbus_tcp'): ValidationResult {
@@ -185,11 +190,37 @@ export class AddressParser {
       this.parse(address, protocol);
       return { valid: true };
     } catch (e) {
-        if (e instanceof Error) {
-            return { valid: false, error: e.message };
-        }
-        return { valid: false, error: 'Unknown error' };
+      if (e instanceof Error) {
+        return { valid: false, error: e.message };
+      }
+      return { valid: false, error: 'Unknown error' };
     }
+  }
+
+  /**
+   * 取得位址區域與暫存器屬性（是否為接點/Bit、型態標籤等）
+   */
+  getAreaInfo(address: string, protocol: ProtocolType = 'modbus_tcp'): {
+    area: string;
+    isBit: boolean;
+    typeLabel: string;
+  } {
+    const parsed = this.parse(address, protocol);
+    const isBit = parsed.type === 'bit';
+    if (protocol === 'fatek_fbs' || protocol === 'mc_3e') {
+      return {
+        area: parsed.area,
+        isBit,
+        typeLabel: `${parsed.area} (${isBit ? 'Bit' : 'Word'})`,
+      };
+    }
+
+    // Modbus 系
+    const area = parsed.area;
+    if (area === 'CS') return { area, isBit: true, typeLabel: 'coil' };
+    if (area === 'IS') return { area, isBit: true, typeLabel: 'discrete_input' };
+    if (area === 'IR') return { area, isBit: false, typeLabel: 'input_register' };
+    return { area: 'HR', isBit: false, typeLabel: 'holding_register' };
   }
 }
 

@@ -205,6 +205,14 @@ func cloneRule(rule *schema.SourceRule) *schema.SourceRule {
 		value := *rule.ScaleOffset
 		copy.ScaleOffset = &value
 	}
+	if rule.ShareStartRegister != nil {
+		value := *rule.ShareStartRegister
+		copy.ShareStartRegister = &value
+	}
+	if rule.ShareStride != nil {
+		value := *rule.ShareStride
+		copy.ShareStride = &value
+	}
 	return &copy
 }
 

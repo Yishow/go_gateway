@@ -3,6 +3,10 @@ import { useReducer, useCallback } from 'react';
 import type { ConnectionTestResult } from '../../../../types/datalink';
 import type { WorkbenchV2State, Device, Rule, Mapping, Point, DbRowGroup, ProtocolId, DbConnector, DbTarget, CommitLog, Settings, SettingsConnector } from './types';
 import { getDefaultConfig } from './protocols';
+import { getDefaultPlannerStartAddress } from '../../../../utils/addressParser';
+import { DEFAULT_DEVICE, DEFAULT_RULE } from './defaults';
+import { cascadeRemoveDevice } from './deviceState';
+export { cascadeRemoveDevice } from './deviceState';
 import { ruleReducer } from './ruleReducer';
 import { mappingReducer } from './mappingReducer';
 import { dbReducer } from './dbReducer';
@@ -69,45 +73,6 @@ export type WorkbenchV2Action =
       };
     }
   | { type: 'resetSettingsToDefaults' };
-
-const DEFAULT_DEVICE: Device = {
-  id: 'dev-01',
-  name: 'PLC-生產線-01',
-  description: 'Modbus TCP PLC (Line A 主控)',
-  protocol: 'modbus_tcp',
-  config: { host: '192.168.1.100', port: 502, slave_id: 1, timeout: 5 },
-  status: 'draft',
-  test: null,
-  persisted: false,
-  save_state: 'idle',
-  save_error: null,
-  runtime_apply_status: null,
-  runtime_apply_message: null,
-  availability_status: 'available',
-  availability_reason: null,
-  running: false,
-};
-
-const DEFAULT_RULE: Rule = {
-  id: 'rule-01',
-  device_id: 'dev-01',
-  name: 'Holding Registers',
-  start_address: '40001',
-  count: 8,
-  data_type: 'int16',
-  naming_prefix: 'SENSOR_',
-  enabled: true,
-  scale_multiplier: 0.1,
-  scale_offset: 0,
-  data_format: '',
-  skipped_addresses: [],
-  share_enabled: true,
-  share_start_register: 40001,
-  share_stride: null,
-  persisted: false,
-  save_state: 'idle',
-  save_error: null,
-};
 
 export const INITIAL_STATE: WorkbenchV2State = {
   view: 'flow',
@@ -195,57 +160,6 @@ export const INITIAL_STATE: WorkbenchV2State = {
   committed: false,
 };
 
-/**
- * 刪除設備時連動清理相關的 Rules、Points、Mappings 與 Database Targets
- * 
- * @param state 當前狀態
- * @param deviceId 被刪除的設備 ID
- * @returns 變更後的狀態
- */
-export function cascadeRemoveDevice(state: WorkbenchV2State, deviceId: string): WorkbenchV2State {
-  const devices = state.devices.filter((d) => d.id !== deviceId);
-  const removedRuleIds = new Set(
-    state.rules.filter((r) => r.device_id === deviceId).map((r) => r.id)
-  );
-  const rules = state.rules.filter((r) => r.device_id !== deviceId);
-  const removedPointIds = new Set(
-    state.points.filter((p) => p.device_id === deviceId || removedRuleIds.has(p.rule_id)).map((p) => p.id)
-  );
-  const points = state.points.filter((p) => p.device_id !== deviceId && !removedRuleIds.has(p.rule_id));
-
-  const mappings = { ...state.mappings };
-  Object.keys(mappings).forEach((pointId) => {
-    if (removedPointIds.has(pointId)) {
-      delete mappings[pointId];
-    }
-  });
-
-  const dbTargets = { ...state.db.targets };
-  Object.keys(dbTargets).forEach((pointId) => {
-    if (removedPointIds.has(pointId)) {
-      delete dbTargets[pointId];
-    }
-  });
-
-  let selectedRuleId = state.selectedRuleId;
-  if (selectedRuleId && removedRuleIds.has(selectedRuleId)) {
-    selectedRuleId = rules.length > 0 ? rules[0].id : null;
-  }
-
-  return {
-    ...state,
-    devices,
-    rules,
-    selectedRuleId,
-    points,
-    mappings,
-    db: {
-      ...state.db,
-      targets: dbTargets,
-    },
-  };
-}
-
 // Reducer 狀態轉移函數
 export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2Action): WorkbenchV2State {
   switch (action.type) {
@@ -306,7 +220,11 @@ export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2A
           d.id === action.deviceId ? { ...d, name: action.name } : d
         ),
       };
-    case 'changeDeviceProtocol':
+    case 'changeDeviceProtocol': {
+      const oldDev = state.devices.find((d) => d.id === action.deviceId);
+      const oldDefaultStart = getDefaultPlannerStartAddress(oldDev?.protocol);
+      const newDefaultStart = getDefaultPlannerStartAddress(action.protocol);
+
       return {
         ...state,
         devices: state.devices.map((d) =>
@@ -320,7 +238,13 @@ export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2A
               }
             : d
         ),
+        rules: state.rules.map((r) =>
+          r.device_id === action.deviceId && r.start_address === oldDefaultStart
+            ? { ...r, start_address: newDefaultStart }
+            : r
+        ),
       };
+    }
     case 'startDeviceTest': {
       return {
         ...state,

@@ -25,12 +25,29 @@ function slugifySegment(value: string): string {
   return normalized || 'point';
 }
 
+/**
+ * 依點位資訊建立預設的 Tag Key
+ *
+ * @param point 點位資料
+ * @returns 語意化 Tag Key 字串 (如 dev.sensor.rd0)
+ */
 function buildDefaultTagKey(point: Point): string {
   return [
     slugifySegment(point.device_id),
     slugifySegment(point.name),
     `r${point.address.replace(/[^0-9a-z]/gi, '').toLowerCase()}`,
   ].join('.');
+}
+
+function buildDefaultDisplayName(point: Point): string {
+  const baseName = point.display?.trim() || point.name;
+  const address = point.address.trim();
+
+  if (!address || baseName.toUpperCase().includes(address.toUpperCase())) {
+    return baseName;
+  }
+
+  return `${baseName} (${address})`;
 }
 
 /**
@@ -43,7 +60,7 @@ function buildDefaultTagKey(point: Point): string {
 export function buildDefaultMapping(point: Point, _idx: number): Mapping {
   const value = {
     tag_key: buildDefaultTagKey(point),
-    display_name: point.display?.trim() || point.name,
+    display_name: buildDefaultDisplayName(point),
     unit: point.unit?.trim() || '',
     target_type: 'float64' as const,
     scale: point._rule_scale,
@@ -52,6 +69,9 @@ export function buildDefaultMapping(point: Point, _idx: number): Mapping {
   };
   return {
     point_id: point.id,
+    rule_id: point.rule_id,
+    device_id: point.device_id,
+    address: point.address,
     ...value,
     persisted: false,
     local_value: value,

@@ -8,6 +8,7 @@ import { DestinationOverviewCard } from './DestinationOverviewCard';
 import { SchemaSetupSection } from './SchemaSetupSection';
 import { Step4SupportPanels } from './Step4SupportPanels';
 import { RowGroupPlanner } from './RowGroupPlanner';
+import { ShareOutputSummary } from './ShareOutputSummary';
 import { autoAssignTargets } from '../../state/autoAssignTargets';
 import { getColumnsFor, getDefaultConnector } from '../../state/dbSchemas';
 import { hasRowGroupColumnConflict, hasUnsafeRowGroupUpsert } from '../../state/rowGroupValidation';
@@ -283,6 +284,8 @@ export function Step4Database({
         targets={targets}
         hasConflict={hasConflict}
       />
+
+      <ShareOutputSummary state={state} />
 
       <RowGroupPlanner
         connector={connector}
