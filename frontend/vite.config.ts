@@ -106,6 +106,7 @@ export default defineConfig(({ mode }) => {
         "tests/integration/**/*.{test,spec}.{ts,tsx}",
       ],
       exclude: ["tests/e2e/**"],
+      maxWorkers: 6,
     },
   };
 });

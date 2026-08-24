@@ -100,3 +100,11 @@ describe("vite proxy target", () => {
     expect(config.server?.port).toBe(4173);
   });
 });
+
+describe("vite test configuration", () => {
+  it("caps default Vitest workers at six", () => {
+    const config = buildConfigWithoutAmbientEnv({ command: "serve", mode: "test" });
+
+    expect(config.test?.maxWorkers).toBe(6);
+  });
+});
