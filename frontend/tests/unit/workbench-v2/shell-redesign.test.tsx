@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DatalinkWorkbenchV2Page from '../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page';
 import { Button, SectionCard } from '../../../src/features/datalink/workbench-v2/components';
@@ -114,6 +114,7 @@ describe('Workbench V2 redesign contract', () => {
         view="flow"
         current={1}
         completed={new Set()}
+        step2Ready={true}
         collapsed={false}
         onJump={vi.fn()}
         onSwitchView={vi.fn()}
@@ -122,5 +123,27 @@ describe('Workbench V2 redesign contract', () => {
 
     expect(screen.getByTestId('step-nav-button-1')).toHaveClass('focus-visible:ring-2');
     expect(screen.getByTestId('settings-nav-button')).toHaveClass('focus-visible:ring-2');
+  });
+
+  it('blocks stale completed Step 3 and Step 4 when Step 2 is not ready', () => {
+    const onJump = vi.fn();
+
+    render(
+      <StepRail
+        view="flow"
+        current={1}
+        completed={new Set([1, 2, 3, 4])}
+        step2Ready={false}
+        collapsed={false}
+        onJump={onJump}
+        onSwitchView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('step-nav-button-2')).toBeEnabled();
+    expect(screen.getByTestId('step-nav-button-3')).toBeDisabled();
+    expect(screen.getByTestId('step-nav-button-4')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('step-nav-button-3'));
+    expect(onJump).not.toHaveBeenCalled();
   });
 });

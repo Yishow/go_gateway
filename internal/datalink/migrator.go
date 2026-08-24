@@ -253,18 +253,24 @@ func ensureSQLiteSourceRuleRevisionColumn(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to inspect sqlite column revision_id for migration %s: %w", migrationName, err)
 	}
-	if exists {
-		return nil
+	if !exists {
+		content, err := migrations.FS.ReadFile(migrationName)
+		if err != nil {
+			return fmt.Errorf("failed to read migration file %s: %w", migrationName, err)
+		}
+
+		log.Printf("Executing SQLite migration: %s", migrationName)
+		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
+		}
 	}
 
-	content, err := migrations.FS.ReadFile(migrationName)
-	if err != nil {
-		return fmt.Errorf("failed to read migration file %s: %w", migrationName, err)
-	}
-
-	log.Printf("Executing SQLite migration: %s", migrationName)
-	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
-		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
+	if _, err := db.ExecContext(context.Background(), `
+		UPDATE source_rules
+		SET revision_id = id || ':legacy'
+		WHERE trim(coalesce(revision_id, '')) = ''
+	`); err != nil {
+		return fmt.Errorf("failed to backfill sqlite source-rule revision ids for migration %s: %w", migrationName, err)
 	}
 
 	return nil

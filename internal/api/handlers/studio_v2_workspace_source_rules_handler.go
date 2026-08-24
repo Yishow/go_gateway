@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/schema"
@@ -72,7 +74,7 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 		return
 	}
 	if !workspaceOwnsDevice(record, req.DeviceID) {
-		renderStudioV2WorkspaceValidationError(c, errors.New("device_id does not belong to workspace"))
+		renderStudioV2WorkspaceValidationError(c, fmt.Errorf("device_id does not belong to workspace: device_id=%s", strings.TrimSpace(req.DeviceID)))
 		return
 	}
 
@@ -109,7 +111,7 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
 		return
 	}
 	if req.DeviceID != nil && *req.DeviceID != rule.DeviceID {
-		renderStudioV2WorkspaceValidationError(c, errors.New("workspace rule ownership mismatch"))
+		renderStudioV2WorkspaceValidationError(c, fmt.Errorf("workspace rule ownership mismatch: device_id=%s", strings.TrimSpace(*req.DeviceID)))
 		return
 	}
 

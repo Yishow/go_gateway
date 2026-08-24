@@ -125,7 +125,7 @@ describe('RuleEditor 元件', () => {
 
   it('無效位址應顯示 localized error', () => {
     const dispatch = vi.fn();
-    const mcRule = { ...mockRules[0], start_address: 'Z999' };
+    const mcRule = { ...mockRules[0], device_id: 'dev-mc', start_address: 'Z999' };
     const mcDevice: Device = { id: 'dev-mc', name: 'MC PLC', description: '', protocol: 'mc_3e', config: {}, status: 'draft', test: null };
     render(<RuleEditor rule={mcRule} devices={[mcDevice]} globalShareEnabled={true} dispatch={dispatch} />);
     expect(screen.getByTestId('rule-start-input')).toHaveAttribute('aria-invalid', 'true');
@@ -177,6 +177,8 @@ describe('MergedPointTable 元件', () => {
         devices={mockDevices}
         conflictAddrs={new Set()}
         shareLayouts={{}}
+        readinessIssues={[]}
+        step2Ready={true}
         onContinue={onContinue}
       />
     );
@@ -202,6 +204,8 @@ describe('MergedPointTable 元件', () => {
         devices={mockDevices}
         conflictAddrs={conflicts}
         shareLayouts={{}}
+        readinessIssues={[]}
+        step2Ready={false}
         onContinue={onContinue}
       />
     );
@@ -351,6 +355,83 @@ describe('Step2Rule 整合元件', () => {
     render(<Step2Rule state={state} dispatch={vi.fn()} onContinue={vi.fn()} />);
 
     expect(screen.getByTestId('continue-step3-btn')).toBeDisabled();
-    expect(screen.getByTestId('invalid-rule-warning-rule-invalid')).toHaveTextContent('Invalid MC Rule');
+    expect(screen.getByTestId('readiness-issue-invalid-address-rule-invalid')).toHaveTextContent('Invalid MC Rule');
+  });
+
+  it('停用的無效規則不應阻擋繼續按鈕', () => {
+    const validRule = { ...mockRules[0], id: 'rule-valid', name: 'Valid Rule', start_address: '40001', enabled: true };
+    const disabledInvalidRule = { ...mockRules[0], id: 'rule-disabled-invalid', name: 'Disabled Invalid Rule', device_id: 'dev-mc', start_address: 'Z999', enabled: false };
+    const state = {
+      ...INITIAL_STATE,
+      devices: [
+        mockDevices[0],
+        { id: 'dev-mc', name: 'MC PLC', description: '', protocol: 'mc_3e' as const, config: {}, status: 'draft' as const, test: null },
+      ],
+      rules: [validRule, disabledInvalidRule],
+      selectedRuleId: validRule.id,
+    };
+
+    render(<Step2Rule state={state} dispatch={vi.fn()} onContinue={vi.fn()} />);
+
+    expect(screen.getByTestId('continue-step3-btn')).toBeEnabled();
+    expect(screen.queryByTestId('invalid-rules-warning')).not.toBeInTheDocument();
+  });
+
+  it('規則指向不存在或已刪除的設備時應判定為無效並阻擋繼續', () => {
+    const orphanRule = { ...mockRules[0], id: 'rule-orphan', name: 'Orphan Rule', device_id: 'deleted-device', start_address: '40001', enabled: true };
+    const state = {
+      ...INITIAL_STATE,
+      devices: [mockDevices[0]],
+      rules: [orphanRule],
+      selectedRuleId: orphanRule.id,
+    };
+
+    render(<Step2Rule state={state} dispatch={vi.fn()} onContinue={vi.fn()} />);
+
+    expect(screen.getByTestId('continue-step3-btn')).toBeDisabled();
+    expect(screen.getByTestId('readiness-issue-missing-device-rule-orphan')).toHaveTextContent('Orphan Rule');
+  });
+
+  it('目前選取的孤兒規則不得以第一台設備或 Modbus fallback 衍生點位', () => {
+    const orphanRule = { ...mockRules[0], id: 'rule-orphan', name: 'Orphan Rule', device_id: 'deleted-device', start_address: '40001' };
+    const state = {
+      ...INITIAL_STATE,
+      devices: [mockDevices[0]],
+      rules: [orphanRule],
+      selectedRuleId: orphanRule.id,
+    };
+
+    render(<Step2Rule state={state} dispatch={vi.fn()} onContinue={vi.fn()} />);
+
+    expect(screen.queryByTestId('point-cell-rule-orphan-p-0')).not.toBeInTheDocument();
+    expect(screen.getByTestId('rule-missing-device')).toBeInTheDocument();
+  });
+
+  it('應在 Step 2 顯示可行動且彼此不同的 missing device 與 invalid address 訊息', () => {
+    const orphanRule = { ...mockRules[0], id: 'rule-orphan', name: 'Orphan Rule', device_id: 'deleted-device', start_address: '40001' };
+    const invalidRule = { ...mockRules[0], id: 'rule-invalid', name: 'Invalid Rule', device_id: 'dev-mc', start_address: 'Z999' };
+    const state = {
+      ...INITIAL_STATE,
+      devices: [
+        mockDevices[0],
+        { id: 'dev-mc', name: 'MC PLC', description: '', protocol: 'mc_3e' as const, config: {}, status: 'draft' as const, test: null },
+      ],
+      rules: [orphanRule, invalidRule],
+      selectedRuleId: orphanRule.id,
+    };
+
+    render(<Step2Rule state={state} dispatch={vi.fn()} onContinue={vi.fn()} />);
+
+    const missing = screen.getByTestId('readiness-issue-missing-device-rule-orphan');
+    const invalid = screen.getByTestId('readiness-issue-invalid-address-rule-invalid');
+    const missingWarning = screen.getByTestId('readiness-missing-device-warning');
+    const invalidWarning = screen.getByTestId('readiness-invalid-address-warning');
+    expect(missing).toHaveTextContent('Orphan Rule');
+    expect(missingWarning).toHaveTextContent(/重新選擇|修復|device/i);
+    expect(invalid).toHaveTextContent('Invalid Rule');
+    expect(invalidWarning).toHaveTextContent(/位址|address/i);
+    expect(missing.textContent).not.toBe(invalid.textContent);
+    expect(missing.textContent).not.toMatch(/step2\./);
+    expect(invalid.textContent).not.toMatch(/step2\./);
   });
 });

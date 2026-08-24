@@ -9,8 +9,6 @@ import {
 
 import type { ProtocolType } from '../../../../types/datalink';
 
-const EMPTY_PROTOCOL_MAP: Record<string, ProtocolType> = Object.freeze({});
-
 /**
  * 依設備清單建立設備 ID 至通訊協議對照表 (附帶 caching)
  *
@@ -31,18 +29,16 @@ export function useDeviceProtocolMap(devices: Device[]): Record<string, Protocol
  * 衍生所有規則所對應的點位列表 (附帶 caching)
  *
  * @param rules 規則陣列
- * @param fallbackDeviceId 備用設備 ID
- * @param deviceProtocolMap 設備 ID 與協議對照表 (選填)
+ * @param deviceProtocolMap 設備 ID 與協議對照表
  * @returns 點位陣列
  */
 export function useAllPoints(
   rules: Rule[],
-  fallbackDeviceId: string,
-  deviceProtocolMap: Record<string, ProtocolType> = EMPTY_PROTOCOL_MAP,
+  deviceProtocolMap: Record<string, ProtocolType>,
 ): Point[] {
   return useMemo(() => {
-    return deriveAllPoints(rules, fallbackDeviceId, deviceProtocolMap);
-  }, [rules, fallbackDeviceId, deviceProtocolMap]);
+    return deriveAllPoints(rules, deviceProtocolMap);
+  }, [rules, deviceProtocolMap]);
 }
 
 /**
@@ -77,19 +73,19 @@ export function useConflictAddrs(allPoints: Point[]): Set<string> {
  * 根據單一規則衍生其下的所有點位資訊 (附帶 caching)
  *
  * @param rule 規則資料
- * @param deviceId 所屬設備 ID
+ * @param deviceId 所屬設備 ID (設備不存在時為 undefined)
  * @param skippedSet 已略過的位址集合 (Set)
- * @param protocol 設備通訊協議 (選填，預設 modbus_tcp)
+ * @param protocol 設備通訊協議
  * @returns 點位陣列
  */
 export function useRulePoints(
   rule: Rule | null | undefined,
-  deviceId: string,
+  deviceId: string | undefined,
   skippedSet: Set<string>,
-  protocol: ProtocolType = 'modbus_tcp',
+  protocol?: ProtocolType,
 ): Point[] {
   return useMemo(() => {
-    if (!rule) {
+    if (!rule || !deviceId || !protocol) {
       return [];
     }
     return derivePoints(rule, deviceId, skippedSet, protocol);

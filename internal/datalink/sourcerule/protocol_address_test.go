@@ -16,6 +16,26 @@ func TestOffsetAddress_MC3EHexContactUsesHexadecimalRadix(t *testing.T) {
 	require.Equal(t, "X10", got)
 }
 
+func TestOffsetAddress_ProtocolRadixBoundarySpecTable(t *testing.T) {
+	tests := []struct {
+		protocol schema.ProtocolType
+		start    string
+		offset   int
+		expected string
+	}{
+		{protocol: schema.ProtocolMC3E, start: "X0", offset: 16, expected: "X10"},
+		{protocol: schema.ProtocolMC3E, start: "D0", offset: 16, expected: "D16"},
+		{protocol: schema.ProtocolFatekFBs, start: "R0", offset: 16, expected: "R16"},
+		{protocol: schema.ProtocolModbusTCP, start: "40001", offset: 2, expected: "40003"},
+	}
+
+	for _, tt := range tests {
+		got, err := offsetAddress(tt.start, tt.offset, tt.protocol)
+		require.NoError(t, err)
+		require.Equal(t, tt.expected, got)
+	}
+}
+
 func TestOffsetAddress_InvalidMC3EAddressDoesNotFallBackToOriginal(t *testing.T) {
 	got, err := offsetAddress("Z999", 1, schema.ProtocolMC3E)
 	require.Error(t, err)

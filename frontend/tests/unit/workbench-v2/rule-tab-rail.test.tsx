@@ -109,6 +109,55 @@ describe('RuleTabRail 元件', () => {
     );
   });
 
+  it('選取孤兒規則時新增規則應改用目前第一台設備及其協議預設位址', () => {
+    const dispatch = vi.fn();
+    const devices: Device[] = [
+      { id: 'dev-current', name: 'Current MC PLC', description: '', protocol: 'mc_3e', config: {}, status: 'draft', test: null },
+      ...mockDevices,
+    ];
+    const orphanRules: Rule[] = [
+      { ...mockRules[0], device_id: 'deleted-device' },
+    ];
+
+    render(
+      <RuleTabRail
+        rules={orphanRules}
+        devices={devices}
+        selectedRuleId="rule-1"
+        dispatch={dispatch}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('rule-add-btn'));
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'addRule',
+        rule: expect.objectContaining({
+          device_id: 'dev-current',
+          start_address: 'D0',
+        }),
+      }),
+    );
+  });
+
+  it('沒有設備時新增規則不得製造 phantom device', () => {
+    const dispatch = vi.fn();
+
+    render(
+      <RuleTabRail
+        rules={[]}
+        devices={[]}
+        selectedRuleId={null}
+        dispatch={dispatch}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('rule-add-btn'));
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it('Hover 時應渲染啟用 toggle 與刪除按鈕 (若大於1個規則)', () => {
     const dispatch = vi.fn();
     const twoRules = [

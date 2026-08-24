@@ -32,6 +32,7 @@ import { Step1Device } from '../steps/step1';
 import { Step2Rule } from '../steps/step2';
 import { Step3Mapping } from '../steps/step3';
 import { Step4Database } from '../steps/step4';
+import { isStep2Ready } from '../state/sourceRule';
 
 export interface WorkbenchV2ShellProps {
   state: WorkbenchV2State;
@@ -73,6 +74,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     sidebarCollapsed,
     showSummaryRail,
   } = state;
+  const deviceProtocolMap = Object.fromEntries(state.devices.map((device) => [device.id, device.protocol]));
+  const step2Ready = isStep2Ready(state.rules, deviceProtocolMap);
 
   const {
     setView,
@@ -170,6 +173,9 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   };
 
   const handleContinueStep2 = () => {
+    if (!step2Ready) {
+      return;
+    }
     completeStep(2);
     setCurrent(3);
     document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -274,6 +280,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
               view={view}
               current={current}
               completed={completed}
+              step2Ready={step2Ready}
               collapsed={sidebarCollapsed}
               onJump={setCurrent}
               onSwitchView={setView}

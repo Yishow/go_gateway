@@ -381,6 +381,65 @@ describe('DatalinkWorkbenchV2Page workspace bootstrap', () => {
     expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-point-count', '0');
   });
 
+  it('keeps a persisted orphan rule at Step 2 during hydration', async () => {
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce({
+      id: 'workspace-orphan-rule',
+      kind: 'single',
+      status: 'ready',
+      ordered_device_ids: ['dev-A'],
+      created_at: '2026-05-30T00:00:00Z',
+      updated_at: '2026-05-30T00:00:00Z',
+    });
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
+      {
+        id: 'dev-A',
+        name: 'Line A PLC',
+        description: '',
+        protocol: 'modbus_tcp',
+        status: 'draft',
+        connection_config: '{}',
+        last_test_at: null,
+        last_test_success: null,
+        last_test_error: '',
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      },
+    ]);
+    vi.mocked(studioV2RulesAPI.list).mockResolvedValue([
+      {
+        id: 'rule-orphan',
+        device_id: 'deleted-device',
+        workspace_id: 'workspace-orphan-rule',
+        start_address: '40001',
+        count: 1,
+        data_type: 'int16',
+        naming_prefix: 'ORPHAN_',
+        enabled: true,
+        locked: false,
+        origin: 'manual',
+        skipped_addresses: [],
+        revision_id: 'rev-orphan',
+        scale_multiplier: 1,
+        scale_offset: 0,
+        data_format: '',
+        created_at: '2026-05-30T00:00:00Z',
+        updated_at: '2026-05-30T00:00:00Z',
+      },
+    ]);
+    vi.mocked(studioV2MappingsAPI.list).mockResolvedValue([]);
+    vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(null);
+    vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-rule-count', '1');
+    });
+
+    expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-current', '2');
+    expect(screen.getByTestId('boot-shell')).toHaveAttribute('data-completed', '1');
+  });
+
   it('shows an unrecovered draft warning after reload when prior local draft was not saved', async () => {
     window.sessionStorage.setItem('wbv2_unrecovered_draft', '1');
 

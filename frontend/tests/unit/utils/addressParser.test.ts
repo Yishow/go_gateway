@@ -97,5 +97,12 @@ describe('AddressParser', () => {
       expect(addressParser.offset('YF', 1, 'mc_3e')).toBe('Y10');
       expect(addressParser.offset('B10', 1, 'mc_3e')).toBe('B11');
     });
+
+    it('should satisfy the protocol radix boundary spec table', () => {
+      expect(addressParser.offset('X0', 16, 'mc_3e')).toBe('X10');
+      expect(addressParser.offset('D0', 16, 'mc_3e')).toBe('D16');
+      expect(addressParser.offset('R0', 16, 'fatek_fbs')).toBe('R16');
+      expect(addressParser.offset('40001', 2, 'modbus_tcp')).toBe('40003');
+    });
   });
 });

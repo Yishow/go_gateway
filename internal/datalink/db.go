@@ -51,7 +51,8 @@ type DBConfig struct {
 // - busy_timeout：鎖競爭時等待（毫秒），降低 SQLITE_BUSY。
 // - journal_mode=WAL：讀寫並發較 DELETE 模式友善。
 // - cache=shared、mode=rwc：與 database/sql 連線池共用頁面快取並允許讀寫。
-const DefaultEmbeddedSQLiteDSN = "file:datalink.db?cache=shared&mode=rwc&_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)"
+// - foreign_keys：每個 SQLite 連線都啟用外鍵約束與 cascade 行為。
+const DefaultEmbeddedSQLiteDSN = "file:datalink.db?cache=shared&mode=rwc&_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
 
 // ApplySQLitePoolDefaults 將 *sql.DB 設為單連線池設定，與單檔 SQLite 鎖行為相容。
 // 在仍使用一個 *sql.DB 實例的前提下，可明顯減少並發連線造成的 database is locked。

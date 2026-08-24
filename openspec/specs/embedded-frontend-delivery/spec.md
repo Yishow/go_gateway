@@ -35,6 +35,7 @@ tests:
   - tests/shell/embedded-frontend-delivery.sh
 -->
 
+---
 ### Requirement: Embedded static synchronization mirrors the complete frontend output
 
 Each supported synchronization path SHALL ensure cmd/test_ui/static exists, SHALL remove generated children that are absent from the current frontend/dist while preserving the tracked embed-placeholder.txt, and SHALL copy the complete frontend/dist tree including nested directories and all asset types. Generated children under cmd/test_ui/static other than embed-placeholder.txt SHALL remain ignored by Git.
@@ -68,6 +69,7 @@ tests:
   - tests/shell/embedded-frontend-delivery.sh
 -->
 
+---
 ### Requirement: Build and synchronization failures are surfaced and fail closed
 
 The frontend build and synchronization commands SHALL return a nonzero exit status when dependency installation, frontend source availability, frontend/dist generation, target-directory creation, stale-asset cleanup, or asset copy fails. A failed frontend build, missing frontend source, or missing frontend/dist SHALL NOT be followed by a backend build that is reported as a successful frontend delivery.
@@ -107,6 +109,7 @@ tests:
   - tests/shell/embedded-frontend-delivery.sh
 -->
 
+---
 ### Requirement: Lazy route loading has one deterministic loading and error contract
 
 The application SHALL load heavy existing route modules through route-level dynamic imports and SHALL render one deterministic Suspense fallback while the selected route chunk is pending. A rejected route or vendor import SHALL reach the existing error boundary as an explicit error state. The implementation MUST preserve each route component's existing props and route parameters.
@@ -136,6 +139,7 @@ tests:
   - frontend/tests/unit/app-routing-lazy-load.test.tsx
 -->
 
+---
 ### Requirement: Existing route product semantics remain unchanged during delivery refactoring
 
 The embedded delivery implementation SHALL retain the current route contract: the default entry resolves to /studio/v2, /studio remains the full-workbench fallback, /studio/runtime remains the focused monitor, /test remains an independent engineering tool, and /gateway/* remains experimental. Lazy loading and chunk grouping SHALL NOT alter redirects, route parameters, or the identity of the existing route components.
@@ -174,6 +178,7 @@ tests:
   - frontend/tests/e2e/embedded-frontend-delivery.spec.ts
 -->
 
+---
 ### Requirement: Embedded browser smoke proves the full asset graph is loadable
 
 A built embedded binary served with a synchronized static tree SHALL load the existing core route families without a JavaScript chunk or vendor asset returning HTTP 404. The smoke verification SHALL check both network responses and the route identity or redirect assertions for /studio/v2, /studio, /studio/runtime, /test, and /gateway/*.
@@ -203,6 +208,7 @@ tests:
   - frontend/tests/e2e/embedded-frontend-delivery.spec.ts
 -->
 
+---
 ### Requirement: Playwright webServer startup is cross-platform
 
 The frontend Playwright configuration SHALL provide a webServer command and environment setup that the exact command `npm run test:e2e -- tests/e2e/embedded-frontend-delivery.spec.ts`, launched from the `frontend` directory, can start on Windows and POSIX hosts. The configuration SHALL wait for its declared readiness URL before route assertions begin and SHALL NOT depend on a POSIX-only inline environment assignment or shell-chaining syntax.
@@ -232,6 +238,7 @@ tests:
   - frontend/tests/e2e/embedded-frontend-delivery.spec.ts
 -->
 
+---
 ### Requirement: Historical launcher line counts do not regress
 
 The implementation SHALL keep the line count of `start.ps1` and `start.sh` less than or equal to each file's pre-change baseline. The final gate SHALL fail when either historical launcher grows beyond its baseline, while preserving the synchronization and fail-closed behavior requirements.
@@ -253,4 +260,44 @@ code:
   - scripts/check_file_lines.sh
 tests:
   - tests/shell/embedded-frontend-delivery.sh
+-->
+
+---
+### Requirement: Windows embedded EXE build and route smoke are release gates
+
+The Windows release path SHALL run the complete frontend build, static synchronization, and Go embedded executable build through `scripts/build.ps1` with PowerShell profile isolation. A release candidate SHALL produce `bin/test-ui.exe` and SHALL pass a clean embedded-server route and asset smoke before the embedded delivery gate is complete. The smoke SHALL exercise `/studio/v2`, `/studio`, `/studio/runtime`, `/test`, and the existing experimental route while checking that same-origin JavaScript, module, stylesheet, and lazy route asset requests do not fail.
+
+#### Scenario: Complete Windows build produces a loadable embedded graph
+
+- **GIVEN** the repository has its declared frontend and Go toolchains available on Windows
+- **WHEN** the release command runs `scripts/build.ps1` from the repository root
+- **THEN** frontend typecheck/build completes
+- **AND** the synchronized static directory contains the built entry and lazy assets
+- **AND** `bin/test-ui.exe` is produced
+- **AND** a clean temporary execution directory can start the binary and serve the embedded entry route
+
+#### Scenario: Route and asset smoke covers the supported surface
+
+- **GIVEN** a freshly built `bin/test-ui.exe` is running on a temporary local port
+- **WHEN** the embedded-delivery smoke opens `/studio/v2`, `/studio`, `/studio/runtime`, `/test`, and the existing experimental route
+- **THEN** each route renders its declared readiness selector and retains its route identity
+- **AND** every same-origin script, module, stylesheet, and lazy route asset request returns successfully
+- **AND** a deliberately missing asset returns an explicit 404 without being reported as a successful delivery
+
+#### Scenario: Build or synchronization failure blocks delivery
+
+- **GIVEN** frontend build output is missing, static synchronization fails, Go compilation fails, or the embedded server exits before readiness
+- **WHEN** the release gate evaluates the command result
+- **THEN** the embedded delivery gate is incomplete
+- **AND** the captured command output identifies the failed phase
+- **AND** no route-smoke pass is claimed
+
+<!-- @trace
+source: harden-studio-v2-release-correctness
+updated: 2026-08-24
+code:
+  - scripts/build.ps1
+  - frontend/playwright.config.ts
+tests:
+  - frontend/tests/e2e/embedded-frontend-delivery.spec.ts
 -->

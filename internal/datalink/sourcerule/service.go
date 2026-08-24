@@ -133,12 +133,12 @@ func (s *Service) SetTagMappingServices(tagSvc *tag.Service, mappingSvc *mapping
 
 func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.SourceRule, error) {
 	if err := validateCreateRequest(req); err != nil {
-		return nil, err
+		return nil, contextualRuleValidationError(req.ID, req.StartAddress, "", err)
 	}
 
 	deviceRecord, err := s.deviceSvc.GetByID(ctx, req.DeviceID)
 	if err != nil {
-		return nil, fmt.Errorf("取得設備失敗: %w", err)
+		return nil, wrapSourceRuleDeviceError(req.DeviceID, err)
 	}
 
 	id := strings.TrimSpace(req.ID)
@@ -151,7 +151,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 
 	enabled, err := s.initialRuleEnabled(ctx, req.Enabled, req.DeviceID)
 	if err != nil {
-		return nil, err
+		return nil, contextualRuleValidationError(id, req.StartAddress, deviceRecord.Protocol, err)
 	}
 	skippedJSON, err := marshalSkippedAddresses(req.SkippedAddresses)
 	if err != nil {
@@ -182,7 +182,7 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 	}
 	plannedAddresses, err := buildPlannedPointAddresses(rule.StartAddress, rule.Count, rule.DataType, deviceRecord.Protocol)
 	if err != nil {
-		return nil, err
+		return nil, contextualRuleValidationError(rule.ID, rule.StartAddress, deviceRecord.Protocol, err)
 	}
 	if err := assignRuleRevisionID(rule); err != nil {
 		return nil, err
@@ -320,7 +320,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 
 	deviceRecord, err := s.deviceSvc.GetByID(ctx, rule.DeviceID)
 	if err != nil {
-		return nil, fmt.Errorf("取得設備失敗: %w", err)
+		return nil, wrapSourceRuleDeviceError(rule.DeviceID, err)
 	}
 
 	next := *rule
@@ -376,7 +376,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 	}
 	if req.Enabled != nil {
 		if err := s.ensureRuleActivationAllowed(ctx, rule.DeviceID, *req.Enabled); err != nil {
-			return nil, err
+			return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
 		}
 		next.Enabled = *req.Enabled
 	}
@@ -392,10 +392,10 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		ShareStartRegister: next.ShareStartRegister,
 		ShareStride:        next.ShareStride,
 	}); err != nil {
-		return nil, err
+		return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
 	}
 	if err := validateRuleDataFormat(next.DataFormat); err != nil {
-		return nil, err
+		return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
 	}
 
 	links, err := s.repo.ListLinks(ctx, id)
@@ -405,7 +405,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 
 	desiredAddresses, err := buildPlannedPointAddresses(next.StartAddress, next.Count, next.DataType, deviceRecord.Protocol)
 	if err != nil {
-		return nil, err
+		return nil, contextualRuleValidationError(id, next.StartAddress, deviceRecord.Protocol, err)
 	}
 	skipped, err := parseSkippedAddresses(next.SkippedAddresses)
 	if err != nil {

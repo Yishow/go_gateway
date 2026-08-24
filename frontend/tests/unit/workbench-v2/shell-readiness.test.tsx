@@ -86,6 +86,64 @@ describe('Workbench V2 workspace readiness surfaces', () => {
     expect(screen.getByTestId('summary-rail-readiness')).not.toHaveTextContent('database-connector-unreachable');
   });
 
+  it('derives Step 2 readiness in the shell before exposing stale later steps', () => {
+    const state: WorkbenchV2State = {
+      ...INITIAL_STATE,
+      completed: new Set([1, 2, 3, 4]),
+      devices: [{
+        id: 'dev-current',
+        name: 'Current PLC',
+        description: '',
+        protocol: 'modbus_tcp',
+        config: {},
+        status: 'active',
+        test: null,
+      }],
+      rules: [{
+        id: 'rule-deleted-device',
+        device_id: 'dev-deleted',
+        name: 'Deleted Device Rule',
+        start_address: '40001',
+        count: 1,
+        data_type: 'int16',
+        naming_prefix: 'DELETED_',
+        enabled: true,
+        scale_multiplier: 1,
+        scale_offset: 0,
+        data_format: '',
+        skipped_addresses: [],
+        share_enabled: false,
+        share_start_register: null,
+        share_stride: null,
+        persisted: true,
+      }],
+    };
+    const actions = {
+      state,
+      setView: vi.fn(),
+      setCurrent: vi.fn(),
+      completeStep: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleSummaryRail: vi.fn(),
+      setSidebarCollapsed: vi.fn(),
+      setShowSummaryRail: vi.fn(),
+      resetFlow: vi.fn(),
+      selectRule: vi.fn(),
+      dispatch: vi.fn(),
+    };
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WorkbenchV2Shell state={state} actions={actions} />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByTestId('step-nav-button-2')).toBeEnabled();
+    expect(screen.getByTestId('step-nav-button-3')).toBeDisabled();
+    expect(screen.getByTestId('step-nav-button-4')).toBeDisabled();
+  });
+
   it('focuses the runtime-reported readiness issue without resetting the saved flow', () => {
     const readinessSummary: StudioV2WorkspaceReadinessSummary = {
       ready: false,

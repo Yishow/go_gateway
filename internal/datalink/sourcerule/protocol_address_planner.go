@@ -1,11 +1,61 @@
 package sourcerule
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"go-gateway/internal/datalink/schema"
 )
+
+type sourceRuleDeviceError struct {
+	deviceID string
+	reason   string
+	cause    error
+}
+
+func (e *sourceRuleDeviceError) Error() string {
+	return fmt.Sprintf("source rule device_id=%s: %s", e.deviceID, e.reason)
+}
+
+func (e *sourceRuleDeviceError) Unwrap() error {
+	return e.cause
+}
+
+func wrapSourceRuleDeviceError(deviceID string, err error) error {
+	reason := "device lookup failed"
+	if err != nil {
+		lowerMessage := strings.ToLower(err.Error())
+		if strings.Contains(lowerMessage, "not found") || strings.Contains(err.Error(), "不存在") {
+			reason = "device not found"
+		}
+	}
+	return fmt.Errorf("resolve source rule device: %w", &sourceRuleDeviceError{
+		deviceID: strings.TrimSpace(deviceID),
+		reason:   reason,
+		cause:    err,
+	})
+}
+
+func contextualRuleValidationError(ruleID, startAddress string, protocol schema.ProtocolType, err error) error {
+	if err == nil || !errors.Is(err, ErrValidation) {
+		return err
+	}
+
+	id := strings.TrimSpace(ruleID)
+	if id == "" {
+		id = "<new>"
+	}
+	address := strings.TrimSpace(strings.ToUpper(startAddress))
+	if address == "" {
+		address = "<empty>"
+	}
+	protocolName := strings.TrimSpace(strings.ToLower(string(protocol)))
+	if protocolName == "" {
+		protocolName = "<unknown>"
+	}
+	return fmt.Errorf("rule_id=%s start_address=%s protocol=%s: %w", id, address, protocolName, err)
+}
 
 func buildPlannedPointAddresses(startAddress string, count int, dataType schema.DataType, protocol schema.ProtocolType) ([]string, error) {
 	if count < 0 {

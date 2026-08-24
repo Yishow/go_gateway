@@ -8,7 +8,7 @@ import { Toggle } from '../../components/Toggle';
 import { RangeSummary } from './RangeSummary';
 import { ScaleSection } from './ScaleSection';
 import { ShareSection } from './ShareSection';
-import { addressParser } from '../../../../../utils/addressParser';
+import { getRuleReadinessReason } from '../../state/sourceRule';
 
 export interface RuleEditorProps {
   rule: Rule;
@@ -49,16 +49,33 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
     });
   };
 
-  const owningDevice = devices.find((d) => d.id === rule.device_id) || devices[0];
-  const protocol = owningDevice?.protocol ?? 'modbus_tcp';
-  const isModbus = protocol.startsWith('modbus');
-  const addressValidation = addressParser.validate(rule.start_address, protocol);
-  const hasValidAddress = rule.start_address.trim().length > 0 && addressValidation.valid;
+  const owningDevice = devices.find((d) => d.id === rule.device_id);
+  const readinessReason = getRuleReadinessReason(
+    rule,
+    owningDevice ? { [owningDevice.id]: owningDevice.protocol } : {},
+  );
+  const hasMissingDevice = readinessReason === 'unknown_device' || readinessReason === 'deleted_device';
+  const missingDeviceKey = readinessReason === 'deleted_device' ? 'deleted_device' : 'unknown_device';
+  const hasInvalidAddress = readinessReason === 'invalid_address';
+  const hasValidAddress = readinessReason === null;
+  const missingDeviceFallback = readinessReason === 'deleted_device'
+    ? {
+      title: '此規則所屬設備已被刪除。',
+      action: '請選擇替代設備或先還原設備後再保存。',
+      option: '設備已刪除，請選擇替代設備',
+    }
+    : {
+      title: '此規則沒有目前工作區的設備歸屬。',
+      action: '請先選擇目前設備，再保存此規則。',
+      option: '沒有目前設備，請選擇設備',
+    };
+  const protocol = owningDevice?.protocol;
+  const isModbus = protocol?.startsWith('modbus') ?? false;
   const addressErrorId = `rule-start-error-${rule.id}`;
   const addrHint = isModbus
     ? t('step2.editor.addr_hint_modbus', '例: 40001')
     : t('step2.editor.addr_hint_plc', '例: D0, M0, W0');
-  const addrPlaceholder = isModbus ? '40001' : 'D0';
+  const addrPlaceholder = owningDevice ? (isModbus ? '40001' : 'D0') : '';
 
   return (
     <div
@@ -67,15 +84,37 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
     >
       <h3 className="text-sm font-semibold text-slate-200">接入規則參數配置</h3>
 
+      {hasMissingDevice && (
+        <div
+          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+          role="alert"
+          data-testid="rule-missing-device"
+          data-readiness-reason={readinessReason}
+        >
+          <div className="font-semibold">
+            {t(`step2.editor.${missingDeviceKey}`, missingDeviceFallback.title)}
+          </div>
+          <div className="mt-1">
+            {t(`step2.editor.${missingDeviceKey}_action`, missingDeviceFallback.action)}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* 裝置選擇 (僅在有多個裝置時啟用) */}
         <Field label="所屬設備來源">
           <Select
             value={rule.device_id}
-            disabled={devices.length <= 1}
+            disabled={devices.length <= 1 && !hasMissingDevice}
+            aria-invalid={hasMissingDevice}
             onChange={(e) => handleTextChange('device_id', e.target.value)}
             data-testid="rule-device-select"
           >
+            {hasMissingDevice && (
+              <option value={rule.device_id} disabled>
+                {t(`step2.editor.${missingDeviceKey}_option`, missingDeviceFallback.option)}
+              </option>
+            )}
             {devices.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -102,6 +141,7 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
             type="text"
             value={rule.start_address}
             placeholder={addrPlaceholder}
+            disabled={hasMissingDevice}
             onChange={(e) => handleTextChange('start_address', e.target.value)}
             aria-invalid={!hasValidAddress}
             aria-describedby={!hasValidAddress ? addressErrorId : undefined}
@@ -113,10 +153,11 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
               data-testid="rule-start-error"
               className="mt-1 flex items-center gap-1 text-xs text-red-300"
             >
-              {t(
-                'step2.editor.addr_invalid',
-                '位址不符合所選協議格式，請輸入有效位址。',
-              )}
+              {hasMissingDevice
+                ? t('step2.editor.missing_device_address', '請先重新選擇或修復設備，再檢查位址。')
+                : hasInvalidAddress
+                ? t('step2.editor.addr_invalid', '位址不符合所選協議格式，請輸入有效位址。')
+                : null}
             </span>
           )}
         </Field>
@@ -165,12 +206,21 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
       </div>
 
       {/* 暫存器區段摘要 */}
-      <RangeSummary
-        startAddress={rule.start_address}
-        count={rule.count}
-        dataType={rule.data_type}
-        protocol={owningDevice?.protocol}
-      />
+      {owningDevice ? (
+        <RangeSummary
+          startAddress={rule.start_address}
+          count={rule.count}
+          dataType={rule.data_type}
+          protocol={owningDevice.protocol}
+        />
+      ) : (
+        <div
+          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+          data-testid="rule-missing-device-summary"
+        >
+          {t('step2.editor.missing_device_summary', '無法計算位址範圍，請先修復設備來源。')}
+        </div>
+      )}
 
       {/* 線性縮放 Details */}
       <ScaleSection

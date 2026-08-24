@@ -148,7 +148,15 @@
     "editor": {
       "addr_hint_modbus": "e.g. 40001",
       "addr_hint_plc": "e.g. D0, M0, W0",
-      "addr_invalid": "Enter an address supported by the selected protocol."
+      "addr_invalid": "Enter an address supported by the selected protocol.",
+      "unknown_device": "This rule has no current device ownership.",
+      "unknown_device_action": "Select a current device before saving this rule.",
+      "unknown_device_option": "No current device; choose a device",
+      "deleted_device": "This rule belongs to a deleted device.",
+      "deleted_device_action": "Choose a replacement device or restore the deleted device before saving.",
+      "deleted_device_option": "Deleted device; choose a replacement",
+      "missing_device_address": "Choose or repair the device before checking the address.",
+      "missing_device_summary": "The address range is unavailable until the device source is repaired."
     },
     "rule_tabs": {
       "new_rule_name": "Rule {{index}}",
@@ -158,6 +166,13 @@
       "range_label": "Address range:",
       "register_count": "{{count}} registers (length {{stride}})",
       "invalid_address": "Address is invalid for the selected protocol.",
+      "invalid_address_action": "Correct this rule's protocol address before continuing.",
+      "unknown_device": "This rule has no current device ownership.",
+      "unknown_device_action": "Select a current device or repair its ownership before continuing.",
+      "deleted_device": "This rule belongs to a deleted device.",
+      "deleted_device_action": "Choose a replacement device or restore the deleted device before continuing.",
+      "unknown_device_identity": "unknown device",
+      "unknown_address": "unknown address",
       "function": {
         "fatek": "FATEK {{label}}",
         "mc": "MC 3E {{label}}",

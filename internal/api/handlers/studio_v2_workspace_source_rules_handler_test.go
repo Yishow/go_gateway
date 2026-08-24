@@ -95,6 +95,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_UpdateRejectsOwnershipMismatch(t *t
 
 	require.Equal(t, http.StatusBadRequest, resp.Code)
 	require.Contains(t, resp.Body.String(), "ownership mismatch")
+	require.Contains(t, resp.Body.String(), "device_id=dev-B")
 }
 
 func TestStudioV2WorkspaceSourceRulesHandler_CreateReturnsValidationErrorMessage(t *testing.T) {
@@ -130,6 +131,42 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateReturnsValidationErrorMessage
 
 	require.Equal(t, http.StatusBadRequest, resp.Code)
 	require.Contains(t, resp.Body.String(), "start_address is required")
+}
+
+func TestStudioV2WorkspaceSourceRulesHandler_CreateRejectsUnknownDevice(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	deviceRepo := device.NewMemoryRepository()
+	seedWorkspaceRuleDevice(t, deviceRepo, "dev-A")
+
+	pointSvc := point.NewService(point.NewMemoryRepository(), nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, pointSvc, nil)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository())
+	_, err := workspaceSvc.AttachDevice(context.Background(), "dev-A")
+	require.NoError(t, err)
+
+	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
+		"id":"rule-unknown",
+		"device_id":"deleted-device-id",
+		"start_address":"40001",
+		"count":1,
+		"data_type":"int16",
+		"naming_prefix":"U_",
+		"enabled":true
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	handler.Create(c)
+
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+	require.Contains(t, resp.Body.String(), "device_id does not belong to workspace")
+	require.Contains(t, resp.Body.String(), "device_id=deleted-device-id")
 }
 
 func TestStudioV2WorkspaceSourceRulesHandler_CreateDefersLiveApplyWhenReadinessBlocks(t *testing.T) {
@@ -268,4 +305,77 @@ func (r *sourceRuleRuntimeReconcileRecorder) ReconcileSourceRule(_ context.Conte
 		r.outcome.Scope = req.Scope
 	}
 	return r.outcome
+}
+
+func TestStudioV2WorkspaceSourceRulesHandler_CreateReturnsAddressContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	deviceRepo := device.NewMemoryRepository()
+	seedWorkspaceRuleDevice(t, deviceRepo, "dev-address-create")
+	deviceSvc := device.NewService(deviceRepo, nil)
+	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, point.NewService(point.NewMemoryRepository(), nil), nil)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository())
+	_, err := workspaceSvc.AttachDevice(context.Background(), "dev-address-create")
+	require.NoError(t, err)
+	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
+		"id":"rule-address-create",
+		"device_id":"dev-address-create",
+		"start_address":"40O01",
+		"count":1,
+		"data_type":"int16",
+		"naming_prefix":"SRC_",
+		"enabled":true
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+
+	handler.Create(c)
+
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+	for _, fragment := range []string{"rule_id=rule-address-create", "start_address=40O01", "protocol=modbus_tcp"} {
+		require.Contains(t, resp.Body.String(), fragment)
+	}
+}
+
+func TestStudioV2WorkspaceSourceRulesHandler_UpdateReturnsAddressContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	deviceRepo := device.NewMemoryRepository()
+	seedWorkspaceRuleDevice(t, deviceRepo, "dev-address-update")
+	deviceSvc := device.NewService(deviceRepo, nil)
+	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, point.NewService(point.NewMemoryRepository(), nil), nil)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository())
+	_, err := workspaceSvc.AttachDevice(context.Background(), "dev-address-update")
+	require.NoError(t, err)
+	_, err = ruleSvc.Create(context.Background(), sourcerule.CreateRuleRequest{
+		ID:           "rule-address-update",
+		DeviceID:     "dev-address-update",
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC_",
+		Enabled:      true,
+	})
+	require.NoError(t, err)
+	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-address-update", strings.NewReader(`{
+		"start_address":"40O01"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = req
+	c.Params = gin.Params{{Key: "id", Value: "rule-address-update"}}
+
+	handler.Update(c)
+
+	require.Equal(t, http.StatusBadRequest, resp.Code)
+	for _, fragment := range []string{"rule_id=rule-address-update", "start_address=40O01", "protocol=modbus_tcp"} {
+		require.Contains(t, resp.Body.String(), fragment)
+	}
 }

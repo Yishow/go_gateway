@@ -14,7 +14,7 @@ import { RuleEditor } from './RuleEditor';
 import { PointGridToolbar } from './PointGridToolbar';
 import { PointGrid } from './PointGrid';
 import { MergedPointTable } from './MergedPointTable';
-import { addressParser } from '../../../../../utils/addressParser';
+import { getRuleReadinessIssues, isStep2Ready } from '../../state/sourceRule';
 
 export interface Step2RuleProps {
   state: WorkbenchV2State;
@@ -38,17 +38,12 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   const { rules, devices, selectedRuleId, settings } = state;
   const [gridSelection, setGridSelection] = useState<Set<string>>(new Set());
 
-  // 1. 取得備用設備 ID 與設備協議對照表並衍生全域點位與衝突
-  const fallbackDeviceId = devices[0]?.id || 'dev-01';
+  // 1. 以當前工作區的設備 ownership / protocol map 衍生全域點位與 readiness
   const deviceProtocolMap = useDeviceProtocolMap(devices);
-  const allPoints = useAllPoints(rules, fallbackDeviceId, deviceProtocolMap);
+  const allPoints = useAllPoints(rules, deviceProtocolMap);
   const conflictAddrs = useConflictAddrs(allPoints);
-  const invalidEnabledRules = rules.filter((rule) => (
-    rule.enabled && !addressParser.validate(
-      rule.start_address,
-      deviceProtocolMap[rule.device_id] || 'modbus_tcp',
-    ).valid
-  ));
+  const readinessIssues = getRuleReadinessIssues(rules, deviceProtocolMap);
+  const step2Ready = isStep2Ready(rules, deviceProtocolMap);
 
   // 2. 計算全域 Modbus Share 佈局
   const shareLayouts = useShareLayout(rules, settings.modbus_share.base_register);
@@ -59,9 +54,9 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   const skippedSet = new Set(currentRule?.skipped_addresses || []);
   const currentRulePoints = useRulePoints(
     currentRule,
-    currentRule?.device_id || fallbackDeviceId,
+    currentDevice?.id,
     skippedSet,
-    currentDevice?.protocol || 'modbus_tcp',
+    currentDevice?.protocol,
   );
   const currentShareLayout = shareLayouts[currentRule?.id] || null;
 
@@ -241,7 +236,8 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
         devices={devices}
         conflictAddrs={conflictAddrs}
         shareLayouts={shareLayouts}
-        invalidRules={invalidEnabledRules}
+        readinessIssues={readinessIssues}
+        step2Ready={step2Ready}
         onContinue={onContinue}
       />
     </div>

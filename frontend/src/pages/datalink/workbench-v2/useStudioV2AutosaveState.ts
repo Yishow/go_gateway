@@ -3,7 +3,7 @@ import { useCreateStudioV2WorkspaceDeviceMutation, useDeleteStudioV2WorkspaceDev
 import { hydrateStudioV2Device, isStudioV2DeviceValid, toStudioV2DeviceCreateRequest, toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
 import { canHydrateStudioV2Rule, hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import { hydrateStudioV2Mapping } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
-import type { DbTarget, Device, Mapping, Point, Rule, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import type { DbTarget, Device, Mapping, Point, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import { useWorkbenchV2State, workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { useStudioV2RulesQuery } from '../../../hooks/datalink/useStudioV2Rules';
 import { useStudioV2RuleAutosave } from './useStudioV2RuleAutosave';
@@ -11,6 +11,7 @@ import { useStudioV2MappingAutosave } from './useStudioV2MappingAutosave';
 import { useStudioV2DatabaseAutosave } from './useStudioV2DatabaseAutosave';
 import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hydrateStudioV2DatabaseTarget } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
 import { deriveAllPoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
+import { inferHydratedProgress } from './hydratedProgress';
 import type { StudioV2WorkspaceMappingRecord, StudioV2WorkspaceDatabaseTargetRecord, ProtocolType } from '../../../types/datalink';
 
 type SaveMeta = {
@@ -90,19 +91,6 @@ function buildBootstrapTargets(
     );
     return accumulator;
   }, {});
-}
-
-function inferHydratedProgress(
-  devices: Device[],
-  rules: Rule[],
-  mappings: Record<string, Mapping>,
-): Pick<WorkbenchV2State, 'current' | 'completed'> {
-  const completed = new Set<number>();
-  if (devices.length > 0) completed.add(1);
-  if (rules.length > 0) completed.add(2);
-  if (Object.values(mappings).some((mapping) => mapping.persisted && mapping.enabled && mapping.tag_id)) completed.add(3);
-  const current: WorkbenchV2State['current'] = completed.has(3) ? 4 : completed.has(2) ? 3 : completed.has(1) ? 2 : 1;
-  return { current, completed };
 }
 
 function isDraftPending(saveState?: string): boolean {
@@ -207,9 +195,8 @@ export function useStudioV2AutosaveState(enabled: boolean) {
     const hydratedRules = rulesQuery.data
       .filter(canHydrateStudioV2Rule)
       .map(hydrateStudioV2Rule);
-    const fallbackDeviceId = hydratedDevices[0]?.id || 'dev-01';
     const deviceProtocolMap: Record<string, ProtocolType> = Object.fromEntries(hydratedDevices.map((d) => [d.id, d.protocol]));
-    const enabledPoints = deriveAllPoints(hydratedRules, fallbackDeviceId, deviceProtocolMap).filter((point) => point.enabled && !point.skipped);
+    const enabledPoints = deriveAllPoints(hydratedRules, deviceProtocolMap).filter((point) => point.enabled && !point.skipped);
     const hydratedConnector = databaseAutosave.databaseConfigQuery.data
       ? hydrateStudioV2DatabaseConnector(databaseAutosave.databaseConfigQuery.data)
       : stateRef.current.db.connector;

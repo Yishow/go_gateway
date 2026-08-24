@@ -148,7 +148,15 @@
     "editor": {
       "addr_hint_modbus": "例: 40001",
       "addr_hint_plc": "例: D0, M0, W0",
-      "addr_invalid": "位址不符合所選協議格式，請輸入有效位址。"
+      "addr_invalid": "位址不符合所選協議格式，請輸入有效位址。",
+      "unknown_device": "此規則沒有目前工作區的設備歸屬。",
+      "unknown_device_action": "請先選擇目前設備，再保存此規則。",
+      "unknown_device_option": "沒有目前設備，請選擇設備",
+      "deleted_device": "此規則所屬的設備已被刪除。",
+      "deleted_device_action": "請選擇替代設備，或先還原已刪除的設備再保存。",
+      "deleted_device_option": "設備已刪除，請選擇替代設備",
+      "missing_device_address": "請先重新選擇或修復設備，再檢查位址。",
+      "missing_device_summary": "無法計算位址範圍，請先修復設備來源。"
     },
     "rule_tabs": {
       "new_rule_name": "規則 {{index}}",
@@ -158,6 +166,13 @@
       "range_label": "位址範圍：",
       "register_count": "共 {{count}} 個暫存器 (長度 {{stride}})",
       "invalid_address": "位址不符合所選協議格式。",
+      "invalid_address_action": "請修正該規則的協議位址後再繼續。",
+      "unknown_device": "此規則沒有目前工作區的設備歸屬。",
+      "unknown_device_action": "請選擇目前設備或修復設備歸屬後再繼續。",
+      "deleted_device": "此規則所屬的設備已被刪除。",
+      "deleted_device_action": "請選擇替代設備，或先還原已刪除的設備再繼續。",
+      "unknown_device_identity": "未知設備",
+      "unknown_address": "未知位址",
       "function": {
         "fatek": "FATEK {{label}}",
         "mc": "MC 3E {{label}}",

@@ -187,14 +187,16 @@ export const RuleTabRail: React.FC<RuleTabRailProps> = ({
 
   const handleAddRule = () => {
     const selectedRule = rules.find((r) => r.id === selectedRuleId);
-    const targetDevId = selectedRule?.device_id || devices[0]?.id || 'dev-01';
-    const targetDev = devices.find((d) => d.id === targetDevId);
-    const defaultStartAddr = getDefaultPlannerStartAddress(targetDev?.protocol);
+    const targetDev = devices.find((device) => device.id === selectedRule?.device_id) ?? devices[0];
+    if (!targetDev) {
+      return;
+    }
+    const defaultStartAddr = getDefaultPlannerStartAddress(targetDev.protocol);
     const nextOrdinal = rules.length + 1;
     const newId = `rule-${Date.now()}`;
     const newRule: Rule = {
       id: newId,
-      device_id: targetDevId,
+      device_id: targetDev.id,
       name: t('step2.rule_tabs.new_rule_name', {
         defaultValue: `規則 ${nextOrdinal}`,
         index: nextOrdinal,

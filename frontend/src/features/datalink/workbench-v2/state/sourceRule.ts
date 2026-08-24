@@ -2,6 +2,16 @@ import type { Rule, Point, ShareLayout, PointFunctionType } from './types';
 import { addressParser } from '../../../../utils/addressParser';
 import type { ProtocolType } from '../../../../types/datalink';
 
+/** 可阻擋規則衍生或 Step 2 繼續的穩定原因碼。 */
+export type RuleReadinessReason = 'unknown_device' | 'deleted_device' | 'invalid_address';
+/** 以規則、設備與位址 identity 攜帶的 readiness 問題。 */
+export interface RuleReadinessIssue {
+  rule: Rule;
+  ruleId: string;
+  deviceId: string;
+  startAddress: string;
+  reason: RuleReadinessReason;
+}
 /**
  * 依資料型別取得其在暫存器中所佔用的寬度 (Stride / Register Count)
  * 
@@ -27,7 +37,6 @@ export function dataTypeWidth(type: string): number {
       return 1;
   }
 }
-
 /**
  * 根據位址字串與協議推斷功能碼或暫存器型態標籤 (通用函式)
  * 
@@ -43,7 +52,6 @@ function getPointFunctionType(addr: string, protocol: ProtocolType = 'modbus_tcp
  * 根據位址字串與協議推斷功能碼或暫存器型態標籤 (相容別名)
  */
 export const fnFromAddr = getPointFunctionType;
-
 /**
  * 格式化位址，將數值或字串正規化為標準字串
  * 
@@ -52,6 +60,80 @@ export const fnFromAddr = getPointFunctionType;
  */
 export function formatAddr(n: number | string): string {
   return String(n);
+}
+/**
+ * 判斷規則是否具備可衍生點位所需的設備 ownership 與合法位址。
+ *
+ * @param rule 待檢查規則
+ * @param deviceProtocolMap 當前工作區的設備協議對照表
+ * @returns 缺失原因；null 代表規則可依其設備協議衍生
+ */
+export function getRuleReadinessReason(
+  rule: Rule,
+  deviceProtocolMap: Record<string, ProtocolType>,
+): RuleReadinessReason | null {
+  const deviceId = rule.device_id?.trim() ?? '';
+  if (!deviceId) {
+    return 'unknown_device';
+  }
+
+  const protocol = deviceProtocolMap[deviceId];
+  if (!protocol) {
+    return rule.persisted ? 'deleted_device' : 'unknown_device';
+  }
+
+  return addressParser.validate(rule.start_address, protocol).valid
+    ? null
+    : 'invalid_address';
+}
+/**
+ * 集中取得所有啟用規則的 readiness 問題，供 Step 2 的衍生與 UI gate 共用。
+ */
+export function getRuleReadinessIssues(
+  rules: Rule[],
+  deviceProtocolMap: Record<string, ProtocolType>,
+): RuleReadinessIssue[] {
+  return rules.flatMap((rule) => {
+    if (!rule.enabled) {
+      return [];
+    }
+
+    const reason = getRuleReadinessReason(rule, deviceProtocolMap);
+    return reason
+      ? [{
+        rule,
+        ruleId: rule.id,
+        deviceId: rule.device_id,
+        startAddress: rule.start_address,
+        reason,
+      }]
+      : [];
+  });
+}
+/**
+ * 判斷 Step 2 是否可交接至映射流程。
+ * 每個啟用規則都必須擁有當前設備、合法位址與至少一個未略過點位。
+ */
+export function isStep2Ready(
+  rules: Rule[],
+  deviceProtocolMap: Record<string, ProtocolType>,
+): boolean {
+  const enabledRules = rules.filter((rule) => rule.enabled);
+  if (enabledRules.length === 0) {
+    return false;
+  }
+
+  const points = deriveAllPoints(rules, deviceProtocolMap);
+  const enabledPointRuleIds = new Set(
+    points
+      .filter((point) => point.enabled && !point.skipped)
+      .map((point) => point.rule_id),
+  );
+
+  return enabledRules.every((rule) => (
+    getRuleReadinessReason(rule, deviceProtocolMap) === null &&
+    enabledPointRuleIds.has(rule.id)
+  ));
 }
 
 /**
@@ -110,20 +192,31 @@ export function derivePoints(
  * 根據多個規則，衍生出整個工作區的全部點位資訊
  * 
  * @param rules 規則列表
- * @param fallbackDeviceId 備用設備 ID (若 rule 的 device_id 為空時使用)
- * @param deviceProtocolMap 設備 ID 至 Protocol 對照表 (選填)
+ * @param deviceProtocolMap 設備 ID 至 Protocol 對照表
  * @returns 合併後的點位陣列
  */
 export function deriveAllPoints(
   rules: Rule[],
-  fallbackDeviceId: string,
-  deviceProtocolMap: Record<string, ProtocolType> = {},
+  deviceProtocolMap: Record<string, ProtocolType>,
 ): Point[] {
+  if (rules.length > 0 && Object.keys(deviceProtocolMap).length === 0) {
+    return [];
+  }
+
   const allPoints: Point[] = [];
   for (const rule of rules) {
-    const devId = rule.device_id || fallbackDeviceId;
+    const devId = rule.device_id;
+    if (!devId) {
+      continue;
+    }
+
+    const readinessReason = getRuleReadinessReason(rule, deviceProtocolMap);
+    if (readinessReason) {
+      continue;
+    }
+
     const skippedSet = new Set(rule.skipped_addresses || []);
-    const protocol = deviceProtocolMap[devId] || 'modbus_tcp';
+    const protocol = deviceProtocolMap[devId];
     const points = derivePoints(rule, devId, skippedSet, protocol);
     allPoints.push(...points);
   }

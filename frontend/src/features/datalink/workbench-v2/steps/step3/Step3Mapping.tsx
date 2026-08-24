@@ -30,7 +30,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 
   // 1. 取得設備協議對照表與點位與啟用點位列表
   const deviceProtocolMap = useDeviceProtocolMap(state.devices);
-  const allPoints = useAllPoints(state.rules, state.devices[0]?.id || 'dev-01', deviceProtocolMap);
+  const allPoints = useAllPoints(state.rules, deviceProtocolMap);
   const enabledPoints = useMemo(() => allPoints.filter((p) => p.enabled && !p.skipped), [allPoints]);
 
   const enabledPointsIdentityStr = enabledPoints

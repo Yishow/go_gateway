@@ -19,8 +19,8 @@ export function canHydrateStudioV2Rule(record: SourceRuleRecord | null | undefin
 
   return (
     isNonEmptyString(record.id) &&
-    isNonEmptyString(record.device_id) &&
-    isNonEmptyString(record.start_address) &&
+    typeof record.device_id === 'string' &&
+    typeof record.start_address === 'string' &&
     isNonNegativeNumber(record.count) &&
     isNonEmptyString(record.naming_prefix) &&
     Array.isArray(record.skipped_addresses)

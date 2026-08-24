@@ -20,6 +20,7 @@ export interface StepRailProps {
   view: 'flow' | 'settings';
   current: number;
   completed: Set<number>;
+  step2Ready: boolean;
   collapsed: boolean;
   onJump: (stepId: 1 | 2 | 3 | 4) => void;
   onSwitchView: (view: 'flow' | 'settings') => void;
@@ -35,6 +36,7 @@ export const StepRail: React.FC<StepRailProps> = ({
   view,
   current,
   completed,
+  step2Ready,
   collapsed,
   onJump,
   onSwitchView,
@@ -53,7 +55,8 @@ export const StepRail: React.FC<StepRailProps> = ({
       {STEPS.map((s) => {
         const isCurrent = view === 'flow' && current === s.id;
         const isDone = completed.has(s.id);
-        const isReachable = isDone || isCurrent || completed.has(s.id - 1) || s.id === 1;
+        const isStep2Blocked = s.id >= 3 && !step2Ready;
+        const isReachable = !isStep2Blocked && (isDone || isCurrent || completed.has(s.id - 1) || s.id === 1);
 
         return (
           <button

@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { useTranslation } from 'react-i18next';
 import type { Point, Rule, Device, ShareLayout } from '../../state/types';
+import type { RuleReadinessIssue } from '../../state/sourceRule';
 import { useDeviceColor, getColorTheme, DEVICE_COLORS } from '../../state/deviceColors';
 import { Icon } from '../../components';
+import { ReadinessIssuesWarning } from './ReadinessIssuesWarning';
 
 export interface MergedPointTableProps {
   points: Point[];
@@ -10,7 +11,8 @@ export interface MergedPointTableProps {
   devices: Device[];
   conflictAddrs: Set<string>;
   shareLayouts: Record<string, ShareLayout | null>;
-  invalidRules?: Rule[];
+  readinessIssues: RuleReadinessIssue[];
+  step2Ready: boolean;
   onContinue: () => void;
 }
 
@@ -143,10 +145,10 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
   devices,
   conflictAddrs,
   shareLayouts,
-  invalidRules = [],
+  readinessIssues = [],
+  step2Ready,
   onContinue,
 }) => {
-  const { t } = useTranslation('workbench-v2');
   // 1. 計算啟用點位總數
   const totalEnabled = points.filter((p) => !p.skipped && p.enabled).length;
 
@@ -232,27 +234,12 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
           )}
         </div>
 
-        {invalidRules.length > 0 && (
-          <div
-            className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200"
-            role="alert"
-            data-testid="invalid-rules-warning"
-          >
-            <div>{t('step2.summary.invalid_address', 'Address is invalid for the selected protocol.')}</div>
-            <ul className="mt-1 list-disc pl-4">
-              {invalidRules.map((rule) => (
-                <li key={rule.id} data-testid={`invalid-rule-warning-${rule.id}`}>
-                  {rule.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <ReadinessIssuesWarning issues={readinessIssues} />
 
         <button
           type="button"
           onClick={onContinue}
-          disabled={totalEnabled === 0 || conflictAddrs.size > 0 || invalidRules.length > 0}
+          disabled={!step2Ready || conflictAddrs.size > 0}
           className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           data-testid="continue-step3-btn"
         >

@@ -33,9 +33,9 @@ const mockRules: Rule[] = [
 describe('useAllPoints', () => {
   it('應衍生出正確的點位列表，且當引數未變時回傳同一個快取參考', () => {
     let rules = [...mockRules];
-    const devId = 'dev-1';
+    const deviceProtocolMap = { 'dev-1': 'modbus_tcp' as const };
 
-    const { result, rerender } = renderHook(() => useAllPoints(rules, devId));
+    const { result, rerender } = renderHook(() => useAllPoints(rules, deviceProtocolMap));
     const firstResult = result.current;
 
     expect(firstResult).toHaveLength(2);
@@ -45,8 +45,7 @@ describe('useAllPoints', () => {
     rerender();
     expect(result.current).toBe(firstResult); // 記憶體參考應相同 (cached)
 
-    // 重新渲染，引數內容相同但 reference 變了 (但 useMemo 依賴 values，若陣列參考變了，因為 rules 依賴陣列 [rules, fallbackDeviceId]，Array reference 變了通常會觸發重算)
-    // 我們需要確認 useMemo 依賴 [rules, fallbackDeviceId] 的機制，重新傳入新的 Rules Array 應觸發重新計算
+    // 重新渲染，引數內容相同但 reference 變了，Rules reference 變更應觸發重算
     rules = [...mockRules];
     rerender();
     expect(result.current).not.toBe(firstResult); // 由於 rules reference 變了，觸發重算
@@ -131,7 +130,7 @@ describe('useRulePoints', () => {
     const devId = 'dev-1';
     const skipped = new Set<string>();
 
-    const { result, rerender } = renderHook(() => useRulePoints(rule, devId, skipped));
+    const { result, rerender } = renderHook(() => useRulePoints(rule, devId, skipped, 'modbus_tcp'));
     const firstResult = result.current;
 
     expect(firstResult).toHaveLength(2);
