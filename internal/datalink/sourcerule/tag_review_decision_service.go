@@ -11,13 +11,19 @@ import (
 )
 
 type UpsertTagReviewDecisionRequest struct {
-	CandidateID   string                                   `json:"candidate_id"`
-	Action        schema.SourceRuleTagReviewDecisionAction `json:"action"`
-	TagKey        string                                   `json:"tag_key,omitempty"`
-	OverrideTagID string                                   `json:"override_tag_id,omitempty"`
+	WorkspaceID               string                                   `json:"workspace_id"`
+	ExpectedWorkspaceRevision string                                   `json:"expected_workspace_revision"`
+	RevisionID                string                                   `json:"revision_id"`
+	CandidateID               string                                   `json:"candidate_id"`
+	Action                    schema.SourceRuleTagReviewDecisionAction `json:"action"`
+	TagKey                    string                                   `json:"tag_key,omitempty"`
+	OverrideTagID             string                                   `json:"override_tag_id,omitempty"`
 }
 
 func (s *Service) UpsertTagReviewDecision(ctx context.Context, ruleID string, req UpsertTagReviewDecisionRequest) (*schema.SourceRuleTagReviewDecision, error) {
+	if err := s.ValidateCandidateScope(ctx, ruleID, CandidateScopeRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, RevisionID: req.RevisionID}); err != nil {
+		return nil, err
+	}
 	rule, err := s.repo.GetByID(ctx, ruleID)
 	if err != nil {
 		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
@@ -87,6 +93,15 @@ func (s *Service) GetTagReviewDecision(ctx context.Context, ruleID, candidateID 
 
 func (s *Service) ListTagReviewDecisions(ctx context.Context, ruleID string) ([]*schema.SourceRuleTagReviewDecision, error) {
 	return s.repo.ListTagReviewDecisions(ctx, ruleID)
+}
+
+// ListTagReviewDecisionsInWorkspace validates the candidate scope before
+// exposing persisted review choices.
+func (s *Service) ListTagReviewDecisionsInWorkspace(ctx context.Context, ruleID string, scope CandidateScopeRequest) ([]*schema.SourceRuleTagReviewDecision, error) {
+	if err := s.ValidateCandidateScope(ctx, ruleID, scope); err != nil {
+		return nil, err
+	}
+	return s.ListTagReviewDecisions(ctx, ruleID)
 }
 
 func (s *Service) findCurrentTagCandidate(ctx context.Context, rule *schema.SourceRule, candidateID string) (*schema.SourceRuleTagCandidate, error) {

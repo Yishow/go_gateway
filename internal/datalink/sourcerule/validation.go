@@ -4,7 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
+)
+
+const (
+	candidateRevisionConflictMessage = "candidate revision conflict"
+	candidateRetryAction             = "refresh workspace candidates and retry"
+	localModbusStrideAction          = "increase share_stride to match the datatype register span"
 )
 
 func validateCreateRequest(req CreateRuleRequest) error {
@@ -23,13 +30,10 @@ func validateCreateRequest(req CreateRuleRequest) error {
 	if err := validateRuleDataFormat(req.DataFormat); err != nil {
 		return err
 	}
-	if err := validateShareConfig(req.ShareEnabled, req.ShareStartRegister, req.ShareStride); err != nil {
-		return err
-	}
-	return nil
+	return validateShareConfig(req.ShareEnabled, req.ShareStartRegister, req.ShareStride, req.DataType)
 }
 
-func validateShareConfig(enabled bool, startRegister, stride *int) error {
+func validateShareConfig(enabled bool, startRegister, stride *int, dataType schema.DataType) error {
 	if !enabled {
 		return nil
 	}
@@ -38,6 +42,14 @@ func validateShareConfig(enabled bool, startRegister, stride *int) error {
 	}
 	if stride != nil && *stride < 1 {
 		return validationError("share_stride must be greater than zero")
+	}
+	if stride != nil && *stride < modbusshare.DataTypeSpan(dataType) {
+		return &modbusshare.Error{
+			Code:      modbusshare.ErrCodeInvalidGeometry,
+			Message:   fmt.Sprintf("share_stride %d is smaller than datatype span %d", *stride, modbusshare.DataTypeSpan(dataType)),
+			Retryable: false,
+			Action:    localModbusStrideAction,
+		}
 	}
 	return nil
 }

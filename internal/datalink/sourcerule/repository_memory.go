@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -142,7 +143,10 @@ func (r *MemoryRepository) DeleteLinks(_ context.Context, ruleID string) error {
 func (r *MemoryRepository) ReplaceCandidateSnapshots(_ context.Context, snapshots []*schema.SourceRuleCandidateSnapshot) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	return r.replaceCandidateSnapshotsLocked(snapshots)
+}
 
+func (r *MemoryRepository) replaceCandidateSnapshotsLocked(snapshots []*schema.SourceRuleCandidateSnapshot) error {
 	if len(snapshots) == 0 {
 		return nil
 	}
@@ -164,6 +168,20 @@ func (r *MemoryRepository) ReplaceCandidateSnapshots(_ context.Context, snapshot
 	})
 	r.snapshots[key] = cloned
 	return nil
+}
+
+func (r *MemoryRepository) ReplaceCandidateSnapshotsAtRevision(_ context.Context, snapshots []*schema.SourceRuleCandidateSnapshot, expectedRevision string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(snapshots) == 0 {
+		return nil
+	}
+	ruleID := snapshots[0].SourceRuleID
+	rule, ok := r.rules[ruleID]
+	if !ok || rule.RevisionID != expectedRevision {
+		return &modbusshare.Error{Code: modbusshare.ErrCodeRevisionConflict, Message: candidateRevisionConflictMessage, Retryable: true}
+	}
+	return r.replaceCandidateSnapshotsLocked(snapshots)
 }
 
 func (r *MemoryRepository) ListCandidateSnapshots(_ context.Context, ruleID, revisionID string) ([]*schema.SourceRuleCandidateSnapshot, error) {

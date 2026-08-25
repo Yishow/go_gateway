@@ -34,7 +34,7 @@ func (h *ConnectionHandler) List(c *gin.Context) {
 // Get 取得特定連線詳情
 func (h *ConnectionHandler) Get(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	h.testHandler.mu.RLock()
 	defer h.testHandler.mu.RUnlock()
 

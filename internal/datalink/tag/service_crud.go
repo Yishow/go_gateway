@@ -3,12 +3,21 @@ package tag
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
+
+func cloneTag(record *schema.Tag) *schema.Tag {
+	if record == nil {
+		return nil
+	}
+	copyRecord := *record
+	return &copyRecord
+}
 
 // Create 建立新標籤
 func (s *Service) Create(ctx context.Context, req CreateTagRequest) (*schema.Tag, error) {
@@ -234,6 +243,25 @@ func (s *Service) GetByID(ctx context.Context, id string) (*schema.Tag, error) {
 		return nil, fmt.Errorf("取得標籤失敗: %w", err)
 	}
 	return tag, nil
+}
+
+// Restore persists an exact tag snapshot during a higher-level mutation compensation.
+func (s *Service) Restore(ctx context.Context, record *schema.Tag) error {
+	if record == nil {
+		return fmt.Errorf("tag snapshot is empty")
+	}
+	if _, err := s.GetByID(ctx, record.ID); errors.Is(err, ErrTagNotFound) {
+		if createErr := s.repo.Create(ctx, cloneTag(record)); createErr != nil {
+			return fmt.Errorf("restore tag: %w", createErr)
+		}
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err := s.repo.Update(ctx, cloneTag(record)); err != nil {
+		return fmt.Errorf("restore tag: %w", err)
+	}
+	return nil
 }
 
 // GetByKey 根據鍵取得標籤

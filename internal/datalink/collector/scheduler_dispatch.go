@@ -22,6 +22,7 @@ func (s *Scheduler) startGroupTicker(group *schema.PollingGroup) {
 		group:  group,
 		ticker: time.NewTicker(interval),
 		stopCh: make(chan struct{}),
+		done:   make(chan struct{}),
 	}
 
 	s.groupTickers[group.ID] = gt
@@ -33,6 +34,7 @@ func (s *Scheduler) startGroupTicker(group *schema.PollingGroup) {
 // runGroupTicker 運行群組 Ticker
 func (s *Scheduler) runGroupTicker(gt *groupTicker) {
 	defer s.wg.Done()
+	defer close(gt.done)
 
 	for {
 		select {

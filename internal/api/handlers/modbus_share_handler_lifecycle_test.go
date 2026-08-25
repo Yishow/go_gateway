@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"go-gateway/internal/datalink/modbusshare"
@@ -17,7 +18,8 @@ import (
 
 func reserveTCPPort(t *testing.T) int {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	ln, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("reserve port failed: %v", err)
 	}
@@ -32,7 +34,7 @@ func setupModbusShareHandlerForLifecycle(t *testing.T) (*ModbusShareHandler, *mo
 	t.Cleanup(func() {
 		_ = svc.Stop()
 	})
-	return NewModbusShareHandler(svc, nil, nil), svc
+	return NewModbusShareHandler(svc), svc
 }
 
 func TestModbusShareHandler_StartAndStopLifecycle(t *testing.T) {
@@ -89,7 +91,51 @@ func TestModbusShareHandler_StartPortConflictReturns409(t *testing.T) {
 	}
 }
 
-func TestModbusShareHandler_StartDefaultsTo5020WhenPayloadEmpty(t *testing.T) {
+func TestModbusShareHandler_StatusExposesSafeBindFailureDiagnostic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler, svc := setupModbusShareHandlerForLifecycle(t)
+	svc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateReady, Readiness: true})
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("occupy port: %v", err)
+	}
+	defer listener.Close()
+	port := listener.Addr().(*net.TCPAddr).Port
+	err = svc.ApplySettings(context.Background(), modbusshare.Settings{
+		Enabled: true, BindAddress: "127.0.0.1", Port: port, SlaveID: 1, CapacityRegisters: 32768,
+	})
+	if err == nil {
+		t.Fatal("expected bind conflict")
+	}
+
+	router := gin.New()
+	router.GET("/status", handler.Status)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", http.NoBody))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var body struct {
+		Data struct {
+			LastFailure *modbusshare.Diagnostic `json:"last_failure"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if body.Data.LastFailure == nil {
+		t.Fatal("expected bind failure diagnostic")
+	}
+	if body.Data.LastFailure.Code != modbusshare.ErrCodeListenerBindFailed || !body.Data.LastFailure.Retryable || body.Data.LastFailure.Action == "" {
+		t.Fatalf("unexpected bind diagnostic: %+v", body.Data.LastFailure)
+	}
+	if strings.Contains(body.Data.LastFailure.Message, "address") || strings.Contains(body.Data.LastFailure.Message, "listen tcp") {
+		t.Fatalf("raw bind error leaked: %q", body.Data.LastFailure.Message)
+	}
+}
+
+func TestModbusShareHandler_StartRequiresExplicitPortWhenNoDurableGate(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	handler, _ := setupModbusShareHandlerForLifecycle(t)
 	router := gin.New()
@@ -100,22 +146,8 @@ func TestModbusShareHandler_StartDefaultsTo5020WhenPayloadEmpty(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK && w.Code != http.StatusConflict {
-		t.Fatalf("expected 200 or 409 with empty payload, got %d: %s", w.Code, w.Body.String())
-	}
-
-	if w.Code == http.StatusOK {
-		var envelope struct {
-			Data struct {
-				Port int `json:"port"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
-			t.Fatalf("unmarshal failed: %v", err)
-		}
-		if envelope.Data.Port != 5020 {
-			t.Fatalf("expected default port 5020, got %d", envelope.Data.Port)
-		}
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 without explicit or persisted port, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -188,8 +220,8 @@ func TestModbusShareHandler_StatusContainsBindState(t *testing.T) {
 	if err := svc.Stop(); err != nil {
 		t.Fatalf("stop failed: %v", err)
 	}
-	if svc.Status().BindState != "fail" {
-		t.Fatalf("expected bind_state=fail after stop, got %q", svc.Status().BindState)
+	if svc.Status().BindState != "disabled" && svc.Status().BindState != "fail" {
+		t.Fatalf("expected bind_state=disabled or fail after stop, got %q", svc.Status().BindState)
 	}
 }
 
@@ -222,8 +254,8 @@ func TestModbusShareHandler_StatusAvailableWithoutMappings(t *testing.T) {
 	if envelope.Data.MappingCount != 0 {
 		t.Fatalf("expected mapping_count=0, got %d", envelope.Data.MappingCount)
 	}
-	if envelope.Data.BindState != "fail" {
-		t.Fatalf("expected bind_state=fail, got %q", envelope.Data.BindState)
+	if envelope.Data.BindState != "disabled" && envelope.Data.BindState != "fail" {
+		t.Fatalf("expected bind_state=disabled or fail, got %q", envelope.Data.BindState)
 	}
 }
 

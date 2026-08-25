@@ -97,7 +97,7 @@ func TestPollingGroupHandler_Get(t *testing.T) {
 	var getResp map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &getResp)
 	assert.True(t, getResp["success"].(bool))
-	
+
 	retrievedData := getResp["data"].(map[string]interface{})
 	assert.Equal(t, "測試群組", retrievedData["name"])
 	assert.Equal(t, float64(1000), retrievedData["interval_ms"])
@@ -172,10 +172,10 @@ func TestPollingGroupHandler_Update(t *testing.T) {
 	// 先建立一個群組
 	enabled := true
 	createReq := pollinggroup.CreateRequest{
-		Name:        "原始群組",
-		IntervalMs:  1000,
-		Priority:    100,
-		Enabled:     &enabled,
+		Name:       "原始群組",
+		IntervalMs: 1000,
+		Priority:   100,
+		Enabled:    &enabled,
 	}
 	body, _ := json.Marshal(createReq)
 	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
@@ -228,10 +228,10 @@ func TestPollingGroupHandler_Delete(t *testing.T) {
 	// 先建立一個群組
 	enabled := true
 	createReq := pollinggroup.CreateRequest{
-		Name:        "待刪除群組",
-		IntervalMs:  1000,
-		Priority:    100,
-		Enabled:     &enabled,
+		Name:       "待刪除群組",
+		IntervalMs: 1000,
+		Priority:   100,
+		Enabled:    &enabled,
 	}
 	body, _ := json.Marshal(createReq)
 	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
@@ -283,8 +283,8 @@ func TestPollingGroupHandler_Create_ValidationError(t *testing.T) {
 	newGroup := pollinggroup.CreateRequest{
 		// 缺少 Name
 		IntervalMs: 1000,
-		Priority:    100,
-		Enabled:     &enabled,
+		Priority:   100,
+		Enabled:    &enabled,
 	}
 
 	body, _ := json.Marshal(newGroup)
@@ -311,10 +311,10 @@ func TestPollingGroupHandler_Update_NotFound(t *testing.T) {
 	updateInterval := 1000
 	updatePriority := 100
 	updateReq := pollinggroup.UpdateRequest{
-		Name:        &updateName,
-		IntervalMs:  &updateInterval,
-		Priority:    &updatePriority,
-		Enabled:     &enabled,
+		Name:       &updateName,
+		IntervalMs: &updateInterval,
+		Priority:   &updatePriority,
+		Enabled:    &enabled,
 	}
 
 	body, _ := json.Marshal(updateReq)
@@ -377,10 +377,10 @@ func TestPollingGroupHandler_Update_EnableDisable(t *testing.T) {
 	// 建立啟用的群組
 	enabled := true
 	createReq := pollinggroup.CreateRequest{
-		Name:        "測試群組",
-		IntervalMs:  1000,
-		Priority:    100,
-		Enabled:     &enabled,
+		Name:       "測試群組",
+		IntervalMs: 1000,
+		Priority:   100,
+		Enabled:    &enabled,
 	}
 	body, _ := json.Marshal(createReq)
 	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))

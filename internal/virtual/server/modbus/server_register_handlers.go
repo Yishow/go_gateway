@@ -14,6 +14,9 @@ func (s *Server) handleReadHoldingRegisters(pdu []byte) []byte {
 	if quantity == 0 || quantity > 125 {
 		return s.exceptionResponse(FuncReadHoldingRegisters, ExceptionIllegalDataValue)
 	}
+	if !s.registerRangeValid(startAddr, quantity) {
+		return s.exceptionResponse(FuncReadHoldingRegisters, ExceptionIllegalDataAddress)
+	}
 
 	// 讀取數據
 	byteCount := quantity * 2
@@ -50,6 +53,9 @@ func (s *Server) handleReadInputRegisters(pdu []byte) []byte {
 	if quantity == 0 || quantity > 125 {
 		return s.exceptionResponse(FuncReadInputRegisters, ExceptionIllegalDataValue)
 	}
+	if !s.registerRangeValid(startAddr, quantity) {
+		return s.exceptionResponse(FuncReadInputRegisters, ExceptionIllegalDataAddress)
+	}
 
 	byteCount := quantity * 2
 	data := make([]byte, byteCount)
@@ -79,6 +85,9 @@ func (s *Server) handleWriteSingleRegister(pdu []byte) []byte {
 
 	regAddr := binary.BigEndian.Uint16(pdu[1:3])
 	value := binary.BigEndian.Uint16(pdu[3:5])
+	if !s.registerRangeValid(regAddr, 1) {
+		return s.exceptionResponse(FuncWriteSingleRegister, ExceptionIllegalDataAddress)
+	}
 
 	offset := int(regAddr) * 2
 	err := s.bank.WriteWord(offset, value)
@@ -106,6 +115,9 @@ func (s *Server) handleWriteMultipleRegisters(pdu []byte) []byte {
 
 	if len(pdu) < 6+int(byteCount) {
 		return s.exceptionResponse(FuncWriteMultipleRegisters, ExceptionIllegalDataValue)
+	}
+	if !s.registerRangeValid(startAddr, quantity) {
+		return s.exceptionResponse(FuncWriteMultipleRegisters, ExceptionIllegalDataAddress)
 	}
 
 	// 寫入數據

@@ -1,0 +1,2377 @@
+{
+  "started_at": "2026-08-25T15:58:14Z",
+  "temp_root": "/var/folders/bq/zyknbs7n1xs99c08yprwqc9c0000gn/T/gateway-b10-loqvae8t",
+  "binary": "/var/folders/bq/zyknbs7n1xs99c08yprwqc9c0000gn/T/gateway-b10-loqvae8t/test-ui",
+  "database": "/var/folders/bq/zyknbs7n1xs99c08yprwqc9c0000gn/T/gateway-b10-loqvae8t/gateway.db",
+  "ports": {
+    "http": 60082,
+    "source_modbus": 60083,
+    "share_modbus": 60084
+  },
+  "steps": [
+    {
+      "name": "partial-failure-focused-suite-before-build",
+      "status": "pass",
+      "command": "go test ./internal/datalink/modbusshare -run Test(RegisterGeometry_(StrideValidation)|Reconciler_(AtomicCommitSuccess|StaleRevisionCASConflict|RollbackUncertaintyReportsDirtyUnknown|NilRevisionStoreFailsClosedBeforeMutation|EmptyExpectedRevisionFailsClosedBeforeMutation|ForeignWorkspaceProjectionIsPreservedAndExcluded|RevisionStatusReadsDurableDirtyMarker|RevisionStatusReadsDirtyMarkerAfterStoreRestart|SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure)|SQLWorkspaceRevisionStore_(PersistsAndCASChecksAcrossInstances|CommitsDesiredMappingsWithRevision)|Service_(HydrationFailureStopsRunningListener|StatusForWorkspaceScopesMappingsAndSharesLifecycleState|ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020)|Reconciler_StagedTransactionIsRejectedAfterGlobalDisable|Reconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift|Service_StartCASChecksRevisionBeforeSamePortIdempotency) -count=1 && go test ./internal/api/handlers -run Test(ModbusShareHandler_(StatusExposesSafeBindFailureDiagnostic|StatusShowsDurableDirtyRecoveryAfterRestart)|StudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery|SourceRuleHandler_ApplyTags_RejectsRevisionMismatch) -count=1",
+      "test_names": [
+        "TestRegisterGeometry_StrideValidation",
+        "TestReconciler_AtomicCommitSuccess",
+        "TestReconciler_StaleRevisionCASConflict",
+        "TestReconciler_RollbackUncertaintyReportsDirtyUnknown",
+        "TestReconciler_NilRevisionStoreFailsClosedBeforeMutation",
+        "TestReconciler_EmptyExpectedRevisionFailsClosedBeforeMutation",
+        "TestReconciler_ForeignWorkspaceProjectionIsPreservedAndExcluded",
+        "TestReconciler_RevisionStatusReadsDurableDirtyMarker",
+        "TestReconciler_RevisionStatusReadsDirtyMarkerAfterStoreRestart",
+        "TestSQLWorkspaceRevisionStore_PersistsAndCASChecksAcrossInstances",
+        "TestSQLWorkspaceRevisionStore_CommitsDesiredMappingsWithRevision",
+        "TestReconciler_SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure",
+        "TestService_HydrationFailureStopsRunningListener",
+        "TestService_StatusForWorkspaceScopesMappingsAndSharesLifecycleState",
+        "TestService_ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020",
+        "TestReconciler_StagedTransactionIsRejectedAfterGlobalDisable",
+        "TestReconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift",
+        "TestService_StartCASChecksRevisionBeforeSamePortIdempotency",
+        "TestModbusShareHandler_StatusExposesSafeBindFailureDiagnostic",
+        "TestModbusShareHandler_StatusShowsDurableDirtyRecoveryAfterRestart",
+        "TestStudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery",
+        "TestSourceRuleHandler_ApplyTags_RejectsRevisionMismatch"
+      ],
+      "exit_code": 0,
+      "output_hash": "15e366217562b3f49f5b0274a3696f2847975192d0d01136377c34241ed1b95b"
+    },
+    {
+      "name": "partial-failure-focused-suite-after-build",
+      "status": "pass",
+      "command": "go test ./internal/datalink/modbusshare -run Test(RegisterGeometry_(StrideValidation)|Reconciler_(AtomicCommitSuccess|StaleRevisionCASConflict|RollbackUncertaintyReportsDirtyUnknown|NilRevisionStoreFailsClosedBeforeMutation|EmptyExpectedRevisionFailsClosedBeforeMutation|ForeignWorkspaceProjectionIsPreservedAndExcluded|RevisionStatusReadsDurableDirtyMarker|RevisionStatusReadsDirtyMarkerAfterStoreRestart|SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure)|SQLWorkspaceRevisionStore_(PersistsAndCASChecksAcrossInstances|CommitsDesiredMappingsWithRevision)|Service_(HydrationFailureStopsRunningListener|StatusForWorkspaceScopesMappingsAndSharesLifecycleState|ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020)|Reconciler_StagedTransactionIsRejectedAfterGlobalDisable|Reconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift|Service_StartCASChecksRevisionBeforeSamePortIdempotency) -count=1 && go test ./internal/api/handlers -run Test(ModbusShareHandler_(StatusExposesSafeBindFailureDiagnostic|StatusShowsDurableDirtyRecoveryAfterRestart)|StudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery|SourceRuleHandler_ApplyTags_RejectsRevisionMismatch) -count=1",
+      "test_names": [
+        "TestRegisterGeometry_StrideValidation",
+        "TestReconciler_AtomicCommitSuccess",
+        "TestReconciler_StaleRevisionCASConflict",
+        "TestReconciler_RollbackUncertaintyReportsDirtyUnknown",
+        "TestReconciler_NilRevisionStoreFailsClosedBeforeMutation",
+        "TestReconciler_EmptyExpectedRevisionFailsClosedBeforeMutation",
+        "TestReconciler_ForeignWorkspaceProjectionIsPreservedAndExcluded",
+        "TestReconciler_RevisionStatusReadsDurableDirtyMarker",
+        "TestReconciler_RevisionStatusReadsDirtyMarkerAfterStoreRestart",
+        "TestSQLWorkspaceRevisionStore_PersistsAndCASChecksAcrossInstances",
+        "TestSQLWorkspaceRevisionStore_CommitsDesiredMappingsWithRevision",
+        "TestReconciler_SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure",
+        "TestService_HydrationFailureStopsRunningListener",
+        "TestService_StatusForWorkspaceScopesMappingsAndSharesLifecycleState",
+        "TestService_ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020",
+        "TestReconciler_StagedTransactionIsRejectedAfterGlobalDisable",
+        "TestReconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift",
+        "TestService_StartCASChecksRevisionBeforeSamePortIdempotency",
+        "TestModbusShareHandler_StatusExposesSafeBindFailureDiagnostic",
+        "TestModbusShareHandler_StatusShowsDurableDirtyRecoveryAfterRestart",
+        "TestStudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery",
+        "TestSourceRuleHandler_ApplyTags_RejectsRevisionMismatch"
+      ],
+      "exit_code": 0,
+      "output_hash": "0a5c40f0612393320f95283f6f6c7befeb44db5e8f62ae7a80fd0337193045da"
+    },
+    {
+      "name": "disabled-no-listener",
+      "status": "pass",
+      "tcp_connect_before_enable": false
+    },
+    {
+      "name": "http-configure-durable-save",
+      "status": "pass",
+      "device_id": "b10-device",
+      "rule_id": "b10-rule-1"
+    },
+    {
+      "name": "activate-real-modbus-read",
+      "status": "pass",
+      "register": 0,
+      "value": 4660,
+      "assertions": [
+        "production Share list is non-empty",
+        "production Share identity/content equals canonical plan",
+        "mapping capacity_registers equals listener capacity",
+        "status mapping_count equals canonical and production list counts"
+      ]
+    },
+    {
+      "name": "same-exe-restart-restore-read",
+      "status": "pass",
+      "value": 4660,
+      "assertions": [
+        "production Share list is non-empty",
+        "production Share identity/content equals canonical plan",
+        "mapping capacity_registers equals listener capacity",
+        "status mapping_count equals canonical and production list counts",
+        "restart listener status payload lifecycle_state=running",
+        "restart workspace/settings revisions equal positive projection",
+        "restart production Share list content and mapping capacity_registers equal positive projection",
+        "restart status equals positive projection"
+      ]
+    },
+    {
+      "name": "disabled-list-reconcile-activation-no-mutation",
+      "status": "pass",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/datalink/settings/modbus_share"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/datalink/modbus-share/mappings"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datalink/modbus-share/reconcile"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/datalink/modbus-share/mappings/b10-disabled-probe"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datalink/studio-v2/workspace/activate"
+        },
+        {
+          "method": "PUT",
+          "path": "/api/v1/datalink/settings/modbus_share"
+        }
+      ],
+      "responses": [
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/api/v1/datalink/settings/modbus_share"
+          },
+          "status": 200,
+          "code": null,
+          "success": true,
+          "counts": {},
+          "body_hash": "84e9ad6698b15a5fe7486d4002ad25e5cb4e2582c4a928fef57370acabc996de"
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/api/v1/datalink/modbus-share/mappings"
+          },
+          "status": 422,
+          "code": "modbus_share_disabled",
+          "success": false,
+          "counts": {},
+          "body_hash": "4de74781412030fe75884d3336eb99b2532437abd3c33cb86e66683aa1aa631d"
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/v1/datalink/modbus-share/reconcile"
+          },
+          "status": 422,
+          "code": "modbus_share_disabled",
+          "success": false,
+          "counts": {},
+          "body_hash": "ef3a18998b7bfaa0b4e75a3d413fe8f392bfe699e6dff0aa433fc66e2a5a5de8"
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/api/v1/datalink/modbus-share/mappings/b10-disabled-probe"
+          },
+          "status": 422,
+          "code": "modbus_share_disabled",
+          "success": false,
+          "counts": {},
+          "body_hash": "67072e7227028f7e7a3e1eda227024f3e1b0294de8f66d1866694083813c77fd"
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/v1/datalink/studio-v2/workspace/activate"
+          },
+          "status": 422,
+          "code": "modbus_share_disabled",
+          "success": false,
+          "counts": {},
+          "body_hash": "5c034c914aab2d3dc18bb9352b8c35a17c51abb5ded5816d53636f66b1dfcf47"
+        },
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/api/v1/datalink/settings/modbus_share"
+          },
+          "status": 200,
+          "code": null,
+          "success": true,
+          "counts": {},
+          "body_hash": "9607fd6007c0c73b9c6f47d1a5b76827943f76bedf160a9dbe8cb8fbe059d568"
+        }
+      ],
+      "before": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "lifecycle_state": "running",
+        "status_hash": "bd62953b2c3abfa264b7fe9eecaabe7406a10fd77ff028d26522a4dc6c23b679",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "after": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "4ae77453-4d40-4216-974e-5ce330bb75de",
+        "lifecycle_state": "running",
+        "status_hash": "724078bd14e7d0a9ccc5abf1858876b0a601dad21f4ff3f9ef6d5c3192bbf2bf",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "listener_disabled": true,
+      "projection_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+    },
+    {
+      "name": "exact-double-submit-idempotent",
+      "status": "pass",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/datalink/modbus-share/reconcile"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datalink/modbus-share/reconcile"
+        }
+      ],
+      "responses": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/v1/datalink/modbus-share/reconcile"
+          },
+          "status": 200,
+          "code": null,
+          "success": true,
+          "counts": {
+            "mappings": 1
+          },
+          "body_hash": "e4c051704c9dec480a546765674d4865235011606996d975d640df4ad5609f59"
+        },
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/v1/datalink/modbus-share/reconcile"
+          },
+          "status": 200,
+          "code": null,
+          "success": true,
+          "counts": {
+            "mappings": 1
+          },
+          "body_hash": "e4c051704c9dec480a546765674d4865235011606996d975d640df4ad5609f59"
+        }
+      ],
+      "before": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "4ae77453-4d40-4216-974e-5ce330bb75de",
+        "lifecycle_state": "running",
+        "status_hash": "724078bd14e7d0a9ccc5abf1858876b0a601dad21f4ff3f9ef6d5c3192bbf2bf",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "after": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "4ae77453-4d40-4216-974e-5ce330bb75de",
+        "lifecycle_state": "running",
+        "status_hash": "724078bd14e7d0a9ccc5abf1858876b0a601dad21f4ff3f9ef6d5c3192bbf2bf",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "outcomes": [
+        "aligned",
+        "aligned"
+      ],
+      "revisions": [
+        "766a6de2-9932-419c-8a1b-540cddffe888",
+        "766a6de2-9932-419c-8a1b-540cddffe888"
+      ],
+      "response_hashes": [
+        "e4c051704c9dec480a546765674d4865235011606996d975d640df4ad5609f59",
+        "e4c051704c9dec480a546765674d4865235011606996d975d640df4ad5609f59"
+      ]
+    },
+    {
+      "name": "different-desired-stale-revision-conflict",
+      "status": "pass",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/datalink/settings/modbus_share"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/datalink/modbus-share/reconcile"
+        }
+      ],
+      "responses": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/v1/datalink/modbus-share/reconcile"
+          },
+          "status": 409,
+          "code": "modbus_share_revision_conflict",
+          "success": false,
+          "counts": {},
+          "body_hash": "1774ecf280c10c608493561fa253eb26ded3bb2d8998787177b1d5587e19cb42"
+        }
+      ],
+      "before": {
+        "mapping_count": 0,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "a77e0ef0-4a5a-48dd-8ec6-e796752a328a",
+        "lifecycle_state": "running",
+        "status_hash": "c618e4f7aa97ed06f2b1a46a49c44c267fc853f1971bab6fab29a7d6d32ea54b",
+        "register_value": 4660,
+        "mapping_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "after": {
+        "mapping_count": 0,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "a77e0ef0-4a5a-48dd-8ec6-e796752a328a",
+        "lifecycle_state": "running",
+        "status_hash": "c618e4f7aa97ed06f2b1a46a49c44c267fc853f1971bab6fab29a7d6d32ea54b",
+        "register_value": 4660,
+        "mapping_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "stale_status": 409,
+      "unchanged_fields": [
+        "mapping_hash",
+        "register_value",
+        "mapping_count",
+        "workspace_revision",
+        "settings_revision"
+      ]
+    },
+    {
+      "name": "listener-bind-conflict-old-projection-retained",
+      "status": "pass",
+      "requests": [
+        {
+          "method": "PUT",
+          "path": "/api/v1/datalink/settings/modbus_share"
+        }
+      ],
+      "responses": [
+        {
+          "request": {
+            "method": "PUT",
+            "path": "/api/v1/datalink/settings/modbus_share"
+          },
+          "status": 422,
+          "code": "modbus_share_listener_bind_failed",
+          "success": false,
+          "counts": {},
+          "body_hash": "c8a9059c5366ecf3167ea8970e52517db6131c3fa76c45429b1fab4cfceebdf7"
+        },
+        {
+          "request": {
+            "method": "GET",
+            "path": "/api/v1/datalink/modbus-share/status"
+          },
+          "status": 200,
+          "code": null,
+          "success": true,
+          "counts": {},
+          "body_hash": "2d7f23f1452d969c5489500c3daa02baa0200400c86631c7be9a8d823a0b81be"
+        }
+      ],
+      "before": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "4ae77453-4d40-4216-974e-5ce330bb75de",
+        "lifecycle_state": "running",
+        "status_hash": "724078bd14e7d0a9ccc5abf1858876b0a601dad21f4ff3f9ef6d5c3192bbf2bf",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "after": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+        "lifecycle_state": "running",
+        "status_hash": "d7a8fc1449d0d0d88f8972effb8b451fddf6252da29d3b45a2a0f08dbad88540",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "listener_failure": "modbus_share_listener_bind_failed",
+      "retained_value": 4660,
+      "partial_failure_exe_fallback": "real listener bind conflict; primary old projection retained"
+    },
+    {
+      "name": "capacity-overflow-old-projection-retained",
+      "status": "pass",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/datalink/modbus-share/reconcile"
+        }
+      ],
+      "responses": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/v1/datalink/modbus-share/reconcile"
+          },
+          "status": 422,
+          "code": "modbus_share_capacity_exceeded",
+          "success": false,
+          "counts": {},
+          "body_hash": "89a6e701c8aebe5744208475d33ba90e48ffc20da307c6365db311ab3fa81160"
+        }
+      ],
+      "before": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+        "lifecycle_state": "running",
+        "status_hash": "ac81a7f551658e229144c0289e619a75e29157d2d0e5ec3861fd5048b30dca94",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "after": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+        "lifecycle_state": "running",
+        "status_hash": "ac81a7f551658e229144c0289e619a75e29157d2d0e5ec3861fd5048b30dca94",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "typed_code": "modbus_share_capacity_exceeded",
+      "candidate_count": 2,
+      "status_code": 422
+    },
+    {
+      "name": "cross-workspace-ownership-no-mutation",
+      "status": "pass",
+      "requests": [
+        {
+          "method": "POST",
+          "path": "/api/v1/datalink/modbus-share/reconcile"
+        }
+      ],
+      "responses": [
+        {
+          "request": {
+            "method": "POST",
+            "path": "/api/v1/datalink/modbus-share/reconcile"
+          },
+          "status": 403,
+          "code": "modbus_share_workspace_scope",
+          "success": false,
+          "counts": {},
+          "body_hash": "33a9471dbacd44142667a63d1338a444e9ecfef60561feebf9405e099096cae8"
+        }
+      ],
+      "before": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+        "lifecycle_state": "running",
+        "status_hash": "d7a8fc1449d0d0d88f8972effb8b451fddf6252da29d3b45a2a0f08dbad88540",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "after": {
+        "mapping_count": 1,
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+        "lifecycle_state": "running",
+        "status_hash": "d7a8fc1449d0d0d88f8972effb8b451fddf6252da29d3b45a2a0f08dbad88540",
+        "register_value": 4660,
+        "mapping_hash": "3d9cab029b62d45f2b526e433a608472fc4620afd1c06b564faeef5c36770f32"
+      },
+      "typed_code": "modbus_share_workspace_scope",
+      "status_code": 403,
+      "unchanged_fields": [
+        "mapping_hash",
+        "register_value",
+        "mapping_count",
+        "workspace_revision",
+        "settings_revision"
+      ]
+    },
+    {
+      "name": "collision-blocked-no-mutation",
+      "status": "pass",
+      "candidate_status": "blocked_conflict",
+      "retained_value": 4660
+    }
+  ],
+  "configuration_seam": "Studio V2 workspace source-rule HTTP create/update only",
+  "focused_suite_evidence": [
+    {
+      "command": "go test ./internal/datalink/modbusshare -run Test(RegisterGeometry_(StrideValidation)|Reconciler_(AtomicCommitSuccess|StaleRevisionCASConflict|RollbackUncertaintyReportsDirtyUnknown|NilRevisionStoreFailsClosedBeforeMutation|EmptyExpectedRevisionFailsClosedBeforeMutation|ForeignWorkspaceProjectionIsPreservedAndExcluded|RevisionStatusReadsDurableDirtyMarker|RevisionStatusReadsDirtyMarkerAfterStoreRestart|SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure)|SQLWorkspaceRevisionStore_(PersistsAndCASChecksAcrossInstances|CommitsDesiredMappingsWithRevision)|Service_(HydrationFailureStopsRunningListener|StatusForWorkspaceScopesMappingsAndSharesLifecycleState|ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020)|Reconciler_StagedTransactionIsRejectedAfterGlobalDisable|Reconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift|Service_StartCASChecksRevisionBeforeSamePortIdempotency) -count=1 && go test ./internal/api/handlers -run Test(ModbusShareHandler_(StatusExposesSafeBindFailureDiagnostic|StatusShowsDurableDirtyRecoveryAfterRestart)|StudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery|SourceRuleHandler_ApplyTags_RejectsRevisionMismatch) -count=1",
+      "test_names": [
+        "TestRegisterGeometry_StrideValidation",
+        "TestReconciler_AtomicCommitSuccess",
+        "TestReconciler_StaleRevisionCASConflict",
+        "TestReconciler_RollbackUncertaintyReportsDirtyUnknown",
+        "TestReconciler_NilRevisionStoreFailsClosedBeforeMutation",
+        "TestReconciler_EmptyExpectedRevisionFailsClosedBeforeMutation",
+        "TestReconciler_ForeignWorkspaceProjectionIsPreservedAndExcluded",
+        "TestReconciler_RevisionStatusReadsDurableDirtyMarker",
+        "TestReconciler_RevisionStatusReadsDirtyMarkerAfterStoreRestart",
+        "TestSQLWorkspaceRevisionStore_PersistsAndCASChecksAcrossInstances",
+        "TestSQLWorkspaceRevisionStore_CommitsDesiredMappingsWithRevision",
+        "TestReconciler_SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure",
+        "TestService_HydrationFailureStopsRunningListener",
+        "TestService_StatusForWorkspaceScopesMappingsAndSharesLifecycleState",
+        "TestService_ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020",
+        "TestReconciler_StagedTransactionIsRejectedAfterGlobalDisable",
+        "TestReconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift",
+        "TestService_StartCASChecksRevisionBeforeSamePortIdempotency",
+        "TestModbusShareHandler_StatusExposesSafeBindFailureDiagnostic",
+        "TestModbusShareHandler_StatusShowsDurableDirtyRecoveryAfterRestart",
+        "TestStudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery",
+        "TestSourceRuleHandler_ApplyTags_RejectsRevisionMismatch"
+      ],
+      "exit_code": 0,
+      "output_hash": "15e366217562b3f49f5b0274a3696f2847975192d0d01136377c34241ed1b95b"
+    },
+    {
+      "command": "go test ./internal/datalink/modbusshare -run Test(RegisterGeometry_(StrideValidation)|Reconciler_(AtomicCommitSuccess|StaleRevisionCASConflict|RollbackUncertaintyReportsDirtyUnknown|NilRevisionStoreFailsClosedBeforeMutation|EmptyExpectedRevisionFailsClosedBeforeMutation|ForeignWorkspaceProjectionIsPreservedAndExcluded|RevisionStatusReadsDurableDirtyMarker|RevisionStatusReadsDirtyMarkerAfterStoreRestart|SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure)|SQLWorkspaceRevisionStore_(PersistsAndCASChecksAcrossInstances|CommitsDesiredMappingsWithRevision)|Service_(HydrationFailureStopsRunningListener|StatusForWorkspaceScopesMappingsAndSharesLifecycleState|ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020)|Reconciler_StagedTransactionIsRejectedAfterGlobalDisable|Reconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift|Service_StartCASChecksRevisionBeforeSamePortIdempotency) -count=1 && go test ./internal/api/handlers -run Test(ModbusShareHandler_(StatusExposesSafeBindFailureDiagnostic|StatusShowsDurableDirtyRecoveryAfterRestart)|StudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery|SourceRuleHandler_ApplyTags_RejectsRevisionMismatch) -count=1",
+      "test_names": [
+        "TestRegisterGeometry_StrideValidation",
+        "TestReconciler_AtomicCommitSuccess",
+        "TestReconciler_StaleRevisionCASConflict",
+        "TestReconciler_RollbackUncertaintyReportsDirtyUnknown",
+        "TestReconciler_NilRevisionStoreFailsClosedBeforeMutation",
+        "TestReconciler_EmptyExpectedRevisionFailsClosedBeforeMutation",
+        "TestReconciler_ForeignWorkspaceProjectionIsPreservedAndExcluded",
+        "TestReconciler_RevisionStatusReadsDurableDirtyMarker",
+        "TestReconciler_RevisionStatusReadsDirtyMarkerAfterStoreRestart",
+        "TestSQLWorkspaceRevisionStore_PersistsAndCASChecksAcrossInstances",
+        "TestSQLWorkspaceRevisionStore_CommitsDesiredMappingsWithRevision",
+        "TestReconciler_SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure",
+        "TestService_HydrationFailureStopsRunningListener",
+        "TestService_StatusForWorkspaceScopesMappingsAndSharesLifecycleState",
+        "TestService_ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020",
+        "TestReconciler_StagedTransactionIsRejectedAfterGlobalDisable",
+        "TestReconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift",
+        "TestService_StartCASChecksRevisionBeforeSamePortIdempotency",
+        "TestModbusShareHandler_StatusExposesSafeBindFailureDiagnostic",
+        "TestModbusShareHandler_StatusShowsDurableDirtyRecoveryAfterRestart",
+        "TestStudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery",
+        "TestSourceRuleHandler_ApplyTags_RejectsRevisionMismatch"
+      ],
+      "exit_code": 0,
+      "output_hash": "0a5c40f0612393320f95283f6f6c7befeb44db5e8f62ae7a80fd0337193045da"
+    }
+  ],
+  "build_command": "go build -trimpath -buildvcs=false -ldflags=-buildid= -o /var/folders/bq/zyknbs7n1xs99c08yprwqc9c0000gn/T/gateway-b10-loqvae8t/test-ui ./cmd/test_ui",
+  "build_output": "",
+  "binary_sha256": "8398ffdf4b8977848c7dffd22a7fd3df367643b2867df795d3a5f61c3d0b2de7",
+  "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+  "http_candidate_snapshot": {
+    "source_rule_id": "b10-rule-1",
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "workspace_revision": "216acf43-8078-47d2-9ab6-58e755d6aa24",
+    "revision_id": "b4b80f68-13ab-4df1-858f-4c11a2c91755",
+    "tags": {
+      "status": "ready",
+      "candidates": [
+        {
+          "id": "tag:51f5cb26c724ddb2084dc19e881318088ce7aa21c3f1fe39d713a34e8b079a4c",
+          "identity": {
+            "source_rule_id": "b10-rule-1",
+            "candidate_type": "tags",
+            "candidate_kind": "tag",
+            "derived_from_rule_address": "40001",
+            "target_binding_scope": [
+              {
+                "key": "derived_target_data_type",
+                "value": "int16"
+              }
+            ]
+          },
+          "proposed_signature": "signature:28f61c4c1b47052e3b303a73ef09281af9429f206e693091b268c613e8c53b94",
+          "address": "40001",
+          "point_id": "68cc1f38-5e9f-4379-b4ac-5fd8dccc40e5",
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "data_type": "int16",
+          "status": "draft"
+        }
+      ]
+    },
+    "database_outputs": {
+      "status": "ready",
+      "candidates": [
+        {
+          "id": "database_output:91999df3bc357372b8483b34c64e1d431b3a440b3bb8bc0cc081b81254acefa9",
+          "identity": {
+            "source_rule_id": "b10-rule-1",
+            "candidate_type": "database_outputs",
+            "candidate_kind": "database_output",
+            "derived_from_rule_address": "40001",
+            "target_binding_scope": [
+              {
+                "key": "derived_target_data_type",
+                "value": "int16"
+              },
+              {
+                "key": "database_write_interval_seconds",
+                "value": "15"
+              }
+            ]
+          },
+          "proposed_signature": "signature:9332c2e23284785382a4350745b669cb4afa2eba26859d464cbb713c70be4010",
+          "address": "40001",
+          "point_id": "68cc1f38-5e9f-4379-b4ac-5fd8dccc40e5",
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "data_type": "int16",
+          "group_key": null,
+          "write_interval_seconds": 15,
+          "status": "ready"
+        }
+      ]
+    },
+    "local_modbus_outputs": {
+      "status": "deferred",
+      "reason": "local modbus output review flow is deferred until the output phase is configured",
+      "candidates": [
+        {
+          "id": "local_modbus_output:3aae9c4947793e3d6a71d75f8f1f740434a02336885711497c3cc0a74284c3bc",
+          "identity": {
+            "source_rule_id": "b10-rule-1",
+            "candidate_type": "local_modbus_outputs",
+            "candidate_kind": "local_modbus_output",
+            "derived_from_rule_address": "40001",
+            "target_binding_scope": [
+              {
+                "key": "derived_target_data_type",
+                "value": "int16"
+              }
+            ]
+          },
+          "proposed_signature": "signature:9c1ab93cb8560bec5c9d974d9f64a03cb93101afbc004908b43dc131d562492f",
+          "address": "40001",
+          "point_id": "68cc1f38-5e9f-4379-b4ac-5fd8dccc40e5",
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "data_type": "int16",
+          "register_count": 1,
+          "status": "deferred"
+        }
+      ]
+    }
+  },
+  "workspace_mappings_after_tags": [
+    {
+      "id": "a2affae4-e363-4030-bd6c-eab942053564",
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "point_id": "68cc1f38-5e9f-4379-b4ac-5fd8dccc40e5",
+      "rule_id": "b10-rule-1",
+      "device_id": "b10-device",
+      "address": "40001",
+      "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+      "tag_key": "B10_40001",
+      "display_name": "B10_40001",
+      "unit": "",
+      "target_type": "int16",
+      "scale": 1,
+      "offset": 0,
+      "enabled": true,
+      "save_state": "saved",
+      "created_at": "2026-08-25T23:58:59.161536+08:00",
+      "updated_at": "2026-08-25T23:58:59.161536+08:00"
+    }
+  ],
+  "device_activate_after_rule_enable": {
+    "id": "b10-device",
+    "name": "B10 source Modbus",
+    "protocol": "modbus_tcp",
+    "status": "active",
+    "connection_config": "{\"host\":\"127.0.0.1\",\"port\":60083,\"slave_id\":1,\"timeout\":2}",
+    "last_test_at": "0001-01-01T00:00:00Z",
+    "last_test_success": true,
+    "collection_count": 0,
+    "error_count": 0,
+    "readiness_status": "{\"device_id\":\"b10-device\",\"status\":\"ready\",\"availability_status\":\"available\",\"checks\":[{\"name\":\"Connection Configuration\",\"pass\":true,\"message\":\"configuration present\"},{\"name\":\"Connect Diagnostics\",\"pass\":true,\"message\":\"connect diagnostics succeeded\"},{\"name\":\"Probe Diagnostics\",\"pass\":true,\"message\":\"probe diagnostics succeeded\"},{\"name\":\"Planning Eligibility\",\"pass\":true,\"message\":\"planning allowed\"},{\"name\":\"Activation Eligibility\",\"pass\":true,\"message\":\"activation allowed\"},{\"name\":\"Apply Eligibility\",\"pass\":true,\"message\":\"apply allowed\"}],\"connect_status\":\"success\",\"probe_status\":\"success\",\"planning_allowed\":true,\"activation_allowed\":true,\"apply_allowed\":true,\"blocking_reasons\":null}",
+    "created_at": "2026-08-25T23:58:59Z",
+    "updated_at": "2026-08-25T15:58:59Z"
+  },
+  "status_after_http_enable": {
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "enabled": true,
+    "configured_enabled": true,
+    "port": 60084,
+    "address": "127.0.0.1:60084",
+    "bind_address": "127.0.0.1",
+    "bind_state": "pass",
+    "lifecycle_state": "running",
+    "listener_state": "running",
+    "mapping_count": 1,
+    "slave_id": 1,
+    "capacity_registers": 64,
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "hydration_state": "ready",
+    "readiness": true,
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "bootstrap_after_http_enable": {
+    "hydration_state": "ready",
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "readiness": true,
+    "status": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "enabled": true,
+      "configured_enabled": true,
+      "port": 60084,
+      "address": "127.0.0.1:60084",
+      "bind_address": "127.0.0.1",
+      "bind_state": "pass",
+      "lifecycle_state": "running",
+      "listener_state": "running",
+      "mapping_count": 1,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "hydration_state": "ready",
+      "readiness": true,
+      "canonical_plan": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ],
+        "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+      },
+      "canonical_desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ]
+    },
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "canonical_after_http_activation": [
+    {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "source_rule_id": "b10-rule-1",
+      "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+      "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+      "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+      "data_type": "int16",
+      "share_start_register": 40001,
+      "zero_based_register": 0,
+      "span_registers": 1,
+      "stride_registers": 1,
+      "capacity_registers": 64,
+      "tag_key": "B10_40001",
+      "display_name": "B10_40001",
+      "ownership_proof": {
+        "verified": true,
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "basis": "persisted workspace/source-rule/tag relationship"
+      }
+    }
+  ],
+  "canonical_plan_signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988",
+  "settings_revision_sources": {
+    "settings_put": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "fresh_status": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "fresh_canonical_plan": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "bootstrap_top_level": "935842ac-c678-4bd7-b8ae-6353a06b055d"
+  },
+  "reconcile": {
+    "status": 200,
+    "outcome": "aligned"
+  },
+  "status_after_reconcile": {
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "enabled": true,
+    "configured_enabled": true,
+    "port": 60084,
+    "address": "127.0.0.1:60084",
+    "bind_address": "127.0.0.1",
+    "bind_state": "pass",
+    "lifecycle_state": "running",
+    "listener_state": "running",
+    "mapping_count": 1,
+    "slave_id": 1,
+    "capacity_registers": 64,
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "hydration_state": "ready",
+    "readiness": true,
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "bootstrap_after_reconcile": {
+    "hydration_state": "ready",
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "readiness": true,
+    "status": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "enabled": true,
+      "configured_enabled": true,
+      "port": 60084,
+      "address": "127.0.0.1:60084",
+      "bind_address": "127.0.0.1",
+      "bind_state": "pass",
+      "lifecycle_state": "running",
+      "listener_state": "running",
+      "mapping_count": 1,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "hydration_state": "ready",
+      "readiness": true,
+      "canonical_plan": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ],
+        "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+      },
+      "canonical_desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ]
+    },
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "workspace_mappings_after_activate": [
+    {
+      "id": "a2affae4-e363-4030-bd6c-eab942053564",
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "point_id": "68cc1f38-5e9f-4379-b4ac-5fd8dccc40e5",
+      "rule_id": "b10-rule-1",
+      "device_id": "b10-device",
+      "address": "40001",
+      "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+      "tag_key": "B10_40001",
+      "display_name": "B10_40001",
+      "unit": "",
+      "target_type": "int16",
+      "scale": 1,
+      "offset": 0,
+      "enabled": true,
+      "save_state": "saved",
+      "created_at": "2026-08-25T23:58:59.161536+08:00",
+      "updated_at": "2026-08-25T15:58:59Z"
+    }
+  ],
+  "runtime_status_after_activate": {
+    "running": true,
+    "uptime_seconds": 0,
+    "snapshot_state": {
+      "state": "stale",
+      "empty": false,
+      "degraded": false,
+      "unavailable": false,
+      "stale": true,
+      "reason": "one or more runtime points are stale"
+    },
+    "metrics": {
+      "collected_total": 0,
+      "write_success_total": 0,
+      "write_error_total": 0,
+      "mapping_error_total": 0,
+      "point_state_error_total": 0
+    },
+    "collectors": [
+      {
+        "device_id": "b10-device",
+        "device_name": "B10 source Modbus",
+        "protocol": "modbus_tcp",
+        "status": "warning",
+        "availability_status": "available",
+        "running": false,
+        "points_total": 1,
+        "points_healthy": 0,
+        "points_stale": 1,
+        "points_error": 0,
+        "last_read_at": null,
+        "last_error": null,
+        "breaker_state": "closed",
+        "projection_alignment": "aligned",
+        "runtime_projection_version": "sha256:f7eccc066363de70",
+        "workspace_projection_version": "sha256:f7eccc066363de70"
+      }
+    ]
+  },
+  "status_after_activate": {
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "enabled": true,
+    "configured_enabled": true,
+    "port": 60084,
+    "address": "127.0.0.1:60084",
+    "bind_address": "127.0.0.1",
+    "bind_state": "pass",
+    "lifecycle_state": "running",
+    "listener_state": "running",
+    "mapping_count": 1,
+    "slave_id": 1,
+    "capacity_registers": 64,
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "hydration_state": "ready",
+    "readiness": true,
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "bootstrap_after_activate": {
+    "hydration_state": "ready",
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "readiness": true,
+    "status": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "enabled": true,
+      "configured_enabled": true,
+      "port": 60084,
+      "address": "127.0.0.1:60084",
+      "bind_address": "127.0.0.1",
+      "bind_state": "pass",
+      "lifecycle_state": "running",
+      "listener_state": "running",
+      "mapping_count": 1,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "hydration_state": "ready",
+      "readiness": true,
+      "canonical_plan": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ],
+        "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+      },
+      "canonical_desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ]
+    },
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "share_mappings_after_activate": [
+    {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "source_rule_id": "b10-rule-1",
+      "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+      "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+      "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+      "register": 0,
+      "share_start_register": 40001,
+      "zero_based_register": 0,
+      "span_registers": 1,
+      "stride_registers": 1,
+      "capacity_registers": 64,
+      "data_type": "int16",
+      "tag_key": "B10_40001",
+      "display_name": "B10_40001",
+      "updated_at": "2026-08-25T15:58:59.171284Z"
+    }
+  ],
+  "positive_projection": {
+    "mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "register": 0,
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "data_type": "int16",
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "updated_at": "2026-08-25T15:58:59.171284Z"
+      }
+    ],
+    "canonical_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ],
+    "status": {
+      "lifecycle_state": "running",
+      "enabled": true,
+      "bind_address": "127.0.0.1",
+      "port": 60084,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "mapping_count": 1
+    },
+    "revisions": {
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d"
+    },
+    "assertions": [
+      "production Share list is non-empty",
+      "production Share identity/content equals canonical plan",
+      "mapping capacity_registers equals listener capacity",
+      "status mapping_count equals canonical and production list counts"
+    ],
+    "bootstrap": {
+      "hydration_state": "ready",
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "readiness": true,
+      "status": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "enabled": true,
+        "configured_enabled": true,
+        "port": 60084,
+        "address": "127.0.0.1:60084",
+        "bind_address": "127.0.0.1",
+        "bind_state": "pass",
+        "lifecycle_state": "running",
+        "listener_state": "running",
+        "mapping_count": 1,
+        "slave_id": 1,
+        "capacity_registers": 64,
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "hydration_state": "ready",
+        "readiness": true,
+        "canonical_plan": {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+          "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+          "desired_mappings": [
+            {
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+              "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+              "data_type": "int16",
+              "share_start_register": 40001,
+              "zero_based_register": 0,
+              "span_registers": 1,
+              "stride_registers": 1,
+              "capacity_registers": 64,
+              "tag_key": "B10_40001",
+              "display_name": "B10_40001",
+              "ownership_proof": {
+                "verified": true,
+                "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+                "source_rule_id": "b10-rule-1",
+                "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+                "basis": "persisted workspace/source-rule/tag relationship"
+              }
+            }
+          ],
+          "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+        },
+        "canonical_desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ]
+      },
+      "canonical_plan": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ],
+        "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+      },
+      "canonical_desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ]
+    }
+  },
+  "positive_projection_snapshot": {
+    "mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "register": 0,
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "data_type": "int16",
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "updated_at": "2026-08-25T15:58:59.171284Z"
+      }
+    ],
+    "canonical_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ],
+    "status": {
+      "lifecycle_state": "running",
+      "enabled": true,
+      "bind_address": "127.0.0.1",
+      "port": 60084,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "mapping_count": 1
+    },
+    "revisions": {
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d"
+    },
+    "assertions": [
+      "production Share list is non-empty",
+      "production Share identity/content equals canonical plan",
+      "mapping capacity_registers equals listener capacity",
+      "status mapping_count equals canonical and production list counts"
+    ],
+    "bootstrap": {
+      "hydration_state": "ready",
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "readiness": true,
+      "status": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "enabled": true,
+        "configured_enabled": true,
+        "port": 60084,
+        "address": "127.0.0.1:60084",
+        "bind_address": "127.0.0.1",
+        "bind_state": "pass",
+        "lifecycle_state": "running",
+        "listener_state": "running",
+        "mapping_count": 1,
+        "slave_id": 1,
+        "capacity_registers": 64,
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "hydration_state": "ready",
+        "readiness": true,
+        "canonical_plan": {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+          "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+          "desired_mappings": [
+            {
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+              "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+              "data_type": "int16",
+              "share_start_register": 40001,
+              "zero_based_register": 0,
+              "span_registers": 1,
+              "stride_registers": 1,
+              "capacity_registers": 64,
+              "tag_key": "B10_40001",
+              "display_name": "B10_40001",
+              "ownership_proof": {
+                "verified": true,
+                "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+                "source_rule_id": "b10-rule-1",
+                "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+                "basis": "persisted workspace/source-rule/tag relationship"
+              }
+            }
+          ],
+          "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+        },
+        "canonical_desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ]
+      },
+      "canonical_plan": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ],
+        "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+      },
+      "canonical_desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ]
+    }
+  },
+  "status_after_restart": {
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "enabled": true,
+    "configured_enabled": true,
+    "port": 60084,
+    "address": "127.0.0.1:60084",
+    "bind_address": "127.0.0.1",
+    "bind_state": "pass",
+    "lifecycle_state": "running",
+    "listener_state": "running",
+    "mapping_count": 1,
+    "slave_id": 1,
+    "capacity_registers": 64,
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "hydration_state": "ready",
+    "readiness": true,
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "bootstrap_after_restart": {
+    "hydration_state": "ready",
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+    "readiness": true,
+    "status": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "enabled": true,
+      "configured_enabled": true,
+      "port": 60084,
+      "address": "127.0.0.1:60084",
+      "bind_address": "127.0.0.1",
+      "bind_state": "pass",
+      "lifecycle_state": "running",
+      "listener_state": "running",
+      "mapping_count": 1,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "hydration_state": "ready",
+      "readiness": true,
+      "canonical_plan": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+        "desired_mappings": [
+          {
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+            "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+            "data_type": "int16",
+            "share_start_register": 40001,
+            "zero_based_register": 0,
+            "span_registers": 1,
+            "stride_registers": 1,
+            "capacity_registers": 64,
+            "tag_key": "B10_40001",
+            "display_name": "B10_40001",
+            "ownership_proof": {
+              "verified": true,
+              "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+              "source_rule_id": "b10-rule-1",
+              "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+              "basis": "persisted workspace/source-rule/tag relationship"
+            }
+          }
+        ],
+        "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+      },
+      "canonical_desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ]
+    },
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d",
+      "desired_mappings": [
+        {
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+          "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+          "data_type": "int16",
+          "share_start_register": 40001,
+          "zero_based_register": 0,
+          "span_registers": 1,
+          "stride_registers": 1,
+          "capacity_registers": 64,
+          "tag_key": "B10_40001",
+          "display_name": "B10_40001",
+          "ownership_proof": {
+            "verified": true,
+            "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+            "source_rule_id": "b10-rule-1",
+            "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+            "basis": "persisted workspace/source-rule/tag relationship"
+          }
+        }
+      ],
+      "signature": "17c26f2a6db573abf22a790fd6938661923b4d560b39993307c831ce8019e988"
+    },
+    "canonical_desired_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ]
+  },
+  "share_mappings_after_restart": [
+    {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "source_rule_id": "b10-rule-1",
+      "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+      "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+      "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+      "register": 0,
+      "share_start_register": 40001,
+      "zero_based_register": 0,
+      "span_registers": 1,
+      "stride_registers": 1,
+      "capacity_registers": 64,
+      "data_type": "int16",
+      "tag_key": "B10_40001",
+      "display_name": "B10_40001",
+      "updated_at": "2026-08-25T15:59:00.261531Z"
+    }
+  ],
+  "restart_projection": {
+    "mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "register": 0,
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "data_type": "int16",
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "updated_at": "2026-08-25T15:59:00.261531Z"
+      }
+    ],
+    "canonical_mappings": [
+      {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "source_rule_id": "b10-rule-1",
+        "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+        "tag_id": "661ae690-3666-4384-aa89-ffc52a8d2291",
+        "mapping_id": "a2affae4-e363-4030-bd6c-eab942053564",
+        "data_type": "int16",
+        "share_start_register": 40001,
+        "zero_based_register": 0,
+        "span_registers": 1,
+        "stride_registers": 1,
+        "capacity_registers": 64,
+        "tag_key": "B10_40001",
+        "display_name": "B10_40001",
+        "ownership_proof": {
+          "verified": true,
+          "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+          "source_rule_id": "b10-rule-1",
+          "source_rule_revision": "c3590260-067d-4f69-b2b2-6773706c1ba7",
+          "basis": "persisted workspace/source-rule/tag relationship"
+        }
+      }
+    ],
+    "status": {
+      "lifecycle_state": "running",
+      "enabled": true,
+      "bind_address": "127.0.0.1",
+      "port": 60084,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "mapping_count": 1
+    },
+    "revisions": {
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "935842ac-c678-4bd7-b8ae-6353a06b055d"
+    },
+    "assertions": [
+      "production Share list is non-empty",
+      "production Share identity/content equals canonical plan",
+      "mapping capacity_registers equals listener capacity",
+      "status mapping_count equals canonical and production list counts",
+      "restart listener status payload lifecycle_state=running",
+      "restart workspace/settings revisions equal positive projection",
+      "restart production Share list content and mapping capacity_registers equal positive projection",
+      "restart status equals positive projection"
+    ],
+    "restart_listener_status": {
+      "lifecycle_state": "running",
+      "bind_address": "127.0.0.1",
+      "port": 60084,
+      "slave_id": 1
+    }
+  },
+  "collision_candidate_snapshot": {
+    "source_rule_id": "b10-rule-collision",
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "revision_id": "4e1867c6-90dc-4114-8336-5ae915efc211",
+    "tags": {
+      "status": "ready",
+      "candidates": [
+        {
+          "id": "tag:770f55154ea4b7bbef59dfd2ef51d0eb407c2c9bbeb2097f265aad14b58c54fb",
+          "identity": {
+            "source_rule_id": "b10-rule-collision",
+            "candidate_type": "tags",
+            "candidate_kind": "tag",
+            "derived_from_rule_address": "40002",
+            "target_binding_scope": [
+              {
+                "key": "derived_target_data_type",
+                "value": "int16"
+              }
+            ]
+          },
+          "proposed_signature": "signature:1788832255410cac25163102e7a97ec95fe2626312697b43b549b141288dd69e",
+          "address": "40002",
+          "point_id": "daa7f66f-a620-400f-afd0-84e4531e9ba9",
+          "tag_id": "037b56e6-2b8d-47fe-9fe0-1de546f2bad6",
+          "mapping_id": "5fda7f91-05a6-4c50-966c-c2992f0dc6cc",
+          "tag_key": "B10C_40002",
+          "display_name": "B10C_40002",
+          "data_type": "int16",
+          "status": "active",
+          "last_applied_signature": "signature:23c6cbdbaa6b15244a85f10934bb6c555e257655094818decf430154ab245f6d"
+        }
+      ]
+    },
+    "database_outputs": {
+      "status": "ready",
+      "candidates": [
+        {
+          "id": "database_output:36cac1d95a9d43485d3ebab0cdaffb5be9fb48663c1feb1318b279a7ab5a40af",
+          "identity": {
+            "source_rule_id": "b10-rule-collision",
+            "candidate_type": "database_outputs",
+            "candidate_kind": "database_output",
+            "derived_from_rule_address": "40002",
+            "target_binding_scope": [
+              {
+                "key": "derived_target_data_type",
+                "value": "int16"
+              },
+              {
+                "key": "database_write_interval_seconds",
+                "value": "15"
+              }
+            ]
+          },
+          "proposed_signature": "signature:fab80ca94d47de31e2d39c7efdfb670d8b7f55ada4280a188811d3b15e66605a",
+          "address": "40002",
+          "point_id": "daa7f66f-a620-400f-afd0-84e4531e9ba9",
+          "tag_id": "037b56e6-2b8d-47fe-9fe0-1de546f2bad6",
+          "tag_key": "B10C_40002",
+          "display_name": "B10C_40002",
+          "data_type": "int16",
+          "group_key": null,
+          "write_interval_seconds": 15,
+          "status": "ready"
+        }
+      ]
+    },
+    "local_modbus_outputs": {
+      "status": "blocked",
+      "reason": "local 5020 register conflict: overlaps rule b10-rule-1 address 40001 on registers 0-0",
+      "candidates": [
+        {
+          "id": "local_modbus_output:ce54fc9949b4bd546124cfa0f37f3a151cdc5e6a6d24836239cdd508a7c822a8",
+          "identity": {
+            "source_rule_id": "b10-rule-collision",
+            "candidate_type": "local_modbus_outputs",
+            "candidate_kind": "local_modbus_output",
+            "derived_from_rule_address": "40002",
+            "target_binding_scope": [
+              {
+                "key": "derived_target_data_type",
+                "value": "int16"
+              },
+              {
+                "key": "local_modbus_register",
+                "value": "0"
+              }
+            ]
+          },
+          "proposed_signature": "signature:62527330cf17aac24271349ce0e2e8fc0a6589fde77c15693538ced2d8832fc1",
+          "address": "40002",
+          "point_id": "daa7f66f-a620-400f-afd0-84e4531e9ba9",
+          "tag_id": "037b56e6-2b8d-47fe-9fe0-1de546f2bad6",
+          "tag_key": "B10C_40002",
+          "display_name": "B10C_40002",
+          "data_type": "int16",
+          "register": 0,
+          "register_count": 1,
+          "status": "blocked_conflict",
+          "blocking_reason": "local 5020 register conflict: overlaps rule b10-rule-1 address 40001 on registers 0-0"
+        }
+      ]
+    }
+  },
+  "collision_bootstrap": {
+    "hydration_state": "ready",
+    "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+    "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+    "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+    "readiness": true,
+    "status": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "enabled": true,
+      "configured_enabled": true,
+      "port": 60084,
+      "address": "127.0.0.1:60084",
+      "bind_address": "127.0.0.1",
+      "bind_state": "pass",
+      "lifecycle_state": "running",
+      "listener_state": "running",
+      "mapping_count": 1,
+      "slave_id": 1,
+      "capacity_registers": 64,
+      "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "hydration_state": "ready",
+      "readiness": true,
+      "canonical_plan": {
+        "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+        "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+        "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+        "desired_mappings": null,
+        "signature": "1d4d8a62812370e11de79e9f421a62ce230e5fd69fe7de4ae481853533693681"
+      }
+    },
+    "canonical_plan": {
+      "workspace_id": "9409b755-8ae2-4fd3-a7ae-f6521d9d0f05",
+      "workspace_revision": "766a6de2-9932-419c-8a1b-540cddffe888",
+      "settings_revision": "1f76ddf9-f487-44e2-a919-432cc279670f",
+      "desired_mappings": null,
+      "signature": "1d4d8a62812370e11de79e9f421a62ce230e5fd69fe7de4ae481853533693681"
+    }
+  },
+  "collision_state": {
+    "candidate_set_status": "blocked",
+    "candidate_statuses": [
+      "blocked_conflict"
+    ],
+    "canonical_count": 0
+  },
+  "partial_failure": {
+    "status": "pass",
+    "focused_suite": [
+      {
+        "command": "go test ./internal/datalink/modbusshare -run Test(RegisterGeometry_(StrideValidation)|Reconciler_(AtomicCommitSuccess|StaleRevisionCASConflict|RollbackUncertaintyReportsDirtyUnknown|NilRevisionStoreFailsClosedBeforeMutation|EmptyExpectedRevisionFailsClosedBeforeMutation|ForeignWorkspaceProjectionIsPreservedAndExcluded|RevisionStatusReadsDurableDirtyMarker|RevisionStatusReadsDirtyMarkerAfterStoreRestart|SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure)|SQLWorkspaceRevisionStore_(PersistsAndCASChecksAcrossInstances|CommitsDesiredMappingsWithRevision)|Service_(HydrationFailureStopsRunningListener|StatusForWorkspaceScopesMappingsAndSharesLifecycleState|ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020)|Reconciler_StagedTransactionIsRejectedAfterGlobalDisable|Reconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift|Service_StartCASChecksRevisionBeforeSamePortIdempotency) -count=1 && go test ./internal/api/handlers -run Test(ModbusShareHandler_(StatusExposesSafeBindFailureDiagnostic|StatusShowsDurableDirtyRecoveryAfterRestart)|StudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery|SourceRuleHandler_ApplyTags_RejectsRevisionMismatch) -count=1",
+        "test_names": [
+          "TestRegisterGeometry_StrideValidation",
+          "TestReconciler_AtomicCommitSuccess",
+          "TestReconciler_StaleRevisionCASConflict",
+          "TestReconciler_RollbackUncertaintyReportsDirtyUnknown",
+          "TestReconciler_NilRevisionStoreFailsClosedBeforeMutation",
+          "TestReconciler_EmptyExpectedRevisionFailsClosedBeforeMutation",
+          "TestReconciler_ForeignWorkspaceProjectionIsPreservedAndExcluded",
+          "TestReconciler_RevisionStatusReadsDurableDirtyMarker",
+          "TestReconciler_RevisionStatusReadsDirtyMarkerAfterStoreRestart",
+          "TestSQLWorkspaceRevisionStore_PersistsAndCASChecksAcrossInstances",
+          "TestSQLWorkspaceRevisionStore_CommitsDesiredMappingsWithRevision",
+          "TestReconciler_SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure",
+          "TestService_HydrationFailureStopsRunningListener",
+          "TestService_StatusForWorkspaceScopesMappingsAndSharesLifecycleState",
+          "TestService_ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020",
+          "TestReconciler_StagedTransactionIsRejectedAfterGlobalDisable",
+          "TestReconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift",
+          "TestService_StartCASChecksRevisionBeforeSamePortIdempotency",
+          "TestModbusShareHandler_StatusExposesSafeBindFailureDiagnostic",
+          "TestModbusShareHandler_StatusShowsDurableDirtyRecoveryAfterRestart",
+          "TestStudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery",
+          "TestSourceRuleHandler_ApplyTags_RejectsRevisionMismatch"
+        ],
+        "exit_code": 0,
+        "output_hash": "15e366217562b3f49f5b0274a3696f2847975192d0d01136377c34241ed1b95b"
+      },
+      {
+        "command": "go test ./internal/datalink/modbusshare -run Test(RegisterGeometry_(StrideValidation)|Reconciler_(AtomicCommitSuccess|StaleRevisionCASConflict|RollbackUncertaintyReportsDirtyUnknown|NilRevisionStoreFailsClosedBeforeMutation|EmptyExpectedRevisionFailsClosedBeforeMutation|ForeignWorkspaceProjectionIsPreservedAndExcluded|RevisionStatusReadsDurableDirtyMarker|RevisionStatusReadsDirtyMarkerAfterStoreRestart|SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure)|SQLWorkspaceRevisionStore_(PersistsAndCASChecksAcrossInstances|CommitsDesiredMappingsWithRevision)|Service_(HydrationFailureStopsRunningListener|StatusForWorkspaceScopesMappingsAndSharesLifecycleState|ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020)|Reconciler_StagedTransactionIsRejectedAfterGlobalDisable|Reconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift|Service_StartCASChecksRevisionBeforeSamePortIdempotency) -count=1 && go test ./internal/api/handlers -run Test(ModbusShareHandler_(StatusExposesSafeBindFailureDiagnostic|StatusShowsDurableDirtyRecoveryAfterRestart)|StudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery|SourceRuleHandler_ApplyTags_RejectsRevisionMismatch) -count=1",
+        "test_names": [
+          "TestRegisterGeometry_StrideValidation",
+          "TestReconciler_AtomicCommitSuccess",
+          "TestReconciler_StaleRevisionCASConflict",
+          "TestReconciler_RollbackUncertaintyReportsDirtyUnknown",
+          "TestReconciler_NilRevisionStoreFailsClosedBeforeMutation",
+          "TestReconciler_EmptyExpectedRevisionFailsClosedBeforeMutation",
+          "TestReconciler_ForeignWorkspaceProjectionIsPreservedAndExcluded",
+          "TestReconciler_RevisionStatusReadsDurableDirtyMarker",
+          "TestReconciler_RevisionStatusReadsDirtyMarkerAfterStoreRestart",
+          "TestSQLWorkspaceRevisionStore_PersistsAndCASChecksAcrossInstances",
+          "TestSQLWorkspaceRevisionStore_CommitsDesiredMappingsWithRevision",
+          "TestReconciler_SQLProjectionFailureRestoresOldDesiredAndDirtyUnknownOnRollbackFailure",
+          "TestService_HydrationFailureStopsRunningListener",
+          "TestService_StatusForWorkspaceScopesMappingsAndSharesLifecycleState",
+          "TestService_ApplySettings_BindConflictReportsTypedFailureWithoutFallbackTo5020",
+          "TestReconciler_StagedTransactionIsRejectedAfterGlobalDisable",
+          "TestReconciler_ExactReplayRejectsExternalWorkspaceRevisionDrift",
+          "TestService_StartCASChecksRevisionBeforeSamePortIdempotency",
+          "TestModbusShareHandler_StatusExposesSafeBindFailureDiagnostic",
+          "TestModbusShareHandler_StatusShowsDurableDirtyRecoveryAfterRestart",
+          "TestStudioV2WorkspaceBootstrapSharesDurableRevisionAndDirtyRecovery",
+          "TestSourceRuleHandler_ApplyTags_RejectsRevisionMismatch"
+        ],
+        "exit_code": 0,
+        "output_hash": "0a5c40f0612393320f95283f6f6c7befeb44db5e8f62ae7a80fd0337193045da"
+      }
+    ],
+    "exe_fallback": "listener bind conflict returned modbus_share_listener_bind_failed; primary old projection retained"
+  },
+  "status": "pass",
+  "log_sha256": "e2c21d59283f61791eb88e82c4fe096ada21822097b9307d0a2ef5f548d2d8ca",
+  "log_path": "/var/folders/bq/zyknbs7n1xs99c08yprwqc9c0000gn/T/gateway-b10-loqvae8t/gateway.log",
+  "commands": [
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/studio-v2/workspace",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/studio-v2/workspace/devices -d '<json>'",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/devices/b10-device/test",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/studio-v2/workspace/source-rules -d '<json>'",
+    "curl -sS -X PUT http://127.0.0.1:60082/api/v1/datalink/studio-v2/workspace/source-rules/b10-rule-1 -d '<json>'",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/source-rules/b10-rule-1/candidates?workspace_id=9409b755-8ae2-4fd3-a7ae-f6521d9d0f05&expected_workspace_revision=216acf43-8078-47d2-9ab6-58e755d6aa24&revision_id=b4b80f68-13ab-4df1-858f-4c11a2c91755",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/source-rules/b10-rule-1/tags/apply -d '<json>'",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/studio-v2/workspace/mappings",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/settings",
+    "curl -sS -X PUT http://127.0.0.1:60082/api/v1/datalink/settings/modbus_share -d '<json>'",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/modbus-share/status",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/devices/b10-device/activate",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/source-rules/b10-rule-1/enable",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/modbus-share/reconcile -d '<json>'",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/studio-v2/workspace/activate -d '<json>'",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/runtime/status?device_id=b10-device",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/modbus-share/mappings",
+    "curl -sS -X GET http://127.0.0.1:60210/api/v1/datalink/studio-v2/workspace",
+    "curl -sS -X GET http://127.0.0.1:60210/api/v1/datalink/settings",
+    "curl -sS -X PUT http://127.0.0.1:60210/api/v1/datalink/settings/modbus_share -d '<json>'",
+    "curl -sS -X GET http://127.0.0.1:60210/api/v1/datalink/modbus-share/status",
+    "curl -sS -X PUT http://127.0.0.1:60082/api/v1/datalink/modbus-share/mappings/b10-disabled-probe -d '<json>'",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/source-rules/b10-rule-capacity/candidates?workspace_id=9409b755-8ae2-4fd3-a7ae-f6521d9d0f05&expected_workspace_revision=766a6de2-9932-419c-8a1b-540cddffe888&revision_id=e7690508-48e5-4378-a49b-95c3d13038c2",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/source-rules/b10-rule-capacity/tags/apply -d '<json>'",
+    "curl -sS -X PUT http://127.0.0.1:60082/api/v1/datalink/studio-v2/workspace/source-rules/b10-rule-capacity -d '<json>'",
+    "curl -sS -X GET http://127.0.0.1:60082/api/v1/datalink/source-rules/b10-rule-collision/candidates?workspace_id=9409b755-8ae2-4fd3-a7ae-f6521d9d0f05&expected_workspace_revision=766a6de2-9932-419c-8a1b-540cddffe888&revision_id=4e1867c6-90dc-4114-8336-5ae915efc211",
+    "curl -sS -X POST http://127.0.0.1:60082/api/v1/datalink/source-rules/b10-rule-collision/tags/apply -d '<json>'"
+  ],
+  "finished_at": "2026-08-25T15:59:01Z",
+  "witness": "/Users/yishow/prj/go_gateway/openspec/changes/productionize-modbus-share-lifecycle/witness/b10-exe-acceptance-20260825T155901Z.json"
+}

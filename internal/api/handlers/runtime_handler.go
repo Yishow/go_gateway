@@ -31,13 +31,14 @@ type RuntimeHandler struct {
 }
 
 type runtimeStatusResponse struct {
-	Running          bool                                         `json:"running"`
-	UptimeSeconds    int64                                        `json:"uptime_seconds"`
-	SnapshotState    datalinkruntime.RuntimeTruthState            `json:"snapshot_state"`
-	Metrics          datalinkruntime.Stats                        `json:"metrics"`
-	Collectors       []runtimeCollectorResponse                   `json:"collectors"`
-	Diagnostics      []datalinkruntime.RuntimeFlowDiagnostic      `json:"diagnostics,omitempty"`
-	DatabaseDelivery []datalinkruntime.DatabaseDeliveryDiagnostic `json:"database_delivery,omitempty"`
+	Running             bool                                            `json:"running"`
+	UptimeSeconds       int64                                           `json:"uptime_seconds"`
+	SnapshotState       datalinkruntime.RuntimeTruthState               `json:"snapshot_state"`
+	Metrics             datalinkruntime.Stats                           `json:"metrics"`
+	Collectors          []runtimeCollectorResponse                      `json:"collectors"`
+	Diagnostics         []datalinkruntime.RuntimeFlowDiagnostic         `json:"diagnostics,omitempty"`
+	DatabaseDelivery    []datalinkruntime.DatabaseDeliveryDiagnostic    `json:"database_delivery,omitempty"`
+	ModbusShareDelivery []datalinkruntime.ModbusShareDeliveryDiagnostic `json:"modbus_share_delivery,omitempty"`
 }
 
 type runtimeCollectorResponse struct {
@@ -59,6 +60,7 @@ type runtimeCollectorResponse struct {
 	RuntimeProjectionVersion   string     `json:"runtime_projection_version,omitempty"`
 	WorkspaceProjectionVersion string     `json:"workspace_projection_version,omitempty"`
 	ProjectionMessage          string     `json:"projection_message,omitempty"`
+	ProjectionCode             string     `json:"projection_code,omitempty"`
 }
 
 type runtimeWorkspaceContextResponse struct {
@@ -79,6 +81,11 @@ type runtimeWorkspaceContextDeviceEntry struct {
 	RuntimeProjectionVersion   string  `json:"runtime_projection_version,omitempty"`
 	WorkspaceProjectionVersion string  `json:"workspace_projection_version,omitempty"`
 	ProjectionMessage          string  `json:"projection_message,omitempty"`
+	ProjectionCode             string  `json:"projection_code,omitempty"`
+}
+
+func renderRuntimeHandlerError(c *gin.Context, status int, code string, retryable bool) {
+	renderTypedAPIError(c, status, code, retryable)
 }
 
 func NewRuntimeHandler(
@@ -99,20 +106,24 @@ func NewRuntimeHandler(
 	}
 }
 
+// WorkspaceContext returns the persisted workspace context used by the runtime monitor.
+// @Summary Get runtime workspace context
+// @Description Returns persisted devices and setup context for the runtime monitor.
+// @Tags datalink
+// @Produce json
+// @Success 200 {object} runtimeWorkspaceContextResponse
+// @Failure 404 {object} APIErrorResponse "Runtime device not found"
+// @Failure 503 {object} APIErrorResponse "Workspace or runtime snapshot unavailable"
+// @Router /datalink/studio-v2/workspace/runtime-context [get]
 func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	if h.workspaceSvc == nil || h.deviceSvc == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error": gin.H{
-				"message": "runtime workspace services unavailable",
-			},
-		})
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeWorkspaceNotReady, true)
 		return
 	}
 
 	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
 	if err != nil {
-		renderStudioV2WorkspaceBootstrapError(c)
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeWorkspaceNotReady, true)
 		return
 	}
 
@@ -120,12 +131,7 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	if h.runtimeSvc != nil {
 		snapshot, err := h.runtimeSvc.RuntimeStatusSnapshot(c.Request.Context(), "")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error": gin.H{
-					"message": "failed to build workspace runtime context: " + err.Error(),
-				},
-			})
+			renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeRuntimeSnapshotUnavailable, true)
 			return
 		}
 		for _, collector := range snapshot.Collectors {
@@ -139,24 +145,14 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	}
 	setup, err := h.buildWorkspaceSetupContext(c.Request.Context(), record)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"message": "failed to build workspace setup context: " + err.Error(),
-			},
-		})
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeWorkspaceNotReady, true)
 		return
 	}
 	response.Setup = setup
 	for _, deviceID := range record.OrderedDeviceIDs {
 		savedDevice, err := h.deviceSvc.GetByID(c.Request.Context(), deviceID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error": gin.H{
-					"message": "failed to load workspace runtime device: " + err.Error(),
-				},
-			})
+			renderRuntimeHandlerError(c, http.StatusNotFound, ErrCodeRuntimeDeviceNotFound, false)
 			return
 		}
 
@@ -174,25 +170,32 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	})
 }
 
+// Status returns a truthful runtime snapshot for the requested device or workspace.
+// @Summary Get runtime status
+// @Description Returns runtime collector state and metrics without synthesizing a ready snapshot on failure.
+// @Tags datalink
+// @Produce json
+// @Param device_id query string false "Device ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {object} APIErrorResponse "Runtime snapshot unavailable"
+// @Router /datalink/runtime/status [get]
 func (h *RuntimeHandler) Status(c *gin.Context) {
 	if h.runtimeSvc != nil {
 		snapshot, err := h.runtimeSvc.RuntimeStatusSnapshot(c.Request.Context(), c.Query("device_id"))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error":   gin.H{"message": "failed to build runtime status snapshot: " + err.Error()},
-			})
+			renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeRuntimeSnapshotUnavailable, true)
 			return
 		}
 
 		response := runtimeStatusResponse{
-			Running:          snapshot.Running,
-			UptimeSeconds:    snapshot.UptimeSeconds,
-			SnapshotState:    snapshot.SnapshotState,
-			Metrics:          snapshot.Metrics,
-			Collectors:       make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
-			Diagnostics:      snapshot.Diagnostics,
-			DatabaseDelivery: snapshot.DatabaseDelivery,
+			Running:             snapshot.Running,
+			UptimeSeconds:       snapshot.UptimeSeconds,
+			SnapshotState:       snapshot.SnapshotState,
+			Metrics:             snapshot.Metrics,
+			Collectors:          make([]runtimeCollectorResponse, 0, len(snapshot.Collectors)),
+			Diagnostics:         snapshot.Diagnostics,
+			DatabaseDelivery:    snapshot.DatabaseDelivery,
+			ModbusShareDelivery: snapshot.ModbusShareDelivery,
 		}
 		for _, collector := range snapshot.Collectors {
 			response.Collectors = append(response.Collectors, mapRuntimeCollectorResponse(collector))
@@ -206,10 +209,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 	}
 
 	if h.deviceSvc == nil || h.pointSvc == nil || h.groupSvc == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "runtime services unavailable"},
-		})
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeRuntimeSnapshotUnavailable, true)
 		return
 	}
 
@@ -217,28 +217,19 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 
 	devices, err := h.deviceSvc.List(ctx, device.ListFilter{})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "failed to load devices: " + err.Error()},
-		})
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeRuntimeSnapshotUnavailable, true)
 		return
 	}
 
 	points, err := h.pointSvc.List(ctx, point.ListFilter{Limit: 100000})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "failed to load points: " + err.Error()},
-		})
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeRuntimeSnapshotUnavailable, true)
 		return
 	}
 
 	groups, err := h.groupSvc.List(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "failed to load polling groups: " + err.Error()},
-		})
+		renderRuntimeHandlerError(c, http.StatusServiceUnavailable, ErrCodeRuntimeSnapshotUnavailable, true)
 		return
 	}
 
@@ -380,6 +371,7 @@ func mapRuntimeWorkspaceContextDevice(savedDevice *schema.Device, runtimeStatus 
 	response.RuntimeProjectionVersion = runtimeStatus.RuntimeProjectionVersion
 	response.WorkspaceProjectionVersion = runtimeStatus.WorkspaceProjectionVersion
 	response.ProjectionMessage = runtimeStatus.ProjectionMessage
+	response.ProjectionCode = runtimeStatus.ProjectionCode
 	return response
 }
 
@@ -402,6 +394,7 @@ func runtimeSnapshotStateFromCollectorResponses(
 			RuntimeProjectionVersion:   collector.RuntimeProjectionVersion,
 			WorkspaceProjectionVersion: collector.WorkspaceProjectionVersion,
 			ProjectionMessage:          collector.ProjectionMessage,
+			ProjectionCode:             collector.ProjectionCode,
 		})
 	}
 	return datalinkruntime.DeriveSnapshotTruthState(statuses, deviceID)
@@ -427,5 +420,6 @@ func mapRuntimeCollectorResponse(collector datalinkruntime.DeviceRuntimeStatus) 
 		RuntimeProjectionVersion:   collector.RuntimeProjectionVersion,
 		WorkspaceProjectionVersion: collector.WorkspaceProjectionVersion,
 		ProjectionMessage:          collector.ProjectionMessage,
+		ProjectionCode:             collector.ProjectionCode,
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,6 +28,9 @@ func NewSQLRepository(db *sql.DB) *SQLRepository {
 
 // Get 取得設定值
 func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, error) {
+	if r == nil || r.db == nil {
+		return nil, storageError("get", fmt.Errorf("database is not configured"))
+	}
 	query := `
 		SELECT key, value, description, updated_at
 		FROM system_settings WHERE key = ?
@@ -41,15 +45,15 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, erro
 
 	err := row.Scan(&item.Key, &valueJSON, &description, &updatedAt)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("設定不存在: %s", key)
+		return nil, fmt.Errorf("%w: 設定不存在: %s", ErrSettingNotFound, key)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("讀取設定失敗: %w", err)
+		return nil, storageError("get", fmt.Errorf("read setting: %w", err))
 	}
 
 	// 解析 JSON 值
 	if err := json.Unmarshal([]byte(valueJSON), &item.Value); err != nil {
-		item.Value = valueJSON // 如果不是 JSON，使用原始字串
+		return nil, storageError("decode", fmt.Errorf("decode setting %s: %w", key, err))
 	}
 
 	if description.Valid {
@@ -69,10 +73,13 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*SettingItem, erro
 
 // Set 設定值
 func (r *SQLRepository) Set(ctx context.Context, key string, value interface{}) error {
+	if r == nil || r.db == nil {
+		return storageError("set", fmt.Errorf("database is not configured"))
+	}
 	// 序列化值為 JSON
 	valueJSON, err := json.Marshal(value)
 	if err != nil {
-		return fmt.Errorf("序列化設定值失敗: %w", err)
+		return storageError("encode", err)
 	}
 
 	// 使用 UPSERT 語法
@@ -82,16 +89,82 @@ func (r *SQLRepository) Set(ctx context.Context, key string, value interface{}) 
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
 	`
 
-	_, err = r.db.ExecContext(ctx, query, key, string(valueJSON), time.Now())
+	result, err := r.db.ExecContext(ctx, query, key, string(valueJSON), time.Now())
 	if err != nil {
-		return fmt.Errorf("寫入設定失敗: %w", err)
+		return storageError("set", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return storageError("set rows affected", err)
+	}
+	if rows != 1 {
+		return storageError("set rows affected", fmt.Errorf("unexpected affected row count %d", rows))
 	}
 
 	return nil
 }
 
+// SetIfRevision atomically updates a SQL setting when its revision matches
+// expectedRevision.
+func (r *SQLRepository) SetIfRevision(ctx context.Context, key, expectedRevision string, value interface{}) error {
+	if r == nil || r.db == nil {
+		return storageError("set revision", fmt.Errorf("database is not configured"))
+	}
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return storageError("encode", err)
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return storageError("begin transaction", err)
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			return
+		}
+	}()
+	inserted, err := tx.ExecContext(ctx, `INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO NOTHING`, key, string(payload), time.Now())
+	if err != nil {
+		return storageError("insert revision", err)
+	}
+	insertedRows, rowsErr := inserted.RowsAffected()
+	if rowsErr != nil {
+		return storageError("insert revision rows affected", rowsErr)
+	}
+	if insertedRows == 1 {
+		if expectedRevision != "" {
+			return fmt.Errorf("%w", ErrRevisionConflict)
+		}
+		if err := tx.Commit(); err != nil {
+			return storageError("commit revision", err)
+		}
+		return nil
+	}
+	if insertedRows != 0 {
+		return storageError("insert revision rows affected", fmt.Errorf("unexpected affected row count %d", insertedRows))
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE system_settings SET value = ?, updated_at = ? WHERE key = ? AND json_extract(value, '$.settings_revision') = ?`, string(payload), time.Now(), key, expectedRevision)
+	if err != nil {
+		return storageError("update revision", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return storageError("update revision rows affected", err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("%w", ErrRevisionConflict)
+	}
+	if err := tx.Commit(); err != nil {
+		return storageError("commit revision", err)
+	}
+	return nil
+}
+
 // List 列出所有設定
 func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
+	if r == nil || r.db == nil {
+		return nil, storageError("list", fmt.Errorf("database is not configured"))
+	}
 	query := `
 		SELECT key, value, description, updated_at
 		FROM system_settings
@@ -100,7 +173,7 @@ func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("查詢設定失敗: %w", err)
+		return nil, storageError("list", err)
 	}
 	defer rows.Close()
 
@@ -113,12 +186,12 @@ func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
 
 		err := rows.Scan(&item.Key, &valueJSON, &description, &updatedAt)
 		if err != nil {
-			return nil, fmt.Errorf("掃描設定失敗: %w", err)
+			return nil, storageError("scan", err)
 		}
 
 		// 解析 JSON 值
 		if err := json.Unmarshal([]byte(valueJSON), &item.Value); err != nil {
-			item.Value = valueJSON
+			return nil, storageError("decode", fmt.Errorf("decode setting %s: %w", item.Key, err))
 		}
 
 		if description.Valid {
@@ -135,22 +208,28 @@ func (r *SQLRepository) List(ctx context.Context) ([]*SettingItem, error) {
 
 		items = append(items, &item)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, storageError("iterate", err)
+	}
 
 	return items, nil
 }
 
 // Delete 刪除設定
 func (r *SQLRepository) Delete(ctx context.Context, key string) error {
+	if r == nil || r.db == nil {
+		return storageError("delete", fmt.Errorf("database is not configured"))
+	}
 	query := `DELETE FROM system_settings WHERE key = ?`
 
 	result, err := r.db.ExecContext(ctx, query, key)
 	if err != nil {
-		return fmt.Errorf("刪除設定失敗: %w", err)
+		return storageError("delete", err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("取得刪除影響列數失敗: %w", err)
+		return storageError("delete rows affected", err)
 	}
 	if rows == 0 {
 		return fmt.Errorf("設定不存在: %s", key)
@@ -172,11 +251,13 @@ func (r *SQLRepository) InitDefaults(ctx context.Context) error {
 	for key, value := range defaults {
 		// 檢查是否已存在
 		_, err := r.Get(ctx, key)
-		if err != nil {
+		if errors.Is(err, ErrSettingNotFound) {
 			// 不存在，建立預設值
 			if err := r.Set(ctx, key, value); err != nil {
 				return fmt.Errorf("初始化預設設定失敗 (%s): %w", key, err)
 			}
+		} else if err != nil {
+			return fmt.Errorf("初始化預設設定讀取失敗 (%s): %w", key, err)
 		}
 	}
 

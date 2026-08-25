@@ -83,6 +83,18 @@ is_ignored() {
   return 1
 }
 
+is_ignored_generated_tree() {
+  local path="$1"
+  case "$path" in
+    vendor/*|*/vendor/*|cache/*|*/cache/*|generated/*|*/generated/*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 is_text_candidate() {
   local path="$1"
   local base
@@ -94,7 +106,7 @@ is_text_candidate() {
   esac
 
   case "$path" in
-    *.go|*.ts|*.tsx|*.js|*.jsx|*.css|*.scss|*.sh|*.bash|*.zsh|*.ps1|*.md|*.txt|*.yml|*.yaml|*.json|*.toml|*.ini|*.env|*.sql)
+    *.go|*.py|*.ts|*.tsx|*.js|*.jsx|*.css|*.scss|*.sh|*.bash|*.zsh|*.ps1|*.md|*.txt|*.yml|*.yaml|*.json|*.toml|*.ini|*.env|*.sql)
       return 0
       ;;
     *)
@@ -148,6 +160,7 @@ checked_count=0
 for f in "${changed_files[@]}"; do
   [[ -f "$f" ]] || continue
   is_ignored "$f" && continue
+  is_ignored_generated_tree "$f" && continue
   is_text_candidate "$f" || continue
 
   checked_count=$((checked_count + 1))

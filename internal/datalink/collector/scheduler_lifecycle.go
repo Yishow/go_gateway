@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"fmt"
 
 	"go-gateway/internal/datalink/schema"
@@ -35,11 +36,18 @@ func (s *Scheduler) Start(groups []*schema.PollingGroup) error {
 }
 
 // Stop 停止排程器
-func (s *Scheduler) Stop() {
+func (s *Scheduler) Stop() error {
+	return s.StopContext(context.Background())
+}
+
+// StopContext stops polling and waits for ticker workers until ctx expires.
+// A bounded shutdown prevents a stuck protocol read from holding the process
+// open after the HTTP/runtime shutdown deadline.
+func (s *Scheduler) StopContext(ctx context.Context) error {
 	s.mu.Lock()
 	if !s.running {
 		s.mu.Unlock()
-		return
+		return nil
 	}
 
 	// 關閉停止信號
@@ -54,8 +62,18 @@ func (s *Scheduler) Stop() {
 	s.running = false
 	s.mu.Unlock()
 
-	// 等待所有 goroutine 結束（避免持有鎖造成死鎖）
-	s.wg.Wait()
+	waitDone := make(chan struct{})
+	go func() {
+		// 等待所有 goroutine 結束（避免持有鎖造成死鎖）
+		s.wg.Wait()
+		close(waitDone)
+	}()
+	select {
+	case <-waitDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // IsRunning 檢查是否正在運行

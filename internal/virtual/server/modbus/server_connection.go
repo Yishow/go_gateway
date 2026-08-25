@@ -65,6 +65,25 @@ func (s *Server) handleConnection(conn net.Conn) {
 		if err != nil {
 			return
 		}
+		if s.SlaveID() != 0 && unitID != s.SlaveID() {
+			if len(pdu) > 0 {
+				response := s.exceptionResponse(pdu[0], ExceptionIllegalDataAddress)
+				responseLength := len(response) + 1
+				if responseLength > math.MaxUint16 {
+					return
+				}
+				fullResponse := make([]byte, MBAPHeaderLength+len(response))
+				binary.BigEndian.PutUint16(fullResponse[0:2], transactionID)
+				binary.BigEndian.PutUint16(fullResponse[2:4], 0)
+				binary.BigEndian.PutUint16(fullResponse[4:6], uint16(responseLength))
+				fullResponse[6] = unitID
+				copy(fullResponse[7:], response)
+				if _, err := conn.Write(fullResponse); err != nil {
+					return
+				}
+			}
+			continue
+		}
 
 		// 處理請求
 		response := s.handleRequest(pdu)

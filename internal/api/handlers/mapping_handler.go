@@ -139,23 +139,34 @@ type MappingPreviewResponse struct {
 	Error       string               `json:"error,omitempty"`
 }
 
+// Preview executes a mapping pipeline against a raw value without persisting it.
+// @Summary Preview a mapping pipeline
+// @Description Returns server-computed preview values. Typed failures never expose backend exception details.
+// @Tags datalink
+// @Accept json
+// @Produce json
+// @Param request body MappingPreviewRequest true "Preview request"
+// @Success 200 {object} MappingPreviewResponse
+// @Failure 400 {object} APIErrorResponse "Invalid preview request"
+// @Failure 503 {object} APIErrorResponse "Preview unavailable"
+// @Router /datalink/mappings/preview [post]
 func (h *MappingHandler) Preview(c *gin.Context) {
 	var req MappingPreviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		renderTypedAPIError(c, http.StatusBadRequest, ErrCodePreviewInvalidRequest, false)
 		return
 	}
 
 	// 驗證必填欄位（transform_pipeline 欄位必須存在）
 	if req.TransformPipeline == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "transform_pipeline field is required"}})
+		renderTypedAPIError(c, http.StatusBadRequest, ErrCodePreviewInvalidRequest, false)
 		return
 	}
 
 	// Serialize pipeline to JSON string for ExecutePipeline
 	pipelineJSON, err := json.Marshal(*req.TransformPipeline)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "Invalid pipeline format"}})
+		renderTypedAPIError(c, http.StatusBadRequest, ErrCodePreviewInvalidRequest, false)
 		return
 	}
 
@@ -168,7 +179,8 @@ func (h *MappingHandler) Preview(c *gin.Context) {
 		StepResults: ctx.StepResults,
 	}
 	if err != nil {
-		res.Error = err.Error()
+		renderTypedAPIError(c, http.StatusBadRequest, ErrCodePreviewInvalidRequest, false)
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": res})

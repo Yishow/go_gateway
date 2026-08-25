@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
@@ -100,15 +101,15 @@ func runtimeProjectionVersion(projection *RuntimeProjection) (string, error) {
 		WorkspaceID:       projection.WorkspaceID,
 		Alignment:         projection.Alignment,
 		DeviceIDs:         projection.DeviceIDs,
-		Devices:           projection.Devices,
-		Rules:             projection.Rules,
-		RuleLinks:         projection.RuleLinks,
-		Points:            projection.Points,
-		PollingGroups:     projection.PollingGroups,
-		Mappings:          projection.Mappings,
-		Tags:              projection.Tags,
-		DatabaseConnector: projection.DatabaseConnector,
-		DatabaseTargets:   projection.DatabaseTargets,
+		Devices:           runtimeProjectionVersionDevices(projection.Devices),
+		Rules:             runtimeProjectionVersionRules(projection.Rules),
+		RuleLinks:         runtimeProjectionVersionLinks(projection.RuleLinks),
+		Points:            runtimeProjectionVersionPoints(projection.Points),
+		PollingGroups:     runtimeProjectionVersionPollingGroups(projection.PollingGroups),
+		Mappings:          runtimeProjectionVersionMappings(projection.Mappings),
+		Tags:              runtimeProjectionVersionTags(projection.Tags),
+		DatabaseConnector: runtimeProjectionVersionConnector(projection.DatabaseConnector),
+		DatabaseTargets:   runtimeProjectionVersionTargets(projection.DatabaseTargets),
 	}
 	encoded, err := json.Marshal(input)
 	if err != nil {
@@ -116,4 +117,147 @@ func runtimeProjectionVersion(projection *RuntimeProjection) (string, error) {
 	}
 	sum := sha256.Sum256(encoded)
 	return fmt.Sprintf("sha256:%x", sum[:8]), nil
+}
+
+func runtimeProjectionVersionDevices(records []*schema.Device) []*schema.Device {
+	result := make([]*schema.Device, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.LastTestAt = nil
+		clone.LastTestSuccess = nil
+		clone.LastTestError = ""
+		clone.LastCollectedAt = nil
+		clone.CollectionCount = 0
+		clone.ErrorCount = 0
+		clone.ReadinessStatus = ""
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
+}
+
+func runtimeProjectionVersionRules(records []*schema.SourceRule) []*schema.SourceRule {
+	result := make([]*schema.SourceRule, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
+}
+
+func runtimeProjectionVersionLinks(records []*schema.SourceRuleLink) []*schema.SourceRuleLink {
+	result := make([]*schema.SourceRuleLink, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
+}
+
+func runtimeProjectionVersionPoints(records []*schema.Point) []*schema.Point {
+	result := make([]*schema.Point, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.LastReadAt = nil
+		clone.LastValue = nil
+		clone.LastError = ""
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
+}
+
+func runtimeProjectionVersionPollingGroups(records []*schema.PollingGroup) []*schema.PollingGroup {
+	result := make([]*schema.PollingGroup, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
+}
+
+func runtimeProjectionVersionMappings(records []*schema.Mapping) []*schema.Mapping {
+	result := make([]*schema.Mapping, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
+}
+
+func runtimeProjectionVersionTags(records []*schema.Tag) []*schema.Tag {
+	result := make([]*schema.Tag, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
+}
+
+func runtimeProjectionVersionConnector(record *schema.DatabaseConnector) *schema.DatabaseConnector {
+	if record == nil {
+		return nil
+	}
+	clone := *record
+	clone.LastCheckAt = nil
+	clone.LastCheckError = ""
+	clone.LastSchemaEnsureAt = nil
+	clone.LastSchemaEnsureStatus = ""
+	clone.LastSchemaEnsureError = ""
+	clone.LastWriteAt = nil
+	clone.LastWriteStatus = ""
+	clone.LastWriteError = ""
+	clone.LastFlushAt = nil
+	clone.LastFlushStatus = ""
+	clone.LastFlushError = ""
+	clone.CreatedAt = time.Time{}
+	clone.UpdatedAt = time.Time{}
+	return &clone
+}
+
+func runtimeProjectionVersionTargets(records []*schema.DatabaseTargetMapping) []*schema.DatabaseTargetMapping {
+	result := make([]*schema.DatabaseTargetMapping, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		clone := *record
+		clone.CreatedAt = time.Time{}
+		clone.UpdatedAt = time.Time{}
+		result = append(result, &clone)
+	}
+	return result
 }

@@ -9,6 +9,8 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+// RestoreLocalModbusMappingState rebuilds persisted Local Modbus mappings from
+// source-rule candidate snapshots after a process restart.
 func (s *Service) RestoreLocalModbusMappingState(ctx context.Context, writer LocalModbusMappingWriter) error {
 	if writer == nil {
 		return nil
@@ -78,9 +80,10 @@ func (s *Service) listRestorableLocalModbusMappings(
 			}
 
 			record := LocalModbusMappingRecord{
-				TagID:    strings.TrimSpace(*candidate.TagID),
-				Register: *candidate.Register,
-				DataType: candidate.DataType,
+				MappingID: derefOptional(candidate.MappingID),
+				TagID:     strings.TrimSpace(*candidate.TagID),
+				Register:  *candidate.Register,
+				DataType:  candidate.DataType,
 			}
 			if candidate.UpdatedAt != nil {
 				record.UpdatedAt = candidate.UpdatedAt.UTC()

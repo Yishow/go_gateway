@@ -119,4 +119,3 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
-

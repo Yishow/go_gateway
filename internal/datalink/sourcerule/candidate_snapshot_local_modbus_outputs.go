@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/tag"
 )
@@ -29,7 +31,7 @@ func (s *Service) buildLocalModbusOutputCandidates(
 	}
 
 	candidates := make([]schema.SourceRuleLocalModbusOutputCandidate, 0, len(tagCandidates))
-	for _, tagCandidate := range tagCandidates {
+	for candidateIndex, tagCandidate := range tagCandidates {
 		state, ok := states[tagCandidate.ID]
 		if !ok || !state.Include {
 			continue
@@ -67,12 +69,25 @@ func (s *Service) buildLocalModbusOutputCandidates(
 		}
 		if candidate.TagID != nil && strings.TrimSpace(*candidate.TagID) != "" {
 			if mappingRecord, ok := mappingsByTagID[strings.TrimSpace(*candidate.TagID)]; ok {
+				if strings.TrimSpace(mappingRecord.MappingID) != "" {
+					candidate.MappingID = stringPtr(mappingRecord.MappingID)
+				}
 				candidate.Register = uint16Ptr(mappingRecord.Register)
 				candidate.UpdatedAt = timePtr(mappingRecord.UpdatedAt)
 				if mappingRecord.DataType != "" {
 					candidate.DataType = mappingRecord.DataType
 					candidate.RegisterCount = localModbusRegisterCount(mappingRecord.DataType)
 				}
+			}
+		}
+		if rule.ShareEnabled && rule.ShareStartRegister != nil && rule.ShareStride != nil && candidate.TagID != nil && strings.TrimSpace(*candidate.TagID) != "" {
+			register, registerErr := configuredLocalModbusRegister(rule, candidate.Address, candidateIndex, candidate.RegisterCount)
+			if registerErr != nil {
+				candidate.Status = schema.SourceRuleLocalModbusOutputStatusOutOfSync
+				candidate.BlockingReason = registerErr.Error()
+			} else {
+				candidate.Register = register
+				candidate.Status = schema.SourceRuleLocalModbusOutputStatusReady
 			}
 		}
 
@@ -92,6 +107,40 @@ func (s *Service) buildLocalModbusOutputCandidates(
 		return candidates[i].Address < candidates[j].Address
 	})
 	return candidates, nil
+}
+
+func configuredLocalModbusRegister(rule *schema.SourceRule, candidateAddress string, candidateIndex, registerSpan int) (*uint16, error) {
+	if rule == nil || rule.ShareStartRegister == nil || rule.ShareStride == nil {
+		return nil, fmt.Errorf("local modbus share geometry is not configured")
+	}
+	startRegister := *rule.ShareStartRegister
+	if startRegister < 0 || startRegister > 4294967295 {
+		return nil, fmt.Errorf("source-rule share start register is invalid")
+	}
+	base, err := modbusshare.HumanToZeroBased(uint32(startRegister))
+	if err != nil {
+		return nil, fmt.Errorf("source-rule share start register is invalid: %w", err)
+	}
+	stride := *rule.ShareStride
+	if stride < registerSpan {
+		return nil, &modbusshare.Error{
+			Code:      modbusshare.ErrCodeInvalidGeometry,
+			Message:   fmt.Sprintf("source-rule share stride %d is smaller than datatype span %d", stride, registerSpan),
+			Retryable: false,
+			Action:    localModbusStrideAction,
+		}
+	}
+	offset := candidateIndex
+	if start, startErr := strconv.Atoi(strings.TrimSpace(rule.StartAddress)); startErr == nil {
+		if address, addressErr := strconv.Atoi(strings.TrimSpace(candidateAddress)); addressErr == nil && address >= start {
+			offset = address - start
+		}
+	}
+	zeroBased := int(base) + offset*stride
+	if zeroBased < 0 || zeroBased > int(modbusshare.MaxRegisterIndex) {
+		return nil, fmt.Errorf("source-rule share register exceeds capacity")
+	}
+	return uint16Ptr(uint16(zeroBased)), nil
 }
 
 func (s *Service) listLocalModbusMappingsByTagID(ctx context.Context) (map[string]LocalModbusMappingRecord, error) {

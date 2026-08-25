@@ -14,13 +14,14 @@ const statusRefreshInterval = time.Second
 
 // RuntimeStatusSnapshot describes the runtime monitoring snapshot payload.
 type RuntimeStatusSnapshot struct {
-	Running          bool                         `json:"running"`
-	UptimeSeconds    int64                        `json:"uptime_seconds"`
-	SnapshotState    RuntimeTruthState            `json:"snapshot_state"`
-	Metrics          Stats                        `json:"metrics"`
-	Collectors       []DeviceRuntimeStatus        `json:"collectors"`
-	DatabaseDelivery []DatabaseDeliveryDiagnostic `json:"database_delivery"`
-	Diagnostics      []RuntimeFlowDiagnostic      `json:"diagnostics"`
+	Running             bool                            `json:"running"`
+	UptimeSeconds       int64                           `json:"uptime_seconds"`
+	SnapshotState       RuntimeTruthState               `json:"snapshot_state"`
+	Metrics             Stats                           `json:"metrics"`
+	Collectors          []DeviceRuntimeStatus           `json:"collectors"`
+	DatabaseDelivery    []DatabaseDeliveryDiagnostic    `json:"database_delivery"`
+	ModbusShareDelivery []ModbusShareDeliveryDiagnostic `json:"modbus_share_delivery,omitempty"`
+	Diagnostics         []RuntimeFlowDiagnostic         `json:"diagnostics"`
 }
 
 // DeviceRuntimeStatus describes one device runtime summary shared by snapshot and stream.
@@ -43,6 +44,7 @@ type DeviceRuntimeStatus struct {
 	RuntimeProjectionVersion   string     `json:"runtime_projection_version,omitempty"`
 	WorkspaceProjectionVersion string     `json:"workspace_projection_version,omitempty"`
 	ProjectionMessage          string     `json:"projection_message,omitempty"`
+	ProjectionCode             string     `json:"projection_code,omitempty"`
 }
 
 // RuntimeStatusSnapshot returns the derived runtime monitoring snapshot.
@@ -66,13 +68,14 @@ func (s *Service) RuntimeStatusSnapshot(ctx context.Context, deviceID string) (R
 	s.attachProjectionStates(ctx, collectors, devices)
 
 	return RuntimeStatusSnapshot{
-		Running:          s.IsRunning(),
-		UptimeSeconds:    s.UptimeSeconds(),
-		SnapshotState:    DeriveSnapshotTruthState(collectors, deviceID),
-		Metrics:          s.Snapshot(),
-		Collectors:       collectors,
-		DatabaseDelivery: s.databaseDeliveryDiagnostics(deviceID),
-		Diagnostics:      s.runtimeFlowDiagnostics(deviceID),
+		Running:             s.IsRunning(),
+		UptimeSeconds:       s.UptimeSeconds(),
+		SnapshotState:       DeriveSnapshotTruthState(collectors, deviceID),
+		Metrics:             s.Snapshot(),
+		Collectors:          collectors,
+		DatabaseDelivery:    s.databaseDeliveryDiagnostics(deviceID),
+		ModbusShareDelivery: s.modbusShareDeliveryDiagnostics(deviceID),
+		Diagnostics:         s.runtimeFlowDiagnostics(deviceID),
 	}, nil
 }
 
@@ -268,6 +271,7 @@ func (s *Service) attachProjectionStates(ctx context.Context, collectors []Devic
 		collectors[idx].RuntimeProjectionVersion = state.RuntimeVersion
 		collectors[idx].WorkspaceProjectionVersion = state.WorkspaceVersion
 		collectors[idx].ProjectionMessage = state.Message
+		collectors[idx].ProjectionCode = state.Code
 	}
 }
 
@@ -363,7 +367,8 @@ func runtimeStatusEqual(left, right DeviceRuntimeStatus) bool {
 		left.ProjectionAlignment != right.ProjectionAlignment ||
 		left.RuntimeProjectionVersion != right.RuntimeProjectionVersion ||
 		left.WorkspaceProjectionVersion != right.WorkspaceProjectionVersion ||
-		left.ProjectionMessage != right.ProjectionMessage {
+		left.ProjectionMessage != right.ProjectionMessage ||
+		left.ProjectionCode != right.ProjectionCode {
 		return false
 	}
 

@@ -78,6 +78,22 @@ func TestService_ReadinessAggregatesBlockingAndWarningIssues(t *testing.T) {
 	require.Equal(t, "db-main", summary.Issues[1].Scope)
 }
 
+func TestService_ReadinessDoesNotExposeConnectionDetailsInBlockingIssue(t *testing.T) {
+	readiness := &schema.DeviceReadiness{
+		ActivationAllowed: false,
+		ConnectStatus:     schema.ReadinessStageStatusSuccess,
+		ProbeStatus:       schema.ReadinessStageStatusFailed,
+		BlockingReasons:   []string{"probe failed: dsn=postgres://user:secret@plc.example:5432/db host=10.0.0.5"},
+	}
+	issue, ok := deviceReadinessIssue("dev-safe", readiness)
+	require.True(t, ok)
+	require.Equal(t, "device-probe-required", issue.Code)
+	require.NotContains(t, issue.Message, "plc.example")
+	require.NotContains(t, issue.Message, "secret")
+	require.NotContains(t, issue.Message, "10.0.0.5")
+	require.Contains(t, issue.Message, "probe failed")
+}
+
 func TestService_ReadinessSurfacesMissingDownstreamRelationships(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "workspace-readiness-downstream.db")
 	db := openWorkspaceTestDB(t, dbPath)

@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -64,8 +65,17 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		}
 
 		if s.target != nil {
-			if err := s.target.WriteTagValue(ctx, b.TagID, finalValue, cv.Timestamp); err != nil {
+			if outcomeWriter, ok := s.target.(TargetOutcomeWriter); ok {
+				for _, outcome := range outcomeWriter.WriteTagValueOutcomes(ctx, b.TagID, finalValue, cv.Timestamp) {
+					s.recordTargetDeliveryOutcome(deviceID, cv.PointID, b.TagID, outcome, cv.Timestamp)
+				}
+			} else if err := s.target.WriteTagValue(ctx, b.TagID, finalValue, cv.Timestamp); err != nil {
 				s.writeError.Add(1)
+				var deliveryErr *DeliveryError
+				if errors.As(err, &deliveryErr) && deliveryErr.Target == "modbus_share" {
+					s.recordModbusShareDeliveryDiagnostic(ModbusShareDeliveryDiagnostic{DeviceID: deviceID, PointID: cv.PointID, TagID: b.TagID, Status: ModbusShareDeliveryStatusFailed, Stage: deliveryErr.Stage, Error: deliveryErr.Error(), ObservedAt: cv.Timestamp})
+					continue
+				}
 				s.recordDatabaseDeliveryDiagnostic(DatabaseDeliveryDiagnostic{
 					DeviceID:    deviceID,
 					PointID:     cv.PointID,
@@ -101,6 +111,34 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 	})
 	if deviceID != "" {
 		s.publishDerivedStatus(deviceID)
+	}
+}
+
+func (s *Service) recordTargetDeliveryOutcome(deviceID, pointID, tagID string, outcome TargetDeliveryOutcome, observedAt time.Time) {
+	if outcome.Err != nil {
+		s.writeError.Add(1)
+	}
+	switch outcome.Target {
+	case TargetModbusShare:
+		diagnostic := ModbusShareDeliveryDiagnostic{DeviceID: deviceID, PointID: pointID, TagID: tagID, Status: ModbusShareDeliveryStatusSucceeded, Stage: "modbus_write", ObservedAt: observedAt}
+		if outcome.Err != nil {
+			diagnostic.Status = ModbusShareDeliveryStatusFailed
+			diagnostic.Error = outcome.Err.Error()
+			var deliveryErr *DeliveryError
+			if errors.As(outcome.Err, &deliveryErr) {
+				diagnostic.Stage = deliveryErr.Stage
+			}
+		}
+		s.recordModbusShareDeliveryDiagnostic(diagnostic)
+	case TargetDatabase:
+		diagnostic := DatabaseDeliveryDiagnostic{DeviceID: deviceID, PointID: pointID, TagID: tagID, Status: DatabaseDeliveryStatusSucceeded, Stages: databaseDeliverySuccessStages(), ObservedAt: observedAt}
+		if outcome.Err != nil {
+			diagnostic.Status = DatabaseDeliveryStatusFailed
+			diagnostic.Stages = databaseDeliveryFailureStages()
+			diagnostic.FailedStage = DatabaseDeliveryStageDBWrite
+			diagnostic.Error = outcome.Err.Error()
+		}
+		s.recordDatabaseDeliveryDiagnostic(diagnostic)
 	}
 }
 

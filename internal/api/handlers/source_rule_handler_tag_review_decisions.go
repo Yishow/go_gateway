@@ -4,14 +4,29 @@ import (
 	"errors"
 	"net/http"
 
+	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
 
 	"github.com/gin-gonic/gin"
 )
 
 func (h *SourceRuleHandler) ListTagReviewDecisions(c *gin.Context) {
-	decisions, err := h.svc.ListTagReviewDecisions(c.Request.Context(), c.Param("id"))
+	scope := candidateScopeFromQuery(c)
+	if !h.requireCandidateScope(c, scope) {
+		return
+	}
+	var decisions []*schema.SourceRuleTagReviewDecision
+	var err error
+	if h.svc.CandidateScopeConfigured() {
+		decisions, err = h.svc.ListTagReviewDecisionsInWorkspace(c.Request.Context(), c.Param("id"), scope)
+	} else {
+		decisions, err = h.svc.ListTagReviewDecisions(c.Request.Context(), c.Param("id"))
+	}
 	if err != nil {
+		if h.svc.CandidateScopeConfigured() {
+			writeCandidateScopeError(c, err)
+			return
+		}
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
 			statusCode = http.StatusNotFound
@@ -31,6 +46,10 @@ func (h *SourceRuleHandler) UpsertTagReviewDecision(c *gin.Context) {
 
 	decision, err := h.svc.UpsertTagReviewDecision(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
+		if h.svc.CandidateScopeConfigured() {
+			writeCandidateScopeError(c, err)
+			return
+		}
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
 			statusCode = http.StatusNotFound

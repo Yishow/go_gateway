@@ -207,9 +207,9 @@ func TestRuntimeHandlerWorkspaceContextFiltersDatabaseTargetsToWorkspaceBindings
 		Data    struct {
 			Setup struct {
 				DatabaseTargets []struct {
-					ID      string `json:"id"`
-					TagID   string `json:"tag_id"`
-					Column  string `json:"column_name"`
+					ID     string `json:"id"`
+					TagID  string `json:"tag_id"`
+					Column string `json:"column_name"`
 				} `json:"database_targets"`
 			} `json:"setup"`
 		} `json:"data"`

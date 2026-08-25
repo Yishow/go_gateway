@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/sourcerule"
 
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,20 @@ func (h *SourceRuleHandler) ApplyLocalModbusOutputs(c *gin.Context) {
 }
 
 func writeOutputApplyError(c *gin.Context, err error) {
+	var shareErr *modbusshare.Error
+	if errors.As(err, &shareErr) {
+		statusCode := http.StatusUnprocessableEntity
+		switch shareErr.Code {
+		case modbusshare.ErrCodeWorkspaceScope:
+			statusCode = http.StatusForbidden
+		case modbusshare.ErrCodeRevisionConflict:
+			statusCode = http.StatusConflict
+		case modbusshare.ErrCodeHydrationRequired:
+			statusCode = http.StatusServiceUnavailable
+		}
+		renderModbusShareAPIError(c, statusCode, shareErr, shareErr.Code, shareErr.Retryable)
+		return
+	}
 	statusCode := http.StatusInternalServerError
 	errorCode := "internal"
 	switch {

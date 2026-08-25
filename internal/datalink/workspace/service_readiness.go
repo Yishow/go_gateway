@@ -485,28 +485,3 @@ func trimOptionalString(value *string) string {
 func isMissingDatabaseConnectorError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "資料庫連接器不存在")
 }
-
-func deviceReadinessIssue(deviceID string, readiness *schema.DeviceReadiness) (ReadinessIssue, bool) {
-	if readiness == nil || readiness.ActivationAllowed {
-		return ReadinessIssue{}, false
-	}
-
-	code := "device-activation-blocked"
-	switch {
-	case readiness.ConnectStatus == schema.ReadinessStageStatusSuccess && readiness.ProbeStatus != schema.ReadinessStageStatusSuccess:
-		code = "device-probe-required"
-	case readiness.ConnectStatus != schema.ReadinessStageStatusSuccess:
-		code = "device-connect-required"
-	}
-
-	messageInputs := append([]string{}, readiness.BlockingReasons...)
-	messageInputs = append(messageInputs, readiness.AvailabilityReason, "device is not ready for activation")
-	message := firstReadinessMessage(messageInputs...)
-	return ReadinessIssue{
-		Code:     code,
-		Severity: ReadinessSeverityBlocking,
-		Step:     ReadinessStep1,
-		Scope:    strings.TrimSpace(deviceID),
-		Message:  message,
-	}, true
-}

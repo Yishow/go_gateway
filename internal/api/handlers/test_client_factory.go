@@ -1,12 +1,12 @@
 package handlers
 
 import (
-"fmt"
-"time"
+	"fmt"
+	"time"
 
-"go-gateway/internal/protocol/fatek"
-"go-gateway/internal/protocol/mcprotocol"
-"go-gateway/internal/protocol/modbus"
+	"go-gateway/internal/protocol/fatek"
+	"go-gateway/internal/protocol/mcprotocol"
+	"go-gateway/internal/protocol/modbus"
 )
 
 // --- Helper Functions ---
@@ -52,7 +52,7 @@ func (h *TestHandler) createClientWithDebug(protocol string, config map[string]i
 			return modbus.NewClient(wrappedTransport, unitID), nil
 		}
 		return modbus.NewClient(transport, unitID), nil
-	
+
 	case "modbus_udp":
 		host := getString("host", "localhost")
 		port := getInt("port", 502)
@@ -67,7 +67,7 @@ func (h *TestHandler) createClientWithDebug(protocol string, config map[string]i
 			return modbus.NewClient(wrappedTransport, unitID), nil
 		}
 		return modbus.NewClient(transport, unitID), nil
-	
+
 	case "modbus_rtu":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)
@@ -97,7 +97,7 @@ func (h *TestHandler) createClientWithDebug(protocol string, config map[string]i
 			return fatek.NewClient(wrappedTransport, station), nil
 		}
 		return fatek.NewClient(transport, station), nil
-	
+
 	case "fatek_serial":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)
@@ -112,7 +112,7 @@ func (h *TestHandler) createClientWithDebug(protocol string, config map[string]i
 			return fatek.NewClient(wrappedTransport, station), nil
 		}
 		return fatek.NewClient(transport, station), nil
-	
+
 	case "mc_tcp", "mcprotocol_tcp":
 		host := getString("host", "localhost")
 		port := getInt("port", 6000)
@@ -126,7 +126,7 @@ func (h *TestHandler) createClientWithDebug(protocol string, config map[string]i
 			return mcprotocol.NewClientWithTransport(wrappedTransport), nil
 		}
 		return mcprotocol.NewClientWithTransport(transport), nil
-	
+
 	case "mcprotocol_serial":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)
@@ -179,14 +179,14 @@ func (h *TestHandler) createClient(protocol string, config map[string]interface{
 		unitID := byte(getInt("unitID", 1))
 		timeout := getDuration("timeout", 2000*time.Millisecond)
 		return modbus.CreateTCPClient(host, port, unitID, timeout), nil
-	
+
 	case "modbus_udp":
 		host := getString("host", "localhost")
 		port := getInt("port", 502)
 		unitID := byte(getInt("unitID", 1))
 		timeout := getDuration("timeout", 2000*time.Millisecond)
 		return modbus.CreateUDPClient(host, port, unitID, timeout), nil
-	
+
 	case "modbus_rtu":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)
@@ -203,7 +203,7 @@ func (h *TestHandler) createClient(protocol string, config map[string]interface{
 		station := getInt("station", 1)
 		timeout := getDuration("timeout", 2000*time.Millisecond)
 		return fatek.CreateTCPClient(host, port, station, timeout), nil
-	
+
 	case "fatek_serial":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)
@@ -213,13 +213,13 @@ func (h *TestHandler) createClient(protocol string, config map[string]interface{
 		station := getInt("station", 1)
 		timeout := getDuration("timeout", 1000*time.Millisecond)
 		return fatek.CreateSerialClient(port, station, baudRate, dataBits, stopBits, parity, timeout), nil
-	
+
 	case "mc_tcp", "mcprotocol_tcp":
 		host := getString("host", "localhost")
 		port := getInt("port", 6000)
 		timeout := getDuration("timeout", 2000*time.Millisecond)
 		return mcprotocol.CreateTCPClient(host, port, timeout), nil
-	
+
 	case "mcprotocol_serial":
 		port := getString("port", "COM1")
 		baudRate := getInt("baudRate", 9600)

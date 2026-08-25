@@ -19,7 +19,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	// 添加調試日誌
 	fmt.Printf("[DEBUG] Connect 請求收到: Method=%s, Path=%s\n", c.Request.Method, c.Request.URL.Path)
 	fmt.Printf("[DEBUG] Request Headers: %+v\n", c.Request.Header)
-	
+
 	var req ConnectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fmt.Printf("[ERROR] JSON 綁定失敗: %v\n", err)
@@ -44,10 +44,10 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	}
 
 	fmt.Printf("[DEBUG] 開始創建客戶端: Protocol=%s\n", req.Protocol)
-	
+
 	// 先生成 connectionID，這樣可以在創建客戶端時就記錄數據包
 	connID := generateConnectionID()
-	
+
 	client, err := h.createClientWithDebug(req.Protocol, req.Config, connID)
 	if err != nil {
 		fmt.Printf("[ERROR] 創建客戶端失敗: %v\n", err)

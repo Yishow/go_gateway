@@ -1,10 +1,26 @@
 package runtime
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"time"
 )
+
+// DeliveryError identifies the runtime target stage that rejected a value.
+type DeliveryError struct {
+	Target string
+	Stage  string
+	Err    error
+}
+
+func (e *DeliveryError) Error() string { return fmt.Sprintf("%s %s: %v", e.Target, e.Stage, e.Err) }
+func (e *DeliveryError) Unwrap() error { return e.Err }
+
+// NewDeliveryError wraps a target failure so diagnostics do not misclassify it as database delivery.
+func NewDeliveryError(target, stage string, err error) error {
+	return &DeliveryError{Target: target, Stage: stage, Err: err}
+}
 
 // DatabaseDeliveryStage describes one observed stage in the runtime database delivery path.
 type DatabaseDeliveryStage string

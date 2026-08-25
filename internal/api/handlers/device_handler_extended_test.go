@@ -63,8 +63,8 @@ func TestDeviceHandler_Activate(t *testing.T) {
 
 	// 先建立一個設備
 	newDevice := device.CreateDeviceRequest{
-		Name:        "測試啟用設備",
-		Protocol:    "modbus_tcp",
+		Name:     "測試啟用設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -117,8 +117,8 @@ func TestDeviceHandler_Disable(t *testing.T) {
 
 	// 先建立一個設備
 	newDevice := device.CreateDeviceRequest{
-		Name:        "測試停用設備",
-		Protocol:    "modbus_tcp",
+		Name:     "測試停用設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -172,8 +172,8 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 	// 先建立多個設備
 	devices := []device.CreateDeviceRequest{
 		{
-			Name:        "測試設備 1",
-			Protocol:    "modbus_tcp",
+			Name:     "測試設備 1",
+			Protocol: "modbus_tcp",
 			ConnectionConfig: map[string]interface{}{
 				"host":     "127.0.0.1",
 				"port":     502,
@@ -181,8 +181,8 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 			},
 		},
 		{
-			Name:        "測試設備 2",
-			Protocol:    "modbus_tcp",
+			Name:     "測試設備 2",
+			Protocol: "modbus_tcp",
 			ConnectionConfig: map[string]interface{}{
 				"host":     "127.0.0.2",
 				"port":     502,
@@ -634,8 +634,8 @@ func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
 
 	// 建立設備
 	newDevice := device.CreateDeviceRequest{
-		Name:        "測試循環設備",
-		Protocol:    "modbus_tcp",
+		Name:     "測試循環設備",
+		Protocol: "modbus_tcp",
 		ConnectionConfig: map[string]interface{}{
 			"host":     "127.0.0.1",
 			"port":     502,
@@ -682,8 +682,8 @@ func TestDeviceHandler_TestConnectionBatch_LargeList(t *testing.T) {
 	deviceIDs := make([]string, 0, 10)
 	for i := 0; i < 10; i++ {
 		newDevice := device.CreateDeviceRequest{
-			Name:        "批量測試設備 " + string(rune('0'+i)),
-			Protocol:    "modbus_tcp",
+			Name:     "批量測試設備 " + string(rune('0'+i)),
+			Protocol: "modbus_tcp",
 			ConnectionConfig: map[string]interface{}{
 				"host":     "127.0.0.1",
 				"port":     502 + i,

@@ -171,6 +171,7 @@ func applyLocalModbusConflictReasons(
 	}
 
 	candidates := make([]schema.SourceRuleLocalModbusOutputCandidate, 0, len(conflictSnapshot.candidates))
+	blockingReason := ""
 	for _, candidate := range conflictSnapshot.candidates {
 		nextCandidate := normalizeLocalModbusConflictCandidate(candidate)
 		key := localModbusConflictCandidateKey{
@@ -181,6 +182,9 @@ func applyLocalModbusConflictReasons(
 		if reasons := reasonsByCandidate[key]; len(reasons) > 0 {
 			nextCandidate.Status = schema.SourceRuleLocalModbusOutputStatusBlockedConflict
 			nextCandidate.BlockingReason = strings.Join(reasons, "; ")
+			if blockingReason == "" {
+				blockingReason = nextCandidate.BlockingReason
+			}
 		}
 		candidates = append(candidates, nextCandidate)
 	}
@@ -191,6 +195,10 @@ func applyLocalModbusConflictReasons(
 	}
 	localSnapshot.Payload = payload
 	localSnapshot.GeneratedAt = generatedAt
+	if localSnapshot.Status == schema.SourceRuleCandidateStatusReady && blockingReason != "" {
+		localSnapshot.Status = schema.SourceRuleCandidateStatusBlocked
+		localSnapshot.Reason = blockingReason
+	}
 	return nextSnapshots, nil
 }
 

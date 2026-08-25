@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -25,8 +26,10 @@ const (
 )
 
 type ApplyOutputCandidatesRequest struct {
-	RevisionID   string   `json:"revision_id"`
-	CandidateIDs []string `json:"candidate_ids"`
+	WorkspaceID               string   `json:"workspace_id"`
+	ExpectedWorkspaceRevision string   `json:"expected_workspace_revision"`
+	RevisionID                string   `json:"revision_id"`
+	CandidateIDs              []string `json:"candidate_ids"`
 }
 
 type ApplyOutputCandidateResult struct {
@@ -46,9 +49,11 @@ type ApplyOutputCandidateResult struct {
 }
 
 type ApplyOutputCandidatesResponse struct {
-	SourceRuleID string                       `json:"source_rule_id"`
-	RevisionID   string                       `json:"revision_id"`
-	Results      []ApplyOutputCandidateResult `json:"results"`
+	SourceRuleID      string                       `json:"source_rule_id"`
+	WorkspaceID       string                       `json:"workspace_id,omitempty"`
+	WorkspaceRevision string                       `json:"workspace_revision,omitempty"`
+	RevisionID        string                       `json:"revision_id"`
+	Results           []ApplyOutputCandidateResult `json:"results"`
 }
 
 func (s *Service) ApplyDatabaseOutputCandidates(
@@ -56,6 +61,9 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 	ruleID string,
 	req ApplyOutputCandidatesRequest,
 ) (*ApplyOutputCandidatesResponse, error) {
+	if err := s.ValidateCandidateScope(ctx, ruleID, CandidateScopeRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, RevisionID: req.RevisionID}); err != nil {
+		return nil, err
+	}
 	candidateIDs, revisionID, err := validateApplyOutputCandidatesRequest(req)
 	if err != nil {
 		return nil, err
@@ -93,8 +101,9 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 
 	response := &ApplyOutputCandidatesResponse{
 		SourceRuleID: rule.ID,
-		RevisionID:   rule.RevisionID,
-		Results:      make([]ApplyOutputCandidateResult, 0, len(candidateIDs)),
+		WorkspaceID:  req.WorkspaceID, WorkspaceRevision: req.ExpectedWorkspaceRevision,
+		RevisionID: rule.RevisionID,
+		Results:    make([]ApplyOutputCandidateResult, 0, len(candidateIDs)),
 	}
 	for _, candidateID := range candidateIDs {
 		candidate, exists := candidateByID[candidateID]
@@ -190,6 +199,9 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 	ruleID string,
 	req ApplyOutputCandidatesRequest,
 ) (*ApplyOutputCandidatesResponse, error) {
+	if err := s.ValidateCandidateScope(ctx, ruleID, CandidateScopeRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, RevisionID: req.RevisionID}); err != nil {
+		return nil, err
+	}
 	candidateIDs, revisionID, err := validateApplyOutputCandidatesRequest(req)
 	if err != nil {
 		return nil, err
@@ -214,8 +226,9 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 
 	response := &ApplyOutputCandidatesResponse{
 		SourceRuleID: rule.ID,
-		RevisionID:   rule.RevisionID,
-		Results:      make([]ApplyOutputCandidateResult, 0, len(candidateIDs)),
+		WorkspaceID:  req.WorkspaceID, WorkspaceRevision: req.ExpectedWorkspaceRevision,
+		RevisionID: rule.RevisionID,
+		Results:    make([]ApplyOutputCandidateResult, 0, len(candidateIDs)),
 	}
 	if localModbusSnapshot.Status == schema.SourceRuleCandidateStatusDeferred {
 		for _, candidateID := range candidateIDs {
@@ -273,6 +286,8 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 
 func verifyLocalModbusApplyCandidate(candidate schema.SourceRuleLocalModbusOutputCandidate) (code string, reason string, blocked bool) {
 	switch {
+	case strings.Contains(candidate.BlockingReason, modbusshare.ErrCodeInvalidGeometry):
+		return modbusshare.ErrCodeInvalidGeometry, defaultReason(candidate.BlockingReason, "candidate has invalid register geometry"), true
 	case candidate.Status == schema.SourceRuleLocalModbusOutputStatusBlockedConflict:
 		return outputApplyCodeConflict, defaultReason(candidate.BlockingReason, "candidate is blocked by conflict"), true
 	case candidate.Status == schema.SourceRuleLocalModbusOutputStatusOutOfSync:

@@ -12,41 +12,30 @@ import (
 	"embed"
 	"log"
 	"net/http"
-	"os"
-	"os/exec"
-	"os/signal"
-	"runtime"
-	"strings"
-	"syscall"
 	"time"
 
 	_ "modernc.org/sqlite"
 
+	"github.com/google/uuid"
+
 	"go-gateway/internal/api"
+	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink"
-	"go-gateway/internal/datalink/audit"
-	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
-	"go-gateway/internal/datalink/dbtarget"
-	"go-gateway/internal/datalink/device"
-	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/modbusshare"
-	"go-gateway/internal/datalink/point"
-	"go-gateway/internal/datalink/pollinggroup"
-	datalinkruntime "go-gateway/internal/datalink/runtime"
-	"go-gateway/internal/datalink/schema"
-	"go-gateway/internal/datalink/settings"
 	"go-gateway/internal/datalink/sourcerule"
-	"go-gateway/internal/datalink/storage"
-	"go-gateway/internal/datalink/tag"
-	"go-gateway/internal/datalink/workspace"
 	"go-gateway/internal/web"
 )
 
 //go:embed static
 var staticFiles embed.FS
+
+const (
+	shareOutcomeAligned = "aligned"
+	shareOutcomeApplied = "applied"
+)
 
 // 全域變數用於控制伺服器
 var (
@@ -69,7 +58,7 @@ func main() {
 	// =========================================================================
 	// Database Setup (SQLite)
 	// =========================================================================
-	sqliteDSN := datalink.DefaultEmbeddedSQLiteDSN
+	sqliteDSN := embeddedSQLiteDSN()
 	log.Printf("SQLite DSN: %s", sqliteDSN)
 
 	db, err := sql.Open("sqlite", sqliteDSN)
@@ -85,9 +74,6 @@ func main() {
 		log.Fatalf("無法連接資料庫: %v", err)
 	}
 
-	// =========================================================================
-	// Migrations
-	// =========================================================================
 	// =========================================================================
 	// Migrations
 	// =========================================================================
@@ -118,149 +104,57 @@ func main() {
 	// Repository & Service Wiring
 	// =========================================================================
 
-	// Device
-	devRepo := device.NewSQLRepository(db)
-	devSvc := device.NewService(devRepo, connMgr)
-
-	// PollingGroup
-	pgRepo := pollinggroup.NewSQLRepository(db)
-	pgSvc := pollinggroup.NewService(pgRepo)
-
-	// Point
-	pointRepo := point.NewSQLRepository(db)
-	pointSvc := point.NewService(pointRepo, pgRepo)
-
-	// Tag
-	tagRepo := tag.NewSQLRepository(db)
-	tagSvc := tag.NewService(tagRepo)
-
-	// Mapping
-	mappingRepo := mapping.NewSQLRepository(db)
-	mappingSvc := mapping.NewServiceWithTagResolver(mappingRepo, tagSvc.GetByID)
-
-	// Source Rule
-	sourceRuleRepo := sourcerule.NewSQLRepository(db)
-
-	// Local Modbus Share (Tag -> Virtual Modbus Memory Grid)
-	modbusShareSvc := modbusshare.NewService(tagSvc, 65536)
-	if err := modbusShareSvc.Start(5020); err != nil {
-		log.Printf("本機 Modbus 分享服務啟動失敗 (port 5020): %v", err)
-	} else {
-		log.Printf("本機 Modbus 分享服務已啟動: %s", modbusShareSvc.Status().Address)
-	}
+	services := wireGatewayServices(db, connMgr)
+	devSvc, pgSvc, pointSvc, tagSvc, mappingSvc := services.device, services.pollingGroup, services.point, services.tag, services.mapping
+	settingsSvc, modbusShareSvc := services.settings, services.modbusShare
+	shareSettingsLoaded, workspaceSvc, auditSvc := services.shareLoaded, services.workspace, services.audit
+	dbTargetConnectorSvc, dbTargetMappingSvc := services.dbTarget, services.dbMapping
+	scheduler, runtimeSvc, sourceRuleSvc := services.scheduler, services.runtime, services.sourceRule
 	defer func() {
-		if err := modbusShareSvc.Stop(); err != nil {
+		if err := modbusShareSvc.CloseRuntime(); err != nil {
 			log.Printf("關閉本機 Modbus 分享服務失敗: %v", err)
 		}
 	}()
 
-	// Settings
-	settingsRepo := settings.NewSQLRepository(db)
-	settingsSvc := settings.NewService(settingsRepo)
+	revisionStore := modbusshare.NewSQLWorkspaceRevisionStore(db)
+	reconciler := modbusshare.NewReconciler(modbusShareSvc, revisionStore)
+	configureShareRuntimeReconciler(sourceRuleSvc, workspaceSvc, modbusShareSvc, revisionStore, reconciler)
+	workspaceRecord, workspaceErr := workspaceSvc.GetOrCreate(context.Background())
+	//nolint:gocritic // Startup branches preserve the required hydration failure precedence.
+	if !shareSettingsLoaded {
+		modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateFailed, Readiness: false})
+	} else if workspaceErr != nil {
+		log.Printf("讀取 Studio V2 workspace 失敗，Share hydration 維持 failed: %v", workspaceErr)
+		modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateFailed, Readiness: false})
+	} else {
+		reconciler.WithOwnershipValidator(sourcerule.NewShareDesiredMappingOwnershipChecker(workspaceSvc, sourceRuleSvc, tagSvc, modbusShareSvc.Settings, mappingSvc))
 
-	workspaceRepo := workspace.NewSQLRepository(db)
-	workspaceSvc := workspace.NewService(workspaceRepo)
-	auditSvc := audit.NewService(audit.NewSQLRepository(db))
-
-	// Database Target
-	dbTargetConnectorRepo := dbtarget.NewSQLConnectorRepository(db)
-	dbTargetMappingRepo := dbtarget.NewSQLTargetMappingRepository(db)
-	dbTargetConnectorSvc := dbtarget.NewConnectorService(dbTargetConnectorRepo, dbTargetMappingRepo)
-	dbTargetConnectorSvc.SetTagReader(tagSvc)
-	dbTargetMappingSvc := dbtarget.NewMappingService(dbTargetMappingRepo, dbTargetConnectorRepo, tagSvc)
-	dbTargetWriter := dbtarget.NewWriterWithConfig(
-		dbTargetConnectorRepo,
-		dbTargetMappingRepo,
-		dbtarget.WriterConfig{TagReader: tagSvc},
-	)
-
-	scheduler := collector.NewScheduler(collector.DefaultSchedulerConfig(), connMgr)
-	runtimeWriter := storage.NewBatchWriter(storage.NewSQLiteWriter(db), storage.DefaultBatchWriterConfig())
-	runtimeSvc, err := datalinkruntime.NewService(
-		datalinkruntime.DefaultConfig(),
-		datalinkruntime.Dependencies{
-			Scheduler:           scheduler,
-			Writer:              runtimeWriter,
-			TargetWriter:        dbTargetWriter,
-			DeviceService:       devSvc,
-			PointService:        pointSvc,
-			MappingService:      mappingSvc,
-			TagService:          tagSvc,
-			PollingGroupService: pgSvc,
-		},
-	)
-	if err != nil {
-		log.Fatalf("建立 datalink runtime 失敗: %v", err)
-	}
-	sourceRuleSvc := sourcerule.NewService(sourceRuleRepo, devSvc, pointSvc, runtimeSvc)
-	sourceRuleSvc.SetTagMappingServices(tagSvc, mappingSvc)
-	sourceRuleSvc.SetDatabaseTargetMappingReader(
-		sourcerule.DatabaseTargetMappingListFunc(func(ctx context.Context) ([]*schema.DatabaseTargetMapping, error) {
-			return dbTargetMappingSvc.List(ctx, dbtarget.TargetMappingListFilter{})
-		}),
-	)
-	sourceRuleSvc.SetDatabaseTargetConnectorReader(dbTargetConnectorSvc)
-	sourceRuleSvc.SetDatabaseTargetConnectorValidator(
-		sourcerule.DatabaseTargetConnectorValidatorFunc(func(ctx context.Context, connectorID string) (*sourcerule.DatabaseTargetConnectorValidation, error) {
-			result, err := dbTargetMappingSvc.Validate(ctx, connectorID)
-			if err != nil {
-				return nil, err
+		settingsSnapshot := modbusShareSvc.Settings()
+		workspaceRevision, _, revisionErr := revisionStore.GetRevision(context.Background(), workspaceRecord.ID)
+		//nolint:gocritic // Revision, empty-state, and enabled-state checks intentionally remain ordered.
+		if revisionErr != nil {
+			log.Printf("讀取 Share workspace revision 失敗，hydration 維持 failed: %v", revisionErr)
+			modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateFailed, WorkspaceID: workspaceRecord.ID, SettingsRevision: settingsSnapshot.SettingsRevision, Readiness: false})
+		} else if workspaceRevision == "" {
+			log.Printf("Share workspace revision 為空，hydration 維持 failed")
+			modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateFailed, WorkspaceID: workspaceRecord.ID, SettingsRevision: settingsSnapshot.SettingsRevision, Readiness: false})
+		} else if settingsSnapshot.Enabled {
+			// Source-rule candidates are the sole restart authority. The durable
+			// mapping snapshot is evidence for reconcile rollback/consistency,
+			// never a competing desired-state source.
+			if out, err := sourceRuleSvc.RestoreLocalModbusProjectionForDevices(context.Background(), workspaceRecord.ID, workspaceRevision, settingsSnapshot, workspaceRecord.OrderedDeviceIDs, reconciler); err != nil || (out.Outcome != shareOutcomeAligned && out.Outcome != shareOutcomeApplied) {
+				if err != nil {
+					log.Printf("本機 Modbus 分享服務 source-rule projection 還原失敗，hydration 維持 failed: %v", err)
+				}
+				modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateFailed, WorkspaceID: workspaceRecord.ID, WorkspaceRevision: workspaceRevision, SettingsRevision: settingsSnapshot.SettingsRevision, Readiness: false})
+			} else {
+				modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateReady, WorkspaceID: workspaceRecord.ID, WorkspaceRevision: workspaceRevision, SettingsRevision: settingsSnapshot.SettingsRevision, Readiness: true, ReadinessToken: uuid.NewString()})
 			}
-			issues := make([]sourcerule.DatabaseTargetValidationIssue, 0, len(result.Issues))
-			for _, issue := range result.Issues {
-				issues = append(issues, sourcerule.DatabaseTargetValidationIssue{
-					Severity:  issue.Severity,
-					MappingID: issue.MappingID,
-					Code:      issue.Code,
-					Message:   issue.Message,
-				})
-			}
-			return &sourcerule.DatabaseTargetConnectorValidation{
-				Ready:  result.Ready,
-				Issues: issues,
-			}, nil
-		}),
-	)
-	workspaceSvc.WithReadinessServices(devSvc, sourceRuleSvc, dbTargetConnectorSvc, dbTargetMappingSvc)
-	workspaceSvc.WithReadinessSetupReaders(tagSvc, mappingSvc)
-	workspaceSvc.WithRuntimeProjectionServices(
-		devSvc,
-		sourceRuleSvc,
-		pointSvc,
-		mappingSvc,
-		tagSvc,
-		dbTargetConnectorSvc,
-		dbTargetMappingSvc,
-		pgSvc,
-	)
-	runtimeSvc.SetWorkspaceProjectionReader(workspaceSvc)
-	sourceRuleSvc.SetLocalModbusMappingReader(
-		sourcerule.LocalModbusMappingListFunc(func(context.Context) ([]sourcerule.LocalModbusMappingRecord, error) {
-			mappings := modbusShareSvc.ListMappings()
-			records := make([]sourcerule.LocalModbusMappingRecord, 0, len(mappings))
-			for _, mappingRecord := range mappings {
-				records = append(records, sourcerule.LocalModbusMappingRecord{
-					TagID:     mappingRecord.TagID,
-					Register:  mappingRecord.Register,
-					DataType:  mappingRecord.DataType,
-					UpdatedAt: mappingRecord.UpdatedAt,
-				})
-			}
-			return records, nil
-		}),
-	)
-	if err := sourceRuleSvc.SyncDerivedPointState(context.Background()); err != nil {
-		log.Printf("同步來源規則衍生點位狀態失敗: %v", err)
+		} else if shareSettingsLoaded {
+			modbusShareSvc.SetHydrationState(modbusshare.HydrationState{State: modbusshare.HydrationStateReady, WorkspaceID: workspaceRecord.ID, WorkspaceRevision: workspaceRevision, SettingsRevision: settingsSnapshot.SettingsRevision, Readiness: true, ReadinessToken: uuid.NewString()})
+		}
 	}
-	if err := sourceRuleSvc.RestoreLocalModbusMappingState(
-		context.Background(),
-		sourcerule.LocalModbusMappingUpsertFunc(func(ctx context.Context, mappingRecord sourcerule.LocalModbusMappingRecord) error {
-			_, err := modbusShareSvc.UpsertMapping(ctx, mappingRecord.TagID, mappingRecord.Register)
-			return err
-		}),
-	); err != nil {
-		log.Printf("還原 Local Modbus 規則狀態失敗: %v", err)
-	}
+	startConfiguredShareListener(context.Background(), modbusShareSvc)
 	if err := runtimeSvc.Start(context.Background()); err != nil {
 		log.Printf("datalink runtime 啟動失敗，runtime 功能將不可用: %v", err)
 	}
@@ -272,31 +166,54 @@ func main() {
 		}
 	}()
 
-	// Container
 	datalinkServices := &api.DatalinkServices{
-		Device:       devSvc,
-		Point:        pointSvc,
-		Tag:          tagSvc,
-		Mapping:      mappingSvc,
-		PollingGroup: pgSvc,
-		Settings:     settingsSvc,
-		ModbusShare:  modbusShareSvc,
-		Scheduler:    scheduler,
-		Runtime:      runtimeSvc,
-		DBTarget:     dbTargetConnectorSvc,
-		DBMapping:    dbTargetMappingSvc,
-		SourceRule:   sourceRuleSvc,
-		Workspace:    workspaceSvc,
-		Audit:        auditSvc,
+		Device:                devSvc,
+		Point:                 pointSvc,
+		Tag:                   tagSvc,
+		Mapping:               mappingSvc,
+		PollingGroup:          pgSvc,
+		Settings:              settingsSvc,
+		ModbusShare:           modbusShareSvc,
+		ModbusShareReconciler: reconciler,
+		Scheduler:             scheduler,
+		Runtime:               runtimeSvc,
+		DBTarget:              dbTargetConnectorSvc,
+		DBMapping:             dbTargetMappingSvc,
+		SourceRule:            sourceRuleSvc,
+		Workspace:             workspaceSvc,
+		Audit:                 auditSvc,
+		ShareRestore: handlers.ShareRestoreBarrier(func(ctx context.Context, req handlers.ActivateWorkspaceRequest) error {
+			hydration, err := modbusShareSvc.CheckHydration(ctx)
+			if err != nil {
+				return modbusshare.NewError(modbusshare.ErrCodeHydrationRequired, "workspace hydration is required before Share restore", true)
+			}
+			settingsSnapshot := modbusShareSvc.Settings()
+			if !settingsSnapshot.Enabled {
+				return modbusshare.NewError(modbusshare.ErrCodeDisabled, "Modbus Share is disabled in global settings", false)
+			}
+			if req.WorkspaceRevision == "" || req.WorkspaceRevision != hydration.WorkspaceRevision {
+				return modbusshare.NewError(modbusshare.ErrCodeRevisionConflict, "workspace revision conflict", true)
+			}
+			// Restore always rebuilds desired state from persisted source-rule
+			// candidates. Durable mapping rows are only consistency/rollback
+			// evidence and must not become a competing authority.
+			workspaceRecord, workspaceErr := workspaceSvc.GetOrCreate(ctx)
+			if workspaceErr != nil {
+				return modbusshare.NewError(modbusshare.ErrCodeWorkspaceScope, "workspace membership is unavailable", true)
+			}
+			var out modbusshare.ReconcileOutcome
+			out, err = sourceRuleSvc.RestoreLocalModbusProjectionForDevices(ctx, hydration.WorkspaceID, req.WorkspaceRevision, settingsSnapshot, workspaceRecord.OrderedDeviceIDs, reconciler)
+			if err == nil && out.Outcome != "aligned" && out.Outcome != "applied" {
+				err = modbusshare.NewError(modbusshare.ErrCodeHydrationRequired, "Share restore did not reach an aligned projection", true)
+			}
+			return err
+		}),
 	}
 
-	// 建立 API 路由器
 	router := api.NewRouter(datalinkServices)
 
-	// 設定靜態檔案服務（使用 embed）
 	web.SetupStaticFiles(router, staticFiles)
 
-	// 設定伺服器
 	serverAddr = cfg.GetServerAddr()
 	server = &http.Server{
 		Addr:         serverAddr,
@@ -306,118 +223,11 @@ func main() {
 		IdleTimeout:  120 * time.Second, // 空閒超時設為 120 秒
 	}
 
-	// 建立關閉通道
 	shutdownCh = make(chan struct{})
 
-	// 啟動伺服器
 	go startServer()
 
-	// 處理系統信號（Ctrl+C 等）
 	go handleSignals()
 
-	// 阻塞主線程，等待信號
 	<-shutdownCh
-}
-
-// startServer 在背景啟動 HTTP 伺服器
-func startServer() {
-	fullURL := "http://localhost" + serverAddr
-	log.Printf("🚀 測試工具伺服器啟動於 %s", fullURL)
-	log.Printf("📝 開啟瀏覽器訪問 %s 開始使用", fullURL)
-
-	// 檢查是否自動開啟瀏覽器（預設為 false）
-	autoOpenBrowser := os.Getenv("AUTO_OPEN_BROWSER")
-	shouldOpen := autoOpenBrowser == "true" || autoOpenBrowser == "1"
-
-	if shouldOpen {
-		// 等待一小段時間確保伺服器已啟動，然後自動打開瀏覽器
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			openBrowser(serverAddr)
-		}()
-	}
-
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("伺服器啟動失敗: %v", err)
-	}
-}
-
-// handleSignals 處理系統信號（Ctrl+C 等）
-func handleSignals() {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("收到系統信號，正在關閉伺服器...")
-	shutdownServer()
-	close(shutdownCh)
-}
-
-// shutdownServer 優雅關閉伺服器
-func shutdownServer() {
-	if server == nil {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("伺服器強制關閉: %v", err)
-	} else {
-		log.Println("伺服器已優雅關閉")
-	}
-}
-
-// openBrowser 在預設瀏覽器中打開指定 URL
-//
-// Args:
-//   - serverAddr: 伺服器地址（格式如 ":8080" 或 "localhost:8080"）
-func openBrowser(serverAddr string) {
-	// 構建完整的 URL
-	url := buildURL(serverAddr)
-	log.Printf("正在打開瀏覽器: %s", url)
-
-	openCtx, openCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer openCancel()
-
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.CommandContext(openCtx, "cmd", "/c", "start", url)
-	case "darwin":
-		cmd = exec.CommandContext(openCtx, "open", url)
-	default: // linux
-		cmd = exec.CommandContext(openCtx, "xdg-open", url)
-	}
-
-	if err := cmd.Start(); err != nil {
-		log.Printf("無法打開瀏覽器: %v", err)
-	}
-}
-
-// buildURL 構建完整的 HTTP URL
-//
-// Args:
-//   - serverAddr: 伺服器地址（格式如 ":8080" 或 "localhost:8080"）
-//
-// Returns:
-//   - string: 完整的 URL，例如 "http://localhost:8080"
-func buildURL(serverAddr string) string {
-	// 檢查是否已經包含協議
-	if strings.HasPrefix(serverAddr, "http://") || strings.HasPrefix(serverAddr, "https://") {
-		return serverAddr
-	}
-
-	// 移除前導的冒號（如果有的話）
-	addr := strings.TrimPrefix(serverAddr, ":")
-
-	// 如果地址不包含主機名（只有端口號），添加 localhost
-	if !strings.Contains(addr, ":") {
-		// 只有端口號
-		return "http://localhost:" + addr
-	}
-
-	// 如果地址包含主機名，添加 http:// 前綴
-	return "http://" + addr
 }

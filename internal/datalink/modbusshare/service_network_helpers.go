@@ -30,18 +30,31 @@ func (s *Service) ReadHoldingWords(startRegister uint16, quantity uint16) ([]uin
 	return out, nil
 }
 
-func preflightPortAvailable(port int) error {
-	listenCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func preflightPortAvailable(ctx context.Context, bindAddress string, port int) error {
+	listenCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	var lc net.ListenConfig
-	ln, err := lc.Listen(listenCtx, "tcp", fmt.Sprintf(":%d", port))
+	ln, err := lc.Listen(listenCtx, "tcp", net.JoinHostPort(bindAddress, fmt.Sprintf("%d", port)))
 	if err != nil {
 		if isAddressInUseError(err) {
 			return fmt.Errorf("port %d is already in use, please stop the conflicting process or choose another port", port)
 		}
 		return fmt.Errorf("cannot bind port %d: %w", port, err)
 	}
-	return ln.Close()
+	if err := ln.Close(); err != nil {
+		return err
+	}
+	// Keep the legacy conflict check for wildcard listeners too. A process
+	// already bound on all interfaces must not be reported as a successful
+	// Share bind merely because the configured loopback probe is narrower.
+	wildcard, err := lc.Listen(listenCtx, "tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		if isAddressInUseError(err) {
+			return fmt.Errorf("port %d is already in use, please stop the conflicting process or choose another port", port)
+		}
+		return fmt.Errorf("cannot bind port %d: %w", port, err)
+	}
+	return wildcard.Close()
 }
 
 func isAddressInUseError(err error) bool {

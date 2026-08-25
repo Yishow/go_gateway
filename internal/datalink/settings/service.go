@@ -5,6 +5,7 @@ package settings
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -15,6 +16,8 @@ import (
 // =============================================================================
 
 const (
+	// KeyModbusShare stores the durable Local Modbus Share listener settings.
+	KeyModbusShare = "modbus_share"
 	// KeyWritePrecision 寫入時間精度
 	KeyWritePrecision = "write_precision"
 	// KeyPartitionInterval 分區間隔
@@ -53,6 +56,15 @@ type Repository interface {
 
 	// List 列出所有設定
 	List(ctx context.Context) ([]*SettingItem, error)
+}
+
+// RevisionCASRepository extends Repository with an atomic revision-checked
+// write for settings whose value carries a settings_revision field.
+type RevisionCASRepository interface {
+	Repository
+	// SetIfRevision writes value only when the stored revision matches
+	// expectedRevision, or creates a missing key when expectedRevision is empty.
+	SetIfRevision(ctx context.Context, key, expectedRevision string, value interface{}) error
 }
 
 // =============================================================================
@@ -153,6 +165,33 @@ func (r *MemoryRepository) Set(ctx context.Context, key string, value interface{
 		item.UpdatedAt = time.Now()
 	}
 
+	return nil
+}
+
+// SetIfRevision atomically updates an in-memory setting when its revision
+// matches expectedRevision.
+func (r *MemoryRepository) SetIfRevision(ctx context.Context, key, expectedRevision string, value interface{}) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	item, exists := r.settings[key]
+	if !exists {
+		if expectedRevision != "" {
+			return fmt.Errorf("%w", ErrRevisionConflict)
+		}
+		r.settings[key] = &SettingItem{Key: key, Value: value, UpdatedAt: time.Now()}
+		return nil
+	}
+	payload, err := json.Marshal(item.Value)
+	if err != nil {
+		return err
+	}
+	var current struct {
+		SettingsRevision string `json:"settings_revision"`
+	}
+	if err := json.Unmarshal(payload, &current); err != nil || current.SettingsRevision != expectedRevision {
+		return fmt.Errorf("%w", ErrRevisionConflict)
+	}
+	item.Value, item.UpdatedAt = value, time.Now()
 	return nil
 }
 

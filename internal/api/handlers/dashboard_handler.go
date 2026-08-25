@@ -41,13 +41,13 @@ type DashboardStats struct {
 	ErrorDevices    int `json:"error_devices"`
 
 	// 點位統計
-	TotalPoints  int `json:"total_points"`
+	TotalPoints   int `json:"total_points"`
 	EnabledPoints int `json:"enabled_points"`
 
 	// 標籤統計
-	TotalTags      int `json:"total_tags"`
-	ActiveTags     int `json:"active_tags"`
-	RetiredTags    int `json:"retired_tags"`
+	TotalTags   int `json:"total_tags"`
+	ActiveTags  int `json:"active_tags"`
+	RetiredTags int `json:"retired_tags"`
 
 	// 錯誤統計（過去24小時）
 	ErrorsLast24h int `json:"errors_last_24h"`
@@ -152,13 +152,13 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 
 // DeviceStatus 設備狀態資訊
 type DeviceStatus struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Protocol    string    `json:"protocol"`
-	Status      string    `json:"status"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Protocol    string     `json:"protocol"`
+	Status      string     `json:"status"`
 	LastTestAt  *time.Time `json:"last_test_at,omitempty"`
-	LastSuccess *bool     `json:"last_success,omitempty"`
-	LastError   string    `json:"last_error,omitempty"`
+	LastSuccess *bool      `json:"last_success,omitempty"`
+	LastError   string     `json:"last_error,omitempty"`
 }
 
 // GetDeviceStatuses 取得設備狀態列表
@@ -182,7 +182,7 @@ func (h *DashboardHandler) GetDeviceStatuses(c *gin.Context) {
 		if dev.LastTestAt != nil && !dev.LastTestAt.IsZero() {
 			lastTestAt = dev.LastTestAt
 		}
-		
+
 		statuses = append(statuses, DeviceStatus{
 			ID:          dev.ID,
 			Name:        dev.Name,

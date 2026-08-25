@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"testing"
+	"time"
 
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/schema"
@@ -117,6 +118,19 @@ func TestService_ReconcileSourceRuleTargetsAffectedDeviceAndIsIdempotent(t *test
 	require.Equal(t, sourcerule.RuntimeReconcileStatusAligned, second.Status)
 	require.Len(t, svc.mappingBindingsForPoint(pointA.ID), 1)
 	require.Empty(t, svc.mappingBindingsForPoint(pointB.ID))
+
+	writer := &mockWriter{}
+	svc.writer = writer
+	svc.handleCollectedValue(ctx, collector.CollectedValue{
+		PointID:   pointA.ID,
+		DeviceID:  devA.ID,
+		Value:     int16(0x1234),
+		Timestamp: time.Date(2026, 8, 25, 14, 45, 0, 0, time.UTC),
+		Quality:   schema.QualityGood,
+	})
+	require.Len(t, writer.records, 1)
+	require.Equal(t, tagA.ID, writer.records[0].TagID)
+	require.Equal(t, uint64(1), svc.writeSuccess.Load())
 }
 
 func (s *Service) mappingBindingsForPoint(pointID string) []mappingBinding {

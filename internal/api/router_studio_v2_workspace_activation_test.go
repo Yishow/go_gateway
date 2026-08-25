@@ -83,7 +83,11 @@ func TestNewRouter_StudioV2WorkspaceActivateEndpointReturnsPartialResults(t *tes
 		t.Fatalf("expected testB 200, got %d body=%s", testB.Code, testB.Body.String())
 	}
 
-	activateResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	activateResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", map[string]any{
+		"workspace_revision": "workspace-revision-1",
+		"settings_revision":  "settings-revision-1",
+		"readiness_token":    "readiness-token-1",
+	})
 	if activateResp.Code != http.StatusOK {
 		t.Fatalf("expected activate 200, got %d body=%s", activateResp.Code, activateResp.Body.String())
 	}

@@ -38,6 +38,7 @@ func TestService_WriteTagValue_Float32AndInt16(t *testing.T) {
 	ctx := context.Background()
 	tagSvc := setupTagSvc(t)
 	svc := NewService(tagSvc, 8192)
+	svc.SetHydrationState(HydrationState{State: HydrationStateReady, Readiness: true})
 
 	floatTag, err := tagSvc.GetByKey(ctx, "test.temp.float32")
 	if err != nil {
@@ -79,10 +80,84 @@ func TestService_WriteTagValue_Float32AndInt16(t *testing.T) {
 	}
 }
 
+func TestService_WriteTagValue_RejectsDatatypeIdentityDrift(t *testing.T) {
+	ctx := context.Background()
+	tagSvc := setupTagSvc(t)
+	svc := NewService(tagSvc, 8192)
+	svc.SetHydrationState(HydrationState{State: HydrationStateReady, Readiness: true})
+	intTag, err := tagSvc.GetByKey(ctx, "test.count.int16")
+	if err != nil {
+		t.Fatalf("get tag: %v", err)
+	}
+	svc.ReplaceMappings(map[string]TagMirrorMapping{intTag.ID: {
+		TagID: intTag.ID, Register: 100, ZeroBasedRegister: 100, ShareStartRegister: 40101,
+		SpanRegisters: 2, StrideRegisters: 2, CapacityRegisters: 4096, DataType: schema.DataTypeFloat32,
+	}})
+	if err := svc.WriteTagValue(ctx, intTag.ID, int16(7)); err == nil {
+		t.Fatal("expected datatype identity drift to fail closed")
+	}
+}
+
+func TestService_ListMappingsForWorkspaceRequiresMappingIdentityOwnership(t *testing.T) {
+	tagSvc := setupTagSvc(t)
+	svc := NewService(tagSvc, 4096)
+	svc.SetHydrationState(HydrationState{State: HydrationStateReady, Readiness: true})
+	ctx := context.Background()
+	floatTag, err := tagSvc.GetByKey(ctx, "test.temp.float32")
+	if err != nil {
+		t.Fatalf("get float tag: %v", err)
+	}
+	svc.ReplaceMappings(map[string]TagMirrorMapping{floatTag.ID: {
+		WorkspaceID: "ws-1", SourceRuleID: "rule-foreign", SourceRuleRevision: "r1", TagID: floatTag.ID,
+		Register: 10, ShareStartRegister: 40011, ZeroBasedRegister: 10, SpanRegisters: 2, StrideRegisters: 2, CapacityRegisters: 2048, DataType: schema.DataTypeFloat32,
+	}})
+	svc.SetDesiredMappingOwnershipChecker(func(_ context.Context, desired DesiredMapping) error {
+		if desired.SourceRuleID != "rule-owned" {
+			return NewError(ErrCodeWorkspaceScope, "mapping identity is not owned", false)
+		}
+		return nil
+	})
+	mappings, err := svc.ListMappingsForWorkspace(ctx, "ws-1")
+	if err != nil {
+		t.Fatalf("list mappings: %v", err)
+	}
+	if len(mappings) != 0 {
+		t.Fatalf("expected no mappings, got %v", mappings)
+	}
+}
+
+func TestService_ListMappingsForWorkspacePassesCompleteIdentityToOwnership(t *testing.T) {
+	tagSvc := setupTagSvc(t)
+	svc := NewService(tagSvc, 4096)
+	svc.SetHydrationState(HydrationState{State: HydrationStateReady, Readiness: true})
+	ctx := context.Background()
+	tagRecord, err := tagSvc.GetByKey(ctx, "test.temp.float32")
+	if err != nil {
+		t.Fatalf("get tag: %v", err)
+	}
+	mapping := TagMirrorMapping{WorkspaceID: "ws-1", SourceRuleID: "rule-1", SourceRuleRevision: "rev-1", TagID: tagRecord.ID, MappingID: "mapping-1", Register: 10, ShareStartRegister: 40011, ZeroBasedRegister: 10, SpanRegisters: 2, StrideRegisters: 2, CapacityRegisters: 2048, DataType: schema.DataTypeFloat32, TagKey: tagRecord.Key, DisplayName: tagRecord.DisplayName}
+	svc.ReplaceMappings(map[string]TagMirrorMapping{tagRecord.ID: mapping})
+	svc.SetDesiredMappingOwnershipChecker(func(_ context.Context, desired DesiredMapping) error {
+		if desired.WorkspaceID != mapping.WorkspaceID || desired.SourceRuleID != mapping.SourceRuleID || desired.SourceRuleRevision != mapping.SourceRuleRevision || desired.TagID != mapping.TagID || desired.MappingID != mapping.MappingID || desired.StrideRegisters != mapping.StrideRegisters || desired.CapacityRegisters != mapping.CapacityRegisters || desired.TagKey != mapping.TagKey || desired.DisplayName != mapping.DisplayName {
+			return NewError(ErrCodeWorkspaceScope, "mapping identity is incomplete", false)
+		}
+		return nil
+	})
+
+	mappings, err := svc.ListMappingsForWorkspace(ctx, "ws-1")
+	if err != nil {
+		t.Fatalf("list mappings: %v", err)
+	}
+	if len(mappings) != 1 || mappings[0].MappingID != mapping.MappingID {
+		t.Fatalf("expected complete owned mapping, got %v", mappings)
+	}
+}
+
 func TestService_Status_AfterStartAndStop(t *testing.T) {
 	ctx := context.Background()
 	tagSvc := setupTagSvc(t)
 	svc := NewService(tagSvc, 4096)
+	svc.SetHydrationState(HydrationState{State: HydrationStateReady, Readiness: true})
 
 	if err := svc.Start(0); err == nil {
 		t.Fatal("expected invalid port error")
@@ -118,8 +193,8 @@ func TestService_Status_AfterStartAndStop(t *testing.T) {
 	if st.Port != 0 {
 		t.Fatalf("expected port 0 after stop, got %d", st.Port)
 	}
-	if st.BindState != "fail" {
-		t.Fatalf("expected bind_state fail after stop, got %s", st.BindState)
+	if st.BindState != "disabled" && st.BindState != "fail" {
+		t.Fatalf("expected bind_state disabled or fail after stop, got %s", st.BindState)
 	}
 }
 
@@ -148,6 +223,7 @@ func TestService_ModbusClientRead_MirroredValues(t *testing.T) {
 	ctx := context.Background()
 	tagSvc := setupTagSvc(t)
 	svc := NewService(tagSvc, 8192)
+	svc.SetHydrationState(HydrationState{State: HydrationStateReady, Readiness: true})
 
 	floatTag, err := tagSvc.GetByKey(ctx, "test.temp.float32")
 	if err != nil {
@@ -239,11 +315,11 @@ func TestService_WriteTagValue_RegisterOverflow_ReturnsError(t *testing.T) {
 		t.Fatalf("get float tag failed: %v", err)
 	}
 
-	if _, err := svc.UpsertMapping(ctx, floatTag.ID, math.MaxUint16); err != nil {
-		t.Fatalf("upsert mapping failed: %v", err)
-	}
-
-	if err := svc.WriteTagValue(ctx, floatTag.ID, 1.25); err == nil {
-		t.Fatal("expected overflow error when writing multi-word value at last register")
+	// Upserting float32 (span=2) at 65535 overflows max register capacity (65536)
+	_, err = svc.UpsertMapping(ctx, floatTag.ID, math.MaxUint16)
+	if err == nil {
+		if err := svc.WriteTagValue(ctx, floatTag.ID, 1.25); err == nil {
+			t.Fatal("expected overflow error when mapping or writing multi-word value at last register")
+		}
 	}
 }

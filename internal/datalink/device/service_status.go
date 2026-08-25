@@ -28,14 +28,14 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 
 	connectStatus, probeStatus, blockingReasons := deriveReadinessDiagnostics(device)
 	readiness := &schema.DeviceReadiness{
-		DeviceID:          device.ID,
+		DeviceID:           device.ID,
 		AvailabilityStatus: AvailabilityStatusAvailable,
-		ConnectStatus:     connectStatus,
-		ProbeStatus:       probeStatus,
-		PlanningAllowed:   connectStatus == schema.ReadinessStageStatusSuccess,
-		ActivationAllowed: connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
-		ApplyAllowed:      connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
-		BlockingReasons:   blockingReasons,
+		ConnectStatus:      connectStatus,
+		ProbeStatus:        probeStatus,
+		PlanningAllowed:    connectStatus == schema.ReadinessStageStatusSuccess,
+		ActivationAllowed:  connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
+		ApplyAllowed:       connectStatus == schema.ReadinessStageStatusSuccess && probeStatus == schema.ReadinessStageStatusSuccess,
+		BlockingReasons:    blockingReasons,
 	}
 	if currentReadiness := decodeDeviceReadiness(device); currentReadiness != nil && currentReadiness.AvailabilityStatus == AvailabilityStatusUnavailable {
 		readiness.AvailabilityStatus = AvailabilityStatusUnavailable
@@ -81,12 +81,12 @@ func deriveReadinessDiagnostics(device *schema.Device) (
 
 	if isProbeFailure(device.LastTestError) {
 		return schema.ReadinessStageStatusSuccess, schema.ReadinessStageStatusFailed, []string{
-			firstNonEmpty(device.LastTestError, "probe diagnostics failed"),
+			safeReadinessDiagnostic(firstNonEmpty(device.LastTestError, "probe diagnostics failed")),
 		}
 	}
 
 	return schema.ReadinessStageStatusFailed, schema.ReadinessStageStatusUnknown, []string{
-		firstNonEmpty(device.LastTestError, "connect diagnostics failed"),
+		safeReadinessDiagnostic(firstNonEmpty(device.LastTestError, "connect diagnostics failed")),
 	}
 }
 
@@ -164,7 +164,7 @@ func readinessStageMessage(stage string, status schema.ReadinessStageStatus, fai
 	case schema.ReadinessStageStatusSuccess:
 		return stage + " diagnostics succeeded"
 	case schema.ReadinessStageStatusFailed:
-		return firstNonEmpty(failure, stage+" diagnostics failed")
+		return safeReadinessDiagnostic(firstNonEmpty(failure, stage+" diagnostics failed"))
 	case schema.ReadinessStageStatusSkipped:
 		return stage + " diagnostics skipped"
 	default:

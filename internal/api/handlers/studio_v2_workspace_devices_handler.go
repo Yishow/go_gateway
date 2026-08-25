@@ -291,7 +291,7 @@ func (h *StudioV2WorkspaceDevicesHandler) applyRuntimeDeviceUpdate(ctx context.C
 		return "applied", ""
 	}
 	if err := h.runtimeSync.UpsertDevice(ctx, savedDevice); err != nil {
-		return "apply_failed", err.Error()
+		return runtimeApplyFailedStatus, "runtime device projection could not be applied"
 	}
 	return "applied", ""
 }

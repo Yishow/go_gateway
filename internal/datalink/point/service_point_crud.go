@@ -11,6 +11,26 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+func clonePoint(record *schema.Point) *schema.Point {
+	if record == nil {
+		return nil
+	}
+	copyRecord := *record
+	if record.PollingGroupID != nil {
+		value := *record.PollingGroupID
+		copyRecord.PollingGroupID = &value
+	}
+	if record.LastReadAt != nil {
+		value := *record.LastReadAt
+		copyRecord.LastReadAt = &value
+	}
+	if record.LastValue != nil {
+		value := *record.LastValue
+		copyRecord.LastValue = &value
+	}
+	return &copyRecord
+}
+
 // Create 建立新點位
 func (s *Service) Create(ctx context.Context, req CreatePointRequest) (*schema.Point, error) {
 	if err := validatePointDataType(req.DataType); err != nil {
@@ -256,6 +276,25 @@ func (s *Service) GetByID(ctx context.Context, id string) (*schema.Point, error)
 		return nil, fmt.Errorf("取得點位失敗: %w", err)
 	}
 	return point, nil
+}
+
+// Restore persists an exact point snapshot during a higher-level mutation compensation.
+func (s *Service) Restore(ctx context.Context, record *schema.Point) error {
+	if record == nil {
+		return fmt.Errorf("point snapshot is empty")
+	}
+	if _, err := s.GetByID(ctx, record.ID); errors.Is(err, ErrPointNotFound) {
+		if createErr := s.repo.Create(ctx, clonePoint(record)); createErr != nil {
+			return fmt.Errorf("restore point: %w", createErr)
+		}
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err := s.repo.Update(ctx, clonePoint(record)); err != nil {
+		return fmt.Errorf("restore point: %w", err)
+	}
+	return nil
 }
 
 // ListByDevice 列出設備的所有點位

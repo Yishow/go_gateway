@@ -19,6 +19,7 @@ type candidateSnapshotPayload struct {
 	Candidates any `json:"candidates"`
 }
 
+// ListCandidateSnapshots returns the current candidate snapshots for a rule.
 func (s *Service) ListCandidateSnapshots(ctx context.Context, ruleID string) ([]*schema.SourceRuleCandidateSnapshot, error) {
 	rule, err := s.repo.GetByID(ctx, ruleID)
 	if err != nil {
@@ -27,6 +28,8 @@ func (s *Service) ListCandidateSnapshots(ctx context.Context, ruleID string) ([]
 	return s.ListCandidateSnapshotsByRevision(ctx, rule.ID, rule.RevisionID)
 }
 
+// ListCandidateSnapshotsByRevision returns candidate snapshots for a specific
+// source-rule revision.
 func (s *Service) ListCandidateSnapshotsByRevision(ctx context.Context, ruleID, revisionID string) ([]*schema.SourceRuleCandidateSnapshot, error) {
 	snapshots, err := s.repo.ListCandidateSnapshots(ctx, ruleID, revisionID)
 	if err != nil {
@@ -40,7 +43,7 @@ func (s *Service) persistCandidateSnapshots(ctx context.Context, rule *schema.So
 	if err != nil {
 		return err
 	}
-	if err := s.repo.ReplaceCandidateSnapshots(ctx, snapshots); err != nil {
+	if err := s.replaceCandidateSnapshotsAtRevision(ctx, snapshots, rule.RevisionID); err != nil {
 		return fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
 	}
 	tagCandidates, err := decodeCurrentTagCandidates(snapshots)
@@ -88,6 +91,7 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 	if err != nil {
 		return nil, err
 	}
+	localModbusStatus, localModbusReason := localModbusCandidateSnapshotStatus(rule, localModbusOutputCandidates)
 
 	generatedAt := time.Now().UTC()
 	return []*schema.SourceRuleCandidateSnapshot{
@@ -113,11 +117,34 @@ func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.Sour
 			RevisionID:    rule.RevisionID,
 			CandidateType: schema.SourceRuleCandidateTypeLocalModbusOutputs,
 			Payload:       localModbusOutputPayload,
-			Status:        schema.SourceRuleCandidateStatusDeferred,
-			Reason:        localModbusOutputsDeferredReason,
+			Status:        localModbusStatus,
+			Reason:        localModbusReason,
 			GeneratedAt:   generatedAt,
 		},
 	}, nil
+}
+
+func localModbusCandidateSnapshotStatus(
+	rule *schema.SourceRule,
+	candidates []schema.SourceRuleLocalModbusOutputCandidate,
+) (status schema.SourceRuleCandidateStatus, reason string) {
+	if rule == nil || !rule.ShareEnabled || rule.ShareStartRegister == nil || rule.ShareStride == nil {
+		return schema.SourceRuleCandidateStatusDeferred, localModbusOutputsDeferredReason
+	}
+	if len(candidates) == 0 {
+		return schema.SourceRuleCandidateStatusDeferred, "no persisted local modbus tag candidates are available"
+	}
+	for _, candidate := range candidates {
+		switch candidate.Status {
+		case schema.SourceRuleLocalModbusOutputStatusBlockedConflict, schema.SourceRuleLocalModbusOutputStatusOutOfSync:
+			return schema.SourceRuleCandidateStatusBlocked, defaultReason(candidate.BlockingReason, "local modbus candidate is blocked")
+		case schema.SourceRuleLocalModbusOutputStatusReady:
+			continue
+		default:
+			return schema.SourceRuleCandidateStatusDeferred, localModbusOutputsDeferredReason
+		}
+	}
+	return schema.SourceRuleCandidateStatusReady, ""
 }
 
 func (s *Service) buildTagCandidates(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) ([]schema.SourceRuleTagCandidate, error) {

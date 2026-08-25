@@ -23,6 +23,12 @@ type Repository interface {
 	ListTagReviewDecisions(ctx context.Context, ruleID string) ([]*schema.SourceRuleTagReviewDecision, error)
 }
 
+// CandidateSnapshotCASRepository replaces snapshots only when the source-rule
+// revision is still the one used to build them.
+type CandidateSnapshotCASRepository interface {
+	ReplaceCandidateSnapshotsAtRevision(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot, expectedRevision string) error
+}
+
 type RuntimeSyncer interface {
 	UpsertPoint(point *schema.Point)
 	RemovePoint(pointID string)

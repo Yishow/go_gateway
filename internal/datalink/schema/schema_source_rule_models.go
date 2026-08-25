@@ -169,6 +169,7 @@ type SourceRuleLocalModbusOutputCandidate struct {
 	Address           string                            `json:"address"`
 	PointID           string                            `json:"point_id"`
 	TagID             *string                           `json:"tag_id,omitempty"`
+	MappingID         *string                           `json:"mapping_id,omitempty"`
 	TagKey            string                            `json:"tag_key,omitempty"`
 	DisplayName       string                            `json:"display_name,omitempty"`
 	DataType          DataType                          `json:"data_type"`

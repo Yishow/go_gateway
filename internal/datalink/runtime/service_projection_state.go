@@ -12,6 +12,7 @@ type runtimeProjectionDeviceState struct {
 	WorkspaceVersion string
 	Alignment        workspace.RuntimeProjectionAlignment
 	Message          string
+	Code             string
 }
 
 func (s *Service) replaceProjectionAligned(projection *workspace.RuntimeProjection) {
@@ -113,7 +114,8 @@ func (s *Service) projectionStatesForDevices(ctx context.Context, devices []*sch
 			}
 			states[deviceRecord.ID] = runtimeProjectionDeviceState{
 				Alignment: workspace.RuntimeProjectionAlignmentDegraded,
-				Message:   err.Error(),
+				Code:      "runtime_projection_unavailable",
+				Message:   "workspace runtime projection is unavailable",
 			}
 		}
 		return states

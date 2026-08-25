@@ -106,8 +106,9 @@ type Service struct {
 	lastStatusMu       sync.Mutex
 	lastStatuses       map[string]DeviceRuntimeStatus
 
-	databaseDeliveryMu sync.RWMutex
-	databaseDelivery   map[string]DatabaseDeliveryDiagnostic
+	databaseDeliveryMu  sync.RWMutex
+	databaseDelivery    map[string]DatabaseDeliveryDiagnostic
+	modbusShareDelivery map[string]ModbusShareDeliveryDiagnostic
 
 	stopCh    chan struct{}
 	wg        sync.WaitGroup
@@ -127,15 +128,16 @@ type Service struct {
 // 2) snapshot mode: NewService(Config{Writer:..., Snapshot:...})
 func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 	s := &Service{
-		config:            config,
-		mappingIndex:      make(map[string][]mappingBinding),
-		pointMetaIndex:    make(map[string]pointMeta),
-		projections:       make(map[string]runtimeProjectionDeviceState),
-		subscribers:       make(map[int64]valueSubscriber),
-		statusSubscribers: make(map[int64]statusSubscriber),
-		lastStatuses:      make(map[string]DeviceRuntimeStatus),
-		databaseDelivery:  make(map[string]DatabaseDeliveryDiagnostic),
-		stopCh:            make(chan struct{}),
+		config:              config,
+		mappingIndex:        make(map[string][]mappingBinding),
+		pointMetaIndex:      make(map[string]pointMeta),
+		projections:         make(map[string]runtimeProjectionDeviceState),
+		subscribers:         make(map[int64]valueSubscriber),
+		statusSubscribers:   make(map[int64]statusSubscriber),
+		lastStatuses:        make(map[string]DeviceRuntimeStatus),
+		databaseDelivery:    make(map[string]DatabaseDeliveryDiagnostic),
+		modbusShareDelivery: make(map[string]ModbusShareDeliveryDiagnostic),
+		stopCh:              make(chan struct{}),
 	}
 
 	if len(depsOpt) > 0 {
@@ -203,18 +205,30 @@ func (s *Service) Stop(ctx context.Context) error {
 	s.startedAt.Store(0)
 
 	close(s.stopCh)
-	s.scheduler.Stop()
+	schedulerErr := s.scheduler.StopContext(ctx)
 	s.wg.Wait()
 
 	if err := s.writer.Flush(ctx); err != nil {
+		if schedulerErr != nil {
+			return fmt.Errorf("stop scheduler: %w; flush writer: %w", schedulerErr, err)
+		}
 		return err
 	}
 	if closer, ok := s.target.(interface{ Close(context.Context) error }); ok && closer != nil {
 		if err := closer.Close(ctx); err != nil {
+			if schedulerErr != nil {
+				return fmt.Errorf("stop scheduler: %w; close target: %w", schedulerErr, err)
+			}
 			return err
 		}
 	}
-	return s.writer.Close()
+	if err := s.writer.Close(); err != nil {
+		if schedulerErr != nil {
+			return fmt.Errorf("stop scheduler: %w; close writer: %w", schedulerErr, err)
+		}
+		return err
+	}
+	return schedulerErr
 }
 
 // RefreshMappings 重新載入 mapping 快取。

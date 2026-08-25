@@ -19,22 +19,22 @@ type DebugHandler struct {
 
 // PacketRecord 數據包記錄
 type PacketRecord struct {
-	ID          string    `json:"id"`
-	Timestamp   time.Time `json:"timestamp"`
-	Direction   string    `json:"direction"` // "request" or "response"
-	Protocol    string    `json:"protocol"`
-	RawData     []byte    `json:"raw_data"`
-	HexData     string    `json:"hex_data"`
-	ParsedData  interface{} `json:"parsed_data,omitempty"`
-	ConnectionID string    `json:"connection_id"`
+	ID           string      `json:"id"`
+	Timestamp    time.Time   `json:"timestamp"`
+	Direction    string      `json:"direction"` // "request" or "response"
+	Protocol     string      `json:"protocol"`
+	RawData      []byte      `json:"raw_data"`
+	HexData      string      `json:"hex_data"`
+	ParsedData   interface{} `json:"parsed_data,omitempty"`
+	ConnectionID string      `json:"connection_id"`
 }
 
 // LogRecord 日誌記錄
 type LogRecord struct {
-	ID        string    `json:"id"`
-	Timestamp time.Time `json:"timestamp"`
-	Level     string    `json:"level"`
-	Message   string    `json:"message"`
+	ID        string      `json:"id"`
+	Timestamp time.Time   `json:"timestamp"`
+	Level     string      `json:"level"`
+	Message   string      `json:"message"`
 	Details   interface{} `json:"details,omitempty"`
 }
 
@@ -57,12 +57,12 @@ func (h *DebugHandler) RecordPacket(connectionID, protocol, direction string, da
 	}
 
 	packet := PacketRecord{
-		ID:          fmt.Sprintf("pkt_%d_%s", time.Now().UnixNano(), connectionID),
-		Timestamp:   time.Now(),
-		Direction:   direction,
-		Protocol:    protocol,
-		RawData:     data,
-		HexData:     bytesToHex(data),
+		ID:           fmt.Sprintf("pkt_%d_%s", time.Now().UnixNano(), connectionID),
+		Timestamp:    time.Now(),
+		Direction:    direction,
+		Protocol:     protocol,
+		RawData:      data,
+		HexData:      bytesToHex(data),
 		ConnectionID: connectionID,
 	}
 
@@ -112,7 +112,7 @@ func (h *DebugHandler) GetPackets(c *gin.Context) {
 
 	h.mu.RLock()
 	packets := h.packets
-	
+
 	// 按連接 ID 過濾
 	if connectionID != "" {
 		filtered := make([]PacketRecord, 0)
@@ -123,7 +123,7 @@ func (h *DebugHandler) GetPackets(c *gin.Context) {
 		}
 		packets = filtered
 	}
-	
+
 	if len(packets) > limit {
 		packets = packets[len(packets)-limit:]
 	}
@@ -142,7 +142,7 @@ func (h *DebugHandler) GetLogs(c *gin.Context) {
 
 	h.mu.RLock()
 	logs := h.logs
-	
+
 	// 按連接 ID 過濾
 	if connectionID != "" {
 		filtered := make([]LogRecord, 0)
@@ -155,7 +155,7 @@ func (h *DebugHandler) GetLogs(c *gin.Context) {
 		}
 		logs = filtered
 	}
-	
+
 	if len(logs) > limit {
 		logs = logs[len(logs)-limit:]
 	}
@@ -206,11 +206,11 @@ func (h *DebugHandler) ClearData(c *gin.Context) {
 	afterLogsCount := len(h.logs)
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "cleared",
-		"cleared_packets": beforePacketsCount - afterPacketsCount,
-		"cleared_logs": beforeLogsCount - afterLogsCount,
-		"remaining_packets": afterPacketsCount,
-		"remaining_logs": afterLogsCount,
+		apiResponseStatusKey: "cleared",
+		"cleared_packets":    beforePacketsCount - afterPacketsCount,
+		"cleared_logs":       beforeLogsCount - afterLogsCount,
+		"remaining_packets":  afterPacketsCount,
+		"remaining_logs":     afterLogsCount,
 	})
 }
 
@@ -255,7 +255,7 @@ func (h *DebugHandler) AnalyzePacket(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"packet": packet,
 		"analysis": map[string]interface{}{
-			"protocol": packet.Protocol,
+			"protocol":  packet.Protocol,
 			"structure": "待實作",
 		},
 	})

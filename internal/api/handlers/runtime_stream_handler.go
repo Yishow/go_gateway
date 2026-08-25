@@ -34,22 +34,26 @@ func NewRuntimeStreamHandler(source runtimeValueStreamSource) *RuntimeStreamHand
 	}
 }
 
+// Stream emits runtime value, status, and heartbeat events for a device.
+// @Summary Stream runtime updates
+// @Description Opens an SSE stream for runtime updates. Failure responses use the typed safe-error envelope.
+// @Tags datalink
+// @Produce text/event-stream
+// @Param device_id query string true "Device ID"
+// @Param point_ids query string false "Comma-separated point IDs"
+// @Success 200 {string} string "SSE stream"
+// @Failure 400 {object} APIErrorResponse "Runtime device is missing"
+// @Failure 503 {object} APIErrorResponse "Runtime stream unavailable"
+// @Router /datalink/runtime/stream [get]
 func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 	if h.source == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "runtime stream unavailable"},
-			"data":    runtimeStreamUnavailableResponse("", "runtime stream unavailable"),
-		})
+		renderTypedAPIErrorWithData(c, http.StatusServiceUnavailable, ErrCodeRuntimeStreamUnavailable, true, runtimeStreamUnavailableResponse("", "runtime stream unavailable"))
 		return
 	}
 
 	deviceID := strings.TrimSpace(c.Query("device_id"))
 	if deviceID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "device_id is required"},
-		})
+		renderTypedAPIError(c, http.StatusBadRequest, ErrCodeRuntimeDeviceNotFound, false)
 		return
 	}
 
@@ -57,10 +61,7 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 
 	flusher, ok := c.Writer.(http.Flusher)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "streaming not supported"},
-		})
+		renderTypedAPIError(c, http.StatusServiceUnavailable, ErrCodeRuntimeStreamUnavailable, true)
 		return
 	}
 
@@ -73,11 +74,7 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 		if unsubscribeStatus != nil {
 			unsubscribeStatus()
 		}
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "runtime stream unavailable"},
-			"data":    runtimeStreamUnavailableResponse(deviceID, "runtime stream unavailable"),
-		})
+		renderTypedAPIErrorWithData(c, http.StatusServiceUnavailable, ErrCodeRuntimeStreamUnavailable, true, runtimeStreamUnavailableResponse(deviceID, "runtime stream unavailable"))
 		return
 	}
 	defer unsubscribeValues()
@@ -99,6 +96,8 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 		DeviceID:    deviceID,
 		StreamState: datalinkruntime.RuntimeReadyTruthState(),
 		Timestamp:   time.Now().UTC(),
+		Code:        "runtime_stream_ready",
+		RequestID:   getOrGenerateRequestID(c),
 	}); err != nil {
 		return
 	}
@@ -113,6 +112,11 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 					DeviceID:    deviceID,
 					StreamState: datalinkruntime.RuntimeUnavailableTruthState("runtime value stream closed"),
 					Timestamp:   time.Now().UTC(),
+					Code:        ErrCodeRuntimeStreamUnavailable,
+					Message:     typedAPIErrorMessage(ErrCodeRuntimeStreamUnavailable),
+					Retryable:   true,
+					Action:      "retry the runtime stream",
+					RequestID:   getOrGenerateRequestID(c),
 				})
 				return
 			}
@@ -125,6 +129,11 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 					DeviceID:    deviceID,
 					StreamState: datalinkruntime.RuntimeUnavailableTruthState("runtime status stream closed"),
 					Timestamp:   time.Now().UTC(),
+					Code:        ErrCodeRuntimeStreamUnavailable,
+					Message:     typedAPIErrorMessage(ErrCodeRuntimeStreamUnavailable),
+					Retryable:   true,
+					Action:      "retry the runtime stream",
+					RequestID:   getOrGenerateRequestID(c),
 				})
 				return
 			}

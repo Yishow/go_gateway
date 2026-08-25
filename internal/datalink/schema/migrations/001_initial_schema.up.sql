@@ -224,7 +224,8 @@ INSERT INTO system_settings (key, value, description) VALUES
     ('batch_size', '1000', '批次寫入大小'),
     ('flush_interval', '5000', '批次刷新間隔 (毫秒)'),
     ('default_retry_count', '3', '預設重試次數'),
-    ('default_retry_delay', '1000', '預設重試延遲 (毫秒)')
+    ('default_retry_delay', '1000', '預設重試延遲 (毫秒)'),
+    ('modbus_share', '{"enabled": false, "bind_address": "127.0.0.1", "port": 5020, "slave_id": 1, "capacity_registers": 32768, "settings_revision": "migration-018"}', 'Local Modbus Share listener settings')
 ON CONFLICT (key) DO NOTHING;
 
 COMMENT ON TABLE system_settings IS '系統設定表';

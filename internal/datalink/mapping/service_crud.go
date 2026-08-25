@@ -11,6 +11,14 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+func cloneMapping(record *schema.Mapping) *schema.Mapping {
+	if record == nil {
+		return nil
+	}
+	copyRecord := *record
+	return &copyRecord
+}
+
 func validationError(message string) error {
 	return fmt.Errorf("%w: %s", ErrValidation, message)
 }
@@ -180,6 +188,25 @@ func (s *Service) GetByID(ctx context.Context, id string) (*schema.Mapping, erro
 		return nil, fmt.Errorf("取得映射失敗: %w", err)
 	}
 	return mapping, nil
+}
+
+// Restore persists an exact mapping snapshot during a higher-level mutation compensation.
+func (s *Service) Restore(ctx context.Context, record *schema.Mapping) error {
+	if record == nil {
+		return fmt.Errorf("mapping snapshot is empty")
+	}
+	if _, err := s.GetByID(ctx, record.ID); errors.Is(err, ErrMappingNotFound) {
+		if createErr := s.repo.Create(ctx, cloneMapping(record)); createErr != nil {
+			return fmt.Errorf("restore mapping: %w", createErr)
+		}
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err := s.repo.Update(ctx, cloneMapping(record)); err != nil {
+		return fmt.Errorf("restore mapping: %w", err)
+	}
+	return nil
 }
 
 // List 列出映射

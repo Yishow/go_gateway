@@ -42,6 +42,12 @@ type Repository interface {
 	Save(ctx context.Context, record *Record) error
 }
 
+// MembershipScopeInvalidator advances the formal Share scope when device
+// membership changes. It is intentionally narrower than the Share service.
+type MembershipScopeInvalidator interface {
+	InvalidateWorkspaceMembership(context.Context, string) error
+}
+
 // Service 提供 Workspace 的讀寫操作。
 // 所有 read-modify-write 方法持有 mu 期間執行完整週期，
 // 確保單程序內的 goroutine 不會互相覆寫。
@@ -64,6 +70,15 @@ type Service struct {
 	projectionConnectors runtimeProjectionConnectorService
 	projectionTargets    runtimeProjectionTargetService
 	projectionGroups     runtimeProjectionPollingGroupService
+	shareScope           MembershipScopeInvalidator
+}
+
+// SetMembershipScopeInvalidator wires the optional Local Modbus Share scope
+// barrier without coupling workspace persistence to Share lifecycle internals.
+func (s *Service) SetMembershipScopeInvalidator(invalidator MembershipScopeInvalidator) {
+	s.mu.Lock()
+	s.shareScope = invalidator
+	s.mu.Unlock()
 }
 
 func NewService(repo Repository) *Service {
@@ -83,6 +98,17 @@ func (s *Service) GetOrCreate(ctx context.Context) (*Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.getOrCreate(ctx)
+}
+
+// ShareOwnershipSnapshot exposes only the persisted workspace scope needed by
+// the Local Modbus ownership seam, avoiding coupling callers to workspace
+// mutation details.
+func (s *Service) ShareOwnershipSnapshot(ctx context.Context) (workspaceID string, deviceIDs []string, err error) {
+	record, err := s.GetOrCreate(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	return record.ID, append([]string(nil), record.OrderedDeviceIDs...), nil
 }
 
 // getOrCreate 為內部使用：必須在 s.mu 已鎖定的情況下呼叫。

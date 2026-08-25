@@ -81,6 +81,38 @@ func TestScheduler_AddAndRemovePoint(t *testing.T) {
 	assert.False(t, exists)
 }
 
+func TestScheduler_ReplacingPollingGroupStopsPreviousTicker(t *testing.T) {
+	s := NewScheduler(DefaultSchedulerConfig(), nil)
+	group := &schema.PollingGroup{ID: "group-replace", Enabled: true, IntervalMs: 20}
+	require.NoError(t, s.Start([]*schema.PollingGroup{group}))
+	old := s.groupTickers[group.ID]
+	require.NotNil(t, old)
+
+	s.AddPollingGroup(group)
+	select {
+	case <-old.done:
+	case <-time.After(time.Second):
+		t.Fatal("replaced polling group ticker did not stop")
+	}
+	s.Stop()
+}
+
+func TestScheduler_DisablingPollingGroupStopsTicker(t *testing.T) {
+	s := NewScheduler(DefaultSchedulerConfig(), nil)
+	group := &schema.PollingGroup{ID: "group-disable", Enabled: true, IntervalMs: 20}
+	require.NoError(t, s.Start([]*schema.PollingGroup{group}))
+	active := s.groupTickers[group.ID]
+	require.NotNil(t, active)
+
+	s.AddPollingGroup(&schema.PollingGroup{ID: group.ID, Enabled: false, IntervalMs: group.IntervalMs})
+	select {
+	case <-active.done:
+	case <-time.After(time.Second):
+		t.Fatal("disabled polling group ticker did not stop")
+	}
+	s.Stop()
+}
+
 func TestScheduler_ResetDeviceBreaker(t *testing.T) {
 	s := NewScheduler(DefaultSchedulerConfig(), nil)
 	assert.False(t, s.ResetDeviceBreaker("missing"))

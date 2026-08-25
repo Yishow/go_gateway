@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -127,7 +128,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateReturnsApplyFailedWhenRuntimeAppl
 		t.Fatalf("attach device failed: %v", err)
 	}
 
-	syncer := &stubDeviceRuntimeSyncer{upsertErr: context.DeadlineExceeded}
+	syncer := &stubDeviceRuntimeSyncer{upsertErr: errors.New("dial tcp plc.internal:502: dsn=postgres://secret")}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
 		"name": "Line A Saved"
@@ -157,6 +158,9 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateReturnsApplyFailedWhenRuntimeAppl
 	}
 	if data["runtime_apply_message"] == "" {
 		t.Fatalf("expected runtime_apply_message, got %#v", data["runtime_apply_message"])
+	}
+	if strings.Contains(resp.Body.String(), "plc.internal") || strings.Contains(resp.Body.String(), "postgres://secret") {
+		t.Fatalf("runtime apply response leaked raw connection diagnostics: %s", resp.Body.String())
 	}
 }
 

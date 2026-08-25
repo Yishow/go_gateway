@@ -128,6 +128,55 @@ func TestSourceRuleHandler_Disable(t *testing.T) {
 	assert.False(t, points[1].Enabled)
 }
 
+func TestSourceRuleHandler_EnableReconcilesRuntimeOverHTTP(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	deviceRepo := device.NewMemoryRepository()
+	lastTestSuccess := true
+	require.NoError(t, deviceRepo.Create(context.Background(), &schema.Device{
+		ID:               "device-1",
+		Name:             "Mixer PLC",
+		Protocol:         schema.ProtocolModbusTCP,
+		Status:           schema.DeviceStatusActive,
+		ConnectionConfig: `{"host":"127.0.0.1","port":502,"slave_id":1}`,
+		LastTestSuccess:  &lastTestSuccess,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}))
+	deviceSvc := device.NewService(deviceRepo, nil)
+	pointSvc := point.NewService(point.NewMemoryRepository(), nil)
+	runtimeSync := &sourceRuleRuntimeReconcileRecorder{outcome: sourcerule.RuntimeReconcileOutcome{
+		Status:  sourcerule.RuntimeReconcileStatusAligned,
+		Message: "projection aligned",
+	}}
+	ruleSvc := sourcerule.NewService(sourcerule.NewMemoryRepository(), deviceSvc, pointSvc, runtimeSync)
+	rule, err := ruleSvc.Create(context.Background(), sourcerule.CreateRuleRequest{
+		ID:           "rule-1",
+		DeviceID:     "device-1",
+		StartAddress: "40001",
+		Count:        1,
+		DataType:     schema.DataTypeInt16,
+		NamingPrefix: "SRC",
+		Enabled:      false,
+	})
+	require.NoError(t, err)
+	require.False(t, rule.Enabled)
+
+	handler := NewSourceRuleHandler(ruleSvc)
+	router := gin.New()
+	router.POST("/datalink/source-rules/:id/enable", handler.Enable)
+	resp := httptest.NewRecorder()
+	req := newHandlerTestRequest(http.MethodPost, "/datalink/source-rules/rule-1/enable", nil)
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
+	assert.Contains(t, resp.Body.String(), `"runtime_apply_status":"aligned"`)
+	assert.Contains(t, resp.Body.String(), `"runtime_apply_message":"projection aligned"`)
+	require.Len(t, runtimeSync.reconcileRequests, 1)
+	assert.Equal(t, sourcerule.RuntimeReconcileOperationEnable, runtimeSync.reconcileRequests[0].Operation)
+	assert.Equal(t, "rule-1", runtimeSync.reconcileRequests[0].Scope.RuleID)
+	assert.Equal(t, "device-1", runtimeSync.reconcileRequests[0].Scope.DeviceID)
+}
+
 func TestSourceRuleHandler_Get_NotFound(t *testing.T) {
 	router, _ := setupSourceRuleRouter(t)
 

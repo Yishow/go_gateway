@@ -94,4 +94,3 @@ func (h *ConfigHandler) DeletePreset(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
-

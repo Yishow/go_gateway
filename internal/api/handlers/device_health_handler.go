@@ -21,13 +21,13 @@ func NewDeviceHealthHandler(scheduler *collector.Scheduler) *DeviceHealthHandler
 
 // BreakerStateResponse 熔斷器狀態回應
 type BreakerStateResponse struct {
-	DeviceID     string        `json:"device_id"`
-	State        health.State  `json:"state"`
-	ErrorRate    float64       `json:"error_rate"`
-	IsProbing    bool          `json:"is_probing"`
+	DeviceID      string       `json:"device_id"`
+	State         health.State `json:"state"`
+	ErrorRate     float64      `json:"error_rate"`
+	IsProbing     bool         `json:"is_probing"`
 	TotalRequests int          `json:"total_requests"`
-	SuccessCount int           `json:"success_count"`
-	FailureCount int           `json:"failure_count"`
+	SuccessCount  int          `json:"success_count"`
+	FailureCount  int          `json:"failure_count"`
 }
 
 // GetBreakerState 取得單一設備的熔斷器狀態

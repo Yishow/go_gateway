@@ -1,6 +1,7 @@
 package datalink
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -71,6 +72,15 @@ func TestMigrator_Migrate(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, column, colName)
 	}
+
+	var modbusShareSettings string
+	err = db.QueryRowContext(context.Background(), `SELECT value FROM system_settings WHERE key = 'modbus_share'`).Scan(&modbusShareSettings)
+	require.NoError(t, err)
+	assert.Contains(t, modbusShareSettings, `"enabled":false`)
+	assert.Contains(t, modbusShareSettings, `"port":5020`)
+	assert.Contains(t, modbusShareSettings, `"bind_address":"127.0.0.1"`)
+	assert.Contains(t, modbusShareSettings, `"slave_id":1`)
+	assert.Contains(t, modbusShareSettings, `"capacity_registers":32768`)
 
 	// Assert: Check a specific column to ensure schema is correct (e.g., devices.protocol)
 	// var protocol string // Unused for now

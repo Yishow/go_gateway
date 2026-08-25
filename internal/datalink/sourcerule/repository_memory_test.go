@@ -17,3 +17,13 @@ func TestMemoryRepository_CreateLinks_EmptySlice(t *testing.T) {
 	require.NoError(t, repo.CreateLinks(context.Background(), nil))
 	require.NoError(t, repo.CreateLinks(context.Background(), []*schema.SourceRuleLink{}))
 }
+
+func TestMemoryRepository_CandidateSnapshotCASRejectsStaleRevision(t *testing.T) {
+	repo := NewMemoryRepository()
+	require.NoError(t, repo.Create(context.Background(), &schema.SourceRule{ID: "rule-1", RevisionID: "r2"}))
+	err := repo.ReplaceCandidateSnapshotsAtRevision(context.Background(), []*schema.SourceRuleCandidateSnapshot{{
+		SourceRuleID: "rule-1", RevisionID: "r1", CandidateType: schema.SourceRuleCandidateTypeTags,
+	}}, "r1")
+	require.Error(t, err)
+	require.Empty(t, repo.snapshots)
+}

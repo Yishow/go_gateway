@@ -17,8 +17,10 @@ var (
 )
 
 type ApplyTagCandidatesRequest struct {
-	RevisionID   string   `json:"revision_id"`
-	CandidateIDs []string `json:"candidate_ids"`
+	WorkspaceID               string   `json:"workspace_id"`
+	ExpectedWorkspaceRevision string   `json:"expected_workspace_revision"`
+	RevisionID                string   `json:"revision_id"`
+	CandidateIDs              []string `json:"candidate_ids"`
 }
 
 type ApplyTagCandidateResult struct {
@@ -30,14 +32,19 @@ type ApplyTagCandidateResult struct {
 }
 
 type ApplyTagCandidatesResponse struct {
-	SourceRuleID string                    `json:"source_rule_id"`
-	RevisionID   string                    `json:"revision_id"`
-	Results      []ApplyTagCandidateResult `json:"results"`
+	SourceRuleID      string                    `json:"source_rule_id"`
+	WorkspaceID       string                    `json:"workspace_id,omitempty"`
+	WorkspaceRevision string                    `json:"workspace_revision,omitempty"`
+	RevisionID        string                    `json:"revision_id"`
+	Results           []ApplyTagCandidateResult `json:"results"`
 }
 
 func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req ApplyTagCandidatesRequest) (*ApplyTagCandidatesResponse, error) {
 	if s.tagSvc == nil || s.mappingSvc == nil {
 		return nil, fmt.Errorf("tag/mapping 服務未配置，無法套用來源規則標籤")
+	}
+	if err := s.ValidateCandidateScope(ctx, ruleID, CandidateScopeRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, RevisionID: req.RevisionID}); err != nil {
+		return nil, err
 	}
 
 	candidateIDs, revisionID, err := validateApplyTagCandidatesRequest(req)
@@ -87,9 +94,11 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 
 	result := newTagMappingSyncResult()
 	response := &ApplyTagCandidatesResponse{
-		SourceRuleID: rule.ID,
-		RevisionID:   rule.RevisionID,
-		Results:      make([]ApplyTagCandidateResult, 0, len(candidateIDs)),
+		SourceRuleID:      rule.ID,
+		WorkspaceID:       req.WorkspaceID,
+		WorkspaceRevision: req.ExpectedWorkspaceRevision,
+		RevisionID:        rule.RevisionID,
+		Results:           make([]ApplyTagCandidateResult, 0, len(candidateIDs)),
 	}
 	linksChanged := false
 

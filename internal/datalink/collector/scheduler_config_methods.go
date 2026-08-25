@@ -85,7 +85,12 @@ func (s *Scheduler) AddPollingGroup(group *schema.PollingGroup) {
 
 	s.ensureDeviceLocks()
 
-	// 如果已在運行，啟動新群組的 Ticker
+	if previous, exists := s.groupTickers[group.ID]; exists {
+		close(previous.stopCh)
+		previous.ticker.Stop()
+		delete(s.groupTickers, group.ID)
+	}
+	// 如果已在運行且群組啟用，啟動新群組的 Ticker。
 	if s.running && group.Enabled {
 		s.startGroupTicker(group)
 	}

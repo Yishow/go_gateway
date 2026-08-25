@@ -1,11 +1,11 @@
 package handlers
 
 import (
-"fmt"
+	"fmt"
 
-"go-gateway/internal/protocol/fatek"
-"go-gateway/internal/protocol/mcprotocol"
-"go-gateway/internal/protocol/modbus"
+	"go-gateway/internal/protocol/fatek"
+	"go-gateway/internal/protocol/mcprotocol"
+	"go-gateway/internal/protocol/modbus"
 )
 
 func (h *TestHandler) connectClient(client interface{}, protocol string) error {
@@ -78,7 +78,7 @@ func (h *TestHandler) executeRead(client interface{}, protocol string, req ReadR
 func (h *TestHandler) executeWrite(client interface{}, protocol string, req WriteRequest) error {
 	// Helper to convert interface{} to []uint16 or []bool
 	// This is tricky because JSON unmarshaling might give []interface{}
-	
+
 	toUint16Slice := func(v interface{}) ([]uint16, error) {
 		arr, ok := v.([]interface{})
 		if !ok {
@@ -99,7 +99,7 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 		}
 		return res, nil
 	}
-	
+
 	toIntSlice := func(v interface{}) ([]int, error) {
 		arr, ok := v.([]interface{})
 		if !ok {
@@ -176,11 +176,15 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 			return c.WriteSingleRegister(req.Address, val)
 		case "write_multiple_coils":
 			vals, err := toBoolSlice(req.Values)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			return c.WriteMultipleCoils(req.Address, vals)
 		case "write_multiple_registers":
 			vals, err := toUint16Slice(req.Values)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			return c.WriteMultipleRegisters(req.Address, vals)
 		default:
 			return fmt.Errorf("unsupported operation for modbus: %s", req.Operation)
@@ -190,11 +194,15 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 		switch req.Operation {
 		case "write_status":
 			vals, err := toBoolSlice(req.Values)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			return c.WriteStatus(req.Symbol, int(req.Address), vals)
 		case "write_registers":
 			vals, err := toIntSlice(req.Values)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			return c.WriteRegisters(req.Symbol, int(req.Address), vals)
 		default:
 			return fmt.Errorf("unsupported operation for fatek: %s", req.Operation)
@@ -204,11 +212,15 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 		switch req.Operation {
 		case "batch_write_word":
 			vals, err := toIntSlice(req.Values)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			return c.BatchWriteWord(req.Device, int(req.Address), vals)
 		case "batch_write_bit":
 			vals, err := toBoolSlice(req.Values)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			return c.BatchWriteBit(req.Device, int(req.Address), vals)
 		default:
 			return fmt.Errorf("unsupported operation for mcprotocol: %s", req.Operation)

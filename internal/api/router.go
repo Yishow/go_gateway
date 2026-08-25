@@ -30,20 +30,22 @@ import (
 
 // DatalinkServices 包含所有 Datalink 相關服務
 type DatalinkServices struct {
-	Device       *device.Service
-	Point        *point.Service
-	Tag          *tag.Service
-	Mapping      *mapping.Service
-	PollingGroup *pollinggroup.Service
-	Settings     *settings.Service
-	ModbusShare  *modbusshare.Service
-	Scheduler    *collector.Scheduler
-	Runtime      *datalinkruntime.Service
-	DBTarget     *dbtarget.ConnectorService
-	DBMapping    *dbtarget.MappingService
-	SourceRule   *sourcerule.Service
-	Workspace    *workspace.Service
-	Audit        *audit.Service
+	Device                *device.Service
+	Point                 *point.Service
+	Tag                   *tag.Service
+	Mapping               *mapping.Service
+	PollingGroup          *pollinggroup.Service
+	Settings              *settings.Service
+	ModbusShare           *modbusshare.Service
+	ModbusShareReconciler *modbusshare.Reconciler
+	Scheduler             *collector.Scheduler
+	Runtime               *datalinkruntime.Service
+	DBTarget              *dbtarget.ConnectorService
+	DBMapping             *dbtarget.MappingService
+	SourceRule            *sourcerule.Service
+	Workspace             *workspace.Service
+	Audit                 *audit.Service
+	ShareRestore          handlers.ShareRestoreBarrier
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -281,12 +283,15 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			}
 
 			// Settings
-			settingsHandler := handlers.NewSettingsHandler(datalinkServices.Settings)
+			settingsHandler := handlers.NewSettingsHandler(datalinkServices.Settings).WithModbusShare(datalinkServices.ModbusShare)
 			datalinkGroup.GET("/settings", settingsHandler.List)
 			datalinkGroup.PUT("/settings/:key", settingsHandler.Update)
 
 			if datalinkServices.Workspace != nil {
-				workspaceHandler := handlers.NewStudioV2WorkspaceHandler(datalinkServices.Workspace)
+				workspaceHandler := handlers.NewStudioV2WorkspaceHandler(datalinkServices.Workspace).WithModbusShare(datalinkServices.ModbusShare).WithModbusShareReconciler(datalinkServices.ModbusShareReconciler)
+				if builder := canonicalShareDesiredMappingBuilder(datalinkServices); builder != nil {
+					workspaceHandler.WithCanonicalPlanBuilder(builder)
+				}
 				datalinkGroup.GET("/studio-v2/workspace", workspaceHandler.Get)
 				if datalinkServices.Audit != nil {
 					workspaceAuditHandler := handlers.NewStudioV2WorkspaceAuditHandler(datalinkServices.Workspace, datalinkServices.Audit)
@@ -309,6 +314,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					} else {
 						workspaceActivationHandler = handlers.NewStudioV2WorkspaceActivationHandler(activationService)
 					}
+					configureModbusShareActivation(workspaceActivationHandler, datalinkServices)
 					workspaceActivationHandler.WithAudit(datalinkServices.Audit)
 					datalinkGroup.POST("/studio-v2/workspace/activate", workspaceActivationHandler.Activate)
 
@@ -323,25 +329,14 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 			}
 
 			// SSE Preview Stream
-			ssePreviewHandler := handlers.NewDatalinkSSEHandler()
+			ssePreviewHandler := handlers.NewDatalinkSSEHandler(datalinkServices.Mapping, datalinkServices.Runtime)
+			if datalinkServices.Workspace != nil && datalinkServices.SourceRule != nil && datalinkServices.Point != nil {
+				ssePreviewHandler.WithPreviewScopeValidator(sourcerule.NewPreviewMappingScopeChecker(datalinkServices.Workspace, datalinkServices.SourceRule, datalinkServices.Point))
+			}
 			datalinkGroup.GET("/preview/stream", ssePreviewHandler.PreviewStream)
 
 			// Local Modbus Share
-			if datalinkServices.ModbusShare != nil {
-				modbusShareHandler := handlers.NewModbusShareHandler(
-					datalinkServices.ModbusShare,
-					datalinkServices.Point,
-					datalinkServices.Mapping,
-				)
-				datalinkGroup.GET("/modbus-share/status", modbusShareHandler.Status)
-				datalinkGroup.POST("/modbus-share/start", modbusShareHandler.Start)
-				datalinkGroup.POST("/modbus-share/stop", modbusShareHandler.Stop)
-				datalinkGroup.GET("/modbus-share/mappings", modbusShareHandler.ListMappings)
-				datalinkGroup.PUT("/modbus-share/mappings/:tagId", modbusShareHandler.UpsertMapping)
-				datalinkGroup.DELETE("/modbus-share/mappings/:tagId", modbusShareHandler.DeleteMapping)
-				datalinkGroup.POST("/modbus-share/write-tag-value", modbusShareHandler.WriteTagValue)
-				datalinkGroup.POST("/modbus-share/sync", modbusShareHandler.SyncFromMappings)
-			}
+			registerModbusShareRoutes(datalinkGroup, datalinkServices)
 
 			if datalinkServices.DBTarget != nil && datalinkServices.DBMapping != nil {
 				dbTargetHandler := handlers.NewDatabaseTargetHandler(

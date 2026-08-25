@@ -152,15 +152,15 @@ func TestSourceRuleHandler_Candidates_UsesPersistedDatabaseScopeForDatabaseOutpu
 		sourcerule.DatabaseTargetMappingListFunc(func(context.Context) ([]*schema.DatabaseTargetMapping, error) {
 			return []*schema.DatabaseTargetMapping{
 				{
-					ID:              "db-map-1",
-					TagID:           overrideTag.ID,
-					ConnectorID:     "connector-1",
-					TableSchema:     "public",
-					TableName:       "measurements",
-					ColumnName:      "line_a",
-					WriteMode:       schema.DatabaseWriteModeUpsert,
+					ID:                   "db-map-1",
+					TagID:                overrideTag.ID,
+					ConnectorID:          "connector-1",
+					TableSchema:          "public",
+					TableName:            "measurements",
+					ColumnName:           "line_a",
+					WriteMode:            schema.DatabaseWriteModeUpsert,
 					WriteIntervalSeconds: &writeIntervalSeconds,
-					TimestampColumn: &timestampColumn,
+					TimestampColumn:      &timestampColumn,
 				},
 			}, nil
 		}),

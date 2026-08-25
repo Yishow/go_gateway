@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
@@ -95,8 +96,11 @@ func (h *SourceRuleHandler) Create(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.svc.Create(c.Request.Context(), req)
+	rule, reconcileOutcome, err := h.svc.CreateWithRuntimeReconcile(c.Request.Context(), req)
 	if err != nil {
+		if renderSourceRuleShareError(c, err) {
+			return
+		}
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, sourcerule.ErrValidation) {
 			statusCode = http.StatusBadRequest
@@ -104,7 +108,12 @@ func (h *SourceRuleHandler) Create(c *gin.Context) {
 		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": mapSourceRuleResponse(rule)})
+	payload := mapSourceRuleResponse(rule)
+	runtimeApply := mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)
+	payload.RuntimeApplyStatus = runtimeApply.Status
+	payload.RuntimeApplyMessage = runtimeApply.Message
+	payload.RuntimeApplyIssues = runtimeApply.Issues
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": payload})
 }
 
 func (h *SourceRuleHandler) Update(c *gin.Context) {
@@ -132,8 +141,11 @@ func (h *SourceRuleHandler) Update(c *gin.Context) {
 	_, req.ShareStartRegisterSet = raw["share_start_register"]
 	_, req.ShareStrideSet = raw["share_stride"]
 
-	rule, err := h.svc.Update(c.Request.Context(), c.Param("id"), req)
+	rule, reconcileOutcome, err := h.svc.UpdateWithRuntimeReconcile(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
+		if renderSourceRuleShareError(c, err) {
+			return
+		}
 		statusCode := http.StatusInternalServerError
 		if errors.Is(err, sourcerule.ErrValidation) {
 			statusCode = http.StatusBadRequest
@@ -141,20 +153,33 @@ func (h *SourceRuleHandler) Update(c *gin.Context) {
 		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapSourceRuleResponse(rule)})
+	payload := mapSourceRuleResponse(rule)
+	runtimeApply := mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)
+	payload.RuntimeApplyStatus = runtimeApply.Status
+	payload.RuntimeApplyMessage = runtimeApply.Message
+	payload.RuntimeApplyIssues = runtimeApply.Issues
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 }
 
 func (h *SourceRuleHandler) Delete(c *gin.Context) {
-	if err := h.svc.Delete(c.Request.Context(), c.Param("id")); err != nil {
+	reconcileOutcome, err := h.svc.DeleteWithRuntimeReconcile(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		if renderSourceRuleShareError(c, err) {
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapStudioV2RuntimeApplyResponse(mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome))})
 }
 
 func (h *SourceRuleHandler) Enable(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.svc.Enable(c.Request.Context(), id); err != nil {
+	reconcileOutcome, err := h.svc.EnableWithRuntimeReconcile(c.Request.Context(), id)
+	if err != nil {
+		if renderSourceRuleShareError(c, err) {
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
@@ -163,12 +188,21 @@ func (h *SourceRuleHandler) Enable(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapSourceRuleResponse(rule)})
+	payload := mapSourceRuleResponse(rule)
+	runtimeApply := mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)
+	payload.RuntimeApplyStatus = runtimeApply.Status
+	payload.RuntimeApplyMessage = runtimeApply.Message
+	payload.RuntimeApplyIssues = runtimeApply.Issues
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
 }
 
 func (h *SourceRuleHandler) Disable(c *gin.Context) {
 	id := c.Param("id")
-	if err := h.svc.Disable(c.Request.Context(), id); err != nil {
+	reconcileOutcome, err := h.svc.DisableWithRuntimeReconcile(c.Request.Context(), id)
+	if err != nil {
+		if renderSourceRuleShareError(c, err) {
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
@@ -177,7 +211,25 @@ func (h *SourceRuleHandler) Disable(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapSourceRuleResponse(rule)})
+	payload := mapSourceRuleResponse(rule)
+	runtimeApply := mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)
+	payload.RuntimeApplyStatus = runtimeApply.Status
+	payload.RuntimeApplyMessage = runtimeApply.Message
+	payload.RuntimeApplyIssues = runtimeApply.Issues
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+}
+
+func renderSourceRuleShareError(c *gin.Context, err error) bool {
+	var shareErr *modbusshare.Error
+	if !errors.As(err, &shareErr) {
+		return false
+	}
+	status := http.StatusUnprocessableEntity
+	if shareErr.Retryable {
+		status = http.StatusServiceUnavailable
+	}
+	renderModbusShareAPIError(c, status, shareErr, modbusshare.ErrCodeReconcileFailed, shareErr.Retryable)
+	return true
 }
 
 func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {

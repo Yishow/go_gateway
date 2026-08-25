@@ -12,19 +12,19 @@ type PacketRecorder interface {
 
 // WrappedTransport 包裝的 Transport，用於記錄數據包
 type WrappedTransport struct {
-	transport     interface{} // 原始 Transport
-	connectionID  string
-	protocol      string
+	transport      interface{} // 原始 Transport
+	connectionID   string
+	protocol       string
 	packetRecorder PacketRecorder
-	mu            sync.Mutex
+	mu             sync.Mutex
 }
 
 // NewWrappedTransport 創建包裝的 Transport
 func NewWrappedTransport(transport interface{}, connectionID, protocol string, recorder PacketRecorder) *WrappedTransport {
 	return &WrappedTransport{
-		transport:     transport,
-		connectionID:  connectionID,
-		protocol:      protocol,
+		transport:      transport,
+		connectionID:   connectionID,
+		protocol:       protocol,
 		packetRecorder: recorder,
 	}
 }

@@ -109,15 +109,6 @@ type UpdateRuleRequest struct {
 	ShareStrideSet bool `json:"-"`
 }
 
-type Service struct {
-	repo        Repository
-	deviceSvc   *device.Service
-	pointSvc    *point.Service
-	tagSvc      *tag.Service
-	mappingSvc  *mapping.Service
-	runtimeSync RuntimeSyncer
-}
-
 func NewService(repo Repository, deviceSvc *device.Service, pointSvc *point.Service, runtimeSync RuntimeSyncer) *Service {
 	return &Service{
 		repo:        repo,
@@ -195,6 +186,9 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 	createdPoints := make([]*schema.Point, 0, req.Count)
 	defaultPollingGroupID, err := s.resolveDerivedPointPollingGroupID(ctx)
 	if err != nil {
+		if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, nil, tagMappingSyncResult{}); rollbackErr != nil {
+			return nil, s.dirtyUnknown(ctx)
+		}
 		return nil, err
 	}
 
@@ -215,8 +209,9 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 			PollingGroupID: defaultPollingGroupID,
 		})
 		if createErr != nil {
-			s.rollbackCreatedPoints(ctx, createdPointIDs)
-			_ = s.repo.Delete(ctx, rule.ID)
+			if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, createdPointIDs, tagMappingSyncResult{}); rollbackErr != nil {
+				return nil, s.dirtyUnknown(ctx)
+			}
 			return nil, fmt.Errorf("建立規則衍生點位失敗: %w", createErr)
 		}
 
@@ -224,16 +219,18 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 			disabled := false
 			pointRecord, createErr = s.pointSvc.Update(ctx, pointRecord.ID, point.UpdatePointRequest{Enabled: &disabled})
 			if createErr != nil {
-				s.rollbackCreatedPoints(ctx, append(createdPointIDs, pointRecord.ID))
-				_ = s.repo.Delete(ctx, rule.ID)
+				if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, append(createdPointIDs, pointRecord.ID), tagMappingSyncResult{}); rollbackErr != nil {
+					return nil, s.dirtyUnknown(ctx)
+				}
 				return nil, fmt.Errorf("設定規則衍生點位狀態失敗: %w", createErr)
 			}
 		}
 
 		linkID, linkErr := common.NewUUID()
 		if linkErr != nil {
-			s.rollbackCreatedPoints(ctx, append(createdPointIDs, pointRecord.ID))
-			_ = s.repo.Delete(ctx, rule.ID)
+			if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, append(createdPointIDs, pointRecord.ID), tagMappingSyncResult{}); rollbackErr != nil {
+				return nil, s.dirtyUnknown(ctx)
+			}
 			return nil, fmt.Errorf("建立來源規則連結 ID 失敗: %w", linkErr)
 		}
 
@@ -250,25 +247,25 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 	}
 	syncResult, err := s.syncRuleTagMappings(ctx, nil, rule, links, rule.Enabled)
 	if err != nil {
-		s.rollbackTagMappingSync(ctx, syncResult)
-		s.rollbackCreatedPoints(ctx, createdPointIDs)
-		_ = s.repo.Delete(ctx, rule.ID)
+		if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, createdPointIDs, syncResult); rollbackErr != nil {
+			return nil, s.dirtyUnknown(ctx)
+		}
 		return nil, fmt.Errorf("同步來源規則標籤映射失敗: %w", err)
 	}
 
 	if len(links) > 0 {
 		if err := s.repo.CreateLinks(ctx, links); err != nil {
-			s.rollbackTagMappingSync(ctx, syncResult)
-			s.rollbackCreatedPoints(ctx, createdPointIDs)
-			_ = s.repo.Delete(ctx, rule.ID)
+			if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, createdPointIDs, syncResult); rollbackErr != nil {
+				return nil, s.dirtyUnknown(ctx)
+			}
 			return nil, fmt.Errorf("建立來源規則連結失敗: %w", err)
 		}
 	}
 	s.syncPoints(createdPoints)
 	if err := s.persistCandidateSnapshots(ctx, rule, links); err != nil {
-		s.rollbackTagMappingSync(ctx, syncResult)
-		s.rollbackCreatedPoints(ctx, createdPointIDs)
-		_ = s.repo.Delete(ctx, rule.ID)
+		if rollbackErr := s.rollbackCreatedRule(ctx, rule.ID, rule.RevisionID, createdPointIDs, syncResult); rollbackErr != nil {
+			return nil, s.dirtyUnknown(ctx)
+		}
 		return nil, fmt.Errorf("持久化來源規則候選快照失敗: %w", err)
 	}
 	return rule, nil
@@ -647,6 +644,9 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	if err := s.repo.DeleteLinks(ctx, id); err != nil {
 		return fmt.Errorf("刪除來源規則連結失敗: %w", err)
 	}
+	if err := s.repo.DeleteCandidateSnapshots(ctx, id, rule.RevisionID); err != nil {
+		return fmt.Errorf("刪除來源規則候選快照失敗: %w", err)
+	}
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("刪除來源規則失敗: %w", err)
 	}
@@ -987,15 +987,6 @@ func (s *Service) syncPoints(points []*schema.Point) {
 	}
 }
 
-func (s *Service) rollbackCreatedPoints(ctx context.Context, pointIDs []string) {
-	for _, pointID := range pointIDs {
-		_ = s.pointSvc.Delete(ctx, pointID)
-		if s.runtimeSync != nil {
-			s.runtimeSync.RemovePoint(pointID)
-		}
-	}
-}
-
 func (s *Service) rollbackUpdatedPoints(ctx context.Context, plans []pointUpdatePlan) {
 	for _, plan := range plans {
 		name := plan.point.Name
@@ -1020,35 +1011,6 @@ func (s *Service) rollbackRuleState(ctx context.Context, rule *schema.SourceRule
 	_ = s.repo.DeleteLinks(ctx, rule.ID)
 	if len(links) > 0 {
 		_ = s.repo.CreateLinks(ctx, links)
-	}
-}
-
-func (s *Service) rollbackTagMappingSync(ctx context.Context, result tagMappingSyncResult) {
-	if s.mappingSvc != nil {
-		for mappingID, state := range result.updatedMappings {
-			enabled := state.enabled
-			_, _ = s.mappingSvc.Update(ctx, mappingID, mapping.UpdateMappingRequest{
-				Enabled:              &enabled,
-				TransformPipeline:    state.transformPipeline,
-				Status:               &state.status,
-				RuleCandidateID:      &state.ruleCandidateID,
-				ProposedSignature:    &state.proposedSignature,
-				LastAppliedSignature: &state.lastAppliedSignature,
-				BlockingReason:       &state.blockingReason,
-			})
-		}
-		for _, mappingID := range result.createdMappingIDs {
-			_ = s.mappingSvc.Delete(ctx, mappingID)
-		}
-	}
-	if s.tagSvc != nil {
-		for tagID, state := range result.updatedTags {
-			dataType := state.dataType
-			_, _ = s.tagSvc.Update(ctx, tagID, tag.UpdateTagRequest{DataType: &dataType})
-		}
-		for _, tagID := range result.createdTagIDs {
-			_ = s.tagSvc.Delete(ctx, tagID)
-		}
 	}
 }
 

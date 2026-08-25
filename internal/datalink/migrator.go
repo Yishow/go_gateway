@@ -3,6 +3,7 @@ package datalink
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log"
@@ -101,6 +102,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteSourceRuleModbusShareColumns(db); err != nil {
 			return err
 		}
+		if err := ensureSQLiteModbusShareSettings(db); err != nil {
+			return err
+		}
 
 		if err := ensureSQLitePointsDataFormatColumn(db); err != nil {
 			return err
@@ -144,6 +148,36 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		}
 	}
 
+	return nil
+}
+
+func ensureSQLiteModbusShareSettings(db *sql.DB) error {
+	const migrationName = "018_modbus_share_settings"
+	_, err := db.ExecContext(context.Background(), `
+		INSERT OR IGNORE INTO system_settings (key, value, description)
+		VALUES (?, ?, ?)
+	`, "modbus_share", `{"enabled":false,"bind_address":"127.0.0.1","port":5020,"slave_id":1,"capacity_registers":32768,"settings_revision":"migration-018"}`, "Local Modbus Share listener settings")
+	if err != nil {
+		return fmt.Errorf("failed to materialize %s: %w", migrationName, err)
+	}
+	var raw string
+	if err := db.QueryRowContext(context.Background(), `SELECT value FROM system_settings WHERE key = ?`, "modbus_share").Scan(&raw); err != nil {
+		return fmt.Errorf("failed to read %s settings: %w", migrationName, err)
+	}
+	var value map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+		return fmt.Errorf("failed to decode %s settings: %w", migrationName, err)
+	}
+	if capacity, ok := value["capacity_registers"].(float64); ok && capacity > 32768 {
+		value["capacity_registers"] = 32768
+		payload, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("failed to encode %s settings: %w", migrationName, err)
+		}
+		if _, err := db.ExecContext(context.Background(), `UPDATE system_settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?`, string(payload), "modbus_share"); err != nil {
+			return fmt.Errorf("failed to clamp %s settings capacity: %w", migrationName, err)
+		}
+	}
 	return nil
 }
 

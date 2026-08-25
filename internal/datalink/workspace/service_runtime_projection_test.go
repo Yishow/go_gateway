@@ -107,6 +107,50 @@ func TestService_RuntimeProjectionRebuildsSamePersistedWorkspaceForActivationAnd
 	}
 }
 
+func TestService_RuntimeProjectionVersionIgnoresCollectorTelemetry(t *testing.T) {
+	ctx := context.Background()
+	workspaceSvc := NewService(NewMemoryRepository())
+	workspaceSvc.now = func() time.Time { return time.Unix(100, 0).UTC() }
+	workspaceSvc.newID = func() string { return "ws-telemetry" }
+
+	deviceRecord := &schema.Device{ID: "dev-telemetry", Name: "Device", Protocol: schema.ProtocolModbusTCP, Status: schema.DeviceStatusActive, ConnectionConfig: "{}"}
+	devices := runtimeProjectionDeviceStub{records: map[string]*schema.Device{deviceRecord.ID: deviceRecord}}
+	rule := &schema.SourceRule{ID: "rule-telemetry", DeviceID: deviceRecord.ID, StartAddress: "40001", Count: 1, DataType: schema.DataTypeInt16, Enabled: true}
+	rules := runtimeProjectionRuleStub{rules: []*schema.SourceRule{rule}, links: map[string][]*schema.SourceRuleLink{
+		rule.ID: {{ID: "link-telemetry", RuleID: rule.ID, Address: "40001", PointID: "point-telemetry"}},
+	}}
+	pointRecord := &schema.Point{ID: "point-telemetry", DeviceID: deviceRecord.ID, Name: "Point", Address: "40001", DataType: schema.DataTypeInt16, Enabled: true, PollingGroupID: stringPtr("group-telemetry")}
+	points := runtimeProjectionPointStub{records: []*schema.Point{pointRecord}}
+	groups := runtimeProjectionGroupStub{records: []*schema.PollingGroup{{ID: "group-telemetry", Name: "group", IntervalMs: 1000, Enabled: true}}}
+	workspaceSvc.WithRuntimeProjectionServices(&devices, &rules, &points, &runtimeProjectionMappingStub{}, &runtimeProjectionTagStub{}, nil, &runtimeProjectionTargetStub{}, &groups)
+	if _, err := workspaceSvc.AttachDevice(ctx, deviceRecord.ID); err != nil {
+		t.Fatalf("attach device failed: %v", err)
+	}
+
+	before, err := workspaceSvc.RuntimeProjection(ctx)
+	if err != nil {
+		t.Fatalf("build initial projection failed: %v", err)
+	}
+
+	readAt := time.Unix(200, 0).UTC()
+	lastValue := "4660"
+	pointRecord.LastReadAt = &readAt
+	pointRecord.LastValue = &lastValue
+	pointRecord.LastError = ""
+	pointRecord.UpdatedAt = readAt
+	deviceRecord.LastCollectedAt = &readAt
+	deviceRecord.CollectionCount = 1
+	deviceRecord.UpdatedAt = readAt
+
+	after, err := workspaceSvc.RuntimeProjection(ctx)
+	if err != nil {
+		t.Fatalf("build telemetry projection failed: %v", err)
+	}
+	if before.Version != after.Version {
+		t.Fatalf("collector telemetry changed runtime projection version: before=%s after=%s", before.Version, after.Version)
+	}
+}
+
 func TestService_RuntimeProjectionIsolatesOrphanedRuleDerivedDatabaseTargets(t *testing.T) {
 	ctx := context.Background()
 	workspaceSvc := NewService(NewMemoryRepository())

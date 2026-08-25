@@ -29,11 +29,20 @@ func (s *Service) AttachDevice(ctx context.Context, deviceID string) (*Record, e
 	}
 
 	if !slices.Contains(record.OrderedDeviceIDs, deviceID) {
+		previous := cloneRecord(record)
 		record.OrderedDeviceIDs = append(record.OrderedDeviceIDs, deviceID)
 		record.Status = WorkspaceStatusReady
 		record.UpdatedAt = s.now()
 		if err := s.repo.Save(ctx, record); err != nil {
 			return nil, fmt.Errorf("attach workspace device: %w", err)
+		}
+		if s.shareScope != nil {
+			if err := s.shareScope.InvalidateWorkspaceMembership(ctx, record.ID); err != nil {
+				if rollbackErr := s.repo.Save(ctx, previous); rollbackErr != nil {
+					return nil, fmt.Errorf("invalidate workspace share scope after attach: %w (rollback failed: %w)", err, rollbackErr)
+				}
+				return nil, fmt.Errorf("invalidate workspace share scope after attach: %w", err)
+			}
 		}
 	}
 
@@ -61,11 +70,20 @@ func (s *Service) DetachDevice(ctx context.Context, deviceID string) (*Record, e
 		return cloneRecord(record), nil
 	}
 
+	previous := cloneRecord(record)
 	record.OrderedDeviceIDs = filtered
 	record.Status = workspaceStatusForDevices(filtered)
 	record.UpdatedAt = s.now()
 	if err := s.repo.Save(ctx, record); err != nil {
 		return nil, fmt.Errorf("detach workspace device: %w", err)
+	}
+	if s.shareScope != nil {
+		if err := s.shareScope.InvalidateWorkspaceMembership(ctx, record.ID); err != nil {
+			if rollbackErr := s.repo.Save(ctx, previous); rollbackErr != nil {
+				return nil, fmt.Errorf("invalidate workspace share scope after detach: %w (rollback failed: %w)", err, rollbackErr)
+			}
+			return nil, fmt.Errorf("invalidate workspace share scope after detach: %w", err)
+		}
 	}
 
 	return cloneRecord(record), nil

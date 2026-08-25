@@ -42,6 +42,28 @@ func TestService_CheckReadiness_AllowsPlanningAfterConnectSuccessProbeFailure(t 
 	assert.Contains(t, readiness.BlockingReasons[0], "讀取探測失敗")
 }
 
+func TestService_CheckReadiness_RedactsLastTestErrorFromPublicDiagnostics(t *testing.T) {
+	repo := NewMemoryRepository()
+	svc := NewService(repo, nil)
+	lastSuccess := false
+	raw := "dial tcp plc.internal:502: connect: dsn=postgres://user:secret@db.internal/app"
+	require.NoError(t, repo.Create(context.Background(), &schema.Device{
+		ID: "dev-redacted-readiness", Name: "dev-redacted-readiness", Protocol: schema.ProtocolModbusTCP,
+		Status: schema.DeviceStatusDraft, ConnectionConfig: `{"host":"plc.internal","port":502}`,
+		LastTestSuccess: &lastSuccess, LastTestError: raw, CreatedAt: time.Now(), UpdatedAt: time.Now(),
+	}))
+
+	readiness, err := svc.CheckReadiness(context.Background(), "dev-redacted-readiness")
+	require.NoError(t, err)
+	require.NotEmpty(t, readiness.BlockingReasons)
+	assert.NotContains(t, readiness.BlockingReasons[0], "plc.internal")
+	assert.NotContains(t, readiness.BlockingReasons[0], "secret")
+	for _, check := range readiness.Checks {
+		assert.NotContains(t, check.Message, "plc.internal")
+		assert.NotContains(t, check.Message, "secret")
+	}
+}
+
 func TestService_CheckReadiness_AllowsActivationAfterProbeSuccess(t *testing.T) {
 	repo := NewMemoryRepository()
 	svc := NewService(repo, nil)

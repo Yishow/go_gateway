@@ -35,6 +35,11 @@ type RuntimeStreamStateEvent struct {
 	DeviceID    string            `json:"device_id"`
 	StreamState RuntimeTruthState `json:"stream_state"`
 	Timestamp   time.Time         `json:"timestamp"`
+	Code        string            `json:"code,omitempty"`
+	Message     string            `json:"message,omitempty"`
+	Retryable   bool              `json:"retryable"`
+	Action      string            `json:"action,omitempty"`
+	RequestID   string            `json:"request_id,omitempty"`
 }
 
 // RuntimeReadyTruthState returns a ready runtime truth marker.

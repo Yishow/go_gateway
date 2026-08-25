@@ -298,14 +298,14 @@ func TestMappingHandler_Preview_InvalidPipeline(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
-	assert.True(t, response["success"].(bool))
-
-	data := response["data"].(map[string]interface{})
-	assert.NotEmpty(t, data["error"])
+	assert.False(t, response["success"].(bool))
+	apiError := response["error"].(map[string]interface{})
+	assert.Equal(t, ErrCodePreviewInvalidRequest, apiError["code"])
+	assert.NotContains(t, w.Body.String(), "invalid_type")
 }
 
 /**

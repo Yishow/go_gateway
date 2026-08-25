@@ -124,6 +124,33 @@ func TestRuntimeHandler_WorkspaceContextReturnsOrderedDevicesAndDefaultDeviceID(
 	}
 }
 
+func TestRuntimeHandler_WorkspaceContextMissingDeviceUsesTypedError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository())
+	_, err := workspaceSvc.AttachDevice(context.Background(), "device-missing")
+	if err != nil {
+		t.Fatalf("attach missing device failed: %v", err)
+	}
+	handler := NewRuntimeHandler(device.NewService(device.NewMemoryRepository(), nil), nil, nil, nil, nil, workspaceSvc)
+	resp := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(resp)
+	c.Request = newHandlerTestRequest(http.MethodGet, "/runtime-context", nil)
+	handler.WorkspaceContext(c)
+
+	if resp.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d body=%s", resp.Code, resp.Body.String())
+	}
+	var body struct {
+		Error TypedAPIErrorEnvelope `json:"error"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode typed error failed: %v", err)
+	}
+	if body.Error.Code != ErrCodeRuntimeDeviceNotFound || body.Error.RequestID == "" || body.Error.Retryable {
+		t.Fatalf("unexpected missing-device error: %+v", body.Error)
+	}
+}
+
 func TestRuntimeHandler_WorkspaceContextReturnsSetupConditions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

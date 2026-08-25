@@ -50,7 +50,7 @@ func TestStudioV2WorkspaceActivationHandler_ReturnsPerDeviceResultsOnPartialSucc
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	req := newValidActivationRequest(t)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -79,7 +79,7 @@ func TestStudioV2WorkspaceActivationHandler_RecordsPartialActivationAudit(t *tes
 		},
 	}).WithAudit(auditSvc)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	req := newValidActivationRequest(t)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -112,7 +112,7 @@ func TestStudioV2WorkspaceActivationHandler_HidesGenericSchemaEnsureErrors(t *te
 	ensurer := &stubWorkspaceSchemaEnsurer{err: errors.New("dial tcp 127.0.0.1:5432: connect: connection refused")}
 	handler := NewStudioV2WorkspaceActivationHandler(activator, ensurer)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	req := newValidActivationRequest(t)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -142,7 +142,7 @@ func TestStudioV2WorkspaceActivationHandler_Returns422ForValidationSchemaEnsureE
 	ensurer := &stubWorkspaceSchemaEnsurer{err: fmt.Errorf("%w: schema preflight failed", dbtarget.ErrValidation)}
 	handler := NewStudioV2WorkspaceActivationHandler(activator, ensurer)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	req := newValidActivationRequest(t)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -184,7 +184,7 @@ func TestStudioV2WorkspaceActivationHandler_ReturnsBlockingReadinessIssues(t *te
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/activate", nil)
+	req := newValidActivationRequest(t)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req

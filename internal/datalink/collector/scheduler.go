@@ -118,6 +118,7 @@ type groupTicker struct {
 	group  *schema.PollingGroup
 	ticker *time.Ticker
 	stopCh chan struct{}
+	done   chan struct{}
 }
 
 // deviceConfig 設備配置快取

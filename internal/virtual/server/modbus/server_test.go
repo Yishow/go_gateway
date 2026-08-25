@@ -1,6 +1,7 @@
 package modbus
 
 import (
+	"context"
 	"encoding/binary"
 	"net"
 	"testing"
@@ -32,6 +33,55 @@ func TestModbusServer_StartStop(t *testing.T) {
 	err = server.Stop()
 	if err != nil {
 		t.Fatalf("停止伺服器失敗: %v", err)
+	}
+}
+
+func TestModbusServer_StartWithConfigUsesBindSlaveAndCapacity(t *testing.T) {
+	bank := memory.NewMemoryBank(64)
+	server := NewServer(bank)
+
+	err := server.StartWithConfig(context.Background(), Config{
+		BindAddress:       "127.0.0.1",
+		Port:              0,
+		SlaveID:           17,
+		CapacityRegisters: 8,
+	})
+	if err != nil {
+		t.Fatalf("啟動伺服器失敗: %v", err)
+	}
+	defer server.Stop()
+
+	if got := server.BindAddress(); got != "127.0.0.1" {
+		t.Fatalf("bind address = %q, want 127.0.0.1", got)
+	}
+	if got := server.SlaveID(); got != 17 {
+		t.Fatalf("slave id = %d, want 17", got)
+	}
+	if got := server.CapacityRegisters(); got != 8 {
+		t.Fatalf("capacity = %d, want 8", got)
+	}
+	if got := server.Address(); got == "" || got[:len("127.0.0.1:")] != "127.0.0.1:" {
+		t.Fatalf("address = %q, want configured bind address", got)
+	}
+
+	var dialer net.Dialer
+	conn, err := dialer.DialContext(context.Background(), "tcp", server.Address())
+	if err != nil {
+		t.Fatalf("連接伺服器失敗: %v", err)
+	}
+	defer conn.Close()
+	request := []byte{0, 1, 0, 0, 0, 6, 17, FuncReadHoldingRegisters, 0, 8, 0, 1}
+	if _, err := conn.Write(request); err != nil {
+		t.Fatalf("發送 capacity 請求失敗: %v", err)
+	}
+	response := make([]byte, 32)
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	n, err := conn.Read(response)
+	if err != nil {
+		t.Fatalf("讀取 capacity 回應失敗: %v", err)
+	}
+	if n < 9 || response[7] != FuncReadHoldingRegisters|0x80 || response[8] != ExceptionIllegalDataAddress {
+		t.Fatalf("capacity boundary response = %X, want illegal address exception", response[:n])
 	}
 }
 

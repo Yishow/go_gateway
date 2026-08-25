@@ -28,14 +28,16 @@ func (s *Service) ReconcileSourceRule(ctx context.Context, req sourcerule.Runtim
 		return sourcerule.RuntimeReconcileOutcome{
 			Status:  sourcerule.RuntimeReconcileStatusStale,
 			Scope:   req.Scope,
-			Message: err.Error(),
+			Code:    "runtime_projection_unavailable",
+			Message: "workspace runtime projection is unavailable",
 		}
 	}
 	if err := s.applyWorkspaceProjectionForDevice(ctx, projection, req.Scope.DeviceID); err != nil {
 		return sourcerule.RuntimeReconcileOutcome{
 			Status:  sourcerule.RuntimeReconcileStatusStale,
 			Scope:   req.Scope,
-			Message: err.Error(),
+			Code:    "runtime_projection_apply_failed",
+			Message: "workspace runtime projection could not be applied",
 		}
 	}
 

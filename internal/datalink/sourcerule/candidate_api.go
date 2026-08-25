@@ -6,23 +6,30 @@ import (
 	"fmt"
 	"time"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
 )
 
+// CandidateSnapshotView is the API projection of all candidate groups for a
+// source-rule revision.
 type CandidateSnapshotView struct {
 	SourceRuleID       string           `json:"source_rule_id"`
+	WorkspaceID        string           `json:"workspace_id,omitempty"`
+	WorkspaceRevision  string           `json:"workspace_revision,omitempty"`
 	RevisionID         string           `json:"revision_id"`
 	Tags               CandidateSetView `json:"tags"`
 	DatabaseOutputs    CandidateSetView `json:"database_outputs"`
 	LocalModbusOutputs CandidateSetView `json:"local_modbus_outputs"`
 }
 
+// CandidateSetView describes one candidate group and its review state.
 type CandidateSetView struct {
 	Status     schema.SourceRuleCandidateStatus `json:"status"`
 	Reason     string                           `json:"reason,omitempty"`
 	Candidates []any                            `json:"candidates"`
 }
 
+// TagCandidateView adds persisted mapping review state to a tag candidate.
 type TagCandidateView struct {
 	schema.SourceRuleTagCandidate
 	Status               schema.MappingStatus `json:"status"`
@@ -30,6 +37,7 @@ type TagCandidateView struct {
 	BlockingReason       string               `json:"blocking_reason,omitempty"`
 }
 
+// GetCandidateView returns the persisted candidate review projection for a rule.
 func (s *Service) GetCandidateView(ctx context.Context, ruleID string) (*CandidateSnapshotView, error) {
 	rule, err := s.repo.GetByID(ctx, ruleID)
 	if err != nil {
@@ -48,6 +56,42 @@ func (s *Service) GetCandidateView(ctx context.Context, ruleID string) (*Candida
 	return s.composeCandidateView(ctx, rule, snapshots)
 }
 
+// GetCandidateViewAtRevision reads only the revision selected by the caller.
+// It rechecks the rule after the snapshot read so a revision transition cannot
+// leak a mixed response.
+func (s *Service) GetCandidateViewAtRevision(ctx context.Context, ruleID, revisionID string, scope *CandidateScopeRequest) (*CandidateSnapshotView, error) {
+	if scope != nil && s.CandidateScopeConfigured() {
+		if err := s.ValidateCandidateScope(ctx, ruleID, *scope); err != nil {
+			return nil, err
+		}
+	}
+	rule, err := s.repo.GetByID(ctx, ruleID)
+	if err != nil {
+		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
+	}
+	if rule.RevisionID != revisionID {
+		return nil, candidateRevisionConflict()
+	}
+	snapshots, err := s.repo.ListCandidateSnapshots(ctx, rule.ID, revisionID)
+	if err != nil {
+		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
+	}
+	if current, getErr := s.repo.GetByID(ctx, ruleID); getErr != nil {
+		return nil, getErr
+	} else if current.RevisionID != revisionID {
+		return nil, candidateRevisionConflict()
+	}
+	if shouldRecomputeDatabaseCandidateView(snapshots) {
+		snapshots, err = s.recomputeDatabaseCandidateView(ctx, rule, snapshots)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.composeCandidateView(ctx, rule, snapshots)
+}
+
+// RecomputeCandidateView rebuilds candidate snapshots and returns their review
+// projection for a rule.
 func (s *Service) RecomputeCandidateView(ctx context.Context, ruleID string) (*CandidateSnapshotView, error) {
 	rule, err := s.repo.GetByID(ctx, ruleID)
 	if err != nil {
@@ -65,6 +109,77 @@ func (s *Service) RecomputeCandidateView(ctx context.Context, ruleID string) (*C
 		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
 	}
 	return s.composeCandidateView(ctx, rule, snapshots)
+}
+
+// RecomputeCandidateViewAtRevision builds and persists candidates only for the
+// selected rule revision. Scope is checked again immediately before the CAS.
+func (s *Service) RecomputeCandidateViewAtRevision(ctx context.Context, ruleID, revisionID string, scope *CandidateScopeRequest) (*CandidateSnapshotView, error) {
+	if scope != nil && s.CandidateScopeConfigured() {
+		if err := s.ValidateCandidateScope(ctx, ruleID, *scope); err != nil {
+			return nil, err
+		}
+	}
+	rule, err := s.repo.GetByID(ctx, ruleID)
+	if err != nil {
+		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
+	}
+	if rule.RevisionID != revisionID {
+		return nil, candidateRevisionConflict()
+	}
+	links, err := s.repo.ListLinks(ctx, rule.ID)
+	if err != nil {
+		return nil, fmt.Errorf("列出來源規則連結失敗: %w", err)
+	}
+	if scope != nil && s.CandidateScopeConfigured() {
+		if err := s.ValidateCandidateScope(ctx, ruleID, *scope); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.persistCandidateSnapshotsAtRevision(ctx, rule, links, revisionID); err != nil {
+		return nil, err
+	}
+	snapshots, err := s.repo.ListCandidateSnapshots(ctx, rule.ID, revisionID)
+	if err != nil {
+		return nil, fmt.Errorf("列出來源規則候選快照失敗: %w", err)
+	}
+	if current, getErr := s.repo.GetByID(ctx, ruleID); getErr != nil {
+		return nil, getErr
+	} else if current.RevisionID != revisionID {
+		return nil, candidateRevisionConflict()
+	}
+	return s.composeCandidateView(ctx, rule, snapshots)
+}
+
+func (s *Service) persistCandidateSnapshotsAtRevision(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink, revisionID string) error {
+	if rule.RevisionID != revisionID {
+		return candidateRevisionConflict()
+	}
+	snapshots, err := s.buildCandidateSnapshots(ctx, rule, links)
+	if err != nil {
+		return err
+	}
+	if err := s.replaceCandidateSnapshotsAtRevision(ctx, snapshots, revisionID); err != nil {
+		return fmt.Errorf("儲存來源規則候選快照失敗: %w", err)
+	}
+	tagCandidates, err := decodeCurrentTagCandidates(snapshots)
+	if err != nil {
+		return err
+	}
+	if err := s.markStaleTagReviewDecisions(ctx, rule, tagCandidates); err != nil {
+		return err
+	}
+	return s.refreshLocalModbusConflictSnapshots(ctx)
+}
+
+func (s *Service) replaceCandidateSnapshotsAtRevision(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot, revisionID string) error {
+	if repo, ok := s.repo.(CandidateSnapshotCASRepository); ok {
+		return repo.ReplaceCandidateSnapshotsAtRevision(ctx, snapshots, revisionID)
+	}
+	return s.repo.ReplaceCandidateSnapshots(ctx, snapshots)
+}
+
+func candidateRevisionConflict() error {
+	return &modbusshare.Error{Code: modbusshare.ErrCodeRevisionConflict, Message: candidateRevisionConflictMessage, Retryable: true, Action: candidateRetryAction}
 }
 
 func shouldRecomputeDatabaseCandidateView(snapshots []*schema.SourceRuleCandidateSnapshot) bool {
@@ -191,7 +306,7 @@ func (s *Service) composeCandidateView(ctx context.Context, rule *schema.SourceR
 	if err != nil {
 		return nil, fmt.Errorf("解析來源規則 database output 候選快照失敗: %w", err)
 	}
-	localModbusCandidates, err := decodeCandidatePayload[map[string]any](localModbusSnapshot.Payload)
+	localModbusCandidates, err := decodeCandidatePayload[schema.SourceRuleLocalModbusOutputCandidate](localModbusSnapshot.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("解析來源規則 local modbus 候選快照失敗: %w", err)
 	}

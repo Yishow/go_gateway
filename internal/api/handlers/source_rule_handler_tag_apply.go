@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/sourcerule"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,20 @@ func (h *SourceRuleHandler) ApplyTags(c *gin.Context) {
 
 	response, err := h.svc.ApplyTagCandidates(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
+		var shareErr *modbusshare.Error
+		if errors.As(err, &shareErr) {
+			statusCode := http.StatusUnprocessableEntity
+			switch shareErr.Code {
+			case modbusshare.ErrCodeWorkspaceScope:
+				statusCode = http.StatusForbidden
+			case modbusshare.ErrCodeRevisionConflict:
+				statusCode = http.StatusConflict
+			case modbusshare.ErrCodeHydrationRequired:
+				statusCode = http.StatusServiceUnavailable
+			}
+			renderModbusShareAPIError(c, statusCode, shareErr, shareErr.Code, shareErr.Retryable)
+			return
+		}
 		statusCode := http.StatusInternalServerError
 		switch {
 		case errors.Is(err, sourcerule.ErrSourceRuleNotFound):
