@@ -11,6 +11,12 @@ const api = axios.create({
   },
 });
 
+export interface SourceRuleCandidateScope {
+  workspace_id: string;
+  expected_workspace_revision: string;
+  revision_id: string;
+}
+
 api.interceptors.request.use((config) => {
   const uiVersion = resolveGatewayUiVersion();
   if (uiVersion) {
@@ -24,22 +30,14 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.data?.error?.message) {
-      error.message = error.response.data.error.message;
-    } else if (error.response?.data?.message) {
-      error.message = error.response.data.message;
-    } else if (!error.message) {
-      error.message = 'Request failed with status code ' + (error.response?.status || 'unknown');
-    }
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
 export const sourceRuleCandidateAPI = {
-  async get(ruleId: string): Promise<SourceRuleCandidateSnapshotView> {
+  async get(ruleId: string, scope?: SourceRuleCandidateScope): Promise<SourceRuleCandidateSnapshotView> {
     const res = await api.get<APIResponse<SourceRuleCandidateSnapshotView>>(
       `/source-rules/${ruleId}/candidates`,
+      scope ? { params: scope } : undefined,
     );
     return res.data.data!;
   },

@@ -22,7 +22,7 @@ expectTypeOf<DbRowGroup['member_point_ids']>().toEqualTypeOf<string[]>();
 // 3. 斷言 CommitLog 結構與型別
 expectTypeOf<CommitLog['label']>().toEqualTypeOf<string>();
 expectTypeOf<CommitLog['detail']>().toEqualTypeOf<string>();
-expectTypeOf<CommitLog['status']>().toEqualTypeOf<'pending' | 'running' | 'success' | 'failed'>();
+expectTypeOf<CommitLog['status']>().toEqualTypeOf<'pending' | 'running' | 'success' | 'failed' | 'skipped' | undefined>();
 
 // 4. 斷言 CommitState 結構與型別
 expectTypeOf<CommitState['status']>().toEqualTypeOf<'idle' | 'committing' | 'success' | 'failed'>();

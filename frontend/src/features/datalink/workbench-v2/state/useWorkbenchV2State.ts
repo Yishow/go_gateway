@@ -142,6 +142,9 @@ export const INITIAL_STATE: WorkbenchV2State = {
       bind_address: '0.0.0.0',
       port: 5020,
       slave_id: 1,
+      capacity_registers: 32768,
+      settings_revision: '',
+      expected_settings_revision: '',
       base_register: 40001,
     },
     general: {

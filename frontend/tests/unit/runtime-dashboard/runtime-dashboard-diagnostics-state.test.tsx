@@ -15,17 +15,32 @@ const {
 
 class MockEventSource {
   onopen: ((event: Event) => void) | null = null;
+  private listeners = new Map<string, Set<(event: MessageEvent<string>) => void>>();
 
   constructor() {
     mockEventSources.push(this);
   }
 
-  addEventListener() {}
-  removeEventListener() {}
+  addEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+  removeEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
+    this.listeners.get(type)?.delete(listener);
+  }
   close() {}
+
+  emit(type: string, data: unknown) {
+    const event = { data: JSON.stringify(data) } as MessageEvent<string>;
+    this.listeners.get(type)?.forEach((listener) => listener(event));
+  }
 
   open() {
     this.onopen?.(new Event('open'));
+    this.emit('stream_state', {
+      stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false },
+    });
   }
 }
 
@@ -120,7 +135,9 @@ describe('runtime dashboard diagnostics state', () => {
         last_failure_at: '2026-05-29T10:12:00Z',
         latest_successful_stage: 'runtime_projection',
         failure_stage: 'database_delivery',
-        failure_reason: 'permission denied',
+        failure_code: 'runtime_snapshot_unavailable',
+        failure_reason: 'permission denied: secret backend detail',
+        request_id: 'req-diagnostics-1',
         stages: [],
       }],
     });
@@ -138,7 +155,112 @@ describe('runtime dashboard diagnostics state', () => {
 
     const panel = await screen.findByTestId('runtime-dashboard-diagnostics-panel');
     expect(panel).toHaveTextContent('database_delivery');
-    expect(panel).toHaveTextContent('permission denied');
+    expect(panel).toHaveTextContent('Runtime snapshot is currently unavailable.');
+    expect(panel).toHaveTextContent('Request ID: req-diagnostics-1');
+    expect(panel).toHaveTextContent('Retry snapshot');
+    expect(panel).not.toHaveTextContent('permission denied');
     expect(panel).toHaveTextContent('2026-05-29T10:12:00Z');
+  });
+
+  it('uses Modbus Share delivery copy for its own failure stage without exposing backend detail', async () => {
+    mockRuntimeStatus.mockResolvedValueOnce({
+      running: false,
+      uptime_seconds: 12,
+      collectors: [],
+      diagnostics: [{
+        scope: 'device:device-A',
+        device_id: 'device-A',
+        last_failure_at: '2026-05-29T10:12:00Z',
+        failure_stage: 'modbus_share_delivery',
+        failure_code: 'modbus_share_delivery',
+        failure_reason: 'secret backend failure detail',
+        request_id: 'req-share-delivery-1',
+        stages: [],
+      }],
+    });
+
+    renderRoute();
+
+    await waitFor(() => {
+      expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A');
+    });
+    act(() => {
+      mockEventSources[0].open();
+    });
+
+    const panel = await screen.findByTestId('runtime-dashboard-diagnostics-panel');
+    expect(panel).toHaveTextContent('modbus_share_delivery');
+    expect(panel).not.toHaveTextContent('database_delivery');
+    expect(panel).toHaveTextContent('Modbus Share delivery is unavailable.');
+    expect(panel).toHaveTextContent('Retry Modbus Share delivery');
+    expect(panel).toHaveTextContent('Request ID: req-share-delivery-1');
+    expect(panel).not.toHaveTextContent('secret backend failure detail');
+  });
+
+  it('merges database and Modbus Share delivery outcomes into diagnostics', async () => {
+    mockRuntimeStatus.mockResolvedValueOnce({
+      running: true,
+      uptime_seconds: 12,
+      collectors: [],
+      diagnostics: [],
+      database_delivery: [{
+        device_id: 'device-A',
+        point_id: 'point-db',
+        tag_id: 'tag-db',
+        status: 'failed',
+        stages: ['collected', 'mapped', 'db_write_failed'],
+        failed_stage: 'db_write',
+        observed_at: '2026-05-29T10:12:01Z',
+        last_failure_at: '2026-05-29T10:12:01Z',
+      }],
+      modbus_share_delivery: [{
+        device_id: 'device-A',
+        point_id: 'point-share',
+        tag_id: 'tag-share',
+        stage: 'share_write',
+        observed_at: '2026-05-29T10:12:02Z',
+      }],
+    });
+
+    renderRoute();
+    await waitFor(() => expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A'));
+    act(() => {
+      mockEventSources[0].open();
+    });
+
+    const panel = await screen.findByTestId('runtime-dashboard-diagnostics-panel');
+    expect(panel).toHaveTextContent('database_delivery');
+    expect(panel).toHaveTextContent('modbus_share_delivery');
+    expect(panel).toHaveTextContent('tag-db');
+    expect(panel).toHaveTextContent('tag-share');
+  });
+
+  it('does not present disabled Modbus Share status as a delivery failure', async () => {
+    mockRuntimeStatus.mockResolvedValueOnce({
+      running: true,
+      uptime_seconds: 12,
+      collectors: [],
+      diagnostics: [],
+      modbus_share_delivery: [{
+        device_id: 'device-A',
+        point_id: 'point-share',
+        tag_id: 'tag-share',
+        status: 'disabled',
+        stage: 'share_write',
+        error: 'modbus share is disabled',
+        observed_at: '2026-05-29T10:12:02Z',
+      }],
+    });
+
+    renderRoute();
+    await waitFor(() => expect(mockRuntimeStatus).toHaveBeenCalledWith('device-A'));
+    act(() => {
+      mockEventSources[0].open();
+    });
+
+    const panel = await screen.findByTestId('runtime-dashboard-diagnostics-panel');
+    expect(panel).toHaveTextContent('Diagnostics unavailable');
+    expect(panel).not.toHaveTextContent('delivery');
+    expect(panel).not.toHaveTextContent('modbus share is disabled');
   });
 });

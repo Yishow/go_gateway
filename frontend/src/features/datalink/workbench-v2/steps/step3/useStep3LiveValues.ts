@@ -1,60 +1,28 @@
 import * as React from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { pointAPI, runtimeAPI } from '../../../../../services/datalink';
+import { pointAPI } from '../../../../../services/datalink';
 import type {
   PollResult,
   Point as PersistedPoint,
   RuntimeStreamConnectionState,
+  RuntimeStreamRecovery,
   RuntimeValueEvent,
 } from '../../../../../types/datalink';
 import type { Mapping, Point } from '../../state/types';
 import { pointKeys } from '../../../../../hooks/datalink/keys';
 
-interface DevicePointGroup {
-  deviceId: string;
-  streamPointIds: string[];
-}
-
-interface Step3LiveSubscription {
-  localPointId: string;
-  deviceId: string;
-  address: string;
-  streamPointId: string;
-}
+import {
+  buildGroups,
+  buildSubscriptions,
+} from './step3LiveSubscription';
+import { useStep3RuntimeStreams } from './useStep3RuntimeStreams';
 
 export interface Step3LiveValuesState {
   connectionByDevice: Record<string, RuntimeStreamConnectionState>;
   liveValues: Record<string, RuntimeValueEvent>;
   rawValues: Record<string, unknown>;
-}
-
-function buildSubscriptions(
-  points: Point[],
-  persistedPointIdByLocalPointId: Record<string, string>,
-): Step3LiveSubscription[] {
-  return points.map((point) => ({
-    localPointId: point.id,
-    deviceId: point.device_id,
-    address: point.address,
-    streamPointId: persistedPointIdByLocalPointId[point.id] ?? point.id,
-  }));
-}
-
-function buildGroups(subscriptions: Step3LiveSubscription[]): DevicePointGroup[] {
-  const groups = new Map<string, string[]>();
-
-  subscriptions.forEach((subscription) => {
-    const current = groups.get(subscription.deviceId) ?? [];
-    current.push(subscription.streamPointId);
-    groups.set(subscription.deviceId, current);
-  });
-
-  return Array.from(groups.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([deviceId, pointIds]) => ({
-      deviceId,
-      streamPointIds: pointIds,
-    }));
+  lastSuccessAtByDevice: Record<string, string>;
+  recoveryByDevice: Record<string, RuntimeStreamRecovery>;
 }
 
 /**
@@ -99,10 +67,6 @@ export function useStep3LiveValues(
     return lookup;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 以語意 key 作為依賴（見檔頭說明）
   }, [mappingPersistedKey]);
-  const [connectionByDevice, setConnectionByDevice] = React.useState<
-    Record<string, RuntimeStreamConnectionState>
-  >({});
-  const [liveValues, setLiveValues] = React.useState<Record<string, RuntimeValueEvent>>({});
   const pointQueries = useQueries({
     queries: deviceIds.map((deviceId) => ({
       queryKey: pointKeys.list({ device_id: deviceId }),
@@ -164,10 +128,6 @@ export function useStep3LiveValues(
     [subscriptionKey],
   );
   const groups = React.useMemo(() => buildGroups(subscriptions), [subscriptions]);
-  const groupsKey = React.useMemo(
-    () => groups.map((group) => `${group.deviceId}:${group.streamPointIds.join(',')}`).join('|'),
-    [groups],
-  );
   const persistedToLocalPointId = React.useMemo(() => {
     const lookup: Record<string, string> = {};
     subscriptions.forEach((subscription) => {
@@ -201,6 +161,12 @@ export function useStep3LiveValues(
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const {
+    connectionByDevice,
+    liveValues,
+    lastSuccessAtByDevice,
+    recoveryByDevice,
+  } = useStep3RuntimeStreams(groups, persistedToLocalPointId, pointAddressToLocalPointId);
   const snapshotRawValues = React.useMemo(() => {
     const values: Record<string, unknown> = {};
     pointQueries.forEach((query) => {
@@ -241,83 +207,11 @@ export function useStep3LiveValues(
     return values;
   }, [liveValues, polledRawValues, snapshotRawValues]);
 
-  React.useEffect(() => {
-    setLiveValues({});
-
-    if (groups.length === 0) {
-      setConnectionByDevice({});
-      return undefined;
-    }
-
-    if (typeof EventSource === 'undefined') {
-      setConnectionByDevice(
-        groups.reduce<Record<string, RuntimeStreamConnectionState>>((acc, group) => {
-          acc[group.deviceId] = 'disconnected';
-          return acc;
-        }, {}),
-      );
-      return undefined;
-    }
-
-    setConnectionByDevice(
-      groups.reduce<Record<string, RuntimeStreamConnectionState>>((acc, group) => {
-        acc[group.deviceId] = 'connecting';
-        return acc;
-      }, {}),
-    );
-
-    const sources = groups.map((group) => {
-      const eventSource = new EventSource(
-        runtimeAPI.getStreamUrl(group.deviceId, group.streamPointIds),
-      );
-
-      const handleValueEvent = (event: Event) => {
-        const payload = JSON.parse(
-          (event as MessageEvent<string>).data,
-        ) as RuntimeValueEvent;
-        const localPointId =
-          persistedToLocalPointId[payload.point_id] ??
-          pointAddressToLocalPointId[`${payload.device_id}::${payload.address}`];
-        if (!localPointId) {
-          return;
-        }
-        setLiveValues((current) => ({
-          ...current,
-          [localPointId]: payload,
-        }));
-      };
-
-      eventSource.onopen = () => {
-        setConnectionByDevice((current) => ({
-          ...current,
-          [group.deviceId]: 'connected',
-        }));
-      };
-      eventSource.onerror = () => {
-        setConnectionByDevice((current) => ({
-          ...current,
-          [group.deviceId]: 'error',
-        }));
-      };
-      eventSource.addEventListener('value', handleValueEvent);
-
-      return {
-        eventSource,
-        handleValueEvent,
-      };
-    });
-
-    return () => {
-      sources.forEach(({ eventSource, handleValueEvent }) => {
-        eventSource.removeEventListener('value', handleValueEvent);
-        eventSource.close();
-      });
-    };
-  }, [groups, groupsKey, persistedToLocalPointId, pointAddressToLocalPointId]);
-
   return {
     connectionByDevice,
     liveValues,
     rawValues,
+    lastSuccessAtByDevice,
+    recoveryByDevice,
   };
 }

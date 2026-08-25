@@ -37,10 +37,13 @@ export const DEFAULT_SETTINGS: Settings = {
     auto_start: true
   },
   modbus_share: {
-    enabled: true, // 預設啟用以利 Step 2 進行 Modbus share 運算展示
+    enabled: true, // only a local layout default; backend hydration remains authoritative
     bind_address: '0.0.0.0',
     port: 5020,
     slave_id: 1,
+    capacity_registers: 32768,
+    settings_revision: '',
+    expected_settings_revision: '',
     base_register: 40001
   },
   general: {

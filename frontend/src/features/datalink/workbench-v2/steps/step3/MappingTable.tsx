@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Point, Mapping, Device } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { MappingRow } from './MappingRow';
-import type { RuntimeStreamConnectionState } from '../../../../../types/datalink';
+import type { RuntimeStreamConnectionState, RuntimeStreamRecovery } from '../../../../../types/datalink';
 
 export interface MappingTableProps {
   points: Point[];
@@ -13,6 +13,8 @@ export interface MappingTableProps {
   devices: Device[];
   rawValues: Record<string, unknown>;
   connectionByDevice: Record<string, RuntimeStreamConnectionState>;
+  recoveryByDevice?: Record<string, RuntimeStreamRecovery>;
+  workspaceId?: string;
   dispatch: React.Dispatch<WorkbenchV2Action>;
 }
 
@@ -30,6 +32,8 @@ export const MappingTable: React.FC<MappingTableProps> = ({
   devices,
   rawValues,
   connectionByDevice,
+  recoveryByDevice = {},
+  workspaceId,
   dispatch,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -142,6 +146,8 @@ export const MappingTable: React.FC<MappingTableProps> = ({
                     devices={devices}
                     liveValue={rawValues[p.id]}
                     connectionState={connectionByDevice[p.device_id] ?? 'disconnected'}
+                    streamRecovery={recoveryByDevice[p.device_id]}
+                    workspaceId={workspaceId}
                     onSelect={() => setSelectedIdx(idx)}
                     dispatch={dispatch}
                   />

@@ -15,11 +15,15 @@ import { PointGridToolbar } from './PointGridToolbar';
 import { PointGrid } from './PointGrid';
 import { MergedPointTable } from './MergedPointTable';
 import { getRuleReadinessIssues, isStep2Ready } from '../../state/sourceRule';
+import type { ModbusShareStatus } from '../../../../../types/modbusShare';
+import { isModbusShareConfiguredEnabled } from '../../../../../types/modbusShare';
 
 export interface Step2RuleProps {
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
   onContinue: () => void;
+  /** Backend Share status; null means status is unknown and controls fail closed. */
+  shareStatus?: ModbusShareStatus | null;
 }
 
 /**
@@ -34,6 +38,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   state,
   dispatch,
   onContinue,
+  shareStatus,
 }) => {
   const { rules, devices, selectedRuleId, settings } = state;
   const [gridSelection, setGridSelection] = useState<Set<string>>(new Set());
@@ -44,9 +49,15 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   const conflictAddrs = useConflictAddrs(allPoints);
   const readinessIssues = getRuleReadinessIssues(rules, deviceProtocolMap);
   const step2Ready = isStep2Ready(rules, deviceProtocolMap);
+  const globalShareEnabled = shareStatus === undefined
+    ? settings.modbus_share.enabled
+    : isModbusShareConfiguredEnabled(shareStatus);
 
   // 2. 計算全域 Modbus Share 佈局
-  const shareLayouts = useShareLayout(rules, settings.modbus_share.base_register);
+  const shareLayouts = useShareLayout(
+    globalShareEnabled ? rules : [],
+    settings.modbus_share.base_register,
+  );
 
   // 3. 取得當前選中規則及相關點位衍生狀態
   const currentRule = rules.find((r) => r.id === selectedRuleId) || rules[0];
@@ -184,7 +195,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
               <RuleEditor
                 rule={currentRule}
                 devices={devices}
-                globalShareEnabled={settings.modbus_share.enabled}
+                globalShareEnabled={globalShareEnabled}
                 dispatch={dispatch}
               />
             </div>

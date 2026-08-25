@@ -7,7 +7,7 @@ import { DEFAULT_SETTINGS, makeDefaultConnector } from '../../../src/features/da
  */
 
 describe('settingsDefaults', () => {
-  it('DEFAULT_SETTINGS 應有正確的結構與預設值，且 Modbus Share 預設啟用', () => {
+  it('DEFAULT_SETTINGS 應有正確的結構與預設值', () => {
     expect(DEFAULT_SETTINGS.connectors).toHaveLength(1);
     expect(DEFAULT_SETTINGS.connectors[0].name).toBe('TimeSeries Prod');
     expect(DEFAULT_SETTINGS.connectors[0].status).toBe('ready');
@@ -15,6 +15,8 @@ describe('settingsDefaults', () => {
     expect(DEFAULT_SETTINGS.timeseries.write_precision).toBe('millisecond');
     expect(DEFAULT_SETTINGS.scheduler.auto_start).toBe(true);
     expect(DEFAULT_SETTINGS.modbus_share.enabled).toBe(true);
+    expect(DEFAULT_SETTINGS.modbus_share.capacity_registers).toBe(32768);
+    expect(DEFAULT_SETTINGS.modbus_share.settings_revision).toBe('');
     expect(DEFAULT_SETTINGS.modbus_share.base_register).toBe(40001);
     expect(DEFAULT_SETTINGS.general.theme).toBe('dark');
   });

@@ -1,5 +1,7 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePreviewStream, type StepResult } from '../../../hooks/usePreviewStream';
+import { getSafeErrorMessage } from '../../../utils/typedErrors';
 import './LivePreviewPanel.css';
 
 /**
@@ -7,7 +9,9 @@ import './LivePreviewPanel.css';
  */
 interface LivePreviewPanelProps {
   /** Mapping ID */
-  mappingId?: string;
+  mappingId: string;
+  /** Workspace scope required by the preview stream */
+  workspaceId: string;
   /** 是否自動開始預覽 */
   autoStart?: boolean;
   /** 自訂樣式類名 */
@@ -20,21 +24,32 @@ interface LivePreviewPanelProps {
  * 顯示 Mapping 的即時 raw → transform → final 值
  */
 export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
-  mappingId = '',
+  mappingId,
+  workspaceId,
   autoStart = false,
   className = '',
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const {
     latestEvent,
     connectionState,
     error,
+    requestId,
     connect,
     disconnect,
     isConnected,
   } = usePreviewStream({
     mappingId,
+    workspaceId,
     autoConnect: autoStart && !!mappingId,
   });
+  const safeError = error
+    ? getSafeErrorMessage({
+      code: error,
+      request_id: requestId ?? undefined,
+      retryable: true,
+    }, t)
+    : null;
 
   /**
    * 格式化值為字串顯示
@@ -121,7 +136,12 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
         </div>
       </div>
 
-      {error && <div className="preview-error">{error}</div>}
+      {safeError && (
+        <div className="preview-error">
+          {safeError.message}
+          {safeError.requestId ? ` ${t('errors.request_id', '請求識別碼')}: ${safeError.requestId}` : ''}
+        </div>
+      )}
 
       {!mappingId && (
         <div className="preview-placeholder">

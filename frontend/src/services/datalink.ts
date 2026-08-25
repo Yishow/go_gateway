@@ -4,8 +4,6 @@
  * 封裝所有 Datalink REST API 呼叫
  */
 
-import axios from 'axios';
-import { resolveGatewayUiVersion } from '../features/gateway/uiVersion';
 import type {
   Device,
   CreateDeviceRequest,
@@ -35,8 +33,6 @@ import type {
   SettingItem,
   APIResponse,
   PollResult,
-  ModbusShareStatus,
-  ModbusShareMapping,
   RuntimeStatus,
   DatabaseConnector,
   CreateDatabaseConnectorRequest,
@@ -47,11 +43,8 @@ import type {
   CreateDatabaseTargetMappingRequest,
   UpdateDatabaseTargetMappingRequest,
 } from '../types/datalink';
-import { VITE_API_BASE_URL } from '../env';
-
-// API 基礎路徑
-const API_BASE = VITE_API_BASE_URL;
-const DATALINK_BASE = `${API_BASE}/datalink`;
+import { api, DATALINK_BASE } from './datalinkClient';
+export { modbusShareAPI } from './modbusShare';
 
 interface DeviceReadinessResult {
   device_id: string;
@@ -68,44 +61,6 @@ interface DeviceReadinessResult {
     message: string;
   }>;
 }
-
-// 建立 axios 實例
-const api = axios.create({
-  baseURL: DATALINK_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// 追加 UI 版本埋點 Header（僅雙入口頁）
-api.interceptors.request.use((config) => {
-  const uiVersion = resolveGatewayUiVersion();
-  if (uiVersion) {
-    config.headers = config.headers ?? {};
-    if (!config.headers['X-UI-Version']) {
-      config.headers['X-UI-Version'] = uiVersion;
-    }
-  }
-  return config;
-});
-
-// 添加響應攔截器以統一處理錯誤
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // 提取錯誤訊息
-    if (error.response?.data?.error?.message) {
-      error.message = error.response.data.error.message;
-    } else if (error.response?.data?.message) {
-      error.message = error.response.data.message;
-    } else if (error.message) {
-      // 保留原始錯誤訊息
-    } else {
-      error.message = 'Request failed with status code ' + (error.response?.status || 'unknown');
-    }
-    return Promise.reject(error);
-  }
-);
 
 // =============================================================================
 // 設備 API
@@ -557,8 +512,13 @@ export const settingsAPI = {
 
   /** 更新單一設定 (內部用) */
   async updateKey(key: string, value: unknown): Promise<SettingItem> {
+    const expectedRevision = typeof value === 'object' && value !== null && 'expected_settings_revision' in value &&
+      typeof value.expected_settings_revision === 'string'
+      ? value.expected_settings_revision
+      : undefined;
     const res = await api.put<APIResponse<SettingItem>>(`/settings/${key}`, {
       value,
+      ...(expectedRevision ? { expected_settings_revision: expectedRevision } : {}),
     });
     return res.data.data!;
   },
@@ -659,52 +619,6 @@ export const runtimeAPI = {
       params.set('point_ids', pointIds.join(','));
     }
     return `${DATALINK_BASE}/runtime/stream?${params.toString()}`;
-  },
-};
-
-// =============================================================================
-// Local Modbus Share API
-// =============================================================================
-
-export const modbusShareAPI = {
-  async status(): Promise<ModbusShareStatus> {
-    const res = await api.get<APIResponse<ModbusShareStatus>>('/modbus-share/status');
-    return res.data.data!;
-  },
-
-  async start(port?: number): Promise<ModbusShareStatus> {
-    const res = await api.post<APIResponse<ModbusShareStatus>>('/modbus-share/start', {
-      port: typeof port === 'number' ? port : undefined,
-    });
-    return res.data.data!;
-  },
-
-  async stop(): Promise<ModbusShareStatus> {
-    const res = await api.post<APIResponse<ModbusShareStatus>>('/modbus-share/stop', {});
-    return res.data.data!;
-  },
-
-  async listMappings(): Promise<ModbusShareMapping[]> {
-    const res = await api.get<APIResponse<ModbusShareMapping[]>>('/modbus-share/mappings');
-    return res.data.data ?? [];
-  },
-
-  async upsertMapping(tagId: string, register: number): Promise<ModbusShareMapping> {
-    const res = await api.put<APIResponse<ModbusShareMapping>>(`/modbus-share/mappings/${tagId}`, { register });
-    return res.data.data!;
-  },
-
-  async deleteMapping(tagId: string): Promise<void> {
-    await api.delete(`/modbus-share/mappings/${tagId}`);
-  },
-
-  async writeTagValue(tagId: string, value: unknown): Promise<void> {
-    await api.post('/modbus-share/write-tag-value', { tag_id: tagId, value });
-  },
-
-  async sync(): Promise<{ updated: number; skipped: number; errors: string[] }> {
-    const res = await api.post<APIResponse<{ updated: number; skipped: number; errors: string[] }>>('/modbus-share/sync');
-    return res.data.data ?? { updated: 0, skipped: 0, errors: [] };
   },
 };
 

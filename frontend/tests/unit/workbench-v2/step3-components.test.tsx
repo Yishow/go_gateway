@@ -194,9 +194,9 @@ describe('Step 3 UI components', () => {
     );
 
     expect(screen.getByTestId('device-live-value-p-01')).toHaveTextContent('243');
-    expect(screen.getByTestId('preview-scale-p-01')).toHaveTextContent('24.30');
-    expect(screen.getByTestId('preview-cast-p-01')).toHaveTextContent('24.30');
-    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.30');
+    expect(screen.getByTestId('preview-scale-p-01')).toHaveTextContent('--');
+    expect(screen.getByTestId('preview-cast-p-01')).toHaveTextContent('--');
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
 
     const inputTagKey = screen.getByTestId('input-tag-key-p-01');
     fireEvent.click(inputTagKey);
@@ -211,6 +211,69 @@ describe('Step 3 UI components', () => {
 
     fireEvent.click(screen.getByTestId('mapping-row-p-01'));
     expect(onSelect).toHaveBeenCalled();
+  });
+
+  it('shows typed runtime recovery metadata without exposing backend detail', () => {
+    render(
+      <DeviceListContext.Provider value={[mockDevice]}>
+        <table>
+          <tbody>
+            <MappingRow
+              point={mockPoints[0]}
+              mapping={mockMappings['p-01']}
+              isSelected={false}
+              devices={[mockDevice]}
+              liveValue={undefined}
+              connectionState="degraded"
+              streamRecovery={{
+                code: 'runtime_stream_unavailable',
+                action: 'retry the runtime stream',
+                requestId: 'runtime-request-9',
+                retryable: true,
+              }}
+              onSelect={vi.fn()}
+              dispatch={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </DeviceListContext.Provider>,
+    );
+
+    expect(screen.getByTestId('runtime-recovery-p-01')).toHaveTextContent(
+      'errors.runtime_stream_unavailable',
+    );
+    expect(screen.getByTestId('runtime-recovery-p-01')).toHaveTextContent(
+      'step3.recovery.retryAction',
+    );
+    expect(screen.getByTestId('runtime-recovery-request-id-p-01')).toHaveTextContent('runtime-request-9');
+    expect(screen.getByTestId('runtime-recovery-p-01')).not.toHaveTextContent('retry the runtime stream');
+  });
+
+  it('localizes mapping row labels and hides raw save errors', () => {
+    render(
+      <DeviceListContext.Provider value={[]}>
+        <table>
+          <tbody>
+            <MappingRow
+              point={mockPoints[0]}
+              mapping={{ ...mockMappings['p-01'], save_state: 'save-error', save_error: 'secret backend details' }}
+              isSelected={false}
+              devices={[]}
+              onSelect={vi.fn()}
+              dispatch={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </DeviceListContext.Provider>,
+    );
+
+    expect(screen.getByText('step3.unknownDevice')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('step3.placeholders.tagKey')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('step3.placeholders.displayName')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('step3.placeholders.unit')).toBeInTheDocument();
+    expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('step3.saveStates.save-error');
+    expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('errors.mapping_save_failed');
+    expect(screen.getByTestId('mapping-save-state-p-01')).not.toHaveTextContent('secret backend details');
   });
 
   it('shows bulk apply toolbar state and opens payload modal', async () => {

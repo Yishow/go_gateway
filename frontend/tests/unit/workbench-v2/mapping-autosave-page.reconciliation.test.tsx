@@ -212,7 +212,7 @@ describe('DatalinkWorkbenchV2Page mapping autosave orchestration', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mapping-save-state-rule-A-p-0')).toHaveTextContent('save-error');
       expect(screen.getByTestId('mapping-save-state-rule-B-p-0')).toHaveTextContent('saved');
-      expect(screen.getByTestId('mapping-save-error-rule-A-p-0')).toHaveTextContent('save failed');
+      expect(screen.getByTestId('mapping-save-error-rule-A-p-0')).toHaveTextContent('errors.autosave_failed');
       expect(screen.getByTestId('mapping-local-tag-key-rule-A-p-0')).toHaveTextContent('line.a.broken');
       expect(screen.getByTestId('mapping-persisted-tag-key-rule-A-p-0')).toHaveTextContent('line.a.persisted');
     });

@@ -1,17 +1,11 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Point, Mapping, Device } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { useDeviceColor } from '../../state/deviceColors';
-import type { RuntimeStreamConnectionState } from '../../../../../types/datalink';
+import type { RuntimeStreamConnectionState, RuntimeStreamRecovery } from '../../../../../types/datalink';
 import { MappingPreviewCells } from './MappingPreviewCells';
 import { MappingPayloadDialog } from './MappingPayloadDialog';
-
-const MAPPING_SAVE_STATE_LABELS = {
-  saving: '儲存中',
-  saved: '已保存',
-  'save-error': '保存失敗',
-  'draft-invalid': '本地草稿',
-} as const;
 
 export interface MappingRowProps {
   point: Point;
@@ -20,6 +14,8 @@ export interface MappingRowProps {
   devices: Device[];
   liveValue?: unknown;
   connectionState?: RuntimeStreamConnectionState;
+  streamRecovery?: RuntimeStreamRecovery;
+  workspaceId?: string;
   onSelect: () => void;
   dispatch: React.Dispatch<WorkbenchV2Action>;
 }
@@ -38,6 +34,14 @@ function formatDeviceValue(value: unknown): string {
   }
 }
 
+function requestIdFromSaveError(value: string | null | undefined): string | undefined {
+  return value?.match(/Request ID:\s*([A-Za-z0-9_-]{1,128})/i)?.[1];
+}
+
+function errorCodeFromSaveError(value: string | null | undefined): string | undefined {
+  return value && /^[a-z][a-z0-9_]{1,63}$/.test(value) ? value : undefined;
+}
+
 /**
  * 點位映射表的單一資料列元件
  * 
@@ -51,12 +55,17 @@ export const MappingRow: React.FC<MappingRowProps> = ({
   devices,
   liveValue,
   connectionState = 'disconnected',
+  streamRecovery,
+  workspaceId,
   onSelect,
   dispatch,
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const devTheme = useDeviceColor(point.device_id);
 
-  const devName = devices.find((d) => d.id === point.device_id)?.name || '未知裝置';
+  const devName = devices.find((d) => d.id === point.device_id)?.name || t('step3.unknownDevice');
+  const saveErrorRequestId = requestIdFromSaveError(mapping.save_error);
+  const saveErrorCode = errorCodeFromSaveError(mapping.save_error);
 
   // 阻止事件傳播，避免點擊輸入框時觸發整列選取
   const preventPropagation = (e: React.MouseEvent | React.TouchEvent) => {
@@ -83,11 +92,9 @@ export const MappingRow: React.FC<MappingRowProps> = ({
   const deviceValueLabel =
     liveValue !== null && liveValue !== undefined
       ? formatDeviceValue(liveValue)
-      : connectionState === 'connecting'
-        ? '連線中'
-        : connectionState === 'error'
-          ? '串流錯誤'
-          : '尚未收到';
+      : t(`step3.connectionStates.${connectionState}`, {
+        defaultValue: t('step3.connectionStates.disconnected'),
+      });
 
   return (
     <tr
@@ -122,7 +129,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           onChange={(e) => handleTextChange('tag_key', e.target.value)}
           onClick={preventPropagation}
           onMouseDown={preventPropagation}
-          placeholder="temp.inlet"
+          placeholder={t('step3.placeholders.tagKey')}
           className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all font-mono"
           data-testid={`input-tag-key-${point.id}`}
         />
@@ -139,8 +146,18 @@ export const MappingRow: React.FC<MappingRowProps> = ({
             }`}
             data-testid={`mapping-save-state-${point.id}`}
           >
-            {MAPPING_SAVE_STATE_LABELS[mapping.save_state]}
-            {mapping.save_state === 'save-error' && mapping.save_error ? ` · ${mapping.save_error}` : ''}
+            {t(`step3.saveStates.${mapping.save_state}`)}
+            {mapping.save_state === 'save-error' && mapping.save_error && (
+              <>
+                <span> · {t(`errors.${saveErrorCode ?? 'mapping_save_failed'}`, { defaultValue: t('errors.mapping_save_failed') })}</span>
+                <span> · {t('errors.mapping_save_failed_action')}</span>
+                {saveErrorRequestId && (
+                  <span data-testid={`mapping-save-request-id-${point.id}`}>
+                    {' · '}{t('errors.request_id')}: {saveErrorRequestId}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         )}
       </td>
@@ -153,7 +170,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           onChange={(e) => handleTextChange('display_name', e.target.value)}
           onClick={preventPropagation}
           onMouseDown={preventPropagation}
-          placeholder="顯示名稱"
+          placeholder={t('step3.placeholders.displayName')}
           className="w-full bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all"
           data-testid={`input-display-name-${point.id}`}
         />
@@ -167,7 +184,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
           onChange={(e) => handleTextChange('unit', e.target.value)}
           onClick={preventPropagation}
           onMouseDown={preventPropagation}
-          placeholder="無"
+          placeholder={t('step3.placeholders.unit')}
           className="w-14 bg-slate-900/50 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-blue-500 text-xs px-2 py-1 rounded text-slate-200 focus:outline-none transition-all"
           data-testid={`input-unit-${point.id}`}
         />
@@ -226,9 +243,28 @@ export const MappingRow: React.FC<MappingRowProps> = ({
       {/* 8. 讀值 (raw/decode) */}
       <td className="p-3 text-xs font-mono text-slate-300">
         <span data-testid={`device-live-value-${point.id}`}>{deviceValueLabel}</span>
+        {streamRecovery && (
+          <div className="mt-1 space-y-0.5 font-sans text-[10px] text-amber-300" data-testid={`runtime-recovery-${point.id}`} role="alert">
+            <div>{t(`errors.${streamRecovery.code ?? 'runtime_stream_unavailable'}`, {
+              defaultValue: t('errors.runtime_stream_unavailable'),
+            })}</div>
+            <div>{t('step3.recovery.retryAction')}</div>
+            {streamRecovery.requestId && (
+              <div data-testid={`runtime-recovery-request-id-${point.id}`}>
+                {t('errors.request_id')}: {streamRecovery.requestId}
+              </div>
+            )}
+          </div>
+        )}
       </td>
 
-      <MappingPreviewCells point={point} mapping={mapping} rawValue={liveValue} />
+      <MappingPreviewCells
+        point={point}
+        mapping={mapping}
+        rawValue={liveValue}
+        connectionState={connectionState}
+        workspaceId={workspaceId}
+      />
 
       <MappingPayloadDialog point={point} mapping={mapping} />
 

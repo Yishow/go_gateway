@@ -1,10 +1,13 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface ToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label?: string;
   size?: 'sm' | 'md';
+  disabled?: boolean;
+  'aria-label'?: string;
 }
 
 /**
@@ -18,7 +21,10 @@ export const Toggle: React.FC<ToggleProps> = ({
   onChange,
   label,
   size = 'md',
+  disabled = false,
+  'aria-label': ariaLabel,
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const dim = size === 'sm'
     ? { w: 32, h: 16, dot: 12, pad: 2 }
     : { w: 40, h: 20, dot: 16, pad: 2 };
@@ -30,8 +36,16 @@ export const Toggle: React.FC<ToggleProps> = ({
       type="button"
       role="switch"
       aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="inline-flex items-center gap-2 group focus:outline-none"
+      aria-label={ariaLabel || label || t('buttons.toggle')}
+      disabled={disabled}
+      onClick={() => {
+        if (!disabled) {
+          onChange(!checked);
+        }
+      }}
+      className={`inline-flex items-center gap-2 group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 rounded ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+      }`}
     >
       <span
         className={`relative inline-block rounded-full transition-colors duration-200 flex-shrink-0 ${

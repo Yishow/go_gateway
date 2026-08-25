@@ -175,9 +175,64 @@ describe('Step 4 first activation flow integration', () => {
     fireEvent.click(screen.getByText('step4.activate_btn'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('activation-empty-message')).toHaveTextContent('目前沒有可啟動設備');
+      expect(screen.getByTestId('activation-empty-message')).toHaveTextContent('step4.activation_no_success');
       expect(screen.getByText('step4.reset_activation_btn')).toBeInTheDocument();
     });
+  });
+
+  it('renders a typed activation barrier error in CommitProgress without raw details', async () => {
+    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>()
+      .mockRejectedValue({
+        code: 'modbus_share_revision_conflict',
+        action: 'hydrate again with server state',
+        request_id: 'req-activation-7',
+        retryable: true,
+        message: 'raw backend revision details',
+      });
+
+    render(
+      <Step4Database
+        state={mockState}
+        dispatch={() => { }}
+        activateWorkspace={activateWorkspace}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('step4.activate_btn'));
+
+    const failedRow = await screen.findByTestId('commit-log-row-0');
+    expect(failedRow).toHaveAttribute('data-status', 'failed');
+    expect(failedRow).toHaveTextContent('errors.modbus_share_revision_conflict');
+    expect(failedRow).toHaveTextContent('req-activation-7');
+    expect(failedRow).not.toHaveTextContent('raw backend revision details');
+    expect(failedRow).not.toHaveTextContent('hydrate again with server state');
+  });
+
+  it('wires the localized failed-row retry to the Step 4 activation callback', async () => {
+    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>()
+      .mockResolvedValueOnce({
+        workspace_id: 'workspace-1',
+        results: [{ device_id: 'd-1', status: 'failed', message: 'activation failed' }],
+      })
+      .mockResolvedValueOnce({
+        workspace_id: 'workspace-1',
+        results: [{ device_id: 'd-1', status: 'success', message: 'activated' }],
+      });
+
+    render(
+      <Step4Database
+        state={mockState}
+        dispatch={() => { }}
+        activateWorkspace={activateWorkspace}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('step4.activate_btn'));
+    const retry = await screen.findByRole('button', { name: 'step4.retry_action' });
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(activateWorkspace).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('button', { name: 'step4.retry_action' })).not.toBeInTheDocument();
   });
 
   it('allows runtime navigation after partial activation failure when at least one device succeeds', async () => {

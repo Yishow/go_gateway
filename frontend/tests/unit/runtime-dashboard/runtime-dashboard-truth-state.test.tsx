@@ -58,6 +58,9 @@ class MockEventSource {
 
   open() {
     this.onopen?.(new Event('open'));
+    this.emit('stream_state', {
+      stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false },
+    });
   }
 }
 
@@ -223,6 +226,10 @@ describe('runtime dashboard truth states', () => {
           reason: 'runtime status stream closed',
         },
         timestamp: '2026-05-29T10:00:05Z',
+        code: 'runtime_stream_unavailable',
+        action: 'retry runtime stream',
+        request_id: 'req-runtime-dashboard-1',
+        retryable: true,
       });
     });
 
@@ -231,6 +238,9 @@ describe('runtime dashboard truth states', () => {
     });
     expect(screen.getByTestId('runtime-dashboard-stream-state')).toHaveTextContent('unavailable');
     expect(screen.getByTestId('runtime-dashboard-collector-count')).toHaveTextContent('1');
-    expect(screen.getByTestId('runtime-dashboard-logs-panel')).toHaveTextContent('runtime status stream closed');
+    expect(screen.getByTestId('runtime-dashboard-logs-panel')).toHaveTextContent('Live runtime stream is unavailable. Retry the runtime view.');
+    expect(screen.getByTestId('runtime-dashboard-logs-panel')).not.toHaveTextContent('runtime status stream closed');
+    expect(screen.getByText(/req-runtime-dashboard-1/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reconnect live stream' })).toBeInTheDocument();
   });
 });

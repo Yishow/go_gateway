@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { Field } from '../../components/Field';
 import { Input } from '../../components/inputs';
@@ -28,6 +29,8 @@ export const ShareSection: React.FC<ShareSectionProps> = ({
   globalShareEnabled,
   dispatch,
 }) => {
+  const { t } = useTranslation('workbench-v2');
+
   return (
     <details className="group border-t border-slate-800/60 pt-4" data-testid="share-section">
       <summary className="flex items-center gap-2 cursor-pointer font-medium text-xs text-slate-400 select-none hover:text-slate-200 py-1.5 focus:outline-none">
@@ -42,14 +45,14 @@ export const ShareSection: React.FC<ShareSectionProps> = ({
         >
           <path d="M9 18l6-6-6-6" />
         </svg>
-        <span>Modbus Share 轉發配置 (選填)</span>
+        <span>{t('step2.labels.share_details', 'Modbus Share 轉發配置 (選填)')}</span>
 
         {!globalShareEnabled && (
           <span
             className="ml-2 bg-slate-800 border border-slate-700/60 text-slate-500 text-[9px] font-sans font-normal px-1.5 py-0.5 rounded"
             data-testid="global-disabled-chip"
           >
-            全域未啟用
+            {t('step2.labels.global_disabled', '全域未啟用')}
           </span>
         )}
       </summary>
@@ -57,14 +60,15 @@ export const ShareSection: React.FC<ShareSectionProps> = ({
       <div className="space-y-4 pt-3 pl-6">
         <div>
           <Toggle
-            checked={shareEnabled}
+            checked={shareEnabled && globalShareEnabled}
+            disabled={!globalShareEnabled}
             onChange={() => dispatch({ type: 'toggleRuleShareEnabled', ruleId })}
             label="啟用此規則的 Modbus Share 記憶體對應"
             data-testid="share-enable-toggle"
           />
         </div>
 
-        {shareEnabled && (
+        {shareEnabled && globalShareEnabled && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field
               label="轉發起點暫存器 (Share Start Register)"

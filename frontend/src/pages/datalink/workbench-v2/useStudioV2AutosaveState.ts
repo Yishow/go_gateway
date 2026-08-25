@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCreateStudioV2WorkspaceDeviceMutation, useDeleteStudioV2WorkspaceDeviceMutation, useStudioV2WorkspaceDevicesQuery, useUpdateStudioV2WorkspaceDeviceAvailabilityMutation, useUpdateStudioV2WorkspaceDeviceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceDevices';
 import { hydrateStudioV2Device, isStudioV2DeviceValid, toStudioV2DeviceCreateRequest, toStudioV2DeviceUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2DeviceAutosave';
 import { canHydrateStudioV2Rule, hydrateStudioV2Rule } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
@@ -13,6 +14,8 @@ import { hydrateStudioV2DatabaseConnector, hydrateStudioV2DatabaseRowGroups, hyd
 import { deriveAllPoints } from '../../../features/datalink/workbench-v2/state/sourceRule';
 import { inferHydratedProgress } from './hydratedProgress';
 import type { StudioV2WorkspaceMappingRecord, StudioV2WorkspaceDatabaseTargetRecord, ProtocolType } from '../../../types/datalink';
+import { getStudioV2AutosaveBarrier, hasPendingSave, isUnpersistedNonIdle } from './studioV2AutosaveBarrier';
+import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 
 type SaveMeta = {
   inFlight: boolean;
@@ -28,8 +31,8 @@ function saveMetaFor(store: Record<string, SaveMeta>, deviceId: string): SaveMet
   return store[deviceId];
 }
 
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : '儲存失敗';
+function errorMessageOf(error: unknown, fallback: string): string {
+  return getSafeErrorStateMessage(error, fallback);
 }
 
 const invalidDeviceAvailabilityReason = 'device form is invalid';
@@ -97,12 +100,8 @@ function isDraftPending(saveState?: string): boolean {
   return saveState === 'saving' || saveState === 'save-error' || saveState === 'draft-invalid';
 }
 
-function isUnpersistedNonIdle(saveState?: string, persisted?: boolean): boolean {
-  return !persisted && saveState !== 'idle';
-}
-
 function hasLocalUnpersistedSetupDrafts(state: WorkbenchV2State): boolean {
-  if (state.devices.some((device) => isUnpersistedNonIdle(device.save_state, device.persisted) || device.save_state === 'saving' || device.save_state === 'draft-invalid' || (device.save_state === 'save-error' && device.persisted !== true && device.runtime_apply_status !== 'apply_failed'))) {
+  if (state.devices.some((device) => hasPendingSave(device.save_state, device.persisted) && (device.persisted !== true || device.save_state !== 'save-error' || device.runtime_apply_status !== 'apply_failed'))) {
     return true;
   }
 
@@ -156,6 +155,7 @@ function isSetupMutationAction(action: WorkbenchV2Action): boolean {
 }
 
 export function useStudioV2AutosaveState(enabled: boolean) {
+  const { t } = useTranslation('workbench-v2');
   const actions = useWorkbenchV2State();
   const devicesQuery = useStudioV2WorkspaceDevicesQuery(enabled);
   const rulesQuery = useStudioV2RulesQuery(enabled);
@@ -340,7 +340,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
           });
         }).catch((error) => {
           applyDevicePatch(deviceId, {
-            save_error: errorMessageOf(error),
+            save_error: errorMessageOf(error, t('errors.autosave_failed')),
           });
         });
       }
@@ -385,7 +385,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
     } catch (error) {
       applyDevicePatch(deviceId, {
         save_state: 'save-error',
-        save_error: errorMessageOf(error),
+        save_error: errorMessageOf(error, t('errors.autosave_failed')),
       });
     } finally {
       meta.inFlight = false;
@@ -394,7 +394,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
         void flushDeviceSave(deviceId);
       }
     }
-  }, [applyDevicePatch, createDeviceMutation, updateAvailabilityMutation, updateDeviceMutation]);
+  }, [applyDevicePatch, createDeviceMutation, t, updateAvailabilityMutation, updateDeviceMutation]);
 
   const queueDeviceSave = React.useCallback((deviceId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, deviceId);
@@ -436,7 +436,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
         .catch((error) => {
           applyDevicePatch(action.deviceId, {
             save_state: 'save-error',
-            save_error: errorMessageOf(error),
+            save_error: errorMessageOf(error, t('errors.autosave_failed')),
           });
         });
       return;
@@ -468,7 +468,7 @@ export function useStudioV2AutosaveState(enabled: boolean) {
     ruleAutosave.afterRuleAction(action);
     mappingAutosave.afterMappingAction(previousState, action, nextState);
     databaseAutosave.afterDatabaseAction(action, nextState);
-  }, [actions, applyDevicePatch, databaseAutosave, deleteDeviceMutation, mappingAutosave, queueDeviceSave, ruleAutosave, workspaceHydrated]);
+  }, [actions, applyDevicePatch, databaseAutosave, deleteDeviceMutation, mappingAutosave, queueDeviceSave, ruleAutosave, t, workspaceHydrated]);
 
   return {
     actions: {
@@ -483,5 +483,6 @@ export function useStudioV2AutosaveState(enabled: boolean) {
     rulesQuery,
     state: actions.state,
     workspaceHydrated,
+    autosaveBarrier: getStudioV2AutosaveBarrier(actions.state),
   };
 }

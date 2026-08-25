@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   useCreateStudioV2MappingMutation,
   useDeleteStudioV2MappingMutation,
@@ -13,6 +14,7 @@ import {
 } from '../../../features/datalink/workbench-v2/state/studioV2MappingAutosave';
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { Mapping, MappingValue, Point, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 
 type SaveMeta = {
   inFlight: boolean;
@@ -31,8 +33,8 @@ function saveMetaFor(store: Record<string, SaveMeta>, pointId: string): SaveMeta
   return store[pointId];
 }
 
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : '儲存失敗';
+function errorMessageOf(error: unknown, fallback: string): string {
+  return getSafeErrorStateMessage(error, fallback);
 }
 
 function canAutosaveMappingRule(state: WorkbenchV2State, point: Point): boolean {
@@ -93,6 +95,7 @@ export function useStudioV2MappingAutosave(
   stateRef: React.MutableRefObject<WorkbenchV2State>,
   enabled: boolean,
 ) {
+  const { t } = useTranslation('workbench-v2');
   const mappingsQuery = useStudioV2MappingsQuery(enabled);
   const createMappingMutation = useCreateStudioV2MappingMutation();
   const updateMappingMutation = useUpdateStudioV2MappingMutation();
@@ -187,7 +190,7 @@ export function useStudioV2MappingAutosave(
     } catch (error) {
       applyMappingPatch(pointId, {
         save_state: 'save-error',
-        save_error: errorMessageOf(error),
+        save_error: errorMessageOf(error, t('errors.autosave_failed')),
       });
     } finally {
       meta.inFlight = false;
@@ -196,7 +199,7 @@ export function useStudioV2MappingAutosave(
         void flushMappingSave(pointId);
       }
     }
-  }, [applyMappingPatch, createMappingMutation, stateRef, updateMappingMutation]);
+  }, [applyMappingPatch, createMappingMutation, stateRef, t, updateMappingMutation]);
 
   const queueMappingSave = React.useCallback((pointId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, pointId);

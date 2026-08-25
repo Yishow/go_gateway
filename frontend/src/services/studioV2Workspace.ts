@@ -23,16 +23,7 @@ studioV2DatalinkApi.interceptors.request.use((config) => {
 
 studioV2DatalinkApi.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.data?.error?.message) {
-      error.message = error.response.data.error.message;
-    } else if (error.response?.data?.message) {
-      error.message = error.response.data.message;
-    } else if (!error.message) {
-      error.message = 'Request failed with status code ' + (error.response?.status || 'unknown');
-    }
-    return Promise.reject(error);
-  },
+  (error) => Promise.reject(error),
 );
 
 export const studioV2WorkspaceAPI = {

@@ -4,6 +4,7 @@ import type {
   RuntimeStreamConnectionState,
   RuntimeValueEvent,
 } from '../../types/datalink';
+import { parseMessageEventRecord, parseRuntimeValueRecord } from '../../utils/safeJson';
 
 interface UseRuntimeStreamOptions {
   deviceId: string | null;
@@ -25,13 +26,14 @@ export function useRuntimeStream({
     {},
   );
 
-  const pointIdsKey = useMemo(() => pointIds.join(','), [pointIds]);
+  const pointIdsKey = useMemo(() => [...pointIds].sort().join(','), [pointIds]);
   const normalizedPointIds = useMemo(
     () => (pointIdsKey ? pointIdsKey.split(',') : []),
     [pointIdsKey],
   );
 
   useEffect(() => {
+    let active = true;
     setLiveValues({});
 
     if (!deviceId) {
@@ -50,10 +52,17 @@ export function useRuntimeStream({
     );
 
     const handleValue = (event: MessageEvent<string>) => {
-      const payload = JSON.parse(event.data) as RuntimeValueEvent;
+      if (!active) return;
+      const payload = parseMessageEventRecord(event);
+      const value = parseRuntimeValueRecord(payload);
+      if (!value) {
+        setConnectionState('degraded');
+        return;
+      }
+      setConnectionState('connected');
       setLiveValues((current) => ({
         ...current,
-        [payload.point_id]: payload,
+        [value.point_id]: value,
       }));
     };
     const handleValueEvent = (event: Event) => {
@@ -61,14 +70,17 @@ export function useRuntimeStream({
     };
 
     eventSource.onopen = () => {
+      if (!active) return;
       setConnectionState('connected');
     };
     eventSource.onerror = () => {
+      if (!active) return;
       setConnectionState('error');
     };
     eventSource.addEventListener('value', handleValueEvent);
 
     return () => {
+      active = false;
       eventSource.removeEventListener('value', handleValueEvent);
       eventSource.close();
       setConnectionState('disconnected');

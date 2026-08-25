@@ -59,6 +59,8 @@ const INITIAL_FORM_DATA: WizardFormData = {
  * MappingWizard 組件屬性
  */
 interface MappingWizardProps {
+  /** Workspace scope used by live preview */
+  workspaceId: string;
   /** 完成時回呼 */
   onComplete?: (data: WizardFormData) => void;
   /** 取消時回呼 */
@@ -71,6 +73,7 @@ interface MappingWizardProps {
  * 6 步驟導引式工作流程：設備 → 點位 → 標籤 → 轉換 → 預覽 → 完成
  */
 export const MappingWizard: React.FC<MappingWizardProps> = ({
+  workspaceId,
   onComplete,
   onCancel,
 }) => {
@@ -240,6 +243,7 @@ export const MappingWizard: React.FC<MappingWizardProps> = ({
         return (
           <PreviewStep
             formData={formData}
+            workspaceId={workspaceId}
             onConfirm={() => updateFormData({ confirmed: true })}
             confirmed={formData.confirmed}
             error={errors.confirmed}
@@ -329,6 +333,7 @@ export const MappingWizard: React.FC<MappingWizardProps> = ({
         <div className="wizard-sidebar">
           <LivePreviewPanel
             mappingId={formData.pointId && formData.tagId ? `${formData.pointId}-${formData.tagId}` : ''}
+            workspaceId={workspaceId}
             autoStart={currentStep >= 4}
           />
         </div>

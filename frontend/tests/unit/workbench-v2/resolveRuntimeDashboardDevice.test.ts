@@ -41,7 +41,7 @@ function createState(overrides?: Partial<WorkbenchV2State>): WorkbenchV2State {
       connectors: [],
       timeseries: { write_precision: 'millisecond', partition_interval: 'daily', batch_size: 100, retention_days: 30 },
       scheduler: { default_interval_ms: 1000, default_retry_count: 3, default_retry_delay_ms: 500, breaker_threshold: 5, auto_start: true },
-      modbus_share: { enabled: false, bind_address: '127.0.0.1', port: 1502, slave_id: 1, base_register: 0 },
+      modbus_share: { enabled: false, bind_address: '127.0.0.1', port: 1502, slave_id: 1, capacity_registers: 32768, settings_revision: '', base_register: 0 },
       general: { theme: 'dark', locale: 'zh-TW', addr_format: 'modbus', api_base: '/api', api_version: 'v1', timeout_seconds: 10, log_level: 'info', sse_heartbeat_seconds: 15, enable_debug_panel: false, enable_audit_log: false },
     },
     committed: true,

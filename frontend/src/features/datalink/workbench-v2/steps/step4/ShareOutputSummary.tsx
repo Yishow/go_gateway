@@ -1,10 +1,16 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { computeShareLayout } from '../../state/sourceRule';
-import type { Rule, WorkbenchV2State } from '../../state/types';
+import type { ModbusShareDesiredMapping, ModbusShareStatus } from '../../../../../types/modbusShare';
+import type { WorkbenchV2State } from '../../state/types';
+import { useModbusShareCandidateReview } from '../../../../../hooks/datalink/useModbusShareCandidateReview';
+import {
+  allocationRowsFromCanonicalMappings,
+  LocalModbusReviewSurface,
+} from './LocalModbusReviewSurface';
 
 interface ShareOutputSummaryProps {
-  state: Pick<WorkbenchV2State, 'devices' | 'rules' | 'points' | 'settings'>;
+  state: Pick<WorkbenchV2State, 'rules' | 'points' | 'mappings'>;
+  shareStatus?: ModbusShareStatus | null;
 }
 
 interface ShareOutputRow {
@@ -13,44 +19,168 @@ interface ShareOutputRow {
   outputRange: string;
 }
 
-function sourceRangeForRule(rule: Rule, state: ShareOutputSummaryProps['state'], start: number, stride: number): ShareOutputRow | null {
-  const points = state.points.filter((point) => (
-    point.rule_id === rule.id && point.enabled && !point.skipped
-  ));
-  if (points.length === 0) {
-    return null;
-  }
-
-  const outputEnd = start + (points.length - 1) * stride;
-  return {
-    id: rule.id,
-    sourceRange: `${points[0].address} ~ ${points[points.length - 1].address}`,
-    outputRange: `${start} ~ ${outputEnd}`,
-  };
+function canonicalMappings(status: ModbusShareStatus): ModbusShareDesiredMapping[] | null {
+  const mappings = status.canonical_desired_mappings ?? status.canonical_plan?.desired_mappings;
+  return Array.isArray(mappings) ? mappings : null;
 }
 
-export function ShareOutputSummary({ state }: ShareOutputSummaryProps) {
-  const { t } = useTranslation('workbench-v2');
-  const rows = useMemo(() => {
-    if (!state.settings.modbus_share.enabled) {
+function rowsFromCanonicalMappings(
+  mappings: ModbusShareDesiredMapping[],
+  state: ShareOutputSummaryProps['state'],
+): ShareOutputRow[] {
+  const rowsByRule = new Map<string, ModbusShareDesiredMapping[]>();
+  mappings.forEach((mapping) => {
+    if (!Number.isInteger(mapping.share_start_register) || !Number.isInteger(mapping.span_registers) || mapping.span_registers < 1) {
+      return;
+    }
+    const existing = rowsByRule.get(mapping.source_rule_id) ?? [];
+    existing.push(mapping);
+    rowsByRule.set(mapping.source_rule_id, existing);
+  });
+
+  return Array.from(rowsByRule.entries()).flatMap(([ruleID, ruleMappings]) => {
+    const sorted = [...ruleMappings].sort((left, right) => left.share_start_register - right.share_start_register);
+    if (sorted.length === 0) {
       return [];
     }
 
-    const nonModbusRuleIDs = new Set(
-      state.devices
-        .filter((device) => !device.protocol.startsWith('modbus_'))
-        .map((device) => device.id),
-    );
-    const layouts = computeShareLayout(state.rules, state.settings.modbus_share.base_register);
+    const sourceLabels = sorted.map((mapping) => {
+      const browserMapping = Object.values(state.mappings).find((candidate) => candidate.tag_id === mapping.tag_id);
+      const point = browserMapping
+        ? state.points.find((candidate) => candidate.id === browserMapping.point_id)
+        : undefined;
+      const rule = state.rules.find((candidate) => candidate.id === mapping.source_rule_id);
+      return point?.address ?? mapping.tag_key ?? mapping.display_name ?? rule?.name ?? mapping.tag_id;
+    });
+    const outputStart = sorted[0].share_start_register;
+    const outputEnd = Math.max(...sorted.map((mapping) => mapping.share_start_register + mapping.span_registers - 1));
+    return [{
+      id: ruleID,
+      sourceRange: sourceLabels.length === 1 ? sourceLabels[0] : `${sourceLabels[0]} ~ ${sourceLabels[sourceLabels.length - 1]}`,
+      outputRange: `${outputStart} ~ ${outputEnd}`,
+    }];
+  });
+}
 
-    return state.rules
-      .filter((rule) => rule.enabled && rule.share_enabled && nonModbusRuleIDs.has(rule.device_id))
-      .map((rule) => {
-        const layout = layouts[rule.id];
-        return layout ? sourceRangeForRule(rule, state, layout.start, layout.stride) : null;
-      })
-      .filter((row): row is ShareOutputRow => row !== null);
-  }, [state]);
+export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryProps) {
+  const { t } = useTranslation('workbench-v2');
+  const hydrationReady = shareStatus?.hydration_state === 'ready' && shareStatus.readiness === true;
+  const configured = shareStatus?.configured_enabled ?? (
+    shareStatus?.enabled === true || shareStatus?.bind_state !== 'disabled'
+  );
+  const running = shareStatus?.running ?? shareStatus?.enabled ?? false;
+  const failed = shareStatus?.failed ?? (
+    shareStatus?.bind_state === 'fail' || shareStatus?.lifecycle_state === 'failed'
+  );
+  const canonical = shareStatus ? canonicalMappings(shareStatus) : null;
+  const candidateBlocked = shareStatus?.candidate_set_status === 'blocked' ||
+    shareStatus?.candidate_statuses?.some((status) => status.startsWith('blocked')) === true;
+  const projectionFailed = failed || Boolean(shareStatus?.error) || candidateBlocked || shareStatus?.outcome === 'invalidated_unknown' ||
+    shareStatus?.outcome === 'dirty_unknown' || Boolean(shareStatus?.dirty_state || shareStatus?.recovery) || (shareStatus?.invalidated_count ?? 0) > 0;
+  const rows = useMemo(() => {
+    if (!hydrationReady || !configured || !running || !canonical || shareStatus?.bind_state === 'disabled' || projectionFailed) {
+      return [];
+    }
+
+    return rowsFromCanonicalMappings(canonical, state);
+  }, [canonical, configured, hydrationReady, projectionFailed, running, shareStatus?.bind_state, state]);
+  const allocationRows = useMemo(() => {
+    if (!hydrationReady || !canonical) {
+      return [];
+    }
+    return allocationRowsFromCanonicalMappings(canonical, state);
+  }, [canonical, hydrationReady, state]);
+  const candidateReview = useModbusShareCandidateReview(
+    shareStatus?.canonical_plan ? shareStatus : null,
+    shareStatus?.canonical_plan?.desired_mappings ?? null,
+  );
+
+  if (!shareStatus) {
+    return (
+      <section
+        data-testid="step4-share-output-blocked"
+        className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4"
+        role="status"
+      >
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+          {t('step4.share_output_title', 'Local Share output')}
+        </div>
+        <p className="mt-2 text-sm text-amber-100/80">
+          {t('step4.share_output_unknown', 'Share output status is unavailable; no default layout is shown.')}
+        </p>
+      </section>
+    );
+  }
+
+  // Persisted global disablement is an absolute gate. It must win over
+  // missing canonical data or hydration metadata so a disabled service is
+  // never misreported as blocked/unknown.
+  if (!configured) {
+    return (
+      <section data-testid="step4-share-output-disabled" className="rounded-2xl border border-slate-700/60 bg-slate-900/40 p-4" role="status">
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          {t('step4.share_output_title', 'Local Share output')}
+        </div>
+        <p className="mt-2 text-sm text-slate-400">
+          {t('step4.share_output_disabled', 'Backend Share is disabled in persisted settings.')}
+        </p>
+      </section>
+    );
+  }
+
+  if (!hydrationReady || canonical === null) {
+    return (
+      <section
+        data-testid="step4-share-output-blocked"
+        className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4"
+        role="status"
+      >
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+          {t('step4.share_output_title', 'Local Share output')}
+        </div>
+        <p className="mt-2 text-sm text-amber-100/80">
+          {t('step4.share_output_blocked', 'Share output is waiting for backend workspace hydration.')}
+        </p>
+      </section>
+    );
+  }
+
+  if (projectionFailed) {
+    return (
+      <section
+        data-testid="step4-share-output-failed"
+        className="rounded-2xl border border-red-500/25 bg-red-500/5 p-4"
+        role="alert"
+      >
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-200/80">
+          {t('step4.share_output_title', 'Local Share output')}
+        </div>
+        <p className="mt-2 text-sm text-red-100/80">
+          {t('step4.share_output_failed', 'Backend Share is configured but failed to start. Retry after reviewing the persisted settings.')}
+        </p>
+        {shareStatus && <LocalModbusReviewSurface
+          rows={allocationRows}
+          status={shareStatus}
+          showDiagnostic
+          candidatesByTagID={candidateReview.candidatesByTagID}
+          candidateReviewState={candidateReview.reviewState}
+        />}
+      </section>
+    );
+  }
+
+  if (!running) {
+    return (
+      <section data-testid="step4-share-output-pending" className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4" role="status">
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+          {t('step4.share_output_title', 'Local Share output')}
+        </div>
+        <p className="mt-2 text-sm text-amber-100/80">
+          {t('step4.share_output_pending', 'Backend Share is configured but not running yet.')}
+        </p>
+      </section>
+    );
+  }
 
   if (rows.length === 0) {
     return null;
@@ -76,6 +206,12 @@ export function ShareOutputSummary({ state }: ShareOutputSummaryProps) {
           </div>
         ))}
       </div>
+      {shareStatus && <LocalModbusReviewSurface
+        rows={allocationRows}
+        status={shareStatus}
+        candidatesByTagID={candidateReview.candidatesByTagID}
+        candidateReviewState={candidateReview.reviewState}
+      />}
     </section>
   );
 }

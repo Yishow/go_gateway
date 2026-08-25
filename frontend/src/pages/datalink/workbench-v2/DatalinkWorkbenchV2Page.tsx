@@ -1,9 +1,21 @@
+import * as React from 'react';
 import { WorkbenchV2Shell } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { useActivateStudioV2WorkspaceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceActivation';
 import { useStudioV2WorkspaceQuery } from '../../../hooks/datalink/useStudioV2Workspace';
 import { useStudioV2WorkspaceAuditHistoryQuery } from '../../../hooks/datalink/useStudioV2WorkspaceAuditHistory';
+import { useModbusShareStatusQuery } from '../../../hooks/datalink/useModbusShareStatus';
 import { useStudioV2AutosaveState } from './useStudioV2AutosaveState';
-import { activateStudioV2WorkspaceWithShare } from '../../../features/datalink/workbench-v2/state/studioV2ShareActivation';
+import {
+  activateStudioV2WorkspaceWithShare,
+  type StudioV2ShareActivationContext,
+} from '../../../features/datalink/workbench-v2/state/studioV2ShareActivation';
+import type { ModbusShareReconcileOutcome } from '../../../types/datalink';
+import {
+  isModbusShareConfiguredEnabled,
+  modbusShareConfiguredValue,
+  modbusShareStatusFromBootstrap,
+} from '../../../types/modbusShare';
+import { StudioV2ActivationBarrierError } from '../../../services/studioV2WorkspaceActivation';
 import type { WorkbenchV2RuntimeReturnFocus } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 
@@ -70,13 +82,68 @@ export default function DatalinkWorkbenchV2Page({
   runtimeReturnFocus,
 }: DatalinkWorkbenchV2PageProps) {
   const workspaceQuery = useStudioV2WorkspaceQuery();
+  const shareStatusQuery = useModbusShareStatusQuery(workspaceQuery.isSuccess);
+  const bootstrapShareStatus = modbusShareStatusFromBootstrap(workspaceQuery.data?.modbus_share);
+  const shareStatus = React.useMemo(() => {
+    const liveStatus = shareStatusQuery.data;
+    if (!bootstrapShareStatus || !liveStatus) {
+      return liveStatus ?? bootstrapShareStatus;
+    }
+
+    const bootstrapConfigured = modbusShareConfiguredValue(bootstrapShareStatus);
+    const liveConfigured = modbusShareConfiguredValue(liveStatus);
+    const configuredEnabled = bootstrapConfigured === false
+      ? false
+      : liveConfigured ?? bootstrapConfigured;
+
+    return configuredEnabled === undefined
+      ? liveStatus
+      : { ...liveStatus, configured_enabled: configuredEnabled };
+  }, [bootstrapShareStatus, shareStatusQuery.data]);
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(workspaceQuery.isSuccess);
   const autosave = useStudioV2AutosaveState(workspaceQuery.isSuccess);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
   const activateWorkspace = async () => {
+    const barrier = autosave.autosaveBarrier;
+    if (!autosave.workspaceHydrated || barrier.pending_saves > 0 || barrier.save_error) {
+      throw new StudioV2ActivationBarrierError('modbus_share_save_incomplete');
+    }
+
+    if (!shareStatus) {
+      throw new StudioV2ActivationBarrierError('modbus_share_hydration_required');
+    }
+    if (!isModbusShareConfiguredEnabled(shareStatus)) {
+      throw new StudioV2ActivationBarrierError('modbus_share_disabled', false);
+    }
+    const shareIsStale = shareStatus.hydration_state !== 'ready' || shareStatus.readiness !== true;
+    if (shareIsStale) {
+      throw new StudioV2ActivationBarrierError(
+        'modbus_share_revision_conflict',
+        shareStatus.error?.retryable ?? true,
+        shareStatus.error?.action,
+        shareStatus.error?.request_id,
+      );
+    }
+
+    const shareContext: StudioV2ShareActivationContext = {
+      workspace_id: workspaceQuery.data?.id ?? '',
+      workspace_revision: shareStatus.workspace_revision ?? '',
+      settings_revision: shareStatus.settings_revision ?? '',
+      readiness_token: shareStatus.readiness_token ?? '',
+      configured_enabled: isModbusShareConfiguredEnabled(shareStatus),
+      canonical_plan: shareStatus.canonical_plan,
+    };
+
     return activateStudioV2WorkspaceWithShare(
       autosave.state,
-      () => activationMutation.mutateAsync(),
+      (projection?: ModbusShareReconcileOutcome) => activationMutation.mutateAsync({
+        workspace_revision: projection?.new_workspace_revision || shareContext.workspace_revision,
+        settings_revision: projection?.settings_revision || shareContext.settings_revision,
+        readiness_token: projection?.new_readiness_token || shareContext.readiness_token,
+        pending_saves: barrier.pending_saves,
+        ...(barrier.save_error ? { save_error: barrier.save_error } : {}),
+      }),
+      shareContext,
     );
   };
 
@@ -125,12 +192,14 @@ export default function DatalinkWorkbenchV2Page({
       )}
       <WorkbenchV2Shell
         state={autosave.state}
+        workspaceId={workspace.id}
         actions={autosave.actions}
         navigateTo={navigateTo}
         activateWorkspace={activateWorkspace}
         workspaceReadiness={workspace.readiness_summary}
         workspaceAuditHistory={auditHistoryQuery.data?.entries ?? []}
         workspaceAuditUnavailable={auditHistoryQuery.isError}
+        shareStatus={shareStatus}
         runtimeReturnFocus={runtimeReturnFocus}
       />
     </div>

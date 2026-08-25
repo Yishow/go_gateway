@@ -1,50 +1,21 @@
 {
   "steps": {
-    "device": {
-      "title": "新增裝置",
-      "subtitle": "Device + Protocol"
-    },
-    "rule": {
-      "title": "接入規則",
-      "subtitle": "Source Rules · 多條範圍"
-    },
-    "mapping": {
-      "title": "點位映射",
-      "subtitle": "Point → Tag"
-    },
-    "database": {
-      "title": "儲存資料庫",
-      "subtitle": "DB Target · Commit"
-    }
+    "device": { "title": "新增裝置", "subtitle": "Device + Protocol" },
+    "rule": { "title": "接入規則", "subtitle": "Source Rules · 多條範圍" },
+    "mapping": { "title": "點位映射", "subtitle": "Point → Tag" },
+    "database": { "title": "儲存資料庫", "subtitle": "DB Target · Commit" }
   },
   "buttons": {
-    "saveDraft": "儲存草稿",
-    "cancel": "取消",
-    "next": "下一步",
-    "prev": "上一步",
-    "submit": "提交並啟動排程器",
-    "save": "儲存",
-    "create": "建立",
-    "continue": "繼續"
+    "saveDraft": "儲存草稿", "cancel": "取消", "next": "下一步", "prev": "上一步",
+    "submit": "提交並啟動排程器", "save": "儲存", "create": "建立", "continue": "繼續", "toggle": "切換"
   },
   "status": {
-    "draft": "草稿",
-    "active": "啟用",
-    "disabled": "停用",
-    "tested": "已測試",
-    "committed": "已部署"
+    "draft": "草稿", "active": "啟用", "disabled": "停用", "tested": "已測試", "committed": "已部署"
   },
   "loading": {
-    "saving": "儲存中…",
-    "loading": "載入中…",
-    "testing": "測試中…",
-    "committing": "提交中…"
-  },
+    "saving": "儲存中…", "loading": "載入中…", "testing": "測試中…", "committing": "提交中…" },
   "labels": {
-    "devices": "設備",
-    "rules": "接入規則",
-    "mappings": "點位映射",
-    "database": "資料庫寫入"
+    "devices": "設備", "rules": "接入規則", "mappings": "點位映射", "database": "資料庫寫入"
   },
   "step1": {
     "labels": {
@@ -230,7 +201,10 @@
       "cast": "cast to {{type}}",
       "final": "final → Tag"
     },
-    "table": {
+    "previewStates": { "idle": "預覽閒置", "connecting": "正在連線到預覽", "live": "即時預覽", "reconnecting": "正在重新連線預覽", "degraded": "預覽降級", "error": "預覽目前無法使用", "stale": "預覽資料已過期" },
+    "connectionStates": { "idle": "閒置", "connecting": "連線中", "connected": "已連線", "live": "即時", "reconnecting": "重新連線中", "degraded": "降級", "error": "串流錯誤", "stale": "資料已過期", "disconnected": "尚未連線" },
+    "recovery": { "retryAction": "正在重試即時串流…" },
+    "unknownDevice": "未知設備", "saveStates": { "saving": "儲存中", "saved": "已儲存", "save-error": "儲存失敗", "draft-invalid": "草稿需要修正" }, "placeholders": { "tagKey": "temp.inlet", "displayName": "顯示名稱", "unit": "無單位" }, "table": {
       "noPoints": "無啟用的點位，請回上一步新增或啟用規則。",
       "enabledSummary": "已載入 {{count}} 個映射點位",
       "bulkApplySource": "來源：{{tag}}",
@@ -290,8 +264,7 @@
     "overview_scope": "規則 / 點位",
     "overview_scope_value": "{{rules}} 組 / {{points}} 點",
     "overview_targets": "已啟用欄位",
-    "share_output_title": "Local Share 輸出",
-    "share_output_subtitle": "非 Modbus 來源點位會獨立映射到 holding register，不受資料庫目標影響。",
+    "share_output_title": "Local Share 輸出", "share_output_subtitle": "非 Modbus 來源點位會獨立映射到 holding register，不受資料庫目標影響。", "share_output_blocked": "Share 輸出正在等待後端完成工作區資料載入。", "share_output_unknown": "目前無法取得 Share 輸出狀態，不顯示預設配置。", "share_output_disabled": "後端已保存設定為停用 Share。", "share_output_pending": "後端已設定 Share，但目前尚未執行。", "share_output_failed": "後端 Share 已設定但啟動失敗，請檢查已保存設定後重試。", "share_output_review_title": "暫存器配置檢視", "share_output_review_subtitle": "後端 canonical 幾何；範圍為包含起訖位址。", "share_output_human_register": "人類暫存器", "share_output_zero_based_register": "Zero-based", "share_output_span": "Span", "share_output_stride": "Stride", "share_output_capacity": "容量", "share_output_datatype": "資料型別", "share_output_status_valid": "有效", "share_output_status_blocked": "已阻擋", "share_output_status_invalidated": "已失效", "share_output_status_failed": "失敗", "share_output_diagnostic_title": "後端配置診斷", "share_output_diagnostic_action": "復原動作：", "share_output_diagnostic_retryable": "解除阻擋條件後可安全重試此操作。", "share_output_blocking_reason": "阻擋原因：", "share_output_ownership": "Ownership：", "share_output_ownership_verified": "已驗證", "share_output_ownership_unverified": "未驗證",
     "delivery_readiness": "連線就緒狀態",
     "delivery_readiness_ready": "可連線",
     "delivery_readiness_unreachable": "無法連線",
@@ -355,8 +328,11 @@
     "fix_step_action": "前往 {{step}}",
     "progress_title": "第一次啟動設備",
     "progress_subtitle": "正在逐台啟動符合條件的設備...",
+    "progress_status": { "pending": "等待執行", "running": "執行中", "success": "已成功完成", "failed": "啟動失敗", "skipped": "已略過" }, "activation_no_success": "沒有設備成功啟動，請檢查失敗資訊後重試。",
     "waiting_logs": "準備發送指令...",
     "executing_next_command": "正在執行設備啟動…",
+    "retry_action": "重試啟動",
+    "retrying": "正在重試啟動…",
     "results_title": "啟動結果",
     "results_subtitle": "每台設備的啟動結果會分開保留，不會整批回滾。",
     "go_to_dashboard_btn": "前往 Runtime Dashboard",
@@ -420,6 +396,7 @@
     "scope": "範圍：{{scope}}"
   },
   "settings": {
+    "backend_load_error": "無法載入系統設定，請檢查後端資料庫連線後重試。", "backend_loading": "正在載入系統設定…",
     "title": "系統設定",
     "subtitle": "管理閘道全局連線、儲存排程、位元組映射轉發以及開發人員診斷工具。",
     "api_title": "API 連線端點",
@@ -453,7 +430,8 @@
     "share_port": "監聽通訊埠 (Port)",
     "share_slave_id": "本機站號 (Slave ID)",
     "share_base_register": "起始暫存器位址",
-    "modbus_share_disabled_msg": "Modbus 轉發服務已停用。開啟後點位分配將會與 Step 2 的 Modbus Share 暫存器配置連動。",
+    "share_base_register_auto": "由後端已保存候選配置", "share_runtime_running": "後端 Share 執行中", "share_runtime_failed": "後端 Share 啟動失敗", "share_runtime_disabled": "後端 Share 已停用", "share_runtime_pending": "後端 Share 等待 readiness",
+    "share_capacity_registers": "暫存器容量", "modbus_share_disabled_msg": "Modbus 轉發服務已停用。開啟後點位分配將會與 Step 2 的 Modbus Share 暫存器配置連動。",
     "reset_confirm_msg": "確定要將所有系統設定重設為預設值嗎？這將會清除您目前所有的連接器設定與變更。",
     "save_bar_info": "設定變更會立即套用至本地運行，並於後端服務下次重啟後持續生效。",
     "reset_to_defaults_btn": "重設為預設",
@@ -488,5 +466,34 @@
     "addr_modbus": "Modbus 式 (e.g. 40001)",
     "addr_hex": "十六進位 (e.g. 0x0000)",
     "addr_raw": "十進位 (e.g. 0)"
-  }
-}
+  },
+  "errors": {
+    "preview_invalid_request": "預覽請求參數無效。",
+    "preview_unavailable": "即時預覽目前無法使用。",
+    "runtime_device_not_found": "在運行環境中找不到目標設備。",
+    "runtime_snapshot_unavailable": "運行狀態快照目前無法載入。",
+    "runtime_stream_unavailable": "即時運行串流已中斷或無法連線。", "mapping_save_failed": "Mapping 無法儲存。", "mapping_save_failed_action": "請檢查映射內容後重試。", "share_runtime_start": "啟動", "share_runtime_stop": "停止",
+    "workspace_not_ready": "工作區尚未滿足就緒條件。", "activation_failed": "工作區啟用採集失敗。",
+    "settings_unavailable": "目前無法取得系統設定。", "settings_update_failed": "系統設定保存失敗。",
+    "settings_invalid": "系統設定請求無效。", "activation_request_invalid": "啟用請求無效。",
+    "readiness_blocked": "工作區仍有就緒阻擋項目，無法啟用。",
+    "modbus_share_save_incomplete": "自動儲存進行中或發生錯誤。",
+    "modbus_share_revision_conflict": "工作區設定版本發生衝突。",
+    "modbus_share_hydration_required": "存取 Modbus Share 前必須先完成工作區資料載入。",
+    "modbus_share_disabled": "Modbus Share 於全域設定中已停用。",
+    "modbus_share_range_collision": "偵測到暫存器位址範圍重疊衝突。",
+    "modbus_share_capacity_exceeded": "暫存器位址超過配置容量上限。",
+    "modbus_share_listener_bind_failed": "Modbus Share 通訊埠綁定失敗。",
+    "modbus_share_workspace_scope": "標籤不屬於目前工作區範圍。",
+    "modbus_share_reconcile_failed": "Modbus Share 無法套用要求的映射配置。",
+    "modbus_share_dirty_unknown": "Modbus Share 狀態不確定，需要執行復原。",
+    "modbus_share_projection_required": "請先套用已持久化的 Share 候選，再變更執行中的映射。",
+    "modbus_share_invalid_geometry": "暫存器資料型別、跨度、步距或容量設定無效。",
+    "validation": "送出的資料無效。",
+    "revision_mismatch": "保存版本已變更，請重新載入後再試。",
+    "not_found": "找不到要求的資源。",
+    "internal": "後端目前無法完成此請求。",
+    "retry": "重試", "request_id": "請求識別碼",
+    "generic_failure": "發生未預期的錯誤。請求識別碼：{{requestId}}",
+    "autosave_failed": "儲存失敗"
+  }}

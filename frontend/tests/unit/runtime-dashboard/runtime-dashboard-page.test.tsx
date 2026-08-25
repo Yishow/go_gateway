@@ -73,6 +73,7 @@ const baseState = {
   setupContext: createRuntimeSetupFixture(),
   onSelectDevice: vi.fn(),
   onRetrySnapshot: vi.fn(),
+  onReconnectStream: vi.fn(),
 };
 
 describe('RuntimeDashboardPage', () => {
@@ -218,7 +219,9 @@ describe('RuntimeDashboardPage', () => {
             last_failure_at: '2026-05-29T10:12:00Z',
             latest_successful_stage: 'runtime_projection',
             failure_stage: 'database_delivery',
-            failure_reason: 'permission denied',
+            failure_code: 'runtime_snapshot_unavailable',
+            failure_reason: 'permission denied: secret backend detail',
+            request_id: 'req-diagnostics-2',
             stages: [
               { stage: 'collector', status: 'success', observed_at: '2026-05-29T10:12:00Z' },
               { stage: 'mapping', status: 'success', observed_at: '2026-05-29T10:12:00Z' },
@@ -241,7 +244,10 @@ describe('RuntimeDashboardPage', () => {
 
     const panel = screen.getByTestId('runtime-dashboard-diagnostics-panel');
     expect(panel).toHaveTextContent('database_delivery');
-    expect(panel).toHaveTextContent('permission denied');
+    expect(panel).toHaveTextContent('Runtime snapshot is currently unavailable.');
+    expect(panel).toHaveTextContent('Request ID: req-diagnostics-2');
+    expect(panel).toHaveTextContent('Retry snapshot');
+    expect(panel).not.toHaveTextContent('permission denied');
     expect(panel).toHaveTextContent('2026-05-29T10:12:00Z');
     expect(panel).toHaveTextContent('runtime_projection');
   });
@@ -276,6 +282,79 @@ describe('RuntimeDashboardPage', () => {
     expect(screen.getByTestId('runtime-dashboard-live-state-banner')).toHaveTextContent('Live stream degraded');
     expect(screen.getByTestId('runtime-dashboard-header')).toHaveTextContent('Mixer PLC');
     expect(screen.getByText('2026-05-29T10:00:05Z')).toBeInTheDocument();
+  });
+
+  it('reconnects the SSE stream for a retryable runtime stream failure', () => {
+    const onReconnectStream = vi.fn();
+    const onRetrySnapshot = vi.fn();
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        routeState="degraded"
+        streamRecovery={{
+          code: 'runtime_stream_unavailable',
+          requestId: 'req-stream-7',
+          retryable: true,
+        }}
+        onReconnectStream={onReconnectStream}
+        onRetrySnapshot={onRetrySnapshot}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect live stream' }));
+
+    expect(onReconnectStream).toHaveBeenCalledTimes(1);
+    expect(onRetrySnapshot).not.toHaveBeenCalled();
+  });
+
+  it('renders typed runtime error copy and request id without raw diagnostics', () => {
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        routeState="error"
+        snapshotError={{
+          code: 'runtime_snapshot_unavailable',
+          title: 'runtime_snapshot_unavailable',
+          message: 'errors.runtime_snapshot_unavailable',
+          requestId: 'req-runtime-42',
+          retryable: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('runtime-dashboard-error-code')).toHaveTextContent(
+      'runtime_snapshot_unavailable',
+    );
+    expect(screen.getByTestId('runtime-dashboard-error-request-id')).toHaveTextContent(
+      'req-runtime-42',
+    );
+    expect(screen.getByTestId('runtime-dashboard-snapshot-error')).toHaveTextContent(
+      'errors.runtime_snapshot_unavailable',
+    );
+    expect(screen.getByTestId('runtime-dashboard-snapshot-error')).not.toHaveTextContent(
+      'dial tcp',
+    );
+  });
+
+  it('keeps snapshot failures on the snapshot retry action', () => {
+    const onRetrySnapshot = vi.fn();
+    render(
+      <RuntimeDashboardPage
+        {...baseState}
+        routeState="error"
+        snapshotError={{
+          code: 'runtime_snapshot_unavailable',
+          title: 'runtime_snapshot_unavailable',
+          message: 'errors.runtime_snapshot_unavailable',
+          retryable: true,
+        }}
+        onRetrySnapshot={onRetrySnapshot}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry snapshot' }));
+
+    expect(onRetrySnapshot).toHaveBeenCalledTimes(1);
   });
 
   it('shows a live-points placeholder when the snapshot is ready but no live values have arrived', () => {
@@ -340,7 +419,7 @@ describe('RuntimeDashboardPage', () => {
     expect(healthPanel).not.toHaveTextContent('9');
   });
 
-  it('keeps unavailable devices visible in the switcher with their reason', () => {
+  it('keeps unavailable devices visible with safe localized recovery guidance', () => {
     render(
       <RuntimeDashboardPage
         {...baseState}
@@ -359,6 +438,7 @@ describe('RuntimeDashboardPage', () => {
     );
 
     expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('Filler PLC');
-    expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('invalid Step 1 configuration');
+    expect(screen.getByTestId('runtime-dashboard-device-switcher')).toHaveTextContent('Review the device setup in Studio V2 and retry.');
+    expect(screen.getByTestId('runtime-dashboard-device-switcher')).not.toHaveTextContent('invalid Step 1 configuration');
   });
 });

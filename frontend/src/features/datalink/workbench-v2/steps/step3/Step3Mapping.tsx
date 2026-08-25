@@ -9,6 +9,7 @@ import { useStep3LiveValues } from './useStep3LiveValues';
 
 export interface Step3MappingProps {
   state: WorkbenchV2State;
+  workspaceId?: string;
   dispatch: React.Dispatch<WorkbenchV2Action>;
   onContinue: () => void;
   onBack: () => void;
@@ -22,6 +23,7 @@ export interface Step3MappingProps {
  */
 export const Step3Mapping: React.FC<Step3MappingProps> = ({
   state,
+  workspaceId,
   dispatch,
   onContinue,
   onBack,
@@ -81,6 +83,8 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
         devices={state.devices}
         rawValues={liveValues.rawValues}
         connectionByDevice={liveValues.connectionByDevice}
+        recoveryByDevice={liveValues.recoveryByDevice}
+        workspaceId={workspaceId}
         dispatch={dispatch}
       />
 

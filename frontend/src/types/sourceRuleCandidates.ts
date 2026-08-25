@@ -94,6 +94,8 @@ export interface SourceRuleCandidateSetView<TCandidate> {
 
 export interface SourceRuleCandidateSnapshotView {
   source_rule_id: string;
+  workspace_id?: string;
+  workspace_revision?: string;
   revision_id: string;
   tags: SourceRuleCandidateSetView<SourceRuleTagCandidateView>;
   database_outputs: SourceRuleCandidateSetView<SourceRuleDatabaseOutputCandidateView>;

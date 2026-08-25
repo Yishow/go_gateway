@@ -9,6 +9,8 @@ import './Steps.css';
 interface PreviewStepProps {
   /** 表單資料 */
   formData: WizardFormData;
+  /** Workspace scope used by live preview */
+  workspaceId: string;
   /** 確認回呼 */
   onConfirm: () => void;
   /** 是否已確認 */
@@ -22,6 +24,7 @@ interface PreviewStepProps {
  */
 export const PreviewStep: React.FC<PreviewStepProps> = ({
   formData,
+  workspaceId,
   onConfirm,
   confirmed,
   error,
@@ -57,6 +60,7 @@ export const PreviewStep: React.FC<PreviewStepProps> = ({
       <div className="preview-panel-wrapper">
         <LivePreviewPanel
           mappingId={mappingId}
+          workspaceId={workspaceId}
           autoStart={true}
         />
       </div>

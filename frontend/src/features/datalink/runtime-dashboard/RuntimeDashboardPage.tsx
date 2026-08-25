@@ -24,9 +24,11 @@ export function RuntimeDashboardPage({
   liveValues,
   streamState,
   logs = [],
+  streamRecovery,
   navigateTo,
   onSelectDevice,
   onRetrySnapshot,
+  onReconnectStream,
 }: RuntimeDashboardPageProps) {
   const { t } = useTranslation('runtime-dashboard');
   const collector =
@@ -213,19 +215,38 @@ export function RuntimeDashboardPage({
             <h2 className="text-xl font-semibold text-rose-100">
               {t('error.title', 'Runtime snapshot unavailable')}
             </h2>
+            {snapshotError?.code ? (
+              <p className="mt-2 font-mono text-xs text-rose-200/80" data-testid="runtime-dashboard-error-code">
+                {snapshotError.code}
+              </p>
+            ) : null}
             <p
               className="mt-2 text-sm text-rose-100/90"
               data-testid="runtime-dashboard-snapshot-error"
             >
-              {snapshotError ?? t('error.description', 'The runtime snapshot failed to load.')}
+              {snapshotError?.message ?? t('error.description', 'The runtime snapshot failed to load.')}
             </p>
-            <button
-              type="button"
-              onClick={() => void onRetrySnapshot()}
-              className="mt-5 rounded-xl border border-rose-300/30 bg-slate-950/40 px-4 py-2 text-sm font-medium text-rose-50 transition hover:border-rose-200/50"
-            >
-              {t('error.retry', 'Retry snapshot')}
-            </button>
+            {snapshotError?.requestId ? (
+              <p className="mt-2 text-xs text-rose-100/70" data-testid="runtime-dashboard-error-request-id">
+                {t('error.requestId', 'Request ID')}: {snapshotError.requestId}
+              </p>
+            ) : null}
+            {snapshotError?.code === 'runtime_device_not_found' ? (
+              <a
+                href="/studio/v2"
+                className="mt-5 inline-flex rounded-xl border border-rose-300/30 bg-slate-950/40 px-4 py-2 text-sm font-medium text-rose-50 transition hover:border-rose-200/50"
+              >
+                {t('error.returnToStudio', 'Return to Studio V2')}
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void onRetrySnapshot()}
+                className="mt-5 rounded-xl border border-rose-300/30 bg-slate-950/40 px-4 py-2 text-sm font-medium text-rose-50 transition hover:border-rose-200/50"
+              >
+                {t('error.retry', 'Retry snapshot')}
+              </button>
+            )}
           </section>
         </div>
       </div>
@@ -254,13 +275,21 @@ export function RuntimeDashboardPage({
           onSelectDevice={onSelectDevice}
         />
         {setupPanel}
-        <LiveStateBanner routeState={routeState} />
+        <LiveStateBanner
+          routeState={routeState}
+          streamRecovery={streamRecovery}
+          onRetry={onRetrySnapshot}
+          onReconnect={onReconnectStream}
+          navigateTo={navigateTo}
+        />
         {snapshot ? (
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <RuntimeSummaryPanel snapshot={snapshot} />
             <CollectorHealthPanel collector={collector} />
             <RuntimeDiagnosticsPanel
               diagnostics={snapshot.diagnostics}
+              databaseDelivery={snapshot.database_delivery}
+              modbusShareDelivery={snapshot.modbus_share_delivery}
               selectedDeviceId={selectedDeviceId}
             />
           </div>

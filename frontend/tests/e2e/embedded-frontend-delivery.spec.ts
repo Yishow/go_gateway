@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -123,6 +123,11 @@ test.describe('Embedded frontend delivery smoke', () => {
     baseURL = `http://127.0.0.1:${port}`;
     const binary = join(workDir, process.platform === 'win32' ? 'test-ui.exe' : 'test-ui');
 
+    const frontendRoot = join(repoRoot, 'frontend');
+    const staticRoot = join(repoRoot, 'cmd', 'test_ui', 'static');
+    await runProcess(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build'], { cwd: frontendRoot });
+    await rm(join(staticRoot, 'assets'), { recursive: true, force: true });
+    await cp(join(frontendRoot, 'dist'), staticRoot, { recursive: true, force: true });
     await runProcess('go', ['build', '-o', binary, './cmd/test_ui'], { cwd: repoRoot });
     server = spawn(binary, [], {
       cwd: workDir,

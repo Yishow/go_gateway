@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MappingPreviewCells } from '../../../src/features/datalink/workbench-v2/steps/step3/MappingPreviewCells';
 import { mappingAPI } from '../../../src/services/datalink';
@@ -61,12 +61,12 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderPreviewCells(nextMapping: Mapping = mapping, rawValue: unknown = 243) {
+function renderPreviewCells(nextMapping: Mapping = mapping, rawValue: unknown = 243, workspaceId?: string) {
   return render(
     <table>
       <tbody>
         <tr>
-          <MappingPreviewCells point={point} mapping={nextMapping} rawValue={rawValue} />
+          <MappingPreviewCells point={point} mapping={nextMapping} rawValue={rawValue} workspaceId={workspaceId} />
         </tr>
       </tbody>
     </table>,
@@ -80,6 +80,7 @@ describe('Step 3 live preview cells', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
   });
 
@@ -91,7 +92,7 @@ describe('Step 3 live preview cells', () => {
     renderPreviewCells();
 
     expect(mappingAPI.preview).not.toHaveBeenCalled();
-    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.30');
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
@@ -104,19 +105,30 @@ describe('Step 3 live preview cells', () => {
     expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('987.65');
   });
 
-  it('keeps local fallback values visible while preview request is in flight', async () => {
+  it('includes the active workspace id in preview requests', async () => {
+    vi.mocked(mappingAPI.preview).mockResolvedValue(createPreviewResponse());
+
+    renderPreviewCells(mapping, 243, 'workspace-42');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(mappingAPI.preview).toHaveBeenCalledWith(expect.objectContaining({ workspace_id: 'workspace-42' }));
+  });
+
+  it('keeps preview cells empty while the server request is in flight', async () => {
     const pending = deferred<MappingPreviewResponse>();
     vi.mocked(mappingAPI.preview).mockReturnValue(pending.promise);
 
     renderPreviewCells();
 
-    expect(screen.getByTestId('preview-scale-p-01')).toHaveTextContent('24.30');
+    expect(screen.getByTestId('preview-scale-p-01')).toHaveTextContent('--');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.30');
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
 
     pending.resolve(createPreviewResponse({ final_value: 654.32 }));
     await act(async () => {
@@ -126,8 +138,18 @@ describe('Step 3 live preview cells', () => {
     expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('654.32');
   });
 
-  it('keeps local fallback values when preview request fails', async () => {
-    vi.mocked(mappingAPI.preview).mockRejectedValue(new Error('preview failed from backend'));
+  it('fails closed when preview request fails instead of showing local values', async () => {
+    vi.mocked(mappingAPI.preview).mockRejectedValue({
+      response: {
+        data: {
+          error: {
+            code: 'preview_unavailable',
+            request_id: 'preview-request-42',
+            retryable: true,
+          },
+        },
+      },
+    });
 
     renderPreviewCells();
 
@@ -135,18 +157,77 @@ describe('Step 3 live preview cells', () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.30');
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
+    expect(screen.getByTestId('preview-state-p-01')).toHaveAttribute('data-state', 'error');
+    expect(screen.getByTestId('preview-error-p-01')).toHaveTextContent('preview_unavailable');
+    expect(screen.getByTestId('preview-request-id-p-01')).toHaveTextContent('preview-request-42');
+    expect(screen.getByTestId('preview-retry-p-01')).toBeEnabled();
   });
 
-  it('ignores stale preview responses after the row mapping changes', async () => {
-    const first = deferred<MappingPreviewResponse>();
-    const second = deferred<MappingPreviewResponse>();
+  it('retries a failed preview when the operator activates retry', async () => {
     vi.mocked(mappingAPI.preview)
-      .mockReturnValueOnce(first.promise)
-      .mockReturnValueOnce(second.promise);
+      .mockRejectedValueOnce(new Error('transient failure'))
+      .mockResolvedValueOnce(createPreviewResponse({ final_value: 55.5 }));
+
+    renderPreviewCells();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    fireEvent.click(screen.getByTestId('preview-retry-p-01'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(mappingAPI.preview).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('55.50');
+  });
+
+  it('clears the previous snapshot when raw input changes before retrying', async () => {
+    const retry = deferred<MappingPreviewResponse>();
+    vi.mocked(mappingAPI.preview)
+      .mockResolvedValueOnce(createPreviewResponse({ final_value: 12.34 }))
+      .mockRejectedValueOnce(new Error('transient preview failure'))
+      .mockReturnValueOnce(retry.promise);
 
     const { rerender } = renderPreviewCells();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('12.34');
 
+    rerender(
+      <table>
+        <tbody>
+          <tr>
+            <MappingPreviewCells point={point} mapping={mapping} rawValue={244} />
+          </tr>
+        </tbody>
+      </table>,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
+    expect(screen.getByTestId('preview-state-p-01')).toHaveAttribute('data-state', 'error');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    retry.resolve(createPreviewResponse({ final_value: 24.4 }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('24.40');
+    expect(screen.getByTestId('preview-state-p-01')).toHaveAttribute('data-state', 'live');
+  });
+
+  it('derives stale preview state from the existing live stream state', async () => {
+    vi.mocked(mappingAPI.preview).mockResolvedValue(createPreviewResponse({ final_value: 12.34 }));
+
+    const { rerender } = renderPreviewCells();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
@@ -157,39 +238,41 @@ describe('Step 3 live preview cells', () => {
           <tr>
             <MappingPreviewCells
               point={point}
-              mapping={{ ...mapping, scale: 0.2 }}
+              mapping={mapping}
               rawValue={243}
+              connectionState="stale"
             />
           </tr>
         </tbody>
       </table>,
     );
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(250);
-    });
-
-    second.resolve(createPreviewResponse({ final_value: 654.32 }));
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    first.resolve(createPreviewResponse({ final_value: 24.3 }));
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('654.32');
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('12.34');
+    expect(screen.getByTestId('preview-state-p-01')).toHaveAttribute('data-state', 'stale');
   });
 
-  it('does not send preview request when there is no live raw value yet', async () => {
-    renderPreviewCells(mapping, null);
+  it('uses only the bounded retry schedule for an initial snapshot failure', async () => {
+    vi.mocked(mappingAPI.preview).mockRejectedValue(new Error('preview unavailable'));
 
+    renderPreviewCells();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(250);
     });
 
-    expect(mappingAPI.preview).not.toHaveBeenCalled();
+    for (const delay of [1000, 2000, 4000, 8000, 16000, 30000]) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(delay);
+      });
+    }
+
+    expect(mappingAPI.preview).toHaveBeenCalledTimes(7);
+    expect(screen.getByTestId('preview-state-p-01')).toHaveAttribute('data-state', 'error');
     expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('--');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60000);
+    });
+    expect(mappingAPI.preview).toHaveBeenCalledTimes(7);
   });
+
 });

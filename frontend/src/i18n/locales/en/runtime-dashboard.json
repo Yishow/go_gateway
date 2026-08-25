@@ -3,8 +3,9 @@
     "eyebrow": "Runtime Dashboard",
     "noDevice": "Choose a device",
     "deviceMeta": "Protocol {{protocol}}",
-    "deviceMetaUnavailable": "Unavailable: {{reason}}",
+    "deviceMetaUnavailable": "Unavailable: runtime device context is unavailable.",
     "unavailable": "Unavailable",
+    "unavailableAction": "Review the device setup in Studio V2 and retry.",
     "deviceMetaEmpty": "Use the committed device context to inspect live runtime health."
   },
   "empty": {
@@ -22,7 +23,9 @@
   "error": {
     "title": "Runtime snapshot unavailable",
     "description": "The runtime snapshot failed to load.",
-    "retry": "Retry snapshot"
+    "retry": "Retry snapshot",
+    "requestId": "Request ID",
+    "returnToStudio": "Return to Studio V2"
   },
   "banner": {
     "live": "Live monitoring active",
@@ -111,9 +114,29 @@
     "timestamp": "Timestamp",
     "stale": "stale"
   },
+  "diagnostics": {
+    "requestId": "Request ID:"
+  },
   "logs": {
+    "device_error": "Device reported an error. Review the runtime status and retry.",
+    "device_error_cleared": "Device error cleared.",
+    "point_stale": "A point became stale.",
+    "point_recovered": "A point recovered.",
+    "stream_connecting": "Connecting to the runtime stream.",
+    "stream_connected": "Runtime stream connected.",
+    "stream_connection_lost": "Runtime stream connection lost. Reconnecting.",
     "title": "Diagnostic logs",
     "description": "Real-time diagnostic events and state transition history.",
     "empty": "No diagnostic logs emitted yet."
+  },
+  "errors": {
+    "browser_event_source_unsupported": "This browser does not support live runtime streams.",
+    "runtime_snapshot_unavailable": "Runtime snapshot is currently unavailable.",
+    "runtime_snapshot_unavailable_action": "Retry snapshot",
+    "modbus_share_delivery": "Modbus Share delivery is unavailable.",
+    "modbus_share_delivery_action": "Retry Modbus Share delivery",
+    "generic_failure": "Runtime diagnostics are unavailable.",
+    "retry": "Retry snapshot",
+    "reconnectStream": "Reconnect live stream"
   }
 }

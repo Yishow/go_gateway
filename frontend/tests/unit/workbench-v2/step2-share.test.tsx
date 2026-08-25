@@ -60,6 +60,25 @@ describe('ShareSection Component', () => {
     });
   });
 
+  it('全域 Share 停用時應將規則控制鎖定，且不得 dispatch 本地切換', () => {
+    const dispatch = vi.fn();
+    render(
+      <ShareSection
+        ruleId="rule-1"
+        shareEnabled={false}
+        shareStartRegister={null}
+        shareStride={null}
+        globalShareEnabled={false}
+        dispatch={dispatch}
+      />
+    );
+
+    const toggle = screen.getByRole('switch');
+    expect(toggle).toBeDisabled();
+    fireEvent.click(toggle);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it('手動設定起點暫存器時，應 dispatch updateRuleShareStart；若清空則傳遞 null', () => {
     const dispatch = vi.fn();
     render(

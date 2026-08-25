@@ -9,57 +9,26 @@
 // =============================================================================
 
 /** 協議類型 */
-export type ProtocolType =
-  | "modbus_tcp"
-  | "modbus_rtu"
-  | "modbus_udp"
-  | "fatek_fbs"
-  | "mc_3e"
-  | "mqtt";
+export type ProtocolType = "modbus_tcp" | "modbus_rtu" | "modbus_udp" | "fatek_fbs" | "mc_3e" | "mqtt";
 
 /** 設備狀態 */
 export type DeviceStatus = "draft" | "active" | "disabled";
 
 /** 資料類型 */
-export type DataType =
-  | "bool"
-  | "int16"
-  | "int32"
-  | "int64"
-  | "uint16"
-  | "uint32"
-  | "uint64"
-  | "float32"
-  | "float64"
-  | "string";
+export type DataType = "bool" | "int16" | "int32" | "int64" | "uint16" | "uint32" | "uint64" | "float32" | "float64" | "string";
 
 /**
  * 與後端 `schema.DataType` 一致之完整列舉，供表單、匯入與來源規劃器共用，避免各處清單漂移。
  */
 export const DATALINK_DATA_TYPES = [
-  "bool",
-  "int16",
-  "int32",
-  "int64",
-  "uint16",
-  "uint32",
-  "uint64",
-  "float32",
-  "float64",
-  "string",
+  "bool", "int16", "int32", "int64", "uint16", "uint32", "uint64", "float32", "float64", "string",
 ] as const satisfies readonly DataType[];
 
 /** 標籤狀態 */
 export type TagStatus = "draft" | "active" | "retired";
 
 /** 轉換類型 */
-export type TransformType =
-  | "decode"
-  | "cast"
-  | "scale"
-  | "lookup"
-  | "conditional"
-  | "formula";
+export type TransformType = "decode" | "cast" | "scale" | "lookup" | "conditional" | "formula";
 
 /** 時間精度 */
 export type TimePrecision = "second" | "millisecond";
@@ -412,6 +381,7 @@ export interface UpdateMappingRequest {
 
 /** 映射預覽請求 */
 export interface MappingPreviewRequest {
+  workspace_id?: string;
   raw_value?: unknown;
   point_id?: string;
   mapping_id?: string;
@@ -435,6 +405,20 @@ export interface MappingPreviewResponse {
   pipeline?: TransformStep[];
   error?: string;
 }
+
+export type {
+  ModbusShareDesiredMapping,
+  ModbusShareCanonicalPlan,
+  ModbusShareMapping,
+  ModbusShareReconcileDiagnostic,
+  ModbusShareReconcileOutcome,
+  ModbusShareReconcileRequest,
+  ModbusShareLifecycleRequest,
+  ModbusShareMirrorMapping,
+  ModbusShareSpanRange,
+  ModbusShareStatus,
+  TypedAPIError,
+} from './modbusShare';
 
 // =============================================================================
 // 系統設定相關
@@ -494,6 +478,8 @@ export interface APIResponse<T> {
   error?: {
     code: string;
     message: string;
+    retryable?: boolean;
+    request_id?: string;
     details?: string;
   };
   meta?: {
@@ -548,6 +534,8 @@ export interface RuntimeStatus {
   uptime_seconds: number;
   metrics?: RuntimeMetrics;
   collectors: RuntimeCollectorStatus[];
+  database_delivery?: import('./runtimeDiagnostics').DatabaseDeliveryDiagnostic[];
+  modbus_share_delivery?: import('./runtimeDiagnostics').ModbusShareDeliveryDiagnostic[];
 }
 
 export interface RuntimeValueEvent {
@@ -559,6 +547,25 @@ export interface RuntimeValueEvent {
   quality: 'good' | 'bad' | 'uncertain';
   stale: boolean;
   timestamp: string;
+}
+
+/** Typed runtime stream availability event emitted on the named SSE channel. */
+export interface RuntimeStreamStateEvent {
+  device_id?: string;
+  stream_state?: import('./runtimeTruth').RuntimeTruthState;
+  timestamp?: string;
+  code?: string;
+  action?: string;
+  request_id?: string;
+  retryable?: boolean;
+}
+
+/** Safe typed recovery metadata retained from a runtime stream state event. */
+export interface RuntimeStreamRecovery {
+  code?: string;
+  action?: string;
+  requestId?: string;
+  retryable: boolean;
 }
 
 export interface RuntimeDeviceStatusEvent {
@@ -574,29 +581,15 @@ export interface RuntimeDeviceStatusEvent {
 }
 
 export type RuntimeStreamConnectionState =
+  | 'idle'
   | 'connecting'
   | 'connected'
-  | 'disconnected'
-  | 'error';
-
-// =============================================================================
-// Local Modbus Share
-// =============================================================================
-
-export interface ModbusShareStatus {
-  enabled: boolean;
-  port: number;
-  address: string;
-  bind_state: 'pass' | 'fail';
-  mapping_count: number;
-}
-
-export interface ModbusShareMapping {
-  tag_id: string;
-  register: number;
-  data_type: DataType;
-  updated_at: string;
-}
+  | 'live'
+  | 'reconnecting'
+  | 'degraded'
+  | 'error'
+  | 'stale'
+  | 'disconnected';
 
 // =============================================================================
 // Database Target

@@ -5,6 +5,7 @@ import { ScaleSection } from '../../../src/features/datalink/workbench-v2/steps/
 import { RuleEditor } from '../../../src/features/datalink/workbench-v2/steps/step2/RuleEditor';
 import { MergedPointTable } from '../../../src/features/datalink/workbench-v2/steps/step2/MergedPointTable';
 import { Step2Rule } from '../../../src/features/datalink/workbench-v2/steps/step2/Step2Rule';
+import type { ModbusShareStatus } from '../../../src/types/modbusShare';
 import type { Rule, Device, Point } from '../../../src/features/datalink/workbench-v2/state/types';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 
@@ -297,6 +298,8 @@ describe('Step2Rule 整合元件', () => {
           bind_address: '0.0.0.0',
           port: 502,
           slave_id: 1,
+          capacity_registers: 32768,
+          settings_revision: '',
           base_register: 40001,
         },
         general: {
@@ -322,6 +325,30 @@ describe('Step2Rule 整合元件', () => {
     expect(screen.getByTestId('rule-editor')).toBeInTheDocument();
     expect(screen.getByTestId('point-grid')).toBeInTheDocument();
     expect(screen.getByTestId('merged-point-table-container')).toBeInTheDocument();
+  });
+
+  it('以 persisted Share disabled status 進入時不得沿用 settings 預設 enabled', () => {
+    const disabledShareStatus: ModbusShareStatus = {
+      enabled: false,
+      configured_enabled: false,
+      port: 5020,
+      address: '',
+      bind_state: 'disabled',
+      mapping_count: 0,
+      hydration_state: 'ready',
+      readiness: true,
+    };
+
+    render(
+      <Step2Rule
+        state={{ ...INITIAL_STATE, current: 2 }}
+        dispatch={vi.fn()}
+        onContinue={vi.fn()}
+        shareStatus={disabledShareStatus}
+      />,
+    );
+
+    expect(screen.getByRole('switch', { name: '啟用此規則的 Modbus Share 記憶體對應' })).toBeDisabled();
   });
 
   it('無效 MC 位址不應衍生點位，且繼續到 Step 3 應 disabled', () => {

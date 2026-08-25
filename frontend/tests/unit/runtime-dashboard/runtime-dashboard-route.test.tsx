@@ -30,6 +30,7 @@ const routeStateMock = vi.hoisted(() => ({
   logs: [],
   onSelectDevice: vi.fn(),
   onRetrySnapshot: vi.fn(),
+  onReconnectStream: vi.fn(),
 }));
 
 vi.mock('../../../src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page', () => ({

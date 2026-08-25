@@ -1,30 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { logger } from "../utils/logger";
+import { VITE_API_BASE_URL } from "../env";
+import { parsePreviewEvent, type PreviewEvent } from './previewStreamEvents';
+import { parseBoundedJson } from '../utils/safeJson';
 
-/**
- * SSE 預覽事件類型
- */
-export interface PreviewEvent {
-  type: "connected" | "preview" | "heartbeat" | "error";
-  mapping_id?: string;
-  raw_value?: number | string | boolean;
-  final_value?: number | string | boolean;
-  steps?: StepResult[];
-  quality?: number;
-  timestamp: string;
-  error?: string;
-}
-
-/**
- * 步驟結果
- */
-export interface StepResult {
-  step_index: number;
-  step_type: string;
-  input: number | string | boolean;
-  output: number | string | boolean;
-  error?: string;
-}
+export { parsePreviewEvent } from './previewStreamEvents';
+export type { PreviewErrorEnvelope, PreviewEvent, StepResult } from './previewStreamEvents';
 
 /**
  * SSE 連接狀態
@@ -41,6 +22,8 @@ export type SSEConnectionState =
 interface UsePreviewStreamOptions {
   /** Mapping ID */
   mappingId: string;
+  /** Workspace scope required by the preview stream */
+  workspaceId: string;
   /** 是否自動連接 */
   autoConnect?: boolean;
   /** 重連延遲 (ms) */
@@ -61,6 +44,7 @@ interface UsePreviewStreamReturn {
   connectionState: SSEConnectionState;
   /** 錯誤訊息 */
   error: string | null;
+  requestId: string | null;
   /** 開始連接 */
   connect: () => void;
   /** 斷開連接 */
@@ -78,6 +62,7 @@ interface UsePreviewStreamReturn {
  * ```tsx
  * const { latestEvent, connectionState, connect, disconnect } = usePreviewStream({
  *   mappingId: 'mapping-123',
+ *   workspaceId: 'workspace-123',
  *   autoConnect: true,
  * });
  *
@@ -94,20 +79,23 @@ export function usePreviewStream(
 ): UsePreviewStreamReturn {
   const {
     mappingId,
+    workspaceId,
     autoConnect = false,
     reconnectDelay = 3000,
     maxReconnectAttempts = 5,
-    baseUrl = "/api/v1",
+    baseUrl = VITE_API_BASE_URL,
   } = options;
 
   const [latestEvent, setLatestEvent] = useState<PreviewEvent | null>(null);
   const [connectionState, setConnectionState] =
     useState<SSEConnectionState>("disconnected");
   const [error, setError] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionGenerationRef = useRef(0);
 
   /**
    * 清理重連計時器
@@ -123,6 +111,7 @@ export function usePreviewStream(
    * 斷開連接
    */
   const disconnect = useCallback(() => {
+    connectionGenerationRef.current += 1;
     clearReconnectTimeout();
 
     if (eventSourceRef.current) {
@@ -138,26 +127,42 @@ export function usePreviewStream(
    * 連接到 SSE 端點
    */
   const connect = useCallback(() => {
+    if (!mappingId || !workspaceId) {
+      setConnectionState("disconnected");
+      return;
+    }
+    connectionGenerationRef.current += 1;
+    const generation = connectionGenerationRef.current;
+    clearReconnectTimeout();
     // 如果已經連接，先斷開
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
 
     setConnectionState("connecting");
     setError(null);
+    setRequestId(null);
 
-    const url = `${baseUrl}/datalink/preview/stream?mapping_id=${encodeURIComponent(mappingId)}`;
+    const url = `${baseUrl}/datalink/preview/stream?workspace_id=${encodeURIComponent(workspaceId)}&mapping_id=${encodeURIComponent(mappingId)}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
+    const isCurrent = () => connectionGenerationRef.current === generation;
 
     eventSource.onopen = () => {
+      if (!isCurrent()) return;
       setConnectionState("connected");
       reconnectAttemptsRef.current = 0;
     };
 
     eventSource.onmessage = (event) => {
+      if (!isCurrent()) return;
       try {
-        const data: PreviewEvent = JSON.parse(event.data);
+        const data = parsePreviewEvent(parseBoundedJson(event.data));
+        if (!data) {
+          logger.warn("Ignored malformed preview SSE event");
+          return;
+        }
         setLatestEvent(data);
 
         // 如果收到 connected 事件，更新狀態
@@ -166,8 +171,17 @@ export function usePreviewStream(
         }
 
         // 如果收到 error 事件，記錄錯誤
-        if (data.type === "error" && data.error) {
-          setError(data.error);
+        if (data.type === "error") {
+          setError(data.code ?? "preview_unavailable");
+          setRequestId(data.request_id ?? null);
+        }
+
+        if (data.type === "close") {
+          setError(data.code ?? "preview_unavailable");
+          setRequestId(data.request_id ?? null);
+          setConnectionState("disconnected");
+          eventSource.close();
+          if (isCurrent()) eventSourceRef.current = null;
         }
       } catch (err) {
         logger.error("Failed to parse SSE event:", err);
@@ -175,6 +189,7 @@ export function usePreviewStream(
     };
 
     eventSource.onerror = () => {
+      if (!isCurrent()) return;
       setConnectionState("error");
       eventSource.close();
       eventSourceRef.current = null;
@@ -183,34 +198,35 @@ export function usePreviewStream(
       if (reconnectAttemptsRef.current < maxReconnectAttempts) {
         reconnectAttemptsRef.current += 1;
         setError(
-          `連線中斷，${reconnectDelay / 1000} 秒後重連 (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`,
+          "preview_unavailable",
         );
 
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          if (isCurrent()) connect();
         }, reconnectDelay);
       } else {
-        setError("連線失敗，已達最大重連次數");
+        setError("preview_unavailable");
         setConnectionState("disconnected");
       }
     };
-  }, [mappingId, baseUrl, reconnectDelay, maxReconnectAttempts]);
+  }, [baseUrl, clearReconnectTimeout, mappingId, maxReconnectAttempts, reconnectDelay, workspaceId]);
 
   // 自動連接
   useEffect(() => {
-    if (autoConnect && mappingId) {
+    if (autoConnect && mappingId && workspaceId) {
       connect();
     }
 
     return () => {
       disconnect();
     };
-  }, [autoConnect, mappingId, connect, disconnect]);
+  }, [autoConnect, mappingId, workspaceId, connect, disconnect]);
 
   return {
     latestEvent,
     connectionState,
     error,
+    requestId,
     connect,
     disconnect,
     isConnected: connectionState === "connected",

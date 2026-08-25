@@ -1,50 +1,21 @@
 {
   "steps": {
-    "device": {
-      "title": "Add Device",
-      "subtitle": "Device + Protocol"
-    },
-    "rule": {
-      "title": "Source Rule",
-      "subtitle": "Source Rules · Multiple Ranges"
-    },
-    "mapping": {
-      "title": "Point Mapping",
-      "subtitle": "Point → Tag"
-    },
-    "database": {
-      "title": "Save to Database",
-      "subtitle": "DB Target · Commit"
-    }
+    "device": { "title": "Add Device", "subtitle": "Device + Protocol" },
+    "rule": { "title": "Source Rule", "subtitle": "Source Rules · Multiple Ranges" },
+    "mapping": { "title": "Point Mapping", "subtitle": "Point → Tag" },
+    "database": { "title": "Save to Database", "subtitle": "DB Target · Commit" }
   },
   "buttons": {
-    "saveDraft": "Save Draft",
-    "cancel": "Cancel",
-    "next": "Next Step",
-    "prev": "Previous Step",
-    "submit": "Submit and Start Scheduler",
-    "save": "Save",
-    "create": "Create",
-    "continue": "Continue"
+    "saveDraft": "Save Draft", "cancel": "Cancel", "next": "Next Step", "prev": "Previous Step",
+    "submit": "Submit and Start Scheduler", "save": "Save", "create": "Create", "continue": "Continue", "toggle": "Toggle"
   },
   "status": {
-    "draft": "Draft",
-    "active": "Active",
-    "disabled": "Disabled",
-    "tested": "Tested",
-    "committed": "Committed"
+    "draft": "Draft", "active": "Active", "disabled": "Disabled", "tested": "Tested", "committed": "Committed"
   },
   "loading": {
-    "saving": "Saving…",
-    "loading": "Loading…",
-    "testing": "Testing…",
-    "committing": "Committing…"
-  },
+    "saving": "Saving…", "loading": "Loading…", "testing": "Testing…", "committing": "Committing…" },
   "labels": {
-    "devices": "Devices",
-    "rules": "Source Rules",
-    "mappings": "Point Mapping",
-    "database": "Save to Database"
+    "devices": "Devices", "rules": "Source Rules", "mappings": "Point Mapping", "database": "Save to Database"
   },
   "step1": {
     "labels": {
@@ -230,7 +201,10 @@
       "cast": "cast to {{type}}",
       "final": "final → Tag"
     },
-    "table": {
+    "previewStates": { "idle": "Preview idle", "connecting": "Connecting to preview", "live": "Live preview", "reconnecting": "Reconnecting to preview", "degraded": "Preview degraded", "error": "Preview unavailable", "stale": "Preview stale" },
+    "connectionStates": { "idle": "Idle", "connecting": "Connecting", "connected": "Connected", "live": "Live", "reconnecting": "Reconnecting", "degraded": "Degraded", "error": "Stream error", "stale": "Stale", "disconnected": "Not connected" },
+    "recovery": { "retryAction": "Retrying the runtime stream…" },
+    "unknownDevice": "Unknown device", "saveStates": { "saving": "Saving", "saved": "Saved", "save-error": "Save failed", "draft-invalid": "Draft needs attention" }, "placeholders": { "tagKey": "temp.inlet", "displayName": "Display name", "unit": "No unit" }, "table": {
       "noPoints": "No enabled points. Go back to enable or add rules.",
       "enabledSummary": "Loaded {{count}} mapping rows",
       "bulkApplySource": "Source: {{tag}}",
@@ -290,8 +264,7 @@
     "overview_scope": "Rules / points",
     "overview_scope_value": "{{rules}} rules / {{points}} points",
     "overview_targets": "Enabled columns",
-    "share_output_title": "Local Share output",
-    "share_output_subtitle": "Non-Modbus source points are exposed through holding registers independently of database targets.",
+    "share_output_title": "Local Share output", "share_output_subtitle": "Non-Modbus source points are exposed through holding registers independently of database targets.", "share_output_blocked": "Share output is waiting for backend workspace hydration.", "share_output_unknown": "Share output status is unavailable; no default layout is shown.", "share_output_disabled": "Backend Share is disabled in persisted settings.", "share_output_pending": "Backend Share is configured but not running yet.", "share_output_failed": "Backend Share is configured but failed to start. Retry after reviewing the persisted settings.", "share_output_review_title": "Register allocation review", "share_output_review_subtitle": "Backend canonical geometry; ranges are inclusive.", "share_output_human_register": "Human register", "share_output_zero_based_register": "Zero-based", "share_output_span": "Span", "share_output_stride": "Stride", "share_output_capacity": "Capacity", "share_output_datatype": "Datatype", "share_output_status_valid": "valid", "share_output_status_blocked": "blocked", "share_output_status_invalidated": "invalidated", "share_output_status_failed": "failed", "share_output_diagnostic_title": "Backend allocation diagnostic", "share_output_diagnostic_action": "Recovery:", "share_output_diagnostic_retryable": "This operation can be retried after the blocking condition is resolved.", "share_output_blocking_reason": "Blocking reason:", "share_output_ownership": "Ownership:", "share_output_ownership_verified": "verified", "share_output_ownership_unverified": "unverified",
     "delivery_readiness": "Connection readiness",
     "delivery_readiness_ready": "Reachable",
     "delivery_readiness_unreachable": "Unreachable",
@@ -355,8 +328,11 @@
     "fix_step_action": "Go to {{step}}",
     "progress_title": "First Device Activation",
     "progress_subtitle": "Activating every eligible workspace device...",
+    "progress_status": { "pending": "Waiting to run", "running": "In progress", "success": "Completed successfully", "failed": "Activation failed", "skipped": "Skipped" }, "activation_no_success": "No device was activated. Review the failure details and retry.",
     "waiting_logs": "Preparing command queue...",
     "executing_next_command": "Activating devices...",
+    "retry_action": "Retry activation",
+    "retrying": "Retrying activation...",
     "results_title": "Activation Results",
     "results_subtitle": "Each device keeps its own activation outcome. Successful devices are not rolled back because another one failed.",
     "go_to_dashboard_btn": "Go to Runtime Dashboard",
@@ -420,6 +396,7 @@
     "scope": "Scope: {{scope}}"
   },
   "settings": {
+    "backend_load_error": "Unable to load system settings. Check the backend database connection and retry.", "backend_loading": "Loading system settings...",
     "title": "System Settings",
     "subtitle": "Manage global gateway connections, storage schedules, byte mapping forwarding, and developer diagnostics tools.",
     "api_title": "API Endpoint",
@@ -453,7 +430,8 @@
     "share_port": "Port",
     "share_slave_id": "Slave ID",
     "share_base_register": "Base Register Address",
-    "modbus_share_disabled_msg": "Modbus share service is disabled. Enabling it will link the address layout to Step 2 Modbus Share registers.",
+    "share_base_register_auto": "From saved backend candidate", "share_runtime_running": "Backend Share is running", "share_runtime_failed": "Backend Share failed to start", "share_runtime_disabled": "Backend Share is disabled", "share_runtime_pending": "Backend Share is waiting for readiness",
+    "share_capacity_registers": "Register Capacity", "modbus_share_disabled_msg": "Modbus share service is disabled. Enabling it will link the address layout to Step 2 Modbus Share registers.",
     "reset_confirm_msg": "Are you sure you want to reset all settings to defaults? This will erase all current configurations and connector pools.",
     "save_bar_info": "Changes are applied to runtime immediately and persist after the next backend restart.",
     "reset_to_defaults_btn": "Reset to Defaults",
@@ -488,5 +466,34 @@
     "addr_modbus": "Modbus Format (e.g. 40001)",
     "addr_hex": "Hex Offset (e.g. 0x0000)",
     "addr_raw": "Dec Offset (e.g. 0)"
-  }
-}
+  },
+  "errors": {
+    "preview_invalid_request": "Invalid preview request parameters.",
+    "preview_unavailable": "Live preview is currently unavailable.",
+    "runtime_device_not_found": "Target device not found in runtime context.",
+    "runtime_snapshot_unavailable": "Runtime snapshot is currently unavailable.",
+    "runtime_stream_unavailable": "Live runtime stream disconnected or unavailable.", "mapping_save_failed": "Mapping could not be saved.", "mapping_save_failed_action": "Review the mapping and retry.", "share_runtime_start": "Start", "share_runtime_stop": "Stop",
+    "workspace_not_ready": "Workspace readiness requirements not met.", "activation_failed": "Workspace activation failed.",
+    "settings_unavailable": "Settings are temporarily unavailable.", "settings_update_failed": "Settings could not be saved.",
+    "settings_invalid": "The settings request is invalid.", "activation_request_invalid": "The activation request is invalid.",
+    "readiness_blocked": "Workspace activation is blocked by readiness issues.",
+    "modbus_share_save_incomplete": "Autosave is pending or in an error state.",
+    "modbus_share_revision_conflict": "Workspace configuration revision conflict.",
+    "modbus_share_hydration_required": "Workspace hydration required before accessing Share.",
+    "modbus_share_disabled": "Modbus Share is disabled in settings.",
+    "modbus_share_range_collision": "Register address range collision detected.",
+    "modbus_share_capacity_exceeded": "Register address exceeds allocated capacity.",
+    "modbus_share_listener_bind_failed": "Modbus Share port binding failed.",
+    "modbus_share_workspace_scope": "Tag is not owned by the current workspace.",
+    "modbus_share_reconcile_failed": "Modbus Share could not reconcile the requested mapping.",
+    "modbus_share_dirty_unknown": "Modbus Share state is uncertain and requires recovery.",
+    "modbus_share_projection_required": "Apply a persisted Share candidate before changing runtime mapping.",
+    "modbus_share_invalid_geometry": "The register datatype, span, stride, or capacity is invalid.",
+    "validation": "The submitted values are invalid.",
+    "revision_mismatch": "The persisted revision has changed. Refresh and try again.",
+    "not_found": "The requested resource was not found.",
+    "internal": "The backend could not complete the request.",
+    "retry": "Retry", "request_id": "Request ID",
+    "generic_failure": "An unexpected error occurred. Request ID: {{requestId}}",
+    "autosave_failed": "Save failed"
+  }}

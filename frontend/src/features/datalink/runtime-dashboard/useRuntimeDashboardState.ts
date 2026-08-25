@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useStudioV2RuntimeContextQuery } from '../../../hooks/datalink/useStudioV2RuntimeContext';
 import { usePointsQuery } from '../../../hooks/datalink/usePoints';
@@ -8,22 +9,16 @@ import type {
   StudioV2RuntimeSetupContext,
 } from '../../../types/studioV2RuntimeContext';
 import type { RuntimeStatusWithDiagnostics } from '../../../types/runtimeDiagnostics';
+import { getSafeErrorMessage, type SafeErrorMessage } from '../../../utils/typedErrors';
 import { useRuntimeStatus } from './useRuntimeStatus';
 import { useRuntimeDashboardStream } from './useRuntimeStream';
 import type {
   RuntimeDashboardLog,
   RuntimeDashboardStreamConnectionState,
 } from './useRuntimeStream';
+import type { RuntimeStreamRecovery } from '../../../types/datalink';
 
 const degradedPollingIntervalMs = 5000;
-
-function isMissingRuntimeDeviceError(message: string | null): boolean {
-  if (!message) {
-    return false;
-  }
-
-  return message.includes('device not found');
-}
 
 export type RuntimeDashboardRouteState =
   | 'missing-device-context'
@@ -41,15 +36,18 @@ export interface RuntimeDashboardState {
   devices: StudioV2RuntimeContextDevice[];
   setupContext: StudioV2RuntimeSetupContext | null;
   snapshot: RuntimeStatusWithDiagnostics | null;
-  snapshotError: string | null;
+  snapshotError: SafeErrorMessage | null;
   liveValues: Record<string, RuntimeValueEvent>;
   streamState: RuntimeDashboardStreamConnectionState;
   logs?: RuntimeDashboardLog[];
+  streamRecovery?: RuntimeStreamRecovery | null;
   onSelectDevice: (deviceId: string) => void;
   onRetrySnapshot: () => Promise<unknown>;
+  onReconnectStream: () => void;
 }
 
 export function useRuntimeDashboardState(): RuntimeDashboardState {
+  const { t: translateError } = useTranslation('workbench-v2');
   const [searchParams, setSearchParams] = useSearchParams();
   const queryDeviceId = searchParams.get('device_id');
   const [lastSnapshot, setLastSnapshot] = useState<RuntimeStatusWithDiagnostics | null>(null);
@@ -88,11 +86,10 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     deviceId: observableDeviceId,
     pollingIntervalMs: isDegraded ? degradedPollingIntervalMs : false,
   });
-  const snapshotQueryError =
-    snapshotQuery.error instanceof Error ? snapshotQuery.error.message : null;
-  const runtimeContextError =
-    runtimeContextQuery.error instanceof Error ? runtimeContextQuery.error.message : null;
-  const snapshotError = runtimeContextError ?? snapshotQueryError;
+  const snapshotError = useMemo(() => {
+    const error = runtimeContextQuery.error ?? snapshotQuery.error;
+    return error ? getSafeErrorMessage(error, translateError) : null;
+  }, [runtimeContextQuery.error, snapshotQuery.error, translateError]);
 
   const stream = useRuntimeDashboardStream({
     deviceId: observableDeviceId,
@@ -116,7 +113,13 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return;
     }
 
-    if (stream.connectionState === 'error' && lastSnapshot) {
+    if (
+      (stream.connectionState === 'error' ||
+        stream.connectionState === 'degraded' ||
+        stream.connectionState === 'unavailable' ||
+        stream.connectionState === 'reconnecting') &&
+      lastSnapshot
+    ) {
       setIsDegraded(true);
     }
   }, [lastSnapshot, stream.connectionState]);
@@ -142,7 +145,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       return 'missing-device-context';
     }
 
-    if (!lastSnapshot && isMissingRuntimeDeviceError(snapshotError)) {
+    if (!lastSnapshot && snapshotError?.code === 'runtime_device_not_found') {
       return 'missing-device-context';
     }
 
@@ -164,6 +167,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
       snapshotState?.stale ||
       isDegraded ||
       stream.connectionState === 'unavailable' ||
+      stream.connectionState === 'degraded' ||
       stream.connectionState === 'error'
     ) {
       return 'degraded';
@@ -183,7 +187,7 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     runtimeContextQuery.isLoading,
     selectedDeviceContextMissing,
     selectedDeviceId,
-    snapshotError,
+    snapshotError?.code,
     snapshotState?.degraded,
     snapshotState?.empty,
     snapshotState?.stale,
@@ -205,11 +209,13 @@ export function useRuntimeDashboardState(): RuntimeDashboardState {
     liveValues: stream.liveValues,
     streamState: stream.connectionState,
     logs: stream.logs,
+    streamRecovery: stream.streamRecovery,
     onSelectDevice: (deviceId: string) => {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set('device_id', deviceId);
       setSearchParams(nextParams);
     },
     onRetrySnapshot: () => snapshotQuery.refetch(),
+    onReconnectStream: stream.reconnect,
   };
 }

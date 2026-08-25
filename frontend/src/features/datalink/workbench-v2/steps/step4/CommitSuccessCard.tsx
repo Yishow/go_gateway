@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { StudioV2ActivationResponse } from '../../../../../types/studioV2Activation';
+import { normalizeTypedEnvelope } from '../../../../../utils/safeJson';
 
 /**
  * CommitSuccessCard 元件屬性
@@ -22,6 +23,7 @@ export function CommitSuccessCard({
   onReset,
 }: CommitSuccessCardProps) {
   const { t } = useTranslation('workbench-v2');
+  const responseEnvelope = normalizeTypedEnvelope(response);
 
   return (
     <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-6 flex flex-col justify-between h-full backdrop-blur-sm shadow-[0_0_24px_rgba(16,185,129,0.05)]">
@@ -39,12 +41,14 @@ export function CommitSuccessCard({
           </p>
         </div>
 
-        {response.message && (
+        {responseEnvelope.code && (
           <div
             data-testid="activation-empty-message"
             className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
           >
-            {response.message}
+            {t(`errors.${responseEnvelope.code}`, {
+              defaultValue: t('errors.activation_failed', 'Workspace activation failed.'),
+            })}
           </div>
         )}
 
@@ -61,13 +65,17 @@ export function CommitSuccessCard({
                   className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                     result.status === 'success'
                       ? 'bg-emerald-500/10 text-emerald-300'
-                      : 'bg-rose-500/10 text-rose-300'
+                      : result.status === 'failed'
+                        ? 'bg-rose-500/10 text-rose-300'
+                        : 'bg-amber-500/10 text-amber-300'
                   }`}
                 >
                   {result.status}
                 </span>
               </div>
-              <p className="mt-2 text-xs text-slate-400">{result.message}</p>
+              <p className="mt-2 text-xs text-slate-400">
+                {t(`step4.progress_status.${result.status}`, result.status)}
+              </p>
             </div>
           ))}
         </div>

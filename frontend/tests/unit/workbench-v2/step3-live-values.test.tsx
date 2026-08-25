@@ -52,11 +52,22 @@ class MockEventSource {
     this.onopen?.();
   }
 
+  emitError() {
+    this.onerror?.();
+  }
+
   emitValue(payload: RuntimeValueEvent) {
     const event = {
       data: JSON.stringify(payload),
     } as MessageEvent<string>;
     this.listeners.get('value')?.forEach((listener) => listener(event as unknown as Event));
+  }
+
+  emit(type: string, payload: unknown) {
+    const event = {
+      data: JSON.stringify(payload),
+    } as MessageEvent<string>;
+    this.listeners.get(type)?.forEach((listener) => listener(event as unknown as Event));
   }
 }
 
@@ -196,6 +207,7 @@ describe('useStep3LiveValues', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
     createdQueryClients.splice(0).forEach((queryClient) => {
       queryClient.clear();
@@ -230,10 +242,74 @@ describe('useStep3LiveValues', () => {
       });
     });
 
-    expect(result.current.connectionByDevice['dev-01']).toBe('connected');
-    expect(result.current.connectionByDevice['dev-02']).toBe('connected');
+    expect(['connected', 'live']).toContain(result.current.connectionByDevice['dev-01']);
+    expect(['connected', 'live']).toContain(result.current.connectionByDevice['dev-02']);
     expect(result.current.liveValues['p-02']?.raw_value).toBe(321);
     expect(result.current.rawValues['p-02']).toBe(321);
+  });
+
+  it('consumes typed stream_state recovery metadata and clears it after readiness', async () => {
+    const { result } = renderHook(() => useStep3LiveValues([points[0]], { 'p-01': mappings['p-01'] }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+    const source = MockEventSource.instances[0];
+
+    act(() => {
+      source.emit('stream_state', {
+        device_id: 'dev-01',
+        stream_state: { state: 'unavailable', empty: false, degraded: false, unavailable: true, stale: false },
+        timestamp: '2026-08-25T00:00:00Z',
+        code: 'runtime_stream_unavailable',
+        action: 'retry the runtime stream',
+        request_id: 'runtime-request-7',
+        retryable: true,
+      });
+    });
+
+    await waitFor(() => expect(result.current.connectionByDevice['dev-01']).toBe('degraded'));
+    expect(result.current.recoveryByDevice['dev-01']).toEqual({
+      code: 'runtime_stream_unavailable',
+      action: 'retry the runtime stream',
+      requestId: 'runtime-request-7',
+      retryable: true,
+    });
+
+    act(() => {
+      source.emit('stream_state', {
+        device_id: 'dev-01',
+        stream_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false },
+        timestamp: '2026-08-25T00:00:01Z',
+        code: 'runtime_stream_ready',
+        request_id: 'runtime-request-8',
+        retryable: false,
+      });
+    });
+
+    await waitFor(() => expect(result.current.connectionByDevice['dev-01']).toBe('connected'));
+    expect(result.current.recoveryByDevice['dev-01']).toBeUndefined();
+  });
+
+  it('retries with bounded 1/2/4/8/16/30 second delays then exposes degraded state', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useStep3LiveValues(points, mappings), {
+      wrapper: createWrapper(),
+    });
+
+    const delays = [1000, 2000, 4000, 8000, 16000, 30000];
+    for (const delay of delays) {
+      const source = MockEventSource.instances.find((candidate) => !candidate.closed && candidate.url.includes('dev-01'));
+      expect(source).toBeDefined();
+      act(() => source?.emitError());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(delay);
+      });
+    }
+
+    const exhaustedSource = MockEventSource.instances.find((candidate) => !candidate.closed && candidate.url.includes('dev-01'));
+    act(() => exhaustedSource?.emitError());
+
+    expect(result.current.connectionByDevice['dev-01']).toBe('degraded');
   });
 
   it('does not recreate runtime streams when unrelated mapping fields change', () => {

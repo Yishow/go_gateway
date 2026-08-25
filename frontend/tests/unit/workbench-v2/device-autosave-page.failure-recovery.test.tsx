@@ -71,7 +71,7 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
     await waitFor(() => {
       expect(screen.getByTestId('device-save-state-dev-A')).toHaveTextContent('save-error');
       expect(screen.getByTestId('device-save-state-dev-B')).toHaveTextContent('saved');
-      expect(screen.getByTestId('device-save-error-dev-A')).toHaveTextContent('save failed');
+      expect(screen.getByTestId('device-save-error-dev-A')).toHaveTextContent('errors.autosave_failed');
     });
   });
 

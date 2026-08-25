@@ -1,8 +1,10 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCreateStudioV2RuleMutation, useDeleteStudioV2RuleMutation, useUpdateStudioV2RuleMutation } from '../../../hooks/datalink/useStudioV2Rules';
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { isStudioV2RuleValid, toStudioV2RuleCreateRequest, toStudioV2RuleUpdateRequest } from '../../../features/datalink/workbench-v2/state/studioV2RuleAutosave';
 import type { Rule, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
+import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 
 type SaveMeta = {
   inFlight: boolean;
@@ -17,8 +19,8 @@ function saveMetaFor(store: Record<string, SaveMeta>, ruleId: string): SaveMeta 
   return store[ruleId];
 }
 
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : '儲存失敗';
+function errorMessageOf(error: unknown, fallback: string): string {
+  return getSafeErrorStateMessage(error, fallback);
 }
 
 function shouldAutosaveRulePatch(patch: Partial<Rule>): boolean {
@@ -43,6 +45,7 @@ export function useStudioV2RuleAutosave(
   actions: { dispatch: (action: WorkbenchV2Action) => void },
   stateRef: React.MutableRefObject<WorkbenchV2State>,
 ) {
+  const { t } = useTranslation('workbench-v2');
   const createRuleMutation = useCreateStudioV2RuleMutation();
   const updateRuleMutation = useUpdateStudioV2RuleMutation();
   const deleteRuleMutation = useDeleteStudioV2RuleMutation();
@@ -107,7 +110,7 @@ export function useStudioV2RuleAutosave(
     } catch (error) {
       applyRulePatch(ruleId, {
         save_state: 'save-error',
-        save_error: errorMessageOf(error),
+        save_error: errorMessageOf(error, t('errors.autosave_failed')),
       });
     } finally {
       meta.inFlight = false;
@@ -116,7 +119,7 @@ export function useStudioV2RuleAutosave(
         void flushRuleSave(ruleId);
       }
     }
-  }, [applyRulePatch, createRuleMutation, stateRef, updateRuleMutation]);
+  }, [applyRulePatch, createRuleMutation, stateRef, t, updateRuleMutation]);
 
   const queueRuleSave = React.useCallback((ruleId: string) => {
     const meta = saveMetaFor(saveMetaRef.current, ruleId);
@@ -152,13 +155,13 @@ export function useStudioV2RuleAutosave(
         .catch((error) => {
           applyRulePatch(action.ruleId, {
             save_state: 'save-error',
-            save_error: errorMessageOf(error),
+            save_error: errorMessageOf(error, t('errors.autosave_failed')),
           });
         });
       return true;
     }
     return false;
-  }, [actions, applyRulePatch, deleteRuleMutation, stateRef]);
+  }, [actions, applyRulePatch, deleteRuleMutation, stateRef, t]);
 
   const afterRuleAction = React.useCallback((action: WorkbenchV2Action) => {
     switch (action.type) {

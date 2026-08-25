@@ -33,11 +33,7 @@ export function FocusedDeviceHeader({
             <p className="text-sm text-slate-300">
               {selectedDevice
                 ? selectedDevice.availability_status === 'unavailable'
-                  ? t(
-                      'header.deviceMetaUnavailable',
-                      'Unavailable: {{reason}}',
-                      { reason: selectedDevice.availability_reason ?? 'unknown reason' },
-                    )
+                  ? t('header.deviceMetaUnavailable', 'Unavailable: runtime device context is unavailable.')
                   : t('header.deviceMeta', 'Protocol {{protocol}}', {
                       protocol: selectedDevice.protocol,
                     })
@@ -73,7 +69,7 @@ export function FocusedDeviceHeader({
                 )}
                 {isUnavailable && device.availability_reason && (
                   <span className="mt-1 block text-xs text-slate-400">
-                    {device.availability_reason}
+                    {t('header.unavailableAction', 'Review the device setup in Studio V2 and retry.')}
                   </span>
                 )}
               </button>

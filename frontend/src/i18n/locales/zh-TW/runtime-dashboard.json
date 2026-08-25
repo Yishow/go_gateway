@@ -3,8 +3,9 @@
     "eyebrow": "Runtime Dashboard",
     "noDevice": "選擇設備",
     "deviceMeta": "通訊協議 {{protocol}}",
-    "deviceMetaUnavailable": "目前不可用：{{reason}}",
+    "deviceMetaUnavailable": "目前不可用：runtime 設備脈絡無法使用。",
     "unavailable": "不可用",
+    "unavailableAction": "請回到 Studio V2 檢查設備設定後重試。",
     "deviceMetaEmpty": "請帶入剛完成設定的設備脈絡，以檢查即時運轉健康度。"
   },
   "empty": {
@@ -22,7 +23,9 @@
   "error": {
     "title": "無法取得 runtime snapshot",
     "description": "runtime snapshot 載入失敗。",
-    "retry": "重新載入 snapshot"
+    "retry": "重新載入 snapshot",
+    "requestId": "請求識別碼",
+    "returnToStudio": "返回 Studio V2"
   },
   "banner": {
     "live": "即時監看已連線",
@@ -111,9 +114,29 @@
     "timestamp": "時間戳",
     "stale": "stale"
   },
+  "diagnostics": {
+    "requestId": "請求識別碼："
+  },
   "logs": {
+    "device_error": "設備回報錯誤，請檢查運行狀態後重試。",
+    "device_error_cleared": "設備錯誤已清除。",
+    "point_stale": "點位已轉為過期狀態。",
+    "point_recovered": "點位已恢復。",
+    "stream_connecting": "正在連線到 runtime 串流。",
+    "stream_connected": "Runtime 串流已連線。",
+    "stream_connection_lost": "Runtime 串流連線中斷，正在重新連線。",
     "title": "運作診斷日誌",
     "description": "即時採集診斷事件與狀態轉移歷史。",
     "empty": "尚無診斷日誌輸出。"
+  },
+  "errors": {
+    "browser_event_source_unsupported": "此瀏覽器不支援即時 runtime 串流。",
+    "runtime_snapshot_unavailable": "目前無法取得 runtime snapshot。",
+    "runtime_snapshot_unavailable_action": "重新載入 snapshot",
+    "modbus_share_delivery": "Modbus Share 傳送目前無法使用。",
+    "modbus_share_delivery_action": "重新嘗試 Modbus Share 傳送",
+    "generic_failure": "目前無法取得 runtime 診斷。",
+    "retry": "重新載入 snapshot",
+    "reconnectStream": "重新連線即時串流"
   }
 }

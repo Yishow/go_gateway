@@ -33,15 +33,18 @@ import { Step2Rule } from '../steps/step2';
 import { Step3Mapping } from '../steps/step3';
 import { Step4Database } from '../steps/step4';
 import { isStep2Ready } from '../state/sourceRule';
+import type { ModbusShareStatus } from '../../../../types/modbusShare';
 
 export interface WorkbenchV2ShellProps {
   state: WorkbenchV2State;
+  workspaceId?: string;
   actions: ReturnType<typeof useWorkbenchV2State>;
   navigateTo?: (target: string) => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
   workspaceAuditHistory?: StudioV2WorkspaceAuditEntry[];
   workspaceAuditUnavailable?: boolean;
+  shareStatus?: ModbusShareStatus | null;
   runtimeReturnFocus?: WorkbenchV2RuntimeReturnFocus | null;
 }
 
@@ -58,12 +61,14 @@ export interface WorkbenchV2RuntimeReturnFocus {
  */
 export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   state,
+  workspaceId,
   actions,
   navigateTo,
   activateWorkspace,
   workspaceReadiness,
   workspaceAuditHistory,
   workspaceAuditUnavailable,
+  shareStatus,
   runtimeReturnFocus,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -198,6 +203,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
         <SettingsPage
           state={state}
           dispatch={actions.dispatch}
+          shareStatus={shareStatus}
         />
       );
     }
@@ -217,12 +223,14 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             state={state}
             dispatch={actions.dispatch}
             onContinue={handleContinueStep2}
+            shareStatus={shareStatus}
           />
         );
       case 3:
         return (
           <Step3Mapping
             state={state}
+            workspaceId={workspaceId}
             dispatch={actions.dispatch}
             onContinue={() => {
               completeStep(3);
@@ -240,6 +248,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
             onCommit={handleRuntimeDashboardHandoff}
             activateWorkspace={activateWorkspace}
             workspaceReadiness={workspaceReadiness}
+            shareStatus={shareStatus}
             onNavigateStep={handleNavigateStep}
           />
         );

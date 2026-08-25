@@ -315,7 +315,7 @@ describe('DatalinkWorkbenchV2Page rule autosave orchestration', () => {
     await waitFor(() => {
       expect(screen.getByTestId('rule-save-state-rule-A')).toHaveTextContent('save-error');
       expect(screen.getByTestId('rule-save-state-rule-B')).toHaveTextContent('saved');
-      expect(screen.getByTestId('rule-save-error-rule-A')).toHaveTextContent('save failed');
+      expect(screen.getByTestId('rule-save-error-rule-A')).toHaveTextContent('errors.autosave_failed');
     });
   });
 
