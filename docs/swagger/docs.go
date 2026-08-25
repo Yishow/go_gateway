@@ -32,7 +32,777 @@ const docTemplate = `{
                     "200": {
                         "description": "健康狀態",
                         "schema": {
-                            "$ref": "#/definitions/internal_api_handlers.HealthStatus"
+                            "$ref": "#/definitions/handlers.HealthStatus"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/mappings/preview": {
+            "post": {
+                "description": "Returns server-computed preview values. Typed failures never expose backend exception details.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Preview a mapping pipeline",
+                "parameters": [
+                    {
+                        "description": "Preview request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MappingPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MappingPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid preview request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Preview unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/mappings": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "List workspace-scoped Modbus Share mappings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/mappings/{tagId}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Upsert a workspace-scoped Modbus Share mapping",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tag identifier",
+                        "name": "tagId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Register allocation",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpsertMirrorMappingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Delete a workspace-scoped Modbus Share mapping",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tag identifier",
+                        "name": "tagId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/reconcile": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Reconcile Modbus Share projection",
+                "parameters": [
+                    {
+                        "description": "Complete workspace desired mapping set",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ReconcileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/start": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Start Modbus Share listener",
+                "parameters": [
+                    {
+                        "description": "Listener settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.StartModbusShareRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Get Modbus Share status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/stop": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Stop Modbus Share listener and persist disabled state",
+                "parameters": [
+                    {
+                        "description": "Optional settings revision guard",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.StopModbusShareRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/sync": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Synchronize mapped point values to Modbus Share memory",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/modbus-share/write-tag-value": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Write a mapped tag value to Modbus Share memory",
+                "parameters": [
+                    {
+                        "description": "Mapped tag value",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteTagValueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/preview/stream": {
+            "get": {
+                "description": "Opens a text/event-stream backed by the runtime value source for the persisted mapping. Failure responses use the typed safe-error envelope before the stream starts; a runtime stream failure is emitted as an SSE error event.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Stream a persisted mapping preview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Persisted mapping identifier",
+                        "name": "mapping_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Workspace scope",
+                        "name": "workspace_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream of connected, preview, heartbeat, and error events",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "422": {
+                        "description": "Mapping identifier is missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Preview mapping or runtime stream is unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/runtime/status": {
+            "get": {
+                "description": "Returns runtime collector state and metrics without synthesizing a ready snapshot on failure.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Get runtime status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "device_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Runtime snapshot unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/runtime/stream": {
+            "get": {
+                "description": "Opens an SSE stream for runtime updates. Failure responses use the typed safe-error envelope.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Stream runtime updates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "device_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated point IDs",
+                        "name": "point_ids",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Runtime device is missing",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Runtime stream unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/settings": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "List durable settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/settings/{key}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Update durable settings",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Setting key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Settings value and expected revision",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UpdateSettingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/activate": {
+            "post": {
+                "description": "Activates the persisted workspace after hydration, save, and revision checks.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "studio-v2"
+                ],
+                "summary": "Activate the Studio v2 workspace",
+                "parameters": [
+                    {
+                        "description": "Activation barrier revisions and save state",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ActivateWorkspaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Workspace or settings revision conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Activation barrier or readiness is incomplete",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Activation failed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/runtime-context": {
+            "get": {
+                "description": "Returns persisted devices and setup context for the runtime monitor.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "datalink"
+                ],
+                "summary": "Get runtime workspace context",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.runtimeWorkspaceContextResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Runtime device not found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Workspace or runtime snapshot unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
                     }
                 }
@@ -40,7 +810,44 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "internal_api_handlers.HealthStatus": {
+        "handlers.APIErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/handlers.TypedAPIErrorEnvelope"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "handlers.ActivateWorkspaceRequest": {
+            "type": "object",
+            "required": [
+                "readiness_token",
+                "settings_revision",
+                "workspace_revision"
+            ],
+            "properties": {
+                "pending_saves": {
+                    "type": "integer"
+                },
+                "readiness_token": {
+                    "type": "string"
+                },
+                "save_error": {
+                    "type": "string"
+                },
+                "settings_revision": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.HealthStatus": {
             "type": "object",
             "properties": {
                 "service": {
@@ -60,18 +867,760 @@ const docTemplate = `{
                     "example": "1.0.0"
                 }
             }
+        },
+        "handlers.MappingPreviewRequest": {
+            "type": "object",
+            "properties": {
+                "raw_value": {},
+                "transform_pipeline": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schema.TransformStep"
+                    }
+                }
+            }
+        },
+        "handlers.MappingPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "final_value": {},
+                "raw_value": {},
+                "step_results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/mapping.StepResult"
+                    }
+                }
+            }
+        },
+        "handlers.ReconcileRequest": {
+            "type": "object",
+            "properties": {
+                "canonical_plan_signature": {
+                    "type": "string"
+                },
+                "desired_mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/modbusshare.DesiredMapping"
+                    }
+                },
+                "expected_settings_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "readiness_token": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.StartModbusShareRequest": {
+            "type": "object",
+            "properties": {
+                "expected_settings_revision": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.StopModbusShareRequest": {
+            "type": "object",
+            "properties": {
+                "expected_settings_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.TypedAPIErrorEnvelope": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "dirty_state": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "retryable": {
+                    "type": "boolean"
+                },
+                "settings_revision": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.UpdateSettingRequest": {
+            "type": "object",
+            "properties": {
+                "expected_settings_revision": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "handlers.UpsertMirrorMappingRequest": {
+            "type": "object",
+            "required": [
+                "register"
+            ],
+            "properties": {
+                "register": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.WriteTagValueRequest": {
+            "type": "object",
+            "required": [
+                "tag_id",
+                "value"
+            ],
+            "properties": {
+                "tag_id": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "handlers.runtimeWorkspaceContextDeviceEntry": {
+            "type": "object",
+            "properties": {
+                "availability_reason": {
+                    "type": "string"
+                },
+                "availability_status": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "projection_alignment": {
+                    "type": "string"
+                },
+                "projection_code": {
+                    "type": "string"
+                },
+                "projection_message": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "running": {
+                    "type": "boolean"
+                },
+                "runtime_projection_version": {
+                    "type": "string"
+                },
+                "workspace_projection_version": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.runtimeWorkspaceContextResponse": {
+            "type": "object",
+            "properties": {
+                "default_device_id": {
+                    "type": "string"
+                },
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.runtimeWorkspaceContextDeviceEntry"
+                    }
+                },
+                "setup": {
+                    "$ref": "#/definitions/handlers.runtimeWorkspaceSetupContextResponse"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.runtimeWorkspaceSetupContextResponse": {
+            "type": "object",
+            "properties": {
+                "database_config": {
+                    "$ref": "#/definitions/handlers.studioV2WorkspaceDatabaseConfigResponse"
+                },
+                "database_targets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.runtimeWorkspaceSetupDatabaseTargetMapping"
+                    }
+                },
+                "mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.runtimeWorkspaceSetupMappingResponse"
+                    }
+                },
+                "readiness_summary": {
+                    "$ref": "#/definitions/workspace.ReadinessSummary"
+                },
+                "source_rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.runtimeWorkspaceSetupSourceRuleResponse"
+                    }
+                }
+            }
+        },
+        "handlers.runtimeWorkspaceSetupDatabaseTargetMapping": {
+            "type": "object",
+            "properties": {
+                "column_name": {
+                    "type": "string"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "group_key": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "timestamp_column": {
+                    "type": "string"
+                },
+                "write_interval_seconds": {
+                    "type": "integer"
+                },
+                "write_mode": {
+                    "$ref": "#/definitions/schema.DatabaseWriteMode"
+                }
+            }
+        },
+        "handlers.runtimeWorkspaceSetupMappingResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/schema.MappingStatus"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "tag_key": {
+                    "type": "string"
+                },
+                "target_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "unit": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.runtimeWorkspaceSetupSourceRuleResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "naming_prefix": {
+                    "type": "string"
+                },
+                "revision_id": {
+                    "type": "string"
+                },
+                "start_address": {
+                    "type": "string"
+                },
+                "target_data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                }
+            }
+        },
+        "handlers.studioV2WorkspaceDatabaseConfigResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {},
+                "database": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/definitions/schema.DatabaseConnectorKind"
+                },
+                "last_flush_at": {
+                    "type": "string"
+                },
+                "last_flush_error": {
+                    "type": "string"
+                },
+                "last_flush_status": {
+                    "type": "string"
+                },
+                "last_schema_ensure_at": {
+                    "type": "string"
+                },
+                "last_schema_ensure_error": {
+                    "type": "string"
+                },
+                "last_schema_ensure_status": {
+                    "type": "string"
+                },
+                "last_write_at": {
+                    "type": "string"
+                },
+                "last_write_error": {
+                    "type": "string"
+                },
+                "last_write_status": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "row_groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.DatabaseRowGroup"
+                    }
+                },
+                "runtime_apply_issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "runtime_apply_message": {
+                    "type": "string"
+                },
+                "runtime_apply_status": {
+                    "type": "string"
+                },
+                "save_state": {
+                    "type": "string"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/schema.DatabaseConnectorStatus"
+                },
+                "table": {
+                    "type": "string"
+                },
+                "timestamp_column": {
+                    "type": "string"
+                },
+                "updated_at": {},
+                "username": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "write_interval_seconds": {
+                    "type": "integer"
+                },
+                "write_mode": {
+                    "$ref": "#/definitions/schema.DatabaseWriteMode"
+                }
+            }
+        },
+        "mapping.StepResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "input": {},
+                "output": {},
+                "step_index": {
+                    "type": "integer"
+                },
+                "step_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "modbusshare.DesiredMapping": {
+            "type": "object",
+            "properties": {
+                "capacity_registers": {
+                    "type": "integer"
+                },
+                "data_type": {
+                    "$ref": "#/definitions/schema.DataType"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "mapping_id": {
+                    "type": "string"
+                },
+                "ownership_proof": {
+                    "$ref": "#/definitions/modbusshare.OwnershipProof"
+                },
+                "share_start_register": {
+                    "description": "Human 40001 domain",
+                    "type": "integer"
+                },
+                "source_rule_id": {
+                    "type": "string"
+                },
+                "source_rule_revision": {
+                    "type": "string"
+                },
+                "span_registers": {
+                    "type": "integer"
+                },
+                "stride_registers": {
+                    "type": "integer"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "tag_key": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "zero_based_register": {
+                    "description": "Zero-based index (40001 -\u003e 0)",
+                    "type": "integer"
+                }
+            }
+        },
+        "modbusshare.OwnershipProof": {
+            "type": "object",
+            "properties": {
+                "basis": {
+                    "type": "string"
+                },
+                "source_rule_id": {
+                    "type": "string"
+                },
+                "source_rule_revision": {
+                    "type": "string"
+                },
+                "verified": {
+                    "type": "boolean"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "schema.DataType": {
+            "type": "string",
+            "enum": [
+                "bool",
+                "int16",
+                "uint16",
+                "int32",
+                "uint32",
+                "int64",
+                "uint64",
+                "float32",
+                "float64",
+                "string"
+            ],
+            "x-enum-varnames": [
+                "DataTypeBool",
+                "DataTypeInt16",
+                "DataTypeUint16",
+                "DataTypeInt32",
+                "DataTypeUint32",
+                "DataTypeInt64",
+                "DataTypeUint64",
+                "DataTypeFloat32",
+                "DataTypeFloat64",
+                "DataTypeString"
+            ]
+        },
+        "schema.DatabaseConnectorKind": {
+            "type": "string",
+            "enum": [
+                "sqlite",
+                "postgres",
+                "mysql",
+                "sqlserver"
+            ],
+            "x-enum-varnames": [
+                "DatabaseConnectorKindSQLite",
+                "DatabaseConnectorKindPostgres",
+                "DatabaseConnectorKindMySQL",
+                "DatabaseConnectorKindSQLServer"
+            ]
+        },
+        "schema.DatabaseConnectorStatus": {
+            "type": "string",
+            "enum": [
+                "ready",
+                "unreachable",
+                "auth_failed",
+                "error"
+            ],
+            "x-enum-varnames": [
+                "DatabaseConnectorStatusReady",
+                "DatabaseConnectorStatusUnreachable",
+                "DatabaseConnectorStatusAuthFailed",
+                "DatabaseConnectorStatusError"
+            ]
+        },
+        "schema.DatabaseWriteMode": {
+            "type": "string",
+            "enum": [
+                "insert",
+                "upsert"
+            ],
+            "x-enum-varnames": [
+                "DatabaseWriteModeInsert",
+                "DatabaseWriteModeUpsert"
+            ]
+        },
+        "schema.MappingStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "validated",
+                "active",
+                "out_of_sync",
+                "error"
+            ],
+            "x-enum-varnames": [
+                "MappingStatusDraft",
+                "MappingStatusValidated",
+                "MappingStatusActive",
+                "MappingStatusOutOfSync",
+                "MappingStatusError"
+            ]
+        },
+        "schema.TransformStep": {
+            "type": "object",
+            "properties": {
+                "order": {
+                    "description": "Order 執行順序 (從小到大)",
+                    "type": "integer"
+                },
+                "params": {
+                    "description": "Params 轉換參數 (依類型不同)",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "type": {
+                    "description": "Type 轉換類型",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schema.TransformType"
+                        }
+                    ]
+                }
+            }
+        },
+        "schema.TransformType": {
+            "type": "string",
+            "enum": [
+                "decode",
+                "cast",
+                "scale",
+                "lookup",
+                "conditional",
+                "formula"
+            ],
+            "x-enum-varnames": [
+                "TransformDecode",
+                "TransformCast",
+                "TransformScale",
+                "TransformLookup",
+                "TransformConditional",
+                "TransformFormula"
+            ]
+        },
+        "workspace.DatabaseRowGroup": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "group_key_columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "member_point_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                },
+                "unique_key_columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "workspace.ReadinessIssue": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "severity": {
+                    "$ref": "#/definitions/workspace.ReadinessSeverity"
+                },
+                "step": {
+                    "$ref": "#/definitions/workspace.ReadinessStep"
+                }
+            }
+        },
+        "workspace.ReadinessSeverity": {
+            "type": "string",
+            "enum": [
+                "blocking",
+                "warning"
+            ],
+            "x-enum-varnames": [
+                "ReadinessSeverityBlocking",
+                "ReadinessSeverityWarning"
+            ]
+        },
+        "workspace.ReadinessStep": {
+            "type": "string",
+            "enum": [
+                "Step 1",
+                "Step 2",
+                "Step 3",
+                "Step 4"
+            ],
+            "x-enum-varnames": [
+                "ReadinessStep1",
+                "ReadinessStep2",
+                "ReadinessStep3",
+                "ReadinessStep4"
+            ]
+        },
+        "workspace.ReadinessSummary": {
+            "type": "object",
+            "properties": {
+                "blocking_count": {
+                    "type": "integer"
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "warning_count": {
+                    "type": "integer"
+                }
+            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
+	Version:          "1.0",
+	Host:             "localhost:8080",
+	BasePath:         "/api",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "Go Gateway API",
+	Description:      "工業數據採集閘道系統 API 文檔",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
