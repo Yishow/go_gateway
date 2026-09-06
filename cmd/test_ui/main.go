@@ -24,6 +24,7 @@ import (
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/web"
@@ -166,6 +167,8 @@ func main() {
 		}
 	}()
 
+	measurementSvc := measurement.NewService(measurement.NewSQLRepository(db))
+
 	datalinkServices := &api.DatalinkServices{
 		Device:                devSvc,
 		Point:                 pointSvc,
@@ -180,6 +183,7 @@ func main() {
 		DBTarget:              dbTargetConnectorSvc,
 		DBMapping:             dbTargetMappingSvc,
 		SourceRule:            sourceRuleSvc,
+		Measurement:           measurementSvc,
 		Workspace:             workspaceSvc,
 		Audit:                 auditSvc,
 		ShareRestore: handlers.ShareRestoreBarrier(func(ctx context.Context, req handlers.ActivateWorkspaceRequest) error {

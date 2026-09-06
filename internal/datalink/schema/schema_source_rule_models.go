@@ -35,6 +35,10 @@ type SourceRule struct {
 	ShareStartRegister *int `json:"share_start_register" db:"share_start_register"`
 	// ShareStride is the optional number of local Modbus registers allocated per point.
 	ShareStride *int `json:"share_stride" db:"share_stride"`
+	// LayoutMode 讀取佈局模式：homogeneous (均一) 或 mixed (混合)。
+	LayoutMode string `json:"layout_mode,omitempty" db:"layout_mode"`
+	// MixedItems 混合模式下的項目定義 JSON 字串。
+	MixedItems string `json:"mixed_items,omitempty" db:"mixed_items"`
 }
 
 // SourceRuleLink 記錄來源規則衍生出的下游實體關聯。

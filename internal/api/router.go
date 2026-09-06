@@ -12,6 +12,7 @@ import (
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
@@ -43,6 +44,7 @@ type DatalinkServices struct {
 	DBTarget              *dbtarget.ConnectorService
 	DBMapping             *dbtarget.MappingService
 	SourceRule            *sourcerule.Service
+	Measurement           *measurement.Service
 	Workspace             *workspace.Service
 	Audit                 *audit.Service
 	ShareRestore          handlers.ShareRestoreBarrier
@@ -231,6 +233,18 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					datalinkGroup.PUT("/studio-v2/workspace/source-rules/:id", workspaceSourceRuleHandler.Update)
 					datalinkGroup.DELETE("/studio-v2/workspace/source-rules/:id", workspaceSourceRuleHandler.Delete)
 				}
+			}
+
+			// Measurements
+			if datalinkServices.Measurement != nil && datalinkServices.Workspace != nil {
+				measurementHandler := handlers.NewStudioV2WorkspaceMeasurementsHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Measurement)
+				datalinkGroup.GET("/studio-v2/workspace/measurements", measurementHandler.List)
+				datalinkGroup.GET("/studio-v2/workspace/measurements/templates", measurementHandler.ListTemplates)
+				datalinkGroup.POST("/studio-v2/workspace/measurements/templates/preview", measurementHandler.PreviewTemplate)
+				datalinkGroup.POST("/studio-v2/workspace/measurements/templates/apply", measurementHandler.ApplyTemplate)
+				datalinkGroup.POST("/studio-v2/workspace/measurements", measurementHandler.Create)
+				datalinkGroup.PUT("/studio-v2/workspace/measurements/:id", measurementHandler.Update)
+				datalinkGroup.DELETE("/studio-v2/workspace/measurements/:id", measurementHandler.Delete)
 			}
 
 			// Points

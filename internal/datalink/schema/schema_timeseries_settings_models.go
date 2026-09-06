@@ -14,6 +14,12 @@ const (
 	QualityGood QualityFlag = "good"
 	// QualityBad 資料品質不佳 (讀取失敗)
 	QualityBad QualityFlag = "bad"
+	// QualityMissing 資料缺失 (如通訊逾時或無讀值)
+	QualityMissing QualityFlag = "missing"
+	// QualityStale 資料陳舊 (未更新)
+	QualityStale QualityFlag = "stale"
+	// QualityInvalid 資料不合法 (如 NaN/Inf 或溢位)
+	QualityInvalid QualityFlag = "invalid"
 	// QualityUncertain 資料品質不確定 (如逾時後使用舊值)
 	QualityUncertain QualityFlag = "uncertain"
 )
