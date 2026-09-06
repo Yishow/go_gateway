@@ -80,8 +80,15 @@ func buildEnsureUniqueIndexStatement(
 ) (string, string) {
 	indexName := sanitizeIndexName(fmt.Sprintf("%s_%s_%s_uniq", schemaName, tableName, columnName))
 	tableRef := qualifiedTableName(kind, schemaName, tableName)
+	// MySQL 的 CREATE INDEX 不接受 IF NOT EXISTS；重複建立由欄位既有的主鍵 /
+	// 唯一鍵資訊與同批次索引名稱去重擋下，不依賴語句層的守衛。
+	existsGuard := "IF NOT EXISTS "
+	if kind == schema.DatabaseConnectorKindMySQL {
+		existsGuard = ""
+	}
 	statement := fmt.Sprintf(
-		"CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)",
+		"CREATE UNIQUE INDEX %s%s ON %s (%s)",
+		existsGuard,
 		quoteIdentifier(kind, indexName),
 		tableRef,
 		quoteIdentifier(kind, columnName),
@@ -162,6 +169,8 @@ func mapValidationIssueCodeForDryRun(code string) string {
 		return "schema_missing"
 	case "column_type_mismatch":
 		return "type_conflict"
+	case "upsert_value_column_unique":
+		return "conflict"
 	default:
 		return "conflict"
 	}
@@ -239,4 +248,20 @@ func timestampColumnType(kind schema.DatabaseConnectorKind) string {
 		return "TIMESTAMPTZ"
 	}
 	return "DATETIME"
+}
+
+// buildEnsureSchemaStatement 回傳建立資料表所屬容器的語句：PostgreSQL 為 schema，
+// MySQL 為 database。SQLite 沒有對應概念，回傳空字串代表不需要語句。
+func buildEnsureSchemaStatement(kind schema.DatabaseConnectorKind, schemaName string) string {
+	if strings.TrimSpace(schemaName) == "" {
+		return ""
+	}
+	switch kind {
+	case schema.DatabaseConnectorKindPostgres:
+		return fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", quoteIdentifier(kind, schemaName))
+	case schema.DatabaseConnectorKindMySQL:
+		return fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", quoteIdentifier(kind, schemaName))
+	default:
+		return ""
+	}
 }

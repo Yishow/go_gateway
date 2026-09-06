@@ -175,7 +175,9 @@ func (w *Writer) writeMapping(
 		return err
 	}
 
-	manager, err := openExternalDBManager(connector.Kind, connectionConfig)
+	// 執行期寫入不得自動建庫：目標資料庫消失屬於必須浮現的錯誤，
+	// 靜默重建會讓資料寫進一個空資料庫。
+	manager, err := openExternalDBManagerFunc(connector.Kind, connectionConfig)
 	if err != nil {
 		return err
 	}
@@ -349,7 +351,8 @@ func (w *Writer) flushGroupedBucket(ctx context.Context, bucket *groupedWriteBuc
 		return err
 	}
 
-	manager, err := openExternalDBManager(bucket.Connector.Kind, connectionConfig)
+	// 同上：批次寫入路徑同樣不自動建庫。
+	manager, err := openExternalDBManagerFunc(bucket.Connector.Kind, connectionConfig)
 	if err != nil {
 		return err
 	}

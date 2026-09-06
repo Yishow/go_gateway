@@ -52,13 +52,21 @@ func buildGroupedWriteStatement(
 		assignments := make([]string, 0, len(columnNames))
 		for _, columnName := range columnNames {
 			quoted := quoteIdentifier(kind, columnName)
+			if kind == schema.DatabaseConnectorKindMySQL {
+				assignments = append(assignments, fmt.Sprintf("%s = VALUES(%s)", quoted, quoted))
+				continue
+			}
 			assignments = append(assignments, fmt.Sprintf("%s = EXCLUDED.%s", quoted, quoted))
 		}
-		query += fmt.Sprintf(
-			" ON CONFLICT (%s) DO UPDATE SET %s",
-			quoteIdentifier(kind, key.TimestampColumn),
-			strings.Join(assignments, ", "),
-		)
+		if kind == schema.DatabaseConnectorKindMySQL {
+			query += " ON DUPLICATE KEY UPDATE " + strings.Join(assignments, ", ")
+		} else {
+			query += fmt.Sprintf(
+				" ON CONFLICT (%s) DO UPDATE SET %s",
+				quoteIdentifier(kind, key.TimestampColumn),
+				strings.Join(assignments, ", "),
+			)
+		}
 	}
 	return query, args, nil
 }
@@ -96,12 +104,16 @@ func buildWriteStatement(
 
 		valueColumn := quoteIdentifier(kind, mapping.ColumnName)
 		timestampColumn := quoteIdentifier(kind, *mapping.TimestampColumn)
-		query += fmt.Sprintf(
-			" ON CONFLICT (%s) DO UPDATE SET %s = EXCLUDED.%s",
-			timestampColumn,
-			valueColumn,
-			valueColumn,
-		)
+		if kind == schema.DatabaseConnectorKindMySQL {
+			query += fmt.Sprintf(" ON DUPLICATE KEY UPDATE %s = VALUES(%s)", valueColumn, valueColumn)
+		} else {
+			query += fmt.Sprintf(
+				" ON CONFLICT (%s) DO UPDATE SET %s = EXCLUDED.%s",
+				timestampColumn,
+				valueColumn,
+				valueColumn,
+			)
+		}
 	}
 
 	return query, args, nil
@@ -121,6 +133,10 @@ func buildPlaceholders(kind schema.DatabaseConnectorKind, count int) []string {
 }
 
 func quoteIdentifier(kind schema.DatabaseConnectorKind, name string) string {
+	if kind == schema.DatabaseConnectorKindMySQL {
+		escaped := strings.ReplaceAll(strings.TrimSpace(name), "`", "``")
+		return "`" + escaped + "`"
+	}
 	escaped := strings.ReplaceAll(strings.TrimSpace(name), `"`, `""`)
 	return `"` + escaped + `"`
 }

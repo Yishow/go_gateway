@@ -71,14 +71,27 @@ func (s *ConnectorService) GenerateSchema(
 		return recordSuccess(result)
 	}
 
-	tables, err := inspectTables(ctx, connector)
+	connectorConnectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
+	if err != nil {
+		return recordFailure(err)
+	}
+
+	if !req.DryRun {
+		// 只有明確的（非 dry-run）schema 產生才允許建立缺漏的目標資料庫；
+		// dry-run 僅回報將發生什麼，不得改變伺服器狀態。
+		if ensureErr := ensureExternalDatabaseExists(ctx, connector.Kind, connectorConnectionConfig); ensureErr != nil {
+			return recordFailure(ensureErr)
+		}
+	}
+
+	tables, err := inspectTablesForSchemas(ctx, connector, mappingSchemaNames(projection.Mappings))
 	if err != nil {
 		return recordFailure(fmt.Errorf("檢查資料庫目標表結構失敗: %w", err))
 	}
 
 	statements, err := buildSchemaGenerateStatements(
 		ctx,
-		connector.Kind,
+		connector,
 		projection.Mappings,
 		tables,
 		s.connectorTagReader(),
@@ -92,11 +105,7 @@ func (s *ConnectorService) GenerateSchema(
 		return recordSuccess(result)
 	}
 
-	connectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
-	if err != nil {
-		return recordFailure(err)
-	}
-	manager, err := openExternalDBManager(connector.Kind, connectionConfig)
+	manager, err := openExternalDBManagerFunc(connector.Kind, connectorConnectionConfig)
 	if err != nil {
 		return recordFailure(err)
 	}
@@ -142,7 +151,7 @@ func (s *MappingService) DryRun(
 	selectedMappings := selectMappingsForDryRun(projection.Mappings, normalizedCandidateIDs)
 	results := make([]MappingDryRunCandidateResult, 0, len(selectedMappings)+len(unknownCandidateIDs))
 
-	tables, inspectErr := inspectTables(ctx, connector)
+	tables, inspectErr := inspectTablesForSchemas(ctx, connector, mappingSchemaNames(projection.Mappings))
 	if inspectErr != nil {
 		for _, mappingRecord := range selectedMappings {
 			results = append(results, MappingDryRunCandidateResult{
@@ -186,7 +195,7 @@ func (s *MappingService) DryRun(
 			}
 		}
 
-		issues := validateMappingAgainstTables(*mappingRecord, *tagEntity, tables)
+		issues := validateMappingAgainstTables(connector.Kind, *mappingRecord, *tagEntity, tables)
 		blockingIssue, hasBlockingIssue := firstBlockingIssue(issues)
 		if hasBlockingIssue {
 			results = append(results, MappingDryRunCandidateResult{
@@ -225,11 +234,14 @@ func (s *MappingService) DryRun(
 
 func buildSchemaGenerateStatements(
 	ctx context.Context,
-	kind schema.DatabaseConnectorKind,
+	connector *schema.DatabaseConnector,
 	mappings []*schema.DatabaseTargetMapping,
 	tables []TableInfo,
 	tagReader ConnectorTagReader,
 ) ([]string, error) {
+	kind := connector.Kind
+	// 與映射建立 / 更新端共用同一個預設 schema 來源，避免產生對不上資料表清單的語句。
+	defaultSchema := defaultSchemaForConnector(connector)
 	statements := make([]string, 0, 16)
 	tableStates := make(map[tableKey]*generatedTableState, len(tables))
 	createdSchemas := make(map[string]struct{})
@@ -261,7 +273,7 @@ func buildSchemaGenerateStatements(
 		}
 		schemaName := strings.TrimSpace(mappingRecord.TableSchema)
 		if schemaName == "" {
-			schemaName = defaultSchemaForKind(kind)
+			schemaName = defaultSchema
 		}
 		key := normalizeTableKey(schemaName, tableName)
 
@@ -275,8 +287,9 @@ func buildSchemaGenerateStatements(
 
 		state, exists := tableStates[key]
 		if !exists {
-			if kind == schema.DatabaseConnectorKindPostgres {
-				schemaDDL := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", quoteIdentifier(kind, schemaName))
+			// PostgreSQL 的 schema 與 MySQL 的 database 是同一個層級；兩者都要先
+			// 建立容器，否則後續建表語句會失敗於「schema / database 不存在」。
+			if schemaDDL := buildEnsureSchemaStatement(kind, schemaName); schemaDDL != "" {
 				if _, seen := createdSchemas[schemaDDL]; !seen {
 					statements = append(statements, schemaDDL)
 					createdSchemas[schemaDDL] = struct{}{}

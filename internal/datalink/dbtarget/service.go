@@ -219,7 +219,7 @@ func (s *MappingService) Create(ctx context.Context, req CreateTargetMappingRequ
 	}
 	tableSchema := normalizeOptionalString(req.TableSchema)
 	if tableSchema == "" {
-		tableSchema = defaultSchemaForKind(connector.Kind)
+		tableSchema = defaultSchemaForConnector(connector)
 	}
 	mapping := &schema.DatabaseTargetMapping{
 		ID:                   id,
@@ -263,7 +263,7 @@ func (s *MappingService) Update(ctx context.Context, id string, req UpdateTarget
 	if req.TableSchema != nil {
 		tableSchema := normalizeOptionalString(*req.TableSchema)
 		if tableSchema == "" {
-			tableSchema = defaultSchemaForKind(connector.Kind)
+			tableSchema = defaultSchemaForConnector(connector)
 		}
 		mapping.TableSchema = tableSchema
 	}
@@ -343,25 +343,44 @@ func parseConnectionConfig(raw string) (ConnectionConfig, error) {
 }
 
 func inspectTables(ctx context.Context, connector *schema.DatabaseConnector) ([]TableInfo, error) {
+	return inspectTablesForSchemas(ctx, connector, nil)
+}
+
+// inspectTablesForSchemas 除了連接器自身的資料庫，額外納入映射引用到的 schema，
+// 讓跨資料庫的映射也能對上既有資料表。
+func inspectTablesForSchemas(
+	ctx context.Context,
+	connector *schema.DatabaseConnector,
+	extraSchemas []string,
+) ([]TableInfo, error) {
 	connectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	manager, err := openExternalDBManager(connector.Kind, connectionConfig)
+	// 檢查資料表是唯讀動作：不得順手建立目標資料庫。自動建庫僅限探測與
+	// 非 dry-run 的 schema 產生這兩個明確的佈建進入點。
+	manager, err := openExternalDBManagerFunc(connector.Kind, connectionConfig)
 	if err != nil {
 		return nil, err
 	}
 	defer manager.Close()
 
-	switch connector.Kind {
-	case schema.DatabaseConnectorKindSQLite:
-		return inspectSQLiteTables(ctx, manager.DB())
-	case schema.DatabaseConnectorKindPostgres:
-		return inspectPostgresTables(ctx, manager.DB())
-	default:
-		return nil, fmt.Errorf("不支援的資料庫類型: %s", connector.Kind)
+	return inspectTablesByKind(ctx, manager.DB(), connector.Kind, connectionConfig, extraSchemas)
+}
+
+// mappingSchemaNames 取出一組映射實際引用的 schema 名稱。
+func mappingSchemaNames(mappings []*schema.DatabaseTargetMapping) []string {
+	names := make([]string, 0, len(mappings))
+	for _, mappingRecord := range mappings {
+		if mappingRecord == nil {
+			continue
+		}
+		if name := strings.TrimSpace(mappingRecord.TableSchema); name != "" {
+			names = append(names, name)
+		}
 	}
+	return names
 }
 
 func openExternalDBManager(kind schema.DatabaseConnectorKind, config ConnectionConfig) (*datalinkbase.DBManager, error) {
@@ -436,24 +455,7 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 				return datalinkbase.DBConfig{}, fmt.Errorf("mysql 連接設定缺少 user/database")
 			}
 
-			mysqlConfig := mysqldriver.NewConfig()
-			mysqlConfig.User = user
-			mysqlConfig.Passwd = stringConfigValue(config, "password")
-			mysqlConfig.Net = "tcp"
-			mysqlConfig.Addr = fmt.Sprintf(
-				"%s:%s",
-				defaultString(stringConfigValue(config, "host"), "127.0.0.1"),
-				defaultString(stringConfigValue(config, "port"), "3306"),
-			)
-			mysqlConfig.DBName = databaseName
-			mysqlConfig.ParseTime = true
-			mysqlConfig.AllowCleartextPasswords = booleanConfigValue(
-				config,
-				true,
-				"allow_cleartext_passwords",
-				"allowCleartextPasswords",
-			)
-			mysqlConfig.TLSConfig = mysqlTLSConfigValue(config, mysqlConfig.AllowCleartextPasswords)
+			mysqlConfig := newMySQLDriverConfig(config, databaseName)
 
 			if timeout := strings.TrimSpace(stringConfigValue(config, "timeout")); timeout != "" {
 				duration, err := time.ParseDuration(timeout)
@@ -763,12 +765,12 @@ func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseCo
 		return validationError("upsert 模式必須設定 timestamp_column")
 	}
 
-	tables, err := inspectTables(ctx, connector)
+	tables, err := inspectTablesForSchemas(ctx, connector, mappingSchemaNames([]*schema.DatabaseTargetMapping{mapping}))
 	if err != nil {
 		return fmt.Errorf("檢查資料庫目標表結構失敗: %w", err)
 	}
 
-	issues := validateMappingAgainstTables(*mapping, *tagEntity, tables)
+	issues := validateMappingAgainstTables(connector.Kind, *mapping, *tagEntity, tables)
 	for _, issue := range issues {
 		if issue.Severity != "error" {
 			continue
@@ -794,7 +796,12 @@ func isMissingSchemaObjectIssue(code string) bool {
 	}
 }
 
-func validateMappingAgainstTables(mapping schema.DatabaseTargetMapping, tagEntity schema.Tag, tables []TableInfo) []ValidationIssue {
+func validateMappingAgainstTables(
+	kind schema.DatabaseConnectorKind,
+	mapping schema.DatabaseTargetMapping,
+	tagEntity schema.Tag,
+	tables []TableInfo,
+) []ValidationIssue {
 	var issues []ValidationIssue
 
 	table, ok := findTable(tables, mapping.TableSchema, mapping.TableName)
@@ -852,6 +859,22 @@ func validateMappingAgainstTables(mapping schema.DatabaseTargetMapping, tagEntit
 				Code:      "timestamp_column_not_unique",
 				Message:   fmt.Sprintf("timestamp 欄位 %s 必須是 primary key 或 single-column unique constraint，upsert 才能正確運作", *mapping.TimestampColumn),
 			})
+		}
+		// MySQL 的 ON DUPLICATE KEY UPDATE 沒有衝突目標，任何唯一鍵撞上都會觸發
+		// 覆寫；PostgreSQL 的 ON CONFLICT (ts) 則會直接報錯。值欄位本身帶唯一鍵時，
+		// 寫入撞到的會是一列與此時間戳無關的資料，屬於靜默覆寫。
+		if kind == schema.DatabaseConnectorKindMySQL {
+			if valueColumn, ok := findColumn(table.Columns, mapping.ColumnName); ok &&
+				(valueColumn.PrimaryKey || valueColumn.Unique) &&
+				!strings.EqualFold(strings.TrimSpace(mapping.ColumnName), strings.TrimSpace(optionalStringValue(mapping.TimestampColumn))) {
+				issues = append(issues, ValidationIssue{
+					Severity:  "error",
+					MappingID: mapping.ID,
+					TagID:     mapping.TagID,
+					Code:      "upsert_value_column_unique",
+					Message:   fmt.Sprintf("值欄位 %s 帶有唯一鍵，MySQL 的 upsert 會在該鍵衝突時覆寫無關資料列", mapping.ColumnName),
+				})
+			}
 		}
 	}
 
@@ -951,17 +974,53 @@ func defaultString(value string, defaultValue string) string {
 	return value
 }
 
-func mysqlTLSConfigValue(config ConnectionConfig, allowCleartextPasswords bool) string {
-	if tlsValue := stringConfigValue(config, "tls"); tlsValue != "" {
-		return tlsValue
+// newMySQLDriverConfig 組出 MySQL 連線描述，正式連線與探測用管理連線共用同一份
+// 認證與傳輸解析；呼叫端只需另外補上各自的逾時處理。databaseName 留空代表管理連線。
+func newMySQLDriverConfig(config ConnectionConfig, databaseName string) *mysqldriver.Config {
+	mysqlConfig := mysqldriver.NewConfig()
+	mysqlConfig.User = defaultString(
+		stringConfigValue(config, "user"),
+		stringConfigValue(config, "username"),
+	)
+	mysqlConfig.Passwd = stringConfigValue(config, "password")
+	mysqlConfig.Net = "tcp"
+	mysqlConfig.Addr = fmt.Sprintf(
+		"%s:%s",
+		defaultString(stringConfigValue(config, "host"), "127.0.0.1"),
+		defaultString(stringConfigValue(config, "port"), "3306"),
+	)
+	mysqlConfig.DBName = databaseName
+	mysqlConfig.ParseTime = true
+	mysqlConfig.AllowNativePasswords = true
+	applyMySQLAuthTransportConfig(mysqlConfig, config)
+	return mysqlConfig
+}
+
+// applyMySQLAuthTransportConfig 決定 cleartext 認證與 TLS 模式。cleartext 外掛會把
+// 密碼以明文送給伺服器，因此預設關閉；明確啟用時必須走加密通道，且不得在伺服器
+// 未提供 TLS 時退回明文（驅動的 preferred 模式即隱含該退回）。
+func applyMySQLAuthTransportConfig(mysqlConfig *mysqldriver.Config, config ConnectionConfig) {
+	mysqlConfig.AllowCleartextPasswords = booleanConfigValue(
+		config,
+		false,
+		"allow_cleartext_passwords",
+		"allowCleartextPasswords",
+	)
+	if tlsValue := strings.TrimSpace(stringConfigValue(config, "tls")); tlsValue != "" {
+		mysqlConfig.TLSConfig = tlsValue
+		return
 	}
-	if booleanConfigValue(config, false, "use_tls", "useTLS") {
-		return "preferred"
+	if booleanConfigValue(config, false, "use_tls", "useTLS") || mysqlConfig.AllowCleartextPasswords {
+		// skip-verify 實際加密但不驗證憑證，適用自簽憑證的工控現場；
+		// 明確要求加密（或啟用 cleartext）時不得退回明文。
+		mysqlConfig.TLSConfig = "skip-verify"
+		mysqlConfig.AllowFallbackToPlaintext = false
+		return
 	}
-	if allowCleartextPasswords {
-		return "preferred"
-	}
-	return ""
+	// 未指定時採機會性加密：伺服器支援 TLS 就走 TLS，不支援才退回明文。
+	// 密碼此時走 native / caching_sha2 雜湊交握，不會以明文出現在線路上。
+	mysqlConfig.TLSConfig = "preferred"
+	mysqlConfig.AllowFallbackToPlaintext = true
 }
 
 func normalizeOptionalString(value string) string {
@@ -1020,4 +1079,11 @@ func preserveSensitiveConnectionConfigValues(
 	}
 
 	return merged
+}
+
+func optionalStringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

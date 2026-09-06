@@ -20,7 +20,14 @@ func (s *MappingService) Validate(ctx context.Context, connectorID string) (*Val
 		})
 	}
 
-	tables, tableErr := inspectTables(ctx, connector)
+	// 先取得映射才知道要檢查哪些 schema：映射的 table_schema 可以指向
+	// 連接器自身資料庫以外的位置。
+	projection, err := listLiveTargetProjection(ctx, s.repo, TargetMappingListFilter{ConnectorID: &connectorID}, s.tagService)
+	if err != nil {
+		return nil, err
+	}
+
+	tables, tableErr := inspectTablesForSchemas(ctx, connector, mappingSchemaNames(projection.Mappings))
 	if tableErr != nil {
 		result.Ready = false
 		result.Issues = append(result.Issues, ValidationIssue{
@@ -29,11 +36,6 @@ func (s *MappingService) Validate(ctx context.Context, connectorID string) (*Val
 			Message:  tableErr.Error(),
 		})
 		return result, nil
-	}
-
-	projection, err := listLiveTargetProjection(ctx, s.repo, TargetMappingListFilter{ConnectorID: &connectorID}, s.tagService)
-	if err != nil {
-		return nil, err
 	}
 	if len(projection.Mappings) == 0 {
 		result.Issues = append(result.Issues, ValidationIssue{
@@ -61,7 +63,7 @@ func (s *MappingService) Validate(ctx context.Context, connectorID string) (*Val
 			}
 		}
 
-		issues := validateMappingAgainstTables(*mapping, *tagEntity, tables)
+		issues := validateMappingAgainstTables(connector.Kind, *mapping, *tagEntity, tables)
 		for _, issue := range issues {
 			if issue.Severity == "error" {
 				result.Ready = false
