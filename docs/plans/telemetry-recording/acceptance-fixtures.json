@@ -1,0 +1,119 @@
+{
+  "purpose": "Proposal numeric and identity examples, not runtime test evidence",
+  "cases": [
+    {
+      "id": "M03",
+      "operation": "scale",
+      "value": "-123",
+      "multiplier": "0.1",
+      "expected": "-12.3"
+    },
+    {
+      "id": "M04",
+      "operation": "exact_json",
+      "value": "9007199254740993",
+      "expected": "9007199254740993"
+    },
+    {
+      "id": "C01",
+      "operation": "counter_deltas",
+      "values": [
+        "12000.0",
+        "12000.4",
+        "12000.7"
+      ],
+      "expected": [
+        "0.4",
+        "0.3"
+      ],
+      "total": "0.7"
+    },
+    {
+      "id": "C02",
+      "operation": "difference",
+      "values": [
+        "123",
+        "123"
+      ],
+      "expected": "0"
+    },
+    {
+      "id": "C05",
+      "operation": "single_wrap",
+      "values": [
+        "65530",
+        "4"
+      ],
+      "modulus": "65536",
+      "expected": "10",
+      "precondition": "single-wrap evidence required"
+    },
+    {
+      "id": "C06",
+      "operation": "difference",
+      "values": [
+        "100",
+        "98"
+      ],
+      "expected": "-2",
+      "precondition": "confirmed signed_counter"
+    },
+    {
+      "id": "W01",
+      "operation": "weighted",
+      "values": [
+        "10",
+        "20"
+      ],
+      "durations": [
+        "10",
+        "50"
+      ],
+      "numerator": "1100",
+      "denominator": "60"
+    },
+    {
+      "id": "W03",
+      "operation": "difference",
+      "values": [
+        "1000",
+        "1002"
+      ],
+      "expected": "2",
+      "allocation_status": "unallocated",
+      "precondition": "trustworthy continuous epoch"
+    },
+    {
+      "id": "R01",
+      "operation": "integrate_constant",
+      "value": "2",
+      "seconds": "1800",
+      "unit_seconds": "3600",
+      "expected": "1",
+      "estimated": true
+    },
+    {
+      "id": "R02",
+      "operation": "integrate_constant",
+      "value": "120",
+      "seconds": "60",
+      "unit_seconds": "60",
+      "expected": "120",
+      "estimated": true
+    },
+    {
+      "id": "P01",
+      "operation": "count",
+      "acquired": 12,
+      "expected_recorded": 12
+    },
+    {
+      "id": "LOAD01",
+      "operation": "throughput",
+      "devices": 100,
+      "items": 8,
+      "seconds": 5,
+      "expected": 160
+    }
+  ]
+}
