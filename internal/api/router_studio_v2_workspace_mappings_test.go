@@ -24,8 +24,8 @@ func newStudioV2WorkspaceMappingRouter(t *testing.T) *gin.Engine {
 
 	deviceRepo := device.NewMemoryRepository()
 	for _, seed := range []struct {
-		id       string
-		slaveID  int
+		id      string
+		slaveID int
 	}{
 		{id: "dev-A", slaveID: 1},
 		{id: "dev-B", slaveID: 2},
