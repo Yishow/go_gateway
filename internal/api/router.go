@@ -11,6 +11,7 @@ import (
 	"go-gateway/internal/datalink/collector"
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/device"
+	"go-gateway/internal/datalink/history"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
@@ -47,6 +48,7 @@ type DatalinkServices struct {
 	SourceRule            *sourcerule.Service
 	Measurement           *measurement.Service
 	RecordingPlan         *recordingplan.Service
+	History               *history.Service
 	Workspace             *workspace.Service
 	Audit                 *audit.Service
 	ShareRestore          handlers.ShareRestoreBarrier
@@ -237,31 +239,8 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				}
 			}
 
-			// Measurements
-			if datalinkServices.Measurement != nil && datalinkServices.Workspace != nil {
-				measurementHandler := handlers.NewStudioV2WorkspaceMeasurementsHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Measurement)
-				datalinkGroup.GET("/studio-v2/workspace/measurements", measurementHandler.List)
-				datalinkGroup.GET("/studio-v2/workspace/measurements/templates", measurementHandler.ListTemplates)
-				datalinkGroup.POST("/studio-v2/workspace/measurements/templates/preview", measurementHandler.PreviewTemplate)
-				datalinkGroup.POST("/studio-v2/workspace/measurements/templates/apply", measurementHandler.ApplyTemplate)
-				datalinkGroup.POST("/studio-v2/workspace/measurements", measurementHandler.Create)
-				datalinkGroup.PUT("/studio-v2/workspace/measurements/:id", measurementHandler.Update)
-				datalinkGroup.DELETE("/studio-v2/workspace/measurements/:id", measurementHandler.Delete)
-			}
-
-			// Recording Plans
-			if datalinkServices.RecordingPlan != nil && datalinkServices.Workspace != nil {
-				planHandler := handlers.NewStudioV2WorkspaceRecordingPlansHandler(datalinkServices.Workspace, datalinkServices.RecordingPlan, datalinkServices.DBTarget)
-				datalinkGroup.GET("/studio-v2/workspace/recording-plans", planHandler.List)
-				datalinkGroup.POST("/studio-v2/workspace/recording-plans", planHandler.Create)
-				datalinkGroup.GET("/studio-v2/workspace/recording-plans/:id", planHandler.Get)
-				datalinkGroup.PUT("/studio-v2/workspace/recording-plans/:id", planHandler.Update)
-				datalinkGroup.DELETE("/studio-v2/workspace/recording-plans/:id", planHandler.Delete)
-				datalinkGroup.GET("/studio-v2/workspace/recording-plans/capabilities", planHandler.Capabilities)
-				datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-preview", planHandler.SchemaPreview)
-				datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-apply", planHandler.SchemaApply)
-				datalinkGroup.POST("/studio-v2/workspace/recording-plans/test-write", planHandler.TestWrite)
-			}
+			// Studio V2 Telemetry Recording & History Routes
+			registerStudioV2RecordingRoutes(datalinkGroup, datalinkServices)
 
 			// Points
 			pointHandler := handlers.NewPointHandler(datalinkServices.Point, datalinkServices.Runtime).

@@ -24,6 +24,7 @@ import (
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
 	_ "go-gateway/internal/datalink/connector/adapters" // 導入所有適配器以觸發 init() 註冊協議
+	"go-gateway/internal/datalink/history"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/recordingplan"
@@ -170,6 +171,7 @@ func main() {
 
 	measurementSvc := measurement.NewService(measurement.NewSQLRepository(db))
 	recordingPlanSvc := recordingplan.NewService(recordingplan.NewSQLRepository(db))
+	historySvc := history.NewService(history.NewMemoryHistoryRepository())
 
 	datalinkServices := &api.DatalinkServices{
 		Device:                devSvc,
@@ -187,6 +189,7 @@ func main() {
 		SourceRule:            sourceRuleSvc,
 		Measurement:           measurementSvc,
 		RecordingPlan:         recordingPlanSvc,
+		History:               historySvc,
 		Workspace:             workspaceSvc,
 		Audit:                 auditSvc,
 		ShareRestore: handlers.ShareRestoreBarrier(func(ctx context.Context, req handlers.ActivateWorkspaceRequest) error {
