@@ -103,5 +103,20 @@ export const studioV2WorkspaceKeys = {
   databaseTargets: () => [...studioV2WorkspaceKeys.all, 'database-targets'] as const,
   measurements: (deviceId?: string) => [...studioV2WorkspaceKeys.all, 'measurements', deviceId ?? 'all'] as const,
   measurementTemplates: () => [...studioV2WorkspaceKeys.all, 'measurement-templates'] as const,
+  recordingPlans: (deviceId?: string) => [...studioV2WorkspaceKeys.all, 'recording-plans', deviceId ?? 'all'] as const,
+  recordingPlanCapabilities: (connectorId: string) => [...studioV2WorkspaceKeys.all, 'recording-plan-capabilities', connectorId] as const,
   auditHistory: () => [...studioV2WorkspaceKeys.all, 'audit-history'] as const,
 };
+
+/** Recording Plan 相關 Query Keys */
+export const recordingPlanKeys = {
+  all: ['recording-plans'] as const,
+  lists: () => [...recordingPlanKeys.all, 'list'] as const,
+  list: (filters?: { device_id?: string; enabled?: boolean }) =>
+    [...recordingPlanKeys.lists(), filters ?? {}] as const,
+  details: () => [...recordingPlanKeys.all, 'detail'] as const,
+  detail: (id: string) => [...recordingPlanKeys.details(), id] as const,
+  capabilities: (connectorId: string) =>
+    [...recordingPlanKeys.all, 'capabilities', connectorId] as const,
+};
+

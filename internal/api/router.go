@@ -16,6 +16,7 @@ import (
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/pollinggroup"
+	"go-gateway/internal/datalink/recordingplan"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/settings"
 	"go-gateway/internal/datalink/sourcerule"
@@ -45,6 +46,7 @@ type DatalinkServices struct {
 	DBMapping             *dbtarget.MappingService
 	SourceRule            *sourcerule.Service
 	Measurement           *measurement.Service
+	RecordingPlan         *recordingplan.Service
 	Workspace             *workspace.Service
 	Audit                 *audit.Service
 	ShareRestore          handlers.ShareRestoreBarrier
@@ -245,6 +247,20 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				datalinkGroup.POST("/studio-v2/workspace/measurements", measurementHandler.Create)
 				datalinkGroup.PUT("/studio-v2/workspace/measurements/:id", measurementHandler.Update)
 				datalinkGroup.DELETE("/studio-v2/workspace/measurements/:id", measurementHandler.Delete)
+			}
+
+			// Recording Plans
+			if datalinkServices.RecordingPlan != nil && datalinkServices.Workspace != nil {
+				planHandler := handlers.NewStudioV2WorkspaceRecordingPlansHandler(datalinkServices.Workspace, datalinkServices.RecordingPlan, datalinkServices.DBTarget)
+				datalinkGroup.GET("/studio-v2/workspace/recording-plans", planHandler.List)
+				datalinkGroup.POST("/studio-v2/workspace/recording-plans", planHandler.Create)
+				datalinkGroup.GET("/studio-v2/workspace/recording-plans/:id", planHandler.Get)
+				datalinkGroup.PUT("/studio-v2/workspace/recording-plans/:id", planHandler.Update)
+				datalinkGroup.DELETE("/studio-v2/workspace/recording-plans/:id", planHandler.Delete)
+				datalinkGroup.GET("/studio-v2/workspace/recording-plans/capabilities", planHandler.Capabilities)
+				datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-preview", planHandler.SchemaPreview)
+				datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-apply", planHandler.SchemaApply)
+				datalinkGroup.POST("/studio-v2/workspace/recording-plans/test-write", planHandler.TestWrite)
 			}
 
 			// Points

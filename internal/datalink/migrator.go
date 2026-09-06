@@ -115,10 +115,7 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteWorkspaceAuditHistoryTable(db); err != nil {
 			return err
 		}
-		if err := ensureSQLiteMeasurementSemanticsTable(db); err != nil {
-			return err
-		}
-		if err := ensureSQLiteSourceRuleMixedLayoutColumns(db); err != nil {
+		if err := ensureSQLiteTelemetryRecordingMigrations(db); err != nil {
 			return err
 		}
 
