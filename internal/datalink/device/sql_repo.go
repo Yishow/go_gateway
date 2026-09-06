@@ -26,7 +26,7 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 			last_test_at, last_test_success, last_test_error, readiness_status, created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	
+
 	// 處理可選欄位：將 nil 指針轉換為適當的 SQL 值
 	var lastTestAt interface{}
 	if dev.LastTestAt != nil {
@@ -35,7 +35,7 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 	} else {
 		lastTestAt = nil
 	}
-	
+
 	var lastTestSuccess interface{}
 	if dev.LastTestSuccess != nil {
 		// SQLite 使用 INTEGER 存儲布林值 (0 或 1)
@@ -47,18 +47,18 @@ func (r *SQLRepository) Create(ctx context.Context, dev *schema.Device) error {
 	} else {
 		lastTestSuccess = nil
 	}
-	
+
 	var lastTestError interface{}
 	if dev.LastTestError != "" {
 		lastTestError = dev.LastTestError
 	} else {
 		lastTestError = nil
 	}
-	
+
 	// 格式化時間為 SQLite 格式
 	createdAtStr := dev.CreatedAt.Format("2006-01-02 15:04:05")
 	updatedAtStr := dev.UpdatedAt.Format("2006-01-02 15:04:05")
-	
+
 	_, err := r.db.ExecContext(ctx, query,
 		dev.ID,
 		dev.Name,
@@ -249,7 +249,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete device: %w", err)
 	}
-	
+
 	rows, err := result.RowsAffected()
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func (r *SQLRepository) Delete(ctx context.Context, id string) error {
 	if rows == 0 {
 		return fmt.Errorf("device not found (delete failed)")
 	}
-	
+
 	return nil
 }
 
@@ -276,6 +276,19 @@ func (r *SQLRepository) UpdateTestResult(ctx context.Context, id string, success
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update test result: %w", err)
+	}
+	return nil
+}
+
+// ClearTestResult 清除已失效的連線測試結果
+func (r *SQLRepository) ClearTestResult(ctx context.Context, id string) error {
+	query := `
+		UPDATE devices
+		SET last_test_at=NULL, last_test_success=NULL, last_test_error='', updated_at=?
+		WHERE id=?
+	`
+	if _, err := r.db.ExecContext(ctx, query, time.Now(), id); err != nil {
+		return fmt.Errorf("failed to clear test result: %w", err)
 	}
 	return nil
 }

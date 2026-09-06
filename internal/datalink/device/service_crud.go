@@ -88,23 +88,51 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 	if req.Description != nil {
 		device.Description = *req.Description
 	}
+	targetProtocol := device.Protocol
+	protocolChanged := false
+	if req.Protocol != nil {
+		if !isValidProtocol(*req.Protocol) {
+			return nil, validationError(fmt.Sprintf("不支援的協議類型: %s", *req.Protocol))
+		}
+		targetProtocol = *req.Protocol
+		protocolChanged = targetProtocol != device.Protocol
+		if protocolChanged && req.ConnectionConfig == nil {
+			return nil, validationError("切換協議時必須提供連線配置")
+		}
+	}
+	connectionChanged := false
 	if req.ConnectionConfig != nil {
 		// 驗證連線配置
-		if err := validateConnectionConfig(device.Protocol, req.ConnectionConfig); err != nil {
+		if err := validateConnectionConfig(targetProtocol, req.ConnectionConfig); err != nil {
 			return nil, validationError(fmt.Sprintf("連線配置無效: %v", err))
 		}
 		configJSON, err := json.Marshal(req.ConnectionConfig)
 		if err != nil {
 			return nil, fmt.Errorf("序列化連線配置失敗: %w", err)
 		}
+		connectionChanged = device.ConnectionConfig != string(configJSON)
 		device.ConnectionConfig = string(configJSON)
+	}
+	device.Protocol = targetProtocol
 
-		// 如果配置變更，關閉現有連線
+	if protocolChanged || connectionChanged {
+		device.LastTestAt = nil
+		device.LastTestSuccess = nil
+		device.LastTestError = ""
+		device.ReadinessStatus = ""
 		s.connMgr.Close(id)
 	}
 
 	device.UpdatedAt = time.Now()
 
+	// 先清除舊探測結果再寫入新設定：兩個寫入無法在同一個交易內完成，順序
+	// 決定了失敗時停在哪一側。先清除的話，中途失敗只會讓設備顯示為未測試；
+	// 反過來則會留下「新協議 + 舊探測成功」這個本來就要消滅的狀態。
+	if protocolChanged || connectionChanged {
+		if err := s.repo.ClearTestResult(ctx, id); err != nil {
+			return nil, fmt.Errorf("清除設備測試結果失敗: %w", err)
+		}
+	}
 	if err := s.repo.Update(ctx, device); err != nil {
 		return nil, fmt.Errorf("更新設備失敗: %w", err)
 	}
@@ -116,6 +144,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateDeviceRequest
 type UpdateDeviceRequest struct {
 	Name             *string                `json:"name,omitempty"`
 	Description      *string                `json:"description,omitempty"`
+	Protocol         *schema.ProtocolType   `json:"protocol,omitempty"`
 	ConnectionConfig map[string]interface{} `json:"connection_config,omitempty"`
 }
 

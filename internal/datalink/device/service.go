@@ -34,6 +34,8 @@ type Repository interface {
 
 	// UpdateTestResult 更新連線測試結果
 	UpdateTestResult(ctx context.Context, id string, success bool, errMsg string) error
+	// ClearTestResult 清除已失效的連線測試結果
+	ClearTestResult(ctx context.Context, id string) error
 
 	// UpdateStatus 更新設備狀態
 	UpdateStatus(ctx context.Context, id string, status schema.DeviceStatus) error

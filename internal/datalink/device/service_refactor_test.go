@@ -148,6 +148,10 @@ func (r *stubDeviceRepository) UpdateTestResult(ctx context.Context, id string, 
 	return nil
 }
 
+func (r *stubDeviceRepository) ClearTestResult(ctx context.Context, id string) error {
+	return nil
+}
+
 func (r *stubDeviceRepository) UpdateStatus(ctx context.Context, id string, status schema.DeviceStatus) error {
 	return nil
 }

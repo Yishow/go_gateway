@@ -52,6 +52,9 @@ func (m *MockDeviceRepo) UpdateTestResult(ctx context.Context, id string, succes
 	args := m.Called(ctx, id, success, errMsg)
 	return args.Error(0)
 }
+func (m *MockDeviceRepo) ClearTestResult(ctx context.Context, id string) error {
+	return nil
+}
 
 func TestDeviceHandler_CheckReadiness(t *testing.T) {
 	// Setup

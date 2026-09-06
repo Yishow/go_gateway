@@ -139,6 +139,23 @@ func (r *MemoryRepository) UpdateTestResult(ctx context.Context, id string, succ
 	return nil
 }
 
+// ClearTestResult 清除已失效的連線測試結果
+func (r *MemoryRepository) ClearTestResult(ctx context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	device, exists := r.devices[id]
+	if !exists {
+		return fmt.Errorf("設備不存在: %s", id)
+	}
+
+	device.LastTestAt = nil
+	device.LastTestSuccess = nil
+	device.LastTestError = ""
+	device.UpdatedAt = time.Now()
+	return nil
+}
+
 // UpdateStatus 更新設備狀態
 func (r *MemoryRepository) UpdateStatus(ctx context.Context, id string, status schema.DeviceStatus) error {
 	r.mu.Lock()
