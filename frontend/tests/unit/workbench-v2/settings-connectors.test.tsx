@@ -82,9 +82,37 @@ describe('Connector settings', () => {
       expect(passwordInput).toHaveAttribute('type', 'password');
 
       fireEvent.change(passwordInput!, { target: { value: 'secret' } });
-      expect(onUpdate).toHaveBeenCalledWith({ password: 'secret' });
+      expect(onUpdate).toHaveBeenCalledWith({ password: 'secret', password_required: false });
     });
+
+    it('切換 kind 時自動觸發智慧連動帶入預設 host/port/schema 並將 status 設為 unknown，且保留自訂 username', () => {
+      const onUpdate = vi.fn();
+      const conn = { ...INITIAL_STATE.settings.connectors[0], status: 'ready' as const };
+
+      render(
+        <ConnectorRow
+          connector={conn}
+          onUpdate={onUpdate}
+          onRemove={vi.fn()}
+          onTest={vi.fn()}
+        />
+      );
+
+      const kindSelect = screen.getByRole('combobox');
+      fireEvent.change(kindSelect, { target: { value: 'mysql' } });
+
+      expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'mysql',
+        host: '127.0.0.1',
+        port: 3306,
+        username: 'gw_writer',
+        schema: '',
+        status: 'unknown',
+      }));
+    });
+
   });
+
 
   describe('ConnectorPoolSection', () => {
     it('triggers add and remove actions', () => {

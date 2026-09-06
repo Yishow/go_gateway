@@ -1,5 +1,28 @@
 import type { StudioV2AvailabilityStatus } from '../../../../types/studioV2Availability';
-import type { DatabaseDeliveryOutcomeFields } from '../../../../types/databaseDelivery';
+import type { StudioV2RuntimeApplyStatus } from '../../../../types/studioV2RuntimeApply';
+import type {
+  CommitState,
+  DbConnector,
+  DbRowGroup,
+  DbTarget,
+  Settings,
+} from './types-settings';
+
+export type {
+  CommitLog,
+  CommitState,
+  Connector,
+  DatabaseSaveState,
+  DbConnector,
+  DbRowGroup,
+  DbTarget,
+  GeneralSettings,
+  ModbusShareSettings,
+  SchedulerSettings,
+  Settings,
+  SettingsConnector,
+  TimeseriesSettings,
+} from './types-settings';
 
 /**
  * Workbench V2 資料狀態型別定義
@@ -33,7 +56,6 @@ export interface DeviceTest {
 export type DeviceSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
 export type RuleSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
 export type MappingSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
-export type DatabaseSaveState = 'idle' | 'draft-invalid' | 'saving' | 'saved' | 'save-error';
 
 export interface Device {
   id: string; // dev-xxx
@@ -144,132 +166,6 @@ export interface Mapping {
   save_error?: string | null;
 }
 
-export interface DbConnector extends DatabaseDeliveryOutcomeFields {
-  kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
-  name: string;
-  host: string;
-  port: number;
-  database: string;
-  username: string;
-  password?: string;
-  schema: string;
-  table: string;
-  write_mode: 'insert' | 'upsert';
-  write_interval_seconds: number;
-  timestamp_column: string;
-  status: string;
-  connector_id?: string;
-  workspace_id?: string;
-  persisted?: boolean;
-  save_state?: DatabaseSaveState;
-  save_error?: string | null;
-}
-
-export interface DbRowGroup {
-  id: string;
-  connector_id?: string;
-  table_schema?: string;
-  table_name: string;
-  member_point_ids: string[];
-  group_key_columns?: string[];
-  unique_key_columns?: string[];
-}
-
-export interface DbTarget {
-  tag_id: string;
-  column_name: string;
-  enabled: boolean;
-  row_group_id?: string;
-  point_id?: string;
-  row_id?: string;
-  workspace_id?: string;
-  persisted?: boolean;
-  save_state?: DatabaseSaveState;
-  save_error?: string | null;
-}
-
-export interface Connector {
-  id: string;
-  name: string;
-  kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
-  config: Record<string, unknown>;
-}
-
-export interface SettingsConnector {
-  id: string;
-  name: string;
-  kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
-  host: string;
-  port: number;
-  database: string;
-  username: string;
-  password?: string;
-  schema: string;
-  table: string;
-  enabled: boolean;
-  status: 'unknown' | 'testing' | 'ready' | 'unreachable' | 'auth_failed' | 'error';
-  last_check_at?: string;
-  last_check_error?: string;
-  default_write_interval_seconds: number;
-}
-
-export interface TimeseriesSettings {
-  write_precision: 'second' | 'millisecond';
-  partition_interval: 'daily' | 'weekly' | 'monthly';
-  batch_size: number;
-  retention_days: number;
-}
-
-export interface SchedulerSettings {
-  default_interval_ms: number;
-  default_retry_count: number;
-  default_retry_delay_ms: number;
-  breaker_threshold: number;
-  auto_start: boolean;
-}
-
-export interface ModbusShareSettings {
-  enabled: boolean;
-  bind_address: string;
-  port: number;
-  slave_id: number;
-  base_register: number;
-}
-
-export interface GeneralSettings {
-  theme: 'dark' | 'light' | 'auto';
-  locale: 'zh-TW' | 'en';
-  addr_format: 'modbus' | 'hex' | 'raw';
-  api_base: string;
-  api_version: 'v1' | 'v2';
-  timeout_seconds: number;
-  log_level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
-  sse_heartbeat_seconds: number;
-  enable_debug_panel: boolean;
-  enable_audit_log: boolean;
-}
-
-export interface Settings {
-  connectors: SettingsConnector[];
-  timeseries: TimeseriesSettings;
-  scheduler: SchedulerSettings;
-  modbus_share: ModbusShareSettings;
-  general: GeneralSettings;
-}
-
-export interface CommitLog {
-  label: string;
-  detail: string;
-  status: 'pending' | 'running' | 'success' | 'failed';
-}
-
-export interface CommitState {
-  status: 'idle' | 'committing' | 'success' | 'failed';
-  logs: CommitLog[];
-  started_at?: string;
-  finished_at?: string;
-}
-
 export interface WorkbenchV2State {
   view: 'flow' | 'settings';
   current: 1 | 2 | 3 | 4;
@@ -290,4 +186,3 @@ export interface WorkbenchV2State {
   commit?: CommitState;
   committed: boolean;
 }
-import type { StudioV2RuntimeApplyStatus } from '../../../../types/studioV2RuntimeApply';

@@ -10,6 +10,17 @@ export interface DbColumn {
   primary_key: boolean;
 }
 
+/** Connection fields affected when switching a database connector kind. */
+export interface DbConnectorKindPatch {
+  kind: DbConnector['kind'];
+  host?: string;
+  port?: number;
+  database?: string;
+  username?: string;
+  password?: string;
+  schema?: string;
+}
+
 /**
  * 模擬的資料庫欄位資料（PostgreSQL 9 欄範例）
  * 落地設計決策：「Sample table schema」
@@ -81,7 +92,7 @@ export function getDefaultConnector(kind: DbConnector['kind']): DbConnector {
       return {
         kind: 'mysql',
         name: 'MySQL Connector',
-        host: 'localhost',
+        host: '127.0.0.1',
         port: 3306,
         database: 'gateway_metrics',
         username: 'root',
@@ -96,7 +107,7 @@ export function getDefaultConnector(kind: DbConnector['kind']): DbConnector {
       return {
         kind: 'sqlserver',
         name: 'SQL Server Connector',
-        host: 'localhost',
+        host: '127.0.0.1',
         port: 1433,
         database: 'gateway_metrics',
         username: 'sa',
@@ -112,7 +123,7 @@ export function getDefaultConnector(kind: DbConnector['kind']): DbConnector {
       return {
         kind: 'postgres',
         name: 'PostgreSQL Connector',
-        host: 'tsdb.internal',
+        host: '127.0.0.1',
         port: 5432,
         database: 'gateway_metrics',
         username: 'postgres',
@@ -124,4 +135,48 @@ export function getDefaultConnector(kind: DbConnector['kind']): DbConnector {
         status: 'unknown'
       };
   }
+}
+
+/**
+ * 依據目標資料庫種類計算智慧連動 patch
+ * 策略 A：Port 換成預設、Schema 換成預設、Host 保留遠端自訂或設為 127.0.0.1、SQLite 清空連線資訊
+ */
+export function getDbKindPatch(
+  nextKind: DbConnector['kind'],
+  current: DbConnectorKindPatch,
+): Partial<DbConnectorKindPatch> {
+  const defaultConn = getDefaultConnector(nextKind);
+
+  if (nextKind === 'sqlite') {
+    return {
+      kind: nextKind,
+      host: '',
+      port: 0,
+      username: '',
+      password: undefined,
+      schema: '',
+      database: current.database && current.database !== 'gateway_metrics' ? current.database : 'gateway.db',
+    };
+  }
+
+
+  const rawHost = (current.host ?? '').trim().toLowerCase();
+  const isLoopbackHost = !rawHost || rawHost === '127.0.0.1' || rawHost === 'localhost' || rawHost === 'tsdb.internal';
+  const host = isLoopbackHost ? defaultConn.host : current.host;
+
+  const rawUser = (current.username ?? '').trim().toLowerCase();
+  const isDefaultUser = !rawUser || rawUser === 'postgres' || rawUser === 'root' || rawUser === 'sa';
+  const username = isDefaultUser ? defaultConn.username : current.username;
+
+  return {
+    kind: nextKind,
+    host,
+    port: defaultConn.port,
+    schema: defaultConn.schema,
+    username,
+    // 憑證綁定在連線身分上：換掉資料庫類型後舊密碼不再適用，必須重新輸入，
+    // 否則會把前一組憑證送到新的端點。
+    password: '',
+    database: current.database && current.database !== 'gateway.db' ? current.database : defaultConn.database,
+  };
 }

@@ -24,6 +24,10 @@ function booleanValue(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function objectValue(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
+}
+
 function connectorConfigValue(config: Record<string, unknown>, ...keys: string[]): string {
   for (const key of keys) {
     const value = config[key];
@@ -39,6 +43,8 @@ function connectorConfigValue(config: Record<string, unknown>, ...keys: string[]
 
 export function mapSettingItemsToWorkbenchSettings(items: SettingItem[]): Settings {
   const values = new Map(items.map((item) => [item.key, item.value]));
+  const modbusShare = objectValue(values.get('modbus_share'));
+  const hasModbusShareSettings = values.has('modbus_share') || values.has('modbus_share_enabled');
 
   return {
     ...DEFAULT_SETTINGS,
@@ -79,22 +85,34 @@ export function mapSettingItemsToWorkbenchSettings(items: SettingItem[]): Settin
     },
     modbus_share: {
       enabled: booleanValue(
-        values.get('modbus_share_enabled'),
-        DEFAULT_SETTINGS.modbus_share.enabled,
+        modbusShare.enabled ?? values.get('modbus_share_enabled'),
+        hasModbusShareSettings ? DEFAULT_SETTINGS.modbus_share.enabled : false,
       ),
       bind_address: stringValue(
-        values.get('modbus_share_bind_address'),
+        modbusShare.bind_address ?? values.get('modbus_share_bind_address'),
         DEFAULT_SETTINGS.modbus_share.bind_address,
       ),
-      port: numberValue(values.get('modbus_share_port'), DEFAULT_SETTINGS.modbus_share.port),
+      port: numberValue(
+        modbusShare.port ?? values.get('modbus_share_port'),
+        DEFAULT_SETTINGS.modbus_share.port,
+      ),
       slave_id: numberValue(
-        values.get('modbus_share_slave_id'),
+        modbusShare.slave_id ?? values.get('modbus_share_slave_id'),
         DEFAULT_SETTINGS.modbus_share.slave_id,
       ),
-      base_register: numberValue(
-        values.get('modbus_share_base_register'),
-        DEFAULT_SETTINGS.modbus_share.base_register,
+      capacity_registers: numberValue(
+        modbusShare.capacity_registers,
+        DEFAULT_SETTINGS.modbus_share.capacity_registers,
       ),
+      settings_revision: stringValue(
+        modbusShare.settings_revision,
+        DEFAULT_SETTINGS.modbus_share.settings_revision,
+      ),
+      expected_settings_revision: stringValue(
+        modbusShare.expected_settings_revision ?? modbusShare.settings_revision,
+        DEFAULT_SETTINGS.modbus_share.expected_settings_revision ?? '',
+      ),
+      base_register: DEFAULT_SETTINGS.modbus_share.base_register,
     },
     general: {
       theme: stringValue(values.get('theme'), DEFAULT_SETTINGS.general.theme) as Settings['general']['theme'],
@@ -143,11 +161,18 @@ export function buildPersistableSettingEntries(settings: Settings): PersistableS
     { key: 'default_retry_delay', value: settings.scheduler.default_retry_delay_ms },
     { key: 'breaker_threshold', value: settings.scheduler.breaker_threshold },
     { key: 'auto_start', value: settings.scheduler.auto_start },
-    { key: 'modbus_share_enabled', value: settings.modbus_share.enabled },
-    { key: 'modbus_share_bind_address', value: settings.modbus_share.bind_address },
-    { key: 'modbus_share_port', value: settings.modbus_share.port },
-    { key: 'modbus_share_slave_id', value: settings.modbus_share.slave_id },
-    { key: 'modbus_share_base_register', value: settings.modbus_share.base_register },
+    {
+      key: 'modbus_share',
+      value: {
+        enabled: settings.modbus_share.enabled,
+        bind_address: settings.modbus_share.bind_address,
+        port: settings.modbus_share.port,
+        slave_id: settings.modbus_share.slave_id,
+        capacity_registers: settings.modbus_share.capacity_registers,
+        settings_revision: settings.modbus_share.settings_revision,
+        expected_settings_revision: settings.modbus_share.expected_settings_revision ?? settings.modbus_share.settings_revision,
+      },
+    },
     { key: 'theme', value: settings.general.theme },
     { key: 'locale', value: settings.general.locale },
     { key: 'addr_format', value: settings.general.addr_format },
@@ -238,11 +263,17 @@ export function buildCreateConnectorRequest(
 export function buildUpdateConnectorRequest(
   connector: SettingsConnector,
 ): UpdateDatabaseConnectorRequest {
-  return {
+  const request: UpdateDatabaseConnectorRequest = {
     name: connector.name,
     kind: connector.kind,
     enabled: connector.enabled,
     default_write_interval_seconds: connector.default_write_interval_seconds,
     connection_config: buildConnectorConfig(connector),
   };
+  // 密碼留空預設代表「沿用既有」，但身分已換掉時沿用等於把舊憑證送到新端點；
+  // 明確要求後端清除，讓連線失敗於缺密碼而不是用錯密碼。
+  if (connector.password_required && !(connector.password ?? '').trim()) {
+    request.clear_password = true;
+  }
+  return request;
 }

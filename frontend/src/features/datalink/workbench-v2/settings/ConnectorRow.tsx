@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { SettingsConnector } from '../state/types';
+import { getDbKindPatch } from '../state/dbSchemas';
 
 /**
  * ConnectorRow 元件屬性
@@ -38,47 +39,39 @@ export function ConnectorRow({ connector, onUpdate, onRemove, onTest }: Connecto
   const hasSchema = kind === 'postgres' || kind === 'sqlserver';
   const isTesting = status === 'testing';
 
-  // 取得 Emoji 標誌
+  const handleKindChange = (nextKind: typeof kind) => {
+    const patch = getDbKindPatch(nextKind, connector);
+    // 換掉資料庫類型等於換掉連線身分，舊憑證不得沿用（SQLite 不需要密碼）。
+    onUpdate({ ...patch, status: 'unknown', password_required: nextKind !== 'sqlite' });
+  };
+
   const getKindEmoji = (k: typeof kind) => {
     switch (k) {
       case 'sqlite': return '💾';
       case 'mysql': return '🐬';
       case 'sqlserver': return '🖥️';
       case 'postgres':
-      default:
-        return '🐘';
+      default: return '🐘';
     }
   };
 
-  // 取得 Status Chip 樣式與文字
   const getStatusConfig = (st: typeof status) => {
     switch (st) {
       case 'ready':
-        return {
-          text: t('settings.status_ready', '連線成功'),
-          className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-        };
+        return { text: t('settings.status_ready', '連線成功'), className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
       case 'testing':
-        return {
-          text: t('settings.status_testing', '正在測試…'),
-          className: 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-        };
+        return { text: t('settings.status_testing', '正在測試…'), className: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
       case 'unreachable':
       case 'auth_failed':
-        return {
-          text: t('settings.status_failed', '無法連線'),
-          className: 'bg-red-500/10 text-red-400 border-red-500/20'
-        };
+        return { text: t('settings.status_failed', '無法連線'), className: 'bg-red-500/10 text-red-400 border-red-500/20' };
       case 'unknown':
       default:
-        return {
-          text: t('settings.status_unknown', '未測試'),
-          className: 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-        };
+        return { text: t('settings.status_unknown', '未測試'), className: 'bg-gray-500/10 text-gray-400 border-gray-500/20' };
     }
   };
 
   const statusConfig = getStatusConfig(status);
+
 
   return (
     <div className="p-5 space-y-4 bg-gray-950/20 hover:bg-gray-950/40 rounded-xl border border-gray-800/40 transition-all duration-200" data-testid={`connector-row-${id}`}>
@@ -133,7 +126,7 @@ export function ConnectorRow({ connector, onUpdate, onRemove, onTest }: Connecto
           <select
             value={kind}
             disabled={isTesting}
-            onChange={(e) => onUpdate({ kind: e.target.value as 'postgres' | 'sqlite' | 'mysql' | 'sqlserver' })}
+            onChange={(e) => handleKindChange(e.target.value as 'postgres' | 'sqlite' | 'mysql' | 'sqlserver')}
             className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white focus:border-blue-500 outline-none transition-all cursor-pointer"
           >
             <option value="postgres">PostgreSQL</option>
@@ -206,7 +199,10 @@ export function ConnectorRow({ connector, onUpdate, onRemove, onTest }: Connecto
               type="password"
               value={password ?? ''}
               disabled={isTesting}
-              onChange={(e) => onUpdate({ password: e.target.value })}
+              onChange={(e) => onUpdate({
+                password: e.target.value,
+                ...(e.target.value.trim() !== '' ? { password_required: false } : {}),
+              })}
               className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white focus:border-blue-500 outline-none transition-all"
             />
           </div>

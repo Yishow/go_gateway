@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getColumnsFor, getDefaultConnector } from '../../../src/features/datalink/workbench-v2/state/dbSchemas';
+import { getColumnsFor, getDefaultConnector, getDbKindPatch } from '../../../src/features/datalink/workbench-v2/state/dbSchemas';
 
 /**
  * @file dbSchemas.test.ts
@@ -48,7 +48,7 @@ describe('dbSchemas', () => {
       const connector = getDefaultConnector('postgres');
       expect(connector.kind).toBe('postgres');
       expect(connector.port).toBe(5432);
-      expect(connector.host).toBe('tsdb.internal');
+      expect(connector.host).toBe('127.0.0.1');
       expect(connector.database).toBe('gateway_metrics');
       expect(connector.schema).toBe('public');
       expect(connector.table).toBe('sensor_readings');
@@ -69,6 +69,7 @@ describe('dbSchemas', () => {
       const connector = getDefaultConnector('mysql');
       expect(connector.kind).toBe('mysql');
       expect(connector.port).toBe(3306);
+      expect(connector.host).toBe('127.0.0.1');
       expect(connector.schema).toBe('');
     });
 
@@ -76,7 +77,70 @@ describe('dbSchemas', () => {
       const connector = getDefaultConnector('sqlserver');
       expect(connector.kind).toBe('sqlserver');
       expect(connector.port).toBe(1433);
+      expect(connector.host).toBe('127.0.0.1');
       expect(connector.schema).toBe('dbo');
     });
   });
+
+  describe('getDbKindPatch', () => {
+    it('從 postgres 切換至 mysql 時應更新 port 為 3306、username 為 root、schema 清空，並維持 loopback host', () => {
+      const current = {
+        kind: 'postgres' as const,
+        host: '127.0.0.1',
+        port: 5432,
+        username: 'postgres',
+        schema: 'public',
+      };
+      const patch = getDbKindPatch('mysql', current);
+      expect(patch).toMatchObject({
+        kind: 'mysql',
+        host: '127.0.0.1',
+        port: 3306,
+        username: 'root',
+        schema: '',
+      });
+    });
+
+    it('從 postgres 切換至 sqlserver 時若為自訂 remote host 應予以保留，且 port 改為 1433、schema 改為 dbo', () => {
+      const current = {
+        kind: 'postgres' as const,
+        host: '192.168.10.50',
+        port: 5432,
+        username: 'custom_user',
+        schema: 'public',
+      };
+      const patch = getDbKindPatch('sqlserver', current);
+      expect(patch).toMatchObject({
+        kind: 'sqlserver',
+        host: '192.168.10.50',
+        port: 1433,
+        username: 'custom_user',
+        schema: 'dbo',
+      });
+    });
+
+    it('切換至 sqlite 時應清空 host、port、username、password、schema', () => {
+      const current = {
+        kind: 'postgres' as const,
+        host: '127.0.0.1',
+        port: 5432,
+        username: 'postgres',
+        password: 'secret_password',
+        schema: 'public',
+        database: 'gateway_metrics',
+      };
+      const patch = getDbKindPatch('sqlite', current);
+      expect(patch).toMatchObject({
+        kind: 'sqlite',
+        host: '',
+        port: 0,
+        username: '',
+        schema: '',
+        database: 'gateway.db',
+      });
+      expect(patch.password).toBeUndefined();
+
+    });
+  });
 });
+

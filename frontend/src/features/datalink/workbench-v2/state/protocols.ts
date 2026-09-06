@@ -51,25 +51,46 @@ export function getStagesForProtocol(protocol: ProtocolId): ReadinessStage[] {
  * @param protocol 協議 ID
  * @returns 預設設定物件
  */
-export function getDefaultConfig(protocol: ProtocolId): Record<string, string | number> {
+export function getDefaultConfig(protocol: ProtocolId): Record<string, string | number | string[]> {
   switch (protocol) {
     case 'modbus_rtu':
       return {
         port: '/dev/ttyUSB0',
         baud: 9600,
         parity: 'N',
+        data_bits: 8,
+        stop_bits: 1,
         slave_id: 1,
+        timeout: 5,
       };
     case 'mqtt':
       return {
-        broker: 'mqtts://broker.local:8883',
-        username: '',
+        broker: 'mqtt://127.0.0.1:1883',
         client_id: 'gw-01',
+        username: '',
+        topics: [],
+      };
+    case 'mc_3e':
+      return {
+        host: '192.168.1.100',
+        port: 6000,
+        station: 0,
+        network_no: 0,
+        pc_no: 255,
+        module_io_no: 1023,
+        module_station_no: 0,
+        timeout: 5,
+      };
+    case 'fatek_fbs':
+      return {
+        mode: 'tcp',
+        host: '192.168.1.100',
+        port: 500,
+        station: 1,
+        timeout: 5,
       };
     case 'modbus_tcp':
     case 'modbus_udp':
-    case 'fatek_fbs':
-    case 'mc_3e':
     default:
       return {
         host: '192.168.1.100',
