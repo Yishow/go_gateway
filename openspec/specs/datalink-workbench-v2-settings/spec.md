@@ -1885,3 +1885,1100 @@ tests:
   - internal/datalink/workspace/service_device_order_test.go
   - cmd/test_ui/main.go
 -->
+
+---
+### Requirement: Database kind switch auto-populates defaults
+
+When the operator changes the `kind` of a connector in the Connector Pool row, the system SHALL update the connection attributes according to the smart default synchronization rules:
+- `port` SHALL be updated to the default port of the target database kind (PostgreSQL: 5432, MySQL: 3306, SQL Server: 1433, SQLite: 0).
+- `host` SHALL default to `127.0.0.1` if empty or previously set to a default loopback address (`127.0.0.1`, `localhost`, `tsdb.internal`); custom non-local host values SHALL be preserved.
+- `schema` SHALL update to the default schema of the target database kind (PostgreSQL: `public`, SQL Server: `dbo`, MySQL/SQLite: empty string).
+- `username` SHALL update to the default username of the target database kind if currently empty or set to a standard default username (PostgreSQL: `postgres`, MySQL: `root`, SQL Server: `sa`, SQLite: empty string).
+- For SQLite, `host`, `port`, `username`, and `password` SHALL be cleared, and `database` SHALL default to `gateway.db` if empty.
+
+#### Scenario: Switching from PostgreSQL to MySQL
+- **GIVEN** a connector with kind `postgres`, host `127.0.0.1`, port `5432`, schema `public`, username `postgres`
+- **WHEN** the operator changes kind to `mysql`
+- **THEN** port SHALL become `3306`
+- **AND** host SHALL remain `127.0.0.1`
+- **AND** schema SHALL become `""`
+- **AND** username SHALL become `root`
+
+#### Scenario: Switching from PostgreSQL to SQL Server with custom remote host
+- **GIVEN** a connector with kind `postgres`, host `192.168.1.50`, port `5432`
+- **WHEN** the operator changes kind to `sqlserver`
+- **THEN** host SHALL remain `192.168.1.50`
+- **AND** port SHALL become `1433`
+- **AND** schema SHALL become `dbo`
+
+
+<!-- @trace
+source: fix-studio-v2-setup-and-db-flow
+updated: 2026-09-06
+code:
+  - scripts/lib/b10_focused_suite.py
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/datalink/dbtarget/tooling_service.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_outputs.go
+  - internal/api/handlers/source_rule_handler.go
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - frontend/src/services/studioV2Workspace.ts
+  - internal/datalink/modbusshare/settings_lifecycle.go
+  - internal/datalink/runtime/status.go
+  - docs/swagger/swagger.yaml
+  - internal/api/handlers/runtime_stream_handler.go
+  - internal/datalink/device/service.go
+  - internal/datalink/device/service_status.go
+  - frontend/src/hooks/datalink/useModbusShareCandidateReview.ts
+  - internal/datalink/sourcerule/candidate_api.go
+  - internal/datalink/schema/schema_source_rule_models.go
+  - internal/api/router.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDiagnosticsPanel.tsx
+  - internal/datalink/settings/errors.go
+  - internal/datalink/runtime/service_source_rule_reconcile.go
+  - frontend/src/components/datalink/wizard/MappingWizard.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ShareOutputSummary.tsx
+  - internal/datalink/collector/scheduler_config_methods.go
+  - internal/api/handlers/source_rule_handler_candidates.go
+  - internal/datalink/dbtarget/service.go
+  - internal/datalink/schema/migrations/001_initial_schema.up.sql
+  - internal/datalink/modbusshare/service_projection.go
+  - internal/datalink/workspace/service_readiness_connector_issue.go
+  - scripts/b10_exe_acceptance.py
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - docs/swagger/docs.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/api/handlers/device_health_handler.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - internal/datalink/sourcerule/output_apply_service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LivePreview.ts
+  - internal/datalink/sourcerule/service_state.go
+  - docs/releases/retire-legacy-studio-and-polish-v2.md
+  - internal/datalink/sourcerule/share_desired_mappings.go
+  - internal/virtual/server/modbus/server.go
+  - internal/api/handlers/modbus_share_handler_mapping_query.go
+  - frontend/src/features/datalink/runtime-dashboard/LiveStateBanner.tsx
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - internal/datalink/modbusshare/reconciler_helpers.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - internal/datalink/modbusshare/geometry.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/api/handlers/mapping_handler.go
+  - frontend/src/components/datalink/wizard/steps/PreviewStep.tsx
+  - frontend/src/types/studioV2Activation.ts
+  - frontend/src/features/datalink/workbench-v2/settings/ModbusShareSection.tsx
+  - internal/datalink/modbusshare/types.go
+  - internal/datalink/workspace/service_readiness_device.go
+  - internal/datalink/sourcerule/local_modbus_mapping_reader.go
+  - internal/datalink/settings/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/sourcerule/candidate_snapshot_revision.go
+  - internal/datalink/sourcerule/mutation_rollback.go
+  - frontend/src/hooks/datalink/useRuntimeStream.ts
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - internal/api/handlers/typed_errors.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/LocalModbusReviewSurface.tsx
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceActivation.ts
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/collector/scheduler_dispatch.go
+  - docs/swagger/swagger.json
+  - docs/technical/studio-surface-inventory/backend-api-registry.md
+  - frontend/src/hooks/previewStreamEvents.ts
+  - internal/api/handlers/modbus_share_handler_gates.go
+  - frontend/src/services/datalink.ts
+  - internal/api/handlers/response_keys.go
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts
+  - internal/datalink/modbusshare/errors.go
+  - internal/datalink/settings/sql_repo.go
+  - internal/datalink/workspace/service_readiness.go
+  - internal/datalink/modbusshare/canonical_plan.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - internal/datalink/sourcerule/local_modbus_restore.go
+  - internal/api/handlers/runtime_handler.go
+  - internal/api/handlers/template.go
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - internal/api/handlers/studio_v2_workspace_activation_handler.go
+  - internal/api/handlers/connection.go
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/runtime/ingestor.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/step3LiveSubscription.ts
+  - frontend/src/features/datalink/workbench-v2/state/types-step4.test-d.ts
+  - internal/api/handlers/modbus_share_handler_mapping_mutations.go
+  - frontend/src/types/modbusShare.test-d.ts
+  - docs/technical/studio-surface-inventory/changelog.sqlite
+  - internal/datalink/runtime/truth_state.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingPreviewCells.tsx
+  - frontend/src/types/sourceRuleCandidates.ts
+  - frontend/src/services/sourceRuleTagReviewDecisions.ts
+  - frontend/src/utils/typedErrors.ts
+  - internal/datalink/modbusshare/service_lifecycle.go
+  - frontend/src/utils/safeJson.ts
+  - internal/datalink/workspace/service.go
+  - internal/datalink/workspace/service_devices.go
+  - internal/datalink/sourcerule/interfaces.go
+  - internal/api/handlers/config.go
+  - internal/datalink/sourcerule/repository_memory.go
+  - frontend/src/services/studioV2WorkspaceActivation.ts
+  - frontend/src/features/datalink/workbench-v2/state/settingsDefaults.ts
+  - internal/datalink/modbusshare/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/vite.config.ts
+  - scripts/lib/b10_acceptance_helpers.py
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/collector/scheduler_lifecycle.go
+  - internal/datalink/modbusshare/service_persistence.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - frontend/src/types/datalink.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - frontend/src/services/sourceRuleCandidates.ts
+  - frontend/src/types/runtimeDiagnostics.ts
+  - internal/api/handlers/dashboard_handler.go
+  - internal/datalink/modbusshare/sql_revision_store_helpers.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - internal/datalink/tag/service_crud.go
+  - internal/api/handlers/source_rule_handler_tag_review_decisions.go
+  - internal/datalink/modbusshare/reconciler_state.go
+  - internal/datalink/mapping/service_crud.go
+  - internal/datalink/modbusshare/service_write.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - internal/api/handlers/test.go
+  - internal/datalink/schema/migrations/001_initial_schema_sqlite.sql
+  - internal/datalink/modbusshare/sql_revision_store.go
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - internal/datalink/sourcerule/candidate_snapshot.go
+  - internal/api/handlers/settings_handler.go
+  - internal/api/handlers/source_rule_handler_output_apply.go
+  - internal/datalink/point/service_point_crud.go
+  - internal/datalink/runtime/delivery_diagnostic.go
+  - internal/datalink/sourcerule/mutation_rollback_created.go
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - frontend/src/hooks/usePreviewStream.ts
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - internal/datalink/sourcerule/tag_review_decision_service.go
+  - internal/datalink/device/service_readiness_safe.go
+  - internal/datalink/runtime/modbus_share_delivery.go
+  - internal/datalink/modbusshare/reconciler.go
+  - internal/datalink/device/service_crud.go
+  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
+  - frontend/src/types/studioV2Workspace.ts
+  - internal/virtual/server/modbus/server_connection.go
+  - docs/technical/studio-surface-inventory/CURRENT_STATE.md
+  - internal/datalink/modbusshare/reconciler_transaction.go
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+  - frontend/src/hooks/datalink/useModbusShareStatus.ts
+  - internal/datalink/sourcerule/validation.go
+  - internal/api/handlers/transport_wrapper.go
+  - internal/api/handlers/modbus_share_handler_reconcile.go
+  - internal/api/router_modbus_share.go
+  - internal/datalink/sourcerule/candidate_scope.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/sourcerule/tag_apply_service.go
+  - internal/api/handlers/debug.go
+  - internal/datalink/sourcerule/share_restore_projection.go
+  - internal/api/handlers/modbus_share_handler_status.go
+  - internal/api/handlers/studio_v2_runtime_apply.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/services/datalinkClient.ts
+  - internal/datalink/collector/scheduler.go
+  - scripts/lib/b10_projection_assertions.py
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
+  - internal/virtual/server/modbus/server_register_handlers.go
+  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
+  - frontend/src/features/datalink/workbench-v2/state/studioV2ShareActivation.ts
+  - internal/datalink/modbusshare/service_network_helpers.go
+  - internal/datalink/workspace/service_runtime_projection_scope.go
+  - scripts/check_file_lines.sh
+  - internal/api/handlers/datalink_sse_handler.go
+  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LiveValues.ts
+  - frontend/src/services/modbusShare.test-d.ts
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_conflicts.go
+  - internal/api/handlers/source_rule_handler_tag_apply.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3RuntimeStreams.ts
+  - frontend/src/types/modbusShare.ts
+  - internal/datalink/dbtarget/service_validate.go
+  - internal/api/handlers/modbus_share_handler.go
+  - scripts/lib/b10_negative_steps.py
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
+  - internal/api/handlers/studio_v2_workspace_handler.go
+  - frontend/src/components/datalink/wizard/LivePreviewPanel.tsx
+  - internal/datalink/runtime/service_projection_state.go
+  - internal/datalink/runtime/target_delivery.go
+  - internal/datalink/sourcerule/share_ownership.go
+  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
+  - internal/datalink/runtime/service.go
+  - frontend/src/services/modbusShare.ts
+  - internal/datalink/sourcerule/service.go
+  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
+  - go.mod
+tests:
+  - scripts/lib/test_b10_acceptance_helpers.py
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/modbusshare/service_test.go
+  - internal/datalink/modbusshare/status_contract_test.go
+  - cmd/test_ui/service_wiring.go
+  - frontend/tests/unit/utils/typedErrors.test.ts
+  - internal/datalink/modbusshare/geometry_validation_test.go
+  - frontend/tests/unit/workbench-v2/step4-share-summary.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-diagnostics-state.test.tsx
+  - frontend/tests/unit/workbench-v2/workbench-local-modbus-review-surface.test.tsx
+  - internal/api/handlers/runtime_handler_test.go
+  - frontend/tests/unit/workbench-v2/step3-live-stream-malformed.test.tsx
+  - internal/datalink/device/service_readiness_contract_test.go
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - internal/api/handlers/polling_group_handler_test.go
+  - internal/datalink/workspace/service_readiness_connector_issue_test.go
+  - internal/datalink/device/service_crud_test.go
+  - internal/api/handlers/studio_v2_runtime_apply_connector_safety_test.go
+  - scripts/lib/test_check_file_lines.py
+  - cmd/test_ui/target_writer.go
+  - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
+  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
+  - internal/api/handlers/studio_v2_workspace_activation_handler_test.go
+  - frontend/tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx
+  - internal/api/handlers/device_handler_extended_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
+  - internal/datalink/modbusshare/service_write_hydration_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-truth-state.test.tsx
+  - internal/datalink/workspace/service_runtime_projection_test.go
+  - frontend/tests/unit/workbench-v2/locale-parity.test.ts
+  - internal/datalink/runtime/ingestor_target_outcomes_test.go
+  - internal/datalink/collector/scheduler_refactor_test.go
+  - internal/datalink/modbusshare/reconciler_idempotency_test.go
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/api/handlers/test_client_factory.go
+  - frontend/tests/unit/workbench-v2/step4-share.test.tsx
+  - internal/datalink/sourcerule/candidate_scope_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - internal/datalink/settings/sql_repo_storage_errors_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_regression_test.go
+  - internal/api/handlers/studio_v2_runtime_apply_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route-state.test.tsx
+  - cmd/test_ui/harness_config_test.go
+  - internal/api/handlers/modbus_share_handler_gates_test.go
+  - internal/datalink/sourcerule/mutation_rollback_read_failure_test.go
+  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
+  - frontend/tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts
+  - internal/api/handlers/datalink_sse_handler_test.go
+  - internal/datalink/modbusshare/settings_hydration_failure_test.go
+  - cmd/test_ui/harness_config.go
+  - internal/datalink/workspace/service_readiness_test.go
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/api/handlers/test_script_handler.go
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/modbusshare/reconciler_test.go
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - frontend/tests/unit/hooks/usePreviewStream.test.tsx
+  - cmd/test_ui/main.go
+  - internal/virtual/server/modbus/server_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.failure-recovery.test.tsx
+  - internal/datalink/modbusshare/settings_lifecycle_cas_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/utils/safeJson.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/device/service_refactor_test.go
+  - cmd/test_ui/share_runtime_reconcile.go
+  - internal/api/handlers/runtime_workspace_setup_context_recovery_test.go
+  - internal/api/handlers/test_connection_handler.go
+  - cmd/test_ui/share_startup.go
+  - internal/api/handlers/studio_v2_workspace_activation_handler_barrier_test.go
+  - internal/datalink/modbusshare/sql_revision_store_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery_regression_test.go
+  - internal/api/handlers/modbus_share_handler_status_contract_test.go
+  - internal/api/handlers/test_client_operations.go
+  - internal/api/handlers/test_monitor_handler.go
+  - internal/datalink/settings/sql_repo_cas_test.go
+  - internal/datalink/modbusshare/reconciler_nil_store_test.go
+  - internal/api/handlers/modbus_share_handler_parse_test.go
+  - frontend/tests/unit/workbench-v2/studioV2WorkspaceActivation.test.ts
+  - cmd/test_ui/server_runtime.go
+  - internal/datalink/modbusshare/reconciler_concurrency_test.go
+  - internal/api/router_studio_v2_workspace_activation_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
+  - internal/datalink/sourcerule/service_runtime_reconcile_test.go
+  - internal/datalink/sourcerule/share_restore_projection_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - internal/datalink/modbusshare/reconciler_transaction_test.go
+  - internal/api/handlers/settings_handler_test.go
+  - internal/datalink/modbusshare/reconciler_lifecycle_test.go
+  - frontend/tests/e2e/embedded-frontend-delivery.spec.ts
+  - internal/api/handlers/modbus_share_handler_production_gate_test.go
+  - internal/api/modbus_share_swagger_contract_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - frontend/tests/unit/workbench-v2/step4-share-helpers.ts
+  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
+  - internal/api/handlers/typed_errors_contract_test.go
+  - internal/api/handlers/modbus_share_handler_diagnostics_test.go
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - internal/datalink/sourcerule/share_desired_mappings_test.go
+  - cmd/test_ui/share_startup_test.go
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.fixture.tsx
+  - internal/api/handlers/source_rule_handler_database_candidates_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-stream-contract.test.tsx
+  - internal/api/handlers/test_request_helpers_test.go
+  - frontend/tests/unit/workbench-v2/commit-progress-accessibility.test.tsx
+  - internal/datalink/modbusshare/reconciler_empty_revision_b10_test.go
+  - internal/api/handlers/source_rule_handler_local_modbus_candidates_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/services/modbusShare.test.ts
+  - internal/datalink/migrator_test.go
+  - internal/api/handlers/modbus_share_handler_lifecycle_test.go
+  - internal/datalink/runtime/service_source_rule_reconcile_test.go
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - internal/datalink/modbusshare/stale_span_invalidation_test.go
+  - internal/api/handlers/source_rule_handler_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/modbusshare/canonical_plan_test.go
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - cmd/test_ui/target_writer_test.go
+  - internal/api/handlers/studio_v2_workspace_handler_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-stream-state.test.tsx
+  - frontend/tests/unit/workbench-v2/settingsDefaults.test.ts
+  - internal/datalink/modbusshare/settings_lifecycle_test.go
+  - internal/datalink/sourcerule/share_gates_test.go
+  - internal/api/handlers/mapping_handler_extended_test.go
+  - frontend/tests/unit/workbench-v2/step3-live-values.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step3-live-preview-changes.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-barrier.test.ts
+  - internal/datalink/modbusshare/reconciler_validation_test.go
+  - internal/api/handlers/studio_v2_workspace_activation_contract_test.go
+  - internal/datalink/sourcerule/repository_memory_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - internal/datalink/modbusshare/settings_hydration_lifecycle_test.go
+-->
+
+---
+### Requirement: Protected connector password input
+
+The connector password input field SHALL maintain isolated controlled state during user typing, and SHALL NOT be cleared or overwritten by parent component re-renders or background autosave operations.
+
+#### Scenario: Typing password without intermediate purge
+- **GIVEN** a connector row in the settings page
+- **WHEN** the operator enters characters into the password field
+- **THEN** the entered characters SHALL persist in the input and state without being cleared on debounce or autosave ticks
+
+<!-- @trace
+source: fix-studio-v2-setup-and-db-flow
+updated: 2026-09-06
+code:
+  - scripts/lib/b10_focused_suite.py
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/datalink/dbtarget/tooling_service.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_outputs.go
+  - internal/api/handlers/source_rule_handler.go
+  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
+  - frontend/src/services/studioV2Workspace.ts
+  - internal/datalink/modbusshare/settings_lifecycle.go
+  - internal/datalink/runtime/status.go
+  - docs/swagger/swagger.yaml
+  - internal/api/handlers/runtime_stream_handler.go
+  - internal/datalink/device/service.go
+  - internal/datalink/device/service_status.go
+  - frontend/src/hooks/datalink/useModbusShareCandidateReview.ts
+  - internal/datalink/sourcerule/candidate_api.go
+  - internal/datalink/schema/schema_source_rule_models.go
+  - internal/api/router.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDiagnosticsPanel.tsx
+  - internal/datalink/settings/errors.go
+  - internal/datalink/runtime/service_source_rule_reconcile.go
+  - frontend/src/components/datalink/wizard/MappingWizard.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ShareOutputSummary.tsx
+  - internal/datalink/collector/scheduler_config_methods.go
+  - internal/api/handlers/source_rule_handler_candidates.go
+  - internal/datalink/dbtarget/service.go
+  - internal/datalink/schema/migrations/001_initial_schema.up.sql
+  - internal/datalink/modbusshare/service_projection.go
+  - internal/datalink/workspace/service_readiness_connector_issue.go
+  - scripts/b10_exe_acceptance.py
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - docs/swagger/docs.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/api/handlers/device_health_handler.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - internal/datalink/sourcerule/output_apply_service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LivePreview.ts
+  - internal/datalink/sourcerule/service_state.go
+  - docs/releases/retire-legacy-studio-and-polish-v2.md
+  - internal/datalink/sourcerule/share_desired_mappings.go
+  - internal/virtual/server/modbus/server.go
+  - internal/api/handlers/modbus_share_handler_mapping_query.go
+  - frontend/src/features/datalink/runtime-dashboard/LiveStateBanner.tsx
+  - internal/datalink/sourcerule/runtime_reconcile.go
+  - internal/datalink/modbusshare/reconciler_helpers.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - internal/datalink/modbusshare/geometry.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/api/handlers/mapping_handler.go
+  - frontend/src/components/datalink/wizard/steps/PreviewStep.tsx
+  - frontend/src/types/studioV2Activation.ts
+  - frontend/src/features/datalink/workbench-v2/settings/ModbusShareSection.tsx
+  - internal/datalink/modbusshare/types.go
+  - internal/datalink/workspace/service_readiness_device.go
+  - internal/datalink/sourcerule/local_modbus_mapping_reader.go
+  - internal/datalink/settings/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/sourcerule/candidate_snapshot_revision.go
+  - internal/datalink/sourcerule/mutation_rollback.go
+  - frontend/src/hooks/datalink/useRuntimeStream.ts
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - internal/api/handlers/typed_errors.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/LocalModbusReviewSurface.tsx
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceActivation.ts
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/collector/scheduler_dispatch.go
+  - docs/swagger/swagger.json
+  - docs/technical/studio-surface-inventory/backend-api-registry.md
+  - frontend/src/hooks/previewStreamEvents.ts
+  - internal/api/handlers/modbus_share_handler_gates.go
+  - frontend/src/services/datalink.ts
+  - internal/api/handlers/response_keys.go
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts
+  - internal/datalink/modbusshare/errors.go
+  - internal/datalink/settings/sql_repo.go
+  - internal/datalink/workspace/service_readiness.go
+  - internal/datalink/modbusshare/canonical_plan.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - internal/datalink/sourcerule/local_modbus_restore.go
+  - internal/api/handlers/runtime_handler.go
+  - internal/api/handlers/template.go
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - internal/api/handlers/studio_v2_workspace_activation_handler.go
+  - internal/api/handlers/connection.go
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/runtime/ingestor.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/step3LiveSubscription.ts
+  - frontend/src/features/datalink/workbench-v2/state/types-step4.test-d.ts
+  - internal/api/handlers/modbus_share_handler_mapping_mutations.go
+  - frontend/src/types/modbusShare.test-d.ts
+  - docs/technical/studio-surface-inventory/changelog.sqlite
+  - internal/datalink/runtime/truth_state.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingPreviewCells.tsx
+  - frontend/src/types/sourceRuleCandidates.ts
+  - frontend/src/services/sourceRuleTagReviewDecisions.ts
+  - frontend/src/utils/typedErrors.ts
+  - internal/datalink/modbusshare/service_lifecycle.go
+  - frontend/src/utils/safeJson.ts
+  - internal/datalink/workspace/service.go
+  - internal/datalink/workspace/service_devices.go
+  - internal/datalink/sourcerule/interfaces.go
+  - internal/api/handlers/config.go
+  - internal/datalink/sourcerule/repository_memory.go
+  - frontend/src/services/studioV2WorkspaceActivation.ts
+  - frontend/src/features/datalink/workbench-v2/state/settingsDefaults.ts
+  - internal/datalink/modbusshare/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/vite.config.ts
+  - scripts/lib/b10_acceptance_helpers.py
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/collector/scheduler_lifecycle.go
+  - internal/datalink/modbusshare/service_persistence.go
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
+  - frontend/src/types/datalink.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - frontend/src/services/sourceRuleCandidates.ts
+  - frontend/src/types/runtimeDiagnostics.ts
+  - internal/api/handlers/dashboard_handler.go
+  - internal/datalink/modbusshare/sql_revision_store_helpers.go
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
+  - internal/datalink/tag/service_crud.go
+  - internal/api/handlers/source_rule_handler_tag_review_decisions.go
+  - internal/datalink/modbusshare/reconciler_state.go
+  - internal/datalink/mapping/service_crud.go
+  - internal/datalink/modbusshare/service_write.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - internal/api/handlers/test.go
+  - internal/datalink/schema/migrations/001_initial_schema_sqlite.sql
+  - internal/datalink/modbusshare/sql_revision_store.go
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - internal/datalink/sourcerule/candidate_snapshot.go
+  - internal/api/handlers/settings_handler.go
+  - internal/api/handlers/source_rule_handler_output_apply.go
+  - internal/datalink/point/service_point_crud.go
+  - internal/datalink/runtime/delivery_diagnostic.go
+  - internal/datalink/sourcerule/mutation_rollback_created.go
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - frontend/src/hooks/usePreviewStream.ts
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
+  - internal/datalink/sourcerule/tag_review_decision_service.go
+  - internal/datalink/device/service_readiness_safe.go
+  - internal/datalink/runtime/modbus_share_delivery.go
+  - internal/datalink/modbusshare/reconciler.go
+  - internal/datalink/device/service_crud.go
+  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
+  - frontend/src/types/studioV2Workspace.ts
+  - internal/virtual/server/modbus/server_connection.go
+  - docs/technical/studio-surface-inventory/CURRENT_STATE.md
+  - internal/datalink/modbusshare/reconciler_transaction.go
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+  - frontend/src/hooks/datalink/useModbusShareStatus.ts
+  - internal/datalink/sourcerule/validation.go
+  - internal/api/handlers/transport_wrapper.go
+  - internal/api/handlers/modbus_share_handler_reconcile.go
+  - internal/api/router_modbus_share.go
+  - internal/datalink/sourcerule/candidate_scope.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/sourcerule/tag_apply_service.go
+  - internal/api/handlers/debug.go
+  - internal/datalink/sourcerule/share_restore_projection.go
+  - internal/api/handlers/modbus_share_handler_status.go
+  - internal/api/handlers/studio_v2_runtime_apply.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/services/datalinkClient.ts
+  - internal/datalink/collector/scheduler.go
+  - scripts/lib/b10_projection_assertions.py
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
+  - internal/virtual/server/modbus/server_register_handlers.go
+  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
+  - frontend/src/features/datalink/workbench-v2/state/studioV2ShareActivation.ts
+  - internal/datalink/modbusshare/service_network_helpers.go
+  - internal/datalink/workspace/service_runtime_projection_scope.go
+  - scripts/check_file_lines.sh
+  - internal/api/handlers/datalink_sse_handler.go
+  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LiveValues.ts
+  - frontend/src/services/modbusShare.test-d.ts
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_conflicts.go
+  - internal/api/handlers/source_rule_handler_tag_apply.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3RuntimeStreams.ts
+  - frontend/src/types/modbusShare.ts
+  - internal/datalink/dbtarget/service_validate.go
+  - internal/api/handlers/modbus_share_handler.go
+  - scripts/lib/b10_negative_steps.py
+  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
+  - internal/api/handlers/studio_v2_workspace_handler.go
+  - frontend/src/components/datalink/wizard/LivePreviewPanel.tsx
+  - internal/datalink/runtime/service_projection_state.go
+  - internal/datalink/runtime/target_delivery.go
+  - internal/datalink/sourcerule/share_ownership.go
+  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
+  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
+  - internal/datalink/runtime/service.go
+  - frontend/src/services/modbusShare.ts
+  - internal/datalink/sourcerule/service.go
+  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
+  - go.mod
+tests:
+  - scripts/lib/test_b10_acceptance_helpers.py
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/modbusshare/service_test.go
+  - internal/datalink/modbusshare/status_contract_test.go
+  - cmd/test_ui/service_wiring.go
+  - frontend/tests/unit/utils/typedErrors.test.ts
+  - internal/datalink/modbusshare/geometry_validation_test.go
+  - frontend/tests/unit/workbench-v2/step4-share-summary.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-diagnostics-state.test.tsx
+  - frontend/tests/unit/workbench-v2/workbench-local-modbus-review-surface.test.tsx
+  - internal/api/handlers/runtime_handler_test.go
+  - frontend/tests/unit/workbench-v2/step3-live-stream-malformed.test.tsx
+  - internal/datalink/device/service_readiness_contract_test.go
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - internal/api/handlers/polling_group_handler_test.go
+  - internal/datalink/workspace/service_readiness_connector_issue_test.go
+  - internal/datalink/device/service_crud_test.go
+  - internal/api/handlers/studio_v2_runtime_apply_connector_safety_test.go
+  - scripts/lib/test_check_file_lines.py
+  - cmd/test_ui/target_writer.go
+  - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
+  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
+  - internal/api/handlers/studio_v2_workspace_activation_handler_test.go
+  - frontend/tests/unit/workbench-v2/mapping-autosave-page.reconciliation.test.tsx
+  - internal/api/handlers/device_handler_extended_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
+  - internal/datalink/modbusshare/service_write_hydration_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-truth-state.test.tsx
+  - internal/datalink/workspace/service_runtime_projection_test.go
+  - frontend/tests/unit/workbench-v2/locale-parity.test.ts
+  - internal/datalink/runtime/ingestor_target_outcomes_test.go
+  - internal/datalink/collector/scheduler_refactor_test.go
+  - internal/datalink/modbusshare/reconciler_idempotency_test.go
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/api/handlers/test_client_factory.go
+  - frontend/tests/unit/workbench-v2/step4-share.test.tsx
+  - internal/datalink/sourcerule/candidate_scope_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - internal/datalink/settings/sql_repo_storage_errors_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_regression_test.go
+  - internal/api/handlers/studio_v2_runtime_apply_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route-state.test.tsx
+  - cmd/test_ui/harness_config_test.go
+  - internal/api/handlers/modbus_share_handler_gates_test.go
+  - internal/datalink/sourcerule/mutation_rollback_read_failure_test.go
+  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
+  - frontend/tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts
+  - internal/api/handlers/datalink_sse_handler_test.go
+  - internal/datalink/modbusshare/settings_hydration_failure_test.go
+  - cmd/test_ui/harness_config.go
+  - internal/datalink/workspace/service_readiness_test.go
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/api/handlers/test_script_handler.go
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/modbusshare/reconciler_test.go
+  - frontend/tests/unit/workbench-v2/step3-components.test.tsx
+  - frontend/tests/unit/hooks/usePreviewStream.test.tsx
+  - cmd/test_ui/main.go
+  - internal/virtual/server/modbus/server_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.failure-recovery.test.tsx
+  - internal/datalink/modbusshare/settings_lifecycle_cas_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/utils/safeJson.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/device/service_refactor_test.go
+  - cmd/test_ui/share_runtime_reconcile.go
+  - internal/api/handlers/runtime_workspace_setup_context_recovery_test.go
+  - internal/api/handlers/test_connection_handler.go
+  - cmd/test_ui/share_startup.go
+  - internal/api/handlers/studio_v2_workspace_activation_handler_barrier_test.go
+  - internal/datalink/modbusshare/sql_revision_store_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery_regression_test.go
+  - internal/api/handlers/modbus_share_handler_status_contract_test.go
+  - internal/api/handlers/test_client_operations.go
+  - internal/api/handlers/test_monitor_handler.go
+  - internal/datalink/settings/sql_repo_cas_test.go
+  - internal/datalink/modbusshare/reconciler_nil_store_test.go
+  - internal/api/handlers/modbus_share_handler_parse_test.go
+  - frontend/tests/unit/workbench-v2/studioV2WorkspaceActivation.test.ts
+  - cmd/test_ui/server_runtime.go
+  - internal/datalink/modbusshare/reconciler_concurrency_test.go
+  - internal/api/router_studio_v2_workspace_activation_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
+  - internal/datalink/sourcerule/service_runtime_reconcile_test.go
+  - internal/datalink/sourcerule/share_restore_projection_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - internal/datalink/modbusshare/reconciler_transaction_test.go
+  - internal/api/handlers/settings_handler_test.go
+  - internal/datalink/modbusshare/reconciler_lifecycle_test.go
+  - frontend/tests/e2e/embedded-frontend-delivery.spec.ts
+  - internal/api/handlers/modbus_share_handler_production_gate_test.go
+  - internal/api/modbus_share_swagger_contract_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - frontend/tests/unit/workbench-v2/step4-share-helpers.ts
+  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
+  - internal/api/handlers/typed_errors_contract_test.go
+  - internal/api/handlers/modbus_share_handler_diagnostics_test.go
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - internal/datalink/sourcerule/share_desired_mappings_test.go
+  - cmd/test_ui/share_startup_test.go
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.fixture.tsx
+  - internal/api/handlers/source_rule_handler_database_candidates_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-stream-contract.test.tsx
+  - internal/api/handlers/test_request_helpers_test.go
+  - frontend/tests/unit/workbench-v2/commit-progress-accessibility.test.tsx
+  - internal/datalink/modbusshare/reconciler_empty_revision_b10_test.go
+  - internal/api/handlers/source_rule_handler_local_modbus_candidates_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/services/modbusShare.test.ts
+  - internal/datalink/migrator_test.go
+  - internal/api/handlers/modbus_share_handler_lifecycle_test.go
+  - internal/datalink/runtime/service_source_rule_reconcile_test.go
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - internal/datalink/modbusshare/stale_span_invalidation_test.go
+  - internal/api/handlers/source_rule_handler_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/modbusshare/canonical_plan_test.go
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - cmd/test_ui/target_writer_test.go
+  - internal/api/handlers/studio_v2_workspace_handler_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-stream-state.test.tsx
+  - frontend/tests/unit/workbench-v2/settingsDefaults.test.ts
+  - internal/datalink/modbusshare/settings_lifecycle_test.go
+  - internal/datalink/sourcerule/share_gates_test.go
+  - internal/api/handlers/mapping_handler_extended_test.go
+  - frontend/tests/unit/workbench-v2/step3-live-values.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step3-live-preview-changes.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-barrier.test.ts
+  - internal/datalink/modbusshare/reconciler_validation_test.go
+  - internal/api/handlers/studio_v2_workspace_activation_contract_test.go
+  - internal/datalink/sourcerule/repository_memory_test.go
+  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - internal/datalink/modbusshare/settings_hydration_lifecycle_test.go
+-->
+
+---
+### Requirement: Settings save state reflects only real save requests
+
+The settings page SHALL set the Modbus Share save state to the in-flight value only when a save request is actually dispatched. Editing a settings field and resetting settings to defaults SHALL NOT set the in-flight save state. Unsaved-change indication SHALL be carried by the save bar, not by the save state field consumed by the activation barrier.
+
+#### Scenario: Editing a Modbus Share field does not fake an in-flight save
+
+- **WHEN** the operator edits any Modbus Share field
+- **THEN** the Modbus Share save state is not set to the in-flight value
+- **AND** any previously recorded save error for that section is cleared
+
+#### Scenario: Resetting settings does not fake an in-flight save
+
+- **WHEN** the operator resets settings to defaults
+- **THEN** the Modbus Share save state is not set to the in-flight value
+
+#### Scenario: Saving sets and clears the in-flight save state
+
+- **WHEN** the operator triggers a settings save
+- **THEN** the Modbus Share save state becomes the in-flight value while the request is dispatched
+- **AND** the save state becomes the saved value once every setting entry is persisted
+
+##### Example: save state transitions
+
+| Action | Save state after action |
+| ------ | ----------------------- |
+| edit a Modbus Share field | unchanged by the edit |
+| reset settings to defaults | unchanged by the reset |
+| trigger save, request pending | in-flight |
+| trigger save, request succeeds | saved |
+| trigger save, request fails | save-error |
+
+
+<!-- @trace
+source: fix-activation-barrier-and-mysql-target-defects
+updated: 2026-09-06
+code:
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/api/router_modbus_share.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - go.mod
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+tests:
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/device/service_refactor_test.go
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/device/service_crud_test.go
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+-->
+
+---
+### Requirement: Settings save always converges to a terminal state
+
+A dispatched settings save SHALL drive the Modbus Share save state to a terminal value — saved on success, save-error on failure — even when the operator edits other settings fields while the request is in flight. On failure the operator SHALL see the error and SHALL be offered a retry. The settings revision returned by the server is a server-assigned concurrency token, not operator-editable data: it SHALL be adopted unconditionally so that later saves cannot be permanently rejected as revision conflicts.
+
+#### Scenario: Editing during an in-flight save does not swallow the failure
+
+- **GIVEN** a settings save request is in flight
+- **WHEN** the operator edits another settings field and the in-flight save then fails
+- **THEN** the Modbus Share save state becomes save-error
+- **AND** the operator-visible operation error is populated
+- **AND** a retry for the save operation is offered
+
+#### Scenario: Editing during an in-flight save does not swallow the success
+
+- **GIVEN** a settings save request is in flight
+- **WHEN** the operator edits another settings field and the in-flight save then succeeds
+- **THEN** the Modbus Share save state becomes the saved value
+
+#### Scenario: The server-assigned revision is always adopted
+
+- **GIVEN** a settings save request is in flight and the operator edits another settings field
+- **WHEN** the response carrying a new settings revision returns
+- **THEN** the settings revision and expected settings revision are updated from that response
+- **AND** the next save request carries the adopted revision rather than a stale one
+- **AND** the save state still converges to a terminal value
+
+
+<!-- @trace
+source: fix-activation-barrier-and-mysql-target-defects
+updated: 2026-09-06
+code:
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/api/router_modbus_share.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - go.mod
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+tests:
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/device/service_refactor_test.go
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/device/service_crud_test.go
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+-->
+
+---
+### Requirement: Deleted connectors do not reappear after later additions
+
+The connector pool SHALL treat a deleted connector as permanently removed from the optimistic add bookkeeping. Adding a connector after an earlier connector was deleted SHALL NOT reintroduce the deleted connector into the displayed list.
+
+#### Scenario: Add, delete, then add again
+
+- **GIVEN** the operator adds connector A and then deletes connector A
+- **WHEN** the operator adds connector B
+- **THEN** the connector list contains only connector B
+- **AND** connector A is not present in the list
+
+##### Example: connector list after each step
+
+| Step | Backend connectors | Displayed connectors |
+| ---- | ------------------ | -------------------- |
+| add A | A | A |
+| delete A | none | none |
+| add B | B | B |
+
+<!-- @trace
+source: fix-activation-barrier-and-mysql-target-defects
+updated: 2026-09-06
+code:
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/api/router_modbus_share.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - go.mod
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+tests:
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/device/service_refactor_test.go
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/device/service_crud_test.go
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+-->

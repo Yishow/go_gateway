@@ -3728,3 +3728,325 @@ tests:
   - internal/api/handlers/studio_v2_workspace_mappings_recovery_regression_test.go
   - frontend/tests/unit/workbench-v2/step3-live-stream-malformed.test.tsx
 -->
+
+---
+### Requirement: Activation autosave settlement is time-bounded
+
+The frontend activation flow SHALL wait for in-flight autosaves for a bounded period. When the bound elapses while saves are still reported as in flight, the wait SHALL resolve with the current autosave barrier snapshot instead of remaining pending, and activation SHALL fail with the existing retryable save-incomplete error. The activation UI SHALL NOT remain in an activating state with no outcome.
+
+#### Scenario: Settled saves resolve the wait immediately
+
+- **WHEN** activation starts and no autosave reports an in-flight state
+- **THEN** the wait resolves without delay with a barrier snapshot taken from the current state
+- **AND** activation proceeds to the remaining activation gates
+
+#### Scenario: A stuck in-flight save resolves as save-incomplete after the bound
+
+- **GIVEN** an autosave entry reports an in-flight save state that never settles
+- **WHEN** the operator starts activation and the bounded wait elapses
+- **THEN** the wait resolves with a barrier snapshot reporting at least one pending save
+- **AND** activation fails with modbus_share_save_incomplete marked retryable
+- **AND** the activation UI leaves the activating state and offers a retry
+
+##### Example: bounded wait outcomes
+
+| In-flight saves at start | Saves settle before bound | Wait outcome | Activation result |
+| ------------------------ | ------------------------- | ------------ | ----------------- |
+| none | not applicable | resolves immediately | proceeds to remaining gates |
+| one | yes | resolves when the last save settles | proceeds to remaining gates |
+| one | no | resolves at the bound with pending_saves >= 1 | modbus_share_save_incomplete, retryable |
+
+#### Scenario: Resolved waiters are not resolved twice
+
+- **GIVEN** a bounded wait has already resolved by timeout
+- **WHEN** the autosave state later settles
+- **THEN** the previously resolved wait SHALL NOT be resolved again
+- **AND** no pending timer for that wait remains active
+
+
+<!-- @trace
+source: fix-activation-barrier-and-mysql-target-defects
+updated: 2026-09-06
+code:
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/api/router_modbus_share.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - go.mod
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+tests:
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/device/service_refactor_test.go
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/device/service_crud_test.go
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+-->
+
+---
+### Requirement: Disabled Share preserves workspace-level activation gates
+
+The activation barrier validator SHALL separate Share-specific gates from workspace-level gates. When the global Share setting is disabled and Share hydration is ready, the validator SHALL still enforce the readiness token and the workspace revision, and SHALL skip only the Share settings-revision gate. When the global Share setting is disabled and Share hydration is not ready, the validator SHALL allow activation so that an unbootstrapped Share does not block workspace activation.
+
+#### Scenario: Disabled Share with ready hydration still rejects a stale readiness token
+
+- **GIVEN** the global Share setting is disabled and Share hydration reports ready with a readiness token
+- **WHEN** an activation request carries a missing or non-matching readiness token
+- **THEN** the request is rejected with modbus_share_save_incomplete marked retryable
+- **AND** no workspace activation is attempted
+
+#### Scenario: Disabled Share with ready hydration still rejects a stale workspace revision
+
+- **GIVEN** the global Share setting is disabled and Share hydration reports ready
+- **WHEN** an activation request carries a workspace revision that does not match the hydrated workspace revision
+- **THEN** the request is rejected with modbus_share_revision_conflict marked retryable
+
+#### Scenario: Disabled Share with unready hydration activates the workspace
+
+- **GIVEN** the global Share setting is disabled and Share hydration reports a failed or not-ready state
+- **WHEN** an activation request arrives
+- **THEN** the workspace activation proceeds
+- **AND** no Share restore is invoked
+
+#### Scenario: Enabled Share keeps the full gate sequence
+
+- **GIVEN** the global Share setting is enabled
+- **WHEN** an activation request arrives
+- **THEN** hydration readiness, readiness token, settings revision, and workspace revision are all enforced as before
+
+##### Example: gate coverage by Share state
+
+| Share enabled | Hydration ready | Hydration gate | Readiness token gate | Settings revision gate | Workspace revision gate |
+| ------------- | --------------- | -------------- | -------------------- | ---------------------- | ----------------------- |
+| true | any | enforced | enforced | enforced | enforced |
+| false | true | skipped | enforced | skipped | enforced |
+| false | false | skipped | skipped | skipped | skipped |
+
+
+<!-- @trace
+source: fix-activation-barrier-and-mysql-target-defects
+updated: 2026-09-06
+code:
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/api/router_modbus_share.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - go.mod
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+tests:
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/device/service_refactor_test.go
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/device/service_crud_test.go
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+-->
+
+---
+### Requirement: Share settings read failure is not reported as disabled
+
+When the activation barrier validator fails to read the global Share settings, it SHALL report a retryable internal precondition failure and SHALL NOT report the Share-disabled error code. The validator SHALL NOT read revision fields from an unpopulated settings value when the read failed.
+
+#### Scenario: Settings read failure surfaces as a retryable precondition failure
+
+- **GIVEN** the Share settings read returns an error
+- **WHEN** an activation request arrives
+- **THEN** the response error code is not the Share-disabled code
+- **AND** the error is marked retryable
+- **AND** no settings revision value from an unpopulated settings value is included in the response
+
+<!-- @trace
+source: fix-activation-barrier-and-mysql-target-defects
+updated: 2026-09-06
+code:
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/api/router_modbus_share.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - go.mod
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+tests:
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/device/service_refactor_test.go
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/device/service_crud_test.go
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+-->

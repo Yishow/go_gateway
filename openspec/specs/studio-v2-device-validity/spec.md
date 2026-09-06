@@ -463,3 +463,120 @@ tests:
   - internal/api/handlers/studio_v2_workspace_devices_handler_cascade_test.go
   - internal/datalink/db_sqlite_fk_test.go
 -->
+
+---
+### Requirement: Displayed connection defaults are backed by device configuration
+
+The device connection form SHALL render required connection fields from the device configuration only. It SHALL NOT display a fallback value that has not been written into the device configuration. Protocol default values for required connection fields SHALL be written into the device configuration during device load normalization, using the existing protocol default table as the single source of those values.
+
+#### Scenario: A device loaded without a station number is normalized
+
+- **GIVEN** a device using the MC protocol was created through the API without a station number
+- **WHEN** the workspace loads that device
+- **THEN** the device configuration carries the protocol default station number
+- **AND** the connection form displays that value from the configuration
+
+#### Scenario: Form display matches validity evaluation
+
+- **GIVEN** a device loaded without a station number
+- **WHEN** the workspace evaluates device validity after load normalization
+- **THEN** the device is not marked draft-invalid on account of the station number
+- **AND** the value shown in the station field is the value validity was evaluated against
+
+#### Scenario: A missing value is shown as empty when no default applies
+
+- **GIVEN** a device configuration field that has no protocol default
+- **WHEN** the connection form renders that field
+- **THEN** the field is displayed empty rather than pre-filled with an unwritten value
+
+##### Example: MC protocol device loaded without a station number
+
+- **GIVEN** a device with protocol mc_3e and configuration containing host and port but no station number
+- **WHEN** the workspace loads and normalizes the device
+- **THEN** the configuration station number is 0
+- **AND** device validity for that device is valid
+- **AND** the station field displays 0
+
+#### Scenario: Normalization does not mark unchanged devices as pending save
+
+- **GIVEN** a set of devices loaded into the workspace
+- **WHEN** load normalization writes protocol default values into device configurations
+- **THEN** no autosave request is issued for a device the operator has not edited
+
+<!-- @trace
+source: fix-activation-barrier-and-mysql-target-defects
+updated: 2026-09-06
+code:
+  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
+  - internal/datalink/migrator_database_target_mysql_schema.go
+  - internal/datalink/dbtarget/service_validate.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - internal/datalink/dbtarget/writer.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
+  - internal/datalink/dbtarget/service_probe.go
+  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
+  - frontend/src/features/datalink/workbench-v2/settings/settingsOperationOwnership.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
+  - internal/datalink/migrator.go
+  - frontend/src/features/datalink/workbench-v2/state/types.ts
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/dbtarget/service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/step4DatabaseHelpers.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/api/router_modbus_share.go
+  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
+  - internal/datalink/device/service_crud.go
+  - internal/datalink/device/sql_repo.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsStatus.tsx
+  - frontend/src/pages/datalink/workbench-v2/studioV2AutosaveBarrier.ts
+  - go.mod
+  - frontend/src/features/datalink/workbench-v2/settings/useSettingsOperations.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - frontend/src/features/datalink/workbench-v2/state/types-settings.ts
+  - frontend/src/features/datalink/workbench-v2/settings/SettingsSections.tsx
+  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
+  - internal/datalink/device/service.go
+  - internal/datalink/dbtarget/tooling_service.go
+  - node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/results.json
+  - internal/datalink/device/repository_memory.go
+  - internal/datalink/dbtarget/service_mysql_inspection.go
+  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
+tests:
+  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.draft-validation.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database-components.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-share-activation.test.tsx
+  - frontend/tests/unit/workbench-v2/device-autosave-page.hydration.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-save-state-convergence.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/datalink/dbtarget/service_mysql_inspection_test.go
+  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
+  - internal/api/router_studio_v2_workspace_mappings_test.go
+  - internal/api/router_modbus_share_test.go
+  - frontend/tests/unit/workbench-v2/protocols.test.ts
+  - frontend/tests/unit/workbench-v2/settings-operations-race.test.tsx
+  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
+  - internal/datalink/dbtarget/tooling_service_mysql_schema_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/datalink/migrator_database_target_mysql_schema_test.go
+  - internal/datalink/dbtarget/writer_statements_mysql_test.go
+  - internal/datalink/device/service_refactor_test.go
+  - frontend/tests/unit/workbench-v2/settings.test.tsx
+  - frontend/tests/unit/workbench-v2/settings-operation-ownership.test.ts
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/device/service_crud_test.go
+  - frontend/tests/unit/workbench-v2/step1.test.tsx
+  - internal/datalink/api/device_handler_test.go
+  - frontend/tests/unit/workbench-v2/device-autosave-page.testHarness.tsx
+  - frontend/tests/unit/workbench-v2/database-autosave-page.row-groups.test.tsx
+-->
