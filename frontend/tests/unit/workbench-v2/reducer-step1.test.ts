@@ -81,8 +81,9 @@ describe('Workbench V2 Step 1 Reducer Actions', () => {
     expect(state.devices[0].protocol).toBe('mqtt');
     expect(state.devices[0].status).toBe('draft');
     expect(state.devices[0].test).toBeNull();
-    expect(state.devices[0].config).toHaveProperty('broker', 'mqtts://broker.local:8883');
+    expect(state.devices[0].config).toHaveProperty('broker', 'mqtt://127.0.0.1:1883');
   });
+
 
   it('changeDeviceProtocol 應連動更新使用預設起始位址之規則為新協議預設起始位址 (如 MC 3E -> D0)', () => {
     const state = workbenchV2Reducer(INITIAL_STATE, {

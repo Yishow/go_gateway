@@ -17,6 +17,7 @@ import {
 } from '../../../types/modbusShare';
 import { StudioV2ActivationBarrierError } from '../../../services/studioV2WorkspaceActivation';
 import type { WorkbenchV2RuntimeReturnFocus } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
+import { useStudioV2AutosaveSettlement } from './studioV2AutosaveBarrier';
 import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 
 interface DatalinkWorkbenchV2PageProps {
@@ -102,9 +103,11 @@ export default function DatalinkWorkbenchV2Page({
   }, [bootstrapShareStatus, shareStatusQuery.data]);
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(workspaceQuery.isSuccess);
   const autosave = useStudioV2AutosaveState(workspaceQuery.isSuccess);
+  const waitForAutosaveSettlement = useStudioV2AutosaveSettlement(autosave.state);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
   const activateWorkspace = async () => {
-    const barrier = autosave.autosaveBarrier;
+    const settlement = await waitForAutosaveSettlement();
+    const barrier = settlement.barrier;
     if (!autosave.workspaceHydrated || barrier.pending_saves > 0 || barrier.save_error) {
       throw new StudioV2ActivationBarrierError('modbus_share_save_incomplete');
     }
@@ -112,10 +115,9 @@ export default function DatalinkWorkbenchV2Page({
     if (!shareStatus) {
       throw new StudioV2ActivationBarrierError('modbus_share_hydration_required');
     }
-    if (!isModbusShareConfiguredEnabled(shareStatus)) {
-      throw new StudioV2ActivationBarrierError('modbus_share_disabled', false);
-    }
-    const shareIsStale = shareStatus.hydration_state !== 'ready' || shareStatus.readiness !== true;
+    const shareConfigured = isModbusShareConfiguredEnabled(shareStatus);
+    const shareIsStale = shareConfigured
+      && (shareStatus.hydration_state !== 'ready' || shareStatus.readiness !== true);
     if (shareIsStale) {
       throw new StudioV2ActivationBarrierError(
         'modbus_share_revision_conflict',
@@ -130,12 +132,12 @@ export default function DatalinkWorkbenchV2Page({
       workspace_revision: shareStatus.workspace_revision ?? '',
       settings_revision: shareStatus.settings_revision ?? '',
       readiness_token: shareStatus.readiness_token ?? '',
-      configured_enabled: isModbusShareConfiguredEnabled(shareStatus),
+      configured_enabled: shareConfigured,
       canonical_plan: shareStatus.canonical_plan,
     };
 
     return activateStudioV2WorkspaceWithShare(
-      autosave.state,
+      settlement.state,
       (projection?: ModbusShareReconcileOutcome) => activationMutation.mutateAsync({
         workspace_revision: projection?.new_workspace_revision || shareContext.workspace_revision,
         settings_revision: projection?.settings_revision || shareContext.settings_revision,

@@ -49,6 +49,8 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
     devices: Array<{
       id: string;
       name: string;
+      protocol: string;
+      test: { status: string } | null;
       save_state: string;
       save_error?: string | null;
       runtime_apply_status?: string | null;
@@ -61,6 +63,7 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
       {state.devices.map((device) => (
         <div key={device.id}>
           <div data-testid={`device-name-${device.id}`}>{device.name}</div>
+          <div data-testid={`device-test-status-${device.id}`}>{device.test?.status ?? 'untested'}</div>
           <div data-testid={`device-save-state-${device.id}`}>{device.save_state}</div>
           <div data-testid={`device-save-error-${device.id}`}>{device.save_error ?? ''}</div>
           <div data-testid={`device-runtime-apply-${device.id}`}>{device.runtime_apply_status ?? ''}</div>
@@ -104,6 +107,15 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
           type: 'updateDevice',
           deviceId: 'dev-01',
           patch: { name: 'Line A Saved' },
+        })}
+      />
+      <button
+        type="button"
+        data-testid="change-dev-01-to-mc"
+        onClick={() => actions.dispatch({
+          type: 'changeDeviceProtocol',
+          deviceId: 'dev-01',
+          protocol: 'mc_3e',
         })}
       />
       <button

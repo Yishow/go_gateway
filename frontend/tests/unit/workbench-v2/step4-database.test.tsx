@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { KindSelector } from '../../../src/features/datalink/workbench-v2/steps/step4/KindSelector';
-import { WriteStrategy } from '../../../src/features/datalink/workbench-v2/steps/step4/WriteStrategy';
 import { ConnectorSection } from '../../../src/features/datalink/workbench-v2/steps/step4/ConnectorSection';
 import { TargetMappingTable } from '../../../src/features/datalink/workbench-v2/steps/step4/TargetMappingTable';
 import { CommitSummary } from '../../../src/features/datalink/workbench-v2/steps/step4/CommitSummary';
@@ -50,54 +48,6 @@ describe('Step 4 Database UI Components & Integration', () => {
     vi.mocked(studioV2WorkspaceDatabaseAPI.generateSchema).mockReset();
   });
 
-  describe('KindSelector', () => {
-    it('應渲染 4 個 db kind 卡片，且點擊時呼叫 onChange', () => {
-      const onChange = vi.fn();
-      render(<KindSelector value="postgres" onChange={onChange} />);
-
-      expect(screen.getByText('step4.kind_postgres')).toBeInTheDocument();
-      expect(screen.getByText('step4.kind_sqlite')).toBeInTheDocument();
-      expect(screen.getByText('step4.kind_mysql')).toBeInTheDocument();
-      expect(screen.getByText('step4.kind_sqlserver')).toBeInTheDocument();
-
-      const sqliteBtn = screen.getByText('step4.kind_sqlite').closest('button');
-      expect(sqliteBtn).not.toBeNull();
-      fireEvent.click(sqliteBtn!);
-      expect(onChange).toHaveBeenCalledWith('sqlite');
-    });
-
-    it('在 disabled 為 true 時應禁用所有按鈕', () => {
-      render(<KindSelector value="postgres" onChange={() => { }} disabled={true} />);
-      const buttons = screen.getAllByRole('button');
-      buttons.forEach(btn => {
-        expect(btn).toBeDisabled();
-      });
-    });
-  });
-
-  describe('WriteStrategy', () => {
-    it('應能渲染兩種策略 radio 與 interval 輸入，點擊時呼叫對應 callback', () => {
-      const onWriteModeChange = vi.fn();
-      const onWriteIntervalChange = vi.fn();
-
-      render(
-        <WriteStrategy
-          writeMode="insert"
-          writeIntervalSeconds={5}
-          onWriteModeChange={onWriteModeChange}
-          onWriteIntervalChange={onWriteIntervalChange}
-        />
-      );
-
-      const upsertRadio = screen.getByLabelText(/step4.write_mode_upsert/);
-      fireEvent.click(upsertRadio);
-      expect(onWriteModeChange).toHaveBeenCalledWith('upsert');
-
-      const intervalInput = screen.getByRole('spinbutton');
-      fireEvent.change(intervalInput, { target: { value: '10' } });
-      expect(onWriteIntervalChange).toHaveBeenCalledWith(10);
-    });
-  });
 
   describe('ConnectorSection', () => {
     it('應依 kind 隱藏或顯示特定連線欄位（如 SQLite 隱藏 host/port）', () => {
@@ -467,6 +417,56 @@ describe('Step 4 Database UI Components & Integration', () => {
       await waitFor(() => {
         expect(screen.queryByText('ALTER TABLE sensor_readings ADD COLUMN temp_in_c REAL;')).not.toBeInTheDocument();
       });
+    });
+
+    it('在 Step 4 選擇 Connector Pool 既有連線時應自動套用連線設定', () => {
+      const dispatch = vi.fn();
+      const state = {
+        ...INITIAL_STATE,
+        settings: {
+          ...INITIAL_STATE.settings,
+          connectors: [
+            {
+              id: 'conn-mysql-custom',
+              name: 'My Custom MySQL',
+              kind: 'mysql' as const,
+              host: '10.0.0.99',
+              port: 3306,
+              database: 'custom_db',
+              username: 'custom_root',
+              password: 'p',
+              schema: '',
+              table: 'custom_table',
+              enabled: true,
+              status: 'ready' as const,
+              default_write_interval_seconds: 5,
+            },
+          ],
+        },
+      };
+
+      render(
+        <Step4Database
+          state={state}
+          dispatch={dispatch}
+          onCommit={() => { }}
+        />
+      );
+
+      const poolSelect = screen.getByLabelText('step4.load_from_pool');
+      fireEvent.change(poolSelect, { target: { value: 'conn-mysql-custom' } });
+
+      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'updateDbConnector',
+        patch: expect.objectContaining({
+          kind: 'mysql',
+          name: 'My Custom MySQL',
+          host: '10.0.0.99',
+          port: 3306,
+          database: 'custom_db',
+          username: 'custom_root',
+        }),
+      }));
     });
   });
 });

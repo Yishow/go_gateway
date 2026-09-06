@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   useStudioV2DatabaseConfigQuery,
   useStudioV2DatabaseTargetsQuery,
@@ -18,6 +19,7 @@ import {
 import { workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/datalink/workbench-v2/state/useWorkbenchV2State';
 import type { DbConnector, DbTarget, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import type { StudioV2WorkspaceDatabaseTargetRecord } from '../../../types/datalink';
+import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
 
 type SaveMeta = {
   inFlight: boolean;
@@ -39,8 +41,8 @@ function sameDatabaseTarget(current: DbTarget | undefined, next: DbTarget): bool
   );
 }
 
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : '儲存失敗';
+function errorMessageOf(error: unknown, fallback: string): string {
+  return getSafeErrorStateMessage(error, fallback);
 }
 
 function saveMetaFor(store: Record<string, SaveMeta>, key: string): SaveMeta {
@@ -83,6 +85,7 @@ export function useStudioV2DatabaseAutosave(
   stateRef: React.MutableRefObject<WorkbenchV2State>,
   enabled: boolean,
 ) {
+  const { t } = useTranslation('workbench-v2');
   const databaseConfigQuery = useStudioV2DatabaseConfigQuery(enabled);
   const databaseTargetsQuery = useStudioV2DatabaseTargetsQuery(enabled);
   const updateConfigMutation = useUpdateStudioV2DatabaseConfigMutation();
@@ -144,7 +147,7 @@ export function useStudioV2DatabaseAutosave(
       payload: {
         db: {
           ...stateRef.current.db,
-          connector: hydrateStudioV2DatabaseConnector(databaseConfigQuery.data),
+          connector: hydrateStudioV2DatabaseConnector(databaseConfigQuery.data, stateRef.current.db.connector),
           row_groups: hydrateStudioV2DatabaseRowGroups(databaseConfigQuery.data.row_groups),
         },
       },
@@ -235,7 +238,7 @@ export function useStudioV2DatabaseAutosave(
         payload: {
           db: {
             ...stateRef.current.db,
-            connector: hydrateStudioV2DatabaseConnector(savedConnector),
+            connector: hydrateStudioV2DatabaseConnector(savedConnector, currentConnector),
             row_groups: hydrateStudioV2DatabaseRowGroups(savedConnector.row_groups),
           },
         },
@@ -249,7 +252,7 @@ export function useStudioV2DatabaseAutosave(
         },
       });
     } catch (error) {
-      applyConnectorPatch({ save_state: 'save-error', save_error: errorMessageOf(error) });
+      applyConnectorPatch({ save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')) });
     } finally {
       meta.inFlight = false;
       if (meta.pending) {
@@ -266,7 +269,7 @@ export function useStudioV2DatabaseAutosave(
       return;
     }
     pendingTargetIds.forEach((pointId) => flushTargetSaveRef.current(pointId));
-  }, [actions, applyConnectorPatch, stateRef, updateConfigMutation]);
+  }, [actions, applyConnectorPatch, stateRef, t, updateConfigMutation]);
 
   const queueConnectorSave = React.useCallback((snapshot?: WorkbenchV2State) => {
     const meta = connectorSaveMetaRef.current;
@@ -316,7 +319,7 @@ export function useStudioV2DatabaseAutosave(
       });
       applyTargetPatch(pointId, hydrateStudioV2DatabaseTarget(savedTarget, currentTarget));
     } catch (error) {
-      applyTargetPatch(pointId, { save_state: 'save-error', save_error: errorMessageOf(error) });
+      applyTargetPatch(pointId, { save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')) });
     } finally {
       meta.inFlight = false;
       if (meta.pending) {
@@ -324,7 +327,7 @@ export function useStudioV2DatabaseAutosave(
         void flushTargetSave(pointId);
       }
     }
-  }, [applyTargetPatch, stateRef, upsertTargetMutation]);
+  }, [applyTargetPatch, stateRef, t, upsertTargetMutation]);
   flushTargetSaveRef.current = flushTargetSave;
 
   const queueTargetSave = React.useCallback((pointId: string) => {

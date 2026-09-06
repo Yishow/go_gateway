@@ -170,7 +170,7 @@ describe('Step 4 activation Share handoff', () => {
     expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
   });
 
-  it('returns the persisted disabled error before projection when the user skips Settings', async () => {
+  it('activates the workspace without Share projection when global Share is disabled', async () => {
     vi.mocked(modbusShareAPI.status).mockResolvedValue({
       enabled: false,
       configured_enabled: false,
@@ -189,12 +189,13 @@ describe('Step 4 activation Share handoff', () => {
     await waitFor(() => expect(screen.getByTestId('share-page-activate')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('share-page-activate'));
 
-    expect(await screen.findByTestId('share-page-activation-error')).toHaveTextContent('modbus_share_disabled');
+    await waitFor(() => expect(studioV2WorkspaceActivationAPI.activate).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('share-page-activation-error')).not.toBeInTheDocument();
     expect(modbusShareAPI.reconcile).not.toHaveBeenCalled();
-    expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
+    expect(studioV2WorkspaceActivationAPI.activate).toHaveBeenCalledWith(expect.objectContaining({ readiness_token: 'disabled-token', pending_saves: 0 }));
   });
 
-  it('does not let a cached enabled status override disabled bootstrap truth', async () => {
+  it('uses disabled bootstrap truth to skip Share projection and activate the workspace', async () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue(workspaceFixture({
       modbus_share: {
         hydration_state: 'ready',
@@ -213,9 +214,9 @@ describe('Step 4 activation Share handoff', () => {
     await waitFor(() => expect(screen.getByTestId('share-page-activate')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('share-page-activate'));
 
-    expect(await screen.findByTestId('share-page-activation-error')).toHaveTextContent('modbus_share_disabled');
+    await waitFor(() => expect(studioV2WorkspaceActivationAPI.activate).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('share-page-activation-error')).not.toBeInTheDocument();
     expect(modbusShareAPI.reconcile).not.toHaveBeenCalled();
-    expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
   });
 
   it('does not activate when the canonical Share candidate snapshot is unavailable', async () => {

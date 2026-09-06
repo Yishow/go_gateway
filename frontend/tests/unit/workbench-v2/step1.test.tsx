@@ -129,6 +129,19 @@ describe('Step 1 Components & Integration', () => {
       expect(screen.getByTestId('input-slave-id')).toBeInTheDocument();
     });
 
+    it('站號欄位在設定缺值時顯示為空，不捏造未寫入的預設值', () => {
+      const handleChange = vi.fn();
+      render(
+        <ConnectionConfigForm
+          protocol="mc_3e"
+          config={{ host: '192.168.1.100', port: 6000, timeout: 5 }}
+          onChange={handleChange}
+        />
+      );
+
+      expect(screen.getByTestId('input-slave-id')).toHaveValue(null);
+    });
+
     it('RTU 協議應渲染 serial_port 與 baud_rate 欄位', () => {
       const handleChange = vi.fn();
       render(

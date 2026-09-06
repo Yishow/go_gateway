@@ -90,6 +90,47 @@ describe('DatalinkWorkbenchV2Page device autosave orchestration', () => {
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
   });
 
+  it('persists an MC protocol switch with backend-aligned connection fields', async () => {
+    vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue(
+      workspaceFixture({ ordered_device_ids: ['dev-01'] }),
+    );
+    vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([
+      deviceFixture({ id: 'dev-01' }),
+    ]);
+    vi.mocked(studioV2WorkspaceDevicesAPI.update).mockResolvedValueOnce(
+      deviceFixture({
+        id: 'dev-01',
+        protocol: 'mc_3e',
+        connection_config: '{"host":"192.168.1.100","port":6000,"station_no":0,"network_no":0,"pc_no":255,"io_no":1023,"timeout":5}',
+      }),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('device-save-state-dev-01')).toHaveTextContent('saved');
+    });
+
+    fireEvent.click(screen.getByTestId('change-dev-01-to-mc'));
+
+    await waitFor(() => {
+      expect(studioV2WorkspaceDevicesAPI.update).toHaveBeenCalledWith('dev-01', {
+        name: 'Line A PLC',
+        description: '',
+        protocol: 'mc_3e',
+        connection_config: {
+          host: '192.168.1.100',
+          port: 6000,
+          station_no: 0,
+          network_no: 0,
+          pc_no: 255,
+          io_no: 1023,
+          timeout: 5,
+        },
+      });
+    });
+  });
+
   it('marks session draft recovery state when a local device draft is not yet persisted', async () => {
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValueOnce(
       workspaceFixture({ status: 'empty', ordered_device_ids: [] }),

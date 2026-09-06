@@ -1,15 +1,17 @@
 import { useTranslation } from 'react-i18next';
 import { KindSelector } from './KindSelector';
 import { WriteStrategy } from './WriteStrategy';
-import type { DbConnector } from '../../state/types';
+import type { DbConnector, SettingsConnector } from '../../state/types';
 
 /**
  * ConnectorSection 元件屬性
  */
 interface ConnectorSectionProps {
   connector: DbConnector;
+  connectors?: SettingsConnector[];
   onUpdateConnector: (patch: Partial<DbConnector>) => void;
   onKindChange: (kind: DbConnector['kind']) => void;
+  onSelectConnector?: (connector: SettingsConnector) => void;
   disabled?: boolean;
 }
 
@@ -19,8 +21,10 @@ interface ConnectorSectionProps {
  */
 export function ConnectorSection({
   connector,
+  connectors,
   onUpdateConnector,
   onKindChange,
+  onSelectConnector,
   disabled = false
 }: ConnectorSectionProps) {
   const { t } = useTranslation('workbench-v2');
@@ -45,11 +49,40 @@ export function ConnectorSection({
 
   return (
     <div className="space-y-6">
+      {connectors && connectors.length > 0 && (
+        <div className="flex items-center gap-2 text-xs bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+          <span className="text-slate-400 font-medium whitespace-nowrap">
+            {t('step4.load_from_pool', '從連接器池載入：')}
+          </span>
+          <select
+            aria-label={t('step4.load_from_pool', '從連接器池載入')}
+            disabled={disabled}
+            defaultValue=""
+            onChange={(e) => {
+              const found = connectors.find((c) => c.id === e.target.value);
+              if (found && onSelectConnector) {
+                onSelectConnector(found);
+                e.target.value = '';
+              }
+            }}
+            className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-xs focus:border-blue-500 outline-none"
+          >
+            <option value="" disabled>-- {t('step4.select_existing_connector', '選擇既有連線')} --</option>
+            {connectors.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.kind.toUpperCase()} - {c.database})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <KindSelector
         value={kind}
         onChange={onKindChange}
         disabled={disabled}
       />
+
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1.5">

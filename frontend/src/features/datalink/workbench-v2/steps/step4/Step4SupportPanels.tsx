@@ -3,20 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { ConnectorSection } from './ConnectorSection';
 import { DeliveryTruthStrip } from './DeliveryTruthStrip';
 import { CollapsibleSupportCard } from './CollapsibleSupportCard';
-import type { DbConnector } from '../../state/types';
+import type { DbConnector, SettingsConnector } from '../../state/types';
 
 interface Step4SupportPanelsProps {
   connector: DbConnector;
+  connectors?: SettingsConnector[];
   onUpdateConnector: (patch: Partial<DbConnector>) => void;
   onKindChange: (kind: DbConnector['kind']) => void;
+  onSelectConnector?: (connector: SettingsConnector) => void;
   tableSetup?: ReactNode;
   disabled?: boolean;
 }
 
 export function Step4SupportPanels({
   connector,
+  connectors,
   onUpdateConnector,
   onKindChange,
+  onSelectConnector,
   tableSetup,
   disabled = false,
 }: Step4SupportPanelsProps) {
@@ -46,10 +50,13 @@ export function Step4SupportPanels({
       >
         <ConnectorSection
           connector={connector}
+          connectors={connectors}
           onUpdateConnector={onUpdateConnector}
           onKindChange={onKindChange}
+          onSelectConnector={onSelectConnector}
           disabled={disabled}
         />
+
         {tableSetup ? <div className="mt-4 border-t border-slate-800 pt-4">{tableSetup}</div> : null}
       </CollapsibleSupportCard>
 

@@ -48,6 +48,7 @@
       "probe": "Protocol Probe"
     },
     "fields": {
+      "station": "Station number",
       "device_name": "Device Name",
       "device_desc": "Device Description",
       "select_protocol": "Select Protocol",
@@ -226,6 +227,8 @@
     }
   },
   "step4": {
+    "load_from_pool": "Load from connector pool",
+    "select_existing_connector": "Select an existing connector",
     "connector_kind": "Database Kind",
     "kind_sqlite": "SQLite",
     "kind_postgres": "PostgreSQL",

@@ -4,6 +4,19 @@ import type { ProtocolId } from '../../state/types';
 import { Field } from '../../components/Field';
 import { Input, Select } from '../../components/inputs';
 
+function displayParity(value: unknown): 'N' | 'E' | 'O' {
+  switch (value) {
+    case 'even':
+    case 'E':
+      return 'E';
+    case 'odd':
+    case 'O':
+      return 'O';
+    default:
+      return 'N';
+  }
+}
+
 export interface ConnectionConfigFormProps {
   /** 協議 ID，決定渲染哪種配置佈局 */
   protocol: ProtocolId;
@@ -39,6 +52,19 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
   };
 
   if (isTcpLike) {
+    const isStation = protocol === 'mc_3e' || protocol === 'fatek_fbs';
+    // 只顯示設定裡真正存在的值；預設值由裝置載入正規化寫入，避免畫面與有效性判定不一致。
+    const stationValue = (config.station_no as number) ?? (config.station as number) ?? (config.slave_id as number) ?? '';
+
+    const handleStationChange = (val: string | number) => {
+      const num = val === '' ? '' : Number(val);
+      if (isStation) {
+        onChange({ station: num, station_no: num, slave_id: num });
+      } else {
+        onChange({ slave_id: num });
+      }
+    };
+
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label={t('step1.fields.host')} required>
@@ -56,17 +82,17 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
             type="number"
             value={(config.port as number) ?? ''}
             onChange={(e) => handleChange('port', e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder="502"
+            placeholder={protocol === 'mc_3e' ? '6000' : protocol === 'fatek_fbs' ? '500' : '502'}
             data-testid="input-port"
           />
         </Field>
 
-        <Field label={t('step1.fields.slave_id')} required>
+        <Field label={isStation ? t('step1.fields.station', '站號') : t('step1.fields.slave_id', '從站 ID')} required>
           <Input
             type="number"
-            value={(config.slave_id as number) ?? ''}
-            onChange={(e) => handleChange('slave_id', e.target.value === '' ? '' : Number(e.target.value))}
-            placeholder="1"
+            value={stationValue}
+            onChange={(e) => handleStationChange(e.target.value)}
+            placeholder={protocol === 'mc_3e' ? '0' : '1'}
             data-testid="input-slave-id"
           />
         </Field>
@@ -84,14 +110,15 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
     );
   }
 
+
   if (protocol === 'modbus_rtu') {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label={t('step1.fields.serial_port')} required>
           <Input
             type="text"
-            value={(config.port as string) ?? ''}
-            onChange={(e) => handleChange('port', e.target.value)}
+            value={(config.serial_port as string) ?? (config.port as string) ?? ''}
+            onChange={(e) => handleChange('serial_port', e.target.value)}
             placeholder="/dev/ttyUSB0"
             data-testid="input-rtu-port"
           />
@@ -99,8 +126,8 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
 
         <Field label={t('step1.fields.baud_rate')} required>
           <Select
-            value={(config.baud as number) ?? 9600}
-            onChange={(e) => handleChange('baud', Number(e.target.value))}
+            value={(config.baud_rate as number) ?? (config.baud as number) ?? 9600}
+            onChange={(e) => handleChange('baud_rate', Number(e.target.value))}
             data-testid="select-baud"
           >
             <option value={2400}>2400</option>
@@ -115,7 +142,7 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
 
         <Field label={t('step1.fields.parity')} required>
           <Select
-            value={(config.parity as string) ?? 'N'}
+            value={displayParity(config.parity)}
             onChange={(e) => handleChange('parity', e.target.value)}
             data-testid="select-parity"
           >
@@ -144,8 +171,8 @@ export const ConnectionConfigForm: React.FC<ConnectionConfigFormProps> = ({
         <Field label={t('step1.fields.mqtt_broker')} required>
           <Input
             type="text"
-            value={(config.broker as string) ?? ''}
-            onChange={(e) => handleChange('broker', e.target.value)}
+            value={(config.broker_url as string) ?? (config.broker as string) ?? ''}
+            onChange={(e) => handleChange('broker_url', e.target.value)}
             placeholder="mqtts://broker.local:8883"
             data-testid="input-mqtt-broker"
           />

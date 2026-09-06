@@ -20,6 +20,7 @@ type StudioV2WorkspaceDatabaseConfigWithDelivery =
 
 export function hydrateStudioV2DatabaseConnector(
   record: StudioV2WorkspaceDatabaseConfigWithDelivery,
+  current?: DbConnector,
 ): DbConnector {
   return {
     kind: record.kind,
@@ -33,7 +34,10 @@ export function hydrateStudioV2DatabaseConnector(
     write_mode: record.write_mode,
     write_interval_seconds: record.write_interval_seconds,
     timestamp_column: record.timestamp_column,
-    password: undefined,
+    password: current?.password,
+    // password_required 是純前端旗標（後端不回傳）：hydration 若把它丟掉，
+    // 「換了連線身分但還沒重新輸入密碼」的狀態就會被洗掉，舊憑證又會被沿用。
+    password_required: current?.password_required,
     status: record.status,
     last_schema_ensure_at: record.last_schema_ensure_at ?? null,
     last_schema_ensure_status: record.last_schema_ensure_status ?? '',
@@ -93,6 +97,11 @@ export function isStudioV2DatabaseConnectorValid(connector: DbConnector): boolea
     return false;
   }
   if (connector.kind === 'postgres' && !connector.username.trim()) {
+    return false;
+  }
+  // 連線身分換掉後，既有密碼屬於前一組連線；未重新輸入就存檔會沿用舊憑證，
+  // 使用者只會看到一個看似正確的表單配上 access denied。
+  if (connector.password_required && !(connector.password ?? '').trim()) {
     return false;
   }
   return true;

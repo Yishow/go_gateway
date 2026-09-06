@@ -48,6 +48,7 @@
       "probe": "協議握手"
     },
     "fields": {
+      "station": "站號",
       "device_name": "設備名稱",
       "device_desc": "設備描述",
       "select_protocol": "選擇通訊協議",
@@ -226,6 +227,8 @@
     }
   },
   "step4": {
+    "load_from_pool": "從連接器池載入",
+    "select_existing_connector": "選擇既有連接器",
     "connector_kind": "資料庫類型",
     "kind_sqlite": "SQLite",
     "kind_postgres": "PostgreSQL",

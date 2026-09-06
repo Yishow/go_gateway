@@ -66,7 +66,7 @@ describe('DatalinkWorkbenchV2Page database autosave orchestration', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('target-save-state-point-A')).toHaveTextContent('save-error');
-      expect(screen.getByTestId('target-save-error-point-A')).toHaveTextContent('找不到資料欄位: missing_column');
+      expect(screen.getByTestId('target-save-error-point-A')).toHaveTextContent('errors.autosave_failed');
       expect(screen.getByTestId('target-save-state-point-B')).toHaveTextContent('saved');
       expect(screen.getByTestId('target-save-error-point-B')).toHaveTextContent('');
     });
