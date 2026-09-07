@@ -32,9 +32,34 @@ function formatRelativeTime(isoString: string): string {
 
 export function LivePointsTable({ liveValues, setupContext }: LivePointsTableProps) {
   const { t } = useTranslation('runtime-dashboard');
-  const rows = Object.values(liveValues).sort((left, right) =>
-    left.address.localeCompare(right.address),
-  );
+
+  const rows = useMemo(() => {
+    if (setupContext?.mappings && setupContext.mappings.length > 0) {
+      return setupContext.mappings.map((m) => {
+        const live =
+          liveValues[m.point_id] ||
+          Object.values(liveValues).find((v) => v.address === m.address);
+        return {
+          point_id: m.point_id,
+          address: m.address,
+          raw_value: live ? live.raw_value : undefined,
+          transformed_value: live ? live.transformed_value : undefined,
+          quality: live ? live.quality : 'uncertain',
+          stale: live ? live.stale : false,
+          timestamp: live ? live.timestamp : '',
+          isLive: Boolean(live),
+        };
+      }).sort((left, right) => left.address.localeCompare(right.address));
+    }
+
+    return Object.values(liveValues)
+      .sort((left, right) => left.address.localeCompare(right.address))
+      .map((item) => ({ ...item, isLive: true }));
+  }, [liveValues, setupContext]);
+
+  const activeLiveCount = useMemo(() => {
+    return rows.filter((r) => r.isLive).length;
+  }, [rows]);
 
   const pointMetaMap = useMemo(() => {
     const targetMap = new Map<string, string>();
@@ -72,7 +97,7 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
               </h2>
               {rows.length > 0 && (
                 <span className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-xs font-mono font-medium text-cyan-300">
-                  {rows.length} 點即時更新中
+                  {activeLiveCount}/{rows.length} 點即時更新中
                 </span>
               )}
             </div>
@@ -88,12 +113,14 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
             </span>
-            <span className="font-mono text-cyan-300">即時推播已同步</span>
+            <span className="font-mono text-cyan-300">
+              {activeLiveCount === rows.length ? '全部點位已同步' : '串流同步中'}
+            </span>
           </div>
         )}
       </div>
 
-      {rows.length === 0 ? (
+      {Object.keys(liveValues).length === 0 ? (
         <div
           className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8 flex flex-col items-center justify-center space-y-4"
           data-testid="runtime-dashboard-live-points-placeholder"
@@ -145,14 +172,20 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-300 font-mono">
-                      {formatValue(row.raw_value)}
+                      {row.isLive ? formatValue(row.raw_value) : '-'}
                     </td>
                     <td className="px-4 py-3 font-bold text-emerald-300 font-mono">
-                      {formatValue(row.transformed_value)}
-                      {meta?.unit && <span className="ml-1 text-[10px] text-slate-400 font-normal">{meta.unit}</span>}
+                      {row.isLive ? formatValue(row.transformed_value) : '-'}
+                      {row.isLive && meta?.unit && (
+                        <span className="ml-1 text-[10px] text-slate-400 font-normal">{meta.unit}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-sans">
-                      {row.stale ? (
+                      {!row.isLive ? (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-700/80 bg-slate-800/60 px-2 py-0.5 text-[11px] font-medium text-slate-400">
+                          <span>採集中...</span>
+                        </span>
+                      ) : row.stale ? (
                         <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
                           <AlertCircle className="h-3 w-3" />
                           <span>{t('points.stale', 'stale')}</span>
@@ -169,8 +202,14 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-400 font-mono text-[11px]">
-                      <span title={row.timestamp}>{formatRelativeTime(row.timestamp)}</span>
-                      <span className="sr-only">{row.timestamp}</span>
+                      {row.isLive && row.timestamp ? (
+                        <>
+                          <span title={row.timestamp}>{formatRelativeTime(row.timestamp)}</span>
+                          <span className="sr-only">{row.timestamp}</span>
+                        </>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                   </tr>
                 );
