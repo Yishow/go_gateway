@@ -199,7 +199,7 @@ export function RuntimeDashboardPage({
         {snapshot ? (
           <div className="space-y-6">
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <RuntimeSummaryPanel snapshot={snapshot} />
+              <RuntimeSummaryPanel snapshot={snapshot} setupContext={setupContext} />
               <CollectorHealthPanel collector={collector} />
             </div>
             <RuntimeDiagnosticsPanel
@@ -212,7 +212,7 @@ export function RuntimeDashboardPage({
         ) : null}
         <div className="grid gap-6 lg:grid-cols-12 items-start">
           <div className="lg:col-span-8">
-            <LivePointsTable liveValues={liveValues} />
+            <LivePointsTable liveValues={liveValues} setupContext={setupContext} />
           </div>
           <div className="lg:col-span-4">
             <RealtimeLogsPanel logs={logs} />

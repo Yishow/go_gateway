@@ -1,28 +1,59 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Layers, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Layers, CheckCircle2, AlertCircle, Database } from 'lucide-react';
 import type { RuntimeValueEvent } from '../../../types/datalink';
+import type { StudioV2RuntimeSetupContext } from '../../../types/studioV2RuntimeContext';
 
 interface LivePointsTableProps {
   liveValues: Record<string, RuntimeValueEvent>;
+  setupContext?: StudioV2RuntimeSetupContext | null;
 }
 
 function formatValue(value: unknown) {
   if (value === null || value === undefined) {
     return '-';
   }
-
   if (typeof value === 'object') {
     return JSON.stringify(value);
   }
-
   return String(value);
 }
 
-export function LivePointsTable({ liveValues }: LivePointsTableProps) {
+function formatRelativeTime(isoString: string): string {
+  try {
+    const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+    if (diff < 3) return '剛剛 (Just now)';
+    if (diff < 60) return `${diff} 秒前`;
+    return new Date(isoString).toLocaleTimeString();
+  } catch {
+    return isoString;
+  }
+}
+
+export function LivePointsTable({ liveValues, setupContext }: LivePointsTableProps) {
   const { t } = useTranslation('runtime-dashboard');
   const rows = Object.values(liveValues).sort((left, right) =>
     left.address.localeCompare(right.address),
   );
+
+  const pointMetaMap = useMemo(() => {
+    const targetMap = new Map<string, string>();
+    for (const tgt of setupContext?.database_targets ?? []) {
+      targetMap.set(tgt.tag_id, tgt.column_name);
+    }
+    const map = new Map<string, { name: string; column?: string; unit?: string }>();
+    for (const m of setupContext?.mappings ?? []) {
+      const col = m.tag_id ? targetMap.get(m.tag_id) : undefined;
+      const info = {
+        name: m.display_name || m.tag_key || m.address,
+        column: col,
+        unit: m.unit,
+      };
+      map.set(m.point_id, info);
+      map.set(m.address, info);
+    }
+    return map;
+  }, [setupContext]);
 
   return (
     <section
@@ -85,7 +116,7 @@ export function LivePointsTable({ liveValues }: LivePointsTableProps) {
           <table className="min-w-full text-left text-sm text-slate-200">
             <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="px-4 py-3">{t('points.address', 'Address')}</th>
+                <th className="px-4 py-3">點位與標籤 ({t('points.address', 'Address')})</th>
                 <th className="px-4 py-3">{t('points.rawValue', 'Raw value')}</th>
                 <th className="px-4 py-3">{t('points.transformedValue', 'Transformed value')}</th>
                 <th className="px-4 py-3">{t('points.quality', 'Quality')}</th>
@@ -95,21 +126,32 @@ export function LivePointsTable({ liveValues }: LivePointsTableProps) {
             <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
               {rows.map((row) => {
                 const isGood = row.quality === 'good' && !row.stale;
+                const meta = pointMetaMap.get(row.point_id) || pointMetaMap.get(row.address);
                 return (
-                  <tr
-                    key={row.point_id}
-                    className="transition hover:bg-slate-900/60"
-                  >
-                    <td className="px-4 py-3 font-semibold text-cyan-200">
-                      {row.address}
+                  <tr key={row.point_id} className="transition hover:bg-slate-900/60">
+                    <td className="px-4 py-3 font-sans">
+                      <div className="flex flex-wrap items-center gap-1.5 font-semibold text-slate-100">
+                        <span>{meta?.name ?? row.address}</span>
+                        {meta?.column && (
+                          <span className="inline-flex items-center gap-1 rounded bg-indigo-500/15 border border-indigo-500/30 px-1.5 py-0.2 font-mono text-[10px] text-indigo-300">
+                            <Database className="h-2.5 w-2.5" />
+                            <span>{meta.column}</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-cyan-300">
+                        <span>暫存器: {row.address}</span>
+                        <span className="sr-only">{row.address}</span>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-400">
+                    <td className="px-4 py-3 text-slate-300 font-mono">
                       {formatValue(row.raw_value)}
                     </td>
-                    <td className="px-4 py-3 font-bold text-slate-100">
+                    <td className="px-4 py-3 font-bold text-emerald-300 font-mono">
                       {formatValue(row.transformed_value)}
+                      {meta?.unit && <span className="ml-1 text-[10px] text-slate-400 font-normal">{meta.unit}</span>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 font-sans">
                       {row.stale ? (
                         <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
                           <AlertCircle className="h-3 w-3" />
@@ -126,8 +168,9 @@ export function LivePointsTable({ liveValues }: LivePointsTableProps) {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-400">
-                      {row.timestamp}
+                    <td className="px-4 py-3 text-slate-400 font-mono text-[11px]">
+                      <span title={row.timestamp}>{formatRelativeTime(row.timestamp)}</span>
+                      <span className="sr-only">{row.timestamp}</span>
                     </td>
                   </tr>
                 );

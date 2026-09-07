@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { Activity, Database, CheckCircle2, AlertOctagon, Clock } from 'lucide-react';
 import type { RuntimeStatus } from '../../../types/datalink';
+import type { StudioV2RuntimeSetupContext } from '../../../types/studioV2RuntimeContext';
 
 interface RuntimeSummaryPanelProps {
   snapshot: RuntimeStatus;
+  setupContext?: StudioV2RuntimeSetupContext | null;
 }
 
 function formatRunningState(running: boolean) {
@@ -24,7 +26,7 @@ function formatUptime(seconds: number): string {
   return `${h}h ${remM}m`;
 }
 
-export function RuntimeSummaryPanel({ snapshot }: RuntimeSummaryPanelProps) {
+export function RuntimeSummaryPanel({ snapshot, setupContext }: RuntimeSummaryPanelProps) {
   const { t } = useTranslation('runtime-dashboard');
   const metrics = snapshot.metrics;
   const unavailable = t('summary.unavailable', 'Unavailable');
@@ -102,6 +104,11 @@ export function RuntimeSummaryPanel({ snapshot }: RuntimeSummaryPanelProps) {
               {formatMetric(metrics?.write_success_total, unavailable)}
             </span>
           </div>
+          {setupContext?.database_config && (
+            <div className="mt-1 text-[10px] text-indigo-300 font-mono truncate" title={`${setupContext.database_config.database}.${setupContext.database_config.table}`}>
+              → {setupContext.database_config.database}.{setupContext.database_config.table}
+            </div>
+          )}
           <div className="mt-2 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
             <div
               className="h-full rounded-full bg-emerald-500 transition-all duration-500"
