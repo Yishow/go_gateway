@@ -1,12 +1,22 @@
-import type { MouseEvent } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronDown, ChevronUp, ExternalLink, ShieldCheck, AlertTriangle } from 'lucide-react';
 import type {
   StudioV2RuntimeContextDevice,
   StudioV2RuntimeSetupContext,
   StudioV2RuntimeSetupMapping,
   StudioV2RuntimeSetupSourceRule,
 } from '../../../types/studioV2RuntimeContext';
-import type { StudioV2WorkspaceReadinessIssue } from '../../../types/studioV2WorkspaceReadiness';
+import {
+  buildStudioV2FocusTarget,
+  formatReadinessStatus,
+  readinessStepLabel,
+  readinessActionFor,
+  fixInStudioLabel,
+  compactIdentifier,
+  handleStudioTargetClick,
+  RuntimeSetupFact,
+} from './RuntimeSetupHelpers';
 
 interface RuntimeSetupContextPanelProps {
   setupContext: StudioV2RuntimeSetupContext | null;
@@ -20,6 +30,7 @@ export function RuntimeSetupContextPanel({
   navigateTo,
 }: RuntimeSetupContextPanelProps) {
   const { t } = useTranslation('runtime-dashboard');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (!setupContext) {
     return null;
@@ -27,9 +38,10 @@ export function RuntimeSetupContextPanel({
 
   const readiness = setupContext.readiness_summary;
   const visibleIssues = readiness?.issues.slice(0, 4) ?? [];
-  const primaryIssue = readiness?.issues.find((issue) => issue.severity === 'blocking')
-    ?? readiness?.issues[0]
-    ?? null;
+  const primaryIssue =
+    readiness?.issues.find((issue) => issue.severity === 'blocking') ??
+    readiness?.issues[0] ??
+    null;
   const studioReturnTarget = buildStudioV2FocusTarget(primaryIssue);
   const rules = setupContext.source_rules.slice(0, 4);
   const mappings = setupContext.mappings.slice(0, 6);
@@ -37,61 +49,109 @@ export function RuntimeSetupContextPanel({
   const databaseTargets = setupContext.database_targets;
   const projectionIsStale =
     selectedDevice?.projection_alignment && selectedDevice.projection_alignment !== 'aligned';
+  const hasBlockers = (readiness?.blocking_count ?? 0) > 0;
 
   return (
     <section
-      className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"
+      className={`rounded-3xl border transition-all duration-300 ${
+        hasBlockers
+          ? 'border-amber-500/40 bg-amber-500/5'
+          : 'border-slate-800/80 bg-slate-900/60'
+      } p-5 shadow-lg`}
       data-testid="runtime-dashboard-setup-context"
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-50">
-            {t('setup.title', 'Workspace readiness')}
-          </h2>
-          <p className="mt-1 text-sm text-slate-400">
-            {t(
-              'setup.description',
-              'Saved Studio V2 setup conditions used by this runtime view.',
-            )}
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
+              hasBlockers
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300'
+            }`}
+          >
+            {hasBlockers ? <AlertTriangle className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-base font-semibold text-slate-100">
+                {t('setup.title', 'Workspace readiness')}
+              </h2>
+              <span
+                className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                  readiness?.ready
+                    ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                    : 'border border-amber-500/30 bg-amber-500/10 text-amber-300'
+                }`}
+              >
+                {formatReadinessStatus(readiness?.ready, readiness?.blocking_count ?? 0, t)}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-400">
+              {t(
+                'setup.description',
+                'Saved Studio V2 setup conditions used by this runtime view.',
+              )}
+            </p>
+          </div>
         </div>
-        <a
-          href={studioReturnTarget}
-          data-testid="runtime-dashboard-setup-return-link"
-          onClick={handleStudioTargetClick(navigateTo, studioReturnTarget)}
-          className="inline-flex w-fit rounded-xl border border-slate-700 px-3 py-2 text-sm font-medium text-slate-100 transition hover:border-cyan-400 hover:text-cyan-100"
-        >
-          {t('setup.returnToStudio', 'Return to Studio V2')}
-        </a>
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
+          >
+            {isExpanded ? (
+              <>
+                <span>收合配置詳情</span>
+                <ChevronUp className="h-3.5 w-3.5" />
+              </>
+            ) : (
+              <>
+                <span>展開配置詳情</span>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </>
+            )}
+          </button>
+          <a
+            href={studioReturnTarget}
+            data-testid="runtime-dashboard-setup-return-link"
+            onClick={handleStudioTargetClick(navigateTo, studioReturnTarget)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/20"
+          >
+            <span>{t('setup.returnToStudio', 'Return to Studio V2')}</span>
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className={`mt-5 grid gap-4 xl:grid-cols-[0.95fr_1.05fr] ${isExpanded ? 'block' : 'block'}`}>
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-100">
+          <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 {t('setup.readiness.title', 'Readiness result')}
               </h3>
-              <span className={readiness?.ready ? 'text-sm text-emerald-300' : 'text-sm text-amber-300'}>
+              <span className={readiness?.ready ? 'text-xs font-medium text-emerald-300' : 'text-xs font-medium text-amber-300'}>
                 {formatReadinessStatus(readiness?.ready, readiness?.blocking_count ?? 0, t)}
               </span>
             </div>
             {visibleIssues.length > 0 ? (
               <ul className="mt-3 space-y-3">
                 {visibleIssues.map((issue) => (
-                  <li key={`${issue.code}-${issue.scope}`} className="text-sm">
-                    <div className="flex flex-wrap gap-2 text-slate-100">
-                      <span className="font-semibold">{readinessStepLabel(issue)}</span>
-                      <span className="font-mono text-xs text-amber-300">{issue.code}</span>
+                  <li key={`${issue.code}-${issue.scope}`} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-slate-100">
+                      <span className="font-semibold text-amber-200">{readinessStepLabel(issue)}</span>
+                      <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-xs text-amber-300">{issue.code}</span>
                     </div>
-                    <p className="mt-1 text-slate-300">{issue.message}</p>
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">{issue.message}</p>
+                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-amber-500/10 pt-2">
                       <p className="text-xs text-cyan-200">{readinessActionFor(issue, t)}</p>
                       <a
                         href={buildStudioV2FocusTarget(issue)}
                         data-testid={`runtime-dashboard-setup-fix-${issue.code}`}
                         onClick={handleStudioTargetClick(navigateTo, buildStudioV2FocusTarget(issue))}
-                        className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+                        className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
                       >
                         {fixInStudioLabel(t, readinessStepLabel(issue))}
                       </a>
@@ -100,7 +160,7 @@ export function RuntimeSetupContextPanel({
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-sm text-slate-400">
+              <p className="mt-3 text-xs text-slate-400">
                 {t('setup.readiness.empty', 'No readiness blockers reported.')}
               </p>
             )}
@@ -108,10 +168,10 @@ export function RuntimeSetupContextPanel({
 
           {projectionIsStale ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <h3 className="text-sm font-semibold text-amber-100">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-100">
                 {t('setup.projectionStale', 'Projection stale')}
               </h3>
-              <dl className="mt-3 grid gap-2 text-sm text-amber-50/90 sm:grid-cols-2">
+              <dl className="mt-3 grid gap-2 text-xs text-amber-50/90 sm:grid-cols-2">
                 <RuntimeSetupFact
                   label={t('setup.runtimeProjection', 'Runtime projection')}
                   value={selectedDevice?.runtime_projection_version ?? '-'}
@@ -141,24 +201,17 @@ export function RuntimeSetupContextPanel({
   );
 }
 
-function RuntimeSetupRules({
-  rules,
-  total,
-}: {
-  rules: StudioV2RuntimeSetupSourceRule[];
-  total: number;
-}) {
+function RuntimeSetupRules({ rules, total }: { rules: StudioV2RuntimeSetupSourceRule[]; total: number }) {
   const { t } = useTranslation('runtime-dashboard');
-
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-      <h3 className="text-sm font-semibold text-slate-100">
+    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
         {t('setup.rules.title', 'Configured source rules')}
       </h3>
       {rules.length > 0 ? (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-2.5 space-y-1.5">
           {rules.map((rule) => (
-            <li key={rule.id} className="text-sm text-slate-300">
+            <li key={rule.id} className="text-xs text-slate-300">
               <span className="font-mono text-cyan-200">{rule.start_address}</span>
               <span className="mx-2 text-slate-600">/</span>
               <span>{`${rule.count} ${t('setup.rules.pointUnit', 'points')}`}</span>
@@ -168,62 +221,42 @@ function RuntimeSetupRules({
           ))}
         </ul>
       ) : (
-        <p className="mt-3 text-sm text-slate-400">
-          {t('setup.rules.empty', 'No persisted source rules.')}
-        </p>
+        <p className="mt-2 text-xs text-slate-400">{t('setup.rules.empty', 'No persisted source rules.')}</p>
       )}
-      {total > rules.length ? (
-        <p className="mt-2 text-xs text-slate-500">
-          {`+${total - rules.length} ${t('setup.moreSuffix', 'more')}`}
-        </p>
-      ) : null}
+      {total > rules.length && (
+        <p className="mt-2 text-xs text-slate-500">{`+${total - rules.length} ${t('setup.moreSuffix', 'more')}`}</p>
+      )}
     </div>
   );
 }
 
-function RuntimeSetupMappings({
-  mappings,
-  total,
-}: {
-  mappings: StudioV2RuntimeSetupMapping[];
-  total: number;
-}) {
+function RuntimeSetupMappings({ mappings, total }: { mappings: StudioV2RuntimeSetupMapping[]; total: number }) {
   const { t } = useTranslation('runtime-dashboard');
-
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-      <h3 className="text-sm font-semibold text-slate-100">
+    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
         {t('setup.mappings.title', 'Configured mappings')}
       </h3>
       {mappings.length > 0 ? (
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        <ul className="mt-2.5 grid gap-2 sm:grid-cols-2">
           {mappings.map((mapping) => {
             const title = mapping.display_name || mapping.tag_key || t('setup.mappings.unbound', 'unbound tag');
             const subtitle = mapping.tag_key || (mapping.tag_id ? compactIdentifier(mapping.tag_id) : '');
             return (
-              <li key={`${mapping.rule_id}-${mapping.point_id}`} className="text-sm text-slate-300">
-                <div className="font-mono text-xs text-cyan-200">{mapping.address}</div>
-                <div className="font-semibold text-slate-100">{title}</div>
-                {subtitle ? (
-                  <div className="text-xs text-slate-400">
-                    {subtitle}
-                    {mapping.unit ? ` / ${mapping.unit}` : ''}
-                  </div>
-                ) : null}
+              <li key={`${mapping.rule_id}-${mapping.point_id}`} className="rounded-lg bg-slate-900/60 p-2 text-xs text-slate-300">
+                <div className="font-mono text-[11px] text-cyan-300">{mapping.address}</div>
+                <div className="font-medium text-slate-100">{title}</div>
+                {subtitle && <div className="text-[11px] text-slate-400">{subtitle}{mapping.unit ? ` / ${mapping.unit}` : ''}</div>}
               </li>
             );
           })}
         </ul>
       ) : (
-        <p className="mt-3 text-sm text-slate-400">
-          {t('setup.mappings.empty', 'No persisted mappings.')}
-        </p>
+        <p className="mt-2 text-xs text-slate-400">{t('setup.mappings.empty', 'No persisted mappings.')}</p>
       )}
-      {total > mappings.length ? (
-        <p className="mt-2 text-xs text-slate-500">
-          {`+${total - mappings.length} ${t('setup.moreSuffix', 'more')}`}
-        </p>
-      ) : null}
+      {total > mappings.length && (
+        <p className="mt-2 text-xs text-slate-500">{`+${total - mappings.length} ${t('setup.moreSuffix', 'more')}`}</p>
+      )}
     </div>
   );
 }
@@ -236,150 +269,22 @@ function RuntimeSetupDatabase({
   databaseTargetsCount: number;
 }) {
   const { t } = useTranslation('runtime-dashboard');
-
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-      <h3 className="text-sm font-semibold text-slate-100">
+    <div className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
         {t('setup.database.title', 'Database setup')}
       </h3>
       {databaseConfig ? (
-        <dl className="mt-3 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+        <dl className="mt-2.5 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
           <RuntimeSetupFact label={t('setup.database.connector', 'Connector')} value={databaseConfig.name} />
           <RuntimeSetupFact label={t('setup.database.database', 'Database')} value={databaseConfig.database} />
           <RuntimeSetupFact label={t('setup.database.table', 'Table')} value={databaseConfig.table} />
-          <RuntimeSetupFact
-            label={t('setup.database.interval', 'Interval')}
-            value={`${databaseConfig.write_interval_seconds}s`}
-          />
-          <RuntimeSetupFact label={t('setup.database.status', 'Status')} value={databaseConfig.status ?? '-'} />
-          <RuntimeSetupFact
-            label={t('setup.database.targets', 'Targets')}
-            value={databaseTargetsCount > 0 ? String(databaseTargetsCount) : t('setup.database.noTargets', 'No persisted database targets')}
-          />
+          <RuntimeSetupFact label={t('setup.database.targets', 'Targets')} value={databaseTargetsCount ? String(databaseTargetsCount) : t('setup.database.noTargets', 'No database targets')} />
         </dl>
       ) : (
-        <p className="mt-3 text-sm text-slate-400">
-          {t('setup.database.empty', 'No persisted database config.')}
-        </p>
+        <p className="mt-2 text-xs text-slate-400">{t('setup.database.empty', 'No persisted database configuration.')}</p>
       )}
     </div>
   );
 }
 
-function RuntimeSetupFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</dt>
-      <dd className="mt-1 break-words font-medium text-slate-100">{value}</dd>
-    </div>
-  );
-}
-
-function compactIdentifier(value: string): string {
-  return value.length > 18 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
-}
-
-function buildStudioV2FocusTarget(issue: StudioV2WorkspaceReadinessIssue | null): string {
-  if (!issue) {
-    return '/studio/v2';
-  }
-
-  const params = new URLSearchParams({
-    step: String(readinessIssueOwnerStepNumber(issue)),
-    focus: 'readiness',
-    issue: issue.code,
-  });
-
-  return `/studio/v2?${params.toString()}`;
-}
-
-function readinessIssueOwnerStepNumber(issue: StudioV2WorkspaceReadinessIssue): 1 | 2 | 3 | 4 {
-  switch (issue.code) {
-    case 'tag-missing':
-    case 'mapping-missing':
-      return 3;
-    case 'database-target-missing':
-      return 4;
-    case 'device-connect-required':
-    case 'device-probe-required':
-      return 1;
-    default:
-      return readinessStepNumber(issue.step);
-  }
-}
-
-function readinessStepLabel(issue: StudioV2WorkspaceReadinessIssue): string {
-  return `Step ${readinessIssueOwnerStepNumber(issue)}`;
-}
-
-function fixInStudioLabel(
-  t: (key: string, options?: Record<string, unknown>) => string,
-  stepLabel: string,
-): string {
-  const fallback = `Fix in ${stepLabel}`;
-  const translated = t('setup.fixInStudio', {
-    step: stepLabel,
-    defaultValue: fallback,
-  });
-  return translated === 'setup.fixInStudio' ? fallback : translated;
-}
-
-function handleStudioTargetClick(
-  navigateTo: ((target: string) => void) | undefined,
-  target: string,
-): ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined {
-  if (!navigateTo) {
-    return undefined;
-  }
-
-  return (event) => {
-    event.preventDefault();
-    navigateTo(target);
-  };
-}
-
-function readinessStepNumber(step: StudioV2WorkspaceReadinessIssue['step']): 1 | 2 | 3 | 4 {
-  switch (step) {
-    case 'Step 2':
-      return 2;
-    case 'Step 3':
-      return 3;
-    case 'Step 4':
-      return 4;
-    case 'Step 1':
-    default:
-      return 1;
-  }
-}
-
-function formatReadinessStatus(
-  ready: boolean | undefined,
-  blockingCount: number,
-  t: (key: string, fallback: string) => string,
-): string {
-  if (ready) {
-    return t('setup.readiness.ready', 'Ready');
-  }
-  return `${blockingCount} ${t('setup.readiness.blockerUnit', 'blockers')}`;
-}
-
-function readinessActionFor(
-  issue: StudioV2WorkspaceReadinessIssue,
-  t: (key: string, fallback: string) => string,
-): string {
-  switch (issue.code) {
-    case 'point-missing':
-      return t('setup.actions.pointMissing', 'Fix in Step 2: re-save this source rule to rebuild the missing derived point.');
-    case 'database-target-missing':
-      return t('setup.actions.databaseTargetMissing', 'Fix in Step 4: create a database target for this derived point.');
-    case 'tag-missing':
-      return t('setup.actions.tagMissing', 'Fix in Step 3: save the tag generated for this derived point.');
-    case 'mapping-missing':
-      return t('setup.actions.mappingMissing', 'Fix in Step 3: save the point-to-tag mapping.');
-    case 'device-connect-required':
-    case 'device-probe-required':
-      return t('setup.actions.deviceProbeRequired', 'Fix in Step 1: pass connection/probe readiness before activation.');
-    default:
-      return t('setup.actions.default', 'Open Studio V2 and resolve the owning step shown above.');
-  }
-}

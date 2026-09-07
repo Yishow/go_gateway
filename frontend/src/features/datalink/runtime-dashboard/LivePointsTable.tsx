@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Layers, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { RuntimeValueEvent } from '../../../types/datalink';
 
 interface LivePointsTableProps {
@@ -25,16 +26,40 @@ export function LivePointsTable({ liveValues }: LivePointsTableProps) {
 
   return (
     <section
-      className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"
+      className="rounded-3xl border border-slate-800/80 bg-slate-900/70 p-6 shadow-xl backdrop-blur-sm"
       data-testid="runtime-dashboard-live-points-table"
     >
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-slate-50">
-          {t('points.title', 'Live points')}
-        </h2>
-        <p className="mt-1 text-sm text-slate-400">
-          {t('points.description', 'Live point rows update after the first runtime value event arrives.')}
-        </p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+            <Layers className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-slate-50">
+                {t('points.title', 'Live points')}
+              </h2>
+              {rows.length > 0 && (
+                <span className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-xs font-mono font-medium text-cyan-300">
+                  {rows.length} 點位
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400">
+              {t('points.description', 'Live point rows update after the first runtime value event arrives.')}
+            </p>
+          </div>
+        </div>
+
+        {rows.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+            </span>
+            <span className="font-mono text-cyan-300">即時推播已同步</span>
+          </div>
+        )}
       </div>
 
       {rows.length === 0 ? (
@@ -44,41 +69,69 @@ export function LivePointsTable({ liveValues }: LivePointsTableProps) {
         >
           <div className="flex items-center gap-2 text-cyan-400/90 text-sm font-medium">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500" />
             </span>
             {t('points.placeholder', 'Waiting for the first live point update...')}
           </div>
           <div className="w-full max-w-md space-y-2.5 animate-pulse">
-            <div className="h-3.5 bg-slate-900/80 rounded-lg w-full"></div>
-            <div className="h-3.5 bg-slate-900/80 rounded-lg w-11/12 mx-auto"></div>
-            <div className="h-3.5 bg-slate-900/80 rounded-lg w-10/12 mx-auto"></div>
+            <div className="h-3.5 bg-slate-900/80 rounded-lg w-full" />
+            <div className="h-3.5 bg-slate-900/80 rounded-lg w-11/12 mx-auto" />
+            <div className="h-3.5 bg-slate-900/80 rounded-lg w-10/12 mx-auto" />
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-2xl border border-slate-800/90 bg-slate-950/70">
           <table className="min-w-full text-left text-sm text-slate-200">
-            <thead className="text-xs uppercase tracking-[0.18em] text-slate-500">
+            <thead className="border-b border-slate-800 bg-slate-900/80 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="px-3 py-2">{t('points.address', 'Address')}</th>
-                <th className="px-3 py-2">{t('points.rawValue', 'Raw value')}</th>
-                <th className="px-3 py-2">{t('points.transformedValue', 'Transformed value')}</th>
-                <th className="px-3 py-2">{t('points.quality', 'Quality')}</th>
-                <th className="px-3 py-2">{t('points.timestamp', 'Timestamp')}</th>
+                <th className="px-4 py-3">{t('points.address', 'Address')}</th>
+                <th className="px-4 py-3">{t('points.rawValue', 'Raw value')}</th>
+                <th className="px-4 py-3">{t('points.transformedValue', 'Transformed value')}</th>
+                <th className="px-4 py-3">{t('points.quality', 'Quality')}</th>
+                <th className="px-4 py-3">{t('points.timestamp', 'Timestamp')}</th>
               </tr>
             </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.point_id} className="border-t border-slate-800">
-                  <td className="px-3 py-3 font-mono text-cyan-100">{row.address}</td>
-                  <td className="px-3 py-3">{formatValue(row.raw_value)}</td>
-                  <td className="px-3 py-3">{formatValue(row.transformed_value)}</td>
-                  <td className="px-3 py-3">
-                    {row.stale ? t('points.stale', 'stale') : row.quality}
-                  </td>
-                  <td className="px-3 py-3">{row.timestamp}</td>
-                </tr>
-              ))}
+            <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+              {rows.map((row) => {
+                const isGood = row.quality === 'good' && !row.stale;
+                return (
+                  <tr
+                    key={row.point_id}
+                    className="transition hover:bg-slate-900/60"
+                  >
+                    <td className="px-4 py-3 font-semibold text-cyan-200">
+                      {row.address}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">
+                      {formatValue(row.raw_value)}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-slate-100">
+                      {formatValue(row.transformed_value)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.stale ? (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
+                          <AlertCircle className="h-3 w-3" />
+                          <span>{t('points.stale', 'stale')}</span>
+                        </span>
+                      ) : isGood ? (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>{row.quality}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+                          <span>{row.quality}</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">
+                      {row.timestamp}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

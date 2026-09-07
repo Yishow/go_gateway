@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Cpu, Server } from 'lucide-react';
 import type { StudioV2RuntimeContextDevice } from '../../../types/studioV2RuntimeContext';
 
 interface FocusedDeviceHeaderProps {
@@ -15,67 +16,115 @@ export function FocusedDeviceHeader({
   onSelectDevice,
 }: FocusedDeviceHeaderProps) {
   const { t } = useTranslation('runtime-dashboard');
+  const isRunning = selectedDevice?.running ?? false;
+  const isUnavailable = selectedDevice?.availability_status === 'unavailable';
 
   return (
     <section
-      className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.35)]"
+      className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-md"
       data-testid="runtime-dashboard-header"
     >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
-            {t('header.eyebrow', 'Runtime Dashboard')}
-          </p>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-500/20 to-slate-900 text-cyan-300 shadow-lg shadow-cyan-950/50">
+            <Cpu className="h-7 w-7" />
+          </div>
           <div className="space-y-1">
-            <h1 className="text-3xl font-semibold text-slate-50">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-400">
+                {t('header.eyebrow', 'Runtime Dashboard')}
+              </p>
+              {selectedDevice && (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    isRunning
+                      ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                      : 'border border-amber-500/30 bg-amber-500/10 text-amber-300'
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                    }`}
+                  />
+                  {isRunning ? '運轉中' : '已停止'}
+                </span>
+              )}
+            </div>
+
+            <h1 className="text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
               {selectedDevice?.name ?? t('header.noDevice', 'Choose a device')}
             </h1>
-            <p className="text-sm text-slate-300">
-              {selectedDevice
-                ? selectedDevice.availability_status === 'unavailable'
-                  ? t('header.deviceMetaUnavailable', 'Unavailable: runtime device context is unavailable.')
-                  : t('header.deviceMeta', 'Protocol {{protocol}}', {
-                      protocol: selectedDevice.protocol,
-                    })
-                : t(
-                    'header.deviceMetaEmpty',
-                    'Use the committed device context to inspect live runtime health.',
-                  )}
+
+            <p className="text-xs text-slate-400">
+              {selectedDevice ? (
+                isUnavailable ? (
+                  <span className="text-amber-300 font-medium">
+                    {t('header.deviceMetaUnavailable', 'Unavailable: runtime device context is unavailable.')}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] text-slate-300">
+                      {t('header.deviceMeta', 'Protocol {{protocol}}', {
+                        protocol: selectedDevice.protocol,
+                      })}
+                    </span>
+                    <span className="text-slate-500">•</span>
+                    <span>即時遙測串流已啟動</span>
+                  </span>
+                )
+              ) : (
+                t(
+                  'header.deviceMetaEmpty',
+                  'Use the committed device context to inspect live runtime health.',
+                )
+              )}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2" data-testid="runtime-dashboard-device-switcher">
-          {devices.map((device) => {
-            const isSelected = device.device_id === selectedDeviceId;
-            const isUnavailable = device.availability_status === 'unavailable';
-            return (
-              <button
-                key={device.device_id}
-                type="button"
-                aria-label={device.name}
-                onClick={() => onSelectDevice(device.device_id)}
-                className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                  isSelected
-                    ? 'border-cyan-400/60 bg-cyan-500/10 text-cyan-100'
-                    : 'border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500 hover:text-slate-50'
-                }`}
-              >
-                <span className="block">{device.name}</span>
-                {isUnavailable && (
-                  <span className="mt-1 block text-xs text-amber-300">
-                    {t('header.unavailable', 'Unavailable')}
-                  </span>
-                )}
-                {isUnavailable && device.availability_reason && (
-                  <span className="mt-1 block text-xs text-slate-400">
-                    {t('header.unavailableAction', 'Review the device setup in Studio V2 and retry.')}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* 設備切換按鈕區 */}
+        {devices.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              切換監控設備
+            </span>
+            <div className="flex flex-wrap gap-2" data-testid="runtime-dashboard-device-switcher">
+              {devices.map((device) => {
+                const isSelected = device.device_id === selectedDeviceId;
+                const unavailable = device.availability_status === 'unavailable';
+                return (
+                  <button
+                    key={device.device_id}
+                    type="button"
+                    aria-label={device.name}
+                    onClick={() => onSelectDevice(device.device_id)}
+                    className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'border-cyan-400 bg-cyan-500/15 text-cyan-100 shadow-md shadow-cyan-950/40'
+                        : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900/80 hover:text-slate-100'
+                    }`}
+                  >
+                    <Server className={`h-3.5 w-3.5 ${isSelected ? 'text-cyan-400' : 'text-slate-500'}`} />
+                    <span>{device.name}</span>
+                    {unavailable && (
+                      <div className="flex flex-col text-left">
+                        <span className="rounded bg-amber-500/20 px-1 py-0.2 text-[10px] font-semibold text-amber-300">
+                          {t('header.unavailable', 'Unavailable')}
+                        </span>
+                        {device.availability_reason && (
+                          <span className="text-[10px] text-slate-400">
+                            {t('header.unavailableAction', 'Review the device setup in Studio V2 and retry.')}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
