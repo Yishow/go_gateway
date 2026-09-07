@@ -37,16 +37,16 @@ export function LivePointsTable({ liveValues }: LivePointsTableProps) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-slate-50">
-                {t('points.title', 'Live points')}
+                {t('points.title', 'Live points')} • PLC 點位即時數值表
               </h2>
               {rows.length > 0 && (
                 <span className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-xs font-mono font-medium text-cyan-300">
-                  {rows.length} 點位
+                  {rows.length} 點即時更新中
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-400">
-              {t('points.description', 'Live point rows update after the first runtime value event arrives.')}
+              {t('points.description', 'Live point rows update after the first runtime value event arrives.')} (即時顯示暫存器原始讀值與工程轉換值)
             </p>
           </div>
         </div>

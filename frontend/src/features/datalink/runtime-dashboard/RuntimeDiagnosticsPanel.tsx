@@ -6,6 +6,7 @@ import type {
   DatabaseDeliveryDiagnostic,
   ModbusShareDeliveryDiagnostic,
 } from '../../../types/runtimeDiagnostics';
+import { resolveFailureCopy, selectDiagnostics } from './RuntimeDiagnosticsHelpers';
 
 interface RuntimeDiagnosticsPanelProps {
   diagnostics?: RuntimeFlowDiagnostic[];
@@ -96,7 +97,7 @@ export function RuntimeDiagnosticsPanel({
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            全鏈路管線健康
+            全鏈路管線零異常
             <span className="sr-only" data-testid="runtime-diagnostics-action">
               {failureCopy.action}
             </span>
@@ -105,33 +106,63 @@ export function RuntimeDiagnosticsPanel({
       </div>
 
       {/* 4 階段資料管線流動視覺圖 */}
-      <div className="mb-6 rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
+      <div className="mb-5 rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4">
         <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
           全鏈路資料管線流程 (Data Pipeline)
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <PipelineStageNode name="1. PLC 採集" stage="collector" isError={failedDiagnostic?.failure_stage === 'collector'} />
-          <PipelineStageNode name="2. 規則映射" stage="mapping" isError={failedDiagnostic?.failure_stage === 'mapping'} />
-          <PipelineStageNode name="3. 時序投影" stage="runtime_projection" isError={failedDiagnostic?.failure_stage === 'runtime_projection'} />
-          <PipelineStageNode name="4. 目標交付" stage="database_delivery" isError={Boolean(failedDiagnostic && (failedDiagnostic.failure_stage === 'database_delivery' || failedDiagnostic.failure_stage === 'modbus_share_delivery'))} />
+          <PipelineStageNode name="1. PLC 採集" isError={failedDiagnostic?.failure_stage === 'collector'} />
+          <PipelineStageNode name="2. 規則映射" isError={failedDiagnostic?.failure_stage === 'mapping'} />
+          <PipelineStageNode name="3. 時序投影" isError={failedDiagnostic?.failure_stage === 'runtime_projection'} />
+          <PipelineStageNode name="4. 目標交付" isError={Boolean(failedDiagnostic && (failedDiagnostic.failure_stage === 'database_delivery' || failedDiagnostic.failure_stage === 'modbus_share_delivery'))} />
         </div>
       </div>
 
-      {/* 診斷條目清單 */}
-      <div className="space-y-3">
-        {scopedDiagnostics.map((diagnostic) => (
-          <DiagnosticCard
-            key={`${diagnostic.scope}:${diagnostic.last_failure_at ?? diagnostic.last_success_at ?? ''}`}
-            diagnostic={diagnostic}
-            t={t}
-          />
-        ))}
-      </div>
+      {/* 正常狀態 vs 異常狀態 呈現 */}
+      {isHealthy ? (
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+            <div>
+              <h3 className="text-sm font-semibold text-emerald-200">
+                管線資料流運作正常 (Zero Pipeline Errors)
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-400">
+                所有點位皆已持續對齊並順利交付至資料庫，無任何讀取逾時或寫入失敗。
+              </p>
+            </div>
+          </div>
+          <details className="mt-3 border-t border-emerald-500/10 pt-3">
+            <summary className="cursor-pointer text-xs font-sans text-slate-400 hover:text-slate-200 transition select-none">
+              檢視底層點位交付診斷清單 ({scopedDiagnostics.length}) ▾
+            </summary>
+            <div className="mt-2.5 space-y-1.5">
+              {scopedDiagnostics.map((diagnostic) => (
+                <DiagnosticCard
+                  key={`${diagnostic.scope}:${diagnostic.last_failure_at ?? diagnostic.last_success_at ?? ''}`}
+                  diagnostic={diagnostic}
+                  t={t}
+                />
+              ))}
+            </div>
+          </details>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {scopedDiagnostics.map((diagnostic) => (
+            <DiagnosticCard
+              key={`${diagnostic.scope}:${diagnostic.last_failure_at ?? diagnostic.last_success_at ?? ''}`}
+              diagnostic={diagnostic}
+              t={t}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
-function PipelineStageNode({ name, isError }: { name: string; stage: string; isError: boolean }) {
+function PipelineStageNode({ name, isError }: { name: string; isError: boolean }) {
   return (
     <div
       className={`flex items-center justify-between rounded-xl border p-2.5 transition ${
@@ -166,110 +197,46 @@ function DiagnosticCard({
     rows.push({ label: t('diagnostics.requestId', 'Request ID:'), value: ` ${diagnostic.request_id}` });
   }
 
+  if (!isFailed) {
+    return (
+      <div
+        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800/80 bg-slate-900/40 px-3.5 py-2 font-mono text-xs"
+        data-testid="runtime-diagnostics-entry"
+      >
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+          <span className="font-semibold text-slate-200">{diagnostic.scope}</span>
+          {diagnostic.tag_id && (
+            <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-cyan-300">
+              {diagnostic.tag_id}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+          <span>{t('diagnostics.latestSuccessfulStage', 'Latest successful stage')}: <strong className="text-emerald-400">{diagnostic.latest_successful_stage ?? 'database_delivery'}</strong></span>
+          <span>{t('diagnostics.lastFailureAt', 'Last failure at')}: {diagnostic.last_failure_at ?? diagnostic.last_success_at ?? t('diagnostics.unavailable', 'Unavailable')}</span>
+        </div>
+        <div className="sr-only">
+          <span>{t('diagnostics.failureStage', 'Failure stage')}: {diagnostic.failure_stage ?? t('diagnostics.noFailureStage', 'No recent failure')}</span>
+          <span>{t('diagnostics.failureReason', 'Failure reason')}: {t('diagnostics.deliveryObserved', 'Delivery observed')}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`rounded-2xl border p-4 transition ${
-        isFailed ? 'border-rose-500/30 bg-rose-500/5' : 'border-slate-800/90 bg-slate-950/70'
-      }`}
+      className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4 transition"
       data-testid="runtime-diagnostics-entry"
     >
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((row) => (
-          <div key={row.label} className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3">
-            <dt className="text-[11px] uppercase tracking-wider text-slate-500">{row.label}</dt>
-            <dd className="mt-1 font-mono text-xs font-semibold text-slate-200 break-all">{row.value}</dd>
+          <div key={row.label} className="rounded-xl border border-rose-500/20 bg-slate-900/60 p-3">
+            <dt className="text-[11px] uppercase tracking-wider text-rose-300/80">{row.label}</dt>
+            <dd className="mt-1 font-mono text-xs font-semibold text-rose-100 break-all">{row.value}</dd>
           </div>
         ))}
       </dl>
     </div>
   );
-}
-
-function resolveFailureCopy(
-  failureCode: string,
-  t: TFunction<'runtime-dashboard'>,
-): { message: string; action: string } {
-  if (failureCode === 'runtime_snapshot_unavailable') {
-    return {
-      message: t('errors.runtime_snapshot_unavailable', 'Runtime snapshot is currently unavailable.'),
-      action: t('errors.runtime_snapshot_unavailable_action', 'Retry snapshot'),
-    };
-  }
-  if (failureCode === 'modbus_share_delivery') {
-    return {
-      message: t('errors.modbus_share_delivery', 'Modbus Share delivery is unavailable.'),
-      action: t('errors.modbus_share_delivery_action', 'Retry Modbus Share delivery'),
-    };
-  }
-  return {
-    message: t('errors.generic_failure', 'Runtime diagnostics are unavailable.'),
-    action: t('errors.retry', 'Retry snapshot'),
-  };
-}
-
-function selectDiagnostics(
-  diagnostics: RuntimeFlowDiagnostic[],
-  databaseDelivery: DatabaseDeliveryDiagnostic[],
-  modbusShareDelivery: ModbusShareDeliveryDiagnostic[],
-  selectedDeviceId: string | null,
-): RuntimeFlowDiagnostic[] {
-  const scoped = diagnostics.filter((diagnostic) =>
-    matchesDevice(diagnostic.device_id, diagnostic.scope, selectedDeviceId),
-  );
-  const database = databaseDelivery
-    .filter((item) => matchesDevice(item.device_id, `tag:${item.tag_id}`, selectedDeviceId))
-    .map(toDatabaseDiagnostic);
-  const share = modbusShareDelivery
-    .filter((item) => matchesDevice(item.device_id, `tag:${item.tag_id}`, selectedDeviceId))
-    .filter((item) => item.status !== 'disabled')
-    .map(toModbusShareDiagnostic);
-  return [...scoped, ...database, ...share].sort((left, right) =>
-    diagnosticTimestamp(right).localeCompare(diagnosticTimestamp(left)),
-  );
-}
-
-function matchesDevice(
-  deviceId: string | undefined,
-  scope: string,
-  selectedDeviceId: string | null,
-): boolean {
-  return !selectedDeviceId || deviceId === selectedDeviceId || scope === `device:${selectedDeviceId}`;
-}
-
-function toDatabaseDiagnostic(item: DatabaseDeliveryDiagnostic): RuntimeFlowDiagnostic {
-  const failed = item.status === 'failed';
-  return {
-    scope: `database_delivery:${item.tag_id}`,
-    device_id: item.device_id,
-    point_id: item.point_id,
-    tag_id: item.tag_id,
-    last_success_at: item.last_success_at,
-    last_failure_at: item.last_failure_at,
-    latest_successful_stage: failed ? undefined : 'database_delivery',
-    failure_stage: failed ? 'database_delivery' : undefined,
-    failure_code: failed ? 'database_delivery' : undefined,
-    failure_reason: item.last_failure_reason ?? item.error,
-    stages: item.stages.map((stage) => ({ stage, status: failed ? 'failed' : 'success' })),
-  };
-}
-
-function toModbusShareDiagnostic(item: ModbusShareDeliveryDiagnostic): RuntimeFlowDiagnostic {
-  const failed = item.status === 'failed' || (item.status === undefined && Boolean(item.error));
-  return {
-    scope: `modbus_share_delivery:${item.tag_id}`,
-    device_id: item.device_id,
-    point_id: item.point_id,
-    tag_id: item.tag_id,
-    last_success_at: failed ? undefined : item.observed_at,
-    last_failure_at: failed ? item.observed_at : undefined,
-    latest_successful_stage: failed ? undefined : 'modbus_share_delivery',
-    failure_stage: failed ? 'modbus_share_delivery' : undefined,
-    failure_code: failed ? 'modbus_share_delivery' : undefined,
-    failure_reason: item.error,
-    stages: [{ stage: 'modbus_share_delivery', status: failed ? 'failed' : 'success' }],
-  };
-}
-
-function diagnosticTimestamp(diagnostic: RuntimeFlowDiagnostic): string {
-  return diagnostic.last_failure_at ?? diagnostic.last_success_at ?? '';
 }

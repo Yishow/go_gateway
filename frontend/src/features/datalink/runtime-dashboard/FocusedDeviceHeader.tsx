@@ -126,6 +126,25 @@ export function FocusedDeviceHeader({
           </div>
         )}
       </div>
+
+      {selectedDevice && !isUnavailable && (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-slate-900/60 to-emerald-500/10 px-4 py-3 text-xs">
+          <div className="flex items-center gap-2.5 text-slate-200">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="font-semibold text-emerald-300">資料採集與儲存進行中</span>
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-300">
+              閘道正持續從 PLC 讀取數據，經由 Datalink 映射並即時寫入資料庫持久化儲存。
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-mono text-cyan-300">
+            <span>通訊協定: {selectedDevice.protocol}</span>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

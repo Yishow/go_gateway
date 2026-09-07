@@ -70,10 +70,10 @@ export function CollectorHealthPanel({ collector }: CollectorHealthPanelProps) {
           </div>
           <div>
             <h2 className="text-base font-semibold text-slate-50">
-              {t('health.title', 'Collector health')}
+              {t('health.title', 'Collector health')} • PLC 通訊與點位健康
             </h2>
             <p className="text-xs text-slate-400">
-              {t('health.description', 'Current collector counters for the selected device.')}
+              {t('health.description', 'Current collector counters for the selected device.')} (PLC 連線狀態與點位健康度分佈)
             </p>
           </div>
         </div>

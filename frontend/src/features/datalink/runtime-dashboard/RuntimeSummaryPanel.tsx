@@ -55,10 +55,10 @@ export function RuntimeSummaryPanel({ snapshot }: RuntimeSummaryPanelProps) {
           </div>
           <div>
             <h2 className="text-base font-semibold text-slate-50">
-              {t('summary.title', 'Runtime summary')}
+              {t('summary.title', 'Runtime summary')} • 資料庫交付與採集統計
             </h2>
             <p className="text-xs text-slate-400">
-              {t('summary.description', 'Only backend-supported counters are shown here.')}
+              {t('summary.description', 'Only backend-supported counters are shown here.')} (即時統計寫入資料庫成功率、採集總數據點數與運轉時間)
             </p>
           </div>
         </div>
