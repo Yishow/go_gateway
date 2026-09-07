@@ -154,8 +154,8 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
           {/* 中層編輯區與測試診斷區 */}
           {activeDevice ? (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-              {/* 左側：編輯表單 (Col 7) */}
-              <div className="lg:col-span-7">
+              {/* 左側：編輯表單 (Col 6) */}
+              <div className="lg:col-span-6">
                 <DeviceEditor
                   device={activeDevice}
                   onUpdate={handleUpdateDevice}
@@ -164,8 +164,8 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
                 />
               </div>
 
-              {/* 右側：診斷測試 (Col 5) */}
-              <div className="lg:col-span-5">
+              {/* 右側：診斷測試 (Col 6) */}
+              <div className="lg:col-span-6">
                 <ConnectionTestPanel device={activeDevice} onRunTest={handleRunTest} />
               </div>
             </div>

@@ -64,30 +64,42 @@ export const ReadinessStages: React.FC<ReadinessStagesProps> = ({ stages }) => {
     }
 
     return (
-      <div key={stage.id} className="flex items-center justify-between py-1.5" data-testid={`stage-item-${stage.id}`}>
-        <div className="flex items-center gap-3">
-          {/* 狀態圓圈 */}
-          <div
-            className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-300 ${circleClass}`}
-            data-testid={`stage-circle-${stage.id}`}
-          >
-            {iconNode}
+      <div key={stage.id} className="py-2 border-b border-slate-800/40 last:border-b-0" data-testid={`stage-item-${stage.id}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* 狀態圓圈 */}
+            <div
+              className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-300 ${circleClass}`}
+              data-testid={`stage-circle-${stage.id}`}
+            >
+              {iconNode}
+            </div>
+            {/* 步驟名稱 */}
+            <span className={`text-xs transition-colors duration-300 ${textClass}`}>
+              {t(stage.label)}
+            </span>
           </div>
-          {/* 步驟名稱 */}
-          <span className={`text-xs transition-colors duration-300 ${textClass}`}>
-            {t(stage.label)}
-          </span>
+          {/* 延遲時間 */}
+          {stage.status === 'success' && stage.latency_ms !== undefined && (
+            <span className="text-xs font-mono text-slate-500" data-testid={`stage-latency-${stage.id}`}>
+              {stage.latency_ms} ms
+            </span>
+          )}
+          {stage.status === 'failed' && (
+            <span className="text-[11px] font-medium text-rose-400">
+              {t('step1.status.failed', { defaultValue: '失敗' })}
+            </span>
+          )}
         </div>
-        {/* 延遲時間 */}
-        {stage.status === 'success' && stage.latency_ms !== undefined && (
-          <span className="text-xs font-mono text-slate-500" data-testid={`stage-latency-${stage.id}`}>
-            {stage.latency_ms} ms
-          </span>
-        )}
+        {/* 失敗時的完整錯誤訊息展示區塊：自適應佔滿整行寬度、自動換行、支援選取與複製 */}
         {stage.status === 'failed' && stage.message && (
-          <span className="text-[10px] text-rose-400 max-w-[150px] truncate" title={stage.message}>
+          <div
+            className="mt-2 rounded-md border border-rose-500/20 bg-rose-500/10 px-2.5 py-1.5 font-mono text-[11px] text-rose-300 break-words whitespace-pre-wrap leading-relaxed select-text"
+            title={stage.message}
+            data-testid={`stage-error-${stage.id}`}
+          >
             {stage.message}
-          </span>
+          </div>
         )}
       </div>
     );
