@@ -1,4 +1,4 @@
-import type { DbConnector, DbRowGroup, DbTarget } from '../../state/types';
+import type { DbConnector, DbRowGroup, DbTarget, SettingsConnector } from '../../state/types';
 
 /** SQLite 走檔案路徑，不需要密碼；其餘類型的連線憑證都綁在身分上。 */
 export function databaseConnectorNeedsPassword(kind: DbConnector['kind']): boolean {
@@ -60,4 +60,54 @@ export function syncTargetRowGroupMembership(
     }
     return { ...group, member_point_ids: [...memberPointIDs, pointId] };
   });
+}
+
+/** 唯讀狀態判斷 */
+export function useStep4Readonly(phase: 'idle' | 'activating' | 'done'): boolean {
+  return phase !== 'idle';
+}
+
+/** 產生 Schema 預覽簽名以避免重複重新整理 */
+export function buildSchemaPreviewSignature(
+  connector: DbConnector,
+  targets: Record<string, DbTarget>,
+): string {
+  return JSON.stringify({
+    kind: connector.kind,
+    host: connector.host,
+    port: connector.port,
+    database: connector.database,
+    username: connector.username,
+    password: connector.password ?? '',
+    schema: connector.schema,
+    table: connector.table,
+    write_mode: connector.write_mode,
+    timestamp_column: connector.timestamp_column,
+    targets: Object.entries(targets)
+      .map(([pointId, target]) => `${pointId}:${target.tag_id}:${target.column_name}:${target.enabled}`)
+      .sort(),
+  });
+}
+
+/** 依據選取的連線集產生 Connector patch */
+export function createPoolConnectorPatch(
+  connector: DbConnector,
+  poolConn: SettingsConnector,
+): Partial<DbConnector> {
+  const identityChanged = isDatabaseConnectorIdentityChange(connector, poolConn);
+  const poolPassword = (poolConn.password ?? '').trim();
+  return {
+    kind: poolConn.kind,
+    name: poolConn.name,
+    host: poolConn.host,
+    port: poolConn.port,
+    database: poolConn.database,
+    username: poolConn.username,
+    password: identityChanged ? poolPassword : (poolConn.password ?? connector.password),
+    password_required: identityChanged
+      && poolPassword === ''
+      && databaseConnectorNeedsPassword(poolConn.kind),
+    schema: poolConn.schema,
+    table: poolConn.table,
+  };
 }

@@ -1,14 +1,16 @@
 import * as React from 'react';
 import { useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useStep4Activation } from './useStep4Activation';
 import {
+  buildSchemaPreviewSignature,
   clearTargetRowGroupAssignments,
+  createPoolConnectorPatch,
   databaseConnectorNeedsPassword,
   isDatabaseConnectorIdentityChange,
   isRowGroupScopeChange,
   rowGroupsForConnector,
   syncTargetRowGroupMembership,
+  useStep4Readonly,
 } from './step4DatabaseHelpers';
 import { TargetMappingTable } from './TargetMappingTable';
 import { CommitSummary } from './CommitSummary';
@@ -20,6 +22,7 @@ import { Step4SupportPanels } from './Step4SupportPanels';
 import { RowGroupPlanner } from './RowGroupPlanner';
 import { ShareOutputSummary } from './ShareOutputSummary';
 import { RecordingPlanSetupSection } from './RecordingPlanSetupSection';
+import { ActivationNeutralSummary } from './ActivationNeutralSummary';
 import { autoAssignTargets } from '../../state/autoAssignTargets';
 import { getColumnsFor, getDefaultConnector, getDbKindPatch } from '../../state/dbSchemas';
 import { hasRowGroupColumnConflict, hasUnsafeRowGroupUpsert } from '../../state/rowGroupValidation';
@@ -30,9 +33,6 @@ import type { StudioV2WorkspaceReadinessSummary } from '../../../../../types/stu
 import type { WorkspaceReadinessStepNumber } from '../../components/WorkspaceReadinessPanel';
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 
-/**
- * Step4Database 元件屬性
- */
 interface Step4DatabaseProps {
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
@@ -43,29 +43,7 @@ interface Step4DatabaseProps {
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
 }
 
-function ActivationNeutralSummary({ onReset }: { onReset: () => void }) {
-  const { t } = useTranslation('workbench-v2');
-  return (
-    <div
-      data-testid="activation-empty-message"
-      className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-5 py-6 text-sm text-amber-100"
-    >
-      <p>{t('step4.activation_no_success')}</p>
-      <button type="button" className="mt-4 rounded-xl border border-slate-700 px-4 py-2" onClick={onReset}>
-        {t('step4.reset_activation_btn')}
-      </button>
-    </div>
-  );
-}
-
-/**
- * 唯讀狀態自訂 Hook
- * 落地設計決策：「啟動中與結果畫面期間 form 只讀，reset 後恢復編輯」
- * @returns 是否唯讀
- */
-export function useStep4Readonly(phase: 'idle' | 'activating' | 'done'): boolean {
-  return phase !== 'idle';
-}
+export { useStep4Readonly };
 
 /**
  * Step 4 Database 主頁面元件
@@ -140,22 +118,7 @@ export function Step4Database({
 
   const handleSelectConnectorPool = useCallback((poolConn: SettingsConnector) => {
     // 連接器清單的密碼一律被後端遮蔽為空字串，直接沿用會讓新連線帶著舊憑證。
-    const identityChanged = isDatabaseConnectorIdentityChange(connector, poolConn);
-    const poolPassword = (poolConn.password ?? '').trim();
-    const patch: Partial<DbConnector> = {
-      kind: poolConn.kind,
-      name: poolConn.name,
-      host: poolConn.host,
-      port: poolConn.port,
-      database: poolConn.database,
-      username: poolConn.username,
-      password: identityChanged ? poolPassword : (poolConn.password ?? connector.password),
-      password_required: identityChanged
-        && poolPassword === ''
-        && databaseConnectorNeedsPassword(poolConn.kind),
-      schema: poolConn.schema,
-      table: poolConn.table,
-    };
+    const patch = createPoolConnectorPatch(connector, poolConn);
     const scopeChanged = isRowGroupScopeChange(connector, patch);
     const baseTargets = scopeChanged ? clearTargetRowGroupAssignments(targets) : targets;
     if (scopeChanged) {
@@ -220,21 +183,10 @@ export function Step4Database({
     return Object.values(targets).some((target) => target.save_state !== 'saved');
   }, [connector.save_state, targets]);
 
-  const schemaPreviewSignature = useMemo(() => JSON.stringify({
-    kind: connector.kind,
-    host: connector.host,
-    port: connector.port,
-    database: connector.database,
-    username: connector.username,
-    password: connector.password ?? '',
-    schema: connector.schema,
-    table: connector.table,
-    write_mode: connector.write_mode,
-    timestamp_column: connector.timestamp_column,
-    targets: Object.entries(targets)
-      .map(([pointId, target]) => `${pointId}:${target.tag_id}:${target.column_name}:${target.enabled}`)
-      .sort(),
-  }), [connector.kind, connector.host, connector.port, connector.database, connector.username, connector.password, connector.schema, connector.table, connector.write_mode, connector.timestamp_column, targets]);
+  const schemaPreviewSignature = useMemo(
+    () => buildSchemaPreviewSignature(connector, targets),
+    [connector, targets],
+  );
 
   const canContinueToRuntime = activation.canContinue;
   const hasActivationSuccess = canContinueToRuntime;
@@ -252,6 +204,7 @@ export function Step4Database({
 
       <RecordingPlanSetupSection
         deviceId={state.devices[0]?.id}
+        measurementIds={state.points.map((p) => p.id)}
         disabled={isReadonly}
       />
 

@@ -28,7 +28,6 @@ func sanitizeCSVField(s string) string {
 // ExportCSV 將歷史資料點以 RFC4180 標準與 Formula Injection 防護串流寫入 CSV。
 func ExportCSV(w io.Writer, points []HistoryPoint) error {
 	writer := csv.NewWriter(w)
-	defer writer.Flush()
 
 	header := []string{
 		"observed_at",
@@ -100,5 +99,6 @@ func ExportCSV(w io.Writer, points []HistoryPoint) error {
 		}
 	}
 
-	return nil
+	writer.Flush()
+	return writer.Error()
 }

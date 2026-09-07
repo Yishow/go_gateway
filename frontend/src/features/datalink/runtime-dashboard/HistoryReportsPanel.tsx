@@ -78,9 +78,12 @@ const HistoryReportsPanelContent: React.FC<HistoryReportsPanelProps> = ({ select
     };
   }, [points]);
 
+  const [exportError, setExportError] = useState<string | null>(null);
+
   const handleExportCSV = async () => {
     if (!activePlan?.id) return;
     try {
+      setExportError(null);
       const blob = await exportMutation.mutateAsync(queryParams);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -90,8 +93,8 @@ const HistoryReportsPanelContent: React.FC<HistoryReportsPanelProps> = ({ select
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch {
-      // safe fallback
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : '匯出 CSV 失敗，請重試');
     }
   };
 
@@ -180,6 +183,12 @@ const HistoryReportsPanelContent: React.FC<HistoryReportsPanelProps> = ({ select
           </button>
         </div>
       </div>
+
+      {exportError && (
+        <div className="rounded-lg border border-rose-800 bg-rose-950/40 p-3 text-xs text-rose-300" role="alert" data-testid="history-export-error">
+          {exportError}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">

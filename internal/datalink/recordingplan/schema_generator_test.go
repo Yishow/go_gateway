@@ -43,13 +43,8 @@ func TestGenerateManagedSchemaDDL_PostgreSQL(t *testing.T) {
 }
 
 func TestGenerateManagedSchemaDDL_MySQL(t *testing.T) {
-	stmts, err := GenerateManagedSchemaDDL("mysql", "gw_record_")
-	if err != nil {
-		t.Fatalf("GenerateManagedSchemaDDL mysql failed: %v", err)
-	}
-
-	joined := strings.Join(stmts, "\n")
-	if !strings.Contains(joined, "DATETIME(6)") {
-		t.Errorf("expected DATETIME(6) in mysql ddl")
+	_, err := GenerateManagedSchemaDDL("mysql", "gw_record_")
+	if err == nil {
+		t.Fatalf("expected unsupported dialect error for mysql until capability suite is verified")
 	}
 }

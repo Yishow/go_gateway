@@ -13,11 +13,13 @@ import type { RecordingPlan, SchemaPreviewToken, StreamMode, TestWriteResult } f
 export interface RecordingPlanSetupSectionProps {
   deviceId?: string;
   disabled?: boolean;
+  measurementIds?: string[];
 }
 
 const RecordingPlanSetupSectionContent: React.FC<RecordingPlanSetupSectionProps> = ({
   deviceId,
   disabled = false,
+  measurementIds = [],
 }) => {
   const { data: plans = [], isLoading, refetch } = useStudioV2WorkspaceRecordingPlansQuery(true, deviceId);
   const createPlanMutation = useCreateRecordingPlanMutation();
@@ -30,73 +32,91 @@ const RecordingPlanSetupSectionContent: React.FC<RecordingPlanSetupSectionProps>
   const [retentionDays, setRetentionDays] = useState<number>(365);
   const [previewToken, setPreviewToken] = useState<SchemaPreviewToken | null>(null);
   const [testResult, setTestResult] = useState<TestWriteResult | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const activePlan = plans[0] as RecordingPlan | undefined;
 
   const handleCreateDefaultPlan = async () => {
     if (!deviceId) return;
-    const newPlan: Partial<RecordingPlan> = {
-      name: planName,
-      timezone: 'Asia/Taipei',
-      members: [
-        {
-          member_id: 'member-primary',
-          measurement_id: 'meas-primary',
+    setActionError(null);
+    try {
+      const targetMeasIds = measurementIds.length > 0 ? measurementIds : ['meas-primary'];
+      const newPlan: Partial<RecordingPlan> = {
+        name: planName,
+        timezone: 'Asia/Taipei',
+        members: targetMeasIds.map((measId, idx) => ({
+          member_id: `member-${idx + 1}`,
+          measurement_id: measId,
           equipment_id: deviceId,
-          name: '主設備測量項目',
+          name: `設備測量項目 ${idx + 1}`,
+        })),
+        retention: {
+          raw_days: 30,
+          summary_days: retentionDays,
+          events_days: 90,
+          correction_horizon_hours: 24,
         },
-      ],
-      retention: {
-        raw_days: 30,
-        summary_days: retentionDays,
-        events_days: 90,
-        correction_horizon_hours: 24,
-      },
-      streams: [
-        {
-          stream_id: 'stream-primary',
-          measurement_id: 'meas-primary',
+        streams: targetMeasIds.map((measId, idx) => ({
+          stream_id: `stream-${idx + 1}`,
+          measurement_id: measId,
           mode: streamMode,
           raw_policy: 'every_sample',
-        },
-      ],
-      destinations: [
-        {
-          destination_id: 'dest-default-db',
-          connector_id: 'default-sqlite',
-          table_prefix: 'gw_record_',
-        },
-      ],
-    };
-    await createPlanMutation.mutateAsync(newPlan);
-    refetch();
+        })),
+        destinations: [
+          {
+            destination_id: 'dest-default-db',
+            connector_id: 'default-sqlite',
+            table_prefix: 'gw_record_',
+          },
+        ],
+      };
+      await createPlanMutation.mutateAsync(newPlan);
+      refetch();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '建立記錄方案失敗');
+    }
   };
 
   const handlePreviewSchema = async () => {
     if (!activePlan) return;
-    const token = await previewSchemaMutation.mutateAsync({
-      plan_id: activePlan.id,
-      connector_id: 'default-sqlite',
-      dialect: 'sqlite',
-      table_prefix: 'gw_record_',
-    });
-    setPreviewToken(token);
+    setActionError(null);
+    try {
+      const token = await previewSchemaMutation.mutateAsync({
+        plan_id: activePlan.id,
+        connector_id: 'default-sqlite',
+        dialect: 'sqlite',
+        table_prefix: 'gw_record_',
+      });
+      setPreviewToken(token);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '產生資料庫 Schema 預覽失敗');
+    }
   };
 
   const handleApplySchema = async () => {
     if (!previewToken) return;
-    await applySchemaMutation.mutateAsync(previewToken.token);
-    setPreviewToken(null);
-    refetch();
+    setActionError(null);
+    try {
+      await applySchemaMutation.mutateAsync(previewToken.token);
+      setPreviewToken(null);
+      refetch();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '套用資料庫 Schema 失敗');
+    }
   };
 
   const handleTestWrite = async () => {
     if (!activePlan) return;
-    const res = await testWriteMutation.mutateAsync({
-      plan_id: activePlan.id,
-      table_prefix: 'gw_record_',
-    });
-    setTestResult(res);
+    setActionError(null);
+    try {
+      const res = await testWriteMutation.mutateAsync({
+        plan_id: activePlan.id,
+        table_prefix: 'gw_record_',
+      });
+      setTestResult(res);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '資料庫試寫驗證失敗');
+    }
   };
 
   if (isLoading) {
@@ -123,6 +143,12 @@ const RecordingPlanSetupSectionContent: React.FC<RecordingPlanSetupSectionProps>
           </span>
         )}
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-rose-800 bg-rose-950/40 p-3 text-xs text-rose-300" role="alert" data-testid="recording-plan-action-error">
+          {actionError}
+        </div>
+      )}
 
       {!activePlan ? (
         <div className="bg-slate-900/60 border border-slate-700/50 rounded-lg p-4 space-y-3">

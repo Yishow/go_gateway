@@ -271,3 +271,21 @@ func TestCounterUsage_C07_C08_DeltaDeduplicationAndAccumulation(t *testing.T) {
 		t.Errorf("expected total delta 2.0 (interval-1 deduplicated to 1 + interval-2 as 1), got %v", result.UsageDelta)
 	}
 }
+
+func TestCalculateDeltaUsage_BlockedWhenMissingIntervalID(t *testing.T) {
+	baseTime := time.Date(2026, 9, 7, 10, 0, 0, 0, time.UTC)
+	samples := []TelemetrySample{
+		{
+			MeasurementID: "meas-delta-untrusted",
+			ObservedAt:    baseTime,
+			ValueNumeric:  floatPtr(1.5),
+			IntervalID:    "", // 缺少可信 interval ID
+			Quality:       QualityGood,
+		},
+	}
+
+	result := CalculateDeltaUsage("meas-delta-untrusted", baseTime, baseTime.Add(1*time.Minute), samples)
+	if !result.IsUncertain || result.UsageDelta != nil {
+		t.Errorf("expected accumulation blocked with uncertain result, got delta: %v, uncertain: %v", result.UsageDelta, result.IsUncertain)
+	}
+}

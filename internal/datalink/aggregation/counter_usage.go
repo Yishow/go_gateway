@@ -157,11 +157,19 @@ func CalculateDeltaUsage(
 			continue
 		}
 
-		intervalKey := s.IntervalID
-		if intervalKey == "" {
-			intervalKey = fmt.Sprintf("%d_%d", s.Sequence, s.ObservedAt.UnixNano())
+		if s.IntervalID == "" {
+			return UsageResult{
+				MeasurementID:   measurementID,
+				WindowStart:     windowStart,
+				WindowEnd:       windowEnd,
+				UsageDelta:      nil,
+				IsComplete:      false,
+				IsUncertain:     true,
+				UncertainReason: "missing interval identity for delta measurement",
+			}
 		}
 
+		intervalKey := s.IntervalID
 		if !seenIntervals[intervalKey] {
 			seenIntervals[intervalKey] = true
 			totalDelta += *s.ValueNumeric
