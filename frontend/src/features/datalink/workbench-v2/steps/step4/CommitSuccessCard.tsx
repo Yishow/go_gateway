@@ -53,6 +53,11 @@ export function CommitSuccessCard({
         )}
 
         <div className="space-y-2">
+          {response.results.length === 0 && (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-200">
+              {t('step4.already_active_info', '工作區所有設備皆已在運行中，資料採集與儲存正常進行。')}
+            </div>
+          )}
           {response.results.map((result) => (
             <div
               key={result.device_id}

@@ -188,8 +188,13 @@ export function Step4Database({
     [connector, targets],
   );
 
-  const canContinueToRuntime = activation.canContinue;
-  const hasActivationSuccess = canContinueToRuntime;
+  const hasActiveDevice = state.devices.some((d) => d.status === 'active' || d.running);
+  const canContinueToRuntime = activation.canContinue || hasActiveDevice;
+  const hasActivationSuccess = activation.canContinue || (
+    activation.phase === 'done' &&
+    !activation.logs.some((log) => log.status === 'failed') &&
+    hasActiveDevice
+  );
 
   return (
     <div className="space-y-6">
@@ -261,32 +266,25 @@ export function Step4Database({
           onNavigateStep={onNavigateStep}
         />
       ) : activation.phase === 'activating' ? (
-        <CommitProgress
-          logs={activation.logs}
-          status="committing"
-        />
+        <CommitProgress logs={activation.logs} status="committing" />
       ) : (
         <>
           {activation.logs.some((log) => log.status === 'failed') && (
-            <CommitProgress
-              logs={activation.logs}
-              status="failed"
-              onRetry={activation.start}
-            />
+            <CommitProgress logs={activation.logs} status="failed" onRetry={activation.start} />
           )}
           {hasActivationSuccess ? (
             <CommitSuccessCard
               response={activation.response ?? { workspace_id: '', results: [] }}
               canContinue={canContinueToRuntime}
-              onCommit={onCommit || (() => { })}
-              onReset={() => {
-                activation.reset();
-              }}
+              onCommit={onCommit || (() => {})}
+              onReset={activation.reset}
             />
           ) : (
-            <ActivationNeutralSummary onReset={() => {
-                activation.reset();
-            }} />
+            <ActivationNeutralSummary
+              canContinue={canContinueToRuntime}
+              onCommit={onCommit}
+              onReset={activation.reset}
+            />
           )}
         </>
       )}
