@@ -110,13 +110,13 @@ export const MappingTable: React.FC<MappingTableProps> = ({
                 {t('step3.columns.deviceValue', { defaultValue: '讀值' })}
               </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
-                {t('step3.columns.scaleResult', { defaultValue: 'scale' })}
+                {t('step3.columns.scaleResult', { defaultValue: '縮放值' })}
               </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
-                {t('step3.columns.castResult', { defaultValue: 'cast' })}
+                {t('step3.columns.castResult', { defaultValue: '轉型值' })}
               </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-24">
-                {t('step3.columns.finalResult', { defaultValue: 'final' })}
+                {t('step3.columns.finalResult', { defaultValue: '最終值' })}
               </th>
               <th className="p-3 text-xs font-semibold text-slate-400 font-sans w-20 text-center">
                 {t('step3.columns.payload', { defaultValue: 'API payload' })}

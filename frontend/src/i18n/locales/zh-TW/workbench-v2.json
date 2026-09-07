@@ -190,17 +190,17 @@
       "unit": "單位",
       "targetType": "目標型態",
       "transform": "× Scale + Offset",
-      "scaleResult": "scale",
-      "castResult": "cast",
-      "finalResult": "final",
+      "scaleResult": "縮放值",
+      "castResult": "轉型值",
+      "finalResult": "最終值",
       "payload": "API payload",
       "enabled": "啟用"
     },
     "steps": {
-      "decode": "decode (raw)",
-      "scale": "scale (linear)",
-      "cast": "cast to {{type}}",
-      "final": "final → Tag"
+      "decode": "解碼 (raw)",
+      "scale": "縮放 (linear)",
+      "cast": "轉型為 {{type}}",
+      "final": "最終值 → Tag"
     },
     "previewStates": { "idle": "預覽閒置", "connecting": "正在連線到預覽", "live": "即時預覽", "reconnecting": "正在重新連線預覽", "degraded": "預覽降級", "error": "預覽目前無法使用", "stale": "預覽資料已過期" },
     "connectionStates": { "idle": "閒置", "connecting": "連線中", "connected": "已連線", "live": "即時", "reconnecting": "重新連線中", "degraded": "降級", "error": "串流錯誤", "stale": "資料已過期", "disconnected": "尚未連線" },
