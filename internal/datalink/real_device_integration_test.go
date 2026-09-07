@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 )
 
 func fetchModbusRegisters(ip string, port int, startAddr, count uint16) ([]uint16, error) {
-	addr := fmt.Sprintf("%s:%d", ip, port)
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
 	if err != nil {
 		return nil, err
@@ -52,7 +53,7 @@ func fetchModbusRegisters(ip string, port int, startAddr, count uint16) ([]uint1
 }
 
 func fetchMCRegisters(ip string, port int, startD uint32, count uint16) ([]uint16, error) {
-	addr := fmt.Sprintf("%s:%d", ip, port)
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
 	if err != nil {
 		return nil, err
@@ -102,7 +103,7 @@ func TestRealDevice_ModbusAndMCProtocol_TelemetryPipeline(t *testing.T) {
 	mcPort := 6000
 
 	// 1. 探測目標連線
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, modbusPort), 1*time.Second)
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, strconv.Itoa(modbusPort)), 1*time.Second)
 	if err != nil {
 		t.Skipf("真實設備 %s:%d 無法連線，跳過硬體驗證 (環境無 VPN 或機台離線)", ip, modbusPort)
 		return
