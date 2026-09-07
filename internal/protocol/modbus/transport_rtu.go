@@ -105,6 +105,13 @@ func (r *RTUTransport) Close() error {
 	return nil
 }
 
+// IsConnected 檢查 RTU 序列埠連線狀態
+func (r *RTUTransport) IsConnected() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.port != nil
+}
+
 func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

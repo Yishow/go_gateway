@@ -69,6 +69,13 @@ func (t *TCPTransport) Close() error {
 	return nil
 }
 
+// IsConnected checks if the TCP connection is active
+func (t *TCPTransport) IsConnected() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.conn != nil
+}
+
 // SendReceive sends a packet and receives the response
 func (t *TCPTransport) SendReceive(req []byte) ([]byte, error) {
 	t.mu.Lock()
@@ -79,6 +86,28 @@ func (t *TCPTransport) SendReceive(req []byte) ([]byte, error) {
 		if err := t.internalConnect(); err != nil {
 			return nil, err
 		}
+	}
+
+	resp, err := t.sendReceiveLocked(req)
+	if err != nil {
+		// 若因連線被對端中斷（如 PLC 逾時中斷導致的 broken pipe / EOF），嘗試自癒重連並重試一次
+		if t.conn == nil {
+			if connErr := t.internalConnect(); connErr == nil {
+				retryResp, retryErr := t.sendReceiveLocked(req)
+				if retryErr == nil {
+					return retryResp, nil
+				}
+			}
+		}
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (t *TCPTransport) sendReceiveLocked(req []byte) ([]byte, error) {
+	if t.conn == nil {
+		return nil, fmt.Errorf("connection is closed")
 	}
 
 	if err := t.conn.SetDeadline(time.Now().Add(t.Timeout)); err != nil {

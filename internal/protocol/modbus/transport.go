@@ -1,6 +1,7 @@
 package modbus
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -43,13 +44,28 @@ func (t *TCPTransport) Connect() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	return t.internalConnect()
+}
+
+// IsConnected 檢查底層連線是否已建立且尚未關閉
+func (t *TCPTransport) IsConnected() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.conn != nil
+}
+
+func (t *TCPTransport) internalConnect() error {
 	if t.conn != nil {
 		t.conn.Close()
+		t.conn = nil
 	}
 
 	// 使用 net.JoinHostPort 支援 IPv6
 	addr := net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
-	conn, err := net.DialTimeout("tcp", addr, t.Timeout)
+	dialCtx, cancel := context.WithTimeout(context.Background(), t.Timeout)
+	defer cancel()
+
+	conn, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("TCP 連線失敗: %w", err)
 	}
@@ -74,6 +90,31 @@ func (t *TCPTransport) SendReceive(data []byte) ([]byte, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	// 若連線已被關閉，嘗試自動重新連線
+	if t.conn == nil {
+		if err := t.internalConnect(); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrConnectionClosed, err)
+		}
+	}
+
+	resp, err := t.sendReceiveLocked(data)
+	if err != nil {
+		// 若因對端逾時斷開導致寫入/讀取失敗，嘗試自癒重連並重試一次
+		if t.conn == nil {
+			if connErr := t.internalConnect(); connErr == nil {
+				retryResp, retryErr := t.sendReceiveLocked(data)
+				if retryErr == nil {
+					return retryResp, nil
+				}
+			}
+		}
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (t *TCPTransport) sendReceiveLocked(data []byte) ([]byte, error) {
 	if t.conn == nil {
 		return nil, ErrConnectionClosed
 	}

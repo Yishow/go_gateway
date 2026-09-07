@@ -96,9 +96,15 @@ func (c *MC3EConnector) Close() error {
 	return nil
 }
 
-// IsConnected 檢查連線狀態
+// IsConnected 檢查連線狀態（同時確認標誌與底層 socket 存活）
 func (c *MC3EConnector) IsConnected() bool {
-	return c.connected
+	if !c.connected {
+		return false
+	}
+	if c.client != nil && !c.client.IsConnected() {
+		return false
+	}
+	return true
 }
 
 // ProtocolType 取得協議類型
@@ -131,102 +137,23 @@ func (c *MC3EConnector) Read(ctx context.Context, req connector.ReadRequest) (co
 
 	defer c.afterOperation()
 
-	result := connector.ReadResult{
-		Timestamp: time.Now(),
-		Quality:   schema.QualityGood,
+	result, err := c.executeRead(req)
+	if err != nil && c.persistentMode && isConnectionError(err) {
+		c.connected = false
+		if reconnectErr := c.ensureConnection(); reconnectErr == nil {
+			if retryResult, retryErr := c.executeRead(req); retryErr == nil {
+				return retryResult, nil
+			}
+		}
 	}
 
-	// 使用 hsllogic 解析地址 (格式: "D100", "M0", "X0", "Y0", "R100", "W100", etc.)
-	parsedAddr, err := hsllogic.ParseAddress(hsllogic.ProtocolMitsubishi, req.Address)
 	if err != nil {
 		result.Quality = schema.QualityBad
 		result.Error = err.Error()
 		return result, err
 	}
 
-	count := 1
-	if req.Count > 0 {
-		count = req.Count
-	}
-
-	// 根據設備類型選擇讀取方式
-	if parsedAddr.IsBitDevice {
-		// 位元設備
-		values, err := c.client.BatchReadBit(parsedAddr.DeviceType, parsedAddr.Offset, count)
-		if err != nil {
-			result.Quality = schema.QualityBad
-			result.Error = err.Error()
-			return result, err
-		}
-		if len(values) > 0 {
-			if count == 1 {
-				result.Value = values[0]
-			} else {
-				result.Value = values
-			}
-		}
-	} else {
-		// 字組設備
-		// 使用 hsllogic 計算需要讀取的暫存器數量 = count * 每個值需要的暫存器數
-		regPerValue := hsllogic.RegisterCountForDataType(hsllogic.DataType(req.DataType))
-		wordCount := count * regPerValue
-
-		values, err := c.client.BatchReadWord(parsedAddr.DeviceType, parsedAddr.Offset, wordCount)
-		if err != nil {
-			result.Quality = schema.QualityBad
-			result.Error = err.Error()
-			return result, err
-		}
-		result.RawBytes = intSliceToBytes(values)
-
-		// 使用 hsllogic 數據轉換器進行類型轉換
-		registers := make([]uint16, len(values))
-		for i, v := range values {
-			registers[i] = uint16(v)
-		}
-
-		if count == 1 {
-			result.Value = c.dataConverter.RegistersToValue(registers, hsllogic.DataType(req.DataType))
-		} else {
-			result.Value = c.dataConverter.RegistersToValues(registers, hsllogic.DataType(req.DataType), count)
-		}
-	}
-
 	return result, nil
-}
-
-// Write 寫入資料
-func (c *MC3EConnector) Write(ctx context.Context, req connector.WriteRequest) error {
-	if err := c.ensureConnection(); err != nil {
-		return err
-	}
-
-	defer c.afterOperation()
-
-	// 使用 hsllogic 解析地址
-	parsedAddr, err := hsllogic.ParseAddress(hsllogic.ProtocolMitsubishi, req.Address)
-	if err != nil {
-		return err
-	}
-
-	if parsedAddr.IsBitDevice {
-		// 位元設備寫入
-		switch v := req.Value.(type) {
-		case bool:
-			return c.client.BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, []bool{v})
-		case []bool:
-			return c.client.BatchWriteBit(parsedAddr.DeviceType, parsedAddr.Offset, v)
-		default:
-			return fmt.Errorf("位元設備需要布林值")
-		}
-	} else {
-		// 字組設備寫入
-		values, err := toIntSlice(req.Value)
-		if err != nil {
-			return err
-		}
-		return c.client.BatchWriteWord(parsedAddr.DeviceType, parsedAddr.Offset, values)
-	}
 }
 
 // =============================================================================
@@ -265,11 +192,27 @@ func (c *MC3EConnector) Reconnect(ctx context.Context) error {
 	return nil
 }
 
-// ensureConnection 確保連線已建立（用於短連接模式）
+// ensureConnection 確保連線已建立
 func (c *MC3EConnector) ensureConnection() error {
 	if c.persistentMode {
 		if !c.connected {
-			return fmt.Errorf("未連線")
+			if c.client == nil {
+				return fmt.Errorf("未連線")
+			}
+			if err := c.client.Connect(); err != nil {
+				return fmt.Errorf("連線失敗: %w", err)
+			}
+			c.connected = true
+			return nil
+		}
+		// 若已標記連線但底層連線已斷開，自動自癒重連
+		if c.client != nil && !c.client.IsConnected() {
+			c.client.Close()
+			if err := c.client.Connect(); err != nil {
+				c.connected = false
+				return fmt.Errorf("連線失敗: %w", err)
+			}
+			c.connected = true
 		}
 		return nil
 	}

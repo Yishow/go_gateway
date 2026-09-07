@@ -31,6 +31,10 @@ func (m *MockTransport) Close() error {
 	return nil
 }
 
+func (m *MockTransport) IsConnected() bool {
+	return true
+}
+
 func (m *MockTransport) GetNextTransactionID() uint16 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -77,7 +81,7 @@ func (m *MockTransport) SendReceive(data []byte) ([]byte, error) {
 		val := binary.BigEndian.Uint16(pduData[2:])
 		fmt.Printf("Mock Write: Addr=%d Val=%d\n", addr, val)
 		m.HoldingRegs[addr] = val
-		
+
 		// Echo request as response
 		responsePDU = modbus.BuildPDU(funcCode, pduData)
 

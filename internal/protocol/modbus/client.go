@@ -47,6 +47,17 @@ func (c *ModbusClient) Close() error {
 	return c.transport.Close()
 }
 
+// IsConnected 檢查底層傳輸是否已連線
+func (c *ModbusClient) IsConnected() bool {
+	if c == nil || c.transport == nil {
+		return false
+	}
+	if checker, ok := c.transport.(interface{ IsConnected() bool }); ok {
+		return checker.IsConnected()
+	}
+	return true
+}
+
 // sendRequest 發送請求並接收回應 (TCP/UDP)
 func (c *ModbusClient) sendTCPRequest(functionCode byte, data []byte) ([]byte, error) {
 	c.mu.Lock()

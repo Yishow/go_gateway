@@ -61,6 +61,17 @@ func (c *MCClient) Close() error {
 	return c.transport.Close()
 }
 
+// IsConnected 檢查傳輸層是否連線
+func (c *MCClient) IsConnected() bool {
+	if c == nil || c.transport == nil {
+		return false
+	}
+	if checker, ok := c.transport.(interface{ IsConnected() bool }); ok {
+		return checker.IsConnected()
+	}
+	return true
+}
+
 // timeoutSetter 由支援在建構後動態調整逾時的傳輸層實作
 // （TCPTransport、SerialTransport 皆實作此介面）
 type timeoutSetter interface {

@@ -66,6 +66,13 @@ func (u *UDPTransport) Close() error {
 	return nil
 }
 
+// IsConnected 檢查 UDP 連線狀態
+func (u *UDPTransport) IsConnected() bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.conn != nil
+}
+
 func (u *UDPTransport) SendReceive(data []byte) ([]byte, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
