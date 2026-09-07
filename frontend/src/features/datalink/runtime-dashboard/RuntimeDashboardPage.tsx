@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Activity, Layers, BarChart3, Settings2 } from 'lucide-react';
 import { CollectorHealthPanel } from './CollectorHealthPanel';
 import { FocusedDeviceHeader } from './FocusedDeviceHeader';
 import { LivePointsTable } from './LivePointsTable';
@@ -32,6 +34,7 @@ export function RuntimeDashboardPage({
   onReconnectStream,
 }: RuntimeDashboardPageProps) {
   const { t } = useTranslation('runtime-dashboard');
+  const [activeBottomTab, setActiveBottomTab] = useState<'history' | 'setup'>('history');
   const collector =
     snapshot?.collectors.find((item) => item.device_id === selectedDeviceId) ?? null;
 
@@ -196,8 +199,14 @@ export function RuntimeDashboardPage({
           onReconnect={onReconnectStream}
           navigateTo={navigateTo}
         />
+
+        {/* 區塊 1：全鏈路管線監控總覽 (整合 Summary + Health + Diagnostics) */}
         {snapshot ? (
-          <div className="space-y-6">
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-cyan-400">
+              <Activity className="h-4 w-4" />
+              <span>全鏈路管線監控總覽 (Pipeline & Health Cockpit)</span>
+            </div>
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
               <RuntimeSummaryPanel snapshot={snapshot} setupContext={setupContext} />
               <CollectorHealthPanel collector={collector} />
@@ -208,18 +217,67 @@ export function RuntimeDashboardPage({
               modbusShareDelivery={snapshot.modbus_share_delivery}
               selectedDeviceId={selectedDeviceId}
             />
-          </div>
+          </section>
         ) : null}
-        <div className="grid gap-6 lg:grid-cols-12 items-start">
-          <div className="lg:col-span-8">
-            <LivePointsTable liveValues={liveValues} setupContext={setupContext} />
+
+        {/* 區塊 2：即時數據觀測中心 (整合 LivePointsTable + RealtimeLogsPanel) */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-emerald-400">
+            <Layers className="h-4 w-4" />
+            <span>即時數據觀測中心 (Live Observability Hub)</span>
           </div>
-          <div className="lg:col-span-4">
-            <RealtimeLogsPanel logs={logs} />
+          <div className="grid gap-6 lg:grid-cols-12 items-start">
+            <div className="lg:col-span-8">
+              <LivePointsTable liveValues={liveValues} setupContext={setupContext} />
+            </div>
+            <div className="lg:col-span-4">
+              <RealtimeLogsPanel logs={logs} />
+            </div>
           </div>
-        </div>
-        <HistoryReportsPanel selectedDeviceId={selectedDeviceId} />
-        {setupPanel}
+        </section>
+
+        {/* 區塊 3：進階分析與配置管理 (整合 HistoryReportsPanel + RuntimeSetupContextPanel) */}
+        <section className="rounded-3xl border border-slate-800/80 bg-slate-900/40 p-4 sm:p-6 shadow-xl backdrop-blur-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <BarChart3 className="h-4 w-4 text-indigo-400" />
+              <span>進階遙測分析與配置管理 (Advanced Analytics & Setup)</span>
+            </div>
+            <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveBottomTab('history')}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
+                  activeBottomTab === 'history'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span>歷史報表與用量分析</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveBottomTab('setup')}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
+                  activeBottomTab === 'setup'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+                <span>工作區配置與導引</span>
+              </button>
+            </div>
+          </div>
+
+          <div className={activeBottomTab === 'history' ? 'block' : 'hidden'}>
+            <HistoryReportsPanel selectedDeviceId={selectedDeviceId} />
+          </div>
+          <div className={activeBottomTab === 'setup' ? 'block' : 'hidden'}>
+            {setupPanel}
+          </div>
+        </section>
       </div>
     </div>
   );
