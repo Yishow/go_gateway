@@ -50,11 +50,12 @@ describe('MeasurementTemplateSelector Component', () => {
       template_id: 'three_phase_power_meter_v1',
       proposed_items: [
         {
-          id: 'v_a',
+          item_id: 'v_a',
           name: 'Phase A Voltage',
-          role: 'instantaneous_curve',
+          semantic_kind: 'gauge',
           unit: 'V',
           data_type: 'float32',
+          register_offset: 0,
         },
       ],
       definitions: [],

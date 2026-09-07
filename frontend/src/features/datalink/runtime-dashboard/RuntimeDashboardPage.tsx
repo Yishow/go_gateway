@@ -7,6 +7,7 @@ import { RuntimeDiagnosticsPanel } from './RuntimeDiagnosticsPanel';
 import { RuntimeSummaryPanel } from './RuntimeSummaryPanel';
 import { RealtimeLogsPanel } from './RealtimeLogsPanel';
 import { RuntimeSetupContextPanel } from './RuntimeSetupContextPanel';
+import { HistoryReportsPanel } from './HistoryReportsPanel';
 import type { RuntimeDashboardState } from './useRuntimeDashboardState';
 
 export interface RuntimeDashboardPageProps extends RuntimeDashboardState {
@@ -302,6 +303,7 @@ export function RuntimeDashboardPage({
             <RealtimeLogsPanel logs={logs} />
           </div>
         </div>
+        <HistoryReportsPanel selectedDeviceId={selectedDeviceId} />
       </div>
     </div>
   );
