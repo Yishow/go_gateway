@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -105,6 +106,9 @@ type ConnectorRepository interface {
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*schema.DatabaseConnector, error)
 	List(ctx context.Context, filter ConnectorListFilter) ([]*schema.DatabaseConnector, error)
+	UpdateWriteOutcome(ctx context.Context, id string, at time.Time, status, errorSummary string) error
+	UpdateFlushOutcome(ctx context.Context, id string, at time.Time, status, errorSummary string) error
+	UpdateSchemaEnsureOutcome(ctx context.Context, id string, at time.Time, status, errorSummary string) error
 }
 
 type TargetMappingRepository interface {

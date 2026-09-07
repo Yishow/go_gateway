@@ -106,7 +106,7 @@ export function RuntimeSummaryPanel({ snapshot, setupContext }: RuntimeSummaryPa
           </div>
           {setupContext?.database_config && (
             <div className="mt-1 text-[10px] text-indigo-300 font-mono truncate" title={`${setupContext.database_config.database}.${setupContext.database_config.table}`}>
-              → {setupContext.database_config.database}.{setupContext.database_config.table}
+              → [{(setupContext.database_config.kind || '').toUpperCase()}] {setupContext.database_config.database}.{setupContext.database_config.table}
             </div>
           )}
           <div className="mt-2 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">

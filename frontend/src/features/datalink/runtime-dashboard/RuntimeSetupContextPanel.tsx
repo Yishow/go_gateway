@@ -276,7 +276,8 @@ function RuntimeSetupDatabase({
       </h3>
       {databaseConfig ? (
         <dl className="mt-2.5 grid gap-2 text-xs text-slate-300 sm:grid-cols-2">
-          <RuntimeSetupFact label={t('setup.database.connector', 'Connector')} value={databaseConfig.name} />
+          <RuntimeSetupFact label={t('setup.database.connector', 'Connector')} value={`${databaseConfig.name}${databaseConfig.kind ? ` (${databaseConfig.kind.toUpperCase()})` : ''}`} />
+          <RuntimeSetupFact label={t('setup.database.host', 'Host / Port')} value={databaseConfig.host ? `${databaseConfig.host}:${databaseConfig.port ?? ''}` : '-'} />
           <RuntimeSetupFact label={t('setup.database.database', 'Database')} value={databaseConfig.database} />
           <RuntimeSetupFact label={t('setup.database.table', 'Table')} value={databaseConfig.table} />
           <RuntimeSetupFact label={t('setup.database.targets', 'Targets')} value={databaseTargetsCount ? String(databaseTargetsCount) : t('setup.database.noTargets', 'No database targets')} />

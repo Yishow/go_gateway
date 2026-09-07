@@ -29,7 +29,7 @@ func (s *ConnectorService) recordSchemaEnsureOutcome(
 	connector.LastSchemaEnsureStatus = strings.TrimSpace(status)
 	connector.LastSchemaEnsureError = strings.TrimSpace(errorSummary)
 	connector.UpdatedAt = time.Now()
-	if err := s.repo.Update(ctx, connector); err != nil {
+	if err := s.repo.UpdateSchemaEnsureOutcome(ctx, connector.ID, outcomeAt, status, errorSummary); err != nil {
 		return fmt.Errorf("更新資料庫 schema ensure outcome 失敗: %w", err)
 	}
 	return nil
@@ -50,7 +50,7 @@ func (w *Writer) recordWriteOutcome(
 	connector.LastWriteStatus = strings.TrimSpace(status)
 	connector.LastWriteError = strings.TrimSpace(errorSummary)
 	connector.UpdatedAt = time.Now()
-	if err := w.connectorRepo.Update(ctx, connector); err != nil {
+	if err := w.connectorRepo.UpdateWriteOutcome(ctx, connector.ID, outcomeAt, status, errorSummary); err != nil {
 		return fmt.Errorf("更新資料庫 write outcome 失敗: %w", err)
 	}
 	return nil
@@ -71,7 +71,7 @@ func (w *Writer) recordFlushOutcome(
 	connector.LastFlushStatus = strings.TrimSpace(status)
 	connector.LastFlushError = strings.TrimSpace(errorSummary)
 	connector.UpdatedAt = time.Now()
-	if err := w.connectorRepo.Update(ctx, connector); err != nil {
+	if err := w.connectorRepo.UpdateFlushOutcome(ctx, connector.ID, outcomeAt, status, errorSummary); err != nil {
 		return fmt.Errorf("更新資料庫 flush outcome 失敗: %w", err)
 	}
 	return nil
