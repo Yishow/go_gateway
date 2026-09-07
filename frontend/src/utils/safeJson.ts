@@ -1,3 +1,7 @@
+import type { MappingPreviewResponse, RuntimeDeviceStatusEvent, RuntimeStreamStateEvent, RuntimeValueEvent } from '../types/datalink';
+import type { RuntimeTruthState } from '../types/runtimeTruth';
+import type { StudioV2ActivationResponse } from '../types/studioV2Activation';
+
 export const MAX_SAFE_JSON_BYTES = 64 * 1024;
 export const MAX_SAFE_JSON_DEPTH = 6;
 export const MAX_SAFE_JSON_ARRAY_LENGTH = 256;
@@ -5,8 +9,7 @@ export const MAX_SAFE_JSON_OBJECT_KEYS = 64;
 export const MAX_SAFE_JSON_STRING_LENGTH = 256;
 export const MAX_TYPED_FIELD_LENGTH = 128;
 const SAFE_ERROR_CODES = new Set([
-  'preview_invalid_request', 'preview_unavailable', 'runtime_device_not_found',
-  'preview_stream_closed',
+  'preview_invalid_request', 'preview_unavailable', 'runtime_device_not_found', 'preview_stream_closed',
   'runtime_snapshot_unavailable', 'runtime_stream_unavailable', 'workspace_not_ready',
   'activation_failed', 'activation_request_invalid', 'readiness_blocked',
   'settings_unavailable', 'settings_update_failed', 'settings_invalid',
@@ -135,7 +138,10 @@ function boundedRuntimeValue(value: unknown): unknown | undefined {
 export function parseMappingPreviewResponse(value: unknown): MappingPreviewResponse | null {
   const bounded = parseBoundedJson(value);
   if (typeof bounded !== 'object' || bounded === null || Array.isArray(bounded)) return null;
-  const record = bounded as Record<string, unknown>;
+  const root = bounded as Record<string, unknown>;
+  const record = (typeof root.data === 'object' && root.data !== null && !Array.isArray(root.data))
+    ? (root.data as Record<string, unknown>)
+    : root;
   const rawValue = boundedRuntimeValue(record.raw_value);
   const finalValue = boundedRuntimeValue(record.final_value);
   if (rawValue === undefined || finalValue === undefined || !Array.isArray(record.step_results)) return null;
@@ -144,8 +150,10 @@ export function parseMappingPreviewResponse(value: unknown): MappingPreviewRespo
     const item = step as Record<string, unknown>;
     const stepIndex = item.step_index;
     const stepType = boundedString(item.step_type);
-    const inputValue = boundedRuntimeValue(item.input_value);
-    const outputValue = boundedRuntimeValue(item.output_value);
+    const rawIn = item.input_value !== undefined ? item.input_value : item.input;
+    const rawOut = item.output_value !== undefined ? item.output_value : (item.output !== undefined ? item.output : (item.error ? null : undefined));
+    const inputValue = boundedRuntimeValue(rawIn);
+    const outputValue = boundedRuntimeValue(rawOut);
     const error = item.error === undefined || item.error === '' ? '' : boundedString(item.error);
     if (!Number.isInteger(stepIndex) || (stepIndex as number) < 0 || !stepType ||
       !['decode', 'cast', 'scale', 'lookup', 'conditional', 'formula'].includes(stepType) ||
@@ -290,11 +298,3 @@ export function parseRuntimeStreamStateRecord(value: unknown): (RuntimeStreamSta
     },
   };
 }
-import type {
-  MappingPreviewResponse,
-  RuntimeDeviceStatusEvent,
-  RuntimeStreamStateEvent,
-  RuntimeValueEvent,
-} from '../types/datalink';
-import type { RuntimeTruthState } from '../types/runtimeTruth';
-import type { StudioV2ActivationResponse } from '../types/studioV2Activation';

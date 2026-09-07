@@ -5,6 +5,7 @@ import {
   parseMessageEventRecord,
   parseRuntimeValueRecord,
   normalizeTypedEnvelope,
+  parseMappingPreviewResponse,
 } from '../../../src/utils/safeJson';
 
 describe('bounded external JSON parser', () => {
@@ -66,5 +67,45 @@ describe('bounded external JSON parser', () => {
       raw_value: Infinity, transformed_value: 1, quality: 'good', stale: false,
       timestamp: '2026-08-25T00:00:00Z',
     })).toBeNull();
+  });
+
+  it('parses real backend mapping preview response with input and output keys', () => {
+    const backendPayload = {
+      raw_value: 243,
+      final_value: 24.3,
+      step_results: [
+        { step_index: 0, step_type: 'decode', input: 243, output: 243 },
+        { step_index: 1, step_type: 'scale', input: 243, output: 24.3 },
+        { step_index: 2, step_type: 'cast', input: 24.3, output: 24.3 },
+      ],
+    };
+
+    const parsed = parseMappingPreviewResponse(backendPayload);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.raw_value).toBe(243);
+    expect(parsed?.final_value).toBe(24.3);
+    expect(parsed?.step_results).toHaveLength(3);
+    expect(parsed?.step_results[0].input_value).toBe(243);
+    expect(parsed?.step_results[0].output_value).toBe(243);
+    expect(parsed?.step_results[1].output_value).toBe(24.3);
+  });
+
+  it('parses mapping preview response with wrapped data envelope and input_value keys', () => {
+    const wrappedPayload = {
+      success: true,
+      data: {
+        raw_value: 100,
+        final_value: 200,
+        step_results: [
+          { step_index: 0, step_type: 'scale', input_value: 100, output_value: 200 },
+        ],
+      },
+    };
+
+    const parsed = parseMappingPreviewResponse(wrappedPayload);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.raw_value).toBe(100);
+    expect(parsed?.final_value).toBe(200);
+    expect(parsed?.step_results[0].output_value).toBe(200);
   });
 });

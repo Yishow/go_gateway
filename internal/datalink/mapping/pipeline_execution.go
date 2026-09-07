@@ -21,11 +21,13 @@ type TransformContext struct {
 
 // StepResult 步驟結果
 type StepResult struct {
-	StepIndex int         `json:"step_index"`
-	StepType  string      `json:"step_type"`
-	Input     interface{} `json:"input"`
-	Output    interface{} `json:"output"`
-	Error     string      `json:"error,omitempty"`
+	StepIndex   int         `json:"step_index"`
+	StepType    string      `json:"step_type"`
+	Input       interface{} `json:"input"`
+	Output      interface{} `json:"output"`
+	InputValue  interface{} `json:"input_value"`
+	OutputValue interface{} `json:"output_value"`
+	Error       string      `json:"error,omitempty"`
 }
 
 // ExecutePipeline 執行轉換管線
@@ -45,9 +47,10 @@ func ExecutePipeline(raw interface{}, pipelineJSON string) (*TransformContext, e
 	orderedSteps := normalizeTransformSteps(steps)
 	for i, step := range orderedSteps {
 		result := StepResult{
-			StepIndex: i,
-			StepType:  string(step.Type),
-			Input:     ctx.CurrentValue,
+			StepIndex:   i,
+			StepType:    string(step.Type),
+			Input:       ctx.CurrentValue,
+			InputValue:  ctx.CurrentValue,
 		}
 
 		output, err := executeStep(ctx.CurrentValue, step)
@@ -59,6 +62,7 @@ func ExecutePipeline(raw interface{}, pipelineJSON string) (*TransformContext, e
 		}
 
 		result.Output = output
+		result.OutputValue = output
 		ctx.StepResults = append(ctx.StepResults, result)
 		ctx.CurrentValue = output
 	}
