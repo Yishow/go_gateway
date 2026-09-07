@@ -5,6 +5,7 @@ import type { WorkbenchV2State } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { useAllPoints, useMappingValidation, useDeviceProtocolMap } from '../../state/selectors';
 import { MappingTable } from './MappingTable';
+import { MeasurementTemplateSelector } from './MeasurementTemplateSelector';
 import { useStep3LiveValues } from './useStep3LiveValues';
 
 export interface Step3MappingProps {
@@ -62,18 +63,22 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   );
 
   const liveValues = useStep3LiveValues(enabledPoints, state.mappings);
+  const activeDeviceId = enabledPoints[selectedIdx ?? 0]?.device_id ?? state.devices[0]?.id;
 
   return (
     <div className="space-y-6" data-testid="step3-mapping-container">
       {/* 標頭 */}
       <div>
         <h2 className="text-lg font-semibold text-slate-200">
-          {t('step3.title', { defaultValue: '點位 → Tag 映射' })}
+          {t('step3.title', { defaultValue: '確認數值與用途 (點位語意與範本)' })}
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          {t('step3.subtitle', { defaultValue: '為啟用的 PLC 暫存器點位綁定對應的 Tag，並設定 Scale/Offset 線性轉換。' })}
+          {t('step3.subtitle', { defaultValue: '確認每個點位的真實數值、工程單位與記錄用途（畫曲線、算用量、記狀態），亦可直接套用標準範本。' })}
         </p>
       </div>
+
+      {/* 量測範本推薦與套用面板 */}
+      <MeasurementTemplateSelector deviceId={activeDeviceId} />
 
       <MappingTable
         points={enabledPoints}

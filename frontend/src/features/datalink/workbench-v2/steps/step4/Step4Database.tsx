@@ -19,6 +19,7 @@ import { SchemaSetupSection } from './SchemaSetupSection';
 import { Step4SupportPanels } from './Step4SupportPanels';
 import { RowGroupPlanner } from './RowGroupPlanner';
 import { ShareOutputSummary } from './ShareOutputSummary';
+import { RecordingPlanSetupSection } from './RecordingPlanSetupSection';
 import { autoAssignTargets } from '../../state/autoAssignTargets';
 import { getColumnsFor, getDefaultConnector, getDbKindPatch } from '../../state/dbSchemas';
 import { hasRowGroupColumnConflict, hasUnsafeRowGroupUpsert } from '../../state/rowGroupValidation';
@@ -247,6 +248,11 @@ export function Step4Database({
         mappings={state.mappings}
         targets={targets}
         hasConflict={hasConflict}
+      />
+
+      <RecordingPlanSetupSection
+        deviceId={state.devices[0]?.id}
+        disabled={isReadonly}
       />
 
       <ShareOutputSummary state={state} shareStatus={shareStatus} />
