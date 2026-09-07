@@ -42,4 +42,33 @@ describe('Studio V2 workspace activation request', () => {
     expect(post).not.toHaveBeenCalled();
     post.mockRestore();
   });
+
+  it('preserves request_id and typed error code from 422 response', async () => {
+    const post = vi.spyOn(studioV2DatalinkApi, 'post').mockRejectedValue({
+      response: {
+        status: 422,
+        data: {
+          success: false,
+          error: {
+            code: 'modbus_share_save_incomplete',
+            message: 'activation readiness token is missing or stale',
+            request_id: 'req-test-99',
+            retryable: true,
+          },
+        },
+      },
+    });
+
+    await expect(studioV2WorkspaceActivationAPI.activate({
+      workspace_revision: 'rev-1',
+      settings_revision: 'set-1',
+      readiness_token: 'stale-token',
+      pending_saves: 0,
+    })).rejects.toMatchObject({
+      code: 'modbus_share_save_incomplete',
+      request_id: 'req-test-99',
+      retryable: true,
+    });
+    post.mockRestore();
+  });
 });

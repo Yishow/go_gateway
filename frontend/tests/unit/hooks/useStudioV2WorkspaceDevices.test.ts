@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { studioV2WorkspaceKeys } from '@/hooks/datalink/keys';
+import { modbusShareStatusKey } from '@/hooks/datalink/useModbusShareStatus';
 import {
   useCreateStudioV2WorkspaceDeviceMutation,
   useDeleteStudioV2WorkspaceDeviceMutation,
@@ -94,6 +95,9 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: modbusShareStatusKey,
+    });
   });
 
   it('updates one workspace device and invalidates the workspace device query', async () => {
@@ -124,6 +128,9 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: modbusShareStatusKey,
     });
   });
 
@@ -156,6 +163,9 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
     });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: modbusShareStatusKey,
+    });
   });
 
   it('deletes one workspace device and invalidates both the workspace bootstrap and device query', async () => {
@@ -177,6 +187,9 @@ describe('useStudioV2WorkspaceDevices hooks', () => {
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.devices(),
+    });
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: modbusShareStatusKey,
     });
   });
 });

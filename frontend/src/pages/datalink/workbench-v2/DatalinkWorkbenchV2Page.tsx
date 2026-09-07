@@ -97,9 +97,14 @@ export default function DatalinkWorkbenchV2Page({
       ? false
       : liveConfigured ?? bootstrapConfigured;
 
-    return configuredEnabled === undefined
-      ? liveStatus
-      : { ...liveStatus, configured_enabled: configuredEnabled };
+    return {
+      ...liveStatus,
+      ...bootstrapShareStatus,
+      workspace_revision: bootstrapShareStatus.workspace_revision ?? liveStatus.workspace_revision,
+      settings_revision: bootstrapShareStatus.settings_revision ?? liveStatus.settings_revision,
+      readiness_token: bootstrapShareStatus.readiness_token ?? liveStatus.readiness_token,
+      configured_enabled: configuredEnabled ?? liveStatus.configured_enabled ?? bootstrapShareStatus.configured_enabled,
+    };
   }, [bootstrapShareStatus, shareStatusQuery.data]);
   const auditHistoryQuery = useStudioV2WorkspaceAuditHistoryQuery(workspaceQuery.isSuccess);
   const autosave = useStudioV2AutosaveState(workspaceQuery.isSuccess);
@@ -112,28 +117,54 @@ export default function DatalinkWorkbenchV2Page({
       throw new StudioV2ActivationBarrierError('modbus_share_save_incomplete');
     }
 
-    if (!shareStatus) {
+    const [freshWorkspaceResult, freshShareResult] = await Promise.all([
+      workspaceQuery.refetch(),
+      shareStatusQuery.refetch(),
+    ]);
+    const freshWorkspace = freshWorkspaceResult.data ?? workspaceQuery.data;
+    const freshBootstrapShare = modbusShareStatusFromBootstrap(freshWorkspace?.modbus_share);
+    const freshLiveStatus = freshShareResult.data ?? shareStatusQuery.data;
+    const currentShareStatus = (() => {
+      if (!freshBootstrapShare || !freshLiveStatus) {
+        return freshBootstrapShare ?? freshLiveStatus ?? shareStatus;
+      }
+      const bootstrapConfigured = modbusShareConfiguredValue(freshBootstrapShare);
+      const liveConfigured = modbusShareConfiguredValue(freshLiveStatus);
+      const configuredEnabled = bootstrapConfigured === false
+        ? false
+        : liveConfigured ?? bootstrapConfigured;
+      return {
+        ...freshLiveStatus,
+        ...freshBootstrapShare,
+        workspace_revision: freshBootstrapShare.workspace_revision ?? freshLiveStatus.workspace_revision,
+        settings_revision: freshBootstrapShare.settings_revision ?? freshLiveStatus.settings_revision,
+        readiness_token: freshBootstrapShare.readiness_token ?? freshLiveStatus.readiness_token,
+        configured_enabled: configuredEnabled ?? freshLiveStatus.configured_enabled ?? freshBootstrapShare.configured_enabled,
+      };
+    })();
+
+    if (!currentShareStatus) {
       throw new StudioV2ActivationBarrierError('modbus_share_hydration_required');
     }
-    const shareConfigured = isModbusShareConfiguredEnabled(shareStatus);
+    const shareConfigured = isModbusShareConfiguredEnabled(currentShareStatus);
     const shareIsStale = shareConfigured
-      && (shareStatus.hydration_state !== 'ready' || shareStatus.readiness !== true);
+      && (currentShareStatus.hydration_state !== 'ready' || currentShareStatus.readiness !== true);
     if (shareIsStale) {
       throw new StudioV2ActivationBarrierError(
         'modbus_share_revision_conflict',
-        shareStatus.error?.retryable ?? true,
-        shareStatus.error?.action,
-        shareStatus.error?.request_id,
+        currentShareStatus.error?.retryable ?? true,
+        currentShareStatus.error?.action,
+        currentShareStatus.error?.request_id,
       );
     }
 
     const shareContext: StudioV2ShareActivationContext = {
-      workspace_id: workspaceQuery.data?.id ?? '',
-      workspace_revision: shareStatus.workspace_revision ?? '',
-      settings_revision: shareStatus.settings_revision ?? '',
-      readiness_token: shareStatus.readiness_token ?? '',
+      workspace_id: freshWorkspace?.id ?? workspaceQuery.data?.id ?? '',
+      workspace_revision: currentShareStatus.workspace_revision ?? '',
+      settings_revision: currentShareStatus.settings_revision ?? '',
+      readiness_token: currentShareStatus.readiness_token ?? '',
       configured_enabled: shareConfigured,
-      canonical_plan: shareStatus.canonical_plan,
+      canonical_plan: currentShareStatus.canonical_plan,
     };
 
     return activateStudioV2WorkspaceWithShare(

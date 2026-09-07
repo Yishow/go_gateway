@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from './keys';
+import { modbusShareStatusKey } from './useModbusShareStatus';
 import { studioV2WorkspaceDevicesAPI } from '../../services/studioV2WorkspaceDevices';
 import type { CreateDeviceRequest, UpdateDeviceRequest } from '../../types/datalink';
 import type { StudioV2AvailabilityRequest } from '../../types/studioV2Availability';
@@ -22,6 +23,7 @@ export function useCreateStudioV2WorkspaceDeviceMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
+      await queryClient.invalidateQueries({ queryKey: modbusShareStatusKey });
     },
   });
 }
@@ -35,6 +37,7 @@ export function useUpdateStudioV2WorkspaceDeviceMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
+      await queryClient.invalidateQueries({ queryKey: modbusShareStatusKey });
     },
   });
 }
@@ -47,6 +50,7 @@ export function useDeleteStudioV2WorkspaceDeviceMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
+      await queryClient.invalidateQueries({ queryKey: modbusShareStatusKey });
     },
   });
 }
@@ -60,6 +64,7 @@ export function useUpdateStudioV2WorkspaceDeviceAvailabilityMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
+      await queryClient.invalidateQueries({ queryKey: modbusShareStatusKey });
     },
   });
 }
@@ -72,6 +77,7 @@ export function useUpdateStudioV2WorkspaceDeviceOrderMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
+      await queryClient.invalidateQueries({ queryKey: modbusShareStatusKey });
     },
   });
 }
