@@ -7,289 +7,41 @@ TBD - created by archiving change 'datalink-workbench-v2-step4-database'. Update
 ## Requirements
 
 ### Requirement: Connector configuration form
-
-The Step 4 connector section SHALL render a card-style selector for four database kinds (`sqlite`, `postgres`, `mysql`, `sqlserver`) and a configuration form with fields: connection name, host (mono), port (number), database (mono), schema (mono), table (mono), username (mono), write_mode (radio: `insert` / `upsert`), write_interval_seconds (number with `秒` unit suffix), and timestamp_column (mono, default `ts`). Switching the kind MUST update `state.db.connector.kind` and trigger re-evaluation of the auto-assign algorithm using the new kind's column set.
+The Step 4 connector section SHALL present saved connections or a new connection with only relevant fields, verified kind capabilities and explicit connection-test state. Managed recording SHALL generate storage context from confirmed plan intent; custom-table mode SHALL retain table and write-policy controls in an advanced section. The form MUST NOT use example endpoints, tables or ready status as real configured state.
 
 #### Scenario: Default connector on first render
-
-- **WHEN** Step 4 mounts with no prior connector state
-- **THEN** the connector is initialized with name `TimeSeries Prod`, kind `postgres`, host `tsdb.internal`, port `5432`, database `gateway_metrics`, username `gw_writer`, schema `public`, table `sensor_readings`, write_mode `insert`, write_interval_seconds `5`, timestamp_column `ts`, status `ready`
+- **WHEN** Step 4 mounts without a persisted connector
+- **THEN** it shows an unconfigured draft with clearly labelled placeholders and supported-kind choices
+- **AND** it does not claim connection or write readiness.
 
 #### Scenario: Kind switch triggers auto-assign
-
-- **GIVEN** the workspace has 8 enabled points with auto-assigned targets and kind is `postgres`
-- **WHEN** the operator clicks the `mysql` kind card
-- **THEN** `state.db.connector.kind` becomes `mysql`
-- **AND** the auto-assign algorithm re-runs using the mysql column set
-- **AND** existing target entries that match a still-valid column are preserved
+- **WHEN** the operator changes connector kind
+- **THEN** stale tests and schema previews are invalidated and actual metadata is reloaded
+- **AND** bindings remain only when valid for the new identity; missing or ambiguous matches require confirmation instead of sample-column reassignment.
 
 #### Scenario: Write strategy persistence
-
-- **WHEN** the operator selects the `upsert` radio
-- **THEN** `state.db.connector.write_mode` becomes `upsert`
-- **AND** the radio is rendered as selected
-
-
-<!-- @trace
-source: datalink-workbench-v2-step4-database
-updated: 2026-05-29
-code:
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/autoAssignTargets.ts
-  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/TargetMappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/WriteStrategy.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/KindSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/features/datalink/workbench-v2/state/commitLog.ts
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/transformPipeline.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/package.json
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PayloadPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - task_plan.md
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/state/dbReducer.ts
-  - frontend/src/i18n/config.ts
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/state/types-step4.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
-tests:
-  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
-  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/types-step3.test-d.ts
-  - frontend/tests/unit/workbench-v2/transformPipeline.test.ts
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step4.test.ts
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/autoAssignTargets.test.ts
-  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
-  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - frontend/tests/unit/workbench-v2/commitLog.test.ts
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
--->
+- **WHEN** an operator selects a compatible recording strategy
+- **THEN** the plan persists and explains whether it appends history or updates latest state
+- **AND** an update strategy without a valid unique identity is blocked.
 
 ---
 ### Requirement: Tag-to-column auto-assignment
-
-The system SHALL provide an auto-assign function `autoAssignTargets(enabledPoints, mappings, columnNames, existingTargets)` that returns a `Record<pointId, DbTarget>`. The function MUST follow this priority order per point: (1) if `existingTargets[pointId]` exists, preserve it; (2) compute `tagShort = mapping.tag_key.split('.').pop()` and find an unused column that equals `tagShort`, ends with `_${tagShort}`, or starts with `${tagShort}_`; (3) fall back to `columnNames[i % length]` if not used; (4) otherwise find the first unused column. The function MUST mark used columns to avoid auto-generated conflicts when enough columns exist.
+The system SHALL provide confirmed assignments, reviewable suggestions and unmatched results using the actual selected schema and compatible measurement semantics. Existing confirmed targets MUST be revalidated. Name similarity alone SHALL NOT confirm uncertain semantics; index fallback, wraparound reuse and sample columns MUST NOT produce production assignments.
 
 #### Scenario: Eight points to nine columns
-
-- **GIVEN** 8 enabled points with mappings whose tag_keys end in `temp.inlet`, `temp.outlet`, `pressure.main`, `pressure.sub`, `flow.q1`, `humidity.amb`, `vibration.motor`, `motor.rpm`, and the postgres sample table has 8 non-primary-key columns (temp_in_c, temp_out_c, pressure_main_kpa, pressure_sub_kpa, flow_lpm, humidity_pct, vibration_mms, motor_rpm)
-- **WHEN** `autoAssignTargets` runs with empty existingTargets
-- **THEN** each point is mapped to a column via the endsWith / startsWith / index-fallback chain
-- **AND** no two points share the same column
+- **GIVEN** eight confirmed measurements and sufficient real compatible columns
+- **WHEN** matching runs
+- **THEN** valid unambiguous assignments and reviewable suggestions are shown without assigning any column twice within a row.
 
 #### Scenario: Existing target preserved
-
-- **GIVEN** existingTargets contains `{ pt-X: { column_name: 'flow_lpm', enabled: true, tag_id: 'tag.foo' } }`
-- **WHEN** `autoAssignTargets` runs
-- **THEN** the output for `pt-X` equals the existing entry (column_name unchanged)
-- **AND** `flow_lpm` is treated as used for subsequent points
+- **WHEN** an existing confirmed target remains compatible with the current connector, table, column and measurement definition
+- **THEN** it is preserved; otherwise it is marked for repair rather than silently rebound.
 
 #### Scenario: Fewer columns than points causes wrap and conflict
-
-- **GIVEN** 8 enabled points but only 4 columns
-- **WHEN** `autoAssignTargets` runs with empty existingTargets and no exact matches
-- **THEN** each point still receives a target (via `i % length`)
-- **AND** at least two points share the same column (downstream conflict detection flags this)
-
-
-<!-- @trace
-source: datalink-workbench-v2-step4-database
-updated: 2026-05-29
-code:
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/autoAssignTargets.ts
-  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/TargetMappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/WriteStrategy.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/KindSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/features/datalink/workbench-v2/state/commitLog.ts
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/transformPipeline.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/package.json
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PayloadPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - task_plan.md
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/state/dbReducer.ts
-  - frontend/src/i18n/config.ts
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/state/types-step4.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
-tests:
-  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
-  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/types-step3.test-d.ts
-  - frontend/tests/unit/workbench-v2/transformPipeline.test.ts
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step4.test.ts
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/autoAssignTargets.test.ts
-  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
-  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - frontend/tests/unit/workbench-v2/commitLog.test.ts
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
--->
+- **GIVEN** eight enabled measurements and only four compatible columns
+- **WHEN** matching runs
+- **THEN** extra measurements remain unmatched and the UI offers create-column-plan, different-table or explicit exclusion options
+- **AND** no wraparound or duplicate assignment is generated.
 
 ---
 ### Requirement: Column conflict detection

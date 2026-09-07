@@ -475,83 +475,19 @@ tests:
 
 ---
 ### Requirement: Continue gate
-
-The bottom action bar SHALL render `{N} 個設備，{M} 已通過測試` plus a `全部建立並繼續` button. The button MUST be disabled when any device has not yet completed a successful test. When enabled and clicked, the button MUST invoke the shell `onContinue` callback for Step 1.
+The bottom action bar SHALL show total devices, the explicitly selected setup scope and successful current tests. At least one selected device and successful tests for every selected device MUST be required to continue. Unselected devices SHALL remain visible drafts, not be silently enabled or deleted. A missing selection SHALL preserve the legacy all-device scope. Actual activation SHALL still revalidate current device readiness and the existing workspace barrier.
 
 #### Scenario: Disabled when not all tested
-
-- **WHEN** there are two devices and only the first has `test.status === 'success'`
-- **THEN** the continue button is disabled
-- **AND** a warning chip `尚有 1 個設備未通過測試` is rendered next to the count text
+- **WHEN** two devices are selected and only the first has a successful current test
+- **THEN** the continue button is disabled and the untested selected device and repair action are shown.
 
 #### Scenario: Enabled when all tested
+- **WHEN** every device in the selected scope has a successful current test
+- **THEN** clicking continue invokes onContinue, completes Step 1 and advances to Step 2 for that scope.
 
-- **WHEN** every device in `state.devices` has `test.status === 'success'`
-- **THEN** the continue button is enabled
-- **AND** clicking it invokes the shell `onContinue` callback, which causes the shell to add step 1 to `completed` and advance `current` to 2
-
-
-<!-- @trace
-source: datalink-workbench-v2-step1-device
-updated: 2026-05-29
-code:
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - task_plan.md
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/i18n/config.ts
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/package.json
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-tests:
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
--->
+#### Scenario: Offline device explicitly excluded
+- **WHEN** a tested device remains selected and the user explicitly excludes an offline device
+- **THEN** setup can continue for the tested device and the excluded device remains a clearly labelled draft.
 
 ---
 ### Requirement: Send payload preview block

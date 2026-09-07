@@ -6,26 +6,24 @@ Define the canonical Studio-side database output workflow so connector selection
 ## Requirements
 
 ### Requirement: Database output workflow is layered by connector, schema context, and mapping
-The workbench SHALL present database output as four linked layers: source-rule revision context, connector selection, schema/table context, and grouped row planner review/apply.
+The workbench SHALL support a managed recording-plan workflow and an explicit legacy/custom-table workflow. Both SHALL preserve source revision, connector identity, schema context and apply review; managed mode SHALL generate storage layout from confirmed recording intent rather than require manual columns.
 
 #### Scenario: Connector selection scopes schema context and candidate board
-- **WHEN** an operator selects a database connector in the Output step for a source rule
-- **THEN** the available schema and table context SHALL scope to that connector only
-- **AND** the rule-scoped database candidate board SHALL update using only that connector context
+- **WHEN** an operator selects a database connector for a rule or recording plan
+- **THEN** schema/table candidates are scoped only to that connector and current source/plan revisions.
 
 #### Scenario: Apply uses current layered context
-- **WHEN** an operator applies a database output candidate
-- **THEN** the mapping SHALL be applied against the current source-rule revision and the selected connector, schema, table, column, group key, and effective interval context
-- **AND** the UI SHALL NOT apply the action to stale prior selections
+- **WHEN** an operator applies a database output plan
+- **THEN** connector, source/plan revision, table, key, interval and mapping signatures are revalidated
+- **AND** stale selections cannot be applied.
 
 ---
 ### Requirement: Database connector scope for this workflow is SQLite and PostgreSQL
-The system SHALL support SQLite and PostgreSQL as the database connector kinds for this workbench flow in this change.
+The system SHALL present connector kinds by verified capabilities rather than a hard-coded two-kind list. SQLite and PostgreSQL SHALL remain supported; MySQL SHALL retain its existing inspection/schema behavior and pass the managed recording capability suite before that mode is enabled. Other kinds MUST NOT be advertised as ready without equivalent evidence.
 
 #### Scenario: Supported connectors are first-class options
-- **WHEN** an operator creates or edits a database target connector in the workbench
-- **THEN** the workbench SHALL present SQLite and PostgreSQL as supported connector kinds
-- **AND** SHALL NOT advertise unsupported connector kinds as first-class options in this workflow
+- **WHEN** an operator creates or edits a target connector
+- **THEN** only currently verified modes for that kind can be selected and unsupported modes explain their limitation.
 
 ---
 ### Requirement: Database output is rule-scoped and connector-aware
@@ -45,12 +43,16 @@ The system SHALL revalidate blocked or `out_of_sync` database candidates wheneve
 
 ---
 ### Requirement: Database planner organizes compatible tags into grouped rows
-The database workbench SHALL organize compatible database candidates into grouped row plans keyed by connector context, table context, group key, and interval semantics.
+The database workbench SHALL automatically organize managed records by explicit equipment and measurement identity. Legacy/custom-table grouped mode SHALL retain compatible row-plan inference as a reviewable suggestion, never as an unconfirmed semantic binding.
 
 #### Scenario: Prefix-inferred tags appear as one row plan
-- **WHEN** the candidate set includes `meter/A1`, `meter/A2`, `meter/A3`, and `meter/kw`
-- **THEN** the database planner shows one `meter` row group with member columns `a1`, `a2`, `a3`, and `kw`
-- **AND** the operator is not forced to bind each tag one by one as the primary first-pass workflow
+- **WHEN** legacy grouped candidates contain meter/A1, meter/A2, meter/A3 and meter/kw
+- **THEN** one suggested meter row with a1, a2, a3 and kw is shown for confirmation
+- **AND** the user is not forced to bind each field as the first-pass workflow.
+
+#### Scenario: Managed plan contains mixed sensor meanings
+- **WHEN** temperature and cumulative volume belong to the same equipment
+- **THEN** the managed plan groups them for operator review but preserves different recording and calculation policies.
 
 ---
 ### Requirement: Database grouped rows expose editable grouping and interval controls
