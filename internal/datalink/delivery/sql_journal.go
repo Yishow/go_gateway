@@ -64,10 +64,10 @@ func (j *SQLJournal) ScanFrom(fromSequence int64, limit int) ([]*JournalEntry, e
 	var entries []*JournalEntry
 	for rows.Next() {
 		var (
-			seq      int64
-			recID    string
-			obsStr   string
-			payload  []byte
+			seq     int64
+			recID   string
+			obsStr  string
+			payload []byte
 		)
 		if err := rows.Scan(&seq, &recID, &obsStr, &payload); err != nil {
 			return nil, err

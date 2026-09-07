@@ -11,12 +11,12 @@ import (
 )
 
 type streamState struct {
-	lastValue        interface{}
-	lastQuality      schema.QualityFlag
-	lastObservedAt   time.Time
-	lastEmittedAt    time.Time
-	lastTriggerVal   interface{}
-	hasEmitted       bool
+	lastValue      interface{}
+	lastQuality    schema.QualityFlag
+	lastObservedAt time.Time
+	lastEmittedAt  time.Time
+	lastTriggerVal interface{}
+	hasEmitted     bool
 }
 
 // StreamFilter 實作即時樣本流的明細過濾、死區、心跳與批次觸發去重。

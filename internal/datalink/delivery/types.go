@@ -1,6 +1,9 @@
 package delivery
 
 import (
+	cryptorand "crypto/rand"
+	"math"
+	"math/big"
 	"time"
 )
 
@@ -47,13 +50,13 @@ type Receipt struct {
 
 // DestinationMetrics 單一目的地的交付狀況與水位。
 type DestinationMetrics struct {
-	DestinationID      string       `json:"destination_id"`
-	PendingCount       int64        `json:"pending_count"`
-	PendingBytes       int64        `json:"pending_bytes"`
+	DestinationID       string       `json:"destination_id"`
+	PendingCount        int64        `json:"pending_count"`
+	PendingBytes        int64        `json:"pending_bytes"`
 	OldestPendingAgeSec float64      `json:"oldest_pending_age_sec"`
-	DeliveredCount     int64        `json:"delivered_count"`
-	FailedCount        int64        `json:"failed_count"`
-	Status             OutboxStatus `json:"status"`
+	DeliveredCount      int64        `json:"delivered_count"`
+	FailedCount         int64        `json:"failed_count"`
+	Status              OutboxStatus `json:"status"`
 }
 
 // QuotaStatus 本機儲存配額與警戒狀態。
@@ -64,4 +67,21 @@ type QuotaStatus struct {
 	IsWarning         bool    `json:"is_warning"`  // >= 80%
 	IsCritical        bool    `json:"is_critical"` // >= 95%
 	IsIntakeSuspended bool    `json:"is_intake_suspended"`
+}
+
+// CalculateBackoff 計算指數退避時間並加上安全抖動 (crypto/rand)。
+func CalculateBackoff(retryCount, maxRetries int) (OutboxStatus, time.Time) {
+	if maxRetries > 0 && retryCount >= maxRetries {
+		return StatusBlocked, time.Now().UTC()
+	}
+	backoffSec := math.Pow(2, float64(retryCount))
+	if backoffSec > 300 {
+		backoffSec = 300
+	}
+	jitter := 0.0
+	if n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(1000)); err == nil {
+		jitter = (float64(n.Int64()) / 1000.0) * 0.5 * backoffSec
+	}
+	next := time.Now().UTC().Add(time.Duration((backoffSec + jitter) * float64(time.Second)))
+	return StatusRetrying, next
 }

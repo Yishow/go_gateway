@@ -28,10 +28,10 @@ func TestRateIntegrator_R01_PowerToEnergy(t *testing.T) {
 	}
 
 	config := RateIntegrationConfig{
-		InputUnit:      "kW",
-		OutputUnit:     "kWh",
-		TimeDivisor:    3600.0, // seconds to hours
-		MaxGapSeconds:  1900.0,
+		InputUnit:     "kW",
+		OutputUnit:    "kWh",
+		TimeDivisor:   3600.0, // seconds to hours
+		MaxGapSeconds: 1900.0,
 	}
 
 	result := IntegrateRate("meas-kw", windowStart, windowEnd, samples, config)

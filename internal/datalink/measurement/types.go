@@ -100,22 +100,22 @@ func (m *MeasurementDefinition) Validate() error {
 
 // SampleEnvelope 採集樣本的統一信封契約。
 type SampleEnvelope struct {
-	SampleID              string         `json:"sample_id"`
-	WorkspaceID           string         `json:"workspace_id,omitempty"`
-	MeasurementID         string         `json:"measurement_id"`
-	SeriesEpoch           string         `json:"series_epoch"`
-	DefinitionRevision    string         `json:"definition_revision"`
-	SourceBindingRevision string         `json:"source_binding_revision"`
-	AcquisitionID         string         `json:"acquisition_id"`
-	SourceSequence        *int64         `json:"source_sequence,omitempty"`
-	ObservedAt            time.Time      `json:"observed_at"`
-	ReceivedAt            time.Time      `json:"received_at"`
-	TimeOrigin            string         `json:"time_origin"`
-	ValueType             string         `json:"value_type"`
-	Value                 interface{}    `json:"value"`
-	RawValue              interface{}    `json:"raw_value,omitempty"`
+	SampleID              string             `json:"sample_id"`
+	WorkspaceID           string             `json:"workspace_id,omitempty"`
+	MeasurementID         string             `json:"measurement_id"`
+	SeriesEpoch           string             `json:"series_epoch"`
+	DefinitionRevision    string             `json:"definition_revision"`
+	SourceBindingRevision string             `json:"source_binding_revision"`
+	AcquisitionID         string             `json:"acquisition_id"`
+	SourceSequence        *int64             `json:"source_sequence,omitempty"`
+	ObservedAt            time.Time          `json:"observed_at"`
+	ReceivedAt            time.Time          `json:"received_at"`
+	TimeOrigin            string             `json:"time_origin"`
+	ValueType             string             `json:"value_type"`
+	Value                 interface{}        `json:"value"`
+	RawValue              interface{}        `json:"raw_value,omitempty"`
 	Quality               schema.QualityFlag `json:"quality"`
-	QualityReason         string         `json:"quality_reason,omitempty"`
+	QualityReason         string             `json:"quality_reason,omitempty"`
 }
 
 // MarshalJSON 實作安全的 SampleEnvelope JSON 序列化，保護大整數精度。

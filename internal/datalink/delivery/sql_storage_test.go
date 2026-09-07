@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 	"time"
@@ -56,7 +57,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		PRIMARY KEY (destination_id, record_id, calculation_revision)
 	);
 	`
-	if _, err := db.Exec(ddl); err != nil {
+	if _, err := db.ExecContext(context.Background(), ddl); err != nil {
 		t.Fatalf("failed to create tables: %v", err)
 	}
 	return db

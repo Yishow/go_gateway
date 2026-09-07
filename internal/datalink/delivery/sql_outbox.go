@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math"
-	"math/rand"
 	"time"
 )
 
@@ -156,21 +154,7 @@ func (o *SQLOutbox) MarkFailed(itemID string, errStr string, maxRetries int) err
 	}
 
 	retryCount++
-	var newStatus OutboxStatus
-	var nextRetry time.Time
-
-	if maxRetries > 0 && retryCount >= maxRetries {
-		newStatus = StatusBlocked
-		nextRetry = time.Now().UTC()
-	} else {
-		newStatus = StatusRetrying
-		backoffSec := math.Pow(2, float64(retryCount))
-		if backoffSec > 300 {
-			backoffSec = 300
-		}
-		jitter := rand.Float64() * 0.5 * backoffSec
-		nextRetry = time.Now().UTC().Add(time.Duration((backoffSec + jitter) * float64(time.Second)))
-	}
+	newStatus, nextRetry := CalculateBackoff(retryCount, maxRetries)
 
 	queryUpdate := `
 		UPDATE gw_delivery_outbox

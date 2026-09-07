@@ -2,8 +2,6 @@ package delivery
 
 import (
 	"fmt"
-	"math"
-	"math/rand"
 	"sync"
 	"time"
 )
@@ -20,8 +18,8 @@ type Outbox interface {
 // MemoryOutbox 記憶體測試用 Outbox 實作。
 type MemoryOutbox struct {
 	mu    sync.RWMutex
-	items map[string]*OutboxItem                      // id -> item
-	byKey map[string]*OutboxItem                      // destID + ":" + recordID -> item
+	items map[string]*OutboxItem // id -> item
+	byKey map[string]*OutboxItem // destID + ":" + recordID -> item
 }
 
 // NewMemoryOutbox 建立新的記憶體 Outbox 實例。
@@ -112,18 +110,7 @@ func (m *MemoryOutbox) MarkFailed(itemID string, errStr string, maxRetries int) 
 	item.LastError = errStr
 	item.UpdatedAt = time.Now().UTC()
 
-	if maxRetries > 0 && item.RetryCount >= maxRetries {
-		item.Status = StatusBlocked
-	} else {
-		item.Status = StatusRetrying
-		// 指數退避 + 抖動
-		backoffSec := math.Pow(2, float64(item.RetryCount))
-		if backoffSec > 300 {
-			backoffSec = 300
-		}
-		jitter := rand.Float64() * 0.5 * backoffSec
-		item.NextRetryAt = time.Now().UTC().Add(time.Duration((backoffSec + jitter) * float64(time.Second)))
-	}
+	item.Status, item.NextRetryAt = CalculateBackoff(item.RetryCount, maxRetries)
 	return nil
 }
 

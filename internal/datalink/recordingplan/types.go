@@ -67,19 +67,19 @@ type PlanStream struct {
 
 // PlanDestination 記錄方案的目的地配置。
 type PlanDestination struct {
-	DestinationID   string `json:"destination_id"`
-	ConnectorID     string `json:"connector_id"`
-	TablePrefix     string `json:"table_prefix,omitempty"`
+	DestinationID    string `json:"destination_id"`
+	ConnectorID      string `json:"connector_id"`
+	TablePrefix      string `json:"table_prefix,omitempty"`
 	WriteIntervalSec int    `json:"write_interval_seconds,omitempty"`
-	BatchSize       int    `json:"batch_size,omitempty"`
+	BatchSize        int    `json:"batch_size,omitempty"`
 }
 
 // RetentionPolicy 記錄各層級資料保存期限（天數與小時）。
 type RetentionPolicy struct {
-	RawDays                 int `json:"raw_days"`
-	SummaryDays             int `json:"summary_days"`
-	EventsDays              int `json:"events_days"`
-	CorrectionHorizonHours  int `json:"correction_horizon_hours"`
+	RawDays                int `json:"raw_days"`
+	SummaryDays            int `json:"summary_days"`
+	EventsDays             int `json:"events_days"`
+	CorrectionHorizonHours int `json:"correction_horizon_hours"`
 }
 
 // PlanLimits 方案限制與資源邊界。
@@ -91,20 +91,20 @@ type PlanLimits struct {
 
 // RecordingPlan 完整記錄方案模型。
 type RecordingPlan struct {
-	ID              string              `json:"id" db:"id"`
-	WorkspaceID     string              `json:"workspace_id" db:"workspace_id"`
-	Revision        string              `json:"revision" db:"revision"`
-	AppliedRevision string              `json:"applied_revision" db:"applied_revision"`
-	Name            string              `json:"name" db:"name"`
-	Status          Status              `json:"status" db:"status"`
-	Timezone        string              `json:"timezone" db:"timezone"`
-	Members         []PlanMember        `json:"members" db:"members"`
-	Streams         []PlanStream        `json:"streams" db:"streams"`
-	Destinations    []PlanDestination   `json:"destinations" db:"destinations"`
-	Retention       RetentionPolicy     `json:"retention" db:"retention"`
-	Limits          PlanLimits          `json:"limits" db:"limits"`
-	CreatedAt       time.Time           `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time           `json:"updated_at" db:"updated_at"`
+	ID              string            `json:"id" db:"id"`
+	WorkspaceID     string            `json:"workspace_id" db:"workspace_id"`
+	Revision        string            `json:"revision" db:"revision"`
+	AppliedRevision string            `json:"applied_revision" db:"applied_revision"`
+	Name            string            `json:"name" db:"name"`
+	Status          Status            `json:"status" db:"status"`
+	Timezone        string            `json:"timezone" db:"timezone"`
+	Members         []PlanMember      `json:"members" db:"members"`
+	Streams         []PlanStream      `json:"streams" db:"streams"`
+	Destinations    []PlanDestination `json:"destinations" db:"destinations"`
+	Retention       RetentionPolicy   `json:"retention" db:"retention"`
+	Limits          PlanLimits        `json:"limits" db:"limits"`
+	CreatedAt       time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at" db:"updated_at"`
 }
 
 // Validate 檢查 RecordingPlan 的各項必填設定與邏輯一致性。

@@ -12,14 +12,14 @@ import (
 
 // ConnectorCapability 描述目標資料庫已驗證的功能。
 type ConnectorCapability struct {
-	Kind                   string   `json:"kind"`
-	Supported              bool     `json:"supported"`
-	SupportsManagedSchema  bool     `json:"supports_managed_schema"`
-	SupportsTransactions   bool     `json:"supports_transactions"`
-	SupportsReceipts       bool     `json:"supports_receipts"`
-	SupportsTestWrites     bool     `json:"supports_test_writes"`
-	SupportedModes         []string `json:"supported_modes"`
-	Notes                  string   `json:"notes,omitempty"`
+	Kind                  string   `json:"kind"`
+	Supported             bool     `json:"supported"`
+	SupportsManagedSchema bool     `json:"supports_managed_schema"`
+	SupportsTransactions  bool     `json:"supports_transactions"`
+	SupportsReceipts      bool     `json:"supports_receipts"`
+	SupportsTestWrites    bool     `json:"supports_test_writes"`
+	SupportedModes        []string `json:"supported_modes"`
+	Notes                 string   `json:"notes,omitempty"`
 }
 
 // TestWriteResult 描述試寫與回讀驗證結果。
