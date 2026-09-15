@@ -59,8 +59,8 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_DoesNotSilentlyRebindToNewScope(
 	})
 	require.NoError(t, err)
 
-	decisionReq, err := http.NewRequest(
-		http.MethodPost,
+	decisionReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-apply-rebind/tag-review-decisions",
 		bytes.NewBuffer(decisionBody),
 	)
@@ -105,8 +105,8 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_DoesNotSilentlyRebindToNewScope(
 	})
 	require.NoError(t, err)
 
-	applyReq, err := http.NewRequest(
-		http.MethodPost,
+	applyReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-apply-rebind/database-outputs/apply",
 		bytes.NewBuffer(applyBody),
 	)

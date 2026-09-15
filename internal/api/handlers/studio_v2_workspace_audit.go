@@ -17,7 +17,7 @@ type workspaceAuditRecorder interface {
 // WithAudit attaches workspace audit recording to activation responses.
 func (h *StudioV2WorkspaceActivationHandler) WithAudit(auditSvc *audit.Service) *StudioV2WorkspaceActivationHandler {
 	if h == nil {
-		return h
+		return nil
 	}
 	h.auditSvc = auditSvc
 	return h
@@ -26,7 +26,7 @@ func (h *StudioV2WorkspaceActivationHandler) WithAudit(auditSvc *audit.Service) 
 // WithAudit attaches workspace audit recording to persisted database changes.
 func (h *StudioV2WorkspaceDatabaseHandler) WithAudit(auditSvc *audit.Service) *StudioV2WorkspaceDatabaseHandler {
 	if h == nil {
-		return h
+		return nil
 	}
 	h.auditSvc = auditSvc
 	return h
@@ -44,8 +44,8 @@ func (h *StudioV2WorkspaceActivationHandler) recordActivationAudit(ctx context.C
 		Result:      activationAuditResult(results),
 		Scope:       activationAuditScope(results),
 		Details: map[string]any{
-			"results": results,
-			"message": response.Message,
+			"results":             results,
+			apiResponseMessageKey: response.Message,
 		},
 	}); err != nil {
 		log.Printf("record workspace activation audit failed: %v", err)

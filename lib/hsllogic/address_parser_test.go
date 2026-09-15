@@ -98,7 +98,7 @@ func TestParseMitsubishiAddress(t *testing.T) {
 		{"X 輸入 (八進位)", "X17", "X", 15, true}, // 八進位 17 = 十進位 15
 		{"Y 輸出 (八進位)", "Y10", "Y", 8, true},  // 八進位 10 = 十進位 8
 
-		// 十六進位設備 (W, B, SW, SB)
+		// Hex-addressed devices include W, B, SW, and SB.
 		{"W 鏈路暫存器 (十六進位)", "W10", "W", 16, false},   // 十六進位 10 = 十進位 16
 		{"W 鏈路暫存器 (大數)", "W1000", "W", 4096, false}, // 十六進位 1000 = 十進位 4096
 		{"B 鏈路繼電器 (十六進位)", "B20", "B", 32, true},    // 十六進位 20 = 十進位 32

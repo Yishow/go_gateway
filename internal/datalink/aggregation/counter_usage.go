@@ -96,9 +96,10 @@ func CalculateCounterUsage(
 			totalDelta += diff
 		} else {
 			// 負差值處理
-			if config.IsSigned {
+			switch {
+			case config.IsSigned:
 				totalDelta += diff
-			} else if config.RolloverModulus != nil && *config.RolloverModulus > 0 {
+			case config.RolloverModulus != nil && *config.RolloverModulus > 0:
 				mod := *config.RolloverModulus
 				wrapDiff := (mod - prevVal) + currVal
 				if config.MaxRatePerSec != nil && *config.MaxRatePerSec > 0 {
@@ -119,7 +120,7 @@ func CalculateCounterUsage(
 					totalDelta += wrapDiff
 					hasRollover = true
 				}
-			} else {
+			default:
 				isUncertain = true
 				hasDiscontinuity = true
 				uncertainReason = fmt.Sprintf("unexplained drop from %.2f to %.2f", prevVal, currVal)

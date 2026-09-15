@@ -33,18 +33,18 @@ func TestStudioV2WorkspaceDevicesHandler_DeleteCascadesOwnedSourceRulesInSQLite(
 	sourceRuleRepo := sourcerule.NewSQLRepository(db)
 	sourceRuleSvc := sourcerule.NewService(sourceRuleRepo, deviceSvc, nil, nil)
 
-	seedSQLiteCascadeDevice(t, ctx, deviceRepo, "device-target")
-	seedSQLiteCascadeDevice(t, ctx, deviceRepo, "device-peer")
+	seedSQLiteCascadeDevice(ctx, t, deviceRepo, "device-target")
+	seedSQLiteCascadeDevice(ctx, t, deviceRepo, "device-peer")
 	_, err := workspaceSvc.AttachDevice(ctx, "device-target")
 	require.NoError(t, err)
 	_, err = workspaceSvc.AttachDevice(ctx, "device-peer")
 	require.NoError(t, err)
 
-	seedSQLiteCascadeRule(t, ctx, sourceRuleRepo, "rule-target", "device-target")
-	seedSQLiteCascadeRule(t, ctx, sourceRuleRepo, "rule-peer", "device-peer")
+	seedSQLiteCascadeRule(ctx, t, sourceRuleRepo, "rule-target", "device-target")
+	seedSQLiteCascadeRule(ctx, t, sourceRuleRepo, "rule-peer", "device-peer")
 
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc)
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/devices/device-target", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/devices/device-target", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -83,12 +83,12 @@ func openStudioV2CascadeTestDB(t *testing.T) *sql.DB {
 	require.NoError(t, datalink.NewMigrator().Migrate(db))
 
 	var foreignKeys int
-	require.NoError(t, db.QueryRow("PRAGMA foreign_keys").Scan(&foreignKeys))
+	require.NoError(t, db.QueryRowContext(context.Background(), "PRAGMA foreign_keys").Scan(&foreignKeys))
 	t.Logf("SQLite foreign_keys=%d", foreignKeys)
 	return db
 }
 
-func seedSQLiteCascadeDevice(t *testing.T, ctx context.Context, repo *device.SQLRepository, id string) {
+func seedSQLiteCascadeDevice(ctx context.Context, t *testing.T, repo *device.SQLRepository, id string) {
 	t.Helper()
 	now := time.Now().UTC()
 	require.NoError(t, repo.Create(ctx, &schema.Device{
@@ -102,7 +102,7 @@ func seedSQLiteCascadeDevice(t *testing.T, ctx context.Context, repo *device.SQL
 	}))
 }
 
-func seedSQLiteCascadeRule(t *testing.T, ctx context.Context, repo *sourcerule.SQLRepository, id, deviceID string) {
+func seedSQLiteCascadeRule(ctx context.Context, t *testing.T, repo *sourcerule.SQLRepository, id, deviceID string) {
 	t.Helper()
 	now := time.Now().UTC()
 	require.NoError(t, repo.Create(ctx, &schema.SourceRule{

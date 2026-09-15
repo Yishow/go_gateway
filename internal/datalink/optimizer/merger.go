@@ -192,7 +192,7 @@ func (m *BlockMerger) mergeGroup(area string, points []parsedPoint) []Block {
 var addressRegex = regexp.MustCompile(`^([A-Za-z]+)(\d+)$`)
 
 // parseAddress 解析地址字串，返回記憶體區域和數字地址
-func parseAddress(addr string) (string, int) {
+func parseAddress(addr string) (prefix string, number int) {
 	addr = strings.TrimSpace(addr)
 	matches := addressRegex.FindStringSubmatch(addr)
 	if len(matches) != 3 {

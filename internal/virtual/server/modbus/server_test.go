@@ -104,7 +104,7 @@ func TestModbusServer_ReadHoldingRegisters(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// 建立 TCP 連接
-	conn, err := net.Dial("tcp", server.Address())
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", server.Address())
 	if err != nil {
 		t.Fatalf("連接伺服器失敗: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestModbusServer_WriteSingleRegister(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	conn, err := net.Dial("tcp", server.Address())
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", server.Address())
 	if err != nil {
 		t.Fatalf("連接伺服器失敗: %v", err)
 	}
@@ -217,7 +217,7 @@ func TestModbusServer_WriteSingleRegister(t *testing.T) {
 		t.Fatalf("讀取回應失敗: %v", err)
 	}
 
-	// 驗證回應 (寫入成功應該回傳相同的請求)
+	// 驗證寫入回應應該回傳相同的請求。
 	if n < 12 {
 		t.Fatalf("回應長度不足: %d", n)
 	}
@@ -246,7 +246,7 @@ func TestModbusServer_WriteMultipleRegisters(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	conn, err := net.Dial("tcp", server.Address())
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", server.Address())
 	if err != nil {
 		t.Fatalf("連接伺服器失敗: %v", err)
 	}
@@ -318,7 +318,7 @@ func TestModbusServer_InvalidFunctionCode(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	conn, err := net.Dial("tcp", server.Address())
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", server.Address())
 	if err != nil {
 		t.Fatalf("連接伺服器失敗: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestModbusServer_WriteSingleCoilAndReadCoils(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	conn, err := net.Dial("tcp", server.Address())
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", server.Address())
 	if err != nil {
 		t.Fatalf("連接伺服器失敗: %v", err)
 	}

@@ -1,6 +1,9 @@
 package modbus
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 type wrappedRTUTransport struct {
 	sent [][]byte
@@ -45,7 +48,7 @@ func TestClient_ReadHoldingRegisters_WithWrappedRTUTransport(t *testing.T) {
 	}
 
 	expectedFrame := BuildRTUFrame(1, FuncReadHoldingRegisters, BuildReadRequest(0, 1))
-	if got := transport.sent[0]; string(got) != string(expectedFrame) {
+	if got := transport.sent[0]; !bytes.Equal(got, expectedFrame) {
 		t.Fatalf("expected RTU frame %v, got %v", expectedFrame, got)
 	}
 }

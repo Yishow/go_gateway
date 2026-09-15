@@ -203,10 +203,12 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 	query += ` ORDER BY created_at DESC`
 
 	if filter.Limit > 0 {
-		query += fmt.Sprintf(` LIMIT %d`, filter.Limit)
+		query += ` LIMIT ?`
+		args = append(args, filter.Limit)
 	}
 	if filter.Offset > 0 {
-		query += fmt.Sprintf(` OFFSET %d`, filter.Offset)
+		query += ` OFFSET ?`
+		args = append(args, filter.Offset)
 	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)

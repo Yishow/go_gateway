@@ -30,7 +30,7 @@ func float64Ptr(value float64) *float64 {
 	return &value
 }
 
-func applyRuleManagedLinks(t *testing.T, ctx context.Context, repo *MemoryRepository, svc *Service, ruleID string) []*schema.SourceRuleLink {
+func applyRuleManagedLinks(ctx context.Context, t *testing.T, repo *MemoryRepository, svc *Service, ruleID string) []*schema.SourceRuleLink {
 	t.Helper()
 
 	rule, err := svc.GetByID(ctx, ruleID)

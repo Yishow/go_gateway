@@ -3,12 +3,12 @@ package fatek
 import "fmt"
 
 // FatekException 是所有 FATEK 驅動錯誤的基礎介面
-type FatekException interface {
+type FatekException interface { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	error
 }
 
 // FatekError 是基礎錯誤結構
-type FatekError struct {
+type FatekError struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	message string
 }
 
@@ -30,7 +30,7 @@ func NewFatekError(format string, args ...interface{}) *FatekError {
 //   - Checksum (LRC) 不匹配
 //   - 格式錯誤的訊框 (缺少 STX/ETX)
 //   - 連線中斷
-type FatekCommunicationError struct {
+type FatekCommunicationError struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	*FatekError
 }
 
@@ -46,7 +46,7 @@ func NewFatekCommunicationError(format string, args ...interface{}) *FatekCommun
 // Attributes:
 //   - ErrorCode: PLC 回傳的錯誤字元 ('2', '4', 'A' 等)
 //   - Command: 導致錯誤的命令 ID (例如 '44')
-type FatekProtocolError struct {
+type FatekProtocolError struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	*FatekError
 	ErrorCode string
 	Command   string

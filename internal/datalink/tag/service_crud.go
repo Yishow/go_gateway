@@ -182,7 +182,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateTagRequest) (
 		return nil, fmt.Errorf("取得標籤失敗: %w", err)
 	}
 
-	// 標籤鍵不可修改 (若提供則驗證一致性)
+	// 標籤鍵不可修改；請求提供時須驗證一致性。
 	if req.Key != nil && NormalizeTagKey(*req.Key) != tag.KeyLower {
 		return nil, fmt.Errorf("標籤鍵不可修改")
 	}

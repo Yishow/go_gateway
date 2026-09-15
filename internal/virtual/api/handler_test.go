@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"go-gateway/internal/virtual/memory"
 	modbusserver "go-gateway/internal/virtual/server/modbus"
 	"go-gateway/internal/virtual/simulation"
+
+	"github.com/gin-gonic/gin"
 )
 
 // =============================================================================
@@ -35,7 +36,7 @@ func TestAPI_GetMemoryDump(t *testing.T) {
 	r, _ := setupTestRouter()
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/virtual/memory/dump", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/api/virtual/memory/dump", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -64,7 +65,7 @@ func TestAPI_WriteAndReadMemory(t *testing.T) {
 	body, _ := json.Marshal(writeReq)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/api/virtual/memory/write", bytes.NewReader(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/api/virtual/memory/write", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -80,7 +81,7 @@ func TestAPI_WriteAndReadMemory(t *testing.T) {
 
 	// 讀取範圍
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest("GET", "/api/virtual/memory/range?offset=0&length=4", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "GET", "/api/virtual/memory/range?offset=0&length=4", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -103,7 +104,7 @@ func TestAPI_ClearMemory(t *testing.T) {
 
 	// 清空
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/api/virtual/memory/clear", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/api/virtual/memory/clear", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -125,7 +126,7 @@ func TestAPI_ServerStartStop(t *testing.T) {
 	body, _ := json.Marshal(startReq)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/api/virtual/server/start", bytes.NewReader(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/api/virtual/server/start", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -135,7 +136,7 @@ func TestAPI_ServerStartStop(t *testing.T) {
 
 	// 取得狀態
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest("GET", "/api/virtual/server/status", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "GET", "/api/virtual/server/status", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	var status map[string]interface{}
@@ -147,7 +148,7 @@ func TestAPI_ServerStartStop(t *testing.T) {
 
 	// 停止伺服器
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest("POST", "/api/virtual/server/stop", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/api/virtual/server/stop", http.NoBody)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
@@ -168,7 +169,7 @@ func TestAPI_AddSimulationRule(t *testing.T) {
 	body, _ := json.Marshal(ruleReq)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/api/virtual/simulation/rules", bytes.NewReader(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/api/virtual/simulation/rules", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 

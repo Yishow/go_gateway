@@ -64,7 +64,7 @@ func (s *Scheduler) pollGroup(groupID string) {
 		devicePoints[info.DeviceID] = append(devicePoints[info.DeviceID], info)
 	}
 
-	// 並行處理各設備 (但同一設備內串列)
+	// 各設備並行處理，同一設備內依序執行。
 	var wg sync.WaitGroup
 	for deviceID, points := range devicePoints {
 		wg.Add(1)
@@ -145,7 +145,7 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 
 	// 逐一讀取點位，並報告結果給熔斷器
 	for _, pt := range points {
-		err := s.pollPoint(conn, pt, breaker)
+		err := s.pollPoint(conn, pt)
 
 		// 報告結果給熔斷器
 		if breaker != nil {

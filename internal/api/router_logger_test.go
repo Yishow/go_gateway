@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestFormatHTTPLog_OmitsUserAgentAndNormalizesSpacing(t *testing.T) {
-	req := httptest.NewRequest("PUT", "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", nil)
+	req := httptest.NewRequestWithContext(t.Context(), "PUT", "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", http.NoBody)
 	req.Header.Set("User-Agent", "Mozilla/5.0")
 
 	got := formatHTTPLog(gin.LogFormatterParams{
@@ -32,7 +33,7 @@ func TestFormatHTTPLog_OmitsUserAgentAndNormalizesSpacing(t *testing.T) {
 }
 
 func TestFormatHTTPLog_PreservesFullQueryString(t *testing.T) {
-	req := httptest.NewRequest("GET", "/api/v1/datalink/runtime/stream?device_id=dev-1234567890&point_ids=point-1,point-2", nil)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/api/v1/datalink/runtime/stream?device_id=dev-1234567890&point_ids=point-1,point-2", http.NoBody)
 
 	got := formatHTTPLog(gin.LogFormatterParams{
 		TimeStamp:  time.Date(2026, time.May, 31, 0, 20, 17, 0, time.UTC),

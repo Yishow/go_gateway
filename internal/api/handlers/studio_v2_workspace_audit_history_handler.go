@@ -35,9 +35,9 @@ func NewStudioV2WorkspaceAuditHandler(workspaceSvc *workspace.Service, auditSvc 
 func (h *StudioV2WorkspaceAuditHandler) List(c *gin.Context) {
 	if h == nil || h.workspaceSvc == nil || h.auditSvc == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error": gin.H{
-				"message": "workspace audit history services unavailable",
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseMessageKey: "workspace audit history services unavailable",
 			},
 		})
 		return
@@ -61,17 +61,17 @@ func (h *StudioV2WorkspaceAuditHandler) List(c *gin.Context) {
 	if err != nil {
 		log.Printf("list workspace audit history failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"message": "failed to load workspace audit history",
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseMessageKey: "failed to load workspace audit history",
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": studioV2WorkspaceAuditHistoryResponse{
+		apiResponseSuccessKey: true,
+		apiResponseDataKey: studioV2WorkspaceAuditHistoryResponse{
 			Entries: entries,
 		},
 	})

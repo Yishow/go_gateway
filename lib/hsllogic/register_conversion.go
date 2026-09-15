@@ -16,7 +16,7 @@ func (c *DataConverter) RegistersToValue(registers []uint16, dataType DataType) 
 	case DataTypeBool:
 		return registers[0] != 0
 	case DataTypeInt16:
-		return int16(registers[0])
+		return int16(registers[0]) // #nosec G115 -- reinterpret the uint16 register bits as signed int16.
 	case DataTypeUint16:
 		return registers[0]
 	case DataTypeInt32:
@@ -31,11 +31,11 @@ func (c *DataConverter) RegistersToValue(registers []uint16, dataType DataType) 
 		}
 	case DataTypeUint64:
 		if len(registers) >= 4 {
-			return uint64(registersToInt64(registers, c.transform.Format))
+			return uint64(registersToInt64(registers, c.transform.Format)) // #nosec G115 -- reinterpret the assembled 64-bit register bits as unsigned.
 		}
 	case DataTypeFloat64:
 		if len(registers) >= 4 {
-			bits := uint64(registersToInt64(registers, c.transform.Format))
+			bits := uint64(registersToInt64(registers, c.transform.Format)) // #nosec G115 -- preserve the assembled 64-bit register bits for IEEE-754 decoding.
 			return math.Float64frombits(bits)
 		}
 	}
@@ -51,10 +51,10 @@ func registersToInt64(registers []uint16, format DataFormat) int64 {
 	switch format {
 	case DataFormatCDAB, DataFormatDCBA:
 		return int64(uint64(registers[3])<<48 | uint64(registers[2])<<32 |
-			uint64(registers[1])<<16 | uint64(registers[0]))
+			uint64(registers[1])<<16 | uint64(registers[0])) // #nosec G115 -- reinterpret assembled 64-bit register bits as signed.
 	default: // ABCD, BADC
 		return int64(uint64(registers[0])<<48 | uint64(registers[1])<<32 |
-			uint64(registers[2])<<16 | uint64(registers[3]))
+			uint64(registers[2])<<16 | uint64(registers[3])) // #nosec G115 -- reinterpret assembled 64-bit register bits as signed.
 	}
 }
 

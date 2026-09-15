@@ -20,26 +20,26 @@ func (r *Router) handleDeviceByID(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
 	id, action := parseIDAndAction(path, r.config.PathPrefix+"/devices/")
 
-	switch {
-	case action == "test":
+	switch action {
+	case "test":
 		if req.Method == http.MethodPost {
 			r.deviceHandler.TestConnection(w, req, id)
 		} else {
 			writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 		}
-	case action == "activate":
+	case "activate":
 		if req.Method == http.MethodPost {
 			r.deviceHandler.Activate(w, req, id)
 		} else {
 			writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 		}
-	case action == "disable":
+	case "disable":
 		if req.Method == http.MethodPost {
 			r.deviceHandler.Disable(w, req, id)
 		} else {
 			writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 		}
-	case action == "readiness":
+	case "readiness":
 		if req.Method == http.MethodPost {
 			r.deviceHandler.CheckReadiness(w, req, id)
 		} else {

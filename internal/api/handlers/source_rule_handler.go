@@ -66,14 +66,14 @@ func (h *SourceRuleHandler) List(c *gin.Context) {
 
 	rules, err := h.svc.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	payload := make([]sourceRuleResponse, 0, len(rules))
 	for _, rule := range rules {
 		payload = append(payload, mapSourceRuleResponse(rule))
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
 func (h *SourceRuleHandler) Get(c *gin.Context) {
@@ -83,16 +83,16 @@ func (h *SourceRuleHandler) Get(c *gin.Context) {
 		if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
 			statusCode = http.StatusNotFound
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapSourceRuleResponse(rule)})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mapSourceRuleResponse(rule)})
 }
 
 func (h *SourceRuleHandler) Create(c *gin.Context) {
 	var req sourcerule.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *SourceRuleHandler) Create(c *gin.Context) {
 		if errors.Is(err, sourcerule.ErrValidation) {
 			statusCode = http.StatusBadRequest
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	payload := mapSourceRuleResponse(rule)
@@ -113,25 +113,25 @@ func (h *SourceRuleHandler) Create(c *gin.Context) {
 	payload.RuntimeApplyStatus = runtimeApply.Status
 	payload.RuntimeApplyMessage = runtimeApply.Message
 	payload.RuntimeApplyIssues = runtimeApply.Issues
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": payload})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
 func (h *SourceRuleHandler) Update(c *gin.Context) {
 	body, err := c.GetRawData()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	var req sourcerule.UpdateRuleRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(body, &raw); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	_, req.TargetDataTypeSet = raw["target_data_type"]
@@ -150,7 +150,7 @@ func (h *SourceRuleHandler) Update(c *gin.Context) {
 		if errors.Is(err, sourcerule.ErrValidation) {
 			statusCode = http.StatusBadRequest
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	payload := mapSourceRuleResponse(rule)
@@ -158,7 +158,7 @@ func (h *SourceRuleHandler) Update(c *gin.Context) {
 	payload.RuntimeApplyStatus = runtimeApply.Status
 	payload.RuntimeApplyMessage = runtimeApply.Message
 	payload.RuntimeApplyIssues = runtimeApply.Issues
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
 func (h *SourceRuleHandler) Delete(c *gin.Context) {
@@ -167,10 +167,10 @@ func (h *SourceRuleHandler) Delete(c *gin.Context) {
 		if renderSourceRuleShareError(c, err) {
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapStudioV2RuntimeApplyResponse(mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome))})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mapStudioV2RuntimeApplyResponse(mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome))})
 }
 
 func (h *SourceRuleHandler) Enable(c *gin.Context) {
@@ -180,12 +180,12 @@ func (h *SourceRuleHandler) Enable(c *gin.Context) {
 		if renderSourceRuleShareError(c, err) {
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	rule, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	payload := mapSourceRuleResponse(rule)
@@ -193,7 +193,7 @@ func (h *SourceRuleHandler) Enable(c *gin.Context) {
 	payload.RuntimeApplyStatus = runtimeApply.Status
 	payload.RuntimeApplyMessage = runtimeApply.Message
 	payload.RuntimeApplyIssues = runtimeApply.Issues
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
 func (h *SourceRuleHandler) Disable(c *gin.Context) {
@@ -203,12 +203,12 @@ func (h *SourceRuleHandler) Disable(c *gin.Context) {
 		if renderSourceRuleShareError(c, err) {
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	rule, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	payload := mapSourceRuleResponse(rule)
@@ -216,7 +216,7 @@ func (h *SourceRuleHandler) Disable(c *gin.Context) {
 	payload.RuntimeApplyStatus = runtimeApply.Status
 	payload.RuntimeApplyMessage = runtimeApply.Message
 	payload.RuntimeApplyIssues = runtimeApply.Issues
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
 func renderSourceRuleShareError(c *gin.Context, err error) bool {
@@ -235,7 +235,9 @@ func renderSourceRuleShareError(c *gin.Context, err error) bool {
 func mapSourceRuleResponse(rule *schema.SourceRule) sourceRuleResponse {
 	var skipped []string
 	if rule != nil && rule.SkippedAddresses != "" {
-		_ = json.Unmarshal([]byte(rule.SkippedAddresses), &skipped)
+		if err := json.Unmarshal([]byte(rule.SkippedAddresses), &skipped); err != nil {
+			skipped = nil
+		}
 	}
 
 	var targetDataType *string

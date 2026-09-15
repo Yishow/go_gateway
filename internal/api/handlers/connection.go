@@ -41,6 +41,6 @@ func (h *ConnectionHandler) Get(c *gin.Context) {
 	if conn, exists := h.testHandler.connections[id]; exists {
 		c.JSON(http.StatusOK, conn)
 	} else {
-		c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: connectionNotFoundMessage})
 	}
 }

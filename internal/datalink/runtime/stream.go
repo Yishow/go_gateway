@@ -54,7 +54,7 @@ func (s *Service) lookupPointMeta(pointID string) pointMeta {
 	return s.pointMetaIndex[pointID]
 }
 
-func (s *Service) SubscribeValueEvents(deviceID string, pointIDs []string) (<-chan ValueEvent, func()) {
+func (s *Service) SubscribeValueEvents(deviceID string, pointIDs []string) (events <-chan ValueEvent, unsubscribe func()) {
 	s.subscriberMu.Lock()
 	defer s.subscriberMu.Unlock()
 
@@ -89,7 +89,7 @@ func (s *Service) SubscribeValueEvents(deviceID string, pointIDs []string) (<-ch
 	}
 }
 
-func (s *Service) SubscribeStatusEvents(deviceID string) (<-chan DeviceStatusEvent, func()) {
+func (s *Service) SubscribeStatusEvents(deviceID string) (events <-chan DeviceStatusEvent, unsubscribe func()) {
 	s.statusSubscriberMu.Lock()
 	if s.statusSubscribers == nil {
 		s.statusSubscribers = make(map[int64]statusSubscriber)

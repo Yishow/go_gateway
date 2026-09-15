@@ -46,8 +46,8 @@ func TestSourceRuleHandler_ApplyTags_AppliesApprovedRenameDecision(t *testing.T)
 	})
 	require.NoError(t, err)
 
-	decisionReq, err := http.NewRequest(
-		http.MethodPost,
+	decisionReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-apply-handler/tag-review-decisions",
 		bytes.NewBuffer(decisionBody),
 	)
@@ -66,8 +66,8 @@ func TestSourceRuleHandler_ApplyTags_AppliesApprovedRenameDecision(t *testing.T)
 	})
 	require.NoError(t, err)
 
-	applyReq, err := http.NewRequest(
-		http.MethodPost,
+	applyReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-apply-handler/tags/apply",
 		bytes.NewBuffer(applyBody),
 	)
@@ -113,8 +113,8 @@ func TestSourceRuleHandler_ApplyTags_RejectsRevisionMismatch(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		fmt.Sprintf("/datalink/source-rules/%s/tags/apply", "rule-apply-conflict"),
 		bytes.NewBuffer(applyBody),
 	)
@@ -162,8 +162,8 @@ func TestSourceRuleHandler_ApplyTags_ReturnsPerCandidateResultsForPartialSuccess
 	})
 	require.NoError(t, err)
 
-	decisionReq, err := http.NewRequest(
-		http.MethodPost,
+	decisionReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-apply-partial/tag-review-decisions",
 		bytes.NewBuffer(decisionBody),
 	)
@@ -182,8 +182,8 @@ func TestSourceRuleHandler_ApplyTags_ReturnsPerCandidateResultsForPartialSuccess
 	})
 	require.NoError(t, err)
 
-	applyReq, err := http.NewRequest(
-		http.MethodPost,
+	applyReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-apply-partial/tags/apply",
 		bytes.NewBuffer(applyBody),
 	)
@@ -210,7 +210,7 @@ func TestSourceRuleHandler_ApplyTags_ReturnsPerCandidateResultsForPartialSuccess
 	assert.Empty(t, payload.Data.Results[1].TagID)
 	assert.Empty(t, payload.Data.Results[1].MappingID)
 
-	candidatesReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-apply-partial/candidates", nil)
+	candidatesReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-apply-partial/candidates", http.NoBody)
 	require.NoError(t, err)
 	candidatesResp := httptest.NewRecorder()
 	fixture.router.ServeHTTP(candidatesResp, candidatesReq)
@@ -252,8 +252,8 @@ func TestSourceRuleHandler_ApplyTags_RefreshesCandidateViewAfterApply(t *testing
 	})
 	require.NoError(t, err)
 
-	applyReq, err := http.NewRequest(
-		http.MethodPost,
+	applyReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-apply-refresh/tags/apply",
 		bytes.NewBuffer(applyBody),
 	)
@@ -263,7 +263,7 @@ func TestSourceRuleHandler_ApplyTags_RefreshesCandidateViewAfterApply(t *testing
 	fixture.router.ServeHTTP(applyResp, applyReq)
 	require.Equal(t, http.StatusOK, applyResp.Code)
 
-	candidatesReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-apply-refresh/candidates", nil)
+	candidatesReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-apply-refresh/candidates", http.NoBody)
 	require.NoError(t, err)
 	candidatesResp := httptest.NewRecorder()
 	fixture.router.ServeHTTP(candidatesResp, candidatesReq)

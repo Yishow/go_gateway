@@ -25,8 +25,8 @@ type stubDeviceRuntimeSyncer struct {
 	removed   string
 }
 
-func (s *stubDeviceRuntimeSyncer) UpsertDevice(_ context.Context, device *schema.Device) error {
-	s.upserted = device
+func (s *stubDeviceRuntimeSyncer) UpsertDevice(_ context.Context, dev *schema.Device) error {
+	s.upserted = dev
 	return s.upsertErr
 }
 
@@ -77,7 +77,7 @@ func TestDeviceHandler_ActivateSyncsRuntimeDevice(t *testing.T) {
 
 	syncer := &stubDeviceRuntimeSyncer{}
 	handler := NewDeviceHandler(svc, syncer)
-	req := httptest.NewRequest(http.MethodPost, "/devices/dev-1/activate", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/devices/dev-1/activate", http.NoBody)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Params = gin.Params{{Key: "id", Value: "dev-1"}}
@@ -114,7 +114,7 @@ func TestDeviceHandler_DisableRemovesRuntimeDevice(t *testing.T) {
 
 	syncer := &stubDeviceRuntimeSyncer{}
 	handler := NewDeviceHandler(svc, syncer)
-	req := httptest.NewRequest(http.MethodPost, "/devices/dev-1/disable", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/devices/dev-1/disable", http.NoBody)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Params = gin.Params{{Key: "id", Value: "dev-1"}}
@@ -173,7 +173,7 @@ func TestDeviceHandler_ActivateRollsBackWhenRuntimeSyncFails(t *testing.T) {
 
 	syncer := &stubDeviceRuntimeSyncer{upsertErr: errors.New("runtime sync failed")}
 	handler := NewDeviceHandler(svc, syncer)
-	req := httptest.NewRequest(http.MethodPost, "/devices/dev-rollback/activate", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/devices/dev-rollback/activate", http.NoBody)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Params = gin.Params{{Key: "id", Value: "dev-rollback"}}

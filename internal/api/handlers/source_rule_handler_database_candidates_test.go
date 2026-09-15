@@ -49,8 +49,8 @@ func TestSourceRuleHandler_Candidates_UsesEffectiveTagReviewStateForDatabaseOutp
 		body, marshalErr := json.Marshal(request)
 		require.NoError(t, marshalErr)
 
-		req, newReqErr := http.NewRequest(
-			http.MethodPost,
+		req, newReqErr := http.NewRequestWithContext(
+			context.Background(), http.MethodPost,
 			"/datalink/source-rules/rule-db-effective/tag-review-decisions",
 			bytes.NewBuffer(body),
 		)
@@ -62,7 +62,7 @@ func TestSourceRuleHandler_Candidates_UsesEffectiveTagReviewStateForDatabaseOutp
 		require.Equal(t, http.StatusOK, resp.Code)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-effective/candidates", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-db-effective/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp := httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)
@@ -106,8 +106,8 @@ func TestSourceRuleHandler_Candidates_InfersGroupedDatabaseScopeForSlashTagKeys(
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-grouped/tag-review-decisions",
 		bytes.NewBuffer(body),
 	)
@@ -118,7 +118,7 @@ func TestSourceRuleHandler_Candidates_InfersGroupedDatabaseScopeForSlashTagKeys(
 	fixture.router.ServeHTTP(resp, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-grouped/candidates", nil)
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-db-grouped/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)
@@ -174,8 +174,8 @@ func TestSourceRuleHandler_Candidates_UsesPersistedDatabaseScopeForDatabaseOutpu
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-scope/tag-review-decisions",
 		bytes.NewBuffer(body),
 	)
@@ -186,7 +186,7 @@ func TestSourceRuleHandler_Candidates_UsesPersistedDatabaseScopeForDatabaseOutpu
 	fixture.router.ServeHTTP(resp, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-scope/candidates", nil)
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-db-scope/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)
@@ -261,8 +261,8 @@ func TestSourceRuleHandler_Candidates_MarksInvalidDatabaseScopeOutOfSync(t *test
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-invalid/tag-review-decisions",
 		bytes.NewBuffer(body),
 	)
@@ -273,7 +273,7 @@ func TestSourceRuleHandler_Candidates_MarksInvalidDatabaseScopeOutOfSync(t *test
 	fixture.router.ServeHTTP(resp, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-invalid/candidates", nil)
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-db-invalid/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)
@@ -342,8 +342,8 @@ func TestSourceRuleHandler_Candidates_RevalidatesDatabaseScopeWhenConnectorBecom
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-revalidate/tag-review-decisions",
 		bytes.NewBuffer(body),
 	)
@@ -354,7 +354,7 @@ func TestSourceRuleHandler_Candidates_RevalidatesDatabaseScopeWhenConnectorBecom
 	fixture.router.ServeHTTP(resp, req)
 	require.Equal(t, http.StatusOK, resp.Code)
 
-	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-revalidate/candidates", nil)
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-db-revalidate/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)
@@ -373,7 +373,7 @@ func TestSourceRuleHandler_Candidates_RevalidatesDatabaseScopeWhenConnectorBecom
 		Issues: []sourcerule.DatabaseTargetValidationIssue{},
 	}
 
-	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-revalidate/candidates", nil)
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-db-revalidate/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)

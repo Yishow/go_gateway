@@ -8,10 +8,11 @@ import (
 )
 
 func (h *StudioV2WorkspaceMappingsHandler) Delete(c *gin.Context) {
-	_, rule, links, link, mappingRecord, _, ok := h.requireWorkspaceMapping(c)
+	row, ok := h.requireWorkspaceMapping(c)
 	if !ok {
 		return
 	}
+	rule, links, link, mappingRecord := row.rule, row.links, row.link, row.mapping
 	if err := h.mappingSvc.Delete(c.Request.Context(), mappingRecord.ID); err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
@@ -32,7 +33,7 @@ func (h *StudioV2WorkspaceMappingsHandler) Delete(c *gin.Context) {
 
 	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{rule.DeviceID}, []string{rule.DeviceID, link.PointID})
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    mapStudioV2RuntimeApplyResponse(applyOutcome),
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    mapStudioV2RuntimeApplyResponse(applyOutcome),
 	})
 }

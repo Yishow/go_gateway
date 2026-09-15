@@ -38,9 +38,10 @@ func (r *SQLRepository) Create(ctx context.Context, def *MeasurementDefinition) 
 		def.UpdatedAt = time.Now().UTC()
 	}
 
-	counterPolicyJSON, _ := json.Marshal(def.CounterPolicy)
-	stateMapJSON, _ := json.Marshal(def.StateMap)
-	bitmaskLabelsJSON, _ := json.Marshal(def.BitmaskLabels)
+	encoded, err := encodeMeasurementDefinition(def)
+	if err != nil {
+		return err
+	}
 
 	query := `
 		INSERT INTO measurement_definitions (
@@ -52,11 +53,11 @@ func (r *SQLRepository) Create(ctx context.Context, def *MeasurementDefinition) 
 	`
 	query = adaptPlaceholders(query)
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = r.db.ExecContext(ctx, query,
 		def.ID, def.WorkspaceID, def.DeviceID, def.PointID, def.TagID, def.EquipmentID,
 		def.DefinitionRevision, def.SourceBindingRevision, def.SeriesEpoch,
 		def.Name, def.Quantity, def.Unit, string(def.SemanticKind), def.NumericEncoding,
-		string(counterPolicyJSON), string(stateMapJSON), string(bitmaskLabelsJSON),
+		string(encoded.counterPolicy), string(encoded.stateMap), string(encoded.bitmaskLabels),
 		def.CreatedAt, def.UpdatedAt,
 	)
 	if err != nil {
@@ -69,9 +70,10 @@ func (r *SQLRepository) Create(ctx context.Context, def *MeasurementDefinition) 
 func (r *SQLRepository) Update(ctx context.Context, def *MeasurementDefinition) error {
 	def.UpdatedAt = time.Now().UTC()
 
-	counterPolicyJSON, _ := json.Marshal(def.CounterPolicy)
-	stateMapJSON, _ := json.Marshal(def.StateMap)
-	bitmaskLabelsJSON, _ := json.Marshal(def.BitmaskLabels)
+	encoded, err := encodeMeasurementDefinition(def)
+	if err != nil {
+		return err
+	}
 
 	query := `
 		UPDATE measurement_definitions SET
@@ -87,13 +89,16 @@ func (r *SQLRepository) Update(ctx context.Context, def *MeasurementDefinition) 
 		def.WorkspaceID, def.DeviceID, def.PointID, def.TagID, def.EquipmentID,
 		def.DefinitionRevision, def.SourceBindingRevision, def.SeriesEpoch,
 		def.Name, def.Quantity, def.Unit, string(def.SemanticKind), def.NumericEncoding,
-		string(counterPolicyJSON), string(stateMapJSON), string(bitmaskLabelsJSON), def.UpdatedAt,
+		string(encoded.counterPolicy), string(encoded.stateMap), string(encoded.bitmaskLabels), def.UpdatedAt,
 		def.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update measurement_definition: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read affected rows: %w", err)
+	}
 	if rows == 0 {
 		return fmt.Errorf("measurement_definition not found: %s", def.ID)
 	}
@@ -220,13 +225,19 @@ func scanMeasurementDefinition(s scannable) (*MeasurementDefinition, error) {
 	def.SemanticKind = SemanticKind(semanticKindStr)
 
 	if counterPolicyStr.Valid && counterPolicyStr.String != "" {
-		_ = json.Unmarshal([]byte(counterPolicyStr.String), &def.CounterPolicy)
+		if err := json.Unmarshal([]byte(counterPolicyStr.String), &def.CounterPolicy); err != nil {
+			return nil, fmt.Errorf("decode measurement counter_policy: %w", err)
+		}
 	}
 	if stateMapStr.Valid && stateMapStr.String != "" {
-		_ = json.Unmarshal([]byte(stateMapStr.String), &def.StateMap)
+		if err := json.Unmarshal([]byte(stateMapStr.String), &def.StateMap); err != nil {
+			return nil, fmt.Errorf("decode measurement state_map: %w", err)
+		}
 	}
 	if bitmaskLabelsStr.Valid && bitmaskLabelsStr.String != "" {
-		_ = json.Unmarshal([]byte(bitmaskLabelsStr.String), &def.BitmaskLabels)
+		if err := json.Unmarshal([]byte(bitmaskLabelsStr.String), &def.BitmaskLabels); err != nil {
+			return nil, fmt.Errorf("decode measurement bitmask_labels: %w", err)
+		}
 	}
 
 	return &def, nil

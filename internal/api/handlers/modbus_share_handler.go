@@ -82,7 +82,7 @@ func (h *ModbusShareHandler) Start(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": h.svc.Status()})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: h.svc.Status()})
 }
 
 // @Summary Stop Modbus Share listener and persist disabled state
@@ -117,7 +117,7 @@ func (h *ModbusShareHandler) Stop(c *gin.Context) {
 		renderModbusShareAPIError(c, statusCode, err, modbusshare.ErrCodeListenerBindFailed, true)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": h.svc.Status()})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: h.svc.Status()})
 }
 
 // @Summary Write a mapped tag value to Modbus Share memory

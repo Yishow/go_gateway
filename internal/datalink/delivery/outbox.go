@@ -11,7 +11,7 @@ type Outbox interface {
 	Enqueue(item *OutboxItem) error
 	FetchPending(destinationID string, limit int) ([]*OutboxItem, error)
 	MarkDelivered(itemID string, deliveredAt time.Time) error
-	MarkFailed(itemID string, errStr string, maxRetries int) error
+	MarkFailed(itemID, errStr string, maxRetries int) error
 	GetMetrics(destinationID string) (DestinationMetrics, error)
 }
 
@@ -97,7 +97,7 @@ func (m *MemoryOutbox) MarkDelivered(itemID string, deliveredAt time.Time) error
 	return nil
 }
 
-func (m *MemoryOutbox) MarkFailed(itemID string, errStr string, maxRetries int) error {
+func (m *MemoryOutbox) MarkFailed(itemID, errStr string, maxRetries int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

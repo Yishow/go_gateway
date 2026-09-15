@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"flag"
@@ -106,7 +107,7 @@ func runAdd(args []string) error {
 		return err
 	}
 
-	_, err = db.Exec(
+	_, err = db.ExecContext(context.Background(),
 		`INSERT INTO inventory_changelog (
 			changed_at, actor, surface, summary, files_json, reason, notes
 		) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -144,7 +145,7 @@ func runList(args []string) error {
 		return err
 	}
 
-	rows, err := db.Query(
+	rows, err := db.QueryContext(context.Background(),
 		`SELECT changed_at, actor, surface, summary, files_json, reason
 		FROM inventory_changelog
 		ORDER BY id DESC
@@ -208,7 +209,7 @@ func openDB(path string) (*sql.DB, error) {
 }
 
 func ensureSchema(db *sql.DB) error {
-	if _, err := db.Exec(schemaSQL); err != nil {
+	if _, err := db.ExecContext(context.Background(), schemaSQL); err != nil {
 		return fmt.Errorf("ensure schema: %w", err)
 	}
 

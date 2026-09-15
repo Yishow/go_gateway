@@ -25,13 +25,13 @@ type DatabaseTargetRef struct {
 }
 
 // ValidateDatabaseRowGroups checks whether row-group payload matches the expected database scope.
-func ValidateDatabaseRowGroups(connectorID string, tableSchema string, tableName string, groups []DatabaseRowGroup) error {
+func ValidateDatabaseRowGroups(connectorID, tableSchema, tableName string, groups []DatabaseRowGroup) error {
 	_, err := normalizeDatabaseRowGroups(connectorID, tableSchema, tableName, groups)
 	return err
 }
 
 // SaveDatabaseRowGroups persists the Step 4 row-group plan without changing target rows.
-func (s *Service) SaveDatabaseRowGroups(ctx context.Context, connectorID string, tableSchema string, tableName string, groups []DatabaseRowGroup) (*Record, error) {
+func (s *Service) SaveDatabaseRowGroups(ctx context.Context, connectorID, tableSchema, tableName string, groups []DatabaseRowGroup) (*Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (s *Service) SaveDatabaseRowGroups(ctx context.Context, connectorID string,
 }
 
 // SaveDatabaseTargetReference attaches workspace metadata to a point target.
-func (s *Service) SaveDatabaseTargetReference(ctx context.Context, pointID string, rowGroupID string) (*Record, error) {
+func (s *Service) SaveDatabaseTargetReference(ctx context.Context, pointID, rowGroupID string) (*Record, error) {
 	pointID = strings.TrimSpace(pointID)
 	rowGroupID = strings.TrimSpace(rowGroupID)
 	if pointID == "" {
@@ -94,7 +94,7 @@ func (s *Service) SaveDatabaseTargetReference(ctx context.Context, pointID strin
 	return cloneRecord(record), nil
 }
 
-func normalizeDatabaseRowGroups(connectorID string, tableSchema string, tableName string, groups []DatabaseRowGroup) ([]DatabaseRowGroup, error) {
+func normalizeDatabaseRowGroups(connectorID, tableSchema, tableName string, groups []DatabaseRowGroup) ([]DatabaseRowGroup, error) {
 	connectorID = strings.TrimSpace(connectorID)
 	tableSchema = strings.TrimSpace(tableSchema)
 	tableName = strings.TrimSpace(tableName)
@@ -148,7 +148,7 @@ func databaseRowGroupExists(groups []DatabaseRowGroup, id string) bool {
 	})
 }
 
-func databaseRowGroupContainsPoint(groups []DatabaseRowGroup, id string, pointID string) bool {
+func databaseRowGroupContainsPoint(groups []DatabaseRowGroup, id, pointID string) bool {
 	id = strings.TrimSpace(id)
 	pointID = strings.TrimSpace(pointID)
 	if id == "" || pointID == "" {
@@ -159,7 +159,7 @@ func databaseRowGroupContainsPoint(groups []DatabaseRowGroup, id string, pointID
 	})
 }
 
-func defaultScopedValue(value string, fallback string) string {
+func defaultScopedValue(value, fallback string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return fallback

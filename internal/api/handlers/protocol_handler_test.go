@@ -31,7 +31,7 @@ func setupProtocolRouter() *gin.Engine {
 func TestProtocolHandler_List(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -52,7 +52,7 @@ func TestProtocolHandler_List(t *testing.T) {
 func TestProtocolHandler_List_Count(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -72,7 +72,7 @@ func TestProtocolHandler_List_Count(t *testing.T) {
 func TestProtocolHandler_List_Structure(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -102,7 +102,7 @@ func TestProtocolHandler_List_Structure(t *testing.T) {
 func TestProtocolHandler_List_ModbusTCP(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -146,7 +146,7 @@ func TestProtocolHandler_List_ModbusTCP(t *testing.T) {
 func TestProtocolHandler_List_ModbusRTU(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -177,7 +177,7 @@ func TestProtocolHandler_List_ModbusRTU(t *testing.T) {
 func TestProtocolHandler_List_ModbusUDP(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -208,7 +208,7 @@ func TestProtocolHandler_List_ModbusUDP(t *testing.T) {
 func TestProtocolHandler_List_FatekFBs(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -239,7 +239,7 @@ func TestProtocolHandler_List_FatekFBs(t *testing.T) {
 func TestProtocolHandler_List_MC3E(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -270,7 +270,7 @@ func TestProtocolHandler_List_MC3E(t *testing.T) {
 func TestProtocolHandler_List_MQTT(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -301,7 +301,7 @@ func TestProtocolHandler_List_MQTT(t *testing.T) {
 func TestProtocolHandler_List_ConfigSchema_ModbusTCP(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -367,7 +367,7 @@ func TestProtocolHandler_List_ConfigSchema_ModbusTCP(t *testing.T) {
 func TestProtocolHandler_List_ConfigSchema_FatekFBs(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -413,7 +413,7 @@ func TestProtocolHandler_List_ConfigSchema_FatekFBs(t *testing.T) {
 func TestProtocolHandler_List_ConfigSchema_MC3E(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -454,7 +454,7 @@ func TestProtocolHandler_List_ConfigSchema_MC3E(t *testing.T) {
 func TestProtocolHandler_List_AllProtocolsPresent(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -491,7 +491,7 @@ func TestProtocolHandler_List_AllProtocolsPresent(t *testing.T) {
 func TestProtocolHandler_List_JSONValid(t *testing.T) {
 	r := setupProtocolRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/protocols", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/protocols", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

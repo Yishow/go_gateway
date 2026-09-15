@@ -23,7 +23,7 @@ type WriteRequest struct {
 func (h *TestHandler) Write(c *gin.Context) {
 	var req WriteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
@@ -32,18 +32,18 @@ func (h *TestHandler) Write(c *gin.Context) {
 	h.mu.RUnlock()
 
 	if !exists || !state.Connected {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found or not connected"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: connectionNotFoundOrNotConnectedMessage})
 		return
 	}
 
 	// 如果請求中指定了站號，創建臨時客戶端
-	var clientToUse interface{} = state.Client
-	var tempClient interface{} = nil
+	clientToUse := state.Client
+	var tempClient interface{}
 	if req.UnitID != nil || req.Station != nil {
 		var err error
 		clientToUse, tempClient, err = h.prepareOverrideClient(state, req.UnitID, req.Station, "_temp")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseErrorKey: err.Error()})
 			return
 		}
 	}
@@ -56,12 +56,12 @@ func (h *TestHandler) Write(c *gin.Context) {
 		// 記錄錯誤日誌
 		if h.debugHandler != nil {
 			h.debugHandler.RecordLog("error", fmt.Sprintf("寫入失敗: %s", err.Error()), map[string]interface{}{
-				"connection_id": req.ConnectionID,
-				"operation":     req.Operation,
-				"address":       req.Address,
+				apiResponseConnectionIDKey: req.ConnectionID,
+				apiResponseOperationKey:    req.Operation,
+				apiResponseAddressKey:      req.Address,
 			})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseErrorKey: categorizeError(err).Error()})
 		return
 	}
 
@@ -73,13 +73,13 @@ func (h *TestHandler) Write(c *gin.Context) {
 	// 記錄成功日誌
 	if h.debugHandler != nil {
 		h.debugHandler.RecordLog("info", fmt.Sprintf("寫入成功: %s (地址: %d)", req.Operation, req.Address), map[string]interface{}{
-			"connection_id": req.ConnectionID,
-			"operation":     req.Operation,
-			"address":       req.Address,
+			apiResponseConnectionIDKey: req.ConnectionID,
+			apiResponseOperationKey:    req.Operation,
+			apiResponseAddressKey:      req.Address,
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	c.JSON(http.StatusOK, gin.H{apiResponseStatusKey: "success"})
 }
 
 // BatchOperation 定義批量操作中的單個項目
@@ -106,7 +106,7 @@ type BatchResult struct {
 func (h *TestHandler) Batch(c *gin.Context) {
 	var req BatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
@@ -115,7 +115,7 @@ func (h *TestHandler) Batch(c *gin.Context) {
 	h.mu.RUnlock()
 
 	if !exists || !state.Connected {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found or not connected"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: connectionNotFoundOrNotConnectedMessage})
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *TestHandler) Batch(c *gin.Context) {
 	for i, op := range req.Operations {
 		var err error
 		var data interface{}
-		var tempClient interface{} = nil
+		var tempClient interface{}
 
 		switch op.Type {
 		case "read":
@@ -134,7 +134,7 @@ func (h *TestHandler) Batch(c *gin.Context) {
 				// Override ConnectionID to match the batch request context
 				op.ReadRequest.ConnectionID = req.ConnectionID
 				// 如果請求中指定了站號，創建臨時客戶端
-				var clientToUse interface{} = state.Client
+				clientToUse := state.Client
 				if op.ReadRequest.UnitID != nil || op.ReadRequest.Station != nil {
 					clientToUse, tempClient, err = h.prepareOverrideClient(state, op.ReadRequest.UnitID, op.ReadRequest.Station, "_temp_batch")
 				}
@@ -152,7 +152,7 @@ func (h *TestHandler) Batch(c *gin.Context) {
 			} else {
 				op.WriteRequest.ConnectionID = req.ConnectionID
 				// 如果請求中指定了站號，創建臨時客戶端
-				var clientToUse interface{} = state.Client
+				clientToUse := state.Client
 				if op.WriteRequest.UnitID != nil || op.WriteRequest.Station != nil {
 					clientToUse, tempClient, err = h.prepareOverrideClient(state, op.WriteRequest.UnitID, op.WriteRequest.Station, "_temp_batch")
 				}

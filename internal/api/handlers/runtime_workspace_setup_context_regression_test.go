@@ -68,7 +68,7 @@ func TestRuntimeHandlerWorkspaceContextIgnoresMissingSetupMappingAndTag(t *testi
 	handler.mappingReader = runtimeSetupMissingMappingReaderStub{}
 	handler.tagReader = runtimeSetupMissingTagReaderStub{}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -193,7 +193,7 @@ func TestRuntimeHandlerWorkspaceContextFiltersDatabaseTargetsToWorkspaceBindings
 		},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -248,7 +248,7 @@ func TestRuntimeHandlerWorkspaceContextIgnoresMissingDatabaseConnector(t *testin
 	handler := NewRuntimeHandler(deviceSvc, nil, nil, nil, nil, workspaceSvc)
 	handler.dbConnectorReader = runtimeSetupMissingConnectorReaderStub{}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req

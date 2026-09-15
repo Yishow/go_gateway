@@ -61,18 +61,18 @@ func (p *PacketLog) GetHexString() string {
 // String 取得報文日誌的字串表示
 func (p *PacketLog) String() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("[%s] ", p.Timestamp.Format("2006-01-02 15:04:05.000")))
-	sb.WriteString(fmt.Sprintf("[%s] ", p.Direction))
-	sb.WriteString(fmt.Sprintf("[%s] ", p.Protocol))
+	fmt.Fprintf(&sb, "[%s] ", p.Timestamp.Format("2006-01-02 15:04:05.000"))
+	fmt.Fprintf(&sb, "[%s] ", p.Direction)
+	fmt.Fprintf(&sb, "[%s] ", p.Protocol)
 	if p.DeviceID != "" {
-		sb.WriteString(fmt.Sprintf("[%s] ", p.DeviceID))
+		fmt.Fprintf(&sb, "[%s] ", p.DeviceID)
 	}
 	sb.WriteString(p.GetHexString())
 	if p.Description != "" {
-		sb.WriteString(fmt.Sprintf(" ; %s", p.Description))
+		fmt.Fprintf(&sb, " ; %s", p.Description)
 	}
 	if p.Duration > 0 {
-		sb.WriteString(fmt.Sprintf(" (%v)", p.Duration))
+		fmt.Fprintf(&sb, " (%v)", p.Duration)
 	}
 	return sb.String()
 }

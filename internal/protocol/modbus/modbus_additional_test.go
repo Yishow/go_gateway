@@ -21,7 +21,7 @@ func TestParseReadResponse_EdgeCases(t *testing.T) {
 	}
 
 	// 測試數據長度不足
-	data = []byte{10, 0x01, 0x02} // ByteCount=10, 但只有2字節數據
+	data = []byte{10, 0x01, 0x02} // ByteCount 10, but only two data bytes follow.
 	_, err = ParseReadResponse(data)
 	if !errors.Is(err, ErrResponseTooShort) {
 		t.Errorf("Expected ErrResponseTooShort, got %v", err)

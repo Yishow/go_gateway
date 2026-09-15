@@ -79,17 +79,17 @@ const (
 
 // DeviceReadiness 設備就緒狀態詳情
 type DeviceReadiness struct {
-	DeviceID          string               `json:"device_id"`
-	Status            string               `json:"status"` // ready, warning, error
-	AvailabilityStatus string              `json:"availability_status,omitempty"`
-	AvailabilityReason string              `json:"availability_reason,omitempty"`
-	Checks            []ReadinessCheck     `json:"checks"`
-	ConnectStatus     ReadinessStageStatus `json:"connect_status"`
-	ProbeStatus       ReadinessStageStatus `json:"probe_status"`
-	PlanningAllowed   bool                 `json:"planning_allowed"`
-	ActivationAllowed bool                 `json:"activation_allowed"`
-	ApplyAllowed      bool                 `json:"apply_allowed"`
-	BlockingReasons   []string             `json:"blocking_reasons"`
+	DeviceID           string               `json:"device_id"`
+	Status             string               `json:"status"` // ready, warning, error
+	AvailabilityStatus string               `json:"availability_status,omitempty"`
+	AvailabilityReason string               `json:"availability_reason,omitempty"`
+	Checks             []ReadinessCheck     `json:"checks"`
+	ConnectStatus      ReadinessStageStatus `json:"connect_status"`
+	ProbeStatus        ReadinessStageStatus `json:"probe_status"`
+	PlanningAllowed    bool                 `json:"planning_allowed"`
+	ActivationAllowed  bool                 `json:"activation_allowed"`
+	ApplyAllowed       bool                 `json:"apply_allowed"`
+	BlockingReasons    []string             `json:"blocking_reasons"`
 }
 
 // =============================================================================

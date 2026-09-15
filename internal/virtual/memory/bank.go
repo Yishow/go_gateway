@@ -30,7 +30,7 @@ var (
 // =============================================================================
 
 // MemoryBank 虛擬記憶體庫，模擬 PLC 記憶體區域
-type MemoryBank struct {
+type MemoryBank struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	mu        sync.RWMutex
 	data      []byte
 	size      int

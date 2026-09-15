@@ -76,6 +76,6 @@ func (s *Server) handleWriteSingleCoil(pdu []byte) []byte {
 }
 
 // exceptionResponse 構建異常回應
-func (s *Server) exceptionResponse(funcCode byte, exceptionCode byte) []byte {
+func (s *Server) exceptionResponse(funcCode, exceptionCode byte) []byte {
 	return []byte{funcCode | 0x80, exceptionCode}
 }

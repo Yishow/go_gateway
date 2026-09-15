@@ -32,7 +32,7 @@ func TestVersionCommand(t *testing.T) {
 	}
 }
 
-func TestValidateCommand_WithDefaults(t *testing.T) {
+func TestValidateCommand_WithDefaults(_ *testing.T) {
 	resetValidateFlags()
 	rootCmd.SetArgs([]string{"validate"})
 

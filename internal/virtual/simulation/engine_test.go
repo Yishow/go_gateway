@@ -19,7 +19,7 @@ func TestSimulationEngine_AutoIncrement(t *testing.T) {
 	rule := &Rule{
 		ID:        "test-inc",
 		RuleType:  RuleAutoIncrement,
-		Offset:    0,           // D0
+		Offset:    0, // D0
 		Interval:  100 * time.Millisecond,
 		Increment: 1,
 	}
@@ -34,7 +34,7 @@ func TestSimulationEngine_AutoIncrement(t *testing.T) {
 
 	// 讀取值，應該已經遞增多次
 	val, _ := bank.ReadWord(0)
-	
+
 	// 2 秒內應該執行約 20 次
 	if val < 15 || val > 25 {
 		t.Errorf("預期約 20 次遞增，實際值: %d", val)
@@ -57,7 +57,7 @@ func TestSimulationEngine_Toggle(t *testing.T) {
 	defer engine.Stop()
 
 	// 收集一系列值
-	values := make([]uint16, 0)
+	values := make([]uint16, 0, 5)
 	for i := 0; i < 5; i++ {
 		time.Sleep(60 * time.Millisecond)
 		val, _ := bank.ReadWord(10)
@@ -107,7 +107,7 @@ func TestSimulationEngine_StopStart(t *testing.T) {
 
 	// 值應該不再變化
 	valLater, _ := bank.ReadWord(20)
-	
+
 	if valLater != valAfterStop {
 		t.Errorf("停止後值不應變化: 停止時 %d，之後 %d", valAfterStop, valLater)
 	}

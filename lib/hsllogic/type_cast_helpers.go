@@ -1,5 +1,7 @@
 package hsllogic
 
+import "math"
+
 // ToFloat64 將任意數值轉換為 float64
 func ToFloat64(value interface{}) (float64, bool) {
 	switch v := value.(type) {
@@ -58,12 +60,22 @@ func ToInt64(value interface{}) (int64, bool) {
 	case int64:
 		return v, true
 	case uint64:
+		if v > math.MaxInt64 {
+			return 0, false
+		}
 		return int64(v), true
 	case int:
 		return int64(v), true
 	case float32:
+		f := float64(v)
+		if math.IsNaN(f) || math.IsInf(f, 0) || f < -float64(1<<63) || f >= float64(1<<63) {
+			return 0, false
+		}
 		return int64(v), true
 	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) || v < -float64(1<<63) || v >= float64(1<<63) {
+			return 0, false
+		}
 		return int64(v), true
 	default:
 		return 0, false

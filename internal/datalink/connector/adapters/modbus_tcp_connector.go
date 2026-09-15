@@ -73,7 +73,7 @@ func (c *ModbusTCPConnector) Connect(ctx context.Context, configJSON string) err
 	// 連線（僅在長連接模式下立即連線）
 	if c.IsPersistentMode() {
 		if err := c.client.Connect(); err != nil {
-			return fmt.Errorf("Modbus TCP 連線失敗: %w", err)
+			return fmt.Errorf("modbus TCP 連線失敗: %w", err)
 		}
 		c.setConnected(true)
 	}

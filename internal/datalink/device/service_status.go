@@ -58,9 +58,9 @@ func (s *Service) CheckReadiness(ctx context.Context, id string) (*schema.Device
 }
 
 func deriveReadinessDiagnostics(device *schema.Device) (
-	schema.ReadinessStageStatus,
-	schema.ReadinessStageStatus,
-	[]string,
+	connectStatus schema.ReadinessStageStatus,
+	probeStatus schema.ReadinessStageStatus,
+	blockingReasons []string,
 ) {
 	if strings.TrimSpace(device.ConnectionConfig) == "" {
 		return schema.ReadinessStageStatusUnknown, schema.ReadinessStageStatusUnknown, []string{
@@ -90,7 +90,7 @@ func deriveReadinessDiagnostics(device *schema.Device) (
 	}
 }
 
-func deriveSuccessfulProbeStatus(device *schema.Device) (schema.ReadinessStageStatus, []string) {
+func deriveSuccessfulProbeStatus(device *schema.Device) (status schema.ReadinessStageStatus, reasons []string) {
 	target, err := buildReadProbeTarget(device)
 	if err != nil {
 		return schema.ReadinessStageStatusUnknown, []string{

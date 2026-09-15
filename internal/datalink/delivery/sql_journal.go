@@ -72,7 +72,10 @@ func (j *SQLJournal) ScanFrom(fromSequence int64, limit int) ([]*JournalEntry, e
 		if err := rows.Scan(&seq, &recID, &obsStr, &payload); err != nil {
 			return nil, err
 		}
-		obsTime, _ := time.Parse(time.RFC3339Nano, obsStr)
+		obsTime, err := time.Parse(time.RFC3339Nano, obsStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse journal observed_at: %w", err)
+		}
 		entries = append(entries, &JournalEntry{
 			Sequence:   seq,
 			RecordID:   recID,
@@ -80,7 +83,7 @@ func (j *SQLJournal) ScanFrom(fromSequence int64, limit int) ([]*JournalEntry, e
 			Payload:    payload,
 		})
 	}
-	return entries, nil
+	return entries, rows.Err()
 }
 
 func (j *SQLJournal) TruncateBefore(sequence int64) error {

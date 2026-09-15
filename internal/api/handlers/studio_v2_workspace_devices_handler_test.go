@@ -25,7 +25,7 @@ func TestStudioV2WorkspaceDevicesHandler_CreateReturnsValidationErrorMessage(t *
 		device.NewService(device.NewMemoryRepository(), nil),
 	)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/devices", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/devices", strings.NewReader(`{
 		"id": "dev-A",
 		"name": "",
 		"protocol": "modbus_tcp",
@@ -75,7 +75,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateReturnsAppliedForRunningDevice(t 
 
 	syncer := &stubDeviceRuntimeSyncer{}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
 		"name": "Line A Saved"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -130,7 +130,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateReturnsApplyFailedWhenRuntimeAppl
 
 	syncer := &stubDeviceRuntimeSyncer{upsertErr: errors.New("dial tcp plc.internal:502: dsn=postgres://secret")}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
 		"name": "Line A Saved"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -188,7 +188,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateReturnsNotRunningForDormantDevice
 
 	syncer := &stubDeviceRuntimeSyncer{}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-draft", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-draft", strings.NewReader(`{
 		"name": "Line A Saved",
 		"connection_config": {
 			"host": "192.168.10.20",
@@ -249,7 +249,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateAvailabilityStopsRunningDevice(t 
 
 	syncer := &stubDeviceRuntimeSyncer{}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active/availability", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active/availability", strings.NewReader(`{
 		"availability_status": "unavailable",
 		"availability_reason": "device form is invalid"
 	}`))

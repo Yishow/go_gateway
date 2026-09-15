@@ -34,9 +34,9 @@ func init() {
 
 // ValidationOutput 驗證輸出結構
 type ValidationOutput struct {
-	Valid   bool                      `json:"valid"`
-	Errors  []config.ValidationError  `json:"errors,omitempty"`
-	Summary string                    `json:"summary"`
+	Valid   bool                     `json:"valid"`
+	Errors  []config.ValidationError `json:"errors,omitempty"`
+	Summary string                   `json:"summary"`
 }
 
 func runValidate(cmd *cobra.Command, args []string) error {

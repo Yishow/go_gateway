@@ -14,7 +14,7 @@ func TestProtocolHandler_List_ConfigSchema_ModbusVariantsExposeDataFormat(t *tes
 	t.Parallel()
 
 	r := setupProtocolRouter()
-	req, err := http.NewRequest(http.MethodGet, "/datalink/protocols", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/protocols", http.NoBody)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -62,7 +62,7 @@ func TestProtocolHandler_List_ConfigSchema_MQTTOmitsDataFormat(t *testing.T) {
 	t.Parallel()
 
 	r := setupProtocolRouter()
-	req, err := http.NewRequest(http.MethodGet, "/datalink/protocols", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/protocols", http.NoBody)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()

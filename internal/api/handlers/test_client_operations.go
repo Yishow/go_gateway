@@ -8,7 +8,7 @@ import (
 	"go-gateway/internal/protocol/modbus"
 )
 
-func (h *TestHandler) connectClient(client interface{}, protocol string) error {
+func (h *TestHandler) connectClient(client interface{}, _ string) error {
 	switch c := client.(type) {
 	case *modbus.ModbusClient:
 		return c.Connect()
@@ -21,7 +21,7 @@ func (h *TestHandler) connectClient(client interface{}, protocol string) error {
 	}
 }
 
-func (h *TestHandler) closeClient(client interface{}, protocol string) error {
+func (h *TestHandler) closeClient(client interface{}, _ string) error {
 	switch c := client.(type) {
 	case *modbus.ModbusClient:
 		return c.Close()
@@ -34,7 +34,7 @@ func (h *TestHandler) closeClient(client interface{}, protocol string) error {
 	}
 }
 
-func (h *TestHandler) executeRead(client interface{}, protocol string, req ReadRequest) (interface{}, error) {
+func (h *TestHandler) executeRead(client interface{}, _ string, req ReadRequest) (interface{}, error) {
 	switch c := client.(type) {
 	case *modbus.ModbusClient:
 		switch req.Operation {
@@ -75,7 +75,7 @@ func (h *TestHandler) executeRead(client interface{}, protocol string, req ReadR
 	}
 }
 
-func (h *TestHandler) executeWrite(client interface{}, protocol string, req WriteRequest) error {
+func (h *TestHandler) executeWrite(client interface{}, _ string, req WriteRequest) error {
 	// Helper to convert interface{} to []uint16 or []bool
 	// This is tricky because JSON unmarshaling might give []interface{}
 
@@ -86,16 +86,11 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 		}
 		res := make([]uint16, len(arr))
 		for i, val := range arr {
-			switch v := val.(type) {
-			case float64:
-				res[i] = uint16(v)
-			case int:
-				res[i] = uint16(v)
-			case int64:
-				res[i] = uint16(v)
-			default:
-				return nil, fmt.Errorf("invalid value type at index %d: expected number, got %T", i, val)
+			parsed, err := testRegisterValue(val)
+			if err != nil {
+				return nil, fmt.Errorf("register value at index %d: %w", i, err)
 			}
+			res[i] = parsed
 		}
 		return res, nil
 	}
@@ -156,22 +151,13 @@ func (h *TestHandler) executeWrite(client interface{}, protocol string, req Writ
 			}
 			return c.WriteSingleCoil(req.Address, val)
 		case "write_single_register":
-			// 支援數組或單個值：如果是數組，取第一個元素
-			var val uint16
-			if arr, ok := req.Values.([]interface{}); ok && len(arr) > 0 {
-				if f, ok := arr[0].(float64); ok {
-					val = uint16(f)
-				} else if i, ok := arr[0].(int); ok {
-					val = uint16(i)
-				} else {
-					return fmt.Errorf("value must be number, got %T", arr[0])
-				}
-			} else if f, ok := req.Values.(float64); ok {
-				val = uint16(f)
-			} else if i, ok := req.Values.(int); ok {
-				val = uint16(i)
-			} else {
-				return fmt.Errorf("value must be number or array of number")
+			value := req.Values
+			if arr, ok := value.([]interface{}); ok && len(arr) > 0 {
+				value = arr[0]
+			}
+			val, err := testRegisterValue(value)
+			if err != nil {
+				return err
 			}
 			return c.WriteSingleRegister(req.Address, val)
 		case "write_multiple_coils":

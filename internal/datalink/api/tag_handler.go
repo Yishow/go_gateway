@@ -36,19 +36,19 @@ func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 篩選狀態
-	if status := getQueryParam(r, "status", ""); status != "" {
+	if status := getQueryParam(r, "status"); status != "" {
 		s := schema.TagStatus(status)
 		filter.Status = &s
 	}
 
 	// 篩選資料型別
-	if dataType := getQueryParam(r, "data_type", ""); dataType != "" {
+	if dataType := getQueryParam(r, "data_type"); dataType != "" {
 		dt := schema.DataType(dataType)
 		filter.DataType = &dt
 	}
 
 	// 鍵前綴篩選
-	filter.KeyPrefix = getQueryParam(r, "key_prefix", "")
+	filter.KeyPrefix = getQueryParam(r, "key_prefix")
 
 	tags, err := h.svc.List(ctx, filter)
 	if err != nil {
@@ -128,7 +128,7 @@ func (h *TagHandler) Delete(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	writeJSON(w, http.StatusOK, map[string]bool{responseDeletedKey: true})
 }
 
 // =============================================================================

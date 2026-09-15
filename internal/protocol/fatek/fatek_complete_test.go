@@ -64,7 +64,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 			response[6+i] = '0'
 		}
 		lrc := CalculateLRC(response[:16])
-		copy(response[16:18], []byte(lrc))
+		copy(response[16:18], lrc)
 		response[18] = ETX
 
 	case "45": // WriteStatus
@@ -75,7 +75,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		copy(response[3:5], data[3:5])
 		response[5] = '0'
 		lrc := CalculateLRC(response[:6])
-		copy(response[6:8], []byte(lrc))
+		copy(response[6:8], lrc)
 		response[8] = ETX
 
 	case "46": // ReadRegisters
@@ -89,10 +89,10 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		// 10 個暫存器值 (每個 4 個 hex 字符)
 		for i := 0; i < count; i++ {
 			val := IntToHex(i*10, 4)
-			copy(response[6+i*4:6+(i+1)*4], []byte(val))
+			copy(response[6+i*4:6+(i+1)*4], val)
 		}
 		lrc := CalculateLRC(response[:46])
-		copy(response[46:48], []byte(lrc))
+		copy(response[46:48], lrc)
 		response[48] = ETX
 
 	case "47": // WriteRegisters
@@ -103,7 +103,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		copy(response[3:5], data[3:5])
 		response[5] = '0'
 		lrc := CalculateLRC(response[:6])
-		copy(response[6:8], []byte(lrc))
+		copy(response[6:8], lrc)
 		response[8] = ETX
 
 	case "48": // ReadRandom
@@ -113,9 +113,9 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		copy(response[1:3], data[1:3])
 		copy(response[3:5], data[3:5])
 		response[5] = '0'
-		copy(response[6:14], []byte("00010002")) // 兩個值
+		copy(response[6:14], "00010002") // 兩個值
 		lrc := CalculateLRC(response[:14])
-		copy(response[14:16], []byte(lrc))
+		copy(response[14:16], lrc)
 		response[16] = ETX
 
 	case "4E": // LoopbackTest
@@ -127,7 +127,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		copy(response[3:5], data[3:5])
 		copy(response[5:5+bodyLen], data[5:5+bodyLen])
 		lrc := CalculateLRC(response[:5+bodyLen])
-		copy(response[5+bodyLen:5+bodyLen+2], []byte(lrc))
+		copy(response[5+bodyLen:5+bodyLen+2], lrc)
 		response[5+bodyLen+2] = ETX
 
 	case "41": // Run/Stop
@@ -138,7 +138,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		copy(response[3:5], data[3:5])
 		response[5] = '0'
 		lrc := CalculateLRC(response[:6])
-		copy(response[6:8], []byte(lrc))
+		copy(response[6:8], lrc)
 		response[8] = ETX
 
 	case "42": // SingleAction
@@ -149,7 +149,7 @@ func (m *MockFatekTransport) SendReceive(data []byte) ([]byte, error) {
 		copy(response[3:5], data[3:5])
 		response[5] = '0'
 		lrc := CalculateLRC(response[:6])
-		copy(response[6:8], []byte(lrc))
+		copy(response[6:8], lrc)
 		response[8] = ETX
 
 	default:
@@ -219,7 +219,7 @@ func TestParseResponse(t *testing.T) {
 	response[5] = '0'
 	copy(response[6:16], []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'})
 	lrc := CalculateLRC(response[:16])
-	copy(response[16:18], []byte(lrc))
+	copy(response[16:18], lrc)
 	response[18] = ETX
 
 	body, err := ParseResponse(response, "44")

@@ -21,7 +21,7 @@ const (
 )
 
 // RuntimeTruthState explicitly describes whether runtime data is usable, empty, or degraded.
-type RuntimeTruthState struct {
+type RuntimeTruthState struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	State       string `json:"state"`
 	Empty       bool   `json:"empty"`
 	Degraded    bool   `json:"degraded"`
@@ -31,7 +31,7 @@ type RuntimeTruthState struct {
 }
 
 // RuntimeStreamStateEvent describes stream availability without requiring clients to infer it.
-type RuntimeStreamStateEvent struct {
+type RuntimeStreamStateEvent struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	DeviceID    string            `json:"device_id"`
 	StreamState RuntimeTruthState `json:"stream_state"`
 	Timestamp   time.Time         `json:"timestamp"`
@@ -43,27 +43,27 @@ type RuntimeStreamStateEvent struct {
 }
 
 // RuntimeReadyTruthState returns a ready runtime truth marker.
-func RuntimeReadyTruthState() RuntimeTruthState {
+func RuntimeReadyTruthState() RuntimeTruthState { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	return runtimeTruthState(RuntimeTruthStateReady, "")
 }
 
 // RuntimeUnavailableTruthState returns an unavailable runtime truth marker.
-func RuntimeUnavailableTruthState(reason string) RuntimeTruthState {
+func RuntimeUnavailableTruthState(reason string) RuntimeTruthState { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	return runtimeTruthState(RuntimeTruthStateUnavailable, reason)
 }
 
 // RuntimeDegradedTruthState returns a degraded runtime truth marker.
-func RuntimeDegradedTruthState(reason string) RuntimeTruthState {
+func RuntimeDegradedTruthState(reason string) RuntimeTruthState { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	return runtimeTruthState(RuntimeTruthStateDegraded, reason)
 }
 
 // RuntimeStaleTruthState returns a stale runtime truth marker.
-func RuntimeStaleTruthState(reason string) RuntimeTruthState {
+func RuntimeStaleTruthState(reason string) RuntimeTruthState { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	return runtimeTruthState(RuntimeTruthStateStale, reason)
 }
 
 // RuntimeEmptyTruthState returns an empty runtime truth marker.
-func RuntimeEmptyTruthState(reason string) RuntimeTruthState {
+func RuntimeEmptyTruthState(reason string) RuntimeTruthState { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	return runtimeTruthState(RuntimeTruthStateEmpty, reason)
 }
 
@@ -94,8 +94,8 @@ func DeriveSnapshotTruthState(collectors []DeviceRuntimeStatus, selectedDeviceID
 		if collector.Status == "error" ||
 			collector.Status == "warning" ||
 			collector.PointsError > 0 ||
-			collector.BreakerState == "open" ||
-			collector.BreakerState == "half-open" {
+			collector.BreakerState == breakerStateOpen ||
+			collector.BreakerState == breakerStateHalfOpen {
 			hasDegraded = true
 		}
 	}
@@ -115,7 +115,7 @@ func DeriveSnapshotTruthState(collectors []DeviceRuntimeStatus, selectedDeviceID
 	return RuntimeReadyTruthState()
 }
 
-func runtimeTruthState(state string, reason string) RuntimeTruthState {
+func runtimeTruthState(state, reason string) RuntimeTruthState {
 	truth := RuntimeTruthState{
 		State:  state,
 		Reason: strings.TrimSpace(reason),

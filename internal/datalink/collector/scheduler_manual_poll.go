@@ -17,6 +17,11 @@ import (
 
 // PollNow 立即輪詢指定的點位
 func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
+	return s.PollNowContext(context.Background(), pointIDs)
+}
+
+// PollNowContext immediately polls points using the caller's context.
+func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []CollectedValue {
 	results := make([]CollectedValue, 0, len(pointIDs))
 
 	s.mu.RLock()
@@ -84,7 +89,6 @@ func (s *Scheduler) PollNow(pointIDs []string) []CollectedValue {
 			lock.Lock()
 			defer lock.Unlock()
 
-			ctx := context.Background()
 			conn, err := s.connMgr.GetOrCreate(ctx, devID, deviceCfg.Protocol, deviceCfg.Config)
 			if err != nil {
 				if breaker != nil {

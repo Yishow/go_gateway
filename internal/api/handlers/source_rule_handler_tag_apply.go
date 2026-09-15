@@ -13,7 +13,7 @@ import (
 func (h *SourceRuleHandler) ApplyTags(c *gin.Context) {
 	var req sourcerule.ApplyTagCandidatesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -42,9 +42,9 @@ func (h *SourceRuleHandler) ApplyTags(c *gin.Context) {
 		case errors.Is(err, sourcerule.ErrInvalidTagApplyRequest):
 			statusCode = http.StatusBadRequest
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": response})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: response})
 }

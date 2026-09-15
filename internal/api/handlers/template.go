@@ -60,7 +60,7 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 	h.mu.RUnlock()
 
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: "template not found"})
 		return
 	}
 
@@ -80,7 +80,7 @@ type SaveTemplateRequest struct {
 func (h *TemplateHandler) Save(c *gin.Context) {
 	var req SaveTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
@@ -113,9 +113,9 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 	h.mu.Unlock()
 
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: "template not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	c.JSON(http.StatusOK, gin.H{apiResponseStatusKey: "deleted"})
 }

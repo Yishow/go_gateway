@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	mysqldriver "github.com/go-sql-driver/mysql"
 	datalinkbase "go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/schema"
+
+	mysqldriver "github.com/go-sql-driver/mysql"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -149,7 +149,7 @@ func effectiveDatabaseWriteIntervalPointer(
 	return defaultDatabaseWriteIntervalPointer()
 }
 
-func inferDatabaseGroupAndColumn(tagKey string) (*string, string) {
+func inferDatabaseGroupAndColumn(tagKey string) (group *string, column string) {
 	trimmed := strings.TrimSpace(tagKey)
 	prefix, suffix, found := strings.Cut(trimmed, "/")
 	if !found {

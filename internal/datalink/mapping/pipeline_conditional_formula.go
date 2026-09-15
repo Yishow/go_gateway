@@ -50,7 +50,7 @@ func evaluateCondition(value float64, operator string, threshold float64) bool {
 	}
 }
 
-func parseConditionalParams(params map[string]interface{}) (string, float64, error) {
+func parseConditionalParams(params map[string]interface{}) (parsedOperator string, parsedThreshold float64, parseErr error) {
 	if params == nil {
 		return "", 0, fmt.Errorf("缺少參數")
 	}
@@ -97,7 +97,7 @@ func normalizeOperator(operator string) string {
 	}
 }
 
-func parseConditionString(condition string) (string, float64, error) {
+func parseConditionString(condition string) (parsedOperator string, parsedThreshold float64, parseErr error) {
 	cond := strings.TrimSpace(condition)
 	if strings.HasPrefix(cond, "value") {
 		cond = strings.TrimSpace(strings.TrimPrefix(cond, "value"))
@@ -152,37 +152,32 @@ func executeFormula(input interface{}, params map[string]interface{}) (interface
 	expr = strings.ReplaceAll(expr, "value", strconv.FormatFloat(v, 'f', -1, 64))
 	expr = strings.ReplaceAll(expr, "x", strconv.FormatFloat(v, 'f', -1, 64))
 
-	result, err := evaluateSimpleExpression(expr, v)
-	if err != nil {
-		return input, err
-	}
-
-	return result, nil
+	return evaluateSimpleExpression(expr, v), nil
 }
 
 // evaluateSimpleExpression 評估簡易表達式
-func evaluateSimpleExpression(expr string, value float64) (float64, error) {
+func evaluateSimpleExpression(expr string, value float64) float64 {
 	expr = strings.TrimSpace(expr)
 
 	if strings.HasPrefix(expr, "abs(") {
-		return math.Abs(value), nil
+		return math.Abs(value)
 	}
 	if strings.HasPrefix(expr, "sqrt(") {
-		return math.Sqrt(value), nil
+		return math.Sqrt(value)
 	}
 	if strings.HasPrefix(expr, "round(") {
-		return math.Round(value), nil
+		return math.Round(value)
 	}
 	if strings.HasPrefix(expr, "floor(") {
-		return math.Floor(value), nil
+		return math.Floor(value)
 	}
 	if strings.HasPrefix(expr, "ceil(") {
-		return math.Ceil(value), nil
+		return math.Ceil(value)
 	}
 
 	if v, err := strconv.ParseFloat(expr, 64); err == nil {
-		return v, nil
+		return v
 	}
 
-	return value, nil
+	return value
 }

@@ -65,7 +65,7 @@ func TestTagHandler_Activate(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newTag)
-	req, _ := http.NewRequest("POST", "/datalink/tags", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -77,7 +77,7 @@ func TestTagHandler_Activate(t *testing.T) {
 	tagID := createResp["data"].(map[string]interface{})["id"].(string)
 
 	// 啟用標籤
-	req, _ = http.NewRequest("POST", "/datalink/tags/"+tagID+"/activate", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/"+tagID+"/activate", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -97,7 +97,7 @@ func TestTagHandler_Activate(t *testing.T) {
 func TestTagHandler_Activate_NotFound(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
-	req, _ := http.NewRequest("POST", "/datalink/tags/non-existent-id/activate", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/non-existent-id/activate", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -123,7 +123,7 @@ func TestTagHandler_Retire(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newTag)
-	req, _ := http.NewRequest("POST", "/datalink/tags", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -135,7 +135,7 @@ func TestTagHandler_Retire(t *testing.T) {
 	tagID := createResp["data"].(map[string]interface{})["id"].(string)
 
 	// 退役標籤
-	req, _ = http.NewRequest("POST", "/datalink/tags/"+tagID+"/retire", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/"+tagID+"/retire", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -155,7 +155,7 @@ func TestTagHandler_Retire(t *testing.T) {
 func TestTagHandler_Retire_NotFound(t *testing.T) {
 	r := setupTagRouterWithExtended()
 
-	req, _ := http.NewRequest("POST", "/datalink/tags/non-existent-id/retire", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/non-existent-id/retire", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -197,7 +197,7 @@ func TestTagHandler_BatchCreate(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/tags/batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -231,7 +231,7 @@ func TestTagHandler_BatchCreate_PartialSuccess(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newTag)
-	req, _ := http.NewRequest("POST", "/datalink/tags", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -255,7 +255,7 @@ func TestTagHandler_BatchCreate_PartialSuccess(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(batchReq)
-	req, _ = http.NewRequest("POST", "/datalink/tags/batch", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -285,7 +285,7 @@ func TestTagHandler_BatchCreate_Empty(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/tags/batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -316,7 +316,7 @@ func TestTagHandler_ValidateKey(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(validateReq)
-	req, _ := http.NewRequest("POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -345,7 +345,7 @@ func TestTagHandler_ValidateKey_Invalid(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(validateReq)
-	req, _ := http.NewRequest("POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -376,7 +376,7 @@ func TestTagHandler_ValidateKey_Exists(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newTag)
-	req, _ := http.NewRequest("POST", "/datalink/tags", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -389,7 +389,7 @@ func TestTagHandler_ValidateKey_Exists(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(validateReq)
-	req, _ = http.NewRequest("POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -428,7 +428,7 @@ func TestTagHandler_ValidateKey_Normalization(t *testing.T) {
 		}
 
 		body, _ := json.Marshal(validateReq)
-		req, _ := http.NewRequest("POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
+		req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -457,7 +457,7 @@ func TestTagHandler_ActivateThenRetire(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newTag)
-	req, _ := http.NewRequest("POST", "/datalink/tags", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -467,7 +467,7 @@ func TestTagHandler_ActivateThenRetire(t *testing.T) {
 	tagID := createResp["data"].(map[string]interface{})["id"].(string)
 
 	// 啟用標籤
-	req, _ = http.NewRequest("POST", "/datalink/tags/"+tagID+"/activate", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/"+tagID+"/activate", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -477,7 +477,7 @@ func TestTagHandler_ActivateThenRetire(t *testing.T) {
 	assert.Equal(t, "active", data["status"])
 
 	// 退役標籤
-	req, _ = http.NewRequest("POST", "/datalink/tags/"+tagID+"/retire", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/"+tagID+"/retire", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -497,7 +497,7 @@ func TestTagHandler_BatchCreate_MissingField(t *testing.T) {
 	batchReq := map[string]interface{}{}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/tags/batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -519,7 +519,7 @@ func TestTagHandler_ValidateKey_MissingField(t *testing.T) {
 	validateReq := map[string]interface{}{}
 
 	body, _ := json.Marshal(validateReq)
-	req, _ := http.NewRequest("POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/tags/validate-key", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

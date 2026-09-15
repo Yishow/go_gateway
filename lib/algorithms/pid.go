@@ -38,9 +38,9 @@ func (p *PID) SetGains(kp, ki, kd float64) {
 }
 
 // SetOutputLimits 設定輸出限制
-func (p *PID) SetOutputLimits(min, max float64) {
-	p.minOutput = min
-	p.maxOutput = max
+func (p *PID) SetOutputLimits(minimum, maximum float64) {
+	p.minOutput = minimum
+	p.maxOutput = maximum
 	p.hasLimits = true
 }
 
@@ -48,25 +48,25 @@ func (p *PID) SetOutputLimits(min, max float64) {
 // input: 當前輸入值
 // dt: 時間間隔 (秒)
 // 返回: 控制輸出
-func (p *PID) Update(input float64, dt float64) float64 {
+func (p *PID) Update(input, dt float64) float64 {
 	if dt <= 0 {
 		dt = 0.001 // 避免除以零
 	}
 
 	// 計算誤差
-	error := p.target - input
+	errValue := p.target - input
 
 	// P 項
-	pTerm := p.kp * error
+	pTerm := p.kp * errValue
 
 	// I 項
-	p.integral += error * dt
+	p.integral += errValue * dt
 	iTerm := p.ki * p.integral
 
 	// D 項
-	derivative := (error - p.prevError) / dt
+	derivative := (errValue - p.prevError) / dt
 	dTerm := p.kd * derivative
-	p.prevError = error
+	p.prevError = errValue
 
 	// 總輸出
 	output := pTerm + iTerm + dTerm
@@ -76,10 +76,10 @@ func (p *PID) Update(input float64, dt float64) float64 {
 		if output > p.maxOutput {
 			output = p.maxOutput
 			// Anti-windup: 限制積分累積
-			p.integral -= error * dt
+			p.integral -= errValue * dt
 		} else if output < p.minOutput {
 			output = p.minOutput
-			p.integral -= error * dt
+			p.integral -= errValue * dt
 		}
 	}
 
@@ -121,35 +121,35 @@ func NewPIDWithFilter(kp, ki, kd, filterCoeff float64) *PIDWithFilter {
 }
 
 // Update 更新 PID 輸出 (帶 D 項濾波)
-func (p *PIDWithFilter) Update(input float64, dt float64) float64 {
+func (p *PIDWithFilter) Update(input, dt float64) float64 {
 	if dt <= 0 {
 		dt = 0.001
 	}
 
-	error := p.target - input
+	errValue := p.target - input
 
 	// P 項
-	pTerm := p.kp * error
+	pTerm := p.kp * errValue
 
 	// I 項
-	p.integral += error * dt
+	p.integral += errValue * dt
 	iTerm := p.ki * p.integral
 
 	// D 項 (帶濾波)
-	derivative := (error - p.prevError) / dt
+	derivative := (errValue - p.prevError) / dt
 	p.filteredD = p.filterCoeff*p.filteredD + (1-p.filterCoeff)*derivative
 	dTerm := p.kd * p.filteredD
-	p.prevError = error
+	p.prevError = errValue
 
 	output := pTerm + iTerm + dTerm
 
 	if p.hasLimits {
 		if output > p.maxOutput {
 			output = p.maxOutput
-			p.integral -= error * dt
+			p.integral -= errValue * dt
 		} else if output < p.minOutput {
 			output = p.minOutput
-			p.integral -= error * dt
+			p.integral -= errValue * dt
 		}
 	}
 

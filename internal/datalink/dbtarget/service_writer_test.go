@@ -89,7 +89,7 @@ func TestMappingService_CreateRejectsUpsertWithoutUniqueTimestamp(t *testing.T) 
 	require.NoError(t, err)
 	defer targetDB.Close()
 
-	_, err = targetDB.Exec(`
+	_, err = targetDB.ExecContext(ctx, `
 		CREATE TABLE sensor_values (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			ts DATETIME NOT NULL,
@@ -140,7 +140,7 @@ func TestWriter_GroupedMappingsFlushOneRowPerBucketOnTimer(t *testing.T) {
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)
 	defer targetDB.Close()
-	_, err = targetDB.Exec(`
+	_, err = targetDB.ExecContext(ctx, `
 		CREATE TABLE meter_rows (
 			ts DATETIME PRIMARY KEY,
 			a1 REAL,
@@ -254,7 +254,7 @@ func TestWriter_CloseFlushesPendingGroupedBuckets(t *testing.T) {
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)
 	defer targetDB.Close()
-	_, err = targetDB.Exec(`
+	_, err = targetDB.ExecContext(ctx, `
 		CREATE TABLE meter_rows (
 			ts DATETIME PRIMARY KEY,
 			a1 REAL
@@ -477,13 +477,14 @@ func openMigratedTestDB(t *testing.T) *sql.DB {
 
 func createTargetSQLite(t *testing.T) string {
 	t.Helper()
+	ctx := t.Context()
 
 	dbPath := filepath.Join(t.TempDir(), "target.db")
 	db, err := sql.Open("sqlite", dbPath)
 	require.NoError(t, err)
 	defer db.Close()
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(ctx, `
 		CREATE TABLE sensor_values (
 			ts DATETIME PRIMARY KEY,
 			value REAL NOT NULL

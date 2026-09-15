@@ -41,7 +41,7 @@ func mapStudioV2RuntimeApplyResponse(outcome studioV2RuntimeApplyOutcome) studio
 func mapSourceRuleRuntimeReconcileOutcome(outcome sourcerule.RuntimeReconcileOutcome) studioV2RuntimeApplyOutcome {
 	status := string(outcome.Status)
 	if outcome.Status == sourcerule.RuntimeReconcileStatusNotRunning {
-		status = "not_running"
+		status = runtimeApplyNotRunningStatus
 	}
 	if status == "" {
 		status = string(sourcerule.RuntimeReconcileStatusStale)
@@ -53,9 +53,9 @@ func mapSourceRuleRuntimeReconcileOutcome(outcome sourcerule.RuntimeReconcileOut
 	}
 }
 
-func resolveStudioV2RuntimeApplyStatus(ctx context.Context, deviceSvc *device.Service, deviceID string) (string, string) {
+func resolveStudioV2RuntimeApplyStatus(ctx context.Context, deviceSvc *device.Service, deviceID string) (status, message string) {
 	if deviceSvc == nil || deviceID == "" {
-		return "not_running", ""
+		return runtimeApplyNotRunningStatus, ""
 	}
 
 	record, err := deviceSvc.GetByID(ctx, deviceID)
@@ -63,14 +63,14 @@ func resolveStudioV2RuntimeApplyStatus(ctx context.Context, deviceSvc *device.Se
 		return runtimeApplyFailedStatus, "runtime apply status is unavailable"
 	}
 	if record.Status != schema.DeviceStatusActive {
-		return "not_running", ""
+		return runtimeApplyNotRunningStatus, ""
 	}
-	return "applied", ""
+	return runtimeApplyAppliedStatus, ""
 }
 
-func resolveStudioV2WorkspaceRuntimeApplyStatus(ctx context.Context, deviceSvc *device.Service, deviceIDs []string) (string, string) {
+func resolveStudioV2WorkspaceRuntimeApplyStatus(ctx context.Context, deviceSvc *device.Service, deviceIDs []string) (status, message string) {
 	if len(deviceIDs) == 0 {
-		return "not_running", ""
+		return runtimeApplyNotRunningStatus, ""
 	}
 
 	for _, deviceID := range deviceIDs {
@@ -78,17 +78,17 @@ func resolveStudioV2WorkspaceRuntimeApplyStatus(ctx context.Context, deviceSvc *
 		if status == runtimeApplyFailedStatus {
 			return status, message
 		}
-		if status == "applied" {
+		if status == runtimeApplyAppliedStatus {
 			return status, message
 		}
 	}
 
-	return "not_running", ""
+	return runtimeApplyNotRunningStatus, ""
 }
 
-func resolveStudioV2ScopedRuntimeApplyOutcome(ctx context.Context, workspaceSvc workspaceReadinessReader, deviceSvc *device.Service, deviceIDs []string, relevantScopes []string) studioV2RuntimeApplyOutcome {
+func resolveStudioV2ScopedRuntimeApplyOutcome(ctx context.Context, workspaceSvc workspaceReadinessReader, deviceSvc *device.Service, deviceIDs, relevantScopes []string) studioV2RuntimeApplyOutcome {
 	status, message := resolveStudioV2WorkspaceRuntimeApplyStatus(ctx, deviceSvc, deviceIDs)
-	if status != "applied" {
+	if status != runtimeApplyAppliedStatus {
 		return studioV2RuntimeApplyOutcome{Status: status, Message: message}
 	}
 	if workspaceSvc == nil {

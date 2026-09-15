@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-type FatekClient struct {
+type FatekClient struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	transport Transport
 	station   int
 	mu        sync.Mutex
@@ -56,7 +56,10 @@ func (c *FatekClient) execute(cmd, body string) (string, error) {
 }
 
 // ReadStatus (Cmd 44): Continuous Read of Discrete Status
-func (c *FatekClient) ReadStatus(symbol string, startAddr int, count int) ([]bool, error) {
+func (c *FatekClient) ReadStatus(symbol string, startAddr, count int) ([]bool, error) {
+	if count < 1 {
+		return nil, fmt.Errorf("count must be greater than 0")
+	}
 	if count > 255 {
 		return nil, fmt.Errorf("max count is 255")
 	}
@@ -122,7 +125,7 @@ func (c *FatekClient) WriteStatus(symbol string, startAddr int, data []bool) err
 }
 
 // ReadRegisters (Cmd 46): Continuous Read of Registers
-func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]int, error) {
+func (c *FatekClient) ReadRegisters(symbol string, startAddr, count int) ([]int, error) {
 	comp, err := GetComponentType(symbol)
 	if err != nil {
 		return nil, err
@@ -132,6 +135,9 @@ func (c *FatekClient) ReadRegisters(symbol string, startAddr int, count int) ([]
 	maxCount := 64
 	if comp.Width == 32 {
 		maxCount = 32
+	}
+	if count < 1 {
+		return nil, fmt.Errorf("count must be greater than 0")
 	}
 	if count > maxCount {
 		return nil, fmt.Errorf("max count for %d-bit register is %d", comp.Width, maxCount)
@@ -200,9 +206,9 @@ func (c *FatekClient) WriteRegisters(symbol string, startAddr int, data []int) e
 
 	for _, val := range data {
 		// Use uint64 to safely handle masking without overflow on 32-bit int
-		mask := (uint64(1) << uint64(comp.Width)) - 1
-		maskedVal := uint64(val) & mask
-		sb.WriteString(IntToHex(int(maskedVal), charsPerVal))
+		mask := (uint64(1) << uint64(comp.Width)) - 1         // #nosec G115 -- component widths are validated fixed-width FATEK register sizes.
+		maskedVal := uint64(val) & mask                       // #nosec G115 -- preserve the low register bits for signed two's-complement wire values.
+		sb.WriteString(IntToHex(int(maskedVal), charsPerVal)) // #nosec G115 -- the masked value is rendered as the configured low-width hexadecimal word.
 	}
 
 	body := countHex + addrStr + sb.String()
@@ -261,7 +267,7 @@ func (c *FatekClient) ReadRandom(items []RandomReadItem) (map[string]interface{}
 			}
 			valChar := dataStr[ptr]
 			results[key] = (valChar == '1')
-			ptr += 1
+			ptr++
 		} else {
 			// Register (4 or 8 chars)
 			chars := comp.Width / 4

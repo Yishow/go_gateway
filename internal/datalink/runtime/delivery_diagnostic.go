@@ -64,7 +64,7 @@ type DatabaseDeliveryDiagnostic struct {
 }
 
 // RuntimeFlowStage describes one operator-facing runtime flow stage.
-type RuntimeFlowStage string
+type RuntimeFlowStage string //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 
 const (
 	// RuntimeFlowStageCollector means a point value reached runtime from collection.
@@ -78,7 +78,7 @@ const (
 )
 
 // RuntimeFlowStageStatus describes the status of one runtime flow stage.
-type RuntimeFlowStageStatus string
+type RuntimeFlowStageStatus string //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 
 const (
 	// RuntimeFlowStageStatusSuccess means the stage completed.
@@ -90,7 +90,7 @@ const (
 )
 
 // RuntimeFlowDiagnosticStage is one stage status inside a runtime flow diagnostic.
-type RuntimeFlowDiagnosticStage struct {
+type RuntimeFlowDiagnosticStage struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	Stage      RuntimeFlowStage       `json:"stage"`
 	Status     RuntimeFlowStageStatus `json:"status"`
 	ObservedAt *time.Time             `json:"observed_at,omitempty"`
@@ -98,7 +98,7 @@ type RuntimeFlowDiagnosticStage struct {
 }
 
 // RuntimeFlowDiagnostic summarizes the latest operator-facing flow state for one scope.
-type RuntimeFlowDiagnostic struct {
+type RuntimeFlowDiagnostic struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	Scope                 string                       `json:"scope"`
 	DeviceID              string                       `json:"device_id,omitempty"`
 	PointID               string                       `json:"point_id,omitempty"`
@@ -176,7 +176,7 @@ func databaseDeliveryKey(pointID, tagID string) string {
 	return strings.TrimSpace(pointID) + "\x00" + strings.TrimSpace(tagID)
 }
 
-func mergeDatabaseDeliveryContext(next DatabaseDeliveryDiagnostic, previous DatabaseDeliveryDiagnostic) DatabaseDeliveryDiagnostic {
+func mergeDatabaseDeliveryContext(next, previous DatabaseDeliveryDiagnostic) DatabaseDeliveryDiagnostic {
 	next.LastSuccessAt = cloneTimePtr(previous.LastSuccessAt)
 	next.LastFailureAt = cloneTimePtr(previous.LastFailureAt)
 	next.LastFailureReason = previous.LastFailureReason

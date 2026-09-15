@@ -3,6 +3,7 @@ package sourcerule
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"go-gateway/internal/datalink/common"
@@ -221,7 +222,7 @@ func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]*schema.
 	return items, nil
 }
 
-func (r *SQLRepository) CreateLinks(ctx context.Context, links []*schema.SourceRuleLink) error {
+func (r *SQLRepository) CreateLinks(ctx context.Context, links []*schema.SourceRuleLink) (err error) {
 	if len(links) == 0 {
 		return nil
 	}
@@ -230,7 +231,11 @@ func (r *SQLRepository) CreateLinks(ctx context.Context, links []*schema.SourceR
 	if err != nil {
 		return fmt.Errorf("開啟來源規則連結交易失敗: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			err = errors.Join(err, fmt.Errorf("回滾來源規則連結交易失敗: %w", rollbackErr))
+		}
+	}()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO source_rule_links (
@@ -298,7 +303,7 @@ func (r *SQLRepository) DeleteLinks(ctx context.Context, ruleID string) error {
 	return nil
 }
 
-func (r *SQLRepository) ReplaceCandidateSnapshots(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot) error {
+func (r *SQLRepository) ReplaceCandidateSnapshots(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot) (err error) {
 	if len(snapshots) == 0 {
 		return nil
 	}
@@ -309,7 +314,11 @@ func (r *SQLRepository) ReplaceCandidateSnapshots(ctx context.Context, snapshots
 	if err != nil {
 		return fmt.Errorf("開啟候選快照交易失敗: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			err = errors.Join(err, fmt.Errorf("回滾候選快照交易失敗: %w", rollbackErr))
+		}
+	}()
 
 	if _, err := tx.ExecContext(ctx, `
 		DELETE FROM source_rule_candidate_snapshots

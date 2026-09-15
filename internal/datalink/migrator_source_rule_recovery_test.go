@@ -17,7 +17,7 @@ func TestMigrator_SQLiteSourceRuleRollbackRequiresBackupRestore(t *testing.T) {
 
 	migrator := NewMigrator()
 	require.NoError(t, migrator.Migrate(db))
-	_, err = db.Exec(`
+	_, err = db.ExecContext(t.Context(), `
 		INSERT INTO devices (id, name, protocol) VALUES ('device-rollback-boundary', 'PLC', 'modbus_tcp');
 		INSERT INTO source_rules (id, device_id, start_address, count, data_type, naming_prefix)
 		VALUES ('rule-rollback-boundary', 'device-rollback-boundary', '40001', 1, 'int16', 'LEGACY_');
@@ -26,12 +26,12 @@ func TestMigrator_SQLiteSourceRuleRollbackRequiresBackupRestore(t *testing.T) {
 
 	downSQL, err := migrations.FS.ReadFile("017_source_rule_modbus_share.down.sql")
 	require.NoError(t, err)
-	_, err = db.Exec(string(downSQL))
+	_, err = db.ExecContext(t.Context(), string(downSQL))
 	t.Logf("sqlite down migration capability probe error: %v", err)
 	require.Error(t, err, "the repository does not provide a runnable SQLite down migration")
 
 	var rowCount int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM source_rules WHERE id = 'rule-rollback-boundary'`).Scan(&rowCount))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM source_rules WHERE id = 'rule-rollback-boundary'`).Scan(&rowCount))
 	require.Equal(t, 1, rowCount, "failed down migration must not be treated as rollback evidence")
 	for _, column := range []string{"share_enabled", "share_start_register", "share_stride"} {
 		exists, existsErr := sqliteColumnExists(db, "source_rules", column)
@@ -45,15 +45,15 @@ func TestMigrator_SQLiteSourceRuleRevisionPartialUpgradeBackfillsBlankValues(t *
 	require.NoError(t, err)
 	defer db.Close()
 
-	require.NoError(t, createLegacySourceRuleSchema(db, "rule-revision-partial"))
+	require.NoError(t, createLegacySourceRuleSchema(t.Context(), db, "rule-revision-partial"))
 	// Simulate a migration interrupted immediately after ALTER TABLE and before
 	// the 009 data backfill statement.
-	require.NoError(t, addLegacySourceRuleColumn(db, "revision_id"))
+	require.NoError(t, addLegacySourceRuleColumn(t.Context(), db, "revision_id"))
 
 	require.NoError(t, NewMigrator().Migrate(db))
 
 	var revisionID string
-	require.NoError(t, db.QueryRow(`SELECT revision_id FROM source_rules WHERE id = 'rule-revision-partial'`).Scan(&revisionID))
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT revision_id FROM source_rules WHERE id = 'rule-revision-partial'`).Scan(&revisionID))
 	require.Equal(t, "rule-revision-partial:legacy", revisionID)
 }
 
@@ -62,7 +62,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PreservesLegacyDataAndPartialRecover
 	require.NoError(t, err)
 	defer db.Close()
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(t.Context(), `
 		CREATE TABLE devices (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -93,7 +93,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PreservesLegacyDataAndPartialRecover
 	`)
 	require.NoError(t, err)
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(t.Context(), `
 		INSERT INTO source_rules (
 			id, device_id, start_address, count, data_type, naming_prefix, enabled, locked, origin, template_name, skipped_addresses
 		) VALUES (
@@ -102,7 +102,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PreservesLegacyDataAndPartialRecover
 	`)
 	require.NoError(t, err)
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(t.Context(), `
 		ALTER TABLE source_rules ADD COLUMN target_data_type TEXT;
 		ALTER TABLE source_rules ADD COLUMN scale_multiplier REAL;
 		UPDATE source_rules SET target_data_type = 'float32', scale_multiplier = 2.5 WHERE id = 'rule-legacy-1';
@@ -118,7 +118,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PreservesLegacyDataAndPartialRecover
 	}
 	for _, col := range expectedCols {
 		var colName string
-		err = db.QueryRow(`SELECT name FROM pragma_table_info('source_rules') WHERE name = ?`, col).Scan(&colName)
+		err = db.QueryRowContext(t.Context(), `SELECT name FROM pragma_table_info('source_rules') WHERE name = ?`, col).Scan(&colName)
 		require.NoError(t, err, "column %s should exist", col)
 		assert.Equal(t, col, colName)
 	}
@@ -143,7 +143,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PreservesLegacyDataAndPartialRecover
 		shareStartRegister sql.NullInt64
 		shareStride        sql.NullInt64
 	)
-	row := db.QueryRow(`
+	row := db.QueryRowContext(t.Context(), `
 		SELECT id, device_id, start_address, count, data_type, naming_prefix, enabled, locked, origin, template_name, skipped_addresses,
 		       target_data_type, scale_multiplier, scale_offset, data_format, share_enabled, share_start_register, share_stride
 		FROM source_rules WHERE id = 'rule-legacy-1'
@@ -179,7 +179,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PreservesLegacyDataAndPartialRecover
 	require.NoError(t, migrator.Migrate(db))
 	require.NoError(t, migrator.Migrate(db))
 	var postShareEnabled int
-	err = db.QueryRow(`SELECT share_enabled FROM source_rules WHERE id = 'rule-legacy-1'`).Scan(&postShareEnabled)
+	err = db.QueryRowContext(t.Context(), `SELECT share_enabled FROM source_rules WHERE id = 'rule-legacy-1'`).Scan(&postShareEnabled)
 	require.NoError(t, err)
 	assert.Equal(t, 0, postShareEnabled)
 }

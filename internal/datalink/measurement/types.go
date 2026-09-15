@@ -11,6 +11,11 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
+const (
+	initialSeriesEpoch        = "epoch-1"
+	initialDefinitionRevision = "rev-1"
+)
+
 // SemanticKind 定義量測項目的物理與記錄語意類型。
 type SemanticKind string
 
@@ -53,7 +58,7 @@ type CounterPolicy struct {
 }
 
 // MeasurementDefinition 記錄逐項量測的完整物理意義、語意、單位與身份。
-type MeasurementDefinition struct {
+type MeasurementDefinition struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	ID                    string            `json:"id" db:"id"`
 	WorkspaceID           string            `json:"workspace_id" db:"workspace_id"`
 	DeviceID              string            `json:"device_id" db:"device_id"`
@@ -90,7 +95,7 @@ func (m *MeasurementDefinition) Validate() error {
 		return fmt.Errorf("invalid semantic_kind: %s", m.SemanticKind)
 	}
 	if strings.TrimSpace(m.SeriesEpoch) == "" {
-		m.SeriesEpoch = "epoch-1"
+		m.SeriesEpoch = initialSeriesEpoch
 	}
 	if strings.TrimSpace(m.EquipmentID) == "" {
 		m.EquipmentID = m.DeviceID

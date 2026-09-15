@@ -44,7 +44,7 @@ type Rule struct {
 // =============================================================================
 
 // SimulationEngine 虛擬設備模擬引擎
-type SimulationEngine struct {
+type SimulationEngine struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	mu      sync.RWMutex
 	bank    *memory.MemoryBank
 	rules   map[string]*Rule

@@ -74,7 +74,7 @@ func TestDeviceHandler_CheckReadiness(t *testing.T) {
 	mockRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 
 	// Create Request
-	req, _ := http.NewRequest("POST", "/devices/dev-1/readiness", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/devices/dev-1/readiness", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	// Call Handler

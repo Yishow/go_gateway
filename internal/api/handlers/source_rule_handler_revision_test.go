@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ func TestSourceRuleHandler_Update_ReturnsNewRevisionID(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	createReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
+	createReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp := httptest.NewRecorder()
@@ -42,7 +43,7 @@ func TestSourceRuleHandler_Update_ReturnsNewRevisionID(t *testing.T) {
 	require.True(t, ok)
 	require.NotEmpty(t, initialRevision)
 
-	updateReq, err := http.NewRequest(http.MethodPut, "/datalink/source-rules/rule-revision", bytes.NewBufferString(`{"naming_prefix":"UPDATED"}`))
+	updateReq, err := http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/source-rules/rule-revision", bytes.NewBufferString(`{"naming_prefix":"UPDATED"}`))
 	require.NoError(t, err)
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateResp := httptest.NewRecorder()

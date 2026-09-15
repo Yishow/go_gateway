@@ -82,7 +82,7 @@ func setupTagRouter() *gin.Engine {
 func TestDeviceHandler_List(t *testing.T) {
 	r := setupDeviceRouter()
 
-	req, _ := http.NewRequest("GET", "/devices", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/devices", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -113,7 +113,7 @@ func TestDeviceHandler_Create(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -163,7 +163,7 @@ func TestMappingHandler_Create(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(newMapping)
-	req, _ := http.NewRequest("POST", "/mappings", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/mappings", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -189,7 +189,7 @@ func TestMappingHandler_Preview_Legacy(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(previewReq)
-	req, _ := http.NewRequest("POST", "/mappings/preview", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/mappings/preview", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -214,7 +214,7 @@ func TestMappingHandler_Preview_Legacy(t *testing.T) {
 func TestTagHandler_List(t *testing.T) {
 	r := setupTagRouter()
 
-	req, _ := http.NewRequest("GET", "/tags", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/tags", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -237,7 +237,7 @@ func TestTagHandler_Create(t *testing.T) {
 		DataType:    "int16",
 	}
 	body, _ := json.Marshal(newTag)
-	req, _ := http.NewRequest("POST", "/tags", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/tags", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

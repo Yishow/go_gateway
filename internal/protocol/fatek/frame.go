@@ -12,7 +12,7 @@ var hexChars = [16]byte{'0', '1', '2', '3', '4', '5', '6', '7',
 // CalculateLRC calculates the Longitudinal Redundancy Check
 // Logic: Sum of all bytes (including STX) modulo 256, returned as Hex string.
 func CalculateLRC(data []byte) string {
-	var sum byte = 0
+	var sum byte
 	for _, b := range data {
 		sum += b
 	}
@@ -20,8 +20,9 @@ func CalculateLRC(data []byte) string {
 }
 
 // BuildFrame constructs the ASCII frame and returns a new byte slice.
+//
 // Deprecated: Use BuildFrameToBuffer for better performance.
-func BuildFrame(station int, cmd string, body string) []byte {
+func BuildFrame(station int, cmd, body string) []byte {
 	buf := GetBuffer()
 	defer PutBuffer(buf)
 
@@ -35,7 +36,7 @@ func BuildFrame(station int, cmd string, body string) []byte {
 
 // BuildFrameToBuffer writes the ASCII frame directly into the provided buffer.
 // Structure: STX + Station(2) + Command(2) + Body + LRC(2) + ETX
-func BuildFrameToBuffer(buf *bytes.Buffer, station int, cmd string, body string) {
+func BuildFrameToBuffer(buf *bytes.Buffer, station int, cmd, body string) {
 	// 1. Write STX
 	buf.WriteByte(STX)
 
@@ -152,7 +153,7 @@ func HexToInt(hexStr string) (int, error) {
 //
 // Returns:
 //   - 大寫十六進位字串，左側補零至指定寬度
-func IntToHex(val int, width int) string {
+func IntToHex(val, width int) string {
 	// 防護性預設：確保寬度在合理範圍內
 	if width <= 0 {
 		width = 1

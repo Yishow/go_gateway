@@ -40,7 +40,7 @@ func TestStudioV2WorkspaceDevicesHandler_UpdateConnectionConfigReturnsRestartReq
 
 	syncer := &stubDeviceRuntimeSyncer{}
 	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc, syncer)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/devices/dev-active", strings.NewReader(`{
 		"connection_config": {
 			"host": "192.168.10.20",
 			"port": 502,

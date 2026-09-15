@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -11,7 +12,7 @@ import (
 // =============================================================================
 
 // APIResponse 標準 API 回應結構
-type APIResponse struct {
+type APIResponse struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   *APIError   `json:"error,omitempty"`
@@ -19,14 +20,14 @@ type APIResponse struct {
 }
 
 // APIError 錯誤回應結構
-type APIError struct {
+type APIError struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Details string `json:"details,omitempty"`
 }
 
 // APIMeta 分頁/元資料結構
-type APIMeta struct {
+type APIMeta struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	Total  int `json:"total,omitempty"`
 	Limit  int `json:"limit,omitempty"`
 	Offset int `json:"offset,omitempty"`
@@ -42,17 +43,6 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	writeAPIResponse(w, status, resp)
 }
 
-// writeJSONWithMeta 寫入帶分頁資訊的 JSON 回應
-func writeJSONWithMeta(w http.ResponseWriter, status int, data interface{}, meta APIMeta) {
-	resp := APIResponse{
-		Success: status >= 200 && status < 300,
-		Data:    data,
-		Meta:    &meta,
-	}
-
-	writeAPIResponse(w, status, resp)
-}
-
 // writeError 寫入錯誤回應
 func writeError(w http.ResponseWriter, status int, message string) {
 	code := httpStatusToCode(status)
@@ -61,21 +51,6 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		Error: &APIError{
 			Code:    code,
 			Message: message,
-		},
-	}
-
-	writeAPIResponse(w, status, resp)
-}
-
-// writeErrorWithDetails 寫入帶詳細資訊的錯誤回應
-func writeErrorWithDetails(w http.ResponseWriter, status int, message, details string) {
-	code := httpStatusToCode(status)
-	resp := APIResponse{
-		Success: false,
-		Error: &APIError{
-			Code:    code,
-			Message: message,
-			Details: details,
 		},
 	}
 
@@ -156,12 +131,8 @@ func decodeJSON(r *http.Request, v interface{}) error {
 }
 
 // getQueryParam 取得查詢參數
-func getQueryParam(r *http.Request, key, defaultValue string) string {
-	value := r.URL.Query().Get(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
+func getQueryParam(r *http.Request, key string) string {
+	return r.URL.Query().Get(key)
 }
 
 // getQueryParamInt 取得整數查詢參數
@@ -171,8 +142,8 @@ func getQueryParamInt(r *http.Request, key string, defaultValue int) int {
 		return defaultValue
 	}
 
-	var result int
-	if _, err := parseIntValue(value, &result); err != nil {
+	result, err := strconv.Atoi(value)
+	if err != nil || result < 0 {
 		return defaultValue
 	}
 	return result
@@ -193,17 +164,4 @@ func getQueryParamBool(r *http.Request, key string, defaultValue bool) bool {
 	default:
 		return defaultValue
 	}
-}
-
-// parseIntValue 解析整數值
-func parseIntValue(s string, result *int) (bool, error) {
-	var n int
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false, nil
-		}
-		n = n*10 + int(c-'0')
-	}
-	*result = n
-	return true, nil
 }

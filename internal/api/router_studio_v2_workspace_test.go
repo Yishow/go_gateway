@@ -30,7 +30,7 @@ func TestNewRouter_StudioV2WorkspaceBootstrapEndpoint(t *testing.T) {
 		Workspace:    workspaceSvc,
 	})
 
-	firstReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace", nil)
+	firstReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace", http.NoBody)
 	firstResp := httptest.NewRecorder()
 	router.ServeHTTP(firstResp, firstReq)
 
@@ -83,7 +83,7 @@ func TestNewRouter_StudioV2WorkspaceBootstrapEndpoint(t *testing.T) {
 		t.Fatalf("expected timestamps, got %s", firstResp.Body.String())
 	}
 
-	secondReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace", nil)
+	secondReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace", http.NoBody)
 	secondResp := httptest.NewRecorder()
 	router.ServeHTTP(secondResp, secondReq)
 

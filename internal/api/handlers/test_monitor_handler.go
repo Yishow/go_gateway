@@ -19,7 +19,7 @@ type MonitorRequest struct {
 func (h *TestHandler) StartMonitor(c *gin.Context) {
 	var req MonitorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
@@ -33,7 +33,7 @@ func (h *TestHandler) StartMonitor(c *gin.Context) {
 	// 檢查連線
 	state, exists := h.connections[req.ConnectionID]
 	if !exists || !state.Connected {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found or not connected"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: connectionNotFoundOrNotConnectedMessage})
 		return
 	}
 
@@ -49,7 +49,7 @@ func (h *TestHandler) StartMonitor(c *gin.Context) {
 
 	go h.runMonitorLoop(req.ConnectionID, state, req.Items, req.Interval, stopChan)
 
-	c.JSON(http.StatusOK, gin.H{"status": "monitoring_started"})
+	c.JSON(http.StatusOK, gin.H{apiResponseStatusKey: "monitoring_started"})
 }
 
 func (h *TestHandler) runMonitorLoop(connID string, state *ConnectionState, items []ReadRequest, interval int, stopChan chan struct{}) {
@@ -67,7 +67,7 @@ func (h *TestHandler) runMonitorLoop(connID string, state *ConnectionState, item
 				res, err := h.executeRead(state.Client, state.Protocol, item)
 				key := fmt.Sprintf("item_%d", i) // 或者使用地址/符號作為 key
 				if err != nil {
-					results[key] = map[string]string{"error": categorizeError(err).Error()}
+					results[key] = map[string]string{apiResponseErrorKey: categorizeError(err).Error()}
 				} else {
 					results[key] = res
 				}
@@ -75,10 +75,10 @@ func (h *TestHandler) runMonitorLoop(connID string, state *ConnectionState, item
 
 			// 推送數據（使用 SSE）
 			msg := map[string]interface{}{
-				"type":          "monitor_update",
-				"connection_id": connID,
-				"timestamp":     time.Now().Format(time.RFC3339Nano),
-				"data":          results,
+				"type":                     "monitor_update",
+				apiResponseConnectionIDKey: connID,
+				apiResponseTimestampKey:    time.Now().Format(time.RFC3339Nano),
+				apiResponseDataKey:         results,
 			}
 			h.sseHandler.Broadcast(connID, msg)
 		}
@@ -91,7 +91,7 @@ func (h *TestHandler) StopMonitor(c *gin.Context) {
 		ConnectionID string `json:"connection_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
@@ -100,9 +100,9 @@ func (h *TestHandler) StopMonitor(c *gin.Context) {
 		close(stopChan)
 		delete(h.activeMonitors, req.ConnectionID)
 		h.mu.Unlock()
-		c.JSON(http.StatusOK, gin.H{"status": "monitoring_stopped"})
+		c.JSON(http.StatusOK, gin.H{apiResponseStatusKey: "monitoring_stopped"})
 	} else {
 		h.mu.Unlock()
-		c.JSON(http.StatusNotFound, gin.H{"error": "no active monitor for this connection"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: "no active monitor for this connection"})
 	}
 }

@@ -39,10 +39,10 @@ func (h *StudioV2WorkspaceHistoryHandler) Query(c *gin.Context) {
 	var req history.HistoryQuery
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "INVALID_QUERY_PAYLOAD",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "INVALID_QUERY_PAYLOAD",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
@@ -52,18 +52,18 @@ func (h *StudioV2WorkspaceHistoryHandler) Query(c *gin.Context) {
 	report, err := h.historySvc.QueryHistory(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "HISTORY_QUERY_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "HISTORY_QUERY_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    report,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    report,
 	})
 }
 
@@ -78,10 +78,10 @@ func (h *StudioV2WorkspaceHistoryHandler) Export(c *gin.Context) {
 	var req history.HistoryQuery
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "INVALID_EXPORT_PAYLOAD",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "INVALID_EXPORT_PAYLOAD",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
@@ -91,17 +91,17 @@ func (h *StudioV2WorkspaceHistoryHandler) Export(c *gin.Context) {
 	report, err := h.historySvc.QueryHistory(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "HISTORY_EXPORT_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "HISTORY_EXPORT_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	filename := fmt.Sprintf("telemetry_history_%s_%s.csv", req.PlanID, time.Now().UTC().Format("20060102_150405"))
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 
 	if err := history.ExportCSV(c.Writer, report.Points); err != nil {

@@ -202,6 +202,38 @@ func TestTransformInt64(t *testing.T) {
 	}
 }
 
+func TestInt64HighBitRoundTrip(t *testing.T) {
+	const value = int64(-0x0123456789ABCDEF)
+	for _, format := range []DataFormat{
+		DataFormatABCD,
+		DataFormatBADC,
+		DataFormatCDAB,
+		DataFormatDCBA,
+	} {
+		converter := NewDataConverter(format)
+		got := converter.ReadInt64(converter.WriteInt64(value), 0)
+		if got != value {
+			t.Errorf("format %s: expected %d, got %d", format, value, got)
+		}
+	}
+}
+
+func TestUint64HighBitRoundTrip(t *testing.T) {
+	const value = ^uint64(0)
+	for _, format := range []DataFormat{
+		DataFormatABCD,
+		DataFormatBADC,
+		DataFormatCDAB,
+		DataFormatDCBA,
+	} {
+		converter := NewDataConverter(format)
+		got := converter.ReadUint64(converter.WriteUint64(value), 0)
+		if got != value {
+			t.Errorf("format %s: expected %016X, got %016X", format, value, got)
+		}
+	}
+}
+
 func TestTransformFloat64(t *testing.T) {
 	bt := NewByteTransform(DataFormatABCD)
 	// 3.14159265358979 in IEEE 754 big-endian
@@ -322,7 +354,7 @@ func TestRegistersToUint32(t *testing.T) {
 
 func TestRegistersToFloat32(t *testing.T) {
 	bt := NewByteTransform(DataFormatABCD)
-	// 3.14 = 0x4048F5C3
+	// The IEEE 754 representation of 3.14 is 0x4048F5C3.
 	registers := []uint16{0x4048, 0xF5C3}
 	result := bt.RegistersToFloat32(registers)
 	expected := float32(3.14)

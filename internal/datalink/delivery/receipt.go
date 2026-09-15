@@ -8,7 +8,7 @@ import (
 // ReceiptLedger 定義回執記錄簿的操作介面。
 type ReceiptLedger interface {
 	SaveReceipt(receipt *Receipt) error
-	HasReceipt(destinationID string, recordID string, revision int64) (bool, error)
+	HasReceipt(destinationID, recordID string, revision int64) (bool, error)
 }
 
 // MemoryReceiptLedger 記憶體測試用 ReceiptLedger 實作。
@@ -37,7 +37,7 @@ func (m *MemoryReceiptLedger) SaveReceipt(receipt *Receipt) error {
 	return nil
 }
 
-func (m *MemoryReceiptLedger) HasReceipt(destinationID string, recordID string, revision int64) (bool, error) {
+func (m *MemoryReceiptLedger) HasReceipt(destinationID, recordID string, revision int64) (bool, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

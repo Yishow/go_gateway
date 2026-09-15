@@ -98,7 +98,7 @@ func (d *Dispatcher) extractValue(data []byte, offset int, dataType schema.DataT
 		if offset+2 > len(data) {
 			return nil, fmt.Errorf("資料不足以讀取 int16")
 		}
-		return int16(order.Uint16(data[offset:])), nil
+		return int16(order.Uint16(data[offset:])), nil // #nosec G115 -- Reinterpret the wire sign bit at the same integer width.
 
 	case schema.DataTypeUint16:
 		if offset+2 > len(data) {
@@ -110,7 +110,7 @@ func (d *Dispatcher) extractValue(data []byte, offset int, dataType schema.DataT
 		if offset+4 > len(data) {
 			return nil, fmt.Errorf("資料不足以讀取 int32")
 		}
-		return int32(order.Uint32(data[offset:])), nil
+		return int32(order.Uint32(data[offset:])), nil // #nosec G115 -- Reinterpret the wire sign bit at the same integer width.
 
 	case schema.DataTypeUint32:
 		if offset+4 > len(data) {
@@ -129,7 +129,7 @@ func (d *Dispatcher) extractValue(data []byte, offset int, dataType schema.DataT
 		if offset+8 > len(data) {
 			return nil, fmt.Errorf("資料不足以讀取 int64")
 		}
-		return int64(order.Uint64(data[offset:])), nil
+		return int64(order.Uint64(data[offset:])), nil // #nosec G115 -- Reinterpret the wire sign bit at the same integer width.
 
 	case schema.DataTypeUint64:
 		if offset+8 > len(data) {

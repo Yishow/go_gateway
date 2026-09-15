@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,7 @@ func newStudioV2WorkspaceDeviceRouter() *gin.Engine {
 	})
 }
 
-func performJSONRequest(t *testing.T, router http.Handler, method string, path string, body any) *httptest.ResponseRecorder {
+func performJSONRequest(t *testing.T, router http.Handler, method, path string, body any) *httptest.ResponseRecorder {
 	t.Helper()
 
 	var payload []byte
@@ -42,7 +43,7 @@ func performJSONRequest(t *testing.T, router http.Handler, method string, path s
 		}
 	}
 
-	req := httptest.NewRequest(method, path, bytes.NewReader(payload))
+	req := httptest.NewRequestWithContext(context.Background(), method, path, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)

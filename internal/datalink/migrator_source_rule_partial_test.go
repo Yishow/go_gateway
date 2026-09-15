@@ -1,6 +1,7 @@
 package datalink
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"testing"
@@ -30,10 +31,10 @@ func TestMigrator_SQLiteSourceRuleMigration_PartialSharePresenceTable(t *testing
 			require.NoError(t, err)
 			defer db.Close()
 
-			require.NoError(t, createLegacySourceRuleSchema(db, "rule-partial-"+tt.name))
+			require.NoError(t, createLegacySourceRuleSchema(t.Context(), db, "rule-partial-"+tt.name))
 			for _, column := range append(append([]string{}, tt.shareColumns...), tt.legacyNewColumns...) {
-				require.NoError(t, addLegacySourceRuleColumn(db, column))
-				require.NoError(t, setLegacySourceRuleColumnValue(db, column))
+				require.NoError(t, addLegacySourceRuleColumn(t.Context(), db, column))
+				require.NoError(t, setLegacySourceRuleColumnValue(t.Context(), db, column))
 			}
 
 			migrator := NewMigrator()
@@ -51,7 +52,7 @@ func TestMigrator_SQLiteSourceRuleMigration_PartialSharePresenceTable(t *testing
 
 			var id, deviceID, startAddress, dataType, namingPrefix, origin, skippedAddresses, templateName string
 			var count, enabled, locked int
-			require.NoError(t, db.QueryRow(`SELECT id, device_id, start_address, count, data_type, naming_prefix, enabled, locked, origin, template_name, skipped_addresses FROM source_rules WHERE id = ?`, "rule-partial-"+tt.name).Scan(
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT id, device_id, start_address, count, data_type, naming_prefix, enabled, locked, origin, template_name, skipped_addresses FROM source_rules WHERE id = ?`, "rule-partial-"+tt.name).Scan(
 				&id, &deviceID, &startAddress, &count, &dataType, &namingPrefix, &enabled, &locked, &origin, &templateName, &skippedAddresses))
 			require.Equal(t, "rule-partial-"+tt.name, id)
 			require.Equal(t, "device-partial", deviceID)
@@ -75,21 +76,21 @@ func TestMigrator_SQLiteSourceRuleMigration_PartialSharePresenceTable(t *testing
 			}
 
 			var columnsBefore int
-			require.NoError(t, db.QueryRow(`SELECT count(*) FROM pragma_table_info('source_rules')`).Scan(&columnsBefore))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM pragma_table_info('source_rules')`).Scan(&columnsBefore))
 			require.NoError(t, migrator.Migrate(db))
 			require.NoError(t, migrator.Migrate(db))
 			var columnsAfter int
-			require.NoError(t, db.QueryRow(`SELECT count(*) FROM pragma_table_info('source_rules')`).Scan(&columnsAfter))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count(*) FROM pragma_table_info('source_rules')`).Scan(&columnsAfter))
 			require.Equal(t, columnsBefore, columnsAfter)
 			var countAfterRerun int
-			require.NoError(t, db.QueryRow(`SELECT count FROM source_rules WHERE id = ?`, "rule-partial-"+tt.name).Scan(&countAfterRerun))
+			require.NoError(t, db.QueryRowContext(t.Context(), `SELECT count FROM source_rules WHERE id = ?`, "rule-partial-"+tt.name).Scan(&countAfterRerun))
 			require.Equal(t, 2, countAfterRerun)
 		})
 	}
 }
 
-func createLegacySourceRuleSchema(db *sql.DB, ruleID string) error {
-	_, err := db.Exec(`
+func createLegacySourceRuleSchema(ctx context.Context, db *sql.DB, ruleID string) error {
+	_, err := db.ExecContext(ctx, `
 		CREATE TABLE devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, protocol TEXT NOT NULL, connection_config TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL DEFAULT 'draft', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
 		INSERT INTO devices (id, name, protocol) VALUES ('device-partial', 'Legacy PLC', 'modbus_tcp');
 		CREATE TABLE source_rules (id TEXT PRIMARY KEY, device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE, start_address TEXT NOT NULL, count INTEGER NOT NULL CHECK (count > 0), data_type TEXT NOT NULL, naming_prefix TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, locked INTEGER NOT NULL DEFAULT 0, origin TEXT NOT NULL DEFAULT 'manual', template_name TEXT, skipped_addresses TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
@@ -99,7 +100,7 @@ func createLegacySourceRuleSchema(db *sql.DB, ruleID string) error {
 	return err
 }
 
-func addLegacySourceRuleColumn(db *sql.DB, column string) error {
+func addLegacySourceRuleColumn(ctx context.Context, db *sql.DB, column string) error {
 	ddls := map[string]string{
 		"target_data_type":     "ALTER TABLE source_rules ADD COLUMN target_data_type TEXT",
 		"scale_multiplier":     "ALTER TABLE source_rules ADD COLUMN scale_multiplier REAL",
@@ -114,11 +115,11 @@ func addLegacySourceRuleColumn(db *sql.DB, column string) error {
 	if !ok {
 		return fmt.Errorf("unknown source-rule column %q", column)
 	}
-	_, err := db.Exec(ddl)
+	_, err := db.ExecContext(ctx, ddl)
 	return err
 }
 
-func setLegacySourceRuleColumnValue(db *sql.DB, column string) error {
+func setLegacySourceRuleColumnValue(ctx context.Context, db *sql.DB, column string) error {
 	values := map[string]any{
 		"target_data_type":     "float32",
 		"scale_multiplier":     2.5,
@@ -147,7 +148,7 @@ func setLegacySourceRuleColumnValue(db *sql.DB, column string) error {
 	if !ok {
 		return fmt.Errorf("unknown source-rule column %q", column)
 	}
-	_, err := db.Exec(statement, value)
+	_, err := db.ExecContext(ctx, statement, value)
 	return err
 }
 
@@ -177,7 +178,7 @@ func assertMigratedSourceRuleValue(t *testing.T, db *sql.DB, ruleID, column stri
 	if !ok {
 		t.Fatalf("unknown source-rule column %q", column)
 	}
-	require.NoError(t, db.QueryRow(query, ruleID).Scan(&value))
+	require.NoError(t, db.QueryRowContext(t.Context(), query, ruleID).Scan(&value))
 	if !existed && column != "revision_id" {
 		if column == "share_enabled" {
 			require.Equal(t, "0", value.String)

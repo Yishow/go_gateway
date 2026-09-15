@@ -22,17 +22,20 @@ func NewService(repo Repository) *Service {
 // CreateMeasurement 建立量測定義。
 func (s *Service) CreateMeasurement(ctx context.Context, def *MeasurementDefinition) error {
 	if strings.TrimSpace(def.ID) == "" {
-		uuid, _ := common.NewUUID()
+		uuid, err := common.NewUUID()
+		if err != nil {
+			return fmt.Errorf("create measurement id: %w", err)
+		}
 		def.ID = "meas-" + uuid
 	}
 	if strings.TrimSpace(def.DefinitionRevision) == "" {
-		def.DefinitionRevision = "rev-1"
+		def.DefinitionRevision = initialDefinitionRevision
 	}
 	if strings.TrimSpace(def.SourceBindingRevision) == "" {
-		def.SourceBindingRevision = "rev-1"
+		def.SourceBindingRevision = initialDefinitionRevision
 	}
 	if strings.TrimSpace(def.SeriesEpoch) == "" {
-		def.SeriesEpoch = "epoch-1"
+		def.SeriesEpoch = initialSeriesEpoch
 	}
 	if err := def.Validate(); err != nil {
 		return err

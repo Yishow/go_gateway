@@ -77,7 +77,7 @@ func buildEnsureUniqueIndexStatement(
 	schemaName string,
 	tableName string,
 	columnName string,
-) (string, string) {
+) (sqlStatement, normalizedIndexName string) {
 	indexName := sanitizeIndexName(fmt.Sprintf("%s_%s_%s_uniq", schemaName, tableName, columnName))
 	tableRef := qualifiedTableName(kind, schemaName, tableName)
 	// MySQL 的 CREATE INDEX 不接受 IF NOT EXISTS；重複建立由欄位既有的主鍵 /
@@ -99,7 +99,7 @@ func buildEnsureUniqueIndexStatement(
 func normalizeDryRunCandidateIDs(
 	candidateIDs []string,
 	mappings []*schema.DatabaseTargetMapping,
-) (map[string]struct{}, []string) {
+) (selectedIDs map[string]struct{}, unknownIDs []string) {
 	if len(candidateIDs) == 0 {
 		return nil, nil
 	}
@@ -155,7 +155,7 @@ func selectMappingsForDryRun(
 
 func firstBlockingIssue(issues []ValidationIssue) (ValidationIssue, bool) {
 	for _, issue := range issues {
-		if strings.TrimSpace(issue.Severity) == "error" {
+		if strings.TrimSpace(issue.Severity) == validationSeverityError {
 			return issue, true
 		}
 	}
@@ -165,7 +165,7 @@ func firstBlockingIssue(issues []ValidationIssue) (ValidationIssue, bool) {
 func mapValidationIssueCodeForDryRun(code string) string {
 	normalized := strings.TrimSpace(strings.ToLower(code))
 	switch normalized {
-	case "table_missing", "column_missing", "timestamp_missing", "timestamp_column_missing", "timestamp_column_not_unique", "mapping_missing", "tag_missing":
+	case validationTableMissingCode, validationColumnMissingCode, "timestamp_missing", validationTimestampColumnMissingCode, "timestamp_column_not_unique", "mapping_missing", validationTagMissingCode:
 		return "schema_missing"
 	case "column_type_mismatch":
 		return "type_conflict"
@@ -176,7 +176,7 @@ func mapValidationIssueCodeForDryRun(code string) string {
 	}
 }
 
-func normalizeTableKey(schemaName string, tableName string) tableKey {
+func normalizeTableKey(schemaName, tableName string) tableKey {
 	return tableKey{
 		schema: strings.ToLower(strings.TrimSpace(schemaName)),
 		name:   strings.ToLower(strings.TrimSpace(tableName)),

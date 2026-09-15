@@ -15,7 +15,7 @@ import (
 
 // ConnectorFactory 連接器工廠函數類型
 // 用於建立新的協議連接器實例
-type ConnectorFactory func() Protocol
+type ConnectorFactory func() Protocol //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 
 // =============================================================================
 // 註冊表實作

@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	pointAddressPattern  = regexp.MustCompile(`^([A-Za-z]+[0-9]+|[0-9]+)$`)
+	pointAddressPattern  = regexp.MustCompile(`^([A-Za-z]+\d+|\d+)$`)
 	alphaFunctionPattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
 

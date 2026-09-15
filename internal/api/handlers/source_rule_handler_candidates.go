@@ -28,11 +28,11 @@ func (h *SourceRuleHandler) Candidates(c *gin.Context) {
 		if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
 			statusCode = http.StatusNotFound
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	applyCandidateScopeToView(view, scope)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": view})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: view})
 }
 
 func (h *SourceRuleHandler) RecomputeCandidates(c *gin.Context) {
@@ -52,11 +52,11 @@ func (h *SourceRuleHandler) RecomputeCandidates(c *gin.Context) {
 		if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
 			statusCode = http.StatusNotFound
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	applyCandidateScopeToView(view, scope)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": view})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: view})
 }
 
 func candidateScopeFromQuery(c *gin.Context) sourcerule.CandidateScopeRequest {
@@ -88,12 +88,12 @@ func applyCandidateScopeToView(view *sourcerule.CandidateSnapshotView, scope sou
 
 func writeCandidateScopeError(c *gin.Context, err error) {
 	if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	var typed *modbusshare.Error
 	if !errors.As(err, &typed) {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	status := http.StatusUnprocessableEntity

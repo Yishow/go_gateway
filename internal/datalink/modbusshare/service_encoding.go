@@ -24,12 +24,18 @@ func encodeToWords(dataType schema.DataType, value interface{}) ([]uint16, error
 		if err != nil {
 			return nil, err
 		}
-		return []uint16{uint16(int16(v))}, nil
+		if v < math.MinInt16 || v > math.MaxInt16 {
+			return nil, fmt.Errorf("value overflows int16")
+		}
+		return []uint16{uint16(int16(v))}, nil // #nosec G115 -- Preserve the sign bit of the validated 16-bit value.
 
 	case schema.DataTypeUint16:
 		v, err := toUint64(value)
 		if err != nil {
 			return nil, err
+		}
+		if v > math.MaxUint16 {
+			return nil, fmt.Errorf("value overflows uint16")
 		}
 		return []uint16{uint16(v)}, nil
 
@@ -38,16 +44,22 @@ func encodeToWords(dataType schema.DataType, value interface{}) ([]uint16, error
 		if err != nil {
 			return nil, err
 		}
-		raw := uint32(int32(v))
-		return []uint16{uint16(raw >> 16), uint16(raw)}, nil
+		if v < math.MinInt32 || v > math.MaxInt32 {
+			return nil, fmt.Errorf("value overflows int32")
+		}
+		raw := uint32(int32(v)) // #nosec G115 -- Preserve the sign bit of the validated 32-bit value.
+		return []uint16{uint16((raw >> 16) & 0xffff), uint16(raw & 0xffff)}, nil
 
 	case schema.DataTypeUint32:
 		v, err := toUint64(value)
 		if err != nil {
 			return nil, err
 		}
+		if v > math.MaxUint32 {
+			return nil, fmt.Errorf("value overflows uint32")
+		}
 		raw := uint32(v)
-		return []uint16{uint16(raw >> 16), uint16(raw)}, nil
+		return []uint16{uint16((raw >> 16) & 0xffff), uint16(raw & 0xffff)}, nil
 
 	case schema.DataTypeFloat32:
 		f, err := toFloat64(value)
@@ -55,19 +67,19 @@ func encodeToWords(dataType schema.DataType, value interface{}) ([]uint16, error
 			return nil, err
 		}
 		raw := math.Float32bits(float32(f))
-		return []uint16{uint16(raw >> 16), uint16(raw)}, nil
+		return []uint16{uint16((raw >> 16) & 0xffff), uint16(raw & 0xffff)}, nil
 
 	case schema.DataTypeInt64:
 		v, err := toInt64(value)
 		if err != nil {
 			return nil, err
 		}
-		raw := uint64(v)
+		raw := uint64(v) // #nosec G115 -- Reinterpret the signed 64-bit wire value without changing bits.
 		return []uint16{
-			uint16(raw >> 48),
-			uint16(raw >> 32),
-			uint16(raw >> 16),
-			uint16(raw),
+			uint16((raw >> 48) & 0xffff),
+			uint16((raw >> 32) & 0xffff),
+			uint16((raw >> 16) & 0xffff),
+			uint16(raw & 0xffff),
 		}, nil
 
 	case schema.DataTypeUint64:
@@ -76,10 +88,10 @@ func encodeToWords(dataType schema.DataType, value interface{}) ([]uint16, error
 			return nil, err
 		}
 		return []uint16{
-			uint16(raw >> 48),
-			uint16(raw >> 32),
-			uint16(raw >> 16),
-			uint16(raw),
+			uint16((raw >> 48) & 0xffff),
+			uint16((raw >> 32) & 0xffff),
+			uint16((raw >> 16) & 0xffff),
+			uint16(raw & 0xffff),
 		}, nil
 
 	case schema.DataTypeFloat64:
@@ -89,10 +101,10 @@ func encodeToWords(dataType schema.DataType, value interface{}) ([]uint16, error
 		}
 		raw := math.Float64bits(f)
 		return []uint16{
-			uint16(raw >> 48),
-			uint16(raw >> 32),
-			uint16(raw >> 16),
-			uint16(raw),
+			uint16((raw >> 48) & 0xffff),
+			uint16((raw >> 32) & 0xffff),
+			uint16((raw >> 16) & 0xffff),
+			uint16(raw & 0xffff),
 		}, nil
 
 	default:
@@ -129,12 +141,12 @@ func toInt64(v interface{}) (int64, error) {
 		}
 		return int64(n), nil
 	case float32:
-		if n > math.MaxInt64 || n < math.MinInt64 {
+		if math.IsNaN(float64(n)) || n >= math.MaxInt64 || n < math.MinInt64 {
 			return 0, fmt.Errorf("float32 value %v overflows int64", n)
 		}
 		return int64(n), nil
 	case float64:
-		if n > math.MaxInt64 || n < math.MinInt64 {
+		if math.IsNaN(float64(n)) || n >= math.MaxInt64 || n < math.MinInt64 {
 			return 0, fmt.Errorf("float64 value %v overflows int64", n)
 		}
 		return int64(n), nil
@@ -181,12 +193,12 @@ func toUint64(v interface{}) (uint64, error) {
 	case uint64:
 		return n, nil
 	case float32:
-		if n < 0 || n > float32(math.MaxUint64) {
+		if math.IsNaN(float64(n)) || n < 0 || n >= float32(math.MaxUint64) {
 			return 0, fmt.Errorf("float32 value %v out of uint64 range", n)
 		}
 		return uint64(n), nil
 	case float64:
-		if n < 0 || n > float64(math.MaxUint64) {
+		if math.IsNaN(n) || n < 0 || n >= float64(math.MaxUint64) {
 			return 0, fmt.Errorf("float64 value %v out of uint64 range", n)
 		}
 		return uint64(n), nil

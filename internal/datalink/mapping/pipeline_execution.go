@@ -47,10 +47,10 @@ func ExecutePipeline(raw interface{}, pipelineJSON string) (*TransformContext, e
 	orderedSteps := normalizeTransformSteps(steps)
 	for i, step := range orderedSteps {
 		result := StepResult{
-			StepIndex:   i,
-			StepType:    string(step.Type),
-			Input:       ctx.CurrentValue,
-			InputValue:  ctx.CurrentValue,
+			StepIndex:  i,
+			StepType:   string(step.Type),
+			Input:      ctx.CurrentValue,
+			InputValue: ctx.CurrentValue,
 		}
 
 		output, err := executeStep(ctx.CurrentValue, step)

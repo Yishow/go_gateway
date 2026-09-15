@@ -37,6 +37,8 @@ const (
 	CoilStartAddress = 0x0000
 	CoilMaxAddress   = 0xFFFF
 	CoilMaxQuantity  = 2000
+	// CoilMaxWriteQuantity is the protocol limit for a multiple-coil write.
+	CoilMaxWriteQuantity = 1968
 
 	// 離散輸入 (Discrete Inputs) - 只讀
 	DiscreteInputStartAddress = 0x10000
@@ -47,6 +49,8 @@ const (
 	HoldingRegisterStartAddress = 0x40000
 	HoldingRegisterMaxAddress   = 0x4FFFF
 	HoldingRegisterMaxQuantity  = 125
+	// HoldingRegisterMaxWriteQuantity is the protocol limit for a multiple-register write.
+	HoldingRegisterMaxWriteQuantity = 123
 
 	// 輸入暫存器 (Input Registers) - 只讀
 	InputRegisterStartAddress = 0x30000

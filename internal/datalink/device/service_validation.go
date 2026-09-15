@@ -28,7 +28,7 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 	// 解析配置 Schema
 	var configSchema map[string]interface{}
 	if err := json.Unmarshal(info.ConfigSchema, &configSchema); err != nil {
-		return nil // 無 Schema 驗證
+		return fmt.Errorf("invalid protocol configuration schema: %w", err)
 	}
 
 	// 取得 properties
@@ -80,14 +80,14 @@ func validateConnectionConfig(protocol schema.ProtocolType, config map[string]in
 			if prop, ok := properties[fieldName].(map[string]interface{}); ok {
 				// 檢查數字範圍
 				if numValue, ok := value.(float64); ok {
-					if min, ok := prop["minimum"].(float64); ok {
-						if numValue < min {
-							return fmt.Errorf("欄位 %s 的值 %v 小於最小值 %v", fieldName, numValue, min)
+					if minimum, ok := prop["minimum"].(float64); ok {
+						if numValue < minimum {
+							return fmt.Errorf("欄位 %s 的值 %v 小於最小值 %v", fieldName, numValue, minimum)
 						}
 					}
-					if max, ok := prop["maximum"].(float64); ok {
-						if numValue > max {
-							return fmt.Errorf("欄位 %s 的值 %v 大於最大值 %v", fieldName, numValue, max)
+					if maximum, ok := prop["maximum"].(float64); ok {
+						if numValue > maximum {
+							return fmt.Errorf("欄位 %s 的值 %v 大於最大值 %v", fieldName, numValue, maximum)
 						}
 					}
 					// 檢查 enum（對於數字類型）

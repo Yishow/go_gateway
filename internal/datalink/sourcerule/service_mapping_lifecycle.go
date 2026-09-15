@@ -31,7 +31,7 @@ func mappingCandidateSignature(transformPipeline []schema.TransformStep) (string
 	return candidateHash("signature", payload), nil
 }
 
-func ruleManagedMappingMetadata(rule *schema.SourceRule, pointRecord *schema.Point, link *schema.SourceRuleLink, transformPipeline []schema.TransformStep) (string, string, error) {
+func ruleManagedMappingMetadata(rule *schema.SourceRule, pointRecord *schema.Point, link *schema.SourceRuleLink, transformPipeline []schema.TransformStep) (resolvedCandidateID, proposedSignature string, metadataErr error) {
 	identity := buildMappingCandidateIdentity(rule.ID, link.Address, desiredRuleTargetDataType(rule, pointRecord))
 	id, err := candidateID(identity)
 	if err != nil {

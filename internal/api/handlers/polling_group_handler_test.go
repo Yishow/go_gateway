@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -43,7 +44,7 @@ func setupPollingGroupRouter() *gin.Engine {
 func TestPollingGroupHandler_List(t *testing.T) {
 	r := setupPollingGroupRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/polling-groups", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/polling-groups", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -75,7 +76,7 @@ func TestPollingGroupHandler_Get(t *testing.T) {
 		Enabled:     &enabled,
 	}
 	body, _ := json.Marshal(createReq)
-	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/polling-groups", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -88,7 +89,7 @@ func TestPollingGroupHandler_Get(t *testing.T) {
 	groupID := groupData["id"].(string)
 
 	// 取得群組
-	req, _ = http.NewRequest("GET", "/datalink/polling-groups/"+groupID, nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "GET", "/datalink/polling-groups/"+groupID, http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -109,7 +110,7 @@ func TestPollingGroupHandler_Get(t *testing.T) {
 func TestPollingGroupHandler_Get_NotFound(t *testing.T) {
 	r := setupPollingGroupRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/polling-groups/non-existent-id", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/polling-groups/non-existent-id", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -136,7 +137,7 @@ func TestPollingGroupHandler_Create(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newGroup)
-	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/polling-groups", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -178,7 +179,7 @@ func TestPollingGroupHandler_Update(t *testing.T) {
 		Enabled:    &enabled,
 	}
 	body, _ := json.Marshal(createReq)
-	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/polling-groups", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -201,7 +202,7 @@ func TestPollingGroupHandler_Update(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(updateReq)
-	req, _ = http.NewRequest("PUT", "/datalink/polling-groups/"+groupID, bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "PUT", "/datalink/polling-groups/"+groupID, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -234,7 +235,7 @@ func TestPollingGroupHandler_Delete(t *testing.T) {
 		Enabled:    &enabled,
 	}
 	body, _ := json.Marshal(createReq)
-	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/polling-groups", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -244,7 +245,7 @@ func TestPollingGroupHandler_Delete(t *testing.T) {
 	groupID := createResp["data"].(map[string]interface{})["id"].(string)
 
 	// 刪除群組
-	req, _ = http.NewRequest("DELETE", "/datalink/polling-groups/"+groupID, nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "DELETE", "/datalink/polling-groups/"+groupID, http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -261,7 +262,7 @@ func TestPollingGroupHandler_Delete(t *testing.T) {
 func TestPollingGroupHandler_Delete_NotFound(t *testing.T) {
 	r := setupPollingGroupRouter()
 
-	req, _ := http.NewRequest("DELETE", "/datalink/polling-groups/non-existent-id", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "DELETE", "/datalink/polling-groups/non-existent-id", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -288,7 +289,7 @@ func TestPollingGroupHandler_Create_ValidationError(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newGroup)
-	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/polling-groups", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -318,7 +319,7 @@ func TestPollingGroupHandler_Update_NotFound(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(updateReq)
-	req, _ := http.NewRequest("PUT", "/datalink/polling-groups/non-existent-id", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "PUT", "/datalink/polling-groups/non-existent-id", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -346,7 +347,7 @@ func TestPollingGroupHandler_List_MultipleGroups(t *testing.T) {
 
 	for _, group := range groups {
 		body, _ := json.Marshal(group)
-		req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
+		req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/polling-groups", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -354,7 +355,7 @@ func TestPollingGroupHandler_List_MultipleGroups(t *testing.T) {
 	}
 
 	// 列出所有群組
-	req, _ := http.NewRequest("GET", "/datalink/polling-groups", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/polling-groups", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -383,7 +384,7 @@ func TestPollingGroupHandler_Update_EnableDisable(t *testing.T) {
 		Enabled:    &enabled,
 	}
 	body, _ := json.Marshal(createReq)
-	req, _ := http.NewRequest("POST", "/datalink/polling-groups", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/polling-groups", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -401,7 +402,7 @@ func TestPollingGroupHandler_Update_EnableDisable(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(updateReq)
-	req, _ = http.NewRequest("PUT", "/datalink/polling-groups/"+groupID, bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "PUT", "/datalink/polling-groups/"+groupID, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)

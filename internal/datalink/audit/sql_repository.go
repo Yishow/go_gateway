@@ -36,21 +36,19 @@ func (r *SQLRepository) Create(ctx context.Context, entry *Entry) error {
 
 // List returns recent audit history entries.
 func (r *SQLRepository) List(ctx context.Context, filter ListFilter) ([]Entry, error) {
-	where := []string{"workspace_id = ?"}
-	args := []any{strings.TrimSpace(filter.WorkspaceID)}
-	if filter.EventType != "" {
-		where = append(where, "event_type = ?")
-		args = append(args, string(filter.EventType))
-	}
-	args = append(args, normalizeLimit(filter.Limit))
-
-	rows, err := r.db.QueryContext(ctx, `
+	query := `
 		SELECT id, workspace_id, event_type, result, scope, reference_id, details, occurred_at, created_at
 		FROM workspace_audit_history
-		WHERE `+strings.Join(where, " AND ")+`
-		ORDER BY occurred_at DESC, created_at DESC
-		LIMIT ?
-	`, args...)
+		WHERE workspace_id = ?`
+	args := []any{strings.TrimSpace(filter.WorkspaceID)}
+	if filter.EventType != "" {
+		query += ` AND event_type = ?`
+		args = append(args, string(filter.EventType))
+	}
+	query += ` ORDER BY occurred_at DESC, created_at DESC LIMIT ?`
+	args = append(args, normalizeLimit(filter.Limit))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list workspace audit history: %w", err)
 	}

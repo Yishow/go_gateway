@@ -45,26 +45,26 @@ func (h *MappingHandler) List(c *gin.Context) {
 
 	mappings, err := h.svc.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mappings})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mappings})
 }
 
 func (h *MappingHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Mapping not found"}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "Mapping not found"}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": m})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: m})
 }
 
 func (h *MappingHandler) Create(c *gin.Context) {
 	var req mapping.CreateMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -74,23 +74,23 @@ func (h *MappingHandler) Create(c *gin.Context) {
 		if errors.Is(err, mapping.ErrValidation) {
 			statusCode = http.StatusBadRequest
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	if h.runtimeRefresh != nil {
 		if err := h.runtimeRefresh.RefreshMappings(c.Request.Context()); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 			return
 		}
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": m})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: m})
 }
 
 func (h *MappingHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req mapping.UpdateMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -100,31 +100,31 @@ func (h *MappingHandler) Update(c *gin.Context) {
 		if errors.Is(err, mapping.ErrValidation) {
 			statusCode = http.StatusBadRequest
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	if h.runtimeRefresh != nil {
 		if err := h.runtimeRefresh.RefreshMappings(c.Request.Context()); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 			return
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": m})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: m})
 }
 
 func (h *MappingHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	if h.runtimeRefresh != nil {
 		if err := h.runtimeRefresh.RefreshMappings(c.Request.Context()); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 			return
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 type MappingPreviewRequest struct {
@@ -183,7 +183,7 @@ func (h *MappingHandler) Preview(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": res})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: res})
 }
 
 // ValidatePipelineRequest 驗證管線請求
@@ -202,13 +202,13 @@ type ValidatePipelineResponse struct {
 func (h *MappingHandler) ValidatePipeline(c *gin.Context) {
 	var req ValidatePipelineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	// 驗證必填欄位（pipeline 欄位必須存在，即使是空陣列）
 	if req.Pipeline == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "pipeline field is required"}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "pipeline field is required"}})
 		return
 	}
 
@@ -217,7 +217,7 @@ func (h *MappingHandler) ValidatePipeline(c *gin.Context) {
 	// 驗證管線格式
 	if len(*req.Pipeline) == 0 {
 		// 空管線是有效的（pass-through）
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+		c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: resp})
 		return
 	}
 
@@ -248,5 +248,5 @@ func (h *MappingHandler) ValidatePipeline(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: resp})
 }

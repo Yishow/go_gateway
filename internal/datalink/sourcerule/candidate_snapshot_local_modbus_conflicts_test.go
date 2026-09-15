@@ -29,9 +29,9 @@ func TestService_CandidateSnapshots_BlocksOnlyConflictingLocalModbusCandidates(t
 	dev, err := seedActiveDevice(ctx, deviceRepo, "device-lm-conflicts")
 	require.NoError(t, err)
 
-	ruleA, linksA := createLocalModbusConflictRule(t, ctx, svc, repo, dev.ID, "rule-lm-conflict-a", "40001", schema.DataTypeInt32)
-	ruleB, linksB := createLocalModbusConflictRule(t, ctx, svc, repo, dev.ID, "rule-lm-conflict-b", "40101", schema.DataTypeInt16)
-	ruleC, linksC := createLocalModbusConflictRule(t, ctx, svc, repo, dev.ID, "rule-lm-conflict-c", "40201", schema.DataTypeInt16)
+	ruleA, linksA := createLocalModbusConflictRule(ctx, t, svc, repo, dev.ID, "rule-lm-conflict-a", "40001", schema.DataTypeInt32)
+	ruleB, linksB := createLocalModbusConflictRule(ctx, t, svc, repo, dev.ID, "rule-lm-conflict-b", "40101", schema.DataTypeInt16)
+	ruleC, linksC := createLocalModbusConflictRule(ctx, t, svc, repo, dev.ID, "rule-lm-conflict-c", "40201", schema.DataTypeInt16)
 
 	require.NotNil(t, linksA[0].TagID)
 	require.NotNil(t, linksB[0].TagID)
@@ -49,9 +49,9 @@ func TestService_CandidateSnapshots_BlocksOnlyConflictingLocalModbusCandidates(t
 	require.NoError(t, svc.persistCandidateSnapshots(ctx, ruleB, linksB))
 	require.NoError(t, svc.persistCandidateSnapshots(ctx, ruleC, linksC))
 
-	candidateA, snapshotA := localModbusSingleCandidateFromRule(t, ctx, svc, ruleA.ID)
-	candidateB, snapshotB := localModbusSingleCandidateFromRule(t, ctx, svc, ruleB.ID)
-	candidateC, snapshotC := localModbusSingleCandidateFromRule(t, ctx, svc, ruleC.ID)
+	candidateA, snapshotA := localModbusSingleCandidateFromRule(ctx, t, svc, ruleA.ID)
+	candidateB, snapshotB := localModbusSingleCandidateFromRule(ctx, t, svc, ruleB.ID)
+	candidateC, snapshotC := localModbusSingleCandidateFromRule(ctx, t, svc, ruleC.ID)
 
 	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, snapshotA.Status)
 	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, snapshotB.Status)
@@ -67,8 +67,8 @@ func TestService_CandidateSnapshots_BlocksOnlyConflictingLocalModbusCandidates(t
 }
 
 func createLocalModbusConflictRule(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	svc *Service,
 	repo *MemoryRepository,
 	deviceID, ruleID, startAddress string,
@@ -87,14 +87,14 @@ func createLocalModbusConflictRule(
 	})
 	require.NoError(t, err)
 
-	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	require.Len(t, links, 1)
 	return rule, links
 }
 
 func localModbusSingleCandidateFromRule(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	svc *Service,
 	ruleID string,
 ) (schema.SourceRuleLocalModbusOutputCandidate, *schema.SourceRuleCandidateSnapshot) {

@@ -100,30 +100,26 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 
 		// 測試相關 API
 		testGroup := apiV1.Group("/test")
-		{
-			testGroup.POST("/connect", testHandler.Connect)
-			testGroup.POST("/disconnect", testHandler.Disconnect)
-			testGroup.GET("/status", testHandler.GetStatus)
-			testGroup.POST("/read", testHandler.Read)
-			testGroup.POST("/write", testHandler.Write)
-			testGroup.POST("/batch", testHandler.Batch)
-			testGroup.POST("/script", testHandler.ExecuteScript)
-			testGroup.GET("/scripts", testHandler.ListScripts)
-			testGroup.POST("/scripts", testHandler.SaveScript)
-			testGroup.DELETE("/scripts/:id", testHandler.DeleteScript)
-			testGroup.POST("/monitor/start", testHandler.StartMonitor)
-			testGroup.POST("/monitor/stop", testHandler.StopMonitor)
-		}
+		testGroup.POST("/connect", testHandler.Connect)
+		testGroup.POST("/disconnect", testHandler.Disconnect)
+		testGroup.GET("/status", testHandler.GetStatus)
+		testGroup.POST("/read", testHandler.Read)
+		testGroup.POST("/write", testHandler.Write)
+		testGroup.POST("/batch", testHandler.Batch)
+		testGroup.POST("/script", testHandler.ExecuteScript)
+		testGroup.GET("/scripts", testHandler.ListScripts)
+		testGroup.POST("/scripts", testHandler.SaveScript)
+		testGroup.DELETE("/scripts/:id", testHandler.DeleteScript)
+		testGroup.POST("/monitor/start", testHandler.StartMonitor)
+		testGroup.POST("/monitor/stop", testHandler.StopMonitor)
 
 		// Debug 相關 API（使用共用的 debugHandler）
 		debugGroup := apiV1.Group("/debug")
-		{
-			debugGroup.GET("/packets", debugHandler.GetPackets)
-			debugGroup.GET("/logs", debugHandler.GetLogs)
-			debugGroup.DELETE("/clear", debugHandler.ClearData)
-			debugGroup.POST("/send-raw", debugHandler.SendRaw)
-			debugGroup.GET("/analyze/:packetId", debugHandler.AnalyzePacket)
-		}
+		debugGroup.GET("/packets", debugHandler.GetPackets)
+		debugGroup.GET("/logs", debugHandler.GetLogs)
+		debugGroup.DELETE("/clear", debugHandler.ClearData)
+		debugGroup.POST("/send-raw", debugHandler.SendRaw)
+		debugGroup.GET("/analyze/:packetId", debugHandler.AnalyzePacket)
 
 		// 配置管理 API
 		configGroup := apiV1.Group("/config")

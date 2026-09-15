@@ -13,7 +13,7 @@ import (
 const statusRefreshInterval = time.Second
 
 // RuntimeStatusSnapshot describes the runtime monitoring snapshot payload.
-type RuntimeStatusSnapshot struct {
+type RuntimeStatusSnapshot struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	Running             bool                            `json:"running"`
 	UptimeSeconds       int64                           `json:"uptime_seconds"`
 	SnapshotState       RuntimeTruthState               `json:"snapshot_state"`
@@ -171,7 +171,7 @@ func (s *Service) deriveDeviceStatuses(
 			DeviceID:           dev.ID,
 			DeviceName:         dev.Name,
 			Protocol:           string(dev.Protocol),
-			Status:             "idle",
+			Status:             runtimeStatusIdle,
 			AvailabilityStatus: device.AvailabilityStatusAvailable,
 			BreakerState:       s.runtimeBreakerState(dev.ID),
 		}
@@ -222,7 +222,7 @@ func (s *Service) deriveDeviceStatuses(
 		status.Running = status.Status == "running" && status.AvailabilityStatus == device.AvailabilityStatusAvailable
 		if status.AvailabilityStatus == device.AvailabilityStatusUnavailable {
 			status.Running = false
-			status.Status = "idle"
+			status.Status = runtimeStatusIdle
 		}
 		collectors = append(collectors, status)
 	}
@@ -245,14 +245,14 @@ func effectiveRuntimePointInterval(groupIntervalByID map[string]time.Duration, p
 
 func deriveRuntimeDeviceState(status DeviceRuntimeStatus, running bool) string {
 	switch {
-	case status.PointsError > 0 || status.BreakerState == "open":
+	case status.PointsError > 0 || status.BreakerState == breakerStateOpen:
 		return "error"
-	case status.PointsStale > 0 || status.BreakerState == "half-open":
+	case status.PointsStale > 0 || status.BreakerState == breakerStateHalfOpen:
 		return "warning"
 	case running:
 		return "running"
 	default:
-		return "idle"
+		return runtimeStatusIdle
 	}
 }
 
@@ -277,21 +277,21 @@ func (s *Service) attachProjectionStates(ctx context.Context, collectors []Devic
 
 func (s *Service) runtimeBreakerState(deviceID string) string {
 	if s.scheduler == nil {
-		return "closed"
+		return breakerStateClosed
 	}
 
 	state, exists := s.scheduler.GetDeviceBreakerState(deviceID)
 	if !exists {
-		return "closed"
+		return breakerStateClosed
 	}
 
 	switch state {
 	case health.StateDead:
-		return "open"
+		return breakerStateOpen
 	case health.StateUnstable:
-		return "half-open"
+		return breakerStateHalfOpen
 	default:
-		return "closed"
+		return breakerStateClosed
 	}
 }
 

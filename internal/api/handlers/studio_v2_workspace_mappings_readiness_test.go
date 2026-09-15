@@ -57,7 +57,7 @@ func TestStudioV2WorkspaceMappingsHandler_DeleteDefersLiveApplyWhenReadinessBloc
 	require.NoError(t, err)
 
 	handler := NewStudioV2WorkspaceMappingsHandler(workspaceSvc, deviceSvc, ruleSvc, pointSvc, tagSvc, mappingSvc)
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
+	createReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
 		"rule_id":"rule-A",
 		"address":"40001",
 		"tag_key":"line.a.temp",
@@ -77,7 +77,7 @@ func TestStudioV2WorkspaceMappingsHandler_DeleteDefersLiveApplyWhenReadinessBloc
 
 	createBody := decodeWorkspaceMappingBody(t, createResp)
 	mappingID := createBody["data"].(map[string]any)["id"].(string)
-	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/mappings/"+mappingID, nil)
+	deleteReq := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/mappings/"+mappingID, http.NoBody)
 	deleteResp := httptest.NewRecorder()
 	deleteCtx, _ := gin.CreateTestContext(deleteResp)
 	deleteCtx.Request = deleteReq

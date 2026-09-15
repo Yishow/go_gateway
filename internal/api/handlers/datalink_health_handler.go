@@ -39,5 +39,5 @@ func (h *DatalinkHealthHandler) Check(c *gin.Context) {
 		Version:   "1.0.0",
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": status})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: status})
 }

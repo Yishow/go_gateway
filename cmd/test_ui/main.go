@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -48,6 +49,12 @@ var (
 )
 
 func main() {
+	if err := runGateway(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func runGateway() error {
 	// 載入配置（從 .env 文件或環境變數）
 	cfg, err := config.Load()
 	if err != nil {
@@ -66,7 +73,7 @@ func main() {
 
 	db, err := sql.Open("sqlite", sqliteDSN)
 	if err != nil {
-		log.Fatalf("無法開啟資料庫: %v", err)
+		return fmt.Errorf("無法開啟資料庫: %w", err)
 	}
 	defer db.Close()
 	datalink.ApplySQLitePoolDefaults(db)
@@ -74,7 +81,7 @@ func main() {
 	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer pingCancel()
 	if err := db.PingContext(pingCtx); err != nil {
-		log.Fatalf("無法連接資料庫: %v", err)
+		return fmt.Errorf("無法連接資料庫: %w", err)
 	}
 
 	// =========================================================================
@@ -82,7 +89,7 @@ func main() {
 	// =========================================================================
 	migrator := datalink.NewMigrator()           // Remove db arg
 	if err := migrator.Migrate(db); err != nil { // Add db arg
-		log.Fatalf("資料庫遷移失敗: %v", err)
+		return fmt.Errorf("資料庫遷移失敗: %w", err)
 	}
 
 	// =========================================================================
@@ -240,4 +247,5 @@ func main() {
 	go handleSignals()
 
 	<-shutdownCh
+	return nil
 }

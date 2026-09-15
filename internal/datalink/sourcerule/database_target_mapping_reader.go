@@ -80,7 +80,10 @@ func (s *Service) databaseTargetMappingReader() DatabaseTargetMappingReader {
 	if !ok {
 		return nil
 	}
-	mappingReader, _ := reader.(DatabaseTargetMappingReader)
+	mappingReader, ok := reader.(DatabaseTargetMappingReader)
+	if !ok {
+		return nil
+	}
 	return mappingReader
 }
 
@@ -97,7 +100,10 @@ func (s *Service) databaseTargetConnectorReader() DatabaseTargetConnectorReader 
 	if !ok {
 		return nil
 	}
-	connectorReader, _ := reader.(DatabaseTargetConnectorReader)
+	connectorReader, ok := reader.(DatabaseTargetConnectorReader)
+	if !ok {
+		return nil
+	}
 	return connectorReader
 }
 
@@ -114,6 +120,9 @@ func (s *Service) databaseTargetConnectorValidator() DatabaseTargetConnectorVali
 	if !ok {
 		return nil
 	}
-	connectorValidator, _ := validator.(DatabaseTargetConnectorValidator)
+	connectorValidator, ok := validator.(DatabaseTargetConnectorValidator)
+	if !ok {
+		return nil
+	}
 	return connectorValidator
 }

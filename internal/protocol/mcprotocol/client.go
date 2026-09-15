@@ -95,7 +95,7 @@ func (c *MCClient) SetFrame(frame RequestFrame) {
 }
 
 // BatchReadWord reads 16-bit words
-func (c *MCClient) BatchReadWord(device string, addr int, count int) ([]int, error) {
+func (c *MCClient) BatchReadWord(device string, addr, count int) ([]int, error) {
 	// 輸入驗證
 	if addr < 0 || addr > 0xFFFFFF {
 		return nil, fmt.Errorf("address out of range: %d (valid: 0-16777215)", addr)
@@ -224,7 +224,7 @@ func (c *MCClient) BatchWriteWord(device string, addr int, values []int) error {
 }
 
 // BatchReadBit reads bits
-func (c *MCClient) BatchReadBit(device string, addr int, count int) ([]bool, error) {
+func (c *MCClient) BatchReadBit(device string, addr, count int) ([]bool, error) {
 	// 輸入驗證
 	if addr < 0 || addr > 0xFFFFFF {
 		return nil, fmt.Errorf("address out of range: %d (valid: 0-16777215)", addr)
@@ -362,6 +362,15 @@ type RandomWriteBitItem struct {
 // RandomRead reads mixed words
 func (c *MCClient) RandomRead(items []RandomReadItem) ([]int, error) {
 	count := len(items)
+	if count < 1 || count > 255 {
+		return nil, fmt.Errorf("count out of range: %d (valid: 1-255 for random read)", count)
+	}
+	for _, item := range items {
+		if item.Addr < 0 || item.Addr > 0xFFFFFF {
+			return nil, fmt.Errorf("address out of range: %d (valid: 0-16777215)", item.Addr)
+		}
+	}
+
 	// Request: Count(1) + DoubleCount(1) + [Code(1)+Head(3)]...
 	// Note: DoubleCount is usually 0 for 3E frame word access command 0403
 

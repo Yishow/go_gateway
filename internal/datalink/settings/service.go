@@ -74,7 +74,6 @@ type RevisionCASRepository interface {
 // Service 設定管理服務
 type Service struct {
 	repo Repository
-	mu   sync.RWMutex
 }
 
 // NewService 建立新的設定服務

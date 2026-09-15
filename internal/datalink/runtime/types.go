@@ -19,4 +19,3 @@ type Metrics struct {
 	MappingErrorCount int64
 	WriteErrorCount   int64
 }
-

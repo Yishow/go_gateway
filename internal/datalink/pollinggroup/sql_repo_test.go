@@ -24,13 +24,13 @@ import (
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
-
+	ctx := t.Context()
 	// 讀取並執行 migration 腳本
 	migrationPath := "../schema/migrations/001_initial_schema_sqlite.sql"
 	migrationContent, err := os.ReadFile(migrationPath)
 	require.NoError(t, err)
 
-	_, err = db.Exec(string(migrationContent))
+	_, err = db.ExecContext(ctx, string(migrationContent))
 	require.NoError(t, err)
 
 	return db
@@ -322,7 +322,7 @@ func TestSQLRepository_NullFields(t *testing.T) {
 
 	now := time.Now().UTC()
 	group := &schema.PollingGroup{
-		Name:      "測試 NULL 欄位",
+		Name:       "測試 NULL 欄位",
 		IntervalMs: 1000,
 		Priority:   100,
 		Enabled:    true,
@@ -389,7 +389,7 @@ func TestSQLRepository_IntervalValidation(t *testing.T) {
 	for i, interval := range validIntervals {
 		group := createTestPollingGroup(t)
 		group.Name = string(rune('0' + i))
-	group.IntervalMs = int(interval)
+		group.IntervalMs = int(interval)
 		err := repo.Create(ctx, group)
 		assert.NoError(t, err, "Interval %d should be valid", interval)
 	}
@@ -451,7 +451,7 @@ func TestSQLRepository_Priority(t *testing.T) {
 	for i, priority := range priorities {
 		group := createTestPollingGroup(t)
 		group.Name = string(rune('0' + i))
-	group.Priority = int(priority)
+		group.Priority = int(priority)
 		err := repo.Create(ctx, group)
 		require.NoError(t, err, "Priority %d should be valid", priority)
 	}

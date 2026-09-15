@@ -42,7 +42,7 @@ func (h *SettingsHandler) List(c *gin.Context) {
 		renderSafeError(c, http.StatusInternalServerError, ErrCodeSettingsUnavailable, true)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: items})
 }
 
 // UpdateRequest 更新設定請求
@@ -115,5 +115,5 @@ func (h *SettingsHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": item})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: item})
 }

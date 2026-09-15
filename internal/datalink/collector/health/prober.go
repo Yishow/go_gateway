@@ -35,8 +35,8 @@ func DefaultProberConfig() ProberConfig {
 type BackgroundProber struct {
 	mu sync.RWMutex
 
-	config   ProberConfig
-	breakers map[string]*CircuitBreaker
+	config    ProberConfig
+	breakers  map[string]*CircuitBreaker
 	probeFunc ProbeFunc
 
 	running bool
@@ -47,8 +47,8 @@ type BackgroundProber struct {
 // NewBackgroundProber 建立新的背景探測器
 func NewBackgroundProber(config ProberConfig, probeFunc ProbeFunc) *BackgroundProber {
 	return &BackgroundProber{
-		config:   config,
-		breakers: make(map[string]*CircuitBreaker),
+		config:    config,
+		breakers:  make(map[string]*CircuitBreaker),
 		probeFunc: probeFunc,
 	}
 }

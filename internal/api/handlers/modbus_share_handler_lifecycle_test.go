@@ -47,7 +47,7 @@ func TestModbusShareHandler_StartAndStopLifecycle(t *testing.T) {
 
 	startPayload := map[string]int{"port": reserveTCPPort(t)}
 	body, _ := json.Marshal(startPayload)
-	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/start", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -59,7 +59,7 @@ func TestModbusShareHandler_StartAndStopLifecycle(t *testing.T) {
 		t.Fatal("expected service enabled after start")
 	}
 
-	stopReq := httptest.NewRequest(http.MethodPost, "/stop", http.NoBody)
+	stopReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/stop", http.NoBody)
 	stopW := httptest.NewRecorder()
 	router.ServeHTTP(stopW, stopReq)
 	if stopW.Code != http.StatusOK {
@@ -82,7 +82,7 @@ func TestModbusShareHandler_StartPortConflictReturns409(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(map[string]int{"port": port})
-	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/start", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -141,7 +141,7 @@ func TestModbusShareHandler_StartRequiresExplicitPortWhenNoDurableGate(t *testin
 	router := gin.New()
 	router.POST("/start", handler.Start)
 
-	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewReader([]byte("{}")))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/start", bytes.NewReader([]byte("{}")))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -159,7 +159,7 @@ func TestModbusShareHandler_StopIdempotent(t *testing.T) {
 
 	_ = svc.Stop()
 
-	req := httptest.NewRequest(http.MethodPost, "/stop", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/stop", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -174,7 +174,7 @@ func TestModbusShareHandler_StartRejectsInvalidPort(t *testing.T) {
 	router.POST("/start", handler.Start)
 
 	body, _ := json.Marshal(map[string]int{"port": -1})
-	req := httptest.NewRequest(http.MethodPost, "/start", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/start", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -194,7 +194,7 @@ func TestModbusShareHandler_StatusContainsBindState(t *testing.T) {
 		t.Fatalf("start failed: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/status", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -231,7 +231,7 @@ func TestModbusShareHandler_StatusAvailableWithoutMappings(t *testing.T) {
 	router := gin.New()
 	router.GET("/status", handler.Status)
 
-	req := httptest.NewRequest(http.MethodGet, "/status", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -269,7 +269,7 @@ func TestModbusShareHandler_StartAndStopWithContext(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/stop", http.NoBody).WithContext(ctx)
+	c.Request = httptest.NewRequestWithContext(ctx, http.MethodPost, "/stop", http.NoBody)
 	handler.Stop(c)
 
 	if w.Code != http.StatusOK {

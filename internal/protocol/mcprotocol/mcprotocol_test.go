@@ -64,7 +64,8 @@ func (m *MockMCTransport) SendReceive(req []byte) ([]byte, error) {
 
 	switch cmd {
 	case CmdBatchRead:
-		if subCmd == SubCmdWord {
+		switch subCmd {
+		case SubCmdWord:
 			// 讀取字組回應: EndCode(2) + Data(2*count)
 			count := 10
 			body = make([]byte, 2+count*2)
@@ -72,7 +73,7 @@ func (m *MockMCTransport) SendReceive(req []byte) ([]byte, error) {
 			for i := 0; i < count; i++ {
 				binary.LittleEndian.PutUint16(body[2+i*2:], uint16(i*100))
 			}
-		} else if subCmd == SubCmdBit {
+		case SubCmdBit:
 			// 讀取位元回應: EndCode(2) + Data((count+1)/2)
 			count := 10
 			byteCount := (count + 1) / 2
@@ -83,7 +84,7 @@ func (m *MockMCTransport) SendReceive(req []byte) ([]byte, error) {
 		}
 
 	case CmdBatchWrite:
-		// 寫入回應: EndCode(2)
+		// The write response contains only the two-byte end code.
 		body = make([]byte, 2)
 		binary.LittleEndian.PutUint16(body[0:], 0) // EndCode
 
@@ -168,9 +169,14 @@ func TestPackBits(t *testing.T) {
 		t.Errorf("Expected 4 bytes, got %d", len(data))
 	}
 
-	// 驗證第一個位元組: true(high), false(low) = 0x10
+	// The first pair is true in the high nibble and false in the low nibble.
 	if data[0] != 0x10 {
 		t.Errorf("Expected first byte 0x10, got 0x%02X", data[0])
+	}
+
+	oddData := PackBits([]bool{true, false, true})
+	if len(oddData) != 2 || oddData[0] != 0x10 || oddData[1] != 0x10 {
+		t.Errorf("Expected odd-length values to pack as [0x10 0x10], got %v", oddData)
 	}
 }
 
@@ -382,8 +388,7 @@ func TestClient_ErrorHandling(t *testing.T) {
 	transport := NewMockMCTransport()
 	client := NewClientWithTransport(transport)
 
-	// 創建一個會返回錯誤的回應
-	// 需要構建完整的請求來設置回應
+	// Configure a response that carries a PLC error code.
 	req := client.frame.BuildPacket(CmdBatchRead, SubCmdWord, []byte{0x00, 0x00, 0x00, 0xA8, 0x0A, 0x00})
 	errorResponse := make([]byte, 2)
 	binary.LittleEndian.PutUint16(errorResponse[0:], 0x0001) // Error code

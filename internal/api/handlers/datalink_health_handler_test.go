@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,7 @@ func setupDatalinkHealthRouter() *gin.Engine {
 func TestDatalinkHealthHandler_Check(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -50,7 +51,7 @@ func TestDatalinkHealthHandler_Check(t *testing.T) {
 func TestDatalinkHealthHandler_Check_Structure(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -76,7 +77,7 @@ func TestDatalinkHealthHandler_Check_Structure(t *testing.T) {
 func TestDatalinkHealthHandler_Check_Status(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -93,7 +94,7 @@ func TestDatalinkHealthHandler_Check_Status(t *testing.T) {
 func TestDatalinkHealthHandler_Check_Service(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -110,7 +111,7 @@ func TestDatalinkHealthHandler_Check_Service(t *testing.T) {
 func TestDatalinkHealthHandler_Check_Version(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -127,7 +128,7 @@ func TestDatalinkHealthHandler_Check_Version(t *testing.T) {
 func TestDatalinkHealthHandler_Check_Timestamp(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -151,7 +152,7 @@ func TestDatalinkHealthHandler_Check_Timestamp(t *testing.T) {
 func TestDatalinkHealthHandler_Check_ContentType(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -165,7 +166,7 @@ func TestDatalinkHealthHandler_Check_ResponseTime(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
 	start := time.Now()
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	duration := time.Since(start)
@@ -182,11 +183,11 @@ func TestDatalinkHealthHandler_Check_ResponseTime(t *testing.T) {
 func TestDatalinkHealthHandler_Check_MultipleRequests(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	var responses []map[string]interface{}
+	responses := make([]map[string]interface{}, 0, 5)
 
 	// 發送 5 次請求
 	for i := 0; i < 5; i++ {
-		req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -224,7 +225,7 @@ func TestDatalinkHealthHandler_Check_InvalidMethod(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
 	// 測試 POST 方法（不支援）
-	req, _ := http.NewRequest("POST", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -238,7 +239,7 @@ func TestDatalinkHealthHandler_Check_InvalidMethod(t *testing.T) {
 func TestDatalinkHealthHandler_Check_InvalidPath(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/invalid", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/invalid", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -251,7 +252,7 @@ func TestDatalinkHealthHandler_Check_InvalidPath(t *testing.T) {
 func TestDatalinkHealthHandler_Check_ResponseBody(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -273,7 +274,7 @@ func TestDatalinkHealthHandler_Check_ResponseBody(t *testing.T) {
 func TestDatalinkHealthHandler_Check_Headers(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -288,7 +289,7 @@ func TestDatalinkHealthHandler_Check_Headers(t *testing.T) {
 func TestDatalinkHealthHandler_Check_JSONFormat(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -322,7 +323,7 @@ func TestDatalinkHealthHandler_Check_ConcurrentRequests(t *testing.T) {
 	// 發送並發請求
 	for i := 0; i < numRequests; i++ {
 		go func() {
-			req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+			req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
@@ -351,7 +352,7 @@ func TestDatalinkHealthHandler_Check_ConcurrentRequests(t *testing.T) {
 func TestDatalinkHealthHandler_Check_TimestampPrecision(t *testing.T) {
 	r := setupDatalinkHealthRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/health", http.NoBody)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/datalink/health", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

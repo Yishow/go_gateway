@@ -31,11 +31,11 @@ func (s *MappingService) Validate(ctx context.Context, connectorID string) (*Val
 	if tableErr != nil {
 		result.Ready = false
 		result.Issues = append(result.Issues, ValidationIssue{
-			Severity: "error",
+			Severity: validationSeverityError,
 			Code:     "connector_unreachable",
 			Message:  tableErr.Error(),
 		})
-		return result, nil
+		return result, nil //nolint:nilerr // A completed validation reports connection failure through Ready=false and Issues.
 	}
 	if len(projection.Mappings) == 0 {
 		result.Issues = append(result.Issues, ValidationIssue{
@@ -53,10 +53,10 @@ func (s *MappingService) Validate(ctx context.Context, connectorID string) (*Val
 			if err != nil {
 				result.Ready = false
 				result.Issues = append(result.Issues, ValidationIssue{
-					Severity:  "error",
+					Severity:  validationSeverityError,
 					MappingID: mapping.ID,
 					TagID:     mapping.TagID,
-					Code:      "tag_missing",
+					Code:      validationTagMissingCode,
 					Message:   fmt.Sprintf("標籤不存在: %s", mapping.TagID),
 				})
 				continue
@@ -65,7 +65,7 @@ func (s *MappingService) Validate(ctx context.Context, connectorID string) (*Val
 
 		issues := validateMappingAgainstTables(connector.Kind, *mapping, *tagEntity, tables)
 		for _, issue := range issues {
-			if issue.Severity == "error" {
+			if issue.Severity == validationSeverityError {
 				result.Ready = false
 			}
 			result.Issues = append(result.Issues, issue)

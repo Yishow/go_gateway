@@ -208,7 +208,7 @@ func isMC3EDecimalArea(area string) bool {
 	return area == "D" || area == "W" || area == "M"
 }
 
-func splitAlphaNumeric(input string) (string, string) {
+func splitAlphaNumeric(input string) (letters, digits string) {
 	index := 0
 	for ; index < len(input); index++ {
 		ch := input[index]

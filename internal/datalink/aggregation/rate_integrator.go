@@ -72,7 +72,7 @@ func IntegrateRate(
 		v1 := *prev.ValueNumeric
 		v2 := *curr.ValueNumeric
 
-		// 梯形面積 = ((v1 + v2) / 2) * (dt / divisor)
+		// 梯形積分：平均值乘上換算單位後的時間長度。
 		area := ((v1 + v2) / 2.0) * (dt / divisor)
 		totalArea += area
 	}

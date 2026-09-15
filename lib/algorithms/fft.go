@@ -24,7 +24,6 @@ func FFT(x []complex128) []complex128 {
 		padded := make([]complex128, newN)
 		copy(padded, x)
 		x = padded
-		n = newN
 	}
 
 	// 遞迴實作

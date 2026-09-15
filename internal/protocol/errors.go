@@ -8,7 +8,7 @@ import (
 
 // ProtocolException 是所有協議錯誤的基礎介面
 // 所有協議實作（Fatek、Modbus、MC Protocol）都應實作此介面
-type ProtocolException interface {
+type ProtocolException interface { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	error
 	// IsProtocolError 標識此錯誤為協議層級錯誤
 	IsProtocolError() bool

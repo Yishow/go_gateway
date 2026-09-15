@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log/slog"
+	"math"
 	"net"
 	"sync"
 
@@ -123,7 +125,9 @@ func (s *UDPServer) readLoop() {
 			continue
 		}
 
-		_, _ = s.conn.WriteToUDP(resp, addr)
+		if _, err := s.conn.WriteToUDP(resp, addr); err != nil && !errors.Is(err, net.ErrClosed) {
+			slog.Error("write Modbus UDP response", "error", err)
+		}
 	}
 }
 
@@ -148,10 +152,14 @@ func (s *UDPServer) handleFrame(frame []byte) ([]byte, bool) {
 	pdu := frame[MBAPHeaderLength:pduEnd]
 	responsePDU := s.requestHandler.handleRequest(pdu)
 
-	response := make([]byte, MBAPHeaderLength+len(responsePDU))
+	pduLength := len(responsePDU)
+	if pduLength > math.MaxUint16-1 {
+		return nil, false
+	}
+	response := make([]byte, MBAPHeaderLength+pduLength)
 	binary.BigEndian.PutUint16(response[0:2], transactionID)
 	binary.BigEndian.PutUint16(response[2:4], 0)
-	binary.BigEndian.PutUint16(response[4:6], uint16(len(responsePDU)+1))
+	binary.BigEndian.PutUint16(response[4:6], uint16(pduLength)+1)
 	response[6] = unitID
 	copy(response[7:], responsePDU)
 

@@ -25,16 +25,16 @@ import (
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
-
+	ctx := t.Context()
 	// 讀取並執行 migration 腳本
 	migrationPath := "../schema/migrations/001_initial_schema_sqlite.sql"
 	migrationContent, err := os.ReadFile(migrationPath)
 	require.NoError(t, err)
 
-	_, err = db.Exec(string(migrationContent))
+	_, err = db.ExecContext(ctx, string(migrationContent))
 	require.NoError(t, err)
 
-	_, err = db.Exec(`ALTER TABLE points ADD COLUMN data_format TEXT`)
+	_, err = db.ExecContext(ctx, `ALTER TABLE points ADD COLUMN data_format TEXT`)
 	require.NoError(t, err)
 
 	return db
@@ -46,7 +46,7 @@ func setupTestDB(t *testing.T) *sql.DB {
  * @param db 資料庫連線
  * @returns deviceID, pollingGroupID 設備 ID 與輪詢群組 ID
  */
-func setupTestData(t *testing.T, db *sql.DB) (string, string) {
+func setupTestData(t *testing.T, db *sql.DB) (deviceIDResult, pollingGroupIDResult string) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 
@@ -75,7 +75,7 @@ func setupTestData(t *testing.T, db *sql.DB) (string, string) {
  * @param deviceID 設備 ID
  * @returns *schema.Point 測試點位物件
  */
-func createTestPoint(t *testing.T, deviceID string) *schema.Point {
+func createTestPoint(deviceID string) *schema.Point {
 	now := time.Now().UTC()
 	return &schema.Point{
 		ID:             "test-point-001",
@@ -104,7 +104,7 @@ func TestSQLRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 
 	// 執行 Create
 	err := repo.Create(ctx, point)
@@ -130,7 +130,7 @@ func TestSQLRepository_Create_Duplicate(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 
 	// 第一次建立應成功
 	err := repo.Create(ctx, point)
@@ -152,7 +152,7 @@ func TestSQLRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 	err := repo.Create(ctx, point)
 	require.NoError(t, err)
 
@@ -187,7 +187,7 @@ func TestSQLRepository_Update_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 	point.ID = "non-existent-id"
 
 	err := repo.Update(ctx, point)
@@ -206,7 +206,7 @@ func TestSQLRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 	err := repo.Create(ctx, point)
 	require.NoError(t, err)
 
@@ -246,7 +246,7 @@ func TestSQLRepository_GetByID(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 	err := repo.Create(ctx, point)
 	require.NoError(t, err)
 
@@ -287,7 +287,7 @@ func TestSQLRepository_ListByDevice(t *testing.T) {
 
 	// 建立多個點位
 	for i := 1; i <= 3; i++ {
-		point := createTestPoint(t, deviceID)
+		point := createTestPoint(deviceID)
 		point.ID = string(rune('0' + i))
 		point.Name = string(rune('0' + i))
 		point.Address = fmt.Sprintf("4000%d", i)
@@ -320,7 +320,7 @@ func TestSQLRepository_List(t *testing.T) {
 
 	// 建立多個點位
 	points := []*schema.Point{
-		createTestPoint(t, deviceID),
+		createTestPoint(deviceID),
 		{
 			ID:        "test-point-002",
 			DeviceID:  deviceID,
@@ -458,7 +458,7 @@ func TestSQLRepository_List_WithPagination(t *testing.T) {
 
 	// 建立 5 個點位
 	for i := 1; i <= 5; i++ {
-		point := createTestPoint(t, deviceID)
+		point := createTestPoint(deviceID)
 		point.ID = string(rune('0' + i))
 		point.Name = string(rune('0' + i))
 		point.Address = fmt.Sprintf("4000%d", i)
@@ -532,7 +532,7 @@ func TestSQLRepository_WithPollingGroup(t *testing.T) {
 
 	deviceID, pollingGroupID := setupTestData(t, db)
 
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 	point.PollingGroupID = &pollingGroupID
 
 	err := repo.Create(ctx, point)
@@ -556,7 +556,7 @@ func TestSQLRepository_UpdateLastRead(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 	err := repo.Create(ctx, point)
 	require.NoError(t, err)
 
@@ -594,13 +594,13 @@ func TestSQLRepository_UniquenessConstraint(t *testing.T) {
 	deviceID, _ := setupTestData(t, db)
 
 	// 建立第一個點位
-	point1 := createTestPoint(t, deviceID)
+	point1 := createTestPoint(deviceID)
 	point1.Function = "03"
 	err := repo.Create(ctx, point1)
 	require.NoError(t, err)
 
 	// 相同設備和位址，但不同 function 應成功
-	point2 := createTestPoint(t, deviceID)
+	point2 := createTestPoint(deviceID)
 	point2.ID = "test-point-002"
 	point2.Name = "不同功能點位"
 	point2.Function = "04"
@@ -608,7 +608,7 @@ func TestSQLRepository_UniquenessConstraint(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 相同設備、位址與 function 應失敗
-	point3 := createTestPoint(t, deviceID)
+	point3 := createTestPoint(deviceID)
 	point3.ID = "test-point-003"
 	point3.Name = "重複位址功能點位"
 	point3.Function = "03"
@@ -623,7 +623,7 @@ func TestSQLRepository_UniquenessConstraint(t *testing.T) {
 	`, otherDeviceID, "其他設備", schema.ProtocolModbusTCP, schema.DeviceStatusActive, "{}", time.Now().UTC(), time.Now().UTC())
 	require.NoError(t, err)
 
-	point4 := createTestPoint(t, otherDeviceID)
+	point4 := createTestPoint(otherDeviceID)
 	point4.ID = "test-point-004"
 	point4.Function = "03"
 	err = repo.Create(ctx, point4)
@@ -657,7 +657,7 @@ func TestSQLRepository_DataTypeValidation(t *testing.T) {
 	}
 
 	for i, dataType := range dataTypes {
-		point := createTestPoint(t, deviceID)
+		point := createTestPoint(deviceID)
 		point.ID = string(rune('0' + i))
 		point.Address = fmt.Sprintf("5000%d", i)
 		point.DataType = dataType
@@ -685,7 +685,7 @@ func TestSQLRepository_ModeValidation(t *testing.T) {
 	}
 
 	for i, mode := range modes {
-		point := createTestPoint(t, deviceID)
+		point := createTestPoint(deviceID)
 		point.ID = string(rune('0' + i))
 		point.Address = fmt.Sprintf("6000%d", i)
 		point.Mode = mode
@@ -707,14 +707,14 @@ func TestSQLRepository_EnabledStatus(t *testing.T) {
 	deviceID, _ := setupTestData(t, db)
 
 	// 建立啟用和停用的點位
-	enabledPoint := createTestPoint(t, deviceID)
+	enabledPoint := createTestPoint(deviceID)
 	enabledPoint.ID = "enabled-point"
 	enabledPoint.Address = "70001"
 	enabledPoint.Enabled = true
 	err := repo.Create(ctx, enabledPoint)
 	require.NoError(t, err)
 
-	disabledPoint := createTestPoint(t, deviceID)
+	disabledPoint := createTestPoint(deviceID)
 	disabledPoint.ID = "disabled-point"
 	disabledPoint.Address = "70002"
 	disabledPoint.Enabled = false
@@ -739,7 +739,7 @@ func TestSQLRepository_UpdateReadResult(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point := createTestPoint(t, deviceID)
+	point := createTestPoint(deviceID)
 	require.NoError(t, repo.Create(ctx, point))
 
 	require.NoError(t, repo.UpdateReadResult(ctx, point.ID, 123.45, ""))
@@ -760,10 +760,10 @@ func TestSQLRepository_BatchUpdateReadResult(t *testing.T) {
 	ctx := context.Background()
 
 	deviceID, _ := setupTestData(t, db)
-	point1 := createTestPoint(t, deviceID)
+	point1 := createTestPoint(deviceID)
 	point1.ID = "batch-point-1"
 	point1.Address = "80001"
-	point2 := createTestPoint(t, deviceID)
+	point2 := createTestPoint(deviceID)
 	point2.ID = "batch-point-2"
 	point2.Address = "80002"
 

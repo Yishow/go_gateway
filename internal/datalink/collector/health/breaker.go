@@ -45,9 +45,9 @@ type BreakerConfig struct {
 // DefaultBreakerConfig 預設熔斷器配置
 func DefaultBreakerConfig() BreakerConfig {
 	return BreakerConfig{
-		ErrorThreshold:    0.2,           // 20% 錯誤率
-		UnstableThreshold: 0.5,           // 50% 錯誤率
-		WindowSize:        10,            // 10 次請求
+		ErrorThreshold:    0.2, // 20% 錯誤率
+		UnstableThreshold: 0.5, // 50% 錯誤率
+		WindowSize:        10,  // 10 次請求
 		CooldownPeriod:    30 * time.Second,
 	}
 }
@@ -184,11 +184,11 @@ func (cb *CircuitBreaker) GetStats() BreakerStats {
 	defer cb.mu.RUnlock()
 
 	return BreakerStats{
-		State:      cb.state,
-		ErrorRate:  cb.tracker.ErrorRate(),
+		State:        cb.state,
+		ErrorRate:    cb.tracker.ErrorRate(),
 		TrackerStats: cb.tracker.GetStats(),
-		DeadSince:  cb.deadSince,
-		IsProbing:  cb.probing,
+		DeadSince:    cb.deadSince,
+		IsProbing:    cb.probing,
 	}
 }
 

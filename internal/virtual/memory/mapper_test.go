@@ -130,7 +130,7 @@ func TestAddressMapper_MemoryArea(t *testing.T) {
 	}
 
 	// D 區
-	area, offset, err = mapper.MapWithArea("D100")
+	area, _, err = mapper.MapWithArea("D100")
 	if err != nil {
 		t.Fatalf("MapWithArea 失敗: %v", err)
 	}

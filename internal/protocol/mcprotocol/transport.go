@@ -327,7 +327,7 @@ func (s *SerialTransport) SendReceive(req []byte) ([]byte, error) {
 		return nil, fmt.Errorf("回應資料過大: %d bytes (限制: %d)", dataLen, 32*1024)
 	}
 
-	// 讀取資料本體 (EndCode + Data)
+	// Read the response body (end code plus data).
 	body := make([]byte, dataLen)
 	if _, err := io.ReadFull(s.reader, body); err != nil {
 		s.internalClose()

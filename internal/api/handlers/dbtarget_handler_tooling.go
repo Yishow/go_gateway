@@ -13,35 +13,35 @@ import (
 func (h *DatabaseTargetHandler) GenerateSchema(c *gin.Context) {
 	var req dbtarget.SchemaGenerateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"code": "validation", "message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseCodeKey: apiValidationErrorCode, apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	result, err := h.connectorSvc.GenerateSchema(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
 		statusCode, errorCode := dbTargetErrorStatusCode(err)
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"code": errorCode, "message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseCodeKey: errorCode, apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 func (h *DatabaseTargetHandler) DryRunMappings(c *gin.Context) {
 	var req dbtarget.MappingDryRunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"code": "validation", "message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseCodeKey: apiValidationErrorCode, apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	result, err := h.mappingSvc.DryRun(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
 		statusCode, errorCode := dbTargetErrorStatusCode(err)
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"code": errorCode, "message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseCodeKey: errorCode, apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 func (h *DatabaseTargetHandler) ListWriteHistory(c *gin.Context) {
@@ -49,11 +49,11 @@ func (h *DatabaseTargetHandler) ListWriteHistory(c *gin.Context) {
 	records, err := h.connectorSvc.ListWriteHistory(c.Request.Context(), c.Param("id"), limit)
 	if err != nil {
 		statusCode, errorCode := dbTargetErrorStatusCode(err)
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"code": errorCode, "message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseCodeKey: errorCode, apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: gin.H{
 		"connector_id": c.Param("id"),
 		"records":      records,
 	}})
@@ -77,7 +77,7 @@ func parseHistoryLimit(value string) int {
 	return parsed
 }
 
-func dbTargetErrorStatusCode(err error) (int, string) {
+func dbTargetErrorStatusCode(err error) (statusCode int, errorCode string) {
 	message := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(message, "not found"), strings.Contains(message, "不存在"):

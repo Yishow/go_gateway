@@ -165,8 +165,8 @@ func (h *RuntimeHandler) WorkspaceContext(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    response,
 	})
 }
 
@@ -202,8 +202,8 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    response,
+			apiResponseSuccessKey: true,
+			apiResponseDataKey:    response,
 		})
 		return
 	}
@@ -268,7 +268,7 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 			DeviceID:           dev.ID,
 			DeviceName:         dev.Name,
 			Protocol:           string(dev.Protocol),
-			Status:             "idle",
+			Status:             runtimeStatusIdle,
 			AvailabilityStatus: device.AvailabilityStatusAvailable,
 			Running:            false,
 			BreakerState:       "closed",
@@ -330,12 +330,12 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 		case response.Running:
 			collectorResp.Status = "running"
 		default:
-			collectorResp.Status = "idle"
+			collectorResp.Status = runtimeStatusIdle
 		}
 		collectorResp.Running = collectorResp.Status == "running" && collectorResp.AvailabilityStatus == device.AvailabilityStatusAvailable
 		if collectorResp.AvailabilityStatus == device.AvailabilityStatusUnavailable {
 			collectorResp.Running = false
-			collectorResp.Status = "idle"
+			collectorResp.Status = runtimeStatusIdle
 		}
 
 		response.Collectors = append(response.Collectors, collectorResp)
@@ -343,8 +343,8 @@ func (h *RuntimeHandler) Status(c *gin.Context) {
 	response.SnapshotState = runtimeSnapshotStateFromCollectorResponses(response.Collectors, deviceIDFilter)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    response,
 	})
 }
 
@@ -400,26 +400,26 @@ func runtimeSnapshotStateFromCollectorResponses(
 	return datalinkruntime.DeriveSnapshotTruthState(statuses, deviceID)
 }
 
-func mapRuntimeCollectorResponse(collector datalinkruntime.DeviceRuntimeStatus) runtimeCollectorResponse {
+func mapRuntimeCollectorResponse(collectorStatus datalinkruntime.DeviceRuntimeStatus) runtimeCollectorResponse {
 	return runtimeCollectorResponse{
-		DeviceID:                   collector.DeviceID,
-		DeviceName:                 collector.DeviceName,
-		Protocol:                   collector.Protocol,
-		Status:                     collector.Status,
-		AvailabilityStatus:         collector.AvailabilityStatus,
-		AvailabilityReason:         collector.AvailabilityReason,
-		Running:                    collector.Running,
-		PointsTotal:                collector.PointsTotal,
-		PointsHealthy:              collector.PointsHealthy,
-		PointsStale:                collector.PointsStale,
-		PointsError:                collector.PointsError,
-		LastReadAt:                 collector.LastReadAt,
-		LastError:                  collector.LastError,
-		BreakerState:               collector.BreakerState,
-		ProjectionAlignment:        collector.ProjectionAlignment,
-		RuntimeProjectionVersion:   collector.RuntimeProjectionVersion,
-		WorkspaceProjectionVersion: collector.WorkspaceProjectionVersion,
-		ProjectionMessage:          collector.ProjectionMessage,
-		ProjectionCode:             collector.ProjectionCode,
+		DeviceID:                   collectorStatus.DeviceID,
+		DeviceName:                 collectorStatus.DeviceName,
+		Protocol:                   collectorStatus.Protocol,
+		Status:                     collectorStatus.Status,
+		AvailabilityStatus:         collectorStatus.AvailabilityStatus,
+		AvailabilityReason:         collectorStatus.AvailabilityReason,
+		Running:                    collectorStatus.Running,
+		PointsTotal:                collectorStatus.PointsTotal,
+		PointsHealthy:              collectorStatus.PointsHealthy,
+		PointsStale:                collectorStatus.PointsStale,
+		PointsError:                collectorStatus.PointsError,
+		LastReadAt:                 collectorStatus.LastReadAt,
+		LastError:                  collectorStatus.LastError,
+		BreakerState:               collectorStatus.BreakerState,
+		ProjectionAlignment:        collectorStatus.ProjectionAlignment,
+		RuntimeProjectionVersion:   collectorStatus.RuntimeProjectionVersion,
+		WorkspaceProjectionVersion: collectorStatus.WorkspaceProjectionVersion,
+		ProjectionMessage:          collectorStatus.ProjectionMessage,
+		ProjectionCode:             collectorStatus.ProjectionCode,
 	}
 }

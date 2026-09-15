@@ -22,69 +22,67 @@ func NewTagHandler(svc *tag.Service) *TagHandler {
 
 func (h *TagHandler) List(c *gin.Context) {
 	filter := tag.ListFilter{}
-	if s := c.Query("status"); s != "" {
-		// filter.Status =
-	}
+	// TODO: 支援 status 查詢篩選。
 	if s := c.Query("key_prefix"); s != "" {
 		filter.KeyPrefix = s
 	}
 
 	tags, err := h.svc.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": tags})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: tags})
 }
 
 func (h *TagHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	t, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Tag not found"}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "Tag not found"}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": t})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: t})
 }
 
 func (h *TagHandler) Create(c *gin.Context) {
 	var req tag.CreateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	t, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": t})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: t})
 }
 
 func (h *TagHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req tag.UpdateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	t, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": t})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: t})
 }
 
 func (h *TagHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 // Activate 啟用標籤
@@ -92,15 +90,15 @@ func (h *TagHandler) Delete(c *gin.Context) {
 func (h *TagHandler) Activate(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Activate(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	t, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": t})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: t})
 }
 
 // Retire 退役標籤
@@ -108,15 +106,15 @@ func (h *TagHandler) Activate(c *gin.Context) {
 func (h *TagHandler) Retire(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Retire(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	t, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": t})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: t})
 }
 
 // BatchCreateRequest 批量建立請求
@@ -141,13 +139,13 @@ type BatchCreateError struct {
 func (h *TagHandler) BatchCreate(c *gin.Context) {
 	var req BatchCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	// 驗證必填欄位（tags 欄位必須存在，即使是空陣列）
 	if req.Tags == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "tags field is required"}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "tags field is required"}})
 		return
 	}
 
@@ -161,7 +159,7 @@ func (h *TagHandler) BatchCreate(c *gin.Context) {
 		resp.Errors = append(resp.Errors, BatchCreateError{Key: be.Key, Error: be.Error})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: resp})
 }
 
 // ValidateKeyRequest 驗證標籤鍵請求
@@ -182,13 +180,13 @@ type ValidateKeyResponse struct {
 func (h *TagHandler) ValidateKey(c *gin.Context) {
 	var req ValidateKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	// 驗證必填欄位（key 欄位必須存在且非空）
 	if req.Key == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "key field is required"}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "key field is required"}})
 		return
 	}
 
@@ -207,5 +205,5 @@ func (h *TagHandler) ValidateKey(c *gin.Context) {
 		resp.Exists = (err == nil)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: resp})
 }

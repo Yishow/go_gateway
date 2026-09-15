@@ -7,7 +7,7 @@ import (
 )
 
 // ModbusClient Modbus 客戶端
-type ModbusClient struct {
+type ModbusClient struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	transport Transport
 	unitID    byte
 	mu        sync.Mutex
@@ -69,11 +69,12 @@ func (c *ModbusClient) sendTCPRequest(functionCode byte, data []byte) ([]byte, e
 		transactionID = transportWithID.GetNextTransactionID()
 	} else {
 		// 向後兼容：嘗試類型斷言
-		if tcpTransport, ok := c.transport.(*TCPTransport); ok {
-			transactionID = tcpTransport.GetNextTransactionID()
-		} else if udpTransport, ok := c.transport.(*UDPTransport); ok {
-			transactionID = udpTransport.GetNextTransactionID()
-		} else {
+		switch transport := c.transport.(type) {
+		case *TCPTransport:
+			transactionID = transport.GetNextTransactionID()
+		case *UDPTransport:
+			transactionID = transport.GetNextTransactionID()
+		default:
 			return nil, fmt.Errorf("不支援的傳輸類型")
 		}
 	}
@@ -155,11 +156,12 @@ func (c *ModbusClient) sendRequest(functionCode byte, data []byte) ([]byte, erro
 	_, hasTransactionID := c.transport.(interface{ GetNextTransactionID() uint16 })
 	_, isRTU := c.transport.(*RTUTransport)
 
-	if hasTransactionID {
+	switch {
+	case hasTransactionID:
 		return c.sendTCPRequest(functionCode, data)
-	} else if isRTU {
+	case isRTU:
 		return c.sendRTURequest(functionCode, data)
-	} else {
+	default:
 		// 嘗試通過類型斷言判斷（向後兼容）
 		switch c.transport.(type) {
 		case *TCPTransport, *UDPTransport:
@@ -175,7 +177,7 @@ func (c *ModbusClient) sendRequest(functionCode byte, data []byte) ([]byte, erro
 // ReadCoils 讀取線圈狀態
 // address: 起始地址 (0-65535)
 // quantity: 讀取數量 (1-2000)
-func (c *ModbusClient) ReadCoils(address uint16, quantity uint16) ([]bool, error) {
+func (c *ModbusClient) ReadCoils(address, quantity uint16) ([]bool, error) {
 	if quantity < 1 || quantity > CoilMaxQuantity {
 		return nil, ErrInvalidQuantity
 	}
@@ -196,7 +198,7 @@ func (c *ModbusClient) ReadCoils(address uint16, quantity uint16) ([]bool, error
 }
 
 // ReadDiscreteInputs 讀取離散輸入狀態
-func (c *ModbusClient) ReadDiscreteInputs(address uint16, quantity uint16) ([]bool, error) {
+func (c *ModbusClient) ReadDiscreteInputs(address, quantity uint16) ([]bool, error) {
 	if quantity < 1 || quantity > DiscreteInputMaxQuantity {
 		return nil, ErrInvalidQuantity
 	}
@@ -216,7 +218,7 @@ func (c *ModbusClient) ReadDiscreteInputs(address uint16, quantity uint16) ([]bo
 }
 
 // ReadHoldingRegisters 讀取保持暫存器
-func (c *ModbusClient) ReadHoldingRegisters(address uint16, quantity uint16) ([]uint16, error) {
+func (c *ModbusClient) ReadHoldingRegisters(address, quantity uint16) ([]uint16, error) {
 	if quantity < 1 || quantity > HoldingRegisterMaxQuantity {
 		return nil, ErrInvalidQuantity
 	}
@@ -245,7 +247,7 @@ func (c *ModbusClient) ReadHoldingRegisters(address uint16, quantity uint16) ([]
 }
 
 // ReadInputRegisters 讀取輸入暫存器
-func (c *ModbusClient) ReadInputRegisters(address uint16, quantity uint16) ([]uint16, error) {
+func (c *ModbusClient) ReadInputRegisters(address, quantity uint16) ([]uint16, error) {
 	if quantity < 1 || quantity > InputRegisterMaxQuantity {
 		return nil, ErrInvalidQuantity
 	}
@@ -281,7 +283,7 @@ func (c *ModbusClient) WriteSingleCoil(address uint16, value bool) error {
 		return err
 	}
 
-	// 驗證回應 (回應應與請求相同)
+	// The response should contain the same address and value as the request.
 	if len(responseData) < 4 {
 		return ErrResponseTooShort
 	}
@@ -305,7 +307,7 @@ func (c *ModbusClient) WriteSingleCoil(address uint16, value bool) error {
 }
 
 // WriteSingleRegister 寫入單個暫存器
-func (c *ModbusClient) WriteSingleRegister(address uint16, value uint16) error {
+func (c *ModbusClient) WriteSingleRegister(address, value uint16) error {
 	requestData := BuildWriteSingleRegisterRequest(address, value)
 	responseData, err := c.sendRequest(FuncWriteSingleRegister, requestData)
 	if err != nil {
@@ -334,7 +336,7 @@ func (c *ModbusClient) WriteSingleRegister(address uint16, value uint16) error {
 // WriteMultipleCoils 寫入多個線圈
 func (c *ModbusClient) WriteMultipleCoils(address uint16, values []bool) error {
 	quantity := len(values)
-	if quantity < 1 || quantity > int(CoilMaxQuantity) {
+	if quantity < 1 || quantity > int(CoilMaxWriteQuantity) {
 		return ErrInvalidQuantity
 	}
 	expectedQuantity := uint16(quantity)
@@ -367,7 +369,7 @@ func (c *ModbusClient) WriteMultipleCoils(address uint16, values []bool) error {
 // WriteMultipleRegisters 寫入多個暫存器
 func (c *ModbusClient) WriteMultipleRegisters(address uint16, values []uint16) error {
 	quantity := len(values)
-	if quantity < 1 || quantity > int(HoldingRegisterMaxQuantity) {
+	if quantity < 1 || quantity > int(HoldingRegisterMaxWriteQuantity) {
 		return ErrInvalidQuantity
 	}
 	expectedQuantity := uint16(quantity)

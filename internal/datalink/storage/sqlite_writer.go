@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -23,7 +24,7 @@ func (w *SQLiteWriter) Write(ctx context.Context, record TimeSeriesRecord) error
 }
 
 // WriteBatch 批次寫入。
-func (w *SQLiteWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecord) error {
+func (w *SQLiteWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecord) (writeErr error) {
 	if len(records) == 0 {
 		return nil
 	}
@@ -33,12 +34,17 @@ func (w *SQLiteWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecor
 		return fmt.Errorf("begin tx 失敗: %w", err)
 	}
 
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			writeErr = errors.Join(writeErr, fmt.Errorf("rollback timeseries batch: %w", err))
+		}
+	}()
+
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO timeseries (tag_id, ts, value_num, value_text, value_bool, raw_value, quality)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`)
 	if err != nil {
-		_ = tx.Rollback()
 		return fmt.Errorf("prepare insert 失敗: %w", err)
 	}
 	defer stmt.Close()
@@ -46,7 +52,6 @@ func (w *SQLiteWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecor
 	for _, r := range records {
 		rawVal, err := encodeRawValue(r.RawValue)
 		if err != nil {
-			_ = tx.Rollback()
 			return fmt.Errorf("序列化 raw_value 失敗: %w", err)
 		}
 
@@ -59,7 +64,6 @@ func (w *SQLiteWriter) WriteBatch(ctx context.Context, records []TimeSeriesRecor
 			rawVal,
 			r.Quality,
 		); err != nil {
-			_ = tx.Rollback()
 			return fmt.Errorf("插入 timeseries 失敗(tag=%s): %w", r.TagID, err)
 		}
 	}

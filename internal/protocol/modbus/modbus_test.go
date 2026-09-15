@@ -247,7 +247,7 @@ func TestBuildRTUFrame(t *testing.T) {
 }
 
 func TestCRC16(t *testing.T) {
-	data := []byte{0x01, 0x03, 0x00, 0x00, 0x00, 0x0A}
+	data := append(make([]byte, 0, 8), 0x01, 0x03, 0x00, 0x00, 0x00, 0x0A)
 	crc := CalculateCRC16(data)
 
 	// 驗證 CRC 計算

@@ -74,12 +74,12 @@ type workspaceDatabaseSchemaRequest struct {
 	DryRun bool `json:"dry_run"`
 }
 
-func newWorkspaceDatabaseJSONRequest(t *testing.T, method string, target string, payload any) *http.Request {
+func newWorkspaceDatabaseJSONRequest(t *testing.T, method, target string, payload any) *http.Request {
 	t.Helper()
 
 	body, err := json.Marshal(payload)
 	require.NoError(t, err)
-	req := httptest.NewRequest(method, target, bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), method, target, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	return req
 }
@@ -144,7 +144,7 @@ func TestStudioV2WorkspaceDatabaseHandler_SaveConfigAndOneTarget(t *testing.T) {
 	require.Equal(t, "saved", targetData["save_state"])
 	require.Equal(t, "not_running", targetData["runtime_apply_status"])
 
-	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", nil)
+	listReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", http.NoBody)
 	listResp := httptest.NewRecorder()
 	listCtx, _ := gin.CreateTestContext(listResp)
 	listCtx.Request = listReq
@@ -164,7 +164,7 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidTargetDoesNotTouchSavedRows(t *
 	fixture := newWorkspaceDatabaseFixture(t)
 	saveWorkspaceDatabaseConfig(t, fixture)
 
-	saveValidTarget(t, fixture, fixture.pointIDs[0], "line_a")
+	saveValidTarget(t, fixture, fixture.pointIDs[0])
 
 	// 空 column_name 為真正無效的請求（handler 層硬擋），不應影響既有已存列。
 	// 註：欄位「不存在」在 Studio V2 已改為放行（degraded），由建表流程補建，
@@ -182,7 +182,7 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidTargetDoesNotTouchSavedRows(t *
 	require.Equal(t, http.StatusBadRequest, invalidResp.Code, invalidResp.Body.String())
 	require.Contains(t, invalidResp.Body.String(), "column_name")
 
-	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", nil)
+	listReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", http.NoBody)
 	listResp := httptest.NewRecorder()
 	listCtx, _ := gin.CreateTestContext(listResp)
 	listCtx.Request = listReq
@@ -286,7 +286,7 @@ func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.
 
 	fixture := newWorkspaceDatabaseFixtureEmptyTarget(t)
 	saveWorkspaceDatabaseConfig(t, fixture)
-	saveValidTarget(t, fixture, fixture.pointIDs[0], "line_a")
+	saveValidTarget(t, fixture, fixture.pointIDs[0])
 
 	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/database-schema/generate", workspaceDatabaseSchemaRequest{DryRun: false})
 	resp := httptest.NewRecorder()
@@ -305,7 +305,7 @@ func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.
 	require.NoError(t, err)
 	defer targetDB.Close()
 	var name string
-	err = targetDB.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='sensor_values'`).Scan(&name)
+	err = targetDB.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type='table' AND name='sensor_values'`).Scan(&name)
 	require.NoError(t, err, "sensor_values 表應已被建立")
 	require.Equal(t, "sensor_values", name)
 }
@@ -424,7 +424,7 @@ func newWorkspaceDatabaseFixtureEmptyTarget(t *testing.T) workspaceDatabaseFixtu
 	emptyTarget := filepath.Join(t.TempDir(), "empty-target.db")
 	emptyDB, err := sql.Open("sqlite", emptyTarget)
 	require.NoError(t, err)
-	require.NoError(t, emptyDB.Ping())
+	require.NoError(t, emptyDB.PingContext(t.Context()))
 	require.NoError(t, emptyDB.Close())
 	fixture.targetDB = emptyTarget
 	return fixture
@@ -436,11 +436,11 @@ func saveWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture)
 	updateWorkspaceDatabaseConfig(t, fixture, validSQLiteConfigRequest(fixture))
 }
 
-func saveValidTarget(t *testing.T, fixture workspaceDatabaseFixture, pointID string, columnName string) {
+func saveValidTarget(t *testing.T, fixture workspaceDatabaseFixture, pointID string) {
 	t.Helper()
 
 	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+pointID, workspaceDatabaseTargetRequest{
-		ColumnName: columnName,
+		ColumnName: "line_a",
 		Enabled:    true,
 	})
 	resp := httptest.NewRecorder()
@@ -475,7 +475,7 @@ func createWorkspaceTargetSQLite(t *testing.T) string {
 	require.NoError(t, err)
 	defer db.Close()
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(context.Background(), `
 		CREATE TABLE sensor_values (
 			ts DATETIME PRIMARY KEY,
 			line_a REAL NOT NULL,

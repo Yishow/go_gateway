@@ -105,9 +105,7 @@ func bytesToHex(data []byte) string {
 // GetPackets 取得數據包記錄
 func (h *DebugHandler) GetPackets(c *gin.Context) {
 	limit := 100
-	if l := c.Query("limit"); l != "" {
-		// TODO: 解析 limit 參數
-	}
+	// TODO: 解析 limit 參數，目前固定回傳最多 100 筆。
 	connectionID := c.Query("connection_id")
 
 	h.mu.RLock()
@@ -135,9 +133,7 @@ func (h *DebugHandler) GetPackets(c *gin.Context) {
 // GetLogs 取得日誌記錄
 func (h *DebugHandler) GetLogs(c *gin.Context) {
 	limit := 100
-	if l := c.Query("limit"); l != "" {
-		// TODO: 解析 limit 參數
-	}
+	// TODO: 解析 limit 參數，目前固定回傳最多 100 筆。
 	connectionID := c.Query("connection_id")
 
 	h.mu.RLock()
@@ -176,7 +172,7 @@ func (h *DebugHandler) ClearData(c *gin.Context) {
 
 	if connectionID != "" {
 		// 只清空指定連接的數據
-		// 使用預分配容量以提高性能
+		// 預先配置篩選結果容量。
 		filteredPackets := make([]PacketRecord, 0, len(h.packets))
 		for _, p := range h.packets {
 			if p.ConnectionID != connectionID {
@@ -224,12 +220,12 @@ type SendRawRequest struct {
 func (h *DebugHandler) SendRaw(c *gin.Context) {
 	var req SendRawRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
 	// TODO: 實作原始數據包發送
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	c.JSON(http.StatusNotImplemented, gin.H{apiResponseErrorKey: notImplementedMessage})
 }
 
 // AnalyzePacket 分析數據包結構
@@ -247,7 +243,7 @@ func (h *DebugHandler) AnalyzePacket(c *gin.Context) {
 	h.mu.RUnlock()
 
 	if packet == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "packet not found"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: "packet not found"})
 		return
 	}
 

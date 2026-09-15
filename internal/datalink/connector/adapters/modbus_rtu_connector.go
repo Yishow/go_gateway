@@ -77,7 +77,7 @@ func (c *ModbusRTUConnector) Connect(ctx context.Context, configJSON string) err
 	// 連線（僅在長連接模式下立即連線）
 	if c.IsPersistentMode() {
 		if err := c.client.Connect(); err != nil {
-			return fmt.Errorf("Modbus RTU 連線失敗: %w", err)
+			return fmt.Errorf("modbus RTU 連線失敗: %w", err)
 		}
 		c.setConnected(true)
 	}

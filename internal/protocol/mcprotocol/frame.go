@@ -32,7 +32,9 @@ func NewRequestFrame(net, pc, station byte) RequestFrame {
 	}
 }
 
-// BuildPacket constructs the full byte slice
+// BuildPacket constructs the full byte slice.
+//
+// Callers must validate the payload size so the encoded length fits in uint16.
 func (f RequestFrame) BuildPacket(cmd, subCmd uint16, data []byte) []byte {
 	// Payload = Timer(2) + Cmd(2) + Sub(2) + Data(...)
 	payloadLen := 2 + 2 + 2 + len(data)
@@ -49,7 +51,7 @@ func (f RequestFrame) BuildPacket(cmd, subCmd uint16, data []byte) []byte {
 	buf[3] = f.PCNo
 	binary.LittleEndian.PutUint16(buf[4:], f.IONo)
 	buf[6] = f.StationNo
-	binary.LittleEndian.PutUint16(buf[7:], uint16(payloadLen))
+	binary.LittleEndian.PutUint16(buf[7:], uint16(payloadLen)) // #nosec G115 -- callers validate request sizes before building a wire frame.
 
 	// Payload
 	binary.LittleEndian.PutUint16(buf[9:], f.Timer)
@@ -95,13 +97,14 @@ func PackBits(values []bool) []byte {
 		}
 
 		val2 := 0
-		if i+1 < count && values[i+1] {
-			val2 = 1
+		if i+1 < count {
+			if values[i+1] { // #nosec G602 -- i+1 is checked against count before indexing the optional second bit.
+				val2 = 1
+			}
 		}
 
-		// "High nibble is first device (i), Low nibble is second device (i+1)"
-		// Python: byte_val = (val1 << 4) | val2
-		buf[i/2] = byte(val1<<4 | val2)
+		// First device occupies the high nibble; second device occupies the low nibble.
+		buf[i/2] = byte(val1<<4 | val2) // #nosec G115 -- val1 and val2 are each limited to the wire values 0 or 1.
 	}
 	return buf
 }
@@ -119,7 +122,7 @@ func UnpackBits(data []byte, count int) []bool {
 		}
 
 		val := data[byteIdx]
-		bitVal := 0
+		var bitVal int
 
 		if isHigh {
 			bitVal = int((val >> 4) & 0x0F)

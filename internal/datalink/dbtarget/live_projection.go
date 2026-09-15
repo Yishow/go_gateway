@@ -56,7 +56,7 @@ func filterLiveTargetProjection(
 			projection.Excluded = append(projection.Excluded, liveTargetProjectionExclusion{
 				MappingID: mappingRecord.ID,
 				TagID:     mappingRecord.TagID,
-				Code:      "tag_missing",
+				Code:      validationTagMissingCode,
 			})
 			continue
 		}
@@ -71,7 +71,7 @@ func filterLiveTargetProjection(
 				projection.Excluded = append(projection.Excluded, liveTargetProjectionExclusion{
 					MappingID: mappingRecord.ID,
 					TagID:     mappingRecord.TagID,
-					Code:      "tag_missing",
+					Code:      validationTagMissingCode,
 				})
 				continue
 			}

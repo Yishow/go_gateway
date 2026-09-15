@@ -232,9 +232,5 @@ func (c *MQTTConnector) Write(ctx context.Context, req connector.WriteRequest) e
 	if !token.WaitTimeout(10 * time.Second) {
 		return fmt.Errorf("MQTT 發布逾時")
 	}
-	if err := token.Error(); err != nil {
-		return err
-	}
-
-	return nil
+	return token.Error()
 }

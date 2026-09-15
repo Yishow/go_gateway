@@ -60,7 +60,7 @@ func TestRuntimeHandler_WorkspaceContextReturnsOrderedDevicesAndDefaultDeviceID(
 
 	workspaceSvc.WithReadinessServices(deviceSvc, nil, nil, nil)
 	handler := NewRuntimeHandler(deviceSvc, nil, nil, nil, nil, workspaceSvc)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -249,7 +249,7 @@ func TestRuntimeHandler_WorkspaceContextReturnsSetupConditions(t *testing.T) {
 		}},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req

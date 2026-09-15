@@ -25,7 +25,7 @@ func TestWriter_InsertModeRowGroupsEmitSeparateRowsForSharedColumn(t *testing.T)
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)
 	defer targetDB.Close()
-	_, err = targetDB.Exec(`
+	_, err = targetDB.ExecContext(ctx, `
 		CREATE TABLE row_group_values (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			temperature_c REAL

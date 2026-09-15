@@ -3,6 +3,7 @@ package sourcerule
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -78,7 +79,7 @@ func (r *SQLRepository) GetTagReviewDecision(ctx context.Context, ruleID, candid
 	row := r.db.QueryRowContext(ctx, query, ruleID, candidateID)
 	decision, err := scanTagReviewDecision(row.Scan)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("取得來源規則 tag review decision 失敗: %w", err)

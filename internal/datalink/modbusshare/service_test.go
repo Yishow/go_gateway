@@ -202,7 +202,7 @@ func TestService_Start_PortConflict_ReturnsActionableError(t *testing.T) {
 	tagSvc := setupTagSvc(t)
 	svc := NewService(tagSvc, 4096)
 
-	ln, err := net.Listen("tcp", ":0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", ":0")
 	if err != nil {
 		t.Fatalf("listen failed: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestService_ModbusClientRead_MirroredValues(t *testing.T) {
 		t.Fatalf("upsert mapping failed: %v", err)
 	}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("reserve random port failed: %v", err)
 	}

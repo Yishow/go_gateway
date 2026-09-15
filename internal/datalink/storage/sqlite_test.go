@@ -1,7 +1,6 @@
 package storage_test
 
 import (
-	"context"
 	"database/sql"
 	"os"
 	"testing"
@@ -16,6 +15,7 @@ func TestSQLiteSchemaAndInsert(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	assert.NoError(t, err)
 	defer db.Close()
+	ctx := t.Context()
 
 	// 2. Read and execute migration script
 	migrationContent, err := os.ReadFile("../schema/migrations/001_initial_schema_sqlite.sql")
@@ -23,16 +23,14 @@ func TestSQLiteSchemaAndInsert(t *testing.T) {
 		// Try relative path from test execution directory if the above fails?
 		// Typically tests run in the package directory.
 		// The path `../schema/migrations/...` assumes we are in `storage/` package.
-		// Let's verify where this test is placed. 
+		// Let's verify where this test is placed.
 		// If this file is `internal/datalink/storage/sqlite_test.go`, then `../schema` is correct.
 		t.Fatalf("Failed to read migration file: %v", err)
 	}
 	assert.NoError(t, err)
 
-	_, err = db.Exec(string(migrationContent))
+	_, err = db.ExecContext(ctx, string(migrationContent))
 	assert.NoError(t, err, "Schema migration failed")
-
-	ctx := context.Background()
 
 	// 3. Insert Test Data (Metadata)
 
@@ -88,7 +86,7 @@ func TestSQLiteSchemaAndInsert(t *testing.T) {
 	err = db.QueryRowContext(ctx, "SELECT key_lower FROM tags WHERE id = ?", tagID).Scan(&keyLower)
 	assert.NoError(t, err)
 	t.Logf("Tag key_lower: %s", keyLower)
-	// assert.Equal(t, "test.tag.01", keyLower) 
+	// key_lower should remain test.tag.01.
 
 	// Query TimeSeries
 	var val float64

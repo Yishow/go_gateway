@@ -34,7 +34,7 @@ func (s *ConnectorService) GenerateSchema(
 	recordFailure := func(cause error) (*SchemaGenerateResult, error) {
 		if !req.DryRun {
 			if outcomeErr := s.recordSchemaEnsureOutcome(ctx, connector, time.Now(), deliveryOutcomeFailed, cause.Error()); outcomeErr != nil {
-				return nil, fmt.Errorf("%w; %v", cause, outcomeErr)
+				return nil, fmt.Errorf("%w; %w", cause, outcomeErr)
 			}
 		}
 		return nil, cause
@@ -158,7 +158,7 @@ func (s *MappingService) DryRun(
 				CandidateID: mappingRecord.ID,
 				MappingID:   mappingRecord.ID,
 				TagID:       mappingRecord.TagID,
-				Status:      "blocked",
+				Status:      dryRunStatusBlocked,
 				Code:        "connector_unavailable",
 				Reason:      inspectErr.Error(),
 			})
@@ -166,7 +166,7 @@ func (s *MappingService) DryRun(
 		for _, candidateID := range unknownCandidateIDs {
 			results = append(results, MappingDryRunCandidateResult{
 				CandidateID: candidateID,
-				Status:      "failed",
+				Status:      deliveryOutcomeFailed,
 				Code:        "validation",
 				Reason:      "candidate is not found",
 			})
@@ -187,7 +187,7 @@ func (s *MappingService) DryRun(
 					CandidateID: mappingRecord.ID,
 					MappingID:   mappingRecord.ID,
 					TagID:       mappingRecord.TagID,
-					Status:      "blocked",
+					Status:      dryRunStatusBlocked,
 					Code:        "schema_missing",
 					Reason:      getTagErr.Error(),
 				})
@@ -202,7 +202,7 @@ func (s *MappingService) DryRun(
 				CandidateID: mappingRecord.ID,
 				MappingID:   mappingRecord.ID,
 				TagID:       mappingRecord.TagID,
-				Status:      "blocked",
+				Status:      dryRunStatusBlocked,
 				Code:        mapValidationIssueCodeForDryRun(blockingIssue.Code),
 				Reason:      blockingIssue.Message,
 			})
@@ -220,7 +220,7 @@ func (s *MappingService) DryRun(
 	for _, candidateID := range unknownCandidateIDs {
 		results = append(results, MappingDryRunCandidateResult{
 			CandidateID: candidateID,
-			Status:      "failed",
+			Status:      deliveryOutcomeFailed,
 			Code:        "validation",
 			Reason:      "candidate is not found",
 		})

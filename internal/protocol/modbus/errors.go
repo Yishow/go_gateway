@@ -3,7 +3,7 @@ package modbus
 import "fmt"
 
 // ModbusError 是 Modbus 協議錯誤的基礎介面
-type ModbusError interface {
+type ModbusError interface { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	error
 	Code() byte
 }

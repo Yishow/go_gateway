@@ -99,7 +99,7 @@ type MemoryRangeResponse struct {
 func (h *VirtualDeviceHandler) GetMemoryRange(c *gin.Context) {
 	var req MemoryRangeRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: err.Error()})
 		return
 	}
 
@@ -109,7 +109,7 @@ func (h *VirtualDeviceHandler) GetMemoryRange(c *gin.Context) {
 
 	data, err := h.bank.ReadSlice(req.Offset, req.Length)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: err.Error()})
 		return
 	}
 
@@ -118,7 +118,7 @@ func (h *VirtualDeviceHandler) GetMemoryRange(c *gin.Context) {
 	for i := 0; i+1 < len(data); i += 2 {
 		word, err := h.bank.ReadWord(req.Offset + i)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: err.Error()})
 			return
 		}
 		words = append(words, word)
@@ -144,7 +144,7 @@ type WriteMemoryRequest struct {
 func (h *VirtualDeviceHandler) WriteMemory(c *gin.Context) {
 	var req WriteMemoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: err.Error()})
 		return
 	}
 
@@ -152,36 +152,36 @@ func (h *VirtualDeviceHandler) WriteMemory(c *gin.Context) {
 		// 寫入單一 16-bit 值
 		word, ok := toUint16(*req.Value)
 		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "value 超出 uint16 範圍"})
+			c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: "value 超出 uint16 範圍"})
 			return
 		}
 		err := h.bank.WriteWord(req.Offset, word)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: err.Error()})
 			return
 		}
 	} else if req.Data != "" {
 		// 寫入 Hex 數據
 		data, err := hex.DecodeString(req.Data)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "無效的 Hex 數據"})
+			c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: "無效的 Hex 數據"})
 			return
 		}
 		err = h.bank.WriteSlice(req.Offset, data)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: err.Error()})
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{responseSuccessKey: true})
 }
 
 // ClearMemory 清空記憶體
 // POST /api/virtual/memory/clear
 func (h *VirtualDeviceHandler) ClearMemory(c *gin.Context) {
 	h.bank.Clear()
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{responseSuccessKey: true})
 }
 
 // =============================================================================
@@ -202,20 +202,20 @@ func (h *VirtualDeviceHandler) StartServer(c *gin.Context) {
 	}
 
 	if h.server == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "伺服器未初始化"})
+		c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: "伺服器未初始化"})
 		return
 	}
 
 	err := h.server.Start(req.Port)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"port":    h.server.Port(),
-		"address": h.server.Address(),
+		responseSuccessKey: true,
+		"port":             h.server.Port(),
+		"address":          h.server.Address(),
 	})
 }
 
@@ -223,17 +223,17 @@ func (h *VirtualDeviceHandler) StartServer(c *gin.Context) {
 // POST /api/virtual/server/stop
 func (h *VirtualDeviceHandler) StopServer(c *gin.Context) {
 	if h.server == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "伺服器未初始化"})
+		c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: "伺服器未初始化"})
 		return
 	}
 
 	err := h.server.Stop()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{responseSuccessKey: true})
 }
 
 // GetServerStatus 取得伺服器狀態
@@ -260,24 +260,24 @@ func (h *VirtualDeviceHandler) GetServerStatus(c *gin.Context) {
 // POST /api/virtual/simulation/start
 func (h *VirtualDeviceHandler) StartSimulation(c *gin.Context) {
 	if h.simulation == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "模擬引擎未初始化"})
+		c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: simulationUnavailableMessage})
 		return
 	}
 
 	h.simulation.Start()
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{responseSuccessKey: true})
 }
 
 // StopSimulation 停止模擬
 // POST /api/virtual/simulation/stop
 func (h *VirtualDeviceHandler) StopSimulation(c *gin.Context) {
 	if h.simulation == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "模擬引擎未初始化"})
+		c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: simulationUnavailableMessage})
 		return
 	}
 
 	h.simulation.Stop()
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{responseSuccessKey: true})
 }
 
 // AddSimulationRuleRequest 新增模擬規則請求
@@ -296,12 +296,12 @@ type AddSimulationRuleRequest struct {
 func (h *VirtualDeviceHandler) AddSimulationRule(c *gin.Context) {
 	var req AddSimulationRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: err.Error()})
 		return
 	}
 
 	if h.simulation == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "模擬引擎未初始化"})
+		c.JSON(http.StatusInternalServerError, gin.H{responseErrorKey: simulationUnavailableMessage})
 		return
 	}
 
@@ -316,7 +316,7 @@ func (h *VirtualDeviceHandler) AddSimulationRule(c *gin.Context) {
 	case "sine":
 		ruleType = simulation.RuleSineWave
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的規則類型: " + req.Type})
+		c.JSON(http.StatusBadRequest, gin.H{responseErrorKey: "無效的規則類型: " + req.Type})
 		return
 	}
 
@@ -336,5 +336,5 @@ func (h *VirtualDeviceHandler) AddSimulationRule(c *gin.Context) {
 	}
 
 	h.simulation.AddRule(rule)
-	c.JSON(http.StatusOK, gin.H{"success": true, "rule_id": req.ID})
+	c.JSON(http.StatusOK, gin.H{responseSuccessKey: true, "rule_id": req.ID})
 }

@@ -209,53 +209,53 @@ func cloneRule(rule *schema.SourceRule) *schema.SourceRule {
 	if rule == nil {
 		return nil
 	}
-	copy := *rule
+	snapshotCopy := *rule
 	// 深拷貝可空指標欄位
 	if rule.TargetDataType != nil {
 		value := *rule.TargetDataType
-		copy.TargetDataType = &value
+		snapshotCopy.TargetDataType = &value
 	}
 	if rule.ScaleMultiplier != nil {
 		value := *rule.ScaleMultiplier
-		copy.ScaleMultiplier = &value
+		snapshotCopy.ScaleMultiplier = &value
 	}
 	if rule.ScaleOffset != nil {
 		value := *rule.ScaleOffset
-		copy.ScaleOffset = &value
+		snapshotCopy.ScaleOffset = &value
 	}
 	if rule.ShareStartRegister != nil {
 		value := *rule.ShareStartRegister
-		copy.ShareStartRegister = &value
+		snapshotCopy.ShareStartRegister = &value
 	}
 	if rule.ShareStride != nil {
 		value := *rule.ShareStride
-		copy.ShareStride = &value
+		snapshotCopy.ShareStride = &value
 	}
-	return &copy
+	return &snapshotCopy
 }
 
 func cloneLink(link *schema.SourceRuleLink) *schema.SourceRuleLink {
 	if link == nil {
 		return nil
 	}
-	copy := *link
+	snapshotCopy := *link
 	if link.TagID != nil {
 		value := *link.TagID
-		copy.TagID = &value
+		snapshotCopy.TagID = &value
 	}
 	if link.MappingID != nil {
 		value := *link.MappingID
-		copy.MappingID = &value
+		snapshotCopy.MappingID = &value
 	}
-	return &copy
+	return &snapshotCopy
 }
 
 func cloneCandidateSnapshot(snapshot *schema.SourceRuleCandidateSnapshot) *schema.SourceRuleCandidateSnapshot {
 	if snapshot == nil {
 		return nil
 	}
-	copy := *snapshot
-	return &copy
+	snapshotCopy := *snapshot
+	return &snapshotCopy
 }
 
 func candidateSnapshotKey(ruleID, revisionID string) string {

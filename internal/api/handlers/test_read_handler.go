@@ -25,13 +25,13 @@ func (h *TestHandler) Read(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("[PANIC] Read 操作發生 panic: %v\n", r)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("內部錯誤: %v", r)})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseErrorKey: fmt.Sprintf("內部錯誤: %v", r)})
 		}
 	}()
 
 	var req ReadRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
@@ -40,18 +40,18 @@ func (h *TestHandler) Read(c *gin.Context) {
 	h.mu.RUnlock()
 
 	if !exists || !state.Connected {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "connection not found or not connected"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: connectionNotFoundOrNotConnectedMessage})
 		return
 	}
 
 	// 如果請求中指定了站號，創建臨時客戶端
-	var clientToUse interface{} = state.Client
-	var tempClient interface{} = nil
+	clientToUse := state.Client
+	var tempClient interface{}
 	if req.UnitID != nil || req.Station != nil {
 		var err error
 		clientToUse, tempClient, err = h.prepareOverrideClient(state, req.UnitID, req.Station, "_temp")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseErrorKey: err.Error()})
 			return
 		}
 	}
@@ -66,13 +66,13 @@ func (h *TestHandler) Read(c *gin.Context) {
 		// 記錄錯誤日誌
 		if h.debugHandler != nil {
 			h.debugHandler.RecordLog("error", fmt.Sprintf("讀取失敗: %s", err.Error()), map[string]interface{}{
-				"connection_id": req.ConnectionID,
-				"operation":     req.Operation,
-				"address":       req.Address,
-				"count":         req.Count,
+				apiResponseConnectionIDKey: req.ConnectionID,
+				apiResponseOperationKey:    req.Operation,
+				apiResponseAddressKey:      req.Address,
+				apiResponseCountKey:        req.Count,
 			})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": categorizeError(err).Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseErrorKey: categorizeError(err).Error()})
 		return
 	}
 
@@ -85,17 +85,17 @@ func (h *TestHandler) Read(c *gin.Context) {
 	// 記錄成功日誌
 	if h.debugHandler != nil {
 		h.debugHandler.RecordLog("info", fmt.Sprintf("讀取成功: %s (地址: %d, 數量: %d)", req.Operation, req.Address, req.Count), map[string]interface{}{
-			"connection_id": req.ConnectionID,
-			"operation":     req.Operation,
-			"address":       req.Address,
-			"count":         req.Count,
-			"result_count":  count,
+			apiResponseConnectionIDKey: req.ConnectionID,
+			apiResponseOperationKey:    req.Operation,
+			apiResponseAddressKey:      req.Address,
+			apiResponseCountKey:        req.Count,
+			"result_count":             count,
 		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"values": result,
-		"count":  count,
+		"values":            result,
+		apiResponseCountKey: count,
 	})
 }
 

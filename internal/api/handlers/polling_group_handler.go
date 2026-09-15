@@ -27,12 +27,12 @@ func (h *PollingGroupHandler) List(c *gin.Context) {
 	groups, err := h.svc.List(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: err.Error()},
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": groups})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: groups})
 }
 
 // Get 取得單一輪詢群組
@@ -42,12 +42,12 @@ func (h *PollingGroupHandler) Get(c *gin.Context) {
 	group, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "Polling group not found"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "Polling group not found"},
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": group})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: group})
 }
 
 // Create 建立新輪詢群組
@@ -56,8 +56,8 @@ func (h *PollingGroupHandler) Create(c *gin.Context) {
 	var req pollinggroup.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"message": err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: err.Error()},
 		})
 		return
 	}
@@ -65,8 +65,8 @@ func (h *PollingGroupHandler) Create(c *gin.Context) {
 	// 驗證必填欄位
 	if req.Name == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "name field is required"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "name field is required"},
 		})
 		return
 	}
@@ -74,12 +74,12 @@ func (h *PollingGroupHandler) Create(c *gin.Context) {
 	group, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: err.Error()},
 		})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": group})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: group})
 }
 
 // Update 更新輪詢群組
@@ -89,8 +89,8 @@ func (h *PollingGroupHandler) Update(c *gin.Context) {
 	var req pollinggroup.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"message": err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: err.Error()},
 		})
 		return
 	}
@@ -98,12 +98,12 @@ func (h *PollingGroupHandler) Update(c *gin.Context) {
 	group, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: err.Error()},
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": group})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: group})
 }
 
 // Delete 刪除輪詢群組
@@ -112,10 +112,10 @@ func (h *PollingGroupHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(context.Background(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: err.Error()},
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }

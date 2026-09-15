@@ -65,7 +65,7 @@ func (c *MQTTConnector) onConnect(client mqtt.Client) {
 	}
 }
 
-func (c *MQTTConnector) onDisconnect(err error) {
+func (c *MQTTConnector) onDisconnect(_ error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.connected = false
@@ -108,7 +108,7 @@ func (c *MQTTConnector) GetCachedTopics() []string {
 }
 
 // GetCachedValue 取得指定主題的快取值
-func (c *MQTTConnector) GetCachedValue(topic string) (cachedValue, bool) {
+func (c *MQTTConnector) GetCachedValue(topic string) (cachedValue, bool) { //nolint:revive // Preserve the existing public cache accessor signature.
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

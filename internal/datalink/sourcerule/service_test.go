@@ -36,11 +36,11 @@ func (r *failingLinkRepository) CreateLinks(ctx context.Context, links []*schema
 	return r.MemoryRepository.CreateLinks(ctx, links)
 }
 
-func (s *stubRuntimeSync) UpsertPoint(point *schema.Point) {
-	if point == nil {
+func (s *stubRuntimeSync) UpsertPoint(pointRecord *schema.Point) {
+	if pointRecord == nil {
 		return
 	}
-	s.upserted = append(s.upserted, point.ID)
+	s.upserted = append(s.upserted, pointRecord.ID)
 }
 
 func (s *stubRuntimeSync) RemovePoint(pointID string) {
@@ -802,7 +802,7 @@ func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
 		Enabled:      true,
 	})
 	require.NoError(t, err)
-	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	tagRecord, err := tagSvc.GetByID(ctx, *links[0].TagID)
 	require.NoError(t, err)
 	assert.Equal(t, schema.DataTypeUint16, tagRecord.DataType)
@@ -866,7 +866,7 @@ func TestService_Update_ClearConversionSettings_RemovesTagCastAndScale(t *testin
 		ScaleOffset:     &offset,
 	})
 	require.NoError(t, err)
-	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	initialMapping, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
 	require.NoError(t, err)
 	initialPipeline := initialMapping.TransformPipeline

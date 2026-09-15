@@ -22,15 +22,16 @@ func TestPostgresPartitionMigration(t *testing.T) {
 	db, err := sql.Open("pgx", dsn)
 	assert.NoError(t, err)
 	defer db.Close()
+	ctx := t.Context()
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		t.Fatalf("Failed to ping Postgres: %v", err)
 	}
 
 	// 2. Clean up before test (Optional: use a test DB)
 	// Be careful not to wipe production if DSN points there.
 	// We assume DSN points to a test DB.
-	_, err = db.Exec("DROP TABLE IF EXISTS timeseries CASCADE; DROP TABLE IF EXISTS mappings CASCADE; DROP TABLE IF EXISTS points CASCADE; DROP TABLE IF EXISTS polling_groups CASCADE; DROP TABLE IF EXISTS tags CASCADE; DROP TABLE IF EXISTS devices CASCADE; DROP TABLE IF EXISTS system_settings;")
+	_, err = db.ExecContext(ctx, "DROP TABLE IF EXISTS timeseries CASCADE; DROP TABLE IF EXISTS mappings CASCADE; DROP TABLE IF EXISTS points CASCADE; DROP TABLE IF EXISTS polling_groups CASCADE; DROP TABLE IF EXISTS tags CASCADE; DROP TABLE IF EXISTS devices CASCADE; DROP TABLE IF EXISTS system_settings;")
 	assert.NoError(t, err)
 
 	// 3. Read and execute migration script
@@ -39,19 +40,17 @@ func TestPostgresPartitionMigration(t *testing.T) {
 		t.Fatalf("Failed to read migration file: %v", err)
 	}
 
-	_, err = db.Exec(string(migrationContent))
+	_, err = db.ExecContext(ctx, string(migrationContent))
 	assert.NoError(t, err, "Migration failed")
-
-	ctx := context.Background()
 
 	// 4. Verify Partition Creation Functionality
 	// The migration calls Create_timeseries_partition_monthly for current and next month.
-	
+
 	// Check if current month partition exists
 	currentMonth := time.Now().Format("2006_01") // YYYY_MM
 	partitionName := fmt.Sprintf("timeseries_%s", currentMonth)
 
-	exists, err := tableExists(db, partitionName)
+	exists, err := tableExists(ctx, db, partitionName)
 	assert.NoError(t, err)
 	assert.True(t, exists, "Partition %s should exist", partitionName)
 
@@ -60,11 +59,11 @@ func TestPostgresPartitionMigration(t *testing.T) {
 	var createdPartitionName string
 	err = db.QueryRowContext(ctx, "SELECT create_timeseries_partition_monthly($1)", futureDate).Scan(&createdPartitionName)
 	assert.NoError(t, err)
-	
+
 	expectedName := fmt.Sprintf("timeseries_%s", futureDate.Format("2006_01"))
 	assert.Equal(t, expectedName, createdPartitionName)
 
-	exists, err = tableExists(db, expectedName)
+	exists, err = tableExists(ctx, db, expectedName)
 	assert.NoError(t, err)
 	assert.True(t, exists, "Future partition %s should exist", expectedName)
 
@@ -84,7 +83,7 @@ func TestPostgresPartitionMigration(t *testing.T) {
 	assert.Equal(t, 123.45, val)
 }
 
-func tableExists(db *sql.DB, tableName string) (bool, error) {
+func tableExists(ctx context.Context, db *sql.DB, tableName string) (bool, error) {
 	var exists bool
 	query := `
 		SELECT EXISTS (
@@ -93,6 +92,6 @@ func tableExists(db *sql.DB, tableName string) (bool, error) {
 			AND    table_name   = $1
 		);
 	`
-	err := db.QueryRow(query, tableName).Scan(&exists)
+	err := db.QueryRowContext(ctx, query, tableName).Scan(&exists)
 	return exists, err
 }

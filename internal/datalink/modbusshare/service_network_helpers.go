@@ -10,7 +10,7 @@ import (
 )
 
 // ReadHoldingWords is a helper for tests and diagnostics.
-func (s *Service) ReadHoldingWords(startRegister uint16, quantity uint16) ([]uint16, error) {
+func (s *Service) ReadHoldingWords(startRegister, quantity uint16) ([]uint16, error) {
 	if quantity == 0 {
 		return []uint16{}, nil
 	}

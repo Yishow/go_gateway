@@ -8,7 +8,7 @@ import (
 )
 
 // MeasurementTemplate 描述版本化的量測佈局與語意範本。
-type MeasurementTemplate struct {
+type MeasurementTemplate struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	ID          string      `json:"id"`
 	Version     string      `json:"version"`
 	Name        string      `json:"name"`
@@ -16,6 +16,11 @@ type MeasurementTemplate struct {
 	LayoutMode  LayoutMode  `json:"layout_mode"`
 	Items       []MixedItem `json:"items"`
 }
+
+const (
+	quantityVoltage = "voltage"
+	quantityCurrent = "current"
+)
 
 // BuiltinTemplates 內建標準範本庫。
 var BuiltinTemplates = map[string]MeasurementTemplate{
@@ -26,12 +31,12 @@ var BuiltinTemplates = map[string]MeasurementTemplate{
 		Description: "標準三相電表：電壓(Va, Vb, Vc)、電流(Ia, Ib, Ic)、有效功率(kW)與累積電量(kWh)",
 		LayoutMode:  LayoutModeMixed,
 		Items: []MixedItem{
-			{ItemID: "va", Name: "Phase A Voltage", RegisterOffset: 0, DataType: schema.DataTypeFloat32, Quantity: "voltage", Unit: "V", SemanticKind: SemanticKindGauge},
-			{ItemID: "vb", Name: "Phase B Voltage", RegisterOffset: 2, DataType: schema.DataTypeFloat32, Quantity: "voltage", Unit: "V", SemanticKind: SemanticKindGauge},
-			{ItemID: "vc", Name: "Phase C Voltage", RegisterOffset: 4, DataType: schema.DataTypeFloat32, Quantity: "voltage", Unit: "V", SemanticKind: SemanticKindGauge},
-			{ItemID: "ia", Name: "Phase A Current", RegisterOffset: 6, DataType: schema.DataTypeFloat32, Quantity: "current", Unit: "A", SemanticKind: SemanticKindGauge},
-			{ItemID: "ib", Name: "Phase B Current", RegisterOffset: 8, DataType: schema.DataTypeFloat32, Quantity: "current", Unit: "A", SemanticKind: SemanticKindGauge},
-			{ItemID: "ic", Name: "Phase C Current", RegisterOffset: 10, DataType: schema.DataTypeFloat32, Quantity: "current", Unit: "A", SemanticKind: SemanticKindGauge},
+			{ItemID: "va", Name: "Phase A Voltage", RegisterOffset: 0, DataType: schema.DataTypeFloat32, Quantity: quantityVoltage, Unit: "V", SemanticKind: SemanticKindGauge},
+			{ItemID: "vb", Name: "Phase B Voltage", RegisterOffset: 2, DataType: schema.DataTypeFloat32, Quantity: quantityVoltage, Unit: "V", SemanticKind: SemanticKindGauge},
+			{ItemID: "vc", Name: "Phase C Voltage", RegisterOffset: 4, DataType: schema.DataTypeFloat32, Quantity: quantityVoltage, Unit: "V", SemanticKind: SemanticKindGauge},
+			{ItemID: "ia", Name: "Phase A Current", RegisterOffset: 6, DataType: schema.DataTypeFloat32, Quantity: quantityCurrent, Unit: "A", SemanticKind: SemanticKindGauge},
+			{ItemID: "ib", Name: "Phase B Current", RegisterOffset: 8, DataType: schema.DataTypeFloat32, Quantity: quantityCurrent, Unit: "A", SemanticKind: SemanticKindGauge},
+			{ItemID: "ic", Name: "Phase C Current", RegisterOffset: 10, DataType: schema.DataTypeFloat32, Quantity: quantityCurrent, Unit: "A", SemanticKind: SemanticKindGauge},
 			{ItemID: "kw", Name: "Active Power", RegisterOffset: 12, DataType: schema.DataTypeFloat32, Quantity: "power", Unit: "kW", SemanticKind: SemanticKindGauge},
 			{ItemID: "kwh", Name: "Active Energy", RegisterOffset: 14, DataType: schema.DataTypeUint32, Quantity: "energy", Unit: "kWh", SemanticKind: SemanticKindCounter, DataFormat: "ABCD"},
 		},
@@ -71,7 +76,7 @@ type TemplateApplyPreview struct {
 }
 
 // GenerateTemplatePreview 為指定設備產生範本套用預覽，提示待確認項目。
-func GenerateTemplatePreview(templateID string, deviceID string, deviceName string, baseAddress string) (*TemplateApplyPreview, error) {
+func GenerateTemplatePreview(templateID, deviceID, deviceName, baseAddress string) (*TemplateApplyPreview, error) {
 	tmpl, exists := BuiltinTemplates[templateID]
 	if !exists {
 		return nil, fmt.Errorf("template %s not found", templateID)
@@ -101,9 +106,9 @@ func GenerateTemplatePreview(templateID string, deviceID string, deviceName stri
 			DeviceID:              deviceID,
 			PointID:               fmt.Sprintf("pt-%s-%s", deviceID, itemCopy.ItemID),
 			EquipmentID:           deviceID,
-			DefinitionRevision:    "rev-1",
-			SourceBindingRevision: "rev-1",
-			SeriesEpoch:           "epoch-1",
+			DefinitionRevision:    initialDefinitionRevision,
+			SourceBindingRevision: initialDefinitionRevision,
+			SeriesEpoch:           initialSeriesEpoch,
 			Name:                  fmt.Sprintf("%s - %s", deviceName, itemCopy.Name),
 			Quantity:              itemCopy.Quantity,
 			Unit:                  itemCopy.Unit,

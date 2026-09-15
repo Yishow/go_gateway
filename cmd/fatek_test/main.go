@@ -12,6 +12,10 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	var (
 		mode       = flag.String("mode", "", "連接模式: tcp 或 serial (必填)")
 		host       = flag.String("host", "", "TCP 模式: PLC IP 位址")
@@ -53,13 +57,13 @@ func main() {
 	if *mode == "" {
 		fmt.Fprintf(os.Stderr, "錯誤: 必須指定 -mode (tcp 或 serial)\n\n")
 		flag.Usage()
-		os.Exit(1)
+		return 1
 	}
 
 	if *action == "" {
 		fmt.Fprintf(os.Stderr, "錯誤: 必須指定 -action (read, write, random)\n\n")
 		flag.Usage()
-		os.Exit(1)
+		return 1
 	}
 
 	var client *fatek.FatekClient
@@ -70,7 +74,7 @@ func main() {
 		if *host == "" {
 			fmt.Fprintf(os.Stderr, "錯誤: TCP 模式必須指定 -host\n\n")
 			flag.Usage()
-			os.Exit(1)
+			return 1
 		}
 		client = fatek.CreateTCPClient(*host, *port, *station, *timeout)
 		fmt.Printf("建立 TCP 客戶端: %s:%d (站號: %d, 逾時: %v)\n", *host, *port, *station, *timeout)
@@ -79,7 +83,7 @@ func main() {
 		if *serialPort == "" {
 			fmt.Fprintf(os.Stderr, "錯誤: Serial 模式必須指定 -serial\n\n")
 			flag.Usage()
-			os.Exit(1)
+			return 1
 		}
 		client = fatek.CreateSerialClient(*serialPort, *station, *baudRate, *dataBits, *stopBits, *parity, *timeout)
 		fmt.Printf("建立 Serial 客戶端: %s (站號: %d, 波特率: %d, 資料位元: %d, 停止位元: %d, 同位: %s, 逾時: %v)\n",
@@ -87,14 +91,14 @@ func main() {
 
 	default:
 		fmt.Fprintf(os.Stderr, "錯誤: 不支援的模式 '%s'，請使用 'tcp' 或 'serial'\n", *mode)
-		os.Exit(1)
+		return 1
 	}
 
 	// 連線
 	fmt.Println("正在連線...")
 	if err := client.Connect(); err != nil {
 		fmt.Fprintf(os.Stderr, "連線失敗: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 	defer client.Close()
 	fmt.Println("連線成功！")
@@ -104,25 +108,26 @@ func main() {
 	case "read":
 		if err := handleRead(client, *symbol, *addr, *count); err != nil {
 			fmt.Fprintf(os.Stderr, "讀取失敗: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 
 	case "write":
 		if err := handleWrite(client, *symbol, *addr, *values); err != nil {
 			fmt.Fprintf(os.Stderr, "寫入失敗: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 
 	case "random":
 		if err := handleRandom(client, *random); err != nil {
 			fmt.Fprintf(os.Stderr, "隨機讀取失敗: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "錯誤: 不支援的操作 '%s'，請使用 'read', 'write' 或 'random'\n", *action)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 // handleRead 處理讀取操作

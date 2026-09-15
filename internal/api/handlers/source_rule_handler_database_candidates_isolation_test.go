@@ -67,8 +67,8 @@ func TestSourceRuleHandler_Candidates_RevalidatesDatabaseScopeWithoutResettingLo
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-revalidate-isolated/tag-review-decisions",
 		bytes.NewBuffer(body),
 	)
@@ -103,7 +103,7 @@ func TestSourceRuleHandler_Candidates_RevalidatesDatabaseScopeWithoutResettingLo
 		Issues: []sourcerule.DatabaseTargetValidationIssue{},
 	}
 
-	req, err = http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-db-revalidate-isolated/candidates", nil)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, "/datalink/source-rules/rule-db-revalidate-isolated/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)

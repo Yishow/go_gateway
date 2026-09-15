@@ -18,9 +18,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func fetchModbusRegisters(ip string, port int, startAddr, count uint16) ([]uint16, error) {
+func fetchModbusRegisters(ctx context.Context, ip string, port int, startAddr, count uint16) ([]uint16, error) {
 	addr := net.JoinHostPort(ip, strconv.Itoa(port))
-	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
+	conn, err := (&net.Dialer{Timeout: 1 * time.Second}).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err
 	}
@@ -52,9 +52,9 @@ func fetchModbusRegisters(ip string, port int, startAddr, count uint16) ([]uint1
 	return regs, nil
 }
 
-func fetchMCRegisters(ip string, port int, startD uint32, count uint16) ([]uint16, error) {
+func fetchMCRegisters(ctx context.Context, ip string, port int, startD uint32, count uint16) ([]uint16, error) {
 	addr := net.JoinHostPort(ip, strconv.Itoa(port))
-	conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
+	conn, err := (&net.Dialer{Timeout: 1 * time.Second}).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func TestRealDevice_ModbusAndMCProtocol_TelemetryPipeline(t *testing.T) {
 	mcPort := 6000
 
 	// 1. 探測目標連線
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, strconv.Itoa(modbusPort)), 1*time.Second)
+	conn, err := (&net.Dialer{Timeout: 1 * time.Second}).DialContext(t.Context(), "tcp", net.JoinHostPort(ip, strconv.Itoa(modbusPort)))
 	if err != nil {
 		t.Skipf("真實設備 %s:%d 無法連線，跳過硬體驗證 (環境無 VPN 或機台離線)", ip, modbusPort)
 		return
@@ -111,7 +111,7 @@ func TestRealDevice_ModbusAndMCProtocol_TelemetryPipeline(t *testing.T) {
 	conn.Close()
 
 	// 2. 實測讀取 Modbus 保持暫存器
-	modbusRegs, err := fetchModbusRegisters(ip, modbusPort, 0, 8)
+	modbusRegs, err := fetchModbusRegisters(t.Context(), ip, modbusPort, 0, 8)
 	if err != nil {
 		t.Fatalf("Modbus 讀取失敗: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestRealDevice_ModbusAndMCProtocol_TelemetryPipeline(t *testing.T) {
 	}
 
 	// 3. 實測讀取 MC Protocol D 暫存器
-	mcWords, err := fetchMCRegisters(ip, mcPort, 0, 8)
+	mcWords, err := fetchMCRegisters(t.Context(), ip, mcPort, 0, 8)
 	if err != nil {
 		t.Fatalf("MC Protocol 讀取失敗: %v", err)
 	}

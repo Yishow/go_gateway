@@ -31,7 +31,7 @@ func workspaceDatabaseRowGroupExists(groups []workspace.DatabaseRowGroup, id str
 	return false
 }
 
-func workspaceDatabaseRowGroupContainsPoint(groups []workspace.DatabaseRowGroup, id string, pointID string) bool {
+func workspaceDatabaseRowGroupContainsPoint(groups []workspace.DatabaseRowGroup, id, pointID string) bool {
 	id = strings.TrimSpace(id)
 	pointID = strings.TrimSpace(pointID)
 	if id == "" || pointID == "" {
@@ -51,7 +51,7 @@ func workspaceDatabaseRowGroupContainsPoint(groups []workspace.DatabaseRowGroup,
 	return false
 }
 
-func rowGroupTargetKey(rowGroupID string, pointID string) string {
+func rowGroupTargetKey(rowGroupID, pointID string) string {
 	rowGroupID = strings.TrimSpace(rowGroupID)
 	pointID = strings.TrimSpace(pointID)
 	if rowGroupID == "" || pointID == "" {

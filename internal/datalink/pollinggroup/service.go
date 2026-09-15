@@ -6,7 +6,6 @@ package pollinggroup
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"go-gateway/internal/datalink/common"
@@ -42,7 +41,6 @@ type Repository interface {
 // Service 輪詢群組管理服務
 type Service struct {
 	repo Repository
-	mu   sync.RWMutex
 }
 
 // NewService 建立新的輪詢群組服務

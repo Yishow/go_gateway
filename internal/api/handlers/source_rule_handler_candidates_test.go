@@ -158,7 +158,7 @@ func TestSourceRuleHandler_Candidates_ReturnsCurrentRevisionSnapshot(t *testing.
 	})
 	require.NoError(t, err)
 
-	createReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
+	createReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp := httptest.NewRecorder()
@@ -167,7 +167,7 @@ func TestSourceRuleHandler_Candidates_ReturnsCurrentRevisionSnapshot(t *testing.
 
 	seedAppliedRuleManagedLink(t, fixture, "rule-candidates")
 
-	updateReq, err := http.NewRequest(http.MethodPut, "/datalink/source-rules/rule-candidates", bytes.NewBufferString(`{"scale_multiplier":2}`))
+	updateReq, err := http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/source-rules/rule-candidates", bytes.NewBufferString(`{"scale_multiplier":2}`))
 	require.NoError(t, err)
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateResp := httptest.NewRecorder()
@@ -178,7 +178,7 @@ func TestSourceRuleHandler_Candidates_ReturnsCurrentRevisionSnapshot(t *testing.
 	require.NoError(t, json.Unmarshal(updateResp.Body.Bytes(), &updatePayload))
 	updatedRule := updatePayload["data"].(map[string]any)
 
-	req, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-candidates/candidates", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-candidates/candidates", http.NoBody)
 	require.NoError(t, err)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -226,7 +226,7 @@ func TestSourceRuleHandler_RecomputeCandidates_ReturnsCurrentRevisionSnapshot(t 
 	})
 	require.NoError(t, err)
 
-	createReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
+	createReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp := httptest.NewRecorder()
@@ -237,7 +237,7 @@ func TestSourceRuleHandler_RecomputeCandidates_ReturnsCurrentRevisionSnapshot(t 
 	require.NoError(t, json.Unmarshal(createResp.Body.Bytes(), &createPayload))
 	createdRule := createPayload["data"].(map[string]any)
 
-	req, err := http.NewRequest(http.MethodPost, "/datalink/source-rules/rule-recompute/candidates/recompute", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "/datalink/source-rules/rule-recompute/candidates/recompute", http.NoBody)
 	require.NoError(t, err)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)

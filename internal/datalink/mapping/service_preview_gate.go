@@ -123,23 +123,23 @@ func ensureBoolCastable(value interface{}) error {
 	}
 }
 
-func ensureIntegerRange(value interface{}, min, max float64, typeName string) error {
+func ensureIntegerRange(value interface{}, minimum, maximum float64, typeName string) error {
 	f, ok := toFloat64Value(value)
 	if !ok {
 		return fmt.Errorf("值 %v (%T) 不是可轉數值", value, value)
 	}
-	if f < min || f > max {
+	if f < minimum || f > maximum {
 		return fmt.Errorf("數值 %v 超出 %s 範圍", value, typeName)
 	}
 	return nil
 }
 
-func ensureUnsignedRange(value interface{}, max float64, typeName string) error {
+func ensureUnsignedRange(value interface{}, maximum float64, typeName string) error {
 	f, ok := toFloat64Value(value)
 	if !ok {
 		return fmt.Errorf("值 %v (%T) 不是可轉數值", value, value)
 	}
-	if f < 0 || f > max {
+	if f < 0 || f > maximum {
 		return fmt.Errorf("數值 %v 超出 %s 範圍", value, typeName)
 	}
 	return nil

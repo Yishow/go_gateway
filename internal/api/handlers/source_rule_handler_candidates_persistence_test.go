@@ -32,7 +32,7 @@ func TestSourceRuleHandler_RecomputeCandidates_UpdatesPersistedCurrentSnapshot(t
 	})
 	require.NoError(t, err)
 
-	createReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
+	createReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp := httptest.NewRecorder()
@@ -70,7 +70,7 @@ func TestSourceRuleHandler_RecomputeCandidates_UpdatesPersistedCurrentSnapshot(t
 		},
 	}))
 
-	beforeReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-recompute-persist/candidates", nil)
+	beforeReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-recompute-persist/candidates", http.NoBody)
 	require.NoError(t, err)
 	beforeResp := httptest.NewRecorder()
 	router.ServeHTTP(beforeResp, beforeReq)
@@ -81,13 +81,13 @@ func TestSourceRuleHandler_RecomputeCandidates_UpdatesPersistedCurrentSnapshot(t
 	beforeTags := beforePayload["data"].(map[string]any)["tags"].(map[string]any)
 	assert.Empty(t, beforeTags["candidates"].([]any))
 
-	recomputeReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules/rule-recompute-persist/candidates/recompute", nil)
+	recomputeReq, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "/datalink/source-rules/rule-recompute-persist/candidates/recompute", http.NoBody)
 	require.NoError(t, err)
 	recomputeResp := httptest.NewRecorder()
 	router.ServeHTTP(recomputeResp, recomputeReq)
 	require.Equal(t, http.StatusOK, recomputeResp.Code)
 
-	afterReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-recompute-persist/candidates", nil)
+	afterReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-recompute-persist/candidates", http.NoBody)
 	require.NoError(t, err)
 	afterResp := httptest.NewRecorder()
 	router.ServeHTTP(afterResp, afterReq)
@@ -120,7 +120,7 @@ func TestSourceRuleHandler_RecomputeCandidates_PreservesOutOfSyncReviewState(t *
 	})
 	require.NoError(t, err)
 
-	createReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
+	createReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp := httptest.NewRecorder()
@@ -129,14 +129,14 @@ func TestSourceRuleHandler_RecomputeCandidates_PreservesOutOfSyncReviewState(t *
 
 	seedAppliedRuleManagedLink(t, fixture, "rule-out-of-sync-review")
 
-	updateReq, err := http.NewRequest(http.MethodPut, "/datalink/source-rules/rule-out-of-sync-review", bytes.NewBufferString(`{"scale_multiplier":2}`))
+	updateReq, err := http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/source-rules/rule-out-of-sync-review", bytes.NewBufferString(`{"scale_multiplier":2}`))
 	require.NoError(t, err)
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateResp := httptest.NewRecorder()
 	router.ServeHTTP(updateResp, updateReq)
 	require.Equal(t, http.StatusOK, updateResp.Code)
 
-	beforeReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-out-of-sync-review/candidates", nil)
+	beforeReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-out-of-sync-review/candidates", http.NoBody)
 	require.NoError(t, err)
 	beforeResp := httptest.NewRecorder()
 	router.ServeHTTP(beforeResp, beforeReq)
@@ -149,13 +149,13 @@ func TestSourceRuleHandler_RecomputeCandidates_PreservesOutOfSyncReviewState(t *
 	require.NotEmpty(t, beforeCandidate["blocking_reason"])
 	proposedSignature := beforeCandidate["proposed_signature"]
 
-	recomputeReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules/rule-out-of-sync-review/candidates/recompute", nil)
+	recomputeReq, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "/datalink/source-rules/rule-out-of-sync-review/candidates/recompute", http.NoBody)
 	require.NoError(t, err)
 	recomputeResp := httptest.NewRecorder()
 	router.ServeHTTP(recomputeResp, recomputeReq)
 	require.Equal(t, http.StatusOK, recomputeResp.Code)
 
-	afterReq, err := http.NewRequest(http.MethodGet, "/datalink/source-rules/rule-out-of-sync-review/candidates", nil)
+	afterReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-out-of-sync-review/candidates", http.NoBody)
 	require.NoError(t, err)
 	afterResp := httptest.NewRecorder()
 	router.ServeHTTP(afterResp, afterReq)

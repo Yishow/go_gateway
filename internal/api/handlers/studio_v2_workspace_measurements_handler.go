@@ -47,18 +47,18 @@ func (h *StudioV2WorkspaceMeasurementsHandler) List(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "MEASUREMENT_LIST_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "MEASUREMENT_LIST_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    list,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    list,
 	})
 }
 
@@ -69,8 +69,8 @@ func (h *StudioV2WorkspaceMeasurementsHandler) ListTemplates(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    templates,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    templates,
 	})
 }
 
@@ -110,18 +110,18 @@ func (h *StudioV2WorkspaceMeasurementsHandler) PreviewTemplate(c *gin.Context) {
 	preview, err := measurement.GenerateTemplatePreview(req.TemplateID, req.DeviceID, devName, req.BaseAddress)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "TEMPLATE_PREVIEW_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "TEMPLATE_PREVIEW_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    preview,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    preview,
 	})
 }
 
@@ -145,20 +145,20 @@ func (h *StudioV2WorkspaceMeasurementsHandler) ApplyTemplate(c *gin.Context) {
 
 	if err := h.measurementSvc.ApplyTemplate(c.Request.Context(), record.ID, &preview); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "TEMPLATE_APPLY_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "TEMPLATE_APPLY_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"applied": true,
-			"count":   len(preview.Definitions),
+		apiResponseSuccessKey: true,
+		apiResponseDataKey: gin.H{
+			apiResponseAppliedKey: true,
+			apiResponseCountKey:   len(preview.Definitions),
 		},
 	})
 }
@@ -184,18 +184,18 @@ func (h *StudioV2WorkspaceMeasurementsHandler) Create(c *gin.Context) {
 	def.WorkspaceID = record.ID
 	if err := h.measurementSvc.CreateMeasurement(c.Request.Context(), &def); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "MEASUREMENT_CREATE_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "MEASUREMENT_CREATE_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"data":    def,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    def,
 	})
 }
 
@@ -223,18 +223,18 @@ func (h *StudioV2WorkspaceMeasurementsHandler) Update(c *gin.Context) {
 	epochTransitioned, err := h.measurementSvc.UpdateMeasurement(c.Request.Context(), &def)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "MEASUREMENT_UPDATE_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "MEASUREMENT_UPDATE_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
+		apiResponseSuccessKey: true,
+		apiResponseDataKey: gin.H{
 			"measurement":        def,
 			"epoch_transitioned": epochTransitioned,
 		},
@@ -245,20 +245,20 @@ func (h *StudioV2WorkspaceMeasurementsHandler) Delete(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if err := h.measurementSvc.DeleteMeasurement(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "MEASUREMENT_DELETE_FAILED",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    "MEASUREMENT_DELETE_FAILED",
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"deleted": true,
-			"id":      id,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey: gin.H{
+			apiResponseDeletedKey: true,
+			"id":                  id,
 		},
 	})
 }

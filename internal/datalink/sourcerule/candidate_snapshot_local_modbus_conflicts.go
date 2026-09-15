@@ -224,7 +224,7 @@ func shouldEvaluateLocalModbusConflictCandidate(candidate schema.SourceRuleLocal
 func localModbusConflictRange(
 	left localModbusConflictCandidateRef,
 	right localModbusConflictCandidateRef,
-) (int, int, bool) {
+) (start, end int, overlaps bool) {
 	if left.end < right.start || right.end < left.start {
 		return 0, 0, false
 	}

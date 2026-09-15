@@ -3,6 +3,7 @@ package dbtarget
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -106,7 +107,7 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 		if err != nil {
 			recordWriteHistory(mapping.ConnectorID, WriteHistoryRecord{
 				ObservedAt:   observedAt,
-				Status:       "failed",
+				Status:       deliveryOutcomeFailed,
 				RowCount:     0,
 				TableName:    mapping.TableName,
 				GroupKey:     cloneOptionalString(mapping.GroupKey),
@@ -132,7 +133,7 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 			}
 			recordWriteHistory(connector.ID, WriteHistoryRecord{
 				ObservedAt:               observedAt,
-				Status:                   "failed",
+				Status:                   deliveryOutcomeFailed,
 				RowCount:                 0,
 				TableName:                mapping.TableName,
 				GroupKey:                 cloneOptionalString(mapping.GroupKey),
@@ -216,7 +217,9 @@ func (w *Writer) flushLoop() {
 			if !ok {
 				return
 			}
-			_ = w.flushBuckets(context.Background(), tick, false)
+			if err := w.flushBuckets(context.Background(), tick, false); err != nil {
+				slog.Error("flush grouped database writes", "error", err)
+			}
 		case <-w.stopCh:
 			return
 		}
@@ -297,7 +300,7 @@ func (w *Writer) flushBuckets(ctx context.Context, now time.Time, flushAll bool)
 			}
 			recordWriteHistory(bucket.Key.ConnectorID, WriteHistoryRecord{
 				ObservedAt:               bucket.Key.BucketStart,
-				Status:                   "failed",
+				Status:                   deliveryOutcomeFailed,
 				RowCount:                 0,
 				GroupKey:                 copyStringPointer(bucket.Key.GroupKey),
 				TableName:                bucket.Key.TableName,

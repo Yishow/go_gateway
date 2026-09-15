@@ -17,13 +17,14 @@ func TestDefaultEmbeddedSQLiteDSNEnablesForeignKeysOnReusedConnection(t *testing
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 	ApplySQLitePoolDefaults(db)
+	ctx := t.Context()
 
-	require.NoError(t, db.Ping())
+	require.NoError(t, db.PingContext(ctx))
 	assertSQLiteForeignKeysEnabled(t, db)
-	require.NoError(t, db.Ping())
+	require.NoError(t, db.PingContext(ctx))
 	assertSQLiteForeignKeysEnabled(t, db)
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(ctx, `
 		CREATE TABLE fk_parent (id INTEGER PRIMARY KEY);
 		CREATE TABLE fk_child (
 			id INTEGER PRIMARY KEY,
@@ -36,13 +37,13 @@ func TestDefaultEmbeddedSQLiteDSNEnablesForeignKeysOnReusedConnection(t *testing
 	require.NoError(t, err)
 
 	var childCount int
-	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM fk_child").Scan(&childCount))
+	require.NoError(t, db.QueryRowContext(ctx, "SELECT COUNT(*) FROM fk_child").Scan(&childCount))
 	require.Zero(t, childCount)
 }
 
 func assertSQLiteForeignKeysEnabled(t *testing.T, db *sql.DB) {
 	t.Helper()
 	var foreignKeys int
-	require.NoError(t, db.QueryRow("PRAGMA foreign_keys").Scan(&foreignKeys))
+	require.NoError(t, db.QueryRowContext(t.Context(), "PRAGMA foreign_keys").Scan(&foreignKeys))
 	require.Equal(t, 1, foreignKeys)
 }

@@ -104,8 +104,8 @@ func TestDatabaseTargetHandler_DryRunMappings_ReturnsSchemaMissing(t *testing.T)
 	}))
 
 	body := []byte(`{"candidate_ids":["handler-map-schema-missing"]}`)
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/db-targets/connectors/"+connector.ID+"/mappings/dry-run",
 		bytes.NewBuffer(body),
 	)
@@ -165,8 +165,8 @@ func TestDatabaseTargetHandler_GenerateSchema_DryRunAndExecute(t *testing.T) {
 		UpdatedAt:   now,
 	}))
 
-	dryRunReq, err := http.NewRequest(
-		http.MethodPost,
+	dryRunReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/db-targets/connectors/"+connector.ID+"/schema/generate",
 		bytes.NewBufferString(`{"dry_run":true}`),
 	)
@@ -183,8 +183,8 @@ func TestDatabaseTargetHandler_GenerateSchema_DryRunAndExecute(t *testing.T) {
 	assert.Equal(t, true, dryRunData["dry_run"])
 	assert.Greater(t, len(dryRunData["statements"].([]any)), 0)
 
-	execReq, err := http.NewRequest(
-		http.MethodPost,
+	execReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/db-targets/connectors/"+connector.ID+"/schema/generate",
 		bytes.NewBufferString(`{"dry_run":false}`),
 	)
@@ -210,7 +210,7 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsLatestRecords(t *testing.
 	targetDSN := filepath.Join(t.TempDir(), "target-handler-history.db")
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)
-	_, err = targetDB.Exec(`
+	_, err = targetDB.ExecContext(ctx, `
 		CREATE TABLE sensor_values (
 			ts DATETIME PRIMARY KEY,
 			value REAL NOT NULL
@@ -248,10 +248,10 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsLatestRecords(t *testing.
 	ts := time.Date(2026, 4, 6, 11, 0, 0, 0, time.UTC)
 	require.NoError(t, fixture.writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts))
 
-	req, err := http.NewRequest(
-		http.MethodGet,
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet,
 		"/datalink/db-targets/connectors/"+connector.ID+"/write-history?limit=1",
-		nil,
+		http.NoBody,
 	)
 	require.NoError(t, err)
 	resp := httptest.NewRecorder()
@@ -276,7 +276,7 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsGroupedFlushMetadata(t *t
 	targetDSN := filepath.Join(t.TempDir(), "target-handler-grouped-history.db")
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)
-	_, err = targetDB.Exec(`
+	_, err = targetDB.ExecContext(ctx, `
 		CREATE TABLE meter_rows (
 			ts DATETIME PRIMARY KEY,
 			a1 REAL,
@@ -351,10 +351,10 @@ func TestDatabaseTargetHandler_ListWriteHistory_ReturnsGroupedFlushMetadata(t *t
 		return listErr == nil && len(records) == 1
 	}, time.Second, 10*time.Millisecond)
 
-	req, err := http.NewRequest(
-		http.MethodGet,
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet,
 		"/datalink/db-targets/connectors/"+connector.ID+"/write-history?limit=1",
-		nil,
+		http.NoBody,
 	)
 	require.NoError(t, err)
 	resp := httptest.NewRecorder()

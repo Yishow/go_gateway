@@ -49,7 +49,7 @@ func TestMappingService_ValidateIgnoresStaleMissingTagMappings(t *testing.T) {
 		TimestampColumn: stringPtr("ts"),
 	})
 	require.NoError(t, err)
-	createStaleTargetMapping(t, ctx, mappingRepo, connector.ID)
+	createStaleTargetMapping(ctx, t, mappingRepo, connector.ID)
 
 	validation, err := mappingSvc.Validate(ctx, connector.ID)
 	require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestMappingService_DryRunExcludesStaleMissingTagMappingsByDefault(t *testin
 		TimestampColumn: stringPtr("ts"),
 	})
 	require.NoError(t, err)
-	createStaleTargetMapping(t, ctx, mappingRepo, connector.ID)
+	createStaleTargetMapping(ctx, t, mappingRepo, connector.ID)
 
 	result, err := mappingSvc.DryRun(ctx, connector.ID, MappingDryRunRequest{})
 	require.NoError(t, err)
@@ -137,15 +137,15 @@ func TestWriter_IgnoresStaleMissingTagMappings(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	createStaleTargetMapping(t, ctx, mappingRepo, connector.ID)
+	createStaleTargetMapping(ctx, t, mappingRepo, connector.ID)
 
 	observedAt := time.Date(2026, 6, 7, 12, 0, 0, 0, time.UTC)
 	require.NoError(t, writer.WriteTagValue(ctx, "tag-old", 99.5, observedAt))
 }
 
 func createStaleTargetMapping(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	mappingRepo TargetMappingRepository,
 	connectorID string,
 ) {

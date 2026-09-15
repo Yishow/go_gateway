@@ -68,7 +68,7 @@ func (s *Service) readinessPointTags(ctx context.Context, deviceIDs []string) (m
 	return out, nil
 }
 
-func (s *Service) rowGroupReusesColumn(ctx context.Context, connectorID string, group DatabaseRowGroup, pointTags map[string]string, refs map[string]string) (bool, error) {
+func (s *Service) rowGroupReusesColumn(ctx context.Context, connectorID string, group DatabaseRowGroup, pointTags, refs map[string]string) (bool, error) {
 	counts := map[string]int{}
 	for _, pointID := range group.MemberPointIDs {
 		if refs[pointID] != group.ID {

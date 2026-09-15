@@ -98,7 +98,7 @@ func (h *PointHandler) pollBatch(ctx context.Context, pointIDs []string) ([]Poll
 		if err != nil {
 			results = append(results, PollResult{
 				PointID: pointID,
-				Error:   "Point not found",
+				Error:   pointNotFoundMessage,
 			})
 			continue
 		}
@@ -218,7 +218,7 @@ func (h *PointHandler) buildPollResultFromPoint(ctx context.Context, pt *schema.
 	}
 }
 
-func (h *PointHandler) resolveTransformedValue(ctx context.Context, pointID string, rawValue any) (any, string) {
+func (h *PointHandler) resolveTransformedValue(ctx context.Context, pointID string, rawValue any) (transformedValue any, transformErr string) {
 	if rawValue == nil || h.mappingLister == nil {
 		return rawValue, ""
 	}

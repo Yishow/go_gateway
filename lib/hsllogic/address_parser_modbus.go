@@ -2,7 +2,6 @@ package hsllogic
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -11,9 +10,7 @@ import (
 // Modbus 地址解析
 // =============================================================================
 
-// modbusAddressPattern Modbus 地址正則表達式
-// 格式: 0xxxx (Coil), 1xxxx (DI), 3xxxx (IR), 4xxxx (HR) 或簡化格式
-var modbusAddressPattern = regexp.MustCompile(`^([0134])?(\d+)(?:\.(\d+))?$`)
+const modbusCoilDeviceType = "COIL"
 
 // parseModbusAddress 解析 Modbus 地址
 // 支援格式:
@@ -37,7 +34,7 @@ func parseModbusAddress(address string) (*ParsedAddress, error) {
 		deviceType = "IR"
 		addrPart = address[2:]
 	case strings.HasPrefix(address, "COIL"):
-		deviceType = "COIL"
+		deviceType = modbusCoilDeviceType
 		addrPart = address[4:]
 	case strings.HasPrefix(address, "DI"):
 		deviceType = "DI"
@@ -77,14 +74,14 @@ func parseModbusAddress(address string) (*ParsedAddress, error) {
 			deviceType = "DI"
 			addrNum -= 10000
 		case addrNum >= 0 && addrNum < 10000:
-			deviceType = "COIL"
+			deviceType = modbusCoilDeviceType
 		default:
 			// 預設為 Holding Register
 			deviceType = "HR"
 		}
 	}
 
-	isBit := deviceType == "COIL" || deviceType == "DI" || bitIndex >= 0
+	isBit := deviceType == modbusCoilDeviceType || deviceType == "DI" || bitIndex >= 0
 
 	return &ParsedAddress{
 		Protocol:    ProtocolModbus,

@@ -62,60 +62,60 @@ func (h *DeviceHandler) List(c *gin.Context) {
 		}(),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": devices})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: devices})
 }
 
 func (h *DeviceHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	dev, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: deviceNotFoundMessage}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: dev})
 }
 
 func (h *DeviceHandler) Create(c *gin.Context) {
 	var req device.CreateDeviceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	dev, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": dev})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: dev})
 }
 
 func (h *DeviceHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req device.UpdateDeviceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	dev, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: dev})
 }
 
 func (h *DeviceHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 func (h *DeviceHandler) TestConnection(c *gin.Context) {
@@ -123,7 +123,7 @@ func (h *DeviceHandler) TestConnection(c *gin.Context) {
 	result, err := h.svc.TestConnectionWithResult(c.Request.Context(), id)
 	if err != nil {
 		// Return structured failure
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": device.TestConnectionResult{
+		c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: device.TestConnectionResult{
 			Success:     false,
 			Error:       err.Error(),
 			Timestamp:   time.Now(),
@@ -134,13 +134,13 @@ func (h *DeviceHandler) TestConnection(c *gin.Context) {
 		}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 func (h *DeviceHandler) TestDraftConnection(c *gin.Context) {
 	var req TestDraftConnectionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -149,11 +149,11 @@ func (h *DeviceHandler) TestDraftConnection(c *gin.Context) {
 		ConnectionConfig: req.ConnectionConfig,
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 func (h *DeviceHandler) Activate(c *gin.Context) {
@@ -168,16 +168,16 @@ func (h *DeviceHandler) Activate(c *gin.Context) {
 	if err := h.svc.Activate(ctx, id); err != nil {
 		// 區分錯誤類型
 		if strings.Contains(err.Error(), "不存在") || strings.Contains(err.Error(), "not found") {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		}
 		return
 	}
 
 	dev, err := h.svc.GetByID(ctx, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: deviceNotFoundMessage}})
 		return
 	}
 	if h.runtimeSync != nil {
@@ -191,18 +191,18 @@ func (h *DeviceHandler) Activate(c *gin.Context) {
 				}
 			}
 
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": message}})
+			c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: message}})
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: dev})
 }
 
 func (h *DeviceHandler) Disable(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Disable(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: deviceNotFoundMessage}})
 		return
 	}
 	if h.runtimeSync != nil {
@@ -211,11 +211,11 @@ func (h *DeviceHandler) Disable(c *gin.Context) {
 
 	dev, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Device not found"}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: deviceNotFoundMessage}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": dev})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: dev})
 }
 
 // TestConnectionBatchRequest 批量測試連線請求
@@ -228,13 +228,13 @@ type TestConnectionBatchRequest struct {
 func (h *DeviceHandler) TestConnectionBatch(c *gin.Context) {
 	var req TestConnectionBatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	// 驗證必填欄位（device_ids 欄位必須存在，即使是空陣列）
 	if req.DeviceIDs == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "device_ids field is required"}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "device_ids field is required"}})
 		return
 	}
 
@@ -258,5 +258,5 @@ func (h *DeviceHandler) TestConnectionBatch(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: results})
 }

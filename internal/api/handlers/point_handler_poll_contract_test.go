@@ -168,7 +168,7 @@ func setupPointPollContractRouterWithDirectReader(
 ) (*gin.Engine, *point.Service, *point.MemoryRepository) {
 	t.Helper()
 
-	router, pointSvc, pointRepo := setupPointPollContractRouter(t, poller)
+	_, pointSvc, pointRepo := setupPointPollContractRouter(t, poller)
 	gin.SetMode(gin.TestMode)
 
 	mappingRepo := mapping.NewMemoryRepository()
@@ -193,7 +193,7 @@ func setupPointPollContractRouterWithDirectReader(
 		WithPolling(poller, mappingSvc, groupSvc).
 		WithDirectReader(directReader)
 
-	router = gin.Default()
+	router := gin.Default()
 	router.POST("/datalink/points/:id/poll", handler.Poll)
 	router.POST("/datalink/points/poll", handler.PollBatch)
 	return router, pointSvc, pointRepo
@@ -215,7 +215,7 @@ func TestPointHandler_Poll_UsesManualPollAndLatestEnabledMapping(t *testing.T) {
 
 	router, pointSvc, _ := setupPointPollContractRouter(t, poller)
 
-	req := httptest.NewRequest(http.MethodPost, "/datalink/points/point-1/poll", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/datalink/points/point-1/poll", http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -255,7 +255,7 @@ func TestPointHandler_Poll_FallsBackToCachedStateAndComputesStale(t *testing.T) 
 	pt.LastReadAt = &readAt
 	require.NoError(t, pointRepo.Update(context.Background(), pt))
 
-	pollReq := httptest.NewRequest(http.MethodPost, "/datalink/points/point-2/poll", bytes.NewBuffer(nil))
+	pollReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/points/point-2/poll", bytes.NewBuffer(nil))
 	pollResp := httptest.NewRecorder()
 	router.ServeHTTP(pollResp, pollReq)
 
@@ -285,7 +285,7 @@ func TestPointHandler_Poll_FallbackWithoutLastReadAtIsStale(t *testing.T) {
 	pt.LastReadAt = nil
 	require.NoError(t, pointRepo.Update(context.Background(), pt))
 
-	req := httptest.NewRequest(http.MethodPost, "/datalink/points/point-2/poll", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/datalink/points/point-2/poll", http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -320,7 +320,7 @@ func TestPointHandler_PollBatch_FallsBackToDirectReaderWhenManualPollIsUnavailab
 	body, err := json.Marshal(PollBatchRequest{PointIDs: &[]string{"point-1"}})
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/datalink/points/poll", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/points/poll", bytes.NewBuffer(body))
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -373,7 +373,7 @@ func TestPointHandler_PollBatch_UsesManualPollResultsAndKeepsMissingPoints(t *te
 	})
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/datalink/points/poll", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/points/poll", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -451,7 +451,7 @@ func TestPointHandler_Poll_ReturnsInternalServerErrorForWritebackFailure(t *test
 	router := gin.Default()
 	router.POST("/datalink/points/:id/poll", handler.Poll)
 
-	req := httptest.NewRequest(http.MethodPost, "/datalink/points/point-1/poll", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/datalink/points/point-1/poll", http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 

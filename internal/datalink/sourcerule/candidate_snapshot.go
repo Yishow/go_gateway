@@ -53,10 +53,7 @@ func (s *Service) persistCandidateSnapshots(ctx context.Context, rule *schema.So
 	if err := s.markStaleTagReviewDecisions(ctx, rule, tagCandidates); err != nil {
 		return err
 	}
-	if err := s.refreshLocalModbusConflictSnapshots(ctx); err != nil {
-		return err
-	}
-	return nil
+	return s.refreshLocalModbusConflictSnapshots(ctx)
 }
 
 func (s *Service) buildCandidateSnapshots(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink) ([]*schema.SourceRuleCandidateSnapshot, error) {

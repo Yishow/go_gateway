@@ -40,7 +40,7 @@ func TestService_Update_MarksRuleDerivedMappingOutOfSyncWhenSignatureChanges(t *
 	})
 	require.NoError(t, err)
 
-	applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 
 	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
 	require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestService_Update_ReactivatesOutOfSyncMappingWhenSignatureMatchesApplied(t
 	})
 	require.NoError(t, err)
 
-	applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 
 	mappings, err := mappingSvc.List(ctx, mapping.ListFilter{})
 	require.NoError(t, err)

@@ -339,9 +339,9 @@ func TestValidator_SpecialPorts(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := &Config{
-				Server: ServerConfig{Port: tc.port},
-				API:    APIConfig{BasePath: "/api"},
-				CORS:   CORSConfig{AllowOrigins: []string{"*"}},
+				Server:         ServerConfig{Port: tc.port},
+				API:            APIConfig{BasePath: "/api"},
+				CORS:           CORSConfig{AllowOrigins: []string{"*"}},
 				ConnectionPool: ConnectionPoolConfig{MaxConnections: 10},
 			}
 

@@ -12,7 +12,7 @@ func testMCTCP(results *TestResults, addr string) {
 	start := time.Now()
 	result := TestResult{
 		Protocol: "MC Protocol",
-		Mode:     "TCP",
+		Mode:     transportLabelTCP,
 		Success:  false,
 	}
 
@@ -75,7 +75,7 @@ func testMCTCP(results *TestResults, addr string) {
 	fmt.Printf("  ✓ 讀取成功: %v\n", bits)
 
 	result.Success = true
-	result.Message = "所有測試通過"
+	result.Message = testsSucceededText
 	fmt.Printf("  ✅ %s\n", result.Message)
 }
 
@@ -90,7 +90,7 @@ func testMCRTU(results *TestResults, config struct {
 	start := time.Now()
 	result := TestResult{
 		Protocol: "MC Protocol",
-		Mode:     "RTU",
+		Mode:     transportLabelRTU,
 		Success:  false,
 	}
 
@@ -152,6 +152,6 @@ func testMCRTU(results *TestResults, config struct {
 	fmt.Printf("  ✓ 讀取成功: %v\n", bits)
 
 	result.Success = true
-	result.Message = "所有測試通過"
+	result.Message = testsSucceededText
 	fmt.Printf("  ✅ %s\n", result.Message)
 }

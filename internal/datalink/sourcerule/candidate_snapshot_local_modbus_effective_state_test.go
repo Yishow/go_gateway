@@ -56,7 +56,7 @@ func TestService_CandidateSnapshots_BuildLocalModbusOutputsFromEffectiveTagRevie
 	})
 	require.NoError(t, err)
 
-	_ = applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	_ = applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	tagCandidates := tagCandidatesFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
 	require.Len(t, tagCandidates, 3)
 
@@ -135,7 +135,7 @@ func TestService_ListCandidateSnapshots_UsesActiveRevisionLocalModbusEffectiveSt
 	})
 	require.NoError(t, err)
 
-	_ = applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	_ = applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	tagCandidate := firstTagCandidateFromMemoryRepo(t, repo, rule.ID, rule.RevisionID)
 	_, err = svc.UpsertTagReviewDecision(ctx, rule.ID, UpsertTagReviewDecisionRequest{
 		CandidateID: tagCandidate.ID,

@@ -3,6 +3,7 @@ package delivery
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -123,11 +124,17 @@ func (o *SQLOutbox) FetchPending(destinationID string, limit int) ([]*OutboxItem
 			return nil, err
 		}
 		it.Status = OutboxStatus(statusStr)
-		it.NextRetryAt, _ = time.Parse(time.RFC3339Nano, retryAtStr)
-		it.ObservedAt, _ = time.Parse(time.RFC3339Nano, obsStr)
+		it.NextRetryAt, err = time.Parse(time.RFC3339Nano, retryAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse outbox next_retry_at: %w", err)
+		}
+		it.ObservedAt, err = time.Parse(time.RFC3339Nano, obsStr)
+		if err != nil {
+			return nil, fmt.Errorf("parse outbox observed_at: %w", err)
+		}
 		items = append(items, &it)
 	}
-	return items, nil
+	return items, rows.Err()
 }
 
 func (o *SQLOutbox) MarkDelivered(itemID string, deliveredAt time.Time) error {
@@ -145,7 +152,7 @@ func (o *SQLOutbox) MarkDelivered(itemID string, deliveredAt time.Time) error {
 	return err
 }
 
-func (o *SQLOutbox) MarkFailed(itemID string, errStr string, maxRetries int) error {
+func (o *SQLOutbox) MarkFailed(itemID, errStr string, maxRetries int) error {
 	ctx := context.Background()
 	var retryCount int
 	queryGet := `SELECT retry_count FROM gw_delivery_outbox WHERE id = ?`
@@ -242,11 +249,11 @@ func (r *SQLReceiptLedger) SaveReceipt(receipt *Receipt) error {
 	return err
 }
 
-func (r *SQLReceiptLedger) HasReceipt(destinationID string, recordID string, revision int64) (bool, error) {
+func (r *SQLReceiptLedger) HasReceipt(destinationID, recordID string, revision int64) (bool, error) {
 	query := `SELECT 1 FROM gw_delivery_receipts WHERE destination_id = ? AND record_id = ? AND calculation_revision = ?`
 	var dummy int
 	err := r.db.QueryRowContext(context.Background(), query, destinationID, recordID, revision).Scan(&dummy)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

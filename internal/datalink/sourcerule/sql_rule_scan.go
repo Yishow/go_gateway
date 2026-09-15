@@ -2,6 +2,7 @@ package sourcerule
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -49,7 +50,7 @@ func scanRule(row rowScanner) (*schema.SourceRule, error) {
 		&rule.RevisionID,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrSourceRuleNotFound
 		}
 		return nil, fmt.Errorf("掃描來源規則失敗: %w", err)

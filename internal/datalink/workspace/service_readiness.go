@@ -446,7 +446,7 @@ func (s *Service) resolveReadinessDirectTag(ctx context.Context, link *schema.So
 	return tagRecord, true, nil
 }
 
-func isReadinessRuleManagedTagOwnedBy(tagRecord *schema.Tag, ruleID string, address string) bool {
+func isReadinessRuleManagedTagOwnedBy(tagRecord *schema.Tag, ruleID, address string) bool {
 	if tagRecord == nil || strings.TrimSpace(tagRecord.Labels) == "" {
 		return false
 	}
@@ -456,7 +456,7 @@ func isReadinessRuleManagedTagOwnedBy(tagRecord *schema.Tag, ruleID string, addr
 	}
 	return labels["source"] == "source-rule" &&
 		labels["source_rule_id"] == strings.TrimSpace(ruleID) &&
-		strings.ToUpper(strings.TrimSpace(labels["source_rule_address"])) == strings.ToUpper(strings.TrimSpace(address))
+		strings.EqualFold(strings.TrimSpace(labels["source_rule_address"]), strings.TrimSpace(address))
 }
 
 func isLegacyReadinessDirectBinding(link *schema.SourceRuleLink, mappingRecord *schema.Mapping, tagRecord *schema.Tag) bool {

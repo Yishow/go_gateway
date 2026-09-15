@@ -4,13 +4,12 @@ import (
 	"context"
 	"time"
 
-	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
 
 // pollPoint 輪詢單一點位，返回錯誤用於熔斷器報告
-func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo, breaker *health.CircuitBreaker) error {
+func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo) error {
 	req := connector.ReadRequest{
 		Address:    pt.Address,
 		Function:   pt.Function,

@@ -110,7 +110,7 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 		if !exists {
 			response.Results = append(response.Results, ApplyOutputCandidateResult{
 				CandidateID: candidateID,
-				Status:      "failed",
+				Status:      candidateApplyStatusFailed,
 				Code:        "validation",
 				Reason:      fmt.Sprintf("candidate %s not found in revision %s", candidateID, rule.RevisionID),
 			})
@@ -119,7 +119,7 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 
 		if candidate.Status == schema.SourceRuleOutputStatusBlocked || candidate.Status == schema.SourceRuleOutputStatusOutOfSync {
 			result := databaseApplyCandidateResult(candidate)
-			result.Status = "failed"
+			result.Status = candidateApplyStatusFailed
 			result.Code = classifyDatabaseBlockingCode(candidate.BlockingReason)
 			result.Reason = defaultReason(candidate.BlockingReason, "candidate is blocked")
 			response.Results = append(response.Results, result)
@@ -127,7 +127,7 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 		}
 		if candidate.MappingID == nil || strings.TrimSpace(*candidate.MappingID) == "" {
 			result := databaseApplyCandidateResult(candidate)
-			result.Status = "failed"
+			result.Status = candidateApplyStatusFailed
 			result.Code = "schema_missing"
 			result.Reason = "database mapping scope is not configured"
 			response.Results = append(response.Results, result)
@@ -135,7 +135,7 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 		}
 		if strings.TrimSpace(candidate.ConnectorID) == "" {
 			result := databaseApplyCandidateResult(candidate)
-			result.Status = "failed"
+			result.Status = candidateApplyStatusFailed
 			result.Code = "schema_missing"
 			result.Reason = "connector_id is required"
 			response.Results = append(response.Results, result)
@@ -153,7 +153,7 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 			}
 			if validateErr, hasErr := validationErrors[candidate.ConnectorID]; hasErr {
 				result := databaseApplyCandidateResult(candidate)
-				result.Status = "failed"
+				result.Status = candidateApplyStatusFailed
 				result.Code = "connector_unavailable"
 				result.Reason = validateErr.Error()
 				response.Results = append(response.Results, result)
@@ -162,7 +162,7 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 			if validation := validationCache[candidate.ConnectorID]; validation != nil {
 				if issueCode, issueMessage, blocked := matchValidationIssue(validation, *candidate.MappingID); blocked {
 					result := databaseApplyCandidateResult(candidate)
-					result.Status = "failed"
+					result.Status = candidateApplyStatusFailed
 					result.Code = mapValidationIssueCode(issueCode)
 					result.Reason = issueMessage
 					response.Results = append(response.Results, result)
@@ -260,7 +260,7 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 		if !exists {
 			response.Results = append(response.Results, ApplyOutputCandidateResult{
 				CandidateID: candidateID,
-				Status:      "failed",
+				Status:      candidateApplyStatusFailed,
 				Code:        "validation",
 				Reason:      fmt.Sprintf("candidate %s not found in revision %s", candidateID, rule.RevisionID),
 			})
@@ -269,7 +269,7 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 		if code, reason, blocked := verifyLocalModbusApplyCandidate(candidate); blocked {
 			response.Results = append(response.Results, ApplyOutputCandidateResult{
 				CandidateID: candidate.ID,
-				Status:      "failed",
+				Status:      candidateApplyStatusFailed,
 				Code:        code,
 				Reason:      reason,
 			})
@@ -284,7 +284,7 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 	return response, nil
 }
 
-func verifyLocalModbusApplyCandidate(candidate schema.SourceRuleLocalModbusOutputCandidate) (code string, reason string, blocked bool) {
+func verifyLocalModbusApplyCandidate(candidate schema.SourceRuleLocalModbusOutputCandidate) (code, reason string, blocked bool) {
 	switch {
 	case strings.Contains(candidate.BlockingReason, modbusshare.ErrCodeInvalidGeometry):
 		return modbusshare.ErrCodeInvalidGeometry, defaultReason(candidate.BlockingReason, "candidate has invalid register geometry"), true

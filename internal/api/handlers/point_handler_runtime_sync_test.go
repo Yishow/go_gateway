@@ -19,8 +19,8 @@ type stubPointRuntimeSyncer struct {
 	removed  string
 }
 
-func (s *stubPointRuntimeSyncer) UpsertPoint(point *schema.Point) {
-	s.upserted = point
+func (s *stubPointRuntimeSyncer) UpsertPoint(p *schema.Point) {
+	s.upserted = p
 }
 
 func (s *stubPointRuntimeSyncer) RemovePoint(pointID string) {
@@ -44,7 +44,7 @@ func TestPointHandler_CreateSyncsRuntimePoint(t *testing.T) {
 		t.Fatalf("marshal request failed: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/points", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/points", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
@@ -82,7 +82,7 @@ func TestPointHandler_DeleteRemovesRuntimePoint(t *testing.T) {
 	syncer := &stubPointRuntimeSyncer{}
 	handler := NewPointHandler(svc, syncer)
 
-	req := httptest.NewRequest(http.MethodDelete, "/points/"+created.ID, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/points/"+created.ID, http.NoBody)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Params = gin.Params{{Key: "id", Value: created.ID}}

@@ -2,9 +2,14 @@ package delivery
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
+
+var errReceiptBlockFailed = errors.New("receipt failure could not be durably blocked")
 
 // DestinationSender 定義向特定目的地派送資料的執行介面。
 type DestinationSender interface {
@@ -19,7 +24,7 @@ type WorkerConfig struct {
 }
 
 // DeliveryWorker 負責單一目的地的背景可靠交付與回執管理。
-type DeliveryWorker struct {
+type DeliveryWorker struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	destinationID string
 	outbox        Outbox
 	receiptLedger ReceiptLedger
@@ -64,17 +69,34 @@ func (w *DeliveryWorker) Start(ctx context.Context) {
 
 	ticker := time.NewTicker(w.config.FlushInterval)
 	defer ticker.Stop()
+	flush := func(flushCtx context.Context) error {
+		if err := w.flushBatch(flushCtx); err != nil {
+			if errors.Is(err, errReceiptBlockFailed) {
+				slog.ErrorContext(flushCtx, "delivery destination stopped after receipt and block storage failures; reconcile delivery status before restart", "destination_id", w.destinationID, "error", err)
+			} else {
+				slog.ErrorContext(flushCtx, "delivery batch failed", "destination_id", w.destinationID, "error", err)
+			}
+			return err
+		}
+		return nil
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			w.flushBatch(context.Background())
+			if err := flush(context.WithoutCancel(ctx)); err != nil {
+				return
+			}
 			return
 		case <-w.stopCh:
-			w.flushBatch(context.Background())
+			if err := flush(context.WithoutCancel(ctx)); err != nil {
+				return
+			}
 			return
 		case <-ticker.C:
-			w.flushBatch(ctx)
+			if err := flush(ctx); errors.Is(err, errReceiptBlockFailed) {
+				return
+			}
 		}
 	}
 }
@@ -85,33 +107,48 @@ func (w *DeliveryWorker) Stop() {
 	w.wg.Wait()
 }
 
-func (w *DeliveryWorker) flushBatch(ctx context.Context) {
+func (w *DeliveryWorker) flushBatch(ctx context.Context) error {
 	items, err := w.outbox.FetchPending(w.destinationID, w.config.BatchSize)
-	if err != nil || len(items) == 0 {
-		return
+	if err != nil {
+		return fmt.Errorf("fetch pending deliveries: %w", err)
 	}
-
+	var failures []error
 	for _, item := range items {
-		// 檢查是否已有 receipt（防止重複送達）
-		hasReceipt, _ := w.receiptLedger.HasReceipt(w.destinationID, item.RecordID, item.CalculationRevision)
-		if hasReceipt {
-			_ = w.outbox.MarkDelivered(item.ID, time.Now().UTC())
-			continue
-		}
-
-		err := w.sender.Send(ctx, item)
-		if err != nil {
-			_ = w.outbox.MarkFailed(item.ID, err.Error(), w.config.MaxRetries)
-		} else {
-			now := time.Now().UTC()
-			_ = w.receiptLedger.SaveReceipt(&Receipt{
-				DestinationID:       w.destinationID,
-				RecordID:            item.RecordID,
-				CalculationRevision: item.CalculationRevision,
-				Table:               item.Table,
-				DeliveredAt:         now,
-			})
-			_ = w.outbox.MarkDelivered(item.ID, now)
+		if err := w.deliverItem(ctx, item); err != nil {
+			wrappedErr := fmt.Errorf("deliver record %s: %w", item.RecordID, err)
+			failures = append(failures, wrappedErr)
+			if errors.Is(err, errReceiptBlockFailed) {
+				return errors.Join(failures...)
+			}
 		}
 	}
+	return errors.Join(failures...)
+}
+
+func (w *DeliveryWorker) deliverItem(ctx context.Context, item *OutboxItem) error {
+	hasReceipt, err := w.receiptLedger.HasReceipt(w.destinationID, item.RecordID, item.CalculationRevision)
+	if err != nil {
+		return fmt.Errorf("read receipt: %w", err)
+	}
+	if hasReceipt {
+		return w.outbox.MarkDelivered(item.ID, time.Now().UTC())
+	}
+	if err := w.sender.Send(ctx, item); err != nil {
+		return errors.Join(err, w.outbox.MarkFailed(item.ID, err.Error(), w.config.MaxRetries))
+	}
+	now := time.Now().UTC()
+	if err := w.receiptLedger.SaveReceipt(&Receipt{
+		DestinationID:       w.destinationID,
+		RecordID:            item.RecordID,
+		CalculationRevision: item.CalculationRevision,
+		Table:               item.Table,
+		DeliveredAt:         now,
+	}); err != nil {
+		receiptErr := fmt.Errorf("save receipt: %w", err)
+		if markErr := w.outbox.MarkFailed(item.ID, receiptErr.Error(), 1); markErr != nil {
+			return errors.Join(errReceiptBlockFailed, receiptErr, markErr)
+		}
+		return receiptErr
+	}
+	return w.outbox.MarkDelivered(item.ID, now)
 }

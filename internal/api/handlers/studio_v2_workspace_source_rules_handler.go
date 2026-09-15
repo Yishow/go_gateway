@@ -51,13 +51,13 @@ func (h *StudioV2WorkspaceSourceRulesHandler) List(c *gin.Context) {
 	for _, rule := range rules {
 		item := mapSourceRuleResponse(rule)
 		item.WorkspaceID = record.ID
-		item.SaveState = "saved"
+		item.SaveState = workspaceSaveStateSaved
 		payload = append(payload, item)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    payload,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    payload,
 	})
 }
 
@@ -86,7 +86,7 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 
 	payload := mapSourceRuleResponse(rule)
 	payload.WorkspaceID = record.ID
-	payload.SaveState = "saved"
+	payload.SaveState = workspaceSaveStateSaved
 	links, err := h.ruleSvc.ListLinks(c.Request.Context(), rule.ID)
 	if err != nil {
 		renderStudioV2WorkspaceSourceRuleError(c, err)
@@ -96,7 +96,7 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
 	payload.RuntimeApplyIssues = applyOutcome.Issues
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": payload})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
 func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
@@ -123,12 +123,12 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Update(c *gin.Context) {
 
 	payload := mapSourceRuleResponse(updatedRule)
 	payload.WorkspaceID = record.ID
-	payload.SaveState = "saved"
+	payload.SaveState = workspaceSaveStateSaved
 	applyOutcome := mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
 	payload.RuntimeApplyIssues = applyOutcome.Issues
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": payload})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
 }
 
 func (h *StudioV2WorkspaceSourceRulesHandler) Delete(c *gin.Context) {
@@ -144,8 +144,8 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    mapStudioV2RuntimeApplyResponse(mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)),
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    mapStudioV2RuntimeApplyResponse(mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)),
 	})
 }
 
@@ -159,15 +159,15 @@ func (h *StudioV2WorkspaceSourceRulesHandler) requireWorkspaceRule(c *gin.Contex
 	rule, err := h.ruleSvc.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "Studio V2 source rule not found"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: studioV2SourceRuleNotFoundMessage},
 		})
 		return nil, nil, false
 	}
 	if !workspaceOwnsDevice(record, rule.DeviceID) {
 		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "Studio V2 source rule not found"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: studioV2SourceRuleNotFoundMessage},
 		})
 		return nil, nil, false
 	}
@@ -206,13 +206,13 @@ func renderStudioV2WorkspaceSourceRuleError(c *gin.Context, err error) {
 		renderStudioV2WorkspaceValidationError(c, err)
 	case errors.Is(err, sourcerule.ErrSourceRuleNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "Studio V2 source rule not found"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: studioV2SourceRuleNotFoundMessage},
 		})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: err.Error()},
 		})
 	}
 }

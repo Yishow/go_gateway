@@ -55,7 +55,7 @@ func TestMappingHandler_CreateRefreshesRuntimeMappings(t *testing.T) {
 		t.Fatalf("marshal request failed: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/mappings", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/mappings", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
@@ -88,7 +88,7 @@ func TestMappingHandler_DeleteRefreshesRuntimeMappings(t *testing.T) {
 	refresher := &stubMappingRuntimeRefresher{}
 	handler := NewMappingHandler(svc, refresher)
 
-	req := httptest.NewRequest(http.MethodDelete, "/mappings/"+created.ID, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/mappings/"+created.ID, http.NoBody)
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
 	c.Params = gin.Params{{Key: "id", Value: created.ID}}

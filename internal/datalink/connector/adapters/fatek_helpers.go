@@ -51,20 +51,20 @@ func convertFatekValue(values []int, dataType schema.DataType, width int) interf
 	case schema.DataTypeBool:
 		return values[0] != 0
 	case schema.DataTypeInt16:
-		return int16(values[0])
+		return int16(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 	case schema.DataTypeUint16:
-		return uint16(values[0])
+		return uint16(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 	case schema.DataTypeInt32:
 		if len(values) >= 1 && width == 32 {
-			return int32(values[0])
+			return int32(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 		} else if len(values) >= 2 {
-			return int32(values[0])<<16 | int32(values[1])
+			return int32(values[0])<<16 | int32(values[1]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 		}
 	case schema.DataTypeUint32:
 		if len(values) >= 1 && width == 32 {
-			return uint32(values[0])
+			return uint32(values[0]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 		} else if len(values) >= 2 {
-			return uint32(values[0])<<16 | uint32(values[1])
+			return uint32(values[0])<<16 | uint32(values[1]) // #nosec G115 -- Decode the fixed-width FATEK register bit pattern, including its sign bit.
 		}
 	case schema.DataTypeFloat32:
 		if len(values) >= 1 && width == 32 {
@@ -82,10 +82,10 @@ func convertFatekValue(values []int, dataType schema.DataType, width int) interf
 func intSliceToBytes(values []int) []byte {
 	bytes := make([]byte, len(values)*4)
 	for i, v := range values {
-		bytes[i*4] = byte(v >> 24)
-		bytes[i*4+1] = byte(v >> 16)
-		bytes[i*4+2] = byte(v >> 8)
-		bytes[i*4+3] = byte(v)
+		bytes[i*4] = byte((v >> 24) & 0xff)
+		bytes[i*4+1] = byte((v >> 16) & 0xff)
+		bytes[i*4+2] = byte((v >> 8) & 0xff)
+		bytes[i*4+3] = byte(v & 0xff)
 	}
 	return bytes
 }

@@ -16,7 +16,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func newStudioV2WorkspaceMeasurementRouter(t *testing.T) (*gin.Engine, *workspace.Service, *measurement.Service) {
+func newStudioV2WorkspaceMeasurementRouter(t *testing.T) (
+	routerResult *gin.Engine,
+) {
 	t.Helper()
 
 	deviceRepo := device.NewMemoryRepository()
@@ -47,11 +49,11 @@ func newStudioV2WorkspaceMeasurementRouter(t *testing.T) (*gin.Engine, *workspac
 		Measurement: measSvc,
 	})
 
-	return router, workspaceSvc, measSvc
+	return router
 }
 
 func TestStudioV2WorkspaceMeasurements_CRUD(t *testing.T) {
-	router, _, _ := newStudioV2WorkspaceMeasurementRouter(t)
+	router := newStudioV2WorkspaceMeasurementRouter(t)
 
 	// 1. Create measurement
 	createBody := `{
@@ -63,7 +65,7 @@ func TestStudioV2WorkspaceMeasurements_CRUD(t *testing.T) {
 		"unit": "V",
 		"semantic_kind": "gauge"
 	}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements", strings.NewReader(createBody))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements", strings.NewReader(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -73,7 +75,7 @@ func TestStudioV2WorkspaceMeasurements_CRUD(t *testing.T) {
 	}
 
 	// 2. List measurements
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/measurements", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/measurements", http.NoBody)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -93,7 +95,7 @@ func TestStudioV2WorkspaceMeasurements_CRUD(t *testing.T) {
 		"unit": "V",
 		"semantic_kind": "gauge"
 	}`
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/measurements/meas-v-a", strings.NewReader(updateBody))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/measurements/meas-v-a", strings.NewReader(updateBody))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -106,7 +108,7 @@ func TestStudioV2WorkspaceMeasurements_CRUD(t *testing.T) {
 	}
 
 	// 4. Delete measurement
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/measurements/meas-v-a", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/measurements/meas-v-a", http.NoBody)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -116,10 +118,10 @@ func TestStudioV2WorkspaceMeasurements_CRUD(t *testing.T) {
 }
 
 func TestStudioV2WorkspaceMeasurements_TemplateFlow(t *testing.T) {
-	router, _, _ := newStudioV2WorkspaceMeasurementRouter(t)
+	router := newStudioV2WorkspaceMeasurementRouter(t)
 
 	// 1. List templates
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/measurements/templates", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/measurements/templates", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -136,7 +138,7 @@ func TestStudioV2WorkspaceMeasurements_TemplateFlow(t *testing.T) {
 		"device_id": "dev-1",
 		"base_address": "40001"
 	}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements/templates/preview", strings.NewReader(previewBody))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements/templates/preview", strings.NewReader(previewBody))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -162,7 +164,7 @@ func TestStudioV2WorkspaceMeasurements_TemplateFlow(t *testing.T) {
 			}
 		]
 	}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements/templates/apply", strings.NewReader(applyBody))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements/templates/apply", strings.NewReader(applyBody))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -173,7 +175,7 @@ func TestStudioV2WorkspaceMeasurements_TemplateFlow(t *testing.T) {
 }
 
 func TestStudioV2WorkspaceMeasurements_DeviceNotBelongToWorkspace(t *testing.T) {
-	router, _, _ := newStudioV2WorkspaceMeasurementRouter(t)
+	router := newStudioV2WorkspaceMeasurementRouter(t)
 
 	// dev-alien does not belong to workspace
 	createBody := `{
@@ -184,7 +186,7 @@ func TestStudioV2WorkspaceMeasurements_DeviceNotBelongToWorkspace(t *testing.T) 
 		"quantity": "temperature",
 		"semantic_kind": "gauge"
 	}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements", strings.NewReader(createBody))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/measurements", strings.NewReader(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)

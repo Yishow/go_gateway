@@ -15,6 +15,9 @@ type defaultPointDirectReader struct {
 	deviceSvc *device.Service
 }
 
+// NewPointDirectReader creates a connector-backed point reader.
+//
+//nolint:revive // Preserve the existing exported constructor signature.
 func NewPointDirectReader(
 	pointSvc *point.Service,
 	deviceSvc *device.Service,

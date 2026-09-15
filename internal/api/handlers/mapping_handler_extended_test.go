@@ -60,7 +60,7 @@ func TestMappingHandler_ValidatePipeline(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -87,7 +87,7 @@ func TestMappingHandler_ValidatePipeline_Empty(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -118,7 +118,7 @@ func TestMappingHandler_ValidatePipeline_InvalidType(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -150,7 +150,7 @@ func TestMappingHandler_ValidatePipeline_ScaleMissingParams(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -188,7 +188,7 @@ func TestMappingHandler_ValidatePipeline_MultipleValidTypes(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -220,7 +220,7 @@ func TestMappingHandler_Preview(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -258,7 +258,7 @@ func TestMappingHandler_Preview_ComplexPipeline(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -293,7 +293,7 @@ func TestMappingHandler_Preview_InvalidPipeline(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -320,7 +320,7 @@ func TestMappingHandler_Preview_MissingField(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -338,7 +338,7 @@ func TestMappingHandler_ValidatePipeline_MissingField(t *testing.T) {
 	reqBody := map[string]interface{}{}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -376,7 +376,7 @@ func TestMappingHandler_Preview_DifferentValueTypes(t *testing.T) {
 		}
 
 		body, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest("POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
+		req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -422,7 +422,7 @@ func TestMappingHandler_ValidatePipeline_AllTransformTypes(t *testing.T) {
 		}
 
 		body, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+		req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -454,7 +454,7 @@ func TestMappingHandler_Preview_ResponseStructure(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -492,7 +492,7 @@ func TestMappingHandler_ValidatePipeline_ResponseStructure(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/validate-pipeline", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -527,7 +527,7 @@ func TestMappingHandler_Preview_WithCast(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/mappings/preview", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -539,6 +539,5 @@ func TestMappingHandler_Preview_WithCast(t *testing.T) {
 	assert.True(t, response["success"].(bool))
 
 	data := response["data"].(map[string]interface{})
-	// cast(5, float64) * 2 = 10.0
 	assert.Equal(t, float64(10), data["final_value"])
 }

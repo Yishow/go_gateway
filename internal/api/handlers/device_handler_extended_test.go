@@ -85,7 +85,7 @@ func TestDeviceHandler_Activate(t *testing.T) {
 	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
 
 	// 啟用設備
-	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", nil)
+	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -102,7 +102,7 @@ func TestDeviceHandler_Activate(t *testing.T) {
 func TestDeviceHandler_Activate_NotFound(t *testing.T) {
 	r := setupDeviceRouterWithExtended()
 
-	req, _ := http.NewRequest("POST", "/datalink/devices/non-existent-id/activate", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/non-existent-id/activate", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -127,7 +127,7 @@ func TestDeviceHandler_Disable(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -139,7 +139,7 @@ func TestDeviceHandler_Disable(t *testing.T) {
 	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
 
 	// 停用設備
-	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/disable", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/disable", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -156,7 +156,7 @@ func TestDeviceHandler_Disable(t *testing.T) {
 func TestDeviceHandler_Disable_NotFound(t *testing.T) {
 	r := setupDeviceRouterWithExtended()
 
-	req, _ := http.NewRequest("POST", "/datalink/devices/non-existent-id/disable", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/non-existent-id/disable", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -194,7 +194,7 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 	deviceIDs := make([]string, 0, len(devices))
 	for _, dev := range devices {
 		body, _ := json.Marshal(dev)
-		req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+		req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -211,7 +211,7 @@ func TestDeviceHandler_TestConnectionBatch(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -242,7 +242,7 @@ func TestDeviceHandler_TestConnectionBatch_ResultStructure(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -295,7 +295,7 @@ func TestDeviceHandler_TestConnection_SurfacesConnectAndProbeSuccess(t *testing.
 
 	body, err := json.Marshal(createReq)
 	require.NoError(t, err)
-	req, err := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -306,7 +306,7 @@ func TestDeviceHandler_TestConnection_SurfacesConnectAndProbeSuccess(t *testing.
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createResp))
 	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
 
-	req, err = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/test", nil)
+	req, err = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/test", http.NoBody)
 	require.NoError(t, err)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -359,7 +359,7 @@ func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t
 
 	body, err := json.Marshal(createReq)
 	require.NoError(t, err)
-	req, err := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -370,7 +370,7 @@ func TestDeviceHandler_TestConnection_SurfacesProbeFailureWhileConnectSucceeds(t
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createResp))
 	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
 
-	req, err = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/test", nil)
+	req, err = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/test", http.NoBody)
 	require.NoError(t, err)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -422,7 +422,7 @@ func TestDeviceHandler_TestDraftConnection_AllowsUnsavedPayload(t *testing.T) {
 
 	body, err := json.Marshal(reqBody)
 	require.NoError(t, err)
-	req, err := http.NewRequest("POST", "/datalink/devices/test-draft", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-draft", bytes.NewBuffer(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -444,7 +444,7 @@ func TestDeviceHandler_TestDraftConnection_AllowsUnsavedPayload(t *testing.T) {
 }
 
 func TestDeviceHandler_TestDraftConnection_SurfacesConnectFailure(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	port := listener.Addr().(*net.TCPAddr).Port
 	require.NoError(t, listener.Close())
@@ -470,7 +470,7 @@ func TestDeviceHandler_TestDraftConnection_SurfacesConnectFailure(t *testing.T) 
 
 	body, err := json.Marshal(reqBody)
 	require.NoError(t, err)
-	req, err := http.NewRequest("POST", "/datalink/devices/test-draft", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-draft", bytes.NewBuffer(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -521,7 +521,7 @@ func TestDeviceHandler_TestDraftConnection_SurfacesProbeFailure(t *testing.T) {
 
 	body, err := json.Marshal(reqBody)
 	require.NoError(t, err)
-	req, err := http.NewRequest("POST", "/datalink/devices/test-draft", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-draft", bytes.NewBuffer(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -553,7 +553,7 @@ func TestDeviceHandler_TestConnectionBatch_Empty(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -578,7 +578,7 @@ func TestDeviceHandler_TestConnectionBatch_MissingField(t *testing.T) {
 	batchReq := map[string]interface{}{}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -601,7 +601,7 @@ func TestDeviceHandler_TestConnectionBatch_InvalidDeviceIDs(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -654,14 +654,14 @@ func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
 	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
 
 	// 啟用設備
-	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", nil)
+	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	// 停用設備
-	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/disable", nil)
+	req, _ = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/disable", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -692,7 +692,7 @@ func TestDeviceHandler_TestConnectionBatch_LargeList(t *testing.T) {
 		}
 
 		body, _ := json.Marshal(newDevice)
-		req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+		req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -709,7 +709,7 @@ func TestDeviceHandler_TestConnectionBatch_LargeList(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/test-batch", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

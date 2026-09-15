@@ -37,7 +37,7 @@ func setupSettingsRouter() *gin.Engine {
 
 	repo := settings.NewMemoryRepository()
 	// Seed 預設設定
-	_ = repo.Set(nil, "test_key", "test_value")
+	_ = repo.Set(context.TODO(), "test_key", "test_value")
 
 	svc := settings.NewService(repo)
 	h := NewSettingsHandler(svc)
@@ -51,7 +51,7 @@ func setupSettingsRouter() *gin.Engine {
 func TestSettingsHandler_List(t *testing.T) {
 	r := setupSettingsRouter()
 
-	req, _ := http.NewRequest("GET", "/datalink/settings", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", "/datalink/settings", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -70,7 +70,7 @@ func TestSettingsHandler_Update(t *testing.T) {
 		"value": "updated_value",
 	}
 	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("PUT", "/datalink/settings/test_key", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "PUT", "/datalink/settings/test_key", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

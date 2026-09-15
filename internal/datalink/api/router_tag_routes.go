@@ -19,14 +19,14 @@ func (r *Router) handleTagByID(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
 	id, action := parseIDAndAction(path, r.config.PathPrefix+"/tags/")
 
-	switch {
-	case action == "activate":
+	switch action {
+	case "activate":
 		if req.Method == http.MethodPost {
 			r.tagHandler.Activate(w, req, id)
 		} else {
 			writeError(w, http.StatusMethodNotAllowed, "方法不允許")
 		}
-	case action == "retire":
+	case "retire":
 		if req.Method == http.MethodPost {
 			r.tagHandler.Retire(w, req, id)
 		} else {

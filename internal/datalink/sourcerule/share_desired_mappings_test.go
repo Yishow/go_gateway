@@ -33,8 +33,8 @@ func TestBuildDesiredShareMappingsForDevices_UsesEachRuleCandidateRegister(t *te
 	require.NoError(t, err)
 	ruleB, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-share-plan-b", DeviceID: dev.ID, StartAddress: "40011", Count: 1, DataType: schema.DataTypeInt32, NamingPrefix: "B", Enabled: true, ShareEnabled: true, ShareStartRegister: intPtr(40011), ShareStride: intPtr(3)})
 	require.NoError(t, err)
-	require.Len(t, applyRuleManagedLinks(t, ctx, repo, svc, ruleA.ID), 1)
-	require.Len(t, applyRuleManagedLinks(t, ctx, repo, svc, ruleB.ID), 1)
+	require.Len(t, applyRuleManagedLinks(ctx, t, repo, svc, ruleA.ID), 1)
+	require.Len(t, applyRuleManagedLinks(ctx, t, repo, svc, ruleB.ID), 1)
 
 	linksA, err := svc.ListLinks(ctx, ruleA.ID)
 	require.NoError(t, err)
@@ -45,8 +45,8 @@ func TestBuildDesiredShareMappingsForDevices_UsesEachRuleCandidateRegister(t *te
 	require.NoError(t, svc.persistCandidateSnapshots(ctx, ruleA, linksA))
 	require.NoError(t, svc.persistCandidateSnapshots(ctx, ruleB, linksB))
 
-	candidateA, _ := localModbusSingleCandidateFromRule(t, ctx, svc, ruleA.ID)
-	candidateB, _ := localModbusSingleCandidateFromRule(t, ctx, svc, ruleB.ID)
+	candidateA, _ := localModbusSingleCandidateFromRule(ctx, t, svc, ruleA.ID)
+	candidateB, _ := localModbusSingleCandidateFromRule(ctx, t, svc, ruleB.ID)
 	// Candidate registers are canonical zero-based coordinates. Rule B's
 	// durable 40011 start therefore produces zero-based 10, not 20.
 	registerA, registerB := uint16(1), uint16(10)
@@ -85,11 +85,11 @@ func TestShareDesiredMappingOwnershipCheckerIgnoresCanonicalProofMetadata(t *tes
 	require.NoError(t, err)
 	rule, err := svc.Create(ctx, CreateRuleRequest{ID: "rule-ownership-proof", DeviceID: dev.ID, StartAddress: "40001", Count: 1, DataType: schema.DataTypeInt16, NamingPrefix: "PROOF", Enabled: true, ShareEnabled: true, ShareStartRegister: intPtr(40001), ShareStride: intPtr(1)})
 	require.NoError(t, err)
-	require.Len(t, applyRuleManagedLinks(t, ctx, repo, svc, rule.ID), 1)
+	require.Len(t, applyRuleManagedLinks(ctx, t, repo, svc, rule.ID), 1)
 	links, err := svc.ListLinks(ctx, rule.ID)
 	require.NoError(t, err)
 	require.NoError(t, svc.persistCandidateSnapshots(ctx, rule, links))
-	candidate, _ := localModbusSingleCandidateFromRule(t, ctx, svc, rule.ID)
+	candidate, _ := localModbusSingleCandidateFromRule(ctx, t, svc, rule.ID)
 	register := uint16(0)
 	candidate.Register = &register
 	candidate.Status = schema.SourceRuleLocalModbusOutputStatusReady

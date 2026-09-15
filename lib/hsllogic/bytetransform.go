@@ -64,7 +64,7 @@ func (t *ByteTransform) TransformUint16(buffer []byte, index int) uint16 {
 
 // TransformInt16 將 2 字節轉換為 int16
 func (t *ByteTransform) TransformInt16(buffer []byte, index int) int16 {
-	return int16(t.TransformUint16(buffer, index))
+	return int16(t.TransformUint16(buffer, index)) // #nosec G115 -- fixed-width bit reinterpretation preserves signed 16-bit wire data.
 }
 
 // TransformUint32 將 4 字節轉換為 uint32
@@ -92,7 +92,7 @@ func (t *ByteTransform) TransformUint32(buffer []byte, index int) uint32 {
 
 // TransformInt32 將 4 字節轉換為 int32
 func (t *ByteTransform) TransformInt32(buffer []byte, index int) int32 {
-	return int32(t.TransformUint32(buffer, index))
+	return int32(t.TransformUint32(buffer, index)) // #nosec G115 -- fixed-width bit reinterpretation preserves signed 32-bit wire data.
 }
 
 // TransformFloat32 將 4 字節轉換為 float32
@@ -126,7 +126,7 @@ func (t *ByteTransform) TransformUint64(buffer []byte, index int) uint64 {
 
 // TransformInt64 將 8 字節轉換為 int64
 func (t *ByteTransform) TransformInt64(buffer []byte, index int) int64 {
-	return int64(t.TransformUint64(buffer, index))
+	return int64(t.TransformUint64(buffer, index)) // #nosec G115 -- fixed-width bit reinterpretation preserves signed 64-bit wire data.
 }
 
 // TransformFloat64 將 8 字節轉換為 float64
@@ -144,18 +144,18 @@ func (t *ByteTransform) Uint16ToBytes(value uint16) []byte {
 	b := make([]byte, 2)
 	switch t.Format {
 	case DataFormatBADC, DataFormatDCBA:
-		b[0] = byte(value)
-		b[1] = byte(value >> 8)
+		b[0] = byte(value)      // #nosec G115 -- extract the low byte of a fixed-width uint16 wire value.
+		b[1] = byte(value >> 8) // #nosec G115 -- extract the high byte of a fixed-width uint16 wire value.
 	default:
-		b[0] = byte(value >> 8)
-		b[1] = byte(value)
+		b[0] = byte(value >> 8) // #nosec G115 -- extract the high byte of a fixed-width uint16 wire value.
+		b[1] = byte(value)      // #nosec G115 -- extract the low byte of a fixed-width uint16 wire value.
 	}
 	return b
 }
 
 // Int16ToBytes 將 int16 轉換為 2 字節
 func (t *ByteTransform) Int16ToBytes(value int16) []byte {
-	return t.Uint16ToBytes(uint16(value))
+	return t.Uint16ToBytes(uint16(value)) // #nosec G115 -- preserve the two's-complement 16-bit representation.
 }
 
 // Uint32ToBytes 將 uint32 轉換為 4 字節
@@ -167,15 +167,15 @@ func (t *ByteTransform) Uint32ToBytes(value uint32) []byte {
 	case DataFormatDCBA:
 		binary.LittleEndian.PutUint32(b, value)
 	case DataFormatBADC:
-		b[1] = byte(value >> 24)
-		b[0] = byte(value >> 16)
-		b[3] = byte(value >> 8)
-		b[2] = byte(value)
+		b[1] = byte(value >> 24) // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
+		b[0] = byte(value >> 16) // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
+		b[3] = byte(value >> 8)  // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
+		b[2] = byte(value)       // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
 	case DataFormatCDAB:
-		b[2] = byte(value >> 24)
-		b[3] = byte(value >> 16)
-		b[0] = byte(value >> 8)
-		b[1] = byte(value)
+		b[2] = byte(value >> 24) // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
+		b[3] = byte(value >> 16) // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
+		b[0] = byte(value >> 8)  // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
+		b[1] = byte(value)       // #nosec G115 -- extract a byte from a fixed-width uint32 wire value.
 	default:
 		binary.BigEndian.PutUint32(b, value)
 	}
@@ -184,7 +184,7 @@ func (t *ByteTransform) Uint32ToBytes(value uint32) []byte {
 
 // Int32ToBytes 將 int32 轉換為 4 字節
 func (t *ByteTransform) Int32ToBytes(value int32) []byte {
-	return t.Uint32ToBytes(uint32(value))
+	return t.Uint32ToBytes(uint32(value)) // #nosec G115 -- preserve the two's-complement 32-bit representation.
 }
 
 // Float32ToBytes 將 float32 轉換為 4 字節
@@ -204,9 +204,9 @@ func (t *ByteTransform) RegistersToInt32(registers []uint16) int32 {
 	}
 	switch t.Format {
 	case DataFormatCDAB, DataFormatDCBA:
-		return int32(uint32(registers[1])<<16 | uint32(registers[0]))
+		return int32(uint32(registers[1])<<16 | uint32(registers[0])) // #nosec G115 -- reinterpret assembled 32-bit register bits as signed.
 	default:
-		return int32(uint32(registers[0])<<16 | uint32(registers[1]))
+		return int32(uint32(registers[0])<<16 | uint32(registers[1])) // #nosec G115 -- reinterpret assembled 32-bit register bits as signed.
 	}
 }
 

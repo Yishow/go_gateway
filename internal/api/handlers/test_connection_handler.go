@@ -23,7 +23,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	var req ConnectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		fmt.Printf("[ERROR] JSON 綁定失敗: %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("請求格式錯誤: %v", err)})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: fmt.Sprintf("請求格式錯誤: %v", err)})
 		return
 	}
 
@@ -32,14 +32,14 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	// 驗證協議名稱
 	if req.Protocol == "" {
 		fmt.Printf("[ERROR] 協議名稱為空\n")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "協議名稱不能為空"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: "協議名稱不能為空"})
 		return
 	}
 
 	// 驗證配置
 	if req.Config == nil {
 		fmt.Printf("[ERROR] 配置為空\n")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "配置不能為空"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: "配置不能為空"})
 		return
 	}
 
@@ -51,7 +51,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	client, err := h.createClientWithDebug(req.Protocol, req.Config, connID)
 	if err != nil {
 		fmt.Printf("[ERROR] 創建客戶端失敗: %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("創建客戶端失敗: %v", err)})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: fmt.Sprintf("創建客戶端失敗: %v", err)})
 		return
 	}
 	fmt.Printf("[DEBUG] 客戶端創建成功\n")
@@ -62,7 +62,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 		// 使用更友好的錯誤訊息
 		errMsg := categorizeError(err).Error()
 		fmt.Printf("[ERROR] 連線失敗: %v\n", errMsg)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseErrorKey: errMsg})
 		return
 	}
 	fmt.Printf("[DEBUG] 連線成功\n")
@@ -83,16 +83,16 @@ func (h *TestHandler) Connect(c *gin.Context) {
 	// 記錄連線日誌
 	if h.debugHandler != nil {
 		h.debugHandler.RecordLog("info", fmt.Sprintf("連線建立: %s (%s)", connID, req.Protocol), map[string]interface{}{
-			"connection_id": connID,
-			"protocol":      req.Protocol,
-			"config":        req.Config,
+			apiResponseConnectionIDKey: connID,
+			"protocol":                 req.Protocol,
+			"config":                   req.Config,
 		})
 	}
 
 	fmt.Printf("[DEBUG] 連線建立完成: ConnectionID=%s\n", connID)
 	c.JSON(http.StatusOK, gin.H{
-		"connection_id": connID,
-		"status":        "connected",
+		apiResponseConnectionIDKey: connID,
+		apiResponseStatusKey:       "connected",
 	})
 }
 
@@ -100,7 +100,7 @@ func (h *TestHandler) Connect(c *gin.Context) {
 func (h *TestHandler) Disconnect(c *gin.Context) {
 	connID := c.Query("connection_id")
 	if connID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "connection_id is required"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: connectionIDRequiredMessage})
 		return
 	}
 
@@ -114,7 +114,7 @@ func (h *TestHandler) Disconnect(c *gin.Context) {
 	state, exists := h.connections[connID]
 	if !exists {
 		h.mu.Unlock()
-		c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: connectionNotFoundMessage})
 		return
 	}
 
@@ -127,14 +127,14 @@ func (h *TestHandler) Disconnect(c *gin.Context) {
 	delete(h.connections, connID)
 	h.mu.Unlock()
 
-	c.JSON(http.StatusOK, gin.H{"status": "disconnected"})
+	c.JSON(http.StatusOK, gin.H{apiResponseStatusKey: "disconnected"})
 }
 
 // GetStatus 取得連線狀態
 func (h *TestHandler) GetStatus(c *gin.Context) {
 	connID := c.Query("connection_id")
 	if connID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "connection_id is required"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: connectionIDRequiredMessage})
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *TestHandler) GetStatus(c *gin.Context) {
 	h.mu.RUnlock()
 
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "connection not found"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: connectionNotFoundMessage})
 		return
 	}
 

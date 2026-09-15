@@ -3,6 +3,7 @@ package storage_test
 import (
 	"context"
 	"database/sql"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -71,4 +72,22 @@ func TestSQLiteWriterWriteBatch(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
+}
+
+// A failed later record must not leave the earlier record committed.
+func TestSQLiteWriterBatchFailureIsAtomic(t *testing.T) {
+	db := setupSQLiteDB(t)
+	defer db.Close()
+	writer := storage.NewSQLiteWriter(db)
+	records := []storage.TimeSeriesRecord{
+		{TagID: "batch-first", Timestamp: time.Now(), Quality: schema.QualityGood},
+		{TagID: "batch-invalid", Timestamp: time.Now(), RawValue: math.NaN(), Quality: schema.QualityGood},
+	}
+	require.Error(t, writer.WriteBatch(t.Context(), records))
+	var count int
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM timeseries").Scan(&count))
+	require.Zero(t, count)
+	require.NoError(t, writer.Write(t.Context(), records[0]))
+	require.NoError(t, db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM timeseries").Scan(&count))
+	require.Equal(t, 1, count)
 }

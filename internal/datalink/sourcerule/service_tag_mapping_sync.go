@@ -9,7 +9,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule *schema.SourceRule, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool) (tagMappingSyncResult, error) {
+func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool) (tagMappingSyncResult, error) {
 	result := tagMappingSyncResult{
 		updatedMappings: make(map[string]mappingRollbackState),
 		updatedTags:     make(map[string]tagRollbackState),

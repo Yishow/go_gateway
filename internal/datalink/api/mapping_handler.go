@@ -42,17 +42,17 @@ func (h *MappingHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 篩選點位
-	if pointID := getQueryParam(r, "point_id", ""); pointID != "" {
+	if pointID := getQueryParam(r, "point_id"); pointID != "" {
 		filter.PointID = &pointID
 	}
 
 	// 篩選標籤
-	if tagID := getQueryParam(r, "tag_id", ""); tagID != "" {
+	if tagID := getQueryParam(r, "tag_id"); tagID != "" {
 		filter.TagID = &tagID
 	}
 
 	// 篩選啟用狀態
-	if enabledStr := getQueryParam(r, "enabled", ""); enabledStr != "" {
+	if enabledStr := getQueryParam(r, "enabled"); enabledStr != "" {
 		enabled := getQueryParamBool(r, "enabled", true)
 		filter.Enabled = &enabled
 	}
@@ -130,7 +130,7 @@ func (h *MappingHandler) Delete(w http.ResponseWriter, r *http.Request, id strin
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	writeJSON(w, http.StatusOK, map[string]bool{responseDeletedKey: true})
 }
 
 // =============================================================================
@@ -178,7 +178,7 @@ func (h *MappingHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	rawValue := req.RawValue
 	if rawValue == nil && req.PointID != "" && h.scheduler != nil {
 		// 從排程器取得實際值
-		results := h.scheduler.PollNow([]string{req.PointID})
+		results := h.scheduler.PollNowContext(r.Context(), []string{req.PointID})
 		if len(results) > 0 && results[0].Error == "" {
 			rawValue = results[0].Value
 		}

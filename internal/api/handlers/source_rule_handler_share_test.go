@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ type sourceRuleSharePayload struct {
 func TestSourceRuleHandler_ShareConfigRoundTripsCreateGetListUpdate(t *testing.T) {
 	router, _ := setupSourceRuleRouter(t)
 
-	createReq := httptest.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBufferString(`{
+	createReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/source-rules", bytes.NewBufferString(`{
 		"id":"rule-share-handler",
 		"device_id":"device-1",
 		"start_address":"40001",
@@ -49,7 +50,7 @@ func TestSourceRuleHandler_ShareConfigRoundTripsCreateGetListUpdate(t *testing.T
 	require.NotNil(t, created.Data.ShareStride)
 	assert.Equal(t, 2, *created.Data.ShareStride)
 
-	getReq := httptest.NewRequest(http.MethodGet, "/datalink/source-rules/rule-share-handler", nil)
+	getReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-share-handler", http.NoBody)
 	getResp := httptest.NewRecorder()
 	router.ServeHTTP(getResp, getReq)
 	require.Equal(t, http.StatusOK, getResp.Code)
@@ -61,7 +62,7 @@ func TestSourceRuleHandler_ShareConfigRoundTripsCreateGetListUpdate(t *testing.T
 	require.NotNil(t, fetched.Data.ShareStride)
 	assert.Equal(t, 2, *fetched.Data.ShareStride)
 
-	listReq := httptest.NewRequest(http.MethodGet, "/datalink/source-rules?device_id=device-1", nil)
+	listReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules?device_id=device-1", http.NoBody)
 	listResp := httptest.NewRecorder()
 	router.ServeHTTP(listResp, listReq)
 	require.Equal(t, http.StatusOK, listResp.Code)
@@ -81,7 +82,7 @@ func TestSourceRuleHandler_ShareConfigRoundTripsCreateGetListUpdate(t *testing.T
 	require.NotNil(t, listEnvelope.Data[0].ShareStride)
 	assert.Equal(t, 2, *listEnvelope.Data[0].ShareStride)
 
-	updateReq := httptest.NewRequest(http.MethodPut, "/datalink/source-rules/rule-share-handler", bytes.NewBufferString(`{
+	updateReq := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/source-rules/rule-share-handler", bytes.NewBufferString(`{
 		"share_enabled":false,
 		"share_start_register":null,
 		"share_stride":null
@@ -96,7 +97,7 @@ func TestSourceRuleHandler_ShareConfigRoundTripsCreateGetListUpdate(t *testing.T
 	assert.Nil(t, updated.Data.ShareStartRegister)
 	assert.Nil(t, updated.Data.ShareStride)
 
-	finalGetReq := httptest.NewRequest(http.MethodGet, "/datalink/source-rules/rule-share-handler", nil)
+	finalGetReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/datalink/source-rules/rule-share-handler", http.NoBody)
 	finalGetResp := httptest.NewRecorder()
 	router.ServeHTTP(finalGetResp, finalGetReq)
 	require.Equal(t, http.StatusOK, finalGetResp.Code)

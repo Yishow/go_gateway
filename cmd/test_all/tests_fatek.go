@@ -12,7 +12,7 @@ func testFatekTCP(results *TestResults, addr string) {
 	start := time.Now()
 	result := TestResult{
 		Protocol: "Fatek",
-		Mode:     "TCP",
+		Mode:     transportLabelTCP,
 		Success:  false,
 	}
 
@@ -75,7 +75,7 @@ func testFatekTCP(results *TestResults, addr string) {
 	fmt.Printf("  ✓ 讀取成功: %v\n", status)
 
 	result.Success = true
-	result.Message = "所有測試通過"
+	result.Message = testsSucceededText
 	fmt.Printf("  ✅ %s\n", result.Message)
 }
 
@@ -90,7 +90,7 @@ func testFatekRTU(results *TestResults, config struct {
 	start := time.Now()
 	result := TestResult{
 		Protocol: "Fatek",
-		Mode:     "RTU",
+		Mode:     transportLabelRTU,
 		Success:  false,
 	}
 
@@ -153,6 +153,6 @@ func testFatekRTU(results *TestResults, config struct {
 	fmt.Printf("  ✓ 讀取成功: %v\n", status)
 
 	result.Success = true
-	result.Message = "所有測試通過"
+	result.Message = testsSucceededText
 	fmt.Printf("  ✅ %s\n", result.Message)
 }

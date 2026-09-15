@@ -41,23 +41,23 @@ func (h *PointHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 篩選設備
-	if deviceID := getQueryParam(r, "device_id", ""); deviceID != "" {
+	if deviceID := getQueryParam(r, "device_id"); deviceID != "" {
 		filter.DeviceID = &deviceID
 	}
 
 	// 篩選輪詢群組
-	if groupID := getQueryParam(r, "polling_group_id", ""); groupID != "" {
+	if groupID := getQueryParam(r, "polling_group_id"); groupID != "" {
 		filter.PollingGroupID = &groupID
 	}
 
 	// 篩選啟用狀態
-	if enabledStr := getQueryParam(r, "enabled", ""); enabledStr != "" {
+	if enabledStr := getQueryParam(r, "enabled"); enabledStr != "" {
 		enabled := getQueryParamBool(r, "enabled", true)
 		filter.Enabled = &enabled
 	}
 
 	// 篩選資料型別
-	if dataType := getQueryParam(r, "data_type", ""); dataType != "" {
+	if dataType := getQueryParam(r, "data_type"); dataType != "" {
 		dt := schema.DataType(dataType)
 		filter.DataType = &dt
 	}
@@ -217,7 +217,7 @@ func (h *PointHandler) Delete(w http.ResponseWriter, r *http.Request, id string)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	writeJSON(w, http.StatusOK, map[string]bool{responseDeletedKey: true})
 }
 
 // =============================================================================
@@ -232,7 +232,7 @@ func (h *PointHandler) PollNow(w http.ResponseWriter, r *http.Request, id string
 		return
 	}
 
-	results := h.scheduler.PollNow([]string{id})
+	results := h.scheduler.PollNowContext(r.Context(), []string{id})
 	if len(results) == 0 {
 		writeError(w, http.StatusNotFound, "點位不存在或未配置")
 		return
@@ -260,7 +260,7 @@ func (h *PointHandler) BatchPoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := h.scheduler.PollNow(req.PointIDs)
+	results := h.scheduler.PollNowContext(r.Context(), req.PointIDs)
 	writeJSON(w, http.StatusOK, results)
 }
 
@@ -301,7 +301,7 @@ func (h *PointHandler) CreatePollingGroup(w http.ResponseWriter, r *http.Request
 
 	// 將群組加入排程器
 	if h.scheduler != nil {
-		h.scheduler.AddPollingGroup(group)
+		h.scheduler.AddPollingGroup(group) //nolint:contextcheck // The ticker belongs to scheduler lifetime, not the HTTP request.
 	}
 
 	writeJSON(w, http.StatusCreated, group)
@@ -328,7 +328,7 @@ func (h *PointHandler) UpdatePollingGroup(w http.ResponseWriter, r *http.Request
 	if h.scheduler != nil {
 		h.scheduler.RemovePollingGroup(id)
 		if group.Enabled {
-			h.scheduler.AddPollingGroup(group)
+			h.scheduler.AddPollingGroup(group) //nolint:contextcheck // The ticker belongs to scheduler lifetime, not the HTTP request.
 		}
 	}
 
@@ -350,7 +350,7 @@ func (h *PointHandler) DeletePollingGroup(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	writeJSON(w, http.StatusOK, map[string]bool{responseDeletedKey: true})
 }
 
 // =============================================================================

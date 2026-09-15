@@ -151,7 +151,7 @@ func TestStudioV2WorkspaceMappingsHandlerListSkipsRecoveredMappingWhenTagIsMissi
 	require.NoError(t, err)
 	require.NoError(t, tagSvc.Delete(ctx, tagRecord.ID))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/mappings", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/mappings", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -195,7 +195,7 @@ func TestStudioV2WorkspaceMappingsHandlerCreateRepairsRecoveredMappingWhenTagIsM
 	require.NoError(t, err)
 	require.NoError(t, tagSvc.Delete(ctx, tagRecord.ID))
 
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", bytes.NewBufferString(`{
+	createReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", bytes.NewBufferString(`{
 		"rule_id":"rule-A",
 		"address":"40001",
 		"tag_key":"line.a.repaired",
@@ -226,7 +226,13 @@ func TestStudioV2WorkspaceMappingsHandlerCreateRepairsRecoveredMappingWhenTagIsM
 	require.Len(t, allMappings, 1)
 }
 
-func newWorkspaceMappingHandlerWithRepo(t *testing.T) (*StudioV2WorkspaceMappingsHandler, *mapping.MemoryRepository, *mapping.Service, *sourcerule.Service, *tag.Service) {
+func newWorkspaceMappingHandlerWithRepo(t *testing.T) (
+	handlerResult *StudioV2WorkspaceMappingsHandler,
+	mappingRepository *mapping.MemoryRepository,
+	mappingService *mapping.Service,
+	ruleService *sourcerule.Service,
+	tagService *tag.Service,
+) {
 	t.Helper()
 
 	deviceRepo := device.NewMemoryRepository()

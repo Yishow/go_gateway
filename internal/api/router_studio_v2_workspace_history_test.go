@@ -14,7 +14,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func newStudioV2WorkspaceHistoryRouter(t *testing.T) (*gin.Engine, *workspace.Service, *history.Service, *history.MemoryHistoryRepository) {
+func newStudioV2WorkspaceHistoryRouter(t *testing.T) (
+	routerResult *gin.Engine,
+	workspaceService *workspace.Service,
+	historyService *history.Service,
+	historyRepository *history.MemoryHistoryRepository,
+) {
 	t.Helper()
 
 	workspaceSvc := workspace.NewService(workspace.NewMemoryRepository())
@@ -54,7 +59,7 @@ func TestStudioV2WorkspaceHistory_QueryAndExport(t *testing.T) {
 		"plan_id": "plan-1",
 		"measurement_ids": ["meas-kw"]
 	}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/history/query", strings.NewReader(queryBody))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/history/query", strings.NewReader(queryBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -67,7 +72,7 @@ func TestStudioV2WorkspaceHistory_QueryAndExport(t *testing.T) {
 	}
 
 	// 2. Export CSV
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/history/export", strings.NewReader(queryBody))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/history/export", strings.NewReader(queryBody))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)

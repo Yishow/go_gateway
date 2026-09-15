@@ -136,7 +136,7 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 	charTime := time.Duration(10000000/r.BaudRate) * time.Microsecond
 	time.Sleep(charTime * 35 / 10) // 3.5 字符時間
 
-	// 讀取回應
+	// Read the response.
 	// 先讀取地址和功能碼
 	header := make([]byte, 2)
 	if _, err := io.ReadFull(r.reader, header); err != nil {
@@ -168,15 +168,17 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 			r.internalClose()
 			return nil, fmt.Errorf("RTU 讀取 ByteCount 失敗: %w", err)
 		}
-		expectedLength = 2 + 1 + int(byteCount[0]) + 2 // Header + ByteCount + Data + CRC
-
 		// 讀取數據和 CRC
 		dataAndCRC := make([]byte, int(byteCount[0])+2)
 		if _, err := io.ReadFull(r.reader, dataAndCRC); err != nil {
 			r.internalClose()
 			return nil, fmt.Errorf("RTU 讀取數據失敗: %w", err)
 		}
-		return append(header, append(byteCount, dataAndCRC...)...), nil
+		response := make([]byte, 0, len(header)+len(byteCount)+len(dataAndCRC))
+		response = append(response, header...)
+		response = append(response, byteCount...)
+		response = append(response, dataAndCRC...)
+		return response, nil
 
 	case FuncWriteSingleCoil, FuncWriteSingleRegister:
 		// 寫入單個回應: Address(1) + Function(1) + Address(2) + Value(2) + CRC(2)
@@ -191,7 +193,7 @@ func (r *RTUTransport) SendReceive(data []byte) ([]byte, error) {
 		return nil, ErrInvalidFunctionCode
 	}
 
-	// 讀取剩餘數據 (Address + Value/Quantity + CRC)
+	// Read the remaining address, value/quantity, and CRC bytes.
 	remaining := expectedLength - 2
 	if remaining > 0 {
 		rest := make([]byte, remaining)

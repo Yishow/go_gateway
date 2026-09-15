@@ -93,7 +93,7 @@ func (t *TCPTransport) SendReceive(data []byte) ([]byte, error) {
 	// 若連線已被關閉，嘗試自動重新連線
 	if t.conn == nil {
 		if err := t.internalConnect(); err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrConnectionClosed, err)
+			return nil, fmt.Errorf("%w: %w", ErrConnectionClosed, err)
 		}
 	}
 
@@ -156,8 +156,11 @@ func (t *TCPTransport) sendReceiveLocked(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("TCP 讀取 PDU 失敗: %w", err)
 	}
 
-	// 返回完整回應 (MBAP + PDU)
-	return append(header, pdu...), nil
+	// Return the complete response (MBAP header plus PDU).
+	response := make([]byte, 0, MBAPHeaderLength+len(pdu))
+	response = append(response, header...)
+	response = append(response, pdu...)
+	return response, nil
 }
 
 func (t *TCPTransport) internalClose() {

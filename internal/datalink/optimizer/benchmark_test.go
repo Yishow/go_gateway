@@ -97,7 +97,7 @@ func generatePoints(count int) []PointInfo {
 		if i%5 == 0 {
 			area = "M"
 		}
-		addr := (i / 10) * 15 + (i % 10) // 每 10 個一組，中間有些空洞
+		addr := (i/10)*15 + (i % 10) // 每 10 個一組，中間有些空洞
 
 		points[i] = PointInfo{
 			ID:       "p" + itoa(i),

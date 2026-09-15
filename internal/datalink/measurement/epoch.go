@@ -8,10 +8,10 @@ import (
 )
 
 // CheckEpochTransition 評估量測定義變更是否破壞數值可比性，若破壞則產生新 series_epoch。
-func CheckEpochTransition(oldDef, newDef MeasurementDefinition) (bool, string, string) {
+func CheckEpochTransition(oldDef, newDef MeasurementDefinition) (changed bool, epoch, reason string) {
 	currentEpoch := oldDef.SeriesEpoch
 	if strings.TrimSpace(currentEpoch) == "" {
-		currentEpoch = "epoch-1"
+		currentEpoch = initialSeriesEpoch
 	}
 
 	reasons := make([]string, 0)

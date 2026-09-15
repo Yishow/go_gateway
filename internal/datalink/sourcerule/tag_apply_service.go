@@ -16,6 +16,8 @@ var (
 	ErrTagApplyRevisionConflict = errors.New("tag apply revision conflict")
 )
 
+const candidateApplyStatusFailed = "failed"
+
 type ApplyTagCandidatesRequest struct {
 	WorkspaceID               string   `json:"workspace_id"`
 	ExpectedWorkspaceRevision string   `json:"expected_workspace_revision"`
@@ -107,8 +109,7 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 		link := linkByAddress[normalizeAddressKey(candidate.Address)]
 		pointRecord, err := s.pointSvc.GetByID(ctx, link.PointID)
 		if err != nil {
-			s.rollbackTagMappingSync(ctx, result)
-			return nil, fmt.Errorf("取得來源規則衍生點位失敗: %w", err)
+			return nil, s.finishRollbackErrors(ctx, fmt.Errorf("取得來源規則衍生點位失敗: %w", err), s.rollbackTagMappingSync(ctx, result))
 		}
 
 		candidateResult := newTagMappingSyncResult()
@@ -116,18 +117,20 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 		if err != nil {
 			response.Results = append(response.Results, ApplyTagCandidateResult{
 				CandidateID: candidate.ID,
-				Status:      "failed",
+				Status:      candidateApplyStatusFailed,
 				Error:       err.Error(),
 			})
 			continue
 		}
 
-		tagRecord, mappingRecord, err := s.applyRuleTagMapping(ctx, rule, pointRecord, link, candidate, effectiveTagKey, overrideTagID, &candidateResult)
+		tagRecord, mappingRecord, err := s.applyRuleTagMapping(ctx, rule, pointRecord, link, effectiveTagKey, overrideTagID, &candidateResult)
 		if err != nil {
-			s.rollbackTagMappingSync(ctx, candidateResult)
+			if candidateRollbackErr := s.rollbackTagMappingSync(ctx, candidateResult); candidateRollbackErr != nil {
+				return nil, s.finishRollbackErrors(ctx, err, candidateRollbackErr, s.rollbackTagMappingSync(ctx, result))
+			}
 			response.Results = append(response.Results, ApplyTagCandidateResult{
 				CandidateID: candidate.ID,
-				Status:      "failed",
+				Status:      candidateApplyStatusFailed,
 				Error:       err.Error(),
 			})
 			continue
@@ -148,26 +151,16 @@ func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req App
 
 	if linksChanged {
 		if err := s.replaceRuleLinks(ctx, rule.ID, previousLinks, nextLinks); err != nil {
-			s.rollbackTagMappingSync(ctx, result)
-			return nil, err
+			return nil, s.finishRollbackErrors(ctx, err, s.rollbackTagMappingSync(ctx, result))
 		}
 		if err := s.persistCandidateSnapshots(ctx, rule, nextLinks); err != nil {
 			restoreLinksErr := s.replaceRuleLinks(ctx, rule.ID, nextLinks, previousLinks)
-			s.rollbackTagMappingSync(ctx, result)
+			rollbackTagErr := s.rollbackTagMappingSync(ctx, result)
 			var restoreSnapshotsErr error
 			if restoreLinksErr == nil {
 				restoreSnapshotsErr = s.persistCandidateSnapshots(ctx, rule, previousLinks)
 			}
-			switch {
-			case restoreLinksErr != nil && restoreSnapshotsErr != nil:
-				return nil, fmt.Errorf("refresh apply candidates: %w (restore links: %v, restore snapshots: %v)", err, restoreLinksErr, restoreSnapshotsErr)
-			case restoreLinksErr != nil:
-				return nil, fmt.Errorf("refresh apply candidates: %w (restore links: %v)", err, restoreLinksErr)
-			case restoreSnapshotsErr != nil:
-				return nil, fmt.Errorf("refresh apply candidates: %w (restore snapshots: %v)", err, restoreSnapshotsErr)
-			default:
-				return nil, err
-			}
+			return nil, s.finishRollbackErrors(ctx, err, restoreLinksErr, rollbackTagErr, restoreSnapshotsErr)
 		}
 	}
 
@@ -208,8 +201,8 @@ func mergeTagMappingSyncResult(target *tagMappingSyncResult, source tagMappingSy
 	}
 }
 
-func validateApplyTagCandidatesRequest(req ApplyTagCandidatesRequest) ([]string, string, error) {
-	revisionID := strings.TrimSpace(req.RevisionID)
+func validateApplyTagCandidatesRequest(req ApplyTagCandidatesRequest) (candidateIDs []string, revisionID string, validationErr error) {
+	revisionID = strings.TrimSpace(req.RevisionID)
 	if revisionID == "" {
 		return nil, "", fmt.Errorf("%w: revision_id is required", ErrInvalidTagApplyRequest)
 	}
@@ -218,7 +211,7 @@ func validateApplyTagCandidatesRequest(req ApplyTagCandidatesRequest) ([]string,
 	}
 
 	seen := make(map[string]struct{}, len(req.CandidateIDs))
-	candidateIDs := make([]string, 0, len(req.CandidateIDs))
+	candidateIDs = make([]string, 0, len(req.CandidateIDs))
 	for _, candidateID := range req.CandidateIDs {
 		normalized := strings.TrimSpace(candidateID)
 		if normalized == "" {
@@ -273,7 +266,7 @@ func (s *Service) listCurrentTagReviewDecisionsByCandidateID(ctx context.Context
 	return result, nil
 }
 
-func resolveTagApplyDecision(candidate schema.SourceRuleTagCandidate, decision *schema.SourceRuleTagReviewDecision) (string, string, error) {
+func resolveTagApplyDecision(candidate schema.SourceRuleTagCandidate, decision *schema.SourceRuleTagReviewDecision) (tagKey, overrideTagID string, decisionErr error) {
 	if decision == nil {
 		return candidate.TagKey, "", nil
 	}
@@ -301,7 +294,6 @@ func (s *Service) applyRuleTagMapping(
 	rule *schema.SourceRule,
 	pointRecord *schema.Point,
 	link *schema.SourceRuleLink,
-	candidate schema.SourceRuleTagCandidate,
 	effectiveTagKey string,
 	overrideTagID string,
 	result *tagMappingSyncResult,
@@ -380,7 +372,6 @@ func (s *Service) applyRuleTagMapping(
 		return nil, nil, fmt.Errorf("建立來源規則映射失敗: %w", err)
 	}
 	result.createdMappingIDs = append(result.createdMappingIDs, mappingRecord.ID)
-	_ = candidate
 	return tagRecord, mappingRecord, nil
 }
 

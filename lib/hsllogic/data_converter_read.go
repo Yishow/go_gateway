@@ -40,7 +40,7 @@ func (c *DataConverter) ReadInt8(buffer []byte, index int) int8 {
 	if len(buffer) <= index {
 		return 0
 	}
-	return int8(buffer[index])
+	return int8(buffer[index]) // #nosec G115 -- preserve the byte's two's-complement bit pattern as int8.
 }
 
 // ReadUint8 從位元組讀取 uint8

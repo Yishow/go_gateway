@@ -75,9 +75,9 @@ func (h *StudioV2WorkspaceDevicesHandler) List(c *gin.Context) {
 		savedDevice, err := h.deviceSvc.GetByID(c.Request.Context(), deviceID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error": gin.H{
-					"message": "無法讀取 Studio V2 裝置列表，請稍後重試。",
+				apiResponseSuccessKey: false,
+				apiResponseErrorKey: gin.H{
+					apiResponseMessageKey: "無法讀取 Studio V2 裝置列表，請稍後重試。",
 				},
 			})
 			return
@@ -86,8 +86,8 @@ func (h *StudioV2WorkspaceDevicesHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    devices,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    devices,
 	})
 }
 
@@ -105,19 +105,22 @@ func (h *StudioV2WorkspaceDevicesHandler) Create(c *gin.Context) {
 	}
 
 	if _, err := h.workspaceSvc.AttachDevice(c.Request.Context(), savedDevice.ID); err != nil {
-		_ = h.deviceSvc.Delete(c.Request.Context(), savedDevice.ID)
+		if cleanupErr := h.deviceSvc.Delete(c.Request.Context(), savedDevice.ID); cleanupErr != nil {
+			renderStudioV2WorkspaceDeviceError(c, fmt.Errorf("attach workspace device and cleanup failed: attach=%w cleanup=%w", err, cleanupErr))
+			return
+		}
 		renderStudioV2WorkspaceDeviceError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"data":    mapStudioV2WorkspaceDeviceResponse(savedDevice, "not_running", ""),
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    mapStudioV2WorkspaceDeviceResponse(savedDevice, runtimeApplyNotRunningStatus, ""),
 	})
 }
 
 func (h *StudioV2WorkspaceDevicesHandler) Update(c *gin.Context) {
-	if _, ok := h.requireWorkspaceDevice(c); !ok {
+	if !h.requireWorkspaceDevice(c) {
 		return
 	}
 
@@ -141,13 +144,13 @@ func (h *StudioV2WorkspaceDevicesHandler) Update(c *gin.Context) {
 	runtimeApplyStatus, runtimeApplyMessage := h.applyRuntimeDeviceUpdate(c.Request.Context(), savedDevice, req.ConnectionConfig != nil)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    mapStudioV2WorkspaceDeviceResponse(savedDevice, runtimeApplyStatus, runtimeApplyMessage),
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    mapStudioV2WorkspaceDeviceResponse(savedDevice, runtimeApplyStatus, runtimeApplyMessage),
 	})
 }
 
 func (h *StudioV2WorkspaceDevicesHandler) UpdateAvailability(c *gin.Context) {
-	if _, ok := h.requireWorkspaceDevice(c); !ok {
+	if !h.requireWorkspaceDevice(c) {
 		return
 	}
 
@@ -167,13 +170,13 @@ func (h *StudioV2WorkspaceDevicesHandler) UpdateAvailability(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    mapStudioV2WorkspaceDeviceResponse(savedDevice, "", ""),
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    mapStudioV2WorkspaceDeviceResponse(savedDevice, "", ""),
 	})
 }
 
 func (h *StudioV2WorkspaceDevicesHandler) Delete(c *gin.Context) {
-	if _, ok := h.requireWorkspaceDevice(c); !ok {
+	if !h.requireWorkspaceDevice(c) {
 		return
 	}
 
@@ -184,14 +187,14 @@ func (h *StudioV2WorkspaceDevicesHandler) Delete(c *gin.Context) {
 	}
 	if err := h.deviceSvc.Delete(c.Request.Context(), deviceID); err != nil {
 		if _, rollbackErr := h.workspaceSvc.AttachDevice(c.Request.Context(), deviceID); rollbackErr != nil {
-			renderStudioV2WorkspaceDeviceError(c, fmt.Errorf("delete workspace device failed and rollback failed: delete=%w rollback=%v", err, rollbackErr))
+			renderStudioV2WorkspaceDeviceError(c, fmt.Errorf("delete workspace device failed and rollback failed: delete=%w rollback=%w", err, rollbackErr))
 			return
 		}
 		renderStudioV2WorkspaceDeviceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 func (h *StudioV2WorkspaceDevicesHandler) UpdateOrder(c *gin.Context) {
@@ -208,49 +211,49 @@ func (h *StudioV2WorkspaceDevicesHandler) UpdateOrder(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    record,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    record,
 	})
 }
 
-func (h *StudioV2WorkspaceDevicesHandler) requireWorkspaceDevice(c *gin.Context) (*workspace.Record, bool) {
+func (h *StudioV2WorkspaceDevicesHandler) requireWorkspaceDevice(c *gin.Context) bool {
 	record, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
 	if err != nil {
 		renderStudioV2WorkspaceBootstrapError(c)
-		return nil, false
+		return false
 	}
 
 	deviceID := c.Param("id")
 	for _, attachedDeviceID := range record.OrderedDeviceIDs {
 		if attachedDeviceID == deviceID {
-			return record, true
+			return true
 		}
 	}
 
 	c.JSON(http.StatusNotFound, gin.H{
-		"success": false,
-		"error": gin.H{
-			"message": "Studio V2 device not found",
+		apiResponseSuccessKey: false,
+		apiResponseErrorKey: gin.H{
+			apiResponseMessageKey: "Studio V2 device not found",
 		},
 	})
-	return nil, false
+	return false
 }
 
 func renderStudioV2WorkspaceBootstrapError(c *gin.Context) {
 	c.JSON(http.StatusInternalServerError, gin.H{
-		"success": false,
-		"error": gin.H{
-			"message": "無法建立 Studio V2 工作區，請檢查資料庫狀態後重試。",
+		apiResponseSuccessKey: false,
+		apiResponseErrorKey: gin.H{
+			apiResponseMessageKey: "無法建立 Studio V2 工作區，請檢查資料庫狀態後重試。",
 		},
 	})
 }
 
 func renderStudioV2WorkspaceValidationError(c *gin.Context, err error) {
 	c.JSON(http.StatusBadRequest, gin.H{
-		"success": false,
-		"error": gin.H{
-			"code":    "validation",
-			"message": err.Error(),
+		apiResponseSuccessKey: false,
+		apiResponseErrorKey: gin.H{
+			apiResponseCodeKey:    apiValidationErrorCode,
+			apiResponseMessageKey: err.Error(),
 		},
 	})
 }
@@ -261,24 +264,24 @@ func renderStudioV2WorkspaceDeviceError(c *gin.Context, err error) {
 		renderStudioV2WorkspaceValidationError(c, err)
 	case errors.Is(err, workspace.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error": gin.H{
-				"message": "Studio V2 device not found",
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseMessageKey: "Studio V2 device not found",
 			},
 		})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error": gin.H{
-				"message": "Studio V2 device operation failed",
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseMessageKey: "Studio V2 device operation failed",
 			},
 		})
 	}
 }
 
-func (h *StudioV2WorkspaceDevicesHandler) applyRuntimeDeviceUpdate(ctx context.Context, savedDevice *schema.Device, connectionChanged bool) (string, string) {
+func (h *StudioV2WorkspaceDevicesHandler) applyRuntimeDeviceUpdate(ctx context.Context, savedDevice *schema.Device, connectionChanged bool) (runtimeStatus, runtimeMessage string) {
 	if savedDevice == nil || savedDevice.Status != schema.DeviceStatusActive {
-		return "not_running", ""
+		return runtimeApplyNotRunningStatus, ""
 	}
 	if connectionChanged {
 		message := "device connection change requires runtime restart"
@@ -288,15 +291,15 @@ func (h *StudioV2WorkspaceDevicesHandler) applyRuntimeDeviceUpdate(ctx context.C
 		return "restart-required", message
 	}
 	if h.runtimeSync == nil {
-		return "applied", ""
+		return runtimeApplyAppliedStatus, ""
 	}
 	if err := h.runtimeSync.UpsertDevice(ctx, savedDevice); err != nil {
 		return runtimeApplyFailedStatus, "runtime device projection could not be applied"
 	}
-	return "applied", ""
+	return runtimeApplyAppliedStatus, ""
 }
 
-func mapStudioV2WorkspaceDeviceResponse(savedDevice *schema.Device, runtimeApplyStatus string, runtimeApplyMessage string) studioV2WorkspaceDeviceResponse {
+func mapStudioV2WorkspaceDeviceResponse(savedDevice *schema.Device, runtimeApplyStatus, runtimeApplyMessage string) studioV2WorkspaceDeviceResponse {
 	if savedDevice == nil {
 		return studioV2WorkspaceDeviceResponse{}
 	}

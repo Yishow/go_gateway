@@ -31,16 +31,16 @@ func (h *SourceRuleHandler) ListTagReviewDecisions(c *gin.Context) {
 		if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
 			statusCode = http.StatusNotFound
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": decisions})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: decisions})
 }
 
 func (h *SourceRuleHandler) UpsertTagReviewDecision(c *gin.Context) {
 	var req sourcerule.UpsertTagReviewDecisionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -54,8 +54,8 @@ func (h *SourceRuleHandler) UpsertTagReviewDecision(c *gin.Context) {
 		if errors.Is(err, sourcerule.ErrSourceRuleNotFound) {
 			statusCode = http.StatusNotFound
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": decision})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: decision})
 }

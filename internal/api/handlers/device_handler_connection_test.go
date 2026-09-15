@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -49,7 +50,7 @@ func TestDeviceHandler_TestConnection_ReturnsPlanningHints(t *testing.T) {
 
 	body, err := json.Marshal(createReq)
 	require.NoError(t, err)
-	req, err := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(context.Background(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -60,7 +61,7 @@ func TestDeviceHandler_TestConnection_ReturnsPlanningHints(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &createResp))
 	deviceID := createResp["data"].(map[string]interface{})["id"].(string)
 
-	req, err = http.NewRequest("POST", "/datalink/devices/"+deviceID+"/test", nil)
+	req, err = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/test", http.NoBody)
 	require.NoError(t, err)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)

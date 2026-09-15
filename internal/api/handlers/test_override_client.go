@@ -6,7 +6,7 @@ import (
 	"go-gateway/internal/protocol/modbus"
 )
 
-func (h *TestHandler) prepareOverrideClient(state *ConnectionState, unitID *byte, station *int, tempSuffix string) (clientToUse interface{}, tempClient interface{}, err error) {
+func (h *TestHandler) prepareOverrideClient(state *ConnectionState, unitID *byte, station *int, tempSuffix string) (clientToUse, tempClient interface{}, err error) {
 	clientToUse = state.Client
 
 	if unitID == nil && station == nil {

@@ -48,14 +48,14 @@ func (p *FilterProcessor) Name() string { return "filter" }
 
 func (p *FilterProcessor) Process(ctx context.Context, input []float64) ([]float64, error) {
 	result := make([]float64, len(input))
-	
+
 	for i, v := range input {
 		// 加入緩衝區
 		p.buffer = append(p.buffer, v)
 		if len(p.buffer) > p.windowSize {
 			p.buffer = p.buffer[1:]
 		}
-		
+
 		// 計算移動平均
 		sum := 0.0
 		for _, bv := range p.buffer {
@@ -63,7 +63,7 @@ func (p *FilterProcessor) Process(ctx context.Context, input []float64) ([]float
 		}
 		result[i] = sum / float64(len(p.buffer))
 	}
-	
+
 	return result, nil
 }
 
@@ -89,11 +89,12 @@ func (p *ThresholdProcessor) Name() string { return "threshold" }
 func (p *ThresholdProcessor) Process(ctx context.Context, input []float64) ([]float64, error) {
 	result := make([]float64, len(input))
 	for i, v := range input {
-		if v < p.lowThreshold {
+		switch {
+		case v < p.lowThreshold:
 			result[i] = p.lowValue
-		} else if v > p.highThreshold {
+		case v > p.highThreshold:
 			result[i] = p.highValue
-		} else {
+		default:
 			result[i] = v
 		}
 	}
@@ -250,7 +251,7 @@ func getInt(params map[string]interface{}, key string, defaultVal int) int {
 	return defaultVal
 }
 
-func getString(params map[string]interface{}, key string, defaultVal string) string {
+func getString(params map[string]interface{}, key, defaultVal string) string {
 	if v, ok := params[key]; ok {
 		if s, ok := v.(string); ok {
 			return s

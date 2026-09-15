@@ -13,7 +13,7 @@ import (
 // =============================================================================
 
 // ValueToRecord 將收集值轉換為時序記錄
-func ValueToRecord(tagID string, value interface{}, rawValue interface{}, timestamp time.Time, quality schema.QualityFlag, dataType schema.DataType) TimeSeriesRecord {
+func ValueToRecord(tagID string, value, rawValue interface{}, timestamp time.Time, quality schema.QualityFlag, dataType schema.DataType) TimeSeriesRecord {
 	record := TimeSeriesRecord{
 		TagID:     tagID,
 		Timestamp: timestamp,

@@ -58,7 +58,7 @@ func TestStudioV2WorkspaceDatabaseHandler_UpdateConfigKeepsAppliedStatusForWarni
 	_, err := workspaceSvc.AttachDevice(context.Background(), "dev-A")
 	require.NoError(t, err)
 
-	configReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(`{
+	configReq := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", bytes.NewBufferString(`{
 		"kind":"postgres",
 		"name":"Line A PG",
 		"host":"127.0.0.1",

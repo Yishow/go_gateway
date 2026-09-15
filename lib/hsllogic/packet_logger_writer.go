@@ -116,7 +116,7 @@ func (pl *PacketLogger) ensureFile() error {
 	}
 
 	// 建立目錄
-	if err := os.MkdirAll(pl.options.LogDir, 0755); err != nil {
+	if err := os.MkdirAll(pl.options.LogDir, 0o755); err != nil {
 		return err
 	}
 
@@ -126,7 +126,7 @@ func (pl *PacketLogger) ensureFile() error {
 		fmt.Sprintf("packet_%s.log", time.Now().Format("20060102_150405")),
 	)
 
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}

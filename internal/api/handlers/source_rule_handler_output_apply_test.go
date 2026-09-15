@@ -31,8 +31,8 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_RejectsRevisionMismatch(t *testi
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-apply-conflict/database-outputs/apply",
 		bytes.NewBuffer(applyBody),
 	)
@@ -62,8 +62,8 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_RejectsMissingRevisionID(t *test
 	})
 	require.NoError(t, err)
 
-	applyReq, err := http.NewRequest(
-		http.MethodPost,
+	applyReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-apply-validation/database-outputs/apply",
 		bytes.NewBuffer(applyBody),
 	)
@@ -125,8 +125,8 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_ReturnsPerCandidateResultsForPar
 	})
 	require.NoError(t, err)
 
-	decisionReq, err := http.NewRequest(
-		http.MethodPost,
+	decisionReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-apply-partial/tag-review-decisions",
 		bytes.NewBuffer(decisionBody),
 	)
@@ -160,8 +160,8 @@ func TestSourceRuleHandler_ApplyDatabaseOutputs_ReturnsPerCandidateResultsForPar
 	})
 	require.NoError(t, err)
 
-	applyReq, err := http.NewRequest(
-		http.MethodPost,
+	applyReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-db-apply-partial/database-outputs/apply",
 		bytes.NewBuffer(applyBody),
 	)
@@ -209,8 +209,8 @@ func TestSourceRuleHandler_ApplyLocalModbusOutputs_DeferredCandidatesReturnSkipp
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(
-		http.MethodPost,
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodPost,
 		"/datalink/source-rules/rule-lm-apply-deferred/local-modbus/apply",
 		bytes.NewBuffer(applyBody),
 	)
@@ -237,7 +237,7 @@ func loadDatabaseOutputCandidatesForRule(
 ) []schema.SourceRuleDatabaseOutputCandidate {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/datalink/source-rules/%s/candidates", ruleID), nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("/datalink/source-rules/%s/candidates", ruleID), http.NoBody)
 	require.NoError(t, err)
 	resp := httptest.NewRecorder()
 	fixture.router.ServeHTTP(resp, req)

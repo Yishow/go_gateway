@@ -35,8 +35,8 @@ type BreakerStateResponse struct {
 func (h *DeviceHealthHandler) GetBreakerState(c *gin.Context) {
 	if h.scheduler == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "排程器未初始化"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: schedulerNotInitializedMessage},
 		})
 		return
 	}
@@ -45,8 +45,8 @@ func (h *DeviceHealthHandler) GetBreakerState(c *gin.Context) {
 	stats, exists := h.scheduler.GetDeviceBreakerStats(deviceID)
 	if !exists {
 		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "設備不存在或無健康追蹤資料"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "設備不存在或無健康追蹤資料"},
 		})
 		return
 	}
@@ -61,7 +61,7 @@ func (h *DeviceHealthHandler) GetBreakerState(c *gin.Context) {
 		FailureCount:  stats.TrackerStats.FailureCount,
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: resp})
 }
 
 // ListBreakerStates 取得所有設備的熔斷器狀態
@@ -69,8 +69,8 @@ func (h *DeviceHealthHandler) GetBreakerState(c *gin.Context) {
 func (h *DeviceHealthHandler) ListBreakerStates(c *gin.Context) {
 	if h.scheduler == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "排程器未初始化"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: schedulerNotInitializedMessage},
 		})
 		return
 	}
@@ -91,7 +91,7 @@ func (h *DeviceHealthHandler) ListBreakerStates(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 // ResetBreaker 重置設備熔斷器
@@ -99,8 +99,8 @@ func (h *DeviceHealthHandler) ListBreakerStates(c *gin.Context) {
 func (h *DeviceHealthHandler) ResetBreaker(c *gin.Context) {
 	if h.scheduler == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "排程器未初始化"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: schedulerNotInitializedMessage},
 		})
 		return
 	}
@@ -108,14 +108,14 @@ func (h *DeviceHealthHandler) ResetBreaker(c *gin.Context) {
 	deviceID := c.Param("id")
 	if !h.scheduler.ResetDeviceBreaker(deviceID) {
 		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "設備不存在"},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "設備不存在"},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    gin.H{"message": "熔斷器已重置", "device_id": deviceID},
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    gin.H{apiResponseMessageKey: "熔斷器已重置", "device_id": deviceID},
 	})
 }

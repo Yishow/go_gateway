@@ -41,13 +41,13 @@ func (h *DeviceHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 篩選協議
-	if protocol := getQueryParam(r, "protocol", ""); protocol != "" {
+	if protocol := getQueryParam(r, "protocol"); protocol != "" {
 		p := schema.ProtocolType(protocol)
 		filter.Protocol = &p
 	}
 
 	// 篩選狀態
-	if status := getQueryParam(r, "status", ""); status != "" {
+	if status := getQueryParam(r, "status"); status != "" {
 		s := schema.DeviceStatus(status)
 		filter.Status = &s
 	}
@@ -125,7 +125,7 @@ func (h *DeviceHandler) Delete(w http.ResponseWriter, r *http.Request, id string
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+	writeJSON(w, http.StatusOK, map[string]bool{responseDeletedKey: true})
 }
 
 // =============================================================================

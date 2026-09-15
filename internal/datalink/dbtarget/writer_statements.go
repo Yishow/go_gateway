@@ -14,7 +14,7 @@ func buildGroupedWriteStatement(
 	kind schema.DatabaseConnectorKind,
 	key groupedWriteKey,
 	values map[string]any,
-) (string, []any, error) {
+) (statement string, parameters []any, buildErr error) {
 	if len(values) == 0 {
 		return "", nil, fmt.Errorf("grouped write has no buffered values")
 	}
@@ -76,7 +76,7 @@ func buildWriteStatement(
 	mapping *schema.DatabaseTargetMapping,
 	value any,
 	observedAt time.Time,
-) (string, []any, error) {
+) (statement string, parameters []any, buildErr error) {
 	if mapping.TableName == "" || mapping.ColumnName == "" {
 		return "", nil, fmt.Errorf("資料庫目標映射缺少資料表或欄位資訊")
 	}
@@ -141,7 +141,7 @@ func quoteIdentifier(kind schema.DatabaseConnectorKind, name string) string {
 	return `"` + escaped + `"`
 }
 
-func qualifiedTableName(kind schema.DatabaseConnectorKind, schemaName string, tableName string) string {
+func qualifiedTableName(kind schema.DatabaseConnectorKind, schemaName, tableName string) string {
 	quotedTable := quoteIdentifier(kind, tableName)
 	if strings.TrimSpace(schemaName) == "" || kind == schema.DatabaseConnectorKindSQLite {
 		return quotedTable

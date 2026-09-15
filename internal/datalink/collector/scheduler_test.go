@@ -38,7 +38,7 @@ func TestEmitValueDoesNotBlock(t *testing.T) {
 
 // MockConnector 模擬總是超時的連接器
 type MockConnector struct {
-	readCount atomic.Int32
+	readCount  atomic.Int32
 	shouldFail bool
 }
 
@@ -80,9 +80,9 @@ func (m *MockConnector) Protocol() schema.ProtocolType {
 func TestScheduler_CircuitBreaker_StopsAfterFailures(t *testing.T) {
 	// 建立熔斷器配置
 	breakerConfig := health.BreakerConfig{
-		ErrorThreshold:    0.2,  // 20% 錯誤率觸發
-		WindowSize:        5,    // 5 次請求視窗
-		UnstableThreshold: 0.5,  // 50% 觸發 Dead
+		ErrorThreshold:    0.2,           // 20% 錯誤率觸發
+		WindowSize:        5,             // 5 次請求視窗
+		UnstableThreshold: 0.5,           // 50% 觸發 Dead
 		CooldownPeriod:    1 * time.Hour, // 長冷卻避免自動恢復
 	}
 

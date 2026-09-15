@@ -33,7 +33,7 @@ func TestMappingHandler_Create_ReturnsValidationErrorWhenResolverMissing(t *test
 	body, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/mappings", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/datalink/mappings", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 	handler.Create(rec, req)
 
@@ -68,7 +68,7 @@ func TestMappingHandler_Create_SucceedsWhenResolverConfigured(t *testing.T) {
 	body, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/mappings", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/datalink/mappings", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 	handler.Create(rec, req)
 

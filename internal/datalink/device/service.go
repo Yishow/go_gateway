@@ -5,7 +5,6 @@ package device
 
 import (
 	"context"
-	"sync"
 
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
@@ -64,7 +63,6 @@ type ListFilter struct {
 type Service struct {
 	repo    Repository
 	connMgr *connector.ConnectionManager
-	mu      sync.RWMutex
 }
 
 // NewService 建立新的設備服務

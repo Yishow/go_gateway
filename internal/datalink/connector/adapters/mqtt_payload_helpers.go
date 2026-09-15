@@ -3,6 +3,7 @@ package adapters
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -30,7 +31,7 @@ func ExtractValueFromPayload(payload []byte, path string, dataType schema.DataTy
 		var value interface{}
 		if err := json.Unmarshal(payload, &value); err != nil {
 			// 非 JSON，嘗試直接解析為字串
-			return string(payload), nil
+			return string(payload), nil //nolint:nilerr // Plain-text MQTT payloads are supported when no JSON path is requested.
 		}
 		return convertMQTTValue(value, dataType), nil
 	}
@@ -108,8 +109,8 @@ func convertMQTTValue(value interface{}, dataType schema.DataType) interface{} {
 		case float64:
 			return uint64(v)
 		case string:
-			if n, err := json.Number(v).Int64(); err == nil {
-				return uint64(n)
+			if n, err := strconv.ParseUint(v, 10, 64); err == nil {
+				return n
 			}
 		}
 	case schema.DataTypeFloat32, schema.DataTypeFloat64:

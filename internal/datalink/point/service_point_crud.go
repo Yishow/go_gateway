@@ -165,11 +165,11 @@ func (s *Service) BatchDryRun(ctx context.Context, req BatchCreatePointsRequest)
 		DryRun: true,
 	}
 
-	errors, err := s.validateBatchCreate(ctx, req)
+	validationErrors, err := s.validateBatchCreate(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	result.Errors = append(result.Errors, errors...)
+	result.Errors = append(result.Errors, validationErrors...)
 	return result, nil
 }
 

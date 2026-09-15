@@ -36,7 +36,7 @@ func TestStudioV2WorkspaceDatabaseHandler_GetConfigSurfacesDeliveryTruth(t *test
 	connector.LastFlushError = "flush timeout"
 	require.NoError(t, fixture.connectorRepo.Update(ctx, connector))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-config", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-config", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req

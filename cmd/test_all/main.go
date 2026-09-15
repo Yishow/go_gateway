@@ -68,7 +68,7 @@ func main() {
 			StopBits int
 			Parity   string
 		}{
-			Port:     "COM4",
+			Port:     defaultSerialPort,
 			BaudRate: 9600,
 			DataBits: 8,
 			StopBits: 1,
@@ -82,7 +82,7 @@ func main() {
 			StopBits int
 			Parity   string
 		}{
-			Port:     "COM4",
+			Port:     defaultSerialPort,
 			BaudRate: 9600,
 			DataBits: 7,
 			StopBits: 2,
@@ -96,7 +96,7 @@ func main() {
 			StopBits int
 			Parity   string
 		}{
-			Port:     "COM4",
+			Port:     defaultSerialPort,
 			BaudRate: 9600,
 			DataBits: 7,
 			StopBits: 2,

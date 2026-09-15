@@ -13,12 +13,13 @@ type MBAPHeader struct {
 	UnitID        byte   // 單元 ID (站號)
 }
 
-// BuildMBAPHeader 構建 MBAP 標頭
+// BuildMBAPHeader 構建 MBAP 標頭。
+// Callers must validate pduLength so the encoded length fits in uint16.
 func BuildMBAPHeader(transactionID uint16, unitID byte, pduLength int) []byte {
 	header := make([]byte, MBAPHeaderLength)
 	binary.BigEndian.PutUint16(header[0:], transactionID)
 	binary.BigEndian.PutUint16(header[2:], 0x0000)              // Protocol ID
-	binary.BigEndian.PutUint16(header[4:], uint16(pduLength+1)) // Length = PDU + Unit ID
+	binary.BigEndian.PutUint16(header[4:], uint16(pduLength+1)) // #nosec G115 -- BuildTCPFrame callers keep the PDU within the Modbus frame limit.
 	header[6] = unitID
 	return header
 }
@@ -75,14 +76,14 @@ func ParsePDU(data []byte) (functionCode byte, pduData []byte, err error) {
 
 // BuildTCPFrame 構建 Modbus TCP 封包
 // Frame = MBAP Header + PDU
-func BuildTCPFrame(transactionID uint16, unitID byte, functionCode byte, data []byte) []byte {
+func BuildTCPFrame(transactionID uint16, unitID, functionCode byte, data []byte) []byte {
 	pdu := BuildPDU(functionCode, data)
 	mbap := BuildMBAPHeader(transactionID, unitID, len(pdu))
 	return append(mbap, pdu...)
 }
 
 // ParseTCPFrame 解析 Modbus TCP 封包
-func ParseTCPFrame(data []byte) (transactionID uint16, unitID byte, functionCode byte, pduData []byte, err error) {
+func ParseTCPFrame(data []byte) (transactionID uint16, unitID, functionCode byte, pduData []byte, err error) {
 	header, err := ParseMBAPHeader(data)
 	if err != nil {
 		return 0, 0, 0, nil, err
@@ -120,7 +121,7 @@ func CalculateCRC16(data []byte) uint16 {
 
 // BuildRTUFrame 構建 Modbus RTU 封包
 // Frame = Address(1) + PDU + CRC(2)
-func BuildRTUFrame(address byte, functionCode byte, data []byte) []byte {
+func BuildRTUFrame(address, functionCode byte, data []byte) []byte {
 	pdu := BuildPDU(functionCode, data)
 	frame := make([]byte, 1+len(pdu)+2)
 	frame[0] = address
@@ -133,7 +134,7 @@ func BuildRTUFrame(address byte, functionCode byte, data []byte) []byte {
 }
 
 // ParseRTUFrame 解析 Modbus RTU 封包
-func ParseRTUFrame(data []byte) (address byte, functionCode byte, pduData []byte, err error) {
+func ParseRTUFrame(data []byte) (address, functionCode byte, pduData []byte, err error) {
 	if len(data) < RTUFrameMinLength {
 		return 0, 0, nil, ErrResponseTooShort
 	}
@@ -158,7 +159,7 @@ func ParseRTUFrame(data []byte) (address byte, functionCode byte, pduData []byte
 
 // BuildReadRequest 構建讀取請求數據
 // Data = Starting Address(2) + Quantity(2)
-func BuildReadRequest(startAddress uint16, quantity uint16) []byte {
+func BuildReadRequest(startAddress, quantity uint16) []byte {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint16(data[0:], startAddress)
 	binary.BigEndian.PutUint16(data[2:], quantity)
@@ -195,23 +196,24 @@ func BuildWriteSingleCoilRequest(address uint16, value bool) []byte {
 
 // BuildWriteSingleRegisterRequest 構建寫入單個暫存器請求
 // Data = Register Address(2) + Register Value(2)
-func BuildWriteSingleRegisterRequest(address uint16, value uint16) []byte {
+func BuildWriteSingleRegisterRequest(address, value uint16) []byte {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint16(data[0:], address)
 	binary.BigEndian.PutUint16(data[2:], value)
 	return data
 }
 
-// BuildWriteMultipleCoilsRequest 構建寫入多個線圈請求
+// BuildWriteMultipleCoilsRequest 構建寫入多個線圈請求。
 // Data = Starting Address(2) + Quantity(2) + Byte Count(1) + Coil Values(N)
+// Callers must validate values against CoilMaxWriteQuantity before invoking this helper.
 func BuildWriteMultipleCoilsRequest(startAddress uint16, values []bool) []byte {
-	quantity := uint16(len(values))
+	quantity := uint16(len(values)) // #nosec G115 -- the client validates the multiple-coil write quantity first.
 	byteCount := (len(values) + 7) / 8
 
 	data := make([]byte, 5+byteCount)
 	binary.BigEndian.PutUint16(data[0:], startAddress)
 	binary.BigEndian.PutUint16(data[2:], quantity)
-	data[4] = byte(byteCount)
+	data[4] = byte(byteCount) // #nosec G115 -- CoilMaxWriteQuantity bounds byteCount to the one-byte wire field.
 
 	// 打包位元值
 	for i, val := range values {
@@ -223,16 +225,17 @@ func BuildWriteMultipleCoilsRequest(startAddress uint16, values []bool) []byte {
 	return data
 }
 
-// BuildWriteMultipleRegistersRequest 構建寫入多個暫存器請求
+// BuildWriteMultipleRegistersRequest 構建寫入多個暫存器請求。
 // Data = Starting Address(2) + Quantity(2) + Byte Count(1) + Register Values(2*N)
+// Callers must validate values against HoldingRegisterMaxWriteQuantity before invoking this helper.
 func BuildWriteMultipleRegistersRequest(startAddress uint16, values []uint16) []byte {
-	quantity := uint16(len(values))
+	quantity := uint16(len(values)) // #nosec G115 -- the client validates the multiple-register write quantity first.
 	byteCount := len(values) * 2
 
 	data := make([]byte, 5+byteCount)
 	binary.BigEndian.PutUint16(data[0:], startAddress)
 	binary.BigEndian.PutUint16(data[2:], quantity)
-	data[4] = byte(byteCount)
+	data[4] = byte(byteCount) // #nosec G115 -- HoldingRegisterMaxWriteQuantity bounds byteCount to the one-byte wire field.
 
 	for i, val := range values {
 		binary.BigEndian.PutUint16(data[5+i*2:], val)
@@ -243,7 +246,7 @@ func BuildWriteMultipleRegistersRequest(startAddress uint16, values []uint16) []
 
 // ParseWriteResponse 解析寫入回應
 // Single Write Response = Address(2) + Value(2) or Quantity(2)
-func ParseWriteResponse(data []byte, isMultiple bool) (address uint16, valueOrQuantity uint16, err error) {
+func ParseWriteResponse(data []byte, isMultiple bool) (address, valueOrQuantity uint16, err error) {
 	if len(data) < 4 {
 		return 0, 0, ErrResponseTooShort
 	}

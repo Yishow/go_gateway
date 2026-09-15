@@ -108,7 +108,7 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 			return
 		case evt, ok := <-valueStream:
 			if !ok {
-				_ = writeRuntimeSSE(c.Writer, flusher, "stream_state", datalinkruntime.RuntimeStreamStateEvent{
+				if err := writeRuntimeSSE(c.Writer, flusher, "stream_state", datalinkruntime.RuntimeStreamStateEvent{
 					DeviceID:    deviceID,
 					StreamState: datalinkruntime.RuntimeUnavailableTruthState("runtime value stream closed"),
 					Timestamp:   time.Now().UTC(),
@@ -117,7 +117,9 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 					Retryable:   true,
 					Action:      "retry the runtime stream",
 					RequestID:   getOrGenerateRequestID(c),
-				})
+				}); err != nil {
+					return
+				}
 				return
 			}
 			if err := writeRuntimeSSE(c.Writer, flusher, "value", evt); err != nil {
@@ -125,7 +127,7 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 			}
 		case evt, ok := <-statusStream:
 			if !ok {
-				_ = writeRuntimeSSE(c.Writer, flusher, "stream_state", datalinkruntime.RuntimeStreamStateEvent{
+				if err := writeRuntimeSSE(c.Writer, flusher, "stream_state", datalinkruntime.RuntimeStreamStateEvent{
 					DeviceID:    deviceID,
 					StreamState: datalinkruntime.RuntimeUnavailableTruthState("runtime status stream closed"),
 					Timestamp:   time.Now().UTC(),
@@ -134,7 +136,9 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 					Retryable:   true,
 					Action:      "retry the runtime stream",
 					RequestID:   getOrGenerateRequestID(c),
-				})
+				}); err != nil {
+					return
+				}
 				return
 			}
 			if err := writeRuntimeSSE(c.Writer, flusher, "status", evt); err != nil {
@@ -149,7 +153,7 @@ func (h *RuntimeStreamHandler) Stream(c *gin.Context) {
 	}
 }
 
-func runtimeStreamUnavailableResponse(deviceID string, reason string) runtimeStreamStateResponse {
+func runtimeStreamUnavailableResponse(deviceID, reason string) runtimeStreamStateResponse {
 	return runtimeStreamStateResponse{
 		DeviceID:    strings.TrimSpace(deviceID),
 		StreamState: datalinkruntime.RuntimeUnavailableTruthState(reason),

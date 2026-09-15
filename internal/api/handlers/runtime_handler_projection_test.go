@@ -34,7 +34,7 @@ func TestRuntimeHandler_StatusIncludesProjectionAlignment(t *testing.T) {
 
 	fixture := newRuntimeHandlerProjectionFixture(t, false)
 	handler := NewRuntimeHandler(nil, nil, nil, nil, fixture.runtimeSvc, nil)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id=dev-A", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/runtime/status?device_id=dev-A", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -75,7 +75,7 @@ func TestRuntimeHandler_WorkspaceContextIncludesProjectionAlignment(t *testing.T
 
 	fixture := newRuntimeHandlerProjectionFixture(t, true)
 	handler := NewRuntimeHandler(fixture.deviceSvc, nil, nil, nil, fixture.runtimeSvc, fixture.workspaceSvc)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/runtime-context", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req

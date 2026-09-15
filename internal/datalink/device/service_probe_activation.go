@@ -52,19 +52,6 @@ func (s *Service) ProbeAndActivate(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Service) probeRead(ctx context.Context, device *schema.Device) (bool, error) {
-	if s.connMgr == nil {
-		return false, fmt.Errorf("連線管理器未初始化")
-	}
-
-	conn, err := s.connMgr.GetOrCreate(ctx, device.ID, device.Protocol, device.ConnectionConfig)
-	if err != nil {
-		return true, err
-	}
-
-	return probeReadWithProtocol(ctx, conn.Protocol, device)
-}
-
 func probeReadWithProtocol(
 	ctx context.Context,
 	protocol connector.Protocol,
@@ -199,7 +186,7 @@ func buildReadProbeTarget(device *schema.Device) (readProbeTarget, error) {
 	}
 }
 
-func extractProbeOverride(config string) (address string, function string) {
+func extractProbeOverride(config string) (address, function string) {
 	var raw map[string]interface{}
 	if err := json.Unmarshal([]byte(config), &raw); err != nil {
 		return "", ""

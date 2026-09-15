@@ -12,7 +12,7 @@ func testModbusTCP(results *TestResults, addr string) {
 	start := time.Now()
 	result := TestResult{
 		Protocol: "Modbus",
-		Mode:     "TCP",
+		Mode:     transportLabelTCP,
 		Success:  false,
 	}
 
@@ -76,7 +76,7 @@ func testModbusTCP(results *TestResults, addr string) {
 	fmt.Printf("  ✓ 讀取成功: %v\n", coils)
 
 	result.Success = true
-	result.Message = "所有測試通過"
+	result.Message = testsSucceededText
 	fmt.Printf("  ✅ %s\n", result.Message)
 }
 
@@ -91,7 +91,7 @@ func testModbusRTU(results *TestResults, config struct {
 	start := time.Now()
 	result := TestResult{
 		Protocol: "Modbus",
-		Mode:     "RTU",
+		Mode:     transportLabelRTU,
 		Success:  false,
 	}
 
@@ -153,6 +153,6 @@ func testModbusRTU(results *TestResults, config struct {
 	fmt.Printf("  ✓ 讀取成功: %v\n", coils)
 
 	result.Success = true
-	result.Message = "所有測試通過"
+	result.Message = testsSucceededText
 	fmt.Printf("  ✅ %s\n", result.Message)
 }

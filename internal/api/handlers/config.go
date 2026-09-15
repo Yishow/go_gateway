@@ -57,7 +57,7 @@ type SavePresetRequest struct {
 func (h *ConfigHandler) SavePreset(c *gin.Context) {
 	var req SavePresetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: err.Error()})
 		return
 	}
 
@@ -88,9 +88,9 @@ func (h *ConfigHandler) DeletePreset(c *gin.Context) {
 	h.mu.Unlock()
 
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "preset not found"})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseErrorKey: "preset not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
+	c.JSON(http.StatusOK, gin.H{apiResponseStatusKey: "deleted"})
 }

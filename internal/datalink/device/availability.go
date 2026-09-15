@@ -11,13 +11,13 @@ import (
 
 const (
 	// AvailabilityStatusAvailable means the device can still be treated as usable by Studio V2.
-	AvailabilityStatusAvailable   = "available"
+	AvailabilityStatusAvailable = "available"
 	// AvailabilityStatusUnavailable means the current Studio V2 device draft makes the device unusable.
 	AvailabilityStatusUnavailable = "unavailable"
 )
 
 // AvailabilityOf resolves the explicit Studio V2 availability state stored on a device record.
-func AvailabilityOf(record *schema.Device) (string, string) {
+func AvailabilityOf(record *schema.Device) (availabilityStatus, availabilityReason string) {
 	readiness := decodeDeviceReadiness(record)
 	if readiness == nil || strings.TrimSpace(readiness.AvailabilityStatus) == "" {
 		return AvailabilityStatusAvailable, ""
@@ -31,7 +31,7 @@ func AvailabilityOf(record *schema.Device) (string, string) {
 }
 
 // SetAvailability updates the explicit Studio V2 availability state on a device record.
-func (s *Service) SetAvailability(ctx context.Context, id string, status string, reason string) (*schema.Device, error) {
+func (s *Service) SetAvailability(ctx context.Context, id, status, reason string) (*schema.Device, error) {
 	record, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("取得設備失敗: %w", err)
@@ -54,9 +54,9 @@ func (s *Service) SetAvailability(ctx context.Context, id string, status string,
 	readiness := decodeDeviceReadiness(record)
 	if readiness == nil {
 		readiness = &schema.DeviceReadiness{
-			DeviceID:          record.ID,
-			ConnectStatus:     schema.ReadinessStageStatusUnknown,
-			ProbeStatus:       schema.ReadinessStageStatusUnknown,
+			DeviceID:           record.ID,
+			ConnectStatus:      schema.ReadinessStageStatusUnknown,
+			ProbeStatus:        schema.ReadinessStageStatusUnknown,
 			AvailabilityStatus: AvailabilityStatusAvailable,
 		}
 	}

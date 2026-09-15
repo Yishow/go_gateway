@@ -37,10 +37,14 @@ type serverHandle struct {
 
 func (s *serverHandle) stop() {
 	if s.tcp != nil {
-		_ = s.tcp.Stop()
+		if err := s.tcp.Stop(); err != nil {
+			log.Printf("stop TCP test server: %v", err)
+		}
 	}
 	if s.udp != nil {
-		_ = s.udp.Stop()
+		if err := s.udp.Stop(); err != nil {
+			log.Printf("stop UDP test server: %v", err)
+		}
 	}
 }
 
@@ -67,6 +71,10 @@ type report struct {
 }
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	var (
 		tcpCount     = flag.Int("tcp", 15, "TCP Modbus servers")
 		udpCount     = flag.Int("udp", 15, "UDP Modbus servers")
@@ -84,13 +92,17 @@ func main() {
 
 	dur, err := time.ParseDuration(*durationText)
 	if err != nil {
-		log.Fatalf("invalid duration: %v", err)
+		log.Printf("invalid duration: %v", err)
+		return 1
 	}
 	if *tcpCount+*udpCount <= 0 {
-		log.Fatalf("tcp + udp must be > 0")
+		log.Printf("tcp + udp must be > 0")
+		return 1
 	}
-	if *valueBase < 0 || *valueBase > 65535 {
-		log.Fatalf("value-base must be between 0 and 65535")
+	initialValue := *valueBase
+	if initialValue < 0 || initialValue > 65535 {
+		log.Printf("value-base must be between 0 and 65535")
+		return 1
 	}
 
 	ctx := context.Background()
@@ -106,17 +118,23 @@ func main() {
 		MaxIdleConns: 1,
 	})
 	if err := dbMgr.Connect(); err != nil {
-		log.Fatalf("db connect failed: %v", err)
+		log.Printf("db connect failed: %v", err)
+		return 1
 	}
 	defer dbMgr.Close()
 	db := dbMgr.DB()
 
 	if err := datalink.NewMigrator().Migrate(db); err != nil {
-		log.Fatalf("migrate failed: %v", err)
+		log.Printf("migrate failed: %v", err)
+		return 1
 	}
 
 	connMgr := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
-	defer connMgr.CloseAll()
+	defer func() {
+		if err := connMgr.CloseAll(); err != nil {
+			log.Printf("close test connections: %v", err)
+		}
+	}()
 
 	devRepo := device.NewSQLRepository(db)
 	ptRepo := point.NewSQLRepository(db)
@@ -151,12 +169,14 @@ func main() {
 		PollingGroupService: pgSvc,
 	})
 	if err != nil {
-		log.Fatalf("create runtime failed: %v", err)
+		log.Printf("create runtime failed: %v", err)
+		return 1
 	}
 
-	servers, err := startServers(*tcpCount, *udpCount, uint16(*valueBase))
+	servers, err := startServers(*tcpCount, *udpCount, uint16(initialValue))
 	if err != nil {
-		log.Fatalf("start servers failed: %v", err)
+		log.Printf("start servers failed: %v", err)
+		return 1
 	}
 	defer func() {
 		for _, s := range servers {
@@ -170,7 +190,8 @@ func main() {
 		Priority:   100,
 	})
 	if err != nil {
-		log.Fatalf("create polling group failed: %v", err)
+		log.Printf("create polling group failed: %v", err)
+		return 1
 	}
 
 	expectedByTag := make(map[string]float64)
@@ -189,10 +210,12 @@ func main() {
 			},
 		})
 		if err != nil {
-			log.Fatalf("create device %d failed: %v", i, err)
+			log.Printf("create device %d failed: %v", i, err)
+			return 1
 		}
 		if err := devSvc.Activate(ctx, dev.ID); err != nil {
-			log.Fatalf("activate device %s failed: %v", dev.ID, err)
+			log.Printf("activate device %s failed: %v", dev.ID, err)
+			return 1
 		}
 
 		gid := group.ID
@@ -206,7 +229,8 @@ func main() {
 			PollingGroupID: &gid,
 		})
 		if err != nil {
-			log.Fatalf("create point %d failed: %v", i, err)
+			log.Printf("create point %d failed: %v", i, err)
+			return 1
 		}
 
 		tagKey := fmt.Sprintf("%s/%02d", *tagKeyPrefix, i)
@@ -217,10 +241,12 @@ func main() {
 			Unit:        "count",
 		})
 		if err != nil {
-			log.Fatalf("create tag %d failed: %v", i, err)
+			log.Printf("create tag %d failed: %v", i, err)
+			return 1
 		}
 		if err := tagSvc.Activate(ctx, tg.ID); err != nil {
-			log.Fatalf("activate tag %s failed: %v", tg.ID, err)
+			log.Printf("activate tag %s failed: %v", tg.ID, err)
+			return 1
 		}
 
 		if _, err := mapSvc.Create(ctx, mapping.CreateMappingRequest{
@@ -228,7 +254,8 @@ func main() {
 			TagID:             tg.ID,
 			TransformPipeline: []schema.TransformStep{},
 		}); err != nil {
-			log.Fatalf("create mapping %d failed: %v", i, err)
+			log.Printf("create mapping %d failed: %v", i, err)
+			return 1
 		}
 
 		expectedByTag[tg.ID] = float64(srv.expected)
@@ -237,12 +264,14 @@ func main() {
 	}
 
 	if err := rt.RefreshMappings(ctx); err != nil {
-		log.Fatalf("refresh mappings failed: %v", err)
+		log.Printf("refresh mappings failed: %v", err)
+		return 1
 	}
 
 	startedAt := time.Now()
 	if err := rt.Start(ctx); err != nil {
-		log.Fatalf("runtime start failed: %v", err)
+		log.Printf("runtime start failed: %v", err)
+		return 1
 	}
 
 	log.Printf("loadtest started: tcp=%d udp=%d duration=%s interval=%dms", *tcpCount, *udpCount, dur, *intervalMs)
@@ -263,35 +292,43 @@ func main() {
 	}
 
 	if err := rt.Stop(ctx); err != nil {
-		log.Fatalf("runtime stop failed: %v", err)
+		log.Printf("runtime stop failed: %v", err)
+		return 1
 	}
 	finishedAt := time.Now()
 
 	rep, err := verify(ctx, db, expectedByTag, expectedByKey, tagIDToKey, rt.Snapshot(), startedAt, finishedAt, *tcpCount, *udpCount, *dbPath)
 	if err != nil {
-		log.Fatalf("verify failed: %v", err)
+		log.Printf("verify failed: %v", err)
+		return 1
 	}
 
 	printReport(rep)
 
 	if *reportPath != "" {
 		if err := writeReport(*reportPath, rep); err != nil {
-			log.Fatalf("write report failed: %v", err)
+			log.Printf("write report failed: %v", err)
+			return 1
 		}
 		log.Printf("report written: %s", *reportPath)
 	}
 
 	if !rep.Pass {
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func startServers(tcpCount, udpCount int, valueBase uint16) ([]*serverHandle, error) {
+	maxServers := 65536 - int(valueBase)
+	if tcpCount < 0 || tcpCount > maxServers || udpCount < 0 || udpCount > maxServers-tcpCount {
+		return nil, fmt.Errorf("server counts exceed the 16-bit test value range")
+	}
 	servers := make([]*serverHandle, 0, tcpCount+udpCount)
 
 	for i := 0; i < tcpCount; i++ {
 		bank := virtualmemory.NewMemoryBank(2048)
-		expected := valueBase + uint16(i)
+		expected := valueBase + uint16(i) // #nosec G115 -- Counts are bounded by 65536-valueBase before allocation.
 		if err := bank.WriteWord(0, expected); err != nil {
 			return nil, err
 		}
@@ -305,7 +342,7 @@ func startServers(tcpCount, udpCount int, valueBase uint16) ([]*serverHandle, er
 
 	for i := 0; i < udpCount; i++ {
 		bank := virtualmemory.NewMemoryBank(2048)
-		expected := valueBase + uint16(tcpCount+i)
+		expected := valueBase + uint16(tcpCount+i) // #nosec G115 -- Counts are bounded by 65536-valueBase before allocation.
 		if err := bank.WriteWord(0, expected); err != nil {
 			return nil, err
 		}
@@ -320,7 +357,7 @@ func startServers(tcpCount, udpCount int, valueBase uint16) ([]*serverHandle, er
 	return servers, nil
 }
 
-func verify(ctx context.Context, db *sql.DB, expectedByTag map[string]float64, expectedByKey map[string]float64, tagIDToKey map[string]string, stats runtime2.Stats, startedAt, finishedAt time.Time, tcpCount, udpCount int, dbPath string) (*report, error) {
+func verify(ctx context.Context, db *sql.DB, expectedByTag, expectedByKey map[string]float64, tagIDToKey map[string]string, stats runtime2.Stats, startedAt, finishedAt time.Time, tcpCount, udpCount int, dbPath string) (*report, error) {
 	rep := &report{
 		StartedAt:     startedAt,
 		FinishedAt:    finishedAt,
@@ -431,5 +468,5 @@ func writeReport(path string, rep *report) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, b, 0o644)
+	return os.WriteFile(path, b, 0o600)
 }

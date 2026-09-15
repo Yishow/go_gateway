@@ -14,10 +14,10 @@ func (h *SourceRuleHandler) ApplyDatabaseOutputs(c *gin.Context) {
 	var req sourcerule.ApplyOutputCandidatesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "validation",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    apiValidationErrorCode,
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
@@ -29,17 +29,17 @@ func (h *SourceRuleHandler) ApplyDatabaseOutputs(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": response})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: response})
 }
 
 func (h *SourceRuleHandler) ApplyLocalModbusOutputs(c *gin.Context) {
 	var req sourcerule.ApplyOutputCandidatesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "validation",
-				"message": err.Error(),
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey: gin.H{
+				apiResponseCodeKey:    apiValidationErrorCode,
+				apiResponseMessageKey: err.Error(),
 			},
 		})
 		return
@@ -51,7 +51,7 @@ func (h *SourceRuleHandler) ApplyLocalModbusOutputs(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": response})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: response})
 }
 
 func writeOutputApplyError(c *gin.Context, err error) {
@@ -80,14 +80,14 @@ func writeOutputApplyError(c *gin.Context, err error) {
 		errorCode = "revision_mismatch"
 	case errors.Is(err, sourcerule.ErrInvalidOutputApplyRequest):
 		statusCode = http.StatusBadRequest
-		errorCode = "validation"
+		errorCode = apiValidationErrorCode
 	}
 
 	c.JSON(statusCode, gin.H{
-		"success": false,
-		"error": gin.H{
-			"code":    errorCode,
-			"message": err.Error(),
+		apiResponseSuccessKey: false,
+		apiResponseErrorKey: gin.H{
+			apiResponseCodeKey:    errorCode,
+			apiResponseMessageKey: err.Error(),
 		},
 	})
 }

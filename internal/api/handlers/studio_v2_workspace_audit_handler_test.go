@@ -19,7 +19,7 @@ func TestStudioV2WorkspaceDatabaseHandler_RecordsDeliveryImpactingAuditEntries(t
 	fixture := newWorkspaceDatabaseFixture(t)
 
 	saveWorkspaceDatabaseConfig(t, fixture)
-	saveValidTarget(t, fixture, fixture.pointIDs[0], "line_a")
+	saveValidTarget(t, fixture, fixture.pointIDs[0])
 
 	record, err := fixture.workspaceSvc.GetOrCreate(context.Background())
 	require.NoError(t, err)
@@ -66,7 +66,7 @@ func TestStudioV2WorkspaceAuditHandler_ListReturnsRecentWorkspaceHistory(t *test
 	}))
 
 	handler := NewStudioV2WorkspaceAuditHandler(workspaceSvc, auditSvc)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/audit-history?limit=5", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/audit-history?limit=5", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req

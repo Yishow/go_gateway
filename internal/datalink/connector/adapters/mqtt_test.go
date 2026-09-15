@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -22,7 +23,7 @@ func TestMQTTConnector_SubscribeAndCache(t *testing.T) {
 		if msg.Topic != "sensors/temp" {
 			t.Fatalf("expected topic sensors/temp, got %s", msg.Topic)
 		}
-		if string(msg.Payload) != string(payload) {
+		if !bytes.Equal(msg.Payload, payload) {
 			t.Fatalf("payload mismatch")
 		}
 	case <-time.After(500 * time.Millisecond):

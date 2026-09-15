@@ -23,7 +23,7 @@ type stubRuntimeStreamSource struct {
 	unsubscribed bool
 }
 
-func (s *stubRuntimeStreamSource) SubscribeValueEvents(deviceID string, pointIDs []string) (<-chan datalinkruntime.ValueEvent, func()) {
+func (s *stubRuntimeStreamSource) SubscribeValueEvents(deviceID string, pointIDs []string) (events <-chan datalinkruntime.ValueEvent, unsubscribe func()) {
 	s.deviceID = deviceID
 	s.pointIDs = append([]string(nil), pointIDs...)
 	return s.valueCh, func() {
@@ -31,7 +31,7 @@ func (s *stubRuntimeStreamSource) SubscribeValueEvents(deviceID string, pointIDs
 	}
 }
 
-func (s *stubRuntimeStreamSource) SubscribeStatusEvents(deviceID string) (<-chan datalinkruntime.DeviceStatusEvent, func()) {
+func (s *stubRuntimeStreamSource) SubscribeStatusEvents(deviceID string) (events <-chan datalinkruntime.DeviceStatusEvent, unsubscribe func()) {
 	s.deviceID = deviceID
 	return s.statusCh, func() {
 		s.unsubscribed = true
@@ -47,7 +47,7 @@ func TestRuntimeStreamHandler_StreamRequiresDeviceID(t *testing.T) {
 	})
 
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/runtime/stream", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/runtime/stream", http.NoBody)
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = req
 
@@ -64,7 +64,7 @@ func TestRuntimeStreamHandler_StreamUnavailableIsExplicit(t *testing.T) {
 	handler := NewRuntimeStreamHandler(&stubRuntimeStreamSource{})
 
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=device-1", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/runtime/stream?device_id=device-1", http.NoBody)
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = req
 
@@ -114,7 +114,7 @@ func TestRuntimeStreamHandler_StreamWritesValueStatusAndHeartbeatEvents(t *testi
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	req := httptest.NewRequest(http.MethodGet, "/runtime/stream?device_id=device-1&point_ids=point-1,point-2", nil).WithContext(ctx)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/runtime/stream?device_id=device-1&point_ids=point-1,point-2", http.NoBody).WithContext(ctx)
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = req
 

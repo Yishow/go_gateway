@@ -44,7 +44,12 @@ func seedWorkspaceMappingDevice(t *testing.T, repo *device.MemoryRepository, id 
 	}))
 }
 
-func newWorkspaceMappingHandler(t *testing.T) (*StudioV2WorkspaceMappingsHandler, *workspace.Service, *mapping.Service, *sourcerule.Service, *tag.Service) {
+func newWorkspaceMappingHandler(t *testing.T) (
+	handlerResult *StudioV2WorkspaceMappingsHandler,
+	mappingService *mapping.Service,
+	ruleService *sourcerule.Service,
+	tagService *tag.Service,
+) {
 	t.Helper()
 
 	deviceRepo := device.NewMemoryRepository()
@@ -84,15 +89,15 @@ func newWorkspaceMappingHandler(t *testing.T) (*StudioV2WorkspaceMappingsHandler
 	require.NoError(t, err)
 
 	handler := NewStudioV2WorkspaceMappingsHandler(workspaceSvc, deviceSvc, ruleSvc, pointSvc, tagSvc, mappingSvc)
-	return handler, workspaceSvc, mappingSvc, ruleSvc, tagSvc
+	return handler, mappingSvc, ruleSvc, tagSvc
 }
 
 func TestStudioV2WorkspaceMappingsHandler_CreateReturnsValidationErrorMessage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler, _, _, _, _ := newWorkspaceMappingHandler(t)
+	handler, _, _, _ := newWorkspaceMappingHandler(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
 		"rule_id":"rule-A",
 		"address":"40001",
 		"tag_key":"",
@@ -117,9 +122,9 @@ func TestStudioV2WorkspaceMappingsHandler_CreateReturnsValidationErrorMessage(t 
 func TestStudioV2WorkspaceMappingsHandler_UpdateRejectsOwnershipMismatch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler, _, _, _, _ := newWorkspaceMappingHandler(t)
+	handler, _, _, _ := newWorkspaceMappingHandler(t)
 
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
+	createReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
 		"rule_id":"rule-A",
 		"address":"40001",
 		"tag_key":"line.a.temp",
@@ -140,7 +145,7 @@ func TestStudioV2WorkspaceMappingsHandler_UpdateRejectsOwnershipMismatch(t *test
 	createBody := decodeWorkspaceMappingBody(t, createResp)
 	mappingID := createBody["data"].(map[string]any)["id"].(string)
 
-	updateReq := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/mappings/"+mappingID, bytes.NewBufferString(`{
+	updateReq := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/mappings/"+mappingID, bytes.NewBufferString(`{
 		"rule_id":"rule-B",
 		"address":"40011",
 		"tag_key":"line.b.temp",
@@ -166,7 +171,7 @@ func TestStudioV2WorkspaceMappingsHandler_UpdateRejectsOwnershipMismatch(t *test
 func TestStudioV2WorkspaceMappingsHandler_CreateRejectsExistingUnmanagedTagKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler, _, _, _, tagSvc := newWorkspaceMappingHandler(t)
+	handler, _, _, tagSvc := newWorkspaceMappingHandler(t)
 
 	_, err := tagSvc.Create(context.Background(), tag.CreateTagRequest{
 		Key:         "line.a.temp",
@@ -176,7 +181,7 @@ func TestStudioV2WorkspaceMappingsHandler_CreateRejectsExistingUnmanagedTagKey(t
 	})
 	require.NoError(t, err)
 
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
+	createReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
 		"rule_id":"rule-A",
 		"address":"40001",
 		"tag_key":"line.a.temp",
@@ -201,7 +206,7 @@ func TestStudioV2WorkspaceMappingsHandler_CreateRejectsExistingUnmanagedTagKey(t
 func TestStudioV2WorkspaceMappingsHandler_ListRecoversExistingPointMappingWhenRuleLinkLost(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler, _, mappingSvc, ruleSvc, tagSvc := newWorkspaceMappingHandler(t)
+	handler, mappingSvc, ruleSvc, tagSvc := newWorkspaceMappingHandler(t)
 	ctx := context.Background()
 	links, err := ruleSvc.ListLinks(ctx, "rule-A")
 	require.NoError(t, err)
@@ -228,7 +233,7 @@ func TestStudioV2WorkspaceMappingsHandler_ListRecoversExistingPointMappingWhenRu
 	})
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/mappings", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/studio-v2/workspace/mappings", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -254,7 +259,7 @@ func TestStudioV2WorkspaceMappingsHandler_ListRecoversExistingPointMappingWhenRu
 func TestStudioV2WorkspaceMappingsHandler_CreateAdoptsExistingPointMappingWhenRuleLinkLost(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	handler, _, mappingSvc, ruleSvc, tagSvc := newWorkspaceMappingHandler(t)
+	handler, mappingSvc, ruleSvc, tagSvc := newWorkspaceMappingHandler(t)
 	ctx := context.Background()
 	links, err := ruleSvc.ListLinks(ctx, "rule-A")
 	require.NoError(t, err)
@@ -281,7 +286,7 @@ func TestStudioV2WorkspaceMappingsHandler_CreateAdoptsExistingPointMappingWhenRu
 	})
 	require.NoError(t, err)
 
-	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
+	createReq := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/mappings", strings.NewReader(`{
 		"rule_id":"rule-A",
 		"address":"40001",
 		"tag_key":"line.a.saved",

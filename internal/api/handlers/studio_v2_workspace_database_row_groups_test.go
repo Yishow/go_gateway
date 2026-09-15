@@ -45,7 +45,7 @@ func TestStudioV2WorkspaceDatabaseHandler_RowGroupsRoundTripWithTargetRefs(t *te
 	require.NotNil(t, mappings[0].GroupKey)
 	require.Equal(t, rowGroupTargetKey("group-shared-temp", fixture.pointIDs[0]), *mappings[0].GroupKey)
 
-	configReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-config", nil)
+	configReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-config", http.NoBody)
 	configResp := httptest.NewRecorder()
 	configCtx, _ := gin.CreateTestContext(configResp)
 	configCtx.Request = configReq
@@ -65,7 +65,7 @@ func TestStudioV2WorkspaceDatabaseHandler_RowGroupsRoundTripWithTargetRefs(t *te
 	require.Equal(t, []any{fixture.pointIDs[0], fixture.pointIDs[1]}, rowGroup["member_point_ids"])
 	require.Equal(t, []any{"ts", "line_id"}, rowGroup["group_key_columns"])
 
-	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", nil)
+	listReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", http.NoBody)
 	listResp := httptest.NewRecorder()
 	listCtx, _ := gin.CreateTestContext(listResp)
 	listCtx.Request = listReq
@@ -84,9 +84,9 @@ func TestStudioV2WorkspaceDatabaseHandler_LegacyTargetsRemainCompatible(t *testi
 
 	fixture := newWorkspaceDatabaseFixture(t)
 	saveWorkspaceDatabaseConfig(t, fixture)
-	saveValidTarget(t, fixture, fixture.pointIDs[0], "line_a")
+	saveValidTarget(t, fixture, fixture.pointIDs[0])
 
-	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", nil)
+	listReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/studio-v2/workspace/database-targets", http.NoBody)
 	listResp := httptest.NewRecorder()
 	listCtx, _ := gin.CreateTestContext(listResp)
 	listCtx.Request = listReq

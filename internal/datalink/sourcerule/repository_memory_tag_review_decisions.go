@@ -61,14 +61,14 @@ func cloneTagReviewDecision(decision *schema.SourceRuleTagReviewDecision) *schem
 	if decision == nil {
 		return nil
 	}
-	copy := *decision
+	snapshotCopy := *decision
 	if decision.OverrideTagID != nil {
 		value := *decision.OverrideTagID
-		copy.OverrideTagID = &value
+		snapshotCopy.OverrideTagID = &value
 	}
 	if decision.StaleAt != nil {
 		value := *decision.StaleAt
-		copy.StaleAt = &value
+		snapshotCopy.StaleAt = &value
 	}
-	return &copy
+	return &snapshotCopy
 }

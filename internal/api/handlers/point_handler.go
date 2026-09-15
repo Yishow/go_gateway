@@ -47,38 +47,38 @@ func (h *PointHandler) List(c *gin.Context) {
 
 	points, err := h.svc.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": points})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: points})
 }
 
 func (h *PointHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	p, err := h.svc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": "Point not found"}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: pointNotFoundMessage}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": p})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: p})
 }
 
 func (h *PointHandler) Create(c *gin.Context) {
 	var req point.CreatePointRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	p, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	if h.runtimeSync != nil {
 		h.runtimeSync.UpsertPoint(p)
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": p})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: p})
 }
 
 // BatchCreate 批次建立點位
@@ -86,48 +86,48 @@ func (h *PointHandler) Create(c *gin.Context) {
 func (h *PointHandler) BatchCreate(c *gin.Context) {
 	var req point.BatchCreatePointsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	result, err := h.svc.BatchCreate(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 func (h *PointHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req point.UpdatePointRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	p, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	if h.runtimeSync != nil {
 		h.runtimeSync.UpsertPoint(p)
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": p})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: p})
 }
 
 func (h *PointHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 	if h.runtimeSync != nil {
 		h.runtimeSync.RemovePoint(id)
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 // PollResult 輪詢結果
@@ -150,12 +150,12 @@ func (h *PointHandler) Poll(c *gin.Context) {
 		message := err.Error()
 		if isPointPollNotFound(err) {
 			statusCode = http.StatusNotFound
-			message = "Point not found"
+			message = pointNotFoundMessage
 		}
-		c.JSON(statusCode, gin.H{"success": false, "error": gin.H{"message": message}})
+		c.JSON(statusCode, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: message}})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 // PollBatchRequest 批量輪詢請求
@@ -173,21 +173,21 @@ func isPointPollNotFound(err error) bool {
 func (h *PointHandler) PollBatch(c *gin.Context) {
 	var req PollBatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	// 驗證必填欄位（point_ids 欄位必須存在，即使是空陣列）
 	if req.PointIDs == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": "point_ids field is required"}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "point_ids field is required"}})
 		return
 	}
 
 	results, err := h.pollBatch(c.Request.Context(), *req.PointIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: results})
 }

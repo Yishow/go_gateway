@@ -109,7 +109,7 @@ func TestTracker_Concurrency(t *testing.T) {
 	// 多個 Goroutine 同時寫入
 	for i := 0; i < goroutines; i++ {
 		wg.Add(1)
-		go func(id int) {
+		go func() {
 			defer wg.Done()
 			for j := 0; j < recordsPerGoroutine; j++ {
 				if j%2 == 0 {
@@ -118,7 +118,7 @@ func TestTracker_Concurrency(t *testing.T) {
 					tracker.RecordFailure(nil)
 				}
 			}
-		}(i)
+		}()
 	}
 
 	wg.Wait()

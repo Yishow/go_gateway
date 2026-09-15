@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -65,7 +66,7 @@ func TestPointHandler_Poll(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -84,7 +85,7 @@ func TestPointHandler_Poll(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(newPoint)
-	req, _ = http.NewRequest("POST", "/datalink/points", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -94,7 +95,7 @@ func TestPointHandler_Poll(t *testing.T) {
 	pointID := pointResp["data"].(map[string]interface{})["id"].(string)
 
 	// 輪詢點位
-	req, _ = http.NewRequest("POST", "/datalink/points/"+pointID+"/poll", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/points/"+pointID+"/poll", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -118,7 +119,7 @@ func TestPointHandler_Poll(t *testing.T) {
 func TestPointHandler_Poll_NotFound(t *testing.T) {
 	r := setupPointRouterWithExtended()
 
-	req, _ := http.NewRequest("POST", "/datalink/points/non-existent-id/poll", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/points/non-existent-id/poll", http.NoBody)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -147,7 +148,7 @@ func TestPointHandler_PollBatch(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -168,7 +169,7 @@ func TestPointHandler_PollBatch(t *testing.T) {
 		}
 
 		body, _ = json.Marshal(newPoint)
-		req, _ = http.NewRequest("POST", "/datalink/points", bytes.NewBuffer(body))
+		req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -185,7 +186,7 @@ func TestPointHandler_PollBatch(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(batchReq)
-	req, _ = http.NewRequest("POST", "/datalink/points/poll", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points/poll", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -211,7 +212,7 @@ func TestPointHandler_PollBatch_Empty(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/points/poll", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/points/poll", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -236,7 +237,7 @@ func TestPointHandler_PollBatch_MissingField(t *testing.T) {
 	batchReq := map[string]interface{}{}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/points/poll", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/points/poll", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -266,7 +267,7 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -284,7 +285,7 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(newPoint)
-	req, _ = http.NewRequest("POST", "/datalink/points", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -299,7 +300,7 @@ func TestPointHandler_PollBatch_PartialSuccess(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(batchReq)
-	req, _ = http.NewRequest("POST", "/datalink/points/poll", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points/poll", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -332,7 +333,7 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -353,7 +354,7 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 		}
 
 		body, _ = json.Marshal(newPoint)
-		req, _ = http.NewRequest("POST", "/datalink/points", bytes.NewBuffer(body))
+		req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w = httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -370,7 +371,7 @@ func TestPointHandler_PollBatch_LargeList(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(batchReq)
-	req, _ = http.NewRequest("POST", "/datalink/points/poll", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points/poll", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -403,7 +404,7 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequest("POST", "/datalink/devices", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/devices", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -422,7 +423,7 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 	}
 
 	body, _ = json.Marshal(newPoint)
-	req, _ = http.NewRequest("POST", "/datalink/points", bytes.NewBuffer(body))
+	req, _ = http.NewRequestWithContext(context.Background(), "POST", "/datalink/points", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -432,7 +433,7 @@ func TestPointHandler_Poll_ResponseStructure(t *testing.T) {
 	pointID := pointResp["data"].(map[string]interface{})["id"].(string)
 
 	// 輪詢點位
-	req, _ = http.NewRequest("POST", "/datalink/points/"+pointID+"/poll", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/points/"+pointID+"/poll", http.NoBody)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -466,7 +467,7 @@ func TestPointHandler_PollBatch_ResponseStructure(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(batchReq)
-	req, _ := http.NewRequest("POST", "/datalink/points/poll", bytes.NewBuffer(body))
+	req, _ := http.NewRequestWithContext(context.Background(), "POST", "/datalink/points/poll", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

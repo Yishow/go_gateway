@@ -32,8 +32,8 @@ func TestService_LocalModbusConflictRefresh_PreservesDatabaseSnapshot(t *testing
 	dev, err := seedActiveDevice(ctx, deviceRepo, "device-lm-db-isolation")
 	require.NoError(t, err)
 
-	ruleA, linksA := createLocalModbusConflictRule(t, ctx, svc, repo, dev.ID, "rule-lm-db-isolation-a", "40001", schema.DataTypeInt32)
-	ruleB, linksB := createLocalModbusConflictRule(t, ctx, svc, repo, dev.ID, "rule-lm-db-isolation-b", "40101", schema.DataTypeInt16)
+	ruleA, linksA := createLocalModbusConflictRule(ctx, t, svc, repo, dev.ID, "rule-lm-db-isolation-a", "40001", schema.DataTypeInt32)
+	ruleB, linksB := createLocalModbusConflictRule(ctx, t, svc, repo, dev.ID, "rule-lm-db-isolation-b", "40101", schema.DataTypeInt16)
 
 	require.NotNil(t, linksA[0].TagID)
 	require.NotNil(t, linksB[0].TagID)
@@ -61,7 +61,7 @@ func TestService_LocalModbusConflictRefresh_PreservesDatabaseSnapshot(t *testing
 	assertDatabaseSnapshotForRule(t, repo, ruleA.ID, ruleA.RevisionID, databasePayloadA, schema.SourceRuleCandidateStatusReady, "", beforeRuleA.GeneratedAt)
 	assertDatabaseSnapshotForRule(t, repo, ruleB.ID, ruleB.RevisionID, databasePayloadB, schema.SourceRuleCandidateStatusReady, "", beforeRuleB.GeneratedAt)
 
-	candidateA, snapshotA := localModbusSingleCandidateFromRule(t, ctx, svc, ruleA.ID)
+	candidateA, snapshotA := localModbusSingleCandidateFromRule(ctx, t, svc, ruleA.ID)
 	assert.Equal(t, schema.SourceRuleCandidateStatusDeferred, snapshotA.Status)
 	assert.Equal(t, schema.SourceRuleLocalModbusOutputStatusBlockedConflict, candidateA.Status)
 	assert.NotEmpty(t, candidateA.BlockingReason)

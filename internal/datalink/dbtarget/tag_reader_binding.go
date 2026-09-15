@@ -26,6 +26,9 @@ func (s *ConnectorService) connectorTagReader() ConnectorTagReader {
 	if !ok {
 		return nil
 	}
-	tagReader, _ := reader.(ConnectorTagReader)
+	tagReader, ok := reader.(ConnectorTagReader)
+	if !ok {
+		return nil
+	}
 	return tagReader
 }

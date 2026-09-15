@@ -21,13 +21,13 @@ import (
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
-
+	ctx := t.Context()
 	// 讀取並執行 migration 腳本
 	migrationPath := "../schema/migrations/001_initial_schema_sqlite.sql"
 	migrationContent, err := os.ReadFile(migrationPath)
 	require.NoError(t, err)
 
-	_, err = db.Exec(string(migrationContent))
+	_, err = db.ExecContext(ctx, string(migrationContent))
 	require.NoError(t, err)
 
 	return db

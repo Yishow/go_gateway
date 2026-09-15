@@ -1,6 +1,7 @@
 package hsllogic
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,4 +29,34 @@ func TestToFloat64AndToInt64(t *testing.T) {
 
 	_, ok = ToInt64("bad")
 	assert.False(t, ok)
+}
+
+func TestToInt64RejectsOverflowAndNonFiniteValues(t *testing.T) {
+	for _, value := range []interface{}{
+		uint64(math.MaxInt64) + 1,
+		float64(math.MaxInt64),
+		float64(math.MaxInt64) * 2,
+		float32(1 << 63),
+		math.NaN(),
+		math.Inf(1),
+		math.Inf(-1),
+	} {
+		got, ok := ToInt64(value)
+		assert.Falsef(t, ok, "ToInt64(%v) returned %d", value, got)
+		assert.Zero(t, got)
+	}
+}
+
+func TestToInt64AcceptsSignedRangeBoundaries(t *testing.T) {
+	for _, tt := range []struct {
+		value interface{}
+		want  int64
+	}{
+		{value: uint64(math.MaxInt64), want: math.MaxInt64},
+		{value: float64(math.MinInt64), want: math.MinInt64},
+	} {
+		got, ok := ToInt64(tt.value)
+		assert.Truef(t, ok, "ToInt64(%v) rejected an in-range value", tt.value)
+		assert.Equal(t, tt.want, got)
+	}
 }

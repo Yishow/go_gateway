@@ -42,7 +42,7 @@ func TestService_CandidateSnapshots_PersistRuleOwnedLocalModbusMetadata(t *testi
 	})
 	require.NoError(t, err)
 
-	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	require.Len(t, links, 1)
 	require.NotNil(t, links[0].TagID)
 	require.NoError(t, svc.persistCandidateSnapshots(ctx, rule, links))
@@ -97,7 +97,7 @@ func TestService_CandidateSnapshots_PersistLocalModbusRegisterOwnershipMetadata(
 	})
 	require.NoError(t, err)
 
-	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	require.Len(t, links, 1)
 	require.NotNil(t, links[0].TagID)
 
@@ -156,7 +156,7 @@ func TestService_Update_PreservesLocalModbusSnapshotByRevision(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	links := applyRuleManagedLinks(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinks(ctx, t, repo, svc, rule.ID)
 	require.Len(t, links, 1)
 	require.NotNil(t, links[0].TagID)
 

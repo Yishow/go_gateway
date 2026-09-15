@@ -38,5 +38,5 @@ func (h *ProtocolHandler) List(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": protocols})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: protocols})
 }

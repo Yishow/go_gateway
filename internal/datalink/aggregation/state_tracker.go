@@ -51,15 +51,16 @@ func TrackStateDurations(
 		}
 
 		st := ""
-		if s.ValueString != nil {
+		switch {
+		case s.ValueString != nil:
 			st = *s.ValueString
-		} else if s.ValueBool != nil {
+		case s.ValueBool != nil:
 			if *s.ValueBool {
 				st = "ON"
 			} else {
 				st = "OFF"
 			}
-		} else if s.Value != nil {
+		case s.Value != nil:
 			st = fmt.Sprintf("%v", s.Value)
 		}
 

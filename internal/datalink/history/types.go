@@ -15,7 +15,7 @@ const (
 )
 
 // HistoryQuery 歷史資料與曲線查詢請求。
-type HistoryQuery struct {
+type HistoryQuery struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	WorkspaceID    string     `json:"workspace_id"`
 	PlanID         string     `json:"plan_id"`
 	MeasurementIDs []string   `json:"measurement_ids"`
@@ -28,7 +28,7 @@ type HistoryQuery struct {
 }
 
 // HistoryPoint 單一時間點的歷史與曲線資料。
-type HistoryPoint struct {
+type HistoryPoint struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	MeasurementID    string    `json:"measurement_id"`
 	ObservedAt       time.Time `json:"observed_at"`
 	ValueNumeric     *float64  `json:"value_numeric,omitempty"`
@@ -44,7 +44,7 @@ type HistoryPoint struct {
 }
 
 // HistoryReport 歷史查詢結果回傳模型。
-type HistoryReport struct {
+type HistoryReport struct { //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 	WorkspaceID string         `json:"workspace_id"`
 	PlanID      string         `json:"plan_id"`
 	Points      []HistoryPoint `json:"points"`

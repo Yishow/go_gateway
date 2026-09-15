@@ -46,7 +46,7 @@ func TestService_RestoreLocalModbusMappingState_RehydratesPersistedMappingsAfter
 	})
 	require.NoError(t, err)
 
-	links := applyRuleManagedLinksWithRepository(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinksWithRepository(ctx, t, repo, svc, rule.ID)
 	require.Len(t, links, 1)
 	require.NotNil(t, links[0].TagID)
 
@@ -112,7 +112,7 @@ func TestService_SQLLocalModbusSnapshotsRestoreAfterRestart(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	links := applyRuleManagedLinksWithRepository(t, ctx, repo, svc, rule.ID)
+	links := applyRuleManagedLinksWithRepository(ctx, t, repo, svc, rule.ID)
 	require.Len(t, links, 1)
 	require.NotNil(t, links[0].TagID)
 
@@ -151,8 +151,8 @@ func TestService_SQLLocalModbusSnapshotsRestoreAfterRestart(t *testing.T) {
 }
 
 func applyRuleManagedLinksWithRepository(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	repo Repository,
 	svc *Service,
 	ruleID string,

@@ -155,8 +155,8 @@ func (h *StudioV2WorkspaceActivationHandler) Activate(c *gin.Context) {
 	h.recordActivationAudit(c.Request.Context(), response)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    response,
 	})
 }
 

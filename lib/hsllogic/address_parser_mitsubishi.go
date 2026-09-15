@@ -41,50 +41,52 @@ func parseMitsubishiAddress(address string) (*ParsedAddress, error) {
 	}
 
 	for _, device := range mitsubishiDevices {
-		if strings.HasPrefix(address, device) {
-			addrPart := address[len(device):]
-			var offset int
-			var err error
+		if !strings.HasPrefix(address, device) {
+			continue
+		}
 
-			switch {
-			// X, Y 設備使用八進位
-			case device == "X" || device == "Y":
-				offset64, parseErr := strconv.ParseInt(addrPart, 8, 32)
+		addrPart := address[len(device):]
+		var offset int
+		var err error
+
+		switch {
+		// X, Y 設備使用八進位
+		case device == "X" || device == "Y":
+			offset64, parseErr := strconv.ParseInt(addrPart, 8, 32)
+			if parseErr != nil {
+				// 嘗試十進位
+				offset64, parseErr = strconv.ParseInt(addrPart, 10, 32)
 				if parseErr != nil {
-					// 嘗試十進位
-					offset64, parseErr = strconv.ParseInt(addrPart, 10, 32)
-					if parseErr != nil {
-						return nil, fmt.Errorf("無效的三菱地址數字: %s", addrPart)
-					}
-				}
-				offset = int(offset64)
-
-			// W, B, SW, SB 設備強制使用十六進位
-			case hexDevices[device]:
-				offset64, parseErr := strconv.ParseInt(addrPart, 16, 32)
-				if parseErr != nil {
-					return nil, fmt.Errorf("無效的三菱 Hex 地址數字: %s (設備 %s 應使用十六進位)", addrPart, device)
-				}
-				offset = int(offset64)
-
-			// 其他設備使用十進位
-			default:
-				offset, err = strconv.Atoi(addrPart)
-				if err != nil {
 					return nil, fmt.Errorf("無效的三菱地址數字: %s", addrPart)
 				}
 			}
+			offset = int(offset64)
 
-			return &ParsedAddress{
-				Protocol:    ProtocolMitsubishi,
-				DeviceType:  device,
-				Offset:      offset,
-				BitIndex:    -1,
-				DBNumber:    0,
-				IsBitDevice: mitsubishiBitDevices[device],
-				Raw:         address,
-			}, nil
+		// W, B, SW, SB 設備強制使用十六進位
+		case hexDevices[device]:
+			offset64, parseErr := strconv.ParseInt(addrPart, 16, 32)
+			if parseErr != nil {
+				return nil, fmt.Errorf("無效的三菱 Hex 地址數字: %s (設備 %s 應使用十六進位)", addrPart, device)
+			}
+			offset = int(offset64)
+
+		// 其他設備使用十進位
+		default:
+			offset, err = strconv.Atoi(addrPart)
+			if err != nil {
+				return nil, fmt.Errorf("無效的三菱地址數字: %s", addrPart)
+			}
 		}
+
+		return &ParsedAddress{
+			Protocol:    ProtocolMitsubishi,
+			DeviceType:  device,
+			Offset:      offset,
+			BitIndex:    -1,
+			DBNumber:    0,
+			IsBitDevice: mitsubishiBitDevices[device],
+			Raw:         address,
+		}, nil
 	}
 
 	return nil, fmt.Errorf("無法識別的三菱設備碼: %s", address)

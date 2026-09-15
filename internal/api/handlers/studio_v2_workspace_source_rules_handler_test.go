@@ -78,7 +78,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_UpdateRejectsOwnershipMismatch(t *t
 
 	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", bytes.NewBufferString(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", bytes.NewBufferString(`{
 		"device_id":"dev-B",
 		"start_address":"40005",
 		"count":1,
@@ -113,7 +113,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateReturnsValidationErrorMessage
 
 	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
 		"id":"rule-A",
 		"device_id":"dev-A",
 		"start_address":"",
@@ -148,7 +148,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateRejectsUnknownDevice(t *testi
 
 	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
 		"id":"rule-unknown",
 		"device_id":"deleted-device-id",
 		"start_address":"40001",
@@ -184,7 +184,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateDefersLiveApplyWhenReadinessB
 
 	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
 		"id":"rule-A",
 		"device_id":"dev-A",
 		"start_address":"40001",
@@ -208,7 +208,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateDefersLiveApplyWhenReadinessB
 func TestStudioV2WorkspaceSourceRulesHandler_UpdateReturnsRuntimeReconcileOutcome(t *testing.T) {
 	fixture := newWorkspaceSourceRuleReconcileFixture(t)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", bytes.NewBufferString(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", bytes.NewBufferString(`{
 		"naming_prefix":"LINE_"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -231,7 +231,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_UpdateReturnsRuntimeReconcileOutcom
 func TestStudioV2WorkspaceSourceRulesHandler_DeleteReturnsRuntimeReconcileOutcome(t *testing.T) {
 	fixture := newWorkspaceSourceRuleReconcileFixture(t)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-A", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -319,7 +319,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_CreateReturnsAddressContext(t *test
 	require.NoError(t, err)
 	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/datalink/studio-v2/workspace/source-rules", strings.NewReader(`{
 		"id":"rule-address-create",
 		"device_id":"dev-address-create",
 		"start_address":"40O01",
@@ -363,7 +363,7 @@ func TestStudioV2WorkspaceSourceRulesHandler_UpdateReturnsAddressContext(t *test
 	require.NoError(t, err)
 	handler := NewStudioV2WorkspaceSourceRulesHandler(workspaceSvc, deviceSvc, ruleSvc)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-address-update", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/datalink/studio-v2/workspace/source-rules/rule-address-update", strings.NewReader(`{
 		"start_address":"40O01"
 	}`))
 	req.Header.Set("Content-Type", "application/json")

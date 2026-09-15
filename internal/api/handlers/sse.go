@@ -27,7 +27,7 @@ func NewSSEHandler() *SSEHandler {
 func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 	connectionID := c.Query("connection_id")
 	if connectionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "connection_id is required"})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseErrorKey: connectionIDRequiredMessage})
 		return
 	}
 
@@ -50,8 +50,8 @@ func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 
 	// 發送初始連接確認
 	c.SSEvent("connected", gin.H{
-		"connection_id": connectionID,
-		"timestamp":     time.Now().Format(time.RFC3339Nano),
+		apiResponseConnectionIDKey: connectionID,
+		apiResponseTimestampKey:    time.Now().Format(time.RFC3339Nano),
 	})
 	c.Writer.Flush()
 
@@ -61,7 +61,7 @@ func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 	defer ticker.Stop()
 
 	// 發送初始心跳（立即發送一次，確保連接活躍）
-	c.SSEvent("ping", gin.H{"timestamp": time.Now().Format(time.RFC3339Nano)})
+	c.SSEvent("ping", gin.H{apiResponseTimestampKey: time.Now().Format(time.RFC3339Nano)})
 	c.Writer.Flush()
 
 	for {
@@ -80,7 +80,7 @@ func (h *SSEHandler) HandleMonitorStream(c *gin.Context) {
 		case <-ticker.C:
 			// 發送心跳保持連接
 			// 使用 SSEvent 確保格式正確
-			c.SSEvent("ping", gin.H{"timestamp": time.Now().Format(time.RFC3339Nano)})
+			c.SSEvent("ping", gin.H{apiResponseTimestampKey: time.Now().Format(time.RFC3339Nano)})
 			c.Writer.Flush() // Flush 確保數據立即發送
 			// 調試日誌（可選，避免日誌過多）
 			// log.Printf("SSE 心跳已發送: %s", connectionID)

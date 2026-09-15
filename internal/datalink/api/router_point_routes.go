@@ -22,8 +22,8 @@ func (r *Router) handlePointByID(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
 	id, action := parseIDAndAction(path, r.config.PathPrefix+"/points/")
 
-	switch {
-	case action == "poll":
+	switch action {
+	case "poll":
 		if req.Method == http.MethodPost {
 			r.pointHandler.PollNow(w, req, id)
 		} else {

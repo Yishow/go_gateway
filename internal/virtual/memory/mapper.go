@@ -12,7 +12,7 @@ import (
 // =============================================================================
 
 // MemoryArea 記憶體區域類型
-type MemoryArea int
+type MemoryArea int //nolint:revive // Preserve the exported Go name and its existing callers during lint maintenance.
 
 const (
 	// Modbus 標準區域

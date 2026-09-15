@@ -12,15 +12,15 @@ import (
 	"go-gateway/internal/datalink/tag"
 )
 
-func (h *StudioV2WorkspaceMappingsHandler) recoverWorkspaceLinkMapping(ctx context.Context, link *schema.SourceRuleLink) (*schema.Mapping, bool, bool, error) {
+func (h *StudioV2WorkspaceMappingsHandler) recoverWorkspaceLinkMapping(ctx context.Context, link *schema.SourceRuleLink) (mappingRecord *schema.Mapping, found, changed bool, recoveryErr error) {
 	return h.recoverWorkspaceLinkMappingWithPolicy(ctx, link, false)
 }
 
-func (h *StudioV2WorkspaceMappingsHandler) recoverWorkspaceLinkMappingForMutation(ctx context.Context, link *schema.SourceRuleLink) (*schema.Mapping, bool, bool, error) {
+func (h *StudioV2WorkspaceMappingsHandler) recoverWorkspaceLinkMappingForMutation(ctx context.Context, link *schema.SourceRuleLink) (mappingRecord *schema.Mapping, found, changed bool, recoveryErr error) {
 	return h.recoverWorkspaceLinkMappingWithPolicy(ctx, link, true)
 }
 
-func (h *StudioV2WorkspaceMappingsHandler) recoverWorkspaceLinkMappingWithPolicy(ctx context.Context, link *schema.SourceRuleLink, allowMissingTag bool) (*schema.Mapping, bool, bool, error) {
+func (h *StudioV2WorkspaceMappingsHandler) recoverWorkspaceLinkMappingWithPolicy(ctx context.Context, link *schema.SourceRuleLink, allowMissingTag bool) (recoveredMapping *schema.Mapping, found, changed bool, recoveryErr error) {
 	if link == nil {
 		return nil, false, false, nil
 	}
@@ -80,7 +80,7 @@ func (h *StudioV2WorkspaceMappingsHandler) recoverWorkspaceLinkMappingWithPolicy
 	return mappingRecord, true, syncWorkspaceLinkToMapping(link, mappingRecord), nil
 }
 
-func (h *StudioV2WorkspaceMappingsHandler) matchRecoveredWorkspaceLinkMapping(ctx context.Context, link *schema.SourceRuleLink, mappingRecord *schema.Mapping, allowMissingTag bool) (*schema.Mapping, bool, bool, error) {
+func (h *StudioV2WorkspaceMappingsHandler) matchRecoveredWorkspaceLinkMapping(ctx context.Context, link *schema.SourceRuleLink, mappingRecord *schema.Mapping, allowMissingTag bool) (matchedMapping *schema.Mapping, matched, conflict bool, matchErr error) {
 	if mappingRecord == nil {
 		return nil, false, false, nil
 	}

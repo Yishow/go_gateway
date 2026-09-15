@@ -5,7 +5,6 @@ package point
 
 import (
 	"context"
-	"sync"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -88,7 +87,6 @@ type Service struct {
 	repo               Repository
 	groupRepo          PollingGroupRepository
 	pollingGroupSyncer PollingGroupSyncer
-	mu                 sync.RWMutex
 }
 
 // NewService 建立新的點位服務

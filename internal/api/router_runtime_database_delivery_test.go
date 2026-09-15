@@ -170,7 +170,7 @@ func TestNewRouter_RuntimeStatusIncludesDatabaseDeliveryFailureStages(t *testing
 		Runtime:      runtimeSvc,
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+deviceRecord.ID, nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+deviceRecord.ID, http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 

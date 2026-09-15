@@ -110,7 +110,7 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		Timestamp:        cv.Timestamp,
 	})
 	if deviceID != "" {
-		s.publishDerivedStatus(deviceID)
+		s.publishDerivedStatus(ctx, deviceID)
 	}
 }
 
@@ -181,12 +181,12 @@ func buildRawValue(cv collector.CollectedValue) interface{} {
 	return string(buf)
 }
 
-func (s *Service) publishDerivedStatus(deviceID string) {
+func (s *Service) publishDerivedStatus(ctx context.Context, deviceID string) {
 	if deviceID == "" {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
 	status, found, err := s.DeviceStatus(ctx, deviceID)

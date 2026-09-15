@@ -110,8 +110,8 @@ func TestSourceRuleHandler_TagReviewDecisions(t *testing.T) {
 			reqBody, err := json.Marshal(testCase.buildRequest(t, fixture, candidate))
 			require.NoError(t, err)
 
-			upsertReq, err := http.NewRequest(
-				http.MethodPost,
+			upsertReq, err := http.NewRequestWithContext(
+				context.Background(), http.MethodPost,
 				fmt.Sprintf("/datalink/source-rules/%s/tag-review-decisions", testCase.ruleID),
 				bytes.NewBuffer(reqBody),
 			)
@@ -127,10 +127,10 @@ func TestSourceRuleHandler_TagReviewDecisions(t *testing.T) {
 			require.True(t, upsertPayload.Success)
 			testCase.assertDecision(t, upsertPayload.Data, candidate)
 
-			listReq, err := http.NewRequest(
-				http.MethodGet,
+			listReq, err := http.NewRequestWithContext(
+				t.Context(), http.MethodGet,
 				fmt.Sprintf("/datalink/source-rules/%s/tag-review-decisions", testCase.ruleID),
-				nil,
+				http.NoBody,
 			)
 			require.NoError(t, err)
 
@@ -175,7 +175,7 @@ func createRuleCandidatesForDecisionTest(
 	})
 	require.NoError(t, err)
 
-	createReq, err := http.NewRequest(http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
+	createReq, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/source-rules", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	createReq.Header.Set("Content-Type", "application/json")
 

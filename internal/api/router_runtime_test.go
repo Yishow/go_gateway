@@ -111,7 +111,7 @@ func TestNewRouter_RuntimeStatusEndpoint(t *testing.T) {
 		Settings:     settingsSvc,
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+createdDevice.ID, nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+createdDevice.ID, http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -198,7 +198,7 @@ func TestNewRouter_RuntimeStatusIncludesUnavailableCollectorState(t *testing.T) 
 		Settings:     settings.NewService(settings.NewMemoryRepository()),
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+createdDevice.ID, nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/datalink/runtime/status?device_id="+createdDevice.ID, http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -252,7 +252,7 @@ func TestNewRouter_RuntimeStreamEndpointRequiresDeviceID(t *testing.T) {
 		Runtime:      &datalinkruntime.Service{},
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/stream", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/runtime/stream", http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -300,7 +300,7 @@ func TestNewRouter_RuntimeStatusUsesRuntimeServiceState(t *testing.T) {
 		Runtime:      runtimeSvc,
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/runtime/status", http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -362,7 +362,7 @@ func TestNewRouter_RuntimeStatusMarksSelectedDeviceEmptySnapshot(t *testing.T) {
 		Runtime:      runtimeSvc,
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/datalink/runtime/status?device_id=dev-A", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/datalink/runtime/status?device_id=dev-A", http.NoBody)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 

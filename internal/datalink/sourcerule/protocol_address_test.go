@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/point"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestOffsetAddress_MC3EHexContactUsesHexadecimalRadix(t *testing.T) {

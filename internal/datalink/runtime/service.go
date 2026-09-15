@@ -191,9 +191,9 @@ func (s *Service) Start(ctx context.Context) error {
 	}
 
 	s.wg.Add(1)
-	go s.consumeLoop()
+	go s.consumeLoop(context.WithoutCancel(ctx))
 	s.wg.Add(1)
-	go s.statusLoop()
+	go s.statusLoop() //nolint:contextcheck // Status refresh runs until stopCh closes, independently of the start request.
 	return nil
 }
 
@@ -247,19 +247,6 @@ func (s *Service) Snapshot() Stats {
 	}
 }
 
-// Metrics 舊有相容指標。
-func (s *Service) Metrics() Metrics {
-	st := s.Snapshot()
-	errTotal := int64(st.WriteError + st.MappingError + st.PointStateError)
-	return Metrics{
-		TotalReads:        int64(st.CollectedTotal),
-		TotalWrites:       int64(st.WriteSuccess),
-		ErrorCount:        errTotal,
-		MappingErrorCount: int64(st.MappingError),
-		WriteErrorCount:   int64(st.WriteError),
-	}
-}
-
 // IsRunning reports whether runtime service is actively running.
 func (s *Service) IsRunning() bool {
 	return s.running.Load()
@@ -288,25 +275,25 @@ func (s *Service) UptimeSeconds() int64 {
 }
 
 // UpsertPoint updates runtime metadata and scheduler state for a point.
-func (s *Service) UpsertPoint(point *schema.Point) {
-	if point == nil {
+func (s *Service) UpsertPoint(pointRecord *schema.Point) {
+	if pointRecord == nil {
 		return
 	}
 
-	s.registerPointMeta(point.ID, pointMeta{
-		DeviceID: point.DeviceID,
-		Address:  point.Address,
+	s.registerPointMeta(pointRecord.ID, pointMeta{
+		DeviceID: pointRecord.DeviceID,
+		Address:  pointRecord.Address,
 	})
 
 	if s.scheduler == nil {
 		return
 	}
 
-	if point.Enabled {
-		s.scheduler.AddPoint(point)
+	if pointRecord.Enabled {
+		s.scheduler.AddPoint(pointRecord)
 		return
 	}
-	s.scheduler.RemovePoint(point.ID)
+	s.scheduler.RemovePoint(pointRecord.ID)
 }
 
 // RemovePoint removes runtime metadata and scheduler state for a point.
@@ -368,13 +355,13 @@ func (s *Service) bootstrapFromServices(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("載入 polling groups 失敗: %w", err)
 	}
-	if err := s.scheduler.Start(groups); err != nil {
+	if err := s.scheduler.Start(groups); err != nil { //nolint:contextcheck // Scheduler ticker lifetime is governed by StopContext.
 		return fmt.Errorf("啟動 scheduler 失敗: %w", err)
 	}
 	return nil
 }
 
-func (s *Service) bootstrapFromSnapshot(_ context.Context) error {
+func (s *Service) bootstrapFromSnapshot(ctx context.Context) error {
 	for _, d := range s.snapshot.Devices {
 		if d.Status != schema.DeviceStatusActive {
 			continue
@@ -392,11 +379,11 @@ func (s *Service) bootstrapFromSnapshot(_ context.Context) error {
 		s.scheduler.AddPoint(p)
 	}
 
-	if err := s.refreshMappings(context.Background()); err != nil {
+	if err := s.refreshMappings(ctx); err != nil {
 		return err
 	}
 
-	if err := s.scheduler.Start(s.snapshot.PollingGroups); err != nil {
+	if err := s.scheduler.Start(s.snapshot.PollingGroups); err != nil { //nolint:contextcheck // Scheduler ticker lifetime is governed by StopContext.
 		return fmt.Errorf("啟動 scheduler 失敗: %w", err)
 	}
 	return nil
@@ -453,7 +440,7 @@ func (s *Service) refreshMappings(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) consumeLoop() {
+func (s *Service) consumeLoop(runtimeCtx context.Context) {
 	defer s.wg.Done()
 
 	for {
@@ -462,7 +449,7 @@ func (s *Service) consumeLoop() {
 			return
 		case cv := <-s.scheduler.ValueChannel():
 			s.collectedTotal.Add(1)
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(runtimeCtx, 5*time.Second)
 			s.handleCollectedValue(ctx, cv)
 			cancel()
 		}

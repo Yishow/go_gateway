@@ -23,13 +23,13 @@ import (
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
-
+	ctx := t.Context()
 	// 讀取並執行 migration 腳本
 	migrationPath := "../schema/migrations/001_initial_schema_sqlite.sql"
 	migrationContent, err := os.ReadFile(migrationPath)
 	require.NoError(t, err)
 
-	_, err = db.Exec(string(migrationContent))
+	_, err = db.ExecContext(ctx, string(migrationContent))
 	require.NoError(t, err)
 
 	return db
@@ -40,7 +40,7 @@ func setupTestDB(t *testing.T) *sql.DB {
  * @param t 測試實例
  * @returns *schema.Tag 測試標籤物件
  */
-func createTestTag(t *testing.T) *schema.Tag {
+func createTestTag() *schema.Tag {
 	now := time.Now().UTC()
 	return &schema.Tag{
 		ID:          "test-tag-001",
@@ -65,7 +65,7 @@ func TestSQLRepository_Create(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 
 	// 執行 Create
 	err := repo.Create(ctx, tag)
@@ -90,14 +90,14 @@ func TestSQLRepository_Create_DuplicateKey(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 
 	// 第一次建立應成功
 	err := repo.Create(ctx, tag)
 	assert.NoError(t, err)
 
 	// 第二次建立相同 Key 應失敗（透過 key_lower 唯一約束）
-	tag2 := createTestTag(t)
+	tag2 := createTestTag()
 	tag2.ID = "test-tag-002"
 	tag2.Key = "TEST.TAG.001" // 大寫版本，應該因為 key_lower 衝突而失敗
 
@@ -115,7 +115,7 @@ func TestSQLRepository_Update(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 	err := repo.Create(ctx, tag)
 	require.NoError(t, err)
 
@@ -149,7 +149,7 @@ func TestSQLRepository_Update_NotFound(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 	tag.ID = "non-existent-id"
 
 	err := repo.Update(ctx, tag)
@@ -167,7 +167,7 @@ func TestSQLRepository_Delete(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 	err := repo.Create(ctx, tag)
 	require.NoError(t, err)
 
@@ -206,7 +206,7 @@ func TestSQLRepository_GetByID(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 	err := repo.Create(ctx, tag)
 	require.NoError(t, err)
 
@@ -243,7 +243,7 @@ func TestSQLRepository_GetByKey(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 	err := repo.Create(ctx, tag)
 	require.NoError(t, err)
 
@@ -286,7 +286,7 @@ func TestSQLRepository_List(t *testing.T) {
 
 	// 建立多個標籤
 	tags := []*schema.Tag{
-		createTestTag(t),
+		createTestTag(),
 		{
 			ID:          "test-tag-002",
 			Key:         "test.tag.002",
@@ -405,7 +405,7 @@ func TestSQLRepository_List_WithPagination(t *testing.T) {
 
 	// 建立 5 個標籤
 	for i := 1; i <= 5; i++ {
-		tag := createTestTag(t)
+		tag := createTestTag()
 		tag.ID = string(rune('0' + i))
 		tag.Key = string(rune('0' + i))
 		tag.DisplayName = string(rune('0' + i))
@@ -444,7 +444,7 @@ func TestSQLRepository_Count(t *testing.T) {
 
 	// 建立 3 個標籤
 	for i := 0; i < 3; i++ {
-		tag := createTestTag(t)
+		tag := createTestTag()
 		tag.ID = string(rune('0' + i))
 		tag.Key = string(rune('0' + i))
 		err := repo.Create(ctx, tag)
@@ -545,7 +545,7 @@ func TestSQLRepository_DataTypeValidation(t *testing.T) {
 	}
 
 	for i, dataType := range dataTypes {
-		tag := createTestTag(t)
+		tag := createTestTag()
 		tag.ID = string(rune('0' + i))
 		tag.Key = string(rune('0' + i))
 		tag.DisplayName = string(rune('0' + i))
@@ -573,7 +573,7 @@ func TestSQLRepository_StatusValidation(t *testing.T) {
 	}
 
 	for i, status := range statuses {
-		tag := createTestTag(t)
+		tag := createTestTag()
 		tag.ID = string(rune('0' + i))
 		tag.Key = string(rune('0' + i))
 		tag.DisplayName = string(rune('0' + i))
@@ -596,7 +596,7 @@ func TestSQLRepository_WithUnit(t *testing.T) {
 	units := []string{"°C", "°F", "bar", "Pa", "rpm", "m/s", "%", ""}
 
 	for i, unit := range units {
-		tag := createTestTag(t)
+		tag := createTestTag()
 		tag.ID = string(rune('0' + i))
 		tag.Key = string(rune('0' + i))
 		tag.DisplayName = string(rune('0' + i))
@@ -621,7 +621,7 @@ func TestSQLRepository_WithDescription(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 	tag.Description = "這是一個非常長的標籤描述，用於測試描述欄位的儲存和讀取功能是否正常運作。"
 
 	err := repo.Create(ctx, tag)
@@ -643,7 +643,7 @@ func TestSQLRepository_KeyCaseInsensitivity(t *testing.T) {
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
 
-	tag := createTestTag(t)
+	tag := createTestTag()
 	err := repo.Create(ctx, tag)
 	require.NoError(t, err)
 

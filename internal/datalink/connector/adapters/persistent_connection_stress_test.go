@@ -69,7 +69,7 @@ func TestModbusTCPConnector_StressTest(t *testing.T) {
 
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
-		go func(id int) {
+		go func() {
 			defer wg.Done()
 
 			// 隨機延遲啟動，避免同時衝擊
@@ -119,7 +119,7 @@ func TestModbusTCPConnector_StressTest(t *testing.T) {
 					time.Sleep(time.Millisecond * 10)
 				}
 			}
-		}(i)
+		}()
 	}
 
 	// 3. 啟動模式切換 Goroutine

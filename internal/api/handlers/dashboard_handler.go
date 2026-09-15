@@ -67,8 +67,8 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	devices, err := h.deviceService.List(ctx, device.ListFilter{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "取得設備列表失敗: " + err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "取得設備列表失敗: " + err.Error()},
 		})
 		return
 	}
@@ -92,8 +92,8 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	points, err := h.pointService.List(ctx, point.ListFilter{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "取得點位列表失敗: " + err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "取得點位列表失敗: " + err.Error()},
 		})
 		return
 	}
@@ -109,8 +109,8 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	tags, err := h.tagService.List(ctx, tag.ListFilter{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "取得標籤列表失敗: " + err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "取得標籤列表失敗: " + err.Error()},
 		})
 		return
 	}
@@ -145,8 +145,8 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	stats.EstimatedThroughput = float64(stats.EnabledPoints)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    stats,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    stats,
 	})
 }
 
@@ -169,8 +169,8 @@ func (h *DashboardHandler) GetDeviceStatuses(c *gin.Context) {
 	devices, err := h.deviceService.List(ctx, device.ListFilter{})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"message": "取得設備列表失敗: " + err.Error()},
+			apiResponseSuccessKey: false,
+			apiResponseErrorKey:   gin.H{apiResponseMessageKey: "取得設備列表失敗: " + err.Error()},
 		})
 		return
 	}
@@ -195,7 +195,7 @@ func (h *DashboardHandler) GetDeviceStatuses(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    statuses,
+		apiResponseSuccessKey: true,
+		apiResponseDataKey:    statuses,
 	})
 }

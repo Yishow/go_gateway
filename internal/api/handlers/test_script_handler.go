@@ -8,7 +8,7 @@ import (
 
 // ExecuteScript 執行測試腳本
 func (h *TestHandler) ExecuteScript(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	c.JSON(http.StatusNotImplemented, gin.H{apiResponseErrorKey: notImplementedMessage})
 }
 
 // ListScripts 取得測試腳本列表
@@ -18,10 +18,10 @@ func (h *TestHandler) ListScripts(c *gin.Context) {
 
 // SaveScript 保存測試腳本
 func (h *TestHandler) SaveScript(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	c.JSON(http.StatusNotImplemented, gin.H{apiResponseErrorKey: notImplementedMessage})
 }
 
 // DeleteScript 刪除測試腳本
 func (h *TestHandler) DeleteScript(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	c.JSON(http.StatusNotImplemented, gin.H{apiResponseErrorKey: notImplementedMessage})
 }
