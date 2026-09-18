@@ -29,10 +29,10 @@ export function Step4SupportPanels({
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <CollapsibleSupportCard
-        title={t('step4.connector_title', '資料庫連接器')}
-        subtitle={t('step4.connector_subtitle', '設定目標資料寫入的資料庫連線、schema/table 與寫入策略')}
-        collapsedLabel={t('step4.connector_expand_btn', '展開連接器設定')}
-        expandedLabel={t('step4.connector_collapse_btn', '收合連接器設定')}
+        title={t('step4.connector_title')}
+        subtitle={t('step4.connector_subtitle')}
+        collapsedLabel={t('step4.connector_expand_btn')}
+        expandedLabel={t('step4.connector_collapse_btn')}
         defaultOpen={true}
         summary={
           <div className="flex flex-wrap gap-2">
@@ -61,10 +61,10 @@ export function Step4SupportPanels({
       </CollapsibleSupportCard>
 
       <CollapsibleSupportCard
-        title={t('step4.delivery_truth_title', '資料交付狀態')}
-        subtitle={t('step4.delivery_truth_hint', '最近一次建表與寫入結果')}
-        collapsedLabel={t('step4.delivery_expand_btn', '展開交付狀態')}
-        expandedLabel={t('step4.delivery_collapse_btn', '收合交付狀態')}
+        title={t('step4.delivery_truth_title')}
+        subtitle={t('step4.delivery_truth_hint')}
+        collapsedLabel={t('step4.delivery_expand_btn')}
+        expandedLabel={t('step4.delivery_collapse_btn')}
         summary={
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200">

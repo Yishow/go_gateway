@@ -103,10 +103,10 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
         role="status"
       >
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
-          {t('step4.share_output_title', 'Local Share output')}
+          {t('step4.share_output_title')}
         </div>
         <p className="mt-2 text-sm text-amber-100/80">
-          {t('step4.share_output_unknown', 'Share output status is unavailable; no default layout is shown.')}
+          {t('step4.share_output_unknown')}
         </p>
       </section>
     );
@@ -119,10 +119,10 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
     return (
       <section data-testid="step4-share-output-disabled" className="rounded-2xl border border-slate-700/60 bg-slate-900/40 p-4" role="status">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-          {t('step4.share_output_title', 'Local Share output')}
+          {t('step4.share_output_title')}
         </div>
         <p className="mt-2 text-sm text-slate-400">
-          {t('step4.share_output_disabled', 'Backend Share is disabled in persisted settings.')}
+          {t('step4.share_output_disabled')}
         </p>
       </section>
     );
@@ -136,10 +136,10 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
         role="status"
       >
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
-          {t('step4.share_output_title', 'Local Share output')}
+          {t('step4.share_output_title')}
         </div>
         <p className="mt-2 text-sm text-amber-100/80">
-          {t('step4.share_output_blocked', 'Share output is waiting for backend workspace hydration.')}
+          {t('step4.share_output_blocked')}
         </p>
       </section>
     );
@@ -153,10 +153,10 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
         role="alert"
       >
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-200/80">
-          {t('step4.share_output_title', 'Local Share output')}
+          {t('step4.share_output_title')}
         </div>
         <p className="mt-2 text-sm text-red-100/80">
-          {t('step4.share_output_failed', 'Backend Share is configured but failed to start. Retry after reviewing the persisted settings.')}
+          {t('step4.share_output_failed')}
         </p>
         {shareStatus && <LocalModbusReviewSurface
           rows={allocationRows}
@@ -173,10 +173,10 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
     return (
       <section data-testid="step4-share-output-pending" className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4" role="status">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
-          {t('step4.share_output_title', 'Local Share output')}
+          {t('step4.share_output_title')}
         </div>
         <p className="mt-2 text-sm text-amber-100/80">
-          {t('step4.share_output_pending', 'Backend Share is configured but not running yet.')}
+          {t('step4.share_output_pending')}
         </p>
       </section>
     );
@@ -192,10 +192,10 @@ export function ShareOutputSummary({ state, shareStatus }: ShareOutputSummaryPro
       className="rounded-2xl border border-violet-500/25 bg-violet-500/5 p-4"
     >
       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-200/80">
-        {t('step4.share_output_title', 'Local Share output')}
+        {t('step4.share_output_title')}
       </div>
       <div className="mt-1 text-sm text-slate-300">
-        {t('step4.share_output_subtitle', 'Non-Modbus source points are exposed through holding registers independently of database targets.')}
+        {t('step4.share_output_subtitle')}
       </div>
       <div className="mt-3 space-y-2">
         {rows.map((row) => (

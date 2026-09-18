@@ -27,6 +27,7 @@ interface CommitSummaryProps {
   enabledTargetCount: number;
   hasConflict: boolean;
   readinessSummary?: StudioV2WorkspaceReadinessSummary | null;
+  configurationSaved?: boolean;
   onActivate: () => void;
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
 }
@@ -44,6 +45,7 @@ export function CommitSummary({
   enabledTargetCount,
   hasConflict,
   readinessSummary,
+  configurationSaved = false,
   onActivate,
   onNavigateStep,
 }: CommitSummaryProps) {
@@ -70,17 +72,16 @@ export function CommitSummary({
         {/* 標題 */}
         <div>
           <h3 className="text-lg font-semibold text-white">
-            {t('step4.summary_title', '確認設定並第一次啟動')}
+            {t('step4.summary_title')}
           </h3>
           <p className="text-xs text-gray-500 mt-1">
-            {t('step4.summary_subtitle', 'Step 4 只會啟動目前合法、可用、尚未啟動的設備。')}
+            {t('step4.summary_subtitle')}
           </p>
         </div>
 
         <div className="rounded-xl border border-gray-800/60 bg-gray-950/40 p-3">
           <div className="text-xs text-slate-300">
             {t('step4.summary_compact', {
-              defaultValue: '本次會套用 {{devices}} 台裝置、{{rules}} 組規則、{{points}} 個點位與 {{targets}} 個寫入欄位。',
               devices: deviceCount,
               rules: ruleCount,
               points: pointCount,
@@ -92,10 +93,17 @@ export function CommitSummary({
           </div>
           <div className="mt-1 text-[11px] text-slate-500">
             {t('step4.summary_mapping_count', {
-              defaultValue: '啟用中的映射列：{{count}}',
               count: mappingCount,
             })}
           </div>
+          {configurationSaved && (
+            <div
+              data-testid="step4-configuration-saved"
+              className="mt-2 text-[11px] text-emerald-300"
+            >
+              {t('step4.configuration_saved')}
+            </div>
+          )}
         </div>
       </div>
 
@@ -113,10 +121,10 @@ export function CommitSummary({
             data-testid="step4-blocker-resolution"
           >
             <div className="text-xs font-semibold text-amber-100">
-              {t('step4.blocker_resolution_title', '要讓它可套用，先完成：')}
+              {t('step4.blocker_resolution_title')}
             </div>
             <div className="mt-1 text-[11px] leading-5 text-amber-100/80">
-              {t('step4.blocker_resolution_subtitle', '這些 blocker 解除後，啟動按鈕會恢復可用。')}
+              {t('step4.blocker_resolution_subtitle')}
             </div>
             <div className="mt-3 space-y-2">
               {blockingIssues.map((group) => (
@@ -133,7 +141,7 @@ export function CommitSummary({
         {/* 提示訊息 */}
         {enabledTargetCount === 0 && !hasConflict && (
           <p className="text-xs text-amber-500 text-center select-none">
-            ⚠️ {t('step4.no_enabled_targets_warning', '尚未啟用任何資料表欄位寫入')}
+            ⚠️ {t('step4.no_enabled_targets_warning')}
           </p>
         )}
 
@@ -151,11 +159,11 @@ export function CommitSummary({
           `}
         >
           <span>🚀</span>
-          {t('step4.activate_btn', '第一次啟動設備')}
+          {t('step4.activate_btn')}
         </button>
 
         <p className="text-[10px] text-gray-500 text-center leading-normal select-none">
-          {t('step4.activate_info', '系統會逐台啟動符合條件的設備，並保留每台成功或失敗結果。')}
+          {t('step4.activate_info')}
         </p>
       </div>
     </div>

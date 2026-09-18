@@ -52,24 +52,24 @@ export function ConnectorSection({
       {connectors && connectors.length > 0 && (
         <div className="flex items-center gap-2 text-xs bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
           <span className="text-slate-400 font-medium whitespace-nowrap">
-            {t('step4.load_from_pool', '從連接器池載入：')}
+            {t('step4.load_from_pool')}
           </span>
           <select
-            aria-label={t('step4.load_from_pool', '從連接器池載入')}
+            aria-label={t('step4.load_from_pool')}
             disabled={disabled}
             defaultValue=""
             onChange={(e) => {
               const found = connectors.find((c) => c.id === e.target.value);
-              if (found && onSelectConnector) {
+              if (found?.enabled && onSelectConnector) {
                 onSelectConnector(found);
                 e.target.value = '';
               }
             }}
             className="w-full bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-xs focus:border-blue-500 outline-none"
           >
-            <option value="" disabled>-- {t('step4.select_existing_connector', '選擇既有連線')} --</option>
+            <option value="" disabled>-- {t('step4.select_existing_connector')} --</option>
             {connectors.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c.id} value={c.id} disabled={!c.enabled}>
                 {c.name} ({c.kind.toUpperCase()} - {c.database})
               </option>
             ))}
@@ -87,11 +87,11 @@ export function ConnectorSection({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-400">
-            {t('step4.field_name', '連線名稱')}
+            {t('step4.field_name')}
           </label>
           <input
             type="text"
-            aria-label={t('step4.field_name', '連線名稱')}
+            aria-label={t('step4.field_name')}
             value={name}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ name: e.target.value })}
@@ -104,11 +104,11 @@ export function ConnectorSection({
           <>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-400">
-                {t('step4.field_host', '主機位址 (Host)')}
+                {t('step4.field_host')}
               </label>
               <input
                 type="text"
-                aria-label={t('step4.field_host', '主機位址 (Host)')}
+                aria-label={t('step4.field_host')}
                 value={host}
                 disabled={disabled}
                 onChange={(e) => onUpdateConnector({ host: e.target.value })}
@@ -119,11 +119,11 @@ export function ConnectorSection({
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-gray-400">
-                {t('step4.field_port', '通訊埠 (Port)')}
+                {t('step4.field_port')}
               </label>
               <input
                 type="number"
-                aria-label={t('step4.field_port', '通訊埠 (Port)')}
+                aria-label={t('step4.field_port')}
                 value={port}
                 disabled={disabled}
                 onChange={(e) => onUpdateConnector({ port: parseInt(e.target.value) || 0 })}
@@ -136,11 +136,11 @@ export function ConnectorSection({
 
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-400">
-            {isSqlite ? t('step4.field_db_sqlite', '資料庫檔案路徑') : t('step4.field_database', '資料庫名稱')}
+            {isSqlite ? t('step4.field_db_sqlite') : t('step4.field_database')}
           </label>
           <input
             type="text"
-            aria-label={isSqlite ? t('step4.field_db_sqlite', '資料庫檔案路徑') : t('step4.field_database', '資料庫名稱')}
+            aria-label={isSqlite ? t('step4.field_db_sqlite') : t('step4.field_database')}
             value={database}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ database: e.target.value })}
@@ -152,11 +152,11 @@ export function ConnectorSection({
         {!isSqlite && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400">
-              {t('step4.field_username', '使用者名稱')}
+              {t('step4.field_username')}
             </label>
             <input
               type="text"
-              aria-label={t('step4.field_username', '使用者名稱')}
+              aria-label={t('step4.field_username')}
               value={username}
               disabled={disabled}
               onChange={(e) => onUpdateConnector({ username: e.target.value })}
@@ -169,29 +169,34 @@ export function ConnectorSection({
         {!isSqlite && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400">
-              {t('step4.field_password', '密碼')}
+              {t('step4.field_password')}
             </label>
             <input
               type="password"
-              aria-label={t('step4.field_password', '密碼')}
+              aria-label={t('step4.field_password')}
               value={password ?? ''}
               disabled={disabled}
               autoComplete="new-password"
-              onChange={(e) => onUpdateConnector({ password: e.target.value })}
+              onChange={(e) => onUpdateConnector({ password: e.target.value, clear_password: false })}
               className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder={t('step4.field_password_placeholder', '留空則沿用既有密碼')}
+              placeholder={t('step4.field_password_placeholder')}
             />
+            <label className="flex items-center gap-2 text-xs text-gray-400">
+              <input type="checkbox" checked={connector.clear_password === true} disabled={disabled}
+                onChange={(e) => onUpdateConnector({ clear_password: e.target.checked, password: '', password_required: false })} />
+              {t('step4.clear_password')}
+            </label>
           </div>
         )}
 
         {hasSchema && (
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400">
-              {t('step4.field_schema', '綱要 (Schema)')}
+              {t('step4.field_schema')}
             </label>
             <input
               type="text"
-              aria-label={t('step4.field_schema', '綱要 (Schema)')}
+              aria-label={t('step4.field_schema')}
               value={schema}
               disabled={disabled}
               onChange={(e) => onUpdateConnector({ schema: e.target.value })}
@@ -203,11 +208,11 @@ export function ConnectorSection({
 
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-gray-400">
-            {t('step4.field_table', '資料表名稱')}
+            {t('step4.field_table')}
           </label>
           <input
             type="text"
-            aria-label={t('step4.field_table', '資料表名稱')}
+            aria-label={t('step4.field_table')}
             value={table}
             disabled={disabled}
             onChange={(e) => onUpdateConnector({ table: e.target.value })}

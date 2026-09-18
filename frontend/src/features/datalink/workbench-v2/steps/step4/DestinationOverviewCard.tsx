@@ -40,24 +40,24 @@ export function DestinationOverviewCard({
       : `${connector.schema}.${connector.table}`;
 
   const items = [
-    { label: t('step4.overview_destination', '目標表'), value: destination, mono: true },
-    { label: t('step4.overview_kind', '資料庫'), value: connector.kind },
-    { label: t('step4.overview_write_mode', '寫入策略'), value: connector.write_mode },
+    { label: t('step4.overview_destination'), value: destination, mono: true },
+    { label: t('step4.overview_kind'), value: connector.kind },
+    { label: t('step4.overview_write_mode'), value: connector.write_mode },
     {
-      label: t('step4.overview_interval', '寫入間隔'),
-      value: t('step4.overview_interval_value', '{{seconds}} 秒', {
+      label: t('step4.overview_interval'),
+      value: t('step4.overview_interval_value', {
         seconds: connector.write_interval_seconds,
       }),
     },
     {
-      label: t('step4.overview_scope', '規則 / 點位'),
-      value: t('step4.overview_scope_value', '{{rules}} 組 / {{points}} 點', {
+      label: t('step4.overview_scope'),
+      value: t('step4.overview_scope_value', {
         rules: enabledRuleCount,
         points: mappedPointCount,
       }),
     },
     {
-      label: t('step4.overview_targets', '已啟用欄位'),
+      label: t('step4.overview_targets'),
       value: String(enabledTargetCount),
     },
   ];
@@ -70,7 +70,7 @@ export function DestinationOverviewCard({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200/80">
-            {t('step4.overview_title', '單表寫入目的地')}
+            {t('step4.overview_title')}
           </div>
           <div className="text-sm text-slate-200">
             {t(
@@ -82,8 +82,8 @@ export function DestinationOverviewCard({
 
         <div className="shrink-0 rounded-full border px-3 py-1 text-xs font-medium text-cyan-100">
           {hasConflict
-            ? t('step4.overview_conflict', '欄位衝突待處理')
-            : t('step4.overview_ready', '欄位配置可檢查')}
+            ? t('step4.overview_conflict')
+            : t('step4.overview_ready')}
         </div>
       </div>
 

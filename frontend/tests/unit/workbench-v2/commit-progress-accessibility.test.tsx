@@ -4,6 +4,12 @@ import { CommitProgress } from '../../../src/features/datalink/workbench-v2/step
 import { Toggle } from '../../../src/features/datalink/workbench-v2/components/Toggle';
 import type { CommitLog } from '../../../src/features/datalink/workbench-v2/state/types';
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key,
+  }),
+}));
+
 describe('CommitProgress presentation and accessibility', () => {
   it('truthfully renders success, failed, and skipped commit rows and never renders 200 on failure', () => {
     const logs: CommitLog[] = [
@@ -29,7 +35,7 @@ describe('CommitProgress presentation and accessibility', () => {
     render(<CommitProgress logs={logs} status="failed" />);
 
     const row0 = screen.getByTestId('commit-log-row-0');
-    expect(row0).toHaveTextContent('200');
+    expect(row0).toHaveTextContent('step4.progress_confirmed');
     expect(row0).toHaveTextContent('Start Scheduler');
 
     const row1 = screen.getByTestId('commit-log-row-1');
@@ -73,6 +79,7 @@ describe('CommitProgress presentation and accessibility', () => {
           detail: 'raw backend detail',
           status: 'failed',
           code: 'activation_failed',
+          retryable: true,
         }]}
         status="failed"
         onRetry={onRetry}
@@ -93,7 +100,6 @@ describe('CommitProgress presentation and accessibility', () => {
     expect(retry).not.toBeDisabled();
   });
 });
-
 describe('Toggle accessibility and single-flight control', () => {
   it('renders switch role and handles keyboard / single click state', () => {
     const onChange = vi.fn();

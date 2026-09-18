@@ -75,7 +75,7 @@ export function LocalModbusReviewSurface({
           className="mt-3 rounded-xl border border-red-500/25 bg-red-950/20 p-3 text-xs text-red-100"
           role="status"
         >
-          <div className="font-semibold">{t('step4.share_output_diagnostic_title', { defaultValue: 'Backend allocation diagnostic' })}</div>
+          <div className="font-semibold">{t('step4.share_output_diagnostic_title')}</div>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 font-mono text-red-200/90">
             <span>{state}</span>
             {candidateStatuses && <span>{candidateStatuses}</span>}
@@ -83,12 +83,12 @@ export function LocalModbusReviewSurface({
           </div>
           {(status.error?.action ?? status.recovery?.action) && (
             <p className="mt-2 text-red-100/90">
-              <span className="font-semibold">{t('step4.share_output_diagnostic_action', { defaultValue: 'Recovery:' })}</span>{' '}
+              <span className="font-semibold">{t('step4.share_output_diagnostic_action')}</span>{' '}
               {status.error?.action ?? status.recovery?.action}
             </p>
           )}
           {(status.error?.retryable ?? status.recovery?.retryable) && (
-            <p className="mt-1 text-red-200/75">{t('step4.share_output_diagnostic_retryable', { defaultValue: 'This operation can be retried after the blocking condition is resolved.' })}</p>
+            <p className="mt-1 text-red-200/75">{t('step4.share_output_diagnostic_retryable')}</p>
           )}
         </div>
       )}
@@ -96,10 +96,10 @@ export function LocalModbusReviewSurface({
         <div className="mt-4 border-t border-slate-700/60 pt-4" data-testid="step4-share-allocation-review">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-sm font-semibold text-slate-100">
-              {t('step4.share_output_review_title', { defaultValue: 'Register allocation review' })}
+              {t('step4.share_output_review_title')}
             </h3>
             <span className="text-xs text-slate-400">
-              {t('step4.share_output_review_subtitle', { defaultValue: 'Backend canonical geometry; ranges are inclusive.' })}
+              {t('step4.share_output_review_subtitle')}
             </span>
           </div>
           <div className="mt-3 space-y-2">
@@ -140,25 +140,25 @@ export function LocalModbusReviewSurface({
                     </span>
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
-                    <div><dt className="text-slate-500">{t('step4.share_output_human_register', { defaultValue: 'Human register' })}</dt><dd className="font-mono text-slate-200">{mapping.share_start_register}–{humanEnd}</dd></div>
-                    <div><dt className="text-slate-500">{t('step4.share_output_zero_based_register', { defaultValue: 'Zero-based' })}</dt><dd className="font-mono text-slate-200">{mapping.zero_based_register}–{zeroBasedEnd}</dd></div>
-                    <div><dt className="text-slate-500">{t('step4.share_output_span', { defaultValue: 'Span' })}</dt><dd className="font-mono text-slate-200">{mapping.span_registers}</dd></div>
-                    <div><dt className="text-slate-500">{t('step4.share_output_stride', { defaultValue: 'Stride' })}</dt><dd className="font-mono text-slate-200">{mapping.stride_registers}</dd></div>
-                    <div><dt className="text-slate-500">{t('step4.share_output_capacity', { defaultValue: 'Capacity' })}</dt><dd className="font-mono text-slate-200">{capacity ?? '—'}</dd></div>
-                    <div><dt className="text-slate-500">{t('step4.share_output_datatype', { defaultValue: 'Datatype' })}</dt><dd className="font-mono text-slate-200">{mapping.data_type}</dd></div>
+                    <div><dt className="text-slate-500">{t('step4.share_output_human_register')}</dt><dd className="font-mono text-slate-200">{mapping.share_start_register}–{humanEnd}</dd></div>
+                    <div><dt className="text-slate-500">{t('step4.share_output_zero_based_register')}</dt><dd className="font-mono text-slate-200">{mapping.zero_based_register}–{zeroBasedEnd}</dd></div>
+                    <div><dt className="text-slate-500">{t('step4.share_output_span')}</dt><dd className="font-mono text-slate-200">{mapping.span_registers}</dd></div>
+                    <div><dt className="text-slate-500">{t('step4.share_output_stride')}</dt><dd className="font-mono text-slate-200">{mapping.stride_registers}</dd></div>
+                    <div><dt className="text-slate-500">{t('step4.share_output_capacity')}</dt><dd className="font-mono text-slate-200">{capacity ?? '—'}</dd></div>
+                    <div><dt className="text-slate-500">{t('step4.share_output_datatype')}</dt><dd className="font-mono text-slate-200">{mapping.data_type}</dd></div>
                   </dl>
                   {candidate?.blocking_reason && (
                     <p className="mt-2 rounded-lg border border-red-500/20 bg-red-500/5 px-2.5 py-2 text-xs text-red-100" role="status">
-                      <span className="font-semibold">{t('step4.share_output_blocking_reason', { defaultValue: 'Blocking reason:' })}</span>{' '}
+                      <span className="font-semibold">{t('step4.share_output_blocking_reason')}</span>{' '}
                       {candidate.blocking_reason}
                     </p>
                   )}
                   {mapping.ownership_proof && (
                     <p className="mt-2 text-xs text-slate-400">
-                      <span className="font-semibold text-slate-300">{t('step4.share_output_ownership', { defaultValue: 'Ownership:' })}</span>{' '}
+                      <span className="font-semibold text-slate-300">{t('step4.share_output_ownership')}</span>{' '}
                       {mapping.ownership_proof.verified
-                        ? t('step4.share_output_ownership_verified', { defaultValue: 'verified' })
-                        : t('step4.share_output_ownership_unverified', { defaultValue: 'unverified' })}
+                        ? t('step4.share_output_ownership_verified')
+                        : t('step4.share_output_ownership_unverified')}
                       {' · '}{mapping.ownership_proof.basis}
                     </p>
                   )}

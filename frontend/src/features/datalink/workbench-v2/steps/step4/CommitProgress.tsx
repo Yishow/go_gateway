@@ -69,7 +69,7 @@ export function CommitProgress({ logs, status, onRetry }: CommitProgressProps) {
             const isSuccess = rowStatus === 'success';
             const safeError = isFailed
               ? getSafeErrorMessage(
-                  { code: log.code, request_id: log.request_id, retryable: log.retryable ?? true },
+                  { code: log.code, request_id: log.request_id, retryable: log.retryable === true },
                   (key, options) => t(key, options),
                 )
               : null;
@@ -111,7 +111,7 @@ export function CommitProgress({ logs, status, onRetry }: CommitProgressProps) {
                         <>
                           {safeError?.message}
                           {safeError?.requestId && (
-                            <span className="ml-1">({t('errors.request_id', 'Request ID')}: {safeError.requestId})</span>
+                            <span className="ml-1">({t('errors.request_id')}: {safeError.requestId})</span>
                           )}
                         </>
                       ) : t(`step4.progress_status.${rowStatus}`)}
@@ -131,7 +131,7 @@ export function CommitProgress({ logs, status, onRetry }: CommitProgressProps) {
                 </div>
                 {isSuccess && (
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold text-[10px] border border-emerald-500/20 select-none">
-                    200
+                    {t('step4.progress_confirmed')}
                   </span>
                 )}
                 {isFailed && (

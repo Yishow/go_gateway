@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StudioV2ActivationResponse } from '../../../../../types/studioV2Activation';
 import { normalizeTypedEnvelope } from '../../../../../utils/safeJson';
@@ -8,7 +9,7 @@ import { normalizeTypedEnvelope } from '../../../../../utils/safeJson';
 interface CommitSuccessCardProps {
   response: StudioV2ActivationResponse;
   canContinue: boolean;
-  onCommit: () => void;
+  onCommit?: (confirmedDeviceIds?: string[]) => void;
   onReset: () => void;
 }
 
@@ -24,20 +25,60 @@ export function CommitSuccessCard({
 }: CommitSuccessCardProps) {
   const { t } = useTranslation('workbench-v2');
   const responseEnvelope = normalizeTypedEnvelope(response);
+  const handoffTriggeredRef = React.useRef(false);
+  const confirmedDeviceIds = response.results
+    .filter((result) => result.status === 'success')
+    .map((result) => result.device_id);
+  const isPartial = response.results.length === 0 ||
+    response.results.some((result) => result.status !== 'success');
+  const cardTone = isPartial ? {
+    card: 'bg-amber-950/20 border-amber-500/30 shadow-[0_0_24px_rgba(245,158,11,0.05)]',
+    icon: 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+    title: 'text-amber-200',
+    subtitle: 'text-amber-300/80',
+  } : {
+    card: 'bg-emerald-950/20 border-emerald-500/30 shadow-[0_0_24px_rgba(16,185,129,0.05)]',
+    icon: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+    title: 'text-emerald-300',
+    subtitle: 'text-emerald-400/80',
+  };
+
+  const handleCommit = () => {
+    if (!onCommit || handoffTriggeredRef.current) {
+      return;
+    }
+    handoffTriggeredRef.current = true;
+    onCommit(confirmedDeviceIds);
+  };
+
+  const resultStatusLabel = (status: StudioV2ActivationResponse['results'][number]['status']) =>
+    t(`step4.result_status.${status}`, {
+      defaultValue: status === 'success'
+        ? 'Confirmed'
+        : status === 'failed'
+          ? 'Rejected'
+          : status === 'pending'
+            ? 'Pending'
+            : 'Skipped',
+    });
 
   return (
-    <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-6 flex flex-col justify-between h-full backdrop-blur-sm shadow-[0_0_24px_rgba(16,185,129,0.05)]">
+    <div
+      data-testid="activation-results-card"
+      data-outcome={isPartial ? 'partial' : 'confirmed'}
+      className={`${cardTone.card} border rounded-2xl p-6 flex flex-col justify-between h-full backdrop-blur-sm`}
+    >
       <div className="space-y-6 flex-1">
-        {/* 大綠勾 Icon */}
+        {/* 結果 Icon */}
         <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-3xl text-emerald-400 shadow-[0_0_16px_rgba(16,185,129,0.15)]">
-            ✓
+          <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full border text-3xl shadow-[0_0_16px_rgba(16,185,129,0.15)] ${cardTone.icon}`}>
+            {isPartial ? '!' : '✓'}
           </div>
-          <h3 className="text-xl font-bold text-emerald-300">
-            {t('step4.results_title', '啟動結果')}
+          <h3 className={`text-xl font-bold ${cardTone.title}`}>
+            {t('step4.results_title')}
           </h3>
-          <p className="text-sm text-emerald-400/80">
-            {t('step4.results_subtitle', '每台設備的啟動結果會分開保留，不會整批回滾。')}
+          <p className={`text-sm ${cardTone.subtitle}`}>
+            {t('step4.results_subtitle')}
           </p>
         </div>
 
@@ -47,17 +88,12 @@ export function CommitSuccessCard({
             className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
           >
             {t(`errors.${responseEnvelope.code}`, {
-              defaultValue: t('errors.activation_failed', 'Workspace activation failed.'),
+              defaultValue: t('errors.activation_failed'),
             })}
           </div>
         )}
 
         <div className="space-y-2">
-          {response.results.length === 0 && (
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-200">
-              {t('step4.already_active_info', '工作區所有設備皆已在運行中，資料採集與儲存正常進行。')}
-            </div>
-          )}
           {response.results.map((result) => (
             <div
               key={result.device_id}
@@ -75,25 +111,32 @@ export function CommitSuccessCard({
                         : 'bg-amber-500/10 text-amber-300'
                   }`}
                 >
-                  {result.status}
+                  {resultStatusLabel(result.status)}
                 </span>
               </div>
-              <p className="mt-2 text-xs text-slate-400">
-                {t(`step4.progress_status.${result.status}`, result.status)}
-              </p>
             </div>
           ))}
+        </div>
+
+        <div
+          data-testid="activation-delivery-status"
+          className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-100"
+        >
+          <span className="font-semibold">
+            {t('step4.activation_delivery_status_label')}:
+          </span>{' '}
+          {t('step4.activation_delivery_unconfirmed')}
         </div>
       </div>
 
       <div className="mt-8 space-y-3">
-        {canContinue && (
+        {canContinue && onCommit && (
           <button
             type="button"
-            onClick={onCommit}
+            onClick={handleCommit}
             className="w-full py-3 px-4 rounded-xl font-medium text-sm text-center bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer transition-all shadow-lg shadow-emerald-600/10 hover:shadow-emerald-500/20 active:scale-[0.98]"
           >
-            {t('step4.go_to_dashboard_btn', '前往 Runtime Dashboard')}
+            {t('step4.go_to_dashboard_btn')}
           </button>
         )}
 
@@ -102,13 +145,13 @@ export function CommitSuccessCard({
           onClick={onReset}
           className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-900/40 text-sm font-medium text-slate-200 transition-all hover:bg-slate-900/70"
         >
-          {t('step4.reset_activation_btn', '重新檢查可啟動設備')}
+          {t('step4.reset_activation_btn')}
         </button>
 
         <p className="text-[10px] text-gray-500 text-center select-none">
           {canContinue
-            ? t('step4.success_info', '至少一台設備已成功啟動，可以前往 Runtime Dashboard 繼續觀察。')
-            : t('step4.empty_info', '目前沒有成功啟動的設備，請回到前面步驟修正後再試一次。')}
+            ? t('step4.success_info')
+            : t('step4.empty_info')}
         </p>
       </div>
     </div>

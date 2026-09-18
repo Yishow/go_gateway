@@ -37,7 +37,7 @@ export function KindSelector({ value, onChange, disabled = false }: KindSelector
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium text-gray-400">
-        {t('step4.connector_kind', '資料庫類型')}
+        {t('step4.connector_kind')}
       </label>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {options.map((opt) => {

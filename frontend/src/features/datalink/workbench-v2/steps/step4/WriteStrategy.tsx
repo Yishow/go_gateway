@@ -29,7 +29,7 @@ export function WriteStrategy({
       {/* 寫入模式選擇 (INSERT / UPSERT) */}
       <div className="space-y-3">
         <label className="text-sm font-medium text-gray-400">
-          {t('step4.write_mode_label', '寫入策略')}
+          {t('step4.write_mode_label')}
         </label>
         <div className="flex gap-4">
           <label
@@ -51,9 +51,9 @@ export function WriteStrategy({
               className="text-blue-500 focus:ring-blue-500 bg-gray-900 border-gray-800 cursor-pointer disabled:cursor-not-allowed"
             />
             <div className="flex flex-col">
-              <span>{t('step4.write_mode_insert', '時序追加 (INSERT)')}</span>
+              <span>{t('step4.write_mode_insert')}</span>
               <span className="text-xs text-gray-500 font-normal">
-                {t('step4.write_mode_insert_desc', '每一筆資料均新增一列，適合歷史趨勢')}
+                {t('step4.write_mode_insert_desc')}
               </span>
             </div>
           </label>
@@ -77,9 +77,9 @@ export function WriteStrategy({
               className="text-blue-500 focus:ring-blue-500 bg-gray-900 border-gray-800 cursor-pointer disabled:cursor-not-allowed"
             />
             <div className="flex flex-col">
-              <span>{t('step4.write_mode_upsert', '覆寫更新 (UPSERT)')}</span>
+              <span>{t('step4.write_mode_upsert')}</span>
               <span className="text-xs text-gray-500 font-normal">
-                {t('step4.write_mode_upsert_desc', '僅保留最新時間戳資料，節省空間')}
+                {t('step4.write_mode_upsert_desc')}
               </span>
             </div>
           </label>
@@ -90,10 +90,10 @@ export function WriteStrategy({
       <div className="space-y-3 flex flex-col justify-between">
         <div>
           <label className="text-sm font-medium text-gray-400 block mb-1">
-            {t('step4.write_interval_label', '寫入間隔')}
+            {t('step4.write_interval_label')}
           </label>
           <p className="text-xs text-gray-500">
-            {t('step4.write_interval_desc', '設定資料庫批次排程寫入的週期時間')}
+            {t('step4.write_interval_desc')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -108,7 +108,7 @@ export function WriteStrategy({
               className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="absolute right-3 top-2.5 text-sm text-gray-500 select-none">
-              {t('step4.seconds_unit', '秒 (s)')}
+              {t('step4.seconds_unit')}
             </span>
           </div>
         </div>
