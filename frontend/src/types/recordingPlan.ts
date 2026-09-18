@@ -43,6 +43,7 @@ export interface PlanStream {
 export interface PlanDestination {
   destination_id: string;
   connector_id: string;
+  connector_revision?: string;
   table_prefix?: string;
   write_interval_seconds?: number;
   batch_size?: number;
@@ -89,23 +90,62 @@ export interface ConnectorCapability {
   notes?: string;
 }
 
+export type SchemaPreviewTableAction = 'create' | 'unchanged';
+
+/** One managed table in a preview: created with the listed columns, or already compatible. */
+export interface SchemaPreviewTable {
+  name: string;
+  action: SchemaPreviewTableAction;
+  columns: string[];
+}
+
+/** Server-issued preview bound to the saved workspace, plan and connector revisions. */
 export interface SchemaPreviewToken {
   token: string;
+  operation_id: string;
+  action?: string;
   workspace_id: string;
+  workspace_revision: string;
   plan_id: string;
   plan_revision: string;
   connector_id: string;
+  connector_revision?: string;
+  dialect?: string;
+  database?: string;
+  schema?: string;
   table_prefix: string;
   statements: string[];
+  tables: SchemaPreviewTable[];
+  no_change_reason?: string;
+  digest: string;
   expires_at: string;
   created_at: string;
 }
 
+export type SchemaOperationStatus = 'pending' | 'running' | 'succeeded' | 'partial' | 'failed' | 'unknown';
+
+/** Durable state of one confirmed schema change, as reported by the backend. */
+export interface SchemaOperation {
+  operation_id: string;
+  action?: string;
+  status: SchemaOperationStatus;
+  executed_statements: number;
+  verified_digest?: string;
+  reason?: string;
+  next_action?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+export type TestWriteResultStatus = 'written_verified' | 'written_unverified' | 'failed' | 'unknown';
+
 export interface TestWriteResult {
-  status: string;
+  status: TestWriteResultStatus;
   record_id: string;
   table: string;
   observed_at: string;
   delivered_at: string;
+  operation_id?: string;
   message?: string;
 }

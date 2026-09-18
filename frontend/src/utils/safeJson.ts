@@ -1,6 +1,7 @@
 import type { MappingPreviewResponse, RuntimeDeviceStatusEvent, RuntimeStreamStateEvent, RuntimeValueEvent } from '../types/datalink';
 import type { RuntimeTruthState } from '../types/runtimeTruth';
 import type { StudioV2ActivationResponse } from '../types/studioV2Activation';
+import { BACKEND_ERROR_CODES } from './backendErrorCodes';
 
 export const MAX_SAFE_JSON_BYTES = 64 * 1024;
 export const MAX_SAFE_JSON_DEPTH = 6;
@@ -8,20 +9,10 @@ export const MAX_SAFE_JSON_ARRAY_LENGTH = 256;
 export const MAX_SAFE_JSON_OBJECT_KEYS = 64;
 export const MAX_SAFE_JSON_STRING_LENGTH = 256;
 export const MAX_TYPED_FIELD_LENGTH = 128;
-const SAFE_ERROR_CODES = new Set([
-  'preview_invalid_request', 'preview_unavailable', 'runtime_device_not_found', 'preview_stream_closed',
-  'runtime_snapshot_unavailable', 'runtime_stream_unavailable', 'workspace_not_ready',
-  'activation_failed', 'activation_request_invalid', 'readiness_blocked',
-  'settings_unavailable', 'settings_update_failed', 'settings_invalid',
-  'modbus_share_save_incomplete', 'modbus_share_revision_conflict',
-  'modbus_share_hydration_required', 'modbus_share_disabled', 'modbus_share_range_collision',
-  'modbus_share_capacity_exceeded', 'modbus_share_listener_bind_failed',
-  'modbus_share_workspace_scope', 'modbus_share_reconcile_failed',
-  'modbus_share_dirty_unknown', 'modbus_share_projection_required',
-  'modbus_share_invalid_geometry', 'validation', 'revision_mismatch', 'not_found', 'internal',
-]);
+const SAFE_ERROR_CODES = new Set<string>(BACKEND_ERROR_CODES);
 const SAFE_ERROR_ACTIONS = new Set([
-  'retry', 'reconnect', 'reload', 'retry runtime stream', 'retry the runtime stream', 'retry the preview stream', 'retry preview',
+  'retry', 'reconnect', 'reload', 'retry runtime stream', 'retry the runtime stream',
+  'retry the preview stream', 'retry preview', 'wait_for_supported_operation',
 ]);
 
 function byteLength(value: string): number {
@@ -82,6 +73,7 @@ export interface NormalizedTypedEnvelope {
   code?: string;
   action?: string;
   requestId?: string;
+  operationId?: string;
   retryable?: boolean;
 }
 
@@ -89,6 +81,17 @@ function boundedField(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim();
   return normalized.length > 0 && normalized.length <= MAX_TYPED_FIELD_LENGTH ? normalized : undefined;
+}
+
+function findFirstField(sources: (Record<string, unknown> | undefined)[], keys: string[]): string | undefined {
+  for (const src of sources) {
+    if (!src) continue;
+    for (const key of keys) {
+      const val = boundedField(src[key]);
+      if (val) return val;
+    }
+  }
+  return undefined;
 }
 
 /** Rebuild typed error metadata from an allowlist; raw code/action text is never retained. */
@@ -102,6 +105,15 @@ export function normalizeTypedEnvelope(value: unknown): NormalizedTypedEnvelope 
   const responseData = response && typeof response.data === 'object' && response.data !== null && !Array.isArray(response.data)
     ? response.data as Record<string, unknown>
     : undefined;
+  const responseDataData = responseData && typeof responseData.data === 'object' && responseData.data !== null && !Array.isArray(responseData.data)
+    ? responseData.data as Record<string, unknown>
+    : undefined;
+  const rootData = typeof root.data === 'object' && root.data !== null && !Array.isArray(root.data)
+    ? root.data as Record<string, unknown>
+    : undefined;
+  const rootDataData = rootData && typeof rootData.data === 'object' && rootData.data !== null && !Array.isArray(rootData.data)
+    ? rootData.data as Record<string, unknown>
+    : undefined;
   const record = responseData?.error && typeof responseData.error === 'object' && !Array.isArray(responseData.error)
     ? responseData.error as Record<string, unknown>
     : root.error && typeof root.error === 'object' && !Array.isArray(root.error)
@@ -112,12 +124,16 @@ export function normalizeTypedEnvelope(value: unknown): NormalizedTypedEnvelope 
     : {};
   const code = boundedField(record.code) ?? boundedField(nested.code);
   const action = boundedField(record.action) ?? boundedField(nested.action);
-  const requestId = boundedField(record.request_id) ?? boundedField(record.requestID) ??
-    boundedField(nested.request_id) ?? boundedField(nested.requestID);
+  const requestId = findFirstField([record, nested], ['request_id', 'requestID']);
+  const operationId = findFirstField(
+    [record, nested, responseData, responseDataData, rootData, rootDataData, root],
+    ['operation_id', 'operationID'],
+  );
   return {
     code: code && SAFE_ERROR_CODES.has(code) ? code : undefined,
     action: action && SAFE_ERROR_ACTIONS.has(action) ? action : undefined,
     requestId,
+    ...(operationId ? { operationId } : {}),
     retryable: typeof record.retryable === 'boolean'
       ? record.retryable
       : typeof nested.retryable === 'boolean' ? nested.retryable : undefined,
@@ -175,6 +191,16 @@ export function parseMappingPreviewResponse(value: unknown): MappingPreviewRespo
   };
 }
 
+function envelopeFields(env: NormalizedTypedEnvelope) {
+  return {
+    ...(env.operationId ? { operation_id: env.operationId } : {}),
+    ...(env.code ? { code: env.code } : {}),
+    ...(env.action ? { action: env.action } : {}),
+    ...(env.requestId ? { request_id: env.requestId } : {}),
+    ...(env.retryable !== undefined ? { retryable: env.retryable } : {}),
+  };
+}
+
 /** Rebuilds the allowlisted Step 4 activation response and typed result metadata. */
 export function parseStudioV2ActivationResponse(value: unknown): StudioV2ActivationResponse | null {
   const bounded = parseBoundedJson(value);
@@ -188,25 +214,17 @@ export function parseStudioV2ActivationResponse(value: unknown): StudioV2Activat
     const deviceId = boundedString(result.device_id);
     const status = boundedString(result.status);
     if (!deviceId || !status || !['pending', 'success', 'failed', 'skipped'].includes(status)) return null;
-    const envelope = normalizeTypedEnvelope(result);
     return {
       device_id: deviceId,
       status: status as StudioV2ActivationResponse['results'][number]['status'],
-      ...(envelope.code ? { code: envelope.code } : {}),
-      ...(envelope.action ? { action: envelope.action } : {}),
-      ...(envelope.requestId ? { request_id: envelope.requestId } : {}),
-      ...(envelope.retryable !== undefined ? { retryable: envelope.retryable } : {}),
+      ...envelopeFields(normalizeTypedEnvelope(result)),
     };
   });
   if (results.some((result) => result === null)) return null;
-  const envelope = normalizeTypedEnvelope(record);
   return {
     workspace_id: workspaceId,
     results: results as StudioV2ActivationResponse['results'],
-    ...(envelope.code ? { code: envelope.code } : {}),
-    ...(envelope.action ? { action: envelope.action } : {}),
-    ...(envelope.requestId ? { request_id: envelope.requestId } : {}),
-    ...(envelope.retryable !== undefined ? { retryable: envelope.retryable } : {}),
+    ...envelopeFields(normalizeTypedEnvelope(record)),
   };
 }
 
@@ -284,10 +302,7 @@ export function parseRuntimeStreamStateRecord(value: unknown): (RuntimeStreamSta
   return {
     ...(deviceId ? { device_id: deviceId } : {}),
     ...(timestamp ? { timestamp } : {}),
-    ...(envelope.code ? { code: envelope.code } : {}),
-    ...(envelope.action ? { action: envelope.action } : {}),
-    ...(envelope.requestId ? { request_id: envelope.requestId } : {}),
-    ...(envelope.retryable !== undefined ? { retryable: envelope.retryable } : {}),
+    ...envelopeFields(envelope),
     stream_state: {
       state: stateName,
       empty: state.empty,
