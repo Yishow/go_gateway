@@ -26,15 +26,18 @@ const (
 )
 
 type Record struct {
-	ID                  string              `json:"id"`
-	Kind                Kind                `json:"kind"`
-	Status              Status              `json:"status"`
-	DatabaseConnectorID string              `json:"database_connector_id,omitempty"`
-	DatabaseRowGroups   []DatabaseRowGroup  `json:"database_row_groups,omitempty"`
-	DatabaseTargetRefs  []DatabaseTargetRef `json:"database_target_refs,omitempty"`
-	OrderedDeviceIDs    []string            `json:"ordered_device_ids"`
-	CreatedAt           time.Time           `json:"created_at"`
-	UpdatedAt           time.Time           `json:"updated_at"`
+	ID                  string `json:"id"`
+	Kind                Kind   `json:"kind"`
+	Status              Status `json:"status"`
+	DatabaseConnectorID string `json:"database_connector_id,omitempty"`
+	// DatabaseSetupRevision advances with every Step 4 database setup change so
+	// stale browser saves are rejected before they mutate anything.
+	DatabaseSetupRevision string              `json:"database_setup_revision,omitempty"`
+	DatabaseRowGroups     []DatabaseRowGroup  `json:"database_row_groups,omitempty"`
+	DatabaseTargetRefs    []DatabaseTargetRef `json:"database_target_refs,omitempty"`
+	OrderedDeviceIDs      []string            `json:"ordered_device_ids"`
+	CreatedAt             time.Time           `json:"created_at"`
+	UpdatedAt             time.Time           `json:"updated_at"`
 }
 
 type Repository interface {
@@ -121,16 +124,7 @@ func (s *Service) getOrCreate(ctx context.Context) (*Record, error) {
 		return nil, fmt.Errorf("read studio v2 workspace: %w", err)
 	}
 
-	now := s.now()
-	record = &Record{
-		ID:               s.newID(),
-		Kind:             WorkspaceKindSingle,
-		Status:           WorkspaceStatusEmpty,
-		OrderedDeviceIDs: []string{},
-		CreatedAt:        now,
-		UpdatedAt:        now,
-	}
-
+	record = s.newRecord()
 	if err := s.repo.Save(ctx, record); err != nil {
 		return nil, fmt.Errorf("create studio v2 workspace: %w", err)
 	}

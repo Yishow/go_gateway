@@ -247,7 +247,7 @@ export interface StudioV2WorkspaceMappingRecord {
 }
 
 export interface StudioV2WorkspaceDatabaseConfigRecord {
-  id: string;
+  id: string; identity_revision?: string; setup_revision?: string;
   workspace_id: string;
   kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
   name: string;
@@ -274,7 +274,7 @@ export interface StudioV2WorkspaceDatabaseTargetRecord {
   workspace_id: string;
   point_id: string; tag_id: string;
   column_name: string; enabled: boolean;
-  row_group_id?: string; save_state?: 'saved';
+  row_group_id?: string; save_state?: 'saved'; setup_revision?: string;
   created_at: string; updated_at: string;
 }
 
@@ -610,7 +610,7 @@ export type DatabaseConnectorStatus =
 export type DatabaseWriteMode = 'insert' | 'upsert';
 
 export interface DatabaseConnector {
-  id: string;
+  id: string; identity_revision?: string;
   name: string;
   kind: DatabaseConnectorKind;
   connection_config: Record<string, unknown>;

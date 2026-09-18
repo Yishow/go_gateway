@@ -5,13 +5,30 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/lib/pq"
 	datalinkbase "go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSavedConnectorIdentityPostgresPasswordBytes(t *testing.T) {
+	for _, password := range []string{"  fixture password  ", "   ", "fixture'\\password\t"} {
+		config, err := buildExternalDBConfig(schema.DatabaseConnectorKindPostgres, ConnectionConfig{
+			"host": "127.0.0.1", "user": "fixture_writer", "database": "fixture_metrics",
+			"password": password, "sslmode": "disable",
+		})
+		require.NoError(t, err)
+		parsed, err := pgconn.ParseConfig(config.DSN)
+		require.NoError(t, err)
+		require.Equal(t, password, parsed.Password)
+		_, err = pq.NewConnector(config.DSN)
+		require.NoError(t, err)
+	}
+}
 
 func TestProbeConnector_PostgresCreatesMissingDatabaseAndRetries(t *testing.T) {
 	originalOpen := openExternalDBManagerFunc

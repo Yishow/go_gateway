@@ -5,27 +5,47 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
 )
 
+// sqlRunner is the query surface shared by *sql.DB and *sql.Tx.
+type sqlRunner interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 type SQLConnectorRepository struct {
-	db *sql.DB
+	db sqlRunner
 }
 
 func NewSQLConnectorRepository(db *sql.DB) *SQLConnectorRepository {
 	return &SQLConnectorRepository{db: db}
 }
 
+// WithTx returns the repository bound to a caller-owned local transaction.
+func (r *SQLConnectorRepository) WithTx(tx *sql.Tx) ConnectorRepository {
+	return &SQLConnectorRepository{db: tx}
+}
+
 func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.DatabaseConnector) error {
+	if strings.TrimSpace(connector.IdentityRevision) == "" {
+		revision, err := common.NewUUID()
+		if err != nil {
+			return fmt.Errorf("建立資料庫連接器 identity revision 失敗: %w", err)
+		}
+		connector.IdentityRevision = revision
+	}
 	query := `INSERT INTO database_connectors (
-		id, name, kind, connection_config, status, last_check_at, last_check_error, enabled, default_write_interval_seconds,
+		id, name, kind, connection_config, identity_revision, status, last_check_at, last_check_error, enabled, default_write_interval_seconds,
 		last_schema_ensure_at, last_schema_ensure_status, last_schema_ensure_error,
 		last_write_at, last_write_status, last_write_error,
 		last_flush_at, last_flush_status, last_flush_error,
 		created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(
 		ctx,
@@ -34,6 +54,7 @@ func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.D
 		connector.Name,
 		connector.Kind,
 		connector.ConnectionConfig,
+		connector.IdentityRevision,
 		connector.Status,
 		connector.LastCheckAt,
 		connector.LastCheckError,
@@ -58,14 +79,26 @@ func (r *SQLConnectorRepository) Create(ctx context.Context, connector *schema.D
 }
 
 func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.DatabaseConnector) error {
+	return r.UpdateWithExpectedIdentityRevision(ctx, connector, connector.IdentityRevision)
+}
+
+func (r *SQLConnectorRepository) UpdateWithExpectedIdentityRevision(
+	ctx context.Context,
+	connector *schema.DatabaseConnector,
+	expectedRevision string,
+) error {
+	expectedRevision = strings.TrimSpace(expectedRevision)
+	if expectedRevision == "" || strings.TrimSpace(connector.IdentityRevision) == "" {
+		return fmt.Errorf("%w: 資料庫連接器 identity revision 不可為空", ErrConnectorRevisionConflict)
+	}
 	query := `UPDATE database_connectors
-		SET name = ?, kind = ?, connection_config = ?, status = ?, last_check_at = ?, last_check_error = ?,
+		SET name = ?, kind = ?, connection_config = ?, identity_revision = ?, status = ?, last_check_at = ?, last_check_error = ?,
 			enabled = ?, default_write_interval_seconds = ?,
 			last_schema_ensure_at = ?, last_schema_ensure_status = ?, last_schema_ensure_error = ?,
 			last_write_at = ?, last_write_status = ?, last_write_error = ?,
 			last_flush_at = ?, last_flush_status = ?, last_flush_error = ?,
-			updated_at = ?
-		WHERE id = ?`
+		updated_at = ?
+		WHERE id = ? AND identity_revision = ?`
 
 	result, err := r.db.ExecContext(
 		ctx,
@@ -73,6 +106,7 @@ func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.D
 		connector.Name,
 		connector.Kind,
 		connector.ConnectionConfig,
+		connector.IdentityRevision,
 		connector.Status,
 		connector.LastCheckAt,
 		connector.LastCheckError,
@@ -89,6 +123,7 @@ func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.D
 		connector.LastFlushError,
 		connector.UpdatedAt,
 		connector.ID,
+		expectedRevision,
 	)
 	if err != nil {
 		return fmt.Errorf("更新資料庫連接器失敗: %w", err)
@@ -99,7 +134,15 @@ func (r *SQLConnectorRepository) Update(ctx context.Context, connector *schema.D
 		return fmt.Errorf("取得資料庫連接器更新筆數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("資料庫連接器不存在")
+		var exists int
+		err := r.db.QueryRowContext(ctx, `SELECT 1 FROM database_connectors WHERE id = ?`, connector.ID).Scan(&exists)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("%w: 資料庫連接器不存在", ErrConnectorNotFound)
+		}
+		if err != nil {
+			return fmt.Errorf("檢查資料庫連接器更新衝突失敗: %w", err)
+		}
+		return fmt.Errorf("%w: 資料庫連接器 identity revision 已變更", ErrConnectorRevisionConflict)
 	}
 	return nil
 }
@@ -115,7 +158,7 @@ func (r *SQLConnectorRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("取得資料庫連接器刪除筆數失敗: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("資料庫連接器不存在")
+		return fmt.Errorf("%w: 資料庫連接器不存在", ErrConnectorNotFound)
 	}
 	return nil
 }
@@ -152,11 +195,16 @@ func (r *SQLConnectorRepository) List(ctx context.Context, filter ConnectorListF
 }
 
 type SQLTargetMappingRepository struct {
-	db *sql.DB
+	db sqlRunner
 }
 
 func NewSQLTargetMappingRepository(db *sql.DB) *SQLTargetMappingRepository {
 	return &SQLTargetMappingRepository{db: db}
+}
+
+// WithTx returns the repository bound to a caller-owned local transaction.
+func (r *SQLTargetMappingRepository) WithTx(tx *sql.Tx) TargetMappingRepository {
+	return &SQLTargetMappingRepository{db: tx}
 }
 
 func (r *SQLTargetMappingRepository) Create(ctx context.Context, mapping *schema.DatabaseTargetMapping) error {

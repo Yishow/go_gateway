@@ -10,6 +10,7 @@ export interface DbConnector extends DatabaseDeliveryOutcomeFields {
   database: string;
   username: string;
   password?: string;
+  clear_password?: boolean;
   /** 連線身分被換掉、既有密碼已不適用時為 true，需重新輸入才能存檔。 */
   password_required?: boolean;
   schema: string;
@@ -19,6 +20,9 @@ export interface DbConnector extends DatabaseDeliveryOutcomeFields {
   timestamp_column: string;
   status: string;
   connector_id?: string;
+  identity_revision?: string;
+  /** 最近一次成功儲存的第 4 步資料庫設定版本；下一筆儲存必須帶回，舊版本會被拒絕。 */
+  setup_revision?: string;
   workspace_id?: string;
   persisted?: boolean;
   save_state?: DatabaseSaveState;
@@ -57,6 +61,7 @@ export interface Connector {
 
 export interface SettingsConnector {
   id: string;
+  identity_revision?: string;
   name: string;
   kind: 'sqlite' | 'postgres' | 'mysql' | 'sqlserver';
   host: string;

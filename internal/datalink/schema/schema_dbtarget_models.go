@@ -32,6 +32,7 @@ type DatabaseConnector struct {
 	Name                        string                  `json:"name" db:"name"`
 	Kind                        DatabaseConnectorKind   `json:"kind" db:"kind"`
 	ConnectionConfig            string                  `json:"connection_config" db:"connection_config"`
+	IdentityRevision            string                  `json:"identity_revision" db:"identity_revision"`
 	Status                      DatabaseConnectorStatus `json:"status" db:"status"`
 	LastCheckAt                 *time.Time              `json:"last_check_at,omitempty" db:"last_check_at"`
 	LastCheckError              string                  `json:"last_check_error,omitempty" db:"last_check_error"`

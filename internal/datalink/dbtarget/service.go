@@ -9,16 +9,15 @@ import (
 	"strings"
 	"time"
 
-	mysqldriver "github.com/go-sql-driver/mysql"
 	datalinkbase "go-gateway/internal/datalink"
-	"go-gateway/internal/datalink/common"
 	"go-gateway/internal/datalink/schema"
+
+	mysqldriver "github.com/go-sql-driver/mysql"
 )
 
 type tagGetter interface {
 	GetByID(ctx context.Context, id string) (*schema.Tag, error)
 }
-
 type ConnectorService struct {
 	repo        ConnectorRepository
 	mappingRepo TargetMappingRepository
@@ -33,98 +32,25 @@ func NewConnectorService(repo ConnectorRepository, mappingRepoOpt ...TargetMappi
 }
 
 func (s *ConnectorService) Create(ctx context.Context, req CreateConnectorRequest) (*schema.DatabaseConnector, error) {
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return nil, validationError("資料庫連接器名稱不可為空")
-	}
-	connectionConfigJSON, err := serializeConnectionConfig(req.ConnectionConfig)
+	prepared, err := s.PrepareCreate(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	id, err := common.NewUUID()
-	if err != nil {
-		return nil, fmt.Errorf("建立資料庫連接器 ID 失敗: %w", err)
-	}
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
-	defaultIntervalSeconds := defaultWriteIntervalSeconds(req.DefaultWriteIntervalSeconds)
-	status, lastCheckAt, lastCheckError := probeConnector(ctx, req.Kind, req.ConnectionConfig)
-	now := time.Now()
-	connector := &schema.DatabaseConnector{
-		ID:                          id,
-		Name:                        name,
-		Kind:                        req.Kind,
-		ConnectionConfig:            connectionConfigJSON,
-		Status:                      status,
-		LastCheckAt:                 lastCheckAt,
-		LastCheckError:              lastCheckError,
-		Enabled:                     enabled,
-		DefaultWriteIntervalSeconds: defaultIntervalSeconds,
-		CreatedAt:                   now,
-		UpdatedAt:                   now,
-	}
-	if err := s.repo.Create(ctx, connector); err != nil {
+	if err := s.repo.Create(ctx, prepared.Connector); err != nil {
 		return nil, fmt.Errorf("建立資料庫連接器失敗: %w", err)
 	}
-	return connector, nil
+	return prepared.Connector, nil
 }
 
 func (s *ConnectorService) Update(ctx context.Context, id string, req UpdateConnectorRequest) (*schema.DatabaseConnector, error) {
-	connector, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
-	}
-
-	if req.Name != nil {
-		name := strings.TrimSpace(*req.Name)
-		if name == "" {
-			return nil, validationError("資料庫連接器名稱不可為空")
-		}
-		connector.Name = name
-	}
-	if req.Kind != nil {
-		connector.Kind = *req.Kind
-	}
-	if req.Enabled != nil {
-		connector.Enabled = *req.Enabled
-	}
-	if req.DefaultWriteIntervalSeconds != nil {
-		connector.DefaultWriteIntervalSeconds = defaultWriteIntervalSeconds(req.DefaultWriteIntervalSeconds)
-	}
-	existingConnectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
+	prepared, err := s.PrepareUpdate(ctx, id, req)
 	if err != nil {
 		return nil, err
 	}
-	clearPassword := req.ClearPassword != nil && *req.ClearPassword
-	var connectionConfig ConnectionConfig
-	if req.ConnectionConfig != nil {
-		connectionConfig = preserveSensitiveConnectionConfigValues(
-			existingConnectionConfig,
-			*req.ConnectionConfig,
-			clearPassword,
-		)
-		connector.ConnectionConfig, err = serializeConnectionConfig(connectionConfig)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		connectionConfig = cloneConnectionConfig(existingConnectionConfig)
-		if clearPassword {
-			delete(connectionConfig, "password")
-			connector.ConnectionConfig, err = serializeConnectionConfig(connectionConfig)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	connector.Status, connector.LastCheckAt, connector.LastCheckError = probeConnector(ctx, connector.Kind, connectionConfig)
-	connector.UpdatedAt = time.Now()
-	if err := s.repo.Update(ctx, connector); err != nil {
+	if err := s.repo.UpdateWithExpectedIdentityRevision(ctx, prepared.Connector, prepared.expectedRevision); err != nil {
 		return nil, fmt.Errorf("更新資料庫連接器失敗: %w", err)
 	}
-	return connector, nil
+	return prepared.Connector, nil
 }
 
 func (s *ConnectorService) Delete(ctx context.Context, id string) error {
@@ -160,13 +86,17 @@ func (s *ConnectorService) TestConnection(ctx context.Context, id string) (*sche
 	if err != nil {
 		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
 	}
+	expectedIdentityRevision, _, err := validateConnectorIdentityForUpdate(connector, nil)
+	if err != nil {
+		return nil, err
+	}
 	connectionConfig, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {
 		return nil, err
 	}
 	connector.Status, connector.LastCheckAt, connector.LastCheckError = probeConnector(ctx, connector.Kind, connectionConfig)
 	connector.UpdatedAt = time.Now()
-	if err := s.repo.Update(ctx, connector); err != nil {
+	if err := s.repo.UpdateWithExpectedIdentityRevision(ctx, connector, expectedIdentityRevision); err != nil {
 		return nil, fmt.Errorf("更新資料庫連接器測試狀態失敗: %w", err)
 	}
 	return connector, nil
@@ -196,108 +126,25 @@ func NewMappingService(repo TargetMappingRepository, connectorRepo ConnectorRepo
 }
 
 func (s *MappingService) Create(ctx context.Context, req CreateTargetMappingRequest) (*schema.DatabaseTargetMapping, error) {
-	connector, err := s.connectorRepo.GetByID(ctx, req.ConnectorID)
+	prepared, err := s.PrepareCreate(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
-	}
-
-	tagEntity, err := s.tagService.GetByID(ctx, req.TagID)
-	if err != nil {
-		return nil, fmt.Errorf("取得標籤失敗: %w", err)
-	}
-	id, err := common.NewUUID()
-	if err != nil {
-		return nil, fmt.Errorf("建立資料庫目標映射 ID 失敗: %w", err)
-	}
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
-	writeMode := req.WriteMode
-	if writeMode == "" {
-		writeMode = schema.DatabaseWriteModeInsert
-	}
-	tableSchema := normalizeOptionalString(req.TableSchema)
-	if tableSchema == "" {
-		tableSchema = defaultSchemaForConnector(connector)
-	}
-	mapping := &schema.DatabaseTargetMapping{
-		ID:                   id,
-		TagID:                strings.TrimSpace(req.TagID),
-		ConnectorID:          connector.ID,
-		TableSchema:          tableSchema,
-		TableName:            strings.TrimSpace(req.TableName),
-		ColumnName:           strings.TrimSpace(req.ColumnName),
-		WriteMode:            writeMode,
-		TimestampColumn:      normalizeTimestampColumnForWriteMode(writeMode, req.TimestampColumn),
-		GroupKey:             normalizeOptionalPointer(req.GroupKey),
-		WriteIntervalSeconds: normalizeOptionalIntPointer(req.WriteIntervalSeconds),
-		Enabled:              enabled,
-		CreatedAt:            time.Now(),
-		UpdatedAt:            time.Now(),
-	}
-	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping, req.AllowMissingTable); err != nil {
 		return nil, err
 	}
-	if err := s.repo.Create(ctx, mapping); err != nil {
+	if err := s.repo.Create(ctx, prepared.Mapping); err != nil {
 		return nil, fmt.Errorf("建立資料庫目標映射失敗: %w", err)
 	}
-	return mapping, nil
+	return prepared.Mapping, nil
 }
 
 func (s *MappingService) Update(ctx context.Context, id string, req UpdateTargetMappingRequest) (*schema.DatabaseTargetMapping, error) {
-	mapping, err := s.repo.GetByID(ctx, id)
+	prepared, err := s.PrepareUpdate(ctx, id, req)
 	if err != nil {
-		return nil, fmt.Errorf("取得資料庫目標映射失敗: %w", err)
-	}
-
-	connector, err := s.connectorRepo.GetByID(ctx, mapping.ConnectorID)
-	if err != nil {
-		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
-	}
-
-	tagEntity, err := s.tagService.GetByID(ctx, mapping.TagID)
-	if err != nil {
-		return nil, fmt.Errorf("取得標籤失敗: %w", err)
-	}
-	if req.TableSchema != nil {
-		tableSchema := normalizeOptionalString(*req.TableSchema)
-		if tableSchema == "" {
-			tableSchema = defaultSchemaForConnector(connector)
-		}
-		mapping.TableSchema = tableSchema
-	}
-	if req.TableName != nil {
-		mapping.TableName = strings.TrimSpace(*req.TableName)
-	}
-	if req.ColumnName != nil {
-		mapping.ColumnName = strings.TrimSpace(*req.ColumnName)
-	}
-	if req.WriteMode != nil {
-		mapping.WriteMode = *req.WriteMode
-	}
-	if mapping.WriteMode != schema.DatabaseWriteModeUpsert {
-		mapping.TimestampColumn = nil
-	} else if req.TimestampColumn != nil {
-		mapping.TimestampColumn = normalizeOptionalPointer(req.TimestampColumn)
-	}
-	if req.Enabled != nil {
-		mapping.Enabled = *req.Enabled
-	}
-	if req.GroupKey != nil {
-		mapping.GroupKey = normalizeOptionalPointer(req.GroupKey)
-	}
-	if req.WriteIntervalSeconds != nil {
-		mapping.WriteIntervalSeconds = normalizeOptionalIntPointer(req.WriteIntervalSeconds)
-	}
-	mapping.UpdatedAt = time.Now()
-	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping, req.AllowMissingTable); err != nil {
 		return nil, err
 	}
-	if err := s.repo.Update(ctx, mapping); err != nil {
+	if err := s.repo.Update(ctx, prepared.Mapping); err != nil {
 		return nil, fmt.Errorf("更新資料庫目標映射失敗: %w", err)
 	}
-	return mapping, nil
+	return prepared.Mapping, nil
 }
 
 func (s *MappingService) Delete(ctx context.Context, id string) error {
@@ -418,7 +265,7 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 			host := defaultString(stringConfigValue(config, "host"), "127.0.0.1")
 			port := defaultString(stringConfigValue(config, "port"), "5432")
 			user := stringConfigValue(config, "user")
-			password := stringConfigValue(config, "password")
+			password, _ := passwordConfigValue(config)
 			databaseName := defaultString(stringConfigValue(config, "database"), stringConfigValue(config, "dbname"))
 			sslMode := defaultString(stringConfigValue(config, "sslmode"), "disable")
 			if user == "" || databaseName == "" {
@@ -426,12 +273,12 @@ func buildExternalDBConfig(kind schema.DatabaseConnectorKind, config ConnectionC
 			}
 			dsn = fmt.Sprintf(
 				"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-				host,
-				port,
-				user,
-				password,
-				databaseName,
-				sslMode,
+				quotePostgresConnectionValue(host),
+				quotePostgresConnectionValue(port),
+				quotePostgresConnectionValue(user),
+				quotePostgresConnectionValue(password),
+				quotePostgresConnectionValue(databaseName),
+				quotePostgresConnectionValue(sslMode),
 			)
 		}
 		return datalinkbase.DBConfig{
@@ -772,7 +619,7 @@ func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseCo
 
 	issues := validateMappingAgainstTables(connector.Kind, *mapping, *tagEntity, tables)
 	for _, issue := range issues {
-		if issue.Severity != "error" {
+		if issue.Severity != validationSeverityError {
 			continue
 		}
 		// allowMissingTable 時，表/欄位尚未建立並非阻擋條件，將由後續 schema 生成補建。
@@ -789,7 +636,7 @@ func validateMappingDefinition(ctx context.Context, connector *schema.DatabaseCo
 // 這類問題可由 schema 生成補建，不應在 allowMissingTable 模式下阻擋儲存。
 func isMissingSchemaObjectIssue(code string) bool {
 	switch code {
-	case "table_missing", "column_missing", "timestamp_column_missing":
+	case validationTableMissingCode, validationColumnMissingCode, validationTimestampColumnMissingCode:
 		return true
 	default:
 		return false
@@ -807,10 +654,10 @@ func validateMappingAgainstTables(
 	table, ok := findTable(tables, mapping.TableSchema, mapping.TableName)
 	if !ok {
 		return append(issues, ValidationIssue{
-			Severity:  "error",
+			Severity:  validationSeverityError,
 			MappingID: mapping.ID,
 			TagID:     mapping.TagID,
-			Code:      "table_missing",
+			Code:      validationTableMissingCode,
 			Message:   fmt.Sprintf("找不到資料表: %s.%s", mapping.TableSchema, mapping.TableName),
 		})
 	}
@@ -818,15 +665,15 @@ func validateMappingAgainstTables(
 	column, ok := findColumn(table.Columns, mapping.ColumnName)
 	if !ok {
 		issues = append(issues, ValidationIssue{
-			Severity:  "error",
+			Severity:  validationSeverityError,
 			MappingID: mapping.ID,
 			TagID:     mapping.TagID,
-			Code:      "column_missing",
+			Code:      validationColumnMissingCode,
 			Message:   fmt.Sprintf("找不到資料欄位: %s", mapping.ColumnName),
 		})
 	} else if !isTypeCompatible(tagEntity.DataType, column) {
 		issues = append(issues, ValidationIssue{
-			Severity:  "error",
+			Severity:  validationSeverityError,
 			MappingID: mapping.ID,
 			TagID:     mapping.TagID,
 			Code:      "column_type_mismatch",
@@ -837,7 +684,7 @@ func validateMappingAgainstTables(
 	if mapping.WriteMode == schema.DatabaseWriteModeUpsert {
 		if mapping.TimestampColumn == nil {
 			issues = append(issues, ValidationIssue{
-				Severity:  "error",
+				Severity:  validationSeverityError,
 				MappingID: mapping.ID,
 				TagID:     mapping.TagID,
 				Code:      "timestamp_missing",
@@ -845,15 +692,15 @@ func validateMappingAgainstTables(
 			})
 		} else if timestampColumn, ok := findColumn(table.Columns, *mapping.TimestampColumn); !ok {
 			issues = append(issues, ValidationIssue{
-				Severity:  "error",
+				Severity:  validationSeverityError,
 				MappingID: mapping.ID,
 				TagID:     mapping.TagID,
-				Code:      "timestamp_column_missing",
+				Code:      validationTimestampColumnMissingCode,
 				Message:   fmt.Sprintf("找不到 timestamp 欄位: %s", *mapping.TimestampColumn),
 			})
 		} else if !timestampColumn.PrimaryKey && !timestampColumn.Unique {
 			issues = append(issues, ValidationIssue{
-				Severity:  "error",
+				Severity:  validationSeverityError,
 				MappingID: mapping.ID,
 				TagID:     mapping.TagID,
 				Code:      "timestamp_column_not_unique",
@@ -868,7 +715,7 @@ func validateMappingAgainstTables(
 				(valueColumn.PrimaryKey || valueColumn.Unique) &&
 				!strings.EqualFold(strings.TrimSpace(mapping.ColumnName), strings.TrimSpace(optionalStringValue(mapping.TimestampColumn))) {
 				issues = append(issues, ValidationIssue{
-					Severity:  "error",
+					Severity:  validationSeverityError,
 					MappingID: mapping.ID,
 					TagID:     mapping.TagID,
 					Code:      "upsert_value_column_unique",
@@ -881,7 +728,7 @@ func validateMappingAgainstTables(
 	return issues
 }
 
-func findTable(tables []TableInfo, schemaName string, tableName string) (TableInfo, bool) {
+func findTable(tables []TableInfo, schemaName, tableName string) (TableInfo, bool) {
 	targetSchema := strings.TrimSpace(schemaName)
 	targetName := strings.TrimSpace(tableName)
 	for _, table := range tables {
@@ -967,7 +814,7 @@ func booleanConfigValue(config ConnectionConfig, defaultValue bool, keys ...stri
 	return defaultValue
 }
 
-func defaultString(value string, defaultValue string) string {
+func defaultString(value, defaultValue string) string {
 	if strings.TrimSpace(value) == "" {
 		return defaultValue
 	}
@@ -982,7 +829,7 @@ func newMySQLDriverConfig(config ConnectionConfig, databaseName string) *mysqldr
 		stringConfigValue(config, "user"),
 		stringConfigValue(config, "username"),
 	)
-	mysqlConfig.Passwd = stringConfigValue(config, "password")
+	mysqlConfig.Passwd, _ = passwordConfigValue(config)
 	mysqlConfig.Net = "tcp"
 	mysqlConfig.Addr = fmt.Sprintf(
 		"%s:%s",
@@ -1065,20 +912,7 @@ func preserveSensitiveConnectionConfigValues(
 	next ConnectionConfig,
 	clearPassword bool,
 ) ConnectionConfig {
-	merged := cloneConnectionConfig(next)
-	for key, value := range next {
-		merged[key] = value
-	}
-
-	if currentPassword := stringConfigValue(existing, "password"); currentPassword != "" {
-		if clearPassword {
-			delete(merged, "password")
-		} else if stringConfigValue(next, "password") == "" {
-			merged["password"] = currentPassword
-		}
-	}
-
-	return merged
+	return mergeConnectorConnectionConfig(existing, next, clearPassword)
 }
 
 func optionalStringValue(value *string) string {

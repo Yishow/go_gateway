@@ -39,13 +39,10 @@ func (s *Service) SaveDatabaseRowGroups(ctx context.Context, connectorID, tableS
 	if err != nil {
 		return nil, err
 	}
-
-	normalized, err := normalizeDatabaseRowGroups(connectorID, tableSchema, tableName, groups)
-	if err != nil {
+	if err := ReplaceDatabaseRowGroups(record, connectorID, tableSchema, tableName, groups); err != nil {
 		return nil, err
 	}
-	record.DatabaseRowGroups = normalized
-	record.DatabaseTargetRefs = filterDatabaseTargetRefs(record.DatabaseTargetRefs, normalized)
+	record.DatabaseSetupRevision = s.newID()
 	record.UpdatedAt = s.now()
 	if err := s.repo.Save(ctx, record); err != nil {
 		return nil, fmt.Errorf("save workspace database row groups: %w", err)
@@ -53,14 +50,20 @@ func (s *Service) SaveDatabaseRowGroups(ctx context.Context, connectorID, tableS
 	return cloneRecord(record), nil
 }
 
+// ReplaceDatabaseRowGroups validates groups against the connector scope and
+// stores them on record, dropping target references outside any group.
+func ReplaceDatabaseRowGroups(record *Record, connectorID, tableSchema, tableName string, groups []DatabaseRowGroup) error {
+	normalized, err := normalizeDatabaseRowGroups(connectorID, tableSchema, tableName, groups)
+	if err != nil {
+		return err
+	}
+	record.DatabaseRowGroups = normalized
+	record.DatabaseTargetRefs = filterDatabaseTargetRefs(record.DatabaseTargetRefs, normalized)
+	return nil
+}
+
 // SaveDatabaseTargetReference attaches workspace metadata to a point target.
 func (s *Service) SaveDatabaseTargetReference(ctx context.Context, pointID, rowGroupID string) (*Record, error) {
-	pointID = strings.TrimSpace(pointID)
-	rowGroupID = strings.TrimSpace(rowGroupID)
-	if pointID == "" {
-		return nil, workspaceValidationError("database target point id 不能為空")
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -68,12 +71,31 @@ func (s *Service) SaveDatabaseTargetReference(ctx context.Context, pointID, rowG
 	if err != nil {
 		return nil, err
 	}
+	if err := SetDatabaseTargetReference(record, pointID, rowGroupID); err != nil {
+		return nil, err
+	}
+	record.DatabaseSetupRevision = s.newID()
+	record.UpdatedAt = s.now()
+	if err := s.repo.Save(ctx, record); err != nil {
+		return nil, fmt.Errorf("save workspace database target reference: %w", err)
+	}
+	return cloneRecord(record), nil
+}
+
+// SetDatabaseTargetReference records which row group, if any, a point target
+// uses. The row group must already exist on record and contain the point.
+func SetDatabaseTargetReference(record *Record, pointID, rowGroupID string) error {
+	pointID = strings.TrimSpace(pointID)
+	rowGroupID = strings.TrimSpace(rowGroupID)
+	if pointID == "" {
+		return workspaceValidationError("database target point id 不能為空")
+	}
 	if rowGroupID != "" {
 		if !databaseRowGroupExists(record.DatabaseRowGroups, rowGroupID) {
-			return nil, workspaceValidationError("database target row group does not exist")
+			return workspaceValidationError("database target row group does not exist")
 		}
 		if !databaseRowGroupContainsPoint(record.DatabaseRowGroups, rowGroupID, pointID) {
-			return nil, workspaceValidationError("database target row group does not contain point")
+			return workspaceValidationError("database target row group does not contain point")
 		}
 	}
 
@@ -87,11 +109,7 @@ func (s *Service) SaveDatabaseTargetReference(ctx context.Context, pointID, rowG
 		refs = append(refs, DatabaseTargetRef{PointID: pointID, RowGroupID: rowGroupID})
 	}
 	record.DatabaseTargetRefs = refs
-	record.UpdatedAt = s.now()
-	if err := s.repo.Save(ctx, record); err != nil {
-		return nil, fmt.Errorf("save workspace database target reference: %w", err)
-	}
-	return cloneRecord(record), nil
+	return nil
 }
 
 func normalizeDatabaseRowGroups(connectorID, tableSchema, tableName string, groups []DatabaseRowGroup) ([]DatabaseRowGroup, error) {

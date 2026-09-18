@@ -9,7 +9,14 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-var ErrValidation = errors.New("database target validation failed")
+var (
+	ErrValidation                = errors.New("database target validation failed")
+	ErrConnectorNotFound         = errors.New("database connector not found")
+	ErrConnectorRevisionConflict = errors.New("database connector identity revision conflict")
+	// ErrConnectorDisabled reports a saved connector that exists but is
+	// disabled, so callers can ask for it to be enabled instead of hiding it.
+	ErrConnectorDisabled = errors.New("database connector is disabled")
+)
 
 func validationError(message string) error {
 	return fmt.Errorf("%w: %s", ErrValidation, message)
@@ -39,6 +46,7 @@ type UpdateConnectorRequest struct {
 	Name                        *string                       `json:"name,omitempty"`
 	ConnectionConfig            *ConnectionConfig             `json:"connection_config,omitempty"`
 	ClearPassword               *bool                         `json:"clear_password,omitempty"`
+	ExpectedIdentityRevision    *string                       `json:"expected_identity_revision,omitempty"`
 	Enabled                     *bool                         `json:"enabled,omitempty"`
 	Kind                        *schema.DatabaseConnectorKind `json:"kind,omitempty"`
 	DefaultWriteIntervalSeconds *int                          `json:"default_write_interval_seconds,omitempty"`
@@ -103,6 +111,7 @@ type ValidationResult struct {
 type ConnectorRepository interface {
 	Create(ctx context.Context, connector *schema.DatabaseConnector) error
 	Update(ctx context.Context, connector *schema.DatabaseConnector) error
+	UpdateWithExpectedIdentityRevision(ctx context.Context, connector *schema.DatabaseConnector, expectedRevision string) error
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*schema.DatabaseConnector, error)
 	List(ctx context.Context, filter ConnectorListFilter) ([]*schema.DatabaseConnector, error)

@@ -4,6 +4,7 @@ const (
 	apiResponseAppliedKey = "applied"
 
 	apiValidationErrorCode = "validation"
+	apiInternalErrorCode   = "internal"
 
 	connectionNotFoundMessage               = "connection not found"
 	connectionNotFoundOrNotConnectedMessage = "connection not found or not connected"

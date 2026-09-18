@@ -21,6 +21,7 @@ func (s *Service) BindDatabaseConnector(ctx context.Context, connectorID string)
 	}
 
 	record.DatabaseConnectorID = connectorID
+	record.DatabaseSetupRevision = s.newID()
 	record.UpdatedAt = s.now()
 	if err := s.repo.Save(ctx, record); err != nil {
 		return nil, fmt.Errorf("bind workspace database connector: %w", err)

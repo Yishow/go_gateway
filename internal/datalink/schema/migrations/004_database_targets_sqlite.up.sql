@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS database_connectors (
     name              TEXT NOT NULL UNIQUE,
     kind              TEXT NOT NULL,
     connection_config TEXT NOT NULL,
+    identity_revision TEXT NOT NULL DEFAULT '',
     status            TEXT NOT NULL,
     last_check_at     DATETIME,
     last_check_error  TEXT NOT NULL DEFAULT '',

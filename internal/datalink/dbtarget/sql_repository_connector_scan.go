@@ -12,7 +12,7 @@ import (
 )
 
 const connectorSelectColumns = `
-	id, name, kind, connection_config, status, COALESCE(CAST(last_check_at AS TEXT), ''),
+	id, name, kind, connection_config, identity_revision, status, COALESCE(CAST(last_check_at AS TEXT), ''),
 	last_check_error, enabled, default_write_interval_seconds,
 	COALESCE(CAST(last_schema_ensure_at AS TEXT), ''), last_schema_ensure_status, last_schema_ensure_error,
 	COALESCE(CAST(last_write_at AS TEXT), ''), last_write_status, last_write_error,
@@ -25,7 +25,7 @@ func scanConnectorRow(row *sql.Row) (*schema.DatabaseConnector, error) {
 
 	err := scanConnector(row.Scan, &connector, &lastCheckAt, &lastSchemaAt, &lastWriteAt, &lastFlushAt, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("資料庫連接器不存在")
+		return nil, fmt.Errorf("%w: 資料庫連接器不存在", ErrConnectorNotFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("掃描資料庫連接器失敗: %w", err)
@@ -67,6 +67,7 @@ func scanConnector(
 		&connector.Name,
 		&connector.Kind,
 		&connector.ConnectionConfig,
+		&connector.IdentityRevision,
 		&connector.Status,
 		lastCheckAt,
 		&connector.LastCheckError,

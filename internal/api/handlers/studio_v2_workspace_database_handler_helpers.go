@@ -3,34 +3,34 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
-	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/datalink/workspace"
 
 	"github.com/gin-gonic/gin"
 )
 
 type studioV2WorkspaceDatabaseConfigRequest struct {
-	Kind                 schema.DatabaseConnectorKind `json:"kind"`
-	Name                 string                       `json:"name"`
-	Host                 string                       `json:"host"`
-	Port                 int                          `json:"port"`
-	Database             string                       `json:"database"`
-	Username             string                       `json:"username"`
-	Password             string                       `json:"password"`
-	Schema               string                       `json:"schema"`
-	Table                string                       `json:"table"`
-	WriteMode            schema.DatabaseWriteMode     `json:"write_mode"`
-	WriteIntervalSeconds int                          `json:"write_interval_seconds"`
-	TimestampColumn      string                       `json:"timestamp_column"`
-	RowGroups            []workspace.DatabaseRowGroup `json:"row_groups"`
+	ConnectorID               string                       `json:"connector_id"`
+	ExpectedConnectorRevision string                       `json:"expected_connector_revision"`
+	Kind                      schema.DatabaseConnectorKind `json:"kind"`
+	Name                      string                       `json:"name"`
+	Host                      string                       `json:"host"`
+	Port                      int                          `json:"port"`
+	Database                  string                       `json:"database"`
+	Username                  string                       `json:"username"`
+	Password                  string                       `json:"password"`
+	ClearPassword             bool                         `json:"clear_password"`
+	Schema                    string                       `json:"schema"`
+	Table                     string                       `json:"table"`
+	WriteMode                 schema.DatabaseWriteMode     `json:"write_mode"`
+	WriteIntervalSeconds      int                          `json:"write_interval_seconds"`
+	TimestampColumn           string                       `json:"timestamp_column"`
+	RowGroups                 []workspace.DatabaseRowGroup `json:"row_groups"`
+	ExpectedSetupRevision     string                       `json:"expected_setup_revision"`
 }
 
 func workspaceDatabasePasswordRequired(kind schema.DatabaseConnectorKind) bool {
@@ -39,6 +39,8 @@ func workspaceDatabasePasswordRequired(kind schema.DatabaseConnectorKind) bool {
 
 type studioV2WorkspaceDatabaseConfigResponse struct {
 	ID                     string                         `json:"id"`
+	IdentityRevision       string                         `json:"identity_revision"`
+	SetupRevision          string                         `json:"setup_revision,omitempty"`
 	WorkspaceID            string                         `json:"workspace_id"`
 	Kind                   schema.DatabaseConnectorKind   `json:"kind"`
 	Name                   string                         `json:"name"`
@@ -71,9 +73,10 @@ type studioV2WorkspaceDatabaseConfigResponse struct {
 }
 
 type studioV2WorkspaceDatabaseTargetRequest struct {
-	ColumnName string `json:"column_name"`
-	Enabled    bool   `json:"enabled"`
-	RowGroupID string `json:"row_group_id"`
+	ColumnName            string `json:"column_name"`
+	Enabled               bool   `json:"enabled"`
+	RowGroupID            string `json:"row_group_id"`
+	ExpectedSetupRevision string `json:"expected_setup_revision"`
 }
 
 type studioV2WorkspaceDatabaseTargetResponse struct {
@@ -85,6 +88,7 @@ type studioV2WorkspaceDatabaseTargetResponse struct {
 	Enabled             bool                       `json:"enabled"`
 	RowGroupID          string                     `json:"row_group_id,omitempty"`
 	SaveState           string                     `json:"save_state"`
+	SetupRevision       string                     `json:"setup_revision,omitempty"`
 	RuntimeApplyStatus  string                     `json:"runtime_apply_status,omitempty"`
 	RuntimeApplyMessage string                     `json:"runtime_apply_message,omitempty"`
 	RuntimeApplyIssues  []workspace.ReadinessIssue `json:"runtime_apply_issues,omitempty"`
@@ -114,55 +118,6 @@ func (h *StudioV2WorkspaceDatabaseHandler) parseWorkspaceDatabaseConfigRequest(c
 		return nil, studioV2WorkspaceDatabaseConfigRequest{}, false
 	}
 	return record, req, true
-}
-
-func (h *StudioV2WorkspaceDatabaseHandler) saveWorkspaceConnector(c *gin.Context, record *workspace.Record, req studioV2WorkspaceDatabaseConfigRequest) (*schema.DatabaseConnector, error) {
-	connectionConfig := dbtarget.ConnectionConfig{
-		"host":             strings.TrimSpace(req.Host),
-		"port":             req.Port,
-		"user":             strings.TrimSpace(req.Username),
-		"database":         strings.TrimSpace(req.Database),
-		"schema":           strings.TrimSpace(req.Schema),
-		"table":            strings.TrimSpace(req.Table),
-		"write_mode":       string(req.WriteMode),
-		"timestamp_column": strings.TrimSpace(req.TimestampColumn),
-	}
-	if req.Kind == schema.DatabaseConnectorKindSQLite {
-		connectionConfig["dsn"] = strings.TrimSpace(req.Database)
-	}
-	// 僅在使用者實際輸入密碼時才寫入；更新時留空則交由
-	// preserveSensitiveConnectionConfigValues 保留既有密碼。
-	if workspaceDatabasePasswordRequired(req.Kind) && req.Password != "" {
-		connectionConfig["password"] = req.Password
-	}
-	clearPassword := !workspaceDatabasePasswordRequired(req.Kind)
-
-	if strings.TrimSpace(record.DatabaseConnectorID) == "" {
-		saved, err := h.connectorSvc.Create(c.Request.Context(), dbtarget.CreateConnectorRequest{
-			Name:                        strings.TrimSpace(req.Name),
-			Kind:                        req.Kind,
-			ConnectionConfig:            connectionConfig,
-			DefaultWriteIntervalSeconds: workspaceOptionalInt(req.WriteIntervalSeconds),
-		})
-		if err != nil {
-			return nil, err
-		}
-		if _, err := h.workspaceSvc.BindDatabaseConnector(c.Request.Context(), saved.ID); err != nil {
-			if cleanupErr := h.connectorSvc.Delete(c.Request.Context(), saved.ID); cleanupErr != nil {
-				return nil, fmt.Errorf("bind workspace database connector failed and cleanup failed: bind=%w cleanup=%v", err, cleanupErr)
-			}
-			return nil, err
-		}
-		return saved, nil
-	}
-
-	return h.connectorSvc.Update(c.Request.Context(), record.DatabaseConnectorID, dbtarget.UpdateConnectorRequest{
-		Name:                        workspaceOptionalString(strings.TrimSpace(req.Name)),
-		Kind:                        &req.Kind,
-		ConnectionConfig:            &connectionConfig,
-		ClearPassword:               boolPtr(clearPassword),
-		DefaultWriteIntervalSeconds: workspaceOptionalInt(req.WriteIntervalSeconds),
-	})
 }
 
 func (h *StudioV2WorkspaceDatabaseHandler) resolveWorkspaceDatabaseTarget(c *gin.Context) (*workspace.Record, *schema.DatabaseConnector, workspacePointBinding, studioV2WorkspaceDatabaseTargetRequest, bool) {
@@ -233,6 +188,7 @@ func (h *StudioV2WorkspaceDatabaseHandler) listWorkspacePointBindings(c *gin.Con
 func buildWorkspaceDatabaseConfigResponse(workspaceID string, connector *schema.DatabaseConnector, rowGroups []workspace.DatabaseRowGroup) studioV2WorkspaceDatabaseConfigResponse {
 	return studioV2WorkspaceDatabaseConfigResponse{
 		ID:                     connector.ID,
+		IdentityRevision:       connector.IdentityRevision,
 		WorkspaceID:            workspaceID,
 		Kind:                   connector.Kind,
 		Name:                   connector.Name,
@@ -255,7 +211,7 @@ func buildWorkspaceDatabaseConfigResponse(workspaceID string, connector *schema.
 		LastFlushAt:            connector.LastFlushAt,
 		LastFlushStatus:        connector.LastFlushStatus,
 		LastFlushError:         connector.LastFlushError,
-		SaveState:              "saved",
+		SaveState:              workspaceSaveStateSaved,
 		RowGroups:              rowGroups,
 		CreatedAt:              connector.CreatedAt,
 		UpdatedAt:              connector.UpdatedAt,
@@ -286,7 +242,10 @@ func connectorConfigString(connector *schema.DatabaseConnector, key string) stri
 
 func connectorConfigInt(connector *schema.DatabaseConnector, key string) int {
 	response := toDatabaseConnectorResponse(connector)
-	value, _ := strconv.Atoi(stringValueFromAny(response.ConnectionConfig[key]))
+	value, err := strconv.Atoi(stringValueFromAny(response.ConnectionConfig[key]))
+	if err != nil {
+		return 0
+	}
 	return value
 }
 
@@ -313,7 +272,10 @@ func stringValueFromAny(value any) string {
 	case nil:
 		return ""
 	default:
-		data, _ := json.Marshal(typed)
+		data, err := json.Marshal(typed)
+		if err != nil {
+			return ""
+		}
 		return strings.Trim(string(data), "\"")
 	}
 }
@@ -331,28 +293,4 @@ func workspaceOptionalInt(value int) *int {
 func workspaceOptionalWriteMode(value schema.DatabaseWriteMode) *schema.DatabaseWriteMode {
 	copyValue := value
 	return &copyValue
-}
-
-func renderStudioV2WorkspaceDatabaseError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, workspace.ErrValidation), errors.Is(err, sourcerule.ErrValidation), errors.Is(err, dbtarget.ErrValidation):
-		renderStudioV2WorkspaceValidationError(c, err)
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": "Studio V2 database operation failed"}})
-	}
-}
-
-func renderStudioV2WorkspaceSchemaEnsureError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, workspace.ErrValidation), errors.Is(err, sourcerule.ErrValidation), errors.Is(err, dbtarget.ErrValidation):
-		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"success": false,
-			"error": gin.H{
-				"code":    "validation",
-				"message": err.Error(),
-			},
-		})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": "Studio V2 database operation failed"}})
-	}
 }

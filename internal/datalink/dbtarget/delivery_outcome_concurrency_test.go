@@ -37,6 +37,7 @@ func TestWriter_RecordWriteOutcome_DoesNotOverwriteConnectorConfigOrName(t *test
 		Name:             "Renamed By User",
 		Kind:             schema.DatabaseConnectorKindPostgres,
 		ConnectionConfig: `{"host":"10.0.0.1"}`,
+		IdentityRevision: initConn.IdentityRevision,
 		Status:           "ready",
 		Enabled:          true,
 		CreatedAt:        initConn.CreatedAt,

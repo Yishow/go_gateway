@@ -67,6 +67,9 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", sqliteDatabaseTargetMigration, err)
 		}
+		if err := ensureSQLiteDatabaseConnectorIdentityRevision(db); err != nil {
+			return err
+		}
 		if err := ensureSQLiteDatabaseTargetGroupingColumns(db); err != nil {
 			return err
 		}
@@ -115,11 +118,7 @@ func (m *Migrator) Migrate(db *sql.DB) error {
 		if err := ensureSQLiteWorkspaceAuditHistoryTable(db); err != nil {
 			return err
 		}
-		if err := ensureSQLiteTelemetryRecordingMigrations(db); err != nil {
-			return err
-		}
-
-		return nil
+		return ensureSQLiteTelemetryRecordingMigrations(db)
 	}
 
 	// Fallback to iterating if specific file not found (legacy behavior or different structure)

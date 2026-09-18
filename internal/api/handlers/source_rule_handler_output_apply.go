@@ -70,7 +70,7 @@ func writeOutputApplyError(c *gin.Context, err error) {
 		return
 	}
 	statusCode := http.StatusInternalServerError
-	errorCode := "internal"
+	errorCode := apiInternalErrorCode
 	switch {
 	case errors.Is(err, sourcerule.ErrSourceRuleNotFound):
 		statusCode = http.StatusNotFound

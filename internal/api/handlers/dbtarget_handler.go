@@ -29,6 +29,7 @@ type databaseConnectorResponse struct {
 	Name             string                         `json:"name"`
 	Kind             schema.DatabaseConnectorKind   `json:"kind"`
 	ConnectionConfig map[string]any                 `json:"connection_config"`
+	IdentityRevision string                         `json:"identity_revision"`
 	Status           schema.DatabaseConnectorStatus `json:"status"`
 	LastCheckAt      any                            `json:"last_check_at,omitempty"`
 	LastCheckError   string                         `json:"last_check_error,omitempty"`
@@ -44,7 +45,7 @@ func (h *DatabaseTargetHandler) ListConnectors(c *gin.Context) {
 
 	connectors, err := h.connectorSvc.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -53,39 +54,39 @@ func (h *DatabaseTargetHandler) ListConnectors(c *gin.Context) {
 		data = append(data, toDatabaseConnectorResponse(connector))
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: data})
 }
 
 func (h *DatabaseTargetHandler) CreateConnector(c *gin.Context) {
 	var req dbtarget.CreateConnectorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	connector, err := h.connectorSvc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": toDatabaseConnectorResponse(connector)})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: toDatabaseConnectorResponse(connector)})
 }
 
 func (h *DatabaseTargetHandler) GetConnector(c *gin.Context) {
 	connector, err := h.connectorSvc.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": toDatabaseConnectorResponse(connector)})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: toDatabaseConnectorResponse(connector)})
 }
 
 func (h *DatabaseTargetHandler) UpdateConnector(c *gin.Context) {
 	var req dbtarget.UpdateConnectorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -95,11 +96,11 @@ func (h *DatabaseTargetHandler) UpdateConnector(c *gin.Context) {
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": toDatabaseConnectorResponse(connector)})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: toDatabaseConnectorResponse(connector)})
 }
 
 func (h *DatabaseTargetHandler) DeleteConnector(c *gin.Context) {
@@ -108,11 +109,11 @@ func (h *DatabaseTargetHandler) DeleteConnector(c *gin.Context) {
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 func (h *DatabaseTargetHandler) TestConnector(c *gin.Context) {
@@ -122,11 +123,11 @@ func (h *DatabaseTargetHandler) TestConnector(c *gin.Context) {
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": toDatabaseConnectorResponse(connector)})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: toDatabaseConnectorResponse(connector)})
 }
 
 func (h *DatabaseTargetHandler) ListTables(c *gin.Context) {
@@ -136,11 +137,11 @@ func (h *DatabaseTargetHandler) ListTables(c *gin.Context) {
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": tables})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: tables})
 }
 
 func (h *DatabaseTargetHandler) ValidateConnector(c *gin.Context) {
@@ -150,11 +151,11 @@ func (h *DatabaseTargetHandler) ValidateConnector(c *gin.Context) {
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: result})
 }
 
 func (h *DatabaseTargetHandler) ListMappings(c *gin.Context) {
@@ -166,43 +167,43 @@ func (h *DatabaseTargetHandler) ListMappings(c *gin.Context) {
 
 	mappings, err := h.mappingSvc.List(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mappings})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mappings})
 }
 
 func (h *DatabaseTargetHandler) CreateMapping(c *gin.Context) {
 	var req dbtarget.CreateTargetMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
 	mapping, err := h.mappingSvc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusUnprocessableEntity, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": mapping})
+	c.JSON(http.StatusCreated, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mapping})
 }
 
 func (h *DatabaseTargetHandler) GetMapping(c *gin.Context) {
 	mapping, err := h.mappingSvc.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapping})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mapping})
 }
 
 func (h *DatabaseTargetHandler) UpdateMapping(c *gin.Context) {
 	var req dbtarget.UpdateTargetMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(http.StatusBadRequest, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
@@ -212,11 +213,11 @@ func (h *DatabaseTargetHandler) UpdateMapping(c *gin.Context) {
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": mapping})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mapping})
 }
 
 func (h *DatabaseTargetHandler) DeleteMapping(c *gin.Context) {
@@ -225,11 +226,11 @@ func (h *DatabaseTargetHandler) DeleteMapping(c *gin.Context) {
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"success": false, "error": gin.H{"message": err.Error()}})
+		c.JSON(status, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 func toDatabaseConnectorResponse(connector *schema.DatabaseConnector) databaseConnectorResponse {
@@ -238,6 +239,7 @@ func toDatabaseConnectorResponse(connector *schema.DatabaseConnector) databaseCo
 		Name:             connector.Name,
 		Kind:             connector.Kind,
 		ConnectionConfig: map[string]any{},
+		IdentityRevision: connector.IdentityRevision,
 		Status:           connector.Status,
 		LastCheckError:   connector.LastCheckError,
 		Enabled:          connector.Enabled,
@@ -247,7 +249,9 @@ func toDatabaseConnectorResponse(connector *schema.DatabaseConnector) databaseCo
 	if connector.LastCheckAt != nil {
 		response.LastCheckAt = connector.LastCheckAt
 	}
-	_ = json.Unmarshal([]byte(connector.ConnectionConfig), &response.ConnectionConfig)
+	if err := json.Unmarshal([]byte(connector.ConnectionConfig), &response.ConnectionConfig); err != nil {
+		response.ConnectionConfig = map[string]any{}
+	}
 	redactConnectionSecrets(response.ConnectionConfig)
 	return response
 }

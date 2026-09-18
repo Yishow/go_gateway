@@ -26,6 +26,7 @@ func TestStudioV2WorkspaceDatabaseHandler_RowGroupsRoundTripWithTargetRefs(t *te
 
 	targetReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[0], workspaceDatabaseTargetRequest{
 		ColumnName: "temperature_c", Enabled: true, RowGroupID: "group-shared-temp",
+		ExpectedSetupRevision: currentWorkspaceSetupRevision(t, fixture),
 	})
 	targetResp := httptest.NewRecorder()
 	targetCtx, _ := gin.CreateTestContext(targetResp)

@@ -201,6 +201,7 @@ export function mapDatabaseConnectorToSettingsConnector(
 
   return {
     id: connector.id,
+    identity_revision: connector.identity_revision,
     name: connector.name,
     kind: connector.kind,
     host: connectorConfigValue(config, 'host'),

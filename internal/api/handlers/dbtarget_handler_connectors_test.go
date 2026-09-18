@@ -57,7 +57,7 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(http.MethodPost, "/datalink/db-targets/connectors", bytes.NewBuffer(createBody))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/db-targets/connectors", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
@@ -67,9 +67,11 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	var createPayload map[string]any
 	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &createPayload))
 	assert.Equal(t, true, createPayload["success"])
-	connectorID := createPayload["data"].(map[string]any)["id"].(string)
+	connectorData := createPayload["data"].(map[string]any)
+	connectorID := connectorData["id"].(string)
+	assert.NotEmpty(t, connectorData["identity_revision"])
 
-	req, err = http.NewRequest(http.MethodGet, "/datalink/db-targets/connectors", nil)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, "/datalink/db-targets/connectors", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -88,7 +90,7 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	req, err = http.NewRequest(http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(updateBody))
+	req, err = http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(updateBody))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp = httptest.NewRecorder()
@@ -100,7 +102,7 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	require.NotNil(t, saved)
 	assert.Contains(t, saved.ConnectionConfig, "sensor_values_v2")
 
-	req, err = http.NewRequest(http.MethodPost, "/datalink/db-targets/connectors/"+connectorID+"/test", nil)
+	req, err = http.NewRequestWithContext(ctx, http.MethodPost, "/datalink/db-targets/connectors/"+connectorID+"/test", http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -112,7 +114,7 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	testData := testPayload["data"].(map[string]any)
 	assert.Equal(t, "ready", testData["status"])
 
-	req, err = http.NewRequest(http.MethodDelete, "/datalink/db-targets/connectors/"+connectorID, nil)
+	req, err = http.NewRequestWithContext(ctx, http.MethodDelete, "/datalink/db-targets/connectors/"+connectorID, http.NoBody)
 	require.NoError(t, err)
 	resp = httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
@@ -146,7 +148,7 @@ func TestDatabaseTargetHandler_ClearPasswordRemovesStoredCredential(t *testing.T
 	})
 	require.NoError(t, err)
 
-	req, err := http.NewRequest(http.MethodPost, "/datalink/db-targets/connectors", bytes.NewBuffer(createBody))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/datalink/db-targets/connectors", bytes.NewBuffer(createBody))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
@@ -161,16 +163,15 @@ func TestDatabaseTargetHandler_ClearPasswordRemovesStoredCredential(t *testing.T
 	require.NoError(t, err)
 	require.Contains(t, stored.ConnectionConfig, "postgres-era-secret")
 
-	// 先確認「不帶 clear_password 且密碼留空」會沿用既有憑證——這正是必須
-	// 被 clear_password 覆蓋掉的預設行為。
+	// 相同連線身分下不帶 clear_password 且密碼留空，會沿用既有憑證。
 	preserveBody, err := json.Marshal(map[string]any{
 		"connection_config": map[string]any{
-			"host": "db-b.internal", "port": "3306", "user": "writer_b",
-			"database": "metrics_b", "timeout": "100ms",
+			"host": "db-a.internal", "port": "3306", "user": "writer_a",
+			"database": "metrics_a", "timeout": "100ms",
 		},
 	})
 	require.NoError(t, err)
-	req, err = http.NewRequest(http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(preserveBody))
+	req, err = http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(preserveBody))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp = httptest.NewRecorder()
@@ -179,8 +180,27 @@ func TestDatabaseTargetHandler_ClearPasswordRemovesStoredCredential(t *testing.T
 
 	stored, err = connectorSvc.GetByID(ctx, connectorID)
 	require.NoError(t, err)
-	assert.Contains(t, stored.ConnectionConfig, "postgres-era-secret",
-		"未指定 clear_password 時應沿用既有密碼")
+	assert.Contains(t, stored.ConnectionConfig, "postgres-era-secret")
+
+	// 連線端點變更時不得把舊憑證帶到新端點。
+	endpointBody, err := json.Marshal(map[string]any{
+		"connection_config": map[string]any{
+			"host": "db-b.internal", "port": "3306", "user": "writer_b",
+			"database": "metrics_b", "timeout": "100ms",
+		},
+	})
+	require.NoError(t, err)
+	req, err = http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(endpointBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	resp = httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	require.Equal(t, http.StatusOK, resp.Code)
+
+	stored, err = connectorSvc.GetByID(ctx, connectorID)
+	require.NoError(t, err)
+	assert.NotContains(t, stored.ConnectionConfig, "postgres-era-secret",
+		"端點變更後不得沿用前一組連線的密碼")
 
 	// 帶上 clear_password 後，既有密碼必須真的消失。
 	clearBody, err := json.Marshal(map[string]any{
@@ -191,7 +211,7 @@ func TestDatabaseTargetHandler_ClearPasswordRemovesStoredCredential(t *testing.T
 		},
 	})
 	require.NoError(t, err)
-	req, err = http.NewRequest(http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(clearBody))
+	req, err = http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(clearBody))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp = httptest.NewRecorder()
@@ -214,7 +234,7 @@ func TestDatabaseTargetHandler_ClearPasswordRemovesStoredCredential(t *testing.T
 		},
 	})
 	require.NoError(t, err)
-	req, err = http.NewRequest(http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(rotateBody))
+	req, err = http.NewRequestWithContext(context.Background(), http.MethodPut, "/datalink/db-targets/connectors/"+connectorID, bytes.NewBuffer(rotateBody))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp = httptest.NewRecorder()

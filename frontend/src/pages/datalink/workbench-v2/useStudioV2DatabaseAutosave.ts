@@ -10,9 +10,14 @@ import {
   hydrateStudioV2DatabaseConnector,
   hydrateStudioV2DatabaseRowGroups,
   hydrateStudioV2DatabaseTarget,
+  isSameStudioV2DatabaseTargetEdit,
   isStudioV2DatabaseConnectorValid,
   isStudioV2DatabaseTargetValid,
+  mergeSavedStudioV2DatabaseConnector,
+  mergeSavedStudioV2DatabaseRowGroups,
+  mergeSavedStudioV2DatabaseTarget,
   resolveStudioV2DatabaseTargetPointID,
+  withLatestStudioV2DatabaseRevisions,
   toStudioV2DatabaseConfigRequest,
   toStudioV2DatabaseTargetRequest,
 } from '../../../features/datalink/workbench-v2/state/studioV2DatabaseAutosave';
@@ -20,11 +25,7 @@ import { workbenchV2Reducer, type WorkbenchV2Action } from '../../../features/da
 import type { DbConnector, DbTarget, WorkbenchV2State } from '../../../features/datalink/workbench-v2/state/types';
 import type { StudioV2WorkspaceDatabaseTargetRecord } from '../../../types/datalink';
 import { getSafeErrorStateMessage } from '../../../utils/typedErrors';
-
-type SaveMeta = {
-  inFlight: boolean;
-  pending: boolean;
-};
+import { createDatabaseSaveQueue, type DatabaseSaveJob, type DatabaseSaveQueue } from './databaseSaveQueue';
 
 function sameDatabaseTarget(current: DbTarget | undefined, next: DbTarget): boolean {
   return (
@@ -43,13 +44,6 @@ function sameDatabaseTarget(current: DbTarget | undefined, next: DbTarget): bool
 
 function errorMessageOf(error: unknown, fallback: string): string {
   return getSafeErrorStateMessage(error, fallback);
-}
-
-function saveMetaFor(store: Record<string, SaveMeta>, key: string): SaveMeta {
-  if (!store[key]) {
-    store[key] = { inFlight: false, pending: false };
-  }
-  return store[key];
 }
 
 function buildPersistedPointAliases(state: WorkbenchV2State): Map<string, string> {
@@ -92,15 +86,27 @@ export function useStudioV2DatabaseAutosave(
   const upsertTargetMutation = useUpsertStudioV2DatabaseTargetMutation();
   const lastConfigSignatureRef = React.useRef<string | null>(null);
   const lastTargetsSignatureRef = React.useRef<string | null>(null);
-  const connectorSaveMetaRef = React.useRef<SaveMeta>({ inFlight: false, pending: false });
-  const pendingConnectorStateRef = React.useRef<WorkbenchV2State | null>(null);
-  const deferredTargetSaveRef = React.useRef<Set<string>>(new Set());
-  const flushTargetSaveRef = React.useRef<(pointId: string) => void>(() => undefined);
-  const targetSaveMetaRef = React.useRef<Record<string, SaveMeta>>({});
+  const runSaveRef = React.useRef<(job: DatabaseSaveJob<WorkbenchV2State>) => Promise<boolean>>(async () => false);
+  const saveQueueRef = React.useRef<DatabaseSaveQueue<WorkbenchV2State> | null>(null);
+  if (!saveQueueRef.current) {
+    saveQueueRef.current = createDatabaseSaveQueue<WorkbenchV2State>((job) => runSaveRef.current(job));
+  }
 
   const applyConnectorPatch = React.useCallback((patch: Partial<DbConnector>) => {
     stateRef.current = workbenchV2Reducer(stateRef.current, { type: 'updateDbConnector', patch });
     actions.dispatch({ type: 'updateDbConnector', patch });
+  }, [actions, stateRef]);
+
+  const applySetupRevision = React.useCallback((setupRevision: string | undefined) => {
+    if (!setupRevision || stateRef.current.db.connector.setup_revision === setupRevision) {
+      return;
+    }
+    const connector = { ...stateRef.current.db.connector, setup_revision: setupRevision };
+    stateRef.current = workbenchV2Reducer(stateRef.current, {
+      type: 'SET_STATE',
+      payload: { db: { ...stateRef.current.db, connector } },
+    });
+    actions.dispatch({ type: 'SET_STATE', payload: { db: { ...stateRef.current.db } } });
   }, [actions, stateRef]);
 
   const applyTargetPatch = React.useCallback((pointId: string, patch: Partial<DbTarget>) => {
@@ -212,34 +218,26 @@ export function useStudioV2DatabaseAutosave(
     reconcilePersistedTargets();
   }, [reconcilePersistedTargets]);
 
-  const flushConnectorSave = React.useCallback(async (snapshot?: WorkbenchV2State) => {
-    const meta = connectorSaveMetaRef.current;
-    const saveState = snapshot ?? stateRef.current;
-    const currentConnector = saveState.db.connector;
+  const runConnectorSave = React.useCallback(async (snapshot: WorkbenchV2State): Promise<boolean> => {
+    // 以執行當下的設定與連線身分版本送出：排隊期間前一筆回覆已更新版本，快照裡的版本可能過期。
+    const currentConnector = withLatestStudioV2DatabaseRevisions(snapshot.db.connector, stateRef.current.db.connector);
     if (!isStudioV2DatabaseConnectorValid(currentConnector)) {
       applyConnectorPatch({ save_state: 'draft-invalid', save_error: null });
-      meta.inFlight = false;
-      meta.pending = false;
-      return;
+      return false;
     }
 
-    meta.inFlight = true;
     applyConnectorPatch({ save_state: 'saving', save_error: null });
-    let savedConfig = false;
-    let pendingConnectorState: WorkbenchV2State | null | undefined;
-    let pendingTargetIds: string[] = [];
     try {
       const savedConnector = await updateConfigMutation.mutateAsync(
-        toStudioV2DatabaseConfigRequest(currentConnector, saveState.db.row_groups ?? []),
+        toStudioV2DatabaseConfigRequest(currentConnector, snapshot.db.row_groups ?? []),
       );
-      savedConfig = true;
       stateRef.current = workbenchV2Reducer(stateRef.current, {
         type: 'SET_STATE',
         payload: {
           db: {
             ...stateRef.current.db,
-            connector: hydrateStudioV2DatabaseConnector(savedConnector, currentConnector),
-            row_groups: hydrateStudioV2DatabaseRowGroups(savedConnector.row_groups),
+            connector: mergeSavedStudioV2DatabaseConnector(stateRef.current.db.connector, currentConnector, savedConnector),
+            row_groups: mergeSavedStudioV2DatabaseRowGroups(stateRef.current.db.row_groups, snapshot.db.row_groups, savedConnector.row_groups),
           },
         },
       });
@@ -251,93 +249,61 @@ export function useStudioV2DatabaseAutosave(
           },
         },
       });
+      return true;
     } catch (error) {
       applyConnectorPatch({ save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')) });
-    } finally {
-      meta.inFlight = false;
-      if (meta.pending) {
-        meta.pending = false;
-        pendingConnectorState = pendingConnectorStateRef.current;
-        pendingConnectorStateRef.current = null;
-      } else if (savedConfig) {
-        pendingTargetIds = Array.from(deferredTargetSaveRef.current);
-        deferredTargetSaveRef.current.clear();
-      }
+      return false;
     }
-    if (pendingConnectorState !== undefined) {
-      void flushConnectorSave(pendingConnectorState ?? undefined);
-      return;
-    }
-    pendingTargetIds.forEach((pointId) => flushTargetSaveRef.current(pointId));
   }, [actions, applyConnectorPatch, stateRef, t, updateConfigMutation]);
 
-  const queueConnectorSave = React.useCallback((snapshot?: WorkbenchV2State) => {
-    const meta = connectorSaveMetaRef.current;
-    if (meta.inFlight) {
-      meta.pending = true;
-      pendingConnectorStateRef.current = snapshot ?? stateRef.current;
-      return;
-    }
-    void flushConnectorSave(snapshot ?? stateRef.current);
-  }, [flushConnectorSave, stateRef]);
-
-  const flushTargetSave = React.useCallback(async (pointId: string) => {
-    const meta = saveMetaFor(targetSaveMetaRef.current, pointId);
+  const runTargetSave = React.useCallback(async (pointId: string): Promise<boolean> => {
     const currentTarget = stateRef.current.db.targets[pointId];
     const currentMapping = stateRef.current.mappings[pointId];
     if (!currentTarget) {
-      delete targetSaveMetaRef.current[pointId];
-      return;
+      return true;
     }
-    if (connectorSaveMetaRef.current.inFlight) {
-      deferredTargetSaveRef.current.add(pointId);
-      meta.inFlight = false;
-      meta.pending = false;
-      return;
-    }
-
     if (!isStudioV2DatabaseConnectorValid(stateRef.current.db.connector) || !isStudioV2DatabaseTargetValid(currentTarget, currentMapping)) {
       applyTargetPatch(pointId, { save_state: 'draft-invalid', save_error: null });
-      meta.inFlight = false;
-      meta.pending = false;
-      return;
+      return false;
     }
     const requestPointId = resolveStudioV2DatabaseTargetPointID(pointId, currentMapping);
     if (!requestPointId) {
       applyTargetPatch(pointId, { save_state: 'draft-invalid', save_error: null });
-      meta.inFlight = false;
-      meta.pending = false;
-      return;
+      return false;
     }
 
-    meta.inFlight = true;
     applyTargetPatch(pointId, { save_state: 'saving', save_error: null });
     try {
       const savedTarget = await upsertTargetMutation.mutateAsync({
         pointId: requestPointId,
-        request: toStudioV2DatabaseTargetRequest(currentTarget),
+        request: toStudioV2DatabaseTargetRequest(currentTarget, stateRef.current.db.connector.setup_revision),
       });
-      applyTargetPatch(pointId, hydrateStudioV2DatabaseTarget(savedTarget, currentTarget));
+      applySetupRevision(savedTarget.setup_revision);
+      applyTargetPatch(pointId, mergeSavedStudioV2DatabaseTarget(stateRef.current.db.targets[pointId], currentTarget, savedTarget));
+      return true;
     } catch (error) {
-      applyTargetPatch(pointId, { save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')) });
-    } finally {
-      meta.inFlight = false;
-      if (meta.pending) {
-        meta.pending = false;
-        void flushTargetSave(pointId);
+      // 已有較新的同列編輯排隊時，由那筆儲存回報結果，不把較新的值標成失敗。
+      if (isSameStudioV2DatabaseTargetEdit(stateRef.current.db.targets[pointId], currentTarget)) {
+        applyTargetPatch(pointId, { save_state: 'save-error', save_error: errorMessageOf(error, t('errors.autosave_failed')) });
       }
+      return false;
     }
-  }, [applyTargetPatch, stateRef, t, upsertTargetMutation]);
-  flushTargetSaveRef.current = flushTargetSave;
+  }, [applySetupRevision, applyTargetPatch, stateRef, t, upsertTargetMutation]);
+
+  runSaveRef.current = (job) => (job.kind === 'connector' ? runConnectorSave(job.snapshot) : runTargetSave(job.pointId));
+
+  const queueConnectorSave = React.useCallback((snapshot?: WorkbenchV2State) => {
+    saveQueueRef.current?.enqueueConnector(snapshot ?? stateRef.current);
+  }, [stateRef]);
 
   const queueTargetSave = React.useCallback((pointId: string) => {
-    const meta = saveMetaFor(targetSaveMetaRef.current, pointId);
-    if (meta.inFlight) {
-      meta.pending = true;
-      return;
+    // 入列即標為儲存中：連線儲存失敗而暫停欄位儲存時，也不會繼續顯示「已儲存」。
+    const target = stateRef.current.db.targets[pointId];
+    if (target && target.save_state !== 'saving') {
+      applyTargetPatch(pointId, { save_state: 'saving', save_error: null });
     }
-    void flushTargetSave(pointId);
-  }, [flushTargetSave]);
+    saveQueueRef.current?.enqueueTarget(pointId);
+  }, [applyTargetPatch, stateRef]);
 
   const afterDatabaseAction = React.useCallback((action: WorkbenchV2Action, nextState: WorkbenchV2State) => {
     switch (action.type) {
