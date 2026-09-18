@@ -1,7 +1,7 @@
 import type { APIResponse } from '../types/datalink';
 import type { StudioV2ActivationResponse } from '../types/studioV2Activation';
 import { studioV2DatalinkApi } from './studioV2Workspace';
-import { normalizeTypedEnvelope } from '../utils/safeJson';
+import { normalizeTypedEnvelope, parseStudioV2ActivationResponse } from '../utils/safeJson';
 
 export interface StudioV2ActivationRequest {
   workspace_revision: string;
@@ -17,14 +17,19 @@ export class StudioV2ActivationBarrierError extends Error {
   readonly retryable: boolean;
   readonly action?: string;
   readonly request_id?: string;
+  readonly outcome: 'failed' | 'unconfirmed';
+  readonly operation_id?: string;
 
-  constructor(code: string, retryable = true, action?: string, requestId?: string) {
+  constructor(code: string, retryable = true, action?: string, requestId?: string,
+    outcome: 'failed' | 'unconfirmed' = 'failed', operationId?: string) {
     super(code);
     this.name = 'StudioV2ActivationBarrierError';
     this.code = code;
     this.retryable = retryable;
     this.action = action;
     this.request_id = requestId;
+    this.outcome = outcome;
+    this.operation_id = operationId;
   }
 }
 
@@ -52,24 +57,32 @@ export const studioV2WorkspaceActivationAPI = {
         '/studio-v2/workspace/activate',
         payload,
       );
-      return res.data.data!;
+      const result = res.data?.success === true ? parseStudioV2ActivationResponse(res.data.data) : null;
+      if (!result) {
+        const envelope = normalizeTypedEnvelope(res.data);
+        throw new StudioV2ActivationBarrierError(envelope.code ?? 'activation_failed', false, envelope.action,
+          envelope.requestId, 'unconfirmed', envelope.operationId);
+      }
+      return result;
     } catch (error) {
+      if (error instanceof StudioV2ActivationBarrierError) throw error;
       const response = typeof error === 'object' && error !== null && 'response' in error
         ? error.response : undefined;
-      const data = typeof response === 'object' && response !== null && 'data' in response
-        ? response.data : undefined;
       const status = typeof response === 'object' && response !== null && 'status' in response
         ? response.status : undefined;
-      const envelope = normalizeTypedEnvelope(data);
+      const envelope = normalizeTypedEnvelope(error);
+      const unconfirmed = typeof status !== 'number' || status >= 500;
       const code = envelope.code
         ?? (status === 409 ? 'modbus_share_revision_conflict'
           : status === 422 ? 'modbus_share_save_incomplete'
             : 'activation_failed');
       throw new StudioV2ActivationBarrierError(
         code,
-        envelope.retryable ?? status !== 422,
+        unconfirmed ? false : envelope.retryable ?? status !== 422,
         envelope.action,
         envelope.requestId,
+        unconfirmed ? 'unconfirmed' : 'failed',
+        envelope.operationId,
       );
     }
   },

@@ -132,6 +132,7 @@ describe('Step 4 first activation flow integration', () => {
           ],
         }}
         dispatch={dispatch}
+        onCommit={() => {}}
         activateWorkspace={activateWorkspace}
       />
     );
@@ -146,6 +147,7 @@ describe('Step 4 first activation flow integration', () => {
       <Step4Database
         state={state}
         dispatch={dispatch}
+        onCommit={() => {}}
         activateWorkspace={activateWorkspace}
       />
     );
@@ -175,7 +177,8 @@ describe('Step 4 first activation flow integration', () => {
     fireEvent.click(screen.getByText('step4.activate_btn'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('activation-empty-message')).toHaveTextContent('step4.activation_no_success');
+      expect(screen.getByTestId('activation-empty-message')).toHaveTextContent('step4.activation_unconfirmed');
+      expect(screen.getByTestId('activation-delivery-status')).toHaveTextContent('step4.activation_delivery_unconfirmed');
       expect(screen.getByText('step4.reset_activation_btn')).toBeInTheDocument();
     });
   });
@@ -208,11 +211,34 @@ describe('Step 4 first activation flow integration', () => {
     expect(failedRow).not.toHaveTextContent('hydrate again with server state');
   });
 
+  it('keeps activation acknowledgement out of the draft device reducer path', async () => {
+    const dispatch = vi.fn();
+    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
+      workspace_id: 'workspace-1',
+      results: [{ device_id: 'd-1', status: 'success' }],
+    });
+
+    render(
+      <Step4Database
+        state={mockState}
+        dispatch={dispatch}
+        onCommit={() => {}}
+        activateWorkspace={activateWorkspace}
+      />,
+    );
+    dispatch.mockClear();
+
+    fireEvent.click(screen.getByText('step4.activate_btn'));
+    await waitFor(() => expect(screen.getByTestId('activation-results-card')).toBeInTheDocument());
+
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'updateDevice' }));
+  });
+
   it('wires the localized failed-row retry to the Step 4 activation callback', async () => {
     const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>()
       .mockResolvedValueOnce({
         workspace_id: 'workspace-1',
-        results: [{ device_id: 'd-1', status: 'failed', message: 'activation failed' }],
+        results: [{ device_id: 'd-1', status: 'failed', message: 'activation failed', retryable: true }],
       })
       .mockResolvedValueOnce({
         workspace_id: 'workspace-1',
@@ -288,6 +314,53 @@ describe('Step 4 first activation flow integration', () => {
 
     expect(screen.getByTestId('step4-shell-location')).toHaveTextContent('/studio/runtime');
     expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('hands off once to the confirmed backend device route', async () => {
+    const confirmedDeviceId = '550e8400-e29b-41d4-a716-446655440010';
+    const navigateTo = vi.fn();
+    const state: WorkbenchV2State = {
+      ...mockState,
+      devices: [{ ...mockState.devices[0], id: confirmedDeviceId }],
+      rules: [{ ...mockState.rules[0], device_id: confirmedDeviceId }],
+      points: [{ ...mockState.points[0], device_id: confirmedDeviceId }],
+    };
+    const actions = {
+      state,
+      setView: vi.fn(),
+      setCurrent: vi.fn(),
+      completeStep: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleSummaryRail: vi.fn(),
+      setSidebarCollapsed: vi.fn(),
+      setShowSummaryRail: vi.fn(),
+      resetFlow: vi.fn(),
+      selectRule: vi.fn(),
+      dispatch: vi.fn(),
+    };
+    const activateWorkspace = vi.fn<() => Promise<StudioV2ActivationResponse>>().mockResolvedValue({
+      workspace_id: 'workspace-1',
+      results: [{ device_id: confirmedDeviceId, status: 'success' }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/studio/v2']}>
+        <WorkbenchV2Shell
+          state={state}
+          actions={actions}
+          navigateTo={navigateTo}
+          activateWorkspace={activateWorkspace}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText('step4.activate_btn'));
+    const handoff = await screen.findByText('step4.go_to_dashboard_btn');
+    fireEvent.click(handoff);
+    fireEvent.click(handoff);
+
+    expect(navigateTo).toHaveBeenCalledTimes(1);
+    expect(navigateTo).toHaveBeenCalledWith(`/studio/runtime?device_id=${confirmedDeviceId}`);
   });
 
   it('shows readiness blockers and disables activation before start', () => {

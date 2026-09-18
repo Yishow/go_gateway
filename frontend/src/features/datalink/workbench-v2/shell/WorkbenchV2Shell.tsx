@@ -12,7 +12,10 @@ import {
   buildRuntimeDashboardTarget,
   resolveRuntimeDashboardDevice,
 } from './resolveRuntimeDashboardDevice';
-import type { StudioV2ActivationResponse } from '../../../../types/studioV2Activation';
+import type {
+  StudioV2ActivationRecovery,
+  StudioV2ActivationResponse,
+} from '../../../../types/studioV2Activation';
 import type { StudioV2WorkspaceAuditEntry } from '../../../../types/studioV2WorkspaceAudit';
 import type {
   StudioV2WorkspaceReadinessIssue,
@@ -41,6 +44,7 @@ export interface WorkbenchV2ShellProps {
   actions: ReturnType<typeof useWorkbenchV2State>;
   navigateTo?: (target: string) => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
+  recoverActivationStatus?: () => Promise<StudioV2ActivationRecovery>;
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
   workspaceAuditHistory?: StudioV2WorkspaceAuditEntry[];
   workspaceAuditUnavailable?: boolean;
@@ -65,6 +69,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
   actions,
   navigateTo,
   activateWorkspace,
+  recoverActivationStatus,
   workspaceReadiness,
   workspaceAuditHistory,
   workspaceAuditUnavailable,
@@ -186,8 +191,8 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
     document.getElementById('step-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleRuntimeDashboardHandoff = React.useCallback(() => {
-    const target = buildRuntimeDashboardTarget(resolveRuntimeDashboardDevice(state));
+  const handleRuntimeDashboardHandoff = React.useCallback((confirmedDeviceIds?: string[]) => {
+    const target = buildRuntimeDashboardTarget(resolveRuntimeDashboardDevice(state, confirmedDeviceIds));
     navigateTo?.(target);
   }, [navigateTo, state]);
 
@@ -245,8 +250,10 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
           <Step4Database
             state={state}
             dispatch={actions.dispatch}
-            onCommit={handleRuntimeDashboardHandoff}
+            workspaceId={workspaceId}
+            onCommit={navigateTo ? handleRuntimeDashboardHandoff : undefined}
             activateWorkspace={activateWorkspace}
+            recoverActivationStatus={recoverActivationStatus}
             workspaceReadiness={workspaceReadiness}
             shareStatus={shareStatus}
             onNavigateStep={handleNavigateStep}
@@ -440,7 +447,7 @@ export const WorkbenchV2Shell: React.FC<WorkbenchV2ShellProps> = ({
                 workspaceReadiness={workspaceReadiness}
                 workspaceAuditHistory={workspaceAuditHistory}
                 workspaceAuditUnavailable={workspaceAuditUnavailable}
-                onOpenRuntime={handleRuntimeDashboardHandoff}
+                onOpenRuntime={navigateTo ? handleRuntimeDashboardHandoff : undefined}
               />
             </div>
           </aside>

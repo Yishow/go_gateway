@@ -14,7 +14,16 @@ function isPersistedBackendDeviceID(deviceID: string | null | undefined): device
 
 export function resolveRuntimeDashboardDevice(
   state: RuntimeDashboardDeviceState,
+  confirmedDeviceIds?: readonly string[],
 ): string | null {
+  if (confirmedDeviceIds && confirmedDeviceIds.length > 0) {
+    const uniqueConfirmedDeviceIds = Array.from(new Set(confirmedDeviceIds));
+    const [confirmedDeviceId] = uniqueConfirmedDeviceIds;
+    return uniqueConfirmedDeviceIds.length === 1 && isPersistedBackendDeviceID(confirmedDeviceId)
+      ? confirmedDeviceId
+      : null;
+  }
+
   if (state.selectedRuleId) {
     const selectedRule = state.rules.find((rule) => rule.id === state.selectedRuleId);
     if (selectedRule && isPersistedBackendDeviceID(selectedRule.device_id)) {

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { WorkbenchV2Shell } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { useActivateStudioV2WorkspaceMutation } from '../../../hooks/datalink/useStudioV2WorkspaceActivation';
 import { useStudioV2WorkspaceQuery } from '../../../hooks/datalink/useStudioV2Workspace';
@@ -18,6 +19,10 @@ import {
 import { StudioV2ActivationBarrierError } from '../../../services/studioV2WorkspaceActivation';
 import type { WorkbenchV2RuntimeReturnFocus } from '../../../features/datalink/workbench-v2/shell/WorkbenchV2Shell';
 import { useStudioV2AutosaveSettlement } from './studioV2AutosaveBarrier';
+import { studioV2RuntimeContextAPI } from '../../../services/studioV2RuntimeContext';
+import { studioV2WorkspaceKeys } from '../../../hooks/datalink/keys';
+import { boundedString, normalizeTypedEnvelope } from '../../../utils/safeJson';
+import type { StudioV2ActivationRecovery } from '../../../types/studioV2Activation';
 import '../../../features/datalink/workbench-v2/styles/workbench-v2.css';
 
 interface DatalinkWorkbenchV2PageProps {
@@ -110,7 +115,39 @@ export default function DatalinkWorkbenchV2Page({
   const autosave = useStudioV2AutosaveState(workspaceQuery.isSuccess);
   const waitForAutosaveSettlement = useStudioV2AutosaveSettlement(autosave.state);
   const activationMutation = useActivateStudioV2WorkspaceMutation();
-  const activateWorkspace = async () => {
+  const activationInFlight = React.useRef(false);
+  const activationOperationId = React.useRef<string | undefined>(undefined);
+  const queryClient = useQueryClient();
+  const { refetch: refetchWorkspace } = workspaceQuery;
+  const workspaceId = workspaceQuery.data?.id;
+  const recoverActivationStatus = React.useCallback(async (): Promise<StudioV2ActivationRecovery> => {
+    try {
+      const [freshWorkspace, runtime] = await Promise.all([
+        refetchWorkspace(),
+        queryClient.fetchQuery({ queryKey: studioV2WorkspaceKeys.runtimeContext(),
+          queryFn: studioV2RuntimeContextAPI.get, staleTime: 0, retry: false }),
+      ]);
+      if (freshWorkspace.isError) throw freshWorkspace.error;
+      const confirmedWorkspaceId = boundedString(freshWorkspace.data?.id);
+      if (!confirmedWorkspaceId || confirmedWorkspaceId !== workspaceId || !runtime ||
+        runtime.workspace_id !== confirmedWorkspaceId || !Array.isArray(runtime.devices)) {
+        throw new Error('activation recovery context invalid');
+      }
+      const devices: StudioV2ActivationRecovery['devices'] = [];
+      for (const device of runtime.devices) {
+        const deviceId = boundedString(device?.device_id);
+        if (!deviceId || typeof device?.running !== 'boolean') throw new Error('activation recovery device invalid');
+        devices.push({ device_id: deviceId, running: device.running });
+      }
+      const operationId = normalizeTypedEnvelope(runtime).operationId ?? activationOperationId.current;
+      return { workspace_id: confirmedWorkspaceId, devices, ...(operationId ? { operation_id: operationId } : {}) };
+    } catch (error) {
+      throw new StudioV2ActivationBarrierError('activation_failed', false, undefined,
+        normalizeTypedEnvelope(error).requestId, 'unconfirmed', activationOperationId.current);
+    }
+  }, [queryClient, refetchWorkspace, workspaceId]);
+
+  const performActivation = async () => {
     const settlement = await waitForAutosaveSettlement();
     const barrier = settlement.barrier;
     if (!autosave.workspaceHydrated || barrier.pending_saves > 0 || barrier.save_error) {
@@ -180,6 +217,24 @@ export default function DatalinkWorkbenchV2Page({
     );
   };
 
+  const activateWorkspace = async () => {
+    if (activationInFlight.current) {
+      throw new StudioV2ActivationBarrierError('activation_failed', false, undefined, undefined, 'unconfirmed');
+    }
+    activationInFlight.current = true;
+    activationOperationId.current = undefined;
+    try {
+      const response = await performActivation();
+      activationOperationId.current = normalizeTypedEnvelope(response).operationId;
+      return response;
+    } catch (error) {
+      activationOperationId.current = normalizeTypedEnvelope(error).operationId;
+      throw error;
+    } finally {
+      activationInFlight.current = false;
+    }
+  };
+
   if (
     workspaceQuery.isError ||
     (workspaceQuery.isSuccess && !workspaceQuery.data) ||
@@ -229,6 +284,7 @@ export default function DatalinkWorkbenchV2Page({
         actions={autosave.actions}
         navigateTo={navigateTo}
         activateWorkspace={activateWorkspace}
+        recoverActivationStatus={recoverActivationStatus}
         workspaceReadiness={workspace.readiness_summary}
         workspaceAuditHistory={auditHistoryQuery.data?.entries ?? []}
         workspaceAuditUnavailable={auditHistoryQuery.isError}

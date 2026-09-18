@@ -97,4 +97,26 @@ describe('resolveRuntimeDashboardDevice', () => {
 
     expect(resolveRuntimeDashboardDevice(state)).toBeNull();
   });
+
+  it('uses the single confirmed backend device for activation handoff', () => {
+    const state = createState({ selectedRuleId: 'rule-B' });
+
+    expect(resolveRuntimeDashboardDevice(
+      state,
+      ['550e8400-e29b-41d4-a716-446655440000'],
+    )).toBe('550e8400-e29b-41d4-a716-446655440000');
+  });
+
+  it('falls back to the generic runtime route for ambiguous or local confirmations', () => {
+    const state = createState();
+
+    expect(resolveRuntimeDashboardDevice(
+      state,
+      [
+        '550e8400-e29b-41d4-a716-446655440000',
+        '550e8400-e29b-41d4-a716-446655440001',
+      ],
+    )).toBeNull();
+    expect(resolveRuntimeDashboardDevice(state, ['dev-01'])).toBeNull();
+  });
 });

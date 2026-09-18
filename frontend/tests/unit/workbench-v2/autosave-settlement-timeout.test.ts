@@ -99,7 +99,7 @@ describe('Activation leaves the activating phase when the barrier reports save-i
       retryable = true;
     }
     const activateWorkspace = vi.fn().mockRejectedValue(new BarrierError('barrier'));
-    const { result } = renderHook(() => useStep4Activation(activateWorkspace, vi.fn()));
+    const { result } = renderHook(() => useStep4Activation(activateWorkspace));
 
     await act(async () => { await result.current.start(); });
 

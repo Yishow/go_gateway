@@ -14,16 +14,26 @@ import { studioV2WorkspaceDevicesAPI } from '../../../src/services/studioV2Works
 import { deviceFixture, mappingFixture, ruleFixture, workspaceFixture } from './helpers/workbenchV2PageHarness';
 import { shareContext } from './step4-share-helpers';
 import { AUTOSAVE_SETTLEMENT_TIMEOUT_MS } from '../../../src/pages/datalink/workbench-v2/studioV2AutosaveBarrier';
+import { studioV2RuntimeContextAPI } from '../../../src/services/studioV2RuntimeContext';
+import type { StudioV2ActivationRecovery } from '../../../src/types/studioV2Activation';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 /** 讓測試看得到 activateWorkspace 的結果碼（mock 工廠只能引用 mock 前綴的外部變數）。 */
 const mockActivationOutcome: { code: string | null } = { code: null };
+const mockShellCallbacks: {
+  activate?: () => Promise<unknown>;
+  recover?: () => Promise<StudioV2ActivationRecovery>;
+} = {};
 vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', () => ({
-  WorkbenchV2Shell: ({ activateWorkspace, actions, state }: {
+  WorkbenchV2Shell: ({ activateWorkspace, recoverActivationStatus, actions, state }: {
     activateWorkspace?: () => Promise<unknown>;
+    recoverActivationStatus?: () => Promise<StudioV2ActivationRecovery>;
     actions: { dispatch: (action: unknown) => void };
     state: WorkbenchV2State;
-  }) => (
+  }) => {
+    mockShellCallbacks.activate = activateWorkspace;
+    mockShellCallbacks.recover = recoverActivationStatus;
+    return (
     <>
       <button
         type="button"
@@ -51,7 +61,8 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
         Activate and capture
       </button>
     </>
-  ),
+    );
+  },
 }));
 vi.mock('../../../src/services/datalink', () => ({
   modbusShareAPI: { status: vi.fn(), reconcile: vi.fn() },
@@ -69,14 +80,9 @@ vi.mock('../../../src/services/studioV2WorkspaceDatabase', () => ({
   },
 }));
 vi.mock('../../../src/services/studioV2WorkspaceAudit', () => ({ studioV2WorkspaceAuditAPI: { list: vi.fn() } }));
-vi.mock('../../../src/services/studioV2WorkspaceActivation', () => ({
-  StudioV2ActivationBarrierError: class StudioV2ActivationBarrierError extends Error {
-    code: string;
-    constructor(code: string) {
-      super(code);
-      this.code = code;
-    }
-  },
+vi.mock('../../../src/services/studioV2RuntimeContext', () => ({ studioV2RuntimeContextAPI: { get: vi.fn() } }));
+vi.mock('../../../src/services/studioV2WorkspaceActivation', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../src/services/studioV2WorkspaceActivation')>(),
   studioV2WorkspaceActivationAPI: { activate: vi.fn() },
 }));
 
@@ -89,6 +95,13 @@ describe('Step 4 first activation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockActivationOutcome.code = null;
+    mockShellCallbacks.activate = undefined;
+    mockShellCallbacks.recover = undefined;
+    vi.mocked(studioV2RuntimeContextAPI.get).mockReset();
+    vi.mocked(studioV2RuntimeContextAPI.get).mockResolvedValue({
+      workspace_id: 'workspace-1', default_device_id: 'dev-mc',
+      devices: [{ device_id: 'dev-mc', name: 'MC', protocol: 'mc_3e', running: true, availability_status: 'available' }],
+    });
     vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue(workspaceFixture({ ordered_device_ids: ['dev-mc'] }));
     vi.mocked(studioV2WorkspaceDevicesAPI.list).mockResolvedValue([deviceFixture({ id: 'dev-mc', protocol: 'mc_3e' })]);
     vi.mocked(studioV2RulesAPI.list).mockResolvedValue([ruleFixture({
@@ -171,6 +184,76 @@ describe('Step 4 first activation', () => {
     }
 
     await waitFor(() => expect(mockActivationOutcome.code).toBe('modbus_share_save_incomplete'));
+    expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
+  });
+
+  it('blocks concurrent page callbacks before autosave and Share reconciliation can submit twice', async () => {
+    renderPage();
+    await screen.findByTestId('activate');
+    const activate = mockShellCallbacks.activate!;
+    const results = await act(async () => Promise.allSettled([activate(), activate()]));
+    expect(results[0].status).toBe('fulfilled');
+    expect(results[1]).toMatchObject({ status: 'rejected', reason: { outcome: 'unconfirmed', retryable: false } });
+    expect(studioV2WorkspaceActivationAPI.activate).toHaveBeenCalledTimes(1);
+    expect(modbusShareAPI.reconcile).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers fresh workspace and runtime context without activating or overwriting setup', async () => {
+    vi.mocked(studioV2RuntimeContextAPI.get).mockResolvedValue({
+      workspace_id: 'workspace-1', default_device_id: 'dev-mc', operation_id: 'op-server-1',
+      devices: [{ device_id: 'dev-mc', running: true }],
+    } as never);
+    renderPage();
+    await screen.findByTestId('activate');
+    expect(mockShellCallbacks.recover).toBeTypeOf('function');
+    const beforeReads = vi.mocked(studioV2WorkspaceAPI.get).mock.calls.length;
+    const recovered = await act(async () => mockShellCallbacks.recover!());
+    expect(recovered).toEqual({ workspace_id: 'workspace-1', operation_id: 'op-server-1',
+      devices: [{ device_id: 'dev-mc', running: true }],
+    });
+    expect(studioV2WorkspaceAPI.get).toHaveBeenCalledTimes(beforeReads + 1);
+    expect(studioV2RuntimeContextAPI.get).toHaveBeenCalledTimes(1);
+    expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
+    expect(studioV2WorkspaceDatabaseAPI.updateConfig).not.toHaveBeenCalled();
+  });
+
+  it('releases the page guard so an explicit later attempt can run after rejection', async () => {
+    vi.mocked(studioV2WorkspaceActivationAPI.activate).mockRejectedValueOnce({
+      code: 'modbus_share_revision_conflict', retryable: true,
+    });
+    renderPage();
+    await screen.findByTestId('activate');
+    await act(async () => {
+      await expect(mockShellCallbacks.activate!()).rejects.toMatchObject({ code: 'modbus_share_revision_conflict' });
+    });
+    await act(async () => {
+      await expect(mockShellCallbacks.activate!()).resolves.toMatchObject({ workspace_id: 'workspace-1' });
+    });
+    expect(studioV2WorkspaceActivationAPI.activate).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not turn cached workspace data into confirmed recovery after a failed refresh', async () => {
+    renderPage();
+    await screen.findByTestId('activate');
+    expect(mockShellCallbacks.recover).toBeTypeOf('function');
+    vi.mocked(studioV2WorkspaceAPI.get).mockRejectedValueOnce(new Error('raw backend diagnostic'));
+    await act(async () => {
+      await expect(mockShellCallbacks.recover!()).rejects.toMatchObject({ outcome: 'unconfirmed', retryable: false });
+    });
+    expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { workspace_id: 'another-workspace', devices: [{ device_id: 'dev-mc', running: true }] },
+    { workspace_id: 'workspace-1', devices: [{ device_id: 'dev-mc', running: 'true' }] },
+  ])('rejects a foreign or malformed runtime recovery: %j', async (runtime) => {
+    vi.mocked(studioV2RuntimeContextAPI.get).mockResolvedValue(runtime as never);
+    renderPage();
+    await screen.findByTestId('activate');
+    expect(mockShellCallbacks.recover).toBeTypeOf('function');
+    await act(async () => {
+      await expect(mockShellCallbacks.recover!()).rejects.toMatchObject({ outcome: 'unconfirmed', retryable: false });
+    });
     expect(studioV2WorkspaceActivationAPI.activate).not.toHaveBeenCalled();
   });
 });
