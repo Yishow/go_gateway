@@ -29,6 +29,7 @@ import (
 )
 
 type workspaceDatabaseFixture struct {
+	mainDB        *sql.DB
 	handler       *StudioV2WorkspaceDatabaseHandler
 	ruleSvc       *sourcerule.Service
 	connectorSvc  *dbtarget.ConnectorService
@@ -54,6 +55,9 @@ type workspaceDatabaseConfigRequest struct {
 	Username             string                      `json:"username,omitempty"`
 	Password             string                      `json:"password,omitempty"`
 	RowGroups            []workspaceDatabaseRowGroup `json:"row_groups,omitempty"`
+	// ExpectedSetupRevision is filled from the current config by the save
+	// helpers when a test does not pin a specific (possibly stale) revision.
+	ExpectedSetupRevision string `json:"expected_setup_revision,omitempty"`
 }
 
 type workspaceDatabaseRowGroup struct {
@@ -65,9 +69,10 @@ type workspaceDatabaseRowGroup struct {
 }
 
 type workspaceDatabaseTargetRequest struct {
-	ColumnName string `json:"column_name"`
-	Enabled    bool   `json:"enabled"`
-	RowGroupID string `json:"row_group_id,omitempty"`
+	ColumnName            string `json:"column_name"`
+	Enabled               bool   `json:"enabled"`
+	RowGroupID            string `json:"row_group_id,omitempty"`
+	ExpectedSetupRevision string `json:"expected_setup_revision,omitempty"`
 }
 
 type workspaceDatabaseSchemaRequest struct {
@@ -126,8 +131,9 @@ func TestStudioV2WorkspaceDatabaseHandler_SaveConfigAndOneTarget(t *testing.T) {
 	require.Equal(t, "not_running", configData["runtime_apply_status"])
 
 	targetReq := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+fixture.pointIDs[0], workspaceDatabaseTargetRequest{
-		ColumnName: "line_a",
-		Enabled:    true,
+		ColumnName:            "line_a",
+		Enabled:               true,
+		ExpectedSetupRevision: configData["setup_revision"].(string),
 	})
 	targetResp := httptest.NewRecorder()
 	targetCtx, _ := gin.CreateTestContext(targetResp)
@@ -281,14 +287,14 @@ func TestStudioV2WorkspaceDatabaseHandler_InvalidRowGroupsDoNotPartiallyUpdateCo
 	require.Empty(t, recordAfter.DatabaseRowGroups)
 }
 
-func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.T) {
+func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaPlanStaysReadOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	fixture := newWorkspaceDatabaseFixtureEmptyTarget(t)
 	saveWorkspaceDatabaseConfig(t, fixture)
 	saveValidTarget(t, fixture, fixture.pointIDs[0])
 
-	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/database-schema/generate", workspaceDatabaseSchemaRequest{DryRun: false})
+	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/database-schema/generate", workspaceDatabaseSchemaRequest{DryRun: true})
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
 	c.Request = req
@@ -298,21 +304,25 @@ func TestStudioV2WorkspaceDatabaseHandler_GenerateSchemaCreatesTable(t *testing.
 	require.Equal(t, http.StatusOK, resp.Code, resp.Body.String())
 	body := decodeWorkspaceDatabaseBody(t, resp)
 	data := body["data"].(map[string]any)
-	require.Greater(t, data["executed"].(float64), float64(0), "應有資料表結構被建立")
+	require.Greater(t, len(data["statements"].([]any)), 0, "應回報待建立的資料表結構")
+	require.Equal(t, float64(0), data["executed"].(float64), "只讀檢查不得執行任何語句")
 
-	// 目標 SQLite 真的應有 sensor_values 表。
+	// 目標 SQLite 不得因為檢查而出現 sensor_values 表。
 	targetDB, err := sql.Open("sqlite", fixture.targetDB)
 	require.NoError(t, err)
 	defer targetDB.Close()
 	var name string
 	err = targetDB.QueryRowContext(context.Background(), `SELECT name FROM sqlite_master WHERE type='table' AND name='sensor_values'`).Scan(&name)
-	require.NoError(t, err, "sensor_values 表應已被建立")
-	require.Equal(t, "sensor_values", name)
+	require.ErrorIs(t, err, sql.ErrNoRows, "只讀檢查不得建立 sensor_values 表")
+	require.Empty(t, name)
 }
 
 func updateWorkspaceDatabaseConfig(t *testing.T, fixture workspaceDatabaseFixture, payload workspaceDatabaseConfigRequest) {
 	t.Helper()
 
+	if payload.ExpectedSetupRevision == "" {
+		payload.ExpectedSetupRevision = currentWorkspaceSetupRevision(t, fixture)
+	}
 	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-config", payload)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)
@@ -404,6 +414,7 @@ func newWorkspaceDatabaseFixture(t *testing.T) workspaceDatabaseFixture {
 	auditSvc := audit.NewService(audit.NewMemoryRepository())
 	handler := NewStudioV2WorkspaceDatabaseHandler(workspaceSvc, deviceSvc, ruleSvc, dbConnectorSvc, dbMappingSvc).WithAudit(auditSvc)
 	return workspaceDatabaseFixture{
+		mainDB:        mainDB,
 		handler:       handler,
 		ruleSvc:       ruleSvc,
 		connectorSvc:  dbConnectorSvc,
@@ -440,8 +451,9 @@ func saveValidTarget(t *testing.T, fixture workspaceDatabaseFixture, pointID str
 	t.Helper()
 
 	req := newWorkspaceDatabaseJSONRequest(t, http.MethodPut, "/api/v1/datalink/studio-v2/workspace/database-targets/"+pointID, workspaceDatabaseTargetRequest{
-		ColumnName: "line_a",
-		Enabled:    true,
+		ColumnName:            "line_a",
+		Enabled:               true,
+		ExpectedSetupRevision: currentWorkspaceSetupRevision(t, fixture),
 	})
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)

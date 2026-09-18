@@ -2,16 +2,37 @@ import type { APIResponse } from '../types/datalink';
 import type {
   ConnectorCapability,
   RecordingPlan,
+  SchemaOperation,
   SchemaPreviewToken,
   TestWriteResult,
 } from '../types/recordingPlan';
 import { studioV2DatalinkApi } from './studioV2Workspace';
+import { MAX_SAFE_JSON_ARRAY_LENGTH } from '../utils/safeJson';
+import {
+  parseRecordingAPIData,
+  parseRecordingConnectorCapability,
+  parseRecordingSchemaOperation,
+  parseRecordingSchemaPreviewToken,
+  parseRecordingTestWriteResult,
+} from '../utils/recordingPlanJson';
 
 export interface SchemaPreviewRequest {
   plan_id: string;
   connector_id: string;
+  expected_connector_revision?: string;
+  expected_workspace_revision: string;
+  expected_plan_revision: string;
   table_prefix?: string;
   dialect: string;
+}
+
+/** A schema apply carries the issued operation and the revisions it was previewed against. */
+export interface SchemaApplyRequest {
+  token: string;
+  operation_id: string;
+  expected_workspace_revision: string;
+  expected_plan_revision: string;
+  expected_connector_revision: string;
 }
 
 export interface TestWriteRequest {
@@ -63,11 +84,17 @@ export const studioV2WorkspaceRecordingPlansAPI = {
       '/studio-v2/workspace/recording-plans/capabilities',
       { params }
     );
-    const data = res.data.data;
-    if (Array.isArray(data)) {
-      return data;
-    }
-    return data ? [data] : [];
+    return parseRecordingAPIData(res.data, 'recording capability list', (data) => {
+      if (Array.isArray(data)) {
+        if (data.length > MAX_SAFE_JSON_ARRAY_LENGTH) return null;
+        const capabilities = data.map(parseRecordingConnectorCapability);
+        return capabilities.some((capability) => capability === null)
+          ? null
+          : capabilities as ConnectorCapability[];
+      }
+      const capability = parseRecordingConnectorCapability(data);
+      return capability ? [capability] : null;
+    });
   },
 
   async schemaPreview(request: SchemaPreviewRequest): Promise<SchemaPreviewToken> {
@@ -75,15 +102,24 @@ export const studioV2WorkspaceRecordingPlansAPI = {
       '/studio-v2/workspace/recording-plans/schema-preview',
       request
     );
-    return res.data.data!;
+    return parseRecordingAPIData(res.data, 'recording schema preview', parseRecordingSchemaPreviewToken);
   },
 
-  async schemaApply(token: string): Promise<{ applied: boolean; message: string }> {
-    const res = await studioV2DatalinkApi.post<APIResponse<{ applied: boolean; message: string }>>(
+  /** Confirms a preview; the response is the recorded operation, never a bare success flag. */
+  async schemaApplyConfirmed(request: SchemaApplyRequest): Promise<SchemaOperation> {
+    const res = await studioV2DatalinkApi.post<APIResponse<unknown>>(
       '/studio-v2/workspace/recording-plans/schema-apply',
-      { token }
+      request
     );
-    return res.data.data!;
+    return parseRecordingAPIData(res.data, 'recording schema apply', parseRecordingSchemaOperation);
+  },
+
+  /** Reads the durable state of one operation of the current workspace. */
+  async schemaOperation(operationId: string): Promise<SchemaOperation> {
+    const res = await studioV2DatalinkApi.get<APIResponse<unknown>>(
+      `/studio-v2/workspace/database-operations/${operationId}`
+    );
+    return parseRecordingAPIData(res.data, 'recording schema operation', parseRecordingSchemaOperation);
   },
 
   async testWrite(request: TestWriteRequest): Promise<TestWriteResult> {
@@ -91,6 +127,6 @@ export const studioV2WorkspaceRecordingPlansAPI = {
       '/studio-v2/workspace/recording-plans/test-write',
       request
     );
-    return res.data.data!;
+    return parseRecordingAPIData(res.data, 'recording test write', parseRecordingTestWriteResult);
   },
 };

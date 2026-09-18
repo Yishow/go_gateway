@@ -17,6 +17,10 @@ func (h *DatabaseTargetHandler) GenerateSchema(c *gin.Context) {
 		return
 	}
 
+	if !requireSchemaConfirmation(c, req.DryRun) {
+		return
+	}
+
 	result, err := h.connectorSvc.GenerateSchema(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
 		statusCode, errorCode := dbTargetErrorStatusCode(err)
@@ -87,6 +91,6 @@ func dbTargetErrorStatusCode(err error) (statusCode int, errorCode string) {
 	case strings.Contains(message, "schema"), strings.Contains(message, "table"), strings.Contains(message, "column"), strings.Contains(message, "欄位"):
 		return http.StatusUnprocessableEntity, "schema_missing"
 	default:
-		return http.StatusInternalServerError, "internal"
+		return http.StatusInternalServerError, apiInternalErrorCode
 	}
 }

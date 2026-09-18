@@ -3,7 +3,6 @@ import { useMemo, useCallback } from 'react';
 import { useStep4Activation } from './useStep4Activation';
 import {
   buildSchemaPreviewSignature,
-  clearTargetRowGroupAssignments,
   createPoolConnectorPatch,
   databaseConnectorNeedsPassword,
   isDatabaseConnectorIdentityChange,
@@ -13,6 +12,9 @@ import {
   useStep4Readonly,
 } from './step4DatabaseHelpers';
 import { TargetMappingTable } from './TargetMappingTable';
+import { TargetMetadataStatus } from './TargetMetadataStatus';
+import { useStep4TargetColumns } from './useStep4TargetColumns';
+import { SafeQueryBoundary } from '@/utils/SafeQueryBoundary';
 import { CommitSummary } from './CommitSummary';
 import { CommitProgress } from './CommitProgress';
 import { CommitSuccessCard } from './CommitSuccessCard';
@@ -21,14 +23,17 @@ import { SchemaSetupSection } from './SchemaSetupSection';
 import { Step4SupportPanels } from './Step4SupportPanels';
 import { RowGroupPlanner } from './RowGroupPlanner';
 import { ShareOutputSummary } from './ShareOutputSummary';
-import { RecordingPlanSetupSection } from './RecordingPlanSetupSection';
-import { ActivationNeutralSummary } from './ActivationNeutralSummary';
+import { WorkspaceRecordingPlanSetupSection } from './WorkspaceRecordingPlanSetupSection';
+import { ActivationNeutralSummary, ActivationRecoveryNotice } from './ActivationNeutralSummary';
 import { autoAssignTargets } from '../../state/autoAssignTargets';
-import { getColumnsFor, getDefaultConnector, getDbKindPatch } from '../../state/dbSchemas';
+import { getDefaultConnector, getDbKindPatch } from '../../state/dbSchemas';
 import { hasRowGroupColumnConflict, hasUnsafeRowGroupUpsert } from '../../state/rowGroupValidation';
 import type { WorkbenchV2State, DbConnector, DbRowGroup, DbTarget, SettingsConnector } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
-import type { StudioV2ActivationResponse } from '../../../../../types/studioV2Activation';
+import type {
+  StudioV2ActivationRecovery,
+  StudioV2ActivationResponse,
+} from '../../../../../types/studioV2Activation';
 import type { StudioV2WorkspaceReadinessSummary } from '../../../../../types/studioV2WorkspaceReadiness';
 import type { WorkspaceReadinessStepNumber } from '../../components/WorkspaceReadinessPanel';
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
@@ -36,8 +41,10 @@ import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 interface Step4DatabaseProps {
   state: WorkbenchV2State;
   dispatch: React.Dispatch<WorkbenchV2Action>;
-  onCommit?: () => void;
+  workspaceId?: string;
+  onCommit?: (confirmedDeviceIds?: string[]) => void;
   activateWorkspace?: () => Promise<StudioV2ActivationResponse>;
+  recoverActivationStatus?: () => Promise<StudioV2ActivationRecovery>;
   workspaceReadiness?: StudioV2WorkspaceReadinessSummary | null;
   shareStatus?: ModbusShareStatus | null;
   onNavigateStep?: (step: WorkspaceReadinessStepNumber) => void;
@@ -49,16 +56,22 @@ export { useStep4Readonly };
  * Step 4 Database 主頁面元件
  * 落地設計決策：「拆檔策略：8 個元件 + 3 個 state module」 與 「Commit log 序列：純函式 + reducer 串聯」
  */
-export function Step4Database({
+function Step4DatabaseContent({
   state,
   dispatch,
+  workspaceId,
   onCommit,
   activateWorkspace,
+  recoverActivationStatus,
   workspaceReadiness,
   shareStatus,
   onNavigateStep,
 }: Step4DatabaseProps) {
-  const activation = useStep4Activation(activateWorkspace, dispatch);
+  const activation = useStep4Activation(
+    activateWorkspace,
+    recoverActivationStatus,
+    workspaceId,
+  );
 
   const isReadonly = useStep4Readonly(activation.phase);
   const { connector, targets } = state.db;
@@ -66,16 +79,19 @@ export function Step4Database({
   const scopedRowGroups = useMemo(() => rowGroupsForConnector(connector, rowGroups), [connector, rowGroups]);
   const enabledPoints = useMemo(() => state.points.filter(p => p.enabled), [state.points]);
 
-  // 取得目前資料庫種類的欄位定義
-  const columns = useMemo(() => getColumnsFor(connector.kind), [connector.kind]);
+  // 只使用已存目標資料表實際查得的欄位；未查到時不以示範欄位配對。
+  const targetColumns = useStep4TargetColumns(connector);
+  const { columns } = targetColumns;
   const columnNames = useMemo(() => columns.filter(c => !c.primary_key).map(c => c.name), [columns]);
+  const columnNamesKey = columnNames.join('\u0000');
 
-  // 1. 初始化分配 (mount 時執行一次，確保 Step 1-3 變更同步)
+  // 1. 實際欄位可用時，替尚未配對的點位建議欄位；既有配對保持不變。
   React.useEffect(() => {
-    const initialTargets = autoAssignTargets(enabledPoints, state.mappings, columnNames, targets);
-    dispatch({ type: 'autoAssignDbTargets', targets: initialTargets });
+    if (columnNames.length === 0) return;
+    const nextTargets = autoAssignTargets(enabledPoints, state.mappings, columnNames, targets);
+    dispatch({ type: 'autoAssignDbTargets', targets: nextTargets });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [columnNamesKey]);
 
   const clearRowGroupScope = useCallback(() => {
     if (rowGroups.length > 0) {
@@ -100,36 +116,21 @@ export function Step4Database({
       table: defaultConn.table,
     };
 
-    const scopeChanged = isRowGroupScopeChange(connector, patch);
-    const baseTargets = scopeChanged ? clearTargetRowGroupAssignments(targets) : targets;
-
-    if (scopeChanged) {
+    if (isRowGroupScopeChange(connector, patch)) {
       clearRowGroupScope();
     }
-
+    // 換了目標就等新目標儲存並查到實際欄位後再建議配對，不以示範欄位重配。
     dispatch({ type: 'updateDbConnector', patch });
-
-    // 同步重算欄位對應
-    const nextColumns = getColumnsFor(kind);
-    const nextColumnNames = nextColumns.filter(c => !c.primary_key).map(c => c.name);
-    const nextTargets = autoAssignTargets(enabledPoints, state.mappings, nextColumnNames, baseTargets);
-    dispatch({ type: 'autoAssignDbTargets', targets: nextTargets });
-  }, [clearRowGroupScope, connector, enabledPoints, targets, state.mappings, dispatch]);
+  }, [clearRowGroupScope, connector, dispatch]);
 
   const handleSelectConnectorPool = useCallback((poolConn: SettingsConnector) => {
-    // 連接器清單的密碼一律被後端遮蔽為空字串，直接沿用會讓新連線帶著舊憑證。
-    const patch = createPoolConnectorPatch(connector, poolConn);
-    const scopeChanged = isRowGroupScopeChange(connector, patch);
-    const baseTargets = scopeChanged ? clearTargetRowGroupAssignments(targets) : targets;
-    if (scopeChanged) {
+    // 已存連線以 ID 與版本交由後端解析，不複製遮蔽的憑證。
+    const patch = createPoolConnectorPatch(poolConn);
+    if (isRowGroupScopeChange(connector, patch)) {
       clearRowGroupScope();
     }
     dispatch({ type: 'updateDbConnector', patch });
-    const nextColumns = getColumnsFor(poolConn.kind);
-    const nextColumnNames = nextColumns.filter(c => !c.primary_key).map(c => c.name);
-    const nextTargets = autoAssignTargets(enabledPoints, state.mappings, nextColumnNames, baseTargets);
-    dispatch({ type: 'autoAssignDbTargets', targets: nextTargets });
-  }, [clearRowGroupScope, connector, enabledPoints, state.mappings, targets, dispatch]);
+  }, [clearRowGroupScope, connector, dispatch]);
 
 
   const handleUpdateConnector = useCallback((patch: Partial<DbConnector>) => {
@@ -138,8 +139,9 @@ export function Step4Database({
     }
     // 重新輸入密碼即解除「必須重新輸入」狀態；手動改掉身分欄位則重新要求。
     const nextPatch: Partial<DbConnector> = { ...patch };
-    if (patch.password !== undefined && patch.password.trim() !== '') {
+    if (patch.password !== undefined && patch.password !== '') {
       nextPatch.password_required = false;
+      nextPatch.clear_password = false;
     } else if (
       connector.password_required !== true &&
       isDatabaseConnectorIdentityChange(connector, { ...connector, ...patch })
@@ -183,18 +185,22 @@ export function Step4Database({
     return Object.values(targets).some((target) => target.save_state !== 'saved');
   }, [connector.save_state, targets]);
 
-  const schemaPreviewSignature = useMemo(
-    () => buildSchemaPreviewSignature(connector, targets),
-    [connector, targets],
-  );
+  const schemaPreviewSignature = useMemo(() => buildSchemaPreviewSignature(connector, targets, {
+    workspaceId, devices: state.devices, points: state.points, mappings: state.mappings, rowGroups: scopedRowGroups,
+  }), [connector, targets, workspaceId, state.devices, state.points, state.mappings, scopedRowGroups]);
 
-  const hasActiveDevice = state.devices.some((d) => d.status === 'active' || d.running);
+  const hasActiveDevice = state.devices.some((d) => d.status === 'active' || d.running) ||
+    Boolean(activation.recovery?.devices.some((device) => device.running));
   const canContinueToRuntime = activation.canContinue || hasActiveDevice;
-  const hasActivationSuccess = activation.canContinue || (
-    activation.phase === 'done' &&
-    !activation.logs.some((log) => log.status === 'failed') &&
-    hasActiveDevice
-  );
+  const hasActivationSuccess = activation.canContinue;
+  const saveStates = [
+    ...state.devices.map((device) => device.save_state),
+    ...state.rules.map((rule) => rule.save_state),
+    ...Object.values(state.mappings).map((mapping) => mapping.save_state),
+    connector.save_state,
+    ...Object.values(targets).map((target) => target.save_state),
+  ];
+  const configurationSaved = saveStates.length > 0 && saveStates.every((saveState) => saveState === 'saved');
 
   return (
     <div className="space-y-6">
@@ -207,9 +213,9 @@ export function Step4Database({
         hasConflict={hasConflict}
       />
 
-      <RecordingPlanSetupSection
-        deviceId={state.devices[0]?.id}
-        measurementIds={state.points.map((p) => p.id)}
+      <WorkspaceRecordingPlanSetupSection
+        state={state}
+        workspaceId={workspaceId}
         disabled={isReadonly}
       />
 
@@ -224,6 +230,7 @@ export function Step4Database({
         disabled={isReadonly}
       />
 
+      <TargetMetadataStatus status={targetColumns.status} onRetry={targetColumns.refetch} />
       <TargetMappingTable
         points={state.points}
         mappings={state.mappings}
@@ -244,7 +251,8 @@ export function Step4Database({
         tableSetup={
           <SchemaSetupSection
             connector={connector}
-            schemaActionsDisabled={schemaActionsDisabled}
+            workspaceId={workspaceId}
+            schemaActionsDisabled={schemaActionsDisabled || isReadonly}
             schemaPreviewSignature={schemaPreviewSignature}
           />
         }
@@ -253,18 +261,25 @@ export function Step4Database({
 
 
       {activation.phase === 'idle' ? (
-        <CommitSummary
-          deviceCount={state.devices.length}
-          ruleCount={state.rules.filter(r => r.enabled).length}
-          pointCount={enabledPoints.length}
-          mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
-          connector={connector}
-          enabledTargetCount={enabledTargetCount}
-          hasConflict={hasConflict}
-          readinessSummary={workspaceReadiness}
-          onActivate={activation.start}
-          onNavigateStep={onNavigateStep}
-        />
+        <>
+          <ActivationRecoveryNotice
+            recovery={activation.recovery}
+            recoveryUnavailable={activation.recoveryUnavailable}
+          />
+          <CommitSummary
+            deviceCount={state.devices.length}
+            ruleCount={state.rules.filter(r => r.enabled).length}
+            pointCount={enabledPoints.length}
+            mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
+            connector={connector}
+            enabledTargetCount={enabledTargetCount}
+            hasConflict={hasConflict}
+            readinessSummary={workspaceReadiness}
+            configurationSaved={configurationSaved}
+            onActivate={activation.start}
+            onNavigateStep={onNavigateStep}
+          />
+        </>
       ) : activation.phase === 'activating' ? (
         <CommitProgress logs={activation.logs} status="committing" />
       ) : (
@@ -276,13 +291,16 @@ export function Step4Database({
             <CommitSuccessCard
               response={activation.response ?? { workspace_id: '', results: [] }}
               canContinue={canContinueToRuntime}
-              onCommit={onCommit || (() => {})}
+              onCommit={onCommit}
               onReset={activation.reset}
             />
           ) : (
             <ActivationNeutralSummary
               canContinue={canContinueToRuntime}
               onCommit={onCommit}
+              response={activation.response}
+              recovery={activation.recovery}
+              recoveryUnavailable={activation.recoveryUnavailable}
               onReset={activation.reset}
             />
           )}
@@ -290,4 +308,9 @@ export function Step4Database({
       )}
     </div>
   );
+}
+
+/** Step 4 以 React Query 讀取實際欄位；沒有 QueryClient 的嵌入情境使用備援 client。 */
+export function Step4Database(props: Step4DatabaseProps) {
+  return <SafeQueryBoundary><Step4DatabaseContent {...props} /></SafeQueryBoundary>;
 }

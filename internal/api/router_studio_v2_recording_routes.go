@@ -27,6 +27,7 @@ func registerStudioV2RecordingRoutes(datalinkGroup *gin.RouterGroup, datalinkSer
 	// Recording Plans
 	if datalinkServices.RecordingPlan != nil {
 		planHandler := handlers.NewStudioV2WorkspaceRecordingPlansHandler(datalinkServices.Workspace, datalinkServices.RecordingPlan, datalinkServices.DBTarget)
+		wireRecordingPlanMembership(planHandler, datalinkServices)
 		datalinkGroup.GET("/studio-v2/workspace/recording-plans", planHandler.List)
 		datalinkGroup.POST("/studio-v2/workspace/recording-plans", planHandler.Create)
 		datalinkGroup.GET("/studio-v2/workspace/recording-plans/:id", planHandler.Get)
@@ -36,9 +37,31 @@ func registerStudioV2RecordingRoutes(datalinkGroup *gin.RouterGroup, datalinkSer
 		datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-preview", planHandler.SchemaPreview)
 		datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-apply", planHandler.SchemaApply)
 		datalinkGroup.POST("/studio-v2/workspace/recording-plans/test-write", planHandler.TestWrite)
+
+		operationsHandler := handlers.NewStudioV2WorkspaceDatabaseOperationsHandler(datalinkServices.Workspace, datalinkServices.RecordingPlan)
+		datalinkGroup.GET("/studio-v2/workspace/database-operations/:operation_id", operationsHandler.Get)
 	}
 
 	// History Reports & Export
+	registerStudioV2HistoryRoutes(datalinkGroup, datalinkServices)
+}
+
+// wireRecordingPlanMembership passes only configured readers. An absent
+// service stays a nil interface, so plan creation fails closed instead of
+// calling a nil service pointer.
+func wireRecordingPlanMembership(handler *handlers.StudioV2WorkspaceRecordingPlansHandler, services *DatalinkServices) {
+	var measurementReader handlers.RecordingPlanMeasurementService
+	if services.Measurement != nil {
+		measurementReader = services.Measurement
+	}
+	var pointReader handlers.RecordingPlanPointService
+	if services.Point != nil {
+		pointReader = services.Point
+	}
+	handler.SetRecordingMembershipServices(measurementReader, pointReader)
+}
+
+func registerStudioV2HistoryRoutes(datalinkGroup *gin.RouterGroup, datalinkServices *DatalinkServices) {
 	if datalinkServices.History != nil {
 		historyHandler := handlers.NewStudioV2WorkspaceHistoryHandler(datalinkServices.Workspace, datalinkServices.History)
 		datalinkGroup.POST("/studio-v2/workspace/history/query", historyHandler.Query)

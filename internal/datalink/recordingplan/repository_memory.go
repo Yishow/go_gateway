@@ -9,16 +9,18 @@ import (
 
 // MemoryRepository 實作內存式記錄方案儲存庫。
 type MemoryRepository struct {
-	mu     sync.RWMutex
-	plans  map[string]RecordingPlan
-	tokens map[string]SchemaPreviewToken
+	mu         sync.RWMutex
+	plans      map[string]RecordingPlan
+	tokens     map[string]SchemaPreviewToken
+	operations map[string]SchemaOperation
 }
 
 // NewMemoryRepository 建立新的 MemoryRepository。
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		plans:  make(map[string]RecordingPlan),
-		tokens: make(map[string]SchemaPreviewToken),
+		plans:      make(map[string]RecordingPlan),
+		tokens:     make(map[string]SchemaPreviewToken),
+		operations: make(map[string]SchemaOperation),
 	}
 }
 
@@ -48,7 +50,7 @@ func (r *MemoryRepository) UpdatePlan(ctx context.Context, plan *RecordingPlan) 
 	defer r.mu.Unlock()
 
 	if _, exists := r.plans[plan.ID]; !exists {
-		return fmt.Errorf("recording_plan not found: %s", plan.ID)
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, plan.ID)
 	}
 
 	plan.UpdatedAt = time.Now().UTC()
@@ -63,7 +65,20 @@ func (r *MemoryRepository) GetPlanByID(ctx context.Context, id string) (*Recordi
 
 	p, exists := r.plans[id]
 	if !exists {
-		return nil, fmt.Errorf("recording_plan not found: %s", id)
+		return nil, fmt.Errorf("%w: %s", ErrPlanNotFound, id)
+	}
+	copyPlan := p
+	return &copyPlan, nil
+}
+
+// GetPlanByWorkspace returns a plan only when its workspace also matches.
+func (r *MemoryRepository) GetPlanByWorkspace(ctx context.Context, id, workspaceID string) (*RecordingPlan, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	p, exists := r.plans[id]
+	if !exists || p.WorkspaceID != workspaceID {
+		return nil, fmt.Errorf("%w: %s", ErrPlanNotFound, id)
 	}
 	copyPlan := p
 	return &copyPlan, nil
@@ -89,7 +104,38 @@ func (r *MemoryRepository) DeletePlan(ctx context.Context, id string) error {
 	defer r.mu.Unlock()
 
 	if _, exists := r.plans[id]; !exists {
-		return fmt.Errorf("recording_plan not found: %s", id)
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, id)
+	}
+	delete(r.plans, id)
+	return nil
+}
+
+// UpdatePlanByWorkspace updates a plan only when its workspace matches.
+func (r *MemoryRepository) UpdatePlanByWorkspace(ctx context.Context, plan *RecordingPlan, workspaceID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	existing, exists := r.plans[plan.ID]
+	if !exists || existing.WorkspaceID != workspaceID {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, plan.ID)
+	}
+	if plan.WorkspaceID != "" && plan.WorkspaceID != workspaceID {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, plan.ID)
+	}
+	plan.WorkspaceID = workspaceID
+	plan.UpdatedAt = time.Now().UTC()
+	r.plans[plan.ID] = *plan
+	return nil
+}
+
+// DeletePlanByWorkspace deletes a plan only when its workspace matches.
+func (r *MemoryRepository) DeletePlanByWorkspace(ctx context.Context, id, workspaceID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	plan, exists := r.plans[id]
+	if !exists || plan.WorkspaceID != workspaceID {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, id)
 	}
 	delete(r.plans, id)
 	return nil
@@ -114,7 +160,7 @@ func (r *MemoryRepository) GetPreviewToken(ctx context.Context, token string) (*
 
 	t, exists := r.tokens[token]
 	if !exists {
-		return nil, fmt.Errorf("preview token not found: %s", token)
+		return nil, fmt.Errorf("%w: %s", ErrPreviewTokenNotFound, token)
 	}
 	copyToken := t
 	return &copyToken, nil

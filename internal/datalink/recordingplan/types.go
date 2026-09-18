@@ -1,6 +1,8 @@
 package recordingplan
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -67,11 +69,12 @@ type PlanStream struct {
 
 // PlanDestination 記錄方案的目的地配置。
 type PlanDestination struct {
-	DestinationID    string `json:"destination_id"`
-	ConnectorID      string `json:"connector_id"`
-	TablePrefix      string `json:"table_prefix,omitempty"`
-	WriteIntervalSec int    `json:"write_interval_seconds,omitempty"`
-	BatchSize        int    `json:"batch_size,omitempty"`
+	DestinationID     string `json:"destination_id"`
+	ConnectorID       string `json:"connector_id"`
+	ConnectorRevision string `json:"connector_revision,omitempty"`
+	TablePrefix       string `json:"table_prefix,omitempty"`
+	WriteIntervalSec  int    `json:"write_interval_seconds,omitempty"`
+	BatchSize         int    `json:"batch_size,omitempty"`
 }
 
 // RetentionPolicy 記錄各層級資料保存期限（天數與小時）。
@@ -147,18 +150,52 @@ func (p *RecordingPlan) Validate() error {
 
 // SchemaPreviewToken 綁定 workspace, plan revision 與 connector 的預覽安全令牌。
 type SchemaPreviewToken struct {
-	Token        string    `json:"token"`
-	WorkspaceID  string    `json:"workspace_id"`
-	PlanID       string    `json:"plan_id"`
-	PlanRevision string    `json:"plan_revision"`
-	ConnectorID  string    `json:"connector_id"`
-	TablePrefix  string    `json:"table_prefix"`
-	Statements   []string  `json:"statements"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	Token             string               `json:"token"`
+	OperationID       string               `json:"operation_id"`
+	Action            string               `json:"action"`
+	WorkspaceID       string               `json:"workspace_id"`
+	WorkspaceRevision string               `json:"workspace_revision"`
+	PlanID            string               `json:"plan_id"`
+	PlanRevision      string               `json:"plan_revision"`
+	ConnectorID       string               `json:"connector_id"`
+	ConnectorRevision string               `json:"connector_revision"`
+	Dialect           string               `json:"dialect"`
+	Database          string               `json:"database"`
+	Schema            string               `json:"schema"`
+	TablePrefix       string               `json:"table_prefix"`
+	Statements        []string             `json:"statements"`
+	Tables            []SchemaPreviewTable `json:"tables"`
+	NoChangeReason    string               `json:"no_change_reason,omitempty"`
+	Digest            string               `json:"digest"`
+	ExpiresAt         time.Time            `json:"expires_at"`
+	CreatedAt         time.Time            `json:"created_at"`
+}
+
+const (
+	// SchemaTableActionCreate marks a managed table the preview will create.
+	SchemaTableActionCreate = "create"
+	// SchemaTableActionUnchanged marks an existing compatible managed table.
+	SchemaTableActionUnchanged = "unchanged"
+)
+
+// SchemaPreviewTable summarizes what a preview will do to one managed table.
+type SchemaPreviewTable struct {
+	Name    string   `json:"name"`
+	Action  string   `json:"action"`
+	Columns []string `json:"columns,omitempty"`
 }
 
 // IsExpired 檢查 token 是否過期。
 func (t *SchemaPreviewToken) IsExpired() bool {
 	return time.Now().UTC().After(t.ExpiresAt)
+}
+
+// ScopeKey identifies the target tables this token's operation must not share
+// with another active operation. Callers outside this package use it to claim
+// or inspect operations of the ledger directly.
+func (t *SchemaPreviewToken) ScopeKey() string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{
+		t.WorkspaceID, t.ConnectorID, t.Database, t.Schema, t.TablePrefix,
+	}, "\x1f")))
+	return hex.EncodeToString(sum[:])
 }

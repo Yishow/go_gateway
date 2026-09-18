@@ -33,7 +33,7 @@ func NewStreamFilter() *StreamFilter {
 }
 
 // ShouldEmitSample 依 Stream 模式與策略評估是否應將此樣本輸出至明細流。
-func (f *StreamFilter) ShouldEmitSample(stream PlanStream, sample measurement.SampleEnvelope) (bool, string) {
+func (f *StreamFilter) ShouldEmitSample(stream PlanStream, sample measurement.SampleEnvelope) (emit bool, reason string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -84,7 +84,7 @@ func (f *StreamFilter) ShouldEmitSample(stream PlanStream, sample measurement.Sa
 				return true, "quality_change"
 			}
 
-			// 檢查最大心跳 (Heartbeat)
+			// 檢查最大心跳間隔。
 			heartbeatSec := 60
 			if stream.MaxHeartbeatSeconds != nil && *stream.MaxHeartbeatSeconds > 0 {
 				heartbeatSec = *stream.MaxHeartbeatSeconds

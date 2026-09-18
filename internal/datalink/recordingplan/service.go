@@ -10,6 +10,11 @@ import (
 	"go-gateway/internal/datalink/common"
 )
 
+const (
+	customTableMode      = "custom_table"
+	managedRecordingMode = "managed_recording"
+)
+
 // ConnectorCapability 描述目標資料庫已驗證的功能。
 type ConnectorCapability struct {
 	Kind                  string   `json:"kind"`
@@ -45,42 +50,51 @@ func NewService(repo Repository) *Service {
 // GetConnectorCapability 查詢指定資料庫種類的驗證能力矩陣。
 func (s *Service) GetConnectorCapability(kind string) ConnectorCapability {
 	k := strings.ToLower(strings.TrimSpace(kind))
+	// The capability matrix must reflect what the server actually accepts:
+	// managed schema follows ManagedSchemaExecutionVerified so the flag can
+	// never contradict the adapter gate in ApplySchemaPreview. Test writes stay
+	// masked until that operation is wired end to end.
+	managedSchema := ManagedSchemaExecutionVerified(k)
 	switch k {
-	case "sqlite", "sqlite3":
+	case dialectSQLite, dialectSQLite3:
 		return ConnectorCapability{
 			Kind:                  kind,
 			Supported:             true,
-			SupportsManagedSchema: true,
+			SupportsManagedSchema: managedSchema,
 			SupportsTransactions:  true,
 			SupportsReceipts:      true,
-			SupportsTestWrites:    true,
-			SupportedModes:        []string{"managed_recording", "custom_table"},
+			SupportsTestWrites:    false,
+			SupportedModes:        []string{managedRecordingMode, customTableMode},
 		}
-	case "postgres", "postgresql", "pgx":
+	case dialectPostgres, dialectPostgreSQL, dialectPgx:
 		return ConnectorCapability{
 			Kind:                  kind,
 			Supported:             true,
-			SupportsManagedSchema: true,
+			SupportsManagedSchema: managedSchema,
 			SupportsTransactions:  true,
 			SupportsReceipts:      true,
-			SupportsTestWrites:    true,
-			SupportedModes:        []string{"managed_recording", "custom_table"},
+			SupportsTestWrites:    false,
+			SupportedModes:        []string{managedRecordingMode, customTableMode},
 		}
 	case "mysql":
+		// MySQL commits each DDL statement on its own, so a managed schema batch
+		// cannot be undone as one unit. Managed schema stays unavailable until
+		// that behavior is verified; everything MySQL already supports is unaffected.
 		return ConnectorCapability{
 			Kind:                  kind,
 			Supported:             true,
-			SupportsManagedSchema: true,
+			SupportsManagedSchema: managedSchema,
 			SupportsTransactions:  true,
 			SupportsReceipts:      true,
-			SupportsTestWrites:    true,
-			SupportedModes:        []string{"managed_recording", "custom_table"},
+			SupportsTestWrites:    false,
+			SupportedModes:        []string{managedRecordingMode, customTableMode},
+			Notes:                 "MySQL 逐句提交 DDL，整批建表無法一起回復；managed 建表在實測驗證前維持不可用，既有自訂資料表功能不受影響。",
 		}
 	default:
 		return ConnectorCapability{
 			Kind:                  kind,
 			Supported:             false,
-			SupportsManagedSchema: false,
+			SupportsManagedSchema: managedSchema,
 			SupportsTransactions:  false,
 			SupportsReceipts:      false,
 			SupportsTestWrites:    false,
@@ -93,7 +107,10 @@ func (s *Service) GetConnectorCapability(kind string) ConnectorCapability {
 // CreatePlan 建立新的記錄方案。
 func (s *Service) CreatePlan(ctx context.Context, plan *RecordingPlan) error {
 	if strings.TrimSpace(plan.ID) == "" {
-		uuid, _ := common.NewUUID()
+		uuid, err := common.NewUUID()
+		if err != nil {
+			return fmt.Errorf("create recording plan id: %w", err)
+		}
 		plan.ID = "plan-" + uuid
 	}
 	if strings.TrimSpace(plan.Revision) == "" {
@@ -129,6 +146,11 @@ func (s *Service) GetPlan(ctx context.Context, id string) (*RecordingPlan, error
 	return s.repo.GetPlanByID(ctx, id)
 }
 
+// GetPlanByWorkspace returns a plan only when it belongs to workspaceID.
+func (s *Service) GetPlanByWorkspace(ctx context.Context, id, workspaceID string) (*RecordingPlan, error) {
+	return s.repo.GetPlanByWorkspace(ctx, id, workspaceID)
+}
+
 // ListByWorkspace 取得 Workspace 底下所有記錄方案。
 func (s *Service) ListByWorkspace(ctx context.Context, workspaceID string) ([]RecordingPlan, error) {
 	return s.repo.ListPlansByWorkspace(ctx, workspaceID)
@@ -139,68 +161,33 @@ func (s *Service) DeletePlan(ctx context.Context, id string) error {
 	return s.repo.DeletePlan(ctx, id)
 }
 
-// GenerateSchemaPreview 產生受版本保護的建表 DDL 與預覽 Token。
-func (s *Service) GenerateSchemaPreview(ctx context.Context, planID, connectorID, tablePrefix, dialect string) (*SchemaPreviewToken, error) {
-	plan, err := s.repo.GetPlanByID(ctx, planID)
+// UpdatePlanByWorkspace updates a plan without allowing a workspace move.
+func (s *Service) UpdatePlanByWorkspace(ctx context.Context, plan *RecordingPlan, workspaceID string) error {
+	existing, err := s.repo.GetPlanByWorkspace(ctx, plan.ID, workspaceID)
 	if err != nil {
-		return nil, fmt.Errorf("plan not found: %w", err)
+		return err
 	}
-
-	stmts, err := GenerateManagedSchemaDDL(dialect, tablePrefix)
-	if err != nil {
-		return nil, err
+	if strings.TrimSpace(plan.WorkspaceID) != "" && plan.WorkspaceID != workspaceID {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, plan.ID)
 	}
-
-	tokenUUID, _ := common.NewUUID()
-	previewToken := &SchemaPreviewToken{
-		Token:        "tok-" + tokenUUID,
-		WorkspaceID:  plan.WorkspaceID,
-		PlanID:       plan.ID,
-		PlanRevision: plan.Revision,
-		ConnectorID:  connectorID,
-		TablePrefix:  tablePrefix,
-		Statements:   stmts,
-		ExpiresAt:    time.Now().UTC().Add(10 * time.Minute),
-		CreatedAt:    time.Now().UTC(),
+	if err := plan.Validate(); err != nil {
+		return err
 	}
-
-	if err := s.repo.SavePreviewToken(ctx, previewToken); err != nil {
-		return nil, fmt.Errorf("failed to save preview token: %w", err)
-	}
-
-	return previewToken, nil
+	plan.WorkspaceID = existing.WorkspaceID
+	plan.Revision = incrementPlanRevision(existing.Revision)
+	plan.UpdatedAt = time.Now().UTC()
+	return s.repo.UpdatePlanByWorkspace(ctx, plan, workspaceID)
 }
 
-// ApplyManagedSchema 驗證 Token 並在目標資料庫上執行建表。
-func (s *Service) ApplyManagedSchema(ctx context.Context, tokenString string, targetDB *sql.DB) error {
-	token, err := s.repo.GetPreviewToken(ctx, tokenString)
-	if err != nil {
-		return fmt.Errorf("preview token invalid or not found: %w", err)
-	}
-
-	if token.IsExpired() {
-		_ = s.repo.DeletePreviewToken(ctx, tokenString)
-		return fmt.Errorf("preview token expired, please regenerate preview")
-	}
-
-	// 依序執行 DDL
-	for _, stmt := range token.Statements {
-		if strings.TrimSpace(stmt) == "" {
-			continue
-		}
-		if _, err := targetDB.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("failed to execute managed DDL: %w (stmt: %s)", err, stmt)
-		}
-	}
-
-	_ = s.repo.DeletePreviewToken(ctx, tokenString)
-	return nil
+// DeletePlanByWorkspace deletes a plan without exposing or mutating another workspace.
+func (s *Service) DeletePlanByWorkspace(ctx context.Context, id, workspaceID string) error {
+	return s.repo.DeletePlanByWorkspace(ctx, id, workspaceID)
 }
 
 // ExecuteTestWrite 執行帶有 test 標記的一次性試寫與回讀驗證。
 func (s *Service) ExecuteTestWrite(ctx context.Context, targetDB *sql.DB, tablePrefix, planID, streamID, measID string) (*TestWriteResult, error) {
 	if tablePrefix == "" {
-		tablePrefix = "gw_record_"
+		tablePrefix = defaultManagedTablePrefix
 	}
 	tableName := tablePrefix + "samples"
 	testRecordID := fmt.Sprintf("test-%d", time.Now().UnixNano())

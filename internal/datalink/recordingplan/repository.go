@@ -4,22 +4,42 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 )
+
+// ErrPlanNotFound identifies an absent plan or a plan outside the requested
+// workspace. Callers should keep both cases indistinguishable at the API.
+var ErrPlanNotFound = errors.New("recording plan not found")
 
 // Repository 定義 RecordingPlan 與 SchemaPreviewToken 的持久化介面。
 type Repository interface {
 	CreatePlan(ctx context.Context, plan *RecordingPlan) error
 	UpdatePlan(ctx context.Context, plan *RecordingPlan) error
 	GetPlanByID(ctx context.Context, id string) (*RecordingPlan, error)
+	GetPlanByWorkspace(ctx context.Context, id, workspaceID string) (*RecordingPlan, error)
 	ListPlansByWorkspace(ctx context.Context, workspaceID string) ([]RecordingPlan, error)
 	DeletePlan(ctx context.Context, id string) error
+	UpdatePlanByWorkspace(ctx context.Context, plan *RecordingPlan, workspaceID string) error
+	DeletePlanByWorkspace(ctx context.Context, id, workspaceID string) error
 
 	SavePreviewToken(ctx context.Context, token *SchemaPreviewToken) error
 	GetPreviewToken(ctx context.Context, token string) (*SchemaPreviewToken, error)
 	DeletePreviewToken(ctx context.Context, token string) error
+
+	// ClaimSchemaOperation atomically records op as the owner of its scope, or
+	// reports the existing operation for the same identity or scope.
+	ClaimSchemaOperation(ctx context.Context, op *SchemaOperation) (*SchemaOperation, ClaimOutcome, error)
+	GetSchemaOperation(ctx context.Context, workspaceID, operationID string) (*SchemaOperation, error)
+	FindActiveSchemaOperation(ctx context.Context, workspaceID, scopeKey string) (*SchemaOperation, error)
+	FinishSchemaOperation(ctx context.Context, operationID, owner string, result SchemaOperationResult) (*SchemaOperation, error)
+	// FinishStaleSchemaOperation records a terminal result for an active
+	// operation whose claim was last touched before staleBefore, regardless of
+	// its owner. It returns nil when the operation is gone or no longer
+	// stale-active, which means the owning execution finished it first.
+	FinishStaleSchemaOperation(ctx context.Context, operationID string, result SchemaOperationResult, staleBefore time.Time) (*SchemaOperation, error)
 }
 
 // SQLRepository 實作基於 SQL 資料庫的 Repository。
@@ -41,11 +61,10 @@ func (r *SQLRepository) CreatePlan(ctx context.Context, plan *RecordingPlan) err
 		plan.UpdatedAt = time.Now().UTC()
 	}
 
-	membersJSON, _ := json.Marshal(plan.Members)
-	streamsJSON, _ := json.Marshal(plan.Streams)
-	destinationsJSON, _ := json.Marshal(plan.Destinations)
-	retentionJSON, _ := json.Marshal(plan.Retention)
-	limitsJSON, _ := json.Marshal(plan.Limits)
+	encoded, err := encodeRecordingPlan(plan)
+	if err != nil {
+		return err
+	}
 
 	query := `
 		INSERT INTO recording_plans (
@@ -55,11 +74,11 @@ func (r *SQLRepository) CreatePlan(ctx context.Context, plan *RecordingPlan) err
 	`
 	query = adaptPlaceholders(query)
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = r.db.ExecContext(ctx, query,
 		plan.ID, plan.WorkspaceID, plan.Revision, plan.AppliedRevision,
 		plan.Name, string(plan.Status), plan.Timezone,
-		string(membersJSON), string(streamsJSON), string(destinationsJSON),
-		string(retentionJSON), string(limitsJSON), plan.CreatedAt, plan.UpdatedAt,
+		string(encoded.members), string(encoded.streams), string(encoded.destinations),
+		string(encoded.retention), string(encoded.limits), plan.CreatedAt, plan.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert recording_plan: %w", err)
@@ -71,11 +90,10 @@ func (r *SQLRepository) CreatePlan(ctx context.Context, plan *RecordingPlan) err
 func (r *SQLRepository) UpdatePlan(ctx context.Context, plan *RecordingPlan) error {
 	plan.UpdatedAt = time.Now().UTC()
 
-	membersJSON, _ := json.Marshal(plan.Members)
-	streamsJSON, _ := json.Marshal(plan.Streams)
-	destinationsJSON, _ := json.Marshal(plan.Destinations)
-	retentionJSON, _ := json.Marshal(plan.Retention)
-	limitsJSON, _ := json.Marshal(plan.Limits)
+	encoded, err := encodeRecordingPlan(plan)
+	if err != nil {
+		return err
+	}
 
 	query := `
 		UPDATE recording_plans SET
@@ -88,16 +106,19 @@ func (r *SQLRepository) UpdatePlan(ctx context.Context, plan *RecordingPlan) err
 
 	res, err := r.db.ExecContext(ctx, query,
 		plan.WorkspaceID, plan.Revision, plan.AppliedRevision, plan.Name,
-		string(plan.Status), plan.Timezone, string(membersJSON), string(streamsJSON),
-		string(destinationsJSON), string(retentionJSON), string(limitsJSON), plan.UpdatedAt,
+		string(plan.Status), plan.Timezone, string(encoded.members), string(encoded.streams),
+		string(encoded.destinations), string(encoded.retention), string(encoded.limits), plan.UpdatedAt,
 		plan.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update recording_plan: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read affected rows: %w", err)
+	}
 	if rows == 0 {
-		return fmt.Errorf("recording_plan not found: %s", plan.ID)
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, plan.ID)
 	}
 	return nil
 }
@@ -114,6 +135,24 @@ func (r *SQLRepository) GetPlanByID(ctx context.Context, id string) (*RecordingP
 
 	row := r.db.QueryRowContext(ctx, query, id)
 	return scanRecordingPlan(row)
+}
+
+// GetPlanByWorkspace returns a plan only when both its ID and workspace match.
+func (r *SQLRepository) GetPlanByWorkspace(ctx context.Context, id, workspaceID string) (*RecordingPlan, error) {
+	query := `
+		SELECT id, workspace_id, revision, applied_revision, name, status, timezone,
+			members, streams, destinations, retention, limits, created_at, updated_at
+		FROM recording_plans
+		WHERE id = $1 AND workspace_id = $2
+	`
+	query = adaptPlaceholders(query)
+
+	row := r.db.QueryRowContext(ctx, query, id, workspaceID)
+	plan, err := scanRecordingPlan(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: %s", ErrPlanNotFound, id)
+	}
+	return plan, err
 }
 
 // ListPlansByWorkspace 依 Workspace 取得記錄方案列表。
@@ -148,8 +187,77 @@ func (r *SQLRepository) ListPlansByWorkspace(ctx context.Context, workspaceID st
 func (r *SQLRepository) DeletePlan(ctx context.Context, id string) error {
 	query := `DELETE FROM recording_plans WHERE id = $1`
 	query = adaptPlaceholders(query)
-	_, err := r.db.ExecContext(ctx, query, id)
-	return err
+	res, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read affected rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, id)
+	}
+	return nil
+}
+
+// UpdatePlanByWorkspace updates a plan only within its current workspace.
+func (r *SQLRepository) UpdatePlanByWorkspace(ctx context.Context, plan *RecordingPlan, workspaceID string) error {
+	if strings.TrimSpace(plan.WorkspaceID) != "" && plan.WorkspaceID != workspaceID {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, plan.ID)
+	}
+	plan.WorkspaceID = workspaceID
+	plan.UpdatedAt = time.Now().UTC()
+
+	encoded, err := encodeRecordingPlan(plan)
+	if err != nil {
+		return err
+	}
+
+	query := `
+		UPDATE recording_plans SET
+			revision = $1, applied_revision = $2, name = $3, status = $4,
+			timezone = $5, members = $6, streams = $7, destinations = $8,
+			retention = $9, limits = $10, updated_at = $11
+		WHERE id = $12 AND workspace_id = $13
+	`
+	query = adaptPlaceholders(query)
+
+	res, err := r.db.ExecContext(ctx, query,
+		plan.Revision, plan.AppliedRevision, plan.Name, string(plan.Status), plan.Timezone,
+		string(encoded.members), string(encoded.streams), string(encoded.destinations),
+		string(encoded.retention), string(encoded.limits), plan.UpdatedAt,
+		plan.ID, workspaceID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update recording_plan: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read affected rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, plan.ID)
+	}
+	return nil
+}
+
+// DeletePlanByWorkspace deletes a plan only within the requested workspace.
+func (r *SQLRepository) DeletePlanByWorkspace(ctx context.Context, id, workspaceID string) error {
+	query := `DELETE FROM recording_plans WHERE id = $1 AND workspace_id = $2`
+	query = adaptPlaceholders(query)
+	res, err := r.db.ExecContext(ctx, query, id, workspaceID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read affected rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("%w: %s", ErrPlanNotFound, id)
+	}
+	return nil
 }
 
 // SavePreviewToken 儲存預覽 Token。
@@ -157,19 +265,29 @@ func (r *SQLRepository) SavePreviewToken(ctx context.Context, token *SchemaPrevi
 	if token.CreatedAt.IsZero() {
 		token.CreatedAt = time.Now().UTC()
 	}
-	stmtsJSON, _ := json.Marshal(token.Statements)
+	stmtsJSON, err := json.Marshal(token.Statements)
+	if err != nil {
+		return fmt.Errorf("encode preview statements: %w", err)
+	}
+	tablesJSON, err := json.Marshal(token.Tables)
+	if err != nil {
+		return fmt.Errorf("encode preview tables: %w", err)
+	}
 
 	query := `
 		INSERT INTO managed_schema_preview_tokens (
 			token, workspace_id, plan_id, plan_revision, connector_id, table_prefix,
-			statements, expires_at, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			statements, expires_at, created_at, operation_id, action, workspace_revision,
+			connector_revision, dialect, database_name, schema_name, no_change_reason, digest, tables
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 	`
 	query = adaptPlaceholders(query)
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = r.db.ExecContext(ctx, query,
 		token.Token, token.WorkspaceID, token.PlanID, token.PlanRevision,
 		token.ConnectorID, token.TablePrefix, string(stmtsJSON), token.ExpiresAt, token.CreatedAt,
+		token.OperationID, token.Action, token.WorkspaceRevision, token.ConnectorRevision, token.Dialect,
+		token.Database, token.Schema, token.NoChangeReason, token.Digest, string(tablesJSON),
 	)
 	return err
 }
@@ -178,22 +296,33 @@ func (r *SQLRepository) SavePreviewToken(ctx context.Context, token *SchemaPrevi
 func (r *SQLRepository) GetPreviewToken(ctx context.Context, token string) (*SchemaPreviewToken, error) {
 	query := `
 		SELECT token, workspace_id, plan_id, plan_revision, connector_id, table_prefix,
-			statements, expires_at, created_at
+			statements, expires_at, created_at, operation_id, action, workspace_revision,
+			connector_revision, dialect, database_name, schema_name, no_change_reason, digest, tables
 		FROM managed_schema_preview_tokens
 		WHERE token = $1
 	`
 	query = adaptPlaceholders(query)
 
 	var t SchemaPreviewToken
-	var stmtsStr string
+	var stmtsStr, tablesStr string
 	err := r.db.QueryRowContext(ctx, query, token).Scan(
 		&t.Token, &t.WorkspaceID, &t.PlanID, &t.PlanRevision,
 		&t.ConnectorID, &t.TablePrefix, &stmtsStr, &t.ExpiresAt, &t.CreatedAt,
+		&t.OperationID, &t.Action, &t.WorkspaceRevision, &t.ConnectorRevision, &t.Dialect,
+		&t.Database, &t.Schema, &t.NoChangeReason, &t.Digest, &tablesStr,
 	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: %s", ErrPreviewTokenNotFound, token)
+	}
 	if err != nil {
 		return nil, err
 	}
-	_ = json.Unmarshal([]byte(stmtsStr), &t.Statements)
+	if err := json.Unmarshal([]byte(stmtsStr), &t.Statements); err != nil {
+		return nil, fmt.Errorf("decode preview statements: %w", err)
+	}
+	if err := json.Unmarshal([]byte(tablesStr), &t.Tables); err != nil {
+		return nil, fmt.Errorf("decode preview tables: %w", err)
+	}
 	return &t, nil
 }
 
@@ -223,11 +352,20 @@ func scanRecordingPlan(s scannable) (*RecordingPlan, error) {
 	}
 
 	p.Status = Status(statusStr)
-	_ = json.Unmarshal([]byte(membersStr), &p.Members)
-	_ = json.Unmarshal([]byte(streamsStr), &p.Streams)
-	_ = json.Unmarshal([]byte(destsStr), &p.Destinations)
-	_ = json.Unmarshal([]byte(retStr), &p.Retention)
-	_ = json.Unmarshal([]byte(limStr), &p.Limits)
+	for _, field := range []struct {
+		name, raw string
+		target    any
+	}{
+		{"members", membersStr, &p.Members},
+		{"streams", streamsStr, &p.Streams},
+		{"destinations", destsStr, &p.Destinations},
+		{"retention", retStr, &p.Retention},
+		{"limits", limStr, &p.Limits},
+	} {
+		if err := json.Unmarshal([]byte(field.raw), field.target); err != nil {
+			return nil, fmt.Errorf("decode recording plan %s: %w", field.name, err)
+		}
+	}
 
 	return &p, nil
 }
