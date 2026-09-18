@@ -43,7 +43,7 @@ import type {
   CreateDatabaseTargetMappingRequest,
   UpdateDatabaseTargetMappingRequest,
 } from '../types/datalink';
-import { api, DATALINK_BASE } from './datalinkClient';
+import { api, DATALINK_BASE, requireList } from './datalinkClient';
 export { modbusShareAPI } from './modbusShare';
 
 interface DeviceReadinessResult {
@@ -671,7 +671,7 @@ export const dbTargetAPI = {
     const res = await api.get<APIResponse<DatabaseTableInfo[]>>(
       `/db-targets/connectors/${id}/tables`,
     );
-    return res.data.data ?? [];
+    return requireList(res.data.data, 'Database table inspection');
   },
 
   async validateConnector(id: string): Promise<DatabaseTargetValidationResult> {

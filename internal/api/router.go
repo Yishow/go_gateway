@@ -376,6 +376,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					datalinkGroup.GET("/studio-v2/workspace/database-config", workspaceDatabaseHandler.GetConfig)
 					datalinkGroup.PUT("/studio-v2/workspace/database-config", workspaceDatabaseHandler.UpdateConfig)
 					datalinkGroup.GET("/studio-v2/workspace/database-targets", workspaceDatabaseHandler.ListTargets)
+					datalinkGroup.GET("/studio-v2/workspace/database-metadata", workspaceDatabaseHandler.GetMetadata)
 					datalinkGroup.PUT("/studio-v2/workspace/database-targets/:point_id", workspaceDatabaseHandler.UpsertTarget)
 					datalinkGroup.POST("/studio-v2/workspace/database-schema/generate", workspaceDatabaseHandler.GenerateSchema)
 				}

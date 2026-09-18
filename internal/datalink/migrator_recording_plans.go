@@ -1,12 +1,8 @@
 package datalink
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	"log"
-
-	"go-gateway/internal/datalink/schema/migrations"
 )
 
 func ensureSQLiteTelemetryRecordingMigrations(db *sql.DB) error {
@@ -19,7 +15,44 @@ func ensureSQLiteTelemetryRecordingMigrations(db *sql.DB) error {
 	if err := ensureSQLiteRecordingPlansTable(db); err != nil {
 		return err
 	}
+	if err := ensureSQLiteSchemaPreviewScopeColumns(db); err != nil {
+		return err
+	}
+	if err := ensureSQLiteSchemaOperationsTable(db); err != nil {
+		return err
+	}
 	return ensureSQLiteDurableDeliveryTables(db)
+}
+
+// ensureSQLiteSchemaOperationsTable creates the durable schema operation ledger.
+func ensureSQLiteSchemaOperationsTable(db *sql.DB) error {
+	const migrationName = "023_schema_operations_sqlite.up.sql"
+
+	exists, err := sqliteTableExists(db, "managed_schema_operations")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite table managed_schema_operations: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	return applySQLiteMigrationOnce(db, migrationName)
+}
+
+// ensureSQLiteSchemaPreviewScopeColumns adds preview protection columns with
+// empty defaults; existing tokens stay legacy and require a new preview.
+func ensureSQLiteSchemaPreviewScopeColumns(db *sql.DB) error {
+	const migrationName = "022_schema_preview_scope_sqlite.up.sql"
+
+	exists, err := sqliteColumnExists(db, "managed_schema_preview_tokens", "digest")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite preview token digest column: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	return applySQLiteMigrationOnce(db, migrationName)
 }
 
 func ensureSQLiteDurableDeliveryTables(db *sql.DB) error {
@@ -33,17 +66,7 @@ func ensureSQLiteDurableDeliveryTables(db *sql.DB) error {
 		return nil
 	}
 
-	content, err := migrations.FS.ReadFile(migrationName)
-	if err != nil {
-		return fmt.Errorf("failed to read migration file %s: %w", migrationName, err)
-	}
-
-	log.Printf("Executing SQLite migration: %s", migrationName)
-	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
-		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
-	}
-
-	return nil
+	return applySQLiteMigrationOnce(db, migrationName)
 }
 
 func ensureSQLiteRecordingPlansTable(db *sql.DB) error {
@@ -57,15 +80,5 @@ func ensureSQLiteRecordingPlansTable(db *sql.DB) error {
 		return nil
 	}
 
-	content, err := migrations.FS.ReadFile(migrationName)
-	if err != nil {
-		return fmt.Errorf("failed to read migration file %s: %w", migrationName, err)
-	}
-
-	log.Printf("Executing SQLite migration: %s", migrationName)
-	if _, err := db.ExecContext(context.Background(), string(content)); err != nil {
-		return fmt.Errorf("failed to execute migration %s: %w", migrationName, err)
-	}
-
-	return nil
+	return applySQLiteMigrationOnce(db, migrationName)
 }

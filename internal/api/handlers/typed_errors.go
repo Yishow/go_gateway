@@ -36,6 +36,7 @@ type TypedAPIErrorEnvelope struct {
 	WorkspaceRevision string `json:"workspace_revision,omitempty"`
 	SettingsRevision  string `json:"settings_revision,omitempty"`
 	DirtyState        string `json:"dirty_state,omitempty"`
+	OperationID       string `json:"operation_id,omitempty"`
 }
 
 func renderModbusShareAPIError(c *gin.Context, status int, err error, fallbackCode string, fallbackRetryable bool) {

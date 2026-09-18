@@ -98,6 +98,8 @@ definitions:
         type: string
       message:
         type: string
+      operation_id:
+        type: string
       request_id:
         type: string
       retryable:
@@ -259,6 +261,25 @@ definitions:
       target_data_type:
         $ref: '#/definitions/schema.DataType'
     type: object
+  handlers.schemaApplyRequest:
+    properties:
+      expected_connector_revision:
+        type: string
+      expected_plan_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      operation_id:
+        type: string
+      token:
+        type: string
+    required:
+    - expected_connector_revision
+    - expected_plan_revision
+    - expected_workspace_revision
+    - operation_id
+    - token
+    type: object
   handlers.studioV2WorkspaceDatabaseConfigResponse:
     properties:
       created_at: {}
@@ -267,6 +288,8 @@ definitions:
       host:
         type: string
       id:
+        type: string
+      identity_revision:
         type: string
       kind:
         $ref: '#/definitions/schema.DatabaseConnectorKind'
@@ -308,6 +331,8 @@ definitions:
         type: string
       schema:
         type: string
+      setup_revision:
+        type: string
       status:
         $ref: '#/definitions/schema.DatabaseConnectorStatus'
       table:
@@ -324,12 +349,25 @@ definitions:
       write_mode:
         $ref: '#/definitions/schema.DatabaseWriteMode'
     type: object
+  handlers.testWriteRequest:
+    properties:
+      plan_id:
+        type: string
+      stream_id:
+        type: string
+      table_prefix:
+        type: string
+    required:
+    - plan_id
+    type: object
   mapping.StepResult:
     properties:
       error:
         type: string
       input: {}
+      input_value: {}
       output: {}
+      output_value: {}
       step_index:
         type: integer
       step_type:
@@ -1085,4 +1123,123 @@ paths:
       summary: Get runtime workspace context
       tags:
       - datalink
+  /v1/datalink/studio-v2/workspace/database-operations/{operation_id}:
+    get:
+      description: Returns the durable state of a schema operation issued by a preview
+        of the current workspace.
+      parameters:
+      - description: Operation ID returned with the schema preview
+        in: path
+        name: operation_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success=true; data is the schema operation
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: success=false; code=RECORDING_OPERATION_NOT_FOUND; unknown
+            or foreign operation
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: success=false; code=RECORDING_PLAN_UNAVAILABLE; retryable=true
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Read a schema operation
+      tags:
+      - Studio V2 Recording Plans
+  /v1/datalink/studio-v2/workspace/recording-plans/schema-apply:
+    post:
+      consumes:
+      - application/json
+      description: Executes a current schema preview once on a verified adapter and
+        returns the verified operation; repeated confirmations return the recorded
+        operation.
+      parameters:
+      - description: Schema apply request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.schemaApplyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success=true; data is the finished schema operation (succeeded,
+            partial, failed or unknown)
+          schema:
+            additionalProperties: true
+            type: object
+        "202":
+          description: success=true; data is the schema operation that is still running
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing token, operation_id or expected revisions
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: success=false; code=RECORDING_SCHEMA_PREVIEW_NOT_FOUND or RECORDING_PLAN_NOT_FOUND
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: success=false; code=RECORDING_SCHEMA_PREVIEW_STALE, RECORDING_SCHEMA_PREVIEW_EXPIRED,
+            RECORDING_CONNECTOR_REVISION_CONFLICT, RECORDING_SCHEMA_OPERATION_MISMATCH
+            or RECORDING_SCHEMA_OPERATION_BUSY
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: success=false; incompatible target, missing permission or disabled
+            connector
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "501":
+          description: success=false; code=RECORDING_SCHEMA_NOT_IMPLEMENTED; the adapter
+            has no verified managed schema execution
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: success=false; code=RECORDING_SCHEMA_OPERATION_UNKNOWN (operation_id
+            names the unresolved operation) or RECORDING_SCHEMA_TARGET_UNAVAILABLE
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Apply the managed recording schema
+      tags:
+      - Studio V2 Recording Plans
+  /v1/datalink/studio-v2/workspace/recording-plans/test-write:
+    post:
+      consumes:
+      - application/json
+      description: Recording test writes are unavailable until a verified operation
+        is connected.
+      parameters:
+      - description: Recording test write request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.testWriteRequest'
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Invalid recording test write request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "501":
+          description: success=false; code=RECORDING_TEST_WRITE_NOT_IMPLEMENTED; message=recording
+            test write is not implemented; retryable=false; action=wait_for_supported_operation;
+            request_id is returned
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Execute a recording test write
+      tags:
+      - Studio V2 Recording Plans
 swagger: "2.0"

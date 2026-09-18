@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from './keys';
 import {
   studioV2WorkspaceRecordingPlansAPI,
+  type SchemaApplyRequest,
   type SchemaPreviewRequest,
   type TestWriteRequest,
 } from '../../services/studioV2WorkspaceRecordingPlans';
@@ -71,15 +72,28 @@ export function useApplySchemaMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (token: string) => studioV2WorkspaceRecordingPlansAPI.schemaApply(token),
+    mutationFn: (request: SchemaApplyRequest) => studioV2WorkspaceRecordingPlansAPI.schemaApplyConfirmed(request),
+    retry: false,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.recordingPlans() });
     },
   });
 }
 
+/** Reads one schema operation on demand so an unresolved result can be checked instead of retried blindly. */
+export function useSchemaOperationQuery(operationId: string | undefined) {
+  return useQuery({
+    queryKey: studioV2WorkspaceKeys.schemaOperation(operationId ?? ''),
+    queryFn: () => studioV2WorkspaceRecordingPlansAPI.schemaOperation(operationId as string),
+    enabled: false,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useTestWritePlanMutation() {
   return useMutation({
     mutationFn: (req: TestWriteRequest) => studioV2WorkspaceRecordingPlansAPI.testWrite(req),
+    retry: false,
   });
 }

@@ -27,3 +27,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => Promise.reject(error),
 );
+
+/** A reply without a list must not be read as "nothing exists". */
+export function requireList<T>(value: T[] | null | undefined, what: string): T[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`${what} returned no list`);
+  }
+  return value;
+}

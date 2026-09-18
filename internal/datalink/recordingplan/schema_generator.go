@@ -1,25 +1,38 @@
 package recordingplan
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+)
+
+// ErrUnsupportedSchemaDialect marks a target kind without verified managed DDL.
+var ErrUnsupportedSchemaDialect = errors.New("unsupported database dialect")
+
+// Dialect spellings accepted from connector kinds.
+const (
+	dialectSQLite     = "sqlite"
+	dialectSQLite3    = "sqlite3"
+	dialectPostgres   = "postgres"
+	dialectPostgreSQL = "postgresql"
+	dialectPgx        = "pgx"
 )
 
 // GenerateManagedSchemaDDL 根據目標資料庫種類與表名前綴產生完整的 managed 長表與索引 DDL。
 func GenerateManagedSchemaDDL(dialect, prefix string) ([]string, error) {
 	prefix = strings.TrimSpace(prefix)
 	if prefix == "" {
-		prefix = "gw_record_"
+		prefix = defaultManagedTablePrefix
 	}
 
 	d := strings.ToLower(strings.TrimSpace(dialect))
 	switch d {
-	case "sqlite", "sqlite3":
+	case dialectSQLite, dialectSQLite3:
 		return generateSQLiteDDL(prefix), nil
-	case "postgres", "postgresql", "pgx":
+	case dialectPostgres, dialectPostgreSQL, dialectPgx:
 		return generatePostgreSQLDDL(prefix), nil
 	default:
-		return nil, fmt.Errorf("unsupported database dialect: %s", dialect)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedSchemaDialect, dialect)
 	}
 }
 

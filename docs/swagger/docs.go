@@ -807,6 +807,166 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/datalink/studio-v2/workspace/database-operations/{operation_id}": {
+            "get": {
+                "description": "Returns the durable state of a schema operation issued by a preview of the current workspace.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Read a schema operation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Operation ID returned with the schema preview",
+                        "name": "operation_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success=true; data is the schema operation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "success=false; code=RECORDING_OPERATION_NOT_FOUND; unknown or foreign operation",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "success=false; code=RECORDING_PLAN_UNAVAILABLE; retryable=true",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/recording-plans/schema-apply": {
+            "post": {
+                "description": "Executes a current schema preview once on a verified adapter and returns the verified operation; repeated confirmations return the recorded operation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Apply the managed recording schema",
+                "parameters": [
+                    {
+                        "description": "Schema apply request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.schemaApplyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success=true; data is the finished schema operation (succeeded, partial, failed or unknown)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "202": {
+                        "description": "success=true; data is the schema operation that is still running",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing token, operation_id or expected revisions",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "success=false; code=RECORDING_SCHEMA_PREVIEW_NOT_FOUND or RECORDING_PLAN_NOT_FOUND",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "success=false; code=RECORDING_SCHEMA_PREVIEW_STALE, RECORDING_SCHEMA_PREVIEW_EXPIRED, RECORDING_CONNECTOR_REVISION_CONFLICT, RECORDING_SCHEMA_OPERATION_MISMATCH or RECORDING_SCHEMA_OPERATION_BUSY",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "success=false; incompatible target, missing permission or disabled connector",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "success=false; code=RECORDING_SCHEMA_NOT_IMPLEMENTED; the adapter has no verified managed schema execution",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "success=false; code=RECORDING_SCHEMA_OPERATION_UNKNOWN (operation_id names the unresolved operation) or RECORDING_SCHEMA_TARGET_UNAVAILABLE",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/recording-plans/test-write": {
+            "post": {
+                "description": "Recording test writes are unavailable until a verified operation is connected.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Execute a recording test write",
+                "parameters": [
+                    {
+                        "description": "Recording test write request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.testWriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Invalid recording test write request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "success=false; code=RECORDING_TEST_WRITE_NOT_IMPLEMENTED; message=recording test write is not implemented; retryable=false; action=wait_for_supported_operation; request_id is returned",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -954,6 +1114,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "message": {
+                    "type": "string"
+                },
+                "operation_id": {
                     "type": "string"
                 },
                 "request_id": {
@@ -1201,6 +1364,33 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.schemaApplyRequest": {
+            "type": "object",
+            "required": [
+                "expected_connector_revision",
+                "expected_plan_revision",
+                "expected_workspace_revision",
+                "operation_id",
+                "token"
+            ],
+            "properties": {
+                "expected_connector_revision": {
+                    "type": "string"
+                },
+                "expected_plan_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.studioV2WorkspaceDatabaseConfigResponse": {
             "type": "object",
             "properties": {
@@ -1212,6 +1402,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "identity_revision": {
                     "type": "string"
                 },
                 "kind": {
@@ -1274,6 +1467,9 @@ const docTemplate = `{
                 "schema": {
                     "type": "string"
                 },
+                "setup_revision": {
+                    "type": "string"
+                },
                 "status": {
                     "$ref": "#/definitions/schema.DatabaseConnectorStatus"
                 },
@@ -1298,6 +1494,23 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.testWriteRequest": {
+            "type": "object",
+            "required": [
+                "plan_id"
+            ],
+            "properties": {
+                "plan_id": {
+                    "type": "string"
+                },
+                "stream_id": {
+                    "type": "string"
+                },
+                "table_prefix": {
+                    "type": "string"
+                }
+            }
+        },
         "mapping.StepResult": {
             "type": "object",
             "properties": {
@@ -1305,7 +1518,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "input": {},
+                "input_value": {},
                 "output": {},
+                "output_value": {},
                 "step_index": {
                     "type": "integer"
                 },

@@ -3,8 +3,8 @@ package recordingplan
 import (
 	"context"
 	"database/sql"
+	"reflect"
 	"testing"
-	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -54,100 +54,77 @@ func TestRecordingPlanService_CRUD_And_Revision(t *testing.T) {
 func TestRecordingPlanService_Capabilities(t *testing.T) {
 	svc := NewService(NewMemoryRepository())
 
-	sqliteCap := svc.GetConnectorCapability("sqlite")
-	if !sqliteCap.Supported || !sqliteCap.SupportsManagedSchema {
-		t.Errorf("expected SQLite to be fully supported for managed recording")
+	supportedKinds := []struct {
+		kind          string
+		modes         []string
+		managedSchema bool
+	}{
+		{kind: "sqlite", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
+		{kind: "sqlite3", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
+		{kind: "postgres", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
+		{kind: "postgresql", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
+		{kind: "pgx", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
+		{kind: "mysql", modes: []string{"managed_recording", "custom_table"}},
+	}
+	for _, test := range supportedKinds {
+		t.Run(test.kind, func(t *testing.T) {
+			capability := svc.GetConnectorCapability(test.kind)
+			if !capability.Supported {
+				t.Fatalf("expected %s to remain supported", test.kind)
+			}
+			if capability.SupportsManagedSchema != test.managedSchema {
+				t.Fatalf("expected supports_managed_schema=%v for %s, got %+v", test.managedSchema, test.kind, capability)
+			}
+			if capability.SupportsTestWrites {
+				t.Fatalf("test writes must stay masked until wired for %s: %+v", test.kind, capability)
+			}
+			if !capability.SupportsTransactions || !capability.SupportsReceipts {
+				t.Fatalf("existing transaction/receipt support must remain for %s: %+v", test.kind, capability)
+			}
+			if !reflect.DeepEqual(capability.SupportedModes, test.modes) {
+				t.Fatalf("expected modes %v for %s, got %v", test.modes, test.kind, capability.SupportedModes)
+			}
+		})
 	}
 
-	pgCap := svc.GetConnectorCapability("postgres")
-	if !pgCap.Supported || !pgCap.SupportsManagedSchema {
-		t.Errorf("expected PostgreSQL to be fully supported for managed recording")
-	}
-
-	mysqlCap := svc.GetConnectorCapability("mysql")
-	if !mysqlCap.Supported || !mysqlCap.SupportsManagedSchema {
-		t.Errorf("expected MySQL to be fully supported for managed recording")
-	}
-
-	unsupported := svc.GetConnectorCapability("oracle")
-	if unsupported.Supported || unsupported.SupportsManagedSchema {
-		t.Errorf("expected Oracle to be unsupported")
+	for _, kind := range []string{"oracle", "sqlserver", "unknown"} {
+		t.Run(kind, func(t *testing.T) {
+			capability := svc.GetConnectorCapability(kind)
+			if capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites {
+				t.Fatalf("expected %s to be unsupported: %+v", kind, capability)
+			}
+			if len(capability.SupportedModes) != 0 {
+				t.Fatalf("unsupported %s must not advertise modes: %v", kind, capability.SupportedModes)
+			}
+		})
 	}
 }
 
-func TestRecordingPlanService_SchemaPreview_Apply_And_TestWrite(t *testing.T) {
-	repo := NewMemoryRepository()
-	svc := NewService(repo)
+func TestRecordingPlanService_TestWriteOnManagedSchema(t *testing.T) {
+	svc := NewService(NewMemoryRepository())
 	ctx := context.Background()
 
-	plan := &RecordingPlan{
-		ID:          "plan-test",
-		WorkspaceID: "ws-test",
-		Name:        "Test Plan",
-		Streams: []PlanStream{
-			{StreamID: "s1", MeasurementID: "m1", Mode: StreamModeRawHistory},
-		},
-	}
-	if err := svc.CreatePlan(ctx, plan); err != nil {
-		t.Fatalf("CreatePlan failed: %v", err)
-	}
-
-	// 1. Generate Schema Preview
-	previewToken, err := svc.GenerateSchemaPreview(ctx, "plan-test", "conn-sqlite", "gw_record_", "sqlite")
-	if err != nil {
-		t.Fatalf("GenerateSchemaPreview failed: %v", err)
-	}
-	if previewToken.Token == "" || len(previewToken.Statements) == 0 {
-		t.Fatalf("expected valid preview token with statements, got %v", previewToken)
-	}
-
-	// 2. Open in-memory SQLite database
 	targetDB, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("failed to open memory sqlite: %v", err)
 	}
 	defer targetDB.Close()
-
-	// 3. Apply Schema using token
-	if err := svc.ApplyManagedSchema(ctx, previewToken.Token, targetDB); err != nil {
-		t.Fatalf("ApplyManagedSchema failed: %v", err)
+	targetDB.SetMaxOpenConns(1)
+	statements, err := GenerateManagedSchemaDDL("sqlite", "gw_record_")
+	if err != nil {
+		t.Fatalf("generate managed schema: %v", err)
+	}
+	for _, statement := range statements {
+		if _, err := targetDB.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("create managed schema: %v", err)
+		}
 	}
 
-	// Re-applying with consumed token should fail
-	if err := svc.ApplyManagedSchema(ctx, previewToken.Token, targetDB); err == nil {
-		t.Fatalf("expected error applying with already consumed token")
-	}
-
-	// 4. Test Write
 	result, err := svc.ExecuteTestWrite(ctx, targetDB, "gw_record_", "plan-test", "s1", "m1")
 	if err != nil {
 		t.Fatalf("ExecuteTestWrite failed: %v", err)
 	}
 	if result.Status != "written_verified" {
 		t.Errorf("expected written_verified, got %s (%s)", result.Status, result.Message)
-	}
-}
-
-func TestRecordingPlanService_ExpiredTokenRejection(t *testing.T) {
-	repo := NewMemoryRepository()
-	svc := NewService(repo)
-	ctx := context.Background()
-
-	expiredToken := &SchemaPreviewToken{
-		Token:        "tok-expired",
-		WorkspaceID:  "ws-1",
-		PlanID:       "p-1",
-		PlanRevision: "rev-1",
-		Statements:   []string{"SELECT 1;"},
-		ExpiresAt:    time.Now().UTC().Add(-1 * time.Minute), // expired
-	}
-	_ = repo.SavePreviewToken(ctx, expiredToken)
-
-	targetDB, _ := sql.Open("sqlite", ":memory:")
-	defer targetDB.Close()
-
-	err := svc.ApplyManagedSchema(ctx, "tok-expired", targetDB)
-	if err == nil {
-		t.Fatalf("expected error applying expired token")
 	}
 }

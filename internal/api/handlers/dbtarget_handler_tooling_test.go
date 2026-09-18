@@ -192,14 +192,14 @@ func TestDatabaseTargetHandler_GenerateSchema_DryRunAndExecute(t *testing.T) {
 	execReq.Header.Set("Content-Type", "application/json")
 	execResp := httptest.NewRecorder()
 	fixture.router.ServeHTTP(execResp, execReq)
-	require.Equal(t, http.StatusOK, execResp.Code)
 
+	// Creating through the generic endpoint needs a confirmed preview.
+	require.Equal(t, http.StatusConflict, execResp.Code, execResp.Body.String())
 	var execPayload map[string]any
 	require.NoError(t, json.Unmarshal(execResp.Body.Bytes(), &execPayload))
-	assert.Equal(t, true, execPayload["success"])
-	execData := execPayload["data"].(map[string]any)
-	assert.Equal(t, false, execData["dry_run"])
-	assert.Greater(t, int(execData["executed"].(float64)), 0)
+	assert.Equal(t, false, execPayload["success"])
+	assert.Contains(t, execResp.Body.String(), schemaConfirmationRequiredCode)
+	assert.Nil(t, execPayload["data"])
 }
 
 func TestDatabaseTargetHandler_ListWriteHistory_ReturnsLatestRecords(t *testing.T) {

@@ -26,6 +26,27 @@ export function useStudioV2DatabaseTargetsQuery(enabled: boolean) {
   });
 }
 
+export interface StudioV2DatabaseMetadataScope {
+  connectorId?: string;
+  connectorRevision?: string;
+  database: string;
+  schema: string;
+  table: string;
+}
+
+/** 以完整範圍作為 key 查詢實際欄位；任一範圍改變即換成新的查詢，舊回覆不會沿用。 */
+export function useStudioV2DatabaseMetadataQuery(scope: StudioV2DatabaseMetadataScope, enabled: boolean) {
+  const connectorId = scope.connectorId ?? '';
+  const connectorRevision = scope.connectorRevision ?? '';
+  return useQuery({
+    queryKey: studioV2WorkspaceKeys.databaseMetadata(connectorId, connectorRevision, scope.database, scope.schema, scope.table),
+    queryFn: () => studioV2WorkspaceDatabaseAPI.getMetadata(connectorRevision),
+    enabled: enabled && Boolean(connectorId && connectorRevision),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useUpdateStudioV2DatabaseConfigMutation() {
   const queryClient = useQueryClient();
 

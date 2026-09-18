@@ -11,7 +11,7 @@ import {
   useUpdateRecordingPlanMutation,
 } from '@/hooks/datalink/useStudioV2WorkspaceRecordingPlans';
 import { studioV2WorkspaceRecordingPlansAPI } from '@/services/studioV2WorkspaceRecordingPlans';
-import type { RecordingPlan, SchemaPreviewToken, TestWriteResult } from '@/types/recordingPlan';
+import type { RecordingPlan, SchemaOperation, SchemaPreviewToken, TestWriteResult } from '@/types/recordingPlan';
 
 const useMutationMock = vi.fn();
 const useQueryMock = vi.fn();
@@ -38,7 +38,8 @@ vi.mock('@/services/studioV2WorkspaceRecordingPlans', () => ({
     update: vi.fn(),
     remove: vi.fn(),
     schemaPreview: vi.fn(),
-    schemaApply: vi.fn(),
+    schemaApplyConfirmed: vi.fn(),
+    schemaOperation: vi.fn(),
     testWrite: vi.fn(),
   },
 }));
@@ -133,12 +134,16 @@ describe('useStudioV2WorkspaceRecordingPlans hooks', () => {
     };
     const mockToken: SchemaPreviewToken = {
       token: 'tok-123',
+      operation_id: 'op-123',
       workspace_id: 'ws-1',
+      workspace_revision: 'setup-1',
       plan_id: 'plan-1',
       plan_revision: '1',
       connector_id: 'conn-1',
       table_prefix: 'gw_record_',
       statements: ['CREATE TABLE ...'],
+      tables: [{ name: 'gw_record_samples', action: 'create', columns: ['record_id'] }],
+      digest: 'a'.repeat(64),
       expires_at: '2026-09-07T04:00:00Z',
       created_at: '2026-09-07T03:50:00Z',
     };
@@ -148,11 +153,22 @@ describe('useStudioV2WorkspaceRecordingPlans hooks', () => {
     // Apply
     useApplySchemaMutation();
     const applyOptions = useMutationMock.mock.calls.at(-1)?.[0] as {
-      mutationFn: (token: string) => Promise<{ applied: boolean; message: string }>;
+      mutationFn: (request: unknown) => Promise<SchemaOperation>;
       onSuccess: () => Promise<void>;
+      retry: false;
     };
-    vi.mocked(studioV2WorkspaceRecordingPlansAPI.schemaApply).mockResolvedValueOnce({ applied: true, message: 'Applied successfully' });
-    await expect(applyOptions.mutationFn('tok-123')).resolves.toEqual({ applied: true, message: 'Applied successfully' });
+    expect(applyOptions.retry).toBe(false);
+    const confirmation = {
+      token: 'tok-123', operation_id: 'op-123', expected_workspace_revision: 'setup-1',
+      expected_plan_revision: '1', expected_connector_revision: 'identity-7',
+    };
+    const appliedOperation: SchemaOperation = {
+      operation_id: 'op-123', status: 'succeeded', executed_statements: 9,
+      created_at: '2026-09-07T04:00:00Z', updated_at: '2026-09-07T04:00:01Z',
+    };
+    vi.mocked(studioV2WorkspaceRecordingPlansAPI.schemaApplyConfirmed).mockResolvedValueOnce(appliedOperation);
+    await expect(applyOptions.mutationFn(confirmation)).resolves.toEqual(appliedOperation);
+    expect(studioV2WorkspaceRecordingPlansAPI.schemaApplyConfirmed).toHaveBeenCalledWith(confirmation);
     await applyOptions.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
       queryKey: studioV2WorkspaceKeys.recordingPlans(),
@@ -162,14 +178,16 @@ describe('useStudioV2WorkspaceRecordingPlans hooks', () => {
     useTestWritePlanMutation();
     const testWriteOptions = useMutationMock.mock.calls.at(-1)?.[0] as {
       mutationFn: (req: unknown) => Promise<TestWriteResult>;
+      retry: false;
     };
+    expect(testWriteOptions.retry).toBe(false);
     const mockTestResult: TestWriteResult = {
-      status: 'success',
+      status: 'written_verified',
       record_id: 'test-123',
       table: 'gw_record_samples',
       observed_at: '2026-09-07T03:50:00Z',
       delivered_at: '2026-09-07T03:50:00.012Z',
-      message: 'Verified readback and cleaned up',
+      message: 'Verified readback',
     };
     vi.mocked(studioV2WorkspaceRecordingPlansAPI.testWrite).mockResolvedValueOnce(mockTestResult);
     await expect(testWriteOptions.mutationFn({ plan_id: 'plan-1' })).resolves.toEqual(mockTestResult);
