@@ -63,10 +63,12 @@ $RECYCLE.BIN/
 .Trashes
 
 # Frontend build output and dependencies
+node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 frontend/.vitest/
+*.tsbuildinfo
 
 # Legacy frontend directory (if still exists)
 web/test-ui/node_modules/

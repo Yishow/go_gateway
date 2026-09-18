@@ -1,45 +1,5 @@
 ## MODIFIED Requirements
 
-### Requirement: Capability-backed database preparation
-The system SHALL expose verified adapter capabilities and actual schema metadata, separately from network and authentication success. It MUST NOT report an unimplemented schema or test-write operation as successful. Unsupported operations SHALL be rejected without executing writes, with a stable safe code and an actionable message. A declared capability alone MUST NOT enable an operation without a verified execution path.
-
-#### Scenario: Connection succeeds but schema inspection is forbidden
-- **WHEN** the account can connect but cannot inspect the target
-- **THEN** the result states that limitation without returning sample columns or claiming write readiness.
-
-#### Scenario: Unimplemented recording operation is invoked
-- **WHEN** schema apply or test write has no connected execution path
-- **THEN** the backend returns HTTP 501 with success false and no success payload
-- **AND** the UI states that no operation was performed and preserves the draft
-- **AND** the separately implemented custom-table preparation path is not disabled by this guard.
-
-#### Scenario: Unknown or unverified database capability
-- **WHEN** the selected adapter has not passed the relevant operation verification
-- **THEN** that operation is unavailable with a reason rather than optimistically executable.
-
-### Requirement: Revision-bound schema preview and explicit creation
-The system MUST bind schema creation to a fresh server-persisted preview token containing workspace, plan and connector identity revisions, target scope and setup revision, and perform backend validation again. Preview MUST NOT mutate the target schema or write test records. Apply MUST resolve the target server-side, atomically claim the operation, retain its outcome and reject stale or unauthorized requests before executing statements. Partial or unknown execution MUST NOT be reported as full success or complete rollback.
-
-#### Scenario: Target changed after preview
-- **WHEN** the database or plan changes after schema preview
-- **THEN** schema apply is rejected as stale before executing statements.
-
-#### Scenario: Another session changes the setup
-- **WHEN** the expected setup revision no longer matches persisted settings at apply time
-- **THEN** the backend returns a conflict before executing statements and requires a new preview.
-
-#### Scenario: Unknown expired or foreign preview
-- **WHEN** the token is missing, unknown, expired or outside the current workspace
-- **THEN** apply does not execute statements and returns a safe non-success result without disclosing foreign resources.
-
-#### Scenario: Repeated apply or lost response
-- **WHEN** the same preview is applied concurrently or retried after an uncertain response
-- **THEN** at most one execution is claimed and later requests inspect the retained operation result rather than rerunning statements blindly.
-
-#### Scenario: Schema creation partially fails
-- **WHEN** the adapter cannot atomically roll back all executed statements
-- **THEN** the result identifies confirmed and uncertain work and prevents a full-success indication until reconciliation.
-
 ### Requirement: Credential and path safety
 The system SHALL reuse stored credentials by backend reference and invalidate tests after identity changes without returning secrets to the browser. The backend MUST verify access to the selected persisted connector, derive the database dialect from that connector, preserve supplied password bytes and distinguish unchanged, cleared and replaced credentials. Target names and prefixes MUST be validated and handled by the selected adapter rather than interpolated from untrusted input without validation.
 
@@ -61,7 +21,12 @@ The system SHALL reuse stored credentials by backend reference and invalidate te
 - **THEN** preparation is blocked without guessing a connection identity or reusing credentials from another endpoint.
 
 ### Requirement: Truthful explicit test writes
-The system SHALL separate data preview, confirmed write and readback verification and retain idempotent test identities. Confirmed writes MUST use the selected persisted target and compare the actual test payload during readback. Results SHALL distinguish written_verified, written_unverified, failed and unknown, with an independent cleanup_status of not_attempted, cleaned, failed or unknown. The UI MUST NOT infer verified writing, cleanup or timestamps without corresponding backend evidence.
+The system SHALL separate data preview, confirmed write and readback verification and retain idempotent test identities. Test-write preview SHALL issue a durable token and operation_id bound to the test_write action, saved target, setup revisions, payload digest and expiry. Confirmation MUST validate that binding before the first write; a schema token or plan_id alone MUST NOT authorize test writing. Confirmed writes MUST use the selected persisted target and compare the actual test payload during readback. Results SHALL distinguish written_verified, written_unverified, failed and unknown, with an independent cleanup_status of not_attempted, cleaned, failed or unknown. The UI MUST NOT infer verified writing, cleanup or timestamps without corresponding backend evidence.
+
+#### Scenario: Test preview and action-bound confirmation
+- **WHEN** an operator requests a test-write preview for a saved, schema-verified plan
+- **THEN** the backend returns previewed test content and its persisted token and operation_id without inserting or cleaning target data
+- **AND** a subsequent confirmation with a schema token, stale revision or mismatched scope cannot perform a test write.
 
 #### Scenario: Write succeeds without read permission
 - **WHEN** a confirmed test write succeeds but the account cannot query the result
@@ -69,7 +34,8 @@ The system SHALL separate data preview, confirmed write and readback verificatio
 
 #### Scenario: Test action retried
 - **WHEN** the same confirmed test token is retried after an unknown network outcome
-- **THEN** the system checks its durable identity and does not insert a duplicate test record.
+- **THEN** the system checks its durable identity and does not insert a duplicate test record; a running duplicate returns 202, a retained result returns 200, and a different operation occupying the scope returns 409
+- **AND** the client can query that operation through the shared workspace database-operation status endpoint; missing and foreign operations return the same safe 404.
 
 #### Scenario: Readback payload differs
 - **WHEN** the record identity is found but its payload does not match the written test values
@@ -91,7 +57,7 @@ The system SHALL separate data preview, confirmed write and readback verificatio
 ## ADDED Requirements
 
 ### Requirement: Persisted recording membership and explicit plan selection
-The system SHALL create and update recording plans only from persisted measurements with verified workspace and equipment ownership. Each member MUST retain its own equipment identity. The UI SHALL require explicit plan selection when multiple plans match the active scope and distinguish query failure from an empty plan list. It MUST NOT invent measurement identifiers, assume point identifiers are measurement identifiers without verification, or silently choose the first device or plan.
+The system SHALL create and update recording plans only from persisted measurements with verified workspace and equipment ownership. Each member MUST retain its own equipment identity. List, get, create, update and delete SHALL enforce workspace ownership on the backend; missing and foreign resources SHALL return the same safe 404 without reading or mutating foreign state. The UI SHALL require explicit plan selection when multiple plans match the active scope and distinguish query failure from an empty plan list. It MUST NOT invent measurement identifiers, assume point identifiers are measurement identifiers without verification, or silently choose the first device or plan.
 
 #### Scenario: Plan contains measurements from two devices
 - **WHEN** persisted measurements from two selected devices are added to one plan
@@ -105,6 +71,11 @@ The system SHALL create and update recording plans only from persisted measureme
 - **WHEN** multiple plans match or loading plans fails
 - **THEN** the UI requests an explicit selection or reports the loading error respectively
 - **AND** it neither operates on the first plan nor treats a failed query as permission to create a replacement.
+
+#### Scenario: Foreign plan read update or deletion
+- **GIVEN** plan plan-b belongs to workspace workspace-b
+- **WHEN** workspace-a requests that plan through get, update or delete
+- **THEN** each request returns the same safe 404 as a missing plan and plan-b remains unchanged.
 
 #### Scenario: Selection changes after a test or preview
 - **WHEN** the selected plan, equipment scope or connector changes

@@ -6,6 +6,23 @@
 
 本次只新增 OpenSpec 草稿，沒有實作、套用上一輪 patch、修改主規格、執行資料庫變更或部署。
 
+## 2026-09-15 本機 review 更新
+
+目前本機 `main` 基準為 `569da9f98e52b2635638d85250a4af16601d4364`；此狀態已包含以下三個 active change，未查詢遠端 main 是否有更新。下面的「初稿發布紀錄」保留當時發布結果與限制，不是目前的實作前置清單。
+
+| 階段 | 已存在的 change／待辦 | 負責內容 |
+| --- | --- | --- |
+| A | `fix-studio-v2-database-result-truthfulness` 1.1–1.8 | 安全封鎖、能力／錯誤、真實進度與完成卡 |
+| B | `fix-studio-v2-database-workflow` 1.2、1.3、2.1、2.2、2.4 | 編輯／readonly、已存連線及成員歸屬、版本與原子儲存 |
+| C | `implement-studio-v2-verified-schema-setup` 3.1–3.10 | 真實欄位、持久預覽及操作、確認建表、入口防旁路 |
+| D | `fix-studio-v2-database-workflow` 2.3、3.3、3.4、4.1、4.3 | 配對、真實試寫／讀回／清理、引導介面與整合驗收 |
+
+**Supersedes**：原 C1→C2→C3→C4→C5 發布安排由以上 A→B→C→D 取代。未發布的 C2/C4/C5 沒有當作已完成或已讀來源；其對應工作以 repo 中 workflow 的現行規格為準。依賴是階段與待辦，不是要求 workflow 整案先完成；每階段切換須檢查前置完成及測試證據。共享程式檔串行修改，主規格的每條需求只有一份 active delta 負責。
+
+本次只修文件，沒有產品實作、資料庫操作、部署或 Git commit。正式文件檢查與限制見 [review checkpoint](../../../openspec/changes/fix-studio-v2-database-workflow/validation.md)。
+
+## 初稿發布紀錄（歷史）
+
 ## 本分支包含
 
 | 代號 | Change | 草稿內容 |

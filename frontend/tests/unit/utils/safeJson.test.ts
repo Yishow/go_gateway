@@ -56,6 +56,61 @@ describe('bounded external JSON parser', () => {
     });
   });
 
+  it('keeps only the exact recording operation codes and wait action', () => {
+    for (const code of ['RECORDING_SCHEMA_NOT_IMPLEMENTED', 'RECORDING_TEST_WRITE_NOT_IMPLEMENTED']) {
+      expect(normalizeTypedEnvelope({
+        response: {
+          data: {
+            success: false,
+            error: {
+              code,
+              action: 'wait_for_supported_operation',
+              retryable: false,
+              request_id: 'req-recording-full',
+              message: 'raw backend diagnostic',
+            },
+          },
+        },
+      })).toEqual({
+        code,
+        action: 'wait_for_supported_operation',
+        requestId: 'req-recording-full',
+        retryable: false,
+      });
+    }
+
+    expect(normalizeTypedEnvelope({
+      code: 'RECORDING_TEST_WRITE_NOT_IMPLEMENTED_EXTRA',
+      action: 'wait_for_supported_operation --details',
+      request_id: 'req-recording-unknown',
+      retryable: false,
+    })).toEqual({
+      code: undefined,
+      action: undefined,
+      requestId: 'req-recording-unknown',
+      retryable: false,
+    });
+  });
+
+  it('preserves a bounded existing operation id without retaining arbitrary fields', () => {
+    expect(normalizeTypedEnvelope({
+      error: {
+        code: 'RECORDING_TEST_WRITE_NOT_IMPLEMENTED',
+        action: 'wait_for_supported_operation',
+        retryable: false,
+        request_id: 'req-recording-operation',
+      },
+      operation_id: 'op-recording-1',
+      diagnostics: { secret: 'must not survive' },
+    })).toEqual({
+      code: 'RECORDING_TEST_WRITE_NOT_IMPLEMENTED',
+      action: 'wait_for_supported_operation',
+      requestId: 'req-recording-operation',
+      retryable: false,
+      operationId: 'op-recording-1',
+    });
+  });
+
   it('fails closed for long runtime fields and non-finite runtime values', () => {
     expect(parseRuntimeValueRecord({
       device_id: 'device-1', point_id: 'point-1', address: '40001',

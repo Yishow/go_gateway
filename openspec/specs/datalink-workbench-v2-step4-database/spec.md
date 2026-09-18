@@ -184,263 +184,843 @@ tests:
 
 ---
 ### Requirement: Commit sequence and animation
+Step 4 SHALL display activation progress derived from acknowledged backend operations for the submitted workspace revision. Presentation timing MUST NOT create successful operation evidence. Existing workspace revision, settings revision, readiness-token and Modbus Share protections MUST remain effective; previously running devices are not evidence that the submitted database configuration succeeded. Repeated activation clicks SHALL be blocked while an attempt is in flight. Remounting SHALL recover server state rather than resume a simulated success sequence.
 
-The commit button click SHALL initiate a deterministic 10-step animation. Each step MUST be appended to `state.commit.logs` exactly 280ms after the previous step. The 10 steps MUST be (in order):
+#### Scenario: Presentation timer completes without a response
+- **WHEN** all presentation timers elapse while the backend has not confirmed activation
+- **THEN** the UI remains pending or unconfirmed
+- **AND** no collecting, delivered or verified state is inferred from elapsed time.
 
-1. `POST /devices × {deviceCount}` — device names and protocols
-2. `POST /devices/:id/activate × {deviceCount}` — `draft → active`
-3. `POST /source-rules × {enabledRuleCount}` — rule names and counts
-4. `POST /points × {enabledPointCount}` — `bulk create`
-5. `POST /polling-groups` — `快速輪詢 1s, enabled` (or i18n equivalent)
-6. `POST /tags × {enabledPointCount}` — `register tag keys`
-7. `POST /mappings × {enabledPointCount}` — `point ↔ tag, scale pipeline`
-8. `POST /db-connectors/:id/test` — `{kind} {host}:{port}`
-9. `POST /db-targets × {enabledTargetCount}` — `→ {schema}.{table}`
-10. `POST /scheduler/start` — `collectors started`
+#### Scenario: Acknowledged partial activation
+- **WHEN** the server confirms some devices and rejects others
+- **THEN** progress identifies each confirmed and rejected outcome
+- **AND** it does not report the entire workspace as successful.
 
-During the animation, the commit button MUST be disabled. After the 10th log, `state.committed` MUST become `true`, `state.commit.status` MUST become `'success'`, `state.commit.finished_at` MUST be set to the current ISO timestamp, and the CommitSuccessCard MUST be rendered.
-
-#### Scenario: Animation timing
-
-- **GIVEN** the operator clicks the commit button at t=0
-- **WHEN** `vi.useFakeTimers()` advances 10 × 280ms
-- **THEN** `state.commit.logs.length === 10`
-- **AND** the logs appear in the exact order specified
-- **AND** `state.committed === true`
-- **AND** `state.commit.status === 'success'`
-
-#### Scenario: No backend call issued
-
-- **WHEN** the commit animation runs end-to-end
-- **THEN** no `fetch`, `axios`, `useQuery`, or `useMutation` call is initiated by Step 4 or its children
-- **AND** the log labels reflect the API names that the future backend-wiring change will eventually call, but the strings are display-only in this change
-
-#### Scenario: Resume on remount mid-commit
-
-- **GIVEN** the operator clicks commit and three logs have been appended (status `running`)
-- **WHEN** the operator navigates to Step 3 and then back to Step 4 within the next 1s
-- **THEN** `state.commit.logs.length` remains 3 at the moment of remount
-- **AND** the effect continues ticking from log 4 until all 10 logs are present
+#### Scenario: Remount during activation
+- **WHEN** the operator returns to Step 4 during an outstanding activation
+- **THEN** the client reads authoritative status and preserves the operation identity when available
+- **AND** it does not dispatch duplicate activation solely because it remounted.
 
 
 <!-- @trace
-source: datalink-workbench-v2-step4-database
-updated: 2026-05-29
+source: fix-studio-v2-database-result-truthfulness
+updated: 2026-09-15
 code:
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Toggle.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/Step2RulePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/autoAssignTargets.ts
-  - frontend/src/features/datalink/workbench-v2/state/dbSchemas.ts
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - internal/virtual/api/response_values.go
+  - internal/api/handlers/sse.go
+  - lib/hsllogic/packet_logger_types.go
+  - internal/api/handlers/studio_v2_workspace_database_handler_helpers.go
+  - internal/datalink/optimizer/dispatcher.go
+  - internal/datalink/runtime/metrics.go
+  - internal/datalink/aggregation/rate_integrator.go
+  - internal/datalink/workspace/service_readiness_row_groups.go
+  - internal/datalink/dbtarget/service_validate.go
+  - internal/protocol/fatek/doc.go
+  - internal/datalink/dbtarget/service.go
+  - internal/virtual/server/modbus/server_coil_handlers.go
+  - lib/hsllogic/address_parser_modbus.go
+  - internal/api/handlers/source_rule_handler_tag_apply.go
+  - lib/algorithms/fft.go
+  - internal/api/handlers/dashboard_handler.go
+  - internal/datalink/collector/health/prober.go
+  - internal/api/handlers/studio_v2_workspace_audit_history_handler.go
+  - frontend/src/utils/recordingPlanJson.ts
+  - internal/datalink/dbtarget/tooling_service.go
   - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/Step2Rule.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RangeSummary.tsx
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Button.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/TargetMappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/components/Field.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionConfigForm.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/WriteStrategy.tsx
-  - frontend/src/features/datalink/workbench-v2/tokens.ts
-  - frontend/src/features/datalink/workbench-v2/shell/TopBar.tsx
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/KindSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/StepRail.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/MergedPointTable.tsx
-  - frontend/src/features/datalink/workbench-v2/state/protocols.ts
-  - frontend/src/features/datalink/workbench-v2/components/Icon.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/features/datalink/workbench-v2/state/commitLog.ts
-  - frontend/src/main.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
+  - internal/protocol/errors.go
+  - internal/virtual/simulation/engine.go
+  - internal/datalink/delivery/sql_outbox.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ActivationNeutralSummary.tsx
+  - internal/datalink/runtime/delivery_diagnostic.go
+  - internal/datalink/tag/sql_repo.go
+  - internal/datalink/recordingplan/stream_filter.go
+  - internal/virtual/api/handler.go
+  - internal/datalink/aggregation/state_tracker.go
+  - lib/hsllogic/bytetransform.go
+  - lib/hsllogic/type_cast_helpers.go
+  - internal/datalink/delivery/sql_journal.go
+  - internal/datalink/connector/adapters/mqtt_subscription.go
+  - internal/datalink/point/sql_repo_queries.go
+  - internal/datalink/connector/adapters/modbus_udp_connector.go
+  - internal/api/handlers/datalink_health_handler.go
+  - docs/swagger/swagger.yaml
+  - internal/datalink/measurement/types.go
+  - internal/datalink/point/service.go
   - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleTabRail.tsx
-  - progress.md
-  - frontend/src/features/datalink/workbench-v2/steps/Step3MappingPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/transformPipeline.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - findings.md
-  - frontend/src/features/datalink/workbench-v2/steps/step2/index.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ScaleSection.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/features/datalink/workbench-v2/state/ruleReducer.ts
-  - frontend/src/features/datalink/workbench-v2/components/index.ts
-  - frontend/package.json
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PayloadPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx
-  - frontend/src/features/datalink/workbench-v2/components/inputs.tsx
-  - .antigravitycli/4252526d-bebd-463d-84e9-9145d2a0eb40.json
-  - task_plan.md
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - frontend/src/features/datalink/workbench-v2/state/types.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/components/StatusChip.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGrid.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/ShareSection.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ProtocolSelector.tsx
-  - frontend/src/features/datalink/workbench-v2/components/SectionCard.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - frontend/src/features/datalink/workbench-v2/state/dbReducer.ts
-  - frontend/src/i18n/config.ts
-  - frontend/src/features/datalink/workbench-v2/steps/Step1DevicePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/deviceColors.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step2/PointGridToolbar.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - frontend/src/features/datalink/workbench-v2/state/types-step4.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/steps/Step4DatabasePlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/state/sourceRule.ts
-  - frontend/src/features/datalink/workbench-v2/shell/TweaksPanel.tsx
-  - frontend/src/i18n/locales/en/workbench-v2.json
   - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/styles/workbench-v2.css
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step2/RuleEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPlaceholder.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step1/index.ts
+  - internal/api/handlers/connection.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - cmd/fatek_test/main.go
+  - internal/datalink/settings/service.go
+  - internal/datalink/sourcerule/sql_rule_scan.go
+  - internal/virtual/memory/bank.go
+  - internal/api/handlers/studio_v2_workspace_database_row_groups.go
+  - cmd/loadtest_modbus/main.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
+  - internal/datalink/doc.go
+  - internal/api/handlers/debug.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceRecordingPlans.ts
+  - internal/api/handlers/studio_v2_workspace_mappings_handler.go
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - internal/datalink/dbtarget/writer.go
+  - internal/api/handlers/point_handler.go
+  - internal/datalink/runtime/status_values.go
+  - internal/edge/processors.go
+  - internal/protocol/modbus/frame.go
+  - internal/datalink/sourcerule/repository_memory_tag_review_decisions.go
+  - internal/api/handlers/studio_v2_workspace_recording_plans_handler.go
+  - internal/datalink/connector/adapters/mqtt.go
+  - internal/api/handlers/studio_v2_workspace_mappings_delete.go
+  - internal/datalink/runtime/truth_state.go
+  - internal/api/handlers/studio_v2_workspace_activation_handler.go
+  - internal/datalink/sourcerule/service_mapping_lifecycle.go
+  - internal/datalink/sourcerule/mutation_rollback_helpers.go
+  - internal/protocol/fatek/frame.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/datalink/connector/adapters/fatek_helpers.go
+  - internal/api/handlers/studio_v2_workspace_history_handler.go
+  - internal/api/handlers/modbus_share_handler.go
+  - internal/api/handlers/mapping_handler.go
+  - lib/hsllogic/packet_logger_writer.go
+  - frontend/src/features/datalink/workbench-v2/shell/resolveRuntimeDashboardDevice.ts
+  - frontend/src/types/recordingPlan.ts
+  - internal/api/handlers/dbtarget_handler.go
+  - internal/api/handlers/tag_handler.go
+  - internal/datalink/measurement/epoch.go
+  - internal/datalink/collector/health/breaker.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
+  - internal/datalink/measurement/service.go
+  - lib/hsllogic/data_converter_write.go
+  - frontend/src/services/studioV2WorkspaceRecordingPlans.ts
+  - internal/datalink/audit/sql_repository.go
+  - internal/datalink/sourcerule/sql_repo_tag_review_decisions.go
+  - internal/api/handlers/polling_group_handler.go
+  - internal/api/handlers/response_keys.go
+  - internal/datalink/recordingplan/service.go
+  - internal/api/handlers/config.go
+  - internal/datalink/mapping/pipeline_conditional_formula.go
+  - internal/protocol/mcprotocol/client.go
+  - internal/api/handlers/protocol_handler.go
+  - internal/datalink/runtime/stream.go
+  - internal/web/embed.go
+  - internal/datalink/measurement/repository.go
+  - internal/datalink/connector/registry.go
+  - internal/datalink/runtime/service.go
+  - internal/datalink/connector/adapters/mqtt_payload_helpers.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
+  - internal/datalink/delivery/outbox.go
+  - docs/plans/studio-v2-database-hardening/PUBLICATION.md
+  - internal/datalink/storage/sqlite_writer.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceActivation.ts
+  - internal/datalink/api/mapping_handler.go
+  - internal/datalink/device/service_status.go
+  - internal/datalink/pollinggroup/service.go
+  - lib/hsllogic/address_parser_mitsubishi.go
+  - cmd/studio_inventory_changelog/main.go
+  - internal/datalink/tag/service_crud.go
+  - internal/api/handlers/studio_v2_workspace_database_handler.go
+  - internal/datalink/sourcerule/tag_apply_service.go
+  - internal/datalink/api/router_point_routes.go
+  - internal/datalink/delivery/receipt.go
+  - internal/datalink/measurement/repository_json.go
+  - internal/datalink/migrator.go
+  - internal/virtual/memory/mapper.go
+  - internal/datalink/dbtarget/tag_reader_binding.go
+  - internal/api/handlers/point_handler_polling.go
+  - internal/api/handlers/runtime_stream_handler.go
+  - internal/datalink/sourcerule/database_target_mapping_reader.go
+  - internal/datalink/schema/schema_device_models.go
+  - frontend/src/services/studioV2WorkspaceActivation.ts
+  - internal/datalink/connector/adapters/modbus_tcp_connector.go
+  - internal/datalink/recordingplan/repository_json.go
+  - internal/virtual/server/modbus/udp_server.go
+  - internal/datalink/api/router_tag_routes.go
+  - internal/datalink/dbtarget/live_projection.go
+  - internal/datalink/mapping/sql_repo.go
+  - internal/datalink/device/availability.go
+  - internal/datalink/modbusshare/service_encoding.go
+  - lib/hsllogic/register_conversion.go
+  - internal/protocol/modbus/transport.go
+  - docs/swagger/docs.go
+  - internal/datalink/api/helpers.go
+  - internal/datalink/dbtarget/service_probe.go
+  - internal/api/handlers/source_rule_handler_tag_review_decisions.go
+  - internal/datalink/delivery/worker.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - internal/datalink/aggregation/counter_usage.go
+  - internal/datalink/api/tag_handler.go
+  - internal/datalink/workspace/service_readiness.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_conflicts.go
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - internal/protocol/fatek/errors.go
+  - internal/datalink/recordingplan/repository.go
+  - internal/api/handlers/device_health_handler.go
+  - docs/swagger/swagger.json
+  - internal/datalink/collector/scheduler_polling.go
+  - internal/datalink/mapping/pipeline_execution.go
+  - internal/datalink/runtime/types.go
+  - frontend/src/utils/typedErrors.ts
+  - internal/api/handlers/studio_v2_workspace_audit.go
+  - internal/datalink/device/service_probe_activation.go
+  - internal/datalink/storage/timeseries_value_conversion.go
+  - internal/protocol/mcprotocol/transport.go
+  - internal/api/handlers/device_handler.go
+  - internal/api/handlers/source_rule_handler.go
+  - internal/api/handlers/template.go
+  - internal/datalink/collector/scheduler_dispatch.go
+  - internal/protocol/fatek/client.go
+  - internal/protocol/modbus/transport_rtu.go
+  - internal/datalink/sourcerule/candidate_snapshot.go
+  - internal/api/handlers/source_rule_handler_candidates.go
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery.go
+  - internal/api/handlers/studio_v2_workspace_measurements_handler.go
+  - internal/api/handlers/point_direct_reader.go
+  - internal/datalink/device/service_validation.go
+  - internal/datalink/sourcerule/sql_repo.go
+  - internal/datalink/dbtarget/validation_codes.go
+  - cmd/gateway/validate.go
+  - internal/datalink/runtime/status.go
+  - internal/datalink/sourcerule/service_tag_mapping_sync.go
+  - internal/api/handlers/runtime_handler.go
+  - internal/protocol/mcprotocol/frame.go
+  - internal/datalink/sourcerule/candidate_snapshot_database_outputs.go
+  - lib/hsllogic/data_converter_read.go
+  - frontend/src/utils/safeJson.ts
+  - internal/datalink/api/response_keys.go
+  - internal/api/handlers/response_values.go
+  - internal/protocol/modbus/errors.go
+  - internal/datalink/sourcerule/output_apply_service.go
+  - internal/api/handlers/dbtarget_handler_tooling.go
+  - internal/datalink/sourcerule/service.go
+  - internal/datalink/connector/adapters/modbus_rtu_connector.go
+  - internal/api/router.go
+  - internal/datalink/point/service_point_crud.go
+  - internal/datalink/device/service.go
+  - internal/datalink/api/point_handler.go
+  - internal/datalink/optimizer/merger.go
+  - internal/datalink/history/types.go
+  - internal/api/handlers/source_rule_handler_output_apply.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/RecordingPlanSetupSection.tsx
+  - internal/datalink/api/device_handler.go
+  - internal/datalink/measurement/templates.go
+  - internal/datalink/sourcerule/repository_memory.go
+  - lib/algorithms/pid.go
+  - internal/api/handlers/studio_v2_workspace_mapping_request.go
+  - internal/protocol/modbus/client.go
+  - internal/protocol/modbus/const.go
+  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
+  - internal/datalink/point/service_batch_validation.go
+  - internal/datalink/api/router_device_routes.go
+  - internal/api/handlers/studio_v2_runtime_apply.go
+  - internal/datalink/mapping/service_preview_gate.go
+  - internal/datalink/workspace/service_database_row_groups.go
+  - internal/datalink/modbusshare/service_network_helpers.go
+  - internal/api/handlers/settings_handler.go
+  - internal/datalink/connector/adapters/modbus_parse_helpers.go
+  - internal/datalink/runtime/ingestor.go
+  - internal/datalink/point/service_value.go
+  - internal/datalink/sourcerule/protocol_address_planner.go
+  - frontend/src/types/studioV2Activation.ts
 tests:
-  - frontend/tests/unit/workbench-v2/step2-share.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step3.test.ts
-  - frontend/tests/unit/workbench-v2/mappingDefaults.test.ts
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - frontend/tests/unit/workbench-v2/types-step3.test-d.ts
-  - frontend/tests/unit/workbench-v2/transformPipeline.test.ts
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-grid.test.tsx
-  - frontend/tests/unit/workbench-v2/protocols.test.ts
-  - frontend/tests/unit/workbench-v2/reducer-step4.test.ts
-  - frontend/tests/unit/workbench-v2/step1-readiness.test.tsx
-  - frontend/tests/unit/workbench-v2/step2-rule.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/autoAssignTargets.test.ts
-  - frontend/tests/unit/workbench-v2/dbSchemas.test.ts
-  - frontend/tests/unit/workbench-v2/deviceColors.test.tsx
-  - frontend/tests/unit/workbench-v2/state.test.ts
-  - frontend/tests/unit/workbench-v2/types-step2.test-d.ts
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery_regression_test.go
+  - internal/datalink/runtime/metrics_bounds_test.go
+  - internal/datalink/sourcerule/service_mapping_out_of_sync_test.go
+  - internal/datalink/sourcerule/sql_repo_rollback_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_outputs_test.go
+  - internal/api/handlers/source_rule_handler_database_candidates_isolation_test.go
+  - internal/api/handlers/runtime_handler_test.go
+  - lib/hsllogic/address_parser_test.go
+  - internal/datalink/optimizer/benchmark_test.go
+  - internal/virtual/memory/mapper_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_cleanup_test.go
+  - internal/protocol/fatek/fatek_complete_test.go
+  - internal/api/handlers/settings_handler_test.go
+  - internal/datalink/sourcerule/protocol_address_test.go
+  - internal/virtual/api/handler_test.go
+  - internal/datalink/collector/scheduler_manual_context_test.go
+  - internal/api/handlers/source_rule_handler_tag_apply_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_cascade_test.go
+  - internal/datalink/mapping/sql_repo_test.go
+  - internal/api/router_studio_v2_workspace_devices_test.go
+  - internal/datalink/connector/adapters/mqtt_payload_unsigned_test.go
+  - internal/datalink/sourcerule/service_test.go
+  - lib/hsllogic/data_types_refactor_test.go
+  - internal/api/handlers/tag_handler_extended_test.go
+  - internal/datalink/recordingplan/service_test.go
+  - internal/api/handlers/source_rule_handler_candidates_persistence_test.go
+  - cmd/test_all/tests_modbus.go
+  - frontend/tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts
+  - internal/api/handlers/device_handler_runtime_sync_test.go
+  - internal/datalink/storage/postgres_test.go
+  - internal/api/handlers/source_rule_handler_database_candidates_test.go
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceRecordingPlans.test.ts
+  - internal/datalink/modbusshare/service_encoding_bounds_test.go
+  - internal/api/handlers/studio_v2_workspace_database_handler_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_conflicts_test.go
+  - cmd/test_all/output_values.go
+  - internal/datalink/api/mapping_handler_test.go
+  - internal/datalink/delivery/sql_corruption_test.go
+  - internal/datalink/measurement/repository_validation_test.go
+  - internal/datalink/migrator_test.go
+  - internal/datalink/connector/adapters/mqtt_test.go
+  - internal/datalink/sourcerule/mutation_rollback_tag_failure_test.go
+  - frontend/tests/unit/workbench-v2/BackendBackedActivationResults.test.tsx
+  - internal/api/handlers/source_rule_handler_share_test.go
+  - internal/api/handlers/device_handler_extended_test.go
+  - internal/config/validate_test.go
+  - internal/datalink/dbtarget/writer_row_groups_test.go
+  - internal/api/handlers/datalink_health_handler_test.go
+  - frontend/tests/unit/utils/safeJson.test.ts
+  - internal/datalink/real_device_integration_test.go
+  - internal/api/handlers/studio_v2_workspace_database_row_groups_test.go
+  - internal/api/router_studio_v2_workspace_measurements_test.go
+  - internal/api/handlers/test_monitor_handler.go
+  - internal/api/router_studio_v2_workspace_recording_plans_capability_test.go
+  - internal/datalink/collector/health/tracker_test.go
+  - internal/datalink/device/service_schema_failure_test.go
+  - internal/api/handlers/studio_v2_workspace_database_delivery_truth_test.go
+  - internal/api/router_logger_test.go
+  - internal/datalink/recordingplan/service_cleanup_test.go
+  - internal/api/handlers/point_handler_poll_contract_test.go
+  - internal/api/handlers/source_rule_handler_revision_test.go
+  - internal/api/handlers/test_client_operations.go
+  - internal/api/handlers/source_rule_handler_output_apply_test.go
+  - internal/api/handlers/test_numeric_values.go
+  - internal/api/handlers/modbus_share_handler_lifecycle_test.go
+  - internal/api/handlers/test_connection_handler.go
+  - internal/api/handlers/mapping_handler_runtime_sync_test.go
+  - internal/protocol/mcprotocol/mcprotocol_test.go
+  - internal/protocol/mcprotocol/client_validation_test.go
+  - internal/api/handlers/source_rule_handler_output_apply_rebind_test.go
+  - internal/datalink/db_sqlite_fk_test.go
+  - internal/api/handlers/test_override_client.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
+  - internal/datalink/migrator_source_rule_recovery_test.go
+  - internal/api/router_studio_v2_workspace_history_test.go
+  - internal/datalink/recordingplan/repository_validation_test.go
+  - internal/api/handlers/protocol_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler_share_test.go
+  - internal/protocol/modbus/client_wrapped_rtu_test.go
+  - frontend/tests/unit/workbench-v2/step4-evidence-boundaries.test.tsx
+  - internal/api/handlers/mapping_handler_extended_test.go
+  - cmd/test_all/main_refactor_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_readiness_test.go
+  - internal/api/router_runtime_database_delivery_test.go
+  - internal/datalink/dbtarget/service_writer_test.go
+  - internal/datalink/delivery/worker_failure_test.go
+  - internal/datalink/pollinggroup/sql_repo_test.go
+  - internal/datalink/sourcerule/share_restore_projection_test.go
+  - internal/protocol/modbus/modbus_test.go
+  - internal/virtual/server/modbus/server_test.go
+  - internal/virtual/simulation/engine_test.go
+  - internal/datalink/migrator_source_rule_partial_test.go
+  - internal/api/router_studio_v2_workspace_recording_plans_target_witness_test.go
+  - internal/api/handlers/test_numeric_values_test.go
+  - internal/datalink/sourcerule/service_test_helpers_test.go
+  - internal/api/handlers/studio_v2_workspace_database_readiness_test.go
+  - frontend/tests/unit/utils/typedErrors.test.ts
+  - internal/datalink/connector/adapters/modbus_numeric_bounds_test.go
+  - internal/api/router_studio_v2_workspace_recording_plans_test.go
+  - internal/api/router_studio_v2_workspace_recording_plans_contract_test.go
+  - cmd/test_all/main.go
+  - internal/datalink/modbusshare/service_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_database_isolation_test.go
+  - internal/api/router_runtime_test.go
+  - internal/datalink/delivery/worker_receipt_failure_test.go
+  - internal/api/handlers/point_handler_runtime_sync_test.go
+  - internal/protocol/fatek/client_validation_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - internal/api/handlers/runtime_handler_projection_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_reconcile_test.go
+  - internal/datalink/api/device_handler_test.go
+  - internal/datalink/workspace/service_readiness_recovery_test.go
+  - internal/api/handlers/test_script_handler.go
+  - internal/api/handlers/device_handler_connection_test.go
+  - lib/hsllogic/bytetransform_test.go
+  - internal/datalink/dbtarget/service_postgres_test.go
+  - cmd/test_ui/main.go
+  - internal/api/handlers/test_client_factory.go
+  - internal/api/router_studio_v2_workspace_test.go
+  - internal/api/handlers/test_read_handler.go
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/api/handlers/source_rule_handler_tag_review_decisions_test.go
+  - internal/datalink/sourcerule/share_desired_mappings_test.go
+  - internal/api/handlers/source_rule_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_audit_handler_test.go
+  - internal/datalink/connector/adapters/persistent_connection_stress_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_outputs_missing_tag_test.go
+  - internal/datalink/tag/sql_repo_test.go
+  - frontend/tests/unit/workbench-v2/RecordingPlanSetupSection.test.tsx
   - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - frontend/tests/unit/workbench-v2/commitLog.test.ts
-  - frontend/tests/unit/workbench-v2/types.test-d.ts
-  - frontend/tests/unit/workbench-v2/tokens.test.ts
-  - frontend/tests/unit/workbench-v2/sourceRule.test.ts
-  - frontend/tests/unit/workbench-v2/components.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step2.test.ts
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
+  - frontend/tests/unit/services/studioV2WorkspaceRecordingPlans.test.ts
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceRecordingPlans.retry.test.tsx
+  - cmd/gateway/main_test.go
+  - internal/datalink/sourcerule/local_modbus_restore_test.go
+  - internal/datalink/sourcerule/mutation_rollback_failure_test.go
+  - internal/api/handlers/protocol_handler_data_format_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_recovery_test.go
+  - internal/api/router_studio_v2_recording_swagger_test.go
+  - internal/datalink/storage/sqlite_writer_test.go
+  - internal/protocol/modbus/modbus_additional_test.go
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/api/handlers/point_handler_extended_test.go
+  - internal/datalink/sourcerule/mutation_rollback_point_sync_test.go
+  - internal/datalink/point/sql_repo_test.go
+  - internal/datalink/runtime/service_context_lifetime_test.go
+  - cmd/test_all/tests_fatek.go
+  - frontend/tests/unit/workbench-v2/commit-progress-accessibility.test.tsx
+  - internal/api/handlers/dbtarget_handler_tooling_test.go
+  - frontend/tests/integration/workbench-v2/recording-errors.integration.test.tsx
+  - cmd/loadtest_modbus/bounds_test.go
+  - frontend/tests/unit/workbench-v2/activation-response-truth.test.tsx
+  - internal/api/handlers/runtime_stream_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
+  - internal/api/handlers/source_rule_handler_candidates_test.go
+  - internal/datalink/api/router_refactor_test.go
+  - internal/datalink/collector/scheduler_test.go
+  - internal/api/handlers/datalink_test.go
+  - internal/datalink/storage/sqlite_test.go
+  - internal/api/handlers/test_write_handler.go
+  - internal/protocol/modbus/client_bounds_test.go
+  - internal/datalink/api/helpers_query_validation_test.go
+  - internal/datalink/workspace/service_readiness_connector_missing_test.go
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/dbtarget/live_projection_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_effective_state_test.go
+  - cmd/test_all/tests_mc.go
+  - internal/datalink/settings/sql_repo_test.go
+  - internal/api/handlers/polling_group_handler_test.go
+  - internal/datalink/workspace/service_readiness_stale_relationships_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_regression_test.go
 -->
 
 ---
 ### Requirement: Commit completion card
+Step 4 SHALL distinguish saved configuration, applied revision, active collection and database delivery evidence. A successful activation card MUST require a confirmed activation outcome and MUST NOT promise a first write solely from an interval. Partial and unconfirmed outcomes SHALL remain visible alongside any available runtime-navigation action.
 
-After `state.committed === true`, the right column SHALL render an emerald-tone success card containing: a circular check icon, a heading equivalent to `設定已套用 · 開始收集資料`, a subline equivalent to `Scheduler 已啟動 · 第一筆資料預計在 ~{write_interval_seconds}s 後寫入`, and a secondary button `前往 Runtime Dashboard` that invokes the `onCommit` callback. The CommitSummary and CommitProgress views MUST be hidden when the success card is shown.
+#### Scenario: Configuration saved without activation
+- **WHEN** a draft was saved but no activation was confirmed
+- **THEN** the UI reports saved configuration rather than collecting or delivered data.
 
-When the runtime dashboard handoff callback is wired by the shell, clicking the secondary button SHALL navigate to the post-setup runtime dashboard route. If the shell can resolve a single handoff device from the current workbench state, the destination SHALL include `device_id=<resolved-id>`. If the shell cannot resolve a single handoff device, the destination SHALL fall back to the runtime dashboard route without `device_id`.
+#### Scenario: Activation succeeds without a database receipt
+- **WHEN** activation is confirmed but no database delivery evidence exists
+- **THEN** the UI SHALL report the confirmed activation outcome and display database delivery as not yet confirmed; active collection requires its own backend runtime evidence.
 
-#### Scenario: Success card visible
+#### Scenario: Empty results without delivery evidence
+- **WHEN** activation returns empty results and no database delivery evidence exists
+- **THEN** the UI SHALL keep storage unconfirmed and MUST NOT claim normal storage
+- **AND** runtime navigation remains available under existing policy.
 
-- **GIVEN** `state.committed === true` and `state.commit.status === 'success'`
-- **WHEN** the right column renders
-- **THEN** the emerald success card is present
-- **AND** CommitSummary (the 5-row summary) is NOT in the DOM
-- **AND** the secondary button text equals `前往 Runtime Dashboard` (or i18n equivalent)
-- **AND** clicking the button invokes `onCommit` exactly once
-
-#### Scenario: Subline reflects write_interval_seconds
-
-- **GIVEN** the success card is visible and `state.db.connector.write_interval_seconds === 10`
-- **WHEN** the subline renders
-- **THEN** the subline text contains `~10s`
+#### Scenario: Previously running device and unconfirmed database change
+- **WHEN** a device remains active from an earlier revision but the submitted database change is unconfirmed
+- **THEN** runtime navigation remains available under existing policy without marking the new setup or test successful.
 
 #### Scenario: Handoff includes resolved device id
-
-- **GIVEN** the success card is visible
-- **AND** the shell resolves `device_id=d-1` from the current workbench state
-- **WHEN** the operator clicks `前往 Runtime Dashboard`
-- **THEN** the system navigates to `/studio/runtime?device_id=d-1`
+- **WHEN** runtime navigation is available and one confirmed device is resolved
+- **THEN** the navigation callback runs once and opens /studio/runtime with that device_id.
 
 #### Scenario: Handoff falls back when device cannot be resolved
-
-- **GIVEN** the success card is visible
-- **AND** the shell cannot resolve a single handoff device from the current workbench state
-- **WHEN** the operator clicks `前往 Runtime Dashboard`
-- **THEN** the system navigates to `/studio/runtime`
-- **AND** the handoff does not degrade to a no-op or console-only side effect
+- **WHEN** runtime navigation is available without one unambiguous device
+- **THEN** the callback opens /studio/runtime without inventing a device identifier
+- **AND** the action is not a no-op or console-only side effect.
 
 
 <!-- @trace
-source: wire-step4-runtime-dashboard-handoff
-updated: 2026-05-30
+source: fix-studio-v2-database-result-truthfulness
+updated: 2026-09-15
 code:
-  - AGENTS.md
-  - progress.md
-  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
-  - CLAUDE.md
-  - frontend/src/App.tsx
-  - docs/technical/studio-surface-inventory/changelog.sqlite
-  - internal/api/handlers/runtime_stream_handler.go
-  - cmd/studio_inventory_changelog/main.go
-  - frontend/src/features/datalink/workbench-v2/shell/resolveRuntimeDashboardDevice.ts
-  - docs/technical/studio-surface-inventory/index.html
-  - frontend/src/i18n/config.ts
-  - docs/technical/studio-surface-inventory/README.md
-  - frontend/src/types/datalink.ts
-  - internal/datalink/runtime/ingestor.go
-  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardRoute.tsx
-  - frontend/src/features/datalink/runtime-dashboard/CollectorHealthPanel.tsx
-  - docs/technical/studio-surface-inventory/inventory.css
-  - frontend/src/features/datalink/runtime-dashboard/RealtimeLogsPanel.tsx
-  - docs/technical/studio-surface-inventory/START_HERE.md
-  - frontend/src/features/datalink/runtime-dashboard/LiveStateBanner.tsx
-  - internal/api/handlers/runtime_handler.go
-  - internal/datalink/runtime/service.go
-  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
-  - docs/technical/studio-surface-inventory/backend-api-registry.md
-  - docs/technical/studio-surface-inventory/inventory.js
-  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
-  - task_plan.md
+  - internal/datalink/dbtarget/tooling_service_helpers.go
+  - internal/virtual/api/response_values.go
+  - internal/api/handlers/sse.go
+  - lib/hsllogic/packet_logger_types.go
+  - internal/api/handlers/studio_v2_workspace_database_handler_helpers.go
+  - internal/datalink/optimizer/dispatcher.go
+  - internal/datalink/runtime/metrics.go
+  - internal/datalink/aggregation/rate_integrator.go
+  - internal/datalink/workspace/service_readiness_row_groups.go
+  - internal/datalink/dbtarget/service_validate.go
+  - internal/protocol/fatek/doc.go
+  - internal/datalink/dbtarget/service.go
+  - internal/virtual/server/modbus/server_coil_handlers.go
+  - lib/hsllogic/address_parser_modbus.go
+  - internal/api/handlers/source_rule_handler_tag_apply.go
+  - lib/algorithms/fft.go
+  - internal/api/handlers/dashboard_handler.go
+  - internal/datalink/collector/health/prober.go
+  - internal/api/handlers/studio_v2_workspace_audit_history_handler.go
+  - frontend/src/utils/recordingPlanJson.ts
+  - internal/datalink/dbtarget/tooling_service.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
+  - internal/protocol/errors.go
+  - internal/virtual/simulation/engine.go
+  - internal/datalink/delivery/sql_outbox.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/ActivationNeutralSummary.tsx
+  - internal/datalink/runtime/delivery_diagnostic.go
+  - internal/datalink/tag/sql_repo.go
+  - internal/datalink/recordingplan/stream_filter.go
+  - internal/virtual/api/handler.go
+  - internal/datalink/aggregation/state_tracker.go
+  - lib/hsllogic/bytetransform.go
+  - lib/hsllogic/type_cast_helpers.go
+  - internal/datalink/delivery/sql_journal.go
+  - internal/datalink/connector/adapters/mqtt_subscription.go
+  - internal/datalink/point/sql_repo_queries.go
+  - internal/datalink/connector/adapters/modbus_udp_connector.go
+  - internal/api/handlers/datalink_health_handler.go
+  - docs/swagger/swagger.yaml
+  - internal/datalink/measurement/types.go
+  - internal/datalink/point/service.go
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
   - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - findings.md
-  - frontend/src/features/datalink/runtime-dashboard/RuntimeSummaryPanel.tsx
-  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStream.ts
-  - frontend/src/services/datalink.ts
-  - frontend/src/i18n/locales/en/runtime-dashboard.json
-  - docs/technical/studio-surface-inventory/studio-mainline.md
-  - docs/technical/studio-surface-inventory/test-tooling.md
-  - internal/datalink/runtime/status.go
-  - docs/technical/studio-surface-inventory/CURRENT_STATE.md
+  - internal/api/handlers/connection.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4Activation.ts
+  - cmd/fatek_test/main.go
+  - internal/datalink/settings/service.go
+  - internal/datalink/sourcerule/sql_rule_scan.go
+  - internal/virtual/memory/bank.go
+  - internal/api/handlers/studio_v2_workspace_database_row_groups.go
+  - cmd/loadtest_modbus/main.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
+  - internal/datalink/doc.go
+  - internal/api/handlers/debug.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceRecordingPlans.ts
+  - internal/api/handlers/studio_v2_workspace_mappings_handler.go
+  - internal/datalink/dbtarget/writer_statements.go
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - internal/datalink/dbtarget/writer.go
+  - internal/api/handlers/point_handler.go
+  - internal/datalink/runtime/status_values.go
+  - internal/edge/processors.go
+  - internal/protocol/modbus/frame.go
+  - internal/datalink/sourcerule/repository_memory_tag_review_decisions.go
+  - internal/api/handlers/studio_v2_workspace_recording_plans_handler.go
+  - internal/datalink/connector/adapters/mqtt.go
+  - internal/api/handlers/studio_v2_workspace_mappings_delete.go
+  - internal/datalink/runtime/truth_state.go
+  - internal/api/handlers/studio_v2_workspace_activation_handler.go
+  - internal/datalink/sourcerule/service_mapping_lifecycle.go
+  - internal/datalink/sourcerule/mutation_rollback_helpers.go
+  - internal/protocol/fatek/frame.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
+  - internal/datalink/connector/adapters/fatek_helpers.go
+  - internal/api/handlers/studio_v2_workspace_history_handler.go
+  - internal/api/handlers/modbus_share_handler.go
+  - internal/api/handlers/mapping_handler.go
+  - lib/hsllogic/packet_logger_writer.go
+  - frontend/src/features/datalink/workbench-v2/shell/resolveRuntimeDashboardDevice.ts
+  - frontend/src/types/recordingPlan.ts
+  - internal/api/handlers/dbtarget_handler.go
+  - internal/api/handlers/tag_handler.go
+  - internal/datalink/measurement/epoch.go
+  - internal/datalink/collector/health/breaker.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
+  - internal/datalink/measurement/service.go
+  - lib/hsllogic/data_converter_write.go
+  - frontend/src/services/studioV2WorkspaceRecordingPlans.ts
+  - internal/datalink/audit/sql_repository.go
+  - internal/datalink/sourcerule/sql_repo_tag_review_decisions.go
+  - internal/api/handlers/polling_group_handler.go
+  - internal/api/handlers/response_keys.go
+  - internal/datalink/recordingplan/service.go
+  - internal/api/handlers/config.go
+  - internal/datalink/mapping/pipeline_conditional_formula.go
+  - internal/protocol/mcprotocol/client.go
+  - internal/api/handlers/protocol_handler.go
   - internal/datalink/runtime/stream.go
-  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
-  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
+  - internal/web/embed.go
+  - internal/datalink/measurement/repository.go
+  - internal/datalink/connector/registry.go
+  - internal/datalink/runtime/service.go
+  - internal/datalink/connector/adapters/mqtt_payload_helpers.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
+  - internal/datalink/delivery/outbox.go
+  - docs/plans/studio-v2-database-hardening/PUBLICATION.md
+  - internal/datalink/storage/sqlite_writer.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceActivation.ts
+  - internal/datalink/api/mapping_handler.go
+  - internal/datalink/device/service_status.go
+  - internal/datalink/pollinggroup/service.go
+  - lib/hsllogic/address_parser_mitsubishi.go
+  - cmd/studio_inventory_changelog/main.go
+  - internal/datalink/tag/service_crud.go
+  - internal/api/handlers/studio_v2_workspace_database_handler.go
+  - internal/datalink/sourcerule/tag_apply_service.go
+  - internal/datalink/api/router_point_routes.go
+  - internal/datalink/delivery/receipt.go
+  - internal/datalink/measurement/repository_json.go
+  - internal/datalink/migrator.go
+  - internal/virtual/memory/mapper.go
+  - internal/datalink/dbtarget/tag_reader_binding.go
+  - internal/api/handlers/point_handler_polling.go
+  - internal/api/handlers/runtime_stream_handler.go
+  - internal/datalink/sourcerule/database_target_mapping_reader.go
+  - internal/datalink/schema/schema_device_models.go
+  - frontend/src/services/studioV2WorkspaceActivation.ts
+  - internal/datalink/connector/adapters/modbus_tcp_connector.go
+  - internal/datalink/recordingplan/repository_json.go
+  - internal/virtual/server/modbus/udp_server.go
+  - internal/datalink/api/router_tag_routes.go
+  - internal/datalink/dbtarget/live_projection.go
+  - internal/datalink/mapping/sql_repo.go
+  - internal/datalink/device/availability.go
+  - internal/datalink/modbusshare/service_encoding.go
+  - lib/hsllogic/register_conversion.go
+  - internal/protocol/modbus/transport.go
+  - docs/swagger/docs.go
+  - internal/datalink/api/helpers.go
+  - internal/datalink/dbtarget/service_probe.go
+  - internal/api/handlers/source_rule_handler_tag_review_decisions.go
+  - internal/datalink/delivery/worker.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - internal/datalink/aggregation/counter_usage.go
+  - internal/datalink/api/tag_handler.go
+  - internal/datalink/workspace/service_readiness.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_conflicts.go
+  - internal/datalink/collector/scheduler_manual_poll.go
+  - internal/protocol/fatek/errors.go
+  - internal/datalink/recordingplan/repository.go
+  - internal/api/handlers/device_health_handler.go
+  - docs/swagger/swagger.json
+  - internal/datalink/collector/scheduler_polling.go
+  - internal/datalink/mapping/pipeline_execution.go
+  - internal/datalink/runtime/types.go
+  - frontend/src/utils/typedErrors.ts
+  - internal/api/handlers/studio_v2_workspace_audit.go
+  - internal/datalink/device/service_probe_activation.go
+  - internal/datalink/storage/timeseries_value_conversion.go
+  - internal/protocol/mcprotocol/transport.go
+  - internal/api/handlers/device_handler.go
+  - internal/api/handlers/source_rule_handler.go
+  - internal/api/handlers/template.go
+  - internal/datalink/collector/scheduler_dispatch.go
+  - internal/protocol/fatek/client.go
+  - internal/protocol/modbus/transport_rtu.go
+  - internal/datalink/sourcerule/candidate_snapshot.go
+  - internal/api/handlers/source_rule_handler_candidates.go
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery.go
+  - internal/api/handlers/studio_v2_workspace_measurements_handler.go
+  - internal/api/handlers/point_direct_reader.go
+  - internal/datalink/device/service_validation.go
+  - internal/datalink/sourcerule/sql_repo.go
+  - internal/datalink/dbtarget/validation_codes.go
+  - cmd/gateway/validate.go
+  - internal/datalink/runtime/status.go
+  - internal/datalink/sourcerule/service_tag_mapping_sync.go
+  - internal/api/handlers/runtime_handler.go
+  - internal/protocol/mcprotocol/frame.go
+  - internal/datalink/sourcerule/candidate_snapshot_database_outputs.go
+  - lib/hsllogic/data_converter_read.go
+  - frontend/src/utils/safeJson.ts
+  - internal/datalink/api/response_keys.go
+  - internal/api/handlers/response_values.go
+  - internal/protocol/modbus/errors.go
+  - internal/datalink/sourcerule/output_apply_service.go
+  - internal/api/handlers/dbtarget_handler_tooling.go
+  - internal/datalink/sourcerule/service.go
+  - internal/datalink/connector/adapters/modbus_rtu_connector.go
+  - internal/api/router.go
+  - internal/datalink/point/service_point_crud.go
+  - internal/datalink/device/service.go
+  - internal/datalink/api/point_handler.go
+  - internal/datalink/optimizer/merger.go
+  - internal/datalink/history/types.go
+  - internal/api/handlers/source_rule_handler_output_apply.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/RecordingPlanSetupSection.tsx
+  - internal/datalink/api/device_handler.go
+  - internal/datalink/measurement/templates.go
+  - internal/datalink/sourcerule/repository_memory.go
+  - lib/algorithms/pid.go
+  - internal/api/handlers/studio_v2_workspace_mapping_request.go
+  - internal/protocol/modbus/client.go
+  - internal/protocol/modbus/const.go
   - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - .antigravitycli/fd0ca231-1a9a-4e65-8569-14c49e7cfa1d.json
-  - docs/technical/studio-surface-inventory/context.json
-  - frontend/src/features/datalink/runtime-dashboard/LivePointsTable.tsx
-  - docs/technical/studio-surface-inventory/gap-roadmap.md
-  - docs/technical/studio-surface-inventory/gateway-experiments.md
-  - frontend/src/features/datalink/runtime-dashboard/useRuntimeStatus.ts
+  - internal/datalink/point/service_batch_validation.go
+  - internal/datalink/api/router_device_routes.go
+  - internal/api/handlers/studio_v2_runtime_apply.go
+  - internal/datalink/mapping/service_preview_gate.go
+  - internal/datalink/workspace/service_database_row_groups.go
+  - internal/datalink/modbusshare/service_network_helpers.go
+  - internal/api/handlers/settings_handler.go
+  - internal/datalink/connector/adapters/modbus_parse_helpers.go
+  - internal/datalink/runtime/ingestor.go
+  - internal/datalink/point/service_value.go
+  - internal/datalink/sourcerule/protocol_address_planner.go
+  - frontend/src/types/studioV2Activation.ts
 tests:
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
-  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - internal/datalink/runtime/status_test.go
-  - cmd/test_ui/static/index.html
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
-  - internal/api/handlers/runtime_stream_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_recovery_regression_test.go
+  - internal/datalink/runtime/metrics_bounds_test.go
+  - internal/datalink/sourcerule/service_mapping_out_of_sync_test.go
+  - internal/datalink/sourcerule/sql_repo_rollback_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_outputs_test.go
+  - internal/api/handlers/source_rule_handler_database_candidates_isolation_test.go
+  - internal/api/handlers/runtime_handler_test.go
+  - lib/hsllogic/address_parser_test.go
+  - internal/datalink/optimizer/benchmark_test.go
+  - internal/virtual/memory/mapper_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_cleanup_test.go
+  - internal/protocol/fatek/fatek_complete_test.go
+  - internal/api/handlers/settings_handler_test.go
+  - internal/datalink/sourcerule/protocol_address_test.go
+  - internal/virtual/api/handler_test.go
+  - internal/datalink/collector/scheduler_manual_context_test.go
+  - internal/api/handlers/source_rule_handler_tag_apply_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_cascade_test.go
+  - internal/datalink/mapping/sql_repo_test.go
+  - internal/api/router_studio_v2_workspace_devices_test.go
+  - internal/datalink/connector/adapters/mqtt_payload_unsigned_test.go
+  - internal/datalink/sourcerule/service_test.go
+  - lib/hsllogic/data_types_refactor_test.go
+  - internal/api/handlers/tag_handler_extended_test.go
+  - internal/datalink/recordingplan/service_test.go
+  - internal/api/handlers/source_rule_handler_candidates_persistence_test.go
+  - cmd/test_all/tests_modbus.go
   - frontend/tests/unit/workbench-v2/resolveRuntimeDashboardDevice.test.ts
+  - internal/api/handlers/device_handler_runtime_sync_test.go
+  - internal/datalink/storage/postgres_test.go
+  - internal/api/handlers/source_rule_handler_database_candidates_test.go
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceRecordingPlans.test.ts
+  - internal/datalink/modbusshare/service_encoding_bounds_test.go
+  - internal/api/handlers/studio_v2_workspace_database_handler_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_conflicts_test.go
+  - cmd/test_all/output_values.go
+  - internal/datalink/api/mapping_handler_test.go
+  - internal/datalink/delivery/sql_corruption_test.go
+  - internal/datalink/measurement/repository_validation_test.go
+  - internal/datalink/migrator_test.go
+  - internal/datalink/connector/adapters/mqtt_test.go
+  - internal/datalink/sourcerule/mutation_rollback_tag_failure_test.go
+  - frontend/tests/unit/workbench-v2/BackendBackedActivationResults.test.tsx
+  - internal/api/handlers/source_rule_handler_share_test.go
+  - internal/api/handlers/device_handler_extended_test.go
+  - internal/config/validate_test.go
+  - internal/datalink/dbtarget/writer_row_groups_test.go
+  - internal/api/handlers/datalink_health_handler_test.go
+  - frontend/tests/unit/utils/safeJson.test.ts
+  - internal/datalink/real_device_integration_test.go
+  - internal/api/handlers/studio_v2_workspace_database_row_groups_test.go
+  - internal/api/router_studio_v2_workspace_measurements_test.go
+  - internal/api/handlers/test_monitor_handler.go
+  - internal/api/router_studio_v2_workspace_recording_plans_capability_test.go
+  - internal/datalink/collector/health/tracker_test.go
+  - internal/datalink/device/service_schema_failure_test.go
+  - internal/api/handlers/studio_v2_workspace_database_delivery_truth_test.go
+  - internal/api/router_logger_test.go
+  - internal/datalink/recordingplan/service_cleanup_test.go
+  - internal/api/handlers/point_handler_poll_contract_test.go
+  - internal/api/handlers/source_rule_handler_revision_test.go
+  - internal/api/handlers/test_client_operations.go
+  - internal/api/handlers/source_rule_handler_output_apply_test.go
+  - internal/api/handlers/test_numeric_values.go
+  - internal/api/handlers/modbus_share_handler_lifecycle_test.go
+  - internal/api/handlers/test_connection_handler.go
+  - internal/api/handlers/mapping_handler_runtime_sync_test.go
+  - internal/protocol/mcprotocol/mcprotocol_test.go
+  - internal/protocol/mcprotocol/client_validation_test.go
+  - internal/api/handlers/source_rule_handler_output_apply_rebind_test.go
+  - internal/datalink/db_sqlite_fk_test.go
+  - internal/api/handlers/test_override_client.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
+  - internal/datalink/migrator_source_rule_recovery_test.go
+  - internal/api/router_studio_v2_workspace_history_test.go
+  - internal/datalink/recordingplan/repository_validation_test.go
+  - internal/api/handlers/protocol_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_source_rules_handler_share_test.go
+  - internal/protocol/modbus/client_wrapped_rtu_test.go
+  - frontend/tests/unit/workbench-v2/step4-evidence-boundaries.test.tsx
+  - internal/api/handlers/mapping_handler_extended_test.go
+  - cmd/test_all/main_refactor_test.go
+  - internal/api/handlers/studio_v2_workspace_mappings_readiness_test.go
+  - internal/api/router_runtime_database_delivery_test.go
+  - internal/datalink/dbtarget/service_writer_test.go
+  - internal/datalink/delivery/worker_failure_test.go
+  - internal/datalink/pollinggroup/sql_repo_test.go
+  - internal/datalink/sourcerule/share_restore_projection_test.go
+  - internal/protocol/modbus/modbus_test.go
+  - internal/virtual/server/modbus/server_test.go
+  - internal/virtual/simulation/engine_test.go
+  - internal/datalink/migrator_source_rule_partial_test.go
+  - internal/api/router_studio_v2_workspace_recording_plans_target_witness_test.go
+  - internal/api/handlers/test_numeric_values_test.go
+  - internal/datalink/sourcerule/service_test_helpers_test.go
+  - internal/api/handlers/studio_v2_workspace_database_readiness_test.go
+  - frontend/tests/unit/utils/typedErrors.test.ts
+  - internal/datalink/connector/adapters/modbus_numeric_bounds_test.go
+  - internal/api/router_studio_v2_workspace_recording_plans_test.go
+  - internal/api/router_studio_v2_workspace_recording_plans_contract_test.go
+  - cmd/test_all/main.go
+  - internal/datalink/modbusshare/service_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_database_isolation_test.go
   - internal/api/router_runtime_test.go
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
-  - internal/datalink/runtime/stream_test.go
+  - internal/datalink/delivery/worker_receipt_failure_test.go
+  - internal/api/handlers/point_handler_runtime_sync_test.go
+  - internal/protocol/fatek/client_validation_test.go
+  - internal/api/handlers/dbtarget_handler_connectors_test.go
+  - internal/api/handlers/runtime_handler_projection_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_reconcile_test.go
+  - internal/datalink/api/device_handler_test.go
+  - internal/datalink/workspace/service_readiness_recovery_test.go
+  - internal/api/handlers/test_script_handler.go
+  - internal/api/handlers/device_handler_connection_test.go
+  - lib/hsllogic/bytetransform_test.go
+  - internal/datalink/dbtarget/service_postgres_test.go
+  - cmd/test_ui/main.go
+  - internal/api/handlers/test_client_factory.go
+  - internal/api/router_studio_v2_workspace_test.go
+  - internal/api/handlers/test_read_handler.go
+  - frontend/tests/unit/workbench-v2/autosave-settlement-timeout.test.ts
+  - internal/api/handlers/source_rule_handler_tag_review_decisions_test.go
+  - internal/datalink/sourcerule/share_desired_mappings_test.go
+  - internal/api/handlers/source_rule_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_audit_handler_test.go
+  - internal/datalink/connector/adapters/persistent_connection_stress_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_outputs_missing_tag_test.go
+  - internal/datalink/tag/sql_repo_test.go
+  - frontend/tests/unit/workbench-v2/RecordingPlanSetupSection.test.tsx
+  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
+  - frontend/tests/unit/services/studioV2WorkspaceRecordingPlans.test.ts
+  - frontend/tests/unit/hooks/useStudioV2WorkspaceRecordingPlans.retry.test.tsx
+  - cmd/gateway/main_test.go
+  - internal/datalink/sourcerule/local_modbus_restore_test.go
+  - internal/datalink/sourcerule/mutation_rollback_failure_test.go
+  - internal/api/handlers/protocol_handler_data_format_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_recovery_test.go
+  - internal/api/router_studio_v2_recording_swagger_test.go
+  - internal/datalink/storage/sqlite_writer_test.go
+  - internal/protocol/modbus/modbus_additional_test.go
+  - frontend/tests/unit/workbench-v2/step4-first-activation.test.tsx
+  - internal/api/handlers/point_handler_extended_test.go
+  - internal/datalink/sourcerule/mutation_rollback_point_sync_test.go
+  - internal/datalink/point/sql_repo_test.go
+  - internal/datalink/runtime/service_context_lifetime_test.go
+  - cmd/test_all/tests_fatek.go
+  - frontend/tests/unit/workbench-v2/commit-progress-accessibility.test.tsx
+  - internal/api/handlers/dbtarget_handler_tooling_test.go
+  - frontend/tests/integration/workbench-v2/recording-errors.integration.test.tsx
+  - cmd/loadtest_modbus/bounds_test.go
+  - frontend/tests/unit/workbench-v2/activation-response-truth.test.tsx
+  - internal/api/handlers/runtime_stream_handler_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
+  - internal/api/handlers/source_rule_handler_candidates_test.go
+  - internal/datalink/api/router_refactor_test.go
+  - internal/datalink/collector/scheduler_test.go
+  - internal/api/handlers/datalink_test.go
+  - internal/datalink/storage/sqlite_test.go
+  - internal/api/handlers/test_write_handler.go
+  - internal/protocol/modbus/client_bounds_test.go
+  - internal/datalink/api/helpers_query_validation_test.go
+  - internal/datalink/workspace/service_readiness_connector_missing_test.go
+  - internal/datalink/dbtarget/service_mysql_test.go
+  - internal/datalink/dbtarget/live_projection_test.go
+  - internal/datalink/sourcerule/candidate_snapshot_local_modbus_effective_state_test.go
+  - cmd/test_all/tests_mc.go
+  - internal/datalink/settings/sql_repo_test.go
+  - internal/api/handlers/polling_group_handler_test.go
+  - internal/datalink/workspace/service_readiness_stale_relationships_test.go
+  - internal/api/handlers/runtime_workspace_setup_context_regression_test.go
 -->
 
 ---

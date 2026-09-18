@@ -6,18 +6,27 @@
 
 基準：Yishow/go_gateway，main @ 1a0311c8e8db9c62fe4388f0701ba38afe552ff7。分支：openspec/fix-studio-v2-database-workflow。日期：2026-09-15（Asia/Taipei）。
 
-本次只建立提案、設計、需求與待辦，不套用上一輪修補包，不修改產品程式、不更動正式資料、不啟用設備。這不是整個倉庫已完成逐檔審查，也不是修復已完成。
+初稿只交付提案、設計、需求與待辦。2026-09-15 已另獲授權開始實作，依下列分階段交付；目前實際完成狀態以 tasks.md 與 validation.md 為準，不套用未驗證的上一輪修補包，不更動正式資料或啟用設備。
+
+## Dependencies and Delivery
+
+本案與 `fix-studio-v2-database-result-truthfulness`、`implement-studio-v2-verified-schema-setup` 共同交付。每項需求只有一個實作及 delta spec 負責者；完整順序與舊待辦移交見 design.md 的 Implementation Contract。
+
+1. `fix-studio-v2-database-result-truthfulness` 完成安全封鎖、能力／錯誤及進度／完成卡。
+2. 本案先完成 1.2、1.3、2.1、2.2、2.4，交付可核對版本的已存連線、成員與原子儲存。
+3. `implement-studio-v2-verified-schema-setup` 完成真正 metadata、preview、operation ledger 與所有建表入口的確認保護。
+4. 本案才接續 2.3、3.3、3.4、4.1、4.3，交付配對、試寫／清理及引導驗收。
 
 ## What Changes
 
-- 先停止假成功：未接上真實操作的記錄方案建表／試寫，明確回覆未開放；不關閉另一條已呼叫服務的一般建表功能。
+- 沿用 `fix-studio-v2-database-result-truthfulness` 的安全封鎖及能力／錯誤契約；本案不重做其 handler 或完成卡。
 - 使用已儲存的真實連線、測量項目及其設備歸屬；方案要明確選取，不以第一筆清單或猜測編號代替。
 - 讀取真正資料表與欄位；建議範本、待確認配對及已確認配對分開，保留合法的同筆資料分組規則。
-- 建表預覽綁定工作區、方案、連線與設定版本；執行前再次核對。試寫、讀回、清理分別記錄，未知結果不盲目重做。
+- 消費 `implement-studio-v2-verified-schema-setup` 的真實欄位、版本綁定預覽及建表結果；沿用其持久操作機制擴充試寫預覽、明確確認及狀態查詢，再實作試寫、讀回及清理，未知結果不盲目重做。
 - 設定儲存不能只成功一半卻顯示已完成；新增故障情境測試。
 - 保留正在編輯的文字，Enter 只送一次，中文選字不提前送出，舊預覽不更新新畫面，唯讀時不能建表或試寫。
 - 第 4 步改成「存到哪裡 → 使用現成表或建立新表 → 資料放哪個欄位 → 檢查並開始」，補上易懂文案、錯誤、鍵盤操作與窄畫面。
-- 修正規格內仍要求固定動畫與無後端呼叫的舊成功定義，以實際後端結果為準；不重寫既有設備啟用與 Modbus Share 保護。
+- 整合 `fix-studio-v2-database-result-truthfulness` 以後端為準的進度與完成卡，保留設備啟用與 Modbus Share 保護。
 
 ## Capabilities
 
@@ -27,16 +36,17 @@
 
 ### Modified Capabilities
 
-- `recording-database-setup`：補齊未開放狀態、實際目標與設備歸屬、版本核對、真實試寫及一致儲存的可驗收規則。
-- `datalink-workbench-v2-step4-database`：補齊真實欄位、分組衝突、編輯／預覽保護、操作順序與以後端為準的結果顯示。
-
-`workspace-database-row-groups` 的合法共用欄位規則保留，不改成所有同名欄位一律禁止。`openspec/specs/` 主規格本次不直接改寫；差異規格留在本 change 供後續驗證與同步。
+- `recording-database-setup`：補齊憑證／目標與設備歸屬、真實試寫及一致儲存的可驗收規則。
+- `datalink-workbench-v2-step4-database`：補齊真實欄位的配對、分組衝突、編輯／預覽保護與引導操作。
 
 ## Impact
 
-後續預計修改範圍，不代表本次已修改：
+`workspace-database-row-groups` 的合法共用欄位規則保留，不改成所有同名欄位一律禁止。`openspec/specs/` 主規格本次不直接改寫；差異規格留在本 change 供後續驗證與同步。
+
+實作允許範圍（實際修改及驗證依 tasks.md／validation.md 記錄）：
 
 - `internal/api/handlers/studio_v2_workspace_recording_plans_handler.go`
+- `internal/api/router_studio_v2_recording_routes.go` 與 schema change 提供的 operation status handler
 - `internal/api/handlers/studio_v2_workspace_database_handler.go`
 - `internal/api/handlers/studio_v2_workspace_database_handler_helpers.go`
 - `internal/datalink/recordingplan/`、`internal/datalink/dbtarget/`、`internal/datalink/workspace/`
@@ -53,4 +63,4 @@
 
 ## Draft Status
 
-草案已成形，產品實作尚未開始。執行環境沒有 OpenSpec／Spectra CLI，未執行正式 analyze、validate 或 park。須先完成 validation.md 的正式文件檢查，再開始 tasks.md；不以本次簡單格式檢查取代官方驗證。
+產品實作進行中：前置 C1 已完成並封存，階段 B（1.2／1.3／2.1／2.2／2.4）與 C3（implement-studio-v2-verified-schema-setup 3.1–3.10）皆已實作並驗證；剩餘 2.3 的 metadata 消費驗收、3.3／3.4 的真實試寫與第 4 節收斂。初稿環境限制、文件 review 與產品測試分開記錄於 validation.md；只有文件通過檢查不代表產品完成。

@@ -28,14 +28,14 @@ The system SHALL provide confirmed assignments, reviewable suggestions and unmat
 #### Scenario: Eight points to nine columns
 - **GIVEN** eight confirmed measurements and sufficient real compatible columns
 - **WHEN** matching runs
-- **THEN** valid unambiguous assignments and reviewable suggestions are shown without assigning any column twice within a row.
+- **THEN** valid unambiguous assignments and reviewable suggestions are shown without assigning any column twice within a row; intentional reuse across distinct rows in a valid persisted row group remains legal.
 
 #### Scenario: Existing target preserved
 - **WHEN** an existing confirmed target remains compatible with the current connector, table, column and measurement definition
 - **THEN** it is preserved; otherwise it is marked for repair rather than silently rebound.
 
 #### Scenario: Fewer columns than points causes wrap and conflict
-- **GIVEN** eight enabled measurements and only four compatible columns
+- **GIVEN** eight enabled ungrouped measurements requiring distinct columns and only four compatible columns
 - **WHEN** matching runs
 - **THEN** extra measurements remain unmatched and the UI offers create-column-plan, different-table or explicit exclusion options
 - **AND** no wraparound or duplicate assignment is generated.
@@ -58,7 +58,7 @@ The system SHALL validate repeated column bindings within the persisted connecto
 
 #### Scenario: Disabling one side resolves conflict
 - **WHEN** one conflicting target is disabled and no other blocker remains
-- **THEN** the column conflict clears and submission may proceed.
+- **THEN** the column conflict clears and submission is enabled.
 
 #### Scenario: Legal shared-column group
 - **WHEN** repeated bindings share one valid row group with the required row identity
@@ -67,25 +67,6 @@ The system SHALL validate repeated column bindings within the persisted connecto
 #### Scenario: Cross-group or unsafe upsert reuse
 - **WHEN** repeated bindings belong to different row groups or an upsert lacks the required stable identity
 - **THEN** the specific invalid reuse is reported and cannot be applied.
-
-### Requirement: Commit sequence and animation
-The Step 4 activation UI SHALL display progress and results derived from the existing backend activation and persisted operation state. Timer-driven or display-only steps MUST NOT mark setup successful. The UI MUST preserve existing workspace revision, settings revision, readiness-token and Modbus Share protections. Existing running devices MUST NOT be evidence that the current database setup or test succeeded.
-
-#### Scenario: Activation completes with mixed outcomes
-- **WHEN** the backend reports some devices succeeded and others failed
-- **THEN** the UI displays the distinct outcomes without marking every device or database operation successful.
-
-#### Scenario: No backend confirmation
-- **WHEN** activation fails, times out or returns no confirmed completion
-- **THEN** elapsed time or a completed animation cannot set a success state.
-
-#### Scenario: Resume after navigating away
-- **WHEN** the operator leaves and returns during an operation
-- **THEN** the UI reconciles with backend state without replaying display-only API actions or repeating the write.
-
-#### Scenario: Device was already running
-- **WHEN** a previously active device remains running but the new database change is unconfirmed
-- **THEN** runtime navigation may remain available under existing policy, but the new database change is not labelled successful.
 
 ## ADDED Requirements
 

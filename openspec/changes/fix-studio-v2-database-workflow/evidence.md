@@ -36,3 +36,14 @@ E01、E04–E08 是已讀程式可確認的行為或條件。第二段儲存失�
 本次沒有重新執行上一輪修補包的局部測試，不沿用那些數字作本分支的驗證證據。上一輪下載包未包含在本次提交，也未視為已合併。
 
 效能議題如逐規則查詢先量測再另排改善；本案不承諾加速百分比，不擴大為全倉庫最佳化。
+
+## 2026-09-15 本機 review 複核
+
+- 目前工作目錄為 `/Users/yishow/prj/go_gateway`，本機 `main`／HEAD 為 `569da9f98e52b2635638d85250a4af16601d4364`；工作開始時 `git status --short` 為空。未查詢或宣稱遠端 main 最新狀態。
+- `git diff --stat 1a0311c8e8db9c62fe4388f0701ba38afe552ff7..569da9f98e52b2635638d85250a4af16601d4364` 僅有三案提案及發布紀錄，無產品 source 差異。另直接回讀 SchemaApply／TestWrite：仍在格式驗證後固定回成功；GenerateSchema 與 EnsureWorkspaceSchema 則確實呼叫建表服務。
+- `internal/api/handlers/dbtarget_handler_tooling.go` 的 `DatabaseTargetHandler.GenerateSchema` 是另一個公開建表入口，必須納入 schema change 的確認保護與 router 回歸，不只修改 workspace handler。
+- Step 4 主規格仍寫固定十段動畫成功，但目前 `CommitProgress` 已是 logs/status 顯示元件，`CommitSuccessCard` 已消費 activation response；不能把舊規格當成現行計時器程式存在的證據。空 results 時完成卡仍宣告採集與儲存正常，後續需以實際 backend 證據補回歸並限制文案。
+- `spectra list --json` 確認三個 active change；`spectra list --parked --json` 為空。`docs/plans/studio-v2-database-hardening/PUBLICATION.md` 的 C2/C4/C5 附件未在 repo，不視為已讀規格。本次以已存在三案作分工去重，未復原或新增附件。
+- codebase-memory-mcp 的 go_gateway 索引能定位部分符號，但列出的 change 狀態較舊；本次結論以工作樹原始碼、主規格與 diff 複核為準。沒有沿用記憶中的測試數或現場驗收結果。
+
+此複核是文件 review 的來源證據，沒有執行或修復上述產品操作；正式文件驗證見 validation.md。
