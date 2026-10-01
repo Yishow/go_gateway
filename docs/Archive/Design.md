@@ -1,6 +1,6 @@
 # Legacy `/studio` Workbench UI 設計原型（歷史 pre-delete evidence）
 
-> **文件狀態（2026-08-24）**：本文件只保留 dedicated `/studio` 移除前的設計證據，不是 `/studio/v2` 的現行設計。`WorkbenchFrame`、`WorkbenchInspectorPanel`、`TagBindingStudio` 與 `frontend/src/pages/datalink/workbench/**` 均已隨 legacy surface 移除；目前 contract 為 `/studio/v2` setup、`/studio/runtime` observer、保留 `/test` 與 `/gateway/*`，而 `/studio` 依 generic unknown-route policy 處理。詳見 [退場紀錄](./releases/retire-legacy-studio-and-polish-v2.md)。
+> **文件狀態（2026-08-24）**：本文件只保留 dedicated `/studio` 移除前的設計證據，不是 `/studio/v2` 的現行設計。`WorkbenchFrame`、`WorkbenchInspectorPanel`、`TagBindingStudio` 與 `frontend/src/pages/datalink/workbench/**` 均已隨 legacy surface 移除；目前 contract 為 `/studio/v2` setup、`/studio/runtime` observer、保留 `/test` 與 `/gateway/*`，而 `/studio` 依 generic unknown-route policy 處理。詳見 [退場紀錄](../releases/retire-legacy-studio-and-polish-v2.md)。
 
 > 更新重點（歷史）：**主工作區（`WorkbenchFrame` / `main`）**與**右側檢查面板（`WorkbenchInspectorPanel`）**的現代化層次與可掃讀性；與 Step 3 Tag 候選列卡片語彙對齊。
 > 設計取向依 **B2B／工業儀表板**：信任感、低炫光、資訊分塊（Miller’s Law／chunking），**刻意避免**大面積毛玻璃與「SaaS 紫／網格英雄區」等泛用 AI 版型。

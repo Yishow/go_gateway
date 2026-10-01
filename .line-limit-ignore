@@ -11,6 +11,9 @@ frontend/pnpm-lock.yaml
 # Imported external docs
 docs/HslDocs_*
 
+# Archived historical docs (frozen, moved 2026-10-01; legacy long files keep original line counts)
+docs/Archive/*
+
 # OpenSpec specs and proposals
 openspec/*
 
