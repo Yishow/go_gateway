@@ -1,182 +1,109 @@
 # go-gateway
 
-工業資料採集閘道（Go + React）：從 PLC 協議讀取資料，經 Datalink 映射後輸出到資料儲存或訊息系統，並提供嵌入式 Web UI。
+以 Go + React 建置的工業資料採集閘道。透過 Web UI 設定設備連線、採集點位、Point-to-Tag 映射與輸出，將 PLC 資料送往 Local Modbus 或資料庫。
 
-## 專案總覽
-- 目標：OT 到 IT 的資料橋接與可視化配置，支援設備連線、規則規劃、Tag/Mapping 管理與輸出綁定。
-- 技術棧：Go `1.25.5` + Gin（後端），React `19` + TypeScript `5` + Vite `7`（前端）。
-- 部署型態：單一可執行檔整合 API 與前端（主要入口 `cmd/test_ui`）。
-- 前端嵌入：前端 build 產物嵌入 `cmd/test_ui/static`，由 `internal/web/embed.go` 提供 SPA 靜態資源。
-- 產品主線路由：
-  - `/studio/v2`：datalink 唯一面向使用者的 setup 入口。
-  - `/studio/runtime`：setup 後的 focused runtime 觀察面。
-  - `/test`：工程測試工具入口；`/gateway/*`：experimental surfaces。
-  - `/studio`：不再提供 dedicated route；刪除後與任意 unknown route 共用既有 generic policy。
-- `/datalink/*` 舊路由：generic landing 收斂到 `/studio/v2`；其他相容路徑須以 route inventory 與測試證據為準，不得重新引入 `/studio`。
-- 目前 output 主線：Local Modbus 與 Database，Database 正式支援 `SQLite` / `PostgreSQL`。
+主程式為 `cmd/test_ui`：單一可執行檔提供 HTTP API、SSE 及嵌入式前端。技術版本以 [go.mod](go.mod) 和 [frontend/package.json](frontend/package.json) 為準，目前為 Go 1.25.5、React 19、TypeScript 5、Vite 7。
 
-## 文件閱讀要求
-- 本 repo 不能只讀單一規範文件。
-- 共通規範：`AGENTS.md`。
-- Agent 專屬補充：`CLAUDE.md`（或其他 agent 文件）。
-- 實際執行時需同時參考兩者，不能以單一文件取代另一份。
+## 從哪裡開始
 
-## 模組結構
-- `cmd/`：可執行入口（`cmd/test_ui`、`cmd/test_all`、`cmd/fatek_test` 等）。
-- `internal/api/`：HTTP / SSE 路由與 handlers，Swagger 掛載。
-- `internal/datalink/`：核心 domain（device、point、tag、mapping、pollinggroup、runtime、dbtarget、sourcerule 等）。
-- `internal/protocol/`：協議客戶端與傳輸層（Modbus、FATEK、MC Protocol）。
-- `internal/datalink/schema/migrations/`：資料庫 migration。
-- `lib/`：共用協議與演算法函式庫。
-- `frontend/`：Vite + React + TypeScript 前端與測試。
-- `docs/`：架構、流程、維運與 swagger 文件。
-- `openspec/`：需求規格、變更提案、任務追蹤。
+- `/studio/v2`：主要設定入口，依設備連線、採集點位、Tag 映射、輸出設定四步進行
+- `/studio/runtime`：設定後查看 runtime 狀態、問題與最近交付資訊
+- `/test`：工程測試工具
+- `/gateway/*`：實驗性介面，不是主要產品流程
 
-## 建置與測試指令
-### 常用建置
-- `make build`：安裝前端依賴 + 前端建置 + 後端建置（輸出 `bin/test-ui.exe`）。
-- `powershell -File scripts/build.ps1`：Windows 本機完整建置（含複製 embed static）。
-- `make clean`：清理 `frontend/dist`、`frontend/node_modules`、`bin/`。
-- `make gen-docs`：重產 Swagger 到 `docs/swagger/`。
-- `make test-ui`：建置完成後執行 `bin/test-ui.exe`。
+`/` 與未知前端路由會依現有通用規則回到 `/studio/v2`；沒有獨立 `/studio` 工作台。改善方向是在現有 V2 內簡化流程，保留 Go／React，不建立另一套 V3。
 
-### 後端驗證
-- `go test ./...`
-- `go vet ./...`
-- `golangci-lint run ./...`
+## 目前能力與限制
 
-### 前端驗證
-- `cd frontend && npm run dev`
-- `cd frontend && npm run lint`
-- `cd frontend && npm run test`
-- `cd frontend && npm run build`
-- `cd frontend && npm run test:e2e`
-- `cd frontend && npm run test:gateway:unit`
-- `cd frontend && npm run test:gateway:e2e`
-- `cd frontend && npm run test:gateway:gate`
+下列是依目前 source 核對的能力邊界，不是本次執行的驗收報告：
 
-### Gate / Migration 工具
-- `make gate-smoke`
-- `make gate-final`
-- `make gate-soak`
-- `make gatev11`
-- `make gatev12`
-- `make points-precheck-up`
-- `make points-precheck-down`
-- `make points-migrate-up`
-- `make points-migrate-down`（需明確確認 down 策略）
-- `make longtask-smoke`
-- `make check-lines`（檔案行數規範檢查）
+- **已接 runtime**：collector／scheduler、內部 SQLite storage、dbtarget writer 與 Local Modbus target fan-out，入口見 [service_wiring.go](cmd/test_ui/service_wiring.go) 和 [target_writer.go](cmd/test_ui/target_writer.go)
+- **資料庫寫入**：SQLite／PostgreSQL 的實際 SQL 寫入與 grouped time-bucket buffer 已有實作。buffer 接收成功不等於外部 DB 已提交；目前 grouped buffer 位於記憶體，不能視為耐重啟佇列
+- **已落地的安全設定**：已存 connector identity／revision、真實 schema metadata、preview／confirm／apply 及持久 operation 記錄；設定與啟用沿用 workspace/settings revisions 和 readiness token，不應略過
+- **仍待串接**：recording-plan 設定與 measurement、aggregation、delivery 元件的存在，不代表 production entrypoint 已連成完整的 durable recording 路徑
+- **明確未開放**：recording-plan test-write handler 目前回傳 501 `RECORDING_TEST_WRITE_NOT_IMPLEMENTED`，不能宣稱已有試寫、讀回與清理驗證
+- **四步流程待收斂**：Step 4 仍同時承載 recording plans、measurement membership、row groups、target mappings 與 Modbus Share。規劃中的單一 write-group authority 尚未實作
+- **協議可用性需逐層核對**：後端已有 Modbus、FATEK、MC 等協議元件；選單列出某協議或依賴中有其套件，不代表 V2 位址解析、採集與輸出皆已貫通
 
-## 程式碼樣式與命名規則
-### Go
-- 使用 `gofmt` / `goimports`，package 名稱維持小寫、單一語意。
-- exported symbol 必須有註解；維持 happy path 左對齊，優先早退。
-- package 宣告每檔案只能有一個；避免重複宣告。
-- 命名：
-  - package：小寫單字，避免 `util/common/base` 類泛稱。
-  - 變數/函式：`camelCase`，匯出名稱 `PascalCase`。
-  - 介面：優先 `-er` 語意（如 `Reader`、`Writer`）。
+基本需求是「所選 Tag 依群組寫到資料庫」。報表、保留政策、聚合、區間電量等衍生運算不是基本寫入的前置條件。設備 running、設定已儲存、buffered、SQL committed、readback verified 與 cleanup completed 應分開理解。
 
-### Frontend / TypeScript
-- 以 TypeScript 為主，2 空白縮排，ES modules。
-- 元件檔 `PascalCase.tsx`，hooks `useX.ts`。
-- 避免 `any`；必要時用 `unknown` + narrowing。
-- 前端資料流：
-  - 型別放 `frontend/src/types/`
-  - API 呼叫集中 `frontend/src/services/`
-  - 伺服器狀態走 React Query hooks
-  - 使用者文字走 `frontend/src/i18n/locales/`
+後續實作見 [六份相依提案與驗收計畫](docs/plans/studio-v2-write-groups/README.md)。[原資料庫流程工作](openspec/changes/fix-studio-v2-database-workflow/handoff.md) 的完成證據保留、未完需求已明確移交；文件通過檢查不表示產品已完成。
 
-## Error Handling Pattern
-### 後端（Go）
-- 函式呼叫後立即檢查 `err`，不要忽略錯誤。
-- 錯誤往上傳遞時用 `fmt.Errorf("...: %w", err)` 補上下文。
-- 錯誤訊息維持小寫、無句點。
-- 需要語意判斷時使用 sentinel/custom error，並透過 `errors.Is` / `errors.As` 檢查。
-- 避免同時「log + return」同一錯誤，統一在合適層級處理。
+## 本機建置與啟動
 
-### 前端（React/TS）
-- 非同步流程使用 `try/catch`，不可吞錯（UI/handler/service 都一樣）。
-- 區分 user-facing error 與 internal error，顯示訊息需可理解且不洩漏敏感資訊。
-- 保留 fallback/error state（含 Error Boundary）與 loading state，避免 silent failure。
+需要 Go 1.25.5 或符合 go.mod 的工具鏈、Node.js／npm，以及 Linux/macOS 的 make 與 shell，或 Windows PowerShell。前端依賴的 Node engine 範圍以 lockfile 為準；建議使用 Node 22.14 以上的 22.x 或相容更新版。
 
-## 測試指引與測試要求
-- 後端測試：Go `testing`（必要時 `testify`），`*_test.go` 與實作檔相鄰。
-- 前端測試：Vitest + Testing Library；E2E 使用 Playwright。
-- 前端正式測試入口：`frontend/tests/unit`、`frontend/tests/integration`、`frontend/tests/e2e`。
-- 任何行為變更都必須同步新增/調整測試，特別是：
-  - 協議解析
-  - 映射流程
-  - 排程邏輯
-  - runtime lifecycle
-  - output binding
-- 前端 UI/UX 調整採 TDD 先行：先補測試再改 UI，至少覆蓋 `Studio` 主流程與 `TestPage` 主要互動。
-- 建議本地最小驗證：
-  - `go test ./... && go vet ./... && golangci-lint run ./...`
-  - `cd frontend && npm run lint && npm run test && npm run build`
+### Linux／macOS
 
-## 安全考量
-- 禁止把真實帳密、Token、DSN、設備憑證等 secrets 放入程式碼、測試、文件、OpenSpec、commit message。
-- 所有外部輸入（HTTP payload、query/route params、protocol config、DB connector config、檔案內容）都要驗證與正規化。
-- 前端不可拼接不受信任 HTML，不可引入動態程式碼執行。
-- DB 層必須走既有 abstraction 或參數化查詢，避免可注入 SQL。
-- `golangci-lint run ./...`（含 `gosec`）需維持乾淨。
-- 對外連線 probe 由 backend 主機發起；文件與 UX 文案必須避免誤導成瀏覽器直連。
+```sh
+make build
+HOST=127.0.0.1 PORT=8080 ./bin/test-ui.exe
+```
 
-## 禁止事項
-- 禁止新增 `/studio` 專用 route、handler、tombstone 或 special redirect；保留 `/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 的 route identity。
-- 禁止把 lint 警告、未使用程式碼、未清理 import 帶入主分支。
-- 禁止跳過 OpenSpec 既有規格就直接改需求語意。
-- 禁止在未對齊資料模型時，先行放入不完整契約（例如 parser 支援先行但 runtime/model 尚未打通）。
-- 禁止以手刻字串 SQL 或跳過輸入驗證來快速修補功能。
+開啟 `http://127.0.0.1:8080/studio/v2`。Makefile 依序安裝前端依賴、build、複製 static、build Go；`.exe` 是固定檔名，不代表在 Linux/macOS 產生 Windows binary。
 
-## Repo 特定規則
-### 規範優先順序
-1. `AGENTS.md`（專案目標、流程、測試、安全）
-2. Agent 專屬文件（`CLAUDE.md`、`GEMINI.md`）
-3. `.github/instructions/*.md`（語言/框架實作規範）
+### Windows
 
-### 檔案類型規範對應
-- `*.go`、`go.mod`、`go.sum`：`.github/instructions/go.instructions.md`
-- `*.tsx`、`*.jsx`、`*.js`、`*.css`、`*.scss`：`.github/instructions/reactjs.instructions.md`
-- `*.ts`：同時遵守 react + TypeScript instructions
+```powershell
+Push-Location frontend
+npm ci
+Pop-Location
+powershell -File scripts/build.ps1
+$env:HOST = "127.0.0.1"
+$env:PORT = "8080"
+.\bin\test-ui.exe
+```
 
-### 文件化工作流
-- 多步驟任務預設採 `planning-with-files`。
-- 維持 `task_plan.md`、`findings.md`、`progress.md` 三份追蹤文件並持續更新。
+請確認 npm ci 成功後再建置，建置成功後再執行。開啟 `http://127.0.0.1:8080/studio/v2`；腳本細節見 [scripts/build.ps1](scripts/build.ps1)。
 
-### 檔案行數規範（強制）
-- 目標：單檔 `<= 300` 行；硬上限 `<= 500` 行。
-- `> 300` 行：警告，PR 需提供原因與拆分計畫。
-- `> 500` 行：CI 阻擋。
-- 歷史超長檔僅允許不增加行數的修改，需逐步縮減。
-- 強制工具：
-  - `scripts/check_file_lines.sh`
-  - `.line-limit-ignore`
-  - `.github/workflows/file-line-limit.yml`
-  - `.githooks/pre-commit`（啟用：`git config core.hooksPath .githooks`）
+### 前端開發
 
-### OpenSpec 流程
-- 先看 `openspec/specs/` 再處理 `openspec/changes/`。
-- 規格導向工作需同步更新 `openspec/changes/.../tasks.md` 實作進度。
-- 實作與 spec 衝突時先回報，不直接改寫需求。
+```sh
+cd frontend
+npm ci
+npm run dev
+```
 
-### Commit / PR
-- commit 主旨採簡短祈使語氣繁中（例如：`修正...`、`補齊...`）。
-- 每個 commit 聚焦單一主題並附測試。
-- PR 需附：
-  - 變更摘要
-  - 影響模組
-  - 測試證據
-  - 相關 OpenSpec 連結
-  - 前端變更截圖
+API backend 需另啟動；Vite 預設為 5173，API proxy 預設指向 `http://127.0.0.1:8080`。可用 `VITE_DEV_PORT`、`VITE_API_PROXY_TARGET` 或 `PORT` 調整，詳見 [vite.config.ts](frontend/vite.config.ts)。
 
-## 參考文件
-- 共通規範：[`AGENTS.md`](./AGENTS.md)
-- Agent 補充規範：[`CLAUDE.md`](./CLAUDE.md)
-- Go 規範：[`./.github/instructions/go.instructions.md`](./.github/instructions/go.instructions.md)
-- React 規範：[`./.github/instructions/reactjs.instructions.md`](./.github/instructions/reactjs.instructions.md)
-- TypeScript 規範：[`./.github/instructions/typescript-5-es2022.instructions.md`](./.github/instructions/typescript-5-es2022.instructions.md)
-- OpenSpec：[`openspec/`](./openspec)
-- 專案文件：[`docs/`](./docs)
+fresh clone 只保留 embed placeholder。單獨 go build 能編譯，不代表已包含可用前端；請用完整建置流程同步 `cmd/test_ui/static`。
+
+## 設定與資料
+
+主要 server 從環境變數與 `.env` 讀取設定，見 [internal/config/config.go](internal/config/config.go)：
+
+- `HOST`／`PORT`：監聽位置，預設 host 為空、port 為 8080；本機試用建議明確使用 `127.0.0.1`
+- `GATEWAY_DB_PATH`：內部 SQLite 檔案位置；相容 aliases 為 `DB_PATH`、`SQLITE_PATH`，預設使用工作目錄的 `datalink.db`
+- `VITE_API_PROXY_TARGET`：前端開發時的 backend 位置，與設備／外部 DB endpoint 不同
+
+內部 SQLite 是設定與 runtime 儲存，不等於使用者選取的外部目標資料庫。對外 probe、建表與寫入均由 backend 主機發起。請先用 simulator 和可丟棄資料庫驗證，不把正式 PLC 或正式資料表當作測試環境。
+
+不要將 `.env`、真實 DSN、帳密或設備憑證提交到版本控制。備份、還原與 migration 前先停下相關寫入並核對作用範圍；程式版本 rollback 不會自動撤銷外部建表或已寫入資料。
+
+## 驗證指令
+
+```sh
+go test ./...
+go vet ./...
+golangci-lint run ./...
+cd frontend
+npm run lint
+npm test -- --run
+npm run build
+npm run test:e2e
+```
+
+`golangci-lint` 與 Playwright browser dependencies 需在執行環境可用。這裡列出命令，不代表目前 checkout 已跑完全部測試。
+
+其他工具見 [Makefile](Makefile)：`make check-lines`、`make cross-platform-loop`、Modbus gate／soak、points migration precheck／apply 與 Swagger 產生。跑 migration 或設備測試前先讀腳本，確認 target、權限、備份及可丟棄環境。
+
+## 專案導覽
+
+- [cmd/test_ui](cmd/test_ui)：實際 server entrypoint、wiring 與 embed
+- [internal/api](internal/api)：HTTP／SSE 與 handlers
+- [internal/datalink](internal/datalink)：採集、映射、runtime、輸出與資料模型
+- [frontend](frontend)：介面、services、types、測試
+- [docs](docs)：技術與維運文件；[Studio inventory](docs/technical/studio-surface-inventory/START_HERE.md) 提供歷史與 surface 脈絡，日期較舊的結論需對照 source
+- [openspec](openspec)：規格與提案；規格存在或提案驗證通過，不代表產品實作完成
+
+開發與 agent 共通規範見 [AGENTS.md](AGENTS.md)，Claude 補充見 [CLAUDE.md](CLAUDE.md)。README 專注使用與能力邊界，不另存一套開發規則。

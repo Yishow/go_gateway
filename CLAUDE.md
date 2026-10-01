@@ -29,41 +29,25 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 
 <!-- SPECTRA:END -->
 
-# CLAUDE.md
+# Claude 執行補充
 
-本檔是 Claude 在本 repo 的執行補充。共通規範（專案總覽、目錄結構、全部建置/測試/gate 命令、程式碼樣式、命名、錯誤處理、測試要求、安全、禁止事項、行數規範、commit/PR 慣例）的**單一來源是 `AGENTS.md`**——本檔不重複那些內容；兩檔重疊或衝突時，一律以 `AGENTS.md` 為準。
+共通規範的單一來源是 [AGENTS.md](AGENTS.md)。本檔與它一起讀，重疊或衝突以 AGENTS.md 為準，不重複建置、安全、命名與測試清單。
 
-## 必讀路由（動手前）
+## 開始工作
 
-1. `AGENTS.md`：共通規範入口。所有命令（`make build`、gate/migration/smoke、前後端驗證基準）都在那裡，不要憑記憶執行。
-2. 依修改檔案類型讀 `.github/instructions/` 對應規範：
-   - `*.go`、`go.mod`、`go.sum` → `go.instructions.md`
-   - `*.tsx`、`*.jsx`、`*.js`、`*.css`、`*.scss` → `reactjs.instructions.md`
-   - `*.ts` → `reactjs.instructions.md` ＋ `typescript-5-es2022.instructions.md`
-3. 本檔其餘章節：只放 repo 特定規則與架構脈絡。
+1. 確認任務是研究、proposal、實作或文件整理；只做獲授權的層級。
+2. 查 git 狀態與來源基準；保留其他人的修改。
+3. 明確指定 Spectra 時讀 `.agents/skills/` 對應 skill。先核對 CLI 及既有 change，再執行該工作流，不用舊機器記憶或自製格式替代。
+4. Studio 任務依 AGENTS.md 先讀 inventory 入口，再開實際 route、handler、service wiring 與測試。不要由 archived tasks 的勾選推論現在 production 已接線。
 
-## 系統資料流（高階）
+## 調查與交接方式
 
-1. 協議連線：`connector/manager` 依設備配置建立 / 管理連線。
-2. 資料採集：`collector/scheduler` 依 polling 設定輪詢 Tag。
-3. 映射處理：`mapping` 與 transform 將來源值轉為 Point / Tag / Output 目標格式。
-4. 儲存與對外：寫入 storage，並透過 API / SSE 提供前端。
+- 沿使用者操作追到 persisted identity，再追 runtime target writer；UI、API 與 SQL 證據要能對上同一 workspace／revision。
+- 遇到 competing model 時，先寫明誰是 authority、哪些只是 projection／相容 adapter，避免新增一套平行狀態。
+- 既有 schema operation、readiness 與 Modbus Share 安全契約是保留邊界；不能用簡化 UI 為理由移除。
+- 測試與 source 不一致時保留事實及風險，不能為了讓完成報告好看而改掉預期。
+- 每次完成回報列出：修改檔案、已執行／未執行的驗證、風險、後續建議。proposal 的完成只表示規格可交接，不表示產品能力已完成。
 
-## Repo 特定規則
+## 維護本檔
 
-- 前端主線入口為 `/studio/v2`；`/studio/runtime` 是 setup 後觀察面；`/studio` 已退出產品契約，刪除後走既有 generic unknown-route policy；工程測試工具集中於 `/test`，`/gateway/*` 維持 experimental。前端 build 產物嵌入 `cmd/test_ui/static`。（此行與 AGENTS.md 重複，為下兩條 inventory 規則提供上下文，屬刻意錨點，維護時勿刪。）
-- Commit 訊息用繁中祈使句主旨（例：`補強...`、`完成...`，見 AGENTS.md），**不用**全域規範的 `<type>: <description>` 格式——專案慣例優先。
-- 任務涉及 `/studio`、`/studio/v2`、`/studio/runtime`、`/test`、`/gateway/*` 或 `docs/technical/studio-surface-inventory/` 時：先讀 `docs/technical/studio-surface-inventory/` 下的 `START_HERE.md`、`context.json`、`CURRENT_STATE.md`，不足以回答時才展開該目錄完整 md/html 文件。
-- 修改 `docs/technical/studio-surface-inventory/` 內任何文件，必須同步寫入該目錄的 `changelog.sqlite`；changelog 一律用 `go run ./cmd/studio_inventory_changelog ...` 管理，至少留下 `summary`、`surface`、`files`、`reason`。
-
-## 執行與回報要求（AGENTS.md 之外的補充）
-
-- 實作不可只交付最小可動版本；錯誤處理與邊界條件屬任務範圍，不是後續工作。
-- 每次任務的完成回報必含四項：修改檔案、驗證結果、風險、後續建議。
-- 文件任務至少執行 `git diff --check`，確認無格式 / 空白異常。
-- 未能在當前環境執行完整測試時，回報必須明列「已執行」與「未執行」項目及對應風險。
-
-## 文件維護
-
-- 共通規範調整 → 改 `AGENTS.md`；Claude 執行脈絡或 repo 補充脈絡 → 改本檔。
-- 本檔於 2026-07-03 精簡為路由（原 197 行完整版見 git history，另備份於 `~/.claude/backups/2026-07-03-fable-institution/go_gateway/CLAUDE.md`）。維護原則：與 `AGENTS.md` 重複的規範內容一律刪除、不回加（標註「刻意錨點」者除外）；新增內容前先確認 `AGENTS.md` 沒有涵蓋。
+共通政策寫 AGENTS.md；只有 Claude 特定的操作脈絡才放這裡。不要增加不存在的工具、私人備份路徑或與 README 重複的產品介紹。

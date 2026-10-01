@@ -20,40 +20,6 @@ The system SHALL reuse stored credentials by backend reference and invalidate te
 - **WHEN** the selected connection is unsaved, missing or outside the allowed workspace scope
 - **THEN** preparation is blocked without guessing a connection identity or reusing credentials from another endpoint.
 
-### Requirement: Truthful explicit test writes
-The system SHALL separate data preview, confirmed write and readback verification and retain idempotent test identities. Test-write preview SHALL issue a durable token and operation_id bound to the test_write action, saved target, setup revisions, payload digest and expiry. Confirmation MUST validate that binding before the first write; a schema token or plan_id alone MUST NOT authorize test writing. Confirmed writes MUST use the selected persisted target and compare the actual test payload during readback. Results SHALL distinguish written_verified, written_unverified, failed and unknown, with an independent cleanup_status of not_attempted, cleaned, failed or unknown. The UI MUST NOT infer verified writing, cleanup or timestamps without corresponding backend evidence.
-
-#### Scenario: Test preview and action-bound confirmation
-- **WHEN** an operator requests a test-write preview for a saved, schema-verified plan
-- **THEN** the backend returns previewed test content and its persisted token and operation_id without inserting or cleaning target data
-- **AND** a subsequent confirmation with a schema token, stale revision or mismatched scope cannot perform a test write.
-
-#### Scenario: Write succeeds without read permission
-- **WHEN** a confirmed test write succeeds but the account cannot query the result
-- **THEN** the result is written_unverified, not verified.
-
-#### Scenario: Test action retried
-- **WHEN** the same confirmed test token is retried after an unknown network outcome
-- **THEN** the system checks its durable identity and does not insert a duplicate test record; a running duplicate returns 202, a retained result returns 200, and a different operation occupying the scope returns 409
-- **AND** the client can query that operation through the shared workspace database-operation status endpoint; missing and foreign operations return the same safe 404.
-
-#### Scenario: Readback payload differs
-- **WHEN** the record identity is found but its payload does not match the written test values
-- **THEN** the result does not claim verified writing and reports a safe mismatch reason.
-
-#### Scenario: Cleanup cannot be confirmed
-- **WHEN** writing and readback succeed but cleanup fails or has an uncertain result
-- **THEN** write verification and cleanup status are displayed independently without claiming the target was cleaned.
-
-#### Scenario: Cleanup and retry after restart
-- **WHEN** a previously completed test is retried after cleanup or a process restart
-- **THEN** the retained operation identity prevents a new insertion
-- **AND** cleanup never deletes records outside that operation's test scope.
-
-#### Scenario: Write outcome or status is unknown
-- **WHEN** the backend cannot confirm whether a write happened or the client receives an unrecognized status
-- **THEN** the UI shows an unresolved result rather than success and does not automatically repeat a potentially completed write.
-
 ## ADDED Requirements
 
 ### Requirement: Persisted recording membership and explicit plan selection

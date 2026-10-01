@@ -82,3 +82,7 @@
 ## 初稿檢查紀錄（歷史）
 
 初稿在無 Spectra CLI 的環境手工起草，原先記錄 115 個簡單結構檢查、13 條 requirements、53 個 scenarios、14 個 workflow 待辦；這些是當時文件計數，不是目前文件或產品測試通過數。當時未執行官方 analyze／validate／park，也未執行產品測試。本次本機結果以上節為準，沒有回填虛構的歷史 CLI 證據。
+
+## 2026-10-01 提案移交（非產品驗收）
+
+保留原五項完成證據與checkbox；未完五項轉交新write-group計畫D/E/F，需求詳見handoff.md。本次不重跑產品測試、不新增完成項、不archive。本案tasks保留待新案驗收後才能關閉的5.1 gate。文件檢查及工具版本記於 docs/plans/studio-v2-write-groups/validation.md。
