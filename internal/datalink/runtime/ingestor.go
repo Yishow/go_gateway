@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/collector"
+	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/storage"
@@ -49,12 +50,22 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 			out, err := mapping.ExecutePipeline(cv.Value, b.TransformPipeline)
 			if err != nil {
 				s.mappingError.Add(1)
+				s.offerFailedTypedSample(ctx, cv, b, rawValue)
 				continue
 			}
 			finalValue = out.CurrentValue
 		}
 		if index == 0 {
 			transformedValue = finalValue
+		}
+
+		if s.sampleSink != nil && sinkWants(s.sampleSink, b) {
+			envelope, err := typedSampleFromValue(cv, b, finalValue, rawValue)
+			if err != nil {
+				s.writeError.Add(1)
+			} else if err := s.sampleSink.AcceptSample(ctx, envelope); err != nil && isSinkFault(err) {
+				s.writeError.Add(1)
+			}
 		}
 
 		record := storage.ValueToRecord(b.TagID, finalValue, rawValue, cv.Timestamp, quality, b.TagDataType)
@@ -195,4 +206,66 @@ func (s *Service) publishDerivedStatus(ctx context.Context, deviceID string) {
 	}
 
 	s.emitStatusIfChanged(status)
+}
+
+// offerFailedTypedSample reports a read whose transform could not run. The
+// group must still see the newest observation as bad, otherwise an older good
+// value would be written in its place. A read that already failed keeps its own
+// safe reason; a good read whose pipeline failed is marked mapping-failed.
+func (s *Service) offerFailedTypedSample(ctx context.Context, cv collector.CollectedValue, b mappingBinding, rawValue any) {
+	if s.sampleSink == nil || !sinkWants(s.sampleSink, b) {
+		return
+	}
+	failed := cv
+	if failed.Quality == "" || failed.Quality == schema.QualityGood {
+		failed.Quality = schema.QualityBad
+		failed.QualityReason = reasonMappingFailed
+		if failed.Error == "" {
+			failed.Error = reasonMappingFailed
+		}
+	}
+	envelope, err := typedSampleFromValue(failed, b, nil, rawValue)
+	if err != nil {
+		s.writeError.Add(1)
+		return
+	}
+	if err := s.sampleSink.AcceptSample(ctx, envelope); err != nil && isSinkFault(err) {
+		s.writeError.Add(1)
+	}
+}
+
+// isSinkFault separates real storage faults from normal refusals (late,
+// conflicting or stale-revision samples), which are data, not failures. A
+// sample fanned out to several groups can return a joined error; any fault
+// among them counts.
+func isSinkFault(err error) bool {
+	if err == nil {
+		return false
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok { //nolint:errorlint // joined errors expose Unwrap() []error
+		for _, inner := range joined.Unwrap() {
+			if isSinkFault(inner) {
+				return true
+			}
+		}
+		return false
+	}
+	var refused *GroupSampleError
+	if errors.As(err, &refused) {
+		switch refused.Reason {
+		case reasonJournalFailed, groupdelivery.ReasonQuotaHardLimit, groupdelivery.ReasonDiskFull:
+			return true
+		}
+		return false
+	}
+	return true
+}
+
+// sinkWants reports whether the sink consumes this source; sinks that do not
+// say receive everything, as before.
+func sinkWants(sink SampleSink, b mappingBinding) bool {
+	if interest, ok := sink.(SampleInterest); ok {
+		return interest.WantsSample(b.DeviceID, b.PointID, b.TagID)
+	}
+	return true
 }

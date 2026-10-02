@@ -63,3 +63,18 @@ Accepted records SHALL retain their frozen destination, schema and group revisio
 #### Scenario: Disable group
 - **WHEN** an operator disables a group after records were acknowledged
 - **THEN** new intake stops while accepted backlog remains queryable and is not silently discarded or redirected.
+
+### Requirement: Single production writer owner and lifecycle backlog
+When a migrated or new group is applied, exactly one writer path SHALL own new intake for that output, with Share independently gated. Rolling back the UI or binary SHALL stop new intake while preserving accepted records and their destination provenance. Deleting a group with accepted pending records SHALL let production workers complete the original accepted records without orphaning, replaying or dropping them.
+
+#### Scenario: Activation switches writer
+- **WHEN** a migrated group is applied while the legacy target exists
+- **THEN** exactly one writer path owns new intake for that output and Share remains independently gated.
+
+#### Scenario: Rollback with accepted backlog
+- **WHEN** the new UI or binary is rolled back after durable records were accepted
+- **THEN** new intake can be stopped but accepted records and their destination provenance are preserved.
+
+#### Scenario: Delete with backlog is completed by workers
+- **WHEN** the operator deletes a group with accepted pending records
+- **THEN** production workers deliver the original accepted records from the tombstoned group's frozen revisions and destination without orphaning, replaying or dropping them.

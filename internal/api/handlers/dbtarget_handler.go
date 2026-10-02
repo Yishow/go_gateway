@@ -15,6 +15,7 @@ import (
 type DatabaseTargetHandler struct {
 	connectorSvc *dbtarget.ConnectorService
 	mappingSvc   *dbtarget.MappingService
+	writeGroups  writeGroupMigrationReader
 }
 
 func NewDatabaseTargetHandler(connectorSvc *dbtarget.ConnectorService, mappingSvc *dbtarget.MappingService) *DatabaseTargetHandler {
@@ -105,6 +106,9 @@ func (h *DatabaseTargetHandler) UpdateConnector(c *gin.Context) {
 
 func (h *DatabaseTargetHandler) DeleteConnector(c *gin.Context) {
 	if err := h.connectorSvc.Delete(c.Request.Context(), c.Param("id")); err != nil {
+		if renderLegacyWriteErrorIfNeeded(c, err) {
+			return
+		}
 		status := http.StatusInternalServerError
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
@@ -165,13 +169,40 @@ func (h *DatabaseTargetHandler) ListMappings(c *gin.Context) {
 		Enabled:     parseBoolQuery(c, "enabled"),
 	}
 
-	mappings, err := h.mappingSvc.List(c.Request.Context(), filter)
+	rawFilter := filter
+	if h.writeGroups != nil {
+		rawFilter = dbtarget.TargetMappingListFilter{}
+	}
+	mappings, err := h.mappingSvc.List(c.Request.Context(), rawFilter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mappings})
+	groups, err := migrationReadGroups(c.Request.Context(), h.writeGroups)
+	if err != nil {
+		renderMigrationReadError(c, err)
+		return
+	}
+	if err := validateMigrationReadRows(mappings, groups, filter); err != nil {
+		renderMigrationReadError(c, err)
+		return
+	}
+	data := make([]databaseTargetMappingReadResponse, 0, len(mappings))
+	for _, mapping := range mappings {
+		if !migrationReadCandidateMatchesFilter(mapping, groups[mapping.ID], filter) {
+			continue
+		}
+		row, err := projectMigrationRead(mapping, groups)
+		if err != nil {
+			renderMigrationReadError(c, err)
+			return
+		}
+		if migrationReadMatchesFilter(row.DatabaseTargetMapping, filter) {
+			data = append(data, row)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: data})
 }
 
 func (h *DatabaseTargetHandler) CreateMapping(c *gin.Context) {
@@ -183,6 +214,9 @@ func (h *DatabaseTargetHandler) CreateMapping(c *gin.Context) {
 
 	mapping, err := h.mappingSvc.Create(c.Request.Context(), req)
 	if err != nil {
+		if renderLegacyWriteErrorIfNeeded(c, err) {
+			return
+		}
 		c.JSON(http.StatusUnprocessableEntity, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: err.Error()}})
 		return
 	}
@@ -197,7 +231,17 @@ func (h *DatabaseTargetHandler) GetMapping(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: mapping})
+	groups, err := migrationReadGroups(c.Request.Context(), h.writeGroups)
+	if err != nil {
+		renderMigrationReadError(c, err)
+		return
+	}
+	row, err := projectMigrationRead(mapping, groups)
+	if err != nil {
+		renderMigrationReadError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: row})
 }
 
 func (h *DatabaseTargetHandler) UpdateMapping(c *gin.Context) {
@@ -209,6 +253,9 @@ func (h *DatabaseTargetHandler) UpdateMapping(c *gin.Context) {
 
 	mapping, err := h.mappingSvc.Update(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
+		if renderLegacyWriteErrorIfNeeded(c, err) {
+			return
+		}
 		status := http.StatusUnprocessableEntity
 		if isNotFoundError(err) {
 			status = http.StatusNotFound
@@ -222,6 +269,9 @@ func (h *DatabaseTargetHandler) UpdateMapping(c *gin.Context) {
 
 func (h *DatabaseTargetHandler) DeleteMapping(c *gin.Context) {
 	if err := h.mappingSvc.Delete(c.Request.Context(), c.Param("id")); err != nil {
+		if renderLegacyWriteErrorIfNeeded(c, err) {
+			return
+		}
 		status := http.StatusInternalServerError
 		if isNotFoundError(err) {
 			status = http.StatusNotFound

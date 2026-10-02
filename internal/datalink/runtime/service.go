@@ -24,11 +24,17 @@ type Config struct {
 	// UpdatePointState 控制是否更新 points.last_* 欄位。
 	UpdatePointState bool
 
+	// WorkspaceID identifies the snapshot scope for typed sample identity.
+	WorkspaceID string
+
 	// Writer 舊有相容欄位（snapshot 模式）。
 	Writer storage.Writer
 
 	// Snapshot 舊有相容欄位（snapshot 模式）。
 	Snapshot Snapshot
+
+	// SampleSink optional typed acquisition transport seam.
+	SampleSink SampleSink
 }
 
 // DefaultConfig 預設設定。
@@ -47,6 +53,7 @@ type Dependencies struct {
 	MappingService      *mapping.Service
 	TagService          *tag.Service
 	PollingGroupService *pollinggroup.Service
+	SampleSink          SampleSink
 }
 
 type TargetWriter interface {
@@ -68,18 +75,25 @@ type Stats struct {
 }
 
 type mappingBinding struct {
+	WorkspaceID       string
+	DeviceID          string
+	PointID           string
 	TagID             string
 	TagDataType       schema.DataType
 	TransformPipeline string
+	SourceRevision    string
+	MappingRevision   string
+	ConfigFingerprint string
 }
 
 // Service 負責串接 scheduler -> mapping -> storage。
 type Service struct {
 	config Config
 
-	scheduler *collector.Scheduler
-	writer    storage.Writer
-	target    TargetWriter
+	scheduler  *collector.Scheduler
+	writer     storage.Writer
+	target     TargetWriter
+	sampleSink SampleSink
 
 	deviceSvc  *device.Service
 	pointSvc   *point.Service
@@ -154,6 +168,7 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		s.scheduler = deps.Scheduler
 		s.writer = deps.Writer
 		s.target = deps.TargetWriter
+		s.sampleSink = deps.SampleSink
 		s.workspace = deps.WorkspaceProjection
 		s.deviceSvc = deps.DeviceService
 		s.pointSvc = deps.PointService
@@ -169,6 +184,7 @@ func NewService(config Config, depsOpt ...Dependencies) (*Service, error) {
 		return nil, fmt.Errorf("writer 不可為 nil")
 	}
 	s.writer = config.Writer
+	s.sampleSink = config.SampleSink
 	s.snapshot = config.Snapshot
 
 	connMgr := connector.NewConnectionManager(connector.DefaultConnectionManagerConfig())
@@ -386,57 +402,6 @@ func (s *Service) bootstrapFromSnapshot(ctx context.Context) error {
 	if err := s.scheduler.Start(s.snapshot.PollingGroups); err != nil { //nolint:contextcheck // Scheduler ticker lifetime is governed by StopContext.
 		return fmt.Errorf("啟動 scheduler 失敗: %w", err)
 	}
-	return nil
-}
-
-func (s *Service) refreshMappings(ctx context.Context) error {
-	if s.mappingSvc != nil {
-		enabled := true
-		mappings, err := s.mappingSvc.List(ctx, mapping.ListFilter{Enabled: &enabled, Limit: 100000})
-		if err != nil {
-			return fmt.Errorf("載入 mappings 失敗: %w", err)
-		}
-
-		next := make(map[string][]mappingBinding)
-		for _, m := range mappings {
-			tg, err := s.tagSvc.GetByID(ctx, m.TagID)
-			if err != nil {
-				return fmt.Errorf("載入 tag(%s) 失敗: %w", m.TagID, err)
-			}
-			next[m.PointID] = append(next[m.PointID], mappingBinding{
-				TagID:             m.TagID,
-				TagDataType:       tg.DataType,
-				TransformPipeline: m.TransformPipeline,
-			})
-		}
-
-		s.mappingMu.Lock()
-		s.mappingIndex = next
-		s.mappingMu.Unlock()
-		return nil
-	}
-
-	// snapshot mode
-	tagType := make(map[string]schema.DataType, len(s.snapshot.Tags))
-	for _, t := range s.snapshot.Tags {
-		tagType[t.ID] = t.DataType
-	}
-
-	next := make(map[string][]mappingBinding)
-	for _, m := range s.snapshot.Mappings {
-		if !m.Enabled {
-			continue
-		}
-		next[m.PointID] = append(next[m.PointID], mappingBinding{
-			TagID:             m.TagID,
-			TagDataType:       tagType[m.TagID],
-			TransformPipeline: m.TransformPipeline,
-		})
-	}
-
-	s.mappingMu.Lock()
-	s.mappingIndex = next
-	s.mappingMu.Unlock()
 	return nil
 }
 

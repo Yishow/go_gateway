@@ -28,7 +28,6 @@ import (
 	"go-gateway/internal/datalink/history"
 	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/modbusshare"
-	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/sourcerule"
 	"go-gateway/internal/web"
 )
@@ -165,6 +164,17 @@ func runGateway() error {
 		}
 	}
 	startConfiguredShareListener(context.Background(), modbusShareSvc)
+	// Applied groups must be hydrated and their delivery recovered before any
+	// sample can be accepted; running without the pipeline would silently drop
+	// the data of groups that own their outputs, so a failed start is fatal.
+	if err := services.groupPipe.Start(context.Background()); err != nil {
+		return fmt.Errorf("寫入群組 pipeline 啟動失敗: %w", err)
+	}
+	defer func() {
+		if err := services.groupPipe.Stop(5 * time.Second); err != nil {
+			log.Printf("關閉寫入群組 pipeline 逾時，未送出的資料會在下次啟動時恢復: %v", err)
+		}
+	}()
 	if err := runtimeSvc.Start(context.Background()); err != nil {
 		log.Printf("datalink runtime 啟動失敗，runtime 功能將不可用: %v", err)
 	}
@@ -177,7 +187,7 @@ func runGateway() error {
 	}()
 
 	measurementSvc := measurement.NewService(measurement.NewSQLRepository(db))
-	recordingPlanSvc := recordingplan.NewService(recordingplan.NewSQLRepository(db))
+	recordingPlanSvc := services.recordingPlan
 	historySvc := history.NewService(history.NewMemoryHistoryRepository())
 
 	datalinkServices := &api.DatalinkServices{
@@ -198,6 +208,9 @@ func runGateway() error {
 		RecordingPlan:         recordingPlanSvc,
 		History:               historySvc,
 		Workspace:             workspaceSvc,
+		WriteGroups:           services.writeGroups,
+		WriteGroupDelivery:    services.groupPipe,
+		WriteGroupTestWrite:   services.groupTestWrite,
 		Audit:                 auditSvc,
 		ShareRestore: handlers.ShareRestoreBarrier(func(ctx context.Context, req handlers.ActivateWorkspaceRequest) error {
 			hydration, err := modbusShareSvc.CheckHydration(ctx)

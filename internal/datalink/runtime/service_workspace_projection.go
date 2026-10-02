@@ -213,12 +213,24 @@ func workspaceProjectionMappingBindings(
 	projection *workspace.RuntimeProjection,
 	pointIDs map[string]struct{},
 ) (map[string][]mappingBinding, error) {
-	tagTypes := make(map[string]schema.DataType, len(projection.Tags))
+	devices := make(map[string]*schema.Device, len(projection.Devices))
+	for _, deviceRecord := range projection.Devices {
+		if deviceRecord != nil {
+			devices[deviceRecord.ID] = deviceRecord
+		}
+	}
+	points := make(map[string]*schema.Point, len(projection.Points))
+	for _, pointRecord := range projection.Points {
+		if pointRecord != nil {
+			points[pointRecord.ID] = pointRecord
+		}
+	}
+	tags := make(map[string]*schema.Tag, len(projection.Tags))
 	for _, tagRecord := range projection.Tags {
 		if tagRecord == nil {
 			continue
 		}
-		tagTypes[tagRecord.ID] = tagRecord.DataType
+		tags[tagRecord.ID] = tagRecord
 	}
 
 	next := make(map[string][]mappingBinding)
@@ -231,15 +243,23 @@ func workspaceProjectionMappingBindings(
 				continue
 			}
 		}
-		tagType, ok := tagTypes[mappingRecord.TagID]
-		if !ok {
+		pointRecord := points[mappingRecord.PointID]
+		if pointRecord == nil {
+			return nil, fmt.Errorf("workspace projection mapping %s references missing point %s", mappingRecord.ID, mappingRecord.PointID)
+		}
+		deviceRecord := devices[pointRecord.DeviceID]
+		if deviceRecord == nil {
+			return nil, fmt.Errorf("workspace projection mapping %s references missing device %s", mappingRecord.ID, pointRecord.DeviceID)
+		}
+		tagRecord := tags[mappingRecord.TagID]
+		if tagRecord == nil {
 			return nil, fmt.Errorf("workspace projection mapping %s references missing tag %s", mappingRecord.ID, mappingRecord.TagID)
 		}
-		next[mappingRecord.PointID] = append(next[mappingRecord.PointID], mappingBinding{
-			TagID:             mappingRecord.TagID,
-			TagDataType:       tagType,
-			TransformPipeline: mappingRecord.TransformPipeline,
-		})
+		binding, err := mappingBindingForRecords(projection.WorkspaceID, mappingRecord, deviceRecord, pointRecord, tagRecord)
+		if err != nil {
+			return nil, fmt.Errorf("workspace projection mapping %s identity invalid: %w", mappingRecord.ID, err)
+		}
+		next[mappingRecord.PointID] = append(next[mappingRecord.PointID], binding)
 	}
 	return next, nil
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/modbusshare"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 	"go-gateway/internal/datalink/schema"
@@ -146,4 +147,19 @@ func freeTCPPort(t *testing.T) int {
 		t.Fatalf("release port: %v", err)
 	}
 	return port
+}
+
+func TestProductionTargetWriter_GroupOwnedOutputProducesNoDatabaseOutcome(t *testing.T) {
+	owned := &recordingTargetWriter{err: dbtarget.ErrOutputOwnedByWriteGroup}
+	target := newProductionTargetWriter(owned, nil)
+	outcomes := target.(datalinkruntime.TargetOutcomeWriter).WriteTagValueOutcomes(context.Background(), "tag-A", 1.5, time.Now())
+	if owned.calls != 1 {
+		t.Fatalf("legacy writer should still be consulted once, got %d", owned.calls)
+	}
+	if len(outcomes) != 0 {
+		t.Fatalf("a group-owned output must not be reported as a database delivery, got %+v", outcomes)
+	}
+	if err := target.WriteTagValue(context.Background(), "tag-A", 1.5, time.Now()); err != nil {
+		t.Fatalf("a group-owned output is not an error either: %v", err)
+	}
 }

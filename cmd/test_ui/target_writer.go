@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/modbusshare"
 	datalinkruntime "go-gateway/internal/datalink/runtime"
 )
@@ -82,7 +84,14 @@ func (w fanoutTargetWriter) WriteTagValueOutcomes(ctx context.Context, tagID str
 		if index == 1 {
 			targetName = datalinkruntime.TargetModbusShare
 		}
-		results = append(results, datalinkruntime.TargetDeliveryOutcome{Target: targetName, Err: target.WriteTagValue(ctx, tagID, value, observedAt)})
+		err := target.WriteTagValue(ctx, tagID, value, observedAt)
+		if errors.Is(err, dbtarget.ErrOutputOwnedByWriteGroup) {
+			// A write group owns this output; its delivery truth comes from the
+			// durable group status, so the legacy diagnostic must not claim a
+			// successful write that never happened.
+			continue
+		}
+		results = append(results, datalinkruntime.TargetDeliveryOutcome{Target: targetName, Err: err})
 	}
 	return results
 }
