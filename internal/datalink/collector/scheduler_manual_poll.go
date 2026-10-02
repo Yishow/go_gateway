@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
@@ -71,16 +70,13 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 			}
 
 			if breaker != nil && !breaker.AllowRequest() {
-				now := time.Now()
+				acquisitionID := s.nextAcquisitionID()
 				resultsMu.Lock()
 				for _, pt := range pts {
-					results = append(results, CollectedValue{
-						PointID:   pt.ID,
-						DeviceID:  devID,
-						Timestamp: now,
-						Quality:   schema.QualityBad,
-						Error:     fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
-					})
+					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
+						Quality: schema.QualityBad,
+						Error:   fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
+					}, nil, acquisitionID, s.now(), "circuit-open"))
 				}
 				resultsMu.Unlock()
 				return
@@ -95,21 +91,19 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 					breaker.ReportResult(err)
 				}
 
-				now := time.Now()
+				acquisitionID := s.nextAcquisitionID()
 				resultsMu.Lock()
 				for _, pt := range pts {
-					results = append(results, CollectedValue{
-						PointID:   pt.ID,
-						DeviceID:  devID,
-						Timestamp: now,
-						Quality:   schema.QualityBad,
-						Error:     fmt.Sprintf("連線失敗: %v", err),
-					})
+					results = append(results, s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
+						Quality: schema.QualityBad,
+						Error:   fmt.Sprintf("連線失敗: %v", err),
+					}, nil, acquisitionID, s.now(), "connection-failed"))
 				}
 				resultsMu.Unlock()
 				return
 			}
 
+			acquisitionID := s.nextAcquisitionID()
 			for _, pt := range pts {
 				req := connector.ReadRequest{
 					Address:    pt.Address,
@@ -123,19 +117,7 @@ func (s *Scheduler) PollNowContext(ctx context.Context, pointIDs []string) []Col
 				if breaker != nil {
 					breaker.ReportResult(readErr)
 				}
-				cv := CollectedValue{
-					PointID:   pt.ID,
-					DeviceID:  devID,
-					Value:     result.Value,
-					RawBytes:  result.RawBytes,
-					Timestamp: result.Timestamp,
-					Quality:   result.Quality,
-					Error:     result.Error,
-				}
-				if readErr != nil {
-					cv.Quality = schema.QualityBad
-					cv.Error = readErr.Error()
-				}
+				cv := s.collectedValue(managedConfig(conn), pt, result, readErr, acquisitionID, s.now())
 
 				resultsMu.Lock()
 				results = append(results, cv)

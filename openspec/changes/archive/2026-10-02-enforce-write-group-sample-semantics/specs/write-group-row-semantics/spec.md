@@ -1,11 +1,21 @@
+## Purpose
+
+Preserve typed acquisition facts through basic write-group snapshots, with deterministic UTC closure, explicit quality and stable scoped row identity. Durable acceptance and destination delivery are owned by the dependent delivery change.
+
 ## ADDED Requirements
 
 ### Requirement: Typed acquisition facts reach the writer
 The production sample path SHALL preserve sample/acquisition identity, workspace/device/point/tag identity, source and mapping revisions, observed_at, received_at, time_origin, exact typed value, quality and reason through mapping and group assembly. When a device provides no trusted timestamp, observed_at MUST be the actual gateway acquisition time with that origin, not a later flush time.
 
+
 #### Scenario: Heterogeneous values
 - **WHEN** bool, text, decimal and uint64 9007199254740993 pass through API and group encoding
 - **THEN** their types and exact values remain intact and no JavaScript Number rounding occurs.
+
+##### Example: exact JSON and SQLite value roundtrip
+- **GIVEN** values bool `true`, text `batch-001`, int64 `-9223372036854775808`, uint64 `9007199254740993` and decimal `1234567890.123456789012345678`, with SQLite INTEGER columns for bool/signed/representable unsigned values and an explicit TEXT exact strategy for decimal
+- **WHEN** the opt-in exact codec encodes and decodes JSON, binds parameters into a disposable SQLite table and decodes actual SELECT results using each expected type
+- **THEN** every type and exact value remains intact, uint64 `18446744073709551615` uses an explicit TEXT strategy, and INTEGER overflow, decimal NUMERIC/REAL storage, PostgreSQL NUMERIC(16,4) rounding, NaN, infinity and malformed encoding are rejected without a substitute value.
 
 #### Scenario: Failed or non-finite read
 - **WHEN** a read is missing, bad, NaN, infinite or cannot fit the verified SQL type
@@ -14,6 +24,11 @@ The production sample path SHALL preserve sample/acquisition identity, workspace
 #### Scenario: Identity collision
 - **WHEN** two devices expose the same address or tag display name
 - **THEN** their persisted IDs keep the samples distinct.
+
+##### Example: preserve gateway acquisition time and exact identity
+- **GIVEN** workspace `workspace-A`, devices `device-A` and `device-B` both use address `40001`, mapped points `point-A`/`point-B` and Tags `tag-A`/`tag-B` share a display name, acquisition `acquisition-A` completes at `2026-01-01T00:00:08Z`, and its exact value is uint64 `9007199254740993` with no trusted source timestamp
+- **WHEN** runtime processes that acquisition at `2026-01-01T00:00:20Z` and sends it to the optional typed sample sink
+- **THEN** observed_at and received_at remain `2026-01-01T00:00:08Z` with gateway acquisition origin, persisted IDs and source/mapping revisions remain distinct, repeated acquisition yields the same sample ID, and no measurement ID, zero value, current flush time or credential is fabricated.
 
 ### Requirement: Deterministic UTC snapshot closure
 The system SHALL create basic snapshots in UTC half-open intervals [start,end), selected by observed_at rather than arrival. Each member SHALL choose the greatest observed_at within the bucket, using lexicographically greatest stable sample_id to break a time tie. A bucket SHALL close once at end plus the persisted nonnegative allowed_lateness_seconds, default zero; samples arriving after closure MUST NOT reopen it. Applied groups MUST close buckets from a time-driven scheduler even if no sample arrived, emitting one scoped no_data/skipped outcome for a silent bucket. Basic snapshots MUST NOT be described as interval averages, usage or every-sample history.

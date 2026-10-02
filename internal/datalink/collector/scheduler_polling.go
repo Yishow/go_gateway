@@ -2,14 +2,15 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go-gateway/internal/datalink/connector"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 )
 
-// pollPoint 輪詢單一點位，返回錯誤用於熔斷器報告
-func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo) error {
+func (s *Scheduler) pollPointWithAcquisition(conn *connector.ManagedConnection, pt pointInfo, acquisitionID string) error {
 	req := connector.ReadRequest{
 		Address:    pt.Address,
 		Function:   pt.Function,
@@ -39,24 +40,122 @@ func (s *Scheduler) pollPoint(conn *connector.ManagedConnection, pt pointInfo) e
 		}
 	}
 
-	// 發送結果
-	cv := CollectedValue{
-		PointID:   pt.ID,
-		DeviceID:  pt.DeviceID,
-		Value:     result.Value,
-		RawBytes:  result.RawBytes,
-		Timestamp: result.Timestamp,
-		Quality:   result.Quality,
-		Error:     result.Error,
-	}
-
-	if err != nil {
-		cv.Quality = schema.QualityBad
-		cv.Error = err.Error()
-	}
-
+	cv := s.collectedValue(managedConfig(conn), pt, result, err, acquisitionID, s.now())
 	s.emitValue(cv)
 	return err
+}
+
+func (s *Scheduler) collectedValue(
+	cfg deviceConfig,
+	pt pointInfo,
+	result connector.ReadResult,
+	readErr error,
+	acquisitionID string,
+	completedAt time.Time,
+) CollectedValue {
+	return s.collectedValueWithReason(cfg, pt, result, readErr, acquisitionID, completedAt, "")
+}
+
+func (s *Scheduler) collectedValueWithReason(
+	cfg deviceConfig,
+	pt pointInfo,
+	result connector.ReadResult,
+	readErr error,
+	acquisitionID string,
+	completedAt time.Time,
+	safeReason string,
+) CollectedValue {
+	quality := result.Quality
+	qualityReason := safeReason
+	errText := result.Error
+	if readErr != nil {
+		quality = schema.QualityBad
+		qualityReason = "read-failed"
+		errText = readErr.Error()
+	}
+	switch {
+	case !isKnownQuality(quality):
+		quality = schema.QualityBad
+		qualityReason = "quality-unknown"
+	case errText != "" && quality == schema.QualityGood:
+		quality = schema.QualityBad
+		qualityReason = "read-failed"
+	case quality != schema.QualityGood && qualityReason == "":
+		qualityReason = fmt.Sprintf("quality-%s", quality)
+	}
+
+	sourceAt := result.Timestamp
+	sourceOrigin := result.TimeOrigin
+	if readErr != nil {
+		// A failed read cannot establish a trusted source observation.
+		sourceAt = time.Time{}
+		sourceOrigin = ""
+	}
+	observedAt, timeOrigin := measurement.ResolveAcquisitionTime(sourceAt, sourceOrigin, completedAt)
+
+	configFingerprint := ""
+	if cfg.ID != "" {
+		device := schema.Device{
+			ID:               cfg.ID,
+			Protocol:         cfg.Protocol,
+			ConnectionConfig: cfg.Config,
+		}
+		point := schema.Point{
+			ID:             pt.ID,
+			DeviceID:       pt.DeviceID,
+			Address:        pt.Address,
+			Function:       pt.Function,
+			DataType:       pt.DataType,
+			DataFormat:     pt.DataFormat,
+			Mode:           pt.Mode,
+			PollingGroupID: pollingGroupPointer(pt.PollingGroupID),
+		}
+		if fingerprint, err := measurement.AcquisitionConfigFingerprint(device, point); err == nil {
+			configFingerprint = fingerprint
+		}
+	}
+
+	return CollectedValue{
+		PointID:           pt.ID,
+		DeviceID:          pt.DeviceID,
+		Value:             result.Value,
+		RawBytes:          result.RawBytes,
+		Timestamp:         result.Timestamp,
+		AcquisitionID:     acquisitionID,
+		ObservedAt:        observedAt,
+		ReceivedAt:        completedAt.UTC(),
+		TimeOrigin:        string(timeOrigin),
+		ConfigFingerprint: configFingerprint,
+		Quality:           quality,
+		Error:             errText,
+		QualityReason:     qualityReason,
+	}
+}
+
+// managedConfig reports the configuration the live connection actually uses,
+// which can differ from the scheduler's latest config when a connection is reused.
+func managedConfig(conn *connector.ManagedConnection) deviceConfig {
+	if conn == nil {
+		return deviceConfig{}
+	}
+	return deviceConfig{ID: conn.DeviceID, Protocol: conn.ProtocolType, Config: conn.Config}
+}
+
+func isKnownQuality(quality schema.QualityFlag) bool {
+	switch quality {
+	case schema.QualityGood, schema.QualityBad, schema.QualityMissing,
+		schema.QualityStale, schema.QualityInvalid, schema.QualityUncertain:
+		return true
+	default:
+		return false
+	}
+}
+
+func pollingGroupPointer(groupID string) *string {
+	if groupID == "" {
+		return nil
+	}
+	return &groupID
 }
 
 // emitValue 發送收集到的值

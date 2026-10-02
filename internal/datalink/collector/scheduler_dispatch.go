@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/collector/health"
+	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -101,17 +102,14 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 	}
 
 	// 檢查熔斷器是否允許請求
+	acquisitionID := s.nextAcquisitionID()
 	if breaker != nil && !breaker.AllowRequest() {
 		// 熔斷中，跳過採集並產生熔斷錯誤
-		now := time.Now()
 		for _, pt := range points {
-			s.emitValue(CollectedValue{
-				PointID:   pt.ID,
-				DeviceID:  deviceID,
-				Timestamp: now,
-				Quality:   schema.QualityBad,
-				Error:     fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
-			})
+			s.emitValue(s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
+				Quality: schema.QualityBad,
+				Error:   fmt.Sprintf("設備熔斷中 (狀態: %s)", breaker.State()),
+			}, nil, acquisitionID, s.now(), "circuit-open"))
 		}
 		return
 	}
@@ -130,22 +128,18 @@ func (s *Scheduler) pollDevicePoints(deviceID string, points []pointInfo) {
 		}
 
 		// 為所有點位產生錯誤結果
-		now := time.Now()
 		for _, pt := range points {
-			s.emitValue(CollectedValue{
-				PointID:   pt.ID,
-				DeviceID:  deviceID,
-				Timestamp: now,
-				Quality:   schema.QualityBad,
-				Error:     fmt.Sprintf("連線失敗: %v", err),
-			})
+			s.emitValue(s.collectedValueWithReason(deviceCfg, pt, connector.ReadResult{
+				Quality: schema.QualityBad,
+				Error:   fmt.Sprintf("連線失敗: %v", err),
+			}, nil, acquisitionID, s.now(), "connection-failed"))
 		}
 		return
 	}
 
 	// 逐一讀取點位，並報告結果給熔斷器
 	for _, pt := range points {
-		err := s.pollPoint(conn, pt)
+		err := s.pollPointWithAcquisition(conn, pt, acquisitionID)
 
 		// 報告結果給熔斷器
 		if breaker != nil {

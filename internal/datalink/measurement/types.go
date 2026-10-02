@@ -107,6 +107,12 @@ func (m *MeasurementDefinition) Validate() error {
 type SampleEnvelope struct {
 	SampleID              string             `json:"sample_id"`
 	WorkspaceID           string             `json:"workspace_id,omitempty"`
+	DeviceID              string             `json:"device_id,omitempty"`
+	PointID               string             `json:"point_id,omitempty"`
+	TagID                 string             `json:"tag_id,omitempty"`
+	SourceRevision        string             `json:"source_revision,omitempty"`
+	MappingRevision       string             `json:"mapping_revision,omitempty"`
+	ConfigFingerprint     string             `json:"config_fingerprint,omitempty"`
 	MeasurementID         string             `json:"measurement_id"`
 	SeriesEpoch           string             `json:"series_epoch"`
 	DefinitionRevision    string             `json:"definition_revision"`
@@ -117,11 +123,15 @@ type SampleEnvelope struct {
 	ReceivedAt            time.Time          `json:"received_at"`
 	TimeOrigin            string             `json:"time_origin"`
 	ValueType             string             `json:"value_type"`
-	Value                 interface{}        `json:"value"`
-	RawValue              interface{}        `json:"raw_value,omitempty"`
+	Value                 any                `json:"value"`
+	RawValue              any                `json:"raw_value,omitempty"`
 	Quality               schema.QualityFlag `json:"quality"`
 	QualityReason         string             `json:"quality_reason,omitempty"`
 }
+
+// TypedAcquisitionEnvelope is the basic typed transport envelope used by the
+// collector-to-runtime seam. Semantic measurement fields remain optional.
+type TypedAcquisitionEnvelope = SampleEnvelope
 
 // MarshalJSON 實作安全的 SampleEnvelope JSON 序列化，保護大整數精度。
 func (s SampleEnvelope) MarshalJSON() ([]byte, error) {

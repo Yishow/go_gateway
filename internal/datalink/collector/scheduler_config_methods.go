@@ -2,10 +2,27 @@ package collector
 
 import (
 	"sync"
+	"time"
 
 	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/schema"
 )
+
+// WithClock injects the gateway clock used to capture typed acquisition facts.
+func (s *Scheduler) WithClock(clock func() time.Time) *Scheduler {
+	if s != nil {
+		s.nowFunc = clock
+	}
+	return s
+}
+
+// WithAcquisitionIDFactory injects deterministic acquisition IDs for tests.
+func (s *Scheduler) WithAcquisitionIDFactory(factory func() string) *Scheduler {
+	if s != nil {
+		s.acquisitionID = factory
+	}
+	return s
+}
 
 // =============================================================================
 // 配置方法
@@ -66,6 +83,7 @@ func (s *Scheduler) AddPoint(point *schema.Point) {
 		Function:       point.Function,
 		DataType:       point.DataType,
 		DataFormat:     point.DataFormat,
+		Mode:           point.Mode,
 		PollingGroupID: groupID,
 	}
 }

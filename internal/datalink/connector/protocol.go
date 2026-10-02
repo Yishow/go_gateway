@@ -91,6 +91,10 @@ type ReadResult struct {
 	// Timestamp 讀取時間戳記
 	Timestamp time.Time
 
+	// TimeOrigin identifies an explicitly trusted source timestamp. Empty or
+	// unknown origins make the typed path use gateway acquisition completion.
+	TimeOrigin string
+
 	// Quality 資料品質標誌
 	Quality schema.QualityFlag
 

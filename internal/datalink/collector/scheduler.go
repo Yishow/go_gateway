@@ -11,6 +11,8 @@ import (
 	"go-gateway/internal/datalink/collector/health"
 	"go-gateway/internal/datalink/connector"
 	"go-gateway/internal/datalink/schema"
+
+	"github.com/google/uuid"
 )
 
 // =============================================================================
@@ -37,11 +39,31 @@ type CollectedValue struct {
 	// Timestamp 收集時間戳記
 	Timestamp time.Time
 
+	// AcquisitionID identifies one poll attempt across retries and mapped tags.
+	AcquisitionID string
+
+	// ObservedAt is the typed observation time selected from a trusted source
+	// timestamp or the gateway completion time.
+	ObservedAt time.Time
+
+	// ReceivedAt is the gateway time immediately after the backend read ends.
+	ReceivedAt time.Time
+
+	// TimeOrigin identifies the source or gateway origin of ObservedAt.
+	TimeOrigin string
+
+	// ConfigFingerprint identifies the device and point configuration used by
+	// this poll without exposing connection configuration contents.
+	ConfigFingerprint string
+
 	// Quality 資料品質標誌
 	Quality schema.QualityFlag
 
 	// Error 錯誤訊息
 	Error string
+
+	// QualityReason is a safe explanation for bad, missing or uncertain data.
+	QualityReason string
 }
 
 // =============================================================================
@@ -64,6 +86,12 @@ type SchedulerConfig struct {
 
 	// BreakerConfig 熔斷器配置
 	BreakerConfig health.BreakerConfig
+
+	// Clock captures gateway acquisition completion time. Nil uses UTC now.
+	Clock func() time.Time
+
+	// AcquisitionIDFactory supplies one ID per device poll. Nil uses UUIDs.
+	AcquisitionIDFactory func() string
 }
 
 // DefaultSchedulerConfig 預設排程器配置
@@ -107,6 +135,9 @@ type Scheduler struct {
 	// 狀態
 	running bool
 	mu      sync.RWMutex
+	nowFunc func() time.Time
+
+	acquisitionID func() string
 
 	// 停止信號
 	stopCh chan struct{}
@@ -136,6 +167,7 @@ type pointInfo struct {
 	Function       string
 	DataType       schema.DataType
 	DataFormat     string
+	Mode           schema.PointMode
 	PollingGroupID string
 }
 
@@ -155,5 +187,23 @@ func NewScheduler(config SchedulerConfig, connMgr *connector.ConnectionManager) 
 		deviceLocks:    make(map[string]*sync.Mutex),
 		deviceBreakers: make(map[string]*health.CircuitBreaker),
 		stopCh:         make(chan struct{}),
+		nowFunc:        config.Clock,
+		acquisitionID:  config.AcquisitionIDFactory,
 	}
+}
+
+func (s *Scheduler) now() time.Time {
+	if s.nowFunc != nil {
+		return s.nowFunc().UTC()
+	}
+	return time.Now().UTC()
+}
+
+func (s *Scheduler) nextAcquisitionID() string {
+	if s.acquisitionID != nil {
+		if id := s.acquisitionID(); id != "" {
+			return id
+		}
+	}
+	return uuid.NewString()
 }

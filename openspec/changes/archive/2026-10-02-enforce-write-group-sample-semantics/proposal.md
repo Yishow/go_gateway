@@ -23,4 +23,4 @@
 
 internal/datalink/runtime/、collector/、measurement/types.go、dbtarget/writer.go 與 writer_statements.go，以及受影響 API／frontend types。前置：unify-studio-v2-write-group-contract 完成並驗證。只定義基本 snapshot，衍生統計、區間電量與歷史報表不在範圍。
 
-本次僅起草文件，沒有產品實作。來源、依賴與移交見 [總覽](../../../docs/plans/studio-v2-write-groups/README.md) 及 [現況證據](../../../docs/plans/studio-v2-write-groups/evidence.md)。
+本次已授權依 A→F 實作與驗證；完成狀態以 tasks 與 validation 為準。來源、依賴與移交見 [總覽](../../../docs/plans/studio-v2-write-groups/README.md) 及 [現況證據](../../../docs/plans/studio-v2-write-groups/evidence.md)。
