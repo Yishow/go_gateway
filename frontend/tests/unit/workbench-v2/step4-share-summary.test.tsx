@@ -58,7 +58,7 @@ describe('Step 4 Share output summary', () => {
   it('retains the non-Modbus Step4 destination surface while Share is configured', () => {
     render(<Step4Database state={mcShareState()} dispatch={vi.fn()} />);
 
-    expect(screen.getByTestId('step4-destination-overview')).toBeInTheDocument();
+    expect(screen.getByTestId('group-section')).toBeInTheDocument();
   });
 
   it('shows non-Modbus MC D0~D3 as 40001 ~ 40004 without DB targets', () => {

@@ -32,6 +32,10 @@ const studioV2WorkspaceDatabaseFailureMessage = "Studio V2 database operation fa
 
 func renderStudioV2WorkspaceDatabaseError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, workspace.ErrWriteGroupLegacyWriteConflict):
+		renderLegacyWriteConflict(c)
+	case errors.Is(err, workspace.ErrWriteGroupServiceUnavailable):
+		renderSafeError(c, http.StatusInternalServerError, "internal", true)
 	case errors.Is(err, workspace.ErrSetupRevisionConflict):
 		renderStudioV2WorkspaceDatabaseTyped(c, http.StatusConflict, TypedAPIErrorEnvelope{
 			Code: "revision_mismatch", Message: "database setup changed; reload the saved configuration",
@@ -74,7 +78,29 @@ var (
 const (
 	workspaceSchemaPreparationRequiredCode = "WORKSPACE_SCHEMA_PREPARATION_REQUIRED"
 	schemaConfirmationRequiredCode         = "SCHEMA_CONFIRMATION_REQUIRED"
+	legacyWriteConflictCode                = "WRITE_GROUP_LEGACY_WRITE_CONFLICT"
 )
+
+// renderLegacyWriteConflict returns one actionable, credential-free response
+// for legacy writes whose output scope is owned by a canonical write group.
+func renderLegacyWriteConflict(c *gin.Context) {
+	renderStudioV2WorkspaceDatabaseTyped(c, http.StatusConflict, TypedAPIErrorEnvelope{
+		Code: legacyWriteConflictCode, Message: "legacy database target is owned by a canonical write group",
+		RequestID: getOrGenerateRequestID(c), Action: "open_write_groups",
+	})
+}
+
+func renderLegacyWriteErrorIfNeeded(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, workspace.ErrWriteGroupLegacyWriteConflict):
+		renderLegacyWriteConflict(c)
+	case errors.Is(err, workspace.ErrWriteGroupServiceUnavailable):
+		renderSafeError(c, http.StatusInternalServerError, "internal", true)
+	default:
+		return false
+	}
+	return true
+}
 
 // renderSchemaConfirmationRequired refuses a non-preview schema request that
 // carries no confirmed preview. The read-only plan stays available.

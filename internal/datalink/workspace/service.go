@@ -65,6 +65,7 @@ type Service struct {
 	readinessMappings    readinessDBTargetService
 	readinessTags        readinessTagService
 	readinessLinkRecords readinessMappingRecordService
+	readinessWriteGroups readinessWriteGroupService
 	projectionDevices    runtimeProjectionDeviceService
 	projectionRules      runtimeProjectionSourceRuleService
 	projectionPoints     runtimeProjectionPointService

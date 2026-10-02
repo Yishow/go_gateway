@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ConnectorSection } from '../../../src/features/datalink/workbench-v2/steps/step4/ConnectorSection';
-import { TargetMappingTable } from '../../../src/features/datalink/workbench-v2/steps/step4/TargetMappingTable';
 import { CommitSummary } from '../../../src/features/datalink/workbench-v2/steps/step4/CommitSummary';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
 import { getColumnsFor } from '../../../src/features/datalink/workbench-v2/state/dbSchemas';
@@ -86,87 +85,8 @@ describe('Step 4 Database UI Components & Integration', () => {
     });
   });
 
-  describe('TargetMappingTable', () => {
-    const mockPoints: Point[] = [
-      { id: 'p-1', device_id: 'd-1', rule_id: 'r-1', rule_name: 'Holding Registers', name: 'SENSOR_1', address: '40001', data_type: 'int16', function: 'holding_register', width: 1, enabled: true, skipped: false, _rule_scale: 1, _rule_offset: 0 },
-      { id: 'p-2', device_id: 'd-1', rule_id: 'r-1', rule_name: 'Holding Registers', name: 'SENSOR_2', address: '40002', data_type: 'int16', function: 'holding_register', width: 1, enabled: true, skipped: false, _rule_scale: 1, _rule_offset: 0 }
-    ];
-
-    const mockMappings: Record<string, Mapping> = {
-      'p-1': { point_id: 'p-1', tag_key: 'line1.temp_in', display_name: 'Temp In', unit: 'C', target_type: 'float64', scale: 1, offset: 0, enabled: true },
-      'p-2': { point_id: 'p-2', tag_key: 'line1.temp_out', display_name: 'Temp Out', unit: 'C', target_type: 'float64', scale: 1, offset: 0, enabled: true }
-    };
-
-    const mockTargets: Record<string, DbTarget> = {
-      'p-1': { tag_id: 'tag.line1.temp_in', column_name: 'temp_in_c', enabled: true },
-      'p-2': { tag_id: 'tag.line1.temp_out', column_name: 'temp_out_c', enabled: true }
-    };
-
-    const mockColumns = getColumnsFor('postgres');
-
-    it('應能正確顯示每一列的 point 與對應 select，且在沒有衝突時不渲染 warning banner', () => {
-      render(
-        <TargetMappingTable
-          points={mockPoints}
-          mappings={mockMappings}
-          targets={mockTargets}
-          columns={mockColumns}
-          onUpdateTarget={() => { }}
-        />
-      );
-
-      expect(screen.getByText('line1.temp_in')).toBeInTheDocument();
-      expect(screen.getByText('line1.temp_out')).toBeInTheDocument();
-      expect(screen.queryByText('step4.conflict_banner_title')).not.toBeInTheDocument();
-    });
-
-    it('當兩點對應到同一個欄位時，應標示衝突紅框與 alert icon，並顯示表尾 warning banner', () => {
-      const conflictingTargets = {
-        'p-1': { tag_id: 'tag.line1.temp_in', column_name: 'temp_in_c', enabled: true },
-        // 刻意讓 p-2 也對應到 temp_in_c
-        'p-2': { tag_id: 'tag.line1.temp_out', column_name: 'temp_in_c', enabled: true }
-      };
-
-      render(
-        <TargetMappingTable
-          points={mockPoints}
-          mappings={mockMappings}
-          targets={conflictingTargets}
-          columns={mockColumns}
-          onUpdateTarget={() => { }}
-        />
-      );
-
-      // 表尾 banner 應渲染
-      expect(screen.getByText('step4.conflict_banner_title')).toBeInTheDocument();
-      // 兩個 select 下拉都有顯示警告 emoji 標記
-      const warningIcons = screen.getAllByTitle('step4.conflict_tooltip');
-      expect(warningIcons.length).toBe(2);
-    });
-
-    it('當其中一列 target 被 toggle 停用後，衝突應隨之消失', () => {
-      const conflictingTargets = {
-        'p-1': { tag_id: 'tag.line1.temp_in', column_name: 'temp_in_c', enabled: true },
-        'p-2': { tag_id: 'tag.line1.temp_out', column_name: 'temp_in_c', enabled: false } // p-2 停用
-      };
-
-      render(
-        <TargetMappingTable
-          points={mockPoints}
-          mappings={mockMappings}
-          targets={conflictingTargets}
-          columns={mockColumns}
-          onUpdateTarget={() => { }}
-        />
-      );
-
-      expect(screen.queryByText('step4.conflict_banner_title')).not.toBeInTheDocument();
-    });
-
-  });
-
   describe('CommitSummary', () => {
-    it('應渲染 5 列摘要值且 Commit 按鈕啟用；有衝突時按鈕應 disabled', () => {
+    it('Commit 只依後端 readiness：無阻擋時啟用，有阻擋時 disabled，且不以舊 target 數量當門檻', () => {
       const onActivate = vi.fn();
       const { rerender } = render(
         <CommitSummary
@@ -175,8 +95,7 @@ describe('Step 4 Database UI Components & Integration', () => {
           pointCount={8}
           mappingCount={8}
           connector={mockConnector}
-          enabledTargetCount={8}
-          hasConflict={false}
+          groupSummary={{ state: 'ready', total: 1, applied: 0 }}
           onActivate={onActivate}
         />
       );
@@ -194,8 +113,8 @@ describe('Step 4 Database UI Components & Integration', () => {
           pointCount={8}
           mappingCount={8}
           connector={mockConnector}
-          enabledTargetCount={8}
-          hasConflict={true}
+          groupSummary={{ state: 'ready', total: 0, applied: 0 }}
+          readinessSummary={{ ready: false, blocking_count: 1, warning_count: 0, issues: [{ code: 'x', severity: 'blocking', step: 'Step 4', scope: 's', message: 'm' }] }}
           onActivate={onActivate}
         />
       );

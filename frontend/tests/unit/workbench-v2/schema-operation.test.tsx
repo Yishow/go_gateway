@@ -191,10 +191,8 @@ describe('schema operation scope and locking', () => {
     await waitFor(() => expect(screen.getByText('step4.schema_preview_btn')).toBeDisabled());
 
     expect(screen.getByLabelText('step4.field_host')).toBeDisabled();
-    expect(screen.getByTestId('step4-row-group-create')).toBeDisabled();
-    expect(screen.getByTestId('btn-disable-all-db-targets')).toBeDisabled();
-    expect(screen.getByTestId('step4-target-column-point-1')).toBeDisabled();
-    expect(screen.getByTestId('recording-plan-disabled')).toHaveAttribute('data-disabled', 'true');
+    // The write group editor is the only database output control left; it is read-only too.
+    expect(screen.getByTestId('group-create')).toBeDisabled();
 
     activation.resolve({ workspace_id: 'workspace-step4', results: [{ device_id: 'device-1', status: 'success', message: 'activated' }] });
   });

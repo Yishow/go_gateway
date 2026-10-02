@@ -39,6 +39,12 @@ function localizeAction(
   if (action === 'wait_for_supported_operation') {
     return t('errors.wait_for_supported_operation');
   }
+  if (action === 'open_write_groups') {
+    return t('errors.open_write_groups');
+  }
+  if (action === 'review_request' || action === 'review_group' || action === 'disable_group') {
+    return t(`errors.${action}`);
+  }
   return retryable ? t('errors.retry') : undefined;
 }
 

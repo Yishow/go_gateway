@@ -10,7 +10,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-func (s *Service) databaseRowGroupReadinessIssues(ctx context.Context, record *Record, connector *schema.DatabaseConnector) ([]ReadinessIssue, error) {
+func (s *Service) databaseRowGroupReadinessIssues(ctx context.Context, record *Record, connector *schema.DatabaseConnector, coverage writeGroupReadinessCoverage) ([]ReadinessIssue, error) {
 	if record == nil || connector == nil || databaseConnectorWriteMode(connector) != schema.DatabaseWriteModeUpsert {
 		return nil, nil
 	}
@@ -25,7 +25,7 @@ func (s *Service) databaseRowGroupReadinessIssues(ctx context.Context, record *R
 	refs := databaseTargetRefsByPoint(record.DatabaseTargetRefs, record.DatabaseRowGroups)
 	issues := make([]ReadinessIssue, 0)
 	for _, group := range record.DatabaseRowGroups {
-		if len(group.UniqueKeyColumns) > 0 {
+		if coverage.groupIDs[group.ID] || len(group.UniqueKeyColumns) > 0 {
 			continue
 		}
 		reused, err := s.rowGroupReusesColumn(ctx, connector.ID, group, pointTags, refs)

@@ -1,0 +1,136 @@
+import type { TargetType } from '../types';
+import type { DbColumn } from '../dbSchemas';
+import type { GroupCandidate } from './candidates';
+
+export type ColumnCompatibility = 'compatible' | 'incompatible' | 'unknown';
+
+type ValueFamily = 'bool' | 'int' | 'float' | 'text';
+
+function familyOf(target: TargetType): ValueFamily {
+  if (target === 'bool') return 'bool';
+  if (target === 'string') return 'text';
+  if (target === 'float32' || target === 'float64') return 'float';
+  return 'int';
+}
+
+/** Column families by SQL type text. Matching is by substring so `varchar(64)` and `double precision` both resolve. */
+function columnFamilies(type: string): ValueFamily[] | null {
+  const text = type.trim().toLowerCase();
+  if (!text) return null;
+  if (/(double|float|real|numeric|decimal)/.test(text)) return ['float', 'int'];
+  if (/(bigint|int8|smallint|int2|tinyint|integer|int4|^int\b|serial)/.test(text)) return ['int', 'bool'];
+  if (/(bool|bit)/.test(text)) return ['bool'];
+  if (/(char|text|string|clob|citext)/.test(text)) return ['text'];
+  return null;
+}
+
+/**
+ * Whether a column can hold a tag type exactly. `unknown` means the type text
+ * is not one the editor recognises; the backend readiness check decides then.
+ */
+export function columnCompatibility(target: TargetType, column: DbColumn): ColumnCompatibility {
+  const families = columnFamilies(column.type);
+  if (!families) return 'unknown';
+  const wanted = familyOf(target);
+  if (!families.includes(wanted)) return 'incompatible';
+  // A float column only counts for integers when it is numeric/decimal; double and real are lossy for 64-bit values.
+  if (wanted === 'int' && /(double|float|real)/.test(column.type.toLowerCase())) return 'incompatible';
+  return 'compatible';
+}
+
+export type AssignmentStatus = 'confirmed' | 'suggested' | 'repair';
+
+export interface ColumnAssignment {
+  column: string;
+  status: AssignmentStatus;
+}
+
+export interface ColumnSuggestions {
+  assignments: Record<string, ColumnAssignment>;
+  /** Candidate keys that have neither a confirmed nor a name-based suggestion. */
+  unmatched: string[];
+}
+
+function tail(tagKey: string): string {
+  return (tagKey.split('.').pop() ?? tagKey).toLowerCase();
+}
+
+function nameMatches(column: string, token: string): boolean {
+  if (!token) return false;
+  const name = column.toLowerCase();
+  return name === token || name.endsWith(`_${token}`) || name.startsWith(`${token}_`);
+}
+
+/**
+ * Reviewable column proposals from real metadata. A confirmed assignment is kept
+ * while its column still exists and fits the tag, otherwise it is marked for
+ * repair and never silently rebound. A proposal comes only from the tag name
+ * and a compatible column; there is no index fallback, no wraparound and no
+ * column is proposed twice. Primary key columns are never proposed.
+ */
+export function suggestColumns(
+  candidates: GroupCandidate[],
+  columns: DbColumn[],
+  confirmed: Record<string, string>,
+): ColumnSuggestions {
+  const assignments: Record<string, ColumnAssignment> = {};
+  const used = new Set<string>();
+  const byName = new Map(columns.map((column) => [column.name, column]));
+
+  for (const candidate of candidates) {
+    const chosen = confirmed[candidate.key];
+    if (!chosen) continue;
+    const column = byName.get(chosen);
+    const valid = column !== undefined && columnCompatibility(candidate.target_type, column) !== 'incompatible';
+    assignments[candidate.key] = { column: chosen, status: valid ? 'confirmed' : 'repair' };
+    used.add(chosen);
+  }
+  const unmatched: string[] = [];
+  for (const candidate of candidates) {
+    if (assignments[candidate.key]) continue;
+    const token = tail(candidate.tag_key);
+    const match = columns.find((column) => !column.primary_key && !used.has(column.name) &&
+      nameMatches(column.name, token) && columnCompatibility(candidate.target_type, column) !== 'incompatible');
+    if (match) {
+      assignments[candidate.key] = { column: match.name, status: 'suggested' };
+      used.add(match.name);
+    } else {
+      unmatched.push(candidate.key);
+    }
+  }
+  return { assignments, unmatched };
+}
+
+export interface ColumnConflict {
+  column: string;
+  member_keys: string[];
+}
+
+interface ConflictMember {
+  key: string;
+  column: string;
+  entity_key: string;
+}
+
+/**
+ * Members sharing a column collide unless every one of them carries its own,
+ * different entity key (distinct rows). A missing entity key is unproven
+ * identity, so it never makes a shared column legal.
+ */
+export function findColumnConflicts(members: ConflictMember[]): ColumnConflict[] {
+  const byColumn = new Map<string, ConflictMember[]>();
+  for (const member of members) {
+    if (!member.column) continue;
+    const list = byColumn.get(member.column) ?? [];
+    list.push(member);
+    byColumn.set(member.column, list);
+  }
+  const conflicts: ColumnConflict[] = [];
+  for (const [column, list] of byColumn) {
+    if (list.length < 2) continue;
+    const entities = list.map((member) => member.entity_key.trim());
+    const distinct = entities.every((entity) => entity !== '') && new Set(entities).size === entities.length;
+    if (!distinct) conflicts.push({ column, member_keys: list.map((member) => member.key) });
+  }
+  return conflicts;
+}

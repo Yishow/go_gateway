@@ -24,6 +24,11 @@ type PreparedTargetMapping struct {
 
 // PrepareCreate validates a new target mapping without writing it.
 func (s *MappingService) PrepareCreate(ctx context.Context, req CreateTargetMappingRequest) (*PreparedTargetMapping, error) {
+	if s.legacyWriteCoordinator != nil {
+		if err := s.legacyWriteCoordinator.PreflightLegacyTargetWrite(ctx, "", strings.TrimSpace(req.TagID), strings.TrimSpace(req.ConnectorID)); err != nil {
+			return nil, err
+		}
+	}
 	connector, err := s.connectorRepo.GetByID(ctx, req.ConnectorID)
 	if err != nil {
 		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
@@ -64,6 +69,11 @@ func (s *MappingService) PrepareCreate(ctx context.Context, req CreateTargetMapp
 		CreatedAt:            time.Now(),
 		UpdatedAt:            time.Now(),
 	}
+	if s.legacyWriteCoordinator != nil {
+		if err := s.legacyWriteCoordinator.PreflightLegacyTargetWrite(ctx, mapping.ID, mapping.TagID, mapping.ConnectorID); err != nil {
+			return nil, err
+		}
+	}
 	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping, req.AllowMissingTable); err != nil {
 		return nil, err
 	}
@@ -72,6 +82,12 @@ func (s *MappingService) PrepareCreate(ctx context.Context, req CreateTargetMapp
 
 // PrepareUpdate validates a target mapping update without writing it.
 func (s *MappingService) PrepareUpdate(ctx context.Context, id string, req UpdateTargetMappingRequest) (*PreparedTargetMapping, error) {
+	id = strings.TrimSpace(id)
+	if s.legacyWriteCoordinator != nil {
+		if err := s.legacyWriteCoordinator.PreflightLegacyTargetWrite(ctx, id, "", ""); err != nil {
+			return nil, err
+		}
+	}
 	mapping, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("取得資料庫目標映射失敗: %w", err)
@@ -117,6 +133,11 @@ func (s *MappingService) PrepareUpdate(ctx context.Context, id string, req Updat
 		mapping.WriteIntervalSeconds = normalizeOptionalIntPointer(req.WriteIntervalSeconds)
 	}
 	mapping.UpdatedAt = time.Now()
+	if s.legacyWriteCoordinator != nil {
+		if err := s.legacyWriteCoordinator.PreflightLegacyTargetWrite(ctx, mapping.ID, mapping.TagID, mapping.ConnectorID); err != nil {
+			return nil, err
+		}
+	}
 	if err := validateMappingDefinition(ctx, connector, tagEntity, mapping, req.AllowMissingTable); err != nil {
 		return nil, err
 	}
@@ -125,6 +146,18 @@ func (s *MappingService) PrepareUpdate(ctx context.Context, id string, req Updat
 
 // PersistInTx writes a prepared target mapping inside tx.
 func (s *MappingService) PersistInTx(ctx context.Context, tx *sql.Tx, prepared *PreparedTargetMapping) error {
+	if prepared == nil || prepared.Mapping == nil {
+		return validationError("資料庫目標映射變更不可為空")
+	}
+	if s.legacyWriteCoordinator != nil {
+		if err := s.legacyWriteCoordinator.CheckLegacyTargetWriteInTx(ctx, tx, prepared.Mapping.ID, prepared.Mapping.TagID, prepared.Mapping.ConnectorID); err != nil {
+			return err
+		}
+	}
+	return s.persistPreparedInTx(ctx, tx, prepared)
+}
+
+func (s *MappingService) persistPreparedInTx(ctx context.Context, tx *sql.Tx, prepared *PreparedTargetMapping) error {
 	if prepared == nil || prepared.Mapping == nil {
 		return validationError("資料庫目標映射變更不可為空")
 	}

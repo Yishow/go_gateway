@@ -22,6 +22,7 @@ type StudioV2WorkspaceDatabaseHandler struct {
 	connectorSvc *dbtarget.ConnectorService
 	mappingSvc   *dbtarget.MappingService
 	auditSvc     workspaceAuditRecorder
+	writeGroups  writeGroupMigrationReader
 }
 
 func NewStudioV2WorkspaceDatabaseHandler(workspaceSvc *workspace.Service, deviceSvc *device.Service, ruleSvc *sourcerule.Service, connectorSvc *dbtarget.ConnectorService, mappingSvc *dbtarget.MappingService) *StudioV2WorkspaceDatabaseHandler {
@@ -68,9 +69,17 @@ func (h *StudioV2WorkspaceDatabaseHandler) UpdateConfig(c *gin.Context) {
 		if req.ConnectorID != "" {
 			connectorID = req.ConnectorID
 		}
-		if err := workspace.ValidateDatabaseRowGroups(connectorID, req.Schema, req.Table, req.RowGroups); err != nil {
+		normalized, err := normalizeWorkspaceDatabaseRowGroups(connectorID, req.Schema, req.Table, req.RowGroups)
+		if err != nil {
 			renderStudioV2WorkspaceDatabaseError(c, err)
 			return
+		}
+		req.RowGroups = normalized
+		if guard, ok := h.writeGroups.(writeGroupLegacyRowGroupGuard); ok {
+			if err := guard.PreflightLegacyRowGroupReplacement(c.Request.Context(), connectorID, normalized); err != nil {
+				renderStudioV2WorkspaceDatabaseError(c, err)
+				return
+			}
 		}
 	}
 
@@ -226,30 +235,61 @@ func (h *StudioV2WorkspaceDatabaseHandler) ListTargets(c *gin.Context) {
 	for _, binding := range bindings {
 		tagToPoint[binding.TagID] = binding.PointID
 	}
-	rows, err := h.mappingSvc.List(c.Request.Context(), dbtarget.TargetMappingListFilter{ConnectorID: &record.DatabaseConnectorID})
+	filter := dbtarget.TargetMappingListFilter{ConnectorID: &record.DatabaseConnectorID}
+	if h.writeGroups != nil {
+		filter = dbtarget.TargetMappingListFilter{}
+	}
+	rows, err := h.mappingSvc.List(c.Request.Context(), filter)
 	if err != nil {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
 	}
 	rowGroupByPoint := workspaceDatabaseTargetRefsByPoint(record.DatabaseTargetRefs, record.DatabaseRowGroups)
+	groups, err := migrationReadGroups(c.Request.Context(), h.writeGroups)
+	if err != nil {
+		renderMigrationReadError(c, err)
+		return
+	}
+	if err := validateMigrationReadRows(rows, groups, dbtarget.TargetMappingListFilter{ConnectorID: &record.DatabaseConnectorID}); err != nil {
+		renderMigrationReadError(c, err)
+		return
+	}
 
 	payload := make([]studioV2WorkspaceDatabaseTargetResponse, 0, len(rows))
-	for _, row := range rows {
+	for _, legacy := range rows {
+		if !migrationReadCandidateMatchesFilter(legacy, groups[legacy.ID], dbtarget.TargetMappingListFilter{ConnectorID: &record.DatabaseConnectorID}) {
+			continue
+		}
+		projected, err := projectMigrationRead(legacy, groups)
+		if err != nil {
+			renderMigrationReadError(c, err)
+			return
+		}
+		row := projected.DatabaseTargetMapping
+		if row.ConnectorID != record.DatabaseConnectorID {
+			continue
+		}
 		pointID := tagToPoint[row.TagID]
+		rowGroupID := rowGroupByPoint[pointID]
+		if projected.CanonicalGroup != nil {
+			pointID = projected.PointID
+			rowGroupID = projected.RowGroupID
+		}
 		if pointID == "" {
 			continue
 		}
 		payload = append(payload, studioV2WorkspaceDatabaseTargetResponse{
-			ID:          row.ID,
-			WorkspaceID: record.ID,
-			PointID:     pointID,
-			TagID:       row.TagID,
-			ColumnName:  row.ColumnName,
-			Enabled:     row.Enabled,
-			RowGroupID:  rowGroupByPoint[pointID],
-			SaveState:   workspaceSaveStateSaved,
-			CreatedAt:   row.CreatedAt,
-			UpdatedAt:   row.UpdatedAt,
+			ID:             row.ID,
+			WorkspaceID:    record.ID,
+			PointID:        pointID,
+			TagID:          row.TagID,
+			ColumnName:     row.ColumnName,
+			Enabled:        row.Enabled,
+			RowGroupID:     rowGroupID,
+			CanonicalGroup: projected.CanonicalGroup,
+			SaveState:      workspaceSaveStateSaved,
+			CreatedAt:      row.CreatedAt,
+			UpdatedAt:      row.UpdatedAt,
 		})
 	}
 

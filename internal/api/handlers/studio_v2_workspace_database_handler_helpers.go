@@ -80,6 +80,7 @@ type studioV2WorkspaceDatabaseTargetRequest struct {
 }
 
 type studioV2WorkspaceDatabaseTargetResponse struct {
+	CanonicalGroup      *workspace.WriteGroup      `json:"canonical_group,omitempty"`
 	ID                  string                     `json:"id"`
 	WorkspaceID         string                     `json:"workspace_id"`
 	PointID             string                     `json:"point_id"`

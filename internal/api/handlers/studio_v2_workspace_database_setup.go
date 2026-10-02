@@ -10,6 +10,21 @@ import (
 	"go-gateway/internal/datalink/workspace"
 )
 
+// normalizeWorkspaceDatabaseRowGroups validates and applies the same scope
+// defaults that the commit path stores, without mutating the live workspace
+// record. Guards must compare the candidate layout that ReplaceDatabaseRowGroups
+// will persist, including inherited connector/schema/table fields.
+func normalizeWorkspaceDatabaseRowGroups(connectorID, tableSchema, tableName string, groups []workspace.DatabaseRowGroup) ([]workspace.DatabaseRowGroup, error) {
+	if groups == nil {
+		return nil, nil
+	}
+	scratch := &workspace.Record{}
+	if err := workspace.ReplaceDatabaseRowGroups(scratch, connectorID, tableSchema, tableName, groups); err != nil {
+		return nil, err
+	}
+	return scratch.DatabaseRowGroups, nil
+}
+
 // prepareWorkspaceConnector validates and probes the connector change before
 // the local setup transaction opens; nothing is written here.
 func (h *StudioV2WorkspaceDatabaseHandler) prepareWorkspaceConnector(ctx context.Context, record *workspace.Record, req studioV2WorkspaceDatabaseConfigRequest) (*dbtarget.PreparedConnector, error) {
@@ -72,6 +87,19 @@ func (h *StudioV2WorkspaceDatabaseHandler) commitWorkspaceConnectorSetup(ctx con
 	return h.workspaceSvc.UpdateDatabaseSetup(ctx, req.ExpectedSetupRevision, func(ctx context.Context, tx *sql.Tx, current *workspace.Record) error {
 		if strings.TrimSpace(current.DatabaseConnectorID) != strings.TrimSpace(boundConnectorID) {
 			return workspace.ErrSetupRevisionConflict
+		}
+		if req.RowGroups != nil {
+			normalized, err := normalizeWorkspaceDatabaseRowGroups(saved.ID,
+				connectorConfigString(saved, "schema"), connectorConfigString(saved, "table"), req.RowGroups)
+			if err != nil {
+				return err
+			}
+			req.RowGroups = normalized
+			if guard, ok := h.writeGroups.(writeGroupLegacyRowGroupGuard); ok {
+				if err := guard.CheckLegacyRowGroupReplacementInTx(ctx, tx, current, saved.ID, normalized); err != nil {
+					return err
+				}
+			}
 		}
 		if err := h.connectorSvc.PersistInTx(ctx, tx, prepared); err != nil {
 			return err

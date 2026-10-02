@@ -2,6 +2,7 @@ package dbtarget
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -16,6 +17,7 @@ type Writer struct {
 	connectorRepo ConnectorRepository
 	mappingRepo   TargetMappingRepository
 	tagReader     ConnectorTagReader
+	suppress      func(connectorID, tagID string) bool
 	now           func() time.Time
 	flushTick     <-chan time.Time
 	stopTick      func()
@@ -35,6 +37,10 @@ type WriterConfig struct {
 	FlushInterval time.Duration
 	Now           func() time.Time
 	TagReader     ConnectorTagReader
+	// SuppressMapping, when it returns true for a connector and tag, makes the
+	// legacy writer skip that mapping because a canonical write group owns the
+	// output. It keeps exactly one writer per output.
+	SuppressMapping func(connectorID, tagID string) bool
 }
 
 type groupedWriteKey struct {
@@ -63,6 +69,7 @@ func NewWriterWithConfig(
 		connectorRepo: connectorRepo,
 		mappingRepo:   mappingRepo,
 		tagReader:     config.TagReader,
+		suppress:      config.SuppressMapping,
 		now:           config.Now,
 		stopCh:        make(chan struct{}),
 		grouped:       make(map[groupedWriteKey]*groupedWriteBucket),
@@ -87,6 +94,11 @@ func NewWriterWithConfig(
 	return writer
 }
 
+// ErrOutputOwnedByWriteGroup is returned when every output of a tag is owned by
+// a canonical write group, so the legacy writer deliberately wrote nothing.
+// Callers must treat it as "not applicable", never as a successful delivery.
+var ErrOutputOwnedByWriteGroup = errors.New("output is owned by a write group")
+
 func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, observedAt time.Time) error {
 	if strings.TrimSpace(tagID) == "" {
 		return fmt.Errorf("tagID 不可為空")
@@ -102,6 +114,7 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 	}
 
 	var failures []string
+	suppressed, attempted := 0, 0
 	for _, mapping := range mappings {
 		connector, err := w.connectorRepo.GetByID(ctx, mapping.ConnectorID)
 		if err != nil {
@@ -119,6 +132,13 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 		if !connector.Enabled {
 			continue
 		}
+		if w.suppress != nil && w.suppress(mapping.ConnectorID, tagID) {
+			// A canonical write group owns this output; a second writer would
+			// duplicate it.
+			suppressed++
+			continue
+		}
+		attempted++
 
 		if hasGroupedWriteKey(mapping) {
 			if err := w.bufferGroupedWrite(connector, mapping, value, observedAt); err != nil {
@@ -159,6 +179,9 @@ func (w *Writer) WriteTagValue(ctx context.Context, tagID string, value any, obs
 
 	if len(failures) > 0 {
 		return fmt.Errorf("%s", strings.Join(failures, "; "))
+	}
+	if suppressed > 0 && attempted == 0 {
+		return ErrOutputOwnedByWriteGroup
 	}
 
 	return nil

@@ -8,27 +8,20 @@ import {
   isDatabaseConnectorIdentityChange,
   isRowGroupScopeChange,
   rowGroupsForConnector,
-  syncTargetRowGroupMembership,
   useStep4Readonly,
 } from './step4DatabaseHelpers';
-import { TargetMappingTable } from './TargetMappingTable';
-import { TargetMetadataStatus } from './TargetMetadataStatus';
-import { useStep4TargetColumns } from './useStep4TargetColumns';
+import { WriteGroupSection } from './writeGroup/WriteGroupSection';
+import { useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import { SafeQueryBoundary } from '@/utils/SafeQueryBoundary';
 import { CommitSummary } from './CommitSummary';
 import { CommitProgress } from './CommitProgress';
 import { CommitSuccessCard } from './CommitSuccessCard';
-import { DestinationOverviewCard } from './DestinationOverviewCard';
 import { SchemaSetupSection } from './SchemaSetupSection';
 import { Step4SupportPanels } from './Step4SupportPanels';
-import { RowGroupPlanner } from './RowGroupPlanner';
 import { ShareOutputSummary } from './ShareOutputSummary';
-import { WorkspaceRecordingPlanSetupSection } from './WorkspaceRecordingPlanSetupSection';
 import { ActivationNeutralSummary, ActivationRecoveryNotice } from './ActivationNeutralSummary';
-import { autoAssignTargets } from '../../state/autoAssignTargets';
 import { getDefaultConnector, getDbKindPatch } from '../../state/dbSchemas';
-import { hasRowGroupColumnConflict, hasUnsafeRowGroupUpsert } from '../../state/rowGroupValidation';
-import type { WorkbenchV2State, DbConnector, DbRowGroup, DbTarget, SettingsConnector } from '../../state/types';
+import type { WorkbenchV2State, DbConnector, SettingsConnector } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import type {
   StudioV2ActivationRecovery,
@@ -78,20 +71,6 @@ function Step4DatabaseContent({
   const rowGroups = useMemo(() => state.db.row_groups ?? [], [state.db.row_groups]);
   const scopedRowGroups = useMemo(() => rowGroupsForConnector(connector, rowGroups), [connector, rowGroups]);
   const enabledPoints = useMemo(() => state.points.filter(p => p.enabled), [state.points]);
-
-  // 只使用已存目標資料表實際查得的欄位；未查到時不以示範欄位配對。
-  const targetColumns = useStep4TargetColumns(connector);
-  const { columns } = targetColumns;
-  const columnNames = useMemo(() => columns.filter(c => !c.primary_key).map(c => c.name), [columns]);
-  const columnNamesKey = columnNames.join('\u0000');
-
-  // 1. 實際欄位可用時，替尚未配對的點位建議欄位；既有配對保持不變。
-  React.useEffect(() => {
-    if (columnNames.length === 0) return;
-    const nextTargets = autoAssignTargets(enabledPoints, state.mappings, columnNames, targets);
-    dispatch({ type: 'autoAssignDbTargets', targets: nextTargets });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnNamesKey]);
 
   const clearRowGroupScope = useCallback(() => {
     if (rowGroups.length > 0) {
@@ -152,31 +131,6 @@ function Step4DatabaseContent({
     dispatch({ type: 'updateDbConnector', patch: nextPatch });
   }, [clearRowGroupScope, connector, dispatch]);
 
-  // 3. 更新 Target 對應 Handler
-  const handleUpdateTarget = useCallback((pointId: string, patch: Partial<DbTarget>) => {
-    if (Object.prototype.hasOwnProperty.call(patch, 'row_group_id')) {
-      dispatch({
-        type: 'setDbRowGroups',
-        rowGroups: syncTargetRowGroupMembership(scopedRowGroups, pointId, patch.row_group_id),
-      });
-    }
-    dispatch({ type: 'updateDbTarget', pointId, patch });
-  }, [dispatch, scopedRowGroups]);
-
-  const handleSetRowGroups = useCallback((nextRowGroups: DbRowGroup[]) => {
-    dispatch({ type: 'setDbRowGroups', rowGroups: nextRowGroups });
-  }, [dispatch]);
-
-  const hasConflict = useMemo(() => {
-    return hasRowGroupColumnConflict(state.points, state.mappings, targets, scopedRowGroups) ||
-      hasUnsafeRowGroupUpsert(state.points, state.mappings, targets, scopedRowGroups, connector.write_mode);
-  }, [connector.write_mode, scopedRowGroups, state.points, state.mappings, targets]);
-
-  // 6. 計算啟用中的 db targets 數量
-  const enabledTargetCount = useMemo(() => {
-    return Object.values(targets).filter(t => t.enabled).length;
-  }, [targets]);
-
   const schemaActionsDisabled = useMemo(() => {
     if (connector.save_state !== 'saved') {
       return true;
@@ -200,48 +154,17 @@ function Step4DatabaseContent({
     connector.save_state,
     ...Object.values(targets).map((target) => target.save_state),
   ];
+  const groupsQuery = useWriteGroupsQuery(Boolean(workspaceId));
+  const liveGroups = (groupsQuery.data?.groups ?? []).filter((group) => group.status !== 'deleted');
+  const groupSummary = {
+    state: groupsQuery.isError ? 'error' as const : groupsQuery.isLoading ? 'loading' as const : 'ready' as const,
+    total: liveGroups.length,
+    applied: liveGroups.filter((group) => group.applied_revision !== '' && group.status !== 'disabled').length,
+  };
   const configurationSaved = saveStates.length > 0 && saveStates.every((saveState) => saveState === 'saved');
 
   return (
     <div className="space-y-6">
-      <DestinationOverviewCard
-        connector={connector}
-        rules={state.rules}
-        points={state.points}
-        mappings={state.mappings}
-        targets={targets}
-        hasConflict={hasConflict}
-      />
-
-      <WorkspaceRecordingPlanSetupSection
-        state={state}
-        workspaceId={workspaceId}
-        disabled={isReadonly}
-      />
-
-      <ShareOutputSummary state={state} shareStatus={shareStatus} />
-
-      <RowGroupPlanner
-        connector={connector}
-        points={state.points}
-        mappings={state.mappings}
-        rowGroups={scopedRowGroups}
-        onSetRowGroups={handleSetRowGroups}
-        disabled={isReadonly}
-      />
-
-      <TargetMetadataStatus status={targetColumns.status} onRetry={targetColumns.refetch} />
-      <TargetMappingTable
-        points={state.points}
-        mappings={state.mappings}
-        targets={targets}
-        rowGroups={scopedRowGroups}
-        columns={columns}
-        onUpdateTarget={handleUpdateTarget}
-        onSetAllEnabled={(enabled) => dispatch({ type: 'setAllDbTargetsEnabled', enabled })}
-        disabled={isReadonly}
-      />
-
       <Step4SupportPanels
         connector={connector}
         connectors={state.settings.connectors}
@@ -259,6 +182,14 @@ function Step4DatabaseContent({
         disabled={isReadonly}
       />
 
+      <WriteGroupSection
+        state={state}
+        workspaceId={workspaceId}
+        readonly={isReadonly}
+        onNavigateStep={onNavigateStep}
+      />
+
+      <ShareOutputSummary state={state} shareStatus={shareStatus} />
 
       {activation.phase === 'idle' ? (
         <>
@@ -272,8 +203,7 @@ function Step4DatabaseContent({
             pointCount={enabledPoints.length}
             mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
             connector={connector}
-            enabledTargetCount={enabledTargetCount}
-            hasConflict={hasConflict}
+            groupSummary={groupSummary}
             readinessSummary={workspaceReadiness}
             configurationSaved={configurationSaved}
             onActivate={activation.start}

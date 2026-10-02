@@ -21,6 +21,20 @@ type tagGetter interface {
 type ConnectorService struct {
 	repo        ConnectorRepository
 	mappingRepo TargetMappingRepository
+	deleteGuard ConnectorDeleteGuard
+}
+
+// ConnectorDeleteGuard can veto a connector delete, e.g. when a canonical
+// write group still uses the connector as its destination.
+type ConnectorDeleteGuard interface {
+	PreflightConnectorDelete(ctx context.Context, connectorID string) error
+}
+
+// SetDeleteGuard installs the optional delete guard.
+func (s *ConnectorService) SetDeleteGuard(guard ConnectorDeleteGuard) {
+	if s != nil {
+		s.deleteGuard = guard
+	}
 }
 
 func NewConnectorService(repo ConnectorRepository, mappingRepoOpt ...TargetMappingRepository) *ConnectorService {
@@ -54,6 +68,11 @@ func (s *ConnectorService) Update(ctx context.Context, id string, req UpdateConn
 }
 
 func (s *ConnectorService) Delete(ctx context.Context, id string) error {
+	if s.deleteGuard != nil {
+		if err := s.deleteGuard.PreflightConnectorDelete(ctx, id); err != nil {
+			return err
+		}
+	}
 	if s.mappingRepo != nil {
 		if err := s.mappingRepo.DeleteByConnectorID(ctx, id); err != nil {
 			return fmt.Errorf("刪除資料庫連接器映射失敗: %w", err)
@@ -112,9 +131,10 @@ func (s *ConnectorService) ListTables(ctx context.Context, id string) ([]TableIn
 }
 
 type MappingService struct {
-	repo          TargetMappingRepository
-	connectorRepo ConnectorRepository
-	tagService    tagGetter
+	repo                   TargetMappingRepository
+	connectorRepo          ConnectorRepository
+	tagService             tagGetter
+	legacyWriteCoordinator LegacyWriteCoordinator
 }
 
 func NewMappingService(repo TargetMappingRepository, connectorRepo ConnectorRepository, tagService tagGetter) *MappingService {
@@ -123,35 +143,6 @@ func NewMappingService(repo TargetMappingRepository, connectorRepo ConnectorRepo
 		connectorRepo: connectorRepo,
 		tagService:    tagService,
 	}
-}
-
-func (s *MappingService) Create(ctx context.Context, req CreateTargetMappingRequest) (*schema.DatabaseTargetMapping, error) {
-	prepared, err := s.PrepareCreate(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.repo.Create(ctx, prepared.Mapping); err != nil {
-		return nil, fmt.Errorf("建立資料庫目標映射失敗: %w", err)
-	}
-	return prepared.Mapping, nil
-}
-
-func (s *MappingService) Update(ctx context.Context, id string, req UpdateTargetMappingRequest) (*schema.DatabaseTargetMapping, error) {
-	prepared, err := s.PrepareUpdate(ctx, id, req)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.repo.Update(ctx, prepared.Mapping); err != nil {
-		return nil, fmt.Errorf("更新資料庫目標映射失敗: %w", err)
-	}
-	return prepared.Mapping, nil
-}
-
-func (s *MappingService) Delete(ctx context.Context, id string) error {
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("刪除資料庫目標映射失敗: %w", err)
-	}
-	return nil
 }
 
 func (s *MappingService) GetByID(ctx context.Context, id string) (*schema.DatabaseTargetMapping, error) {

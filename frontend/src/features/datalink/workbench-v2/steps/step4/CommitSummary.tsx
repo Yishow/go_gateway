@@ -24,8 +24,8 @@ interface CommitSummaryProps {
   pointCount: number;
   mappingCount: number;
   connector: DbConnector;
-  enabledTargetCount: number;
-  hasConflict: boolean;
+  /** Saved write groups of the workspace and how many are applied; never a gate by itself. */
+  groupSummary: { state: 'loading' | 'error' | 'ready'; total: number; applied: number };
   readinessSummary?: StudioV2WorkspaceReadinessSummary | null;
   configurationSaved?: boolean;
   onActivate: () => void;
@@ -42,8 +42,7 @@ export function CommitSummary({
   pointCount,
   mappingCount,
   connector,
-  enabledTargetCount,
-  hasConflict,
+  groupSummary,
   readinessSummary,
   configurationSaved = false,
   onActivate,
@@ -58,13 +57,13 @@ export function CommitSummary({
     ? `${kind} → ${table}`
     : `${kind} → ${schema}.${table}`;
 
-  // 提交按鈕不可用條件：有衝突，或者啟用的寫入欄位為 0
+  // 啟用只依後端持久化的 readiness；是否需要資料庫輸出由後端判定（只用 Share 時不需要）。
   const readinessView = summarizeWorkspaceReadiness(readinessSummary);
   const hasReadinessBlocker = readinessView.hasBlockers;
   const blockingIssues = groupWorkspaceReadinessIssues(readinessSummary?.issues ?? [])
     .filter((group) => group.issue.severity === 'blocking')
     .slice(0, 3);
-  const isSubmitDisabled = hasConflict || enabledTargetCount === 0 || hasReadinessBlocker;
+  const isSubmitDisabled = hasReadinessBlocker;
 
   return (
     <div className="bg-gray-900/10 border border-gray-800 rounded-2xl p-6 flex flex-col justify-between h-full backdrop-blur-sm">
@@ -85,7 +84,7 @@ export function CommitSummary({
               devices: deviceCount,
               rules: ruleCount,
               points: pointCount,
-              targets: enabledTargetCount,
+              groups: groupSummary.total,
             })}
           </div>
           <div className="mt-2 text-[11px] font-mono text-blue-300">
@@ -138,12 +137,18 @@ export function CommitSummary({
           </div>
         )}
 
-        {/* 提示訊息 */}
-        {enabledTargetCount === 0 && !hasConflict && (
-          <p className="text-xs text-amber-500 text-center select-none">
-            ⚠️ {t('step4.no_enabled_targets_warning')}
-          </p>
-        )}
+        {/* 資料庫輸出狀態：只陳述事實，不當成啟用的門檻 */}
+        <p className="text-xs text-amber-500 text-center" role="status" data-testid="step4-group-summary-note">
+          {groupSummary.state === 'error'
+            ? t('step4.group.summary.unknown')
+            : groupSummary.state === 'loading'
+              ? t('step4.group.summary.loading')
+              : groupSummary.total === 0
+                ? t('step4.group.summary.none')
+                : groupSummary.applied === 0
+                  ? t('step4.group.summary.saved_not_applied', { count: groupSummary.total })
+                  : t('step4.group.summary.applied', { applied: groupSummary.applied, total: groupSummary.total })}
+        </p>
 
         {/* 寬版啟動按鈕 */}
         <button

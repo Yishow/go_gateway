@@ -13,6 +13,7 @@ const SAFE_ERROR_CODES = new Set<string>(BACKEND_ERROR_CODES);
 const SAFE_ERROR_ACTIONS = new Set([
   'retry', 'reconnect', 'reload', 'retry runtime stream', 'retry the runtime stream',
   'retry the preview stream', 'retry preview', 'wait_for_supported_operation',
+  'open_write_groups', 'review_request', 'review_group', 'disable_group',
 ]);
 
 function byteLength(value: string): number {
