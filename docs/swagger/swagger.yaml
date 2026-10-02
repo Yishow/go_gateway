@@ -1,5 +1,150 @@
 basePath: /api
 definitions:
+  groupdelivery.QuotaScope:
+    enum:
+    - global
+    - group
+    type: string
+    x-enum-varnames:
+    - QuotaScopeGlobal
+    - QuotaScopeGroup
+  groupdelivery.QuotaStatusView:
+    properties:
+      configured:
+        type: boolean
+      intake_refused:
+        type: boolean
+      loss_risk_notice:
+        type: string
+      max_bytes:
+        type: integer
+      scope:
+        $ref: '#/definitions/groupdelivery.QuotaScope'
+      state:
+        type: string
+      used_bytes:
+        type: integer
+    type: object
+  grouppipeline.BacklogView:
+    properties:
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      error_codes:
+        items:
+          type: string
+        type: array
+      group_revision:
+        type: string
+      pending:
+        type: integer
+      table_name:
+        type: string
+      table_schema:
+        type: string
+    type: object
+  grouppipeline.DeliveryView:
+    properties:
+      backlog:
+        items:
+          $ref: '#/definitions/grouppipeline.BacklogView'
+        type: array
+      group_id:
+        type: string
+      intake:
+        $ref: '#/definitions/grouppipeline.IntakeView'
+      last_sql_committed_at:
+        type: string
+      no_data_buckets:
+        type: integer
+      oldest_pending_seconds:
+        type: number
+      quota:
+        $ref: '#/definitions/groupdelivery.QuotaStatusView'
+      skipped_buckets:
+        type: integer
+      stages:
+        $ref: '#/definitions/grouppipeline.StagesView'
+    type: object
+  grouppipeline.IntakeView:
+    properties:
+      reason:
+        type: string
+      state:
+        type: string
+    type: object
+  grouppipeline.StagesView:
+    properties:
+      blocked:
+        type: integer
+      collecting:
+        type: integer
+      quarantined:
+        type: integer
+      queued:
+        type: integer
+      retrying:
+        type: integer
+      skipped:
+        type: integer
+      sql_committed:
+        type: integer
+      unknown:
+        type: integer
+    type: object
+  grouptestwrite.Preview:
+    properties:
+      action:
+        type: string
+      cleanup:
+        description: Cleanup describes the only rows the operation removes afterwards.
+        type: string
+      dedupe:
+        type: string
+      expires_at:
+        type: string
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      operation_id:
+        type: string
+      owner_column:
+        type: string
+      owner_value:
+        type: string
+      target:
+        $ref: '#/definitions/grouptestwrite.PreviewTarget'
+      token:
+        type: string
+      values:
+        items:
+          $ref: '#/definitions/grouptestwrite.PreviewValue'
+        type: array
+    type: object
+  grouptestwrite.PreviewTarget:
+    properties:
+      connector_id:
+        type: string
+      database:
+        type: string
+      dialect:
+        type: string
+      schema:
+        type: string
+      table:
+        type: string
+    type: object
+  grouptestwrite.PreviewValue:
+    properties:
+      column:
+        type: string
+      type:
+        type: string
+      value:
+        type: string
+    type: object
   handlers.APIErrorResponse:
     properties:
       error:
@@ -122,6 +267,111 @@ definitions:
     required:
     - register
     type: object
+  handlers.WriteGroupDeliveryResponse:
+    properties:
+      data:
+        $ref: '#/definitions/grouppipeline.DeliveryView'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupListResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.WriteGroupListResult'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupMigrationPreviewRequest:
+    properties:
+      source_ids:
+        items:
+          type: string
+        type: array
+      workspace_id:
+        type: string
+    type: object
+  handlers.WriteGroupMigrationPreviewResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.WriteGroupMigrationPreview'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupMigrationReviewRequest:
+    properties:
+      confirm_snapshot_conversion:
+        type: boolean
+      expected_connector_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      review_digest:
+        type: string
+      source_ids:
+        items:
+          type: string
+        type: array
+      workspace_id:
+        type: string
+    type: object
+  handlers.WriteGroupMigrationReviewResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.WriteGroupMigrationReviewResult'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupMutationRequest:
+    properties:
+      expected_connector_revision:
+        type: string
+      expected_group_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      group:
+        $ref: '#/definitions/workspace.WriteGroup'
+      workspace_id:
+        type: string
+    type: object
+  handlers.WriteGroupReadinessResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.WriteGroupReadiness'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupSaveResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.WriteGroupSaveResult'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupTestWriteConfirmRequest:
+    properties:
+      operation_id:
+        type: string
+      token:
+        type: string
+    required:
+    - operation_id
+    - token
+    type: object
+  handlers.WriteGroupTestWriteOperationResponse:
+    properties:
+      data:
+        $ref: '#/definitions/recordingplan.SchemaOperation'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupTestWritePreviewResponse:
+    properties:
+      data:
+        $ref: '#/definitions/grouptestwrite.Preview'
+      success:
+        type: boolean
+    type: object
   handlers.WriteTagValueRequest:
     properties:
       tag_id:
@@ -130,6 +380,25 @@ definitions:
     required:
     - tag_id
     - value
+    type: object
+  handlers.legacyTestWriteConfirmRequest:
+    properties:
+      operation_id:
+        type: string
+      plan_id:
+        type: string
+      token:
+        type: string
+    required:
+    - operation_id
+    - token
+    type: object
+  handlers.legacyTestWritePreviewRequest:
+    properties:
+      plan_id:
+        type: string
+    required:
+    - plan_id
     type: object
   handlers.runtimeWorkspaceContextDeviceEntry:
     properties:
@@ -349,17 +618,6 @@ definitions:
       write_mode:
         $ref: '#/definitions/schema.DatabaseWriteMode'
     type: object
-  handlers.testWriteRequest:
-    properties:
-      plan_id:
-        type: string
-      stream_id:
-        type: string
-      table_prefix:
-        type: string
-    required:
-    - plan_id
-    type: object
   mapping.StepResult:
     properties:
       error:
@@ -419,6 +677,212 @@ definitions:
       workspace_id:
         type: string
     type: object
+  recordingplan.PlanDestination:
+    properties:
+      batch_size:
+        type: integer
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      destination_id:
+        type: string
+      table_prefix:
+        type: string
+      write_interval_seconds:
+        type: integer
+    type: object
+  recordingplan.PlanLimits:
+    properties:
+      max_batch_size:
+        type: integer
+      max_hold_seconds:
+        type: integer
+      max_queue_bytes:
+        type: integer
+    type: object
+  recordingplan.PlanMember:
+    properties:
+      equipment_id:
+        type: string
+      measurement_id:
+        type: string
+      member_id:
+        type: string
+      name:
+        type: string
+    type: object
+  recordingplan.PlanStream:
+    properties:
+      batch_timeout_seconds:
+        type: integer
+      batch_trigger_member_id:
+        type: string
+      destination_ids:
+        items:
+          type: string
+        type: array
+      equipment_id:
+        type: string
+      max_heartbeat_seconds:
+        type: integer
+      measurement_id:
+        type: string
+      mode:
+        $ref: '#/definitions/recordingplan.StreamMode'
+      on_change_deadband:
+        type: number
+      raw_policy:
+        $ref: '#/definitions/recordingplan.RawPolicy'
+      stream_id:
+        type: string
+      summary_interval_seconds:
+        type: integer
+      usage_interval_seconds:
+        type: integer
+    type: object
+  recordingplan.RawPolicy:
+    enum:
+    - every_sample
+    - on_change
+    - sampled
+    type: string
+    x-enum-varnames:
+    - RawPolicyEverySample
+    - RawPolicyOnChange
+    - RawPolicySampled
+  recordingplan.RecordingPlan:
+    properties:
+      applied_revision:
+        type: string
+      created_at:
+        type: string
+      destinations:
+        items:
+          $ref: '#/definitions/recordingplan.PlanDestination'
+        type: array
+      id:
+        type: string
+      limits:
+        $ref: '#/definitions/recordingplan.PlanLimits'
+      members:
+        items:
+          $ref: '#/definitions/recordingplan.PlanMember'
+        type: array
+      name:
+        type: string
+      retention:
+        $ref: '#/definitions/recordingplan.RetentionPolicy'
+      revision:
+        type: string
+      status:
+        $ref: '#/definitions/recordingplan.Status'
+      streams:
+        items:
+          $ref: '#/definitions/recordingplan.PlanStream'
+        type: array
+      timezone:
+        type: string
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  recordingplan.RetentionPolicy:
+    properties:
+      correction_horizon_hours:
+        type: integer
+      events_days:
+        type: integer
+      raw_days:
+        type: integer
+      summary_days:
+        type: integer
+    type: object
+  recordingplan.SchemaOperation:
+    properties:
+      action:
+        type: string
+      cleanup_reason:
+        type: string
+      cleanup_status:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      executed_statements:
+        type: integer
+      next_action:
+        type: string
+      operation_id:
+        type: string
+      payload_digest:
+        description: Test-write facts. They stay empty for schema operations.
+        type: string
+      reason:
+        type: string
+      status:
+        $ref: '#/definitions/recordingplan.SchemaOperationStatus'
+      updated_at:
+        type: string
+      verified_digest:
+        type: string
+      write_outcome:
+        type: string
+    type: object
+  recordingplan.SchemaOperationStatus:
+    enum:
+    - pending
+    - running
+    - succeeded
+    - partial
+    - failed
+    - unknown
+    type: string
+    x-enum-varnames:
+    - SchemaOperationPending
+    - SchemaOperationRunning
+    - SchemaOperationSucceeded
+    - SchemaOperationPartial
+    - SchemaOperationFailed
+    - SchemaOperationUnknown
+  recordingplan.Status:
+    enum:
+    - draft
+    - validating
+    - ready
+    - running
+    - partial
+    - blocked
+    - paused
+    type: string
+    x-enum-varnames:
+    - PlanStatusDraft
+    - PlanStatusValidating
+    - PlanStatusReady
+    - PlanStatusRunning
+    - PlanStatusPartial
+    - PlanStatusBlocked
+    - PlanStatusPaused
+  recordingplan.StreamMode:
+    enum:
+    - raw_history
+    - window_summary
+    - usage_interval
+    - state_changes
+    - event_log
+    - batch_snapshot
+    - latest_only
+    type: string
+    x-enum-varnames:
+    - StreamModeRawHistory
+    - StreamModeWindowSummary
+    - StreamModeUsageInterval
+    - StreamModeStateChanges
+    - StreamModeEventLog
+    - StreamModeBatchSnapshot
+    - StreamModeLatestOnly
   schema.DataType:
     enum:
     - bool
@@ -587,6 +1051,348 @@ definitions:
         type: boolean
       warning_count:
         type: integer
+    type: object
+  workspace.WriteGroup:
+    properties:
+      applied_revision:
+        type: string
+      created_at:
+        type: string
+      destination:
+        $ref: '#/definitions/workspace.WriteGroupDestination'
+      id:
+        type: string
+      members:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupMember'
+        type: array
+      migration:
+        $ref: '#/definitions/workspace.WriteGroupMigration'
+      name:
+        type: string
+      revision:
+        type: string
+      row_policy:
+        $ref: '#/definitions/workspace.WriteGroupRowPolicy'
+      status:
+        $ref: '#/definitions/workspace.WriteGroupStatus'
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+      write_policy:
+        $ref: '#/definitions/workspace.WriteGroupWritePolicy'
+    type: object
+  workspace.WriteGroupDestination:
+    properties:
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      database:
+        type: string
+      schema_digest:
+        type: string
+      schema_revision:
+        type: string
+      storage_strategy:
+        $ref: '#/definitions/workspace.WriteGroupStorageStrategy'
+      table_name:
+        type: string
+      table_schema:
+        type: string
+    type: object
+  workspace.WriteGroupListResult:
+    properties:
+      groups:
+        items:
+          $ref: '#/definitions/workspace.WriteGroup'
+        type: array
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupMember:
+    properties:
+      device_id:
+        type: string
+      entity_key:
+        description: |-
+          EntityKey is the raw legacy group key used only to partition buffered
+          rows. It is deliberately not interpreted as a destination SQL value.
+        type: string
+      mapping_revision:
+        type: string
+      max_age_seconds:
+        type: integer
+      measurement_id:
+        type: string
+      point_id:
+        type: string
+      required:
+        type: boolean
+      source_revision:
+        type: string
+      tag_id:
+        type: string
+      target_column:
+        type: string
+    type: object
+  workspace.WriteGroupMigration:
+    properties:
+      adapter_version:
+        type: string
+      legacy_row_group_id:
+        type: string
+      review_result:
+        type: string
+      source_ids:
+        items:
+          type: string
+        type: array
+      source_kind:
+        type: string
+      source_revision:
+        type: string
+      target_mapping_points:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  workspace.WriteGroupMigrationFinding:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  workspace.WriteGroupMigrationIntent:
+    properties:
+      column_name:
+        type: string
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      database:
+        type: string
+      device_id:
+        type: string
+      enabled:
+        type: boolean
+      group_key:
+        type: string
+      interval_source:
+        type: string
+      point_id:
+        type: string
+      source_id:
+        type: string
+      table_name:
+        type: string
+      table_schema:
+        type: string
+      tag_id:
+        type: string
+      timestamp_column:
+        type: string
+      write_interval_seconds:
+        type: integer
+      write_mode:
+        type: string
+    type: object
+  workspace.WriteGroupMigrationPreview:
+    properties:
+      adapter_version:
+        type: string
+      connector_revision:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupMigrationPreviewItem'
+        type: array
+      review_digest:
+        type: string
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupMigrationPreviewItem:
+    properties:
+      before_intent:
+        $ref: '#/definitions/workspace.WriteGroupMigrationIntent'
+      before_recording_plan_intent:
+        $ref: '#/definitions/workspace.WriteGroupRecordingPlanMigrationIntent'
+      before_row_group_intent:
+        $ref: '#/definitions/workspace.WriteGroupRowGroupMigrationIntent'
+      candidate_group:
+        $ref: '#/definitions/workspace.WriteGroup'
+      differences:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupMigrationFinding'
+        type: array
+      issues:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupMigrationFinding'
+        type: array
+      repair_action:
+        type: string
+      source_id:
+        type: string
+      source_revision:
+        type: string
+      status:
+        type: string
+    type: object
+  workspace.WriteGroupMigrationReviewResult:
+    properties:
+      connector_revision:
+        type: string
+      groups:
+        items:
+          $ref: '#/definitions/workspace.WriteGroup'
+        type: array
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupReadiness:
+    properties:
+      applied_revision:
+        type: string
+      config_ready:
+        type: boolean
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      issues:
+        items:
+          $ref: '#/definitions/workspace.ReadinessIssue'
+        type: array
+      ready:
+        type: boolean
+      schema_digest:
+        type: string
+      schema_ready:
+        type: boolean
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupRecordingPlanMigrationIntent:
+    properties:
+      plan:
+        $ref: '#/definitions/recordingplan.RecordingPlan'
+      source_id:
+        type: string
+      sources:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupRecordingPlanMigrationSource'
+        type: array
+    type: object
+  workspace.WriteGroupRecordingPlanMigrationSource:
+    properties:
+      definition_revision:
+        type: string
+      device_id:
+        type: string
+      mapping_revision:
+        type: string
+      measurement_id:
+        type: string
+      point_id:
+        type: string
+      series_epoch:
+        type: string
+      source_binding_revision:
+        type: string
+      source_revision:
+        type: string
+      status:
+        type: string
+      tag_id:
+        type: string
+    type: object
+  workspace.WriteGroupRowGroupMigrationIntent:
+    properties:
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      members:
+        items:
+          $ref: '#/definitions/workspace.WriteGroupMigrationIntent'
+        type: array
+      row_group:
+        $ref: '#/definitions/workspace.DatabaseRowGroup'
+      source_id:
+        type: string
+    type: object
+  workspace.WriteGroupRowPolicy:
+    properties:
+      allowed_lateness_seconds:
+        type: integer
+      entity_key_column:
+        type: string
+      group_key_columns:
+        items:
+          type: string
+        type: array
+      incomplete_policy:
+        type: string
+      interval_seconds:
+        type: integer
+      provenance_column:
+        type: string
+      quality_column:
+        type: string
+      unique_key_columns:
+        items:
+          type: string
+        type: array
+      value_column:
+        type: string
+    type: object
+  workspace.WriteGroupSaveResult:
+    properties:
+      group:
+        $ref: '#/definitions/workspace.WriteGroup'
+      workspace_revision:
+        type: string
+    type: object
+  workspace.WriteGroupStatus:
+    enum:
+    - draft
+    - ready
+    - running
+    - disabled
+    - deleted
+    type: string
+    x-enum-varnames:
+    - WriteGroupStatusDraft
+    - WriteGroupStatusReady
+    - WriteGroupStatusRunning
+    - WriteGroupStatusDisabled
+    - WriteGroupStatusDeleted
+  workspace.WriteGroupStorageStrategy:
+    enum:
+    - managed
+    - custom
+    type: string
+    x-enum-varnames:
+    - WriteGroupStorageStrategyManaged
+    - WriteGroupStorageStrategyCustom
+  workspace.WriteGroupWritePolicy:
+    properties:
+      dedupe_capability:
+        type: string
+      mode:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -1123,6 +1929,655 @@ paths:
       summary: Get runtime workspace context
       tags:
       - datalink
+  /datalink/studio-v2/workspace/write-groups:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: List canonical workspace write groups
+      tags:
+      - Studio V2 Write Groups
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Draft and expected revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Save a canonical write-group draft
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Tombstone a canonical write group
+      tags:
+      - Studio V2 Write Groups
+    get:
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Get a canonical workspace write group
+      tags:
+      - Studio V2 Write Groups
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Draft and expected revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Update a canonical write-group draft
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/delivery:
+    get:
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupDeliveryResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Read a write group's delivery status
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/disable:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Disable a canonical write group
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/readiness:
+    get:
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupReadinessResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Check canonical write-group configuration and schema
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/test-write:
+    post:
+      consumes:
+      - application/json
+      description: Writes one operation-owned test row through the production row
+        codec, reads it back, then removes only that row. Results keep write verification
+        and cleanup status separate.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Test write confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupTestWriteConfirmRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: written_verified, written_unverified, failed or unknown, with
+            cleanup_status
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupTestWriteOperationResponse'
+        "202":
+          description: still running
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupTestWriteOperationResponse'
+        "400":
+          description: missing token or operation_id
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: unknown or foreign token
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: stale or expired first claim, or another operation holds the
+            table
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: token for another action, or unsupported target
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: code=WRITE_GROUP_TEST_WRITE_RESULT_UNKNOWN; the result could
+            not be recorded
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Confirm a write-group test write
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/test-write-preview:
+    post:
+      description: Returns the test row, its operation-owned cleanup and an action-bound
+        token without changing the target.
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupTestWritePreviewResponse'
+        "404":
+          description: unknown group
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: destination revision changed
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: code=WRITE_GROUP_TEST_WRITE_UNSUPPORTED; the target cannot
+            safely identify and remove an operation-owned test row
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Preview a write-group test write
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/migrations/recording-plans/preview:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Current workspace and persisted plan IDs
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMigrationPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupMigrationPreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Preview recording-plan migration eligibility
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/migrations/recording-plans/review:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Preview digest, expected revisions and explicit confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMigrationReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Reject unsupported recording-plan conversion after revision checks
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/migrations/row-groups/preview:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Current workspace and persisted row-group IDs
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMigrationPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupMigrationPreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Preview legacy row-group migration differences
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/migrations/row-groups/review:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Preview digest, expected revisions and explicit snapshot confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMigrationReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupMigrationReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Save confirmed legacy row-group snapshot drafts
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/migrations/single-mappings/preview:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Current workspace and legacy mapping IDs
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMigrationPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupMigrationPreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Preview legacy single-mapping migration differences
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/migrations/single-mappings/review:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Preview digest, expected revisions and explicit snapshot confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMigrationReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupMigrationReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Save confirmed legacy single-mapping snapshot conversion
+      tags:
+      - Studio V2 Write Groups
   /v1/datalink/studio-v2/workspace/database-operations/{operation_id}:
     get:
       description: Returns the durable state of a schema operation issued by a preview
@@ -1217,29 +2672,66 @@ paths:
     post:
       consumes:
       - application/json
-      description: Recording test writes are unavailable until a verified operation
-        is connected.
       parameters:
-      - description: Recording test write request
+      - description: Test write confirmation
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.testWriteRequest'
+          $ref: '#/definitions/handlers.legacyTestWriteConfirmRequest'
       produces:
       - application/json
       responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupTestWriteOperationResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupTestWriteOperationResponse'
         "400":
-          description: Invalid recording test write request
+          description: missing token or operation_id
           schema:
             $ref: '#/definitions/handlers.APIErrorResponse'
-        "501":
-          description: success=false; code=RECORDING_TEST_WRITE_NOT_IMPLEMENTED; message=recording
-            test write is not implemented; retryable=false; action=wait_for_supported_operation;
-            request_id is returned
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/handlers.APIErrorResponse'
-      summary: Execute a recording test write
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Confirm a test write through a legacy recording plan
+      tags:
+      - Studio V2 Recording Plans
+  /v1/datalink/studio-v2/workspace/recording-plans/test-write-preview:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Legacy plan reference
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.legacyTestWritePreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupTestWritePreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: code=RECORDING_TEST_WRITE_PLAN_UNRESOLVED or WRITE_GROUP_TEST_WRITE_UNSUPPORTED
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Preview a test write through a legacy recording plan
       tags:
       - Studio V2 Recording Plans
 swagger: "2.0"

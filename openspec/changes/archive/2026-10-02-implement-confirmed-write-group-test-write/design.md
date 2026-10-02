@@ -13,8 +13,8 @@
 ## Decisions
 
 1. **一個ledger。** 新增 `/studio-v2/workspace/write-groups/:id/test-write-preview` 及 `/test-write`，沿用現有 `/studio-v2/workspace/database-operations/:operation_id` 查詢。legacy recording-plans/test-write-preview及test-write route（相對同workspace base）以plan→group相容resolver轉入相同service，不另造token repository。舊僅plan_id的payload不允許直接試寫。
-2. **預覽與claim。** 保存kind=test_write、workspace/group/connector expected revisions、payload digest、scope、expiry及operation_id。preview不寫目標。確認原子claim一次，與schema operation互斥同scope；錯kind422、缺欄400、foreign/unknown404、stale/expired首次claim409。running重送202，已保存結果200且不再執行；token之後過期不抹除可查的receipt。
-3. **共用production codec/sender。** 產生typed fixture並以test namespace operation-owned record key送到選定target，使用C的dedupe/receipt。與正式row不共key、不改正式column語意；target無可安全標識的test資料或無法判定ownership，preview拒絕unsupported，不猜一個SQL DELETE。寫入必須等待target commit證據，local queued不回written_verified。
+2. **預覽與claim。** 保存kind=test_write、workspace/group/connector expected revisions、payload digest、scope、expiry及operation_id。preview不寫目標。確認原子claim一次，與schema operation互斥同scope（實作限制：scope以表名取代前綴，只有同表試寫之間互斥，試寫與前綴範圍的建表不共scope）；錯kind422、缺欄400、foreign/unknown404、stale/expired首次claim409。running重送202，已保存結果200且不再執行；token之後過期不抹除可查的receipt。
+3. **共用production row layout／codec／insert path（不經delivery outbox）。** 產生typed fixture並以test namespace operation-owned record key送到選定target，使用C的dedupe/receipt策略與`InsertGroupRow`，不進outbox／backlog／quota。與正式row不共key、不改正式column語意；target無可安全標識的test資料或無法判定ownership，preview拒絕unsupported，不猜一個SQL DELETE。寫入必須等待target commit證據，local queued不回written_verified。
 4. **readback/cleanup分開。** 比較實際完整typed內容、row scope、record key及provenance，不只查到相同ID就成功。write committed而read被拒則written_unverified；read mismatch則written_unverified附原因；write結果不確定為unknown。只有可證明屬此operation的test row/metadata才刪除，正式neighbor rows維持原樣。cleanup失敗/unknown獨立呈現，不能把已寫入否認成未寫入，也不能顯示已清乾淨。
 5. **重啟與並行。** claim/result持久保存，process在write/readback/cleanup任一點中止後只查同operation和target receipt恢復，不用新preview繞過unknown。cleanup後仍留operation receipt；同內容重送不再產生row。UI等到E完成整合；此案的service/hooks/types可被測試但不提早打開不完整button。
 

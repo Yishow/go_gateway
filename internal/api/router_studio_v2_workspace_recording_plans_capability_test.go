@@ -38,14 +38,17 @@ func TestStudioV2WorkspaceRecordingPlans_CapabilitiesExposeVerifiedManagedSchema
 		capabilities[capability.Kind] = capability
 	}
 	// Managed schema execution is verified for SQLite/PostgreSQL, so the
-	// capability matrix must advertise it; test writes stay masked until wired.
+	// capability matrix must advertise it. Legacy plan test writes stay masked; the group test write is advertised separately.
 	for _, kind := range []string{"sqlite", "postgres"} {
 		capability, ok := capabilities[kind]
 		if !ok {
 			t.Fatalf("capabilities list is missing %s: %s", kind, listResponse.Body.String())
 		}
 		if !capability.Supported || !capability.SupportsManagedSchema || capability.SupportsTestWrites {
-			t.Fatalf("%s capability must expose verified managed schema without test writes: %+v", kind, capability)
+			t.Fatalf("%s capability must expose verified managed schema without legacy plan test writes: %+v", kind, capability)
+		}
+		if !capability.SupportsGroupTestWrites {
+			t.Fatalf("%s capability must advertise confirmed group test writes: %+v", kind, capability)
 		}
 		if !capability.SupportsTransactions || !capability.SupportsReceipts {
 			t.Fatalf("%s capability lost existing transaction/receipt support: %+v", kind, capability)
@@ -59,7 +62,7 @@ func TestStudioV2WorkspaceRecordingPlans_CapabilitiesExposeVerifiedManagedSchema
 		if !ok {
 			t.Fatalf("capabilities list is missing %s: %s", kind, listResponse.Body.String())
 		}
-		if !capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites {
+		if !capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites || capability.SupportsGroupTestWrites {
 			t.Fatalf("%s capability must keep connection support while masking unverified mutations: %+v", kind, capability)
 		}
 		if capability.Notes == "" {
@@ -71,7 +74,7 @@ func TestStudioV2WorkspaceRecordingPlans_CapabilitiesExposeVerifiedManagedSchema
 		if !ok {
 			t.Fatalf("capabilities list is missing %s: %s", kind, listResponse.Body.String())
 		}
-		if capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites || len(capability.SupportedModes) != 0 {
+		if capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites || capability.SupportsGroupTestWrites || len(capability.SupportedModes) != 0 {
 			t.Fatalf("%s must remain unsupported: %+v", kind, capability)
 		}
 	}
@@ -89,7 +92,7 @@ func TestStudioV2WorkspaceRecordingPlans_CapabilitiesExposeVerifiedManagedSchema
 	if err := json.Unmarshal(aliasResponse.Body.Bytes(), &aliasBody); err != nil {
 		t.Fatalf("decode sqlite3 capability: %v; body=%s", err, aliasResponse.Body.String())
 	}
-	if !aliasBody.Success || aliasBody.Data.Kind != "sqlite3" || !aliasBody.Data.Supported || !aliasBody.Data.SupportsManagedSchema || aliasBody.Data.SupportsTestWrites {
+	if !aliasBody.Success || aliasBody.Data.Kind != "sqlite3" || !aliasBody.Data.Supported || !aliasBody.Data.SupportsManagedSchema || aliasBody.Data.SupportsTestWrites || !aliasBody.Data.SupportsGroupTestWrites {
 		t.Fatalf("sqlite3 alias capability mismatch: %+v", aliasBody)
 	}
 }
@@ -122,7 +125,7 @@ func TestStudioV2WorkspaceRecordingPlans_PreviewRemainsAvailableWithMaskedMutati
 
 	testWriteBody := `{"plan_id":"plan-c1-contract","stream_id":"stream-c1"}`
 	testWriteResponse := serveRecordingPlanMutation(router, "/api/v1/datalink/studio-v2/workspace/recording-plans/test-write", &testWriteBody, "req-c1-capability-write")
-	assertRecordingTestWriteNotImplemented(t, testWriteResponse, "req-c1-capability-write")
+	assertRecordingValidationError(t, testWriteResponse)
 
 	if _, err := planSvc.GetPlan(context.Background(), plan.ID); err != nil {
 		t.Fatalf("preview/capability checks must keep seeded plan queryable: %v", err)

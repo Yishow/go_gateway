@@ -13,7 +13,7 @@ func TestGetConnectorCapability_MySQLKeepsCustomTableWhileManagedSchemaIsUnverif
 
 	capability := svc.GetConnectorCapability("mysql")
 
-	if !capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites {
+	if !capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites || capability.SupportsGroupTestWrites {
 		t.Fatalf("mysql must stay connectable while managed schema is unavailable: %+v", capability)
 	}
 	if capability.Notes == "" {

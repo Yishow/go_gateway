@@ -17,8 +17,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const recordingTestWriteNotImplementedMessage = "recording test write is not implemented"
-
 type recordingOperationErrorResponse struct {
 	Success bool                           `json:"success"`
 	Error   handlers.TypedAPIErrorEnvelope `json:"error"`
@@ -56,84 +54,6 @@ func assertRecordingValidationError(t *testing.T, w *httptest.ResponseRecorder) 
 	}
 	if response.Error.Code != "validation" {
 		t.Fatalf("expected existing validation code, got %q: %s", response.Error.Code, w.Body.String())
-	}
-}
-
-// assertRecordingTestWriteNotImplemented checks the one recording operation
-// that is still unavailable: the response stays safe, non-retryable and free of
-// fabricated evidence.
-func assertRecordingTestWriteNotImplemented(t *testing.T, w *httptest.ResponseRecorder, wantRequestID string) {
-	t.Helper()
-
-	if w.Code != http.StatusNotImplemented {
-		t.Fatalf("expected status 501, got %d: %s", w.Code, w.Body.String())
-	}
-	var response recordingOperationErrorResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode not-implemented response: %v; body=%s", err, w.Body.String())
-	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil {
-		t.Fatalf("decode not-implemented response fields: %v; body=%s", err, w.Body.String())
-	}
-	assertJSONBooleanField(t, fields, "success", false)
-	errorRaw, ok := fields["error"]
-	if !ok {
-		t.Fatalf("not-implemented response is missing error envelope: %s", w.Body.String())
-	}
-	var errorFields map[string]json.RawMessage
-	if err := json.Unmarshal(errorRaw, &errorFields); err != nil {
-		t.Fatalf("decode not-implemented error fields: %v; body=%s", err, w.Body.String())
-	}
-	assertJSONBooleanField(t, errorFields, "retryable", false)
-	if response.Success {
-		t.Fatalf("not-implemented response must not report success: %s", w.Body.String())
-	}
-	if response.Error.Code != "RECORDING_TEST_WRITE_NOT_IMPLEMENTED" {
-		t.Fatalf("expected the test write not-implemented code, got %q: %s", response.Error.Code, w.Body.String())
-	}
-	if response.Error.Message != recordingTestWriteNotImplementedMessage {
-		t.Fatalf("expected safe message %q, got %q: %s", recordingTestWriteNotImplementedMessage, response.Error.Message, w.Body.String())
-	}
-	if response.Error.Retryable {
-		t.Fatalf("not-implemented response must be non-retryable: %s", w.Body.String())
-	}
-	if response.Error.Action != "wait_for_supported_operation" {
-		t.Fatalf("expected wait action, got %q: %s", response.Error.Action, w.Body.String())
-	}
-	if wantRequestID != "" && response.Error.RequestID != wantRequestID {
-		t.Fatalf("expected request_id %q, got %q: %s", wantRequestID, response.Error.RequestID, w.Body.String())
-	}
-	if wantRequestID == "" && response.Error.RequestID == "" {
-		t.Fatalf("not-implemented response must include a generated request_id: %s", w.Body.String())
-	}
-	if response.Data != nil && string(response.Data) != "null" {
-		t.Fatalf("not-implemented response must not contain data: %s", w.Body.String())
-	}
-	for _, forbidden := range []string{`"applied":true`, `"written_verified"`, `"record_id"`} {
-		if strings.Contains(w.Body.String(), forbidden) {
-			t.Fatalf("not-implemented response contains fabricated evidence %q: %s", forbidden, w.Body.String())
-		}
-	}
-}
-
-func assertJSONBooleanField(t *testing.T, fields map[string]json.RawMessage, name string, want bool) {
-	t.Helper()
-
-	raw, ok := fields[name]
-	if !ok {
-		t.Fatalf("JSON response is missing %q", name)
-	}
-	var value any
-	if err := json.Unmarshal(raw, &value); err != nil {
-		t.Fatalf("decode JSON field %q: %v", name, err)
-	}
-	got, ok := value.(bool)
-	if !ok {
-		t.Fatalf("JSON field %q must be boolean, got %s", name, string(raw))
-	}
-	if got != want {
-		t.Fatalf("JSON field %q: got %v, want %v", name, got, want)
 	}
 }
 
@@ -248,7 +168,7 @@ func TestStudioV2WorkspaceRecordingPlans_SchemaApply_IncompleteConfirmationRejec
 	}
 }
 
-func TestStudioV2WorkspaceRecordingPlans_TestWrite_UnimplementedRejectsSeededAndMissingPlansWithoutRepoMutation(t *testing.T) {
+func TestStudioV2WorkspaceRecordingPlans_TestWrite_BarePlanIDIsRejectedWithoutRepoMutation(t *testing.T) {
 	router, planSvc, _, _ := newStudioV2WorkspaceRecordingPlanRouter(t)
 	plan := seedRecordingPlanForContract(t, planSvc)
 	beforePlan, err := planSvc.GetPlan(context.Background(), plan.ID)
@@ -267,7 +187,7 @@ func TestStudioV2WorkspaceRecordingPlans_TestWrite_UnimplementedRejectsSeededAnd
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := serveRecordingPlanMutation(router, "/api/v1/datalink/studio-v2/workspace/recording-plans/test-write", &tt.body, tt.request)
-			assertRecordingTestWriteNotImplemented(t, w, tt.request)
+			assertRecordingValidationError(t, w)
 
 			afterPlan, err := planSvc.GetPlan(context.Background(), plan.ID)
 			if err != nil {

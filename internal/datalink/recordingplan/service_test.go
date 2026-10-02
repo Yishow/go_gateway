@@ -55,15 +55,16 @@ func TestRecordingPlanService_Capabilities(t *testing.T) {
 	svc := NewService(NewMemoryRepository())
 
 	supportedKinds := []struct {
-		kind          string
-		modes         []string
-		managedSchema bool
+		kind            string
+		modes           []string
+		managedSchema   bool
+		groupTestWrites bool
 	}{
-		{kind: "sqlite", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
-		{kind: "sqlite3", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
-		{kind: "postgres", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
-		{kind: "postgresql", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
-		{kind: "pgx", modes: []string{"managed_recording", "custom_table"}, managedSchema: true},
+		{kind: "sqlite", modes: []string{"managed_recording", "custom_table"}, managedSchema: true, groupTestWrites: true},
+		{kind: "sqlite3", modes: []string{"managed_recording", "custom_table"}, managedSchema: true, groupTestWrites: true},
+		{kind: "postgres", modes: []string{"managed_recording", "custom_table"}, managedSchema: true, groupTestWrites: true},
+		{kind: "postgresql", modes: []string{"managed_recording", "custom_table"}, managedSchema: true, groupTestWrites: true},
+		{kind: "pgx", modes: []string{"managed_recording", "custom_table"}, managedSchema: true, groupTestWrites: true},
 		{kind: "mysql", modes: []string{"managed_recording", "custom_table"}},
 	}
 	for _, test := range supportedKinds {
@@ -76,7 +77,10 @@ func TestRecordingPlanService_Capabilities(t *testing.T) {
 				t.Fatalf("expected supports_managed_schema=%v for %s, got %+v", test.managedSchema, test.kind, capability)
 			}
 			if capability.SupportsTestWrites {
-				t.Fatalf("test writes must stay masked until wired for %s: %+v", test.kind, capability)
+				t.Fatalf("legacy plan test writes must stay masked until the guided setup adopts the group flow for %s: %+v", test.kind, capability)
+			}
+			if capability.SupportsGroupTestWrites != test.groupTestWrites {
+				t.Fatalf("expected supports_group_test_writes=%v for %s, got %+v", test.groupTestWrites, test.kind, capability)
 			}
 			if !capability.SupportsTransactions || !capability.SupportsReceipts {
 				t.Fatalf("existing transaction/receipt support must remain for %s: %+v", test.kind, capability)
@@ -90,7 +94,7 @@ func TestRecordingPlanService_Capabilities(t *testing.T) {
 	for _, kind := range []string{"oracle", "sqlserver", "unknown"} {
 		t.Run(kind, func(t *testing.T) {
 			capability := svc.GetConnectorCapability(kind)
-			if capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites {
+			if capability.Supported || capability.SupportsManagedSchema || capability.SupportsTestWrites || capability.SupportsGroupTestWrites {
 				t.Fatalf("expected %s to be unsupported: %+v", kind, capability)
 			}
 			if len(capability.SupportedModes) != 0 {

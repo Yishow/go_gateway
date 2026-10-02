@@ -1,6 +1,6 @@
-# 跨案資料契約（擬議，尚未實作）
+# 跨案資料契約
 
-各案design/spec為可驗收要求；本檔統一名稱，避免交接時各自另造模型。
+各案design/spec為可驗收要求；本檔統一名稱，避免交接時各自另造模型。A 已實作本地設定／相容移轉／owner 交易介面，production consumer 尚未接線；B–F 仍按順序實作，證據見各 change 的 validation。
 
 ## A：WriteGroup是唯一設定authority
 
@@ -15,6 +15,12 @@
 基本raw group只要求來源型別與映射正確，不要求semantic_kind、unit、report或retention表單。選擇usage/aggregation等進階能力才引用已確認的measurement definition，這批不新增那些能力。
 
 群組rename保持stable ID及既有delivery identity；member/column/policy/destination編輯先存draft，explicit valid Apply於下一bucket邊界切換，不改寫舊bucket。disable停止新intake；delete採tombstone，保留accepted payload/revisions/receipts/ownership與查詢直到安全解決，不重用ID、不cascade丟backlog。legacy格式無法保護歸屬就拒delete並提供disable，實體purge不在本案。
+
+2026-10-02 已確認的 single-mapping 移轉：preview 明列逐筆寫入→週期 snapshot、選值、late、missing/freshness 與 timestamp 差異；只有顯式確認且 workspace/connector/source revisions 與 review digest 一致才保存草稿。原設定與舊 writer 保留到有效 Apply；review 不啟動新 delivery。重跑相同來源 revision 回同穩定 ID，不覆寫後續 canonical 編輯；來源歧義、grouped、advanced 或未支援 upsert 仍 blocked。此選擇不宣稱輸出語意等價。
+
+row-group 移轉以 member 的 optional `entity_key` 保存原 target GroupKey，供內部 row partition 使用；空值表示固定 group scope，不由 point ID 編造 SQL business key。不同 entity 可共用 column，同 entity/column 碰撞、缺 GroupKey、共享 column 缺 unique metadata、不同 interval/timestamp 或混合目標均 blocked。`row_policy.group_key_columns`／`unique_key_columns` 保留規劃 metadata，不能代替外部 SQL constraint 驗證。`migration.legacy_row_group_id` 保留原 workspace group ID，`target_mapping_points` 保存原 target mapping ID→point ID；SourceIDs 是原 target IDs。preview 另列 bucket 對齊與選值差異，confirmed review 只存 draft；workspace 相容投影保留原 group ID，舊讀取按 provenance 對應 canonical 成員，無法表達時回 actionable409。
+
+2026-10-02 已確認的 recording-plan 處理：現有 plan 無法證明與週期 snapshot 等價時，保留完整原設定及 revision/status/applied identity；只提供來源預覽、blocked 原因及 `open_write_groups` 修復動作，沒有候選群組。current review 拒絕轉換，stale digest/revision 回 conflict；不猜 column／row identity，不改 plan 的原 Status、不建立 migration map、不啟動 writer。新基本寫入使用 canonical WriteGroup 的 Create 路徑。
 
 ## B：Sample與snapshot
 

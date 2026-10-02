@@ -11,6 +11,7 @@ func registerStudioV2RecordingRoutes(datalinkGroup *gin.RouterGroup, datalinkSer
 	if datalinkServices == nil || datalinkServices.Workspace == nil {
 		return
 	}
+	registerStudioV2WriteGroupRoutes(datalinkGroup, datalinkServices)
 
 	// Measurements
 	if datalinkServices.Measurement != nil {
@@ -36,7 +37,6 @@ func registerStudioV2RecordingRoutes(datalinkGroup *gin.RouterGroup, datalinkSer
 		datalinkGroup.GET("/studio-v2/workspace/recording-plans/capabilities", planHandler.Capabilities)
 		datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-preview", planHandler.SchemaPreview)
 		datalinkGroup.POST("/studio-v2/workspace/recording-plans/schema-apply", planHandler.SchemaApply)
-		datalinkGroup.POST("/studio-v2/workspace/recording-plans/test-write", planHandler.TestWrite)
 
 		operationsHandler := handlers.NewStudioV2WorkspaceDatabaseOperationsHandler(datalinkServices.Workspace, datalinkServices.RecordingPlan)
 		datalinkGroup.GET("/studio-v2/workspace/database-operations/:operation_id", operationsHandler.Get)

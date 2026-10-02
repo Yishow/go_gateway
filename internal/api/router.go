@@ -50,8 +50,14 @@ type DatalinkServices struct {
 	RecordingPlan         *recordingplan.Service
 	History               *history.Service
 	Workspace             *workspace.Service
-	Audit                 *audit.Service
-	ShareRestore          handlers.ShareRestoreBarrier
+	WriteGroups           *workspace.WriteGroupService
+	// WriteGroupDelivery reads durable group delivery status; nil disables the route.
+	WriteGroupDelivery handlers.WriteGroupDeliveryReader
+	// WriteGroupTestWrite previews and confirms explicit group test writes; nil
+	// makes the test-write routes answer that the capability is unavailable.
+	WriteGroupTestWrite handlers.WriteGroupTestWriter
+	Audit               *audit.Service
+	ShareRestore        handlers.ShareRestoreBarrier
 }
 
 // NewRouter 建立並配置 Gin 路由器
@@ -347,7 +353,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 				dbTargetHandler := handlers.NewDatabaseTargetHandler(
 					datalinkServices.DBTarget,
 					datalinkServices.DBMapping,
-				)
+				).WithWriteGroups(datalinkServices.WriteGroups)
 				datalinkGroup.GET("/db-targets/connectors", dbTargetHandler.ListConnectors)
 				datalinkGroup.POST("/db-targets/connectors", dbTargetHandler.CreateConnector)
 				datalinkGroup.GET("/db-targets/connectors/:id", dbTargetHandler.GetConnector)
@@ -372,7 +378,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 						datalinkServices.SourceRule,
 						datalinkServices.DBTarget,
 						datalinkServices.DBMapping,
-					).WithAudit(datalinkServices.Audit)
+					).WithAudit(datalinkServices.Audit).WithWriteGroups(datalinkServices.WriteGroups)
 					datalinkGroup.GET("/studio-v2/workspace/database-config", workspaceDatabaseHandler.GetConfig)
 					datalinkGroup.PUT("/studio-v2/workspace/database-config", workspaceDatabaseHandler.UpdateConfig)
 					datalinkGroup.GET("/studio-v2/workspace/database-targets", workspaceDatabaseHandler.ListTargets)

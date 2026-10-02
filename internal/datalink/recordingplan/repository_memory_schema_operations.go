@@ -66,8 +66,7 @@ func (r *MemoryRepository) FinishSchemaOperation(_ context.Context, operationID,
 		return nil, fmt.Errorf("%w: %s", ErrSchemaOperationNotOwned, operationID)
 	}
 	now := time.Now().UTC()
-	op.Status, op.ExecutedStatements, op.VerifiedDigest = result.Status, result.ExecutedStatements, result.VerifiedDigest
-	op.Reason, op.NextAction, op.UpdatedAt, op.CompletedAt = result.Reason, result.NextAction, now, &now
+	applyOperationResult(&op, result, now)
 	r.operations[operationID] = op
 	return &op, nil
 }
@@ -84,8 +83,43 @@ func (r *MemoryRepository) FinishStaleSchemaOperation(_ context.Context, operati
 		return nil, nil
 	}
 	now := time.Now().UTC()
-	op.Status, op.ExecutedStatements, op.VerifiedDigest = result.Status, result.ExecutedStatements, result.VerifiedDigest
-	op.Reason, op.NextAction, op.UpdatedAt, op.CompletedAt = result.Reason, result.NextAction, now, &now
+	applyOperationResult(&op, result, now)
 	r.operations[operationID] = op
 	return &op, nil
+}
+
+func applyOperationResult(op *SchemaOperation, result SchemaOperationResult, now time.Time) {
+	op.Status, op.ExecutedStatements, op.VerifiedDigest = result.Status, result.ExecutedStatements, result.VerifiedDigest
+	op.Reason, op.NextAction, op.UpdatedAt, op.CompletedAt = result.Reason, result.NextAction, now, &now
+	op.PayloadDigest, op.WriteOutcome, op.CleanupStatus = result.PayloadDigest, result.WriteOutcome, result.CleanupStatus
+	op.CleanupReason, op.Detail = result.CleanupReason, result.Detail
+}
+
+// TakeOverSchemaOperation gives an active operation whose last update is
+// before staleBefore to newOwner.
+func (r *MemoryRepository) TakeOverSchemaOperation(_ context.Context, operationID, newOwner string, staleBefore time.Time) (*SchemaOperation, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	op, ok := r.operations[operationID]
+	if !ok || !op.Status.IsActive() || !op.UpdatedAt.Before(staleBefore) {
+		return nil, nil
+	}
+	op.Owner, op.UpdatedAt = newOwner, time.Now().UTC()
+	r.operations[operationID] = op
+	return &op, nil
+}
+
+// SaveSchemaOperationProgress stores detail for the owner of an active operation.
+func (r *MemoryRepository) SaveSchemaOperationProgress(_ context.Context, operationID, owner, detail string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	op, ok := r.operations[operationID]
+	if !ok || owner == "" || op.Owner != owner || !op.Status.IsActive() {
+		return fmt.Errorf("%w: %s", ErrSchemaOperationNotOwned, operationID)
+	}
+	op.Detail, op.UpdatedAt = detail, time.Now().UTC()
+	r.operations[operationID] = op
+	return nil
 }

@@ -808,6 +808,986 @@ const docTemplate = `{
                 }
             }
         },
+        "/datalink/studio-v2/workspace/write-groups": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "List canonical workspace write groups",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Save a canonical write-group draft",
+                "parameters": [
+                    {
+                        "description": "Draft and expected revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMutationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/migrations/recording-plans/preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Preview recording-plan migration eligibility",
+                "parameters": [
+                    {
+                        "description": "Current workspace and persisted plan IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/migrations/recording-plans/review": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Reject unsupported recording-plan conversion after revision checks",
+                "parameters": [
+                    {
+                        "description": "Preview digest, expected revisions and explicit confirmation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/migrations/row-groups/preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Preview legacy row-group migration differences",
+                "parameters": [
+                    {
+                        "description": "Current workspace and persisted row-group IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/migrations/row-groups/review": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Save confirmed legacy row-group snapshot drafts",
+                "parameters": [
+                    {
+                        "description": "Preview digest, expected revisions and explicit snapshot confirmation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationReviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/migrations/single-mappings/preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Preview legacy single-mapping migration differences",
+                "parameters": [
+                    {
+                        "description": "Current workspace and legacy mapping IDs",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationPreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/migrations/single-mappings/review": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Save confirmed legacy single-mapping snapshot conversion",
+                "parameters": [
+                    {
+                        "description": "Preview digest, expected revisions and explicit snapshot confirmation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMigrationReviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Get a canonical workspace write group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Update a canonical write-group draft",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Draft and expected revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMutationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Tombstone a canonical write group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expected revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMutationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/{id}/delivery": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Read a write group's delivery status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupDeliveryResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/{id}/disable": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Disable a canonical write group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expected revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMutationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/{id}/readiness": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Check canonical write-group configuration and schema",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupReadinessResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/{id}/test-write": {
+            "post": {
+                "description": "Writes one operation-owned test row through the production row codec, reads it back, then removes only that row. Results keep write verification and cleanup status separate.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Confirm a write-group test write",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Test write confirmation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupTestWriteConfirmRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "written_verified, written_unverified, failed or unknown, with cleanup_status",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupTestWriteOperationResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "still running",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupTestWriteOperationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "missing token or operation_id",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "unknown or foreign token",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "stale or expired first claim, or another operation holds the table",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "token for another action, or unsupported target",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "code=WRITE_GROUP_TEST_WRITE_RESULT_UNKNOWN; the result could not be recorded",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/{id}/test-write-preview": {
+            "post": {
+                "description": "Returns the test row, its operation-owned cleanup and an action-bound token without changing the target.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Preview a write-group test write",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupTestWritePreviewResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "unknown group",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "destination revision changed",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "code=WRITE_GROUP_TEST_WRITE_UNSUPPORTED; the target cannot safely identify and remove an operation-owned test row",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/datalink/studio-v2/workspace/database-operations/{operation_id}": {
             "get": {
                 "description": "Returns the durable state of a schema operation issued by a preview of the current workspace.",
@@ -930,7 +1910,6 @@ const docTemplate = `{
         },
         "/v1/datalink/studio-v2/workspace/recording-plans/test-write": {
             "post": {
-                "description": "Recording test writes are unavailable until a verified operation is connected.",
                 "consumes": [
                     "application/json"
                 ],
@@ -940,27 +1919,90 @@ const docTemplate = `{
                 "tags": [
                     "Studio V2 Recording Plans"
                 ],
-                "summary": "Execute a recording test write",
+                "summary": "Confirm a test write through a legacy recording plan",
                 "parameters": [
                     {
-                        "description": "Recording test write request",
+                        "description": "Test write confirmation",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.testWriteRequest"
+                            "$ref": "#/definitions/handlers.legacyTestWriteConfirmRequest"
                         }
                     }
                 ],
                 "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupTestWriteOperationResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupTestWriteOperationResponse"
+                        }
+                    },
                     "400": {
-                        "description": "Invalid recording test write request",
+                        "description": "missing token or operation_id",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
                     },
-                    "501": {
-                        "description": "success=false; code=RECORDING_TEST_WRITE_NOT_IMPLEMENTED; message=recording test write is not implemented; retryable=false; action=wait_for_supported_operation; request_id is returned",
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/recording-plans/test-write-preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Recording Plans"
+                ],
+                "summary": "Preview a test write through a legacy recording plan",
+                "parameters": [
+                    {
+                        "description": "Legacy plan reference",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.legacyTestWritePreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupTestWritePreviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "code=RECORDING_TEST_WRITE_PLAN_UNRESOLVED or WRITE_GROUP_TEST_WRITE_UNSUPPORTED",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
@@ -970,6 +2012,226 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "groupdelivery.QuotaScope": {
+            "type": "string",
+            "enum": [
+                "global",
+                "group"
+            ],
+            "x-enum-varnames": [
+                "QuotaScopeGlobal",
+                "QuotaScopeGroup"
+            ]
+        },
+        "groupdelivery.QuotaStatusView": {
+            "type": "object",
+            "properties": {
+                "configured": {
+                    "type": "boolean"
+                },
+                "intake_refused": {
+                    "type": "boolean"
+                },
+                "loss_risk_notice": {
+                    "type": "string"
+                },
+                "max_bytes": {
+                    "type": "integer"
+                },
+                "scope": {
+                    "$ref": "#/definitions/groupdelivery.QuotaScope"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "used_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "grouppipeline.BacklogView": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "error_codes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                }
+            }
+        },
+        "grouppipeline.DeliveryView": {
+            "type": "object",
+            "properties": {
+                "backlog": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/grouppipeline.BacklogView"
+                    }
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "intake": {
+                    "$ref": "#/definitions/grouppipeline.IntakeView"
+                },
+                "last_sql_committed_at": {
+                    "type": "string"
+                },
+                "no_data_buckets": {
+                    "type": "integer"
+                },
+                "oldest_pending_seconds": {
+                    "type": "number"
+                },
+                "quota": {
+                    "$ref": "#/definitions/groupdelivery.QuotaStatusView"
+                },
+                "skipped_buckets": {
+                    "type": "integer"
+                },
+                "stages": {
+                    "$ref": "#/definitions/grouppipeline.StagesView"
+                }
+            }
+        },
+        "grouppipeline.IntakeView": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "grouppipeline.StagesView": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "collecting": {
+                    "type": "integer"
+                },
+                "quarantined": {
+                    "type": "integer"
+                },
+                "queued": {
+                    "type": "integer"
+                },
+                "retrying": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "sql_committed": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
+                }
+            }
+        },
+        "grouptestwrite.Preview": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "cleanup": {
+                    "description": "Cleanup describes the only rows the operation removes afterwards.",
+                    "type": "string"
+                },
+                "dedupe": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "owner_column": {
+                    "type": "string"
+                },
+                "owner_value": {
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/definitions/grouptestwrite.PreviewTarget"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/grouptestwrite.PreviewValue"
+                    }
+                }
+            }
+        },
+        "grouptestwrite.PreviewTarget": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "database": {
+                    "type": "string"
+                },
+                "dialect": {
+                    "type": "string"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "table": {
+                    "type": "string"
+                }
+            }
+        },
+        "grouptestwrite.PreviewValue": {
+            "type": "object",
+            "properties": {
+                "column": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.APIErrorResponse": {
             "type": "object",
             "properties": {
@@ -1153,6 +2415,169 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.WriteGroupDeliveryResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/grouppipeline.DeliveryView"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.WriteGroupListResult"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupMigrationPreviewRequest": {
+            "type": "object",
+            "properties": {
+                "source_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupMigrationPreviewResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.WriteGroupMigrationPreview"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupMigrationReviewRequest": {
+            "type": "object",
+            "properties": {
+                "confirm_snapshot_conversion": {
+                    "type": "boolean"
+                },
+                "expected_connector_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "review_digest": {
+                    "type": "string"
+                },
+                "source_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupMigrationReviewResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.WriteGroupMigrationReviewResult"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupMutationRequest": {
+            "type": "object",
+            "properties": {
+                "expected_connector_revision": {
+                    "type": "string"
+                },
+                "expected_group_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupReadinessResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.WriteGroupReadiness"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupSaveResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.WriteGroupSaveResult"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupTestWriteConfirmRequest": {
+            "type": "object",
+            "required": [
+                "operation_id",
+                "token"
+            ],
+            "properties": {
+                "operation_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupTestWriteOperationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/recordingplan.SchemaOperation"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupTestWritePreviewResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/grouptestwrite.Preview"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.WriteTagValueRequest": {
             "type": "object",
             "required": [
@@ -1164,6 +2589,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "value": {}
+            }
+        },
+        "handlers.legacyTestWriteConfirmRequest": {
+            "type": "object",
+            "required": [
+                "operation_id",
+                "token"
+            ],
+            "properties": {
+                "operation_id": {
+                    "type": "string"
+                },
+                "plan_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.legacyTestWritePreviewRequest": {
+            "type": "object",
+            "required": [
+                "plan_id"
+            ],
+            "properties": {
+                "plan_id": {
+                    "type": "string"
+                }
             }
         },
         "handlers.runtimeWorkspaceContextDeviceEntry": {
@@ -1494,23 +2948,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.testWriteRequest": {
-            "type": "object",
-            "required": [
-                "plan_id"
-            ],
-            "properties": {
-                "plan_id": {
-                    "type": "string"
-                },
-                "stream_id": {
-                    "type": "string"
-                },
-                "table_prefix": {
-                    "type": "string"
-                }
-            }
-        },
         "mapping.StepResult": {
             "type": "object",
             "properties": {
@@ -1597,6 +3034,299 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "recordingplan.PlanDestination": {
+            "type": "object",
+            "properties": {
+                "batch_size": {
+                    "type": "integer"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "destination_id": {
+                    "type": "string"
+                },
+                "table_prefix": {
+                    "type": "string"
+                },
+                "write_interval_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "recordingplan.PlanLimits": {
+            "type": "object",
+            "properties": {
+                "max_batch_size": {
+                    "type": "integer"
+                },
+                "max_hold_seconds": {
+                    "type": "integer"
+                },
+                "max_queue_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "recordingplan.PlanMember": {
+            "type": "object",
+            "properties": {
+                "equipment_id": {
+                    "type": "string"
+                },
+                "measurement_id": {
+                    "type": "string"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.PlanStream": {
+            "type": "object",
+            "properties": {
+                "batch_timeout_seconds": {
+                    "type": "integer"
+                },
+                "batch_trigger_member_id": {
+                    "type": "string"
+                },
+                "destination_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "equipment_id": {
+                    "type": "string"
+                },
+                "max_heartbeat_seconds": {
+                    "type": "integer"
+                },
+                "measurement_id": {
+                    "type": "string"
+                },
+                "mode": {
+                    "$ref": "#/definitions/recordingplan.StreamMode"
+                },
+                "on_change_deadband": {
+                    "type": "number"
+                },
+                "raw_policy": {
+                    "$ref": "#/definitions/recordingplan.RawPolicy"
+                },
+                "stream_id": {
+                    "type": "string"
+                },
+                "summary_interval_seconds": {
+                    "type": "integer"
+                },
+                "usage_interval_seconds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "recordingplan.RawPolicy": {
+            "type": "string",
+            "enum": [
+                "every_sample",
+                "on_change",
+                "sampled"
+            ],
+            "x-enum-varnames": [
+                "RawPolicyEverySample",
+                "RawPolicyOnChange",
+                "RawPolicySampled"
+            ]
+        },
+        "recordingplan.RecordingPlan": {
+            "type": "object",
+            "properties": {
+                "applied_revision": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "destinations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.PlanDestination"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "limits": {
+                    "$ref": "#/definitions/recordingplan.PlanLimits"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.PlanMember"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "retention": {
+                    "$ref": "#/definitions/recordingplan.RetentionPolicy"
+                },
+                "revision": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/recordingplan.Status"
+                },
+                "streams": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/recordingplan.PlanStream"
+                    }
+                },
+                "timezone": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.RetentionPolicy": {
+            "type": "object",
+            "properties": {
+                "correction_horizon_hours": {
+                    "type": "integer"
+                },
+                "events_days": {
+                    "type": "integer"
+                },
+                "raw_days": {
+                    "type": "integer"
+                },
+                "summary_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "recordingplan.SchemaOperation": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "cleanup_reason": {
+                    "type": "string"
+                },
+                "cleanup_status": {
+                    "type": "string"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "executed_statements": {
+                    "type": "integer"
+                },
+                "next_action": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "payload_digest": {
+                    "description": "Test-write facts. They stay empty for schema operations.",
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/recordingplan.SchemaOperationStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "verified_digest": {
+                    "type": "string"
+                },
+                "write_outcome": {
+                    "type": "string"
+                }
+            }
+        },
+        "recordingplan.SchemaOperationStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "running",
+                "succeeded",
+                "partial",
+                "failed",
+                "unknown"
+            ],
+            "x-enum-varnames": [
+                "SchemaOperationPending",
+                "SchemaOperationRunning",
+                "SchemaOperationSucceeded",
+                "SchemaOperationPartial",
+                "SchemaOperationFailed",
+                "SchemaOperationUnknown"
+            ]
+        },
+        "recordingplan.Status": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "validating",
+                "ready",
+                "running",
+                "partial",
+                "blocked",
+                "paused"
+            ],
+            "x-enum-varnames": [
+                "PlanStatusDraft",
+                "PlanStatusValidating",
+                "PlanStatusReady",
+                "PlanStatusRunning",
+                "PlanStatusPartial",
+                "PlanStatusBlocked",
+                "PlanStatusPaused"
+            ]
+        },
+        "recordingplan.StreamMode": {
+            "type": "string",
+            "enum": [
+                "raw_history",
+                "window_summary",
+                "usage_interval",
+                "state_changes",
+                "event_log",
+                "batch_snapshot",
+                "latest_only"
+            ],
+            "x-enum-varnames": [
+                "StreamModeRawHistory",
+                "StreamModeWindowSummary",
+                "StreamModeUsageInterval",
+                "StreamModeStateChanges",
+                "StreamModeEventLog",
+                "StreamModeBatchSnapshot",
+                "StreamModeLatestOnly"
+            ]
         },
         "schema.DataType": {
             "type": "string",
@@ -1822,6 +3552,519 @@ const docTemplate = `{
                 },
                 "warning_count": {
                     "type": "integer"
+                }
+            }
+        },
+        "workspace.WriteGroup": {
+            "type": "object",
+            "properties": {
+                "applied_revision": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "destination": {
+                    "$ref": "#/definitions/workspace.WriteGroupDestination"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupMember"
+                    }
+                },
+                "migration": {
+                    "$ref": "#/definitions/workspace.WriteGroupMigration"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "string"
+                },
+                "row_policy": {
+                    "$ref": "#/definitions/workspace.WriteGroupRowPolicy"
+                },
+                "status": {
+                    "$ref": "#/definitions/workspace.WriteGroupStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "write_policy": {
+                    "$ref": "#/definitions/workspace.WriteGroupWritePolicy"
+                }
+            }
+        },
+        "workspace.WriteGroupDestination": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "database": {
+                    "type": "string"
+                },
+                "schema_digest": {
+                    "type": "string"
+                },
+                "schema_revision": {
+                    "type": "string"
+                },
+                "storage_strategy": {
+                    "$ref": "#/definitions/workspace.WriteGroupStorageStrategy"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupListResult": {
+            "type": "object",
+            "properties": {
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroup"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupMember": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "entity_key": {
+                    "description": "EntityKey is the raw legacy group key used only to partition buffered\nrows. It is deliberately not interpreted as a destination SQL value.",
+                    "type": "string"
+                },
+                "mapping_revision": {
+                    "type": "string"
+                },
+                "max_age_seconds": {
+                    "type": "integer"
+                },
+                "measurement_id": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "source_revision": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "target_column": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupMigration": {
+            "type": "object",
+            "properties": {
+                "adapter_version": {
+                    "type": "string"
+                },
+                "legacy_row_group_id": {
+                    "type": "string"
+                },
+                "review_result": {
+                    "type": "string"
+                },
+                "source_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "source_kind": {
+                    "type": "string"
+                },
+                "source_revision": {
+                    "type": "string"
+                },
+                "target_mapping_points": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "workspace.WriteGroupMigrationFinding": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupMigrationIntent": {
+            "type": "object",
+            "properties": {
+                "column_name": {
+                    "type": "string"
+                },
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "database": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "group_key": {
+                    "type": "string"
+                },
+                "interval_source": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                },
+                "timestamp_column": {
+                    "type": "string"
+                },
+                "write_interval_seconds": {
+                    "type": "integer"
+                },
+                "write_mode": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupMigrationPreview": {
+            "type": "object",
+            "properties": {
+                "adapter_version": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupMigrationPreviewItem"
+                    }
+                },
+                "review_digest": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupMigrationPreviewItem": {
+            "type": "object",
+            "properties": {
+                "before_intent": {
+                    "$ref": "#/definitions/workspace.WriteGroupMigrationIntent"
+                },
+                "before_recording_plan_intent": {
+                    "$ref": "#/definitions/workspace.WriteGroupRecordingPlanMigrationIntent"
+                },
+                "before_row_group_intent": {
+                    "$ref": "#/definitions/workspace.WriteGroupRowGroupMigrationIntent"
+                },
+                "candidate_group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "differences": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupMigrationFinding"
+                    }
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupMigrationFinding"
+                    }
+                },
+                "repair_action": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_revision": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupMigrationReviewResult": {
+            "type": "object",
+            "properties": {
+                "connector_revision": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroup"
+                    }
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupReadiness": {
+            "type": "object",
+            "properties": {
+                "applied_revision": {
+                    "type": "string"
+                },
+                "config_ready": {
+                    "type": "boolean"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.ReadinessIssue"
+                    }
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "schema_digest": {
+                    "type": "string"
+                },
+                "schema_ready": {
+                    "type": "boolean"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupRecordingPlanMigrationIntent": {
+            "type": "object",
+            "properties": {
+                "plan": {
+                    "$ref": "#/definitions/recordingplan.RecordingPlan"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupRecordingPlanMigrationSource"
+                    }
+                }
+            }
+        },
+        "workspace.WriteGroupRecordingPlanMigrationSource": {
+            "type": "object",
+            "properties": {
+                "definition_revision": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "mapping_revision": {
+                    "type": "string"
+                },
+                "measurement_id": {
+                    "type": "string"
+                },
+                "point_id": {
+                    "type": "string"
+                },
+                "series_epoch": {
+                    "type": "string"
+                },
+                "source_binding_revision": {
+                    "type": "string"
+                },
+                "source_revision": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tag_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupRowGroupMigrationIntent": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.WriteGroupMigrationIntent"
+                    }
+                },
+                "row_group": {
+                    "$ref": "#/definitions/workspace.DatabaseRowGroup"
+                },
+                "source_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupRowPolicy": {
+            "type": "object",
+            "properties": {
+                "allowed_lateness_seconds": {
+                    "type": "integer"
+                },
+                "entity_key_column": {
+                    "type": "string"
+                },
+                "group_key_columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "incomplete_policy": {
+                    "type": "string"
+                },
+                "interval_seconds": {
+                    "type": "integer"
+                },
+                "provenance_column": {
+                    "type": "string"
+                },
+                "quality_column": {
+                    "type": "string"
+                },
+                "unique_key_columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "value_column": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupSaveResult": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.WriteGroupStatus": {
+            "type": "string",
+            "enum": [
+                "draft",
+                "ready",
+                "running",
+                "disabled",
+                "deleted"
+            ],
+            "x-enum-varnames": [
+                "WriteGroupStatusDraft",
+                "WriteGroupStatusReady",
+                "WriteGroupStatusRunning",
+                "WriteGroupStatusDisabled",
+                "WriteGroupStatusDeleted"
+            ]
+        },
+        "workspace.WriteGroupStorageStrategy": {
+            "type": "string",
+            "enum": [
+                "managed",
+                "custom"
+            ],
+            "x-enum-varnames": [
+                "WriteGroupStorageStrategyManaged",
+                "WriteGroupStorageStrategyCustom"
+            ]
+        },
+        "workspace.WriteGroupWritePolicy": {
+            "type": "object",
+            "properties": {
+                "dedupe_capability": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
                 }
             }
         }

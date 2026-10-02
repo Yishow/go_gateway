@@ -74,14 +74,13 @@ func TestStudioV2RecordingSwagger(t *testing.T) {
 			moreRequired: []string{"operation_id", "expected_workspace_revision", "expected_plan_revision", "expected_connector_revision"},
 		},
 		{
-			name:        "test write",
-			path:        studioV2RecordingTestWriteSwaggerPath,
-			expectedURL: "/api/v1/datalink/studio-v2/workspace/recording-plans/test-write",
-			implemented: false,
-			code:        "RECORDING_TEST_WRITE_NOT_IMPLEMENTED",
-			message:     "recording test write is not implemented",
-			required:    "plan_id",
-			optional:    []string{"stream_id", "table_prefix"},
+			name:         "test write",
+			path:         studioV2RecordingTestWriteSwaggerPath,
+			expectedURL:  "/api/v1/datalink/studio-v2/workspace/recording-plans/test-write",
+			implemented:  true,
+			required:     "token",
+			moreRequired: []string{"operation_id"},
+			optional:     []string{"plan_id"},
 		},
 	}
 

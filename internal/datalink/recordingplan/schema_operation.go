@@ -64,9 +64,16 @@ type SchemaOperation struct {
 	VerifiedDigest     string                `json:"verified_digest,omitempty"`
 	Reason             string                `json:"reason,omitempty"`
 	NextAction         string                `json:"next_action,omitempty"`
-	CreatedAt          time.Time             `json:"created_at"`
-	UpdatedAt          time.Time             `json:"updated_at"`
-	CompletedAt        *time.Time            `json:"completed_at,omitempty"`
+	// Test-write facts. They stay empty for schema operations.
+	PayloadDigest string `json:"payload_digest,omitempty"`
+	WriteOutcome  string `json:"write_outcome,omitempty"`
+	CleanupStatus string `json:"cleanup_status,omitempty"`
+	CleanupReason string `json:"cleanup_reason,omitempty"`
+	// Detail is service-owned JSON (row identity, ownership marker); never exposed.
+	Detail      string     `json:"-"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
 }
 
 // SchemaOperationResult is the terminal outcome the owning execution records.
@@ -76,6 +83,11 @@ type SchemaOperationResult struct {
 	VerifiedDigest     string
 	Reason             string
 	NextAction         string
+	PayloadDigest      string
+	WriteOutcome       string
+	CleanupStatus      string
+	CleanupReason      string
+	Detail             string
 }
 
 // ClaimSchemaApply obtains execution rights for a validated preview. The claim
@@ -193,4 +205,17 @@ const SchemaOperationLease = 10 * time.Minute
 // change at the same time.
 func schemaOperationScopeKey(token *SchemaPreviewToken) string {
 	return token.ScopeKey()
+}
+
+// operationExecutionRepository is an optional ledger capability for operations
+// that record progress while they run: adopting an active operation whose lease
+// ran out (so a restarted gateway can reconcile it) and saving the owner's
+// progress, which also renews the lease.
+type operationExecutionRepository interface {
+	// TakeOverSchemaOperation gives an active operation whose last update is
+	// before staleBefore to newOwner. A nil operation without error means the
+	// lease is still live or the operation already ended.
+	TakeOverSchemaOperation(ctx context.Context, operationID, newOwner string, staleBefore time.Time) (*SchemaOperation, error)
+	// SaveSchemaOperationProgress stores detail for the owner of an active operation.
+	SaveSchemaOperationProgress(ctx context.Context, operationID, owner, detail string) error
 }

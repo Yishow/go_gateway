@@ -85,7 +85,10 @@ func newStudioV2WorkspaceRecordingPlanFixture(t *testing.T) studioV2WorkspaceRec
 	router.GET("/api/v1/datalink/studio-v2/workspace/recording-plans/capabilities", handler.Capabilities)
 	router.POST("/api/v1/datalink/studio-v2/workspace/recording-plans/schema-preview", handler.SchemaPreview)
 	router.POST("/api/v1/datalink/studio-v2/workspace/recording-plans/schema-apply", handler.SchemaApply)
-	router.POST("/api/v1/datalink/studio-v2/workspace/recording-plans/test-write", handler.TestWrite)
+	// Without a configured test-write service the legacy plan route still
+	// refuses a bare plan_id before resolving or writing anything.
+	testWriteHandler := handlers.NewStudioV2WorkspaceWriteGroupTestWriteHandler(workspaceSvc, nil, nil)
+	router.POST("/api/v1/datalink/studio-v2/workspace/recording-plans/test-write", testWriteHandler.LegacyConfirm)
 
 	current, err := workspaceSvc.GetOrCreate(context.Background())
 	if err != nil {
@@ -252,5 +255,5 @@ func TestStudioV2WorkspaceRecordingPlans_Capabilities_And_SchemaPreview(t *testi
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assertRecordingTestWriteNotImplemented(t, w, "req-c1-existing-seeded-plan")
+	assertRecordingValidationError(t, w)
 }

@@ -3,9 +3,11 @@ package recordingplan
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -151,5 +153,83 @@ func TestSQLRepository_TokenCannotBindASecondOperation(t *testing.T) {
 	}
 	if _, _, err := repo.ClaimSchemaOperation(ctx, ledgerOperation("op-2", "tok-1", "scope-b", "claim-2")); !errors.Is(err, ErrSchemaOperationMismatch) {
 		t.Fatalf("a token must keep its issued operation, got %v", err)
+	}
+}
+
+func testWriteOperation(id, token, scope, owner string) *SchemaOperation {
+	op := ledgerOperation(id, token, scope, owner)
+	op.Action = "test_write"
+	op.PayloadDigest = "digest-1"
+	op.Detail = `{"marker":"gw_test_op1"}`
+	return op
+}
+
+func TestOperationLedgerKeepsTestWriteFactsForSQLAndMemory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ledger.db")
+	db := openLedgerDB(t, path)
+	applyRecordingDDL(t, db)
+	for name, repo := range map[string]Repository{"sql": NewSQLRepository(db), "memory": NewMemoryRepository()} {
+		claimed, outcome, err := repo.ClaimSchemaOperation(t.Context(), testWriteOperation("op-"+name, "tok-"+name, "scope-"+name, "claim-1"))
+		if err != nil || outcome != ClaimAcquired {
+			t.Fatalf("%s claim: outcome=%q err=%v", name, outcome, err)
+		}
+		if claimed.PayloadDigest != "digest-1" {
+			t.Fatalf("%s: the claim returns the stored digest, got %q", name, claimed.PayloadDigest)
+		}
+		finished, err := repo.FinishSchemaOperation(t.Context(), "op-"+name, "claim-1", SchemaOperationResult{
+			Status: SchemaOperationPartial, WriteOutcome: "written_unverified", CleanupStatus: "failed", CleanupReason: "delete-forbidden",
+			Reason: "readback-forbidden", PayloadDigest: "digest-1", Detail: `{"marker":"gw_test_op1","rows":1}`,
+		})
+		if err != nil {
+			t.Fatalf("%s finish: %v", name, err)
+		}
+		if finished.WriteOutcome != "written_unverified" || finished.CleanupStatus != "failed" || finished.CleanupReason != "delete-forbidden" {
+			t.Fatalf("%s: result facts were not kept: %+v", name, finished)
+		}
+		read, err := repo.GetSchemaOperation(t.Context(), "ws-1", "op-"+name)
+		if err != nil {
+			t.Fatalf("%s read: %v", name, err)
+		}
+		if read.WriteOutcome != "written_unverified" || read.CleanupStatus != "failed" || read.PayloadDigest != "digest-1" ||
+			read.Detail != `{"marker":"gw_test_op1","rows":1}` {
+			t.Fatalf("%s: a re-read lost result facts: %+v", name, read)
+		}
+		body, err := json.Marshal(read)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(body), "marker") || strings.Contains(string(body), "detail") {
+			t.Fatalf("%s: service-owned detail must never be serialized: %s", name, body)
+		}
+	}
+}
+
+func TestOperationLedgerTakeOverOnlyAfterTheLeaseRanOut(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ledger.db")
+	db := openLedgerDB(t, path)
+	applyRecordingDDL(t, db)
+	for name, repo := range map[string]operationExecutionRepository{"sql": NewSQLRepository(db), "memory": NewMemoryRepository()} {
+		base := repo.(Repository)
+		if _, _, err := base.ClaimSchemaOperation(t.Context(), testWriteOperation("op-"+name, "tok-"+name, "scope-"+name, "claim-old")); err != nil {
+			t.Fatal(err)
+		}
+		fresh, err := repo.TakeOverSchemaOperation(t.Context(), "op-"+name, "claim-new", time.Now().UTC().Add(-time.Hour))
+		if err != nil || fresh != nil {
+			t.Fatalf("%s: a live lease must not be taken over (op=%v err=%v)", name, fresh, err)
+		}
+		taken, err := repo.TakeOverSchemaOperation(t.Context(), "op-"+name, "claim-new", time.Now().UTC().Add(time.Hour))
+		if err != nil || taken == nil || taken.Owner != "claim-new" {
+			t.Fatalf("%s: an expired lease is taken over by the new owner (op=%v err=%v)", name, taken, err)
+		}
+		if _, err := base.FinishSchemaOperation(t.Context(), "op-"+name, "claim-old", SchemaOperationResult{Status: SchemaOperationFailed}); !errors.Is(err, ErrSchemaOperationNotOwned) {
+			t.Fatalf("%s: the old owner is fenced out, got %v", name, err)
+		}
+		if _, err := base.FinishSchemaOperation(t.Context(), "op-"+name, "claim-new", SchemaOperationResult{Status: SchemaOperationSucceeded}); err != nil {
+			t.Fatalf("%s: the new owner finishes: %v", name, err)
+		}
+		again, err := repo.TakeOverSchemaOperation(t.Context(), "op-"+name, "claim-3", time.Now().UTC().Add(time.Hour))
+		if err != nil || again != nil {
+			t.Fatalf("%s: a finished operation is never taken over (op=%v err=%v)", name, again, err)
+		}
 	}
 }

@@ -10,7 +10,8 @@ import (
 
 const (
 	schemaOperationColumns = `operation_id, token, workspace_id, scope_key, owner, action, status,
-		executed_statements, verified_digest, reason, next_action, created_at, updated_at, completed_at`
+		executed_statements, verified_digest, reason, next_action, created_at, updated_at, completed_at,
+		payload_digest, write_outcome, cleanup_status, cleanup_reason, detail`
 	schemaOperationSelect           = `SELECT ` + schemaOperationColumns + ` FROM managed_schema_operations `
 	schemaOperationByIDQuery        = schemaOperationSelect + `WHERE operation_id = $1`
 	schemaOperationByWorkspaceQuery = schemaOperationSelect + `WHERE operation_id = $1 AND workspace_id = $2`
@@ -20,16 +21,26 @@ const (
 	// The primary key, the unique token and the partial unique index on active
 	// scopes turn this single conditional insert into the execution claim.
 	claimSchemaOperationQuery = `INSERT INTO managed_schema_operations (` + schemaOperationColumns + `)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		ON CONFLICT DO NOTHING`
 	finishSchemaOperationQuery = `UPDATE managed_schema_operations
 		SET status = $1, executed_statements = $2, verified_digest = $3, reason = $4, next_action = $5,
-			updated_at = $6, completed_at = $7
-		WHERE operation_id = $8 AND owner = $9 AND owner <> '' AND status IN ('pending', 'running')`
+			updated_at = $6, completed_at = $7, payload_digest = $8, write_outcome = $9, cleanup_status = $10,
+			cleanup_reason = $11, detail = $12
+		WHERE operation_id = $13 AND owner = $14 AND owner <> '' AND status IN ('pending', 'running')`
 	finishStaleSchemaOperationQuery = `UPDATE managed_schema_operations
 		SET status = $1, executed_statements = $2, verified_digest = $3, reason = $4, next_action = $5,
-			updated_at = $6, completed_at = $7
-		WHERE operation_id = $8 AND status IN ('pending', 'running') AND updated_at < $9`
+			updated_at = $6, completed_at = $7, payload_digest = $8, write_outcome = $9, cleanup_status = $10,
+			cleanup_reason = $11, detail = $12
+		WHERE operation_id = $13 AND status IN ('pending', 'running') AND updated_at < $14`
+	// A restarted gateway adopts an active operation whose lease ran out. The
+	// owner changes, so the previous owner can no longer finish it.
+	saveSchemaOperationProgressQuery = `UPDATE managed_schema_operations
+		SET detail = $1, updated_at = $2
+		WHERE operation_id = $3 AND owner = $4 AND owner <> '' AND status IN ('pending', 'running')`
+	takeOverSchemaOperationQuery = `UPDATE managed_schema_operations
+		SET owner = $1, updated_at = $2
+		WHERE operation_id = $3 AND status IN ('pending', 'running') AND updated_at < $4`
 )
 
 // ClaimSchemaOperation records op as the owner of its scope unless the same
@@ -69,7 +80,8 @@ func (r *SQLRepository) FinishSchemaOperation(ctx context.Context, operationID, 
 	now := time.Now().UTC()
 	res, err := r.db.ExecContext(ctx, adaptPlaceholders(finishSchemaOperationQuery),
 		string(result.Status), result.ExecutedStatements, result.VerifiedDigest, result.Reason, result.NextAction,
-		now, now, operationID, owner)
+		now, now, result.PayloadDigest, result.WriteOutcome, result.CleanupStatus, result.CleanupReason, result.Detail,
+		operationID, owner)
 	if err != nil {
 		return nil, fmt.Errorf("finish schema operation: %w", err)
 	}
@@ -90,7 +102,8 @@ func (r *SQLRepository) FinishStaleSchemaOperation(ctx context.Context, operatio
 	now := time.Now().UTC()
 	res, err := r.db.ExecContext(ctx, adaptPlaceholders(finishStaleSchemaOperationQuery),
 		string(result.Status), result.ExecutedStatements, result.VerifiedDigest, result.Reason, result.NextAction,
-		now, now, operationID, staleBefore)
+		now, now, result.PayloadDigest, result.WriteOutcome, result.CleanupStatus, result.CleanupReason, result.Detail,
+		operationID, staleBefore)
 	if err != nil {
 		return nil, fmt.Errorf("finish stale schema operation: %w", err)
 	}
@@ -108,7 +121,7 @@ func (r *SQLRepository) insertSchemaOperation(ctx context.Context, op *SchemaOpe
 	res, err := r.db.ExecContext(ctx, adaptPlaceholders(claimSchemaOperationQuery),
 		op.OperationID, op.Token, op.WorkspaceID, op.ScopeKey, op.Owner, op.Action, string(op.Status),
 		op.ExecutedStatements, op.VerifiedDigest, op.Reason, op.NextAction, op.CreatedAt, op.UpdatedAt,
-		optionalOperationTime(op.CompletedAt))
+		optionalOperationTime(op.CompletedAt), op.PayloadDigest, op.WriteOutcome, op.CleanupStatus, op.CleanupReason, op.Detail)
 	if err != nil {
 		return false, fmt.Errorf("claim schema operation: %w", err)
 	}
@@ -158,6 +171,7 @@ func (r *SQLRepository) querySchemaOperation(ctx context.Context, query string, 
 	err := r.db.QueryRowContext(ctx, adaptPlaceholders(query), args...).Scan(
 		&op.OperationID, &op.Token, &op.WorkspaceID, &op.ScopeKey, &op.Owner, &op.Action, &status,
 		&op.ExecutedStatements, &op.VerifiedDigest, &op.Reason, &op.NextAction, &op.CreatedAt, &op.UpdatedAt, &completed,
+		&op.PayloadDigest, &op.WriteOutcome, &op.CleanupStatus, &op.CleanupReason, &op.Detail,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrSchemaOperationNotFound
@@ -178,4 +192,39 @@ func optionalOperationTime(value *time.Time) any {
 		return nil
 	}
 	return *value
+}
+
+// TakeOverSchemaOperation gives an active operation whose last update is
+// before staleBefore to newOwner. A nil operation without error means the
+// lease is still live or the operation already ended.
+func (r *SQLRepository) TakeOverSchemaOperation(ctx context.Context, operationID, newOwner string, staleBefore time.Time) (*SchemaOperation, error) {
+	res, err := r.db.ExecContext(ctx, adaptPlaceholders(takeOverSchemaOperationQuery),
+		newOwner, time.Now().UTC(), operationID, staleBefore)
+	if err != nil {
+		return nil, fmt.Errorf("take over schema operation: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read taken over schema operation: %w", err)
+	}
+	if affected != 1 {
+		return nil, nil
+	}
+	return r.querySchemaOperation(ctx, schemaOperationByIDQuery, operationID)
+}
+
+// SaveSchemaOperationProgress stores detail for the owner of an active operation.
+func (r *SQLRepository) SaveSchemaOperationProgress(ctx context.Context, operationID, owner, detail string) error {
+	res, err := r.db.ExecContext(ctx, adaptPlaceholders(saveSchemaOperationProgressQuery), detail, time.Now().UTC(), operationID, owner)
+	if err != nil {
+		return fmt.Errorf("save schema operation progress: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read saved schema operation progress: %w", err)
+	}
+	if affected != 1 {
+		return fmt.Errorf("%w: %s", ErrSchemaOperationNotOwned, operationID)
+	}
+	return nil
 }

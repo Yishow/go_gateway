@@ -21,7 +21,16 @@ func ensureSQLiteTelemetryRecordingMigrations(db *sql.DB) error {
 	if err := ensureSQLiteSchemaOperationsTable(db); err != nil {
 		return err
 	}
-	return ensureSQLiteDurableDeliveryTables(db)
+	if err := ensureSQLiteOperationTestWriteColumns(db); err != nil {
+		return err
+	}
+	if err := ensureSQLiteDurableDeliveryTables(db); err != nil {
+		return err
+	}
+	if err := ensureSQLiteWriteGroupsTables(db); err != nil {
+		return err
+	}
+	return ensureSQLiteWriteGroupDeliveryTables(db)
 }
 
 // ensureSQLiteSchemaOperationsTable creates the durable schema operation ledger.

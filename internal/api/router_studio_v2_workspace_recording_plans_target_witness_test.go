@@ -104,7 +104,7 @@ func TestStudioV2WorkspaceRecordingPlans_UnimplementedMutationsLeaveConfiguredTa
 
 	testWriteBody := `{"plan_id":"plan-c1-target-witness","stream_id":"stream-c1-target"}`
 	testWriteResponse := serveRecordingPlanMutation(router, "/api/v1/datalink/studio-v2/workspace/recording-plans/test-write", &testWriteBody, "req-c1-target-write")
-	assertRecordingTestWriteNotImplemented(t, testWriteResponse, "req-c1-target-write")
+	assertRecordingValidationError(t, testWriteResponse)
 
 	afterTables, afterValue := readTargetWitnessState(ctx, t, targetDB)
 	if !reflect.DeepEqual(beforeTables, afterTables) || beforeValue != afterValue {

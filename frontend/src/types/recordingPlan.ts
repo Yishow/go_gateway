@@ -86,6 +86,8 @@ export interface ConnectorCapability {
   supports_transactions: boolean;
   supports_receipts: boolean;
   supports_test_writes: boolean;
+  /** The backend can run confirmed test writes for a saved write group; absent means no. */
+  supports_group_test_writes?: boolean;
   supported_modes: string[];
   notes?: string;
 }

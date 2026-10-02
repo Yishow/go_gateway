@@ -17,14 +17,20 @@ const (
 
 // ConnectorCapability 描述目標資料庫已驗證的功能。
 type ConnectorCapability struct {
-	Kind                  string   `json:"kind"`
-	Supported             bool     `json:"supported"`
-	SupportsManagedSchema bool     `json:"supports_managed_schema"`
-	SupportsTransactions  bool     `json:"supports_transactions"`
-	SupportsReceipts      bool     `json:"supports_receipts"`
-	SupportsTestWrites    bool     `json:"supports_test_writes"`
-	SupportedModes        []string `json:"supported_modes"`
-	Notes                 string   `json:"notes,omitempty"`
+	Kind                  string `json:"kind"`
+	Supported             bool   `json:"supported"`
+	SupportsManagedSchema bool   `json:"supports_managed_schema"`
+	SupportsTransactions  bool   `json:"supports_transactions"`
+	SupportsReceipts      bool   `json:"supports_receipts"`
+	SupportsTestWrites    bool   `json:"supports_test_writes"`
+	// SupportsGroupTestWrites says the backend can run confirmed test writes
+	// for a saved WriteGroup on this kind. It is independent of
+	// SupportsTestWrites, which still gates the legacy plan-based Step 4 button
+	// until the guided setup (E) adopts the group flow; a particular group may
+	// still be refused at preview when its table cannot identify test rows.
+	SupportsGroupTestWrites bool     `json:"supports_group_test_writes"`
+	SupportedModes          []string `json:"supported_modes"`
+	Notes                   string   `json:"notes,omitempty"`
 }
 
 // TestWriteResult 描述試寫與回讀驗證結果。
@@ -52,29 +58,31 @@ func (s *Service) GetConnectorCapability(kind string) ConnectorCapability {
 	k := strings.ToLower(strings.TrimSpace(kind))
 	// The capability matrix must reflect what the server actually accepts:
 	// managed schema follows ManagedSchemaExecutionVerified so the flag can
-	// never contradict the adapter gate in ApplySchemaPreview. Test writes stay
-	// masked until that operation is wired end to end.
+	// never contradict the adapter gate in ApplySchemaPreview. Legacy plan test
+	// writes stay masked; group test writes are advertised separately.
 	managedSchema := ManagedSchemaExecutionVerified(k)
 	switch k {
 	case dialectSQLite, dialectSQLite3:
 		return ConnectorCapability{
-			Kind:                  kind,
-			Supported:             true,
-			SupportsManagedSchema: managedSchema,
-			SupportsTransactions:  true,
-			SupportsReceipts:      true,
-			SupportsTestWrites:    false,
-			SupportedModes:        []string{managedRecordingMode, customTableMode},
+			Kind:                    kind,
+			Supported:               true,
+			SupportsManagedSchema:   managedSchema,
+			SupportsTransactions:    true,
+			SupportsReceipts:        true,
+			SupportsTestWrites:      false,
+			SupportsGroupTestWrites: true,
+			SupportedModes:          []string{managedRecordingMode, customTableMode},
 		}
 	case dialectPostgres, dialectPostgreSQL, dialectPgx:
 		return ConnectorCapability{
-			Kind:                  kind,
-			Supported:             true,
-			SupportsManagedSchema: managedSchema,
-			SupportsTransactions:  true,
-			SupportsReceipts:      true,
-			SupportsTestWrites:    false,
-			SupportedModes:        []string{managedRecordingMode, customTableMode},
+			Kind:                    kind,
+			Supported:               true,
+			SupportsManagedSchema:   managedSchema,
+			SupportsTransactions:    true,
+			SupportsReceipts:        true,
+			SupportsTestWrites:      false,
+			SupportsGroupTestWrites: true,
+			SupportedModes:          []string{managedRecordingMode, customTableMode},
 		}
 	case "mysql":
 		// MySQL commits each DDL statement on its own, so a managed schema batch

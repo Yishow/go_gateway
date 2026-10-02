@@ -1,5 +1,7 @@
 # 預定驗收矩陣（尚未執行）
 
+A 的本地設定／移轉／交易介面（已 archive）、B 的 sample 語意（已 archive）、C 的 durable delivery 與 D 的確認試寫（後端／API／前端 service，UI 仍待 E）都有實測，見各 change 的 validation（[A](../../../openspec/changes/archive/2026-10-02-unify-studio-v2-write-group-contract/validation.md)、[B](../../../openspec/changes/archive/2026-10-02-enforce-write-group-sample-semantics/validation.md)、[C](../../../openspec/changes/archive/2026-10-02-wire-durable-write-group-delivery/validation.md)、[D](../../../openspec/changes/archive/2026-10-02-implement-confirmed-write-group-test-write/validation.md)）；下表以 deterministic fixture 為設計值，E–F 的完整 UI／runtime／SQL 驗收仍待執行，不能由 A–C 的結果推論。
+
 以下數字是deterministic設計fixture，不是production規模、速度或穩定性測量。每案例保存command、source/build SHA、平台、run IDs、實際assertions與sanitized SQL/UI witness。
 
 基礎fixture：兩台loopback simulator設備A/B可同時有40001；group G含temperature decimal、pressure integer、running bool、batch text及uint64 9007199254740993。測試bucket interval=10秒、lateness=0、max_age=10秒，固定clock `2026-01-01T00:00:00Z` 起；production defaults不由此推斷。

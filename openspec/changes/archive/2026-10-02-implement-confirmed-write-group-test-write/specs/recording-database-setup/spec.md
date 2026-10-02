@@ -38,7 +38,7 @@ The system SHALL separate data preview, confirmed write and readback verificatio
 ## ADDED Requirements
 
 ### Requirement: Write-group test operations use production delivery
-Test-write previews SHALL be mutation-free and preserve action kind, operation ID, content digest, scope, expiry and expected workspace/group/connector revisions in the existing durable operation ledger. Confirmation MUST atomically claim execution once and use the production row codec and sender. The system SHALL expose saved operation results separately from cleanup status.
+Test-write previews SHALL be mutation-free and preserve action kind, operation ID, content digest, scope, expiry and expected workspace/group/connector revisions in the existing durable operation ledger. Confirmation MUST atomically claim execution once and use the production row layout, row codec and destination insert path (including the group dedupe strategy); it MUST NOT route the test row through the delivery outbox, so it never enters group backlog, quota or partition ordering, and its result waits for destination commit evidence. The system SHALL expose saved operation results separately from cleanup status.
 
 #### Scenario: Action-bound token and scopes
 - **WHEN** a client confirms with a schema-create token, stale revision, expired unclaimed token, missing fields or foreign operation

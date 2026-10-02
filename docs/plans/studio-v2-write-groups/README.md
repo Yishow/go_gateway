@@ -1,6 +1,6 @@
 # Studio V2：從採集到資料庫的收斂計畫
 
-本次交付是 **六份尚未實作的 OpenSpec changes 與文件整理**。保留 Go／React，在 `/studio/v2` 原地改善；不建立 V3、不恢復 `/studio`，也不部署。
+2026-10-02 已授權依 **A→F 順序實作並驗證六案**；各 change 的 tasks 與實作驗證紀錄表示當前進度。保留 Go／React，在 `/studio/v2` 原地改善；不建立 V3、不恢復 `/studio`，也不部署。
 
 ## 凍結基本需求
 
@@ -12,10 +12,10 @@
 
 | 順序 | Change | 唯一負責交付 | 必要前置 |
 | --- | --- | --- | --- |
-| A | [unify-studio-v2-write-group-contract](../../../openspec/changes/unify-studio-v2-write-group-contract/proposal.md) | 群組模型、相容adapter、原子保存、authority切換 | 現有安全契約 |
-| B | [enforce-write-group-sample-semantics](../../../openspec/changes/enforce-write-group-sample-semantics/proposal.md) | 原始時間/型別/品質、snapshot closure、row identity | A驗證 |
-| C | [wire-durable-write-group-delivery](../../../openspec/changes/wire-durable-write-group-delivery/proposal.md) | production intake/journal/outbox/sender/restart及交付truth | B驗證 |
-| D | [implement-confirmed-write-group-test-write](../../../openspec/changes/implement-confirmed-write-group-test-write/proposal.md) | confirm/write/readback/cleanup，接手舊3.3/3.4 | C驗證 |
+| A | [unify-studio-v2-write-group-contract](../../../openspec/changes/archive/2026-10-02-unify-studio-v2-write-group-contract/proposal.md) | 群組模型、相容adapter、原子保存、authority／切換介面 | 現有安全契約 |
+| B | [enforce-write-group-sample-semantics](../../../openspec/changes/archive/2026-10-02-enforce-write-group-sample-semantics/proposal.md) | 原始時間/型別/品質、snapshot closure、row identity | A驗證 |
+| C | [wire-durable-write-group-delivery](../../../openspec/changes/archive/2026-10-02-wire-durable-write-group-delivery/proposal.md) | production intake/journal/outbox/sender/restart及交付truth | B驗證 |
+| D | [implement-confirmed-write-group-test-write](../../../openspec/changes/archive/2026-10-02-implement-confirmed-write-group-test-write/proposal.md) | confirm/write/readback/cleanup，接手舊3.3/3.4 | C驗證 |
 | E | [simplify-studio-v2-four-step-setup](../../../openspec/changes/simplify-studio-v2-four-step-setup/proposal.md) | capability、前三步、群組Step4/readiness，接手舊2.3/4.1 | D驗證 |
 | F | [validate-studio-v2-device-to-sql](../../../openspec/changes/validate-studio-v2-device-to-sql/proposal.md) | production UI→實際SQL及故障矩陣，接手舊4.3 | E驗證 |
 
@@ -34,5 +34,7 @@
 - [跨案資料契約](contracts.md)
 - [預定驗收矩陣](acceptance.md)
 - [本次文件檢查結果](validation.md)
+- [A 的設定／移轉／回復說明](../../technical/studio-v2-write-groups.md)
+- [A 的實作驗證紀錄](../../../openspec/changes/archive/2026-10-02-unify-studio-v2-write-group-contract/validation.md)
 
-新增 tasks 全未勾選。測試名稱是待實作驗收標籤，除evidence明列source中已存在者外，不表示測試已存在或通過。日期2026-10-01；起草基準main `4c00af81fb51b3239b4e0d0d9c6b83680c808b36`。
+原提案建立時，新增 tasks 全未勾選，測試名稱是待實作驗收標籤；現在只按實際實作與驗證結果勾選，不因 artifacts 齊全表示產品完成。提案起草日期2026-10-01、基準main `4c00af81fb51b3239b4e0d0d9c6b83680c808b36`；本輪實作起始 SHA 與實際證據記於各 change 的 validation。

@@ -29,6 +29,7 @@ var recordingMigrationFiles = []string{
 	"019_recording_plans_sqlite.up.sql",
 	"022_schema_preview_scope_sqlite.up.sql",
 	"023_schema_operations_sqlite.up.sql",
+	"026_operation_test_write_sqlite.up.sql",
 }
 
 func applyRecordingDDL(t *testing.T, db *sql.DB) {

@@ -231,6 +231,7 @@ export function parseRecordingConnectorCapability(value: unknown): ConnectorCapa
     typeof value.supports_transactions !== 'boolean' ||
     typeof value.supports_receipts !== 'boolean' ||
     typeof value.supports_test_writes !== 'boolean') return null;
+  if (value.supports_group_test_writes !== undefined && typeof value.supports_group_test_writes !== 'boolean') return null;
   const notes = optionalShortText(value, 'notes');
   if (notes === null) return null;
   return {
@@ -240,6 +241,7 @@ export function parseRecordingConnectorCapability(value: unknown): ConnectorCapa
     supports_transactions: value.supports_transactions,
     supports_receipts: value.supports_receipts,
     supports_test_writes: value.supports_test_writes,
+    ...(value.supports_group_test_writes !== undefined ? { supports_group_test_writes: value.supports_group_test_writes } : {}),
     supported_modes: supportedModes.map((mode) => boundedString(mode) as string),
     ...(notes ? { notes } : {}),
   };
