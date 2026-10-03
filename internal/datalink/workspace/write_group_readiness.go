@@ -18,6 +18,7 @@ type WriteGroupTableInspector interface {
 // WriteGroupReadiness is the read-only configuration and schema gate for one
 // canonical write group.
 type WriteGroupReadiness struct {
+	runtimeLayout     *WriteGroupRuntimeLayout
 	WorkspaceID       string           `json:"workspace_id"`
 	WorkspaceRevision string           `json:"workspace_revision"`
 	GroupID           string           `json:"group_id"`

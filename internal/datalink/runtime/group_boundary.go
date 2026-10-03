@@ -172,7 +172,7 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 		key := memberKey(member.DeviceID, member.PointID, member.TagID)
 		members[key] = boundaryMember{key: key, kind: kind}
 		layoutMembers = append(layoutMembers, dbtarget.GroupRowMember{
-			MemberKey: key, Column: member.TargetColumn, Type: kind, Required: member.Required,
+			MemberKey: key, EntityKey: member.EntityKey, Column: member.TargetColumn, Type: kind, Required: member.Required,
 		})
 		var maxAge time.Duration
 		if member.MaxAgeSeconds != nil {
@@ -269,12 +269,6 @@ func (b *GroupBoundary) AcceptSample(ctx context.Context, envelope measurement.S
 	if !b.notBefore.IsZero() && envelope.ObservedAt.Before(b.notBefore) {
 		return nil // an earlier applied revision owns this sample
 	}
-	if !b.until.IsZero() && !envelope.ObservedAt.Before(b.until) {
-		return nil // a newer applied revision owns this sample
-	}
-	if envelope.WorkspaceID != b.workspaceID {
-		return &GroupSampleError{Outcome: snapshot.OfferRejected, Reason: reasonWorkspaceMismatch}
-	}
 	sample := snapshot.Sample{
 		SampleID: envelope.SampleID, MemberKey: member.key, ObservedAt: envelope.ObservedAt,
 		Quality: envelope.Quality, QualityReason: envelope.QualityReason,
@@ -292,6 +286,12 @@ func (b *GroupBoundary) AcceptSample(ctx context.Context, envelope measurement.S
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.until.IsZero() && !envelope.ObservedAt.Before(b.until) {
+		return nil // a newer applied revision owns this sample
+	}
+	if envelope.WorkspaceID != b.workspaceID {
+		return &GroupSampleError{Outcome: snapshot.OfferRejected, Reason: reasonWorkspaceMismatch}
+	}
 	now := b.clock()
 	result := b.assembler.Check(sample, now)
 	switch result.Outcome {

@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { GroupLifecycleBar } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar';
 import { WriteGroupSection } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import type { WriteGroup, WriteGroupReadiness } from '@/types/studioV2WriteGroup';
@@ -114,6 +115,87 @@ describe('RevisionSafeGroupActivation: Apply', () => {
     api.list.mockResolvedValue(list([savedGroup({ applied_revision: 'rev-1', status: 'ready' })], 'wrev-2'));
     release({ workspace_revision: 'wrev-2', group: savedGroup({ applied_revision: 'rev-1' }) });
     await waitFor(() => expect(screen.getByTestId('group-applied-revision')).toHaveTextContent('rev-1'));
+  });
+
+  it('does not let a late lifecycle reply replace another group with an unsaved draft', async () => {
+    const other = savedGroup({ id: 'group-2', name: 'Group B' });
+    let release: (value: unknown) => void = () => undefined;
+    api.list.mockResolvedValue(list([savedGroup(), other]));
+    api.apply.mockReturnValue(new Promise((resolve) => { release = resolve; }) as never);
+    mount();
+    await openSaved();
+    await waitFor(() => expect(screen.getByTestId('group-apply')).not.toBeDisabled());
+    fireEvent.click(screen.getByTestId('group-apply'));
+    await waitFor(() => expect(api.apply).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('group-editor-close'));
+    fireEvent.click(await screen.findByTestId('group-open-group-2'));
+    fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Unsaved B' } });
+    release({ workspace_revision: 'wrev-2', group: savedGroup({ applied_revision: 'rev-1' }) });
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(screen.getByTestId('group-name')).toHaveValue('Unsaved B');
+    expect(screen.getByTestId('group-dirty-note')).toBeInTheDocument();
+  });
+
+  it('drops a late lifecycle failure after the group revision scope changes', async () => {
+    let reject: (reason: unknown) => void = () => undefined;
+    api.disable.mockReturnValue(new Promise((_, rejectFn) => { reject = rejectFn; }) as never);
+    const onChanged = vi.fn();
+    const onConflict = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const initial = savedGroup();
+    const next = savedGroup({ revision: 'rev-2', name: 'New revision' });
+    const view = render(
+      <QueryClientProvider client={client}>
+        <GroupLifecycleBar
+          group={initial} workspaceId="ws-1" workspaceRevision="wrev-1" canApply={true} readonly={false}
+          onChanged={onChanged} onConflict={onConflict}
+        />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByTestId('group-disable'));
+    await waitFor(() => expect(api.disable).toHaveBeenCalledTimes(1));
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <GroupLifecycleBar
+          group={next} workspaceId="ws-1" workspaceRevision="wrev-1" canApply={true} readonly={false}
+          onChanged={onChanged} onConflict={onConflict}
+        />
+      </QueryClientProvider>,
+    );
+    await act(async () => {
+      reject(new Error('network down'));
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId('group-lifecycle-error')).not.toBeInTheDocument();
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(onConflict).not.toHaveBeenCalled();
+  });
+
+  it('drops a late lifecycle conflict after the original editor unmounts', async () => {
+    let reject: (reason: unknown) => void = () => undefined;
+    api.apply.mockReturnValue(new Promise((_, rejectFn) => { reject = rejectFn; }) as never);
+    const onChanged = vi.fn();
+    const onConflict = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const view = render(
+      <QueryClientProvider client={client}>
+        <GroupLifecycleBar
+          group={savedGroup()} workspaceId="ws-1" workspaceRevision="wrev-1" canApply={true} readonly={false}
+          onChanged={onChanged} onConflict={onConflict}
+        />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByTestId('group-apply'));
+    await waitFor(() => expect(api.apply).toHaveBeenCalledTimes(1));
+    view.unmount();
+    await act(async () => {
+      reject(typedError('revision_mismatch'));
+      await Promise.resolve();
+    });
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(onConflict).not.toHaveBeenCalled();
   });
 
   it('shows a stale apply as a conflict and keeps the editor usable', async () => {

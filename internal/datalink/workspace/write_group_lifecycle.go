@@ -25,12 +25,13 @@ var (
 // WriteGroupAppliedSnapshot is an immutable applied group snapshot selected
 // for one UTC bucket boundary. Group is always returned as a defensive copy.
 type WriteGroupAppliedSnapshot struct {
-	WorkspaceID     string      `json:"workspace_id"`
-	GroupID         string      `json:"group_id"`
-	GroupRevision   string      `json:"group_revision"`
-	AppliedRevision string      `json:"applied_revision"`
-	EffectiveAt     time.Time   `json:"effective_at"`
-	Group           *WriteGroup `json:"group"`
+	WorkspaceID     string                   `json:"workspace_id"`
+	GroupID         string                   `json:"group_id"`
+	GroupRevision   string                   `json:"group_revision"`
+	AppliedRevision string                   `json:"applied_revision"`
+	EffectiveAt     time.Time                `json:"effective_at"`
+	Group           *WriteGroup              `json:"group"`
+	RuntimeLayout   *WriteGroupRuntimeLayout `json:"runtime_layout,omitempty"`
 }
 
 // WriteGroupIntakeEligibility describes whether new samples may enter the
@@ -177,6 +178,15 @@ func (s *WriteGroupService) Apply(ctx context.Context, id string, mutation Write
 		if err := s.repo.validate(ctx, tx, candidate); err != nil {
 			return err
 		}
+		if readiness.runtimeLayout != nil {
+			currentTypes, err := loadWriteGroupTagTypes(ctx, tx, s.repo.query, candidate)
+			if err != nil {
+				return err
+			}
+			if !reflect.DeepEqual(currentTypes, readiness.runtimeLayout.TagTypes) {
+				return writeGroupRevisionConflict("write group tag types changed during schema verification")
+			}
+		}
 		candidate.Status = WriteGroupStatusReady
 		candidate.UpdatedAt = s.clockNow()
 		activeSnapshot, snapshotErr := s.repo.versionByRevisionInTx(ctx, tx, record.ID, existing.ID, existing.AppliedRevision)
@@ -188,6 +198,10 @@ func (s *WriteGroupService) Apply(ctx context.Context, id string, mutation Write
 			// a second bucket snapshot. Keep the prior active revision while
 			// explicitly moving the saved draft back to ready.
 			candidate.AppliedRevision = existing.AppliedRevision
+			activeSnapshot.RuntimeLayout = readiness.runtimeLayout
+			if err := s.saveRuntimeVersionInTx(ctx, tx, activeSnapshot); err != nil {
+				return err
+			}
 			if err := s.repo.setAppliedInTx(ctx, tx, candidate); err != nil {
 				return err
 			}
@@ -216,6 +230,13 @@ func (s *WriteGroupService) Apply(ctx context.Context, id string, mutation Write
 			return fmt.Errorf("schedule write-group cutover: %w", err)
 		}
 		if err := s.repo.insertVersionInTx(ctx, tx, candidate, effectiveAt); err != nil {
+			return err
+		}
+		if err := s.saveRuntimeVersionInTx(ctx, tx, &WriteGroupAppliedSnapshot{
+			WorkspaceID: record.ID, GroupID: candidate.ID, GroupRevision: candidate.Revision,
+			AppliedRevision: candidate.AppliedRevision, EffectiveAt: effectiveAt.UTC(),
+			Group: candidate, RuntimeLayout: readiness.runtimeLayout,
+		}); err != nil {
 			return err
 		}
 		if err := s.repo.setAppliedInTx(ctx, tx, candidate); err != nil {

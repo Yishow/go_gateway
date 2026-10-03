@@ -13,6 +13,9 @@ import (
 // GroupRowMember binds one snapshot member to a destination column.
 type GroupRowMember struct {
 	MemberKey string
+	// EntityKey partitions this member into the row emitted for that entity.
+	// Empty means the member belongs to the fixed group scope.
+	EntityKey string
 	Column    string
 	Type      measurement.ExactType
 	Required  bool
@@ -104,7 +107,6 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		columns[strings.ToLower(column.Name)] = column
 	}
 	var issues []LayoutIssue
-	used := make(map[string]struct{})
 	lookup := func(name string) (ColumnInfo, bool) {
 		column, ok := columns[strings.ToLower(name)]
 		if !ok {
@@ -112,21 +114,19 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		}
 		return column, ok
 	}
-	claim := func(name string) {
-		key := strings.ToLower(name)
-		if _, dup := used[key]; dup {
-			issues = append(issues, LayoutIssue{Code: issueDuplicateColumn, Column: name})
-		}
-		used[key] = struct{}{}
-	}
 
 	nullableOptional := true
+	entityKeys := make([]string, 0, len(spec.Members))
+	seenEntities := make(map[string]struct{}, len(spec.Members))
 	for _, member := range spec.Members {
+		if _, seen := seenEntities[member.EntityKey]; !seen {
+			seenEntities[member.EntityKey] = struct{}{}
+			entityKeys = append(entityKeys, member.EntityKey)
+		}
 		if member.MemberKey == "" || member.Column == "" || member.Type == "" {
 			issues = append(issues, LayoutIssue{Code: issueMemberIncomplete, MemberKey: member.MemberKey})
 			continue
 		}
-		claim(member.Column)
 		column, ok := lookup(member.Column)
 		if !ok {
 			continue
@@ -142,7 +142,7 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		}
 	}
 
-	for _, identity := range []struct {
+	identities := []struct {
 		column string
 		check  func(ColumnInfo) bool
 	}{
@@ -150,11 +150,36 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		{spec.EntityKeyColumn, func(c ColumnInfo) bool { return isTextColumn(spec.Dialect, c) }},
 		{spec.BucketStartColumn, func(c ColumnInfo) bool { return bucketColumnKind(spec.Dialect, c) != bucketUnsupported }},
 		{spec.ProvenanceColumn, func(c ColumnInfo) bool { return isProvenanceColumn(spec.Dialect, c) }},
-	} {
+	}
+	if len(entityKeys) == 0 {
+		entityKeys = append(entityKeys, "")
+	}
+	for _, entityKey := range entityKeys {
+		used := make(map[string]struct{}, len(spec.Members)+len(identities))
+		claim := func(name string) {
+			if name == "" {
+				return
+			}
+			key := strings.ToLower(name)
+			if _, dup := used[key]; dup {
+				issues = append(issues, LayoutIssue{Code: issueDuplicateColumn, Column: name})
+			}
+			used[key] = struct{}{}
+		}
+		for _, member := range spec.Members {
+			if member.EntityKey == entityKey && member.MemberKey != "" && member.Column != "" && member.Type != "" {
+				claim(member.Column)
+			}
+		}
+		for _, identity := range identities {
+			claim(identity.column)
+		}
+	}
+
+	for _, identity := range identities {
 		if identity.column == "" {
 			continue
 		}
-		claim(identity.column)
 		if column, ok := lookup(identity.column); ok && !identity.check(column) {
 			issues = append(issues, LayoutIssue{Code: issueIdentityUnsupported, Column: identity.column})
 		}
@@ -198,6 +223,26 @@ type provenanceEntry struct {
 	Quality    string `json:"quality,omitempty"`
 }
 
+func (l *GroupRowLayout) membersForEntity(entityKey string) []GroupRowMember {
+	entityScoped := false
+	for _, member := range l.spec.Members {
+		if member.EntityKey != "" {
+			entityScoped = true
+			break
+		}
+	}
+	if !entityScoped {
+		return l.spec.Members
+	}
+	members := make([]GroupRowMember, 0, len(l.spec.Members))
+	for _, member := range l.spec.Members {
+		if member.EntityKey == entityKey {
+			members = append(members, member)
+		}
+	}
+	return members
+}
+
 // EncodeRow converts a snapshot row into parameterized column values. Members
 // that are not usable are written as NULL only in an explicit partial layout.
 func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error) {
@@ -212,7 +257,11 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 		RecordID: outcome.RecordID, EffectKey: outcome.EffectKey, EntityKey: outcome.EntityKey,
 		BucketStart: outcome.BucketStart.UTC(), Partial: outcome.Partial,
 	}
-	for _, member := range l.spec.Members {
+	rowMembers := l.membersForEntity(outcome.EntityKey)
+	if len(rowMembers) == 0 {
+		return EncodedRow{}, &GroupRowError{Code: rowErrMemberMissing}
+	}
+	for _, member := range rowMembers {
 		result, ok := results[member.MemberKey]
 		if !ok {
 			return EncodedRow{}, &GroupRowError{Code: rowErrMemberMissing, Column: member.Column}

@@ -9,6 +9,8 @@ export interface EditorMember {
   device_id: string;
   point_id: string;
   tag_id: string;
+  /** Persisted by migrated groups but not currently exposed in this editor. */
+  measurement_id?: string;
   entity_key: string;
   target_column: string;
   required: boolean;
@@ -28,6 +30,11 @@ export interface EditorDraft {
   entity_key_column: string;
   provenance_column: string;
   dedupe_capability: string;
+  /** Persisted row-group contract fields without editor controls. */
+  group_key_columns?: string[];
+  unique_key_columns?: string[];
+  value_column?: string;
+  quality_column?: string;
   members: EditorMember[];
 }
 
@@ -63,9 +70,14 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
     members: group.members.map((member) => ({
       key: memberKey(member.point_id, member.tag_id),
       device_id: member.device_id, point_id: member.point_id, tag_id: member.tag_id,
+      ...(member.measurement_id !== undefined ? { measurement_id: member.measurement_id } : {}),
       entity_key: member.entity_key ?? '', target_column: member.target_column, required: member.required,
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
     })),
+    ...(group.row_policy.group_key_columns !== undefined ? { group_key_columns: [...group.row_policy.group_key_columns] } : {}),
+    ...(group.row_policy.unique_key_columns !== undefined ? { unique_key_columns: [...group.row_policy.unique_key_columns] } : {}),
+    ...(group.row_policy.value_column !== undefined ? { value_column: group.row_policy.value_column } : {}),
+    ...(group.row_policy.quality_column !== undefined ? { quality_column: group.row_policy.quality_column } : {}),
   };
 }
 
@@ -76,6 +88,7 @@ export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): Wr
     name: draft.name.trim(),
     members: draft.members.map((member) => ({
       device_id: member.device_id, point_id: member.point_id, tag_id: member.tag_id,
+      ...(member.measurement_id !== undefined ? { measurement_id: member.measurement_id } : {}),
       ...(member.entity_key.trim() ? { entity_key: member.entity_key.trim() } : {}),
       target_column: member.target_column.trim(), required: member.required,
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
@@ -88,6 +101,10 @@ export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): Wr
       interval_seconds: draft.interval_seconds, allowed_lateness_seconds: draft.allowed_lateness_seconds,
       incomplete_policy: draft.incomplete_policy,
       ...(draft.entity_key_column.trim() ? { entity_key_column: draft.entity_key_column.trim() } : {}),
+      ...(draft.group_key_columns !== undefined ? { group_key_columns: [...draft.group_key_columns] } : {}),
+      ...(draft.unique_key_columns !== undefined ? { unique_key_columns: [...draft.unique_key_columns] } : {}),
+      ...(draft.value_column !== undefined ? { value_column: draft.value_column } : {}),
+      ...(draft.quality_column !== undefined ? { quality_column: draft.quality_column } : {}),
       ...(draft.provenance_column.trim() ? { provenance_column: draft.provenance_column.trim() } : {}),
     },
     write_policy: { ...(draft.dedupe_capability ? { dedupe_capability: draft.dedupe_capability } : {}) },

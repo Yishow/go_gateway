@@ -104,6 +104,7 @@ type managed struct {
 	connector string
 	interval  time.Duration
 	effective time.Time
+	drainOnly bool
 }
 
 // Pipeline owns the applied write groups of one gateway.
@@ -264,6 +265,9 @@ func (p *Pipeline) AcceptSample(ctx context.Context, envelope measurement.Sample
 	p.mu.RUnlock()
 	var errs []error
 	for _, m := range current {
+		if m.drainOnly {
+			continue
+		}
 		if err := m.boundary.AcceptSample(ctx, envelope); err != nil {
 			errs = append(errs, err)
 		}
@@ -277,7 +281,7 @@ func (p *Pipeline) WantsSample(deviceID, pointID, tagID string) bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	for _, m := range p.boundaries {
-		if m.boundary.Wants(deviceID, pointID, tagID) {
+		if !m.drainOnly && m.boundary.Wants(deviceID, pointID, tagID) {
 			return true
 		}
 	}

@@ -39,6 +39,35 @@ describe('write group editor draft', () => {
     expect(request.members[0]).not.toHaveProperty('source_revision');
   });
 
+  it('preserves hidden migrated contracts when the editor only changes visible fields', () => {
+    const migrated = {
+      ...group,
+      members: group.members.map((member, index) => ({
+        ...member,
+        ...(index === 0 ? { measurement_id: 'measurement-1' } : {}),
+      })),
+      row_policy: {
+        ...group.row_policy,
+        group_key_columns: ['entity'],
+        unique_key_columns: ['entity', 'observed_at'],
+        value_column: 'value',
+        quality_column: 'quality',
+      },
+    };
+
+    const draft = groupToDraft(migrated);
+    const request = draftToRequestGroup({ ...draft, name: 'Renamed' }, 'ws-1');
+
+    expect(request.name).toBe('Renamed');
+    expect(request.row_policy).toMatchObject({
+      group_key_columns: ['entity'],
+      unique_key_columns: ['entity', 'observed_at'],
+      value_column: 'value',
+      quality_column: 'quality',
+    });
+    expect(request.members[0]).toMatchObject({ measurement_id: 'measurement-1' });
+  });
+
   it('is dirty only when something the server stores actually changed', () => {
     const draft = groupToDraft(group);
     expect(draftIsDirty(draft, group)).toBe(false);

@@ -170,11 +170,11 @@ func (s *Sender) Deliver(ctx context.Context, effectKey string) (DeliveryResult,
 	// that did commit is still written down while the process shuts down.
 	attemptCtx, cancelAttempt := context.WithTimeout(ctx, s.deliveryTimeout)
 	defer cancelAttempt()
-	settleCtx, cancelSettle := context.WithTimeout(context.WithoutCancel(ctx), s.settleTimeout)
-	defer cancelSettle()
 
 	target, err := s.targets.Resolve(attemptCtx, item)
 	if err != nil {
+		settleCtx, cancelSettle := context.WithTimeout(context.WithoutCancel(ctx), s.settleTimeout)
+		defer cancelSettle()
 		if errors.Is(err, ErrTargetBlocked) {
 			return s.blockClaimed(settleCtx, claim, codeTargetBlocked)
 		}
@@ -188,6 +188,8 @@ func (s *Sender) Deliver(ctx context.Context, effectKey string) (DeliveryResult,
 		Row: row, PayloadDigest: item.PayloadDigest, Strategy: item.Destination.DedupeCapability,
 		RecordKeyColumn: item.Destination.RecordKeyColumn, CommittedAt: timestamp(s.nowValue()),
 	})
+	settleCtx, cancelSettle := context.WithTimeout(context.WithoutCancel(ctx), s.settleTimeout)
+	defer cancelSettle()
 	return s.settle(settleCtx, claim, item, err)
 }
 

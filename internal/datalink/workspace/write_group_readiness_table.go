@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -121,6 +122,7 @@ func evaluateWriteGroupInspection(
 	group *WriteGroup,
 	tagTypes map[string]schema.DataType,
 	inspection *dbtarget.TableInspection,
+	connectorKinds ...string,
 ) (bool, []ReadinessIssue) {
 	if inspection == nil {
 		return false, []ReadinessIssue{writeGroupReadinessIssue(
@@ -137,6 +139,14 @@ func evaluateWriteGroupInspection(
 		)}
 	}
 	issues := make([]ReadinessIssue, 0)
+	dialect, dialectKnown := writeGroupReadinessDialect(connectorKinds...)
+	if !dialectKnown {
+		return false, []ReadinessIssue{writeGroupReadinessIssue(
+			"destination-column-type-unverified", "destination SQL dialect could not be verified", group.ID,
+		)}
+	}
+	layoutMembers := make([]dbtarget.GroupRowMember, 0, len(group.Members))
+	entityKeyed := false
 	if strings.TrimSpace(inspection.Schema) != strings.TrimSpace(group.Destination.TableSchema) {
 		issues = append(issues, writeGroupReadinessIssue(
 			"schema-scope-mismatch", "destination schema does not match the saved binding", group.ID,
@@ -162,26 +172,60 @@ func evaluateWriteGroupInspection(
 			))
 			continue
 		}
-		compatible, known := writeGroupColumnTypeCompatible(dataType, column)
-		if !known {
+		if _, known := normalizedWriteGroupColumnType(column.DataType); !known {
 			issues = append(issues, writeGroupReadinessIssue(
 				"destination-column-type-unverified", "a destination column type could not be verified", group.ID,
 			))
 			continue
 		}
-		if !compatible {
+		kind, ok := measurement.ExactTypeForTag(dataType)
+		if !ok {
 			issues = append(issues, writeGroupReadinessIssue(
-				"destination-column-type-mismatch", "a destination column type is incompatible with its source tag", group.ID,
+				"tag-type-unverified", "a source tag type could not be verified", group.ID,
 			))
+			continue
 		}
+		layoutMembers = append(layoutMembers, dbtarget.GroupRowMember{
+			MemberKey: member.TagID, EntityKey: member.EntityKey, Column: member.TargetColumn,
+			Type: kind, Required: member.Required,
+		})
+		entityKeyed = entityKeyed || strings.TrimSpace(member.EntityKey) != ""
+	}
+	_, layoutIssues := dbtarget.NewGroupRowLayout(dbtarget.GroupRowSpec{
+		Dialect: dialect, Columns: inspection.Columns, Members: layoutMembers,
+		EntityKeyed: entityKeyed, EntityKeyColumn: group.RowPolicy.EntityKeyColumn,
+		ProvenanceColumn: group.RowPolicy.ProvenanceColumn,
+	})
+	for _, issue := range layoutIssues {
+		code := "destination-column-type-mismatch"
+		message := "a destination column is incompatible with the production writer"
+		switch issue.Code {
+		case "column-missing", "identity-column-missing":
+			code = "destination-column-missing"
+			message = "a destination column required by the production writer is missing"
+		case "member-incomplete":
+			code = "destination-column-type-unverified"
+			message = "a production writer member type could not be verified"
+		}
+		issues = append(issues, writeGroupReadinessIssue(code, message, group.ID))
 	}
 	return len(issues) == 0, issues
+}
+
+func writeGroupReadinessDialect(connectorKinds ...string) (dbtarget.SQLDialect, bool) {
+	if len(connectorKinds) == 0 || strings.EqualFold(strings.TrimSpace(connectorKinds[0]), writeGroupConnectorKindSQLite) {
+		return dbtarget.SQLDialectSQLite, true
+	}
+	if strings.EqualFold(strings.TrimSpace(connectorKinds[0]), writeGroupConnectorKindPostgres) {
+		return dbtarget.SQLDialectPostgres, true
+	}
+	return "", false
 }
 
 func findWriteGroupColumn(columns []dbtarget.ColumnInfo, name string) (dbtarget.ColumnInfo, bool) {
 	name = strings.TrimSpace(name)
 	for _, column := range columns {
-		if strings.TrimSpace(column.Name) == name {
+		if strings.EqualFold(strings.TrimSpace(column.Name), name) {
 			return column, true
 		}
 	}

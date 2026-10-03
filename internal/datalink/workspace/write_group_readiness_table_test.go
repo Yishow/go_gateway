@@ -56,7 +56,7 @@ func TestWriteGroupReadinessVerifiesSavedTableWithoutMutation(t *testing.T) {
 	// the saved connector kind/configuration used by the read-only inspector seam.
 	inspector := &writeGroupReadinessInspector{inspection: &dbtarget.TableInspection{
 		Status: dbtarget.TableInspectionExists, Schema: "persisted-schema", Table: "raw_values",
-		Columns: []dbtarget.ColumnInfo{{Name: "temperature", DataType: "REAL"}},
+		Columns: []dbtarget.ColumnInfo{{Name: "temperature", DataType: "DOUBLE PRECISION"}},
 	}}
 	service.WithTableInspector(inspector)
 
@@ -76,6 +76,24 @@ func TestWriteGroupReadinessVerifiesSavedTableWithoutMutation(t *testing.T) {
 	require.Equal(t, before.Destination.SchemaRevision, after.Destination.SchemaRevision)
 	require.Empty(t, after.Destination.SchemaDigest)
 	require.Equal(t, before.Members, after.Members)
+}
+
+func TestWriteGroupReadinessRejectsProductionIncompatiblePostgresColumn(t *testing.T) {
+	ctx := t.Context()
+	db := openWorkspaceTestDB(t, ":memory:")
+	defer db.Close()
+	service, _, created := newReadinessGroup(ctx, t, db)
+	service.WithTableInspector(&writeGroupReadinessInspector{inspection: &dbtarget.TableInspection{
+		Status: dbtarget.TableInspectionExists, Schema: "persisted-schema", Table: "raw_values",
+		Columns: []dbtarget.ColumnInfo{{Name: "temperature", DataType: "REAL"}},
+	}})
+
+	readiness, err := service.Readiness(ctx, created.Group.ID)
+	require.NoError(t, err)
+	require.True(t, readiness.ConfigReady)
+	require.False(t, readiness.SchemaReady)
+	require.False(t, readiness.Ready)
+	require.Contains(t, readinessIssueCodes(readiness.Issues), "destination-column-type-mismatch")
 }
 
 func TestWriteGroupReadinessBlocksMissingDestinationColumn(t *testing.T) {
@@ -119,6 +137,35 @@ func TestWriteGroupReadinessRejectsUnknownColumnTypeAndScope(t *testing.T) {
 	})
 	require.False(t, ready)
 	require.Contains(t, readinessIssueCodes(issues), "destination-column-type-unverified")
+}
+
+func TestWriteGroupReadinessUsesProductionExactCodecForDialect(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		tagType    schema.DataType
+		columnType string
+	}{
+		{name: "float32 into REAL", tagType: schema.DataTypeFloat32, columnType: "REAL"},
+		{name: "int64 into INTEGER", tagType: schema.DataTypeInt64, columnType: "INTEGER"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			group := &WriteGroup{
+				ID:          "group-1",
+				Destination: WriteGroupDestination{TableSchema: "main", TableName: "raw_values"},
+				Members:     []WriteGroupMember{{TagID: "tag-1", TargetColumn: "temperature", Required: true}},
+			}
+			ready, issues := evaluateWriteGroupInspection(group, map[string]schema.DataType{
+				"tag-1": test.tagType,
+			}, &dbtarget.TableInspection{
+				Status:  dbtarget.TableInspectionExists,
+				Schema:  "main",
+				Table:   "raw_values",
+				Columns: []dbtarget.ColumnInfo{{Name: "temperature", DataType: test.columnType}},
+			}, string(schema.DatabaseConnectorKindPostgres))
+			require.False(t, ready)
+			require.Contains(t, readinessIssueCodes(issues), "destination-column-type-mismatch")
+		})
+	}
 }
 
 func TestWriteGroupReadinessDoesNotCreateMissingSQLiteTarget(t *testing.T) {

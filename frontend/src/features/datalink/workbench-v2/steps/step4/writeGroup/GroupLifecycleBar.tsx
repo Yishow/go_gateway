@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWriteGroupLifecycleMutation, useWriteGroupDeliveryQuery } from '../../../../../../hooks/datalink/useStudioV2WriteGroups';
 import type { WriteGroup } from '../../../../../../types/studioV2WriteGroup';
@@ -34,6 +34,14 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const busyRef = useRef(false);
+  const mountedRef = useRef(false);
+  const scope = `${group.id}|${group.revision}|${workspaceId}|${workspaceRevision}`;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const delivery = useWriteGroupDeliveryQuery(group.id, confirmingDelete);
   const deleted = group.status === 'deleted';
   const busy = apply.isPending || disable.isPending || remove.isPending;
@@ -41,6 +49,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const run = async (mutation: typeof apply) => {
     if (busyRef.current) return;
     busyRef.current = true;
+    const requestScope = scopeRef.current;
     setError(null);
     try {
       const result = await mutation.mutateAsync({
@@ -50,11 +59,15 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
           expected_group_revision: group.revision, expected_connector_revision: group.destination.connector_revision,
         },
       });
-      setConfirmingDelete(false);
-      onChanged(result.group);
+      if (mountedRef.current && scopeRef.current === requestScope) {
+        setConfirmingDelete(false);
+        onChanged(result.group);
+      }
     } catch (cause) {
-      setError(cause);
-      if (normalizeTypedEnvelope(cause).code === 'revision_mismatch') onConflict();
+      if (mountedRef.current && scopeRef.current === requestScope) {
+        setError(cause);
+        if (normalizeTypedEnvelope(cause).code === 'revision_mismatch') onConflict();
+      }
     } finally {
       busyRef.current = false;
     }

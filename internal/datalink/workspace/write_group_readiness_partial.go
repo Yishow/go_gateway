@@ -24,7 +24,8 @@ func evaluateWriteGroupPartialInspection(group *WriteGroup, tagTypes map[string]
 		entityKeyed = entityKeyed || member.EntityKey != ""
 		kind, _ := measurement.ExactTypeForTag(tagTypes[member.TagID])
 		members = append(members, dbtarget.GroupRowMember{
-			MemberKey: member.TagID, Column: member.TargetColumn, Type: kind, Required: member.Required,
+			MemberKey: member.TagID, EntityKey: member.EntityKey, Column: member.TargetColumn,
+			Type: kind, Required: member.Required,
 		})
 	}
 	_, layoutIssues := dbtarget.NewGroupRowLayout(dbtarget.GroupRowSpec{

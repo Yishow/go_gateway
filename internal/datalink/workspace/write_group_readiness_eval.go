@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -70,6 +71,12 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 		snapshot.validated.Destination.TableSchema,
 		snapshot.validated.Destination.TableName,
 	)
+	receiptReady := false
+	if inspectErr == nil && strings.EqualFold(strings.TrimSpace(snapshot.validated.WritePolicy.DedupeCapability), "receipt") {
+		receipts, receiptErr := s.tableInspector.InspectTable(ctx, snapshot.validated.Destination.ConnectorID,
+			snapshot.validated.Destination.TableSchema, dbtarget.EffectReceiptTable)
+		receiptReady = receiptErr == nil && receipts != nil && receipts.Status == dbtarget.TableInspectionExists
+	}
 	postSnapshot, err := s.readinessSnapshot(ctx, id)
 	if err != nil {
 		return nil, err
@@ -100,7 +107,7 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 		return writeGroupReadinessResult(finalizeWriteGroupReadiness(result))
 	}
 	schemaReady, schemaIssues := evaluateWriteGroupInspection(
-		postSnapshot.validated, postSnapshot.tagTypes, inspection,
+		postSnapshot.validated, postSnapshot.tagTypes, inspection, postSnapshot.connectorKind,
 	)
 	partialIssues := evaluateWriteGroupPartialInspection(postSnapshot.validated, postSnapshot.tagTypes, inspection, postSnapshot.connectorKind)
 	schemaIssues = append(schemaIssues, partialIssues...)
@@ -108,10 +115,15 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 	result.SchemaReady = schemaReady
 	result.Issues = append(result.Issues, schemaIssues...)
 	if schemaReady {
+		result.runtimeLayout = &WriteGroupRuntimeLayout{
+			Dialect: dbtarget.SQLDialect(postSnapshot.connectorKind), Columns: inspection.Columns,
+			TagTypes: postSnapshot.tagTypes, ReceiptTableReady: receiptReady,
+		}
 		result.SchemaDigest, err = digestWriteGroupInspection(postSnapshot.validated, inspection)
 		if err != nil {
 			return nil, fmt.Errorf("digest write-group schema readiness: %w", err)
 		}
+		result.runtimeLayout.SchemaDigest = result.SchemaDigest
 	}
 	return finalizeWriteGroupReadiness(result), nil
 }

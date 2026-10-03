@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -316,4 +317,44 @@ func TestExactMixedValueRoundTripPostgresTimestampBucketColumn(t *testing.T) {
 	}
 	require.Equal(t, "1234567890.123456789012345678", cells["reading"])
 	require.Equal(t, layoutBucket, cells["ts"], "timestamp columns receive UTC time.Time")
+}
+
+func TestGroupRowLayoutScopesMembersAndClaimsByEntity(t *testing.T) {
+	spec := GroupRowSpec{
+		Dialect: SQLDialectSQLite,
+		Columns: []ColumnInfo{
+			{Name: "shared_reading", DataType: "TEXT", Nullable: false},
+			{Name: "entity", DataType: "TEXT", Nullable: false},
+		},
+		Members: []GroupRowMember{
+			{MemberKey: "line-a-reading", EntityKey: "line-a", Column: "shared_reading", Type: measurement.ExactText, Required: true},
+			{MemberKey: "line-b-reading", EntityKey: "line-b", Column: "shared_reading", Type: measurement.ExactText, Required: true},
+		},
+		EntityKeyed:     true,
+		EntityKeyColumn: "entity",
+	}
+	layout, issues := NewGroupRowLayout(spec)
+	require.Empty(t, issues)
+
+	for _, test := range []struct {
+		entity string
+		key    string
+		value  string
+	}{
+		{entity: "line-a", key: "line-a-reading", value: "a"},
+		{entity: "line-b", key: "line-b-reading", value: "b"},
+	} {
+		outcome := rowOutcome(okMember(test.key, measurement.NewText(test.value)))
+		outcome.EntityKey = test.entity
+		encoded, err := layout.EncodeRow(outcome)
+		require.NoError(t, err, test.entity)
+		require.Equal(t, test.value, encoded.Cells[0].Value, test.entity)
+	}
+
+	conflict := spec
+	conflict.Members = slices.Clone(spec.Members)
+	conflict.Members[1].EntityKey = conflict.Members[0].EntityKey
+	layout, issues = NewGroupRowLayout(conflict)
+	require.Nil(t, layout)
+	require.Contains(t, issueCodes(issues), "duplicate-column")
 }

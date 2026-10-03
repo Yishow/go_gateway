@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"go-gateway/internal/datalink"
+	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/groupdelivery"
 	"go-gateway/internal/datalink/snapshot"
 
@@ -189,6 +190,57 @@ func TestAtomicRowOutboxCheckpointBoundaryClosesIntoOutboxAndSurvivesRestart(t *
 	var refused *GroupSampleError
 	require.ErrorAs(t, recovered.AcceptSample(t.Context(), again.envelope(0, "late", 9, 99.0)), &refused)
 	require.Equal(t, snapshot.ReasonLate, refused.Reason, "a consumed bucket cannot take samples after restart")
+}
+
+func TestAtomicRowOutboxCheckpointBoundaryPreservesEntityScopedRows(t *testing.T) {
+	db := openDurableDB(t, filepath.Join(t.TempDir(), "gateway.db"))
+	f := newBoundaryFixture(t)
+	group := copyGroup(f.config.Group)
+	group.Members = group.Members[:2]
+	group.Members[0].EntityKey = "line-a"
+	group.Members[0].TargetColumn = "reading"
+	group.Members[1].EntityKey = "line-b"
+	group.Members[1].TargetColumn = "reading"
+	group.RowPolicy.EntityKeyColumn = "entity"
+	f.config.Group = group
+	f.members = group.Members
+	f.config.TagTypes["tag-B"] = f.config.TagTypes["tag-A"]
+	f.config.Columns = []dbtarget.ColumnInfo{
+		{Name: "reading", DataType: "REAL"},
+		{Name: "entity", DataType: "TEXT"},
+	}
+	f.withLedger(db)
+	boundary := f.build(t)
+
+	require.NoError(t, boundary.AcceptSample(t.Context(), f.envelope(0, "line-a-sample", 4, 21.5)))
+	require.NoError(t, boundary.AcceptSample(t.Context(), f.envelope(1, "line-b-sample", 4, 42.5)))
+	require.NoError(t, boundary.Tick(t.Context(), boundaryAt(10)))
+	require.Empty(t, f.sink.rows, "durable rows hand off through the outbox")
+	require.Equal(t, 2, countTable(t, db, "wg_delivery_outbox"))
+	var skipped int
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM wg_delivery_buckets WHERE kind = 'skipped'`).Scan(&skipped))
+	require.Zero(t, skipped, "complete entity rows are not encoded as member-missing")
+
+	rows, err := db.QueryContext(t.Context(), `SELECT entity_key, payload FROM wg_delivery_outbox ORDER BY entity_key`)
+	require.NoError(t, err)
+	defer rows.Close()
+	var entities []string
+	for rows.Next() {
+		var entity, payload string
+		require.NoError(t, rows.Scan(&entity, &payload))
+		encoded, decodeErr := groupdelivery.DecodeRowPayload([]byte(payload))
+		require.NoError(t, decodeErr)
+		require.Equal(t, entity, encoded.EntityKey)
+		cells := map[string]any{}
+		for _, cell := range encoded.Cells {
+			cells[cell.Column] = cell.Value
+		}
+		require.Equal(t, entity, cells["entity"])
+		require.Contains(t, cells, "reading")
+		entities = append(entities, entity)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []string{"line-a", "line-b"}, entities)
 }
 
 func TestAtomicRowOutboxCheckpointBoundaryCommitFailureKeepsBucketOpenForReplay(t *testing.T) {

@@ -47,8 +47,8 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	known := make(map[string]struct{}, len(list.Groups))
 	for _, group := range list.Groups {
 		known[group.ID] = struct{}{}
-		if group.Status != workspace.WriteGroupStatusReady || group.AppliedRevision == "" {
-			p.retireGroup(group.ID, group.RowPolicy.IntervalSeconds, now)
+		if group.Status == workspace.WriteGroupStatusDisabled || group.Status == workspace.WriteGroupStatusDeleted || group.AppliedRevision == "" {
+			p.retireGroup(group.ID, now)
 			continue
 		}
 		p.reconcileGroup(ctx, group, now)
@@ -65,17 +65,12 @@ func (p *Pipeline) Reconcile(ctx context.Context) error {
 	for _, m := range gone {
 		m.boundary.SetUntil(nextBoundary(now, m.interval))
 	}
-	return nil
+	return p.restoreOpenJournals(ctx)
 }
 
 // reconcileGroup never fails the whole reconcile: a group that cannot be built
 // is recorded as blocked with a safe reason and retried on the next pass.
 func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGroup, now time.Time) {
-	interval := time.Duration(group.RowPolicy.IntervalSeconds) * time.Second
-	if interval < time.Second {
-		p.setBlocked(group, reasonIntervalInvalid)
-		return
-	}
 	current, err := p.deps.Groups.ResolveAppliedAt(ctx, group.ID, now)
 	if err != nil {
 		p.setBlocked(group, reasonSnapshotUnavailable)
@@ -105,7 +100,7 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 			built = true
 			continue
 		}
-		m, reason := p.build(ctx, snap, interval)
+		m, reason := p.build(ctx, snap)
 		if reason != "" {
 			p.setBlocked(group, reason)
 			continue
@@ -124,14 +119,14 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		old := p.boundaries[boundaryKey(group.ID, current.AppliedRevision)]
 		p.mu.RUnlock()
 		if old != nil {
-			old.boundary.SetUntil(alignUp(snapshots[1].EffectiveAt, interval))
+			old.boundary.SetUntil(alignUp(snapshots[1].EffectiveAt, old.interval))
 		}
 	}
 }
 
 // build creates the boundary for one applied snapshot from real destination
 // metadata, or returns the safe reason it cannot be built yet.
-func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, interval time.Duration) (built *managed, blockedReason string) {
+func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot) (built *managed, blockedReason string) {
 	group := snap.Group
 	connector, err := p.deps.Destinations.GetByID(ctx, group.Destination.ConnectorID)
 	if errors.Is(err, dbtarget.ErrConnectorNotFound) {
@@ -146,6 +141,16 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	dialect, ok := dialectFor(connector.Kind)
 	if !ok {
 		return nil, reasonDestinationUnsupported
+	}
+	frozen, err := p.loadRuntimeSnapshot(ctx, groupKey(snap))
+	if err != nil {
+		return nil, reasonSnapshotUnavailable
+	}
+	if frozen != nil {
+		if !sameAppliedSnapshot(snap, frozen) || frozen.RuntimeLayout.Dialect != dialect {
+			return nil, reasonSnapshotUnavailable
+		}
+		return p.buildFrozen(ctx, frozen, time.Time{}, time.Time{})
 	}
 	inspection, err := p.deps.Inspector.InspectTable(ctx, group.Destination.ConnectorID, group.Destination.TableSchema, group.Destination.TableName)
 	if err != nil || inspection == nil {
@@ -163,20 +168,54 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 		receiptReady = err == nil && receipts != nil && receipts.Status == dbtarget.TableInspectionExists
 	}
 	tagTypes := make(map[string]schema.DataType, len(group.Members))
-	members := make([]member, 0, len(group.Members))
-	for _, m := range group.Members {
-		tag, err := p.deps.Tags.GetByID(ctx, m.TagID)
-		if err != nil || tag == nil {
+	if source, ok := p.deps.Groups.(interface {
+		AppliedRuntimeTagTypes(context.Context, *workspace.WriteGroupAppliedSnapshot) (map[string]schema.DataType, error)
+	}); ok {
+		tagTypes, err = source.AppliedRuntimeTagTypes(ctx, snap)
+		if err != nil {
 			return nil, reasonTagUnavailable
 		}
-		tagTypes[m.TagID] = tag.DataType
+	} else {
+		for _, m := range group.Members {
+			tag, err := p.deps.Tags.GetByID(ctx, m.TagID)
+			if err != nil || tag == nil {
+				return nil, reasonTagUnavailable
+			}
+			tagTypes[m.TagID] = tag.DataType
+		}
+	}
+	verified := *snap
+	verified.RuntimeLayout = &workspace.WriteGroupRuntimeLayout{
+		Dialect: dialect, Columns: inspection.Columns, TagTypes: tagTypes, ReceiptTableReady: receiptReady,
+	}
+	built, blockedReason = p.buildFrozen(ctx, &verified, time.Time{}, time.Time{})
+	if blockedReason != "" {
+		return nil, blockedReason
+	}
+	if err := p.saveRuntimeSnapshot(ctx, &verified); err != nil {
+		return nil, reasonSnapshotUnavailable
+	}
+	return built, ""
+}
+
+func (p *Pipeline) buildFrozen(ctx context.Context, snap *workspace.WriteGroupAppliedSnapshot, first, until time.Time) (built *managed, blockedReason string) {
+	group, layout := snap.Group, snap.RuntimeLayout
+	interval := time.Duration(group.RowPolicy.IntervalSeconds) * time.Second
+	if interval < time.Second {
+		return nil, reasonIntervalInvalid
+	}
+	if first.IsZero() {
+		first = alignUp(snap.EffectiveAt, interval)
+	}
+	members := make([]member, 0, len(group.Members))
+	for _, m := range group.Members {
 		members = append(members, member{tagID: m.TagID, connectorID: group.Destination.ConnectorID})
 	}
 	key := groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: snap.AppliedRevision}
 	boundary, err := runtime.NewGroupBoundaryContext(ctx, runtime.GroupBoundaryConfig{
-		Group: group, TagTypes: tagTypes, Dialect: dialect, Columns: inspection.Columns,
-		FirstBucket: alignUp(snap.EffectiveAt, interval), MaxFutureSkew: p.config.MaxFutureSkew,
-		Ledger: p.deps.Store.Ledger(key), Clock: p.config.Now, ReceiptTableReady: receiptReady,
+		Group: group, TagTypes: layout.TagTypes, Dialect: layout.Dialect, Columns: layout.Columns,
+		FirstBucket: first, Until: until, MaxFutureSkew: p.config.MaxFutureSkew,
+		Ledger: p.deps.Store.Ledger(key), Clock: p.config.Now, ReceiptTableReady: layout.ReceiptTableReady,
 	})
 	if err != nil {
 		var blocked *runtime.GroupBoundaryError
@@ -201,9 +240,8 @@ func dialectFor(kind schema.DatabaseConnectorKind) (dbtarget.SQLDialect, bool) {
 	return "", false
 }
 
-func (p *Pipeline) retireGroup(groupID string, intervalSeconds int, now time.Time) {
+func (p *Pipeline) retireGroup(groupID string, now time.Time) {
 	p.clearBlocked(groupID)
-	interval := time.Duration(intervalSeconds) * time.Second
 	p.mu.RLock()
 	var current []*managed
 	for _, m := range p.boundaries {
@@ -213,11 +251,7 @@ func (p *Pipeline) retireGroup(groupID string, intervalSeconds int, now time.Tim
 	}
 	p.mu.RUnlock()
 	for _, m := range current {
-		step := interval
-		if step < time.Second {
-			step = m.interval
-		}
-		m.boundary.SetUntil(nextBoundary(now, step))
+		m.boundary.SetUntil(nextBoundary(now, m.interval))
 	}
 }
 

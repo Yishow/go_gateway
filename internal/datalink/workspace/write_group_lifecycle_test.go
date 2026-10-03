@@ -24,7 +24,7 @@ func (writeGroupLifecycleInspector) InspectTable(context.Context, string, string
 		Table:  "raw_values",
 		Columns: []dbtarget.ColumnInfo{{
 			Name:     "temperature",
-			DataType: "REAL",
+			DataType: "DOUBLE PRECISION",
 		}},
 	}, nil
 }
