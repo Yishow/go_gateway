@@ -1,0 +1,48 @@
+{
+  "recorded_at": "2026-10-02T22:09:07.817Z",
+  "source_sha": "b80b0431e6424aece6675d31ee46726c89d19478",
+  "dirty_worktree": true,
+  "platform": "darwin arm64 27.0.0",
+  "go": "go version go1.27.1 darwin/arm64",
+  "node": "v24.15.0",
+  "results": {
+    "ConfirmedTestWriteCleanup": {
+      "ok": true,
+      "detail": "outcome=\"Written and read back correctly\" cleanup=\"Test row removed\" leftover_test_rows=0 neighbor_unchanged=true"
+    },
+    "SilentDeviceNoInventedRows": {
+      "ok": true,
+      "detail": "bucket gaps (in 10 s buckets)=[4] skipped=2 no_data=1 duplicates=0"
+    },
+    "OutageBacklogIsDurableAndNotWritten": {
+      "ok": true,
+      "detail": "A pending=3 B pending=3 destination rows before/during outage=9/9"
+    },
+    "OutageCrashAndUnknownCommit": {
+      "ok": true,
+      "detail": "recovered=true duplicate_buckets A=0 B=0 outage_buckets_delivered=3/expected~2 rows 4->9 (kill -9 during the outage)"
+    },
+    "RestartResumesCollection": {
+      "ok": true,
+      "detail": "rows for buckets after the restart appeared=true"
+    },
+    "NotCoveredByThisRun": {
+      "ok": null,
+      "detail": "endpoint retarget of a backlog (service-level RevisionBoundBacklog test), Linux/Windows/ARM, real PLC"
+    },
+    "PoisonPartitionIsolated": {
+      "ok": true,
+      "detail": "B quarantined=1 blocked=0 while A kept advancing 11->13"
+    }
+  },
+  "log": [
+    "Line A: readiness=[✓ Configuration complete yes ✓ Destination table verified yes ✓ Ready to apply yes] applied_revision=8bfd1656-47d9-447b-bc53-8dad5bfb54ea",
+    "Line B: readiness=[✓ Configuration complete yes ✓ Destination table verified yes ✓ Ready to apply yes] applied_revision=5e12ae77-d3b3-48bd-b84f-ab7332e9b83b",
+    "PASS ConfirmedTestWriteCleanup: outcome=\"Written and read back correctly\" cleanup=\"Test row removed\" leftover_test_rows=0 neighbor_unchanged=true",
+    "PASS SilentDeviceNoInventedRows: bucket gaps (in 10 s buckets)=[4] skipped=2 no_data=1 duplicates=0",
+    "PASS OutageBacklogIsDurableAndNotWritten: A pending=3 B pending=3 destination rows before/during outage=9/9",
+    "PASS OutageCrashAndUnknownCommit: recovered=true duplicate_buckets A=0 B=0 outage_buckets_delivered=3/expected~2 rows 4->9 (kill -9 during the outage)",
+    "PASS RestartResumesCollection: rows for buckets after the restart appeared=true",
+    "PASS PoisonPartitionIsolated: B quarantined=1 blocked=0 while A kept advancing 11->13"
+  ]
+}

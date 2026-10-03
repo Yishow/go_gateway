@@ -1,0 +1,105 @@
+{
+  "recorded_at": "2026-10-02T22:02:54.287Z",
+  "source_sha": "b80b0431e6424aece6675d31ee46726c89d19478",
+  "dirty_worktree": true,
+  "platform": "darwin arm64 27.0.0",
+  "go": "go version go1.27.1 darwin/arm64",
+  "node": "v24.15.0",
+  "kind": "postgres",
+  "passed": true,
+  "failures": [],
+  "rows": [
+    {
+      "line": "A",
+      "temperature": "215",
+      "pressure": "1013",
+      "running": "t",
+      "batch": "9007199254740993"
+    },
+    {
+      "line": "A",
+      "temperature": "215",
+      "pressure": "1013",
+      "running": "t",
+      "batch": "9007199254740993"
+    },
+    {
+      "line": "A",
+      "temperature": "215",
+      "pressure": "1013",
+      "running": "t",
+      "batch": "9007199254740993"
+    },
+    {
+      "line": "A",
+      "temperature": "215",
+      "pressure": "1013",
+      "running": "t",
+      "batch": "9007199254740993"
+    },
+    {
+      "line": "B",
+      "temperature": "187",
+      "pressure": "777",
+      "running": "f",
+      "batch": "2"
+    },
+    {
+      "line": "B",
+      "temperature": "187",
+      "pressure": "777",
+      "running": "f",
+      "batch": "2"
+    },
+    {
+      "line": "B",
+      "temperature": "187",
+      "pressure": "777",
+      "running": "f",
+      "batch": "2"
+    }
+  ],
+  "sample_provenance": "[{\"member\": \"[\\\"dev-1790978469175-417\\\",\\\"51af03d8-0dc9-4106-adb3-e950a686bafc\\\",\\\"7620b121-5108-4b6e-8da0-1ff9c6e638d6\\\"]\", \"status\": \"ok\", \"quality\": \"good\", \"sample_id\": \"526fa94163cde6db304c40b5e525dcf6ff42769b572e2b1901dfea3aca277096\", \"observed_at\": \"2026-10-02T22:02:49.938369Z\"}, {\"member\": \"[\\\"dev-1790978469175-417\\\",\\\"5c2fd0b9-2a0a-4c30-a829-4667dcf76707\\\",\\\"d80ca64c-8aac-48e8-a5b3-0bc3b665389a\\\"]\", \"status\": \"ok\", \"quality\": \"good\", \"sample_id\": \"2d69f7b9d7b1e64de5f4e79b1a27d7d7c3ec07d8d2fd3591fb6d048745559192\", \"observed_at\": \"2026-10-02T22:02:49.938517Z\"}, {\"member\": \"[\\\"dev-1790978469175-417\\\",\\\"be31f373-2a88-4a0e-98aa-82cb825ba2a5\\\",\\\"1ba0bdff-1250-4fe5-9021-c3bca7237f98\\\"]\", \"status\": \"ok\", \"quality\": \"good\", \"sample_id\": \"303b721ff59c1dc070ffa8cccb3e6a8245000c2f031688fa05d04c572899b02d\", \"observed_at\": \"2026-10-02T22:02:49.938647Z\"}, {\"member\": \"[\\\"dev-1790978469175-417\\\",\\\"0ea4fa9c-3c6c-4ff1-bda1-28c3d04a7fc9\\\",\\\"1bbe70a4-4314-4f28-9cbe-050e6ff86e05\\\"]\", \"status\": \"ok\", \"quality\": \"good\", \"sample_id\": \"437c241472ca3c0ba933f9a5aa821d18fa802a1f3530d23d9ba7903148d9957e\", \"observed_at\": \"2026-10-02T22:02:49.938779Z\"}]",
+  "delivery": [
+    {
+      "group": "Line A",
+      "applied_revision": "d1fad979-a21e-410b-8149-6213efa1927f",
+      "intake": {
+        "state": "active"
+      },
+      "stages": {
+        "collecting": 16,
+        "queued": 0,
+        "retrying": 0,
+        "blocked": 0,
+        "quarantined": 0,
+        "unknown": 0,
+        "sql_committed": 4,
+        "skipped": 0
+      }
+    },
+    {
+      "group": "Line B",
+      "applied_revision": "610611fa-6de2-4beb-85b0-7ca3745aaeb9",
+      "intake": {
+        "state": "active"
+      },
+      "stages": {
+        "collecting": 16,
+        "queued": 0,
+        "retrying": 0,
+        "blocked": 0,
+        "quarantined": 0,
+        "unknown": 0,
+        "sql_committed": 3,
+        "skipped": 0
+      }
+    }
+  ],
+  "log": [
+    "Line A: readiness=[✓ Configuration complete yes ✓ Destination table verified yes ✓ Ready to apply yes] applied_revision=d1fad979-a21e-410b-8149-6213efa1927f",
+    "Line B: readiness=[✓ Configuration complete yes ✓ Destination table verified yes ✓ Ready to apply yes] applied_revision=610611fa-6de2-4beb-85b0-7ca3745aaeb9",
+    "activation confirmed through the UI"
+  ],
+  "ui_problems": []
+}

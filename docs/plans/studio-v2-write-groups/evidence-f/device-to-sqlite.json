@@ -1,0 +1,98 @@
+{
+  "recorded_at": "2026-10-02T22:04:58.245Z",
+  "source_sha": "b80b0431e6424aece6675d31ee46726c89d19478",
+  "dirty_worktree": true,
+  "platform": "darwin arm64 27.0.0",
+  "go": "go version go1.27.1 darwin/arm64",
+  "node": "v24.15.0",
+  "kind": "sqlite",
+  "passed": true,
+  "failures": [],
+  "rows": [
+    {
+      "line": "A",
+      "temperature": "215",
+      "pressure": "1013",
+      "running": "1",
+      "batch": "9007199254740993"
+    },
+    {
+      "line": "A",
+      "temperature": "215",
+      "pressure": "1013",
+      "running": "1",
+      "batch": "9007199254740993"
+    },
+    {
+      "line": "A",
+      "temperature": "215",
+      "pressure": "1013",
+      "running": "1",
+      "batch": "9007199254740993"
+    },
+    {
+      "line": "B",
+      "temperature": "187",
+      "pressure": "777",
+      "running": "0",
+      "batch": "2"
+    },
+    {
+      "line": "B",
+      "temperature": "187",
+      "pressure": "777",
+      "running": "0",
+      "batch": "2"
+    },
+    {
+      "line": "B",
+      "temperature": "187",
+      "pressure": "777",
+      "running": "0",
+      "batch": "2"
+    }
+  ],
+  "sample_provenance": "[{\"member\":\"[\\\"dev-1790978595996-764\\\",\\\"7e2fa428-ba7d-47aa-8fd6-9c5e1d930050\\\",\\\"a4757ed5-a920-4d7e-98e4-c28af5080df8\\\"]\",\"status\":\"ok\",\"sample_id\":\"6b55e249d49056d6360380935b3985058d4d6d5c6b9758a9e5f4ee6c36d3a08b\",\"observed_at\":\"2026-10-02T22:04:29.307511Z\",\"quality\":\"good\"},{\"member\":\"[\\\"dev-1790978595996-764\\\",\\\"ecc4e351-54b5-4267-953e-8f626472d3b5\\\",\\\"1a6e8816-3aeb-4769-9568-1b60c75a0f3c\\\"]\",\"status\":\"ok\",\"sample_id\":\"9d593f72d24fb599a4df50f382007b988f080d2264e296ffbad2bf84e6be13bc\",\"observed_at\":\"2026-10-02T22:04:29.307547Z\",\"quality\":\"good\"},{\"member\":\"[\\\"dev-1790978595996-764\\\",\\\"22fe93b5-33f9-40ce-9339-25a26e9fd149\\\",\\\"138dbb2a-702f-4787-a53a-4b190182266c\\\"]\",\"status\":\"ok\",\"sample_id\":\"14959b0fe6e86a52998ac5fe5423ca8d3ce25d2f039c9ed49fcf5e97fe6a22d8\",\"observed_at\":\"2026-10-02T22:04:29.307348Z\",\"quality\":\"good\"},{\"member\":\"[\\\"dev-1790978595996-764\\\",\\\"76b723b5-4f02-4767-a0c7-0b2eeb50737c\\\",\\\"168b4ea0-aff3-49e1-a0ab-bf13ba600996\\\"]\",\"status\":\"ok\",\"sample_id\":\"c275bae08751ae77e820c467ff573693bcbab03fcd6bd9f5df5fd6523677c8d7\",\"observed_at\":\"2026-10-02T22:04:29.307453Z\",\"quality\":\"good\"}]",
+  "delivery": [
+    {
+      "group": "Line A",
+      "applied_revision": "ab729c4b-97d3-4f36-8436-639962de1b6d",
+      "intake": {
+        "state": "active"
+      },
+      "stages": {
+        "collecting": 32,
+        "queued": 0,
+        "retrying": 0,
+        "blocked": 0,
+        "quarantined": 0,
+        "unknown": 0,
+        "sql_committed": 3,
+        "skipped": 0
+      }
+    },
+    {
+      "group": "Line B",
+      "applied_revision": "2facd546-9e13-434f-a169-af28dfc4b686",
+      "intake": {
+        "state": "active"
+      },
+      "stages": {
+        "collecting": 32,
+        "queued": 0,
+        "retrying": 0,
+        "blocked": 0,
+        "quarantined": 0,
+        "unknown": 0,
+        "sql_committed": 3,
+        "skipped": 0
+      }
+    }
+  ],
+  "log": [
+    "Line A: readiness=[✓ Configuration complete yes ✓ Destination table verified yes ✓ Ready to apply yes] applied_revision=ab729c4b-97d3-4f36-8436-639962de1b6d",
+    "Line B: readiness=[✓ Configuration complete yes ✓ Destination table verified yes ✓ Ready to apply yes] applied_revision=2facd546-9e13-434f-a169-af28dfc4b686",
+    "activation confirmed through the UI"
+  ],
+  "ui_problems": []
+}
