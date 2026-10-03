@@ -60,7 +60,8 @@ const (
 type SenderConfig struct {
 	// Owner identifies this worker incarnation in claims, as "<node>/<incarnation>".
 	Owner string
-	// LeaseTTL is how long a claim stays valid; it must exceed DeliveryTimeout.
+	// LeaseTTL keeps a claim valid through the destination attempt and local
+	// settlement. An undersized value is raised with the existing lease margin.
 	LeaseTTL time.Duration
 	// DeliveryTimeout bounds one destination attempt.
 	DeliveryTimeout time.Duration
@@ -127,8 +128,8 @@ func NewSender(store *Store, targets TargetResolver, config SenderConfig) *Sende
 		config.SettleTimeout = defaultSettleTimeout
 	}
 	if minimum := config.DeliveryTimeout + config.SettleTimeout; config.LeaseTTL < minimum {
-		// A lease shorter than one attempt would let another worker take over a
-		// live delivery.
+		// A lease shorter than the attempt plus settlement would let another
+		// worker take over while the current worker is recording its result.
 		config.LeaseTTL = minimum + defaultLeaseMargin
 	}
 	return &Sender{
@@ -166,8 +167,8 @@ func (s *Sender) Deliver(ctx context.Context, effectKey string) (DeliveryResult,
 		return DeliveryResult{State: item.State}, err
 	}
 	// The destination attempt is bounded and follows the caller's cancellation;
-	// recording its outcome is bounded but deliberately does not, so an effect
-	// that did commit is still written down while the process shuts down.
+	// local settlement starts only after Resolve/InsertGroupRow returns and has
+	// its own budget, independent of cancellation during process shutdown.
 	attemptCtx, cancelAttempt := context.WithTimeout(ctx, s.deliveryTimeout)
 	defer cancelAttempt()
 
