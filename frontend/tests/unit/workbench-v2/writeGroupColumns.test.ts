@@ -22,12 +22,27 @@ describe('RealMetadataAndReviewableAssignment: compatibility', () => {
     expect(columnCompatibility('float32', column('t', 'double precision'))).toBe('compatible');
     expect(columnCompatibility('float64', column('t', 'REAL'))).toBe('compatible');
     expect(columnCompatibility('int16', column('t', 'integer'))).toBe('compatible');
-    expect(columnCompatibility('uint64', column('t', 'bigint'))).toBe('compatible');
+    expect(columnCompatibility('uint64', column('t', 'bigint'))).toBe('incompatible');
+    expect(columnCompatibility('uint64', column('t', 'TEXT'))).toBe('compatible');
+    expect(columnCompatibility('uint64', column('t', 'NUMERIC(20,0)'), 'postgres')).toBe('compatible');
+    expect(columnCompatibility('uint64', column('t', 'NUMERIC(20,0)'))).toBe('incompatible');
+    expect(columnCompatibility('uint64', column('t', 'VARCHAR(20)'), 'sqlite')).toBe('compatible');
+    expect(columnCompatibility('uint64', column('t', 'TEXT(20)'), 'sqlite')).toBe('compatible');
+    expect(columnCompatibility('uint64', column('t', 'CHARINT'), 'sqlite')).toBe('incompatible');
+    expect(columnCompatibility('uint64', column('t', 'INTEGER TEXT'), 'sqlite')).toBe('incompatible');
     expect(columnCompatibility('bool', column('t', 'boolean'))).toBe('compatible');
     expect(columnCompatibility('string', column('t', 'varchar(64)'))).toBe('compatible');
     expect(columnCompatibility('float32', column('t', 'text'))).toBe('incompatible');
     expect(columnCompatibility('string', column('t', 'double precision'))).toBe('incompatible');
     expect(columnCompatibility('int32', column('t', 'geometry'))).toBe('unknown');
+  });
+
+  it('only accepts PostgreSQL numeric storage when it can hold every uint64 digit without scale', () => {
+    expect(columnCompatibility('uint64', column('t', 'NUMERIC'), 'postgres')).toBe('compatible');
+    expect(columnCompatibility('uint64', column('t', 'NUMERIC(20,0)'), 'postgres')).toBe('compatible');
+    expect(columnCompatibility('uint64', column('t', 'NUMERIC(19,0)'), 'postgres')).toBe('incompatible');
+    expect(columnCompatibility('uint64', column('t', 'NUMERIC(20,2)'), 'postgres')).toBe('incompatible');
+    expect(columnCompatibility('uint64', column('t', 'VARCHAR(32)'), 'postgres')).toBe('incompatible');
   });
 });
 
@@ -73,6 +88,13 @@ describe('RealMetadataAndReviewableAssignment: suggestions', () => {
     const result = suggestColumns(items, [column('flow', 'text')], { a: 'gone', b: 'flow' });
     expect(result.assignments.a).toEqual({ column: 'gone', status: 'repair' });
     expect(result.assignments.b).toEqual({ column: 'flow', status: 'repair' });
+  });
+
+  it('does not suggest a signed integer for uint64, while accepting exact text and PostgreSQL numeric storage', () => {
+    const item = candidate('counter', 'line.counter', 'uint64');
+    expect(suggestColumns([item], [column('counter', 'BIGINT')], {}).unmatched).toEqual(['counter']);
+    expect(suggestColumns([item], [column('counter', 'TEXT')], {}).assignments.counter).toEqual({ column: 'counter', status: 'suggested' });
+    expect(suggestColumns([item], [column('counter', 'NUMERIC(20,0)')], {}, 'postgres').assignments.counter).toEqual({ column: 'counter', status: 'suggested' });
   });
 });
 

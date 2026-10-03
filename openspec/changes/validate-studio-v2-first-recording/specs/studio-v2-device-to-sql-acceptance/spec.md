@@ -9,7 +9,7 @@ The acceptance harness SHALL run the production cmd/test_ui binary with its embe
 
 #### Scenario: Supported acquisition types and decimal boundary
 - **WHEN** the device-to-SQL harness runs the existing acquisition types int16, uint16, bool, uint64, float32, float64 and string
-- **THEN** all seven are verified through actual UI, acquisition and independent SQL queries, including exact uint64 9007199254740993.
+- **THEN** all seven are verified through actual UI, acquisition and independent SQL queries, including exact uint64 9007199254740993, 9223372036854775808 and 18446744073709551615.
 - **AND** decimal evidence remains limited to the existing codec and SQL round-trip layer; device decimal acquisition is reported unsupported, not executed.
 
 #### Scenario: Operation cleanup
@@ -21,14 +21,18 @@ The acceptance harness SHALL run the production cmd/test_ui binary with its embe
 - **WHEN** the operator completes setup, explicitly confirms schema preparation and starts recording entirely through the UI
 - **THEN** independent SQL observes the original source identities, exact values, UTC acquisition/bucket times and quality, and at least three consecutive production buckets are checked.
 
+#### Scenario: SQLite emptiness checks do not create the destination
+- **WHEN** the planned SQLite file is absent before preview
+- **THEN** stat confirms absence and preview leaves it absent; no fixture connection creates it. Existing files are inspected through read-only URI, and only product UI confirmation creates the missing recording destination.
+
 #### Scenario: One group contains multiple entities
 - **WHEN** a single saved group has A and B entities with shared or distinct business columns
 - **THEN** both entity rows are independently verified; two separate single-entity groups do not satisfy this scenario.
 
 #### Scenario: Controlled first-use timing
 - **GIVEN** the documented ready test environment, known connection/point data and the unchanged 60-second new-draft default
-- **WHEN** each destination runs three fresh UI setups
-- **THEN** every first-page-to-first-independent-SQL-row duration is recorded and MUST be at most 300 seconds to pass the controlled first-use criterion, without fixture-created recording tables, direct setup mutations or reduced correctness checks.
+- **WHEN** each destination runs three fresh UI setups with independent file/schema namespaces
+- **THEN** every first-page-to-first-independent-SQL-row duration is recorded and MUST be at most 300 seconds to pass the controlled first-use criterion, without fixture-created recording tables, direct setup mutations or reduced correctness checks. Setup, complete-bucket waiting and post-closure delivery durations SHALL also be recorded using one monotonic observation clock, with polling overhead disclosed; automation timing is separate from human usability evidence.
 
 ## ADDED Requirements
 

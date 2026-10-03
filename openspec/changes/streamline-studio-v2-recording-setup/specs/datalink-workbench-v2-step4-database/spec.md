@@ -24,7 +24,12 @@ One explicit basic start intent SHALL coordinate existing save, readiness, group
 
 #### Scenario: Partial start and changed intent
 - **WHEN** some selected resources have applied or started before a later failure, or the operator changes the intent
-- **THEN** the product exposes actual per-scope progress, preserves healthy unrelated resources and revalidates changed intent before further actions.
+- **THEN** the product exposes actual per-scope progress, preserves healthy unrelated resources and revalidates changed intent before further actions. Recovery SHALL use the originally recorded device/group set and recorded revisions rather than the current whole workspace.
+
+#### Scenario: Selected device scope is independent
+- **GIVEN** selected device A is ready and unrelated B is incomplete or already healthy
+- **WHEN** the operator starts A
+- **THEN** A is checked and activated in its recorded scope; B is neither newly activated nor stopped or reconfigured, and incomplete B does not block A. Existing shared Share barriers remain enforced.
 
 #### Scenario: Share-only setup
 - **WHEN** only a valid Local Modbus output is selected

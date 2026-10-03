@@ -33,6 +33,14 @@ describe('studio V2 workspace database metadata service', () => {
     }
   });
 
+  it('requests the persisted group scope instead of the connector default table', async () => {
+    vi.mocked(studioV2DatalinkApi.get).mockResolvedValueOnce({ data: { success: true, data: envelope } } as never);
+    await studioV2WorkspaceDatabaseAPI.getMetadata('identity-1', { groupId: 'group-B', groupRevision: 'group-2' });
+    expect(studioV2DatalinkApi.get).toHaveBeenCalledWith('/studio-v2/workspace/database-metadata', {
+      params: { expected_connector_revision: 'identity-1', group_id: 'group-B', expected_group_revision: 'group-2' },
+    });
+  });
+
   it('never returns columns for a table that was not confirmed to exist', async () => {
     vi.mocked(studioV2DatalinkApi.get).mockResolvedValueOnce({
       data: { success: true, data: { ...envelope, inspection_status: 'forbidden', reason: 'permission_denied' } },

@@ -101,8 +101,8 @@ export const studioV2WorkspaceKeys = {
   mappings: () => [...studioV2WorkspaceKeys.all, 'mappings'] as const,
   databaseConfig: () => [...studioV2WorkspaceKeys.all, 'database-config'] as const,
   databaseTargets: () => [...studioV2WorkspaceKeys.all, 'database-targets'] as const,
-  databaseMetadata: (connectorId: string, connectorRevision: string, database: string, schema: string, table: string) =>
-    [...studioV2WorkspaceKeys.all, 'database-metadata', connectorId, connectorRevision, database, schema, table] as const,
+  databaseMetadata: (connectorId: string, connectorRevision: string, database: string, schema: string, table: string, groupId = '', groupRevision = '') =>
+    [...studioV2WorkspaceKeys.all, 'database-metadata', connectorId, connectorRevision, database, schema, table, groupId, groupRevision] as const,
   measurements: (deviceId?: string) => [...studioV2WorkspaceKeys.all, 'measurements', deviceId ?? 'all'] as const,
   measurementTemplates: () => [...studioV2WorkspaceKeys.all, 'measurement-templates'] as const,
   recordingPlans: (deviceId?: string) => [...studioV2WorkspaceKeys.all, 'recording-plans', deviceId ?? 'all'] as const,
@@ -134,5 +134,4 @@ export const historyKeys = {
   queries: () => [...historyKeys.all, 'query'] as const,
   query: (queryKey: string) => [...historyKeys.queries(), queryKey] as const,
 };
-
 

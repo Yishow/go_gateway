@@ -32,6 +32,8 @@ export interface StudioV2DatabaseMetadataScope {
   database: string;
   schema: string;
   table: string;
+  groupId?: string;
+  groupRevision?: string;
 }
 
 /** 以完整範圍作為 key 查詢實際欄位；任一範圍改變即換成新的查詢，舊回覆不會沿用。 */
@@ -39,8 +41,9 @@ export function useStudioV2DatabaseMetadataQuery(scope: StudioV2DatabaseMetadata
   const connectorId = scope.connectorId ?? '';
   const connectorRevision = scope.connectorRevision ?? '';
   return useQuery({
-    queryKey: studioV2WorkspaceKeys.databaseMetadata(connectorId, connectorRevision, scope.database, scope.schema, scope.table),
-    queryFn: () => studioV2WorkspaceDatabaseAPI.getMetadata(connectorRevision),
+    queryKey: studioV2WorkspaceKeys.databaseMetadata(connectorId, connectorRevision, scope.database, scope.schema, scope.table, scope.groupId, scope.groupRevision),
+    queryFn: () => studioV2WorkspaceDatabaseAPI.getMetadata(connectorRevision,
+      scope.groupId && scope.groupRevision ? { groupId: scope.groupId, groupRevision: scope.groupRevision } : undefined),
     enabled: enabled && Boolean(connectorId && connectorRevision),
     retry: false,
     refetchOnWindowFocus: false,

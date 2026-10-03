@@ -13,7 +13,7 @@ export interface Step4TargetColumns {
 }
 
 /** 讀取已存目標資料表的實際欄位；回覆屬於其他範圍時視為尚未查詢，不沿用其欄位。 */
-export function useStep4TargetColumns(connector: DbConnector): Step4TargetColumns {
+export function useStep4TargetColumns(connector: DbConnector, groupScope?: { groupId: string; groupRevision: string }): Step4TargetColumns {
   const saved = connector.persisted === true && connector.save_state === 'saved';
   const query = useStudioV2DatabaseMetadataQuery({
     connectorId: connector.connector_id,
@@ -21,6 +21,7 @@ export function useStep4TargetColumns(connector: DbConnector): Step4TargetColumn
     database: connector.database,
     schema: connector.schema,
     table: connector.table,
+    ...groupScope,
   }, saved);
   const columns = useMemo(() => metadataColumnsForScope(query.data, connector), [query.data, connector]);
 

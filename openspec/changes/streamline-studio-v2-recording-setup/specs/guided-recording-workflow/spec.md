@@ -37,4 +37,4 @@ Operators MUST be able to save and navigate offline drafts with unresolved probe
 
 #### Scenario: New basic setup is resumed
 - **WHEN** a new per-device managed draft is reloaded or its save response is retried
-- **THEN** the same persisted group and mappings are reused without creating duplicate writers or silently selecting another group.
+- **THEN** the persisted (workspace_id, device_id, canonical managed role) key reuses the same group and mappings without duplicate writers or selecting another group. A changed destination requires an explicit CAS-checked draft and new preparation/apply evidence; accepted historical data keeps its original destination. Existing advanced groups remain outside automatic conversion.

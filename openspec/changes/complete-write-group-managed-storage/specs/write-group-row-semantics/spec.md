@@ -17,7 +17,14 @@ Managed columns SHALL be generated once from persisted member identities and ver
 
 #### Scenario: Same labels and exact uint64 values
 - **WHEN** two persisted Tags share a display label or a uint64 exceeds JavaScript's exact integer range
-- **THEN** generated columns remain distinct and the SQL representation preserves the complete value without floating-point conversion.
+- **THEN** generated columns remain distinct and the SQL representation preserves the complete uint64 range without JavaScript Number or floating-point conversion. SQLite TEXT and PostgreSQL NUMERIC(20,0) are verified safe layouts; signed BIGINT SHALL NOT be proposed as a full-range uint64 column.
+
+##### Example: Unsigned counter boundaries
+| Source value | SQLite TEXT readback | PostgreSQL NUMERIC(20,0) readback |
+| --- | --- | --- |
+| 9007199254740993 | 9007199254740993 | 9007199254740993 |
+| 9223372036854775808 | 9223372036854775808 | 9223372036854775808 |
+| 18446744073709551615 | 18446744073709551615 | 18446744073709551615 |
 
 #### Scenario: Replay and display rename
 - **WHEN** a saved display name changes or an accepted row is retried

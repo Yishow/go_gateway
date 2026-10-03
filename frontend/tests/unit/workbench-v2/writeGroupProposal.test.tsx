@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { WriteGroupSection } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection';
+import { GroupColumnProposal } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupColumnProposal';
 import { CommitSummary } from '@/features/datalink/workbench-v2/steps/step4/CommitSummary';
 import { proposeColumns } from '@/features/datalink/workbench-v2/state/writeGroup/proposal';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
@@ -25,6 +26,18 @@ beforeEach(() => {
 });
 
 describe('Fewer columns than points / new table proposal', () => {
+  const uint64Candidate = { key: 'counter', device_id: 'd', point_id: 'counter', tag_id: 'counter', tag_key: 'line.counter', label: 'counter', device_name: 'p', address: '1', target_type: 'uint64' as const };
+
+  it('renders the exact PostgreSQL uint64 proposal for a managed column', () => {
+    render(<GroupColumnProposal unmatched={[uint64Candidate]} existingColumns={[]} managed dialect="postgres" />);
+    expect(screen.getByTestId('group-column-proposal-list')).toHaveTextContent('counter NUMERIC(20,0)');
+  });
+
+  it('renders the portable exact SQLite uint64 proposal as TEXT', () => {
+    render(<GroupColumnProposal unmatched={[uint64Candidate]} existingColumns={[]} managed dialect="sqlite" />);
+    expect(screen.getByTestId('group-column-proposal-list')).toHaveTextContent('counter TEXT');
+  });
+
   it('names proposals as proposals and assigns nothing when the table has too few columns', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><WriteGroupSection state={savedGroupState()} workspaceId="ws-1" readonly={false} /></QueryClientProvider>);
@@ -38,10 +51,20 @@ describe('Fewer columns than points / new table proposal', () => {
   });
 
   it('proposes distinct, valid names that avoid existing columns', () => {
-    const cand = (key: string, tagKey: string, t: 'float64' | 'string') => ({ key, device_id: 'd', point_id: key, tag_id: key, tag_key: tagKey, label: tagKey, device_name: 'p', address: '1', target_type: t });
-    const result = proposeColumns([cand('a', 'line.Temp-In', 'float64'), cand('b', 'other.temp_in', 'float64'), cand('c', 'x.1st', 'string')], ['temp_in']);
-    expect(result.map((p) => p.column)).toEqual(['temp_in_2', 'temp_in_3', 'v_1st']);
-    expect(result.map((p) => p.sql_type)).toEqual(['DOUBLE PRECISION', 'DOUBLE PRECISION', 'TEXT']);
+    const cand = (key: string, tagKey: string, t: 'float64' | 'string' | 'uint64') => ({ key, device_id: 'd', point_id: key, tag_id: key, tag_key: tagKey, label: tagKey, device_name: 'p', address: '1', target_type: t });
+    const result = proposeColumns([
+      cand('a', 'line.Temp-In', 'float64'), cand('b', 'other.temp_in', 'float64'),
+      cand('c', 'x.1st', 'string'), cand('d', 'counter', 'uint64'),
+    ], ['temp_in']);
+    expect(result.map((p) => p.column)).toEqual(['temp_in_2', 'temp_in_3', 'v_1st', 'counter']);
+    expect(result.map((p) => p.sql_type)).toEqual(['DOUBLE PRECISION', 'DOUBLE PRECISION', 'TEXT', 'TEXT']);
+  });
+
+  it('uses PostgreSQL numeric only when requested and keeps the portable proposal exact', () => {
+    const candidate = { key: 'counter', device_id: 'd', point_id: 'counter', tag_id: 'counter', tag_key: 'line.counter', label: 'counter', device_name: 'p', address: '1', target_type: 'uint64' as const };
+    expect(proposeColumns([candidate], []).map((proposal) => proposal.sql_type)).toEqual(['TEXT']);
+    expect(proposeColumns([candidate], [], 'sqlite').map((proposal) => proposal.sql_type)).toEqual(['TEXT']);
+    expect(proposeColumns([candidate], [], 'postgres').map((proposal) => proposal.sql_type)).toEqual(['NUMERIC(20,0)']);
   });
 });
 

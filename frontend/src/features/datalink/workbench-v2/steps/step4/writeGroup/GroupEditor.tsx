@@ -92,14 +92,19 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
   const scopedConnector = useMemo<DbConnector>(() => ({
     ...connector, table: draft.table_name, schema: draft.table_schema,
   }), [connector, draft.table_name, draft.table_schema]);
-  const metadata = useStep4TargetColumns(destinationMatches ? scopedConnector : { ...scopedConnector, persisted: false });
+  const tableSaved = group
+    ? draft.table_name === group.destination.table_name && draft.table_schema === group.destination.table_schema
+    : draft.table_name === connector.table && draft.table_schema === connector.schema;
+  const metadata = useStep4TargetColumns(destinationMatches && tableSaved ? scopedConnector : { ...scopedConnector, persisted: false },
+    group ? { groupId: group.id, groupRevision: group.revision } : undefined);
+  const dialect = connector.kind === 'postgres' ? 'postgres' : connector.kind === 'sqlite' ? 'sqlite' : 'portable';
   const confirmed = useMemo(
     () => Object.fromEntries(draft.members.filter((m) => m.target_column).map((m) => [m.key, m.target_column])),
     [draft.members],
   );
   const suggestions = useMemo(
-    () => (metadata.status === 'exists' ? suggestColumns(candidates, metadata.columns, confirmed) : { assignments: {}, unmatched: candidates.map((c) => c.key) }),
-    [candidates, metadata.columns, metadata.status, confirmed],
+    () => (metadata.status === 'exists' ? suggestColumns(candidates, metadata.columns, confirmed, dialect) : { assignments: {}, unmatched: candidates.map((c) => c.key) }),
+    [candidates, metadata.columns, metadata.status, confirmed, dialect],
   );
   const issues = validateDraft(draft, { destinationSaved: saved && destinationMatches });
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
@@ -240,11 +245,13 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
       </details>
 
       <GroupMemberTable
+        dialect={dialect}
         candidates={candidates} excluded={excluded} members={draft.members} columns={metadata.columns} metadataStatus={metadata.status}
         suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
         onChange={(members) => set({ members })}
       />
       <GroupColumnProposal
+        dialect={dialect}
         managed={draft.storage_strategy === 'managed'}
         existingColumns={metadata.columns.map((column) => column.name)}
         unmatched={candidates.filter((candidate) => {

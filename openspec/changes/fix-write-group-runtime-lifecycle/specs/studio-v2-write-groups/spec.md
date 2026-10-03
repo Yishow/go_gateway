@@ -20,6 +20,11 @@ The system SHALL support group rename, member and policy edits, disable and logi
 - **WHEN** acquisition races with a validated version cutoff or Disable
 - **THEN** each sample is accepted or refused consistently against one cutoff, without a data race or acceptance by competing writer owners.
 
-#### Scenario: Re-enable after a completed retirement
+#### Scenario: Re-enable during or after retirement
 - **WHEN** an operator explicitly re-enables a disabled group with unchanged row semantics
-- **THEN** eligible new intake resumes without reviving closed buckets, retaining an expired in-memory cutoff or duplicating accepted effects.
+- **THEN** eligible new intake resumes during or after retirement without reviving closed buckets, retaining an expired cutoff or duplicating accepted effects. Old accepted input remains drainable under its original frozen identity.
+
+##### Example: Rapid disable and re-enable
+- **GIVEN** a 10-second group is disabled at t=12 with a retirement cutoff of t=20
+- **WHEN** unchanged row semantics are applied again at t=15 and a matching sample arrives at t=21
+- **THEN** the new eligible intake journals that sample and does not discard it through the old t=20 cutoff; previous accepted input retains its original closure identity.

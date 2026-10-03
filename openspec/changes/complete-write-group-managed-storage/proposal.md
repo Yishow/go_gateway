@@ -28,5 +28,5 @@
 
 只建立本產品受控的新表，或驗證已有且具相同 ownership 的相容表；不 ALTER、DROP、改名或搬移使用者既有表，不建立 PostgreSQL server/database/account。目的 SQLite 與內部設定/journal DB 必須不同。自訂表維持進階入口及原有合約。
 
-前置：`fix-write-group-runtime-lifecycle`, `fix-write-group-delivery-deadlines`, `fix-write-group-entity-row-layout`。
+單設備基本路徑前置：`fix-write-group-runtime-lifecycle`, `fix-write-group-delivery-deadlines`。`fix-write-group-entity-row-layout` 是多 entity 的正式驗收前置，不阻擋基本 SQLite UI→首列的早期流程回饋；共用 layout 的修改仍按 ownership 整合。
 本案只起草；產品 tasks 全部未完成。共同邊界與來源見 [總覽](../../../docs/plans/studio-v2-flow-completion/README.md)。

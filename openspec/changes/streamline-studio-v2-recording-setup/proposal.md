@@ -27,7 +27,7 @@
 
 ## Scope and Dependencies
 
-不新增協議、CSV 匯入器、設備自動偵測、報表、聚合、V3、UI framework 或全域 job engine。保留 custom/advanced 編輯與離線草稿；不重寫 `/test`、`/gateway/*`，不改 Share gates。開始記錄不繞過 A-D 的驗證。
+不新增協議、CSV 匯入器、設備自動偵測、報表、聚合、V3、UI framework 或全域 job engine。保留 custom/advanced 編輯與離線草稿；不重寫 `/test`、`/gateway/*`，不改 Share gates。單設備基本開始記錄依賴 A/B/D 的正確性與安全契約；C 的多 entity 矩陣是多 entity 功能與正式 release/archive gate，不阻擋單設備 SQLite 的早期垂直回饋。
 
 前置：`complete-write-group-managed-storage`。
 本案只起草；產品 tasks 全部未完成。共同邊界與來源見 [總覽](../../../docs/plans/studio-v2-flow-completion/README.md)。

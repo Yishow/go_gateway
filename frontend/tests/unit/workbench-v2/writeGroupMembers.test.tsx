@@ -2,8 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { WriteGroupSection } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection';
+import { GroupMemberTable } from '@/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { savedGroup, savedGroupState, TABLE_COLUMNS } from '../../fixtures/writeGroupState';
+import type { GroupCandidate } from '@/features/datalink/workbench-v2/state/writeGroup/candidates';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, options?: Record<string, unknown>) => (options && 'count' in options ? `${key}:${options.count}` : options && 'column' in options ? `${key}:${options.column}` : key) }),
@@ -21,9 +23,9 @@ vi.mock('@/services/studioV2WorkspaceWriteGroups', () => ({
 }));
 const api = vi.mocked(studioV2WorkspaceWriteGroupsAPI);
 
-async function openNewGroup() {
+async function openNewGroup(state = savedGroupState()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  render(<QueryClientProvider client={client}><WriteGroupSection state={savedGroupState()} workspaceId="ws-1" readonly={false} /></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><WriteGroupSection state={state} workspaceId="ws-1" readonly={false} /></QueryClientProvider>);
   fireEvent.click(await screen.findByTestId('group-create'));
   await screen.findByTestId('group-editor');
 }
@@ -35,6 +37,47 @@ beforeEach(() => {
 });
 
 describe('RealMetadataAndReviewableAssignment (editor)', () => {
+  it('uses the saved PostgreSQL dialect for uint64 suggestions and row validation', async () => {
+    const state = savedGroupState();
+    state.db.connector.kind = 'postgres';
+    state.mappings['rule-1-p-0'].target_type = 'uint64';
+    metadata = { status: 'exists', columns: [{ name: 'temperature', type: 'NUMERIC(20,0)', nullable: false, primary_key: false }] };
+    await openNewGroup(state);
+    expect(screen.getByTestId('group-member-suggested-pt-0')).toHaveTextContent('temperature');
+    fireEvent.click(screen.getByTestId('group-bulk-accept'));
+    expect(screen.getByTestId('group-member-column-pt-0')).toHaveValue('temperature');
+    expect(screen.queryByTestId('group-member-problem-pt-0')).not.toBeInTheDocument();
+  });
+
+  it('uses the PostgreSQL exact dialect when checking an existing uint64 numeric column', () => {
+    const candidate: GroupCandidate = {
+      key: 'counter', device_id: 'dev-1', point_id: 'counter', tag_id: 'tag-counter', tag_key: 'line.counter',
+      label: 'counter', device_name: 'PLC A', address: '40001', target_type: 'uint64',
+    };
+    render(<GroupMemberTable
+      candidates={[candidate]} excluded={[]} members={[{ ...candidate, key: candidate.key, entity_key: '', target_column: 'counter', required: true }]}
+      columns={[{ name: 'counter', type: 'NUMERIC(20,0)', nullable: true, primary_key: false }]}
+      metadataStatus="exists" suggestions={{ assignments: {}, unmatched: [] }} issues={[]}
+      showEntityKey={false} disabled={false} dialect="postgres" onChange={vi.fn()}
+    />);
+    expect(screen.queryByTestId('group-member-problem-counter')).not.toBeInTheDocument();
+    expect(screen.getByTestId('group-member-row-counter')).toHaveAttribute('data-problem', '');
+  });
+
+  it('accepts SQLite TEXT for uint64 without reporting a type problem', () => {
+    const candidate: GroupCandidate = {
+      key: 'counter', device_id: 'dev-1', point_id: 'counter', tag_id: 'tag-counter', tag_key: 'line.counter',
+      label: 'counter', device_name: 'PLC A', address: '40001', target_type: 'uint64',
+    };
+    render(<GroupMemberTable
+      candidates={[candidate]} excluded={[]} members={[{ ...candidate, key: candidate.key, entity_key: '', target_column: 'counter', required: true }]}
+      columns={[{ name: 'counter', type: 'TEXT', nullable: true, primary_key: false }]}
+      metadataStatus="exists" suggestions={{ assignments: {}, unmatched: [] }} issues={[]}
+      showEntityKey={false} disabled={false} dialect="sqlite" onChange={vi.fn()}
+    />);
+    expect(screen.queryByTestId('group-member-problem-counter')).not.toBeInTheDocument();
+  });
+
   it('proposes columns from the tag name as reviewable suggestions and assigns nothing on its own', async () => {
     await openNewGroup();
     expect(screen.getByTestId('group-member-suggested-pt-0')).toHaveTextContent('temperature');

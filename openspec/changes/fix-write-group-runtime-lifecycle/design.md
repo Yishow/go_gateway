@@ -1,6 +1,6 @@
 ## Context
 
-以總覽固定的 main 為基準。Update 保存 draft 並保留 AppliedRevision，但 Reconcile 以 status=ready 篩選；boundary 的恢復目前先查遠端表，ledger Restore 又隸屬特定 revision。until 的讀取早於同一 mutex 的取得。動機見 proposal.md。
+原提案以 d2c22ef6 為基準。6676b2b0 已接上 applied snapshot、凍結布局及歷史 journal 恢復；這是已有程式，不能代替本案全部驗收。後續 review 仍重現快速 Disable→同語意 Apply 時沿用 retiring boundary 的 cutoff，AcceptSample 回 nil 卻未新增 journal。動機見 proposal.md。
 
 ## Goals / Non-Goals
 
@@ -13,6 +13,14 @@
 3. 啟動恢復分兩類：現在有效的版本可收新樣本；仍有未封桶已接受 journal 的舊版本只恢復 closure。掃描依既有 group/revision/checkpoint，不以目前群組清單的 status 排除歷史資料。已成 outbox 的資料仍交由既有 sender。
 4. 切換、Disable、Delete 的責任截止必須從持久狀態重建；不可重啟後只看到記憶體 until 消失。同一版本再啟用不可沿用已退休 boundary；保留既有樣本／effect identity，不回灌已封桶資料。
 5. until 的檢查與接收樣本在同一鎖域；切換也使用相同同步機制。鎖內只做必要本地一致性工作，不加入遠端 I/O。blocked 群組不授權 legacy writer 自動接手。
+
+## Implementation Contract
+
+- 行為：草稿保存不改正在執行的 immutable applied snapshot；快速停用再啟用不得沿用過期 cutoff 或丟失已接受資料。
+- 介面：沿用 WriteGroupService.Apply/Disable、Pipeline.Reconcile/AcceptSample 與既有 runtime-version/journal。新的 intake 世代和舊版本 drain 責任必須可區分且可重啟。
+- 失敗：恢復描述、source 或 connector 身分不可證明時 blocked 並保留 journal；不改 accepted payload、不移轉目的地、不讓 legacy writer 接管。
+- 驗收：10 秒 interval，在 t=12 Disable、t=15 同語意 Apply、t=21 接收新樣本，journal 必須保存該樣本；同時驗證原桶排空、重啟與 effect identity 無重複。實際 grouppipeline/workspace/runtime 測試及 race 結果分別記錄。
+- 範圍：只修採集資格、截止與恢復；不新增 queue、交付模式或跨程序採集協調。
 
 ## Risks / Trade-offs
 

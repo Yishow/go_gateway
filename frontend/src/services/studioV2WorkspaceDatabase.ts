@@ -101,9 +101,12 @@ export const studioV2WorkspaceDatabaseAPI = {
     return res.data.data!;
   },
 
-  async getMetadata(expectedConnectorRevision: string): Promise<StudioV2DatabaseMetadata> {
+  async getMetadata(expectedConnectorRevision: string, groupScope?: { groupId: string; groupRevision: string }): Promise<StudioV2DatabaseMetadata> {
     const res = await studioV2DatalinkApi.get<APIResponse<unknown>>('/studio-v2/workspace/database-metadata', {
-      params: { expected_connector_revision: expectedConnectorRevision },
+      params: {
+        expected_connector_revision: expectedConnectorRevision,
+        ...(groupScope ? { group_id: groupScope.groupId, expected_group_revision: groupScope.groupRevision } : {}),
+      },
     });
     return parseStudioV2DatabaseMetadata(res.data.data);
   },

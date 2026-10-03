@@ -1,6 +1,6 @@
 ## 1. 草稿與責任界線
 
-- [ ] 1.1 補 RED：執行中改名／改 members 只存草稿、不 Apply，跨兩桶及重啟仍使用舊版本；同語意重新啟用、有效切換與 legacy writer 排他性都有斷言。
+- [ ] 1.1 補 RED：執行中改名／改 members 只存草稿、不 Apply，跨兩桶及重啟仍使用舊版本；同語意在退休完成前重新啟用（10 秒桶，t=12 停用、t=15 Apply、t=21 新樣本須入 journal）、有效切換與 legacy writer 排他性都有斷言。
 - [ ] 1.2 修正執行資格及可恢復的截止界線，讓 1.1 GREEN；同步說明 draft、applied、disabled 與 drain-only 的差異。
 - [ ] 1.3 補 RED 的 AcceptSample 與 SetUntil 並行測試，再以同一鎖域修正；實際 package 的 `go test -race` 通過，不以隔離範例代替。
 
@@ -14,4 +14,4 @@
 ## 3. 整合驗證
 
 - [ ] 3.1 執行受影響套件、真 SQLite／PostgreSQL 恢復整合與 race 測試；再跑 repository 後端最低檢查，保存命令、版本和未執行範圍。
-- [ ] 3.2 對照兩份 delta 的全部 scenarios 與 production wiring，確認沒有只修 domain 測試；review 修復後重跑受影響測試並交付同一範圍。
+- [ ] 3.2 對照 Safe basic group lifecycle 與 Production durable intake and recoverable closure 的兩份 delta 的全部 scenarios 與 production wiring，確認沒有只修 domain 測試；review 修復後重跑受影響測試並交付同一範圍。

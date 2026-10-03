@@ -4,6 +4,8 @@
 
 本批交付 **OpenSpec 起草＋一次 review**，依使用者授權整理為一筆文件 commit 回 main；提交身分與分支狀態以 Git 歷史為準。先前受阻的提交嘗試記錄於 review，並非產品驗證結果。六案共 50 項 tasks 保持未完成，不 archive、不修改 production/test code、不部署。
 
+以上是 bf463e38 的原始交付範圍。2026-10-04 的後續授權只修已確認的 bug 與本批規格；以 6676b2b0 為程式基準，保存草稿、離線恢復、sender settlement 與 entity layout 已有後續修復，不能沿用舊問題描述重做。這次補快速停用再啟用、群組表 metadata 與 uint64 UI 契約；D/E/F 的建表、開始協調與端到端新能力仍待實作。此次證據見 [review-repairs.md](review-repairs.md)。
+
 唯一產品目標：在既有 `/studio/v2`，快速設定設備與資料，透過確認式準備寫入 SQLite／PostgreSQL，看到可靠的真實記錄。不是再建立一個平台。
 
 ## 基準與證據等級
@@ -21,11 +23,13 @@
 | A | [fix-write-group-runtime-lifecycle](../../../openspec/changes/fix-write-group-runtime-lifecycle/proposal.md) | 草稿不停舊版、cutoff/race、離線冷啟動及歷史 journal 排空 | 無 |
 | B | [fix-write-group-delivery-deadlines](../../../openspec/changes/fix-write-group-delivery-deadlines/proposal.md) | 遠端完成後才起算本地結果保存期限 | 無 |
 | C | [fix-write-group-entity-row-layout](../../../openspec/changes/fix-write-group-entity-row-layout/proposal.md) | 同群組多 entity 的欄位、readiness、編碼一致 | 無 |
-| D | [complete-write-group-managed-storage](../../../openspec/changes/complete-write-group-managed-storage/proposal.md) | canonical group 受控建表、必要身分/時間/品質、既有 receipt | A、B、C |
+| D | [complete-write-group-managed-storage](../../../openspec/changes/complete-write-group-managed-storage/proposal.md) | canonical group 受控建表、必要身分/時間/品質、既有 receipt | A、B；C 是多 entity 正式驗收前置 |
 | E | [streamline-studio-v2-recording-setup](../../../openspec/changes/streamline-studio-v2-recording-setup/proposal.md) | 四步基本操作、少輸入、開始記錄協調、交付事實 | D，包含其前置 |
 | F | [validate-studio-v2-first-recording](../../../openspec/changes/validate-studio-v2-first-recording/proposal.md) | 真 UI 空白目的地與完整故障組合驗收 | E，包含其前置 |
 
-建議依 A → B → C → D → E → F 完成。A/B/C 可先各自寫回歸，但同檔修改按此序整合；D 不重做 A 的恢復描述，E 不重做 D 的 schema engine，F 不擴充產品功能。每案自己的 RED→GREEN、文件與 focused tests 隨該案完成，不全部丟給 F。
+先完成 A/B 的必要採集與交付保護，接 D/E 的單設備 SQLite 垂直流程；F 的初步 UI→首列觀察隨此流程進行，不等整批 50 tasks 全完成。C 可獨立修復，與 D 同檔修改按 ownership 整合；多 entity、PostgreSQL 與完整故障矩陣仍在正式 release/archive 前完成。D 不重做 A 的恢復描述，E 不重做 D 的 schema engine，F 不擴充產品功能。每案自己的回歸、文件與 focused tests 隨該案完成。
+
+早期回饋的最小見證：全新 workspace、單設備、空白 SQLite，真 UI 完成四步→schema 預覽與明確確認→開始→獨立 SQL 首列。它回答基本流程是否可用，不能宣稱 A-F 完成或代替正式驗收。先看使用者真正需要輸入哪些資料、哪裡停住、首桶等待是否可理解，再沿同一主線補 PostgreSQL 與相容情境；不另建「快速模式」。
 
 ## 上輪問題到唯一 owner
 
@@ -59,7 +63,7 @@
 
 沿用連設備 → 選點 → 確認資料/必要 Point-to-Tag → 目的地與開始記錄。基本預設每設備一組、目前 60 秒 snapshot；週期明示可改，缺值遵守既有政策。Step 4 只有必要選擇，DDL 有獨立明確確認，後端協調開始動作但不偽裝跨資源原子交易。
 
-必須從全新 workspace 與沒有採集表的目標開始，全部 setup mutation 經 UI；API/SQL 只作觀察，不能預先 CREATE 目標表或 INSERT 假讀值。SQLite／PostgreSQL 各驗證七種既有型別、exact uint64、時間、品質、身分、至少三個正式桶；受控首次使用各跑三次，從首開 setup 到首列 SELECT 的每次結果以 300 秒為門檻。前置環境與限制要記錄，此數字不是實測或現場保證。
+必須從全新 workspace 與沒有採集表的目標開始，全部 setup mutation 經 UI；API/SQL 只作觀察，不能預先 CREATE 目標表或 INSERT 假讀值。SQLite 缺檔用 stat、已有檔用 read-only URI，不讓 fixture open 偷建目的檔；每次使用獨立 fresh file/schema。SQLite／PostgreSQL 各驗證七種既有型別、exact uint64（含 2^53+1、2^63、最大值）、時間、品質、身分、至少三個正式桶；受控首次使用各跑三次，從首開 setup 到首列 SELECT 的每次結果以 300 秒為門檻，並拆分 setup、完整桶等待與交付時間。自動化計時與操作者理解/操作證據分別記錄。前置環境與限制要記錄，此數字不是實測或現場保證。
 
 跨案必驗 R1-R6、延遲補送原時間、重送/失去回覆/stale/部分啟動、custom 與 Share-only。沿用現有容量、poison、fencing、unknown、cleanup 回歸。顯示已採集／本地已接受／SQL committed，實際讀回才叫 verified。任一必驗情境 blocked/NOT RUN 就不能宣稱整批實作完成。
 
@@ -84,6 +88,6 @@ Delta 沿用七個既有 capability，沒有新平行能力：`studio-v2-write-g
 
 ## 本輪檢查與實作前 gate
 
-一次起草 review 結果及實際檢查限制見 [review.md](review.md)。官方 OpenSpec CLI 目前未能執行；不能把手動/結構檢查稱為 `openspec validate` 通過。
+原始起草 review 結果及當時限制見 [review.md](review.md)；該日 CLI 未能執行的紀錄保留。後續本機修補與實際驗證見 [review-repairs.md](review-repairs.md)，不改寫歷史結果。
 
 實作前在可用的專案環境逐案執行 `openspec validate <change-id> --strict`，再依上表順序操作。CLI/全套 source gate 或真 DB 未執行的項目，不能靠 tasks 勾選、舊報告或模擬輸出補成 PASS。這是起草交付，不是產品可用性或現場驗收。

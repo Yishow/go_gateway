@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { DbColumn } from '../../../state/dbSchemas';
 import type { Step4TargetMetadataStatus } from '../useStep4TargetColumns';
 import type { ExcludedCandidate, GroupCandidate } from '../../../state/writeGroup/candidates';
-import { columnCompatibility, type ColumnSuggestions } from '../../../state/writeGroup/columns';
+import { columnCompatibility, type ColumnSuggestions, type WriteGroupSqlDialect } from '../../../state/writeGroup/columns';
 import { memberKey, type DraftIssue, type EditorMember } from '../../../state/writeGroup/draft';
 
 export interface GroupMemberTableProps {
@@ -17,6 +17,8 @@ export interface GroupMemberTableProps {
   issues: DraftIssue[];
   showEntityKey: boolean;
   disabled: boolean;
+  /** Exact-value SQL dialect used when checking persisted metadata. */
+  dialect?: WriteGroupSqlDialect;
   onChange: (members: EditorMember[]) => void;
 }
 
@@ -40,7 +42,8 @@ function emptyMember(candidate: GroupCandidate, column: string): EditorMember {
  * bulk action names its scope and count and touches only the rows shown.
  */
 export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
-  candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled, onChange,
+  candidates, excluded, members, columns, metadataStatus, suggestions, issues, showEntityKey, disabled,
+  dialect = 'portable', onChange,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const [query, setQuery] = useState('');
@@ -66,7 +69,7 @@ export const GroupMemberTable: React.FC<GroupMemberTableProps> = ({
       const column = columnByName.get(member.target_column);
       if (issuesByMember.has(candidate.key)) problem = 'column-required';
       else if (conflictColumns.has(member.target_column)) problem = 'column-conflict';
-      else if (metadataKnown && column && columnCompatibility(candidate.target_type, column) === 'incompatible') problem = 'column-incompatible';
+      else if (metadataKnown && column && columnCompatibility(candidate.target_type, column, dialect) === 'incompatible') problem = 'column-incompatible';
       else if (metadataKnown && member.target_column && !column) problem = 'column-missing';
     }
     return { candidate, member, suggestion, problem };

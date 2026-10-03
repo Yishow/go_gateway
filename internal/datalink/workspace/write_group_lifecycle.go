@@ -193,10 +193,12 @@ func (s *WriteGroupService) Apply(ctx context.Context, id string, mutation Write
 		if snapshotErr != nil && !errors.Is(snapshotErr, ErrWriteGroupAppliedRevisionUnavailable) {
 			return snapshotErr
 		}
-		if activeSnapshot != nil && sameWriteGroupAppliedSemantics(candidate, activeSnapshot.Group) {
+		if existing.Status != WriteGroupStatusDisabled && activeSnapshot != nil && sameWriteGroupAppliedSemantics(candidate, activeSnapshot.Group) {
 			// A display-only rename must not restart the applied writer or create
 			// a second bucket snapshot. Keep the prior active revision while
-			// explicitly moving the saved draft back to ready.
+			// explicitly moving the saved draft back to ready. A disabled group
+			// follows the normal new-version path so re-enabling cannot reuse its
+			// retired intake boundary.
 			candidate.AppliedRevision = existing.AppliedRevision
 			activeSnapshot.RuntimeLayout = readiness.runtimeLayout
 			if err := s.saveRuntimeVersionInTx(ctx, tx, activeSnapshot); err != nil {

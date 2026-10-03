@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/workspace"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,7 +25,7 @@ type studioV2WorkspaceDatabaseMetadataResponse struct {
 	Columns           []dbtarget.ColumnInfo          `json:"columns"`
 }
 
-// GetMetadata reports the actual metadata of the saved workspace target table.
+// GetMetadata reports the actual metadata of the saved workspace or group table.
 // Only the persisted connector, database, schema and table are inspected, and
 // the caller must present the connector identity revision it is displaying.
 // Missing, forbidden and failed outcomes stay distinct and never carry columns.
@@ -44,7 +45,24 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 		return
 	}
 
-	connector, err := h.connectorSvc.ResolveSavedTarget(c.Request.Context(), record.DatabaseConnectorID, expectedRevision)
+	connectorID := record.DatabaseConnectorID
+	var group *workspace.WriteGroup
+	if groupID := strings.TrimSpace(c.Query("group_id")); groupID != "" {
+		if strings.TrimSpace(c.Query("expected_group_revision")) == "" {
+			renderStudioV2WorkspaceValidationError(c, errors.New("expected_group_revision is required"))
+			return
+		}
+		group, err = h.metadataGroup(c, record.ID, groupID, expectedRevision)
+		if err != nil {
+			renderWriteGroupError(c, err)
+			return
+		}
+		connectorID = group.Destination.ConnectorID
+	} else if c.Query("expected_group_revision") != "" {
+		renderStudioV2WorkspaceValidationError(c, errors.New("group_id is required"))
+		return
+	}
+	connector, err := h.connectorSvc.ResolveSavedTarget(c.Request.Context(), connectorID, expectedRevision)
 	if err != nil {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
@@ -53,8 +71,12 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 	// scope does, so the same saved connector resolves to the same database and
 	// schema on both paths.
 	dialect := canonicalRecordingDialect(string(connector.Kind))
+	schemaName, tableName := recordingTargetSchema(connector, dialect), connectorConfigString(connector, "table")
+	if group != nil {
+		schemaName, tableName = group.Destination.TableSchema, group.Destination.TableName
+	}
 	inspection, err := h.connectorSvc.InspectTable(c.Request.Context(), connector.ID,
-		recordingTargetSchema(connector, dialect), connectorConfigString(connector, "table"))
+		schemaName, tableName)
 	if err != nil {
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
@@ -71,4 +93,36 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 		Reason:            inspection.Reason,
 		Columns:           inspection.Columns,
 	}})
+}
+
+// metadataGroup resolves only persisted current-workspace scope. A stale or
+// foreign request fails before any destination inspection.
+func (h *StudioV2WorkspaceDatabaseHandler) metadataGroup(c *gin.Context, workspaceID, groupID, connectorRevision string) (*workspace.WriteGroup, error) {
+	expected := strings.TrimSpace(c.Query("expected_group_revision"))
+	if expected == "" {
+		return nil, workspace.ErrWriteGroupValidation
+	}
+	if h.writeGroups == nil {
+		return nil, workspace.ErrWriteGroupServiceUnavailable
+	}
+	result, err := h.writeGroups.List(c.Request.Context())
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, workspace.ErrWriteGroupServiceUnavailable
+	}
+	if result.WorkspaceID != workspaceID {
+		return nil, workspace.ErrWriteGroupNotFound
+	}
+	for _, group := range result.Groups {
+		if group == nil || group.ID != groupID || group.WorkspaceID != workspaceID || group.Status == workspace.WriteGroupStatusDeleted {
+			continue
+		}
+		if group.Revision != expected || group.Destination.ConnectorRevision != connectorRevision {
+			return nil, workspace.ErrWriteGroupRevisionConflict
+		}
+		return group, nil
+	}
+	return nil, workspace.ErrWriteGroupNotFound
 }
