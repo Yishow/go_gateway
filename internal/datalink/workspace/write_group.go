@@ -23,19 +23,21 @@ const (
 
 // WriteGroup is the persisted authority for one database output group.
 type WriteGroup struct {
-	ID              string                `json:"id"`
-	WorkspaceID     string                `json:"workspace_id"`
-	Revision        string                `json:"revision"`
-	AppliedRevision string                `json:"applied_revision"`
-	Name            string                `json:"name"`
-	Status          WriteGroupStatus      `json:"status"`
-	Members         []WriteGroupMember    `json:"members"`
-	Destination     WriteGroupDestination `json:"destination"`
-	RowPolicy       WriteGroupRowPolicy   `json:"row_policy"`
-	WritePolicy     WriteGroupWritePolicy `json:"write_policy"`
-	Migration       WriteGroupMigration   `json:"migration"`
-	CreatedAt       time.Time             `json:"created_at"`
-	UpdatedAt       time.Time             `json:"updated_at"`
+	ID              string `json:"id"`
+	WorkspaceID     string `json:"workspace_id"`
+	Revision        string `json:"revision"`
+	AppliedRevision string `json:"applied_revision"`
+	// BasicManagedDeviceID is read from the create-once key, never caller-assigned.
+	BasicManagedDeviceID string                `json:"basic_managed_device_id,omitempty"`
+	Name                 string                `json:"name"`
+	Status               WriteGroupStatus      `json:"status"`
+	Members              []WriteGroupMember    `json:"members"`
+	Destination          WriteGroupDestination `json:"destination"`
+	RowPolicy            WriteGroupRowPolicy   `json:"row_policy"`
+	WritePolicy          WriteGroupWritePolicy `json:"write_policy"`
+	Migration            WriteGroupMigration   `json:"migration"`
+	CreatedAt            time.Time             `json:"created_at"`
+	UpdatedAt            time.Time             `json:"updated_at"`
 }
 
 // WriteGroupMember stores persisted source and mapping identities.

@@ -7,6 +7,7 @@ import (
 )
 
 func registerStudioV2WriteGroupRoutes(group *gin.RouterGroup, services *DatalinkServices) {
+	registerStudioV2RecordingStartRoutes(group, services)
 	handler := handlers.NewStudioV2WorkspaceWriteGroupsHandler(services.WriteGroups).WithDelivery(services.WriteGroupDelivery)
 	group.GET("/studio-v2/workspace/write-groups", handler.List)
 	group.POST("/studio-v2/workspace/write-groups", handler.Create)

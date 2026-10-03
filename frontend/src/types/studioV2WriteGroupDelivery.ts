@@ -44,12 +44,25 @@ export interface WriteGroupDelivery {
   stages: WriteGroupDeliveryStages;
   /** Latest destination-confirmed commit; null when nothing was ever confirmed. */
   last_sql_committed_at: string | null;
+  /** Receipt evidence for the current applied revision; never a test-write or readback claim. */
+  last_sql_committed_effect?: WriteGroupCommittedEffect | null;
+  /** Accepted samples and rows belonging to the current applied revision only. */
+  revision_stages?: { group_revision: string; stages: WriteGroupDeliveryStages } | null;
   oldest_pending_seconds: number;
   no_data_buckets: number;
   skipped_buckets: number;
   recent_bucket_issues?: WriteGroupDeliveryBucketIssue[];
   backlog: WriteGroupDeliveryBacklog[];
   quota: WriteGroupDeliveryQuota;
+}
+
+export interface WriteGroupCommittedEffect {
+  group_revision: string;
+  connector_revision: string;
+  record_id: string;
+  effect_key: string;
+  payload_digest: string;
+  committed_at: string;
 }
 
 export type WriteGroupDeliveryBucketIssueKind = 'skipped' | 'no_data';

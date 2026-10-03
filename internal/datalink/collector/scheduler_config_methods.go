@@ -125,3 +125,20 @@ func (s *Scheduler) RemovePollingGroup(groupID string) {
 		delete(s.groupTickers, groupID)
 	}
 }
+
+// PollingGroup returns a copy of an active polling group configuration.
+// Callers use this read-only view to avoid replacing a shared ticker with a
+// scoped projection that has not been proven equivalent.
+func (s *Scheduler) PollingGroup(groupID string) (*schema.PollingGroup, bool) {
+	if s == nil || groupID == "" {
+		return nil, false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	groupTicker, ok := s.groupTickers[groupID]
+	if !ok || groupTicker == nil || groupTicker.group == nil {
+		return nil, false
+	}
+	group := *groupTicker.group
+	return &group, true
+}

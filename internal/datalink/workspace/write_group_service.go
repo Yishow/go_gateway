@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"go-gateway/internal/datalink/dbtarget"
@@ -63,6 +64,7 @@ type WriteGroupService struct {
 	managedTableInspector     ManagedWriteGroupTableInspector
 	backlogGuard              WriteGroupBacklogOwnershipGuard
 	writerOwnershipActivation WriterOwnershipActivationBarrier
+	basicManagedMu            sync.Mutex
 	now                       func() time.Time
 }
 
@@ -130,6 +132,12 @@ func (s *WriteGroupService) Create(ctx context.Context, mutation WriteGroupMutat
 // Update replaces one draft write group subject to group, workspace, and
 // connector compare-and-swap revisions.
 func (s *WriteGroupService) Update(ctx context.Context, id string, mutation WriteGroupMutation) (*WriteGroupSaveResult, error) {
+	return s.updateWithCheckpoint(ctx, id, mutation, nil)
+}
+
+func (s *WriteGroupService) updateWithCheckpoint(ctx context.Context, id string, mutation WriteGroupMutation,
+	checkpoint func(context.Context, *sql.Tx, *Record) error,
+) (*WriteGroupSaveResult, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
@@ -142,7 +150,7 @@ func (s *WriteGroupService) Update(ctx context.Context, id string, mutation Writ
 		return nil, err
 	}
 	var saved *WriteGroup
-	updated, err := s.workspaceSvc.UpdateDatabaseSetup(ctx, mutation.ExpectedWorkspaceRevision, func(ctx context.Context, tx *sql.Tx, record *Record) error {
+	updated, err := s.workspaceSvc.updateDatabaseSetupWithCheckpoint(ctx, mutation.ExpectedWorkspaceRevision, func(ctx context.Context, tx *sql.Tx, record *Record) error {
 		if record.ID != mutation.WorkspaceID {
 			return writeGroupNotFound("update write group")
 		}
@@ -177,7 +185,7 @@ func (s *WriteGroupService) Update(ctx context.Context, id string, mutation Writ
 		}
 		saved = cloneWriteGroup(candidate)
 		return nil
-	})
+	}, checkpoint)
 	if err != nil {
 		return nil, normalizeWriteGroupServiceError("update write group", err)
 	}
@@ -389,6 +397,7 @@ func normalizeWriteGroupServiceError(operation string, err error) error {
 		errors.Is(err, ErrWriteGroupSourceRevisionConflict),
 		errors.Is(err, ErrWriteGroupUnsupportedConnectorKind),
 		errors.Is(err, ErrWriteGroupRevisionConflict),
+		errors.Is(err, ErrWriteGroupBasicManagedConflict),
 		errors.Is(err, ErrWriteGroupLifecycleBlocked):
 		if errors.Is(err, ErrSetupRevisionConflict) && !errors.Is(err, ErrWriteGroupRevisionConflict) {
 			return fmt.Errorf("%s: %w: %w", operation, ErrWriteGroupRevisionConflict, err)

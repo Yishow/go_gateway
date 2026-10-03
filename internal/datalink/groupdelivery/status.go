@@ -83,7 +83,17 @@ func (s *Store) GroupStatus(ctx context.Context, groupID string) (GroupStatus, e
 }
 
 func (s *Store) readStageCounts(ctx context.Context, groupID string, status *GroupStatus) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT state, COUNT(*) FROM wg_delivery_outbox WHERE group_id = ? GROUP BY state`, groupID)
+	return s.readRevisionStageCounts(ctx, groupID, "", status)
+}
+
+func (s *Store) readRevisionStageCounts(ctx context.Context, groupID, revision string, status *GroupStatus) error {
+	query := `SELECT state, COUNT(*) FROM wg_delivery_outbox WHERE group_id = ?`
+	args := []any{groupID}
+	if revision != "" {
+		query += ` AND group_revision = ?`
+		args = append(args, revision)
+	}
+	rows, err := s.db.QueryContext(ctx, query+` GROUP BY state`, args...)
 	if err != nil {
 		return fmt.Errorf("count delivery stages: %w", err)
 	}

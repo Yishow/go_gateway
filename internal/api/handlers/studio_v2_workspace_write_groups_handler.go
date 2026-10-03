@@ -143,7 +143,8 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) Delivery(c *gin.Context) {
 	if !h.available(c) {
 		return
 	}
-	if _, err := h.groups.Get(c.Request.Context(), c.Param("id")); err != nil {
+	group, err := h.groups.Get(c.Request.Context(), c.Param("id"))
+	if err != nil {
 		renderWriteGroupError(c, err)
 		return
 	}
@@ -151,7 +152,14 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) Delivery(c *gin.Context) {
 		renderWriteGroupError(c, workspace.ErrWriteGroupServiceUnavailable)
 		return
 	}
-	view, err := h.delivery.Delivery(c.Request.Context(), c.Param("id"))
+	var view *grouppipeline.DeliveryView
+	if reader, ok := h.delivery.(interface {
+		DeliveryForRevision(context.Context, string, string) (*grouppipeline.DeliveryView, error)
+	}); ok {
+		view, err = reader.DeliveryForRevision(c.Request.Context(), group.Group.ID, group.Group.AppliedRevision)
+	} else {
+		view, err = h.delivery.Delivery(c.Request.Context(), group.Group.ID)
+	}
 	if err != nil {
 		renderWriteGroupError(c, workspace.ErrWriteGroupServiceUnavailable)
 		return
@@ -303,6 +311,8 @@ func renderWriteGroupError(c *gin.Context, err error) {
 		renderWriteGroupTyped(c, http.StatusNotFound, "WRITE_GROUP_NOT_FOUND", "write group or resource is not available", false, "reload")
 	case errors.Is(err, workspace.ErrSetupRevisionConflict), errors.Is(err, workspace.ErrWriteGroupRevisionConflict):
 		renderWriteGroupTyped(c, http.StatusConflict, "revision_mismatch", "saved configuration changed; reload before saving", false, "reload")
+	case errors.Is(err, workspace.ErrWriteGroupBasicManagedConflict):
+		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_BASIC_INTENT_CHANGED", "basic recording configuration changed; reload and explicitly update the saved group", false, "review_group")
 	case errors.Is(err, workspace.ErrWriteGroupLifecycleBlocked):
 		renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_LIFECYCLE_BLOCKED", "write group cannot be deleted while accepted data ownership is unresolved", false, "disable_group")
 	case errors.Is(err, workspace.ErrWriteGroupApplyNotReady):

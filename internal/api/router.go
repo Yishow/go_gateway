@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -55,9 +56,10 @@ type DatalinkServices struct {
 	WriteGroupDelivery handlers.WriteGroupDeliveryReader
 	// WriteGroupTestWrite previews and confirms explicit group test writes; nil
 	// makes the test-write routes answer that the capability is unavailable.
-	WriteGroupTestWrite handlers.WriteGroupTestWriter
-	Audit               *audit.Service
-	ShareRestore        handlers.ShareRestoreBarrier
+	WriteGroupTestWrite        handlers.WriteGroupTestWriter
+	Audit                      *audit.Service
+	ShareRestore               handlers.ShareRestoreBarrier
+	RecordingStartShareBarrier func(context.Context, workspace.RecordingStartRequest) error
 }
 
 // NewRouter 建立並配置 Gin 路由器

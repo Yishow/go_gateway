@@ -776,6 +776,121 @@ const docTemplate = `{
                 }
             }
         },
+        "/datalink/studio-v2/workspace/recording-start": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Start recording for selected devices and groups",
+                "parameters": [
+                    {
+                        "description": "Scoped start identity and expected revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/workspace.RecordingStartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RecordingStartResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/recording-start/operations/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Read scoped recording start progress",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Operation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RecordingStartResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/datalink/studio-v2/workspace/runtime-context": {
             "get": {
                 "description": "Returns persisted devices and setup context for the runtime monitor.",
@@ -863,6 +978,82 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/basic/{id}": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Save or reuse one device's basic managed group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Basic managed draft and expected revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMutationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
                         }
@@ -2263,6 +2454,29 @@ const docTemplate = `{
                 }
             }
         },
+        "groupdelivery.CommittedEffect": {
+            "type": "object",
+            "properties": {
+                "committed_at": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "effect_key": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "payload_digest": {
+                    "type": "string"
+                },
+                "record_id": {
+                    "type": "string"
+                }
+            }
+        },
         "groupdelivery.QuotaScope": {
             "type": "string",
             "enum": [
@@ -2347,6 +2561,9 @@ const docTemplate = `{
                 "last_sql_committed_at": {
                     "type": "string"
                 },
+                "last_sql_committed_effect": {
+                    "$ref": "#/definitions/groupdelivery.CommittedEffect"
+                },
                 "no_data_buckets": {
                     "type": "integer"
                 },
@@ -2361,6 +2578,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/groupdelivery.BucketIssue"
                     }
+                },
+                "revision_stages": {
+                    "$ref": "#/definitions/grouppipeline.RevisionStagesView"
                 },
                 "skipped_buckets": {
                     "type": "integer"
@@ -2378,6 +2598,17 @@ const docTemplate = `{
                 },
                 "state": {
                     "type": "string"
+                }
+            }
+        },
+        "grouppipeline.RevisionStagesView": {
+            "type": "object",
+            "properties": {
+                "group_revision": {
+                    "type": "string"
+                },
+                "stages": {
+                    "$ref": "#/definitions/grouppipeline.StagesView"
                 }
             }
         },
@@ -2598,6 +2829,17 @@ const docTemplate = `{
                 },
                 "workspace_id": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.RecordingStartResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/workspace.RecordingStartOperation"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3835,10 +4077,159 @@ const docTemplate = `{
                 }
             }
         },
+        "workspace.RecordingStartDeviceProgress": {
+            "type": "object",
+            "properties": {
+                "activated": {
+                    "type": "boolean"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.RecordingStartGroupIntent": {
+            "type": "object",
+            "properties": {
+                "draft": {
+                    "$ref": "#/definitions/workspace.WriteGroup"
+                },
+                "expected_connector_revision": {
+                    "type": "string"
+                },
+                "expected_group_revision": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.RecordingStartGroupProgress": {
+            "type": "object",
+            "properties": {
+                "applied": {
+                    "type": "boolean"
+                },
+                "applied_revision": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "saved": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "workspace.RecordingStartOperation": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "device_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.RecordingStartDeviceProgress"
+                    }
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.RecordingStartGroupProgress"
+                    }
+                },
+                "intent_digest": {
+                    "type": "string"
+                },
+                "next_action": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "setup_revision": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/recordingplan.SchemaOperationStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "workspace.RecordingStartRequest": {
+            "type": "object",
+            "properties": {
+                "device_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/workspace.RecordingStartGroupIntent"
+                    }
+                },
+                "readiness_token": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "type": "string"
+                },
+                "settings_revision": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                },
+                "workspace_revision": {
+                    "type": "string"
+                }
+            }
+        },
         "workspace.WriteGroup": {
             "type": "object",
             "properties": {
                 "applied_revision": {
+                    "type": "string"
+                },
+                "basic_managed_device_id": {
+                    "description": "BasicManagedDeviceID is read from the create-once key, never caller-assigned.",
                     "type": "string"
                 },
                 "created_at": {

@@ -8,8 +8,9 @@ type RuntimeDashboardDeviceState = Pick<
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function isPersistedBackendDeviceID(deviceID: string | null | undefined): deviceID is string {
-  return typeof deviceID === 'string' && uuidPattern.test(deviceID);
+function isPersistedBackendDeviceID(state: RuntimeDashboardDeviceState, deviceID: string | null | undefined): deviceID is string {
+  return typeof deviceID === 'string' && (uuidPattern.test(deviceID) || state.devices.some((device) =>
+    device.id === deviceID && device.persisted === true && device.save_state === 'saved'));
 }
 
 export function resolveRuntimeDashboardDevice(
@@ -19,14 +20,14 @@ export function resolveRuntimeDashboardDevice(
   if (confirmedDeviceIds && confirmedDeviceIds.length > 0) {
     const uniqueConfirmedDeviceIds = Array.from(new Set(confirmedDeviceIds));
     const [confirmedDeviceId] = uniqueConfirmedDeviceIds;
-    return uniqueConfirmedDeviceIds.length === 1 && isPersistedBackendDeviceID(confirmedDeviceId)
+    return uniqueConfirmedDeviceIds.length === 1 && isPersistedBackendDeviceID(state, confirmedDeviceId)
       ? confirmedDeviceId
       : null;
   }
 
   if (state.selectedRuleId) {
     const selectedRule = state.rules.find((rule) => rule.id === state.selectedRuleId);
-    if (selectedRule && isPersistedBackendDeviceID(selectedRule.device_id)) {
+    if (selectedRule && isPersistedBackendDeviceID(state, selectedRule.device_id)) {
       return selectedRule.device_id;
     }
   }
@@ -40,14 +41,14 @@ export function resolveRuntimeDashboardDevice(
   );
   if (
     enabledRuleDeviceIds.length === 1 &&
-    isPersistedBackendDeviceID(enabledRuleDeviceIds[0])
+    isPersistedBackendDeviceID(state, enabledRuleDeviceIds[0])
   ) {
     return enabledRuleDeviceIds[0];
   }
 
   if (
     state.devices.length === 1 &&
-    isPersistedBackendDeviceID(state.devices[0]?.id)
+    isPersistedBackendDeviceID(state, state.devices[0]?.id)
   ) {
     return state.devices[0].id;
   }

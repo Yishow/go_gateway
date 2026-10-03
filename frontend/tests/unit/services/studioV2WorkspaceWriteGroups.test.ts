@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { studioV2DatalinkApi } from '@/services/studioV2Workspace';
+import { parseStudioV2WriteGroup } from '@/utils/studioV2WriteGroupJson';
 import {
   studioV2WorkspaceWriteGroupsAPI,
 } from '@/services/studioV2WorkspaceWriteGroups';
@@ -87,6 +88,21 @@ const listResponse: WriteGroupListResponse = {
   workspace_revision: 'workspace-rev-2',
   groups: [canonicalGroup],
 };
+
+describe('persistent basic managed role', () => {
+  it('retains the server role and rejects malformed role data', () => {
+    const group = { ...canonicalGroup, destination: { ...canonicalGroup.destination, storage_strategy: 'managed' } };
+    expect(parseStudioV2WriteGroup({ ...group, basic_managed_device_id: 'device-1' }))
+      .toMatchObject({ basic_managed_device_id: 'device-1' });
+    expect(parseStudioV2WriteGroup(group)).not.toHaveProperty('basic_managed_device_id');
+    for (const role of ['', 1]) {
+      expect(parseStudioV2WriteGroup({ ...group, basic_managed_device_id: role })).toBeNull();
+    }
+    // Explicit advanced edits can change layout while preserving the historical key.
+    expect(parseStudioV2WriteGroup({ ...canonicalGroup, basic_managed_device_id: 'device-1' }))
+      .toMatchObject({ basic_managed_device_id: 'device-1' });
+  });
+});
 
 const readinessIssue = {
   code: 'schema-unverified',

@@ -29,6 +29,34 @@ function delivery(overrides: Partial<WriteGroupDelivery> = {}): WriteGroupDelive
 describe('write group delivery status', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('preserves actual revision-bound effect identity and rejects contradictory evidence', () => {
+    const effect = {
+      group_revision: 'rev-2', connector_revision: 'crev-2', record_id: 'record-2',
+      effect_key: 'effect-2', payload_digest: 'a'.repeat(64), committed_at: '2026-10-02T12:00:10Z',
+    };
+    expect(parseWriteGroupDeliveryData({ ...delivery(), last_sql_committed_effect: effect }))
+      .toMatchObject({ last_sql_committed_effect: effect });
+    expect(parseWriteGroupDeliveryData({ ...delivery(), last_sql_committed_effect: null }))
+      .toMatchObject({ last_sql_committed_effect: null });
+    expect(parseWriteGroupDeliveryData({ ...delivery(), last_sql_committed_effect: { ...effect, payload_digest: 'bad' } })).toBeNull();
+    expect(parseWriteGroupDeliveryData({ ...delivery(), last_sql_committed_effect: { ...effect, record_id: '' } })).toBeNull();
+    expect(parseWriteGroupDeliveryData({ ...delivery(), last_sql_committed_effect: { ...effect, committed_at: 'bad' } })).toBeNull();
+    expect(parseWriteGroupDeliveryData({
+      ...delivery(), stages: { ...delivery().stages, sql_committed: 0 }, last_sql_committed_at: null,
+      last_sql_committed_effect: effect,
+    })).toBeNull();
+  });
+
+  it('keeps current revision stages separate from historical totals', () => {
+    const current = { group_revision: 'rev-2', stages: {
+      collecting: 1, queued: 1, retrying: 0, blocked: 0, quarantined: 0, unknown: 0, sql_committed: 0, skipped: 0,
+    } };
+    expect(parseWriteGroupDeliveryData({ ...delivery(), revision_stages: current }))
+      .toMatchObject({ revision_stages: current });
+    expect(parseWriteGroupDeliveryData({ ...delivery(), revision_stages: { ...current, group_revision: '' } })).toBeNull();
+    expect(parseWriteGroupDeliveryData({ ...delivery(), revision_stages: { ...current, stages: { ...current.stages, queued: -1 } } })).toBeNull();
+  });
+
   it('reads the delivery route for the encoded group id and keeps every stage', async () => {
     vi.mocked(studioV2DatalinkApi.get).mockResolvedValueOnce({ data: { success: true, data: delivery() } } as never);
     const result = await studioV2WorkspaceWriteGroupsAPI.delivery('group/with space');

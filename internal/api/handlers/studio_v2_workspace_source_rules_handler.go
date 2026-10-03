@@ -78,8 +78,11 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.ruleSvc.Create(c.Request.Context(), req)
+	rule, reconcileOutcome, err := h.ruleSvc.CreateWithRuntimeReconcile(c.Request.Context(), req)
 	if err != nil {
+		if renderSourceRuleShareError(c, err) {
+			return
+		}
 		renderStudioV2WorkspaceSourceRuleError(c, err)
 		return
 	}
@@ -87,12 +90,21 @@ func (h *StudioV2WorkspaceSourceRulesHandler) Create(c *gin.Context) {
 	payload := mapSourceRuleResponse(rule)
 	payload.WorkspaceID = record.ID
 	payload.SaveState = workspaceSaveStateSaved
-	links, err := h.ruleSvc.ListLinks(c.Request.Context(), rule.ID)
-	if err != nil {
-		renderStudioV2WorkspaceSourceRuleError(c, err)
-		return
+	applyOutcome := mapSourceRuleRuntimeReconcileOutcome(reconcileOutcome)
+	if reconcileOutcome.Status == sourcerule.RuntimeReconcileStatusDeferred {
+		links, linksErr := h.ruleSvc.ListLinks(c.Request.Context(), rule.ID)
+		if linksErr != nil {
+			renderStudioV2WorkspaceSourceRuleError(c, linksErr)
+			return
+		}
+		applyOutcome = resolveStudioV2ScopedRuntimeApplyOutcome(
+			c.Request.Context(),
+			h.workspaceSvc,
+			h.deviceSvc,
+			[]string{rule.DeviceID},
+			workspaceRuleApplyScopes(rule.DeviceID, links),
+		)
 	}
-	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{rule.DeviceID}, workspaceRuleApplyScopes(rule.DeviceID, links))
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
 	payload.RuntimeApplyIssues = applyOutcome.Issues

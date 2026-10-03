@@ -19,6 +19,7 @@ func (s *Service) WithWriteGroupReadiness(groups readinessWriteGroupService) *Se
 type writeGroupReadinessCoverage struct {
 	groupIDs map[string]bool
 	members  map[writeGroupReadinessMemberKey]bool
+	pointIDs map[string]bool
 }
 
 type writeGroupReadinessMemberKey struct {

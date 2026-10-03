@@ -107,6 +107,18 @@ describe('resolveRuntimeDashboardDevice', () => {
     )).toBe('550e8400-e29b-41d4-a716-446655440000');
   });
 
+  it('uses a confirmed persisted backend device id even when it is not a UUID', () => {
+    const confirmedDeviceId = 'dev-1791051427717-822';
+    const state = createState({
+      devices: [
+        { ...createState().devices[0], id: 'dev-1791051427000-111', persisted: true, save_state: 'saved' },
+        { ...createState().devices[1], id: confirmedDeviceId, persisted: true, save_state: 'saved' },
+      ],
+    });
+
+    expect(resolveRuntimeDashboardDevice(state, [confirmedDeviceId])).toBe(confirmedDeviceId);
+  });
+
   it('falls back to the generic runtime route for ambiguous or local confirmations', () => {
     const state = createState();
 

@@ -131,6 +131,12 @@ func (s *WriteGroupService) Disable(ctx context.Context, id string, mutation Wri
 // Apply validates the saved draft and schedules it for the next UTC bucket.
 // No external DDL or runtime activation is performed here.
 func (s *WriteGroupService) Apply(ctx context.Context, id string, mutation WriteGroupMutation) (*WriteGroupSaveResult, error) {
+	return s.applyWithCheckpoint(ctx, id, mutation, nil)
+}
+
+func (s *WriteGroupService) applyWithCheckpoint(ctx context.Context, id string, mutation WriteGroupMutation,
+	checkpoint func(context.Context, *sql.Tx, *Record) error,
+) (*WriteGroupSaveResult, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
@@ -154,7 +160,7 @@ func (s *WriteGroupService) Apply(ctx context.Context, id string, mutation Write
 	}
 
 	var saved *WriteGroup
-	updated, err := s.workspaceSvc.UpdateDatabaseSetup(ctx, mutation.ExpectedWorkspaceRevision, func(ctx context.Context, tx *sql.Tx, record *Record) error {
+	updated, err := s.workspaceSvc.updateDatabaseSetupWithCheckpoint(ctx, mutation.ExpectedWorkspaceRevision, func(ctx context.Context, tx *sql.Tx, record *Record) error {
 		if record.ID != mutation.WorkspaceID {
 			return writeGroupNotFound("apply write group")
 		}
@@ -261,7 +267,7 @@ func (s *WriteGroupService) Apply(ctx context.Context, id string, mutation Write
 		}
 		saved = cloneWriteGroup(candidate)
 		return nil
-	})
+	}, checkpoint)
 	if err != nil {
 		return nil, normalizeWriteGroupServiceError("apply write group", err)
 	}

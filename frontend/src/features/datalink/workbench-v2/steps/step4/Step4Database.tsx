@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStep4Activation } from './useStep4Activation';
 import {
   buildSchemaPreviewSignature,
@@ -11,6 +12,7 @@ import {
   useStep4Readonly,
 } from './step4DatabaseHelpers';
 import { WriteGroupSection } from './writeGroup/WriteGroupSection';
+import { BasicRecordingPanel } from './BasicRecordingPanel';
 import { useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import { SafeQueryBoundary } from '@/utils/SafeQueryBoundary';
 import { CommitSummary } from './CommitSummary';
@@ -60,6 +62,7 @@ function Step4DatabaseContent({
   shareStatus,
   onNavigateStep,
 }: Step4DatabaseProps) {
+  const { t } = useTranslation('workbench-v2');
   const activation = useStep4Activation(
     activateWorkspace,
     recoverActivationStatus,
@@ -162,9 +165,29 @@ function Step4DatabaseContent({
     applied: liveGroups.filter((group) => group.applied_revision !== '' && group.status !== 'disabled').length,
   };
   const configurationSaved = saveStates.length > 0 && saveStates.every((saveState) => saveState === 'saved');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [basicOperationActive, setBasicOperationActive] = useState(false);
+  const advancedRef = useRef<HTMLDetailsElement>(null);
+  const openAdvanced = useCallback(() => {
+    setAdvancedOpen(true);
+    advancedRef.current?.focus();
+  }, []);
+  useEffect(() => {
+    if (activation.phase !== 'idle') setAdvancedOpen(true);
+  }, [activation.phase]);
 
   return (
     <div className="space-y-6">
+      <BasicRecordingPanel
+        state={state}
+        workspaceId={workspaceId}
+        readonly={isReadonly}
+        shareStatus={shareStatus}
+        onCommit={onCommit}
+        onOpenAdvanced={openAdvanced}
+        onOperationActiveChange={setBasicOperationActive}
+      />
+
       <Step4SupportPanels
         connector={connector}
         connectors={state.settings.connectors}
@@ -179,63 +202,76 @@ function Step4DatabaseContent({
             schemaPreviewSignature={schemaPreviewSignature}
           />
         }
-        disabled={isReadonly}
-      />
-
-      <WriteGroupSection
-        state={state}
-        workspaceId={workspaceId}
-        readonly={isReadonly}
-        onNavigateStep={onNavigateStep}
+        disabled={isReadonly || basicOperationActive}
       />
 
       <ShareOutputSummary state={state} shareStatus={shareStatus} />
 
-      {activation.phase === 'idle' ? (
-        <>
-          <ActivationRecoveryNotice
-            recovery={activation.recovery}
-            recoveryUnavailable={activation.recoveryUnavailable}
-          />
-          <CommitSummary
-            deviceCount={state.devices.length}
-            ruleCount={state.rules.filter(r => r.enabled).length}
-            pointCount={enabledPoints.length}
-            mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
-            connector={connector}
-            groupSummary={groupSummary}
-            readinessSummary={workspaceReadiness}
-            configurationSaved={configurationSaved}
-            onActivate={activation.start}
+      <details
+        ref={advancedRef}
+        id="step4-advanced-recording"
+        tabIndex={-1}
+        open={advancedOpen}
+        onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+        className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/20 p-4"
+        data-testid="step4-advanced-recording"
+      >
+        <summary className="cursor-pointer text-sm font-semibold text-slate-200">{t('step4.basic.advanced_title')}</summary>
+        <div className="space-y-6 pt-2">
+          <WriteGroupSection
+            state={state}
+            workspaceId={workspaceId}
+            readonly={isReadonly || basicOperationActive}
             onNavigateStep={onNavigateStep}
           />
-        </>
-      ) : activation.phase === 'activating' ? (
-        <CommitProgress logs={activation.logs} status="committing" />
-      ) : (
-        <>
-          {activation.logs.some((log) => log.status === 'failed') && (
-            <CommitProgress logs={activation.logs} status="failed" onRetry={activation.start} />
-          )}
-          {hasActivationSuccess ? (
-            <CommitSuccessCard
-              response={activation.response ?? { workspace_id: '', results: [] }}
-              canContinue={canContinueToRuntime}
-              onCommit={onCommit}
-              onReset={activation.reset}
-            />
+
+          {activation.phase === 'idle' ? (
+            <>
+              <ActivationRecoveryNotice
+                recovery={activation.recovery}
+                recoveryUnavailable={activation.recoveryUnavailable}
+              />
+              <CommitSummary
+                deviceCount={state.devices.length}
+                ruleCount={state.rules.filter(r => r.enabled).length}
+                pointCount={enabledPoints.length}
+                mappingCount={Object.values(state.mappings).filter(m => m.enabled).length}
+                connector={connector}
+                groupSummary={groupSummary}
+                readinessSummary={workspaceReadiness}
+                configurationSaved={configurationSaved}
+                onActivate={activation.start}
+                onNavigateStep={onNavigateStep}
+              />
+            </>
+          ) : activation.phase === 'activating' ? (
+            <CommitProgress logs={activation.logs} status="committing" />
           ) : (
-            <ActivationNeutralSummary
-              canContinue={canContinueToRuntime}
-              onCommit={onCommit}
-              response={activation.response}
-              recovery={activation.recovery}
-              recoveryUnavailable={activation.recoveryUnavailable}
-              onReset={activation.reset}
-            />
+            <>
+              {activation.logs.some((log) => log.status === 'failed') && (
+                <CommitProgress logs={activation.logs} status="failed" onRetry={activation.start} />
+              )}
+              {hasActivationSuccess ? (
+                <CommitSuccessCard
+                  response={activation.response ?? { workspace_id: '', results: [] }}
+                  canContinue={canContinueToRuntime}
+                  onCommit={onCommit}
+                  onReset={activation.reset}
+                />
+              ) : (
+                <ActivationNeutralSummary
+                  canContinue={canContinueToRuntime}
+                  onCommit={onCommit}
+                  response={activation.response}
+                  recovery={activation.recovery}
+                  recoveryUnavailable={activation.recoveryUnavailable}
+                  onReset={activation.reset}
+                />
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+      </details>
     </div>
   );
 }

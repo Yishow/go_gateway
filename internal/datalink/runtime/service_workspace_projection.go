@@ -116,6 +116,7 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 	ctx context.Context,
 	projection *workspace.RuntimeProjection,
 	deviceID string,
+	preserveUnselectedPoints ...bool,
 ) error {
 	if deviceID == "" {
 		return s.ApplyWorkspaceProjection(ctx, projection)
@@ -145,9 +146,11 @@ func (s *Service) applyWorkspaceProjectionForDevice(
 		}
 		desiredPoints[pointRecord.ID] = struct{}{}
 	}
-	for pointID := range s.currentPointMetaIDsForDevice(deviceID) {
-		if _, ok := desiredPoints[pointID]; !ok {
-			s.RemovePoint(pointID)
+	if len(preserveUnselectedPoints) == 0 || !preserveUnselectedPoints[0] {
+		for pointID := range s.currentPointMetaIDsForDevice(deviceID) {
+			if _, ok := desiredPoints[pointID]; !ok {
+				s.RemovePoint(pointID)
+			}
 		}
 	}
 	for _, pointRecord := range projection.Points {

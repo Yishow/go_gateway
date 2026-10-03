@@ -27,12 +27,30 @@ func ensureSQLiteWriteGroupsTables(db *sql.DB) error {
 		return fmt.Errorf("failed to inspect sqlite table write_group_migration_maps for migration %s: %w", migrationName, err)
 	}
 	if groupsExists && membersExists && versionsExists && migrationMapsExists {
-		return ensureSQLiteWriteGroupMemberEntityKey(db)
+		if err := ensureSQLiteWriteGroupMemberEntityKey(db); err != nil {
+			return err
+		}
+		return ensureSQLiteBasicManagedKeysTable(db)
 	}
 	if err := applySQLiteMigrationOnce(db, migrationName); err != nil {
 		return err
 	}
-	return ensureSQLiteWriteGroupMemberEntityKey(db)
+	if err := ensureSQLiteWriteGroupMemberEntityKey(db); err != nil {
+		return err
+	}
+	return ensureSQLiteBasicManagedKeysTable(db)
+}
+
+func ensureSQLiteBasicManagedKeysTable(db *sql.DB) error {
+	const migrationName = "028_write_group_basic_keys_sqlite.up.sql"
+	exists, err := sqliteTableExists(db, "write_group_basic_keys")
+	if err != nil {
+		return fmt.Errorf("failed to inspect sqlite table write_group_basic_keys for migration %s: %w", migrationName, err)
+	}
+	if exists {
+		return nil
+	}
+	return applySQLiteMigrationOnce(db, migrationName)
 }
 
 // ensureSQLiteWriteGroupMemberEntityKey upgrades a pre-024 member table in

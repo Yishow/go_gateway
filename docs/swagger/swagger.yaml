@@ -13,6 +13,21 @@ definitions:
       kind:
         type: string
     type: object
+  groupdelivery.CommittedEffect:
+    properties:
+      committed_at:
+        type: string
+      connector_revision:
+        type: string
+      effect_key:
+        type: string
+      group_revision:
+        type: string
+      payload_digest:
+        type: string
+      record_id:
+        type: string
+    type: object
   groupdelivery.QuotaScope:
     enum:
     - global
@@ -69,6 +84,8 @@ definitions:
         $ref: '#/definitions/grouppipeline.IntakeView'
       last_sql_committed_at:
         type: string
+      last_sql_committed_effect:
+        $ref: '#/definitions/groupdelivery.CommittedEffect'
       no_data_buckets:
         type: integer
       oldest_pending_seconds:
@@ -79,6 +96,8 @@ definitions:
         items:
           $ref: '#/definitions/groupdelivery.BucketIssue'
         type: array
+      revision_stages:
+        $ref: '#/definitions/grouppipeline.RevisionStagesView'
       skipped_buckets:
         type: integer
       stages:
@@ -90,6 +109,13 @@ definitions:
         type: string
       state:
         type: string
+    type: object
+  grouppipeline.RevisionStagesView:
+    properties:
+      group_revision:
+        type: string
+      stages:
+        $ref: '#/definitions/grouppipeline.StagesView'
     type: object
   grouppipeline.StagesView:
     properties:
@@ -237,6 +263,13 @@ definitions:
         type: string
       workspace_id:
         type: string
+    type: object
+  handlers.RecordingStartResponse:
+    properties:
+      data:
+        $ref: '#/definitions/workspace.RecordingStartOperation'
+      success:
+        type: boolean
     type: object
   handlers.StartModbusShareRequest:
     properties:
@@ -1084,9 +1117,108 @@ definitions:
       warning_count:
         type: integer
     type: object
+  workspace.RecordingStartDeviceProgress:
+    properties:
+      activated:
+        type: boolean
+      device_id:
+        type: string
+      reason:
+        type: string
+    type: object
+  workspace.RecordingStartGroupIntent:
+    properties:
+      draft:
+        $ref: '#/definitions/workspace.WriteGroup'
+      expected_connector_revision:
+        type: string
+      expected_group_revision:
+        type: string
+      group_id:
+        type: string
+    type: object
+  workspace.RecordingStartGroupProgress:
+    properties:
+      applied:
+        type: boolean
+      applied_revision:
+        type: string
+      group_id:
+        type: string
+      group_revision:
+        type: string
+      ready:
+        type: boolean
+      saved:
+        type: boolean
+    type: object
+  workspace.RecordingStartOperation:
+    properties:
+      action:
+        type: string
+      created_at:
+        type: string
+      device_ids:
+        items:
+          type: string
+        type: array
+      devices:
+        items:
+          $ref: '#/definitions/workspace.RecordingStartDeviceProgress'
+        type: array
+      groups:
+        items:
+          $ref: '#/definitions/workspace.RecordingStartGroupProgress'
+        type: array
+      intent_digest:
+        type: string
+      next_action:
+        type: string
+      operation_id:
+        type: string
+      reason:
+        type: string
+      setup_revision:
+        type: string
+      stage:
+        type: string
+      status:
+        $ref: '#/definitions/recordingplan.SchemaOperationStatus'
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  workspace.RecordingStartRequest:
+    properties:
+      device_ids:
+        items:
+          type: string
+        type: array
+      expected_workspace_revision:
+        type: string
+      groups:
+        items:
+          $ref: '#/definitions/workspace.RecordingStartGroupIntent'
+        type: array
+      readiness_token:
+        type: string
+      request_id:
+        type: string
+      settings_revision:
+        type: string
+      workspace_id:
+        type: string
+      workspace_revision:
+        type: string
+    type: object
   workspace.WriteGroup:
     properties:
       applied_revision:
+        type: string
+      basic_managed_device_id:
+        description: BasicManagedDeviceID is read from the create-once key, never
+          caller-assigned.
         type: string
       created_at:
         type: string
@@ -1948,6 +2080,81 @@ paths:
       summary: Activate the Studio v2 workspace
       tags:
       - studio-v2
+  /datalink/studio-v2/workspace/recording-start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Scoped start identity and expected revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/workspace.RecordingStartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RecordingStartResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Start recording for selected devices and groups
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/recording-start/operations/{id}:
+    get:
+      parameters:
+      - description: Operation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RecordingStartResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Read scoped recording start progress
+      tags:
+      - Studio V2 Write Groups
   /datalink/studio-v2/workspace/runtime-context:
     get:
       description: Returns persisted devices and setup context for the runtime monitor.
@@ -2515,6 +2722,56 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponse'
       summary: Preview a write-group test write
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/basic/{id}:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Basic managed draft and expected revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Save or reuse one device's basic managed group
       tags:
       - Studio V2 Write Groups
   /datalink/studio-v2/workspace/write-groups/migrations/recording-plans/preview:

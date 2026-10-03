@@ -3,9 +3,10 @@ package workspace
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/schema"
-	"strings"
 )
 
 func (s *Service) downstreamReadinessIssues(ctx context.Context, deviceIDs []string, connectorID string, coverage writeGroupReadinessCoverage) ([]ReadinessIssue, error) {
@@ -46,6 +47,9 @@ func (s *Service) downstreamLinkIssue(ctx context.Context, connectorID string, l
 	}
 
 	pointID := strings.TrimSpace(link.PointID)
+	if len(coverage.pointIDs) > 0 && !coverage.pointIDs[pointID] {
+		return ReadinessIssue{}, false, nil
+	}
 	if pointID == "" {
 		return ReadinessIssue{
 			Code:     "point-missing",

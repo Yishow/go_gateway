@@ -3,6 +3,7 @@ import type {
   WriteGroupDeliveryBucketIssue,
   WriteGroupDeliveryBucketIssueKind,
   WriteGroupDelivery,
+  WriteGroupCommittedEffect,
   WriteGroupDeliveryBacklog,
   WriteGroupDeliveryQuota,
   WriteGroupDeliveryStages,
@@ -30,6 +31,20 @@ function isRecord(value: unknown): value is JsonRecord {
 
 function count(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+function parseCommittedEffect(value: unknown): WriteGroupCommittedEffect | null {
+  if (!isRecord(value)) return null;
+  const groupRevision = boundedString(value.group_revision);
+  const connectorRevision = boundedString(value.connector_revision);
+  const recordId = boundedString(value.record_id);
+  const effectKey = boundedString(value.effect_key);
+  const digest = boundedString(value.payload_digest);
+  const committedAt = boundedString(value.committed_at);
+  if (!groupRevision || !connectorRevision || !recordId || !effectKey || !digest ||
+    !/^[a-f0-9]{64}$/.test(digest) || !committedAt || Number.isNaN(Date.parse(committedAt))) return null;
+  return { group_revision: groupRevision, connector_revision: connectorRevision, record_id: recordId,
+    effect_key: effectKey, payload_digest: digest, committed_at: committedAt };
 }
 
 function parseStages(value: unknown): WriteGroupDeliveryStages | null {
@@ -149,6 +164,20 @@ export function parseWriteGroupDeliveryData(value: unknown): WriteGroupDelivery 
     return null;
   }
   if ((stages.sql_committed > 0) !== (lastCommitted !== null)) return null;
+  const rawEffect = value.last_sql_committed_effect;
+  const effect = rawEffect == null ? null : parseCommittedEffect(rawEffect);
+  if (rawEffect != null && (!effect || stages.sql_committed === 0)) return null;
+  const rawRevision = value.revision_stages;
+  let revision: WriteGroupDelivery['revision_stages'];
+  if (rawRevision === null) revision = null;
+  else if (rawRevision !== undefined) {
+    if (!isRecord(rawRevision)) return null;
+    const groupRevision = boundedString(rawRevision.group_revision);
+    const revisionStages = parseStages(rawRevision.stages);
+    if (!groupRevision || !revisionStages || (effect &&
+      (effect.group_revision !== groupRevision || revisionStages.sql_committed === 0))) return null;
+    revision = { group_revision: groupRevision, stages: revisionStages };
+  }
   const backlog = rawBacklog.map(parseBacklog);
   if (backlog.some((entry) => entry === null)) return null;
   const recentIssues = rawRecentIssues?.map(parseBucketIssue);
@@ -157,6 +186,8 @@ export function parseWriteGroupDeliveryData(value: unknown): WriteGroupDelivery 
     group_id: groupId,
     intake: { state: intakeState as WriteGroupIntakeState, ...(value.intake.reason ? { reason: value.intake.reason as string } : {}) },
     stages, last_sql_committed_at: lastCommitted as string | null, oldest_pending_seconds: oldest,
+    ...(rawEffect !== undefined ? { last_sql_committed_effect: effect } : {}),
+    ...(rawRevision !== undefined ? { revision_stages: revision } : {}),
     no_data_buckets: noData, skipped_buckets: skipped,
     ...(recentIssues ? { recent_bucket_issues: recentIssues as WriteGroupDeliveryBucketIssue[] } : {}),
     backlog: backlog as WriteGroupDeliveryBacklog[], quota,

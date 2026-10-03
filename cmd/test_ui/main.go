@@ -21,7 +21,6 @@ import (
 	"github.com/google/uuid"
 
 	"go-gateway/internal/api"
-	"go-gateway/internal/api/handlers"
 	"go-gateway/internal/config"
 	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/connector"
@@ -204,53 +203,29 @@ func runGateway() (runErr error) {
 	historySvc := history.NewService(history.NewMemoryHistoryRepository())
 
 	datalinkServices := &api.DatalinkServices{
-		Device:                devSvc,
-		Point:                 pointSvc,
-		Tag:                   tagSvc,
-		Mapping:               mappingSvc,
-		PollingGroup:          pgSvc,
-		Settings:              settingsSvc,
-		ModbusShare:           modbusShareSvc,
-		ModbusShareReconciler: reconciler,
-		Scheduler:             scheduler,
-		Runtime:               runtimeSvc,
-		DBTarget:              dbTargetConnectorSvc,
-		DBMapping:             dbTargetMappingSvc,
-		SourceRule:            sourceRuleSvc,
-		Measurement:           measurementSvc,
-		RecordingPlan:         recordingPlanSvc,
-		History:               historySvc,
-		Workspace:             workspaceSvc,
-		WriteGroups:           services.writeGroups,
-		WriteGroupDelivery:    services.groupPipe,
-		WriteGroupTestWrite:   services.groupTestWrite,
-		Audit:                 auditSvc,
-		ShareRestore: handlers.ShareRestoreBarrier(func(ctx context.Context, req handlers.ActivateWorkspaceRequest) error {
-			hydration, err := modbusShareSvc.CheckHydration(ctx)
-			if err != nil {
-				return modbusshare.NewError(modbusshare.ErrCodeHydrationRequired, "workspace hydration is required before Share restore", true)
-			}
-			settingsSnapshot := modbusShareSvc.Settings()
-			if !settingsSnapshot.Enabled {
-				return modbusshare.NewError(modbusshare.ErrCodeDisabled, "Modbus Share is disabled in global settings", false)
-			}
-			if req.WorkspaceRevision == "" || req.WorkspaceRevision != hydration.WorkspaceRevision {
-				return modbusshare.NewError(modbusshare.ErrCodeRevisionConflict, "workspace revision conflict", true)
-			}
-			// Restore always rebuilds desired state from persisted source-rule
-			// candidates. Durable mapping rows are only consistency/rollback
-			// evidence and must not become a competing authority.
-			workspaceRecord, workspaceErr := workspaceSvc.GetOrCreate(ctx)
-			if workspaceErr != nil {
-				return modbusshare.NewError(modbusshare.ErrCodeWorkspaceScope, "workspace membership is unavailable", true)
-			}
-			var out modbusshare.ReconcileOutcome
-			out, err = sourceRuleSvc.RestoreLocalModbusProjectionForDevices(ctx, hydration.WorkspaceID, req.WorkspaceRevision, settingsSnapshot, workspaceRecord.OrderedDeviceIDs, reconciler)
-			if err == nil && out.Outcome != "aligned" && out.Outcome != "applied" {
-				err = modbusshare.NewError(modbusshare.ErrCodeHydrationRequired, "Share restore did not reach an aligned projection", true)
-			}
-			return err
-		}),
+		Device:                     devSvc,
+		Point:                      pointSvc,
+		Tag:                        tagSvc,
+		Mapping:                    mappingSvc,
+		PollingGroup:               pgSvc,
+		Settings:                   settingsSvc,
+		ModbusShare:                modbusShareSvc,
+		ModbusShareReconciler:      reconciler,
+		Scheduler:                  scheduler,
+		Runtime:                    runtimeSvc,
+		DBTarget:                   dbTargetConnectorSvc,
+		DBMapping:                  dbTargetMappingSvc,
+		SourceRule:                 sourceRuleSvc,
+		Measurement:                measurementSvc,
+		RecordingPlan:              recordingPlanSvc,
+		History:                    historySvc,
+		Workspace:                  workspaceSvc,
+		WriteGroups:                services.writeGroups,
+		WriteGroupDelivery:         services.groupPipe,
+		WriteGroupTestWrite:        services.groupTestWrite,
+		Audit:                      auditSvc,
+		ShareRestore:               newWorkspaceShareRestoreBarrier(workspaceSvc, sourceRuleSvc, modbusShareSvc, reconciler),
+		RecordingStartShareBarrier: newRecordingStartShareBarrier(sourceRuleSvc, modbusShareSvc),
 	}
 
 	router := api.NewRouter(datalinkServices)

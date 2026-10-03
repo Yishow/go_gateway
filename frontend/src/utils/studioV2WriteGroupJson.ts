@@ -241,6 +241,9 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
   const createdAt = readRequiredText(value, 'created_at');
   const updatedAt = readRequiredText(value, 'updated_at');
   const rawMembers = value.members;
+  const basicDevice = value.basic_managed_device_id === undefined
+    ? undefined : boundedString(value.basic_managed_device_id);
+  if (value.basic_managed_device_id !== undefined && !basicDevice) return null;
   if (!id || !workspaceId || !revision || appliedRevision === undefined || appliedRevision === null || !name ||
     !status || !WRITE_GROUP_STATUSES.has(status as WriteGroupStatus) || !createdAt || !updatedAt ||
     !Array.isArray(rawMembers) || rawMembers.length > MAX_SAFE_JSON_ARRAY_LENGTH) {
@@ -260,6 +263,7 @@ export function parseStudioV2WriteGroup(value: unknown): WriteGroup | null {
     workspace_id: workspaceId,
     revision,
     applied_revision: appliedRevision,
+    ...(basicDevice ? { basic_managed_device_id: basicDevice } : {}),
     name,
     status: status as WriteGroupStatus,
     members: members as WriteGroupMember[],

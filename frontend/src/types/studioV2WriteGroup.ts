@@ -69,6 +69,8 @@ export interface WriteGroupMigration {
 
 /** Canonical persisted authority returned by the workspace write-group API. */
 export interface WriteGroup {
+  /** Server-owned persistent basic role; absent for pre-existing advanced groups. */
+  basic_managed_device_id?: string;
   id: string;
   workspace_id: string;
   revision: string;
@@ -88,7 +90,7 @@ export interface WriteGroup {
 export type WriteGroupDraft = Omit<
   WriteGroup,
   'id' | 'revision' | 'applied_revision' | 'status' | 'migration' | 'created_at' | 'updated_at' |
-  'members' | 'destination'
+  'members' | 'destination' | 'basic_managed_device_id'
 > & {
   members: WriteGroupMemberDraft[];
   destination: WriteGroupDestinationDraft;

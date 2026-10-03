@@ -111,6 +111,9 @@ func (r *SQLWriteGroupRepository) CreateInTx(ctx context.Context, tx *sql.Tx, gr
 		return fmt.Errorf("create write group: %w: group is nil", ErrWriteGroupValidation)
 	}
 	candidate := cloneWriteGroup(group)
+	// This field is derived from the persistent basic-managed key. Never let a
+	// caller turn an ordinary group into a basic owner through the payload.
+	candidate.BasicManagedDeviceID = ""
 	candidate.ID = r.newID()
 	if candidate.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && candidate.RowPolicy.RecordKeyColumn != "" && strings.TrimSpace(candidate.Destination.TableName) == "" {
 		candidate.Destination.TableName = managedGroupTableName(candidate.ID)
@@ -217,6 +220,9 @@ func (r *SQLWriteGroupRepository) get(ctx context.Context, runner writeGroupSQLR
 	if err := r.loadMembers(ctx, runner, group); err != nil {
 		return nil, err
 	}
+	if err := r.loadBasicManagedDeviceID(ctx, runner, group); err != nil {
+		return nil, err
+	}
 	return cloneWriteGroup(group), nil
 }
 
@@ -257,12 +263,36 @@ func (r *SQLWriteGroupRepository) list(ctx context.Context, runner writeGroupSQL
 		if err := r.loadMembers(ctx, runner, group); err != nil {
 			return nil, err
 		}
+		if err := r.loadBasicManagedDeviceID(ctx, runner, group); err != nil {
+			return nil, err
+		}
 	}
 	cloned := make([]*WriteGroup, len(groups))
 	for i, group := range groups {
 		cloned[i] = cloneWriteGroup(group)
 	}
 	return cloned, nil
+}
+
+func (r *SQLWriteGroupRepository) loadBasicManagedDeviceID(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {
+	group.BasicManagedDeviceID = ""
+	if group.Destination.StorageStrategy != WriteGroupStorageStrategyManaged {
+		return nil
+	}
+	var deviceID string
+	err := runner.QueryRowContext(ctx, r.query(`
+		SELECT device_id
+		FROM write_group_basic_keys
+		WHERE workspace_id = $1 AND group_id = $2 AND canonical_role = $3
+	`), group.WorkspaceID, group.ID, basicManagedCanonicalRole).Scan(&deviceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read basic managed owner: %w", err)
+	}
+	group.BasicManagedDeviceID = strings.TrimSpace(deviceID)
+	return nil
 }
 
 func (r *SQLWriteGroupRepository) loadMembers(ctx context.Context, runner writeGroupSQLRunner, group *WriteGroup) error {

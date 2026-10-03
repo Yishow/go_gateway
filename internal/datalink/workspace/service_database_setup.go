@@ -43,6 +43,17 @@ func (s *Service) UpdateDatabaseSetup(
 	expectedRevision string,
 	mutate func(ctx context.Context, tx *sql.Tx, record *Record) error,
 ) (updated *Record, err error) {
+	return s.updateDatabaseSetupWithCheckpoint(ctx, expectedRevision, mutate, nil)
+}
+
+// updateDatabaseSetupWithCheckpoint keeps recording-start progress in the same
+// local transaction as its setup result, including the newly issued revision.
+func (s *Service) updateDatabaseSetupWithCheckpoint(
+	ctx context.Context,
+	expectedRevision string,
+	mutate func(context.Context, *sql.Tx, *Record) error,
+	checkpoint func(context.Context, *sql.Tx, *Record) error,
+) (updated *Record, err error) {
 	store, ok := s.repo.(DatabaseSetupStore)
 	if !ok {
 		return nil, ErrDatabaseSetupUnavailable
@@ -83,6 +94,11 @@ func (s *Service) UpdateDatabaseSetup(
 	record.UpdatedAt = s.now()
 	if err := setupTx.Save(ctx, record); err != nil {
 		return nil, fmt.Errorf("save workspace database setup: %w", err)
+	}
+	if checkpoint != nil {
+		if err := checkpoint(ctx, setupTx.SQLTx(), record); err != nil {
+			return nil, fmt.Errorf("record workspace setup result: %w", err)
+		}
 	}
 	if err := setupTx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit workspace database setup: %w", err)
