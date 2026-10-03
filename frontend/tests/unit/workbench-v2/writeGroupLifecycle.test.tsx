@@ -284,7 +284,8 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     fireEvent.click(await screen.findByTestId('group-test-write-confirm'));
     await waitFor(() => expect(api.testWrite).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Edited' } });
-    api.list.mockResolvedValue(list([savedGroup({ revision: 'rev-2', name: 'Edited' })], 'wrev-2'));
+    // The first read (just before saving) still shows rev-1; reads after the save show rev-2.
+    api.list.mockResolvedValueOnce(list([savedGroup()])).mockResolvedValue(list([savedGroup({ revision: 'rev-2', name: 'Edited' })], 'wrev-2'));
     fireEvent.click(screen.getByTestId('group-save'));
     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByTestId('group-dirty-note')).not.toBeInTheDocument());
@@ -292,5 +293,71 @@ describe('RevisionSafeGroupActivationAndTestWrite: test write', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.queryByTestId('group-test-write-result')).not.toBeInTheDocument();
     expect(screen.queryByTestId('group-test-write-preview-card')).not.toBeInTheDocument();
+  });
+});
+
+describe('GroupCompletionTruth', () => {
+  it('shows saved, applied, local, attention and database-confirmed as separate facts', async () => {
+    mount();
+    await openSaved();
+    expect(await screen.findByTestId('delivery-committed')).toHaveTextContent('4');
+    expect(screen.getByTestId('delivery-collecting')).toHaveTextContent('1');
+    expect(screen.getByTestId('delivery-local')).toHaveTextContent('2');
+    expect(screen.getByTestId('delivery-attention')).toHaveTextContent('0');
+    expect(screen.getByTestId('delivery-applied')).toHaveTextContent('step4.group.delivery.no');
+  });
+
+  it('reports unconfirmed instead of zero when delivery cannot be read', async () => {
+    api.delivery.mockRejectedValue(new Error('down'));
+    mount();
+    await openSaved();
+    expect(await screen.findByTestId('group-delivery-failed')).toBeInTheDocument();
+    expect(screen.getByTestId('delivery-committed')).toHaveTextContent('step4.group.delivery.unconfirmed');
+  });
+});
+
+describe('save uses the latest workspace revision', () => {
+  it('keeps the active group draft when a save for a closed editor finishes late', async () => {
+    const other = savedGroup({ id: 'group-2', name: 'Other' });
+    api.list.mockResolvedValue(list([savedGroup(), other]));
+    let release: (value: unknown) => void = () => undefined;
+    api.update.mockReturnValue(new Promise((resolve) => { release = resolve; }) as never);
+    mount();
+    await openSaved();
+    fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Saved A' } });
+    fireEvent.click(screen.getByTestId('group-save'));
+    await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTestId('group-editor-close'));
+    fireEvent.click(await screen.findByTestId('group-open-group-2'));
+    fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Unsaved B' } });
+    const updated = savedGroup({ revision: 'rev-2', name: 'Saved A' });
+    api.list.mockResolvedValue(list([updated, other], 'wrev-2'));
+    release({ workspace_revision: 'wrev-2', group: updated });
+    await waitFor(() => expect(screen.getByTestId('group-name')).toHaveValue('Unsaved B'));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(screen.getByTestId('group-name')).toHaveValue('Unsaved B');
+    expect(screen.getByTestId('group-revisions')).toHaveTextContent('rev-1');
+  });
+
+  it('saves with a refreshed workspace revision when only other setup moved it, and refuses when the group itself changed', async () => {
+    api.update.mockResolvedValue({ workspace_revision: 'wrev-3', group: savedGroup({ revision: 'rev-2', name: 'Mine' }) });
+    mount();
+    await openSaved();
+    fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Mine' } });
+    api.list.mockResolvedValueOnce(list([savedGroup()], 'wrev-2'));
+    fireEvent.click(screen.getByTestId('group-save'));
+    await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+    expect(api.update.mock.calls[0][1].expected_workspace_revision).toBe('wrev-2');
+  });
+
+  it('does not save over a group that changed elsewhere', async () => {
+    mount();
+    await openSaved();
+    fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Mine' } });
+    api.list.mockResolvedValueOnce(list([savedGroup({ revision: 'rev-9', name: 'Theirs' })], 'wrev-2'));
+    fireEvent.click(screen.getByTestId('group-save'));
+    expect(await screen.findByTestId('group-conflict')).toBeInTheDocument();
+    expect(api.update).not.toHaveBeenCalled();
+    expect(screen.getByTestId('group-name')).toHaveValue('Mine');
   });
 });

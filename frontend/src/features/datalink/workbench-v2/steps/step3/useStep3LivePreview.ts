@@ -46,16 +46,24 @@ export function useStep3LivePreview(
   const mappingTargetType = mapping?.target_type;
   const previewWorkspaceId = workspaceId ?? mapping?.workspace_id;
   const previewPayload = React.useMemo(
-    () => pointDataType !== undefined && mappingPointId !== undefined && mappingScale !== undefined &&
-      mappingOffset !== undefined && mappingTargetType !== undefined
-      ? {
-        transform_pipeline: [
+    () => {
+      if (pointDataType === undefined || mappingPointId === undefined || mappingScale === undefined ||
+        mappingOffset === undefined || mappingTargetType === undefined) {
+        return null;
+      }
+
+      const isNeutralNativeString = pointDataType === 'string' && mappingTargetType === 'string' &&
+        mappingScale === 1 && mappingOffset === 0;
+      const transformPipeline = isNeutralNativeString
+        ? []
+        : [
           { type: 'decode', order: 1, params: { data_type: pointDataType } },
           { type: 'scale', order: 2, params: { scale: mappingScale, offset: mappingOffset } },
           { type: 'cast', order: 3, params: { target_type: mappingTargetType } },
-        ],
-      } as { transform_pipeline: NonNullable<MappingPreviewResponse['pipeline']> }
-      : null,
+        ];
+
+      return { transform_pipeline: transformPipeline } as { transform_pipeline: NonNullable<MappingPreviewResponse['pipeline']> };
+    },
     [mappingOffset, mappingPointId, mappingScale, mappingTargetType, pointDataType],
   );
   const previewKey = React.useMemo(

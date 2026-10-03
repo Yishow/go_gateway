@@ -42,6 +42,26 @@ describe('mappingDefaults', () => {
     expect(mapping0.enabled).toBe(true);
   });
 
+  it('defaults a native string point to a string target for a neutral preview', () => {
+    const point: Point = {
+      id: 'p-text-01',
+      device_id: 'dev-01',
+      rule_id: 'rule-text-01',
+      rule_name: 'Holding Registers',
+      name: 'TEXT_1',
+      address: '40014',
+      data_type: 'string',
+      function: 'holding_register',
+      width: 1,
+      enabled: true,
+      skipped: false,
+      _rule_scale: 1,
+      _rule_offset: 0,
+    };
+
+    expect(buildDefaultMapping(point, 0).target_type).toBe('string');
+  });
+
   it('should build unique tag keys for different point identities instead of cycling 8 templates', () => {
     const pointA: Point = {
       id: 'p-01',

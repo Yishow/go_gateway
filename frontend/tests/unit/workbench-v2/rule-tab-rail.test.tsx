@@ -235,4 +235,22 @@ describe('RuleTabRail 元件', () => {
     expect(screen.getByTestId('rule-device-row-rule-1')).toHaveTextContent('PLC 1');
     expect(screen.getByTestId('rule-device-row-rule-2')).toHaveTextContent('PLC 2');
   });
+
+  it('puts a new rule on a device that has no rule yet, at the next free address', () => {
+    const dispatch = vi.fn();
+    const devices: Device[] = [...mockDevices, { id: 'dev-2', name: 'PLC 2', description: '', protocol: 'modbus_tcp', config: {}, status: 'draft', test: null }];
+    render(<RuleTabRail rules={[{ ...mockRules[0], start_address: '40001', count: 4, data_type: 'int16' }]} devices={devices} selectedRuleId="rule-1" dispatch={dispatch} />);
+    fireEvent.click(screen.getByTestId('rule-add-btn'));
+    const added = dispatch.mock.calls.find(([action]) => action.type === 'addRule')?.[0].rule;
+    expect(added.device_id).toBe('dev-2');
+    expect(added.start_address).toBe('40001');
+  });
+
+  it('starts after the covered registers when every device already has rules', () => {
+    const dispatch = vi.fn();
+    render(<RuleTabRail rules={[{ ...mockRules[0], start_address: '40001', count: 4, data_type: 'int16' }]} devices={mockDevices} selectedRuleId="rule-1" dispatch={dispatch} />);
+    fireEvent.click(screen.getByTestId('rule-add-btn'));
+    const added = dispatch.mock.calls.find(([action]) => action.type === 'addRule')?.[0].rule;
+    expect(added.start_address).toBe('40005');
+  });
 });

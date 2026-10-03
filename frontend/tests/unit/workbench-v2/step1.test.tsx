@@ -107,9 +107,12 @@ describe('Step 1 Components & Integration', () => {
       const selectedCard = screen.getByTestId('protocol-card-modbus_tcp');
       expect(selectedCard.className).toContain('border-blue-500');
 
-      // 點擊卡片觸發 callback
+      // 點擊可用卡片觸發 callback；MQTT 尚無完整 V2 路徑，不可選
+      fireEvent.click(screen.getByTestId('protocol-card-modbus_rtu'));
+      expect(handleChange).toHaveBeenCalledWith('modbus_rtu');
+      handleChange.mockClear();
       fireEvent.click(screen.getByTestId('protocol-card-mqtt'));
-      expect(handleChange).toHaveBeenCalledWith('mqtt');
+      expect(handleChange).not.toHaveBeenCalled();
     });
   });
 
@@ -299,8 +302,8 @@ describe('Step 1 Components & Integration', () => {
       expect(handleUpdate).toHaveBeenCalledWith({ name: 'Temp PLC' });
 
       // 切換協議
-      fireEvent.click(screen.getByTestId('protocol-card-mqtt'));
-      expect(handleChangeProtocol).toHaveBeenCalledWith('mqtt');
+      fireEvent.click(screen.getByTestId('protocol-card-modbus_rtu'));
+      expect(handleChangeProtocol).toHaveBeenCalledWith('modbus_rtu');
     });
 
     it('應在 save-error 時保留錯誤訊息 marker', () => {
@@ -370,7 +373,9 @@ describe('Step 1 Components & Integration', () => {
 
       const runBtn = screen.getByTestId('run-test-button');
       const continueBtn = screen.getByTestId('btn-continue-step1');
-      expect(continueBtn).toBeDisabled();
+      // An unprobed device can still be continued as an unverified draft.
+      expect(continueBtn).not.toBeDisabled();
+      expect(screen.getByTestId('warning-untested-chip')).toBeInTheDocument();
 
       fireEvent.click(runBtn);
 
@@ -406,12 +411,13 @@ describe('Step 1 Components & Integration', () => {
         queryKey: ['studio-v2-workspace', 'devices'],
       });
       expect(screen.getByTestId('btn-continue-step1')).not.toBeDisabled();
+      expect(screen.queryByTestId('warning-untested-chip')).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByTestId('btn-continue-step1'));
       expect(onContinue).toHaveBeenCalled();
     });
 
-    it('diagnostics failure 不得讓 device 自動通過 continue gate', async () => {
+    it('diagnostics failure 不得讓 device 被標為已驗證（仍可繼續為未驗證草稿）', async () => {
       vi.spyOn(deviceAPI, 'testDraftConnection').mockResolvedValue({
         success: false,
         error: '讀取探測失敗: bad register',
@@ -445,7 +451,7 @@ describe('Step 1 Components & Integration', () => {
       await waitFor(() => {
         expect(screen.getByText('bad register')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('btn-continue-step1')).toBeDisabled();
+      expect(screen.getByTestId('warning-untested-chip')).toBeInTheDocument();
       expect(screen.queryByTestId('success-readiness-card')).not.toBeInTheDocument();
     });
   });

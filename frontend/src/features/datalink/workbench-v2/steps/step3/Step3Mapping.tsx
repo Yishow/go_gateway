@@ -70,14 +70,14 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
       {/* 標頭 */}
       <div>
         <h2 className="text-lg font-semibold text-slate-200">
-          {t('step3.title', { defaultValue: '確認數值與用途 (點位語意與範本)' })}
+          {t('step3.title')}
         </h2>
         <p className="text-xs text-slate-400 mt-1">
-          {t('step3.subtitle', { defaultValue: '確認每個點位的真實數值、工程單位與記錄用途（畫曲線、算用量、記狀態），亦可直接套用標準範本。' })}
+          {t('step3.subtitle')}
         </p>
       </div>
 
-      {/* 量測範本推薦與套用面板 */}
+      {/* 量測語意是進階選用功能，基本的名稱／型別／換算流程不需要它 */}
       <MeasurementTemplateSelector deviceId={activeDeviceId} />
 
       <MappingTable

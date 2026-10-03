@@ -1,6 +1,9 @@
 import * as React from 'react';
 import type { Point, Rule, Device, ShareLayout } from '../../state/types';
+import type { ProtocolType } from '../../../../../types/datalink';
+import { describeAddressConflicts, pointConflictKey } from '../../state/sourceRule';
 import type { RuleReadinessIssue } from '../../state/sourceRule';
+import { useTranslation } from 'react-i18next';
 import { useDeviceColor, getColorTheme, DEVICE_COLORS } from '../../state/deviceColors';
 import { Icon } from '../../components';
 import { ReadinessIssuesWarning } from './ReadinessIssuesWarning';
@@ -149,6 +152,12 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
   step2Ready,
   onContinue,
 }) => {
+  const { t } = useTranslation('workbench-v2');
+  const conflictDetails = React.useMemo(
+    () => describeAddressConflicts(points, Object.fromEntries(devices.map((device) => [device.id, device.protocol as ProtocolType]))),
+    [points, devices],
+  );
+  const deviceName = (id: string) => devices.find((device) => device.id === id)?.name ?? id;
   // 1. 計算啟用點位總數
   const totalEnabled = points.filter((p) => !p.skipped && p.enabled).length;
 
@@ -208,7 +217,7 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
                   point={point}
                   rules={rules}
                   devices={devices}
-                  isConflict={conflictAddrs.has(point.address)}
+                  isConflict={conflictAddrs.has(pointConflictKey(point))}
                   shareAddr={shareAddresses[point.id]}
                 />
               ))
@@ -216,6 +225,21 @@ export const MergedPointTable: React.FC<MergedPointTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {conflictDetails.length > 0 && (
+        <div role="alert" className="text-xs text-red-300" data-testid="conflict-details">
+          <p className="font-semibold">{t('step2.summary.conflict_detail_title')}</p>
+          <ul className="mt-1 list-disc pl-5">
+            {conflictDetails.map((detail) => (
+              <li key={`${detail.device_id}|${detail.address}`} data-testid="conflict-detail-item">
+                {t('step2.summary.conflict_detail_item', {
+                  device: deviceName(detail.device_id), address: detail.address, rules: detail.rule_names.join(' / '),
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* 表尾與繼續按鈕 */}
       <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 mt-2">

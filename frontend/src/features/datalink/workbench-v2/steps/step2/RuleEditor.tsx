@@ -105,7 +105,8 @@ export const RuleEditor: React.FC<RuleEditorProps> = ({
         <Field label="所屬設備來源">
           <Select
             value={rule.device_id}
-            disabled={devices.length <= 1 && !hasMissingDevice}
+            // The server keeps a saved rule on the device it was created for.
+            disabled={(devices.length <= 1 && !hasMissingDevice) || (rule.persisted === true && !hasMissingDevice)}
             aria-invalid={hasMissingDevice}
             onChange={(e) => handleTextChange('device_id', e.target.value)}
             data-testid="rule-device-select"

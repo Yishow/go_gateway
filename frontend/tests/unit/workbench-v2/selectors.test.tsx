@@ -117,7 +117,7 @@ describe('useConflictAddrs', () => {
     const { result, rerender } = renderHook(() => useConflictAddrs(points));
     const firstResult = result.current;
 
-    expect(firstResult.has('40001')).toBe(true);
+    expect(firstResult.has('dev-1|40001')).toBe(true);
 
     rerender();
     expect(result.current).toBe(firstResult); // cached

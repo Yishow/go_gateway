@@ -46,7 +46,7 @@ export const Step2Rule: React.FC<Step2RuleProps> = ({
   // 1. 以當前工作區的設備 ownership / protocol map 衍生全域點位與 readiness
   const deviceProtocolMap = useDeviceProtocolMap(devices);
   const allPoints = useAllPoints(rules, deviceProtocolMap);
-  const conflictAddrs = useConflictAddrs(allPoints);
+  const conflictAddrs = useConflictAddrs(allPoints, deviceProtocolMap);
   const readinessIssues = getRuleReadinessIssues(rules, deviceProtocolMap);
   const step2Ready = isStep2Ready(rules, deviceProtocolMap);
   const globalShareEnabled = shareStatus === undefined

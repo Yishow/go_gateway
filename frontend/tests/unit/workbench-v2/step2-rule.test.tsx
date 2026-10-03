@@ -104,6 +104,12 @@ describe('RuleEditor 元件', () => {
     expect(screen.getByTestId('rule-device-select')).toBeDisabled();
   });
 
+  it('已儲存的規則不能改派到別的設備（伺服器會拒絕）', () => {
+    const devices = [...mockDevices, { ...mockDevices[0], id: 'dev-2', name: 'PLC 2' }];
+    render(<RuleEditor rule={{ ...mockRules[0], persisted: true }} devices={devices} globalShareEnabled={true} dispatch={vi.fn()} />);
+    expect(screen.getByTestId('rule-device-select')).toBeDisabled();
+  });
+
   it('輸入改變應觸發對應的 updateRule', () => {
     const dispatch = vi.fn();
     render(
@@ -196,7 +202,7 @@ describe('MergedPointTable 元件', () => {
 
   it('當存在衝突或無啟用點位時，繼續按鈕應為 disabled，且衝突地址應標記警告', () => {
     const onContinue = vi.fn();
-    const conflicts = new Set(['40001']);
+    const conflicts = new Set(['dev-1|40001']);
 
     render(
       <MergedPointTable

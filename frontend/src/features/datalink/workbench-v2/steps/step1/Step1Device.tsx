@@ -197,7 +197,7 @@ export const Step1Device: React.FC<Step1DeviceProps> = ({ state, dispatch, onCon
           {/* 右側：動作按鈕 */}
           <Button
             onClick={onContinue}
-            disabled={!allTested}
+            disabled={totalCount === 0}
             variant="primary"
             data-testid="btn-continue-step1"
           >

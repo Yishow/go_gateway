@@ -63,10 +63,10 @@ export function useShareLayout(
  * @param allPoints 所有點位陣列
  * @returns 衝突位址 Set
  */
-export function useConflictAddrs(allPoints: Point[]): Set<string> {
+export function useConflictAddrs(allPoints: Point[], protocols?: Record<string, ProtocolType>): Set<string> {
   return useMemo(() => {
-    return detectAddressConflicts(allPoints);
-  }, [allPoints]);
+    return detectAddressConflicts(allPoints, protocols);
+  }, [allPoints, protocols]);
 }
 
 /**

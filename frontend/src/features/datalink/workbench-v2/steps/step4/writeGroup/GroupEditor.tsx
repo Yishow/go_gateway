@@ -17,6 +17,8 @@ import {
   type EditorDraft, type IncompletePolicy,
 } from '../../../state/writeGroup/draft';
 import { useStep4TargetColumns } from '../useStep4TargetColumns';
+import { GroupColumnProposal } from './GroupColumnProposal';
+import { GroupDeliveryStrip } from './GroupDeliveryStrip';
 import { GroupLifecycleBar } from './GroupLifecycleBar';
 import { GroupMemberTable } from './GroupMemberTable';
 import { GroupReadinessPanel } from './GroupReadinessPanel';
@@ -34,6 +36,12 @@ export interface GroupEditorProps {
   onClose: () => void;
   onSaved: (group: WriteGroup) => void;
   onReload: () => void;
+  /**
+   * Reads the current workspace revision and group just before a save. Other
+   * setup saves (devices, rules, Tags) move the workspace revision without
+   * touching this group, so a stale copy would be refused for no real conflict.
+   */
+  fetchLatest: () => Promise<{ workspace_revision: string; groups: WriteGroup[] } | undefined>;
 }
 
 const FIELD = 'mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100';
@@ -50,7 +58,7 @@ function destinationSaved(connector: DbConnector): boolean {
  * revision and never the local checks alone.
  */
 export const GroupEditor: React.FC<GroupEditorProps> = ({
-  group, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload,
+  group, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const saved = destinationSaved(connector);
@@ -63,6 +71,11 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
   const createMutation = useCreateWriteGroupMutation();
   const updateMutation = useUpdateWriteGroupMutation();
   const savingRef = useRef(false);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const dirty = group ? draftIsDirty(draft, group) : true;
   // Adopt a new server revision only while there is nothing unsaved to lose.
@@ -98,17 +111,29 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
     setSaveError(null);
     try {
       const body = draftToRequestGroup(draft, workspaceId);
+      const latest = await fetchLatest();
+      const freshRevision = latest?.workspace_revision ?? workspaceRevision;
+      if (group) {
+        const current = latest?.groups.find((entry) => entry.id === group.id);
+        if (current && current.revision !== group.revision) {
+          // This group itself changed elsewhere: that is a real conflict.
+          setConflict(true);
+          return;
+        }
+      }
       const result = group
         ? await updateMutation.mutateAsync({ id: group.id, request: {
-          workspace_id: workspaceId, expected_workspace_revision: workspaceRevision, expected_group_revision: group.revision,
+          workspace_id: workspaceId, expected_workspace_revision: freshRevision, expected_group_revision: group.revision,
           expected_connector_revision: draft.connector_revision, group: body,
         } })
         : await createMutation.mutateAsync({
-          workspace_id: workspaceId, expected_workspace_revision: workspaceRevision,
+          workspace_id: workspaceId, expected_workspace_revision: freshRevision,
           expected_connector_revision: draft.connector_revision, group: body,
         });
-      setConflict(false);
-      onSaved(result.group);
+      if (mountedRef.current) {
+        setConflict(false);
+        onSaved(result.group);
+      }
     } catch (cause) {
       setSaveError(cause);
       if (normalizeTypedEnvelope(cause).code === 'revision_mismatch') setConflict(true);
@@ -219,6 +244,16 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
         suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
         onChange={(members) => set({ members })}
       />
+      <GroupColumnProposal
+        managed={draft.storage_strategy === 'managed'}
+        existingColumns={metadata.columns.map((column) => column.name)}
+        unmatched={candidates.filter((candidate) => {
+          const member = draft.members.find((entry) => entry.key === candidate.key);
+          if (!member) return false;
+          const column = metadata.columns.find((entry) => entry.name === member.target_column);
+          return metadata.status === 'exists' && (!member.target_column || !column);
+        })}
+      />
       {metadata.status === 'failed' && (
         <button type="button" onClick={metadata.refetch} className="text-xs underline" data-testid="group-metadata-retry">{t('step4.group.retry')}</button>
       )}
@@ -255,6 +290,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
             <h4 className="text-sm font-semibold text-slate-200">{t('step4.group.readiness.title')}</h4>
             <GroupReadinessPanel readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
           </section>
+          <GroupDeliveryStrip group={group} />
           <GroupLifecycleBar
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={readonly}

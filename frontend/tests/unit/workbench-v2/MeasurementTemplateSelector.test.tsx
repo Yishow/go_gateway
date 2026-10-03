@@ -35,6 +35,13 @@ describe('MeasurementTemplateSelector Component', () => {
     mutateAsyncApplyMock.mockReset();
   });
 
+  it('keeps measurement semantics collapsed as an optional advanced section', () => {
+    render(<MeasurementTemplateSelector deviceId="dev-1" />);
+    const advanced = screen.getByTestId('measurement-advanced');
+    expect(advanced.tagName).toBe('DETAILS');
+    expect(advanced).not.toHaveAttribute('open');
+  });
+
   it('renders templates, triggers preview and applies template', async () => {
     const onApplied = vi.fn();
     render(<MeasurementTemplateSelector deviceId="dev-1" onApplied={onApplied} />);

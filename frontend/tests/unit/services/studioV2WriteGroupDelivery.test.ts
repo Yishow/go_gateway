@@ -80,6 +80,28 @@ describe('write group delivery status', () => {
     })).not.toBeNull();
   });
 
+  it('preserves recent bucket issues while reducing unknown causes to a safe fallback', () => {
+    const parsed = parseWriteGroupDeliveryData({
+      ...delivery(),
+      recent_bucket_issues: [{
+        group_revision: 'rev-1', bucket_start: '2026-10-03T00:00:00Z', kind: 'skipped',
+        causes: ['missing', 'private-dsn'],
+      }],
+    });
+
+    expect(parsed?.recent_bucket_issues).toEqual([{
+      group_revision: 'rev-1', bucket_start: '2026-10-03T00:00:00Z', kind: 'skipped',
+      causes: ['missing', 'unavailable'],
+    }]);
+    expect(parseWriteGroupDeliveryData({
+      ...delivery(),
+      recent_bucket_issues: Array.from({ length: 21 }, (_, index) => ({
+        group_revision: 'rev-1', bucket_start: `2026-10-03T00:${String(index).padStart(2, '0')}:00Z`,
+        kind: 'no_data', causes: ['no_data'],
+      })),
+    })).toBeNull();
+  });
+
   it('turns a malformed envelope into a typed response error instead of empty data', async () => {
     vi.mocked(studioV2DatalinkApi.get).mockResolvedValueOnce({ data: { success: true, data: { group_id: 'x' } } } as never);
     await expect(studioV2WorkspaceWriteGroupsAPI.delivery('x')).rejects.toBeTruthy();

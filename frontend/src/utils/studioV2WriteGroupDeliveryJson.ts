@@ -1,4 +1,7 @@
 import type {
+  WriteGroupDeliveryBucketCause,
+  WriteGroupDeliveryBucketIssue,
+  WriteGroupDeliveryBucketIssueKind,
   WriteGroupDelivery,
   WriteGroupDeliveryBacklog,
   WriteGroupDeliveryQuota,
@@ -12,6 +15,11 @@ type JsonRecord = Record<string, unknown>;
 
 const INTAKE_STATES = new Set<WriteGroupIntakeState>(['active', 'retiring', 'blocked', 'not_running']);
 const QUOTA_STATES = new Set<WriteGroupQuotaState>(['unconfigured', 'ok', 'warning', 'hard_limit']);
+const BUCKET_ISSUE_KINDS = new Set<WriteGroupDeliveryBucketIssueKind>(['skipped', 'no_data']);
+const BUCKET_ISSUE_CAUSES = new Set<WriteGroupDeliveryBucketCause>([
+  'missing', 'bad', 'stale', 'invalid', 'no_data', 'unavailable',
+]);
+const MAX_RECENT_BUCKET_ISSUES = 20;
 const STAGE_KEYS: (keyof WriteGroupDeliveryStages)[] = [
   'collecting', 'queued', 'retrying', 'blocked', 'quarantined', 'unknown', 'sql_committed', 'skipped',
 ];
@@ -85,6 +93,33 @@ function parseQuota(value: unknown): WriteGroupDeliveryQuota | null {
   };
 }
 
+function parseBucketIssue(value: unknown): WriteGroupDeliveryBucketIssue | null {
+  if (!isRecord(value)) return null;
+  const groupRevision = boundedString(value.group_revision);
+  const bucketStart = boundedString(value.bucket_start);
+  const kind = boundedString(value.kind);
+  const rawCauses = value.causes;
+  if (!groupRevision || !bucketStart || Number.isNaN(Date.parse(bucketStart)) ||
+    !kind || !BUCKET_ISSUE_KINDS.has(kind as WriteGroupDeliveryBucketIssueKind) ||
+    !Array.isArray(rawCauses) || rawCauses.length === 0 || rawCauses.length > MAX_SAFE_JSON_ARRAY_LENGTH) {
+    return null;
+  }
+  const causes: WriteGroupDeliveryBucketCause[] = [];
+  for (const rawCause of rawCauses) {
+    const cause = boundedString(rawCause);
+    if (!cause) return null;
+    causes.push(BUCKET_ISSUE_CAUSES.has(cause as WriteGroupDeliveryBucketCause)
+      ? cause as WriteGroupDeliveryBucketCause
+      : 'unavailable');
+  }
+  return {
+    group_revision: groupRevision,
+    bucket_start: bucketStart,
+    kind: kind as WriteGroupDeliveryBucketIssueKind,
+    causes,
+  };
+}
+
 /**
  * Parses one group's delivery status. Contradictions are rejected rather than
  * displayed: a committed time without committed rows (or the reverse) would
@@ -99,11 +134,14 @@ export function parseWriteGroupDeliveryData(value: unknown): WriteGroupDelivery 
   const oldest = value.oldest_pending_seconds;
   const noData = count(value.no_data_buckets);
   const skipped = count(value.skipped_buckets);
+  const rawRecentIssues = value.recent_bucket_issues;
   const rawBacklog = value.backlog;
   const lastCommitted = value.last_sql_committed_at;
   if (!groupId || typeof intakeState !== 'string' || !INTAKE_STATES.has(intakeState as WriteGroupIntakeState) ||
     !stages || !quota || typeof oldest !== 'number' || !Number.isFinite(oldest) || oldest < 0 ||
-    noData === null || skipped === null || !Array.isArray(rawBacklog) || rawBacklog.length > MAX_SAFE_JSON_ARRAY_LENGTH ||
+    noData === null || skipped === null ||
+    (rawRecentIssues !== undefined && (!Array.isArray(rawRecentIssues) || rawRecentIssues.length > MAX_RECENT_BUCKET_ISSUES)) ||
+    !Array.isArray(rawBacklog) || rawBacklog.length > MAX_SAFE_JSON_ARRAY_LENGTH ||
     (value.intake.reason !== undefined && typeof value.intake.reason !== 'string')) {
     return null;
   }
@@ -113,11 +151,14 @@ export function parseWriteGroupDeliveryData(value: unknown): WriteGroupDelivery 
   if ((stages.sql_committed > 0) !== (lastCommitted !== null)) return null;
   const backlog = rawBacklog.map(parseBacklog);
   if (backlog.some((entry) => entry === null)) return null;
+  const recentIssues = rawRecentIssues?.map(parseBucketIssue);
+  if (recentIssues?.some((entry) => entry === null)) return null;
   return {
     group_id: groupId,
     intake: { state: intakeState as WriteGroupIntakeState, ...(value.intake.reason ? { reason: value.intake.reason as string } : {}) },
     stages, last_sql_committed_at: lastCommitted as string | null, oldest_pending_seconds: oldest,
     no_data_buckets: noData, skipped_buckets: skipped,
+    ...(recentIssues ? { recent_bucket_issues: recentIssues as WriteGroupDeliveryBucketIssue[] } : {}),
     backlog: backlog as WriteGroupDeliveryBacklog[], quota,
   };
 }

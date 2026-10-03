@@ -103,6 +103,21 @@ describe('RealMetadataAndReviewableAssignment (editor)', () => {
     expect(screen.getByTestId('group-issues')).not.toHaveTextContent('column_conflict');
   });
 
+  it('clears the column conflict and enables submission once one side is disabled', async () => {
+    await openNewGroup();
+    // A name keeps the conflict as the only blocker the operator must repair.
+    fireEvent.change(screen.getByTestId('group-name'), { target: { value: 'Line A' } });
+    for (const id of ['pt-0', 'pt-1']) fireEvent.click(screen.getByTestId(`group-member-include-${id}`));
+    fireEvent.change(screen.getByTestId('group-member-column-pt-0'), { target: { value: 'temperature' } });
+    fireEvent.change(screen.getByTestId('group-member-column-pt-1'), { target: { value: 'temperature' } });
+    expect(screen.getByTestId('group-issues')).toHaveTextContent('column_conflict');
+    expect(screen.getByTestId('group-save')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('group-member-include-pt-1'));
+    expect(screen.queryByTestId('group-member-problem-pt-1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-issues')).not.toBeInTheDocument();
+    expect(screen.getByTestId('group-save')).not.toBeDisabled();
+  });
+
   it('never fills in sample columns when the table cannot be read, and says why', async () => {
     metadata = { status: 'forbidden', columns: [] };
     await openNewGroup();

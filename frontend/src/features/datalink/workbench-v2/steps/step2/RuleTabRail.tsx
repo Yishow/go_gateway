@@ -166,6 +166,8 @@ const RuleTabItem: React.FC<RuleTabItemProps> = ({
  * 落地設計決策：「Multi-rule tab management」與「簡潔改名互動」
  */
 import { getDefaultPlannerStartAddress } from '../../../../../utils/addressParser';
+import { nextFreeStartAddress } from '../../state/sourceRule';
+import type { ProtocolType } from '../../../../../types/datalink';
 
 export const RuleTabRail: React.FC<RuleTabRailProps> = ({
   rules,
@@ -187,11 +189,16 @@ export const RuleTabRail: React.FC<RuleTabRailProps> = ({
 
   const handleAddRule = () => {
     const selectedRule = rules.find((r) => r.id === selectedRuleId);
-    const targetDev = devices.find((device) => device.id === selectedRule?.device_id) ?? devices[0];
+    // A device without any rule comes first: a saved rule cannot move to another device later.
+    const targetDev = devices.find((device) => !rules.some((rule) => rule.device_id === device.id)) ??
+      devices.find((device) => device.id === selectedRule?.device_id) ?? devices[0];
     if (!targetDev) {
       return;
     }
-    const defaultStartAddr = getDefaultPlannerStartAddress(targetDev.protocol);
+    const defaultStartAddr = nextFreeStartAddress(
+      rules.filter((rule) => rule.device_id === targetDev.id), targetDev.protocol as ProtocolType,
+      getDefaultPlannerStartAddress(targetDev.protocol),
+    );
     const nextOrdinal = rules.length + 1;
     const newId = `rule-${Date.now()}`;
     const newRule: Rule = {

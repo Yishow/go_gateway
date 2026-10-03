@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import type { Point, ShareLayout } from '../../state/types';
 import { Icon } from '../../components';
+import { pointConflictKey } from '../../state/sourceRule';
 
 export interface PointGridProps {
   ruleId: string;
@@ -89,7 +90,7 @@ export const PointGrid: React.FC<PointGridProps> = ({
     >
       {points.map((point, idx) => {
         const isSelected = gridSelection.has(point.id);
-        const isConflict = conflictAddrs.has(point.address);
+        const isConflict = conflictAddrs.has(pointConflictKey(point));
         const shareAddr = shareAddresses[idx];
 
         return (

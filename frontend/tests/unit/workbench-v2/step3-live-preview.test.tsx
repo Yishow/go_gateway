@@ -73,6 +73,27 @@ function renderPreviewCells(nextMapping: Mapping = mapping, rawValue: unknown = 
   );
 }
 
+function renderNativeStringPreviewCells(nextMapping: Mapping = {
+  ...mapping,
+  target_type: 'string',
+  scale: 1,
+  offset: 0,
+}, rawValue: unknown = 'A1') {
+  return render(
+    <table>
+      <tbody>
+        <tr>
+          <MappingPreviewCells
+            point={{ ...point, data_type: 'string' }}
+            mapping={nextMapping}
+            rawValue={rawValue}
+          />
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
 describe('Step 3 live preview cells', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -103,6 +124,63 @@ describe('Step 3 live preview cells', () => {
       transform_pipeline: expect.any(Array),
     });
     expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('987.65');
+  });
+
+  it('sends an empty transform pipeline for a neutral native string preview', async () => {
+    vi.mocked(mappingAPI.preview).mockResolvedValue({
+      raw_value: 'A1',
+      final_value: 'A1',
+      step_results: [],
+    });
+
+    renderNativeStringPreviewCells();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(mappingAPI.preview).toHaveBeenCalledWith({
+      raw_value: 'A1',
+      transform_pipeline: [],
+    });
+    expect(screen.getByTestId('preview-final-p-01')).toHaveTextContent('A1');
+  });
+
+  it('keeps the existing pipeline and rejects a non-neutral native string scale', async () => {
+    vi.mocked(mappingAPI.preview).mockRejectedValue({
+      response: {
+        data: {
+          error: {
+            code: 'preview_invalid_request',
+            request_id: 'string-scale-preview-1',
+            retryable: false,
+          },
+        },
+      },
+    });
+
+    renderNativeStringPreviewCells({
+      ...mapping,
+      target_type: 'string',
+      scale: 0.5,
+      offset: 0,
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+
+    expect(mappingAPI.preview).toHaveBeenCalledWith({
+      raw_value: 'A1',
+      transform_pipeline: [
+        { type: 'decode', order: 1, params: { data_type: 'string' } },
+        { type: 'scale', order: 2, params: { scale: 0.5, offset: 0 } },
+        { type: 'cast', order: 3, params: { target_type: 'string' } },
+      ],
+    });
+    expect(screen.getByTestId('preview-state-p-01')).toHaveAttribute('data-state', 'error');
+    expect(screen.getByTestId('preview-error-p-01')).toHaveTextContent('preview_unavailable');
+    expect(screen.getByTestId('preview-request-id-p-01')).toHaveTextContent('string-scale-preview-1');
   });
 
   it('includes the active workspace id in preview requests', async () => {

@@ -143,6 +143,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
           onClose={() => setSelection({ kind: 'none' })}
           onSaved={(group) => setSelection({ kind: 'edit', id: group.id, saved: group })}
           onReload={() => void groupsQuery.refetch()}
+          fetchLatest={async () => (await groupsQuery.refetch()).data}
         />
       )}
     </section>

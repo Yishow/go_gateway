@@ -47,6 +47,17 @@ export interface WriteGroupDelivery {
   oldest_pending_seconds: number;
   no_data_buckets: number;
   skipped_buckets: number;
+  recent_bucket_issues?: WriteGroupDeliveryBucketIssue[];
   backlog: WriteGroupDeliveryBacklog[];
   quota: WriteGroupDeliveryQuota;
+}
+
+export type WriteGroupDeliveryBucketIssueKind = 'skipped' | 'no_data';
+export type WriteGroupDeliveryBucketCause = 'missing' | 'bad' | 'stale' | 'invalid' | 'no_data' | 'unavailable';
+
+export interface WriteGroupDeliveryBucketIssue {
+  group_revision: string;
+  bucket_start: string;
+  kind: WriteGroupDeliveryBucketIssueKind;
+  causes: WriteGroupDeliveryBucketCause[];
 }

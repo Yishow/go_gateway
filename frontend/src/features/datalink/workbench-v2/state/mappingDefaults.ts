@@ -58,11 +58,12 @@ function buildDefaultDisplayName(point: Point): string {
  * @returns 預設 Mapping 物件
  */
 export function buildDefaultMapping(point: Point, _idx: number): Mapping {
+  const defaultTargetType: Mapping['target_type'] = point.data_type === 'string' ? 'string' : 'float64';
   const value = {
     tag_key: buildDefaultTagKey(point),
     display_name: buildDefaultDisplayName(point),
     unit: point.unit?.trim() || '',
-    target_type: 'float64' as const,
+    target_type: defaultTargetType,
     scale: point._rule_scale,
     offset: point._rule_offset,
     enabled: true,

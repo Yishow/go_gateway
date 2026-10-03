@@ -3,8 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ConnectorSection } from '../../../src/features/datalink/workbench-v2/steps/step4/ConnectorSection';
 import { CommitSummary } from '../../../src/features/datalink/workbench-v2/steps/step4/CommitSummary';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
-import { getColumnsFor } from '../../../src/features/datalink/workbench-v2/state/dbSchemas';
-import type { Point, Mapping, DbTarget, DbConnector } from '../../../src/features/datalink/workbench-v2/state/types';
+import type { DbConnector } from '../../../src/features/datalink/workbench-v2/state/types';
 import { INITIAL_STATE } from '../../../src/features/datalink/workbench-v2/state/useWorkbenchV2State';
 import { studioV2WorkspaceDatabaseAPI } from '../../../src/services/studioV2WorkspaceDatabase';
 

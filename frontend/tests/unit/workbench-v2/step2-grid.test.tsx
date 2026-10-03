@@ -182,7 +182,7 @@ describe('PointGrid 元件', () => {
   });
 
   it('轉發與衝突狀態渲染', () => {
-    const conflicts = new Set(['40002']);
+    const conflicts = new Set(['dev-1|40002']);
     const shareLayout: ShareLayout = {
       start: 30001,
       stride: 2,

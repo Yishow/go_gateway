@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   useApplyMeasurementTemplateMutation,
   usePreviewMeasurementTemplateMutation,
@@ -17,6 +18,7 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
   deviceId,
   onApplied,
 }) => {
+  const { t } = useTranslation('workbench-v2');
   const { data: templates = [], isLoading } = useStudioV2MeasurementTemplatesQuery(true);
   const previewMutation = usePreviewMeasurementTemplateMutation();
   const applyMutation = useApplyMeasurementTemplateMutation();
@@ -45,6 +47,11 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
   }
 
   return (
+    <details className="group" data-testid="measurement-advanced">
+      <summary className="cursor-pointer text-xs font-medium text-slate-400 hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40">
+        {t('step3.advanced_measurement')}
+      </summary>
+      <div className="mt-2">
     <div
       className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 space-y-3"
       data-testid="measurement-template-selector"
@@ -126,6 +133,8 @@ const MeasurementTemplateSelectorContent: React.FC<MeasurementTemplateSelectorPr
         </div>
       )}
     </div>
+      </div>
+    </details>
   );
 };
 

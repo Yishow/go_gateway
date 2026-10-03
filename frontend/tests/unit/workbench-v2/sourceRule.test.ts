@@ -242,8 +242,8 @@ describe('SourceRule State Pure Helpers', () => {
 
       const conflicts = detectAddressConflicts(allPoints);
       expect(conflicts.size).toBe(1);
-      expect(conflicts.has('40001')).toBe(true);
-      expect(conflicts.has('40005')).toBe(false);
+      expect(conflicts.has('dev-1|40001')).toBe(true);
+      expect(conflicts.has('dev-1|40005')).toBe(false);
     });
   });
 });

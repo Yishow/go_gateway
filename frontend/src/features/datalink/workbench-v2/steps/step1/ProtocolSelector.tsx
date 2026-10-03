@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { PROTOCOLS } from '../../state/protocols';
+import { getProtocolSupport } from '../../state/protocolSupport';
 import type { ProtocolId } from '../../state/types';
 import { Icon } from '../../components/Icon';
 import type { IconName } from '../../components/Icon';
@@ -48,14 +49,19 @@ export const ProtocolSelector: React.FC<ProtocolSelectorProps> = ({ value, onCha
       {PROTOCOLS.map((protocol) => {
         const isSelected = protocol.id === value;
         const iconName = getIconForProtocol(protocol.id);
+        const support = getProtocolSupport(protocol.id);
 
         return (
           <button
             key={protocol.id}
             type="button"
-            onClick={() => onChange(protocol.id)}
+            onClick={() => {
+              if (support.available) onChange(protocol.id);
+            }}
+            aria-disabled={!support.available}
+            aria-pressed={isSelected}
             data-testid={`protocol-card-${protocol.id}`}
-            className={`relative flex flex-col items-start rounded-xl border p-3.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+            className={`${support.available ? '' : 'cursor-not-allowed opacity-60 '}relative flex flex-col items-start rounded-xl border p-3.5 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
               isSelected
                 ? 'border-blue-500 bg-blue-600/10 shadow-lg shadow-blue-500/5'
                 : 'border-slate-800 bg-slate-900/30 hover:border-slate-700 hover:bg-slate-900/50'
@@ -86,6 +92,14 @@ export const ProtocolSelector: React.FC<ProtocolSelectorProps> = ({ value, onCha
             <span className="mt-1 text-xs text-slate-400/80 leading-normal line-clamp-2">
               {t(protocol.descKey)}
             </span>
+            {!support.available && support.reasonKey && (
+              <span
+                className="mt-1 text-[11px] font-medium text-amber-400"
+                data-testid={`protocol-unavailable-${protocol.id}`}
+              >
+                {t(support.reasonKey)}
+              </span>
+            )}
           </button>
         );
       })}

@@ -74,6 +74,9 @@ export type WorkbenchV2Action =
     }
   | { type: 'resetSettingsToDefaults' };
 
+/** Settings that tune a request without changing which connection is being probed. */
+const NON_IDENTITY_CONFIG_KEYS = new Set(['timeout']);
+
 export const INITIAL_STATE: WorkbenchV2State = {
   view: 'flow',
   current: 1,
@@ -210,11 +213,16 @@ export function workbenchV2Reducer(state: WorkbenchV2State, action: WorkbenchV2A
     case 'updateDeviceConfig':
       return {
         ...state,
-        devices: state.devices.map((d) =>
-          d.id === action.deviceId
-            ? { ...d, config: { ...d.config, ...action.patch } }
-            : d
-        ),
+        devices: state.devices.map((d) => {
+          if (d.id !== action.deviceId) return d;
+          const config = { ...d.config, ...action.patch };
+          // A probe describes the connection it ran against. Changing any part of
+          // it (host, port, slave, serial settings) makes that result obsolete.
+          const changed = Object.keys(action.patch).some(
+            (key) => !NON_IDENTITY_CONFIG_KEYS.has(key) && JSON.stringify(d.config[key]) !== JSON.stringify(config[key]),
+          );
+          return changed ? { ...d, config, status: 'draft', test: null } : { ...d, config };
+        }),
       };
     case 'renameDevice':
       return {
