@@ -110,4 +110,11 @@ describe('RealMetadataAndReviewableAssignment: column conflicts', () => {
   it('treats a missing entity key on either side as unproven identity', () => {
     expect(findColumnConflicts(members(['a', 'v', 'line-1'], ['b', 'v'])).length).toBe(1);
   });
+
+  it('uses the effective SQL column for case variants while keeping entity identities distinct', () => {
+    expect(findColumnConflicts(members(['a', 'Value', 'A'], ['b', 'value', 'A']))).toEqual([
+      { column: 'Value', member_keys: ['a', 'b'] },
+    ]);
+    expect(findColumnConflicts(members(['a', 'Value', 'A'], ['b', 'value', 'B']))).toEqual([]);
+  });
 });

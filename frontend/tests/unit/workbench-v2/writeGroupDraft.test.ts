@@ -109,6 +109,14 @@ describe('write group editor draft', () => {
       expect(codes({ ...base, incomplete_policy: 'partial', provenance_column: '' })).toContain('partial-needs-provenance');
       expect(codes({ ...base, incomplete_policy: 'partial', provenance_column: 'prov' })).not.toContain('partial-needs-provenance');
     });
+    it('rejects equivalent SQL columns in the same persisted entity before Save or Apply', () => {
+      const shared = { ...base, members: base.members.map((m, i) => ({
+        ...m, target_column: i === 0 ? 'Value' : 'value', entity_key: 'A',
+      })) };
+      expect(codes(shared)).toContain('column-conflict');
+      const distinct = { ...shared, members: shared.members.map((m, i) => ({ ...m, entity_key: i === 0 ? 'A' : 'B' })) };
+      expect(codes(distinct)).not.toContain('column-conflict');
+    });
     it('treats a member with an entity key as needing the entity key column', () => {
       expect(codes({ ...base, entity_key_column: '' })).toContain('entity-column-required');
     });

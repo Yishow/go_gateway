@@ -370,6 +370,9 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 		}
 		encoded, err := b.layout.EncodeRow(outcome)
 		if err != nil {
+			if structuralEncodingFailure(err) {
+				return &GroupBoundaryError{Code: boundaryLayoutBlocked, Cause: err}
+			}
 			blocked := blockedOutcome(outcome, err)
 			buckets = append(buckets, groupdelivery.ClosedBucket{Outcome: blocked})
 			reported = append(reported, blocked)
@@ -390,19 +393,6 @@ func (b *GroupBoundary) tickDurable(ctx context.Context, now time.Time) error {
 		errs = append(errs, b.sink.ReportOutcome(ctx, outcome))
 	}
 	return errors.Join(errs...)
-}
-
-func blockedOutcome(outcome snapshot.Outcome, cause error) snapshot.Outcome {
-	code := "unknown"
-	var rowErr *dbtarget.GroupRowError
-	if errors.As(cause, &rowErr) {
-		code = rowErr.Code
-	}
-	outcome.Kind = snapshot.OutcomeSkipped
-	outcome.Reason = reasonEncodeBlocked + code
-	outcome.EffectKey = ""
-	outcome.Partial = false
-	return outcome
 }
 
 // RunTicks drives Tick from a clock channel until ctx ends or the channel

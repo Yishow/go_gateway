@@ -161,16 +161,17 @@ export function findColumnConflicts(members: ConflictMember[]): ColumnConflict[]
   const byColumn = new Map<string, ConflictMember[]>();
   for (const member of members) {
     if (!member.column) continue;
-    const list = byColumn.get(member.column) ?? [];
+    const column = member.column.trim().toLowerCase();
+    const list = byColumn.get(column) ?? [];
     list.push(member);
-    byColumn.set(member.column, list);
+    byColumn.set(column, list);
   }
   const conflicts: ColumnConflict[] = [];
-  for (const [column, list] of byColumn) {
+  for (const list of byColumn.values()) {
     if (list.length < 2) continue;
     const entities = list.map((member) => member.entity_key.trim());
     const distinct = entities.every((entity) => entity !== '') && new Set(entities).size === entities.length;
-    if (!distinct) conflicts.push({ column, member_keys: list.map((member) => member.key) });
+    if (!distinct) conflicts.push({ column: list[0].column, member_keys: list.map((member) => member.key) });
   }
   return conflicts;
 }

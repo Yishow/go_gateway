@@ -1838,3 +1838,191 @@ tests:
   - frontend/tests/unit/services/studioV2WriteGroupMigration.test.ts
   - internal/datalink/workspace/write_group_migration_database_intent_test.go
 -->
+
+---
+### Requirement: Entity-scoped column layout agreement
+Column validation and row encoding SHALL use the same persisted entity-to-member partition. Distinct identified rows within a group MAY share a destination column, but competing values within the same row MUST be rejected before Apply. UI guidance, readiness and runtime MUST agree for the same saved layout.
+
+#### Scenario: Shared column in distinct rows
+- **GIVEN** one group has entities A and B, each with a member mapped to value and a verified distinct row identity
+- **WHEN** the group is saved, checked and applied
+- **THEN** all layers accept the layout and retain both entities rather than reporting a global duplicate-column conflict.
+
+#### Scenario: Competing values in one row
+- **WHEN** two members in entity A map to the same effective SQL column, including equivalent case variants for that destination
+- **THEN** readiness and Apply reject the collision with an actionable explanation before intake begins.
+
+
+<!-- @trace
+source: fix-write-group-entity-row-layout
+updated: 2026-10-04
+code:
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-postgres.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-390.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-1440.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-768.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-1440.png
+  - internal/datalink/workspace/write_group_readiness.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - internal/datalink/dbtarget/group_row_layout.go
+  - internal/datalink/migrator_recording_plans.go
+  - internal/api/handlers/studio_v2_workspace_database_metadata.go
+  - internal/datalink/workspace/write_group_lifecycle.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-390.png
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/proposal.ts
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-sqlite.png
+  - internal/datalink/grouppipeline/reconcile.go
+  - internal/datalink/grouppipeline/recovery.go
+  - docs/plans/studio-v2-flow-completion/C-entity-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-1440.png
+  - docs/plans/studio-v2-flow-completion/A-lifecycle-verification.md
+  - docs/plans/studio-v2-flow-completion/B-deadline-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-768.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-768.png
+  - frontend/src/services/studioV2WorkspaceDatabase.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupColumnProposal.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-390.png
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/columns.ts
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-reject-bigint.png
+  - frontend/src/hooks/datalink/keys.ts
+  - internal/datalink/workspace/write_group_runtime_layout.go
+  - internal/datalink/grouppipeline/pipeline.go
+  - docs/plans/studio-v2-flow-completion/README.md
+  - internal/datalink/workspace/write_group_readiness_eval.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
+  - internal/datalink/groupdelivery/sender.go
+  - internal/datalink/groupdelivery/runtime_versions.go
+  - internal/datalink/runtime/group_boundary_encoding.go
+  - internal/datalink/schema/migrations/027_write_group_runtime_sqlite.up.sql
+  - internal/datalink/workspace/write_group_readiness_partial.go
+  - internal/datalink/workspace/write_group_readiness_table.go
+  - docs/plans/studio-v2-flow-completion/review-repairs.md
+  - internal/datalink/runtime/group_boundary.go
+tests:
+  - frontend/tests/unit/workbench-v2/writeGroupProposal.test.tsx
+  - internal/datalink/workspace/write_group_runtime_layout_test.go
+  - internal/datalink/dbtarget/group_row_layout_test.go
+  - internal/datalink/workspace/write_group_readiness_table_test.go
+  - internal/api/handlers/studio_v2_workspace_group_metadata_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupMembers.test.tsx
+  - frontend/tests/unit/services/studioV2WorkspaceDatabaseMetadata.test.ts
+  - cmd/test_ui/group_pipeline_entity_sql_test.go
+  - cmd/test_ui/group_pipeline_entity_test.go
+  - internal/datalink/dbtarget/group_row_entity_test.go
+  - internal/datalink/groupdelivery/sender_deadline_recovery_test.go
+  - internal/datalink/runtime/group_boundary_durable_test.go
+  - internal/datalink/grouppipeline/reconcile_revision_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_test.go
+  - internal/datalink/runtime/group_boundary_cutoff_test.go
+  - internal/datalink/groupdelivery/sender_deadline_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
+  - internal/datalink/grouppipeline/reconcile_recovery_test.go
+  - internal/datalink/runtime/group_boundary_entity_test.go
+  - internal/datalink/groupdelivery/sender_settlement_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupDraft.test.ts
+  - internal/datalink/workspace/write_group_lifecycle_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
+  - internal/datalink/groupdelivery/sender_postgres_test.go
+  - frontend/tests/unit/hooks/useStudioV2GroupMetadata.test.tsx
+  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
+  - internal/datalink/workspace/write_group_reenable_test.go
+-->
+
+---
+### Requirement: Entity-local encoding and recoverable structural failure
+Each finalized row SHALL encode only its own entity members with the existing exact-value and quality policies. Missing members in other entities MUST NOT invalidate that row. A structural layout/encoding mismatch MUST preserve unresolved accepted input and checkpoint evidence rather than consuming it as a normal quality skip.
+
+#### Scenario: Independent values in one group
+- **WHEN** entities A and B finalize using shared or different destination column names
+- **THEN** SQL contains each entity's own values and identity without requiring the other entity's members.
+
+#### Scenario: One entity lacks data
+- **WHEN** A has a missing required member while B has all required good members
+- **THEN** A records its existing scoped incomplete outcome while B produces its own valid row; explicit partial and silent-bucket rules remain unchanged.
+
+#### Scenario: Structural mismatch after durable acceptance
+- **WHEN** an acknowledged sample cannot be encoded because the saved layout is structurally inconsistent
+- **THEN** its unresolved closure is retained with a safe diagnostic and is not consumed as a successful row or ordinary missing-data skip.
+
+<!-- @trace
+source: fix-write-group-entity-row-layout
+updated: 2026-10-04
+code:
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-postgres.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-390.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-1440.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-768.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-1440.png
+  - internal/datalink/workspace/write_group_readiness.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - internal/datalink/dbtarget/group_row_layout.go
+  - internal/datalink/migrator_recording_plans.go
+  - internal/api/handlers/studio_v2_workspace_database_metadata.go
+  - internal/datalink/workspace/write_group_lifecycle.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-390.png
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/proposal.ts
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-sqlite.png
+  - internal/datalink/grouppipeline/reconcile.go
+  - internal/datalink/grouppipeline/recovery.go
+  - docs/plans/studio-v2-flow-completion/C-entity-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-1440.png
+  - docs/plans/studio-v2-flow-completion/A-lifecycle-verification.md
+  - docs/plans/studio-v2-flow-completion/B-deadline-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-768.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-768.png
+  - frontend/src/services/studioV2WorkspaceDatabase.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupColumnProposal.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-390.png
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/columns.ts
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-reject-bigint.png
+  - frontend/src/hooks/datalink/keys.ts
+  - internal/datalink/workspace/write_group_runtime_layout.go
+  - internal/datalink/grouppipeline/pipeline.go
+  - docs/plans/studio-v2-flow-completion/README.md
+  - internal/datalink/workspace/write_group_readiness_eval.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
+  - internal/datalink/groupdelivery/sender.go
+  - internal/datalink/groupdelivery/runtime_versions.go
+  - internal/datalink/runtime/group_boundary_encoding.go
+  - internal/datalink/schema/migrations/027_write_group_runtime_sqlite.up.sql
+  - internal/datalink/workspace/write_group_readiness_partial.go
+  - internal/datalink/workspace/write_group_readiness_table.go
+  - docs/plans/studio-v2-flow-completion/review-repairs.md
+  - internal/datalink/runtime/group_boundary.go
+tests:
+  - frontend/tests/unit/workbench-v2/writeGroupProposal.test.tsx
+  - internal/datalink/workspace/write_group_runtime_layout_test.go
+  - internal/datalink/dbtarget/group_row_layout_test.go
+  - internal/datalink/workspace/write_group_readiness_table_test.go
+  - internal/api/handlers/studio_v2_workspace_group_metadata_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupMembers.test.tsx
+  - frontend/tests/unit/services/studioV2WorkspaceDatabaseMetadata.test.ts
+  - cmd/test_ui/group_pipeline_entity_sql_test.go
+  - cmd/test_ui/group_pipeline_entity_test.go
+  - internal/datalink/dbtarget/group_row_entity_test.go
+  - internal/datalink/groupdelivery/sender_deadline_recovery_test.go
+  - internal/datalink/runtime/group_boundary_durable_test.go
+  - internal/datalink/grouppipeline/reconcile_revision_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_test.go
+  - internal/datalink/runtime/group_boundary_cutoff_test.go
+  - internal/datalink/groupdelivery/sender_deadline_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
+  - internal/datalink/grouppipeline/reconcile_recovery_test.go
+  - internal/datalink/runtime/group_boundary_entity_test.go
+  - internal/datalink/groupdelivery/sender_settlement_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupDraft.test.ts
+  - internal/datalink/workspace/write_group_lifecycle_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
+  - internal/datalink/groupdelivery/sender_postgres_test.go
+  - frontend/tests/unit/hooks/useStudioV2GroupMetadata.test.tsx
+  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
+  - internal/datalink/workspace/write_group_reenable_test.go
+-->

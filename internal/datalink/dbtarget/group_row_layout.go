@@ -67,9 +67,10 @@ type LayoutIssue struct {
 
 // GroupRowLayout is a validated mapping from snapshot rows to table columns.
 type GroupRowLayout struct {
-	spec    GroupRowSpec
-	columns map[string]ColumnInfo
-	caps    snapshot.StorageCapabilities
+	spec         GroupRowSpec
+	columns      map[string]ColumnInfo
+	exactColumns map[string]ColumnInfo
+	caps         snapshot.StorageCapabilities
 }
 
 // EncodedCell is one column value; a nil Value is SQL NULL.
@@ -103,12 +104,17 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		return nil, []LayoutIssue{{Code: issueUnsupportedDialect}}
 	}
 	columns := make(map[string]ColumnInfo, len(spec.Columns))
+	exactColumns := make(map[string]ColumnInfo, len(spec.Columns))
 	for _, column := range spec.Columns {
 		columns[strings.ToLower(column.Name)] = column
+		exactColumns[column.Name] = column
 	}
 	var issues []LayoutIssue
 	lookup := func(name string) (ColumnInfo, bool) {
-		column, ok := columns[strings.ToLower(name)]
+		column, ok := exactColumns[name]
+		if !ok {
+			column, ok = columns[strings.ToLower(name)]
+		}
 		if !ok {
 			issues = append(issues, LayoutIssue{Code: issueColumnMissing, Column: name})
 		}
@@ -195,10 +201,18 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		return nil, issues
 	}
 	return &GroupRowLayout{
-		spec:    spec,
-		columns: columns,
-		caps:    snapshot.StorageCapabilities{NullableValues: nullableOptional, MemberQuality: provenanceOK},
+		spec:         spec,
+		columns:      columns,
+		exactColumns: exactColumns,
+		caps:         snapshot.StorageCapabilities{NullableValues: nullableOptional, MemberQuality: provenanceOK},
 	}, nil
+}
+
+func (l *GroupRowLayout) column(name string) ColumnInfo {
+	if column, ok := l.exactColumns[name]; ok {
+		return column
+	}
+	return l.columns[strings.ToLower(name)]
 }
 
 func hasIssue(issues []LayoutIssue, code, column string) bool {
@@ -279,7 +293,7 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 		if result.Sample.Value.Type() != member.Type {
 			return EncodedRow{}, &GroupRowError{Code: rowErrTypeMismatch, Column: member.Column}
 		}
-		column := l.columns[strings.ToLower(member.Column)]
+		column := l.column(member.Column)
 		bound, err := EncodeExactValue(l.spec.Dialect, column.DataType, result.Sample.Value)
 		if err != nil {
 			return EncodedRow{}, &GroupRowError{Code: rowErrSQLValueBlock, Column: member.Column}
@@ -289,6 +303,11 @@ func (l *GroupRowLayout) EncodeRow(outcome snapshot.Outcome) (EncodedRow, error)
 	if err := l.appendIdentityCells(&encoded, outcome); err != nil {
 		return EncodedRow{}, err
 	}
+	for i := range encoded.Cells {
+		// Validation resolves names case-insensitively. Quoted SQL must use the
+		// inspected identifier, especially on PostgreSQL.
+		encoded.Cells[i].Column = l.column(encoded.Cells[i].Column).Name
+	}
 	return encoded, nil
 }
 
@@ -297,7 +316,7 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 		if columnName == "" {
 			return nil
 		}
-		bound, err := EncodeExactValue(l.spec.Dialect, l.columns[strings.ToLower(columnName)].DataType, measurement.NewText(value))
+		bound, err := EncodeExactValue(l.spec.Dialect, l.column(columnName).DataType, measurement.NewText(value))
 		if err != nil {
 			return &GroupRowError{Code: rowErrSQLValueBlock, Column: columnName}
 		}
@@ -309,7 +328,7 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 	}
 	if name := l.spec.BucketStartColumn; name != "" {
 		start := outcome.BucketStart.UTC()
-		if bucketColumnKind(l.spec.Dialect, l.columns[strings.ToLower(name)]) == bucketTimestamp {
+		if bucketColumnKind(l.spec.Dialect, l.column(name)) == bucketTimestamp {
 			encoded.Cells = append(encoded.Cells, EncodedCell{Column: name, Value: start})
 		} else if err := text(name, start.Format(time.RFC3339Nano)); err != nil {
 			return err
@@ -323,7 +342,7 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 		if err != nil {
 			return &GroupRowError{Code: rowErrSQLValueBlock, Column: name}
 		}
-		if isJSONColumn(l.spec.Dialect, l.columns[strings.ToLower(name)]) {
+		if isJSONColumn(l.spec.Dialect, l.column(name)) {
 			encoded.Cells = append(encoded.Cells, EncodedCell{Column: name, Value: string(payload)})
 		} else if err := text(name, string(payload)); err != nil {
 			return err

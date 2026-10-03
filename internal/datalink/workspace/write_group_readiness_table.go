@@ -200,6 +200,8 @@ func evaluateWriteGroupInspection(
 		code := "destination-column-type-mismatch"
 		message := "a destination column is incompatible with the production writer"
 		switch issue.Code {
+		case "duplicate-column":
+			message = "assign each tag in the same entity row to a different destination column"
 		case "column-missing", "identity-column-missing":
 			code = "destination-column-missing"
 			message = "a destination column required by the production writer is missing"
