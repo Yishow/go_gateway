@@ -43,3 +43,18 @@ make check-lines
 ```
 
 最終git publication SHA與review結果於交付時核對；文件內不預先寫入尚不存在的commit或CI通過結果。
+
+
+## 2026-10-03 實作與最後交付
+
+原10-01僅文件的紀錄保留；此段記錄後續使用者授權依A→F實作驗收的結果。六案54/54tasks完成，舊案五項移交需求與5.1closeout核對完成；未部署或新增commit。
+
+- Go一般／tagged完整test、vet、lint均PASS，兩lint0issues；前端lint／181files1090tests／build／Playwright13/13PASS；harness24/24PASS。
+- SQLite／PostgreSQL真UI→Modbus→SQL七型別、品質／quota／disk／poison／CAS／worker／重啟／lostcommit／ownedtestcleanup皆各自通過；Linuxamd64容器有獨立source/build/UI/SQLPASS，清理錯誤修後SQLite與PG另補驗PASS。
+- decimal依使用者確認只驗codec/SQL，不宣稱設備採集支援；field/正式DB/部署/Windows/nativeARM/nativeLinux硬體/embedded/LAN/PLC/SCADA/longsoak仍NOTRUN。
+- 最後F scope snapshot `04662a850f0dbdcc92b3ffa234c8e0989c5501e5`（243paths，44binary不作程式內容驗證）；舊案 `1e4cc71cda9ecc0595caac591ab82cc8076b0099`（85paths）均current。四lens review／verify完成，無confirmed未修缺陷；dirtybaseline僅能證明檔案歸屬。
+- F與舊案preview均無未完成task、無warnings；corearchive各執行一次，specs各套用一次，cleanupwarnings皆空。實際archive位置如下；links於移動後調整，沒有改寫需求語意。
+- [2026-10-03-validate-studio-v2-device-to-sql](../../../openspec/changes/archive/2026-10-03-validate-studio-v2-device-to-sql/validation.md)；specs：studio-v2-device-to-sql-acceptance。
+- [2026-10-03-fix-studio-v2-database-workflow](../../../openspec/changes/archive/2026-10-03-fix-studio-v2-database-workflow/validation.md)；specs：datalink-workbench-v2-step4-database, recording-database-setup。
+
+完整requirements/scenarios、測試／source/witness身分、清理與未驗界線見 [final-verification.md](final-verification.md) 與 [handoff-closeout.md](handoff-closeout.md)。

@@ -98,6 +98,19 @@
 | `POST /api/v1/datalink/modbus-share/reconcile` | `/studio/v2` Step 4 | server-owned canonical plan validates full mapping identity/geometry and signature (`workspace_id`, revisions, `mapping_id`, `tag_id`, source-rule revision, datatype/span/stride/capacity); stride smaller than datatype span is rejected; response reports `outcome`, applied/removed/invalidated spans and safe diagnostics; stale revisions use CAS and return typed 409/422 failures (`modbus_share_revision_conflict`, `modbus_share_reconcile_failed`, `modbus_share_dirty_unknown`, `modbus_share_projection_required`) |
 | `POST /api/v1/datalink/source-rules/:id/local-modbus/apply` | `/studio/v2` Step 4 | 將 scoped persisted Local Modbus candidate review 套用為 output；正式 projection 仍只能由 candidate/apply/reconcile seam 產生 |
 
+## Output: Write groups
+
+資料庫輸出的唯一 canonical authority；`/studio/v2` Step 4 只編輯這組 API。詳見 `docs/technical/studio-v2-write-groups.md`。
+
+| API | 主用頁面 | 用途 |
+| --- | --- | --- |
+| `GET/POST /api/v1/datalink/studio-v2/workspace/write-groups`、`GET/PUT/DELETE …/write-groups/:id` | `/studio/v2` Step 4 | list／get／儲存草稿／logical delete；mutation 帶 `workspace_id` 與 expected workspace／group／connector revisions，過期 409 `revision_mismatch` |
+| `GET …/write-groups/:id/readiness` | `/studio/v2` Step 4 | persisted group 與 destination schema 的唯讀就緒判定；Apply 的依據 |
+| `POST …/write-groups/:id/apply`、`/disable` | `/studio/v2` Step 4 | 套用（排入下一個 UTC bucket，不做 DDL）／停止新 intake；只帶 expected revisions |
+| `GET …/write-groups/:id/delivery` | `/studio/v2` Step 4 | 各階段計數與 backlog；只有 `sql_committed` 是 destination 證據 |
+| `POST …/write-groups/:id/test-write-preview`、`/test-write` | `/studio/v2` Step 4 | 確認式試寫：preview 不寫 target，確認後寫入、讀回、只清理自己的 row；結果 `write_outcome` 與 `cleanup_status` 分開；狀態由共用 `GET …/database-operations/:operation_id` 提供 |
+| `POST …/recording-plans/test-write-preview`、`/test-write` | （舊 plan 相容） | 只靠 group provenance 解析到唯一群組，目前一律 422 `RECORDING_TEST_WRITE_PLAN_UNRESOLVED` |
+
 ## Output: Database
 
 | API | 主用頁面 | 用途 |

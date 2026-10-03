@@ -2121,6 +2121,56 @@ paths:
       summary: Update a canonical write-group draft
       tags:
       - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/apply:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected revisions (no group payload)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupMutationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupSaveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Apply a canonical write group
+      tags:
+      - Studio V2 Write Groups
   /datalink/studio-v2/workspace/write-groups/{id}/delivery:
     get:
       parameters:

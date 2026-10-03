@@ -4,7 +4,7 @@ A 的本地設定／移轉／交易介面（已 archive）、B 的 sample 語意
 
 以下數字是deterministic設計fixture，不是production規模、速度或穩定性測量。每案例保存command、source/build SHA、平台、run IDs、實際assertions與sanitized SQL/UI witness。
 
-基礎fixture：兩台loopback simulator設備A/B可同時有40001；group G含temperature decimal、pressure integer、running bool、batch text及uint64 9007199254740993。測試bucket interval=10秒、lateness=0、max_age=10秒，固定clock `2026-01-01T00:00:00Z` 起；production defaults不由此推斷。
+F真採集fixture：兩台loopback simulator設備A/B可同時有40001；群組涵蓋int16、uint16、bool、uint64（含9007199254740993）、float32、float64及string七種既有型別。品質矩陣使用其中四型別，測試bucket interval=10秒、lateness=0、max_age=10秒，固定clock `2026-01-01T00:00:00Z` 起；production defaults不由此推斷。2026-10-03使用者確認取代原temperature decimal的真採集fixture：decimal保留B的explicit codec／SQL round-trip證據，設備採集尚不支援，不從Tag推測或新增型別。
 
 | 標籤／owner | 操作／故障 | 必須觀察到的結果 |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ A 的本地設定／移轉／交易介面（已 archive）、B 的 sample 語意
 | EmptyErrorMismatchPlanRecovery / E | load fail/empty/all mismatched | retry/新建/明確修復可達；不把error當empty |
 | GroupCompletionTruth / E | managed無manual targets；Share-only；device running但DBqueued | 按backend group gate；Share保護獨立；不假DBsuccess |
 | GuidedGroupKeyboardAndViewport / E | IME、Enter+blur、double click、filter+bulk、390/768/1440px | 不重送、不丟draft、明確bulk scope、焦點及修復action可達 |
-| DeviceToSQLiteMixedRows / F | 真UI建立兩device/points/tags/groups，simulator採集 | 內部persisted IDs與獨立SQL查詢同鏈；不能direct INSERT替代 |
+| DeviceToSQLiteMixedRows / F | 真UI建立兩device/points/tags/groups，simulator採集七種既有型別 | 內部persisted IDs與獨立SQL查詢同鏈、uint64精確；decimal僅codec證據與未支援採集限制，不能direct INSERT替代 |
 | DeviceToPostgresMixedRows / F | 同完整鏈於disposablePostgres | 真Postgres證據；不可用時blocked，不能類推pass |
 
 ## 驗證層級

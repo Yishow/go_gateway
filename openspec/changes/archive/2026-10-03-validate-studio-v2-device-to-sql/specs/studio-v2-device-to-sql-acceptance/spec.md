@@ -1,3 +1,7 @@
+## Purpose
+
+Provide repeatable production device-to-SQL evidence for basic write groups, including deterministic fault boundaries and explicit limits on platform and field acceptance.
+
 ## ADDED Requirements
 
 ### Requirement: Production device-to-SQL witness
@@ -6,6 +10,11 @@ The acceptance harness SHALL run the production cmd/test_ui binary with its embe
 #### Scenario: Mixed multi-device happy path
 - **WHEN** the UI creates two simulated devices sharing addresses and a group with heterogeneous typed values
 - **THEN** the persisted IDs and actual SQL payload, identity, UTC times and quality match the simulator fixture without address collisions or precision loss.
+
+#### Scenario: Supported acquisition types and decimal boundary
+- **WHEN** the device-to-SQL harness runs the existing acquisition types `int16`, `uint16`, `bool`, `uint64`, `float32`, `float64` and `string`
+- **THEN** it SHALL verify all seven through the actual UI, acquisition and independent SQL queries, including exact `uint64` value `9007199254740993`.
+- **AND** decimal evidence MUST remain explicitly limited to the opt-in codec and SQL round-trip layer; the witness MUST state that device decimal acquisition is unsupported and MUST NOT imply it was executed.
 
 #### Scenario: Operation cleanup
 - **WHEN** the UI confirms a test-write with a neighboring production fixture row
@@ -25,6 +34,11 @@ Acceptance MUST exercise missing/bad/stale/late values, database outage and rest
 #### Scenario: Incomplete bucket
 - **WHEN** a required member is missing or bad at the closure boundary
 - **THEN** the default group records a scoped incomplete outcome and emits no misleading complete row.
+
+##### Example: deterministic production quality boundary
+- **GIVEN** a real UI-created applied group, persisted source IDs, a loopback Modbus simulator and a disposable SQLite destination, with ten-second UTC buckets starting at `2026-01-01T00:00:00Z`
+- **WHEN** the acceptance build captures actual reads at second `8` and then second `3`, releases them to the production pipeline, replays a duplicate and closes the bucket at second `10`
+- **THEN** actual SQL preserves the second-8 values exactly once, the duplicate is a no-op, post-closure release is late with unchanged SQL, and missing/bad/stale/silent cases yield durable scoped skipped/no_data outcomes with no complete SQL row and matching UI truth.
 
 ### Requirement: Evidence distinguishes actual execution and field limits
 Every reported pass SHALL include source/build identity, command, environment, fixture IDs, assertions and sanitized SQL/UI evidence. Unexecuted database, browser or operating-system checks MUST be reported as not run or blocked. Simulator tests MUST NOT imply live PLC, LAN, SCADA, Windows/ARM or field sign-off.

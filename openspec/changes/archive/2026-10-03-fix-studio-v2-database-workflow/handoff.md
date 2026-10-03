@@ -12,7 +12,7 @@
 | 4.1 引導與可用性 | `simplify-studio-v2-four-step-setup` 2.1–3.2 | 完整移轉Guided database setup and accessible controls；Connector configuration form轉交新群組editor維護 |
 | 4.3 整合與browser／DB驗收 | `validate-studio-v2-device-to-sql` 1.1–3.2 | 原partial failure、reload、disposable DB、full checks與evidence要求保留，增加production SQL鏈 |
 
-D/E/F前置為A `unify-studio-v2-write-group-contract` → B `enforce-write-group-sample-semantics` → C `wire-durable-write-group-delivery`。完整順序 [見總覽](../../../docs/plans/studio-v2-write-groups/README.md)。
+D/E/F前置為A `unify-studio-v2-write-group-contract` → B `enforce-write-group-sample-semantics` → C `wire-durable-write-group-delivery`。完整順序 [見總覽](../../../../docs/plans/studio-v2-write-groups/README.md)。
 
 ## 保留與不變的證據
 
@@ -27,3 +27,12 @@ D/E/F前置為A `unify-studio-v2-write-group-contract` → B `enforce-write-grou
 原design的Decisions與A/B/C/D Implementation Contract記錄舊分階段計畫。2026-10-01起，未完D階段的實作owner與順序以本文件及新案design為準；已完成B/C及歷史證據仍有效，不能重新套用舊順序造成雙重實作。
 
 本案留未勾選5.1 closeout gate，須在新案D/E/F和前置全部有實際驗收後才核對；不在文件交付時archive。新案尚未實作時，本案仍未完成。
+
+## 2026-10-03 實作後核對
+
+A–E 已依序完成並歸檔；F 已有真 UI／SQL／故障與 Linux container 證據，最後 reviewer 發現的 harness cleanup 與 late group save 草稿問題已修正，受影響 full runs 繼續核對。原五項完成文字保留；移交的五項以新 owner 實作與證據判定，5.1 在最終結果齊全前保持未完。逐項對照及 production migration／rollback 未執行邊界見 [handoff-closeout.md](../../../../docs/plans/studio-v2-write-groups/handoff-closeout.md)。
+
+
+## 2026-10-03 完成移交
+
+最後 review／verify、完整基準與受影響重跑皆通過；A–F 全部需求依核定範圍完成，5.1 現可按實際證據完成。原五項完成文字未變，五项移交結果與未驗界線見 [final-verification.md](../../../../docs/plans/studio-v2-write-groups/final-verification.md)。archive由Spectra preview/core transaction處理，沒有部署。

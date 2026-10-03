@@ -34,6 +34,8 @@ UTC bucket為`[start,end)`，`start=floor(observed_at/interval)*interval`。在`
 
 值保留bool、text、signed/unsigned integer及decimal；大整數與decimal用明確encoding穿過JSON/SQL，不經JS Number截斷。NaN/Inf或SQL overflow為bad／blocked，絕不宣告good。所有群組在本地durable envelope／journal保存member observation/quality與record_id/target identity的關聯。全good且完整的custom row不強制增加外部逐欄metadata或companion表；外部schema只需符合明確選擇的partial模式或dedupe策略。UI必須揭露品質證據只在本地、SQL表本身未攜帶逐欄資訊的限制。
 
+2026-10-03 F驗收範圍確認：上述decimal是B明確expected type的codec／SQL round-trip契約，不代表採集型別已支援decimal。F真採集驗int16、uint16、bool、uint64、float32、float64及string；decimal設備路徑明列未支援，不由Tag推測，不新增型別。
+
 `record_id`由workspace、group ID、group revision、entity key（無業務分區時用固定group scope）及bucket_start導出；不可只有timestamp。命名空間同時納入目標scope作destination effect key。同一group跨device的members是同一row的不同columns；不同entity/群組即使同bucket也必須不同row。共享同一column的legacy布局只有保證row identity不同才合法，不自動合成會覆蓋的wide row。
 
 ## C：接受、交付與重啟

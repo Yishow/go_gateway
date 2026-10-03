@@ -49,7 +49,7 @@
 | 舊動畫規格被誤當現行程式現況，空結果成功文案仍缺證據 | 保留目前 activation 資料流；規格／待辦聚焦後端證據、空結果、部分成功、重載及 runtime 導航 |
 | 待辦將 router 測試放到 handler 目錄，並把既有 route 檔寫成待新增 | truthfulness 1.1 改沿用 `internal/api/` 的 router fixture；schema 3.4 明確更新既有 route 檔並新增 status handler |
 
-詳細分工以 [design.md 的 Implementation Contract](./design.md#implementation-contract) 為準。去重後共 28 項待辦（workflow 10、truthfulness 8、schema 10），全部未完成；減少數量不是完成實作。
+詳細分工以 [design.md 的 Implementation Contract](design.md#implementation-contract) 為準。去重後共 28 項待辦（workflow 10、truthfulness 8、schema 10），全部未完成；減少數量不是完成實作。
 
 ## 本機文件驗證
 
@@ -86,3 +86,12 @@
 ## 2026-10-01 提案移交（非產品驗收）
 
 保留原五項完成證據與checkbox；未完五項轉交新write-group計畫D/E/F，需求詳見handoff.md。本次不重跑產品測試、不新增完成項、不archive。本案tasks保留待新案驗收後才能關閉的5.1 gate。文件檢查及工具版本記於 docs/plans/studio-v2-write-groups/validation.md。
+
+
+## 2026-10-03：D/E/F 移交 closeout
+
+- A–F 的實作與驗收完成；原五項完成 task 的原文與原基準相同，五項未完需求由唯一 D/E/F owner 完成，沒有在舊案平行重做。詳細對照見 [handoff-closeout.md](../../../../docs/plans/studio-v2-write-groups/handoff-closeout.md) 與 [final-verification.md](../../../../docs/plans/studio-v2-write-groups/final-verification.md)。
+- 五條保留需求／十八個 scenarios 核對現行群組 editor、schema/readiness/Share、saved connector identity、persisted measurement membership/safe404、actual SQLite AtomicSetupSave rollback。E 已退休的 row keyboard autosave與advanced plan picker 不宣稱當次實跑；basic route不創造measurement或選第一個plan，advancedAPI安全契約保留。
+- 最後 normal/tagged Go full test、vet、lint、前端 lint/Vitest181files1090tests/build/Playwright13、harness24tests通過；Mac SQLite/PG與Linux真七型別UI/SQL、quality/recovery/capacity/CAS/worker/test-write完整witness均各自通過。最后 cleanup false／error channel 缺陷已修、真RED/GREEN與修後SQLite/PG受影響場景再驗通過。
+- root與獨立review核對 correctness/efficiency/reuse/convention及D/E/F移交，零confirmed未修缺陷／重大缺需求；analyze零Critical/Warning、十七項抽象example建議，validate PASS。scope在tasks tracking完成後另capture/check；不以歷史綠燈或archive代替當次驗收。
+- 024/025/026相容與回復契約保留；正式DB migration/backup/restore/deploy與Windows/ARM/embedded/LAN/PLC/SCADA仍NOT RUN。沒有stage/commit/push/merge/deploy。

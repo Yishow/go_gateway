@@ -1,6 +1,6 @@
 # Studio V2 WriteGroup：設定、相容移轉與回復
 
-本文件對應 A `unify-studio-v2-write-group-contract`，並在「Durable 交付（C）」「確認試寫（D）」說明 C `wire-durable-write-group-delivery`、D `implement-confirmed-write-group-test-write` 的運行行為。A 建立本地設定 authority、相容 API 及交易邊界；B 的 sample 規則已實作並歸檔；C 的 durable production delivery 實作與驗證見 C 的 validation（任務尚未全部完成）；D 的真實試寫、E 的 UI 及 F 的 UI→SQL 驗收仍按順序交付。完成設定或 domain Apply 不表示 SQL committed／readback verified。
+本文件對應 A `unify-studio-v2-write-group-contract`，並在「Durable 交付（C）」「確認試寫（D）」說明 C `wire-durable-write-group-delivery`、D `implement-confirmed-write-group-test-write` 的運行行為。A–F 已完成實作、驗證與歸檔；真 UI→SQLite／PostgreSQL、故障與 Linux container 實測、最後獨立審查與舊案移交核對見 [最後驗收報告](../plans/studio-v2-write-groups/final-verification.md)。完成設定或 domain Apply 不表示 SQL committed／readback verified。
 
 ## 本地資料結構
 
@@ -27,12 +27,13 @@ Migrator 可重跑建立缺少的 024 表，並以 additive `ALTER TABLE` 補既
 | `POST`（無尾碼）、`PUT /:id` | 保存 draft，group/member/projection/workspace revision 同一 local transaction |
 | `GET /:id/readiness` | 使用 persisted group 驗來源與 read-only destination schema，不建表、不啟用設備 |
 | `POST /:id/disable`、`DELETE /:id` | 停新 intake／logical delete；保留 immutable snapshots 與 accepted backlog 歸屬 |
+| `POST /:id/apply` | 只帶 expected revisions（不可帶 group payload）；readiness 通過才排入下一個 UTC bucket，沒有 DDL、不連 destination；未就緒 409 `WRITE_GROUP_NOT_READY`、過期 409 `revision_mismatch`。Production 的 owner 由 `grouppipeline` 週期性 reconcile 接手，所以套用到實際開始寫入之間有 reconcile 間隔，不是同步。 |
 | `POST /migrations/{single-mappings,row-groups,recording-plans}/preview` | 本地只讀預覽，帶 revisions/source intent/digest/issues |
 | `POST /migrations/{single-mappings,row-groups,recording-plans}/review` | 綁定同 revision/digest 的明確審閱，支援來源只保存 draft；blocked plan 不轉換 |
 
 mutation 帶 `workspace_id`、`expected_workspace_revision`、`expected_connector_revision`；create 以外另帶 `expected_group_revision`。`expected_workspace_revision` 對應 `Record.DatabaseSetupRevision`，不是 Share 的獨立 workspace revision。版本過期409；unknown／foreign安全404；invalid422；operational storage failure安全500，不顯示 SQL／DSN／credential。
 
-A 沒有 HTTP Apply endpoint 或 production owner consumer。domain `WriteGroupService.Apply` 在 readiness preflight 後重查 local CAS/live connector/source，於下一 UTC bucket 排 immutable applied version。可注入 `WriterOwnershipActivationBarrier.ActivateInTx`，在同一 local transaction 寫 owner projection；version/applied/owner/workspace 同 commit 或 rollback。metadata-only rename 不重啟 owner transition。C 接線時必須注入真實 consumer barrier，並保留現有 Share hydration/settings/readiness-token/revision gate；不得把 domain applied metadata 當成 production writer 成功。
+A 階段尚未提供 HTTP Apply endpoint 或 production owner consumer；C/E 已接線上述正式端點與群組 UI。以下記錄沿用的 domain 交易契約。domain `WriteGroupService.Apply` 在 readiness preflight 後重查 local CAS/live connector/source，於下一 UTC bucket 排 immutable applied version。可注入 `WriterOwnershipActivationBarrier.ActivateInTx`，在同一 local transaction 寫 owner projection；version/applied/owner/workspace 同 commit 或 rollback。metadata-only rename 不重啟 owner transition。C 已接線真實 consumer barrier，並保留現有 Share hydration/settings/readiness-token/revision gate；不得把 domain applied metadata 當成 production writer 成功。
 
 ## 三批相容行為
 
@@ -55,15 +56,15 @@ single/row reviewed migration 保存 durable ID map。相同 source revision 重
 | 狀態 | 意義 |
 | --- | --- |
 | collecting（journal） | 已 ACK，bucket 尚未關閉 |
-| queued／retrying | 已關閉成 row 並持久保存，等待或重試；重試有上限，用盡轉 blocked，資料不刪 |
+| queued／retrying | 已關閉成 row 並持久保存，等待或重試；可設定重試上限，用盡轉 blocked，資料不刪；目前 production 預設 0 表示無上限 |
 | blocked | 需修復（destination revision 改變、停用、憑證被拒、schema 不符、重試用盡） |
 | quarantined | destination 永遠拒絕這個 row（資料或完整性錯誤）；payload 保留，只擋同 partition 後面的 row，需 operator 明確 `retry`／`skip` |
 | unknown | 無法確認 destination 是否已 commit（無 dedupe 能力時的 commit 回應遺失、中途崩潰）；不會自動重送，需核對 |
 | sql_committed | destination 已確認；`last_sql_committed_at` 只來自這個狀態 |
 
-讀取：`GET .../write-groups/:id/delivery` 回傳各階段計數、最舊未完成年齡、按 group revision × destination 分組的 backlog（含該 backlog 被接受時的 connector revision 與安全 error code）、intake 狀態與配額。**這是 C 的後端來源；UI 顯示屬 E。**
+讀取：`GET .../write-groups/:id/delivery` 回傳各階段計數、最舊未完成年齡、按 group revision × destination 分組的 backlog（含該 backlog 被接受時的 connector revision 與安全 error code）、intake 狀態與配額。E 的 Step 4 UI 使用此來源，分開顯示等待、已提交與需處理狀態。
 
-**dedupe 能力與限制（沒有 universal exactly-once）**：群組的 `write_policy.dedupe_capability` 決定 commit 結果不確定時能否安全重試——`receipt`：destination 同交易寫入 `gw_effect_receipts`（需存在，由 managed schema 流程或操作者建立；sender 不執行 DDL），重試先查 receipt，相同 digest 視為已 commit、不同 digest 阻擋且不覆蓋；`unique_key`：需要 inspection 確認為 UNIQUE／PK 的 record key 欄位（A 的 row policy 目前沒有此欄位設定，需 E 補）；`none`（custom 表預設）：只有單純 insert，commit 後回應遺失即 `unknown`，**不會自動重插**。MySQL 目前沒有群組交付策略（回明確不支援）。PostgreSQL 16 與 SQLite 已有真實驗證。
+**dedupe 能力與限制（沒有 universal exactly-once）**：群組的 `write_policy.dedupe_capability` 決定 commit 結果不確定時能否安全重試——`receipt`：destination 同交易寫入 `gw_effect_receipts`（需存在，由 managed schema 流程或操作者建立；sender 不執行 DDL），重試先查 receipt，相同 digest 視為已 commit、不同 digest 阻擋且不覆蓋；`unique_key`：需要 inspection 確認為 UNIQUE／PK 的 record key 欄位（目前 canonical row policy 沒有此欄位設定，F 明列 production 正向路徑未驗，不新增產品設定）；`none`（custom 表預設）：只有單純 insert，commit 後回應遺失即 `unknown`，**不會自動重插**。MySQL 目前沒有群組交付策略（回明確不支援）。PostgreSQL 16 與 SQLite 已有真實驗證。
 
 運行界限（都是設定值而非效能保證）：每個 partition 每輪最多 50 筆、最多 4 個 partition 並行；單次 destination 嘗試 30 秒、寫回本地狀態 5 秒；lease 至少涵蓋一次嘗試；關閉時先停新 row、等在途交付到 deadline，逾時才取消，被中斷的 row 由下次啟動恢復；累積未交付資料上限預設 500 MiB（量測 payload 位元組），達上限只拒絕新的 ACK、不刪已接受資料，並顯示範圍與 loss-risk。
 
@@ -87,14 +88,14 @@ single/row reviewed migration 保存 durable ID map。相同 source revision 重
 結果欄位彼此獨立：
 
 - `write_outcome`：`written_verified`（讀回的型別化值、擁有者標記、provenance 與 receipt 都與寫入內容相符）、`written_unverified`（已 commit 但讀不到、被拒讀取、或內容不符；`reason` 為安全代碼）、`failed`（確定沒寫入）、`unknown`（commit 結果無法確認，且 target 證據也無法判定）。
-- `cleanup_status`：`cleaned`、`failed`（例如缺 DELETE 權限，row 仍在）、`unknown`（清理 commit 回應遺失）、`not_attempted`（沒有寫入）。
+- `cleanup_status`：`cleaned`、`failed`（例如缺 DELETE 權限，row 仍在）、`unknown`（清理 commit 回應遺失，或 DELETE 後的確認 SELECT 失敗）、`not_attempted`（沒有寫入）。
 - operation `status`：`succeeded`↔verified、`partial`↔unverified、`failed`、`unknown`。
 
 寫入使用 production row layout（`GroupRowLayout.EncodeRow`＋`InsertGroupRow`）與 C 的 dedupe 策略，但**不經 delivery outbox**：試寫不進 backlog／quota／partition 順序，且必須等到 target commit 才有結果，佇列中不會被當成 written。
 
 重啟：每一步的副作用前先保存進度（`claimed`／`writing`／`cleaning`）。lease（3 分鐘）過期後，重送同一 operation 會由新 owner 接手：`writing` 階段若 target 已有擁有者 row 就直接讀回、清理；沒有時只有 `receipt` dedupe 會用同一 effect key 重試，其他一律 `unknown`（可能已 commit，不重插）；`cleaning` 階段只完成清理，不會因為 row 已消失而重寫。group 在試寫後被編輯則無法重建預期 row，擁有者 row 只回報 `written_unverified`（`group-changed-after-write`）並清理。
 
-**目前只是後端／API／前端 service 與 hook。** Step 4 的試寫按鈕仍由 `supports_test_writes`（刻意維持 false）把關，直到 E 整合；新增的 `supports_group_test_writes`（SQLite／PostgreSQL 為 true）只表示後端能力，個別 group 仍可能在 preview 被拒。MySQL 沒有群組試寫。
+E 已整合 Step 4 群組 preview／明確 confirm／write 與 cleanup 分別顯示，以及 retained operation 查詢。`supports_group_test_writes`（SQLite／PostgreSQL 為 true）表示群組後端能力，個別 group 仍可能在 preview 被拒；舊 `supports_test_writes` 不代表 advanced recording-plan 路徑可執行。MySQL 沒有群組試寫。
 
 ## 備份與回復邊界
 
@@ -110,4 +111,4 @@ single/row reviewed migration 保存 durable ID map。相同 source revision 重
 
 ## 驗證證據
 
-本輪命令、RED/GREEN、before/after payload、平台與未執行項目記於 `openspec/changes/archive/2026-10-02-unify-studio-v2-write-group-contract/validation.md`。本地 tests／readiness／domain lifecycle 不能代替真實 PostgreSQL、production UI→SQL、Windows／ARM、LAN／PLC、現場或部署回復驗收。
+A 的設定移轉證據記於 `openspec/changes/archive/2026-10-02-unify-studio-v2-write-group-contract/validation.md`；C/D/E 各自 validation 保存實作證據，F 的最後 validation 與 `docs/plans/studio-v2-write-groups/evidence-f/` 保存真 UI／SQL／故障與平台 witnesses。本地 tests／readiness／domain lifecycle 不能代替真實 PostgreSQL、production UI→SQL、Windows／ARM、LAN／PLC、現場或部署回復驗收。

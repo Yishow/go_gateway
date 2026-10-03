@@ -14,4 +14,6 @@
 
 ## 5. 移交後核對
 
-- [ ] 5.1 [after: 2.4] 確認 handoff.md 指定的D/E/F及其A/B/C前置已完成實作與驗收，逐項對照原2.3/3.3/3.4/4.1/4.3需求及保留的schema/readiness/Share回歸；核對移轉delta與既有完成證據一致後再進行本案verify/review及archive評估，不能只因本次文件合併勾選。
+- [x] 5.1 [after: 2.4] 確認 handoff.md 指定的D/E/F及其A/B/C前置已完成實作與驗收，逐項對照原2.3/3.3/3.4/4.1/4.3需求及保留的schema/readiness/Share回歸；核對移轉delta與既有完成證據一致後再進行本案verify/review及archive評估，不能只因本次文件合併勾選。
+
+5.1 移交核對對照（不改寫以上五項歷史完成描述）：design「真實欄位與建表建議分開」與「第 4 步用四個問題引導」由 E 完成；「消費已驗證的建表結果」「試寫、讀回與清理各自有證據」由 D 實作、F 以真 UI／SQL 與故障矩陣驗收。逐項證據與移轉／回復限制見 [handoff-closeout.md](../../../../docs/plans/studio-v2-write-groups/handoff-closeout.md)。2026-10-03 最後 review／verify、完整基準與受影響實跑齊全，依實際證據完成 closeout。
