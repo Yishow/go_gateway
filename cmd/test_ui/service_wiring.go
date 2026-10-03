@@ -81,6 +81,7 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 	dbTargetConnectorSvc := dbtarget.NewConnectorService(dbTargetConnectorRepo, dbTargetMappingRepo)
 	dbTargetConnectorSvc.SetTagReader(tagSvc)
 	writeGroupsSvc.WithTableInspector(dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc))
+	writeGroupsSvc.WithManagedTableInspector(dbtarget.NewManagedTableInspector(dbTargetConnectorSvc, db))
 	dbTargetMappingSvc := dbtarget.NewMappingService(dbTargetMappingRepo, dbTargetConnectorRepo, tagSvc)
 	dbtarget.WithLegacyWriteCoordinator(dbTargetMappingSvc, writeGroupsSvc)
 	dbTargetConnectorSvc.SetDeleteGuard(writeGroupsSvc)

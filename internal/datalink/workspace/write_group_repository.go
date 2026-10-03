@@ -111,11 +111,14 @@ func (r *SQLWriteGroupRepository) CreateInTx(ctx context.Context, tx *sql.Tx, gr
 		return fmt.Errorf("create write group: %w: group is nil", ErrWriteGroupValidation)
 	}
 	candidate := cloneWriteGroup(group)
+	candidate.ID = r.newID()
+	if candidate.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && candidate.RowPolicy.RecordKeyColumn != "" && strings.TrimSpace(candidate.Destination.TableName) == "" {
+		candidate.Destination.TableName = managedGroupTableName(candidate.ID)
+	}
 	if err := r.validate(ctx, tx, candidate); err != nil {
 		return err
 	}
 	now := r.now()
-	candidate.ID = r.newID()
 	candidate.Revision = r.newID()
 	candidate.AppliedRevision = ""
 	candidate.Status = WriteGroupStatusDraft

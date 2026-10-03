@@ -3,11 +3,13 @@ package recordingplan
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -72,6 +74,11 @@ func (s *Service) ApplySchemaPreview(ctx context.Context, token *SchemaPreviewTo
 	if token == nil || isLegacyPreviewToken(token) {
 		return nil, "", ErrPreviewTokenLegacy
 	}
+	persisted, err := s.persistedGroupPreviewToken(ctx, token)
+	if err != nil {
+		return nil, "", err
+	}
+	token = persisted
 	existing, err := s.GetSchemaOperation(ctx, token.WorkspaceID, token.OperationID)
 	if err == nil {
 		if existing.Status.IsActive() && schemaOperationLeaseExpired(existing) {
@@ -103,12 +110,50 @@ func (s *Service) ApplySchemaPreview(ctx context.Context, token *SchemaPreviewTo
 		return op, outcome, err
 	}
 	execution, execErr := runSchemaStatements(ctx, target.Execute, token.Statements)
-	result := verifyAppliedSchema(ctx, token.TablePrefix, target.Inspect, pendingBefore, execution, execErr)
+	result := verifyAppliedSchema(ctx, token, target.Inspect, pendingBefore, execution, execErr)
 	finished, err := s.repo.FinishSchemaOperation(ctx, op.OperationID, op.Owner, result)
 	if err != nil {
 		return withoutOwner(*op), ClaimAcquired, fmt.Errorf("%w: %w", ErrSchemaOperationUnacknowledged, err)
 	}
 	return withoutOwner(*finished), ClaimAcquired, nil
+}
+
+// persistedGroupPreviewToken accepts only the immutable group token that was
+// saved during preview. Legacy callers retain their existing validated-token
+// contract; canonical group applies require repository evidence here as well.
+func (s *Service) persistedGroupPreviewToken(ctx context.Context, supplied *SchemaPreviewToken) (*SchemaPreviewToken, error) {
+	stored, err := s.repo.GetPreviewToken(ctx, strings.TrimSpace(supplied.Token))
+	if err != nil {
+		if supplied.GroupLayout == nil && errors.Is(err, ErrPreviewTokenNotFound) {
+			return supplied, nil
+		}
+		return nil, err
+	}
+	if stored.GroupLayout == nil {
+		if supplied.GroupLayout == nil {
+			return supplied, nil
+		}
+		return nil, ErrPreviewTokenStale
+	}
+	if isLegacyPreviewToken(stored) || stored.Token != supplied.Token ||
+		stored.OperationID != supplied.OperationID || stored.Action != supplied.Action ||
+		!stored.ExpiresAt.Equal(supplied.ExpiresAt) {
+		return nil, ErrPreviewTokenStale
+	}
+	storedDigest, err := previewDigest(stored)
+	if err != nil {
+		return nil, err
+	}
+	suppliedDigest, err := previewDigest(supplied)
+	if err != nil {
+		return nil, err
+	}
+	if subtle.ConstantTimeCompare([]byte(storedDigest), []byte(stored.Digest)) != 1 ||
+		subtle.ConstantTimeCompare([]byte(suppliedDigest), []byte(stored.Digest)) != 1 ||
+		subtle.ConstantTimeCompare([]byte(supplied.Digest), []byte(stored.Digest)) != 1 {
+		return nil, ErrPreviewTokenStale
+	}
+	return stored, nil
 }
 
 // confirmPreviewMatchesTarget recomputes the preview from the target as it is
@@ -117,18 +162,49 @@ func confirmPreviewMatchesTarget(ctx context.Context, token *SchemaPreviewToken,
 	if inspect == nil {
 		return 0, fmt.Errorf("%w: no target inspector", ErrTargetInspectionUnconfirmed)
 	}
-	statements, err := GenerateManagedSchemaDDL(token.Dialect, token.TablePrefix)
+	var statements []string
+	var err error
+	var pending int
+	if token.GroupLayout != nil {
+		statements, err = GenerateGroupSchemaDDL(token.Dialect, *token.GroupLayout)
+		if err == nil {
+			groupPending, receiptPending, _, inspectErr := inspectGroupManagedTables(ctx, token.Dialect, *token.GroupLayout, inspect)
+			if inspectErr != nil {
+				return 0, inspectErr
+			}
+			if groupPending {
+				pending++
+			}
+			if receiptPending {
+				pending++
+			}
+			kept := make([]string, 0, 2)
+			if groupPending {
+				kept = append(kept, statements[0])
+			}
+			if receiptPending {
+				kept = append(kept, statements[1])
+			}
+			statements = kept
+		}
+	} else {
+		statements, err = GenerateManagedSchemaDDL(token.Dialect, token.TablePrefix)
+		if err == nil {
+			legacyPending, _, inspectErr := inspectManagedTables(ctx, token.TablePrefix, inspect)
+			if inspectErr != nil {
+				return 0, inspectErr
+			}
+			pending = len(legacyPending)
+			statements = statementsForTables(statements, token.TablePrefix, legacyPending)
+		}
+	}
 	if err != nil {
 		return 0, err
 	}
-	pending, _, err := inspectManagedTables(ctx, token.TablePrefix, inspect)
-	if err != nil {
-		return 0, err
-	}
-	if !slices.Equal(statementsForTables(statements, token.TablePrefix, pending), token.Statements) {
+	if !slices.Equal(statements, token.Statements) {
 		return 0, fmt.Errorf("%w: %w", ErrPreviewTokenStale, ErrSchemaTargetChanged)
 	}
-	return len(pending), nil
+	return pending, nil
 }
 
 func runSchemaStatements(ctx context.Context, execute SchemaExecutor, statements []string) (SchemaExecution, error) {
@@ -150,7 +226,7 @@ func schemaOperationLeaseExpired(op *SchemaOperation) bool {
 // the schema actually found on the target, which is the evidence the ledger
 // keeps the scope for.
 func (s *Service) resolveStaleSchemaOperation(ctx context.Context, token *SchemaPreviewToken, target SchemaApplyTarget, stale *SchemaOperation) (*SchemaOperation, ClaimOutcome, error) {
-	result := recoveryResultFromTarget(ctx, token.TablePrefix, target.Inspect)
+	result := recoveryResultFromTarget(ctx, token, target.Inspect)
 	cutoff := time.Now().UTC().Add(-SchemaOperationLease)
 	finished, err := s.repo.FinishStaleSchemaOperation(ctx, stale.OperationID, result, cutoff)
 	if err != nil {
@@ -170,12 +246,12 @@ func (s *Service) resolveStaleSchemaOperation(ctx context.Context, token *Schema
 // recoveryResultFromTarget decides the honest outcome for a lost execution:
 // a target that carries every managed table proves success, everything else
 // stays unknown because what happened cannot be proven.
-func recoveryResultFromTarget(ctx context.Context, prefix string, inspect TargetInspector) SchemaOperationResult {
-	pending, tables, err := inspectManagedTables(ctx, prefix, inspect)
+func recoveryResultFromTarget(ctx context.Context, token *SchemaPreviewToken, inspect TargetInspector) SchemaOperationResult {
+	pending, tables, err := inspectTokenManagedTables(ctx, token, inspect)
 	switch {
 	case err != nil:
 		return SchemaOperationResult{Status: SchemaOperationUnknown, Reason: SchemaReasonUnverifiable, NextAction: schemaNextActionCheck}
-	case len(pending) == 0:
+	case pending == 0:
 		return SchemaOperationResult{Status: SchemaOperationSucceeded, VerifiedDigest: schemaTablesDigest(tables), Reason: SchemaReasonRecovered}
 	default:
 		return SchemaOperationResult{Status: SchemaOperationUnknown, Reason: SchemaReasonUnverifiable, NextAction: schemaNextActionRepair}
@@ -184,18 +260,18 @@ func recoveryResultFromTarget(ctx context.Context, prefix string, inspect Target
 
 // verifyAppliedSchema decides the outcome from the tables actually present
 // after execution; an adapter's own report never counts as success on its own.
-func verifyAppliedSchema(ctx context.Context, prefix string, inspect TargetInspector, pendingBefore int, execution SchemaExecution, execErr error) SchemaOperationResult {
+func verifyAppliedSchema(ctx context.Context, token *SchemaPreviewToken, inspect TargetInspector, pendingBefore int, execution SchemaExecution, execErr error) SchemaOperationResult {
 	result := SchemaOperationResult{ExecutedStatements: execution.Committed}
-	pending, tables, err := inspectManagedTables(ctx, prefix, inspect)
+	pending, tables, err := inspectTokenManagedTables(ctx, token, inspect)
 	switch {
 	case err != nil:
 		result.Status, result.Reason, result.NextAction = SchemaOperationUnknown, SchemaReasonUnverifiable, schemaNextActionCheck
-	case len(pending) == 0:
+	case pending == 0:
 		result.Status, result.VerifiedDigest = SchemaOperationSucceeded, schemaTablesDigest(tables)
-	case execErr != nil && errors.Is(execErr, ErrTargetPermissionDenied) && len(pending) == pendingBefore:
+	case execErr != nil && errors.Is(execErr, ErrTargetPermissionDenied) && pending == pendingBefore:
 		result.Status, result.Reason = SchemaOperationFailed, SchemaReasonPermissionDenied
 		result.NextAction = "grant permission to create tables in the target schema, then preview again"
-	case execErr != nil && execution.RolledBack && len(pending) == pendingBefore:
+	case execErr != nil && execution.RolledBack && pending == pendingBefore:
 		result.Status, result.Reason, result.NextAction = SchemaOperationFailed, SchemaReasonRolledBack, "fix the reported cause, then preview again"
 	case execErr != nil:
 		result.Status, result.Reason, result.NextAction = SchemaOperationPartial, SchemaReasonPartiallyApplied, schemaNextActionRepair
@@ -203,6 +279,22 @@ func verifyAppliedSchema(ctx context.Context, prefix string, inspect TargetInspe
 		result.Status, result.Reason, result.NextAction = SchemaOperationPartial, SchemaReasonVerificationGap, schemaNextActionRepair
 	}
 	return result
+}
+
+func inspectTokenManagedTables(ctx context.Context, token *SchemaPreviewToken, inspect TargetInspector) (int, []SchemaPreviewTable, error) {
+	if token.GroupLayout != nil {
+		groupPending, receiptPending, tables, err := inspectGroupManagedTables(ctx, token.Dialect, *token.GroupLayout, inspect)
+		pending := 0
+		if groupPending {
+			pending++
+		}
+		if receiptPending {
+			pending++
+		}
+		return pending, tables, err
+	}
+	pendingByTable, tables, err := inspectManagedTables(ctx, token.TablePrefix, inspect)
+	return len(pendingByTable), tables, err
 }
 
 func schemaTablesDigest(tables []SchemaPreviewTable) string {

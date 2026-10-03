@@ -6,6 +6,8 @@ import {
 } from './safeJson';
 import type {
   ConnectorCapability,
+  GroupSchemaColumn,
+  GroupSchemaLayout,
   SchemaOperation,
   SchemaOperationStatus,
   SchemaPreviewTable,
@@ -42,6 +44,14 @@ function boundedRecordingText(value: unknown): string | undefined {
 function optionalShortText(record: Record<string, unknown>, key: string): string | undefined | null {
   if (record[key] === undefined || record[key] === null) return undefined;
   return boundedString(record[key]) ?? null;
+}
+
+/** Preview proof fields may be explicitly empty before the first schema apply. */
+function optionalPreviewText(record: Record<string, unknown>, key: string): string | undefined | null {
+  if (record[key] === undefined || record[key] === null) return undefined;
+  if (typeof record[key] !== 'string' || record[key].length > MAX_RECORDING_STATEMENT_LENGTH) return null;
+  const normalized = record[key].trim();
+  return normalized || undefined;
 }
 
 /**
@@ -161,6 +171,25 @@ function parseSchemaPreviewTables(value: unknown): SchemaPreviewTable[] | null {
   return tables;
 }
 
+function parseGroupSchemaLayout(value: unknown): GroupSchemaLayout | undefined | null {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) return null;
+  const tableName = boundedString(value.table_name);
+  const ownerColumn = boundedString(value.owner_column);
+  if (!tableName || !ownerColumn || !Array.isArray(value.columns) || value.columns.length > MAX_SAFE_JSON_ARRAY_LENGTH) {
+    return null;
+  }
+  const columns: GroupSchemaColumn[] = [];
+  for (const item of value.columns) {
+    if (!isRecord(item)) return null;
+    const name = boundedString(item.name);
+    const sqlType = boundedString(item.sql_type);
+    if (!name || !sqlType || typeof item.nullable !== 'boolean' || typeof item.primary_key !== 'boolean') return null;
+    columns.push({ name, sql_type: sqlType, nullable: item.nullable, primary_key: item.primary_key });
+  }
+  return { table_name: tableName, columns, owner_column: ownerColumn };
+}
+
 /** Optional preview scope text; an empty value means the server had none to report. */
 function previewScopeText(value: Record<string, unknown>): PreviewScopeText | null {
   const parsed: PreviewScopeText = {};
@@ -174,7 +203,15 @@ function previewScopeText(value: Record<string, unknown>): PreviewScopeText | nu
 }
 
 /** Parse a bounded schema-preview token while allowing multi-line DDL statements. */
-export function parseRecordingSchemaPreviewToken(value: unknown): SchemaPreviewToken | null {
+export interface RecordingSchemaPreviewParseOptions {
+  /** Managed write-group previews must include the server-resolved exact layout. */
+  requireGroupLayout?: boolean;
+}
+
+export function parseRecordingSchemaPreviewToken(
+  value: unknown,
+  options: RecordingSchemaPreviewParseOptions = {},
+): SchemaPreviewToken | null {
   if (!isRecord(value) || !Array.isArray(value.statements) || value.statements.length > MAX_SAFE_JSON_ARRAY_LENGTH) return null;
   const token = boundedString(value.token);
   const workspaceId = boundedString(value.workspace_id);
@@ -183,16 +220,25 @@ export function parseRecordingSchemaPreviewToken(value: unknown): SchemaPreviewT
   const connectorId = boundedString(value.connector_id);
   const connectorRevision = value.connector_revision === undefined ? undefined : boundedString(value.connector_revision);
   if (value.connector_revision !== undefined && !connectorRevision) return null;
-  const tablePrefix = boundedString(value.table_prefix);
+  // Managed write-group previews resolve the canonical table in group_layout;
+  // their legacy table prefix is intentionally an explicit empty string.
+  const tablePrefix = value.table_prefix === '' ? '' : boundedString(value.table_prefix);
   const expiresAt = boundedString(value.expires_at);
   const createdAt = boundedString(value.created_at);
   const operationId = boundedString(value.operation_id);
   const workspaceRevision = boundedString(value.workspace_revision);
   const digest = boundedString(value.digest);
   const tables = parseSchemaPreviewTables(value.tables);
+  const groupLayout = parseGroupSchemaLayout(value.group_layout);
+  const sourceDigest = optionalPreviewText(value, 'source_digest');
+  const schemaRevision = optionalPreviewText(value, 'schema_revision');
+  const schemaDigest = optionalPreviewText(value, 'schema_digest');
   const scopeText = previewScopeText(value);
-  if (!token || !workspaceId || !planId || !planRevision || !connectorId || !tablePrefix || !expiresAt || !createdAt ||
-    !operationId || !workspaceRevision || !digest || !tables || !scopeText) return null;
+  if (!token || !workspaceId || !planId || !planRevision || !connectorId || tablePrefix === undefined ||
+    (tablePrefix.length === 0 && groupLayout === undefined) || !expiresAt || !createdAt ||
+    !operationId || !workspaceRevision || !digest || !tables || !scopeText || groupLayout === null ||
+    sourceDigest === null || schemaRevision === null || schemaDigest === null ||
+    (options.requireGroupLayout && groupLayout === undefined)) return null;
   let totalLength = 0;
   const statements = value.statements.map((statement) => {
     const parsed = boundedRecordingText(statement);
@@ -210,6 +256,10 @@ export function parseRecordingSchemaPreviewToken(value: unknown): SchemaPreviewT
     table_prefix: tablePrefix,
     statements: statements as string[],
     tables,
+    ...(groupLayout ? { group_layout: groupLayout } : {}),
+    ...(sourceDigest ? { source_digest: sourceDigest } : {}),
+    ...(schemaRevision ? { schema_revision: schemaRevision } : {}),
+    ...(schemaDigest ? { schema_digest: schemaDigest } : {}),
     ...scopeText,
     operation_id: operationId,
     workspace_revision: workspaceRevision,

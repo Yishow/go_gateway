@@ -17,7 +17,7 @@ export interface WriteGroupSectionProps {
 
 type Selection = { kind: 'none' } | { kind: 'new' } | { kind: 'edit'; id: string; saved?: WriteGroup };
 
-type Prerequisite = 'device' | 'tags' | 'destination' | 'table' | null;
+type Prerequisite = 'device' | 'tags' | 'destination' | null;
 
 function GroupListItem({ group, current, onOpen }: { group: WriteGroup; current: boolean; onOpen: () => void }) {
   const { t } = useTranslation('workbench-v2');
@@ -59,8 +59,7 @@ export const WriteGroupSection: React.FC<WriteGroupSectionProps> = ({ state, wor
 
   const prerequisite: Prerequisite = state.devices.length === 0 ? 'device'
     : candidates.length === 0 ? 'tags'
-      : !destinationSaved ? 'destination'
-        : !connector.table.trim() ? 'table' : null;
+      : !destinationSaved ? 'destination' : null;
 
   const groups = groupsQuery.data?.groups ?? [];
   const live = groups.filter((group) => group.status !== 'deleted');

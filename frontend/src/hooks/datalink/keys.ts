@@ -110,6 +110,8 @@ export const studioV2WorkspaceKeys = {
   writeGroups: () => [...studioV2WorkspaceKeys.all, 'write-groups'] as const,
   writeGroupReadiness: (groupId: string) => [...studioV2WorkspaceKeys.all, 'write-groups', groupId, 'readiness'] as const,
   writeGroupDelivery: (groupId: string) => [...studioV2WorkspaceKeys.all, 'write-groups', groupId, 'delivery'] as const,
+  writeGroupSchemaOperation: (operationId: string) => [...studioV2WorkspaceKeys.all, 'write-group-schema', operationId] as const,
+  databaseMetadataAll: () => [...studioV2WorkspaceKeys.all, 'database-metadata'] as const,
   writeGroupTestWriteOperation: (operationId: string) => [...studioV2WorkspaceKeys.all, 'write-group-test-write', operationId] as const,
   schemaOperation: (operationId: string) => [...studioV2WorkspaceKeys.all, 'schema-operation', operationId] as const,
   history: (queryKey: string) => [...studioV2WorkspaceKeys.all, 'history', queryKey] as const,
@@ -134,4 +136,3 @@ export const historyKeys = {
   queries: () => [...historyKeys.all, 'query'] as const,
   query: (queryKey: string) => [...historyKeys.queries(), queryKey] as const,
 };
-

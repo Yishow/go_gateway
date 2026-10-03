@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // updateInTx is also used by the service's draft tombstone path. That path has
@@ -24,6 +25,9 @@ func (r *SQLWriteGroupRepository) updateInTx(ctx context.Context, tx *sql.Tx, gr
 	}
 	candidate := cloneWriteGroup(group)
 	if validate {
+		if candidate.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && candidate.RowPolicy.RecordKeyColumn != "" && strings.TrimSpace(candidate.Destination.TableName) == "" {
+			candidate.Destination.TableName = managedGroupTableName(existing.ID)
+		}
 		if err := r.validate(ctx, tx, candidate); err != nil {
 			return err
 		}
@@ -72,6 +76,12 @@ func sameWriteGroupSchema(candidate, existing *WriteGroup) bool {
 		candidate.RowPolicy.ValueColumn != existing.RowPolicy.ValueColumn ||
 		candidate.RowPolicy.QualityColumn != existing.RowPolicy.QualityColumn ||
 		candidate.RowPolicy.ProvenanceColumn != existing.RowPolicy.ProvenanceColumn {
+		return false
+	}
+	if candidate.RowPolicy.RecordKeyColumn != existing.RowPolicy.RecordKeyColumn ||
+		candidate.RowPolicy.BucketStartColumn != existing.RowPolicy.BucketStartColumn ||
+		candidate.RowPolicy.GroupIDColumn != existing.RowPolicy.GroupIDColumn ||
+		candidate.RowPolicy.DeviceIDColumn != existing.RowPolicy.DeviceIDColumn {
 		return false
 	}
 	if len(candidate.Members) != len(existing.Members) {

@@ -77,6 +77,10 @@ type WriteGroupRowPolicy struct {
 	ValueColumn            string   `json:"value_column,omitempty"`
 	QualityColumn          string   `json:"quality_column,omitempty"`
 	ProvenanceColumn       string   `json:"provenance_column,omitempty"`
+	RecordKeyColumn        string   `json:"record_key_column,omitempty"`
+	BucketStartColumn      string   `json:"bucket_start_column,omitempty"`
+	GroupIDColumn          string   `json:"group_id_column,omitempty"`
+	DeviceIDColumn         string   `json:"device_id_column,omitempty"`
 }
 
 // WriteGroupWritePolicy reserves append/latest and dedupe semantics.

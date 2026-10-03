@@ -39,7 +39,10 @@ describe('backendErrorCodes single source', () => {
 
   it('allowlists every write-group code and action the handlers emit', () => {
     for (const code of ['WRITE_GROUP_LEGACY_READ_CONFLICT', 'WRITE_GROUP_LIFECYCLE_BLOCKED', 'WRITE_GROUP_NOT_FOUND', 'WRITE_GROUP_INVALID', 'WRITE_GROUP_INVALID_REQUEST', 'WRITE_GROUP_UNAVAILABLE']) {
-      for (const action of ['review_request', 'review_group', 'disable_group']) {
+      for (const action of [
+        'review_request', 'review_group', 'disable_group',
+        'select_recording_destination', 'select_new_managed_table_or_advanced_table',
+      ]) {
         const failure = { response: { data: { success: false, error: { code, action, request_id: 'r1', retryable: false, message: 'private detail' } } } };
         expect(normalizeTypedEnvelope(failure)).toEqual({ code, action, requestId: 'r1', retryable: false });
         expect(getSafeErrorMessage(failure, mockT)).toMatchObject({ message: `errors.${code}`, action: `errors.${action}` });

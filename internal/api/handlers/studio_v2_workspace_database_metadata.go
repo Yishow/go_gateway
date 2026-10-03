@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -75,11 +76,37 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 	if group != nil {
 		schemaName, tableName = group.Destination.TableSchema, group.Destination.TableName
 	}
-	inspection, err := h.connectorSvc.InspectTable(c.Request.Context(), connector.ID,
-		schemaName, tableName)
+	inspection, err := h.inspectMetadataTable(c.Request.Context(), connector.ID, expectedRevision, schemaName, tableName, group)
 	if err != nil {
+		if errors.Is(err, dbtarget.ErrManagedDestinationInternal) {
+			renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_INTERNAL_DATABASE", "recording requires a distinct application-owned destination", false, "select_recording_destination")
+			return
+		}
+		if errors.Is(err, dbtarget.ErrManagedDestinationInvalid) {
+			renderWriteGroupTyped(c, http.StatusUnprocessableEntity, "WRITE_GROUP_DESTINATION_INVALID", "the saved recording destination cannot be verified", false, "select_recording_destination")
+			return
+		}
 		renderStudioV2WorkspaceDatabaseError(c, err)
 		return
+	}
+	if _, err := h.connectorSvc.ResolveSavedTarget(c.Request.Context(), connector.ID, expectedRevision); err != nil {
+		renderStudioV2WorkspaceDatabaseError(c, err)
+		return
+	}
+	if group != nil {
+		if _, err := h.metadataGroup(c, record.ID, group.ID, expectedRevision); err != nil {
+			renderWriteGroupError(c, err)
+			return
+		}
+		current, err := h.workspaceSvc.GetOrCreate(c.Request.Context())
+		if err != nil {
+			renderStudioV2WorkspaceBootstrapError(c)
+			return
+		}
+		if current.ID != record.ID || current.DatabaseSetupRevision != record.DatabaseSetupRevision {
+			renderWriteGroupError(c, workspace.ErrSetupRevisionConflict)
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: studioV2WorkspaceDatabaseMetadataResponse{
@@ -93,6 +120,21 @@ func (h *StudioV2WorkspaceDatabaseHandler) GetMetadata(c *gin.Context) {
 		Reason:            inspection.Reason,
 		Columns:           inspection.Columns,
 	}})
+}
+
+func (h *StudioV2WorkspaceDatabaseHandler) inspectMetadataTable(ctx context.Context, connectorID, expectedRevision, schemaName, tableName string, group *workspace.WriteGroup) (*dbtarget.TableInspection, error) {
+	if group == nil || group.Destination.StorageStrategy != workspace.WriteGroupStorageStrategyManaged {
+		return dbtarget.NewReadOnlyTableInspector(h.connectorSvc).InspectTable(ctx, connectorID, schemaName, tableName)
+	}
+	groups, ok := h.writeGroups.(*workspace.WriteGroupService)
+	if !ok || groups == nil {
+		return nil, workspace.ErrWriteGroupServiceUnavailable
+	}
+	inspector := groups.ManagedTableInspector(h.connectorSvc)
+	if inspector == nil {
+		return nil, workspace.ErrWriteGroupServiceUnavailable
+	}
+	return inspector.InspectTableAtRevision(ctx, connectorID, expectedRevision, schemaName, tableName)
 }
 
 // metadataGroup resolves only persisted current-workspace scope. A stale or

@@ -35,6 +35,11 @@ export interface EditorDraft {
   unique_key_columns?: string[];
   value_column?: string;
   quality_column?: string;
+  /** Persisted managed layout bindings; the editor never invents these. */
+  record_key_column?: string;
+  bucket_start_column?: string;
+  group_id_column?: string;
+  device_id_column?: string;
   members: EditorMember[];
 }
 
@@ -78,6 +83,10 @@ export function groupToDraft(group: WriteGroup): EditorDraft {
     ...(group.row_policy.unique_key_columns !== undefined ? { unique_key_columns: [...group.row_policy.unique_key_columns] } : {}),
     ...(group.row_policy.value_column !== undefined ? { value_column: group.row_policy.value_column } : {}),
     ...(group.row_policy.quality_column !== undefined ? { quality_column: group.row_policy.quality_column } : {}),
+    ...(group.row_policy.record_key_column !== undefined ? { record_key_column: group.row_policy.record_key_column } : {}),
+    ...(group.row_policy.bucket_start_column !== undefined ? { bucket_start_column: group.row_policy.bucket_start_column } : {}),
+    ...(group.row_policy.group_id_column !== undefined ? { group_id_column: group.row_policy.group_id_column } : {}),
+    ...(group.row_policy.device_id_column !== undefined ? { device_id_column: group.row_policy.device_id_column } : {}),
   };
 }
 
@@ -106,6 +115,10 @@ export function draftToRequestGroup(draft: EditorDraft, workspaceId: string): Wr
       ...(draft.value_column !== undefined ? { value_column: draft.value_column } : {}),
       ...(draft.quality_column !== undefined ? { quality_column: draft.quality_column } : {}),
       ...(draft.provenance_column.trim() ? { provenance_column: draft.provenance_column.trim() } : {}),
+      ...(draft.record_key_column?.trim() ? { record_key_column: draft.record_key_column.trim() } : {}),
+      ...(draft.bucket_start_column?.trim() ? { bucket_start_column: draft.bucket_start_column.trim() } : {}),
+      ...(draft.group_id_column?.trim() ? { group_id_column: draft.group_id_column.trim() } : {}),
+      ...(draft.device_id_column?.trim() ? { device_id_column: draft.device_id_column.trim() } : {}),
     },
     write_policy: { ...(draft.dedupe_capability ? { dedupe_capability: draft.dedupe_capability } : {}) },
   };
@@ -132,27 +145,31 @@ export interface DraftIssue {
 
 export interface DraftValidationContext {
   destinationSaved: boolean;
+  storageStrategy?: WriteGroupStorageStrategy;
 }
 
 /** Local checks only; the backend readiness result stays the authority for activation. */
 export function validateDraft(draft: EditorDraft, context: DraftValidationContext): DraftIssue[] {
   const issues: DraftIssue[] = [];
+  const managed = (context.storageStrategy ?? draft.storage_strategy) === 'managed';
   if (!draft.name.trim()) issues.push({ code: 'name-required' });
   if (!context.destinationSaved || !draft.connector_id || !draft.connector_revision) issues.push({ code: 'destination-unsaved' });
-  if (!draft.table_name.trim()) issues.push({ code: 'table-required' });
+  if (!managed && !draft.table_name.trim()) issues.push({ code: 'table-required' });
   if (draft.members.length === 0) issues.push({ code: 'members-required' });
-  for (const member of draft.members) {
-    if (!member.target_column.trim()) issues.push({ code: 'column-required', member_key: member.key });
-  }
-  for (const conflict of findColumnConflicts(draft.members.map((member) => ({
-    key: member.key, column: member.target_column.trim(), entity_key: member.entity_key,
-  })))) {
-    issues.push({ code: 'column-conflict', column: conflict.column });
+  if (!managed) {
+    for (const member of draft.members) {
+      if (!member.target_column.trim()) issues.push({ code: 'column-required', member_key: member.key });
+    }
+    for (const conflict of findColumnConflicts(draft.members.map((member) => ({
+      key: member.key, column: member.target_column.trim(), entity_key: member.entity_key,
+    })))) {
+      issues.push({ code: 'column-conflict', column: conflict.column });
+    }
   }
   if (!Number.isFinite(draft.interval_seconds) || draft.interval_seconds < 1) issues.push({ code: 'interval-invalid' });
   if (!Number.isFinite(draft.allowed_lateness_seconds) || draft.allowed_lateness_seconds < 0) issues.push({ code: 'lateness-invalid' });
-  if (draft.incomplete_policy === 'partial' && !draft.provenance_column.trim()) issues.push({ code: 'partial-needs-provenance' });
-  if (draft.members.some((member) => member.entity_key.trim()) && !draft.entity_key_column.trim()) {
+  if (!managed && draft.incomplete_policy === 'partial' && !draft.provenance_column.trim()) issues.push({ code: 'partial-needs-provenance' });
+  if (!managed && draft.members.some((member) => member.entity_key.trim()) && !draft.entity_key_column.trim()) {
     issues.push({ code: 'entity-column-required' });
   }
   return issues;

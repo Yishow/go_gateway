@@ -42,6 +42,12 @@ function localizeAction(
   if (action === 'open_write_groups') {
     return t('errors.open_write_groups');
   }
+  if (action === 'select_recording_destination') {
+    return t('errors.select_recording_destination');
+  }
+  if (action === 'select_new_managed_table_or_advanced_table') {
+    return t('errors.select_new_managed_table_or_advanced_table');
+  }
   if (action === 'review_request' || action === 'review_group' || action === 'disable_group') {
     return t(`errors.${action}`);
   }

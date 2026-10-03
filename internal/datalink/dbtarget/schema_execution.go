@@ -32,6 +32,12 @@ func (s *ConnectorService) ExecuteSchemaStatements(ctx context.Context, connecto
 	if err != nil {
 		return nil, fmt.Errorf("取得資料庫連接器失敗: %w", err)
 	}
+	return executeSchemaStatementsOnConnector(ctx, connector, schemaName, statements)
+}
+
+// executeSchemaStatementsOnConnector uses the resolved snapshot without
+// looking up connector settings again before opening the destination.
+func executeSchemaStatementsOnConnector(ctx context.Context, connector *schema.DatabaseConnector, schemaName string, statements []string) (*SchemaStatementExecution, error) {
 	if !schemaExecutionVerifiedKind(connector.Kind) {
 		return nil, fmt.Errorf("%w: %s", ErrSchemaExecutionUnsupported, connector.Kind)
 	}

@@ -11,6 +11,7 @@ import (
 
 	"go-gateway/internal/datalink/dbtarget"
 	"go-gateway/internal/datalink/measurement"
+	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -33,6 +34,12 @@ func allowWriteGroupTableInspection(snapshot *writeGroupReadinessSnapshot) (bool
 	}
 	if snapshot.connectorKind != writeGroupConnectorKindSQLite {
 		return true, ReadinessIssue{}
+	}
+	if snapshot.validated.Destination.StorageStrategy == WriteGroupStorageStrategyManaged &&
+		snapshot.validated.RowPolicy.RecordKeyColumn != "" && snapshot.validated.Destination.TableSchema != managedSQLiteSchemaName {
+		return false, writeGroupReadinessIssue(
+			"schema-scope-mismatch", "managed SQLite destinations must use the main schema", snapshot.validated.ID,
+		)
 	}
 	targetPath, ok := sqliteWriteGroupTargetPath(snapshot.connectorConfig)
 	if !ok {
@@ -57,6 +64,20 @@ func allowWriteGroupTableInspection(snapshot *writeGroupReadinessSnapshot) (bool
 	if err != nil || !info.Mode().IsRegular() {
 		return false, writeGroupReadinessIssue(
 			"schema-scope-unverified", "destination database scope could not be verified", snapshot.validated.ID,
+		)
+	}
+	return true, ReadinessIssue{}
+}
+
+func allowManagedWriteGroupSchemaScope(snapshot *writeGroupReadinessSnapshot) (bool, ReadinessIssue) {
+	if snapshot == nil || snapshot.validated == nil {
+		return false, writeGroupReadinessIssue(
+			"schema-scope-unverified", "destination schema scope could not be verified", groupIDOrEmpty(snapshot),
+		)
+	}
+	if snapshot.connectorKind == writeGroupConnectorKindSQLite && snapshot.validated.Destination.TableSchema != managedSQLiteSchemaName {
+		return false, writeGroupReadinessIssue(
+			"schema-scope-mismatch", "managed SQLite destinations must use the main schema", snapshot.validated.ID,
 		)
 	}
 	return true, ReadinessIssue{}
@@ -98,7 +119,7 @@ func normalizeSQLiteWriteGroupPath(value string) (string, bool) {
 		}
 		value = parsed.Path
 		if value == "" {
-			value = strings.TrimPrefix(value, "file:")
+			value = parsed.Opaque
 		}
 		if decoded, err := url.PathUnescape(value); err == nil {
 			value = decoded
@@ -144,6 +165,19 @@ func evaluateWriteGroupInspection(
 		return false, []ReadinessIssue{writeGroupReadinessIssue(
 			"destination-column-type-unverified", "destination SQL dialect could not be verified", group.ID,
 		)}
+	}
+	if group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && group.RowPolicy.RecordKeyColumn != "" {
+		layout, layoutErr := managedSchemaLayout(group, tagTypes, string(dialect))
+		if layoutErr != nil {
+			return false, []ReadinessIssue{writeGroupReadinessIssue(
+				"managed-schema-unverified", "managed destination ownership and canonical schema could not be verified", group.ID,
+			)}
+		}
+		if err := recordingplan.ValidateManagedGroupTableInspection(*layout, recordingPlanTableInspection(inspection)); err != nil {
+			return false, []ReadinessIssue{writeGroupReadinessIssue(
+				"managed-schema-unverified", "managed destination ownership and canonical schema could not be verified", group.ID,
+			)}
+		}
 	}
 	layoutMembers := make([]dbtarget.GroupRowMember, 0, len(group.Members))
 	entityKeyed := false
@@ -195,6 +229,9 @@ func evaluateWriteGroupInspection(
 		Dialect: dialect, Columns: inspection.Columns, Members: layoutMembers,
 		EntityKeyed: entityKeyed, EntityKeyColumn: group.RowPolicy.EntityKeyColumn,
 		ProvenanceColumn: group.RowPolicy.ProvenanceColumn,
+		RecordKeyColumn:  group.RowPolicy.RecordKeyColumn, BucketStartColumn: group.RowPolicy.BucketStartColumn,
+		GroupIDColumn: group.RowPolicy.GroupIDColumn, GroupID: group.ID,
+		DeviceIDColumn: group.RowPolicy.DeviceIDColumn, DeviceID: managedGroupDeviceID(group),
 	})
 	for _, issue := range layoutIssues {
 		code := "destination-column-type-mismatch"
@@ -212,6 +249,26 @@ func evaluateWriteGroupInspection(
 		issues = append(issues, writeGroupReadinessIssue(code, message, group.ID))
 	}
 	return len(issues) == 0, issues
+}
+
+func recordingPlanTableInspection(inspection *dbtarget.TableInspection) recordingplan.TargetTableInspection {
+	if inspection == nil {
+		return recordingplan.TargetTableInspection{}
+	}
+	state := recordingplan.TargetTableInspection{
+		Status:           string(inspection.Status),
+		Columns:          make([]string, 0, len(inspection.Columns)),
+		ColumnTypes:      make(map[string]string, len(inspection.Columns)),
+		ColumnNullable:   make(map[string]bool, len(inspection.Columns)),
+		ColumnPrimaryKey: make(map[string]bool, len(inspection.Columns)),
+	}
+	for _, column := range inspection.Columns {
+		state.Columns = append(state.Columns, column.Name)
+		state.ColumnTypes[column.Name] = column.DataType
+		state.ColumnNullable[column.Name] = column.Nullable
+		state.ColumnPrimaryKey[column.Name] = column.PrimaryKey
+	}
+	return state
 }
 
 func writeGroupReadinessDialect(connectorKinds ...string) (dbtarget.SQLDialect, bool) {

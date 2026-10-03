@@ -23,6 +23,9 @@ func registerStudioV2WriteGroupRoutes(group *gin.RouterGroup, services *Datalink
 	group.POST("/studio-v2/workspace/write-groups/:id/apply", handler.Apply)
 	group.PUT("/studio-v2/workspace/write-groups/:id", handler.Update)
 	group.DELETE("/studio-v2/workspace/write-groups/:id", handler.Delete)
+	schemaHandler := handlers.NewStudioV2WorkspaceWriteGroupSchemaHandler(services.Workspace, services.WriteGroups, services.RecordingPlan, services.DBTarget)
+	group.POST("/studio-v2/workspace/write-groups/:id/schema-preview", schemaHandler.Preview)
+	group.POST("/studio-v2/workspace/write-groups/:id/schema-apply", schemaHandler.Confirm)
 
 	var plans handlers.RecordingPlanGroupResolver
 	if services.WriteGroups != nil {

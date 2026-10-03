@@ -17,6 +17,7 @@ const SQL_TYPE: Record<TargetType, string> = {
 
 function sqlTypeFor(target: TargetType, dialect: WriteGroupSqlDialect): string {
   if (target === 'uint64' && dialect === 'postgres') return 'NUMERIC(20,0)';
+  if (dialect === 'postgres' && ['int16', 'int32', 'int64', 'uint16', 'uint32'].includes(target)) return 'BIGINT';
   return SQL_TYPE[target];
 }
 

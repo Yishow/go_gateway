@@ -186,15 +186,7 @@ func NewGroupBoundaryContext(ctx context.Context, cfg GroupBoundaryConfig) (*Gro
 	}
 
 	policy := snapshot.IncompletePolicy(strings.ToLower(strings.TrimSpace(group.RowPolicy.IncompletePolicy)))
-	layout, issues := dbtarget.NewGroupRowLayout(dbtarget.GroupRowSpec{
-		Dialect: cfg.Dialect, Columns: cfg.Columns, Members: layoutMembers,
-		Partial:           policy == snapshot.IncompletePartial,
-		EntityKeyed:       entityKeyed,
-		EntityKeyColumn:   group.RowPolicy.EntityKeyColumn,
-		RecordKeyColumn:   cfg.RecordKeyColumn,
-		BucketStartColumn: cfg.BucketStartColumn,
-		ProvenanceColumn:  group.RowPolicy.ProvenanceColumn,
-	})
+	layout, issues := dbtarget.NewGroupRowLayout(boundaryRowSpec(cfg, layoutMembers, entityKeyed))
 	if len(issues) > 0 {
 		return nil, blocked(boundaryLayoutBlocked, issues...)
 	}

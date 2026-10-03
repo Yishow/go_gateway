@@ -26,6 +26,7 @@ Migrator 可重跑建立缺少的 024 表，並以 additive `ALTER TABLE` 補既
 | `GET`（無尾碼）、`GET /:id` | workspace-scoped list/get；已移轉資料由 canonical authority 重載 |
 | `POST`（無尾碼）、`PUT /:id` | 保存 draft，group/member/projection/workspace revision 同一 local transaction |
 | `GET /:id/readiness` | 使用 persisted group 驗來源與 read-only destination schema，不建表、不啟用設備 |
+| `POST /:id/schema-preview`、`POST /:id/schema-apply` | 保存的 managed group 直接使用既有 schema token／operation ledger；preview 只讀，確認才建立 owned 表並查驗，詳見下節。 |
 | `POST /:id/disable`、`DELETE /:id` | 停新 intake／logical delete；保留 immutable snapshots 與 accepted backlog 歸屬 |
 | `POST /:id/apply` | 只帶 expected revisions（不可帶 group payload）；readiness 通過才排入下一個 UTC bucket，沒有 DDL、不連 destination；未就緒 409 `WRITE_GROUP_NOT_READY`、過期 409 `revision_mismatch`。Production 的 owner 由 `grouppipeline` 週期性 reconcile 接手，所以套用到實際開始寫入之間有 reconcile 間隔，不是同步。 |
 | `POST /migrations/{single-mappings,row-groups,recording-plans}/preview` | 本地只讀預覽，帶 revisions/source intent/digest/issues |
@@ -34,6 +35,20 @@ Migrator 可重跑建立缺少的 024 表，並以 additive `ALTER TABLE` 補既
 mutation 帶 `workspace_id`、`expected_workspace_revision`、`expected_connector_revision`；create 以外另帶 `expected_group_revision`。`expected_workspace_revision` 對應 `Record.DatabaseSetupRevision`，不是 Share 的獨立 workspace revision。版本過期409；unknown／foreign安全404；invalid422；operational storage failure安全500，不顯示 SQL／DSN／credential。
 
 A 階段尚未提供 HTTP Apply endpoint 或 production owner consumer；C/E 已接線上述正式端點與群組 UI。以下記錄沿用的 domain 交易契約。domain `WriteGroupService.Apply` 在 readiness preflight 後重查 local CAS/live connector/source，於下一 UTC bucket 排 immutable applied version。可注入 `WriterOwnershipActivationBarrier.ActivateInTx`，在同一 local transaction 寫 owner projection；version/applied/owner/workspace 同 commit 或 rollback。metadata-only rename 不重啟 owner transition。C 已接線真實 consumer barrier，並保留現有 Share hydration/settings/readiness-token/revision gate；不得把 domain applied metadata 當成 production writer 成功。
+
+## Canonical managed schema 準備
+
+`complete-write-group-managed-storage` 讓新保存的 managed group 直接準備空白 SQLite／PostgreSQL；不建立 RecordingPlan、measurement 或手動 targets。request 只接受 `workspace_id`、三個 expected revisions；確認另帶 preview 回傳的 `token`／`operation_id`。table、dialect、SQL 與 connector credentials 都由後端解析保存狀態，未知 request 欄位回 400。`PlanID/PlanRevision` 沿用 group ID/revision，token 另外綁定來源、目的 schema proof、exact layout 與 statement digest。preview 不建立 SQLite file；只有明確確認會在已保存的獨立目的地建立檔案。設定／journal DB 的實際路徑、symlink、hardlink aliases 在任何建表前拒絕。
+
+新 managed save 以 member device/point/Tag identities 產生固定 `v_<digest>` 欄名，重複顯示名稱或保留字不參與命名；未填 table 時由後端產生 group 專屬名稱。新 managed row policy 保存 record/group/device（僅單設備群組）、UTC bucket 與 provenance bindings。basic rows 使用 TEXT 身分／UTC 時間，provenance 含每點的原始 observed_at、quality、reason。跨設備群組不假造單一 device ID。uint64 使用 SQLite TEXT／PostgreSQL NUMERIC(20,0)，不經 JavaScript Number 或浮點數；signed BIGINT 不表示完整 uint64 能力。其餘 Tag types 使用已驗證的 exact codec；Decimal／NULL codec 能力不表示新增 Decimal Tag 產品型別。
+
+CREATE 僅包含 group-owned data table 與 `gw_effect_receipts`，沒有自動 ALTER／DROP／rename／搬移，也不用 `IF NOT EXISTS` 接受未知物件。data table 具有 group/workspace 專屬 owner marker；receipt 保留 effect_key／payload_digest／committed_at 契約並有版本 marker。只有完整 inspection 確認 owner、欄名、型別、nullable、PK 都相容，才回 verified no-op。未知或不相容 table 回 422 `RECORDING_SCHEMA_INCOMPATIBLE`，使用新 managed table／獨立目的地或 advanced custom table 修復；權限不足回真實 operation failure，不把不可 inspection 當成缺表。
+
+operation 查詢沿用 `GET …/database-operations/:operation_id`。同一確認的重送回既有 operation；來源／group／connector／layout 已改變則確認回 409，原 operation 仍可作歷史查詢。active operation lease 過期時只依真實 target evidence 收斂，不重跑缺少的 DDL；全部 owned structures 可核對才 succeeded，部分或無法確認維持 unknown。成功 inspection digest 保存為 group destination proof，並刷新 workspace revision；這一步沒有 Apply／啟用採集，也沒有宣稱 SQL 已寫入資料列。
+
+新 managed rows 固定 append／receipt，沒有新增 selectable dedupe 或 sampling mode。data row 與 destination receipt 使用同一 SQL transaction；回應遺失後以相同 effect key/digest 核對，確認前不建立 local committed proof。applied layout、採樣 identity/time/quality 與 accepted payload 保存在既有 runtime recovery 描述；顯示改名、延遲與重啟不改寫已接受資料。
+
+rollout 是 additive：已保存的舊 managed group 不自動轉換，新 managed save 或明確由 custom 切換時才使用新 layout；既有 custom 表及 all-good payload 不新增 metadata／receipt 欄。回退先停新 intake，保留外部 owned tables、schema operations、immutable layout、journal/outbox/receipt 及已提交效果；不能以舊 binary 或 backup 刪除新證據，未理解新 bindings 的版本不得接手新 managed 群組。正式部署／資料 migration 仍需另行授權。
 
 ## 三批相容行為
 

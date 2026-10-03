@@ -152,6 +152,9 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 		}
 		return p.buildFrozen(ctx, frozen, time.Time{}, time.Time{})
 	}
+	if canonicalManagedGroup(group) {
+		return nil, reasonSnapshotUnavailable
+	}
 	inspection, err := p.deps.Inspector.InspectTable(ctx, group.Destination.ConnectorID, group.Destination.TableSchema, group.Destination.TableName)
 	if err != nil || inspection == nil {
 		return nil, reasonTableUnavailable

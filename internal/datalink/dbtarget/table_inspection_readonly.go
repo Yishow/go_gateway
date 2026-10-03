@@ -33,6 +33,10 @@ func (i *ReadOnlyTableInspector) InspectTable(ctx context.Context, connectorID, 
 	if err != nil {
 		return nil, fmt.Errorf("inspect destination connector: %w", err)
 	}
+	return inspectReadOnlySavedConnectorTable(ctx, connector, schemaName, tableName)
+}
+
+func inspectReadOnlySavedConnectorTable(ctx context.Context, connector *schema.DatabaseConnector, schemaName, tableName string) (*TableInspection, error) {
 	if connector.Kind != schema.DatabaseConnectorKindSQLite {
 		return inspectSavedConnectorTable(ctx, connector, schemaName, tableName)
 	}

@@ -25,6 +25,32 @@ describe('parseRecordingSchemaPreviewToken', () => {
     expect(parsed?.no_change_reason).toBeUndefined();
   });
 
+  it('accepts a managed group layout when the legacy table prefix is empty', () => {
+    const parsed = parseRecordingSchemaPreviewToken({
+      ...serverToken,
+      table_prefix: '',
+      group_layout: {
+        table_name: 'gw_group_server',
+        owner_column: '_gw_owner',
+        columns: [{ name: 'record_id', sql_type: 'TEXT', nullable: false, primary_key: true }],
+      },
+    });
+    expect(parsed).toEqual(expect.objectContaining({
+      table_prefix: '',
+      group_layout: {
+        table_name: 'gw_group_server',
+        owner_column: '_gw_owner',
+        columns: [{ name: 'record_id', sql_type: 'TEXT', nullable: false, primary_key: true }],
+      },
+    }));
+    expect(parseRecordingSchemaPreviewToken({ ...serverToken, table_prefix: '' })).toBeNull();
+  });
+
+  it('can require a complete group layout without breaking legacy previews', () => {
+    expect(parseRecordingSchemaPreviewToken(serverToken)).not.toBeNull();
+    expect(parseRecordingSchemaPreviewToken(serverToken, { requireGroupLayout: true })).toBeNull();
+  });
+
   it('rejects a preview without its operation identity, workspace revision or digest', () => {
     expect(parseRecordingSchemaPreviewToken({ ...serverToken, operation_id: undefined })).toBeNull();
     expect(parseRecordingSchemaPreviewToken({ ...serverToken, workspace_revision: '' })).toBeNull();

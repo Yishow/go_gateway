@@ -128,17 +128,21 @@ func (h *StudioV2WorkspaceRecordingPlansHandler) applyConfirmedPreview(ctx conte
 func (h *StudioV2WorkspaceRecordingPlansHandler) recordingTargetExecutor(connectorID, schemaName string) recordingplan.SchemaExecutor {
 	return func(ctx context.Context, statements []string) (recordingplan.SchemaExecution, error) {
 		execution, err := h.dbTargetSvc.ExecuteSchemaStatements(ctx, connectorID, schemaName, statements)
-		if errors.Is(err, dbtarget.ErrSchemaExecutionPermissionDenied) {
-			err = fmt.Errorf("%w: %w", recordingplan.ErrTargetPermissionDenied, err)
-		}
-		if execution == nil {
-			if err == nil {
-				err = errRecordingTargetExecutionEmpty
-			}
-			return recordingplan.SchemaExecution{RolledBack: true}, err
-		}
-		return recordingplan.SchemaExecution{Committed: execution.Committed, RolledBack: execution.RolledBack}, err
+		return recordingSchemaExecution(execution, err)
 	}
+}
+
+func recordingSchemaExecution(execution *dbtarget.SchemaStatementExecution, err error) (recordingplan.SchemaExecution, error) {
+	if errors.Is(err, dbtarget.ErrSchemaExecutionPermissionDenied) {
+		err = fmt.Errorf("%w: %w", recordingplan.ErrTargetPermissionDenied, err)
+	}
+	if execution == nil {
+		if err == nil {
+			err = errRecordingTargetExecutionEmpty
+		}
+		return recordingplan.SchemaExecution{RolledBack: true}, err
+	}
+	return recordingplan.SchemaExecution{Committed: execution.Committed, RolledBack: execution.RolledBack}, err
 }
 
 func renderSchemaApplyOutcome(c *gin.Context, op *recordingplan.SchemaOperation, outcome recordingplan.ClaimOutcome) {

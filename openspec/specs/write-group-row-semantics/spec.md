@@ -2026,3 +2026,358 @@ tests:
   - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
   - internal/datalink/workspace/write_group_reenable_test.go
 -->
+
+---
+### Requirement: Basic managed SQL preserves record time and origin identity
+New basic per-device managed rows SHALL store stable record/group/device identities, UTC bucket time and member-level observed_at, quality and reason from the frozen row. Metadata bindings SHALL persist with the applied layout. Destination defaults, current UI scope and replay time MUST NOT replace acquisition facts. Existing custom-table metadata remains governed by its selected capabilities.
+
+#### Scenario: Delayed delivery retains original time
+- **GIVEN** a managed row accepted at its original acquisition and bucket times
+- **WHEN** the destination receives it after an outage and gateway restart
+- **THEN** SQL stores those original times and source/group identities, not the later flush or INSERT time.
+
+#### Scenario: Missing and bad values are not fabricated
+- **WHEN** the existing completeness policy yields an incomplete or explicitly allowed partial result
+- **THEN** skipped/no_data remains visible or permitted SQL NULL carries the member reason; no zero, stale value or invented good quality is substituted.
+
+
+<!-- @trace
+source: complete-write-group-managed-storage
+updated: 2026-10-04
+code:
+  - internal/datalink/workspace/write_group_readiness.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-768.png
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/columns.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
+  - internal/datalink/recordingplan/schema_apply.go
+  - internal/datalink/recordingplan/schema_group.go
+  - internal/datalink/workspace/write_group.go
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-sqlite.png
+  - internal/datalink/dbtarget/managed_schema_execution.go
+  - frontend/src/hooks/datalink/keys.ts
+  - frontend/src/services/studioV2WorkspaceWriteGroups.ts
+  - internal/datalink/dbtarget/postgres_column_inspection.go
+  - frontend/src/types/recordingPlan.ts
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/proposal.ts
+  - docs/plans/studio-v2-flow-completion/C-entity-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-1440.png
+  - frontend/src/utils/typedErrors.ts
+  - internal/api/router_studio_v2_write_group_routes.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - internal/datalink/workspace/write_group_repository.go
+  - internal/datalink/dbtarget/group_row_layout.go
+  - internal/datalink/recordingplan/schema_preview.go
+  - internal/datalink/dbtarget/service.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-1440.png
+  - docs/plans/studio-v2-flow-completion/A-lifecycle-verification.md
+  - docs/swagger/swagger.json
+  - frontend/src/utils/studioV2WriteGroupJson.ts
+  - docs/plans/studio-v2-flow-completion/evidence-d/error-1440.png
+  - internal/api/handlers/studio_v2_workspace_write_group_schema_handler.go
+  - internal/datalink/workspace/write_group_managed.go
+  - internal/datalink/schema/migrations/027_write_group_runtime_sqlite.up.sql
+  - internal/datalink/dbtarget/managed_destination.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/error-390.png
+  - docs/plans/studio-v2-flow-completion/evidence-d/partial-1440.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-768.png
+  - internal/datalink/workspace/write_group_schema.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/partial-390.png
+  - frontend/src/services/studioV2WorkspaceDatabase.ts
+  - internal/datalink/workspace/write_group_service.go
+  - docs/plans/studio-v2-flow-completion/review-repairs.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-390.png
+  - internal/datalink/dbtarget/schema_execution.go
+  - internal/datalink/dbtarget/table_inspection_readonly.go
+  - docs/swagger/swagger.yaml
+  - internal/datalink/recordingplan/repository_memory.go
+  - internal/datalink/grouppipeline/recovery.go
+  - frontend/src/hooks/datalink/useStudioV2WriteGroups.ts
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - internal/datalink/workspace/write_group_repository_update.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-1440.png
+  - frontend/src/types/studioV2WriteGroup.ts
+  - internal/datalink/workspace/write_group_schema_confirm.go
+  - internal/datalink/recordingplan/repository.go
+  - internal/api/handlers/studio_v2_workspace_recording_plan_apply.go
+  - docs/swagger/docs.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupColumnProposal.tsx
+  - internal/datalink/runtime/group_boundary.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/main-390.png
+  - docs/technical/studio-v2-write-groups.md
+  - frontend/src/utils/recordingPlanJson.ts
+  - docs/plans/studio-v2-flow-completion/B-deadline-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-reject-bigint.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-768.png
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-d/main-1440.png
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-postgres.png
+  - internal/datalink/groupdelivery/runtime_versions.go
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-390.png
+  - internal/datalink/migrator_recording_plans.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns.ts
+  - internal/datalink/runtime/group_boundary_encoding.go
+  - internal/datalink/workspace/write_group_lifecycle.go
+  - internal/datalink/workspace/write_group_readiness_partial.go
+  - internal/datalink/groupdelivery/sender.go
+  - internal/datalink/workspace/write_group_readiness_eval.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/main-768.png
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection.tsx
+  - internal/datalink/grouppipeline/reconcile.go
+  - internal/datalink/recordingplan/types.go
+  - frontend/src/utils/safeJson.ts
+  - internal/datalink/recordingplan/repository_preview_token.go
+  - frontend/src/utils/backendErrorCodes.ts
+  - internal/datalink/runtime/group_boundary_layout.go
+  - internal/datalink/grouppipeline/pipeline.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-390.png
+  - docs/plans/studio-v2-flow-completion/evidence-d/error-768.png
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - internal/datalink/workspace/write_group_runtime_layout.go
+  - docs/plans/studio-v2-flow-completion/README.md
+  - docs/plans/studio-v2-flow-completion/evidence-d/partial-768.png
+  - internal/api/handlers/studio_v2_workspace_database_metadata.go
+  - internal/datalink/workspace/write_group_readiness_table.go
+  - docs/plans/studio-v2-flow-completion/D-managed-verification.md
+tests:
+  - frontend/tests/unit/utils/backendErrorCodes.test.ts
+  - cmd/test_ui/group_pipeline_lifecycle_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupSection.test.tsx
+  - cmd/test_ui/group_pipeline_managed_sql_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupProposal.test.tsx
+  - internal/datalink/workspace/write_group_reenable_test.go
+  - internal/datalink/workspace/write_group_lifecycle_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
+  - internal/api/router_studio_v2_write_group_schema_drift_test.go
+  - internal/datalink/workspace/write_group_readiness_managed_inspector_test.go
+  - internal/datalink/groupdelivery/sender_deadline_test.go
+  - frontend/tests/fixtures/managedSchemaPreview.ts
+  - cmd/test_ui/service_wiring.go
+  - internal/api/router_studio_v2_write_group_schema_scope_test.go
+  - internal/datalink/dbtarget/postgres_numeric_inspection_test.go
+  - internal/api/router_studio_v2_write_group_schema_partial_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
+  - internal/datalink/dbtarget/managed_inspection_scope_test.go
+  - internal/datalink/workspace/write_group_readiness_table_test.go
+  - internal/datalink/recordingplan/schema_group_test.go
+  - internal/datalink/dbtarget/managed_schema_execution_test.go
+  - frontend/tests/unit/services/studioV2WorkspaceDatabaseMetadata.test.ts
+  - frontend/tests/unit/services/studioV2WorkspaceWriteGroupSchema.test.ts
+  - internal/datalink/workspace/write_group_runtime_layout_test.go
+  - internal/api/router_studio_v2_write_group_schema_replay_test.go
+  - internal/datalink/runtime/group_boundary_cutoff_test.go
+  - internal/datalink/grouppipeline/reconcile_revision_test.go
+  - internal/datalink/dbtarget/managed_destination_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupDraft.test.ts
+  - internal/api/handlers/studio_v2_workspace_metadata_scope_test.go
+  - internal/api/handlers/studio_v2_workspace_group_metadata_test.go
+  - internal/datalink/runtime/group_boundary_entity_test.go
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
+  - internal/datalink/recordingplan/schema_group_numeric_test.go
+  - internal/datalink/grouppipeline/reconcile_managed_recovery_test.go
+  - internal/api/handlers/studio_v2_workspace_database_metadata_readonly_test.go
+  - internal/datalink/dbtarget/group_row_layout_test.go
+  - internal/api/router_studio_v2_write_group_schema_test.go
+  - internal/datalink/grouppipeline/reconcile_recovery_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupManagedStorage.test.ts
+  - internal/api/router_studio_v2_write_group_metadata_readonly_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
+  - cmd/test_ui/group_pipeline_managed_multidevice_test.go
+  - internal/datalink/groupdelivery/sender_settlement_test.go
+  - cmd/test_ui/group_pipeline_managed_test.go
+  - cmd/test_ui/group_pipeline_entity_test.go
+  - internal/datalink/groupdelivery/sender_deadline_recovery_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupMembers.test.tsx
+  - frontend/tests/unit/hooks/useStudioV2GroupMetadata.test.tsx
+  - frontend/tests/unit/utils/recordingSchemaPreviewToken.test.ts
+  - internal/datalink/workspace/write_group_managed_schema_guard_test.go
+  - internal/api/router_studio_v2_write_group_schema_conflict_test.go
+  - cmd/test_ui/group_pipeline_entity_sql_test.go
+  - internal/datalink/dbtarget/group_row_entity_test.go
+  - internal/datalink/groupdelivery/sender_postgres_test.go
+  - internal/datalink/runtime/group_boundary_durable_test.go
+  - internal/api/router_studio_v2_write_group_schema_recovery_test.go
+  - cmd/test_ui/group_pipeline_managed_quality_test.go
+-->
+
+---
+### Requirement: Stable exact managed column generation
+Managed columns SHALL be generated once from persisted member identities and verified exact-type capabilities, with collision-safe names and a frozen mapping. Display renames MUST NOT silently rebind data. Managed storage SHALL use the existing receipt-capable delivery contract; this change MUST NOT introduce a new selectable deduplication or sampling mode.
+
+#### Scenario: Same labels and exact uint64 values
+- **WHEN** two persisted Tags share a display label or a uint64 exceeds JavaScript's exact integer range
+- **THEN** generated columns remain distinct and the SQL representation preserves the complete uint64 range without JavaScript Number or floating-point conversion. SQLite TEXT and PostgreSQL NUMERIC(20,0) are verified safe layouts; signed BIGINT SHALL NOT be proposed as a full-range uint64 column.
+
+##### Example: Unsigned counter boundaries
+| Source value | SQLite TEXT readback | PostgreSQL NUMERIC(20,0) readback |
+| --- | --- | --- |
+| 9007199254740993 | 9007199254740993 | 9007199254740993 |
+| 9223372036854775808 | 9223372036854775808 | 9223372036854775808 |
+| 18446744073709551615 | 18446744073709551615 | 18446744073709551615 |
+
+#### Scenario: Replay and display rename
+- **WHEN** a saved display name changes or an accepted row is retried
+- **THEN** its frozen columns, record identity, payload digest and receipt-scoped effect remain unchanged, and target acknowledgement loss does not create a second effect.
+
+<!-- @trace
+source: complete-write-group-managed-storage
+updated: 2026-10-04
+code:
+  - internal/datalink/workspace/write_group_readiness.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-768.png
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/columns.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupMemberTable.tsx
+  - internal/datalink/recordingplan/schema_apply.go
+  - internal/datalink/recordingplan/schema_group.go
+  - internal/datalink/workspace/write_group.go
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-sqlite.png
+  - internal/datalink/dbtarget/managed_schema_execution.go
+  - frontend/src/hooks/datalink/keys.ts
+  - frontend/src/services/studioV2WorkspaceWriteGroups.ts
+  - internal/datalink/dbtarget/postgres_column_inspection.go
+  - frontend/src/types/recordingPlan.ts
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/proposal.ts
+  - docs/plans/studio-v2-flow-completion/C-entity-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-1440.png
+  - frontend/src/utils/typedErrors.ts
+  - internal/api/router_studio_v2_write_group_routes.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
+  - frontend/src/i18n/locales/en/workbench-v2.json
+  - internal/datalink/workspace/write_group_repository.go
+  - internal/datalink/dbtarget/group_row_layout.go
+  - internal/datalink/recordingplan/schema_preview.go
+  - internal/datalink/dbtarget/service.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-1440.png
+  - docs/plans/studio-v2-flow-completion/A-lifecycle-verification.md
+  - docs/swagger/swagger.json
+  - frontend/src/utils/studioV2WriteGroupJson.ts
+  - docs/plans/studio-v2-flow-completion/evidence-d/error-1440.png
+  - internal/api/handlers/studio_v2_workspace_write_group_schema_handler.go
+  - internal/datalink/workspace/write_group_managed.go
+  - internal/datalink/schema/migrations/027_write_group_runtime_sqlite.up.sql
+  - internal/datalink/dbtarget/managed_destination.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/error-390.png
+  - docs/plans/studio-v2-flow-completion/evidence-d/partial-1440.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-768.png
+  - internal/datalink/workspace/write_group_schema.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/partial-390.png
+  - frontend/src/services/studioV2WorkspaceDatabase.ts
+  - internal/datalink/workspace/write_group_service.go
+  - docs/plans/studio-v2-flow-completion/review-repairs.md
+  - docs/plans/studio-v2-flow-completion/evidence-c/partial-390.png
+  - internal/datalink/dbtarget/schema_execution.go
+  - internal/datalink/dbtarget/table_inspection_readonly.go
+  - docs/swagger/swagger.yaml
+  - internal/datalink/recordingplan/repository_memory.go
+  - internal/datalink/grouppipeline/recovery.go
+  - frontend/src/hooks/datalink/useStudioV2WriteGroups.ts
+  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
+  - internal/datalink/workspace/write_group_repository_update.go
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-1440.png
+  - frontend/src/types/studioV2WriteGroup.ts
+  - internal/datalink/workspace/write_group_schema_confirm.go
+  - internal/datalink/recordingplan/repository.go
+  - internal/api/handlers/studio_v2_workspace_recording_plan_apply.go
+  - docs/swagger/docs.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupColumnProposal.tsx
+  - internal/datalink/runtime/group_boundary.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/main-390.png
+  - docs/technical/studio-v2-write-groups.md
+  - frontend/src/utils/recordingPlanJson.ts
+  - docs/plans/studio-v2-flow-completion/B-deadline-verification.md
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-reject-bigint.png
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-768.png
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-d/main-1440.png
+  - docs/plans/studio-v2-flow-completion/evidence/review-repairs-uint64-postgres.png
+  - internal/datalink/groupdelivery/runtime_versions.go
+  - frontend/src/features/datalink/workbench-v2/state/writeGroup/draft.ts
+  - docs/plans/studio-v2-flow-completion/evidence-c/main-390.png
+  - internal/datalink/migrator_recording_plans.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/useStep4TargetColumns.ts
+  - internal/datalink/runtime/group_boundary_encoding.go
+  - internal/datalink/workspace/write_group_lifecycle.go
+  - internal/datalink/workspace/write_group_readiness_partial.go
+  - internal/datalink/groupdelivery/sender.go
+  - internal/datalink/workspace/write_group_readiness_eval.go
+  - docs/plans/studio-v2-flow-completion/evidence-d/main-768.png
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/WriteGroupSection.tsx
+  - internal/datalink/grouppipeline/reconcile.go
+  - internal/datalink/recordingplan/types.go
+  - frontend/src/utils/safeJson.ts
+  - internal/datalink/recordingplan/repository_preview_token.go
+  - frontend/src/utils/backendErrorCodes.ts
+  - internal/datalink/runtime/group_boundary_layout.go
+  - internal/datalink/grouppipeline/pipeline.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx
+  - docs/plans/studio-v2-flow-completion/evidence-c/error-390.png
+  - docs/plans/studio-v2-flow-completion/evidence-d/error-768.png
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - internal/datalink/workspace/write_group_runtime_layout.go
+  - docs/plans/studio-v2-flow-completion/README.md
+  - docs/plans/studio-v2-flow-completion/evidence-d/partial-768.png
+  - internal/api/handlers/studio_v2_workspace_database_metadata.go
+  - internal/datalink/workspace/write_group_readiness_table.go
+  - docs/plans/studio-v2-flow-completion/D-managed-verification.md
+tests:
+  - frontend/tests/unit/utils/backendErrorCodes.test.ts
+  - cmd/test_ui/group_pipeline_lifecycle_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupSection.test.tsx
+  - cmd/test_ui/group_pipeline_managed_sql_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupProposal.test.tsx
+  - internal/datalink/workspace/write_group_reenable_test.go
+  - internal/datalink/workspace/write_group_lifecycle_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
+  - internal/api/router_studio_v2_write_group_schema_drift_test.go
+  - internal/datalink/workspace/write_group_readiness_managed_inspector_test.go
+  - internal/datalink/groupdelivery/sender_deadline_test.go
+  - frontend/tests/fixtures/managedSchemaPreview.ts
+  - cmd/test_ui/service_wiring.go
+  - internal/api/router_studio_v2_write_group_schema_scope_test.go
+  - internal/datalink/dbtarget/postgres_numeric_inspection_test.go
+  - internal/api/router_studio_v2_write_group_schema_partial_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
+  - internal/datalink/dbtarget/managed_inspection_scope_test.go
+  - internal/datalink/workspace/write_group_readiness_table_test.go
+  - internal/datalink/recordingplan/schema_group_test.go
+  - internal/datalink/dbtarget/managed_schema_execution_test.go
+  - frontend/tests/unit/services/studioV2WorkspaceDatabaseMetadata.test.ts
+  - frontend/tests/unit/services/studioV2WorkspaceWriteGroupSchema.test.ts
+  - internal/datalink/workspace/write_group_runtime_layout_test.go
+  - internal/api/router_studio_v2_write_group_schema_replay_test.go
+  - internal/datalink/runtime/group_boundary_cutoff_test.go
+  - internal/datalink/grouppipeline/reconcile_revision_test.go
+  - internal/datalink/dbtarget/managed_destination_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupDraft.test.ts
+  - internal/api/handlers/studio_v2_workspace_metadata_scope_test.go
+  - internal/api/handlers/studio_v2_workspace_group_metadata_test.go
+  - internal/datalink/runtime/group_boundary_entity_test.go
+  - frontend/tests/unit/workbench-v2/groupSchemaPanel.test.tsx
+  - internal/datalink/recordingplan/schema_group_numeric_test.go
+  - internal/datalink/grouppipeline/reconcile_managed_recovery_test.go
+  - internal/api/handlers/studio_v2_workspace_database_metadata_readonly_test.go
+  - internal/datalink/dbtarget/group_row_layout_test.go
+  - internal/api/router_studio_v2_write_group_schema_test.go
+  - internal/datalink/grouppipeline/reconcile_recovery_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupManagedStorage.test.ts
+  - internal/api/router_studio_v2_write_group_metadata_readonly_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupColumns.test.ts
+  - cmd/test_ui/group_pipeline_managed_multidevice_test.go
+  - internal/datalink/groupdelivery/sender_settlement_test.go
+  - cmd/test_ui/group_pipeline_managed_test.go
+  - cmd/test_ui/group_pipeline_entity_test.go
+  - internal/datalink/groupdelivery/sender_deadline_recovery_test.go
+  - frontend/tests/unit/workbench-v2/writeGroupMembers.test.tsx
+  - frontend/tests/unit/hooks/useStudioV2GroupMetadata.test.tsx
+  - frontend/tests/unit/utils/recordingSchemaPreviewToken.test.ts
+  - internal/datalink/workspace/write_group_managed_schema_guard_test.go
+  - internal/api/router_studio_v2_write_group_schema_conflict_test.go
+  - cmd/test_ui/group_pipeline_entity_sql_test.go
+  - internal/datalink/dbtarget/group_row_entity_test.go
+  - internal/datalink/groupdelivery/sender_postgres_test.go
+  - internal/datalink/runtime/group_boundary_durable_test.go
+  - internal/api/router_studio_v2_write_group_schema_recovery_test.go
+  - cmd/test_ui/group_pipeline_managed_quality_test.go
+-->

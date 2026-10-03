@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"go-gateway/internal/datalink/dbtarget"
 )
 
 var (
@@ -20,6 +22,13 @@ var (
 	// local workspace transaction with the canonical repository.
 	ErrWriteGroupServiceUnavailable = errors.New("write group service unavailable")
 )
+
+// ManagedWriteGroupTableInspector reads a managed destination using the
+// connector revision captured by the readiness snapshot. Implementations must
+// apply the managed destination path guard before opening the destination.
+type ManagedWriteGroupTableInspector interface {
+	InspectTableAtRevision(ctx context.Context, connectorID, expectedRevision, schema, table string) (*dbtarget.TableInspection, error)
+}
 
 // WriteGroupMutation is the expected-revision envelope for one full group
 // replacement. The service owns all server-generated and readonly fields.
@@ -51,9 +60,19 @@ type WriteGroupService struct {
 	workspaceSvc              *Service
 	repo                      *SQLWriteGroupRepository
 	tableInspector            WriteGroupTableInspector
+	managedTableInspector     ManagedWriteGroupTableInspector
 	backlogGuard              WriteGroupBacklogOwnershipGuard
 	writerOwnershipActivation WriterOwnershipActivationBarrier
 	now                       func() time.Time
+}
+
+// WithManagedTableInspector wires the revision-bound managed destination
+// metadata reader used by canonical managed readiness.
+func (s *WriteGroupService) WithManagedTableInspector(inspector ManagedWriteGroupTableInspector) *WriteGroupService {
+	if s != nil {
+		s.managedTableInspector = inspector
+	}
+	return s
 }
 
 // NewWriteGroupService creates the service used by the Studio V2 write-group
@@ -90,6 +109,9 @@ func (s *WriteGroupService) Create(ctx context.Context, mutation WriteGroupMutat
 		candidate.Destination.SchemaDigest = ""
 		candidate.WorkspaceID = record.ID
 		candidate.Destination.ConnectorRevision = mutation.ExpectedConnectorRevision
+		if err := prepareManagedWriteGroup(candidate); err != nil {
+			return err
+		}
 		if err := s.repo.CreateInTx(ctx, tx, candidate); err != nil {
 			return err
 		}
@@ -142,6 +164,11 @@ func (s *WriteGroupService) Update(ctx context.Context, id string, mutation Writ
 			candidate.Status = WriteGroupStatusDisabled
 		}
 		candidate.Destination.ConnectorRevision = mutation.ExpectedConnectorRevision
+		if existing.RowPolicy.RecordKeyColumn != "" || existing.Destination.StorageStrategy != candidate.Destination.StorageStrategy {
+			if err := prepareManagedWriteGroup(candidate); err != nil {
+				return err
+			}
+		}
 		if err := s.repo.updateInTx(ctx, tx, candidate, true); err != nil {
 			return err
 		}

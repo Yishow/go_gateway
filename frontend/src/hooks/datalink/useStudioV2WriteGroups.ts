@@ -4,6 +4,8 @@ import type {
   WriteGroupCreateRequest,
   WriteGroupDeleteRequest,
   WriteGroupUpdateRequest,
+  WriteGroupSchemaApplyRequest,
+  WriteGroupSchemaPreviewRequest,
 } from '../../types/studioV2WriteGroup';
 import { studioV2WorkspaceKeys } from './keys';
 
@@ -46,6 +48,46 @@ function useInvalidateWriteGroups() {
     await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.writeGroups() });
     await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
   };
+}
+
+function useInvalidateManagedSchema() {
+  const queryClient = useQueryClient();
+  return async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.writeGroups() }),
+      queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() }),
+      queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.databaseMetadataAll() }),
+    ]);
+  };
+}
+
+export function useWriteGroupSchemaPreviewMutation() {
+  return useMutation({
+    mutationFn: (variables: { id: string; request: WriteGroupSchemaPreviewRequest }) =>
+      studioV2WorkspaceWriteGroupsAPI.schemaPreview(variables.id, variables.request),
+    retry: false,
+  });
+}
+
+export function useWriteGroupSchemaApplyMutation() {
+  const invalidate = useInvalidateManagedSchema();
+  return useMutation({
+    mutationFn: (variables: { id: string; request: WriteGroupSchemaApplyRequest }) =>
+      studioV2WorkspaceWriteGroupsAPI.schemaApply(variables.id, variables.request),
+    retry: false,
+    onSuccess: invalidate,
+  });
+}
+
+/** Reads the exact operation once; schema apply callers must not silently retry DDL. */
+export function useWriteGroupSchemaOperationQuery(operationId: string | undefined) {
+  return useQuery({
+    queryKey: studioV2WorkspaceKeys.writeGroupSchemaOperation(operationId ?? ''),
+    queryFn: () => studioV2WorkspaceWriteGroupsAPI.schemaOperation(operationId as string),
+    enabled: false,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 }
 
 export function useCreateWriteGroupMutation() {

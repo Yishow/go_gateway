@@ -72,7 +72,7 @@ describe('EmptyErrorMismatchPlanRecovery', () => {
     expect(onNavigateStep).toHaveBeenCalledWith(3);
   });
 
-  it('blocks creating a group until the destination is saved and a table is chosen', async () => {
+  it('blocks creating a group until the destination is saved', async () => {
     const state = savedGroupState();
     state.db = { ...state.db, connector: { ...state.db.connector, persisted: false, save_state: 'idle', connector_id: undefined, identity_revision: undefined } };
     renderSection({ state });
@@ -94,6 +94,46 @@ describe('EmptyErrorMismatchPlanRecovery', () => {
     renderSection();
     expect(await screen.findByTestId('group-empty')).toBeInTheDocument();
     expect(screen.getByTestId('group-create')).not.toBeDisabled();
+  });
+
+  it('allows a blank connector table for a managed group and lets the server assign it', async () => {
+    const state = savedGroupState({
+      db: { ...savedGroupState().db, connector: { ...savedGroupState().db.connector, table: '' } },
+    });
+    const canonical = savedGroup({
+      destination: { ...savedGroup().destination, table_name: 'gw_group_server', storage_strategy: 'managed' },
+      members: [{ ...savedGroup().members[0], target_column: 'v_server' }],
+      row_policy: { ...savedGroup().row_policy, record_key_column: 'record_id', group_id_column: 'group_id' },
+      write_policy: { mode: 'append', dedupe_capability: 'receipt' },
+    });
+    api.create.mockResolvedValue({ workspace_revision: 'wrev-2', group: canonical });
+    renderSection({ state });
+    expect(await screen.findByTestId('group-empty')).toBeInTheDocument();
+    expect(screen.getByTestId('group-create')).not.toBeDisabled();
+
+    fireEvent.click(screen.getByTestId('group-create'));
+    fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Managed line' } });
+    fireEvent.click(screen.getByTestId('group-storage-managed'));
+    fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
+    fireEvent.click(screen.getByTestId('group-save'));
+
+    await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
+    expect(api.create.mock.calls[0][0].group.destination).toMatchObject({ table_name: '', storage_strategy: 'managed' });
+    expect(await screen.findByTestId('group-table')).toHaveValue('gw_group_server');
+  });
+
+  it('keeps custom groups strict when the connector table is blank', async () => {
+    const state = savedGroupState({
+      db: { ...savedGroupState().db, connector: { ...savedGroupState().db.connector, table: '' } },
+    });
+    renderSection({ state });
+    fireEvent.click(await screen.findByTestId('group-create'));
+    fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Custom line' } });
+    fireEvent.click(screen.getByTestId('group-member-include-pt-0'));
+    fireEvent.change(screen.getByTestId('group-member-column-pt-0'), { target: { value: 'temperature' } });
+    expect(await screen.findByTestId('group-issues')).toHaveTextContent('step4.group.issue.table_required');
+    expect(screen.getByTestId('group-save')).toBeDisabled();
+    expect(api.create).not.toHaveBeenCalled();
   });
 
   it('shows groups for another destination as a mismatch, not as a match and not as nothing', async () => {
@@ -135,6 +175,30 @@ describe('WriteGroupEditorManagedAndCustom', () => {
     expect(screen.getByTestId('group-member-include-pt-0')).toBeChecked();
     expect(screen.getByTestId('group-member-column-pt-0')).toHaveValue('temperature');
     expect(screen.getByTestId('group-member-include-pt-2')).not.toBeChecked();
+    expect(screen.getByTestId('group-saved-note')).toBeInTheDocument();
+  });
+
+  it('adopts server-assigned managed table and columns after saving', async () => {
+    const initial = savedGroup({
+      destination: { ...savedGroup().destination, table_name: '', storage_strategy: 'managed' },
+      members: [{ ...savedGroup().members[0], target_column: '' }],
+      row_policy: { ...savedGroup().row_policy, record_key_column: 'record_id', group_id_column: 'group_id' },
+      write_policy: { mode: 'append', dedupe_capability: 'receipt' },
+    });
+    const canonical = {
+      ...initial,
+      destination: { ...initial.destination, table_name: 'gw_group_server' },
+      members: [{ ...initial.members[0], target_column: 'v_server' }],
+    };
+    api.list.mockResolvedValue(list([initial]));
+    api.update.mockResolvedValue({ workspace_revision: 'wrev-2', group: canonical });
+    renderSection();
+    fireEvent.click(await screen.findByTestId('group-open-group-1'));
+    fireEvent.change(await screen.findByTestId('group-name'), { target: { value: 'Managed line' } });
+    fireEvent.click(screen.getByTestId('group-save'));
+    await waitFor(() => expect(api.update).toHaveBeenCalledTimes(1));
+    expect(await screen.findByTestId('group-table')).toHaveValue('gw_group_server');
+    expect(screen.getByTestId('group-member-column-pt-0')).toHaveValue('v_server');
     expect(screen.getByTestId('group-saved-note')).toBeInTheDocument();
   });
 
@@ -231,4 +295,3 @@ describe('WriteGroupEditorManagedAndCustom', () => {
     expect(screen.getByTestId('group-member-include-pt-0')).toBeDisabled();
   });
 });
-

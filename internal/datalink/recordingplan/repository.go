@@ -269,7 +269,7 @@ func (r *SQLRepository) SavePreviewToken(ctx context.Context, token *SchemaPrevi
 	if err != nil {
 		return fmt.Errorf("encode preview statements: %w", err)
 	}
-	tablesJSON, err := json.Marshal(token.Tables)
+	tablesJSON, err := encodePreviewTables(token)
 	if err != nil {
 		return fmt.Errorf("encode preview tables: %w", err)
 	}
@@ -320,8 +320,8 @@ func (r *SQLRepository) GetPreviewToken(ctx context.Context, token string) (*Sch
 	if err := json.Unmarshal([]byte(stmtsStr), &t.Statements); err != nil {
 		return nil, fmt.Errorf("decode preview statements: %w", err)
 	}
-	if err := json.Unmarshal([]byte(tablesStr), &t.Tables); err != nil {
-		return nil, fmt.Errorf("decode preview tables: %w", err)
+	if err := decodePreviewTables(tablesStr, &t); err != nil {
+		return nil, err
 	}
 	return &t, nil
 }

@@ -3,6 +3,7 @@ package recordingplan
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 )
@@ -149,7 +150,7 @@ func (r *MemoryRepository) SavePreviewToken(ctx context.Context, token *SchemaPr
 	if token.CreatedAt.IsZero() {
 		token.CreatedAt = time.Now().UTC()
 	}
-	r.tokens[token.Token] = *token
+	r.tokens[token.Token] = clonePreviewToken(*token)
 	return nil
 }
 
@@ -162,8 +163,22 @@ func (r *MemoryRepository) GetPreviewToken(ctx context.Context, token string) (*
 	if !exists {
 		return nil, fmt.Errorf("%w: %s", ErrPreviewTokenNotFound, token)
 	}
-	copyToken := t
+	copyToken := clonePreviewToken(t)
 	return &copyToken, nil
+}
+
+func clonePreviewToken(token SchemaPreviewToken) SchemaPreviewToken {
+	token.Statements = slices.Clone(token.Statements)
+	token.Tables = slices.Clone(token.Tables)
+	for i := range token.Tables {
+		token.Tables[i].Columns = slices.Clone(token.Tables[i].Columns)
+	}
+	if token.GroupLayout != nil {
+		layout := *token.GroupLayout
+		layout.Columns = slices.Clone(layout.Columns)
+		token.GroupLayout = &layout
+	}
+	return token
 }
 
 // DeletePreviewToken 刪除預覽 Token。

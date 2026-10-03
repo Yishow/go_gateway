@@ -5,8 +5,11 @@ import type {
   WriteGroupListResponse,
   WriteGroupMutationResponse,
   WriteGroupReadiness,
+  WriteGroupSchemaApplyRequest,
+  WriteGroupSchemaPreviewRequest,
   WriteGroupUpdateRequest,
 } from '../types/studioV2WriteGroup';
+import type { SchemaOperation, SchemaPreviewToken } from '../types/recordingPlan';
 import {
   parseWriteGroupAPIData,
   parseWriteGroupListData,
@@ -24,6 +27,11 @@ import {
   parseWriteGroupTestWritePreview,
 } from '../utils/studioV2WriteGroupTestWriteJson';
 import { parseWriteGroupDeliveryData } from '../utils/studioV2WriteGroupDeliveryJson';
+import {
+  parseRecordingAPIData,
+  parseRecordingSchemaOperation,
+  parseRecordingSchemaPreviewToken,
+} from '../utils/recordingPlanJson';
 import { studioV2DatalinkApi } from './studioV2Workspace';
 
 function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
@@ -38,7 +46,7 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
       ...(member.source_revision ? { source_revision: member.source_revision } : {}),
       ...(member.mapping_revision ? { mapping_revision: member.mapping_revision } : {}),
       ...(member.measurement_id ? { measurement_id: member.measurement_id } : {}),
-      target_column: member.target_column,
+      target_column: member.target_column?.trim() ?? '',
       required: member.required,
       ...(member.max_age_seconds !== undefined ? { max_age_seconds: member.max_age_seconds } : {}),
     })),
@@ -59,6 +67,10 @@ function cloneWriteGroupDraft(draft: WriteGroupDraft): WriteGroupDraft {
       ...(draft.row_policy.value_column ? { value_column: draft.row_policy.value_column } : {}),
       ...(draft.row_policy.quality_column ? { quality_column: draft.row_policy.quality_column } : {}),
       ...(draft.row_policy.provenance_column ? { provenance_column: draft.row_policy.provenance_column } : {}),
+      ...(draft.row_policy.record_key_column ? { record_key_column: draft.row_policy.record_key_column } : {}),
+      ...(draft.row_policy.bucket_start_column ? { bucket_start_column: draft.row_policy.bucket_start_column } : {}),
+      ...(draft.row_policy.group_id_column ? { group_id_column: draft.row_policy.group_id_column } : {}),
+      ...(draft.row_policy.device_id_column ? { device_id_column: draft.row_policy.device_id_column } : {}),
     },
     write_policy: {
       ...(draft.write_policy.mode ? { mode: draft.write_policy.mode } : {}),
@@ -93,6 +105,50 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/readiness`,
     );
     return parseWriteGroupAPIData(res.data, 'write-group readiness', parseWriteGroupReadinessData);
+  },
+
+  /** Read-only managed schema preview; the server resolves table and SQL from the saved group. */
+  async schemaPreview(id: string, request: WriteGroupSchemaPreviewRequest): Promise<SchemaPreviewToken> {
+    const payload: WriteGroupSchemaPreviewRequest = {
+      workspace_id: request.workspace_id,
+      expected_workspace_revision: request.expected_workspace_revision,
+      expected_group_revision: request.expected_group_revision,
+      expected_connector_revision: request.expected_connector_revision,
+    };
+    const res = await studioV2DatalinkApi.post<unknown>(
+      `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/schema-preview`,
+      payload,
+    );
+    return parseRecordingAPIData(
+      res.data,
+      'write-group schema preview',
+      (data) => parseRecordingSchemaPreviewToken(data, { requireGroupLayout: true }),
+    );
+  },
+
+  /** Explicitly confirms the stored preview operation; no client table or SQL is accepted. */
+  async schemaApply(id: string, request: WriteGroupSchemaApplyRequest): Promise<SchemaOperation> {
+    const payload: WriteGroupSchemaApplyRequest = {
+      workspace_id: request.workspace_id,
+      expected_workspace_revision: request.expected_workspace_revision,
+      expected_group_revision: request.expected_group_revision,
+      expected_connector_revision: request.expected_connector_revision,
+      token: request.token,
+      operation_id: request.operation_id,
+    };
+    const res = await studioV2DatalinkApi.post<unknown>(
+      `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/schema-apply`,
+      payload,
+    );
+    return parseRecordingAPIData(res.data, 'write-group schema apply', parseRecordingSchemaOperation);
+  },
+
+  /** Reads the durable operation once; callers must never retry DDL automatically. */
+  async schemaOperation(operationId: string): Promise<SchemaOperation> {
+    const res = await studioV2DatalinkApi.get<unknown>(
+      `/studio-v2/workspace/database-operations/${encodeURIComponent(operationId)}`,
+    );
+    return parseRecordingAPIData(res.data, 'write-group schema operation', parseRecordingSchemaOperation);
   },
 
   /** Durable delivery truth: only `sql_committed` rows were confirmed by the destination. */

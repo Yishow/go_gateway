@@ -176,6 +176,7 @@ function parseWriteGroupRowPolicy(value: unknown, status: WriteGroupStatus): Wri
 
   const optionalKeys = [
     'incomplete_policy', 'entity_key_column', 'value_column', 'quality_column', 'provenance_column',
+    'record_key_column', 'bucket_start_column', 'group_id_column', 'device_id_column',
   ] as const;
   const optionalValues = optionalKeys.map((key) => readOptionalText(value, key));
   const groupKeyColumns = parseOptionalStringArray(value, 'group_key_columns');

@@ -101,6 +101,21 @@ export interface SchemaPreviewTable {
   columns: string[];
 }
 
+/** Server-resolved exact layout for a canonical managed WriteGroup. */
+export interface GroupSchemaColumn {
+  name: string;
+  sql_type: string;
+  nullable: boolean;
+  primary_key: boolean;
+}
+
+export interface GroupSchemaLayout {
+  table_name: string;
+  columns: GroupSchemaColumn[];
+  /** Internal ownership marker; UI may use it to hide implementation detail. */
+  owner_column: string;
+}
+
 /** Server-issued preview bound to the saved workspace, plan and connector revisions. */
 export interface SchemaPreviewToken {
   token: string;
@@ -115,9 +130,14 @@ export interface SchemaPreviewToken {
   dialect?: string;
   database?: string;
   schema?: string;
+  /** Legacy table scope; managed group previews may leave it empty when group_layout is present. */
   table_prefix: string;
   statements: string[];
   tables: SchemaPreviewTable[];
+  group_layout?: GroupSchemaLayout;
+  source_digest?: string;
+  schema_revision?: string;
+  schema_digest?: string;
   no_change_reason?: string;
   digest: string;
   expires_at: string;

@@ -3,6 +3,7 @@ package recordingplan
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -165,10 +166,34 @@ type SchemaPreviewToken struct {
 	TablePrefix       string               `json:"table_prefix"`
 	Statements        []string             `json:"statements"`
 	Tables            []SchemaPreviewTable `json:"tables"`
-	NoChangeReason    string               `json:"no_change_reason,omitempty"`
-	Digest            string               `json:"digest"`
-	ExpiresAt         time.Time            `json:"expires_at"`
-	CreatedAt         time.Time            `json:"created_at"`
+	// GroupLayout is set only for canonical WriteGroup managed preparation.
+	// Legacy recording-plan previews leave it nil so their digest and storage
+	// format remain compatible with tokens issued before group preparation.
+	GroupLayout    *GroupSchemaLayout `json:"group_layout,omitempty"`
+	SourceDigest   string             `json:"source_digest,omitempty"`
+	SchemaRevision string             `json:"schema_revision,omitempty"`
+	SchemaDigest   string             `json:"schema_digest,omitempty"`
+	NoChangeReason string             `json:"no_change_reason,omitempty"`
+	Digest         string             `json:"digest"`
+	ExpiresAt      time.Time          `json:"expires_at"`
+	CreatedAt      time.Time          `json:"created_at"`
+}
+
+// GroupSchemaLayout is the server-resolved, persisted layout for a canonical
+// WriteGroup managed table. SQL is generated from this value; callers never
+// provide statements.
+type GroupSchemaLayout struct {
+	TableName   string              `json:"table_name"`
+	Columns     []GroupSchemaColumn `json:"columns"`
+	OwnerColumn string              `json:"owner_column"`
+}
+
+// GroupSchemaColumn describes one exact managed column.
+type GroupSchemaColumn struct {
+	Name       string `json:"name"`
+	SQLType    string `json:"sql_type"`
+	Nullable   bool   `json:"nullable"`
+	PrimaryKey bool   `json:"primary_key"`
 }
 
 const (
@@ -194,8 +219,20 @@ func (t *SchemaPreviewToken) IsExpired() bool {
 // with another active operation. Callers outside this package use it to claim
 // or inspect operations of the ledger directly.
 func (t *SchemaPreviewToken) ScopeKey() string {
-	sum := sha256.Sum256([]byte(strings.Join([]string{
+	parts := []string{
 		t.WorkspaceID, t.ConnectorID, t.Database, t.Schema, t.TablePrefix,
-	}, "\x1f")))
+	}
+	if t.GroupLayout != nil {
+		// Group operations also include their exact target layout in the scope
+		// identity. Keep the legacy five-field key unchanged for old tokens.
+		layout, err := json.Marshal(t.GroupLayout)
+		if err != nil {
+			// GroupSchemaLayout contains only JSON-safe fields. An error means the
+			// scope cannot be represented safely, so refuse to derive a normal key.
+			return ""
+		}
+		parts = append(parts, string(layout))
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x1f")))
 	return hex.EncodeToString(sum[:])
 }

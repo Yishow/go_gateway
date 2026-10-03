@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"go-gateway/internal/datalink/dbtarget"
+	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/schema"
 )
 
@@ -45,13 +46,6 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 		result.Issues = append(result.Issues, validateBasicWriteGroupConfig(snapshot.validated)...)
 	}
 	result.ConfigReady = len(result.Issues) == 0
-	if s.tableInspector == nil {
-		result.SchemaReady = false
-		result.Issues = append(result.Issues, writeGroupReadinessIssue(
-			"schema-unverified", "destination schema has not been verified", id,
-		))
-		return finalizeWriteGroupReadiness(result), nil
-	}
 	if !result.ConfigReady {
 		result.SchemaReady = false
 		result.Issues = append(result.Issues, writeGroupReadinessIssue(
@@ -59,23 +53,87 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 		))
 		return finalizeWriteGroupReadiness(result), nil
 	}
-
-	allowed, issue := allowWriteGroupTableInspection(snapshot)
-	if !allowed {
+	managedCanonical := snapshot.validated.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && snapshot.validated.RowPolicy.RecordKeyColumn != ""
+	if managedCanonical {
+		if s.managedTableInspector == nil {
+			result.SchemaReady = false
+			result.Issues = append(result.Issues, writeGroupReadinessIssue(
+				"schema-unverified", "managed destination schema has not been verified", id,
+			))
+			return finalizeWriteGroupReadiness(result), nil
+		}
+	} else if s.tableInspector == nil {
 		result.SchemaReady = false
-		result.Issues = append(result.Issues, issue)
+		result.Issues = append(result.Issues, writeGroupReadinessIssue(
+			"schema-unverified", "destination schema has not been verified", id,
+		))
 		return finalizeWriteGroupReadiness(result), nil
 	}
-	inspection, inspectErr := s.tableInspector.InspectTable(ctx,
-		snapshot.validated.Destination.ConnectorID,
-		snapshot.validated.Destination.TableSchema,
-		snapshot.validated.Destination.TableName,
-	)
+	if snapshot.group.Destination.StorageStrategy == WriteGroupStorageStrategyManaged && snapshot.group.RowPolicy.RecordKeyColumn != "" &&
+		(snapshot.group.Destination.SchemaRevision == "" || snapshot.group.Destination.SchemaDigest == "") {
+		result.Issues = append(result.Issues, writeGroupReadinessIssue("schema-confirmation-required", "preview and explicitly confirm the saved managed table before applying", id))
+		return finalizeWriteGroupReadiness(result), nil
+	}
+
+	if managedCanonical {
+		allowed, issue := allowManagedWriteGroupSchemaScope(snapshot)
+		if !allowed {
+			result.SchemaReady = false
+			result.Issues = append(result.Issues, issue)
+			return finalizeWriteGroupReadiness(result), nil
+		}
+	}
+	if !managedCanonical {
+		allowed, issue := allowWriteGroupTableInspection(snapshot)
+		if !allowed {
+			result.SchemaReady = false
+			result.Issues = append(result.Issues, issue)
+			return finalizeWriteGroupReadiness(result), nil
+		}
+	}
+	var inspection *dbtarget.TableInspection
+	var inspectErr error
+	if managedCanonical {
+		inspection, inspectErr = s.managedTableInspector.InspectTableAtRevision(ctx,
+			snapshot.validated.Destination.ConnectorID,
+			snapshot.validated.Destination.ConnectorRevision,
+			snapshot.validated.Destination.TableSchema,
+			snapshot.validated.Destination.TableName,
+		)
+	} else {
+		inspection, inspectErr = s.tableInspector.InspectTable(ctx,
+			snapshot.validated.Destination.ConnectorID,
+			snapshot.validated.Destination.TableSchema,
+			snapshot.validated.Destination.TableName,
+		)
+	}
+	if managedCanonical && inspectErr == nil {
+		allowed, issue := allowWriteGroupTableInspection(snapshot)
+		if !allowed {
+			result.SchemaReady = false
+			result.Issues = append(result.Issues, issue)
+			return finalizeWriteGroupReadiness(result), nil
+		}
+	}
 	receiptReady := false
 	if inspectErr == nil && strings.EqualFold(strings.TrimSpace(snapshot.validated.WritePolicy.DedupeCapability), "receipt") {
-		receipts, receiptErr := s.tableInspector.InspectTable(ctx, snapshot.validated.Destination.ConnectorID,
-			snapshot.validated.Destination.TableSchema, dbtarget.EffectReceiptTable)
+		var receipts *dbtarget.TableInspection
+		var receiptErr error
+		if managedCanonical {
+			receipts, receiptErr = s.managedTableInspector.InspectTableAtRevision(ctx,
+				snapshot.validated.Destination.ConnectorID,
+				snapshot.validated.Destination.ConnectorRevision,
+				snapshot.validated.Destination.TableSchema, dbtarget.EffectReceiptTable)
+		} else {
+			receipts, receiptErr = s.tableInspector.InspectTable(ctx, snapshot.validated.Destination.ConnectorID,
+				snapshot.validated.Destination.TableSchema, dbtarget.EffectReceiptTable)
+		}
 		receiptReady = receiptErr == nil && receipts != nil && receipts.Status == dbtarget.TableInspectionExists
+		if managedCanonical && receiptReady {
+			receiptReady = recordingplan.ValidateManagedReceiptTableInspection(
+				snapshot.connectorKind, recordingPlanTableInspection(receipts),
+			) == nil
+		}
 	}
 	postSnapshot, err := s.readinessSnapshot(ctx, id)
 	if err != nil {
@@ -109,6 +167,12 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 	schemaReady, schemaIssues := evaluateWriteGroupInspection(
 		postSnapshot.validated, postSnapshot.tagTypes, inspection, postSnapshot.connectorKind,
 	)
+	if managedCanonical && strings.EqualFold(strings.TrimSpace(postSnapshot.validated.WritePolicy.DedupeCapability), "receipt") && !receiptReady {
+		schemaReady = false
+		schemaIssues = append(schemaIssues, writeGroupReadinessIssue(
+			"managed-receipt-unverified", "managed receipt ownership and canonical schema could not be verified", id,
+		))
+	}
 	partialIssues := evaluateWriteGroupPartialInspection(postSnapshot.validated, postSnapshot.tagTypes, inspection, postSnapshot.connectorKind)
 	schemaIssues = append(schemaIssues, partialIssues...)
 	schemaReady = schemaReady && len(partialIssues) == 0

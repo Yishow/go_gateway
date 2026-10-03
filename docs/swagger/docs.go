@@ -1734,6 +1734,161 @@ const docTemplate = `{
                 }
             }
         },
+        "/datalink/studio-v2/workspace/write-groups/{id}/schema-apply": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Confirm a canonical write group's managed schema",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Preview token, operation and revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSchemaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "501": {
+                        "description": "Not Implemented",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/datalink/studio-v2/workspace/write-groups/{id}/schema-preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Preview a canonical write group's managed schema",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Saved group revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupSchemaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/datalink/studio-v2/workspace/write-groups/{id}/test-write": {
             "post": {
                 "description": "Writes one operation-owned test row through the production row codec, reads it back, then removes only that row. Results keep write verification and cleanup status separate.",
@@ -2088,6 +2243,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "groupdelivery.BucketIssue": {
+            "type": "object",
+            "properties": {
+                "bucket_start": {
+                    "type": "string"
+                },
+                "causes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                }
+            }
+        },
         "groupdelivery.QuotaScope": {
             "type": "string",
             "enum": [
@@ -2180,6 +2355,12 @@ const docTemplate = `{
                 },
                 "quota": {
                     "$ref": "#/definitions/groupdelivery.QuotaStatusView"
+                },
+                "recent_bucket_issues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/groupdelivery.BucketIssue"
+                    }
                 },
                 "skipped_buckets": {
                     "type": "integer"
@@ -2614,6 +2795,29 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupSchemaRequest": {
+            "type": "object",
+            "properties": {
+                "expected_connector_revision": {
+                    "type": "string"
+                },
+                "expected_group_revision": {
+                    "type": "string"
+                },
+                "expected_workspace_revision": {
+                    "type": "string"
+                },
+                "operation_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
                 }
             }
         },
@@ -4062,7 +4266,16 @@ const docTemplate = `{
                 "allowed_lateness_seconds": {
                     "type": "integer"
                 },
+                "bucket_start_column": {
+                    "type": "string"
+                },
+                "device_id_column": {
+                    "type": "string"
+                },
                 "entity_key_column": {
+                    "type": "string"
+                },
+                "group_id_column": {
                     "type": "string"
                 },
                 "group_key_columns": {
@@ -4081,6 +4294,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "quality_column": {
+                    "type": "string"
+                },
+                "record_key_column": {
                     "type": "string"
                 },
                 "unique_key_columns": {

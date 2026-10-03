@@ -45,6 +45,11 @@ export interface WriteGroupRowPolicy {
   value_column?: string;
   quality_column?: string;
   provenance_column?: string;
+  /** Server-owned managed layout bindings. They are retained when editing a saved group. */
+  record_key_column?: string;
+  bucket_start_column?: string;
+  group_id_column?: string;
+  device_id_column?: string;
 }
 
 export interface WriteGroupWritePolicy {
@@ -121,6 +126,20 @@ export interface WriteGroupDeleteRequest {
   expected_workspace_revision: string;
   expected_group_revision: string;
   expected_connector_revision: string;
+}
+
+/** Revision-only scope accepted by canonical group schema preview. */
+export interface WriteGroupSchemaPreviewRequest {
+  workspace_id: string;
+  expected_workspace_revision: string;
+  expected_group_revision: string;
+  expected_connector_revision: string;
+}
+
+/** Explicit confirmation of the exact preview operation. */
+export interface WriteGroupSchemaApplyRequest extends WriteGroupSchemaPreviewRequest {
+  token: string;
+  operation_id: string;
 }
 
 /** Read-only local configuration and verified destination schema gate. */

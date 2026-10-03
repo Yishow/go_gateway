@@ -37,6 +37,10 @@ type GroupRowSpec struct {
 	RecordKeyColumn   string
 	BucketStartColumn string
 	ProvenanceColumn  string
+	GroupIDColumn     string
+	GroupID           string
+	DeviceIDColumn    string
+	DeviceID          string
 }
 
 // Safe layout issue and encoding error codes. They never contain values.
@@ -156,6 +160,8 @@ func NewGroupRowLayout(spec GroupRowSpec) (*GroupRowLayout, []LayoutIssue) {
 		{spec.EntityKeyColumn, func(c ColumnInfo) bool { return isTextColumn(spec.Dialect, c) }},
 		{spec.BucketStartColumn, func(c ColumnInfo) bool { return bucketColumnKind(spec.Dialect, c) != bucketUnsupported }},
 		{spec.ProvenanceColumn, func(c ColumnInfo) bool { return isProvenanceColumn(spec.Dialect, c) }},
+		{spec.GroupIDColumn, func(c ColumnInfo) bool { return isTextColumn(spec.Dialect, c) && spec.GroupID != "" }},
+		{spec.DeviceIDColumn, func(c ColumnInfo) bool { return isTextColumn(spec.Dialect, c) && spec.DeviceID != "" }},
 	}
 	if len(entityKeys) == 0 {
 		entityKeys = append(entityKeys, "")
@@ -324,6 +330,12 @@ func (l *GroupRowLayout) appendIdentityCells(encoded *EncodedRow, outcome snapsh
 		return nil
 	}
 	if err := text(l.spec.RecordKeyColumn, outcome.RecordID); err != nil {
+		return err
+	}
+	if err := text(l.spec.GroupIDColumn, l.spec.GroupID); err != nil {
+		return err
+	}
+	if err := text(l.spec.DeviceIDColumn, l.spec.DeviceID); err != nil {
 		return err
 	}
 	if name := l.spec.BucketStartColumn; name != "" {

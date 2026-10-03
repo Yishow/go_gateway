@@ -22,6 +22,7 @@ import { GroupDeliveryStrip } from './GroupDeliveryStrip';
 import { GroupLifecycleBar } from './GroupLifecycleBar';
 import { GroupMemberTable } from './GroupMemberTable';
 import { GroupReadinessPanel } from './GroupReadinessPanel';
+import { GroupSchemaPanel } from './GroupSchemaPanel';
 import { GroupTestWritePanel } from './GroupTestWritePanel';
 
 export interface GroupEditorProps {
@@ -58,10 +59,16 @@ function destinationSaved(connector: DbConnector): boolean {
  * revision and never the local checks alone.
  */
 export const GroupEditor: React.FC<GroupEditorProps> = ({
-  group, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest,
+  group: propGroup, workspaceId, workspaceRevision, connector, candidates, excluded, readonly, onClose, onSaved, onReload, fetchLatest,
 }) => {
   const { t } = useTranslation('workbench-v2');
   const saved = destinationSaved(connector);
+  // Keep the just-returned canonical group visible while the list query is
+  // refetching. This prevents stale list data from making server-assigned
+  // managed table/columns look dirty again.
+  const [editorGroup, setEditorGroup] = useState<WriteGroup | undefined>(propGroup);
+  const previousPropGroup = useRef(propGroup);
+  const group = editorGroup;
   const [draft, setDraft] = useState<EditorDraft>(() => group ? groupToDraft(group) : newDraft({
     connector_id: connector.connector_id ?? '', connector_revision: connector.identity_revision ?? '',
     table_schema: connector.schema ?? '', table_name: connector.table ?? '',
@@ -71,6 +78,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
   const createMutation = useCreateWriteGroupMutation();
   const updateMutation = useUpdateWriteGroupMutation();
   const savingRef = useRef(false);
+  const customDedupeRef = useRef(draft.dedupe_capability);
   const mountedRef = useRef(false);
   useEffect(() => {
     mountedRef.current = true;
@@ -83,7 +91,17 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   useEffect(() => {
-    if (group && !dirtyRef.current) setDraft(groupToDraft(group));
+    if (previousPropGroup.current !== propGroup && !dirtyRef.current) {
+      previousPropGroup.current = propGroup;
+      setEditorGroup(propGroup);
+    }
+  }, [propGroup]);
+  useEffect(() => {
+    if (group && !dirtyRef.current) {
+      const next = groupToDraft(group);
+      customDedupeRef.current = next.dedupe_capability;
+      setDraft(next);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision]);
 
@@ -95,20 +113,33 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
   const tableSaved = group
     ? draft.table_name === group.destination.table_name && draft.table_schema === group.destination.table_schema
     : draft.table_name === connector.table && draft.table_schema === connector.schema;
-  const metadata = useStep4TargetColumns(destinationMatches && tableSaved ? scopedConnector : { ...scopedConnector, persisted: false },
+  const metadata = useStep4TargetColumns(destinationMatches && tableSaved && (draft.storage_strategy === 'custom' || Boolean(group)) ? scopedConnector : { ...scopedConnector, persisted: false },
     group ? { groupId: group.id, groupRevision: group.revision } : undefined);
+  // A new managed group has no target table to inspect. Present an empty
+  // server-owned column view so the editor never asks for manual assignments.
+  const editorMetadata = draft.storage_strategy === 'managed' && !group
+    ? { ...metadata, status: 'exists' as const, columns: [] }
+    : metadata;
   const dialect = connector.kind === 'postgres' ? 'postgres' : connector.kind === 'sqlite' ? 'sqlite' : 'portable';
   const confirmed = useMemo(
     () => Object.fromEntries(draft.members.filter((m) => m.target_column).map((m) => [m.key, m.target_column])),
     [draft.members],
   );
   const suggestions = useMemo(
-    () => (metadata.status === 'exists' ? suggestColumns(candidates, metadata.columns, confirmed, dialect) : { assignments: {}, unmatched: candidates.map((c) => c.key) }),
-    [candidates, metadata.columns, metadata.status, confirmed, dialect],
+    () => (editorMetadata.status === 'exists' ? suggestColumns(candidates, editorMetadata.columns, confirmed, dialect) : { assignments: {}, unmatched: candidates.map((c) => c.key) }),
+    [candidates, editorMetadata.columns, editorMetadata.status, confirmed, dialect],
   );
-  const issues = validateDraft(draft, { destinationSaved: saved && destinationMatches });
+  const issues = validateDraft(draft, { destinationSaved: saved && destinationMatches, storageStrategy: draft.storage_strategy });
   const readiness = useWriteGroupReadinessQuery(group?.id, Boolean(group) && !dirty);
   const set = (patch: Partial<EditorDraft>) => setDraft((current) => ({ ...current, ...patch }));
+  const changeStorageStrategy = (storage_strategy: WriteGroupStorageStrategy) => setDraft((current) => {
+    if (storage_strategy === current.storage_strategy) return current;
+    if (storage_strategy === 'managed') {
+      customDedupeRef.current = current.dedupe_capability;
+      return { ...current, storage_strategy, dedupe_capability: 'receipt' };
+    }
+    return { ...current, storage_strategy, dedupe_capability: customDedupeRef.current };
+  });
 
   const handleSave = async () => {
     if (savingRef.current || issues.length > 0 || readonly) return;
@@ -134,8 +165,12 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
         : await createMutation.mutateAsync({
           workspace_id: workspaceId, expected_workspace_revision: freshRevision,
           expected_connector_revision: draft.connector_revision, group: body,
-        });
+      });
       if (mountedRef.current) {
+        // Adopt every server-assigned managed column and binding before the
+        // parent refetches. Server proof stays outside the editable draft.
+        setDraft(groupToDraft(result.group));
+        setEditorGroup(result.group);
         setConflict(false);
         onSaved(result.group);
       }
@@ -198,7 +233,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
           <legend>{t('step4.group.editor.storage')}</legend>
           {(['custom', 'managed'] as WriteGroupStorageStrategy[]).map((strategy) => (
             <label key={strategy} className="mr-4 inline-flex items-center gap-1 text-slate-200">
-              <input type="radio" name="group-storage" value={strategy} checked={draft.storage_strategy === strategy} disabled={readonly} onChange={() => set({ storage_strategy: strategy })} data-testid={`group-storage-${strategy}`} />
+              <input type="radio" name="group-storage" value={strategy} checked={draft.storage_strategy === strategy} disabled={readonly} onChange={() => changeStorageStrategy(strategy)} data-testid={`group-storage-${strategy}`} />
               {t(`step4.group.editor.storage_${strategy}`)}
             </label>
           ))}
@@ -207,6 +242,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
         <label className="text-xs text-slate-400">
           {t('step4.group.editor.table')}
           <input type="text" value={draft.table_name} disabled={readonly} onChange={(event) => set({ table_name: event.target.value })} className={FIELD} data-testid="group-table" />
+          {draft.storage_strategy === 'managed' && <span className="mt-1 block text-[11px] text-slate-500">{t('step4.group.editor.table_managed_note')}</span>}
         </label>
         <label className="text-xs text-slate-400">
           {t('step4.group.editor.schema')}
@@ -230,8 +266,8 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
             </select>
           </label>
           <label className="text-xs text-slate-400">{t('step4.group.editor.dedupe')}
-            <select value={draft.dedupe_capability} disabled={readonly} onChange={(event) => set({ dedupe_capability: event.target.value })} className={FIELD} data-testid="group-dedupe">
-              <option value="">{t('step4.group.editor.dedupe_none')}</option>
+            <select value={draft.storage_strategy === 'managed' ? 'receipt' : draft.dedupe_capability} disabled={readonly || draft.storage_strategy === 'managed'} onChange={(event) => { customDedupeRef.current = event.target.value; set({ dedupe_capability: event.target.value }); }} className={FIELD} data-testid="group-dedupe">
+              {draft.storage_strategy !== 'managed' && <option value="">{t('step4.group.editor.dedupe_none')}</option>}
               <option value="receipt">{t('step4.group.editor.dedupe_receipt')}</option>
             </select>
           </label>
@@ -246,23 +282,39 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
 
       <GroupMemberTable
         dialect={dialect}
-        candidates={candidates} excluded={excluded} members={draft.members} columns={metadata.columns} metadataStatus={metadata.status}
+        candidates={candidates} excluded={excluded} members={draft.members} columns={editorMetadata.columns} metadataStatus={editorMetadata.status}
         suggestions={suggestions} issues={issues} showEntityKey={draft.entity_key_column.trim() !== ''} disabled={readonly}
         onChange={(members) => set({ members })}
       />
       <GroupColumnProposal
         dialect={dialect}
         managed={draft.storage_strategy === 'managed'}
-        existingColumns={metadata.columns.map((column) => column.name)}
+        existingColumns={editorMetadata.columns.map((column) => column.name)}
         unmatched={candidates.filter((candidate) => {
           const member = draft.members.find((entry) => entry.key === candidate.key);
           if (!member) return false;
           const column = metadata.columns.find((entry) => entry.name === member.target_column);
-          return metadata.status === 'exists' && (!member.target_column || !column);
+          return editorMetadata.status === 'exists' && (!member.target_column || !column);
         })}
       />
-      {metadata.status === 'failed' && (
+      {editorMetadata.status === 'failed' && (
         <button type="button" onClick={metadata.refetch} className="text-xs underline" data-testid="group-metadata-retry">{t('step4.group.retry')}</button>
+      )}
+
+      {draft.storage_strategy === 'managed' && (
+        <GroupSchemaPanel
+          group={group}
+          workspaceId={workspaceId}
+          workspaceRevision={workspaceRevision}
+          destinationMatches={destinationMatches}
+          dirty={dirty}
+          readonly={readonly}
+          onApplied={() => {
+            metadata.refetch();
+            void readiness.refetch();
+            onReload();
+          }}
+        />
       )}
 
       {issues.length > 0 && (

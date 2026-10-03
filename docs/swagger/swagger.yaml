@@ -1,5 +1,18 @@
 basePath: /api
 definitions:
+  groupdelivery.BucketIssue:
+    properties:
+      bucket_start:
+        type: string
+      causes:
+        items:
+          type: string
+        type: array
+      group_revision:
+        type: string
+      kind:
+        type: string
+    type: object
   groupdelivery.QuotaScope:
     enum:
     - global
@@ -62,6 +75,10 @@ definitions:
         type: number
       quota:
         $ref: '#/definitions/groupdelivery.QuotaStatusView'
+      recent_bucket_issues:
+        items:
+          $ref: '#/definitions/groupdelivery.BucketIssue'
+        type: array
       skipped_buckets:
         type: integer
       stages:
@@ -347,6 +364,21 @@ definitions:
         $ref: '#/definitions/workspace.WriteGroupSaveResult'
       success:
         type: boolean
+    type: object
+  handlers.WriteGroupSchemaRequest:
+    properties:
+      expected_connector_revision:
+        type: string
+      expected_group_revision:
+        type: string
+      expected_workspace_revision:
+        type: string
+      operation_id:
+        type: string
+      token:
+        type: string
+      workspace_id:
+        type: string
     type: object
   handlers.WriteGroupTestWriteConfirmRequest:
     properties:
@@ -1337,7 +1369,13 @@ definitions:
     properties:
       allowed_lateness_seconds:
         type: integer
+      bucket_start_column:
+        type: string
+      device_id_column:
+        type: string
       entity_key_column:
+        type: string
+      group_id_column:
         type: string
       group_key_columns:
         items:
@@ -1350,6 +1388,8 @@ definitions:
       provenance_column:
         type: string
       quality_column:
+        type: string
+      record_key_column:
         type: string
       unique_key_columns:
         items:
@@ -2279,6 +2319,109 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponse'
       summary: Check canonical write-group configuration and schema
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/schema-apply:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Preview token, operation and revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupSchemaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "501":
+          description: Not Implemented
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Confirm a canonical write group's managed schema
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/schema-preview:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Saved group revisions
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.WriteGroupSchemaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Preview a canonical write group's managed schema
       tags:
       - Studio V2 Write Groups
   /datalink/studio-v2/workspace/write-groups/{id}/test-write:

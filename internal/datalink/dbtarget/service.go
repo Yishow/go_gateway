@@ -379,7 +379,7 @@ func inspectSQLiteTables(ctx context.Context, db *sql.DB) ([]TableInfo, error) {
 		}
 
 		table := TableInfo{
-			Schema: "main",
+			Schema: managedSQLiteSchemaName,
 			Name:   tableName,
 		}
 		for columnRows.Next() {
@@ -507,6 +507,8 @@ func inspectPostgresTables(ctx context.Context, db *sql.DB) ([]TableInfo, error)
 				SELECT
 					c.column_name,
 					c.data_type,
+					c.numeric_precision,
+					c.numeric_scale,
 					(c.is_nullable = 'YES') AS is_nullable,
 					EXISTS (
 						SELECT 1
@@ -557,13 +559,7 @@ func inspectPostgresTables(ctx context.Context, db *sql.DB) ([]TableInfo, error)
 		}
 		for columnRows.Next() {
 			var column ColumnInfo
-			if err := columnRows.Scan(
-				&column.Name,
-				&column.DataType,
-				&column.Nullable,
-				&column.PrimaryKey,
-				&column.Unique,
-			); err != nil {
+			if err := scanPostgresColumn(columnRows, &column); err != nil {
 				columnRows.Close()
 				return nil, fmt.Errorf("掃描 postgres 欄位失敗: %w", err)
 			}
@@ -773,7 +769,7 @@ func defaultSchemaForKind(kind schema.DatabaseConnectorKind) string {
 	if kind == schema.DatabaseConnectorKindPostgres {
 		return "public"
 	}
-	return "main"
+	return managedSQLiteSchemaName
 }
 
 func stringConfigValue(config ConnectionConfig, key string) string {
