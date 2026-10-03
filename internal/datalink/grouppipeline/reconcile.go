@@ -86,6 +86,15 @@ func (p *Pipeline) reconcileGroup(ctx context.Context, group *workspace.WriteGro
 		upcoming.AppliedRevision != current.AppliedRevision {
 		snapshots = append(snapshots, upcoming)
 	}
+	// A reconcile can miss the lookahead window. End every older boundary at
+	// the current snapshot's start even when no future snapshot was observed.
+	p.mu.RLock()
+	for _, previous := range p.boundaries {
+		if previous.groupID == group.ID && previous.effective.Before(current.EffectiveAt) {
+			previous.boundary.SetUntil(alignUp(current.EffectiveAt, previous.interval))
+		}
+	}
+	p.mu.RUnlock()
 	built := false
 	for _, snap := range snapshots {
 		key := boundaryKey(group.ID, snap.AppliedRevision)
@@ -178,7 +187,7 @@ func (p *Pipeline) build(ctx context.Context, snap *workspace.WriteGroupAppliedS
 	}
 	return &managed{
 		groupID: group.ID, revision: snap.AppliedRevision, boundary: boundary, members: members,
-		connector: group.Destination.ConnectorID, interval: interval,
+		connector: group.Destination.ConnectorID, interval: interval, effective: snap.EffectiveAt,
 	}, ""
 }
 

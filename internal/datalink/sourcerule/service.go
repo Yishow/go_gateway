@@ -465,7 +465,15 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		return nil, err
 	}
 
-	effectiveEnabled := next.Enabled && deviceRecord.Status == schema.DeviceStatusActive
+	// Points follow the device's activation readiness, like rule creation and
+	// enabling do, not its status: the runtime projection already collects only
+	// from active devices. Tying this to status "active" would switch derived
+	// points and Tag mappings off for a device that is ready but not yet
+	// activated, and nothing re-enables them when it is.
+	effectiveEnabled, err := s.runtimeRuleEnabled(ctx, &next)
+	if err != nil {
+		return nil, err
+	}
 	newLinks := make([]*schema.SourceRuleLink, 0, len(filteredAddresses))
 	updatePlans := make([]pointUpdatePlan, 0, len(filteredAddresses))
 	type pointCreatePlan struct {
@@ -645,37 +653,6 @@ func (s *Service) Disable(ctx context.Context, id string) error {
 
 func (s *Service) Enable(ctx context.Context, id string) error {
 	return s.setEnabled(ctx, id, true)
-}
-
-func (s *Service) SyncDerivedPointState(ctx context.Context) error {
-	rules, err := s.repo.List(ctx, ListFilter{})
-	if err != nil {
-		return fmt.Errorf("列出來源規則失敗: %w", err)
-	}
-
-	for _, rule := range rules {
-		enabled, err := s.runtimeRuleEnabled(ctx, rule)
-		if err != nil {
-			return err
-		}
-		if _, err := s.syncRuleLinksEnabled(ctx, rule.ID, enabled); err != nil {
-			return err
-		}
-		currentLinks, linkErr := s.repo.ListLinks(ctx, rule.ID)
-		if linkErr != nil {
-			return fmt.Errorf("取得來源規則連結失敗: %w", linkErr)
-		}
-		nextLinks := cloneSourceRuleLinks(currentLinks)
-		syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, rule, nextLinks, enabled)
-		if syncErr != nil {
-			return s.finishRollbackErrors(ctx, fmt.Errorf("同步來源規則標籤映射失敗: %w", syncErr), s.rollbackTagMappingSync(ctx, syncResult))
-		}
-		if err := s.replaceRuleLinks(ctx, rule.ID, currentLinks, nextLinks); err != nil {
-			return s.finishRollbackErrors(ctx, err, s.rollbackTagMappingSync(ctx, syncResult))
-		}
-	}
-
-	return nil
 }
 
 func (s *Service) validatePointAddresses(ctx context.Context, deviceID string, keepPointIDs map[string]struct{}, addresses []string) error {

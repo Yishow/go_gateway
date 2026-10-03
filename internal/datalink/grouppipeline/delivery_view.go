@@ -19,6 +19,7 @@ type DeliveryView struct {
 	OldestPendingSeconds float64                       `json:"oldest_pending_seconds"`
 	NoDataBuckets        int                           `json:"no_data_buckets"`
 	SkippedBuckets       int                           `json:"skipped_buckets"`
+	RecentBucketIssues   []groupdelivery.BucketIssue   `json:"recent_bucket_issues"`
 	Backlog              []BacklogView                 `json:"backlog"`
 	Quota                groupdelivery.QuotaStatusView `json:"quota"`
 }
@@ -75,7 +76,8 @@ func (p *Pipeline) Delivery(ctx context.Context, groupID string) (*DeliveryView,
 		},
 		LastSQLCommittedAt: status.LastSQLCommittedAt, OldestPendingSeconds: status.OldestPendingSeconds,
 		NoDataBuckets: status.NoDataBuckets, SkippedBuckets: status.SkippedBuckets,
-		Backlog: make([]BacklogView, 0, len(status.Backlog)), Quota: quota.View(),
+		RecentBucketIssues: status.RecentBucketIssues,
+		Backlog:            make([]BacklogView, 0, len(status.Backlog)), Quota: quota.View(),
 	}
 	for _, entry := range status.Backlog {
 		codes := entry.LastErrorCodes

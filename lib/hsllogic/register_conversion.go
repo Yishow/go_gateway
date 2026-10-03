@@ -1,6 +1,9 @@
 package hsllogic
 
-import "math"
+import (
+	"encoding/binary"
+	"math"
+)
 
 // =============================================================================
 // 暫存器陣列轉換
@@ -19,6 +22,12 @@ func (c *DataConverter) RegistersToValue(registers []uint16, dataType DataType) 
 		return int16(registers[0]) // #nosec G115 -- reinterpret the uint16 register bits as signed int16.
 	case DataTypeUint16:
 		return registers[0]
+	case DataTypeString:
+		buffer := make([]byte, len(registers)*2)
+		for i, register := range registers {
+			binary.BigEndian.PutUint16(buffer[i*2:], register)
+		}
+		return c.ReadString(buffer, 0, len(buffer))
 	case DataTypeInt32:
 		return c.transform.RegistersToInt32(registers)
 	case DataTypeUint32:

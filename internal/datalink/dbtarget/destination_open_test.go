@@ -62,6 +62,40 @@ func TestProductionGroupOutageRecoveryOpenDestinationUnreachableIsTransient(t *t
 	require.NotErrorIs(t, err, ErrDestinationBlocked)
 }
 
+func TestProductionGroupOutageRecoveryOpenDestinationDoesNotCreateAfterSQLiteRenameRace(t *testing.T) {
+	ctx := t.Context()
+	mainDB := openMigratedTestDB(t)
+	targetDSN := createTargetSQLite(t)
+	awayDSN := targetDSN + ".away"
+	connectorRepo := NewSQLConnectorRepository(mainDB)
+	service := NewConnectorService(connectorRepo, NewSQLTargetMappingRepository(mainDB))
+	connector, err := service.Create(ctx, CreateConnectorRequest{
+		Name: "sqlite-target", Kind: schema.DatabaseConnectorKindSQLite, ConnectionConfig: ConnectionConfig{"dsn": targetDSN},
+	})
+	require.NoError(t, err)
+
+	originalOpen := openExternalDBManagerFunc
+	t.Cleanup(func() { openExternalDBManagerFunc = originalOpen })
+	openExternalDBManagerFunc = func(kind schema.DatabaseConnectorKind, config ConnectionConfig) (*datalinkbase.DBManager, error) {
+		require.NoError(t, os.Rename(targetDSN, awayDSN))
+		return originalOpen(kind, config)
+	}
+
+	opened, err := service.OpenDestination(ctx, connector.ID, connector.IdentityRevision)
+	if opened != nil {
+		require.NoError(t, opened.Close())
+	}
+	require.ErrorIs(t, err, ErrDestinationUnreachable)
+	_, err = os.Stat(targetDSN)
+	require.ErrorIs(t, err, os.ErrNotExist)
+	awayDB, err := sql.Open("sqlite", awayDSN)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = awayDB.Close() })
+	var tableName string
+	require.NoError(t, awayDB.QueryRowContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sensor_values'`).Scan(&tableName))
+	require.Equal(t, "sensor_values", tableName)
+}
+
 func removeSQLiteFile(connector *schema.DatabaseConnector) error {
 	config, err := parseConnectionConfig(connector.ConnectionConfig)
 	if err != nil {

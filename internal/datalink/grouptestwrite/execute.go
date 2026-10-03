@@ -422,7 +422,17 @@ func (s *Service) cleanupPhase(ctx context.Context, op *recordingplan.SchemaOper
 	}
 	checkCtx, cancelCheck := s.stepContext(ctx)
 	defer cancelCheck()
-	if remaining, readErr := dbtarget.ReadOwnedRows(checkCtx, dest.DB, ref, []string{state.OwnerColumn}); readErr == nil && len(remaining) > 0 {
+	remaining, readErr := dbtarget.ReadOwnedRows(checkCtx, dest.DB, ref, []string{state.OwnerColumn})
+	if readErr != nil {
+		// DELETE succeeded, but without a final read the destination state is
+		// not observable. Keep that uncertainty explicit; never claim cleaned.
+		reason := reasonReadbackFailed
+		if dbtarget.ClassifyInsertError(readErr) == dbtarget.InsertErrorTarget {
+			reason = reasonReadbackDenied
+		}
+		return cleanupResult{status: CleanupUnknown, reason: reason}
+	}
+	if len(remaining) > 0 {
 		return cleanupResult{status: CleanupFailed, reason: reasonCleanupRemaining}
 	}
 	return cleanupResult{status: CleanupCleaned}

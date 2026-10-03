@@ -23,8 +23,31 @@ func buildMappingCandidateIdentity(ruleID, address string, dataType schema.DataT
 	}
 }
 
+// canonicalTransformPipeline drops steps that cannot change a value (a scale of
+// x1 + 0), so a rule that spells the neutral scale out and a mapping that has no
+// step at all describe the same candidate. An empty result is never nil.
+func canonicalTransformPipeline(transformPipeline []schema.TransformStep) []schema.TransformStep {
+	steps := make([]schema.TransformStep, 0, len(transformPipeline))
+	for _, step := range transformPipeline {
+		if isNeutralScaleStep(step) {
+			continue
+		}
+		steps = append(steps, step)
+	}
+	return steps
+}
+
+func isNeutralScaleStep(step schema.TransformStep) bool {
+	if step.Type != schema.TransformScale {
+		return false
+	}
+	scale, scaleOK := step.Params["scale"].(float64)
+	offset, offsetOK := step.Params["offset"].(float64)
+	return scaleOK && offsetOK && scale == 1 && offset == 0
+}
+
 func mappingCandidateSignature(transformPipeline []schema.TransformStep) (string, error) {
-	payload, err := json.Marshal(mappingCandidateSignaturePayload{TransformPipeline: transformPipeline})
+	payload, err := json.Marshal(mappingCandidateSignaturePayload{TransformPipeline: canonicalTransformPipeline(transformPipeline)})
 	if err != nil {
 		return "", fmt.Errorf("序列化來源規則映射候選簽章失敗: %w", err)
 	}
@@ -59,15 +82,8 @@ func (s *Service) syncRuleManagedMapping(
 	if err != nil {
 		return nil, err
 	}
-	nextPipelineJSON, err := encodeTransformPipeline(transformPipeline)
-	if err != nil {
-		return nil, fmt.Errorf("序列化來源規則映射轉換管線失敗: %w", err)
-	}
 	if mappingRecord.RuleCandidateID != "" && mappingRecord.RuleCandidateID != ruleCandidateID {
 		return nil, fmt.Errorf("映射已綁定其他來源規則候選，無法自動同步")
-	}
-	if oldRule == nil && mappingRecord.RuleCandidateID == "" && mappingRecord.TransformPipeline != nextPipelineJSON {
-		return nil, fmt.Errorf("映射存在手動編輯的轉換管線，無法自動覆蓋")
 	}
 
 	appliedPipeline, err := decodeTransformPipeline(mappingRecord.TransformPipeline)
@@ -77,6 +93,9 @@ func (s *Service) syncRuleManagedMapping(
 	lastAppliedSignature, err := mappingCandidateSignature(appliedPipeline)
 	if err != nil {
 		return nil, err
+	}
+	if oldRule == nil && mappingRecord.RuleCandidateID == "" && lastAppliedSignature != proposedSignature {
+		return nil, fmt.Errorf("映射存在手動編輯的轉換管線，無法自動覆蓋")
 	}
 
 	status := schema.MappingStatusActive
@@ -91,9 +110,10 @@ func (s *Service) syncRuleManagedMapping(
 		lastAppliedSignature = proposedSignature
 	}
 
-	needsPipelineUpdate := status != schema.MappingStatusOutOfSync && mappingRecord.TransformPipeline != nextPipelineJSON
-	if !needsPipelineUpdate &&
-		mappingRecord.Enabled == enabled &&
+	// A pipeline whose signature matches is left as confirmed: rewriting an
+	// equivalent one would change the mapping revision write groups are bound to.
+	// A different one is never overwritten here; that needs an explicit re-apply.
+	if mappingRecord.Enabled == enabled &&
 		mappingRecord.Status == status &&
 		mappingRecord.RuleCandidateID == ruleCandidateID &&
 		mappingRecord.ProposedSignature == proposedSignature &&
@@ -106,9 +126,6 @@ func (s *Service) syncRuleManagedMapping(
 	}
 
 	updateReq := mapping.UpdateMappingRequest{}
-	if needsPipelineUpdate {
-		updateReq.TransformPipeline = transformPipeline
-	}
 	if mappingRecord.Enabled != enabled {
 		updateReq.Enabled = &enabled
 	}

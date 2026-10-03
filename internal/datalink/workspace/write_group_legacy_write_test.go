@@ -56,6 +56,26 @@ func TestPreflightLegacyRowGroupReplacementRejectsOwnedGroup(t *testing.T) {
 	require.ErrorIs(t, err, ErrWriteGroupLegacyWriteConflict)
 }
 
+// The first save of a destination has no connector ID yet. An empty row-group
+// replacement then changes nothing and must not be refused, otherwise a fresh
+// workspace can never save its destination; a non-empty one still needs a connector.
+func TestPreflightLegacyRowGroupReplacementAllowsEmptySetForANewDestination(t *testing.T) {
+	ctx := t.Context()
+	db := openWorkspaceTestDB(t, ":memory:")
+	defer db.Close()
+	service, _ := newRowGroupMigrationFixture(ctx, t, db)
+
+	require.NoError(t, service.PreflightLegacyRowGroupReplacement(ctx, "", []DatabaseRowGroup{}))
+	require.ErrorIs(t, service.PreflightLegacyRowGroupReplacement(ctx, "", []DatabaseRowGroup{{ID: "rg"}}), ErrWriteGroupValidation)
+
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	defer tx.Rollback()
+	record, err := readLegacyWriteWorkspace(ctx, tx)
+	require.NoError(t, err)
+	require.NoError(t, service.CheckLegacyRowGroupReplacementInTx(ctx, tx, record, " ", []DatabaseRowGroup{}))
+}
+
 func TestLegacyTargetWriteUsesDurableBeforeIntentAfterSourceRemovalAndCanonicalEdit(t *testing.T) {
 	ctx := t.Context()
 	db := openWorkspaceTestDB(t, ":memory:")

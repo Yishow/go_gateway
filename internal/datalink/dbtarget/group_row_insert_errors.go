@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"modernc.org/sqlite"
 )
 
@@ -54,6 +55,10 @@ func ClassifyInsertError(err error) InsertErrorClass {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return classifySQLSTATE(pgErr.Code)
+	}
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return classifySQLSTATE(string(pqErr.Code))
 	}
 	var liteErr *sqlite.Error
 	if errors.As(err, &liteErr) {

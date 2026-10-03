@@ -116,6 +116,10 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 			renderStudioV2WorkspaceMappingError(c, err)
 			return
 		}
+		if err := h.ruleSvc.SyncRuleDerivedState(c.Request.Context(), rule.ID); err != nil {
+			renderStudioV2WorkspaceMappingError(c, err)
+			return
+		}
 		payload, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, mappingRecord.ID, mappingRecord.TagID)
 		if err != nil {
 			renderStudioV2WorkspaceMappingError(c, err)
@@ -157,6 +161,10 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
+	if err := h.ruleSvc.SyncRuleDerivedState(c.Request.Context(), rule.ID); err != nil {
+		renderStudioV2WorkspaceMappingError(c, err)
+		return
+	}
 
 	payload, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, mappingRecord.ID, tagRecord.ID)
 	if err != nil {
@@ -187,6 +195,10 @@ func (h *StudioV2WorkspaceMappingsHandler) Update(c *gin.Context) {
 
 	mappingRecord, err := h.saveExistingWorkspaceMapping(c.Request.Context(), rule, links, link, mappingRecord, req)
 	if err != nil {
+		renderStudioV2WorkspaceMappingError(c, err)
+		return
+	}
+	if err := h.ruleSvc.SyncRuleDerivedState(c.Request.Context(), rule.ID); err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}

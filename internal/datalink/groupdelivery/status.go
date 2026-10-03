@@ -52,6 +52,9 @@ type GroupStatus struct {
 	// SilentOrSkipped counts closed buckets that produced no SQL row.
 	NoDataBuckets  int
 	SkippedBuckets int
+	// RecentBucketIssues contains at most 20 closed buckets that did not
+	// produce a row. Causes are safe quality categories, never sample values.
+	RecentBucketIssues []BucketIssue
 }
 
 // GroupStatus reads the stage counts and revision-bound backlog of a group.
@@ -71,6 +74,9 @@ func (s *Store) GroupStatus(ctx context.Context, groupID string) (GroupStatus, e
 		return GroupStatus{}, err
 	}
 	if err := s.readBucketOutcomes(ctx, groupID, &status); err != nil {
+		return GroupStatus{}, err
+	}
+	if err := s.readRecentBucketIssues(ctx, groupID, &status); err != nil {
 		return GroupStatus{}, err
 	}
 	return status, nil
@@ -175,7 +181,7 @@ func (s *Store) readBucketOutcomes(ctx context.Context, groupID string, status *
 		if err := rows.Scan(&kind, &n); err != nil {
 			return fmt.Errorf("scan bucket outcome: %w", err)
 		}
-		if kind == "no_data" {
+		if kind == noDataBucketKind {
 			status.NoDataBuckets = n
 		} else {
 			status.SkippedBuckets = n

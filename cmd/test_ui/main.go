@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -53,7 +54,7 @@ func main() {
 	}
 }
 
-func runGateway() error {
+func runGateway() (runErr error) {
 	// 載入配置（從 .env 文件或環境變數）
 	cfg, err := config.Load()
 	if err != nil {
@@ -67,6 +68,9 @@ func runGateway() error {
 	// =========================================================================
 	// Database Setup (SQLite)
 	// =========================================================================
+	if err := preflightGroupFixtureDatabase(); err != nil {
+		return fmt.Errorf("驗收 fixture 資料庫前置檢查失敗: %w", err)
+	}
 	sqliteDSN := embeddedSQLiteDSN()
 	log.Printf("SQLite DSN: %s", sqliteDSN)
 
@@ -114,6 +118,15 @@ func runGateway() error {
 	// =========================================================================
 
 	services := wireGatewayServices(db, connMgr)
+	fixtureCleanup, err := services.fixture.configure(context.Background(), db, &services)
+	if err != nil {
+		return fmt.Errorf("設定驗收 fixture 失敗: %w", err)
+	}
+	defer func() {
+		if cleanupErr := fixtureCleanup(); cleanupErr != nil {
+			runErr = errors.Join(runErr, fmt.Errorf("清理驗收 fixture 失敗: %w", cleanupErr))
+		}
+	}()
 	devSvc, pgSvc, pointSvc, tagSvc, mappingSvc := services.device, services.pollingGroup, services.point, services.tag, services.mapping
 	settingsSvc, modbusShareSvc := services.settings, services.modbusShare
 	shareSettingsLoaded, workspaceSvc, auditSvc := services.shareLoaded, services.workspace, services.audit

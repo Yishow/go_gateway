@@ -102,6 +102,9 @@ func (s *WriteGroupService) readiness(ctx context.Context, id string) (*WriteGro
 	schemaReady, schemaIssues := evaluateWriteGroupInspection(
 		postSnapshot.validated, postSnapshot.tagTypes, inspection,
 	)
+	partialIssues := evaluateWriteGroupPartialInspection(postSnapshot.validated, postSnapshot.tagTypes, inspection, postSnapshot.connectorKind)
+	schemaIssues = append(schemaIssues, partialIssues...)
+	schemaReady = schemaReady && len(partialIssues) == 0
 	result.SchemaReady = schemaReady
 	result.Issues = append(result.Issues, schemaIssues...)
 	if schemaReady {
@@ -212,7 +215,7 @@ func validateBasicWriteGroupConfig(group *WriteGroup) []ReadinessIssue {
 		))
 	}
 	incompletePolicy := strings.ToLower(strings.TrimSpace(group.RowPolicy.IncompletePolicy))
-	if incompletePolicy != "" && incompletePolicy != writeGroupIncompletePolicySkipRow {
+	if incompletePolicy != "" && incompletePolicy != writeGroupIncompletePolicySkipRow && incompletePolicy != "partial" {
 		issues = append(issues, writeGroupReadinessIssue(
 			"incomplete-policy-blocked", "selected incomplete-row policy is not supported by basic readiness", group.ID,
 		))

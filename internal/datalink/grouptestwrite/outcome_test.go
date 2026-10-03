@@ -79,8 +79,11 @@ func TestTypedReadbackEvidenceRequiresTheWholePayloadToMatch(t *testing.T) {
 			(op.Reason != reasonReadbackFailed && op.Reason != reasonReadbackDenied) {
 			t.Fatalf("a committed write that cannot be read is written_unverified: %+v", op)
 		}
+		if op.CleanupStatus != CleanupUnknown || op.CleanupReason != reasonReadbackFailed {
+			t.Fatalf("cleanup readback failure must remain unknown: %+v", op)
+		}
 		if h.count(`entity LIKE 'gw-test-%'`) != 0 {
-			t.Fatalf("cleanup can still remove the owned row without reading it: %+v", op)
+			t.Fatalf("cleanup can remove the owned row but cannot claim it was verified: %+v", op)
 		}
 	})
 }

@@ -3,9 +3,11 @@ package adapters
 import (
 	"testing"
 
+	"go-gateway/internal/datalink/measurement"
 	"go-gateway/internal/datalink/schema"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConvertModbusValue_Float32_DataFormat(t *testing.T) {
@@ -20,4 +22,12 @@ func TestConvertModbusValue_Float32_DataFormat(t *testing.T) {
 
 	gotCDAB := convertModbusValue(regs, schema.DataTypeFloat32, "CDAB")
 	assert.NotEqual(t, float32(1), gotCDAB.(float32))
+}
+
+func TestConvertModbusValue_StringProducesTypedASCII(t *testing.T) {
+	got := convertModbusValue([]uint16{0x4131}, schema.DataTypeString, "")
+
+	exact, err := measurement.ExactFromGo(measurement.ExactText, got)
+	require.NoError(t, err)
+	assert.Equal(t, "A1", exact.Value())
 }

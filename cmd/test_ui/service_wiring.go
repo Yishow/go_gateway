@@ -52,9 +52,11 @@ type gatewayServices struct {
 	scheduler      *collector.Scheduler
 	runtime        *datalinkruntime.Service
 	sourceRule     *sourcerule.Service
+	fixture        groupFixtureHooks
 }
 
 func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatewayServices {
+	fixture := newGroupFixture()
 	devRepo := device.NewSQLRepository(db)
 	devSvc := device.NewService(devRepo, connMgr)
 	pgRepo := pollinggroup.NewSQLRepository(db)
@@ -82,14 +84,15 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 	dbTargetMappingSvc := dbtarget.NewMappingService(dbTargetMappingRepo, dbTargetConnectorRepo, tagSvc)
 	dbtarget.WithLegacyWriteCoordinator(dbTargetMappingSvc, writeGroupsSvc)
 	dbTargetConnectorSvc.SetDeleteGuard(writeGroupsSvc)
-	groupStore, err := groupdelivery.NewStore(db).WithQuota(groupdelivery.QuotaConfig{GlobalMaxBytes: groupDeliveryQuotaBytes})
+	groupStore, err := groupdelivery.NewStore(db).WithQuota(groupDeliveryQuotaConfig())
 	if err != nil {
 		log.Fatalf("建立群組交付容量設定失敗: %v", err)
 	}
 	groupPipe := grouppipeline.New(grouppipeline.Dependencies{
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Store: groupStore,
-	}, grouppipeline.Config{NodeID: gatewayNodeID(), Owner: gatewayNodeID() + "/" + uuid.NewString(), OnError: logGroupPipelineError})
+	}, fixture.pipelineConfig(gatewayNodeID(), uuid.NewString()))
+	sampleSink := fixture.sampleSink(groupPipe)
 	// A canonical group that owns an output replaces the legacy writer for it, so
 	// there is exactly one writer per output.
 	dbTargetWriter := dbtarget.NewWriterWithConfig(dbTargetConnectorRepo, dbTargetMappingRepo, dbtarget.WriterConfig{TagReader: tagSvc, SuppressMapping: groupPipe.Owns})
@@ -98,7 +101,7 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 	runtimeSvc, err := datalinkruntime.NewService(datalinkruntime.DefaultConfig(), datalinkruntime.Dependencies{
 		Scheduler: scheduler, Writer: runtimeWriter, TargetWriter: newProductionTargetWriter(dbTargetWriter, modbusShareSvc),
 		DeviceService: devSvc, PointService: pointSvc, MappingService: mappingSvc, TagService: tagSvc, PollingGroupService: pgSvc,
-		SampleSink: groupPipe,
+		SampleSink: sampleSink,
 	})
 	if err != nil {
 		log.Fatalf("建立 datalink runtime 失敗: %v", err)
@@ -143,7 +146,7 @@ func wireGatewayServices(db *sql.DB, connMgr *connector.ConnectionManager) gatew
 		Groups: writeGroupsSvc, Tags: tagSvc, Destinations: dbTargetConnectorSvc,
 		Inspector: dbtarget.NewReadOnlyTableInspector(dbTargetConnectorSvc), Ledger: recordingPlanSvc,
 	}, grouptestwrite.Config{})
-	return gatewayServices{recordingPlan: recordingPlanSvc, groupTestWrite: groupTestWriteSvc, device: devSvc, pollingGroup: pgSvc, point: pointSvc, tag: tagSvc, mapping: mappingSvc, settings: settingsSvc, modbusShare: modbusShareSvc, shareLoaded: shareSettingsLoaded, workspace: workspaceSvc, writeGroups: writeGroupsSvc, groupPipe: groupPipe, audit: auditSvc, dbTarget: dbTargetConnectorSvc, dbMapping: dbTargetMappingSvc, scheduler: scheduler, runtime: runtimeSvc, sourceRule: sourceRuleSvc}
+	return gatewayServices{recordingPlan: recordingPlanSvc, groupTestWrite: groupTestWriteSvc, device: devSvc, pollingGroup: pgSvc, point: pointSvc, tag: tagSvc, mapping: mappingSvc, settings: settingsSvc, modbusShare: modbusShareSvc, shareLoaded: shareSettingsLoaded, workspace: workspaceSvc, writeGroups: writeGroupsSvc, groupPipe: groupPipe, audit: auditSvc, dbTarget: dbTargetConnectorSvc, dbMapping: dbTargetMappingSvc, scheduler: scheduler, runtime: runtimeSvc, sourceRule: sourceRuleSvc, fixture: fixture}
 }
 
 // groupDeliveryQuotaBytes caps accepted-but-undelivered group data, matching the
@@ -158,8 +161,4 @@ func gatewayNodeID() string {
 		return host
 	}
 	return "gateway"
-}
-
-func logGroupPipelineError(err error) {
-	log.Printf("寫入群組 pipeline 錯誤: %v", err)
 }

@@ -11,8 +11,33 @@ import (
 	"go-gateway/internal/datalink/schema"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
+
+func TestProductionPostgresDriverSQLSTATE(t *testing.T) {
+	cases := map[string]InsertErrorClass{
+		"42501": InsertErrorTarget,    // insufficient privilege
+		"28P01": InsertErrorTarget,    // invalid password
+		"42P01": InsertErrorTarget,    // undefined table
+		"42703": InsertErrorTarget,    // undefined column
+		"3F000": InsertErrorTarget,    // invalid schema
+		"22003": InsertErrorRow,       // numeric overflow
+		"23514": InsertErrorRow,       // check violation
+		"23505": InsertErrorRow,       // duplicate key
+		"40001": InsertErrorTransient, // serialization failure
+		"08006": InsertErrorTransient, // connection failure
+		"XX000": InsertErrorTransient, // unknown error
+	}
+	for code, want := range cases {
+		t.Run(code, func(t *testing.T) {
+			err := fmt.Errorf("destination statement: %w", &pq.Error{Code: pq.ErrorCode(code), Message: "secret detail"})
+			require.Equal(t, want, ClassifyInsertError(err), "the production postgres driver uses lib/pq")
+			wrapped := &GroupInsertError{Phase: InsertPhasePreCommit, Cause: err}
+			require.Equal(t, want, ClassifyInsertError(wrapped))
+		})
+	}
+}
 
 func TestBoundedRetryAndPoisonPartitionClassifiesPostgresSQLSTATE(t *testing.T) {
 	cases := map[string]InsertErrorClass{

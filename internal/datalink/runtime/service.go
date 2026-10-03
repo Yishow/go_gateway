@@ -413,10 +413,7 @@ func (s *Service) consumeLoop(runtimeCtx context.Context) {
 		case <-s.stopCh:
 			return
 		case cv := <-s.scheduler.ValueChannel():
-			s.collectedTotal.Add(1)
-			ctx, cancel := context.WithTimeout(runtimeCtx, 5*time.Second)
-			s.handleCollectedValue(ctx, cv)
-			cancel()
+			s.consumeCollectedValue(runtimeCtx, cv)
 		}
 	}
 }

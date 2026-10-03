@@ -103,6 +103,7 @@ type managed struct {
 	members   []member
 	connector string
 	interval  time.Duration
+	effective time.Time
 }
 
 // Pipeline owns the applied write groups of one gateway.

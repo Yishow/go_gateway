@@ -18,6 +18,13 @@ func TestDataConverterRegistersToValues(t *testing.T) {
 	assert.Equal(t, int32(200), values[1])
 }
 
+func TestDataConverterRegistersToValueStringUsesBigEndianASCII(t *testing.T) {
+	converter := NewDataConverter(DataFormatABCD)
+
+	assert.Equal(t, "A1B2", converter.RegistersToValue([]uint16{0x4131, 0x4232}, DataTypeString))
+	assert.Equal(t, "A1B", converter.RegistersToValue([]uint16{0x4131, 0x4200}, DataTypeString))
+}
+
 func TestToFloat64AndToInt64(t *testing.T) {
 	f, ok := ToFloat64(true)
 	require.True(t, ok)

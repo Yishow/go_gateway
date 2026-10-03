@@ -138,6 +138,11 @@ func (s *WriteGroupService) PreflightLegacyRowGroupReplacement(
 	}
 	connectorID = strings.TrimSpace(connectorID)
 	if connectorID == "" {
+		if len(groups) == 0 {
+			// The first save of a new destination replaces nothing: there is no
+			// connector yet, so no canonical group can own any of its scope.
+			return nil
+		}
 		return fmt.Errorf("legacy row-group replacement connector: %w", ErrWriteGroupValidation)
 	}
 
@@ -179,6 +184,11 @@ func (s *WriteGroupService) CheckLegacyRowGroupReplacementInTx(
 	}
 	connectorID = strings.TrimSpace(connectorID)
 	if connectorID == "" {
+		if len(groups) == 0 {
+			// The first save of a new destination replaces nothing: there is no
+			// connector yet, so no canonical group can own any of its scope.
+			return nil
+		}
 		return fmt.Errorf("legacy row-group replacement connector: %w", ErrWriteGroupValidation)
 	}
 	return s.checkLegacyRowGroupReplacementWithRecord(ctx, tx, current, connectorID, groups)

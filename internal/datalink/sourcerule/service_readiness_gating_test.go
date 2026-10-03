@@ -137,3 +137,69 @@ func markDeviceProbeSuccess(ctx context.Context, repo *device.MemoryRepository, 
 	record.LastTestError = ""
 	return repo.Update(ctx, record)
 }
+
+// A device that passed its diagnostics but has not been activated yet must not
+// have its derived points switched off by a rule edit: nothing re-enables them
+// at activation, so the device would then be "activated" with nothing to collect.
+func TestService_Update_KeepsPointsEnabledForReadyDeviceThatIsNotActiveYet(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointRepo := point.NewMemoryRepository()
+	pointSvc := point.NewService(pointRepo, nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	svc := NewService(NewMemoryRepository(), deviceSvc, pointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-update-before-activation")
+	require.NoError(t, err)
+	require.NoError(t, deviceRepo.UpdateStatus(ctx, dev.ID, schema.DeviceStatusDraft))
+
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID: "rule-update-before-activation", DeviceID: dev.ID, StartAddress: "40001", Count: 8,
+		DataType: schema.DataTypeInt16, NamingPrefix: "SRC", Enabled: true,
+	})
+	require.NoError(t, err)
+	require.True(t, rule.Enabled)
+
+	count := 2
+	prefix := "EDITED"
+	_, err = svc.Update(ctx, rule.ID, UpdateRuleRequest{Count: &count, NamingPrefix: &prefix})
+	require.NoError(t, err)
+
+	links, err := svc.ListLinks(ctx, rule.ID)
+	require.NoError(t, err)
+	require.Len(t, links, 2)
+	for _, link := range links {
+		derived, err := pointSvc.GetByID(ctx, link.PointID)
+		require.NoError(t, err)
+		assert.True(t, derived.Enabled, "an edit before activation must keep the point enabled")
+	}
+}
+
+func TestService_Update_DisablesPointsWhenTheDeviceIsNoLongerActivationReady(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := device.NewMemoryRepository()
+	pointSvc := point.NewService(point.NewMemoryRepository(), nil)
+	deviceSvc := device.NewService(deviceRepo, nil)
+	svc := NewService(NewMemoryRepository(), deviceSvc, pointSvc, nil)
+
+	dev, err := seedActiveDevice(ctx, deviceRepo, "device-update-not-ready")
+	require.NoError(t, err)
+	rule, err := svc.Create(ctx, CreateRuleRequest{
+		ID: "rule-update-not-ready", DeviceID: dev.ID, StartAddress: "40001", Count: 2,
+		DataType: schema.DataTypeInt16, NamingPrefix: "SRC", Enabled: true,
+	})
+	require.NoError(t, err)
+	require.NoError(t, markDeviceProbeFailure(ctx, deviceRepo, dev.ID))
+
+	prefix := "EDITED"
+	_, err = svc.Update(ctx, rule.ID, UpdateRuleRequest{NamingPrefix: &prefix})
+	require.NoError(t, err)
+
+	links, err := svc.ListLinks(ctx, rule.ID)
+	require.NoError(t, err)
+	for _, link := range links {
+		derived, err := pointSvc.GetByID(ctx, link.PointID)
+		require.NoError(t, err)
+		assert.False(t, derived.Enabled, "a device that is not activation-ready must not collect")
+	}
+}

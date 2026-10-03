@@ -198,7 +198,8 @@ func ensureMySQLDatabaseIfMissing(ctx context.Context, config ConnectionConfig, 
 	connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	createSQL := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", strings.ReplaceAll(databaseName, "`", "``"))
+	// MySQL identifiers are backtick-quoted with doubled backticks; %#q falls back to double quotes for such names.
+	createSQL := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", strings.ReplaceAll(databaseName, "`", "``")) //nolint:gocritic // see comment above
 	if _, err := adminDB.ExecContext(connectCtx, createSQL); err != nil {
 		return fmt.Errorf("建立 mysql 資料庫失敗: %w", err)
 	}

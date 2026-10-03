@@ -172,7 +172,9 @@ func (e *outageEnv) feed(t *testing.T, pipe *grouppipeline.Pipeline, clock *test
 
 func destinationRows(t *testing.T, file string) [][2]float64 {
 	t.Helper()
-	db, err := sql.Open("sqlite", file)
+	// Observe the real commit after a short lock clears; retain SQL errors if
+	// the bounded wait expires instead of failing during normal contention.
+	db, err := sql.Open("sqlite", file+"?_pragma=busy_timeout(15000)")
 	require.NoError(t, err)
 	defer db.Close()
 	rows, err := db.QueryContext(t.Context(), `SELECT temperature, pressure FROM readings ORDER BY rowid`)
