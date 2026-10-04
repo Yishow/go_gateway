@@ -1,0 +1,18 @@
+{
+  "kind": "timing-witness",
+  "run_id": "f2-sqlite-single-20261004-1520",
+  "source": "f2-sqlite-single-20261004-1520.json",
+  "binary_sha256": "b91ef7e6d0fcff6d4c71b12d68acdef4646fec421578049054fd5e02942f4039",
+  "observation": "derived from retained runner clocks; t_sql is first completed independent SELECT after t_closed",
+  "intervals_ms": {
+    "setup": 41678.3055,
+    "wait_closed": 84461.950083,
+    "delivery_observed": 13.192292,
+    "end_to_end": 126153.447875
+  },
+  "within_300s": true,
+  "nonnegative": true,
+  "cleanup": {
+    "passed": true
+  }
+}

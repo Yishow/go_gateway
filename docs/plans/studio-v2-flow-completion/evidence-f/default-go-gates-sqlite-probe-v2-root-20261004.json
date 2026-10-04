@@ -1,0 +1,39 @@
+{
+  "status": "PASS-current",
+  "environment": "darwin/arm64; Go 1.27.1; module 1.25.5; golangci-lint 2.14",
+  "POSTGRES_DSN": "unset for default suite; conditional PostgreSQL cases skip",
+  "commands": [
+    {
+      "command": "go test -p 1 ./... -count=1",
+      "exit_code": 0,
+      "log": "gw-F-backend-final-sqlite-probe-v2-final-test.log",
+      "log_sha256": "251a526f4774ea96becbe18f2c3873f3e06877bd9be0cf0b4c01833f8d0b628d"
+    },
+    {
+      "command": "go vet ./...",
+      "exit_code": 0,
+      "log": "gw-F-backend-final-sqlite-probe-v2-final-vet.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "golangci-lint run ./...",
+      "exit_code": 0,
+      "log": "gw-F-backend-final-sqlite-probe-v2-final-lint.log",
+      "log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    }
+  ],
+  "tested_packages": 49,
+  "effective_input_count": 1388,
+  "effective_input_identity_digest": "b68b8e18a0f6d1df5779401253ccc3f814a5dcf49b6e75c9754bc16503505935",
+  "identity_encoding": "SHA256 of sorted-key compact JSON path/hash map",
+  "sources_unchanged_during_default_gates": true,
+  "previous_attempt": {
+    "exit_code": 1,
+    "log": "gw-F-backend-final-sqlite-probe-v2-test.log",
+    "failure": "The handler roundtrip still expected ready for a missing SQLite file; its expectation and absence assertions were updated in the same scope."
+  },
+  "limits": [
+    "New f_write_group_fixture build-tag integration/race cases are checked separately.",
+    "This default suite does not assert live PostgreSQL coverage; focused live PostgreSQL and actual UI/SQL matrix are separate witnesses."
+  ]
+}

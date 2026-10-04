@@ -26,7 +26,7 @@ export const BasicRecordingEvidence: React.FC<BasicRecordingEvidenceProps> = ({
   return (
     <section className="space-y-2 rounded border border-slate-800/80 bg-slate-950/30 p-3" aria-label={t('step4.basic.evidence_title')} data-testid="basic-recording-evidence">
       <h4 className="text-xs font-semibold text-slate-200">{t('step4.basic.evidence_title')}</h4>
-      <p className="text-[11px] text-slate-500">{t('step4.basic.first_bucket', { interval: intervalSeconds })}</p>
+      {!committedEffect && <p className="text-[11px] text-slate-500">{t('step4.basic.first_bucket', { interval: intervalSeconds })}</p>}
       {deliveryError && <p role="alert" className="text-xs text-amber-300">{t('step4.basic.delivery_failed')}</p>}
       <dl className="grid grid-cols-3 gap-2 text-[11px]">
         <div><dt className="text-slate-500">{t('step4.basic.collecting')}</dt><dd className="text-slate-200">{stages ? stages.collecting : t('step4.basic.unconfirmed')}</dd></div>

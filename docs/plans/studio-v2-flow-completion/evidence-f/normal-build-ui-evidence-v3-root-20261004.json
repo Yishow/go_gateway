@@ -1,0 +1,18 @@
+{
+  "normal_build": true,
+  "fixture_tags": [],
+  "command": "GOCACHE=<owned-cache> go build -o <owned-temp>/gw-F-test-ui-production-ui-evidence-v3 ./cmd/test_ui",
+  "exit_code": 0,
+  "source_count": 592,
+  "source_identity_digest": "552dd703fa62198cd99455c9cf737d95855d3fa37ab42f8a37b5fdcab2522076",
+  "source_unchanged_during_build": true,
+  "binary_sha256": "b91ef7e6d0fcff6d4c71b12d68acdef4646fec421578049054fd5e02942f4039",
+  "embedded_file_count": 99,
+  "embedded_dist_hashes_equal": true,
+  "frontend_change": "Only BasicRecordingEvidence suppresses the first-bucket waiting message once current SQL commit receipt exists.",
+  "frontend_gates": "lint PASS; 190 files/1211 tests PASS; tsc/vite build PASS; initial unused React test import compiler failure preserved and corrected.",
+  "limits": [
+    "Source identities exclude unrelated .kilo worktrees.",
+    "This UI build precedes the pending test-write metadata repair; data recording source identity is unchanged from sqlite-probe-v2."
+  ]
+}

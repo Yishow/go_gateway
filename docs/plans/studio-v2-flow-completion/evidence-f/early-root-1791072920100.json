@@ -1,0 +1,78 @@
+{
+  "run_id": "early-root-1791072920100",
+  "kind": "early-single-sqlite-feedback",
+  "passed": false,
+  "linked_build_evidence": "normal-build-root-20261004.json",
+  "command": "node scripts/tests/f_device_to_sql/fresh-early-root.mjs",
+  "environment": "darwin/arm64; loopback simulator; disposable SQLite",
+  "expected_values": [
+    215,
+    1013
+  ],
+  "limitations": [
+    "Only two D/E acquisition points.",
+    "Not the seven-type/three-bucket/six-timing acceptance."
+  ],
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "binary_sha256": "13e02bed932e56a08ef992f31c3106e698527ccd97bdf695587d0cf49229ac45",
+  "simulator": {
+    "binary_sha256": "67fb74adb51a2dc961b3663ea0a4649e7acc39730c81465806aed305af1ee72c",
+    "port": 15054,
+    "owned": true,
+    "registers": {
+      "0": 215,
+      "1": 1013
+    },
+    "pid": 55683
+  },
+  "preflight": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "browser_version": "145.0.7632.6",
+  "t_open": "279993814148000",
+  "destination_after_save": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "existing",
+    "exists": true,
+    "stat": {
+      "size": 0,
+      "mtime_ms": 1791072934284.7585
+    },
+    "readonly_uri": "file:<owned-run>/destination.db?mode=ro",
+    "tables": [],
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "failed_stage": "destination",
+  "error": "Expected values to be strictly equal:",
+  "ui_text": "偵測到上次重新整理前有未保存的本地草稿，系統已回復為最後一次成功保存的設定。\nDatalink Workbench\ngo_gateway · v1 接入點位設定流程\nDatalink\nWorkbench\n儲存資料庫\n儲存草稿\n取消\nscheduler idle\n建置流程\n01\n新增裝置\nDevice + Protocol\n02\n接入規則\nSource Rules · 多條範圍\n03\n點位映射\nPoint → Tag\n04\n儲存資料庫\nDB Target · Commit\n系統\n設定\n資料庫、排程、介面…\n本流程\n\n由「設備 → 接入規則 → 點位/映射 → 資料庫」四個階段組成，全部成功後才會啟動 collector 並寫入。\n\nSTEP 04 / 04\nDB Target · Commit\n儲存資料庫\nWORKSPACE STATUS\nSetup still needs fixes\n2 blockers\n0 warnings\n\nFix \"Database target missing\" first: Go to Step 4 to enable database targets, or fix the connector/schema before applying.\n\nBasic recording\n\nOne saved device and its managed group. The server chooses the table and member columns.\n\nDevice\nF early A\nSnapshot interval (seconds)\nMissing values\nSkip incomplete snapshot\nKeep the snapshot with missing values\n\nRecording destination: F fresh SQLite\n\nValues to record\nearly.1\nF early A · 40001 · int16\nearly.2\nF early A · 40002 · uint16\n\n2 mapped value(s) for this device\n\nRecording evidence\n\nThe first complete UTC snapshot is still pending until its 60-second bucket closes.\n\nAcquisition\nUnconfirmed\nAccepted locally\nUnconfirmed\nSQL commit (current revision)\nUnconfirmed\nStart recording\nDatabase Connector\n\nConfigure DB connector options and write strategy parameters\n\nsqlite\n<owned-run>/destination.db\nreadings\nCollapse connector setup\nLoad from connector pool\n-- Select an existing connector --\nTimeSeries Prod (POSTGRES - gateway_metrics)\nDatabase Kind\n🐘\nPostgreSQL\nPostgreSQL / TimescaleDB\n💾\nSQLite\nSQLite Local File Database\n🐬\nMySQL\nMySQL / MariaDB\n🖥️\nSQL Server\nMicrosoft SQL Server\nConnection Name\nDB File Path\nTable Name\nWrite Strategy\nTime Series Append (INSERT)\nInsert a new row for each interval record. Ideal for historical trends.\nOverwrite Update (UPSERT)\nOnly keep the latest record. Saves storage space.\nWrite Interval\n\nSet the scheduled DB write period interval.\n\ns\nDelivery truth\n\nLatest schema and write results\n\nready\nExpand delivery status\nLOCAL SHARE OUTPUT\n\nBackend Share is disabled in persisted settings.\n\nAdvanced groups and workspace activation\n上一步\nCtrl\n+\nB\n收合側欄\n即時設定摘要\nWORKSPACE STATUS\nSetup still needs fixes\n2 blockers\n0 warnings\n\nFix \"Database target missing\" first: Go to Step 4 to enable database targets, or fix the connector/schema before applying.\n\n最近事件\ndatabase_config_saved\nsuccess\ndatabase_connector:2133cf41-41bc-4eb4-8520-ffda438ed734\n2026-10-04T00:15:35.803079Z\ndatabase_config_saved\nsuccess\ndatabase_connector:2133cf41-41bc-4eb4-8520-ffda438ed734\n2026-10-04T00:15:34.294759Z\ndatabase_config_saved\nsuccess\ndatabase_connector:2133cf41-41bc-4eb4-8520-ffda438ed734\n2026-10-04T00:15:34.285524Z\n設備\n總數\n1 個\n已測試\n1 / 1\nF early A\nmodbus_tcp\n接入規則\n條數\n2 條\n點位\n2 個\n映射\nTAGS\n2\n個別轉換\n0\n資料庫寫入\n類型\nsqlite\n表\n.readings\n間隔\n5s\n目標\n0 欄位",
+  "child_exit": [
+    {
+      "name": "early-root-simulator",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 55683,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 55684,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ],
+  "child_exit_passed": true,
+  "owned_cleanup_passed": true
+}

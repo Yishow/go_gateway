@@ -1,0 +1,50 @@
+{
+  "run_id": "v6-dual-sqlite",
+  "passed": false,
+  "failures": [
+    "controlled first independent SQL must be at most 300 seconds"
+  ],
+  "retained_work": "/tmp/gw-f-v6-dual-sqlite",
+  "log": [
+    "ERROR v6-dual-sqlite: controlled first independent SQL must be at most 300 seconds"
+  ],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 68128,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "sim-b",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 68129,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 68130,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "path": "/tmp/gw-f-v6-dual-sqlite",
+      "absent": true,
+      "state": "removed"
+    }
+  }
+}

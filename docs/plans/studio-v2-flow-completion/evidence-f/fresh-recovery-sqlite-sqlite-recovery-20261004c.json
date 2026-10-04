@@ -1,0 +1,1 @@
+{"run_id":"sqlite-recovery-20261004c","kind":"sqlite","group_id":"undefined","results":{},"cleanup":{"passed":true,"errors":[]},"failure":{"message":"fresh gateway did not start: http://127.0.0.1:3381"},"binary_sha256":"undefined","passed":false}

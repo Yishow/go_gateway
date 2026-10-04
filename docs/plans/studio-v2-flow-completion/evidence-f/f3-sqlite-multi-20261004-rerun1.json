@@ -1,0 +1,46 @@
+{
+  "run_id": "f3-sqlite-multi-20261004-rerun1",
+  "passed": false,
+  "failed_stage": "explicit-test-write",
+  "error": "test-write row lacks current durable runtime evidence: 0cee9f8e4bc2acf24cce5bdb8b5b10c76bdade9dff5c557c8a50d85e8a366650",
+  "retained_work": "/tmp/gw-f-f3-sqlite-multi-20261004-rerun1",
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 32844,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "sim-b",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 32845,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 32846,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "path": "/tmp/gw-f-f3-sqlite-multi-20261004-rerun1",
+      "absent": true,
+      "state": "removed"
+    }
+  }
+}

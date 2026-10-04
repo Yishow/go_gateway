@@ -1,0 +1,21 @@
+{
+  "normal_build": true,
+  "fixture_tags": [],
+  "command": "GOCACHE=<owned-cache> go build -o <owned-temp>/gw-F-test-ui-production-final-v4 ./cmd/test_ui",
+  "exit_code": 0,
+  "source_count": 592,
+  "source_identity_digest": "290b0b8f0309567abd67dc242b8a455fda482f4b58c936c66c0f743e193ec355",
+  "source_unchanged_during_build": true,
+  "binary_sha256": "c81c8706b17d6cb0e630a713eb7e8e25a1c4937100d3ffe3c50d61113a882a0a",
+  "embedded_dist_file_count": 99,
+  "embedded_dist_hashes_equal": true,
+  "tracked_embed_placeholder": "Retained separately, matching HEAD bytes.",
+  "production_changes_from_original_F_HEAD": [
+    "internal/datalink/dbtarget/service_probe.go",
+    "internal/datalink/grouptestwrite/plan.go",
+    "frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingEvidence.tsx"
+  ],
+  "limits": [
+    "Actual fresh UI/SQL/test-write/recovery runs follow separately."
+  ]
+}

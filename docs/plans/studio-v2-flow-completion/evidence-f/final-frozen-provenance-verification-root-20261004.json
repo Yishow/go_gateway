@@ -1,0 +1,67 @@
+{
+  "command": "node retained-evidence independent fixture verification",
+  "passed": true,
+  "verifier_sha256": "799250c442845f7053a808bb655dccc750ae5487773b371fe7ea723dd2292e6e",
+  "checks": [
+    {
+      "source": "pg-root-1791075696914.json",
+      "source_sha256": "1c2f881a5faa4ea5bb287dc0162c56525b20e03d6ac86ec1aec82f842a4e73bb",
+      "group_id": "b494c11a-4dce-4683-9f3a-ef9098269ab4",
+      "members": 9,
+      "sql_rows": 3,
+      "current_verifier_failures": [],
+      "source_and_mapping_revisions_present": true,
+      "frozen_sample_quality_and_precise_utc_matched": true,
+      "expected_values_source": "literal simulator fixture by persisted mapping address; never destination values"
+    },
+    {
+      "source": "pg-root-1791076779005.json",
+      "source_sha256": "41fde324c690206366415fe56ebb2f39a51ffd479ef432a94780bb911f4f2413",
+      "group_id": "4242fc5e-fbca-4c84-bbeb-85b1ee9c757a",
+      "members": 9,
+      "sql_rows": 3,
+      "current_verifier_failures": [],
+      "source_and_mapping_revisions_present": true,
+      "frozen_sample_quality_and_precise_utc_matched": true,
+      "expected_values_source": "literal simulator fixture by persisted mapping address; never destination values"
+    },
+    {
+      "source": "f2-sqlite-single-20261004-1520.json",
+      "source_sha256": "8f2fe85187c0d00700107eb3058d107b916254d9e08b511e8db2096a84747ab5",
+      "group_id": "83ec5133-10ba-480a-a69a-4fc379c3c027",
+      "members": 9,
+      "sql_rows": 3,
+      "current_verifier_failures": [],
+      "source_and_mapping_revisions_present": true,
+      "frozen_sample_quality_and_precise_utc_matched": true,
+      "expected_values_source": "literal simulator fixture by persisted mapping address; never destination values"
+    },
+    {
+      "source": "dual-sqlite-20261004-1345.json",
+      "source_sha256": "e8e71e863fae053dc3df0b18eab6057e3fdb480304bdda67518547a28a720513",
+      "group_id": "d39c625a-f1b1-4f0e-b9d4-d1feaa22fcfe",
+      "members": 9,
+      "sql_rows": 3,
+      "current_verifier_failures": [],
+      "source_and_mapping_revisions_present": true,
+      "frozen_sample_quality_and_precise_utc_matched": true,
+      "expected_values_source": "literal simulator fixture by persisted mapping address; never destination values"
+    },
+    {
+      "source": "dual-sqlite-20261004-1345.json",
+      "source_sha256": "e8e71e863fae053dc3df0b18eab6057e3fdb480304bdda67518547a28a720513",
+      "group_id": "35ce2d6e-4c64-4ee6-b8b7-171f472b69bd",
+      "members": 9,
+      "sql_rows": 3,
+      "current_verifier_failures": [],
+      "source_and_mapping_revisions_present": true,
+      "frozen_sample_quality_and_precise_utc_matched": true,
+      "expected_values_source": "literal simulator fixture by persisted mapping address; never destination values"
+    }
+  ],
+  "limitations": [
+    "Pure verification of retained actual observations; no new UI, SELECT or timing claim.",
+    "Older dual SQLite original result remains false for its fixture expected-string error; register 22 was A1 in that run.",
+    "Older normal binaries predate diagnostic-only metadata fix; their recording-source equivalence is recorded separately."
+  ]
+}

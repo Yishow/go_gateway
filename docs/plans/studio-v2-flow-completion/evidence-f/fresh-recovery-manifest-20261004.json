@@ -1,0 +1,391 @@
+{
+  "manifest_status": "final_v4",
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "harness_files_sha256": {
+    "scripts/tests/f_device_to_sql/fresh-recovery-adapter.mjs": "2d1a718ba86db7e1f27defe3f9a5e2d7a9371689b15b75dad86ce319711033ba",
+    "scripts/tests/f_device_to_sql/fresh-recovery-assertions.mjs": "1132b01dcfd7aabb288ac5ef48e5a804a8a25d708a18d4b3fa51577891740285",
+    "scripts/tests/f_device_to_sql/fresh-recovery-mappings.mjs": "99591cd522f37887d6e6ca5eaa175978c2b0fac8874d62fe51cf55cee8f0ea83",
+    "scripts/tests/f_device_to_sql/fresh-recovery-response.mjs": "7e9f6bc25fd8564d46b636a71832475efa1ae81d8983ee55e20ce67ce09de034",
+    "scripts/tests/f_device_to_sql/fresh-recovery-sql.mjs": "aee8e3905f4abb9794d96d4c8df9a60471ef29c809b1c4f51aee8541f51a27db",
+    "scripts/tests/f_device_to_sql/fresh-recovery.mjs": "b0dfa7e3ab7c9c9af31cf3be636d58ae8346da54d6283d0938c847343ee19420",
+    "scripts/tests/f_device_to_sql/fresh-recovery.test.mjs": "0cf0af68c9ee81fa3a4473de075054b7ce7bb593f7aeafc53ab6d5f821fd9e7d"
+  },
+  "pre_v4_binary": {
+    "basename": "gw-F-test-ui-production-sqlite-probe-v2",
+    "sha256": "055dcbd0c536f5fe96bc66c15910c71d4ed835183654005bf3b716affeb8805a"
+  },
+  "raw_witness_fields": [
+    "delayed_resend.expected",
+    "delayed_resend.row",
+    "delayed_resend.durable_link",
+    "delayed_resend.frozen_outbox.payload_raw",
+    "delayed_resend.receipt",
+    "start_lost_response.dropped.request",
+    "start_lost_response.first",
+    "start_lost_response.queried",
+    "start_lost_response.partial_response",
+    "start_lost_response.replay",
+    "start_lost_response.retry_request",
+    "cleanup.stop_reports",
+    "start_lost_response.first.intent_digest",
+    "schema_lost_response.operation.verified_digest",
+    "delayed_resend.frozen_outbox.payload_digest",
+    "delayed_resend.expected.provenance.sample_id"
+  ],
+  "next_required": "none for the recovery cases; final_v4 captures and strict cleanup are complete. Final v5 diagnostic preview/multi-entity SQL witnesses are recorded separately.",
+  "negative_regression": {
+    "run_id": "sqlite-recovery-20261004s",
+    "evidence_path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-sqlite-sqlite-recovery-20261004s.json",
+    "expected_safe_rejection": "WRITE_GROUP_TEST_WRITE_UNSUPPORTED / test-ownership-unsupported",
+    "role": "Basic managed groups without an entity key remain safely rejected; excluded from the three recovery success cases."
+  },
+  "production_source_digest_prefix": "290b0b8",
+  "final_v4_binary": {
+    "basename": "gw-F-test-ui-production-final-v4",
+    "sha256": "c81c8706b17d6cb0e630a713eb7e8e25a1c4937100d3ffe3c50d61113a882a0a"
+  },
+  "focused_validation": {
+    "syntax": "node --check all seven fresh-recovery*.mjs files: pass",
+    "tests": "node --test scripts/tests/f_device_to_sql/fresh-recovery.test.mjs scripts/tests/f_device_to_sql/fresh-postgres-setup.test.mjs: 8 pass, 0 fail",
+    "adapter_line_count": 499
+  },
+  "pre_v4_runs": [
+    {
+      "run_id": "sqlite-recovery-20261004w3",
+      "kind": "sqlite",
+      "command": "F_SQL_KIND=sqlite F_RUN_ID=sqlite-recovery-20261004w3 GW_PORT=3381 F_SIM_PORT_A=15052 F_SIM_PORT_B=15053 node scripts/tests/f_device_to_sql/fresh-recovery.mjs",
+      "evidence": {
+        "path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-sqlite-sqlite-recovery-20261004w3.json",
+        "sha256": "eff638822443a466a548185e2fb12109f2a9f341c7dc7865fdc320fb756ed7f5"
+      },
+      "passed": true,
+      "cleanup_passed": true,
+      "harness_timestamps": "not captured by pre-v4 harness"
+    },
+    {
+      "run_id": "postgres-recovery-20261004w1",
+      "kind": "postgres",
+      "command": "F_SQL_KIND=postgres F_RUN_ID=postgres-recovery-20261004w1 POSTGRES_DSN=<owned-loopback-redacted> GW_PORT=3381 F_SIM_PORT_A=15052 F_SIM_PORT_B=15053 node scripts/tests/f_device_to_sql/fresh-recovery.mjs",
+      "evidence": {
+        "path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-postgres-postgres-recovery-20261004w1.json",
+        "sha256": "0c2fce436d53e939f82ddfff3d21f88279e12998a3134aa43f04d8a33e40dad0"
+      },
+      "passed": true,
+      "cleanup_passed": true,
+      "harness_timestamps": "not captured by pre-v4 harness"
+    }
+  ],
+  "final_runs": [
+    {
+      "run_id": "sqlite-recovery-20261004v4e",
+      "kind": "sqlite",
+      "command": "F_SQL_KIND=sqlite F_RUN_ID=sqlite-recovery-20261004v4e F_GATEWAY_BINARY=gw-F-test-ui-production-final-v4 GW_PORT=3381 F_SIM_PORT_A=15052 F_SIM_PORT_B=15053 node scripts/tests/f_device_to_sql/fresh-recovery.mjs",
+      "evidence": {
+        "path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-sqlite-sqlite-recovery-20261004v4e.json",
+        "sha256": "bbb24f22b5f5a1dab3b9e326c53f4def92729344ff8242d41f59f313def65790"
+      },
+      "passed": true,
+      "cleanup_passed": true,
+      "harness_started_at": "2026-10-04T01:37:51.738Z",
+      "harness_ended_at": "2026-10-04T01:38:46.798Z",
+      "source_identity": {
+        "request_id": "a837f172-a015-40e7-a7d2-8991d94603c9",
+        "workspace_id": "cc2af326-b253-4358-82f7-338f53dbc6d6",
+        "expected_workspace_revision": "040a6e0b-6806-48b2-bb47-6c8f3edecd7a",
+        "groups": [
+          {
+            "group_id": "990f278c-6be2-4429-94eb-aa0995583969",
+            "expected_group_revision": "012d15d7-e3f7-4cb6-b983-16f2ed488d21",
+            "expected_connector_revision": "4beec8be-dae9-417a-b34a-8cf387e7ef1a"
+          }
+        ]
+      },
+      "schema_response_drop": {
+        "operation_id": "op-1f8f414f-5150-4e35-80be-83d830bdf1eb",
+        "dropped_response_status": 200,
+        "recovered_status": "succeeded",
+        "target_before_exists": false,
+        "target_before_managed_table_count": 0,
+        "target_after_managed_table_count": 1,
+        "verified_digest": "1d51058a78b1de7329554e3dd6c9fce006dd6296ff6e38868c213c756c7bbdd9"
+      },
+      "schema_error_capture": {
+        "method": "GET",
+        "operation_id": "op-1f8f414f-5150-4e35-80be-83d830bdf1eb",
+        "dropped_response_status": 200,
+        "safe_error_focus_test_id": "group-schema-error",
+        "screenshots": [
+          {
+            "width": 390,
+            "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-390.png",
+            "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-focus-390.png",
+            "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-controls-390.png"
+          },
+          {
+            "width": 768,
+            "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-768.png",
+            "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-focus-768.png",
+            "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-controls-768.png"
+          },
+          {
+            "width": 1440,
+            "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-1440.png",
+            "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-focus-1440.png",
+            "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-controls-1440.png"
+          }
+        ]
+      },
+      "start_response_drop": {
+        "request_id": "a837f172-a015-40e7-a7d2-8991d94603c9",
+        "operation_id": "start-40682430f52083f3138d610b31dda89711a06c373c74ad96dc4033b87d6a337e",
+        "queried_status": "partial",
+        "same_request_partial_status": "partial",
+        "replay_status": "succeeded",
+        "same_operation_identity": true,
+        "same_group_id": true,
+        "applied_revision": "012d15d7-e3f7-4cb6-b983-16f2ed488d21",
+        "partial_ui": {
+          "status_test_id": "basic-recording-status",
+          "retry_test_id": "basic-recording-retry",
+          "status_and_retry_asserted": true,
+          "screenshots": [
+            {
+              "width": 390,
+              "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-390.png",
+              "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-focus-390.png",
+              "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-controls-390.png"
+            },
+            {
+              "width": 768,
+              "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-768.png",
+              "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-focus-768.png",
+              "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-controls-768.png"
+            },
+            {
+              "width": 1440,
+              "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-1440.png",
+              "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-focus-1440.png",
+              "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-controls-1440.png"
+            }
+          ]
+        },
+        "intent_digest": "639fd796833fc77d071c45ef0f054a932d762493a2793eac7113c01e736c52b8"
+      },
+      "delayed_resend": {
+        "frozen_payload_raw_present": true,
+        "frozen_payload_raw_length": 2150,
+        "row_record_id": "9d49e566bca62dffce505f767576c4fe6fa74a0067ca34476a59c84763e747cd",
+        "effect_key": "57b22bc93c39893e13991c1b2677c67adb2194b760ef48e35030b889d1e298ff",
+        "group_id": "990f278c-6be2-4429-94eb-aa0995583969",
+        "group_revision": "012d15d7-e3f7-4cb6-b983-16f2ed488d21",
+        "receipt_effect_key": "57b22bc93c39893e13991c1b2677c67adb2194b760ef48e35030b889d1e298ff",
+        "receipt_payload_digest": "98522afe2a3b8e46eb36cfb722eb43b8d7ac0d322789f6fbbed0787a3b7b8380",
+        "receipt_committed_at": "2026-10-04T01:38:44.751310000Z",
+        "pending_hint_present": false,
+        "provenance_asserted": true,
+        "acquisition_timestamp_asserted": true,
+        "provenance_sample_ids": [
+          "07e2c2c2650c2cf90f6f15ed49789093408761e1a1d7c9833149eb364820c556",
+          "d670f52c0d665d5b04f7517e0558955b586f0b3cdc7465c20515596eb0510fde",
+          "d33a1b9b80b48639e5e2d401f019a19087429b060ca6d90531c0c7a9c93b664f",
+          "d055f9c364f142db74910a8a2ef1bec9d8a457909266da4e4b5528573b5f749d"
+        ]
+      },
+      "cleanup": {
+        "work_absent": true,
+        "stop_reports_exit_code_zero": true,
+        "forced_kill_sent": false
+      },
+      "screenshots": {
+        "png_count": 27,
+        "evidence_file_count": 28,
+        "widths": [
+          390,
+          768,
+          1440
+        ],
+        "main_partial_error_focus_controls": true,
+        "keyboard_focus_collapse": true,
+        "basic_bounds_outside_viewport": true,
+        "legacy_overflow_recorded_separately": true,
+        "evidence_prefix": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-"
+      },
+      "source_hashes": {
+        "start_intent_digest": "639fd796833fc77d071c45ef0f054a932d762493a2793eac7113c01e736c52b8",
+        "schema_verified_digest": "1d51058a78b1de7329554e3dd6c9fce006dd6296ff6e38868c213c756c7bbdd9",
+        "delayed_payload_digest": "98522afe2a3b8e46eb36cfb722eb43b8d7ac0d322789f6fbbed0787a3b7b8380"
+      }
+    },
+    {
+      "run_id": "postgres-recovery-20261004v4b",
+      "kind": "postgres",
+      "command": "F_SQL_KIND=postgres F_RUN_ID=postgres-recovery-20261004v4b F_GATEWAY_BINARY=gw-F-test-ui-production-final-v4 POSTGRES_DSN=<owned-loopback-redacted> GW_PORT=3381 F_SIM_PORT_A=15052 F_SIM_PORT_B=15053 node scripts/tests/f_device_to_sql/fresh-recovery.mjs",
+      "evidence": {
+        "path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-postgres-postgres-recovery-20261004v4b.json",
+        "sha256": "1ec5522dc74c93f6e2e4dc35bfa3d2e7410f6ab951276bbfb0e00b345c27592a"
+      },
+      "passed": true,
+      "cleanup_passed": true,
+      "harness_started_at": "2026-10-04T01:39:07.213Z",
+      "harness_ended_at": "2026-10-04T01:40:06.966Z",
+      "source_identity": {
+        "request_id": "0b7b90d9-b953-4502-a122-ea3df78634f7",
+        "workspace_id": "07a2b93d-1a93-4bf6-a127-dfd5d427c3e5",
+        "expected_workspace_revision": "fb5e61bb-23ba-44e3-be94-5d9a7ce0299e",
+        "groups": [
+          {
+            "group_id": "ffb06b04-3f12-4f25-9fdd-5d4e459a6724",
+            "expected_group_revision": "6052659b-7d62-4d17-9fd6-bb2e6230c621",
+            "expected_connector_revision": "bd15dab0-2d8c-4c6f-b36b-dadeb29cb180"
+          }
+        ]
+      },
+      "schema_response_drop": {
+        "operation_id": "op-82108e46-8b9b-4919-a9ee-7cc10071a352",
+        "dropped_response_status": 200,
+        "recovered_status": "succeeded",
+        "target_before_exists": true,
+        "target_before_managed_table_count": 0,
+        "target_after_managed_table_count": 1,
+        "verified_digest": "646f966990849c3300f48b184bfba7bcb88780bbaaaec6a5a96519547bacadf2"
+      },
+      "schema_error_capture": {
+        "method": "GET",
+        "operation_id": "op-82108e46-8b9b-4919-a9ee-7cc10071a352",
+        "dropped_response_status": 200,
+        "safe_error_focus_test_id": "group-schema-error",
+        "screenshots": [
+          {
+            "width": 390,
+            "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-390.png",
+            "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-focus-390.png",
+            "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-controls-390.png"
+          },
+          {
+            "width": 768,
+            "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-768.png",
+            "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-focus-768.png",
+            "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-controls-768.png"
+          },
+          {
+            "width": 1440,
+            "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-1440.png",
+            "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-focus-1440.png",
+            "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-controls-1440.png"
+          }
+        ]
+      },
+      "start_response_drop": {
+        "request_id": "0b7b90d9-b953-4502-a122-ea3df78634f7",
+        "operation_id": "start-351fddc4545185d40ac3937d540a17e8adcb3145794db788628b7ee0de5b67b8",
+        "queried_status": "partial",
+        "same_request_partial_status": "partial",
+        "replay_status": "succeeded",
+        "same_operation_identity": true,
+        "same_group_id": true,
+        "applied_revision": "6052659b-7d62-4d17-9fd6-bb2e6230c621",
+        "partial_ui": {
+          "status_test_id": "basic-recording-status",
+          "retry_test_id": "basic-recording-retry",
+          "status_and_retry_asserted": true,
+          "screenshots": [
+            {
+              "width": 390,
+              "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-390.png",
+              "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-focus-390.png",
+              "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-controls-390.png"
+            },
+            {
+              "width": 768,
+              "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-768.png",
+              "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-focus-768.png",
+              "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-controls-768.png"
+            },
+            {
+              "width": 1440,
+              "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-1440.png",
+              "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-focus-1440.png",
+              "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-controls-1440.png"
+            }
+          ]
+        },
+        "intent_digest": "8f9b59458f2b04df03c4d1feb55bddd84e0fb58ff8f8e2f998f6b513207e2753"
+      },
+      "delayed_resend": {
+        "frozen_payload_raw_present": true,
+        "frozen_payload_raw_length": 2152,
+        "row_record_id": "4116688f810695186aab37b3b0297a22329253ec37f8202368336505a5ec5ca9",
+        "effect_key": "0b02febe2513aae8495956f6d99ba24cb23e7efb4d64c3445f3deb04160434f3",
+        "group_id": "ffb06b04-3f12-4f25-9fdd-5d4e459a6724",
+        "group_revision": "6052659b-7d62-4d17-9fd6-bb2e6230c621",
+        "receipt_effect_key": "0b02febe2513aae8495956f6d99ba24cb23e7efb4d64c3445f3deb04160434f3",
+        "receipt_payload_digest": "8669f9eb5780eb55dcd78f7b30b9bbf8309d5cff78ccbbbdbe1457a45491897d",
+        "receipt_committed_at": "2026-10-04T01:40:04.369394000Z",
+        "pending_hint_present": false,
+        "provenance_asserted": true,
+        "acquisition_timestamp_asserted": true,
+        "provenance_sample_ids": [
+          "277a7fa747e30fccc72a11f0d75923afcb37b3b54a0236b4f33b7a956056cf19",
+          "84f2f0d413b6b533fa07afb5d4ce4d0857eba5d3ddc0926031f7a013ae49665d",
+          "825feac75bddd4d9c7ef848c9f89d28ee7ae387f32b9741b07d23d82c845f3f8",
+          "8ed94bb1e2ffcab39554edc3fdd4ebd20d267d5d19914d650ab4099221d39468"
+        ]
+      },
+      "cleanup": {
+        "work_absent": true,
+        "stop_reports_exit_code_zero": true,
+        "forced_kill_sent": false
+      },
+      "screenshots": {
+        "png_count": 27,
+        "evidence_file_count": 28,
+        "widths": [
+          390,
+          768,
+          1440
+        ],
+        "main_partial_error_focus_controls": true,
+        "keyboard_focus_collapse": true,
+        "basic_bounds_outside_viewport": true,
+        "legacy_overflow_recorded_separately": true,
+        "evidence_prefix": "fresh-recovery-postgres-postgres-recovery-20261004v4b-"
+      },
+      "source_hashes": {
+        "start_intent_digest": "8f9b59458f2b04df03c4d1feb55bddd84e0fb58ff8f8e2f998f6b513207e2753",
+        "schema_verified_digest": "646f966990849c3300f48b184bfba7bcb88780bbaaaec6a5a96519547bacadf2",
+        "delayed_payload_digest": "8669f9eb5780eb55dcd78f7b30b9bbf8309d5cff78ccbbbdbe1457a45491897d"
+      }
+    }
+  ],
+  "screenshot_contract": {
+    "basic_panel": "390, 768, and 1440 viewport captures include main, partial, and schema-error views with focus and controls images; Basic bounds are inside the viewport at every width",
+    "partial_panel": "after restart, the armed activation fault receives a real same-request POST response with partial status; DOM status and Retry controls are asserted before capture",
+    "error_panel": "schema operation-check response is deliberately lost after route.fetch; the UI renders its fail-closed group-schema-error state before capture",
+    "legacy_panel": "legacy overflow remains recorded separately from Basic bounds and is not treated as a Basic panel crop failure",
+    "keyboard": "focus captures use the keyboard collapse control and record successful focus/viewport behavior"
+  },
+  "retained_harness_failures": [
+    {
+      "run_id": "sqlite-recovery-20261004v4a",
+      "evidence_path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-sqlite-sqlite-recovery-20261004v4a.json",
+      "reason": "final-v4 recovery and cleanup completed; screenshot anchor lacked a basic-recording-status test id"
+    },
+    {
+      "run_id": "sqlite-recovery-20261004v4b",
+      "evidence_path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-sqlite-sqlite-recovery-20261004v4b.json",
+      "reason": "final-v4 recovery and cleanup completed; harness called a screenshot-anchor wrapper instead of its locator"
+    },
+    {
+      "run_id": "sqlite-recovery-20261004v4d",
+      "evidence_path": "docs/plans/studio-v2-flow-completion/evidence-f/fresh-recovery-sqlite-sqlite-recovery-20261004v4d.json",
+      "reason": "partial UI assertion was too narrow for the English partly translation; schema error capture did complete, then the owned run was retained for audit"
+    }
+  ],
+  "limits": [
+    "POSTGRES_DSN is recorded only as an owned loopback redaction; the final run used the shared owned 55432 PostgreSQL container.",
+    "The delayed fault is an owned ten-second write-lock case; this evidence makes no 60-second timing claim.",
+    "The evidence preserves raw SQL payload/provenance and does not replace acquisition timestamps with derived bucket values.",
+    "At 390px existing legacy content can overflow; all final Basic panel bounds remain within the viewport and have no Basic-owned overflow.",
+    "The 768px partial focus capture has sticky-header occlusion; the corresponding controls capture is the readable partial-state witness."
+  ]
+}

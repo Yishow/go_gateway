@@ -1,0 +1,15 @@
+{
+  "status": "PASS-current",
+  "environment": "darwin/arm64; Go 1.27.1; owned loopback PostgreSQL 16.14 and disposable SQLite",
+  "command": "go test -tags f_write_group_fixture -race -p 1 ./cmd/test_ui -run '^TestProductionF(SlowSenderSuccessAndFailureDurable|ParallelCutoffKeepsDurableIdentity)$' -count=1",
+  "exit_code": 0,
+  "tested_cases": 8,
+  "log": "gw-F-production-specific-sqlite-probe-v2-root-race.log",
+  "log_sha256": "9423eaec47732ea8dbe1ac5c6a6caf111d7d4879f075c31dcfa2f2ffaf726c23",
+  "test_file_sha256": "b601470c2b8da0afbad262b16d4a735f8c0b9c167763f11c7dce7b98a8963042",
+  "production_source_identity_digest": "552dd703fa62198cd99455c9cf737d95855d3fa37ab42f8a37b5fdcab2522076",
+  "limits": [
+    "Tagged wired recovery/deadline integration is separate from the normal binary UI/SQL matrix.",
+    "This is a rerun after SQLite probe production correction; earlier evidence is retained as chronology."
+  ]
+}

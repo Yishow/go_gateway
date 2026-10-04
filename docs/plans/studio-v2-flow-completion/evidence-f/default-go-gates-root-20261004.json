@@ -1,0 +1,41 @@
+{
+  "kind": "default-go-repository-gates-root",
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "environment": {
+    "go": "1.27.1",
+    "go_module": "1.25.5",
+    "os": "darwin",
+    "arch": "arm64",
+    "POSTGRES_DSN": "unset"
+  },
+  "effective_packages": 56,
+  "effective_source_test_embed_files": 1387,
+  "effective_input_manifest_sha256": "da38b092f0935f5636cd0af7ab591c7dee99914d6c4e8c11e6b7f778c30bf681",
+  "after_execution_inputs_unchanged": true,
+  "commands": [
+    {
+      "command": "POSTGRES_DSN= go test -p 1 ./... -count=1",
+      "result": "passed-current",
+      "exit_code": 0,
+      "log": "gw-F-backend-final-default-test.log"
+    },
+    {
+      "command": "go vet ./...",
+      "result": "passed-current",
+      "exit_code": 0,
+      "log": "gw-F-backend-final-default-vet.log"
+    },
+    {
+      "command": "golangci-lint run ./...",
+      "result": "passed-current",
+      "exit_code": 0,
+      "issues": 0,
+      "log": "gw-F-backend-final-default-lint.log"
+    }
+  ],
+  "limits": [
+    "Default build omits f_write_group_fixture-tagged tests; their execution and lint are separately required.",
+    "Conditional live PostgreSQL tests skipped without POSTGRES_DSN; no claim of full live PostgreSQL repository pass.",
+    "No production targets or field acceptance."
+  ]
+}

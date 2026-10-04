@@ -48,6 +48,26 @@ describe('write group test write contract', () => {
     expect(result.values.map((entry) => entry.column)).toEqual(['temperature', 'entity']);
   });
 
+  it('accepts the production cleanup description with a complete owner UUID', async () => {
+    const owner = 'gw-test-12345678-1234-1234-1234-123456789abc';
+    const cleanup = `remove only rows where entity_id = "${owner}", and the receipt of this test when one is written`;
+    vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({ data: { success: true, data: preview({
+      owner_column: 'entity_id', owner_value: owner, cleanup,
+      values: [{ column: 'entity_id', type: 'text', value: owner }],
+    }) } } as never);
+    const result = await studioV2WorkspaceWriteGroupsAPI.testWritePreview('group-1');
+    expect(result.cleanup).toBe(cleanup);
+    expect(result.owner_value).toBe(owner);
+  });
+
+  it('keeps cleanup text bounded and identifier and owner validation intact', () => {
+    for (const cleanup of ['', '  ', null, 'x'.repeat(257)]) {
+      expect(parseWriteGroupTestWritePreview(preview({ cleanup }))).toBeNull();
+    }
+    expect(parseWriteGroupTestWritePreview(preview({ token: 'x'.repeat(129) }))).toBeNull();
+    expect(parseWriteGroupTestWritePreview(preview({ owner_value: 'x'.repeat(129) }))).toBeNull();
+  });
+
   it('confirms with only the token and operation, never a bare plan id', async () => {
     vi.mocked(studioV2DatalinkApi.post).mockResolvedValueOnce({ data: { success: true, data: operation() } } as never);
     const result = await studioV2WorkspaceWriteGroupsAPI.testWrite('group-1', { token: 'tok-1', operation_id: 'op-1' });

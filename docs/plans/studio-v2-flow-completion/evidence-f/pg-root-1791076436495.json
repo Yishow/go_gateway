@@ -1,0 +1,16 @@
+{
+  "run_id": "pg-root-1791076436495",
+  "kind": "postgres-single-seven-types",
+  "passed": false,
+  "command": "node scripts/tests/f_device_to_sql/fresh-postgres-root.mjs",
+  "environment": "darwin/arm64; owned loopback simulator and disposable PostgreSQL schema",
+  "linked_build_evidence": "normal-build-ui-evidence-v3-root-20261004.json",
+  "poll_interval_ms": 1000,
+  "limitations": ["Single device; multi-device and same-group entity runs are separate."],
+  "failed_stage": "preflight",
+  "error": "POSTGRES_DSN must target the owned loopback PostgreSQL fixture at 127.0.0.1:55432/gwtest as postgres",
+  "browser_cleanup": "closed",
+  "child_exit": [],
+  "child_exit_passed": true,
+  "schema_cleanup": "not-created"
+}

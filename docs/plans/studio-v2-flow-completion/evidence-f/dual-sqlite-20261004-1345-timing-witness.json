@@ -1,0 +1,31 @@
+{
+  "kind": "derived-timing-witness",
+  "run_id": "dual-sqlite-20261004-1345",
+  "source_raw": "dual-sqlite-20261004-1345.json",
+  "source_revalidation": "dual-sqlite-20261004-1345-revalidation.json",
+  "source_compaction_manifest": "f-json-compaction-manifest.json",
+  "source_raw_pretty_sha256": "180093eb9dc1ad043184e318343c3282a22498ba8e19d400d3b44fcf0d03fe0b",
+  "source_current_compact_sha256": "e8e71e863fae053dc3df0b18eab6057e3fdb480304bdda67518547a28a720513",
+  "observation": "derived only from retained raw clocks; no new SQL polling or timing claim",
+  "intervals_ms": {
+    "A": {
+      "setup": 78469.801959,
+      "wait_closed": 92966.634458,
+      "delivery_observed": 4015.901417,
+      "end_to_end": 175452.337834
+    },
+    "B": {
+      "setup": 78970.219209,
+      "wait_closed": 216930.924166,
+      "delivery_observed": 3.583792,
+      "end_to_end": 295904.727167
+    }
+  },
+  "first_formal_sql_acceptance": {
+    "entity": "A",
+    "end_to_end_ms": 175452.337834,
+    "within_300s": true
+  },
+  "late_poll_limit": "B end-to-end is separately recorded because the runner selected B after A; it is not used as the single first-formal-SQL timing.",
+  "nonnegative": true
+}

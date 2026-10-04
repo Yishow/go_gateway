@@ -1,0 +1,46 @@
+{
+  "scope": "F owned fresh destination preflight regression",
+  "status": "PASS-current",
+  "source_sha256": {
+    "scripts/tests/f_device_to_sql/destination-preflight.mjs": "73a043cd9f87d382aed4a55669c0521c7356826eb30fbc466c5f989b3343c674",
+    "scripts/tests/f_device_to_sql/destination-preflight.test.mjs": "b27018772d014cba0d9ba0680688daa1292d2b4ff797b20b13647a5ce0310646",
+    "scripts/tests/f_device_to_sql/fresh-early-root.mjs": "c6eae40abfb6112ced30fe4a5f59f277f998be03be9b433f49fe97a0e83c9cf4"
+  },
+  "commands": [
+    {
+      "command": "node --test scripts/tests/f_device_to_sql/destination-preflight.test.mjs",
+      "phase": "RED-before-fix",
+      "exit_code": 1,
+      "log": "gw-F-preflight-ownership-red.log",
+      "log_sha256": "39019aed47792579cadaf47b6874754a5a9c5efe5e3172e206644fc83384cd3b"
+    },
+    {
+      "command": "node --test scripts/tests/f_device_to_sql/destination-preflight.test.mjs",
+      "phase": "GREEN-after-fix",
+      "exit_code": 0,
+      "log": "gw-F-preflight-ownership-green.log",
+      "log_sha256": "8621f1b8e1aceadaf33eb6d683c5e7d2e3314eedcf43ab96d9b05b9b9d829667"
+    }
+  ],
+  "tests": {
+    "red": {
+      "pass": 8,
+      "fail": 3
+    },
+    "green": {
+      "pass": 11,
+      "fail": 0
+    }
+  },
+  "assertions": [
+    "Missing SQLite preflight never opens or creates the file.",
+    "Existing SQLite observation uses read-only URI.",
+    "Owned-looking work/nested/file symlink aliases are rejected.",
+    "Only acknowledged CREATE grants cleanup ownership; observation failure drops that exact empty schema.",
+    "Invalid target identifier is rejected before CREATE; rejected CREATE does not DROP an existing namespace."
+  ],
+  "limits": [
+    "PostgreSQL fault branches are deterministic Node tests; successful real owned schema CREATE/SELECT/DROP is independently covered in fresh-preflight-root-20261004.json.",
+    "This preflight proof does not substitute for fresh UI seven-type, three-bucket or timing matrix."
+  ]
+}

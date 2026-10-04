@@ -1,0 +1,20 @@
+{
+  "normal_build": true,
+  "fixture_tags": [],
+  "command": "GOCACHE=<owned-cache> go build -o <owned-temp>/gw-F-test-ui-production-final-v5 ./cmd/test_ui",
+  "exit_code": 0,
+  "source_count": 592,
+  "source_identity_digest": "14789492b1d6c592af3a1d56f7f3e809e757e1ce6426bd5758dd96d38b1cc593",
+  "source_unchanged_during_build": true,
+  "binary_sha256": "413668d4db31b34a9bed09a2303ab56746caff1526af038155012307d991f9f1",
+  "embedded_dist_file_count": 99,
+  "embedded_dist_hashes_equal": true,
+  "tracked_embed_placeholder": "HEAD bytes retained",
+  "production_changes_from_v4": [
+    "internal/datalink/dbtarget/service_probe.go",
+    "frontend/src/utils/studioV2WriteGroupTestWriteJson.ts"
+  ],
+  "limits": [
+    "Recovery visual captures remain final-v4; unchanged relevant UI component identity is recorded separately."
+  ]
+}

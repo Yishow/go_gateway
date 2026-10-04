@@ -1,0 +1,41 @@
+{
+  "run_id": "f2-sqlite-single-20261004-1145",
+  "passed": false,
+  "failures": [
+    "gateway did not close three complete buckets; got 2"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-1145",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-1145: gateway did not close three complete buckets; got 2"
+  ],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 71598,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 71599,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "state": "removed",
+      "path": "/tmp/gw-f-f2-sqlite-single-20261004-1145",
+      "absent": true
+    }
+  }
+}

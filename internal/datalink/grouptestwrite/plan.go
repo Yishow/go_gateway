@@ -99,6 +99,19 @@ func memberKey(deviceID, pointID, tagID string) string {
 	return string(encoded)
 }
 
+func groupDeviceID(group *workspace.WriteGroup) string {
+	if len(group.Members) == 0 {
+		return ""
+	}
+	deviceID := group.Members[0].DeviceID
+	for _, member := range group.Members[1:] {
+		if member.DeviceID != deviceID {
+			return ""
+		}
+	}
+	return deviceID
+}
+
 func unsupported(reason string, issues ...dbtarget.LayoutIssue) error {
 	return &UnsupportedError{Reason: reason, Issues: issues}
 }
@@ -165,9 +178,14 @@ func (s *Service) buildPlan(ctx context.Context, groupID string) (*plan, error) 
 		members = append(members, memberFixture{column: member.TargetColumn, kind: kind, value: value, key: key})
 		layoutMembers = append(layoutMembers, dbtarget.GroupRowMember{MemberKey: key, Column: member.TargetColumn, Type: kind, Required: true})
 	}
+	deviceID := groupDeviceID(group)
 	layout, issues := dbtarget.NewGroupRowLayout(dbtarget.GroupRowSpec{
 		Dialect: dialect, Columns: inspection.Columns, Members: layoutMembers,
-		EntityKeyed: true, EntityKeyColumn: ownerColumn, ProvenanceColumn: group.RowPolicy.ProvenanceColumn,
+		EntityKeyed: true, EntityKeyColumn: ownerColumn,
+		RecordKeyColumn: group.RowPolicy.RecordKeyColumn, BucketStartColumn: group.RowPolicy.BucketStartColumn,
+		ProvenanceColumn: group.RowPolicy.ProvenanceColumn,
+		GroupIDColumn:    group.RowPolicy.GroupIDColumn, GroupID: group.ID,
+		DeviceIDColumn: group.RowPolicy.DeviceIDColumn, DeviceID: deviceID,
 	})
 	if len(issues) > 0 {
 		return nil, unsupported(ReasonLayoutBlocked, issues...)
@@ -218,6 +236,16 @@ func (p *plan) contentDigest() (string, error) {
 		Type   string `json:"type"`
 		Value  any    `json:"value"`
 	}
+	type rowIdentity struct {
+		EntityKeyColumn   string `json:"entity_key_column"`
+		RecordKeyColumn   string `json:"record_key_column"`
+		BucketStartColumn string `json:"bucket_start_column"`
+		ProvenanceColumn  string `json:"provenance_column"`
+		GroupIDColumn     string `json:"group_id_column"`
+		GroupID           string `json:"group_id"`
+		DeviceIDColumn    string `json:"device_id_column"`
+		DeviceID          string `json:"device_id"`
+	}
 	list := make([]member, 0, len(p.members))
 	for _, m := range p.members {
 		encoded, err := json.Marshal(m.value)
@@ -226,10 +254,21 @@ func (p *plan) contentDigest() (string, error) {
 		}
 		list = append(list, member{Column: m.column, Type: string(m.kind), Value: json.RawMessage(encoded)})
 	}
-	payload, err := json.Marshal([]any{
+	parts := []any{
 		"test-write-content-v1", p.group.Destination.ConnectorID, p.group.Destination.TableSchema, p.group.Destination.TableName,
-		p.ownerColumn, p.group.RowPolicy.ProvenanceColumn, p.strategy, list,
-	})
+		p.ownerColumn, p.group.RowPolicy.ProvenanceColumn, p.strategy,
+	}
+	identity := rowIdentity{
+		EntityKeyColumn: p.ownerColumn, RecordKeyColumn: p.group.RowPolicy.RecordKeyColumn,
+		BucketStartColumn: p.group.RowPolicy.BucketStartColumn, ProvenanceColumn: p.group.RowPolicy.ProvenanceColumn,
+		GroupIDColumn: p.group.RowPolicy.GroupIDColumn, GroupID: p.group.ID,
+		DeviceIDColumn: p.group.RowPolicy.DeviceIDColumn, DeviceID: groupDeviceID(p.group),
+	}
+	if identity.RecordKeyColumn != "" || identity.BucketStartColumn != "" || identity.GroupIDColumn != "" || identity.DeviceIDColumn != "" {
+		parts = append(parts, identity)
+	}
+	parts = append(parts, list)
+	payload, err := json.Marshal(parts)
 	if err != nil {
 		return "", fmt.Errorf("encode test content: %w", err)
 	}

@@ -1,0 +1,31 @@
+{
+  "run_id": "f2-sqlite-single-20261004-0835",
+  "passed": false,
+  "failures": [
+    "observation did not reach expected state: /studio-v2/workspace/database-config {\"id\":\"9a98fe05-6fd2-4a6e-8918-058e89dda725\",\"identity_revision\":\"2b9b22d9-03ab-4c67-983a-37ceb822fec7\",\"setup_revision\":\"493ef82d-db33-437d-84ab-811cea05367f\",\"workspace_id\":\"6c29e2cf-34b8-4643-a2e3-0d76769d9726\",\"kind\":\"sqlite\",\"name\":\"SQLite Connector\",\"host\":\"\",\"port\":0,\"database\":\"gateway.db\",\""
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-0835",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-0835: observation did not reach expected state: /studio-v2/workspace/database-config {\"id\":\"9a98fe05-6fd2-4a6e-8918-058e89dda725\",\"identity_revision\":\"2b9b22d9-03ab-4c67-983a-37ceb822fec7\",\"setup_revision\":\"493ef82d-db33-437d-84ab-811cea05367f\",\"workspace_id\":\"6c29e2cf-34b8-4643-a2e3-0d76769d9726\",\"kind\":\"sqlite\",\"name\":\"SQLite Connector\",\"host\":\"\",\"port\":0,\"database\":\"gateway.db\",\""
+  ],
+  "cleanup": [
+    {
+      "name": "sim-a",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 36209,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 36210,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ]
+}

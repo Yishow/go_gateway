@@ -1,0 +1,31 @@
+{
+  "files_sha256": {
+    "scripts/tests/f_device_to_sql/fresh-recording-verification.mjs": "799250c442845f7053a808bb655dccc750ae5487773b371fe7ea723dd2292e6e",
+    "scripts/tests/f_device_to_sql/fresh-recording-verification.test.mjs": "29cd88571b5f6fed79073a667e12ca25432e31ea4a84f75fd571390618189d23",
+    "scripts/tests/f_device_to_sql/fresh-matrix-test-write.mjs": "c93c61507eb2b7467dfad18339666af652312300310f810a41778e35e4fdf6d5",
+    "scripts/tests/f_device_to_sql/fresh-matrix-test-write.test.mjs": "438606593e3046e640344d6bc17dcdc47f1b149a72bba20330fa30280916b4a8"
+  },
+  "logs": [
+    {
+      "name": "gw-F-verifier-entity-red.log",
+      "sha256": "732901bb5954f97811cf8ebdc382353248b0418bb9dce598da49076dbe814b47"
+    },
+    {
+      "name": "gw-F-verifier-entity-green.log",
+      "sha256": "46ecd8bc02ad9c33cdeee4f41c58a4d1976b18f569e08b235232248ceec90628"
+    },
+    {
+      "name": "gw-F-neighbor-runtime-red.log",
+      "sha256": "5d9374e425b185acf36587ff427206739872a4ed8858e566d63d6def7315f69c"
+    },
+    {
+      "name": "gw-F-neighbor-runtime-green.log",
+      "sha256": "2489bc989f7e91f6d36972683e9c7055537c36a7d64eee9126ac10ccf59406d3"
+    }
+  ],
+  "red": "Missing common entity bucket/unknown membership and non-runtime extra rows were accepted by the old assertions",
+  "green": "Verifier7 and neighbor2 tests pass",
+  "limits": [
+    "Pure assertion tests do not substitute for fresh actual UI/SQL runs."
+  ]
+}

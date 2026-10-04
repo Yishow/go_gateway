@@ -1,0 +1,22 @@
+{
+  "run_id": "dual-sqlite-20261004-1300",
+  "passed": false,
+  "failures": [
+    "SQLite destination must stay below the owned /tmp/gw-f-* run namespace"
+  ],
+  "retained_work": "/tmp/gw-f-dual-sqlite-20261004-1300",
+  "log": [
+    "ERROR dual-sqlite-20261004-1300: SQLite destination must stay below the owned /tmp/gw-f-* run namespace"
+  ],
+  "cleanup": {
+    "processes": [],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "path": "/tmp/gw-f-dual-sqlite-20261004-1300",
+      "absent": true,
+      "state": "removed"
+    }
+  }
+}

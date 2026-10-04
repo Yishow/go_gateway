@@ -1,0 +1,18 @@
+{
+  "command": "POSTGRES_DSN=<owned-loopback-redacted> GOCACHE=<owned-cache> go test -tags f_write_group_fixture -race -p 1 ./cmd/test_ui -run '^TestProductionF(SlowSenderSuccessAndFailureDurable|ParallelCutoffKeepsDurableIdentity)$|^TestProductionTestWriteKeepsManagedMetadataAndNeighborRows$' -count=1",
+  "exit_code": 0,
+  "result": "PASS 16.398s; slow success/failure and parallel cutoff (8 SQLite/PG subcases), plus test-write managed metadata/fixture-neighbor HTTP wiring (2 SQLite/PG subcases).",
+  "log": "gw-F-final-v4-production-integration-race.log",
+  "log_sha256": "7bdc9936af2ccfe24d5e8d86a8b272fc0646d2deb295a78cc502d898c16fdd53",
+  "files_sha256": {
+    "cmd/test_ui/group_pipeline_f_specific_test.go": "b601470c2b8da0afbad262b16d4a735f8c0b9c167763f11c7dce7b98a8963042",
+    "cmd/test_ui/group_pipeline_test_write_metadata_test.go": "1b9d325a3e359c1c35a1a4a5fe1903facfdd99176853bd913bc50a8c7698957f",
+    "internal/datalink/grouptestwrite/plan.go": "b7090de648223c40dbfe7dc49b725ed2e60756229ba5edd8a638265aa0906640",
+    "internal/datalink/grouptestwrite/metadata_test.go": "3565f6c8b1e7b382519e73b707d48a416508bbb2463addc52ae579d7f8e4cee8"
+  },
+  "environment": "darwin/arm64; owned PostgreSQL 16.14 fixture",
+  "limits": [
+    "Tagged deterministic faults are supporting production wiring evidence. Normal fresh UI witnesses use the untagged final-v4 binary.",
+    "The metadata HTTP integration uses a fixture neighbor row, not actual runtime intake. Matrix UI runs separately require actual recorded production neighbors."
+  ]
+}

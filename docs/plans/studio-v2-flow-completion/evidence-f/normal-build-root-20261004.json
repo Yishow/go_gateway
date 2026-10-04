@@ -1,0 +1,34 @@
+{
+  "kind": "normal-build-root-independent",
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "command": "GOCACHE=<owned-cache> go build -o <owned-temp>/gw-F-test-ui-production ./cmd/test_ui",
+  "exit_code": 0,
+  "build_tags": [],
+  "binary_sha256": "13e02bed932e56a08ef992f31c3106e698527ccd97bdf695587d0cf49229ac45",
+  "production_source_files": 592,
+  "production_source_manifest_sha256": "9d5ccd55b90bef4ba51627ef58c9264e4c266343a775e46892781a963537c575",
+  "embedded_dist_identity": {
+    "files": 99,
+    "all_dist_files_match_static": true
+  },
+  "frontend_prior_gates": {
+    "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+    "gate_source": "E final frontend lint/full test/build",
+    "tracked_files": 599,
+    "changed_files": [],
+    "new_tracked_files": [],
+    "identical": true,
+    "classification": "passed-prior if identities match; no new frontend behavioral change",
+    "prior_test_files": 189,
+    "prior_test_passed": 1210
+  },
+  "normal_fixture_protection": {
+    "command": "go test ./cmd/test_ui -run ^TestNormalBinary(FixtureHooksAreNoOp|CapacityEnvironmentIsIgnored)$ -count=1",
+    "exit_code": 0,
+    "passed_tests": 2
+  },
+  "limits": [
+    "Normal build/source identity alone does not establish any UI/SQL acceptance run.",
+    "Frontend pass is prior E gate with 599 matching current identities, not a new F test execution."
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "run_id": "f2-sqlite-single-20261004-0753",
+  "passed": false,
+  "failures": [
+    "fresh Step 2 is not ready: 全域合併點位總覽 (共 9 點) 已啟用 9 · 已略過 0 · 衝突 3 設備來源 所屬規則 點位名稱 暫存器位址 功能碼 資料型別 線性轉換 狀態標記 Line A A int16 A_INT16_0 40001 holding_register int16 無 — Line A A uint16 A_UINT16_0 40002 holding_register uint16 無 — Line A A uint64 precise A_U64A_0 40003 holding_register uint64 無 — Line A A bool A_BOOL_0 40007 holding_register bool 無 — Line A A float32 A_F32_0 40008 holding_register float32 無 — Line A A float64 A_F64_0 40010 holding_register float64 無 — Line A A string A_TEXT_0 40014 holding_register string 無 衝突 Line A A uint64 high A_U64B_0 40015 holding_register uint64 無 衝突 Line A A uint64 max A_U64C_0 40019 holding_register uint64 無 衝突 Conflicting addresses (per device) Line A · 40014 · A string / A uint64 high / A uint64 max Line A · 40015 · A string / A uint64 high Line A · 40019 · A string / A uint64 max 位址存在衝突，請先排除衝突才能繼續。 繼續到映射"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-0753",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-0753: fresh Step 2 is not ready: 全域合併點位總覽 (共 9 點) 已啟用 9 · 已略過 0 · 衝突 3 設備來源 所屬規則 點位名稱 暫存器位址 功能碼 資料型別 線性轉換 狀態標記 Line A A int16 A_INT16_0 40001 holding_register int16 無 — Line A A uint16 A_UINT16_0 40002 holding_register uint16 無 — Line A A uint64 precise A_U64A_0 40003 holding_register uint64 無 — Line A A bool A_BOOL_0 40007 holding_register bool 無 — Line A A float32 A_F32_0 40008 holding_register float32 無 — Line A A float64 A_F64_0 40010 holding_register float64 無 — Line A A string A_TEXT_0 40014 holding_register string 無 衝突 Line A A uint64 high A_U64B_0 40015 holding_register uint64 無 衝突 Line A A uint64 max A_U64C_0 40019 holding_register uint64 無 衝突 Conflicting addresses (per device) Line A · 40014 · A string / A uint64 high / A uint64 max Line A · 40015 · A string / A uint64 high Line A · 40019 · A string / A uint64 max 位址存在衝突，請先排除衝突才能繼續。 繼續到映射"
+  ],
+  "cleanup": [
+    {
+      "name": "sim-a",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 27417,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 27418,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ]
+}

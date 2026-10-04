@@ -160,10 +160,11 @@ func TestProductionGroupOutageRecoverySQLiteDeliveryHonorsPlainPathReadOnly(t *t
 func TestProductionGroupOutageRecoverySQLiteDeliveryRejectsUnknownMode(t *testing.T) {
 	targetPath := filepath.Join(t.TempDir(), "unknown-mode.db")
 	service, connector := newSQLiteDeliveryService(t, targetPath+"?mode=unsupported")
-	require.NoError(t, os.Remove(targetPath), "connector creation probes the saved endpoint; remove it before delivery open")
+	_, statErr := os.Stat(targetPath)
+	require.ErrorIs(t, statErr, os.ErrNotExist, "connector probing must not create an unknown-mode SQLite target")
 	_, err := service.OpenDestination(t.Context(), connector.ID, connector.IdentityRevision)
 	require.ErrorIs(t, err, ErrDestinationBlocked)
-	_, statErr := os.Stat(targetPath)
+	_, statErr = os.Stat(targetPath)
 	require.ErrorIs(t, statErr, os.ErrNotExist)
 }
 

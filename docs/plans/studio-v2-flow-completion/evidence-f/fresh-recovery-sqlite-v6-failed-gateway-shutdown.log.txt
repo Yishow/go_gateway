@@ -1,0 +1,361 @@
+2026/10/04 15:07:05 main.go:74: SQLite DSN: file:/tmp/gw-f-sqlite-recovery-20261004-v6/gateway.db?cache=shared&mode=rwc&_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)
+2026/10/04 15:07:05 migrator.go:37: Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/04 15:07:05 migrator.go:218: Executing SQLite migration: 002_add_device_collection_stats.up.sql (devices.readiness_status)
+2026/10/04 15:07:05 migrator.go:66: Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/04 15:07:05 migrator.go:437: Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_connectors.default_write_interval_seconds)
+2026/10/04 15:07:05 migrator.go:437: Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.group_key)
+2026/10/04 15:07:05 migrator.go:437: Executing SQLite migration: 014_database_target_grouping_sqlite.up.sql (database_target_mappings.write_interval_seconds)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_at)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_status)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_schema_ensure_error)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_at)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_status)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_write_error)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_at)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_status)
+2026/10/04 15:07:05 migrator_database_delivery_outcomes.go:36: Executing SQLite migration: 015_database_delivery_outcomes_sqlite.up.sql (database_connectors.last_flush_error)
+2026/10/04 15:07:05 migrator.go:88: Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/04 15:07:05 migrator.go:259: Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (target_data_type)
+2026/10/04 15:07:05 migrator.go:259: Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_multiplier)
+2026/10/04 15:07:05 migrator.go:259: Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (scale_offset)
+2026/10/04 15:07:05 migrator.go:259: Executing SQLite migration: 006_source_rule_target_datatype_sqlite.up.sql (data_format)
+2026/10/04 15:07:05 migrator.go:301: Executing SQLite migration: 009_source_rule_revision_sqlite.up.sql
+2026/10/04 15:07:05 migrator.go:334: Executing SQLite migration: 010_source_rule_candidate_snapshot_sqlite.up.sql
+2026/10/04 15:07:05 migrator_source_rule_tag_review_decisions.go:28: Executing SQLite migration: 012_source_rule_tag_review_decision_sqlite.up.sql
+2026/10/04 15:07:05 migrator.go:371: Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_enabled)
+2026/10/04 15:07:05 migrator.go:371: Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_start_register)
+2026/10/04 15:07:05 migrator.go:371: Executing SQLite migration: 017_source_rule_modbus_share_sqlite.up.sql (share_stride)
+2026/10/04 15:07:05 migrator.go:280: Executing SQLite migration: 008_point_data_format_sqlite
+2026/10/04 15:07:05 migrator.go:396: Executing SQLite migration: 016_workspace_audit_history_sqlite.up.sql
+2026/10/04 15:07:05 migrator_measurement_semantics.go:28: Executing SQLite migration: 018_measurement_semantics_sqlite.up.sql
+2026/10/04 15:07:05 migrator_measurement_semantics.go:61: Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (layout_mode)
+2026/10/04 15:07:05 migrator_measurement_semantics.go:61: Executing SQLite migration: 018_source_rule_mixed_layout_sqlite (mixed_items)
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 019_recording_plans_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 022_schema_preview_scope_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 023_schema_operations_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 026_operation_test_write_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 020_durable_delivery_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 024_write_groups_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 028_write_group_basic_keys_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 025_write_group_delivery_sqlite.up.sql
+2026/10/04 15:07:05 migrator_database_connector_identity.go:22: Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+2026/10/04 15:07:05 main.go:106: ConnectionManager 已初始化
+2026/10/04 15:07:05 main.go:110: 已註冊的協議: [modbus_rtu modbus_udp mqtt fatek_fbs mc_3e modbus_tcp]
+2026/10/04 15:07:05 server_runtime.go:18: 🚀 測試工具伺服器啟動於 http://localhost127.0.0.1:3381
+2026/10/04 15:07:05 server_runtime.go:19: 📝 開啟瀏覽器訪問 http://localhost127.0.0.1:3381 開始使用
+[HTTP] 15:07:05 GET    /studio/v2 200 82.5µs
+[HTTP] 15:07:05 GET    /api/v1/datalink/studio-v2/workspace 200 1.352417ms
+[HTTP] 15:07:06 GET    /studio/v2 200 18.958µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: index-RKn6wyWL.js (application/javascript; charset=utf-8)
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: index-DqrQtcEl.css (text/css; charset=utf-8)
+[HTTP] 15:07:06 GET    /assets/index-DqrQtcEl.css 200 513.209µs
+[HTTP] 15:07:06 GET    /assets/index-RKn6wyWL.js 200 691.292µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: DatalinkWorkbenchV2Page-Ctf-y8zs.js (application/javascript; charset=utf-8)
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: createLucideIcon-C1ur9QoW.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:06 GET    /assets/createLucideIcon-C1ur9QoW.js 200 74.041µs
+[HTTP] 15:07:06 GET    /assets/DatalinkWorkbenchV2Page-Ctf-y8zs.js 200 291.083µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: DatalinkWorkbenchV2Page-BShGzEP5.css (text/css; charset=utf-8)
+[HTTP] 15:07:06 GET    /assets/DatalinkWorkbenchV2Page-BShGzEP5.css 200 84.417µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: studioV2RuntimeContext-BHzBC5KI.js (application/javascript; charset=utf-8)
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: uiVersion-C1LI9w58.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:06 GET    /assets/studioV2RuntimeContext-BHzBC5KI.js 200 95.792µs
+[HTTP] 15:07:06 GET    /assets/uiVersion-C1LI9w58.js 200 131.042µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: clsx-BD0hBwz9.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:06 GET    /assets/clsx-BD0hBwz9.js 200 43µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: inter-latin-400-normal-C38fXH4l.woff2 (application/octet-stream)
+[HTTP] 15:07:06 GET    /assets/inter-latin-400-normal-C38fXH4l.woff2 200 68.25µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: jetbrains-mono-latin-400-normal-V6pRDFza.woff2 (application/octet-stream)
+[HTTP] 15:07:06 GET    /assets/jetbrains-mono-latin-400-normal-V6pRDFza.woff2 200 106.292µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: inter-latin-600-normal-LgqL8muc.woff2 (application/octet-stream)
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: jetbrains-mono-latin-600-normal-C8RAYTDA.woff2 (application/octet-stream)
+[HTTP] 15:07:06 GET    /assets/inter-latin-600-normal-LgqL8muc.woff2 200 86.916µs
+[HTTP] 15:07:06 GET    /assets/jetbrains-mono-latin-600-normal-C8RAYTDA.woff2 200 168.25µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/studio-v2/workspace 200 384.792µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/modbus-share/status 200 254.5µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/studio-v2/workspace/audit-history?limit=10 200 340.584µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 546.417µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 606.833µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/studio-v2/workspace/devices 200 681.375µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 675.5µs
+[HTTP] 15:07:06 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 99.542µs
+2026/10/04 15:07:06 embed.go:92: 📦 Serving Asset: inter-latin-500-normal-Cerq10X2.woff2 (application/octet-stream)
+[HTTP] 15:07:06 GET    /assets/inter-latin-500-normal-Cerq10X2.woff2 200 84.583µs
+[HTTP] 15:07:07 POST   /api/v1/datalink/studio-v2/workspace/devices 201 1.641542ms
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace 200 1.102542ms
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace/devices 200 225.875µs
+[HTTP] 15:07:07 GET    /api/v1/datalink/modbus-share/status 200 299.75µs
+[HTTP] 15:07:07 PUT    /api/v1/datalink/studio-v2/workspace/devices/dev-1791097627005-600 200 1.036167ms
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace 200 1.076916ms
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace/devices 200 185.875µs
+[HTTP] 15:07:07 GET    /api/v1/datalink/modbus-share/status 200 172.875µs
+[HTTP] 15:07:07 PUT    /api/v1/datalink/studio-v2/workspace/devices/dev-1791097627005-600 200 1.425333ms
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace 200 820.042µs
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace/devices 200 207.458µs
+[HTTP] 15:07:07 GET    /api/v1/datalink/modbus-share/status 200 115.459µs
+[HTTP] 15:07:07 PUT    /api/v1/datalink/studio-v2/workspace/devices/dev-1791097627005-600 200 1.932917ms
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace 200 885.125µs
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace/devices 200 246.416µs
+[HTTP] 15:07:07 GET    /api/v1/datalink/modbus-share/status 200 93.708µs
+[HTTP] 15:07:07 POST   /api/v1/datalink/devices/test-draft 200 416.042µs
+[HTTP] 15:07:07 POST   /api/v1/datalink/devices/dev-1791097627005-600/test 200 1.900542ms
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace 200 675.708µs
+[HTTP] 15:07:07 GET    /api/v1/datalink/studio-v2/workspace/devices 200 94.333µs
+2026/10/04 15:07:07 embed.go:92: 📦 Serving Asset: jetbrains-mono-latin-500-normal-BWZEU5yA.woff2 (application/octet-stream)
+[HTTP] 15:07:07 GET    /assets/jetbrains-mono-latin-500-normal-BWZEU5yA.woff2 200 120.5µs
+2026/10/04 15:07:09 embed.go:92: 📦 Serving Asset: inter-latin-700-normal-Yt3aPRUw.woff2 (application/octet-stream)
+[HTTP] 15:07:09 GET    /assets/inter-latin-700-normal-Yt3aPRUw.woff2 200 257.042µs
+[HTTP] 15:07:09 POST   /api/v1/datalink/studio-v2/workspace/source-rules 201 7.515959ms
+[HTTP] 15:07:09 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 191.709µs
+[HTTP] 15:07:09 GET    /api/v1/datalink/studio-v2/workspace 200 1.135542ms
+[HTTP] 15:07:10 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097629729 200 6.778667ms
+[HTTP] 15:07:10 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 262.459µs
+[HTTP] 15:07:10 GET    /api/v1/datalink/studio-v2/workspace 200 1.099584ms
+[HTTP] 15:07:10 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097629729 200 4.215041ms
+[HTTP] 15:07:10 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 86.458µs
+[HTTP] 15:07:10 GET    /api/v1/datalink/studio-v2/workspace 200 597.333µs
+[HTTP] 15:07:12 POST   /api/v1/datalink/studio-v2/workspace/source-rules 201 11.918084ms
+[HTTP] 15:07:12 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 293.292µs
+[HTTP] 15:07:12 GET    /api/v1/datalink/studio-v2/workspace 200 1.583542ms
+[HTTP] 15:07:13 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097632911 200 12.336541ms
+[HTTP] 15:07:13 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 271.958µs
+[HTTP] 15:07:13 GET    /api/v1/datalink/studio-v2/workspace 200 977.833µs
+[HTTP] 15:07:13 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097632911 200 8.011167ms
+[HTTP] 15:07:13 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 265.917µs
+[HTTP] 15:07:13 GET    /api/v1/datalink/studio-v2/workspace 200 1.633458ms
+[HTTP] 15:07:16 POST   /api/v1/datalink/studio-v2/workspace/source-rules 201 14.838958ms
+[HTTP] 15:07:16 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 236.375µs
+[HTTP] 15:07:16 GET    /api/v1/datalink/studio-v2/workspace 200 1.43725ms
+[HTTP] 15:07:16 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097636093 200 10.268708ms
+[HTTP] 15:07:16 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 185.375µs
+[HTTP] 15:07:16 GET    /api/v1/datalink/studio-v2/workspace 200 694.917µs
+[HTTP] 15:07:16 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097636093 200 3.661375ms
+[HTTP] 15:07:16 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 365.417µs
+[HTTP] 15:07:16 GET    /api/v1/datalink/studio-v2/workspace 200 682.833µs
+[HTTP] 15:07:19 POST   /api/v1/datalink/studio-v2/workspace/source-rules 201 13.950917ms
+[HTTP] 15:07:19 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 207.292µs
+[HTTP] 15:07:19 GET    /api/v1/datalink/studio-v2/workspace 200 1.287542ms
+[HTTP] 15:07:19 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097639276 200 9.922416ms
+[HTTP] 15:07:19 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 304.333µs
+[HTTP] 15:07:19 GET    /api/v1/datalink/studio-v2/workspace 200 1.02325ms
+[HTTP] 15:07:19 PUT    /api/v1/datalink/studio-v2/workspace/source-rules/rule-1791097639276 200 4.463667ms
+[HTTP] 15:07:19 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 151.834µs
+[HTTP] 15:07:19 GET    /api/v1/datalink/studio-v2/workspace 200 753.792µs
+[HTTP] 15:07:22 GET    /api/v1/datalink/studio-v2/workspace/measurements/templates 200 281.458µs
+[HTTP] 15:07:22 GET    /api/v1/datalink/points?device_id=dev-1791097627005-600 200 422.167µs
+[HTTP] 15:07:22 GET    /api/v1/datalink/runtime/stream?device_id=dev-1791097627005-600&point_ids=rule-1791097629729-p-0%2Crule-1791097632911-p-0%2Crule-1791097636093-p-0%2Crule-1791097639276-p-0 200 3.042791ms
+[HTTP] 15:07:22 POST   /api/v1/datalink/points/poll 200 3.240083ms
+[HTTP] 15:07:22 POST   /api/v1/datalink/studio-v2/workspace/mappings 201 4.500916ms
+[HTTP] 15:07:22 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 1.608625ms
+[HTTP] 15:07:22 GET    /api/v1/datalink/studio-v2/workspace 200 900.125µs
+[HTTP] 15:07:22 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 781.666µs
+[HTTP] 15:07:22 PUT    /api/v1/datalink/studio-v2/workspace/mappings/75339435-8567-495c-a023-0a8cdfc66ce5 200 4.229208ms
+[HTTP] 15:07:22 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 558.333µs
+[HTTP] 15:07:22 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 324.541µs
+[HTTP] 15:07:22 GET    /api/v1/datalink/studio-v2/workspace 200 928.625µs
+[HTTP] 15:07:22 POST   /api/v1/datalink/mappings/preview 200 119.833µs
+[HTTP] 15:07:22 POST   /api/v1/datalink/mappings/preview 200 113.292µs
+[HTTP] 15:07:22 POST   /api/v1/datalink/mappings/preview 200 125.75µs
+[HTTP] 15:07:22 POST   /api/v1/datalink/mappings/preview 200 36.583µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 1.147292ms
+[HTTP] 15:07:23 PUT    /api/v1/datalink/studio-v2/workspace/mappings/75339435-8567-495c-a023-0a8cdfc66ce5 200 3.75525ms
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 849.584µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace 200 850.792µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 588.042µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 396.75µs
+[HTTP] 15:07:23 POST   /api/v1/datalink/studio-v2/workspace/mappings 201 4.018708ms
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 395.084µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 778.875µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace 200 834.375µs
+[HTTP] 15:07:23 POST   /api/v1/datalink/mappings/preview 200 54.958µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 461.5µs
+[HTTP] 15:07:23 PUT    /api/v1/datalink/studio-v2/workspace/mappings/0c42b78b-a51f-4efa-87f6-7e9a238375e4 200 3.771416ms
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 486.25µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace 200 700.917µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 442.416µs
+[HTTP] 15:07:23 PUT    /api/v1/datalink/studio-v2/workspace/mappings/0c42b78b-a51f-4efa-87f6-7e9a238375e4 200 3.548416ms
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 509µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 319.042µs
+[HTTP] 15:07:23 GET    /api/v1/datalink/studio-v2/workspace 200 819.5µs
+[HTTP] 15:07:23 POST   /api/v1/datalink/mappings/preview 200 59.167µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 495.708µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 420.125µs
+[HTTP] 15:07:24 POST   /api/v1/datalink/studio-v2/workspace/mappings 201 5.07725ms
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 637.167µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 1.222417ms
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace 200 995.5µs
+[HTTP] 15:07:24 PUT    /api/v1/datalink/studio-v2/workspace/mappings/adc0352a-e9a2-48ef-b24a-e2397531f5d5 200 3.448667ms
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 883.25µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace 200 795.542µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 412.875µs
+[HTTP] 15:07:24 PUT    /api/v1/datalink/studio-v2/workspace/mappings/adc0352a-e9a2-48ef-b24a-e2397531f5d5 200 2.939ms
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 1.012166ms
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 849.917µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace 200 777.583µs
+[HTTP] 15:07:24 POST   /api/v1/datalink/mappings/preview 200 70.833µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 549.458µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 454.75µs
+[HTTP] 15:07:24 POST   /api/v1/datalink/studio-v2/workspace/mappings 201 4.128334ms
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 633.583µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 605.375µs
+[HTTP] 15:07:24 GET    /api/v1/datalink/studio-v2/workspace 200 817.958µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 635.75µs
+[HTTP] 15:07:25 PUT    /api/v1/datalink/studio-v2/workspace/mappings/a3465c93-10ce-4ee2-8132-0c0f166e27dc 200 3.309459ms
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 534.542µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 638.75µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace 200 712.625µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 560.708µs
+[HTTP] 15:07:25 PUT    /api/v1/datalink/studio-v2/workspace/mappings/a3465c93-10ce-4ee2-8132-0c0f166e27dc 200 3.962542ms
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 699.667µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 459.458µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace 200 819.916µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 696.417µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 964.625µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 276.542µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace 200 1.76225ms
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/runtime-context 200 3.125458ms
+[HTTP] 15:07:25 GET    /api/v1/datalink/runtime/stream?device_id=dev-1791097627005-600&point_ids=22a4a3b6-8a74-42d7-aa19-688c627f9829%2C93c81a30-c91f-444f-9370-9edd1fbf32c9%2Cec7c4337-7ed6-4552-a335-b85b57be021c%2Cab8055c4-841e-4f7d-9c69-b1246350365b 200 3.385435334s
+[HTTP] 15:07:25 PUT    /api/v1/datalink/studio-v2/workspace/database-config 200 1.991834ms
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 272.25µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 480.792µs
+[HTTP] 15:07:25 GET    /api/v1/datalink/studio-v2/workspace 200 1.207917ms
+[HTTP] 15:07:26 PUT    /api/v1/datalink/studio-v2/workspace/database-config 200 5.687459ms
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 221µs
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 131.167µs
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 535.5µs
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace 200 1.529333ms
+[HTTP] 15:07:26 PUT    /api/v1/datalink/studio-v2/workspace/database-config 200 1.614ms
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 270.541µs
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 631.208µs
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 160.709µs
+[HTTP] 15:07:26 GET    /api/v1/datalink/studio-v2/workspace 200 1.291375ms
+[HTTP] 15:07:27 PUT    /api/v1/datalink/studio-v2/workspace/database-config 200 3.245583ms
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 357.584µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 151.291µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 543.791µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace 200 1.407875ms
+[HTTP] 15:07:27 GET    /studio/v2 200 13.625µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace 200 2.712709ms
+[HTTP] 15:07:27 GET    /api/v1/datalink/modbus-share/status 200 944.292µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/devices 200 368.583µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/audit-history?limit=10 200 573.25µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 550.5µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 962.792µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 1.276125ms
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 2.278958ms
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 265.625µs
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace 200 3.591625ms
+[HTTP] 15:07:27 GET    /api/v1/datalink/studio-v2/workspace/runtime-context 200 6.324333ms
+[HTTP] 15:07:28 POST   /api/v1/datalink/studio-v2/workspace/write-groups/basic/dev-1791097627005-600 200 1.761958ms
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 410.417µs
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace 200 2.062125ms
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 766.417µs
+[HTTP] 15:07:28 POST   /api/v1/datalink/studio-v2/workspace/recording-start 200 4.508167ms
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 184.584µs
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 1.396125ms
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace 200 1.812959ms
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/recording-start/operations/start-0268b211fe7b736ffefac24a40b214aba24c60944e3e9a76a09de0aadedfd7ae 200 164.917µs
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/devices 200 225.792µs
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 192.667µs
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/readiness 200 541µs
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/database-metadata?expected_connector_revision=8a2085a2-cca6-4d92-901d-98e1b7e40949&group_id=af4ebbf4-6273-425f-91f9-de2d4b67267c&expected_group_revision=1a12b865-d457-499f-8522-be0846415ee1 200 1.021458ms
+[HTTP] 15:07:28 POST   /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/schema-preview 200 3.000959ms
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 229.75µs
+[HTTP] 15:07:28 POST   /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/schema-apply 200 8.242625ms
+[HTTP] 15:07:28 GET    /api/v1/datalink/studio-v2/workspace/database-operations/op-87da91aa-7d38-40cb-ab17-f0dcba12a885 200 152.375µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/database-operations/op-87da91aa-7d38-40cb-ab17-f0dcba12a885 200 157.458µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 210.375µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/database-operations/op-87da91aa-7d38-40cb-ab17-f0dcba12a885 200 271.542µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 1.271916ms
+[HTTP] 15:07:30 GET    /studio/v2 200 48.583µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/database-metadata?expected_connector_revision=8a2085a2-cca6-4d92-901d-98e1b7e40949&group_id=af4ebbf4-6273-425f-91f9-de2d4b67267c&expected_group_revision=1a12b865-d457-499f-8522-be0846415ee1 200 3.503ms
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/readiness 500 3.955458ms
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace 200 8.53275ms
+[HTTP] 15:07:30 GET    /api/v1/datalink/modbus-share/status 200 203.709µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/audit-history?limit=10 200 322.916µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/devices 200 122.875µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 399.458µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 996.041µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 1.6985ms
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 2.598375ms
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 476.583µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/recording-start/operations/start-0268b211fe7b736ffefac24a40b214aba24c60944e3e9a76a09de0aadedfd7ae 200 288.041µs
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace 200 6.580584ms
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 1.148083ms
+[HTTP] 15:07:30 GET    /api/v1/datalink/studio-v2/workspace/runtime-context 200 9.672542ms
+[HTTP] 15:07:31 POST   /api/v1/datalink/studio-v2/workspace/recording-start 200 17.599291ms
+2026/10/04 15:07:31 server_runtime.go:36: 收到系統信號，正在關閉伺服器...
+2026/10/04 15:07:31 server_runtime.go:50: 伺服器已優雅關閉
+2026/10/04 15:07:31 main.go:74: SQLite DSN: file:/tmp/gw-f-sqlite-recovery-20261004-v6/gateway.db?cache=shared&mode=rwc&_pragma=busy_timeout(15000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)
+2026/10/04 15:07:31 migrator.go:37: Executing SQLite migration: 001_initial_schema_sqlite.sql
+2026/10/04 15:07:31 migrator.go:66: Executing SQLite migration: 004_database_targets_sqlite.up.sql
+2026/10/04 15:07:31 migrator.go:88: Executing SQLite migration: 005_source_rules_sqlite.up.sql
+2026/10/04 15:07:31 migrator_database_connector_identity.go:22: Executing SQLite migration: 027_write_group_runtime_sqlite.up.sql
+2026/10/04 15:07:31 main.go:106: ConnectionManager 已初始化
+2026/10/04 15:07:31 main.go:110: 已註冊的協議: [modbus_tcp modbus_rtu modbus_udp mqtt fatek_fbs mc_3e]
+2026/10/04 15:07:31 server_runtime.go:18: 🚀 測試工具伺服器啟動於 http://localhost127.0.0.1:3381
+2026/10/04 15:07:31 server_runtime.go:19: 📝 開啟瀏覽器訪問 http://localhost127.0.0.1:3381 開始使用
+[HTTP] 15:07:31 GET    /studio/v2 200 116.792µs
+[HTTP] 15:07:31 GET    /api/v1/datalink/studio-v2/workspace 200 8.344375ms
+[HTTP] 15:07:31 GET    /studio/v2 200 79.667µs
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: index-RKn6wyWL.js (application/javascript; charset=utf-8)
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: index-DqrQtcEl.css (text/css; charset=utf-8)
+[HTTP] 15:07:31 GET    /assets/index-RKn6wyWL.js 200 596.5µs
+[HTTP] 15:07:31 GET    /assets/index-DqrQtcEl.css 200 329.166µs
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: DatalinkWorkbenchV2Page-Ctf-y8zs.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:31 GET    /assets/DatalinkWorkbenchV2Page-Ctf-y8zs.js 200 323.166µs
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: createLucideIcon-C1ur9QoW.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:31 GET    /assets/createLucideIcon-C1ur9QoW.js 200 131.667µs
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: DatalinkWorkbenchV2Page-BShGzEP5.css (text/css; charset=utf-8)
+[HTTP] 15:07:31 GET    /assets/DatalinkWorkbenchV2Page-BShGzEP5.css 200 109.041µs
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: inter-latin-400-normal-C38fXH4l.woff2 (application/octet-stream)
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: uiVersion-C1LI9w58.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:31 GET    /assets/inter-latin-400-normal-C38fXH4l.woff2 200 203.917µs
+[HTTP] 15:07:31 GET    /assets/uiVersion-C1LI9w58.js 200 134.709µs
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: studioV2RuntimeContext-BHzBC5KI.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:31 GET    /assets/studioV2RuntimeContext-BHzBC5KI.js 200 156.208µs
+2026/10/04 15:07:31 embed.go:92: 📦 Serving Asset: clsx-BD0hBwz9.js (application/javascript; charset=utf-8)
+[HTTP] 15:07:31 GET    /assets/clsx-BD0hBwz9.js 200 44.458µs
+2026/10/04 15:07:32 embed.go:92: 📦 Serving Asset: jetbrains-mono-latin-600-normal-C8RAYTDA.woff2 (application/octet-stream)
+[HTTP] 15:07:32 GET    /assets/jetbrains-mono-latin-600-normal-C8RAYTDA.woff2 200 98.333µs
+2026/10/04 15:07:32 embed.go:92: 📦 Serving Asset: jetbrains-mono-latin-400-normal-V6pRDFza.woff2 (application/octet-stream)
+[HTTP] 15:07:32 GET    /assets/jetbrains-mono-latin-400-normal-V6pRDFza.woff2 200 168.5µs
+2026/10/04 15:07:32 embed.go:92: 📦 Serving Asset: inter-latin-600-normal-LgqL8muc.woff2 (application/octet-stream)
+[HTTP] 15:07:32 GET    /assets/inter-latin-600-normal-LgqL8muc.woff2 200 78.875µs
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace 200 7.899083ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/modbus-share/status 200 185.083µs
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/devices 200 1.280416ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/audit-history?limit=10 200 1.290875ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/source-rules 200 781.875µs
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/database-config 200 1.359167ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/database-targets 200 2.072541ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/mappings 200 2.966166ms
+2026/10/04 15:07:32 embed.go:92: 📦 Serving Asset: inter-latin-500-normal-Cerq10X2.woff2 (application/octet-stream)
+[HTTP] 15:07:32 GET    /assets/inter-latin-500-normal-Cerq10X2.woff2 200 125.25µs
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 582.375µs
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace 200 6.969125ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/runtime-context 200 9.918542ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 1.096ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/recording-start/operations/start-220ba2b2f53b2e72428d05fc146b09141614a212a49aeec3d9dcb28a6a74073f 200 287.334µs
+[HTTP] 15:07:32 POST   /api/v1/datalink/studio-v2/workspace/recording-start 200 10.452083ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 343.792µs
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 2.23875ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace 200 3.697083ms
+[HTTP] 15:07:32 GET    /api/v1/datalink/studio-v2/workspace/recording-start/operations/start-220ba2b2f53b2e72428d05fc146b09141614a212a49aeec3d9dcb28a6a74073f 200 209.291µs
+[HTTP] 15:07:34 POST   /api/v1/datalink/studio-v2/workspace/recording-start 200 13.203875ms
+[HTTP] 15:07:34 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 298.125µs
+[HTTP] 15:07:34 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 2.697584ms
+[HTTP] 15:07:34 GET    /api/v1/datalink/studio-v2/workspace 200 4.289375ms
+[HTTP] 15:07:34 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 405µs
+[HTTP] 15:07:34 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 202.334µs
+[HTTP] 15:07:34 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 739.25µs
+[HTTP] 15:07:39 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 682.041µs
+[HTTP] 15:07:44 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 633.333µs
+[HTTP] 15:07:49 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 620.584µs
+[HTTP] 15:07:54 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 613.625µs
+[HTTP] 15:07:59 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 609.792µs
+[HTTP] 15:08:04 GET    /api/v1/datalink/studio-v2/workspace/write-groups/af4ebbf4-6273-425f-91f9-de2d4b67267c/delivery 200 760.25µs
+[HTTP] 15:08:04 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 528.5µs
+[HTTP] 15:08:04 GET    /api/v1/datalink/studio-v2/workspace/write-groups 200 289.75µs
+2026/10/04 15:08:06 server_runtime.go:36: 收到系統信號，正在關閉伺服器...
+2026/10/04 15:08:06 server_runtime.go:50: 伺服器已優雅關閉
+2026/10/04 15:08:11 main.go:197: 關閉 datalink runtime 失敗: context deadline exceeded

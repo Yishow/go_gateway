@@ -1,0 +1,31 @@
+{
+  "run_id": "f2-sqlite-single-20261004-0820",
+  "passed": false,
+  "failures": [
+    "schema preview opened SQLite target"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-0820",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-0820: schema preview opened SQLite target"
+  ],
+  "cleanup": [
+    {
+      "name": "sim-a",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 33554,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 33555,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ]
+}

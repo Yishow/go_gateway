@@ -1,0 +1,12 @@
+{
+  "command": "POSTGRES_DSN=<owned-loopback-redacted> GOCACHE=<owned-cache> go test -tags f_write_group_fixture -race -p 1 ./cmd/test_ui -run ^TestProductionF(SlowSenderSuccessAndFailureDurable|ParallelCutoffKeepsDurableIdentity)$|^TestProductionTestWriteKeepsManagedMetadataAndNeighborRows$ -count=1",
+  "exit_code": 0,
+  "scope": "10 actual SQLite/PostgreSQL subcases: 8 slow success/failure/cutoff + 2 managed metadata/readback/owned cleanup/neighbor",
+  "elapsed_seconds": 15.688,
+  "source_inputs": 1107,
+  "source_unchanged": true,
+  "log_sha256": "8c44a1f6d1234317d60e4a537b44d33a9224457582338168339c122f639495cc",
+  "limits": [
+    "Tagged integration is separate from the normal embedded build and fresh UI path."
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "run_id": "f2-sqlite-single-20261004-1030",
+  "passed": false,
+  "failures": [
+    "SQLite connector did not save requested path: {\"id\":\"afc19dd1-bedf-4867-a96d-5396c97de6d3\",\"identity_revision\":\"0b0c73b8-5c44-4944-b146-f4d01db8bdf7\",\"setup_revision\":\"4393eb73-a780-494e-bc8a-c38585a8acad\",\"workspace_id\":\"6336c61d-aa92-423f-bee0-f2d8af5f8dd5\",\"kind\":\"sqlite\",\"name\":\"F fresh SQLite\",\"host\":\"\",\"port\":0,\"database\":\"/tmp/gw-f-f2-sq"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-1030",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-1030: SQLite connector did not save requested path: {\"id\":\"afc19dd1-bedf-4867-a96d-5396c97de6d3\",\"identity_revision\":\"0b0c73b8-5c44-4944-b146-f4d01db8bdf7\",\"setup_revision\":\"4393eb73-a780-494e-bc8a-c38585a8acad\",\"workspace_id\":\"6336c61d-aa92-423f-bee0-f2d8af5f8dd5\",\"kind\":\"sqlite\",\"name\":\"F fresh SQLite\",\"host\":\"\",\"port\":0,\"database\":\"/tmp/gw-f-f2-sq"
+  ],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 62510,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 62511,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "state": "removed",
+      "path": "/tmp/gw-f-f2-sqlite-single-20261004-1030",
+      "absent": true
+    }
+  }
+}

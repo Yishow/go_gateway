@@ -1,0 +1,267 @@
+{
+  "run_id": "early-root-1791073252766",
+  "kind": "early-single-sqlite-feedback",
+  "passed": true,
+  "linked_build_evidence": "normal-build-sqlite-probe-v2-root-20261004.json",
+  "command": "node scripts/tests/f_device_to_sql/fresh-early-root.mjs",
+  "environment": "darwin/arm64; loopback simulator; disposable SQLite",
+  "expected_values": [
+    215,
+    1013
+  ],
+  "limitations": [
+    "Only two D/E acquisition points.",
+    "Not the seven-type/three-bucket/six-timing acceptance."
+  ],
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "binary_sha256": "055dcbd0c536f5fe96bc66c15910c71d4ed835183654005bf3b716affeb8805a",
+  "harness_source_sha256": {
+    "fresh-early-root.mjs": "29ab98b6b3c0c900442c8212ffadb7265a2ab7ff96d7da852d923da917c9e97e",
+    "fresh-ui.mjs": "4fb57cd862241980850b7b9d5df7a0195ee129291aebd55f4754f0f78b36d984",
+    "destination-preflight.mjs": "73a043cd9f87d382aed4a55669c0521c7356826eb30fbc466c5f989b3343c674"
+  },
+  "simulator": {
+    "binary_sha256": "67fb74adb51a2dc961b3663ea0a4649e7acc39730c81465806aed305af1ee72c",
+    "port": 15054,
+    "owned": true,
+    "registers": {
+      "0": 215,
+      "1": 1013
+    },
+    "pid": 63110
+  },
+  "preflight": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "browser_version": "145.0.7632.6",
+  "t_open": "280326199222541",
+  "destination_after_save": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "initial_status": "Recording request failed\n\nChecking readiness\n\nPrepare the managed schema before starting recording.\n\nOpen Advanced setup to prepare the schema.\n\nGroup: 73f00d66-2a0f-4d8d-9747-72e0b37e8d0d\nsaved\nreadiness not verified\nnot applied\nDevice: dev-1791073254529-383\nnot activated\nOpen Advanced setup",
+  "group_id": "73f00d66-2a0f-4d8d-9747-72e0b37e8d0d",
+  "preview_left_destination_absent": true,
+  "schema": {
+    "preview_text": "Table\ngw_group_546fb6b4ff8dcc338191fe10298b4cdb\nColumn\tSQL type\tNullable\tPrimary key\nrecord_id\tTEXT\tno\tyes\ngroup_id\tTEXT\tno\tno\ndevice_id\tTEXT\tno\tno\nbucket_start\tTEXT\tno\tno\nprovenance\tTEXT\tno\tno\nv_6a5286e77c758a0ce9e80a43\tINTEGER\tyes\tno\nv_10def6caddf81406231848f1\tTEXT\tyes\tno\nAdvanced: generated SQL\n\nPreview is read-only. Confirmation is the only action that can create the managed structures.",
+    "operation_text": "Operation status: op-42917b50-6044-4c00-afaf-35874d436e7b\n\nStatus: succeeded"
+  },
+  "t_start": "280343310825916",
+  "start_status": "Recording request succeeded\n\nRecording request complete\n\nGroup: 73f00d66-2a0f-4d8d-9747-72e0b37e8d0d\nsaved\nreadiness verified\napplied\nDevice: dev-1791073254529-383\nactivated\n\nDevice activation was confirmed; destination delivery remains a separate runtime fact.\n\nOpen Runtime monitor",
+  "t_closed": "280453757195875",
+  "t_sql": "280454780770958",
+  "sql_rows": [
+    {
+      "record_id": "393688e3b29ea0ee622f5c6bb3eea1a4d32fa5dd09d47b6c1e4ff9f462451863",
+      "group_id": "73f00d66-2a0f-4d8d-9747-72e0b37e8d0d",
+      "device_id": "dev-1791073254529-383",
+      "bucket_start": "2026-10-04T00:22:00Z",
+      "provenance": "[{\"member\":\"[\\\"dev-1791073254529-383\\\",\\\"b03c2a0d-031c-4574-8bdf-c4f30326e9fe\\\",\\\"6448af11-9bd6-4e90-a7d5-bf0db373c1f4\\\"]\",\"status\":\"ok\",\"sample_id\":\"692308eb5f2cbb0a9578c3bc8a7bd7b9893848e9ea8b0c2fc745c891272f6dce\",\"observed_at\":\"2026-10-04T00:22:59.766114Z\",\"quality\":\"good\"},{\"member\":\"[\\\"dev-1791073254529-383\\\",\\\"0b79cf3e-d414-4ce3-8a69-555e5809f697\\\",\\\"18d5eecd-f06f-48f9-9409-38dcba026fc5\\\"]\",\"status\":\"ok\",\"sample_id\":\"07a3245de4cba4c37d37c95eeb21f739a9fb120c4c65069a47e126f0962701b8\",\"observed_at\":\"2026-10-04T00:22:59.766046Z\",\"quality\":\"good\"}]",
+      "_gw_owner_e34e4ff9b5933a0ea6db67ed": "gateway",
+      "v_6a5286e77c758a0ce9e80a43": 215,
+      "v_10def6caddf81406231848f1": "1013"
+    }
+  ],
+  "current_groups": {
+    "workspace_id": "4ae9e1f3-8221-4fe2-ac63-9967da7678d4",
+    "workspace_revision": "4ddb1c33-b263-4252-86ed-282d85560fa4",
+    "groups": [
+      {
+        "id": "73f00d66-2a0f-4d8d-9747-72e0b37e8d0d",
+        "workspace_id": "4ae9e1f3-8221-4fe2-ac63-9967da7678d4",
+        "revision": "54290459-1650-4b9e-bbb8-a130cf27ee23",
+        "applied_revision": "54290459-1650-4b9e-bbb8-a130cf27ee23",
+        "basic_managed_device_id": "dev-1791073254529-383",
+        "name": "F early A",
+        "status": "ready",
+        "members": [
+          {
+            "device_id": "dev-1791073254529-383",
+            "point_id": "b03c2a0d-031c-4574-8bdf-c4f30326e9fe",
+            "tag_id": "6448af11-9bd6-4e90-a7d5-bf0db373c1f4",
+            "source_revision": "57953c604d17e4eb71a93ae641135af21b5f1060d4aac3b9fc3f34a4977f455c",
+            "mapping_revision": "abd38e0e4e8d9dea575d9622b77c3dbed84c1cd5c92499873b9453554d8387b1",
+            "target_column": "v_6a5286e77c758a0ce9e80a43",
+            "required": true
+          },
+          {
+            "device_id": "dev-1791073254529-383",
+            "point_id": "0b79cf3e-d414-4ce3-8a69-555e5809f697",
+            "tag_id": "18d5eecd-f06f-48f9-9409-38dcba026fc5",
+            "source_revision": "b6887211783844199f355c9e33bee14bd064c78c6dd25b08032ea9ec08b6a568",
+            "mapping_revision": "dc03627baec98663cfb47ff5a30ede0ae9202d830eed1630dd424e996d060f8e",
+            "target_column": "v_10def6caddf81406231848f1",
+            "required": true
+          }
+        ],
+        "destination": {
+          "connector_id": "533cc512-20f4-4021-a320-e435d4e0337c",
+          "connector_revision": "14b43ae9-761d-40d2-b801-0db9498ddb09",
+          "database": "<owned-run>/destination.db",
+          "table_schema": "main",
+          "table_name": "gw_group_546fb6b4ff8dcc338191fe10298b4cdb",
+          "storage_strategy": "managed",
+          "schema_revision": "op-42917b50-6044-4c00-afaf-35874d436e7b",
+          "schema_digest": "8823e17388708687c38f7c1471792dd587fcf95f97545c50626da2ccdfcc92d8"
+        },
+        "row_policy": {
+          "interval_seconds": 60,
+          "allowed_lateness_seconds": 0,
+          "incomplete_policy": "skip_row",
+          "provenance_column": "provenance",
+          "record_key_column": "record_id",
+          "bucket_start_column": "bucket_start",
+          "group_id_column": "group_id",
+          "device_id_column": "device_id"
+        },
+        "write_policy": {
+          "mode": "append",
+          "dedupe_capability": "receipt"
+        },
+        "migration": {},
+        "created_at": "2026-10-04T00:21:09.51064Z",
+        "updated_at": "2026-10-04T00:21:10.756752Z"
+      }
+    ]
+  },
+  "delivery": {
+    "group_id": "73f00d66-2a0f-4d8d-9747-72e0b37e8d0d",
+    "intake": {
+      "state": "active"
+    },
+    "stages": {
+      "collecting": 4,
+      "queued": 0,
+      "retrying": 0,
+      "blocked": 0,
+      "quarantined": 0,
+      "unknown": 0,
+      "sql_committed": 1,
+      "skipped": 0
+    },
+    "last_sql_committed_at": "2026-10-04T00:23:01.881466Z",
+    "last_sql_committed_effect": {
+      "group_revision": "54290459-1650-4b9e-bbb8-a130cf27ee23",
+      "connector_revision": "14b43ae9-761d-40d2-b801-0db9498ddb09",
+      "record_id": "393688e3b29ea0ee622f5c6bb3eea1a4d32fa5dd09d47b6c1e4ff9f462451863",
+      "effect_key": "03b06e4c2ff98a7707f566f9f66d915ac5d36d3338bbf102bf60126b4ed42d51",
+      "payload_digest": "0edf424559e577063c55258f576267a04dd23d09b5d344ffe9b4695f26927f3b",
+      "committed_at": "2026-10-04T00:23:01.881466Z"
+    },
+    "revision_stages": {
+      "group_revision": "54290459-1650-4b9e-bbb8-a130cf27ee23",
+      "stages": {
+        "collecting": 4,
+        "queued": 0,
+        "retrying": 0,
+        "blocked": 0,
+        "quarantined": 0,
+        "unknown": 0,
+        "sql_committed": 1,
+        "skipped": 0
+      }
+    },
+    "oldest_pending_seconds": 0,
+    "no_data_buckets": 0,
+    "skipped_buckets": 0,
+    "recent_bucket_issues": [],
+    "backlog": [],
+    "quota": {
+      "configured": true,
+      "state": "ok",
+      "scope": "global",
+      "used_bytes": 2020,
+      "max_bytes": 524288000,
+      "intake_refused": false
+    }
+  },
+  "source_mappings": [
+    {
+      "point_id": "rule-1791073257297-p-0",
+      "tag_key": "early.1"
+    },
+    {
+      "point_id": "rule-1791073260477-p-0",
+      "tag_key": "early.2"
+    }
+  ],
+  "persisted_mappings": [
+    {
+      "id": "37a93380-43ec-4712-885a-70ff08ada35e",
+      "workspace_id": "4ae9e1f3-8221-4fe2-ac63-9967da7678d4",
+      "point_id": "b03c2a0d-031c-4574-8bdf-c4f30326e9fe",
+      "rule_id": "rule-1791073257297",
+      "device_id": "dev-1791073254529-383",
+      "address": "40001",
+      "tag_id": "6448af11-9bd6-4e90-a7d5-bf0db373c1f4",
+      "tag_key": "early.1",
+      "display_name": "early.1",
+      "unit": "",
+      "target_type": "int16",
+      "scale": 1,
+      "offset": 0,
+      "enabled": true,
+      "save_state": "saved",
+      "created_at": "2026-10-04T08:21:03.691187+08:00",
+      "updated_at": "2026-10-04T00:21:04Z"
+    },
+    {
+      "id": "765c9aa6-07a7-4b2e-8268-265868bb0d16",
+      "workspace_id": "4ae9e1f3-8221-4fe2-ac63-9967da7678d4",
+      "point_id": "0b79cf3e-d414-4ce3-8a69-555e5809f697",
+      "rule_id": "rule-1791073260477",
+      "device_id": "dev-1791073254529-383",
+      "address": "40002",
+      "tag_id": "18d5eecd-f06f-48f9-9409-38dcba026fc5",
+      "tag_key": "early.2",
+      "display_name": "early.2",
+      "unit": "",
+      "target_type": "uint16",
+      "scale": 1,
+      "offset": 0,
+      "enabled": true,
+      "save_state": "saved",
+      "created_at": "2026-10-04T08:21:04.682567+08:00",
+      "updated_at": "2026-10-04T00:21:05Z"
+    }
+  ],
+  "end_to_end_ms": 128581.548417,
+  "setup_ms": 17111.603375,
+  "system_wait_ms": 110446.369959,
+  "delivery_observed_ms": 1023.575083,
+  "poll_interval_ms": 1000,
+  "polling_limitation": "Closure is observed before target SELECT in each iteration; observation delay is up to one polling interval plus SQL command time.",
+  "child_exit": [
+    {
+      "name": "early-root-simulator",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 63110,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 63111,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ],
+  "child_exit_passed": true,
+  "owned_cleanup_passed": true
+}

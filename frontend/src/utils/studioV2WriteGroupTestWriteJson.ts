@@ -6,7 +6,7 @@ import type {
   WriteGroupTestWriteStatus,
   WriteGroupTestWriteValue,
 } from '../types/studioV2WriteGroupTestWrite';
-import { boundedString, MAX_SAFE_JSON_ARRAY_LENGTH } from './safeJson';
+import { boundedString, MAX_SAFE_JSON_ARRAY_LENGTH, MAX_SAFE_JSON_STRING_LENGTH } from './safeJson';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -49,7 +49,10 @@ export function parseWriteGroupTestWritePreview(value: unknown): WriteGroupTestW
   const expiresAt = boundedString(value.expires_at);
   const ownerColumn = boundedString(value.owner_column);
   const ownerValue = boundedString(value.owner_value);
-  const cleanup = boundedString(value.cleanup);
+  // Cleanup is explanatory text; the production description with its UUID
+  // exceeds the shorter identifier limit, but remains inside the JSON bound.
+  const cleanup = typeof value.cleanup === 'string' && value.cleanup.length <= MAX_SAFE_JSON_STRING_LENGTH
+    ? value.cleanup.trim() : undefined;
   const connectorId = boundedString(value.target.connector_id);
   const dialect = boundedString(value.target.dialect);
   const table = boundedString(value.target.table);

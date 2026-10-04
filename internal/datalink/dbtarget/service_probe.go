@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -43,18 +44,28 @@ func openExternalDBManagerWithMySQLDatabaseEnsure(
 
 func probeConnector(ctx context.Context, kind schema.DatabaseConnectorKind, config ConnectionConfig) (schema.DatabaseConnectorStatus, *time.Time, string) {
 	now := time.Now()
+	probeConfig := config
 	var manager *datalinkbase.DBManager
 	var err error
+	if kind == schema.DatabaseConnectorKindSQLite {
+		if status, message, handled := probeMissingSQLiteDestination(config); handled {
+			return status, &now, message
+		}
+		probeConfig, err = sqliteProbeConfig(config)
+		if err != nil {
+			return classifyConnectorError(err), &now, connectorErrorMessage(kind, err)
+		}
+	}
 	if kind == schema.DatabaseConnectorKindMySQL {
-		manager, err = openExternalDBManagerWithMySQLDatabaseEnsure(ctx, kind, config)
+		manager, err = openExternalDBManagerWithMySQLDatabaseEnsure(ctx, kind, probeConfig)
 	} else {
-		manager, err = openExternalDBManagerFunc(kind, config)
+		manager, err = openExternalDBManagerFunc(kind, probeConfig)
 	}
 	// MySQL 的建庫重試已由 openExternalDBManagerWithMySQLDatabaseEnsure 內建處理，
 	// 這裡只補上 PostgreSQL 尚未包裝的同等流程。
 	if err != nil && kind == schema.DatabaseConnectorKindPostgres {
-		if createErr := ensurePostgresDatabaseIfMissingFunc(ctx, config, err); createErr == nil {
-			manager, err = openExternalDBManagerFunc(kind, config)
+		if createErr := ensurePostgresDatabaseIfMissingFunc(ctx, probeConfig, err); createErr == nil {
+			manager, err = openExternalDBManagerFunc(kind, probeConfig)
 		} else if isPostgresMissingDatabaseError(err) {
 			err = createErr
 		}
@@ -72,6 +83,51 @@ func probeConnector(ctx context.Context, kind schema.DatabaseConnectorKind, conf
 	}
 
 	return schema.DatabaseConnectorStatusReady, &now, ""
+}
+
+// probeMissingSQLiteDestination judges a planned SQLite file that does not exist
+// yet. The product creates it only after the explicit schema confirmation, so a
+// missing file with a usable parent directory is ready; reporting it as
+// unreachable would leave a stale warning after the file has been created.
+// Anything else (existing files, memory DSNs) falls through to the normal probe.
+func probeMissingSQLiteDestination(config ConnectionConfig) (schema.DatabaseConnectorStatus, string, bool) {
+	path, err := managedSQLitePath(config)
+	if err != nil {
+		return "", "", false
+	}
+	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+		return "", "", false
+	}
+	if err := validateManagedMissingParent(path); err != nil {
+		return schema.DatabaseConnectorStatusUnreachable, err.Error(), true
+	}
+	return schema.DatabaseConnectorStatusReady, "", true
+}
+
+func sqliteProbeConfig(config ConnectionConfig) (ConnectionConfig, error) {
+	dsn := strings.TrimSpace(stringConfigValue(config, "dsn"))
+	if dsn == "" {
+		dsn = strings.TrimSpace(stringConfigValue(config, "path"))
+	}
+	if dsn == "" {
+		return nil, fmt.Errorf("sqlite 連接設定缺少 dsn/path")
+	}
+	if isSQLiteMemoryDSN(dsn) {
+		return config, nil
+	}
+	preparedDSN, err := prepareSQLiteDeliveryDSN(dsn)
+	if err != nil {
+		return nil, err
+	}
+	canonicalConfig := cloneConnectionConfig(config)
+	canonicalConfig["dsn"] = preparedDSN
+	readonlyDSN, err := sqliteReadOnlyDSN(canonicalConfig)
+	if err != nil {
+		return nil, err
+	}
+	probeConfig := cloneConnectionConfig(config)
+	probeConfig["dsn"] = readonlyDSN
+	return probeConfig, nil
 }
 
 func ensurePostgresDatabaseIfMissing(ctx context.Context, config ConnectionConfig, connectErr error) error {

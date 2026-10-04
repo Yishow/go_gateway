@@ -1,0 +1,98 @@
+{
+  "task": "F-2.2 focused preflight",
+  "captured_at": "2026-10-04",
+  "repo_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "worktree_note": "No production source changes; new F test and harness additions are verified separately.",
+  "index": {
+    "project": "Users-yishow-prj-go_gateway",
+    "generation": "2026-10-03T23:31:39Z",
+    "mode": "full",
+    "coverage": "relevant API, recordingplan, dbtarget, groupdelivery, grouppipeline, cmd/test_ui, f_device_to_sql paths metadata_match"
+  },
+  "environment": {
+    "postgres": "host=127.0.0.1 port=55432 user=postgres password=<redacted> dbname=gwtest sslmode=disable",
+    "postgres_container": "gw-wg-pg-test:55432"
+  },
+  "commands": [
+    {
+      "command": "node --test scripts/tests/f_device_to_sql/capacity-cas-witness.test.mjs scripts/tests/f_device_to_sql/destination-preflight.test.mjs scripts/tests/f_device_to_sql/fixture-cleanup.test.mjs scripts/tests/f_device_to_sql/http-deadline.test.mjs scripts/tests/f_device_to_sql/mixed-harness-regressions.test.mjs",
+      "log": "gw-F-node-pure.log",
+      "result": "PASS 31, FAIL 0, SKIP 0"
+    },
+    {
+      "command": "GOCACHE=... rtk go test ./internal/datalink/recordingplan -run 'Schema|RecordingStart|TestWrite|OperationLedger' -count=1",
+      "log": "gw-F-recordingplan.log",
+      "result": "PASS 71"
+    },
+    {
+      "command": "GOCACHE=... rtk go test ./internal/datalink/groupdelivery -run 'Sender|CommittedEffect|Quota|Fencing|Closure|Dispatcher|Status' -count=1",
+      "log": "gw-F-groupdelivery.log",
+      "result": "PASS 47"
+    },
+    {
+      "command": "GOCACHE=... rtk go test ./internal/datalink/grouppipeline -run 'Reconcile|ProductionGroup' -count=1",
+      "log": "gw-F-grouppipeline.log",
+      "result": "PASS 6"
+    },
+    {
+      "command": "GOCACHE=... rtk go test ./internal/api -run 'RecordingStart|RecordingSchema|DatabaseOperations' -count=1",
+      "log": "gw-F-api.log",
+      "result": "PASS 31; POSTGRES_DSN empty so PG route skipped"
+    },
+    {
+      "command": "GOCACHE=... rtk go test ./cmd/test_ui -run 'TestProduction(Managed|Entity|Lifecycle|GroupOutage|TestWrite)|TestNormalBinaryFixtureHooksAreNoOp' -count=1",
+      "log": "gw-F-cmd-test-ui.log",
+      "result": "PASS 34"
+    },
+    {
+      "command": "GOCACHE=... rtk go test -tags f_write_group_fixture ./cmd/test_ui -run 'TestFixture(Capacity|Worker|Delivery|Retry|Cleanup)' -count=1",
+      "log": "gw-F-cmd-test-ui-fixture.log",
+      "result": "PASS 16; build-tag fixture controls only"
+    },
+    {
+      "command": "POSTGRES_DSN=<sanitized> GOCACHE=... rtk go test ./internal/api -run 'TestStudioV2RecordingRoutes_Postgres' -count=1",
+      "log": "gw-F-api-postgres.log",
+      "result": "FAIL 1, PASS 2"
+    },
+    {
+      "command": "POSTGRES_DSN=<sanitized> GOCACHE=... rtk go test ./cmd/test_ui -run 'TestProduction(ManagedRowsKeepTimeIdentityAndExactTypesAfterRestart|EntityRowsSQLAndFrozenRestart|GroupOutageRecoveryPostgresDestinationReceiptsAndRestart)' -count=1",
+      "log": "gw-F-cmd-postgres.log",
+      "result": "PASS 18"
+    },
+    {
+      "command": "POSTGRES_DSN=<sanitized> GOCACHE=... rtk go test ./internal/datalink/dbtarget -run 'Postgres|SchemaExecution' -count=1",
+      "log": "gw-F-dbtarget-postgres.log",
+      "result": "PASS 45"
+    },
+    {
+      "command": "POSTGRES_DSN=<sanitized> GOCACHE=... rtk go test ./internal/datalink/dbtarget -run 'Inspect|Inspection|Table' -count=1",
+      "log": "gw-F-dbtarget-inspection-postgres.log",
+      "result": "PASS 29"
+    }
+  ],
+  "failure": {
+    "scope": "API legacy recording-plan PostgreSQL schema apply",
+    "test": "internal/api/router_studio_v2_recording_schema_apply_postgres_test.go:141 TestStudioV2RecordingRoutes_PostgresApplyCreatesAndVerifiesTheManagedSchema",
+    "observed": "HTTP 200 operation status unknown, executed_statements=9, reason=verification_unavailable",
+    "detail_log": "gw-F-api-postgres-failure-detail.log",
+    "classification": "Existing A baseline legacy recording-plan PG failure; no claim of full POSTGRES_DSN repository pass; canonical group fresh PG acceptance remains separately required."
+  },
+  "skip": [
+    "old scripts quality/faults/recovery/capacity/worker-overlap/test-write/run because they write fixed evidence-f history and some precreate target tables",
+    "fresh embedded UI F witness",
+    "full go test/vet/lint/build",
+    "5020 runtime tests"
+  ],
+  "directory_digests": {
+    "internal/api": "0491b1ceba8af415763854174ab7ae12c9675094c5bbdd96efbebace964af04e",
+    "internal/datalink/recordingplan": "648c345764653f90147ca319e7911a1410534c09dec7ab1f16fa818f3251fe22",
+    "internal/datalink/dbtarget": "993c4da19f0d746939f3d83d8811ffdeedd5261d8280304ed196035db6611139",
+    "internal/datalink/groupdelivery": "54e95234b476b5b4c429278edd3a2eced64d40127765f486587fcb7b066c3d09",
+    "internal/datalink/grouppipeline": "89a583a5a7e11e732dc56e917aff4fddb0570550642e2c2db861752371f8506e",
+    "cmd/test_ui": "20885a8598ddf342762614977deb13b6ba49e278a6034e09f01b0f654dcf26e8",
+    "scripts/tests/f_device_to_sql": "63a678daaecee02722a75ae895f19c7955a941a3d4d6a90b4a713b92de5872fd"
+  },
+  "selected_source_digest": "5d67c4ba6a4619f862bbffc9d545fb8c4489ed74cf6e209de72fe9a3c298baa8",
+  "kind": "focused-regressions-with-explicit-scope",
+  "identity_limitation": "Directory digests captured after commands; new F helpers/tests added concurrently require their own current checks. Node 31 pass precedes final 8-test preflight regression; Root separately reran all 8 current preflight tests."
+}

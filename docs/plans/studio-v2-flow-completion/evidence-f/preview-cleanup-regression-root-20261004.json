@@ -1,0 +1,21 @@
+{
+  "files_sha256": {
+    "frontend/src/utils/studioV2WriteGroupTestWriteJson.ts": "aba905549685d10095d6033919a2474ae10e923b37a2e4ecdcc889b4ead6e282",
+    "frontend/tests/unit/services/studioV2WriteGroupTestWrite.test.ts": "f018239e866f9931048a2b84e3f665f8a2a4070f1c18d6504bc3b3bab24184b7"
+  },
+  "logs": [
+    {
+      "name": "gw-F-preview-cleanup-red.log",
+      "sha256": "8512bf94fcbe373f7ac8c609b84c425456fecbeb8cc3e254b83c3c5666a6fe2c"
+    },
+    {
+      "name": "gw-F-preview-cleanup-green.log",
+      "sha256": "6340d1a7279a975f40b8f2ad7f9005308c1d6b6fe80c7c5e5322e26c2f23de3d"
+    }
+  ],
+  "red": "1fail9pass: production full cleanup description rejected by actual API service parser",
+  "green": "11pass",
+  "actual_ui_red": "f3-preview-diagnosis-20261004-c81c-c.json",
+  "actual_cleanup_length": 131,
+  "fix": "Only cleanup explanatory text uses existing256 JSON limit; identifiers remain128"
+}

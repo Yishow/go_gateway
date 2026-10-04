@@ -1,0 +1,35 @@
+{
+  "status": "PASS-current",
+  "environment": "darwin/arm64; Go 1.27.1; module 1.25.5; golangci-lint 2.14",
+  "POSTGRES_DSN": "unset in default repository gates; conditional PostgreSQL cases skip, focused PG integrations and UI/SQL prove those separately.",
+  "commands": [
+    {
+      "command": "go test -p 1 ./... -count=1",
+      "exit_code": 0,
+      "log": "gw-F-final-v4-go-test.log",
+      "log_sha256": "5d608edd662ddabf6915ff66c700c7e09b55492fa0c5ec5775d63245f150e8a3"
+    },
+    {
+      "command": "go vet ./...",
+      "exit_code": 0,
+      "log": "gw-F-final-v4-go-vet.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "golangci-lint run ./...",
+      "exit_code": 0,
+      "log": "gw-F-final-v4-go-lint.log",
+      "log_sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+    }
+  ],
+  "tested_packages": 49,
+  "no_test_packages": 7,
+  "module_source_and_config_input_count": 1107,
+  "module_source_and_config_identity_digest": "e3897af41ae1adde5b7269f18d66209cd36260f4033f66aa2e809ee3dd60d124",
+  "sources_unchanged_during_gates": true,
+  "input_scope": "All 1082 Go files reported by go list -test ./... are covered by the 1104 Go file snapshot; go.mod/go.sum/lint config also included. Final normal build separately hashes the embedded dist assets.",
+  "limits": [
+    "Default gates alone do not assert live PostgreSQL paths.",
+    "Tagged slow/cutoff production race cases are checked separately."
+  ]
+}

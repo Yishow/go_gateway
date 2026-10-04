@@ -1,0 +1,31 @@
+{
+  "run_id": "f2-sqlite-single-20261004-0915",
+  "passed": false,
+  "failures": [
+    "managed table did not reach 3 rows; got 0"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-0915",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-0915: managed table did not reach 3 rows; got 0"
+  ],
+  "cleanup": [
+    {
+      "name": "sim-a",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 41787,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 41788,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ]
+}

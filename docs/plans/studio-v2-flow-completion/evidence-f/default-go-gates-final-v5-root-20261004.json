@@ -1,0 +1,43 @@
+{
+  "source_inputs": 1107,
+  "source_identity_digest": "15443ffe074e774320e5fec056ebd948d9bf3b4bcc6c9394c88bf9f8619ca915",
+  "source_unchanged_during_gates": true,
+  "commands": [
+    {
+      "command": "env -u POSTGRES_DSN GOCACHE=<owned-cache> go test -p 1 ./...",
+      "exit_code": 0,
+      "log": {
+        "name": "gw-F-final-v5-go-test-serial.log",
+        "sha256": "9428bfccb7aac8b308f4cb8c610d79c9b5f63b551beef39a9a16f73067937000"
+      }
+    },
+    {
+      "command": "env -u POSTGRES_DSN GOCACHE=<owned-cache> go vet ./...",
+      "exit_code": 0,
+      "log": {
+        "name": "gw-F-final-v5-go-vet.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "command": "env -u POSTGRES_DSN GOCACHE=<owned-cache> GOLANGCI_LINT_CACHE=<owned-cache> golangci-lint run ./...",
+      "exit_code": 0,
+      "log": {
+        "name": "gw-F-final-v5-go-lint.log",
+        "sha256": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47"
+      }
+    }
+  ],
+  "tested_packages": 49,
+  "no_test_packages": 7,
+  "initial_failure": {
+    "log": {
+      "name": "gw-F-final-v5-go-test.log",
+      "sha256": "ab6763b92c4f7d61de9064206abdfc4b355b27ff8e1a20123fd6414a879bf8e3"
+    },
+    "cause": "normal diagnosis gateway occupied default Modbus Share port5020; no product change; rerun after owned gateway cleanup passed"
+  },
+  "limits": [
+    "Default full Go suite keeps POSTGRES_DSN unset; real owned PostgreSQL/UI/integration witnesses are separate."
+  ]
+}

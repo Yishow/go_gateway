@@ -1,0 +1,77 @@
+{
+  "kind": "production-wired-recovery-regression",
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "test_file": "cmd/test_ui/group_pipeline_f_specific_test.go",
+  "test_sha256": "b601470c2b8da0afbad262b16d4a735f8c0b9c167763f11c7dce7b98a8963042",
+  "lines": 496,
+  "environment": "darwin/arm64; disposable SQLite; owned loopback PostgreSQL 16.14",
+  "build_tag": "f_write_group_fixture",
+  "production_code_modified": false,
+  "controlled_budgets": {
+    "attempt_ms": 2000,
+    "settlement_ms": 200,
+    "held_remote_response_ms": 600,
+    "measured_contract": "200ms < elapsed hold < 2000ms; real SQL commit visible before local settlement"
+  },
+  "current_cases": [
+    "sqlite/success",
+    "sqlite/failure",
+    "postgres/success",
+    "postgres/failure",
+    "sqlite/disable",
+    "sqlite/replace",
+    "postgres/disable",
+    "postgres/replace"
+  ],
+  "durable_assertions": [
+    "outbox frozen revision and exact payload",
+    "remote SQL values",
+    "local and target receipt matching effect/digest",
+    "no duplicate rows/effects",
+    "post-cutoff sample revision or absence",
+    "closed checkpoint and zero open samples"
+  ],
+  "commands": [
+    {
+      "command": "POSTGRES_DSN=<owned-fixture> go test -tags f_write_group_fixture -race -p 1 ./cmd/test_ui -run ^TestProductionF(SlowSenderSuccessAndFailureDurable|ParallelCutoffKeepsDurableIdentity)$ -count=1",
+      "exit_code": 0,
+      "result": "passed-current-root",
+      "log": "gw-F-production-specific-root-final-race.log"
+    },
+    {
+      "command": "go vet -tags f_write_group_fixture ./cmd/test_ui",
+      "exit_code": 0,
+      "result": "passed-current-worker",
+      "log": "gw-F-production-specific-vet-v2.log"
+    },
+    {
+      "command": "golangci-lint run --build-tags f_write_group_fixture ./cmd/test_ui/...",
+      "exit_code": 0,
+      "issues": 0,
+      "result": "passed-current-worker",
+      "log": "gw-F-production-specific-lint-v2.log"
+    }
+  ],
+  "mutations": [
+    {
+      "kind": "settlement deadline starts before remote attempt",
+      "exit_code": 1,
+      "failed_slow_cases": 4,
+      "log": "gw-F-mutation-settlement-red-v2.log"
+    },
+    {
+      "kind": "unsafe cutoff mutex removed with bounded unsynchronized writer",
+      "exit_code": 1,
+      "actual_data_race_verified": true,
+      "log": "gw-F-mutation-until-race-red.log"
+    }
+  ],
+  "baseline": {
+    "production_lifecycle": "27 PASS; current fixture DBs",
+    "sender_deadline": "24 PASS; current fixture DBs"
+  },
+  "limits": [
+    "Fixture tag and shortened test timing are integration-only; normal production defaults unchanged.",
+    "This proof does not substitute for fresh normal embedded UI/device/SQL or six first-use timings."
+  ]
+}

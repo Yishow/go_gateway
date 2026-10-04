@@ -1,0 +1,40 @@
+{
+  "kind": "managed-metadata-test-write-regression",
+  "head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "original_overlay_sha256": "0b612d173a345d265b07a071139c84b17f86dc8ea35991db6832fdb75895119c",
+  "original_overlay_source": "HEAD:internal/datalink/grouptestwrite/plan.go",
+  "red": {
+    "command": "go test -overlay=<owned-head-overlay> -v ./internal/datalink/grouptestwrite -run TestWriteManagedMetadataColumnsAreIncludedInTheConfirmedRow -count=1",
+    "exit_code": 1,
+    "failure": "destination-rejected-row; ExecutedStatements:0"
+  },
+  "source_sha256": {
+    "internal/datalink/grouptestwrite/plan.go": "b7090de648223c40dbfe7dc49b725ed2e60756229ba5edd8a638265aa0906640",
+    "internal/datalink/grouptestwrite/metadata_test.go": "3565f6c8b1e7b382519e73b707d48a416508bbb2463addc52ae579d7f8e4cee8",
+    "cmd/test_ui/group_pipeline_test_write_metadata_test.go": "1b9d325a3e359c1c35a1a4a5fe1903facfdd99176853bd913bc50a8c7698957f"
+  },
+  "logs_sha256": {
+    "gw-F-grouptestwrite-red-overlay.log": "874badde1b9d707855c3819962c19037258987ee5b4e3116e23bb13c6383d049",
+    "gw-F-grouptestwrite-green.log": "2de33a12456024398dfe5828b76d7a1421cbd3259351fffbd895358a9098d931",
+    "gw-F-cmd-metadata-green.log": "eb1f97b8e2befc9717b9be77d846c052f1af31b69144ac4a3ac2407b4b963430",
+    "gw-F-grouptestwrite-race.log": "57614eabc4b1c759bb45d6bd3f248f5ab94643436bf6579817ea676f1a02d50b",
+    "gw-F-cmd-metadata-race.log": "f93ea034cd9d0c0843abf1e7d9c23d4170c39511fd39f49e7aebb767fd3f7cf6",
+    "gw-F-grouptestwrite-vet.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gw-F-cmd-vet.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gw-F-metadata-lint.log": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
+    "gw-F-modern-go-metadata.log": "1ed2e4228ce01d5b6237d34c8cce45f3e823a195a44b72cc0688b0ef47fc4926"
+  },
+  "green": {
+    "package": "SQLite and PostgreSQL metadata payload test",
+    "http": "production cmd/test_ui HTTP wiring, managed schema, readback and cleanup",
+    "race": "both focused packages passed",
+    "vet": "both focused packages passed",
+    "lint": "0 issues"
+  },
+  "identity_limitations": [
+    "Focused command details are agent-reported; root read actual logs and independently ran final all-repository Go gates and tagged ten-subcase race tests.",
+    "HTTP regression inserts a support fixture neighbor; fresh UI matrix uses actual runtime neighbors separately."
+  ],
+  "modern_go_command": "sh <installed-use-modern-go>/scripts/run-tool.sh list --file-path internal/datalink/grouptestwrite/plan.go",
+  "final_build_reference": "normal-build-final-v4-root-20261004.json"
+}

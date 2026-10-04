@@ -1,0 +1,31 @@
+{
+  "run_id": "f2-sqlite-single-20261004-0800",
+  "passed": false,
+  "failures": [
+    "observation path must be datalink API"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-0800",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-0800: observation path must be datalink API"
+  ],
+  "cleanup": [
+    {
+      "name": "sim-a",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 31412,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "timeout",
+      "kill_sent": true,
+      "pid": 31413,
+      "state": "exited",
+      "exit_code": null,
+      "signal": "SIGKILL"
+    }
+  ]
+}

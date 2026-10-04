@@ -1,0 +1,77 @@
+{
+  "scope": "F necessary SQLite missing-file probe repair",
+  "status": "focused PASS; complete F UI/SQL matrix still pending",
+  "reason": "The normal UI Save probe created a zero-byte destination before schema confirmation, violating the unchanged F missing-file requirement.",
+  "source_sha256": {
+    "internal/datalink/dbtarget/service_probe.go": "97cdc60f2004f39801d1a6c530449518d8bc487ecc7a054318f78f53666f3707",
+    "internal/datalink/dbtarget/service_probe_sqlite_test.go": "6b475a3e7420bc9cfbb709a5ba15453944713a7938273197ff81844cd1654497",
+    "internal/datalink/dbtarget/destination_open_sqlite_test.go": "6f009ee5852aaaaa0456ffea54360a9d49f31140892d704498f8707c4c56dd58",
+    "internal/api/handlers/dbtarget_handler_connectors_test.go": "2b329734ded565508d69bf6ce1ad102807bdeea1cd021cab6522eb4851562e22"
+  },
+  "root_commands": [
+    {
+      "phase": "RED original HEAD source via Go overlay",
+      "command": "go test -overlay <owned-temp>/gw-F-sqlite-probe-original.overlay.json ./internal/datalink/dbtarget -run ^TestSQLite(Connector|Probe|ManagedDDL) -count=1",
+      "exit_code": 1,
+      "log": "gw-F-sqlite-probe-root-original-red.log",
+      "log_sha256": "7029999cc97c4d1296a9caf200e19d1edf6b738716143415d108d24794917043"
+    },
+    {
+      "phase": "GREEN current source",
+      "command": "go test ./internal/datalink/dbtarget -run ^TestSQLite(Connector|Probe|ManagedDDL) -count=1",
+      "exit_code": 0,
+      "log": "gw-F-sqlite-probe-root-focused-green.log",
+      "log_sha256": "523c0857520a05032616692154fcab5891072ce9957afbb1b95342b9a052c9ae"
+    },
+    {
+      "phase": "GREEN current source race",
+      "command": "go test -race ./internal/datalink/dbtarget -run ^TestSQLite(Connector|Probe|ManagedDDL) -count=1",
+      "exit_code": 0,
+      "log": "gw-F-sqlite-probe-root-focused-race.log",
+      "log_sha256": "579a02c9dbc511a759eb6aba6eaf69914b85f82ac2bb1c04000d22ba5eff1ce5"
+    }
+  ],
+  "red_failed_tests": [
+    "TestSQLiteConnectorCreateProbeDoesNotCreateMissingFile",
+    "TestSQLiteConnectorUpdateProbeDoesNotCreateMissingFile",
+    "TestSQLiteProbeExistingFileUsesReadOnlyDSN",
+    "TestSQLiteProbeRejectsInvalidModesWithoutCreatingFile/unknown_mode"
+  ],
+  "normal_ui_before_fix": {
+    "witness": "early-root-1791072920100.json",
+    "passed": false,
+    "failed_stage": "destination",
+    "observed_destination": {
+      "exists": true,
+      "size": 0,
+      "tables": []
+    },
+    "child_exit_passed": true,
+    "owned_cleanup_passed": true
+  },
+  "normal_ui_after_fix_first_feedback": {
+    "witness": "early-root-1791073080744.json",
+    "passed": false,
+    "failed_stage": "first-independent-sql",
+    "limitation": "SQL values and provenance were observed, but the early harness incorrectly expected tag_key on group members; full identity assertion did not pass.",
+    "save_left_file_missing": true,
+    "preview_left_file_missing": true,
+    "explicit_schema_confirmation": "succeeded",
+    "independent_SQL_values": [
+      215,
+      "1013"
+    ],
+    "child_exit_passed": true,
+    "owned_cleanup_passed": true
+  },
+  "implementation": [
+    "SQLite file probe validates the saved DSN and opens with mode=ro.",
+    "Missing-file Create/Update/Test preserve the connector with unreachable status and leave the file absent.",
+    "Memory DSN and non-SQLite probes retain existing behavior.",
+    "Confirmed managed DDL retains its writable destination path."
+  ],
+  "limits": [
+    "Go overlay substitutes only the pre-fix service_probe.go for RED; the shared worktree was not reverted or mutated.",
+    "Full repository Go gates after the handler contract update and final UI/SQL matrix are recorded separately."
+  ]
+}

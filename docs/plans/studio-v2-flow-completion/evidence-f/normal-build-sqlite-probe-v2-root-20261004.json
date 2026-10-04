@@ -1,0 +1,18 @@
+{
+  "normal_build": true,
+  "fixture_tags": [],
+  "command": "go build -o <owned-temp>/gw-F-test-ui-production-sqlite-probe-v2 ./cmd/test_ui",
+  "exit_code": 0,
+  "source_count": 592,
+  "source_identity_digest": "552dd703fa62198cd99455c9cf737d95855d3fa37ab42f8a37b5fdcab2522076",
+  "source_identity_digest_encoding": "SHA256 of sorted-key compact JSON path/hash map",
+  "source_unchanged_during_build": true,
+  "binary_sha256": "055dcbd0c536f5fe96bc66c15910c71d4ed835183654005bf3b716affeb8805a",
+  "changed_production_sources_since_previous_build": [
+    "internal/datalink/dbtarget/service_probe.go"
+  ],
+  "embedded_frontend": "Same 99 embedded files as prior normal-build-root-20261004.json; frontend source remains unchanged.",
+  "limits": [
+    "Build proof does not substitute for real UI/SQL, default gates or tagged integration acceptance."
+  ]
+}

@@ -1,0 +1,285 @@
+{
+  "reviewer": "Root",
+  "actual_embedded_ui": true,
+  "selected_png_count": 18,
+  "runs": [
+    {
+      "run": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e.json",
+      "binary_sha256": "c81c8706b17d6cb0e630a713eb7e8e25a1c4937100d3ffe3c50d61113a882a0a",
+      "selected": [
+        {
+          "state": "main",
+          "width": 390,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-controls-390.png",
+          "sha256": "0058655881b43f0597e2e5ad6eb925573143b4795193ee26524a9daae7bd4b98",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "main",
+          "width": 768,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-controls-768.png",
+          "sha256": "4e1d948745c09f7e201c140290072b03eba467cac5dee0bc644f9e7505b927c9",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "main",
+          "width": 1440,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-controls-1440.png",
+          "sha256": "313436a8b60f5505798daa7c2f9d3d04cc70d8eceb0b05e0251f856a5ce13899",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "partial",
+          "width": 390,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-focus-390.png",
+          "sha256": "3ed3364e55843d341ed6df51e822cc5e9d22970bf52688957e5fed57c75d7315",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "partial",
+          "width": 1440,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-focus-1440.png",
+          "sha256": "5a79a0552c25f80ae1a5ac828b36c6726a99b3e64713c380e95c9e0a1109be78",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "partial",
+          "width": 768,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-partial-controls-768.png",
+          "sha256": "ae63a0c7b93d0db45bb0cd1f9dc8e2c380b50c9eb0f4ad2da17818ba2c576af0",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "error",
+          "width": 390,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-focus-390.png",
+          "sha256": "8bf6155a1f0e4829709385a9d9be29b85a2ebccfc7f7d52260eac8b892d81189",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "error",
+          "width": 768,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-focus-768.png",
+          "sha256": "464b41470cd4ddbceae7a5437f5bf315b4c21932ef2d26c6d8b59de9be6d80b2",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "error",
+          "width": 1440,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-error-focus-1440.png",
+          "sha256": "68c93923b3251aa75b75806350085002132f32e992af9f055122d37a3ae9a9d8",
+          "root_visually_inspected": true
+        }
+      ],
+      "keyboard": {
+        "focused_control_b_collapsed": true
+      },
+      "basic_bounds": [
+        {
+          "width": 390,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-390.png",
+          "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-focus-390.png",
+          "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-controls-390.png",
+          "focus_test_id": "basic-recording-evidence",
+          "document_width": 395,
+          "basic_bounds": {
+            "left": 100,
+            "right": 374,
+            "width": 274
+          },
+          "basic_outside": [],
+          "legacy_outside": [
+            {
+              "tag": "LABEL",
+              "test_id": "undefined",
+              "right": 395,
+              "width": 124.96875
+            }
+          ],
+          "document_horizontal_overflow": true
+        },
+        {
+          "width": 768,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-768.png",
+          "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-focus-768.png",
+          "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-controls-768.png",
+          "focus_test_id": "basic-recording-evidence",
+          "document_width": 768,
+          "basic_bounds": {
+            "left": 104,
+            "right": 748,
+            "width": 644
+          },
+          "basic_outside": [],
+          "legacy_outside": [],
+          "document_horizontal_overflow": false
+        },
+        {
+          "width": 1440,
+          "file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-1440.png",
+          "focus_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-focus-1440.png",
+          "controls_file": "fresh-recovery-sqlite-sqlite-recovery-20261004v4e-main-controls-1440.png",
+          "focus_test_id": "basic-recording-evidence",
+          "document_width": 1440,
+          "basic_bounds": {
+            "left": 112,
+            "right": 1132,
+            "width": 1020
+          },
+          "basic_outside": [],
+          "legacy_outside": [],
+          "document_horizontal_overflow": false
+        }
+      ]
+    },
+    {
+      "run": "fresh-recovery-postgres-postgres-recovery-20261004v4b.json",
+      "binary_sha256": "c81c8706b17d6cb0e630a713eb7e8e25a1c4937100d3ffe3c50d61113a882a0a",
+      "selected": [
+        {
+          "state": "main",
+          "width": 390,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-controls-390.png",
+          "sha256": "2555a7af54045b583c2c0e26e53c26c3f143225f5c79249f4a00cb3881ebe673",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "main",
+          "width": 768,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-controls-768.png",
+          "sha256": "3d4dbed540595df7c5fb920edc1c5b3395e56c149b1b435bfad84390dea22749",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "main",
+          "width": 1440,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-controls-1440.png",
+          "sha256": "7ac635aff349509d6d2835848e5332aae259667cc1318c6f35dc012ee55768b8",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "partial",
+          "width": 390,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-focus-390.png",
+          "sha256": "c196b764d094f2fafc540bff7e75e7535bbfab40d47b5fa9c86aacfef3f80cd4",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "partial",
+          "width": 1440,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-focus-1440.png",
+          "sha256": "2d549f5fc4ae4cad148ad32fd28c9a0b98bdc54b635c6e203a7fee4408414b95",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "partial",
+          "width": 768,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-partial-controls-768.png",
+          "sha256": "9fedadaa36419694e3dda00e6bdfd20d4bb2036ad82b2572d86e49a5a71a0c86",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "error",
+          "width": 390,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-focus-390.png",
+          "sha256": "da0e070223c9700f94124c0bd559cf3ded57f9973beffadba741d0daefad9867",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "error",
+          "width": 768,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-focus-768.png",
+          "sha256": "f86105a2a62ad5fdbace48552958e2ec440022a4d5ffb65f543dc8f26ff75ab1",
+          "root_visually_inspected": true
+        },
+        {
+          "state": "error",
+          "width": 1440,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-error-focus-1440.png",
+          "sha256": "25691d23884274557a240dec69849c317549d6e64cae33a9d344ea0a594177ac",
+          "root_visually_inspected": true
+        }
+      ],
+      "keyboard": {
+        "focused_control_b_collapsed": true
+      },
+      "basic_bounds": [
+        {
+          "width": 390,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-390.png",
+          "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-focus-390.png",
+          "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-controls-390.png",
+          "focus_test_id": "basic-recording-evidence",
+          "document_width": 518,
+          "basic_bounds": {
+            "left": 100,
+            "right": 374,
+            "width": 274
+          },
+          "basic_outside": [],
+          "legacy_outside": [
+            {
+              "tag": "SPAN",
+              "test_id": "undefined",
+              "right": 517.8125,
+              "width": 400.8125
+            },
+            {
+              "tag": "LABEL",
+              "test_id": "undefined",
+              "right": 395,
+              "width": 124.96875
+            }
+          ],
+          "document_horizontal_overflow": true
+        },
+        {
+          "width": 768,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-768.png",
+          "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-focus-768.png",
+          "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-controls-768.png",
+          "focus_test_id": "basic-recording-evidence",
+          "document_width": 768,
+          "basic_bounds": {
+            "left": 104,
+            "right": 748,
+            "width": 644
+          },
+          "basic_outside": [],
+          "legacy_outside": [],
+          "document_horizontal_overflow": false
+        },
+        {
+          "width": 1440,
+          "file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-1440.png",
+          "focus_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-focus-1440.png",
+          "controls_file": "fresh-recovery-postgres-postgres-recovery-20261004v4b-main-controls-1440.png",
+          "focus_test_id": "basic-recording-evidence",
+          "document_width": 1440,
+          "basic_bounds": {
+            "left": 112,
+            "right": 1132,
+            "width": 1020
+          },
+          "basic_outside": [],
+          "legacy_outside": [],
+          "document_horizontal_overflow": false
+        }
+      ]
+    }
+  ],
+  "design_comparison": {
+    "main": "Basic Start/status/actual SQL receipt/Runtime entry are readable; after a current committed effect the first-bucket waiting hint is absent.",
+    "partial": "Actual incomplete activation has a distinct partial state, affected scope and Retry this request; retry retains the original operation id.",
+    "error": "A real lost schema reply displays an unconfirmed result and recovery action; it does not display confirmed schema success.",
+    "keyboard": "Focused Control-B collapse succeeds; earlier PG main advanced summary Enter open/close and restored collapse are separately captured.",
+    "widths": "Basic controls stay inside 390/768/1440; the selected partial 768 controls view keeps the status visible below the sticky header."
+  },
+  "limits": [
+    "These screenshots were captured with normal final-v4; later final-v5 only changes the test-write preview text parser and escaped SQLite probe URI. Relevant recovery UI components are byte-identical (final source comparison is recorded separately).",
+    "Legacy long connector labels can overflow the full document at 390; this is outside Basic bounds.",
+    "The 768 partial focus crop hides the status under the sticky header; the inspected controls view is the accepted witness.",
+    "Historical failure screenshots and the expanded-sidebar single1520 390 full-page image are preserved and are not claimed as accepted current visuals.",
+    "No human usability/sign-off or whole-application responsive redesign is claimed."
+  ]
+}

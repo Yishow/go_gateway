@@ -1,0 +1,34 @@
+{
+  "files_sha256": {
+    "scripts/tests/f_device_to_sql/fresh-timing.mjs": "b6ec799351e05d15a31be14e2d066fa195600dceef438cbf9c18bdc29deabc7b",
+    "scripts/tests/f_device_to_sql/fresh-timing.test.mjs": "5cde0d4d54b3c04892261de89d0a411912737c2344dbe56c239b38fb4cb63d17",
+    "scripts/tests/f_device_to_sql/fresh-single-sqlite.mjs": "a7bba507228613145dff04bda3aabedf20bb620f1e3009b1bcede1bba0599d28",
+    "scripts/tests/f_device_to_sql/fresh-dual-sqlite.mjs": "edd638248ab96859ffbf6b6b2be53464515d4104d990c07e9b537684500c7c14"
+  },
+  "timing_regression": {
+    "red_log_sha256": "5776473203c4bae260f680648fc6c34431c304083222462a369933e92683872c",
+    "green_log_sha256": "140d26aae771c32a2a80d6cce98393d122dcfe6db9672f6dae0d8b892383438a",
+    "tests": 4,
+    "passed": true
+  },
+  "all_harness_tests": {
+    "command": "node --test scripts/tests/f_device_to_sql/*.test.mjs",
+    "tests": 57,
+    "exit_code": 0,
+    "log_sha256": "b2267688556c97e28eeee272d6c8d7b24e93f6f2cb6065da584c8fcb0b465a67"
+  },
+  "cleanup_exit_fix": "Single/dual use writeFreshResult after strict cleanup; actual child exit and persisted final payload agree.",
+  "cleanup_exit_validation": {
+    "red": "Actual child status0 despite finalpassed=false; regression failed before the fix",
+    "green": "Actual child failure1/success0 and persisted JSON both match finalpayload",
+    "red_log_sha256": "d0395f30669ee69b6179e8cf364c07abe983e3679653df429f1c142d53ccc26e",
+    "green_log_sha256": "53606fb9a5a9e37c7c89f782883579ec9ef01f8dc20f4b11495206a570fef30b",
+    "source_files_sha256": {
+      "scripts/tests/f_device_to_sql/fresh-result.mjs": "0c2a2168f153f876b1d6d0fdab1bed8b88634ff0760b99b7271ac7884bad10ca",
+      "scripts/tests/f_device_to_sql/fresh-result.test.mjs": "03f694d16ffc8eff162a33aebebd8aa9006fa763030ca739a7b259544c6badf4"
+    }
+  },
+  "limits": [
+    "Node assertion tests do not replace actual UI/SQL runs."
+  ]
+}

@@ -1,0 +1,224 @@
+{
+  "run_id": "early-root-1791073080744",
+  "kind": "early-single-sqlite-feedback",
+  "passed": false,
+  "linked_build_evidence": "normal-build-root-20261004.json",
+  "command": "node scripts/tests/f_device_to_sql/fresh-early-root.mjs",
+  "environment": "darwin/arm64; loopback simulator; disposable SQLite",
+  "expected_values": [
+    215,
+    1013
+  ],
+  "limitations": [
+    "Only two D/E acquisition points.",
+    "Not the seven-type/three-bucket/six-timing acceptance."
+  ],
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "binary_sha256": "055dcbd0c536f5fe96bc66c15910c71d4ed835183654005bf3b716affeb8805a",
+  "harness_source_sha256": {
+    "fresh-early-root.mjs": "7dd9b7f3e315ca4a7f5bb903a4edcd9fae12750afe0969535a9e96c7b773afef",
+    "fresh-ui.mjs": "88264135349bce889b55bfdfef082bede1d7092d39d259785be3bb85ee65b975",
+    "destination-preflight.mjs": "73a043cd9f87d382aed4a55669c0521c7356826eb30fbc466c5f989b3343c674"
+  },
+  "simulator": {
+    "binary_sha256": "67fb74adb51a2dc961b3663ea0a4649e7acc39730c81465806aed305af1ee72c",
+    "port": 15054,
+    "owned": true,
+    "registers": {
+      "0": 215,
+      "1": 1013
+    },
+    "pid": 58161
+  },
+  "preflight": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "browser_version": "145.0.7632.6",
+  "t_open": "280155414024291",
+  "destination_after_save": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "initial_status": "Recording request failed\n\nChecking readiness\n\nPrepare the managed schema before starting recording.\n\nOpen Advanced setup to prepare the schema.\n\nGroup: 35e8faf4-0eae-4bb5-9809-194a8bc48254\nsaved\nreadiness not verified\nnot applied\nDevice: dev-1791073083891-724\nnot activated\nOpen Advanced setup",
+  "group_id": "35e8faf4-0eae-4bb5-9809-194a8bc48254",
+  "preview_left_destination_absent": true,
+  "schema": {
+    "preview_text": "Table\ngw_group_0ddd58513cdd2670148f79f812e477b7\nColumn\tSQL type\tNullable\tPrimary key\nrecord_id\tTEXT\tno\tyes\ngroup_id\tTEXT\tno\tno\ndevice_id\tTEXT\tno\tno\nbucket_start\tTEXT\tno\tno\nprovenance\tTEXT\tno\tno\nv_1197cb40136046124fbecd26\tINTEGER\tyes\tno\nv_fe2e9c57ddbcc2622c19de69\tTEXT\tyes\tno\nAdvanced: generated SQL\n\nPreview is read-only. Confirmation is the only action that can create the managed structures.",
+    "operation_text": "Operation status: op-7db391d0-4961-4794-96f3-1c224af17cef\n\nStatus: succeeded"
+  },
+  "t_start": "280172648953458",
+  "start_status": "Recording request succeeded\n\nRecording request complete\n\nGroup: 35e8faf4-0eae-4bb5-9809-194a8bc48254\nsaved\nreadiness verified\napplied\nDevice: dev-1791073083891-724\nactivated\n\nDevice activation was confirmed; destination delivery remains a separate runtime fact.\n\nOpen Runtime monitor",
+  "t_closed": "280273862561375",
+  "t_sql": "280274876495833",
+  "sql_rows": [
+    {
+      "record_id": "b02c7a7fc14871c708e6be9aaf1000cfb812deb30588c4a818de59e870a5a72c",
+      "group_id": "35e8faf4-0eae-4bb5-9809-194a8bc48254",
+      "device_id": "dev-1791073083891-724",
+      "bucket_start": "2026-10-04T00:19:00Z",
+      "provenance": "[{\"member\":\"[\\\"dev-1791073083891-724\\\",\\\"81ef065e-c639-4f17-9ba2-3685b6e1a03b\\\",\\\"1b16f760-c6a8-4f1e-9c25-7c6440de160c\\\"]\",\"status\":\"ok\",\"sample_id\":\"f4aa650f464de08986b7985cde718dc91dd0b6d16badedcc1498f31b263bb744\",\"observed_at\":\"2026-10-04T00:19:59.103568Z\",\"quality\":\"good\"},{\"member\":\"[\\\"dev-1791073083891-724\\\",\\\"dc9a7887-bce6-4c7d-b1cf-2c9879882ca4\\\",\\\"e9452bbe-cae8-4b3a-9057-698c8badb6eb\\\"]\",\"status\":\"ok\",\"sample_id\":\"3c5113e14c95cec224800e3522c49177e11cc37b6e823a743b1e53bd0f816195\",\"observed_at\":\"2026-10-04T00:19:59.103659Z\",\"quality\":\"good\"}]",
+      "_gw_owner_2ab539d3fd4e8e60c7f6e41f": "gateway",
+      "v_1197cb40136046124fbecd26": 215,
+      "v_fe2e9c57ddbcc2622c19de69": "1013"
+    }
+  ],
+  "current_groups": {
+    "workspace_id": "32efd53d-f389-4cb1-9d94-20ebb3c6c9eb",
+    "workspace_revision": "0cbad4b6-910b-4056-9e7f-e46adb671743",
+    "groups": [
+      {
+        "id": "35e8faf4-0eae-4bb5-9809-194a8bc48254",
+        "workspace_id": "32efd53d-f389-4cb1-9d94-20ebb3c6c9eb",
+        "revision": "997e977e-2419-4d07-9c69-5fcd5f3efe75",
+        "applied_revision": "997e977e-2419-4d07-9c69-5fcd5f3efe75",
+        "basic_managed_device_id": "dev-1791073083891-724",
+        "name": "F early A",
+        "status": "ready",
+        "members": [
+          {
+            "device_id": "dev-1791073083891-724",
+            "point_id": "81ef065e-c639-4f17-9ba2-3685b6e1a03b",
+            "tag_id": "1b16f760-c6a8-4f1e-9c25-7c6440de160c",
+            "source_revision": "876aadf0198fe116590d5358296880c86f2391fed20f38a59037e54150f4537c",
+            "mapping_revision": "cde5ee6d56fcc23664c963d2ef7add5867504c5ebd213ec8b0f208adc8e2a1bd",
+            "target_column": "v_1197cb40136046124fbecd26",
+            "required": true
+          },
+          {
+            "device_id": "dev-1791073083891-724",
+            "point_id": "dc9a7887-bce6-4c7d-b1cf-2c9879882ca4",
+            "tag_id": "e9452bbe-cae8-4b3a-9057-698c8badb6eb",
+            "source_revision": "857d089980ff55e631afa448878a9cb4360197e6587f4aee1e88f00722a30619",
+            "mapping_revision": "5f146534f55975adad3d4f4a2b82b545f266f5a39bd95db5b9959db972052ba4",
+            "target_column": "v_fe2e9c57ddbcc2622c19de69",
+            "required": true
+          }
+        ],
+        "destination": {
+          "connector_id": "f10815ce-7517-4183-8688-164dfecd9685",
+          "connector_revision": "628ee17b-f4de-4dd1-8a3f-55db83185761",
+          "database": "<owned-run>/destination.db",
+          "table_schema": "main",
+          "table_name": "gw_group_0ddd58513cdd2670148f79f812e477b7",
+          "storage_strategy": "managed",
+          "schema_revision": "op-7db391d0-4961-4794-96f3-1c224af17cef",
+          "schema_digest": "a593aa5a770c4a374ed5b05618649cbd633eb58e8bf2bcbd0803adb132014eaa"
+        },
+        "row_policy": {
+          "interval_seconds": 60,
+          "allowed_lateness_seconds": 0,
+          "incomplete_policy": "skip_row",
+          "provenance_column": "provenance",
+          "record_key_column": "record_id",
+          "bucket_start_column": "bucket_start",
+          "group_id_column": "group_id",
+          "device_id_column": "device_id"
+        },
+        "write_policy": {
+          "mode": "append",
+          "dedupe_capability": "receipt"
+        },
+        "migration": {},
+        "created_at": "2026-10-04T00:18:18.83413Z",
+        "updated_at": "2026-10-04T00:18:20.093792Z"
+      }
+    ]
+  },
+  "delivery": {
+    "group_id": "35e8faf4-0eae-4bb5-9809-194a8bc48254",
+    "intake": {
+      "state": "active"
+    },
+    "stages": {
+      "collecting": 6,
+      "queued": 0,
+      "retrying": 0,
+      "blocked": 0,
+      "quarantined": 0,
+      "unknown": 0,
+      "sql_committed": 1,
+      "skipped": 0
+    },
+    "last_sql_committed_at": "2026-10-04T00:20:01.703505Z",
+    "last_sql_committed_effect": {
+      "group_revision": "997e977e-2419-4d07-9c69-5fcd5f3efe75",
+      "connector_revision": "628ee17b-f4de-4dd1-8a3f-55db83185761",
+      "record_id": "b02c7a7fc14871c708e6be9aaf1000cfb812deb30588c4a818de59e870a5a72c",
+      "effect_key": "8b6420a7b6e7c92d9c34ce59bc32cd4cefe502a9823c08a6c0842f281d08fd28",
+      "payload_digest": "3714fc13aba8644c130fef762841ef3718eaaca90590307ff57acd6ac21e6e23",
+      "committed_at": "2026-10-04T00:20:01.703505Z"
+    },
+    "revision_stages": {
+      "group_revision": "997e977e-2419-4d07-9c69-5fcd5f3efe75",
+      "stages": {
+        "collecting": 6,
+        "queued": 0,
+        "retrying": 0,
+        "blocked": 0,
+        "quarantined": 0,
+        "unknown": 0,
+        "sql_committed": 1,
+        "skipped": 0
+      }
+    },
+    "oldest_pending_seconds": 0,
+    "no_data_buckets": 0,
+    "skipped_buckets": 0,
+    "recent_bucket_issues": [],
+    "backlog": [],
+    "quota": {
+      "configured": true,
+      "state": "ok",
+      "scope": "global",
+      "used_bytes": 3029,
+      "max_bytes": 524288000,
+      "intake_refused": false
+    }
+  },
+  "source_mappings": [
+    {
+      "point_id": "rule-1791073086655-p-0",
+      "tag_key": "early.1"
+    },
+    {
+      "point_id": "rule-1791073089833-p-0",
+      "tag_key": "early.2"
+    }
+  ],
+  "failed_stage": "first-independent-sql",
+  "error": "saved member must match an original UI mapping",
+  "ui_text": "Datalink Workbench\ngo_gateway · v1 接入點位設定流程\nDatalink\nWorkbench\n儲存資料庫\n儲存草稿\n取消\nscheduler idle\n建置流程\n01\n新增裝置\nDevice + Protocol\n02\n接入規則\nSource Rules · 多條範圍\n03\n點位映射\nPoint → Tag\n04\n儲存資料庫\nDB Target · Commit\n系統\n設定\n資料庫、排程、介面…\n本流程\n\n由「設備 → 接入規則 → 點位/映射 → 資料庫」四個階段組成，全部成功後才會啟動 collector 並寫入。\n\nSTEP 04 / 04\nDB Target · Commit\n儲存資料庫\nWORKSPACE STATUS\nActivation is available. Warnings do not block apply.\n0 blockers\n1 warnings\n\nFix \"Database connector unreachable\" first: Go to Step 4 to enable database targets, or fix the connector/schema before applying.\n\nBasic recording\n\nOne saved device and its managed group. The server chooses the table and member columns.\n\nDevice\nF early A\nSnapshot interval (seconds)\nMissing values\nSkip incomplete snapshot\nKeep the snapshot with missing values\n\nRecording destination: F fresh SQLite\n\nValues to record\nearly.1\nF early A · 40001 · int16\nearly.2\nF early A · 40002 · uint16\n\n2 mapped value(s) for this device\n\nRecording evidence\n\nThe first complete UTC snapshot is still pending until its 60-second bucket closes.\n\nAcquisition\n118\nAccepted locally\n0\nSQL commit (current revision)\nUnconfirmed\nStart recording\n\nRecording request succeeded\n\nRecording request complete\n\nGroup: 35e8faf4-0eae-4bb5-9809-194a8bc48254\nsaved\nreadiness verified\napplied\nDevice: dev-1791073083891-724\nactivated\n\nDevice activation was confirmed; destination delivery remains a separate runtime fact.\n\nOpen Runtime monitor\nDatabase Connector\n\nConfigure DB connector options and write strategy parameters\n\nsqlite\n<owned-run>/destination.db\nreadings\nCollapse connector setup\nLoad from connector pool\n-- Select an existing connector --\nTimeSeries Prod (POSTGRES - gateway_metrics)\nDatabase Kind\n🐘\nPostgreSQL\nPostgreSQL / TimescaleDB\n💾\nSQLite\nSQLite Local File Database\n🐬\nMySQL\nMySQL / MariaDB\n🖥️\nSQL Server\nMicrosoft SQL Server\nConnection Name\nDB File Path\nTable Name\nWrite Strategy\nTime Series Append (INSERT)\nInsert a new row for each interval record. Ideal for historical trends.\nOverwrite Update (UPSERT)\nOnly keep the latest record. Saves storage space.\nWrite Interval\n\nSet the scheduled DB write period interval.\n\ns\nDelivery truth\n\nLatest schema and write results\n\nunreachable\nExpand delivery status\nLOCAL SHARE OUTPUT\n\nBackend Share is disabled in persisted settings.\n\nAdvanced groups and workspace activation\n上一步\nCtrl\n+\nB\n收合側欄\n即時設定摘要\nWORKSPACE STATUS\nActivation is available. Warnings do not block apply.\n0 blockers\n1 warnings\n\nFix \"Database connector unreachable\" first: Go to Step 4 to enable database targets, or fix the connector/schema before applying.\n\n最近事件\ndatabase_config_saved\nsuccess\ndatabase_connector:f10815ce-7517-4183-8688-164dfecd9685\n2026-10-04T00:18:17.453507Z\ndatabase_config_saved\nsuccess\ndatabase_connector:f10815ce-7517-4183-8688-164dfecd9685\n2026-10-04T00:18:15.945282Z\ndatabase_config_saved\nsuccess\ndatabase_connector:f10815ce-7517-4183-8688-164dfecd9685\n2026-10-04T00:18:15.931443Z\n設備\n總數\n1 個\n已測試\n1 / 1\nF early A\nmodbus_tcp\n接入規則\n條數\n2 條\n點位\n2 個\n映射\nTAGS\n2\n個別轉換\n0\n資料庫寫入\n類型\nsqlite\n表\n.readings\n間隔\n5s\n目標\n0 欄位",
+  "child_exit": [
+    {
+      "name": "early-root-simulator",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 58161,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 58162,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ],
+  "child_exit_passed": true,
+  "owned_cleanup_passed": true
+}

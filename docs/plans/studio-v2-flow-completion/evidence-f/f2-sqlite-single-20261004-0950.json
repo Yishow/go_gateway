@@ -1,0 +1,31 @@
+{
+  "run_id": "f2-sqlite-single-20261004-0950",
+  "passed": false,
+  "failures": [
+    "observation did not reach expected state: /studio-v2/workspace/mappings [{\"id\":\"9bb22f5e-1236-4850-a24b-d1f0bb00e1e7\",\"workspace_id\":\"9dfe8f37-deeb-437c-b868-cc064dffadbb\",\"point_id\":\"172decb1-eed2-41fe-a22c-4f17d7b083b7\",\"rule_id\":\"rule-1791072515962\",\"device_id\":\"dev-1791072513256-937\",\"address\":\"40001\",\"tag_id\":\"622e8bb0-4d69-4a8a-8fdc-8423687a0583\",\"tag_key\":\"line_a"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-0950",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-0950: observation did not reach expected state: /studio-v2/workspace/mappings [{\"id\":\"9bb22f5e-1236-4850-a24b-d1f0bb00e1e7\",\"workspace_id\":\"9dfe8f37-deeb-437c-b868-cc064dffadbb\",\"point_id\":\"172decb1-eed2-41fe-a22c-4f17d7b083b7\",\"rule_id\":\"rule-1791072515962\",\"device_id\":\"dev-1791072513256-937\",\"address\":\"40001\",\"tag_id\":\"622e8bb0-4d69-4a8a-8fdc-8423687a0583\",\"tag_key\":\"line_a"
+  ],
+  "cleanup": [
+    {
+      "name": "sim-a",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 49674,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    },
+    {
+      "name": "gateway",
+      "term_state": "timeout",
+      "kill_sent": true,
+      "pid": 49675,
+      "state": "exited",
+      "exit_code": null,
+      "signal": "SIGKILL"
+    }
+  ]
+}

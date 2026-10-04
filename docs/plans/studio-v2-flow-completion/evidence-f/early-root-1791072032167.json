@@ -1,0 +1,28 @@
+{
+  "run_id": "early-root-1791072032167",
+  "kind": "early-single-sqlite-feedback",
+  "passed": false,
+  "binary_sha256": "13e02bed932e56a08ef992f31c3106e698527ccd97bdf695587d0cf49229ac45",
+  "expected_values": [
+    215,
+    1013
+  ],
+  "limitations": [
+    "Only two D/E acquisition points.",
+    "Not the seven-type/three-bucket/six-timing acceptance."
+  ],
+  "preflight": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "failed_stage": "boot",
+  "error": "port 3343 is still in use",
+  "child_exit": [],
+  "child_exit_passed": false,
+  "owned_cleanup_passed": true
+}

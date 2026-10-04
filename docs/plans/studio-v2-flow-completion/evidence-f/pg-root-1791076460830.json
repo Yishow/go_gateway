@@ -1,0 +1,23 @@
+{
+  "run_id": "pg-root-1791076460830",
+  "kind": "postgres-single-seven-types",
+  "passed": false,
+  "command": "node scripts/tests/f_device_to_sql/fresh-postgres-root.mjs",
+  "environment": "darwin/arm64; owned loopback simulator and disposable PostgreSQL schema",
+  "linked_build_evidence": "normal-build-ui-evidence-v3-root-20261004.json",
+  "poll_interval_ms": 1000,
+  "limitations": ["Single device; multi-device and same-group entity runs are separate."],
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "binary_sha256": "b91ef7e6d0fcff6d4c71b12d68acdef4646fec421578049054fd5e02942f4039",
+  "simulator_sha256": "67fb74adb51a2dc961b3663ea0a4649e7acc39730c81465806aed305af1ee72c",
+  "harness_source_sha256": {"fresh-postgres-root.mjs":"cd14ce836556e52256a5c35f5bff8015eb6dfb6ed313ba23a483ff99bfcb8e4f","fresh-postgres-observation-root.mjs":"6acc548beb93a29d908c08cb408122031559e5854a0c34b70d635af55a8911f9","fresh-postgres-setup.mjs":"3b1f596f6d795b308c776df64d7dd1f0759ef0ccdec689b3f1cc082d87e2a181","fresh-recording-verification.mjs":"ebe1eae5c83b284337d9ea4978b945b71da886aef08a21e3381296faaa7058c7","fresh-ui.mjs":"a48852d0cc87823584a244bf4bac429f624ad2d192034d4718cbc81b10594a74","destination-preflight.mjs":"73a043cd9f87d382aed4a55669c0521c7356826eb30fbc466c5f989b3343c674","lib.mjs":"1484e2446e46772f7b416d0053d8f7d2225656acea97db078058eb96c415f48d"},
+  "target_preflight": {"kind":"postgres","schema":"gw_f_pg_root_1791076460830","status":"existing","namespace_exists":true,"recording_table":"f_connector_placeholder","recording_table_present":false,"observation":"select-only"},
+  "relations_before_ui": [],
+  "failed_stage": "preflight",
+  "error": "browserType.launch: Target page, context or browser has been closed",
+  "browser_cleanup": "closed",
+  "child_exit": [{"name":"pg-root-simulator","term_state":"exited","kill_sent":false,"pid":66745,"state":"exited","exit_code":0,"signal":null},{"name":"gateway","term_state":"exited","kill_sent":false,"pid":66746,"state":"exited","exit_code":0,"signal":null}],
+  "child_exit_passed": true,
+  "schema_cleanup": true,
+  "owned_work_cleanup": true
+}

@@ -1,0 +1,68 @@
+{
+  "run_id": "v6b-dual-sqlite",
+  "passed": false,
+  "failures": [
+    "controlled first independent SQL must be at most 300 seconds"
+  ],
+  "timings_observed": [
+    {
+      "device_id": "dev-1791098645381-497",
+      "t_open": "305716966498875",
+      "t_start": "305794941425000",
+      "t_closed": "305893897115708",
+      "t_sql": "305895911412791",
+      "poll_count": 112
+    },
+    {
+      "device_id": "dev-1791098648058-291",
+      "t_open": "305716966498875",
+      "t_start": "305795371125083",
+      "t_closed": "306018431706500",
+      "t_sql": "306018434876708",
+      "poll_count": 1
+    }
+  ],
+  "retained_work": "/tmp/gw-f-v6b-dual-sqlite",
+  "log": [
+    "ERROR v6b-dual-sqlite: controlled first independent SQL must be at most 300 seconds"
+  ],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 83022,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "sim-b",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 83023,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 83024,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "path": "/tmp/gw-f-v6b-dual-sqlite",
+      "absent": true,
+      "state": "removed"
+    }
+  }
+}

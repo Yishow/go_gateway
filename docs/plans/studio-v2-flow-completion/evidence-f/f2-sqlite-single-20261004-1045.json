@@ -1,0 +1,41 @@
+{
+  "run_id": "f2-sqlite-single-20261004-1045",
+  "passed": false,
+  "failures": [
+    "observation did not reach expected state: /studio-v2/workspace/database-config {\"id\":\"2ab597b4-a8a3-42fb-8a99-fd9ad53052ce\",\"identity_revision\":\"15f4b78c-0d5c-4efe-8021-9e138460cf52\",\"setup_revision\":\"86ef260b-e71a-4be3-a6a2-2f98f3f200fc\",\"workspace_id\":\"84240692-afdb-40bf-af5b-ffb7b05a9ca0\",\"kind\":\"sqlite\",\"name\":\"F fresh SQLite\",\"host\":\"\",\"port\":0,\"database\":\"/tmp/gw-f-f2-sq"
+  ],
+  "retained_work": "/tmp/gw-f-f2-sqlite-single-20261004-1045",
+  "log": [
+    "ERROR f2-sqlite-single-20261004-1045: observation did not reach expected state: /studio-v2/workspace/database-config {\"id\":\"2ab597b4-a8a3-42fb-8a99-fd9ad53052ce\",\"identity_revision\":\"15f4b78c-0d5c-4efe-8021-9e138460cf52\",\"setup_revision\":\"86ef260b-e71a-4be3-a6a2-2f98f3f200fc\",\"workspace_id\":\"84240692-afdb-40bf-af5b-ffb7b05a9ca0\",\"kind\":\"sqlite\",\"name\":\"F fresh SQLite\",\"host\":\"\",\"port\":0,\"database\":\"/tmp/gw-f-f2-sq"
+  ],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 66714,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 66715,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "state": "removed",
+      "path": "/tmp/gw-f-f2-sqlite-single-20261004-1045",
+      "absent": true
+    }
+  }
+}

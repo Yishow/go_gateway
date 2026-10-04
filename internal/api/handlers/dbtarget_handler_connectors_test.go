@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -70,6 +71,8 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	connectorData := createPayload["data"].(map[string]any)
 	connectorID := connectorData["id"].(string)
 	assert.NotEmpty(t, connectorData["identity_revision"])
+	assert.Equal(t, "ready", connectorData["status"])
+	require.NoFileExists(t, targetPath)
 
 	req, err = http.NewRequestWithContext(ctx, http.MethodGet, "/datalink/db-targets/connectors", http.NoBody)
 	require.NoError(t, err)
@@ -101,6 +104,9 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, saved)
 	assert.Contains(t, saved.ConnectionConfig, "sensor_values_v2")
+	assert.Equal(t, "ready", string(saved.Status))
+	_, statErr := os.Stat(targetPath)
+	require.ErrorIs(t, statErr, os.ErrNotExist)
 
 	req, err = http.NewRequestWithContext(ctx, http.MethodPost, "/datalink/db-targets/connectors/"+connectorID+"/test", http.NoBody)
 	require.NoError(t, err)
@@ -113,6 +119,8 @@ func TestDatabaseTargetHandler_ConnectorCrudAndTestRoundTrip(t *testing.T) {
 	assert.Equal(t, true, testPayload["success"])
 	testData := testPayload["data"].(map[string]any)
 	assert.Equal(t, "ready", testData["status"])
+	_, statErr = os.Stat(targetPath)
+	require.ErrorIs(t, statErr, os.ErrNotExist)
 
 	req, err = http.NewRequestWithContext(ctx, http.MethodDelete, "/datalink/db-targets/connectors/"+connectorID, http.NoBody)
 	require.NoError(t, err)

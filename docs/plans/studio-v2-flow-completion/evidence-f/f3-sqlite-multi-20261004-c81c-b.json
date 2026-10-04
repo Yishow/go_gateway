@@ -1,0 +1,46 @@
+{
+  "run_id": "f3-sqlite-multi-20261004-c81c-b",
+  "passed": false,
+  "failed_stage": "explicit-test-write",
+  "error": "test-write draft unexpectedly re-applied the shared revision",
+  "retained_work": "/tmp/gw-f-f3-sqlite-multi-20261004-c81c-b",
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 1833,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "sim-b",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 1834,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 1835,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "path": "/tmp/gw-f-f3-sqlite-multi-20261004-c81c-b",
+      "absent": true,
+      "state": "removed"
+    }
+  }
+}

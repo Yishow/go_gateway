@@ -1,0 +1,15 @@
+{
+  "run_id": "pg-matrix-final-v5-20261004-0958",
+  "kind": "postgres-dual-basic-multi-entity",
+  "passed": false,
+  "command": "node scripts/tests/f_device_to_sql/fresh-postgres-matrix-root.mjs",
+  "environment": "darwin/arm64; owned loopback simulators and disposable PostgreSQL schema",
+  "poll_interval_ms": 1000,
+  "limitations": ["No real PLC, LAN, production database, or deployment acceptance.","Basic A/B are UI-created and activated prerequisites; this run asserts three buckets per entity only for the third multi-entity group."],
+  "failed_stage": "preflight",
+  "error": "POSTGRES_DSN must target the owned loopback PostgreSQL fixture at 127.0.0.1:55432/gwtest as postgres",
+  "browser_cleanup": "closed",
+  "child_exit": [],
+  "child_exit_passed": true,
+  "schema_cleanup": "not-created"
+}

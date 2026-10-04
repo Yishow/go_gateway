@@ -1,0 +1,47 @@
+{
+  "source_inputs": 604,
+  "source_identity_digest": "3bce0c886259c30d138daaeefc57eb278702787c1eedb7c93f3de5d9e1fd1453",
+  "source_unchanged_during_gates": true,
+  "commands": [
+    {
+      "command": "npm run lint",
+      "exit_code": 0,
+      "log": {
+        "name": "gw-F-final-v5-front-lint.log",
+        "sha256": "b0975a8065fa0c12ce051848241e245ae6a00293c4ecd435fe8d493b7b925ea4"
+      }
+    },
+    {
+      "command": "npm test -- --run --maxWorkers=2",
+      "exit_code": 0,
+      "log": {
+        "name": "gw-F-final-v5-front-test-serial.log",
+        "sha256": "b4044b1ff7550d72e792512198a9db06b4e5297c16cff03f7de237d15e417779"
+      }
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "log": {
+        "name": "gw-F-final-v5-front-build.log",
+        "sha256": "ccbb82d211558d05e41f4945b341049c43d2e9980690fa7a758c3774a7cb59fc"
+      }
+    }
+  ],
+  "test_files": 190,
+  "tests": 1213,
+  "initial_failure": {
+    "log": {
+      "name": "gw-F-final-v5-front-test.log",
+      "sha256": "b9ca5318dba8d764f056841aa0215478701805fa8f039a0ac61d977d1435f802"
+    },
+    "result": "189files/1211tests pass; unchanged runtime-route lazy-loading assertions timed out under concurrent gates; focused3tests and full190files/1213tests with2workers passed"
+  },
+  "focused_route_log": {
+    "name": "gw-F-final-v5-front-route-focused.log",
+    "sha256": "8ddce85f4eaae6555cb1e387298521d540f31270cbd59344cb368fe982c1caa4"
+  },
+  "limits": [
+    "Build retains Vite existing chunk-size warnings."
+  ]
+}

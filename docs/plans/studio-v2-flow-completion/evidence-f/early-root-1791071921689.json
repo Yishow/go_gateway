@@ -1,0 +1,39 @@
+{
+  "run_id": "early-root-1791071921689",
+  "kind": "early-single-sqlite-feedback",
+  "passed": false,
+  "binary_sha256": "13e02bed932e56a08ef992f31c3106e698527ccd97bdf695587d0cf49229ac45",
+  "expected_values": [
+    215,
+    1013
+  ],
+  "limitations": [
+    "Only two D/E acquisition points.",
+    "Not the seven-type/three-bucket/six-timing acceptance."
+  ],
+  "preflight": {
+    "kind": "sqlite",
+    "path": "/tmp/gw-f-early-root-1791071921689/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "failed_stage": "boot",
+  "error": "browserType.launch: Target page, context or browser has been closed",
+  "child_exit": [
+    {
+      "name": "gateway",
+      "term_state": "exited",
+      "kill_sent": false,
+      "pid": 39935,
+      "state": "exited",
+      "exit_code": 0,
+      "signal": null
+    }
+  ],
+  "child_exit_passed": true,
+  "owned_cleanup_passed": true,
+  "browser_launch_failure": "Chromium MachPortRendezvous bootstrap_check_in permission denied (1100); sandbox execution before UI."
+}

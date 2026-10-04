@@ -1,0 +1,66 @@
+{
+  "kind": "fresh-destination-preflight-root-independent",
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "source_files_sha256": {
+    "scripts/tests/f_device_to_sql/destination-preflight.mjs": "b215611a6e7de881af1a867e13185bf4e9a9774e92ccbb5f36c82581217dd0e8",
+    "scripts/tests/f_device_to_sql/destination-preflight.test.mjs": "c14213ba860e9413648ab4a17fbbe39a00accfd3e8217f12f93741e93d345422"
+  },
+  "environment": {
+    "os": "darwin",
+    "arch": "arm64",
+    "target": "owned-loopback-postgresql16",
+    "no_production_targets": true
+  },
+  "tests": {
+    "command": "node --test scripts/tests/f_device_to_sql/destination-preflight.test.mjs",
+    "passed": 8,
+    "failed": 0,
+    "root_exit_code": 0
+  },
+  "regression": [
+    {
+      "case": "opening missing SQLite would create destination",
+      "mutation_result": "FAIL",
+      "mutation_exit_code": 1,
+      "specific_failure": "true !== false",
+      "restored_result": "7 PASS",
+      "restored_source_sha256": "cebe49caf815b5118e1b78f122a7f96a70856efa96822605d55c41c299e82d37"
+    },
+    {
+      "case": "undefined/null/string/numeric absence proof must reject",
+      "before_result": "FAIL",
+      "before_exit_code": 1,
+      "after_result": "8 PASS"
+    }
+  ],
+  "independent_postgres": {
+    "passed": true,
+    "proof": {
+      "kind": "postgres",
+      "schema": "gw_f_preflight_1791070499899",
+      "status": "existing",
+      "namespace_exists": true,
+      "recording_table": "readings",
+      "recording_table_present": false,
+      "observation": "select-only",
+      "namespace_recording_objects": 0
+    },
+    "cleanup": {
+      "resource": "owned-postgres-schema",
+      "schema": "gw_f_preflight_1791070499899",
+      "passed": true,
+      "drop": {
+        "status": "ok"
+      },
+      "verify": {
+        "status": "ok",
+        "result": ""
+      }
+    },
+    "fixture": "owned-loopback-postgresql16"
+  },
+  "limits": [
+    "This preflight evidence does not establish UI confirmation or three production buckets.",
+    "Windows/Linux ARM/LAN/PLC/SCADA/production DB/deploy/human usability NOT RUN."
+  ]
+}

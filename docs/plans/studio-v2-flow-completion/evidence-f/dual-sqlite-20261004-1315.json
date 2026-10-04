@@ -1,0 +1,50 @@
+{
+  "run_id": "dual-sqlite-20261004-1315",
+  "passed": false,
+  "failures": [
+    "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('basic-recording-open-advanced') to be visible\u001b[22m\n"
+  ],
+  "retained_work": "/tmp/gw-f-dual-sqlite-20261004-1315",
+  "log": [
+    "ERROR dual-sqlite-20261004-1315: locator.waitFor: Timeout 30000ms exceeded."
+  ],
+  "cleanup": {
+    "processes": [
+      {
+        "name": "sim-a",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 7756,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "sim-b",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 7757,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      },
+      {
+        "name": "gateway",
+        "term_state": "exited",
+        "kill_sent": false,
+        "pid": 7758,
+        "state": "exited",
+        "exit_code": 0,
+        "signal": null
+      }
+    ],
+    "browser": {
+      "state": "closed"
+    },
+    "namespace": {
+      "path": "/tmp/gw-f-dual-sqlite-20261004-1315",
+      "absent": true,
+      "state": "removed"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "scope": "Frozen bucket members versus independently read SQL provenance, without millisecond precision loss.",
+  "red": {
+    "log": "gw-F-frozen-provenance-verifier-red.log",
+    "exit_code": 1,
+    "result": "Changing a SQL sample ID was wrongly accepted by the original verifier."
+  },
+  "green": {
+    "log": "gw-F-frozen-provenance-verifier-green.log",
+    "exit_code": 0,
+    "result": "4 tests passed, including sample ID / one-nanosecond change rejection."
+  },
+  "final": {
+    "log": "gw-F-frozen-provenance-verifier-final.log",
+    "exit_code": 0,
+    "result": "5 tests passed, including equivalent fractional padding."
+  },
+  "files_sha256": {
+    "scripts/tests/f_device_to_sql/fresh-recording-verification.mjs": "74775fc3e9db089f92c082ffb30a4a4ab8c23a75e5351b1ed32dea81d8fc6b27",
+    "scripts/tests/f_device_to_sql/fresh-recording-verification.test.mjs": "079e435085961be14b9aa9b4f17014f8f12c48dadf562739cb01717ca8271bd6"
+  },
+  "logs_sha256": {
+    "gw-F-frozen-provenance-verifier-red.log": "1ed888cf9d9782e69456cb87bdcf155a39adeda7d0729618c16da13f3ce76398",
+    "gw-F-frozen-provenance-verifier-green.log": "8a5445d79e216a747ee220cf98d0de8cac6ce886fc94e54c51dd9e9792bfc8a0",
+    "gw-F-frozen-provenance-verifier-final.log": "d898f08940e36f3161798ae71da38cc839d0ba722f7f4f524e773a5e2a835405"
+  }
+}

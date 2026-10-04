@@ -1,0 +1,32 @@
+{
+  "run_id": "early-root-1791072077860",
+  "kind": "early-single-sqlite-feedback",
+  "passed": false,
+  "source_head": "f8882bb6264302027b9590e6ca1510dcd05dac83",
+  "linked_build_evidence": "normal-build-root-20261004.json",
+  "command": "node scripts/tests/f_device_to_sql/fresh-early-root.mjs",
+  "environment": "darwin/arm64; loopback simulator; disposable SQLite",
+  "binary_sha256": "13e02bed932e56a08ef992f31c3106e698527ccd97bdf695587d0cf49229ac45",
+  "expected_values": [
+    215,
+    1013
+  ],
+  "limitations": [
+    "Only two D/E acquisition points.",
+    "Not the seven-type/three-bucket/six-timing acceptance."
+  ],
+  "preflight": {
+    "kind": "sqlite",
+    "path": "<owned-run>/destination.db",
+    "status": "missing",
+    "exists": false,
+    "stat": "absent",
+    "recording_table": "readings",
+    "recording_table_present": false
+  },
+  "failed_stage": "boot",
+  "error": "owned port 3382 is already occupied",
+  "child_exit": [],
+  "child_exit_passed": false,
+  "owned_cleanup_passed": true
+}

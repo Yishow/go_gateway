@@ -1,0 +1,41 @@
+{
+  "command": "node --input-type=module retained-evidence verification",
+  "passed": true,
+  "verifier_sha256": "74775fc3e9db089f92c082ffb30a4a4ab8c23a75e5351b1ed32dea81d8fc6b27",
+  "checks": [
+    {
+      "source": "pg-root-1791075696914.json",
+      "source_sha256": "1c2f881a5faa4ea5bb287dc0162c56525b20e03d6ac86ec1aec82f842a4e73bb",
+      "original_passed": true,
+      "current_verifier_failures": [],
+      "sql_rows": 3,
+      "members": 9,
+      "frozen_sample_and_precise_utc_matched": true,
+      "source_and_mapping_revisions_present": true
+    },
+    {
+      "source": "pg-root-1791076779005.json",
+      "source_sha256": "41fde324c690206366415fe56ebb2f39a51ffd479ef432a94780bb911f4f2413",
+      "original_passed": true,
+      "current_verifier_failures": [],
+      "sql_rows": 3,
+      "members": 9,
+      "frozen_sample_and_precise_utc_matched": true,
+      "source_and_mapping_revisions_present": true
+    },
+    {
+      "source": "f2-sqlite-single-20261004-1520.json",
+      "source_sha256": "85f39e939d7aacac6d72fc48b22e54117b7923c0764013f02be716fe778c2a96",
+      "original_passed": true,
+      "current_verifier_failures": [],
+      "sql_rows": 3,
+      "members": 9,
+      "frozen_sample_and_precise_utc_matched": true,
+      "source_and_mapping_revisions_present": true
+    }
+  ],
+  "limits": [
+    "Pure verification of recorded real observations; no new UI interaction, SQL SELECT, or timing is claimed.",
+    "PostgreSQL runs #1/#2 predate the diagnostic-only metadata repair. Recording source bytes are otherwise identical."
+  ]
+}
