@@ -3,6 +3,7 @@ package mapping
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -141,38 +142,7 @@ func executeCast(input interface{}, params map[string]interface{}) (interface{},
 	}
 	targetType := schema.DataType(toType)
 
-	switch targetType {
-	case schema.DataTypeBool:
-		return toBoolValue(input), nil
-	case schema.DataTypeInt16:
-		v, _ := toFloat64Value(input)
-		return int16(v), nil
-	case schema.DataTypeUint16:
-		v, _ := toFloat64Value(input)
-		return uint16(v), nil
-	case schema.DataTypeInt32:
-		v, _ := toFloat64Value(input)
-		return int32(v), nil
-	case schema.DataTypeUint32:
-		v, _ := toFloat64Value(input)
-		return uint32(v), nil
-	case schema.DataTypeInt64:
-		v, _ := toFloat64Value(input)
-		return int64(v), nil
-	case schema.DataTypeUint64:
-		v, _ := toFloat64Value(input)
-		return uint64(v), nil
-	case schema.DataTypeFloat32:
-		v, _ := toFloat64Value(input)
-		return float32(v), nil
-	case schema.DataTypeFloat64:
-		v, _ := toFloat64Value(input)
-		return v, nil
-	case schema.DataTypeString:
-		return fmt.Sprintf("%v", input), nil
-	default:
-		return input, nil
-	}
+	return checkedCast(input, targetType)
 }
 
 // executeScale 縮放轉換
@@ -186,30 +156,53 @@ func executeScale(input interface{}, params map[string]interface{}) (interface{}
 		return input, fmt.Errorf("無法轉換為數值: %v", input)
 	}
 
-	multiplier := 1.0
-	if m, ok := toFloat64Value(params["multiplier"]); ok {
-		multiplier = m
-	} else if m, ok := toFloat64Value(params["scale"]); ok {
-		multiplier = m
+	parameter := func(name string, fallback float64) (float64, error) {
+		raw, exists := params[name]
+		if !exists {
+			return fallback, nil
+		}
+		value, ok := toFloat64Value(raw)
+		if !ok {
+			return 0, fmt.Errorf("invalid scale parameter %s", name)
+		}
+		return value, nil
 	}
-
-	divisor := 1.0
-	if d, ok := toFloat64Value(params["divisor"]); ok && d != 0 {
-		divisor = d
+	multiplier, err := parameter("multiplier", 1)
+	if err != nil {
+		return nil, err
 	}
-
-	offset := 0.0
-	if o, ok := toFloat64Value(params["offset"]); ok {
-		offset = o
+	if _, exists := params["multiplier"]; !exists {
+		multiplier, err = parameter("scale", 1)
+		if err != nil {
+			return nil, err
+		}
 	}
-
+	divisor, err := parameter("divisor", 1)
+	if err != nil {
+		return nil, err
+	}
+	if divisor == 0 {
+		return nil, fmt.Errorf("zero scale divisor")
+	}
+	offset, err := parameter("offset", 0)
+	if err != nil {
+		return nil, err
+	}
 	result := (v*multiplier)/divisor + offset
-
-	if minVal, ok := toFloat64Value(params["min"]); ok && result < minVal {
-		result = minVal
+	if math.IsNaN(result) || math.IsInf(result, 0) {
+		return nil, fmt.Errorf("non-finite scaled result")
 	}
-	if maxVal, ok := toFloat64Value(params["max"]); ok && result > maxVal {
-		result = maxVal
+	for _, name := range []string{"min", "max"} {
+		if _, exists := params[name]; !exists {
+			continue
+		}
+		limit, err := parameter(name, 0)
+		if err != nil {
+			return nil, err
+		}
+		if (name == "min" && result < limit) || (name == "max" && result > limit) {
+			result = limit
+		}
 	}
 
 	return result, nil

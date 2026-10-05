@@ -90,11 +90,11 @@ func (s *Service) syncRuleManagedMapping(
 	if err != nil {
 		return nil, fmt.Errorf("解析既有來源規則映射轉換管線失敗: %w", err)
 	}
-	lastAppliedSignature, err := mappingCandidateSignature(appliedPipeline)
+	actualSignature, err := mappingCandidateSignature(appliedPipeline)
 	if err != nil {
 		return nil, err
 	}
-	if oldRule == nil && mappingRecord.RuleCandidateID == "" && lastAppliedSignature != proposedSignature {
+	if oldRule == nil && mappingRecord.RuleCandidateID == "" && actualSignature != proposedSignature {
 		return nil, fmt.Errorf("映射存在手動編輯的轉換管線，無法自動覆蓋")
 	}
 
@@ -103,10 +103,11 @@ func (s *Service) syncRuleManagedMapping(
 		status = schema.MappingStatusDraft
 	}
 	blockingReason := ""
-	if proposedSignature != lastAppliedSignature {
+	lastAppliedSignature := mappingRecord.LastAppliedSignature
+	if proposedSignature != actualSignature && !confirmedWorkspacePipeline(mappingRecord, proposedSignature, actualSignature) {
 		status = schema.MappingStatusOutOfSync
 		blockingReason = "來源規則修訂已變更映射候選，需明確重新套用後才能覆蓋既有 pipeline"
-	} else {
+	} else if proposedSignature == actualSignature {
 		lastAppliedSignature = proposedSignature
 	}
 

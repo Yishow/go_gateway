@@ -39,6 +39,7 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		deviceID = meta.DeviceID
 	}
 	transformedValue := cv.Value
+	eventQuality := quality
 
 	s.mappingMu.RLock()
 	bindings := s.mappingIndex[cv.PointID]
@@ -50,6 +51,10 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 			out, err := mapping.ExecutePipeline(cv.Value, b.TransformPipeline)
 			if err != nil {
 				s.mappingError.Add(1)
+				if index == 0 {
+					transformedValue = nil
+					eventQuality = schema.QualityBad
+				}
 				s.offerFailedTypedSample(ctx, cv, b, rawValue)
 				continue
 			}
@@ -116,7 +121,7 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		Address:          meta.Address,
 		RawValue:         cv.Value,
 		TransformedValue: transformedValue,
-		Quality:          quality,
+		Quality:          eventQuality,
 		Stale:            false,
 		Timestamp:        cv.Timestamp,
 	})

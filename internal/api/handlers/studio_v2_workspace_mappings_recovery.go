@@ -120,7 +120,16 @@ func syncWorkspaceLinkToMapping(link *schema.SourceRuleLink, mappingRecord *sche
 }
 
 func (h *StudioV2WorkspaceMappingsHandler) saveExistingWorkspaceMapping(ctx context.Context, rule *schema.SourceRule, links []*schema.SourceRuleLink, link *schema.SourceRuleLink, mappingRecord *schema.Mapping, req studioV2WorkspaceMappingRequest) (*schema.Mapping, error) {
+	if err := h.ruleSvc.ValidateWorkspaceMappingSave(ctx, rule, mappingRecord); err != nil {
+		return nil, err
+	}
 	pointRecord, err := h.pointSvc.GetByID(ctx, link.PointID)
+	if err != nil {
+		return nil, err
+	}
+	// Publish only after the exact saved pipeline has durable confirmation.
+	draftStatus := schema.MappingStatusDraft
+	mappingRecord, err = h.mappingSvc.Update(ctx, mappingRecord.ID, mapping.UpdateMappingRequest{Enabled: boolPtr(false), Status: &draftStatus})
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +140,7 @@ func (h *StudioV2WorkspaceMappingsHandler) saveExistingWorkspaceMapping(ctx cont
 	}
 	mappingRecord, err = h.mappingSvc.Update(ctx, mappingRecord.ID, mapping.UpdateMappingRequest{
 		TagID:             cloneStringPtr(tagRecord.ID),
-		Enabled:           boolPtr(req.Enabled),
+		Enabled:           boolPtr(false),
 		TransformPipeline: buildWorkspaceMappingPipeline(pointRecord.DataType, req.TargetType, req.Scale, req.Offset),
 	})
 	if err != nil {

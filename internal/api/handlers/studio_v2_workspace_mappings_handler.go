@@ -37,6 +37,9 @@ type StudioV2WorkspaceMappingsHandler struct {
 }
 
 func NewStudioV2WorkspaceMappingsHandler(workspaceSvc *workspace.Service, deviceSvc *device.Service, ruleSvc *sourcerule.Service, pointSvc *point.Service, tagSvc *tag.Service, mappingSvc *mapping.Service) *StudioV2WorkspaceMappingsHandler {
+	if ruleSvc != nil && tagSvc != nil && mappingSvc != nil {
+		ruleSvc.SetTagMappingServices(tagSvc, mappingSvc)
+	}
 	return &StudioV2WorkspaceMappingsHandler{
 		workspaceSvc: workspaceSvc,
 		deviceSvc:    deviceSvc,
@@ -116,7 +119,7 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 			renderStudioV2WorkspaceMappingError(c, err)
 			return
 		}
-		if err := h.ruleSvc.SyncRuleDerivedState(c.Request.Context(), rule.ID); err != nil {
+		if err := h.ruleSvc.ConfirmWorkspaceMapping(c.Request.Context(), rule.ID, rule.RevisionID, mappingRecord, req.TargetType); err != nil {
 			renderStudioV2WorkspaceMappingError(c, err)
 			return
 		}
@@ -146,7 +149,7 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 	mappingRecord, err := h.mappingSvc.Create(c.Request.Context(), mapping.CreateMappingRequest{
 		PointID:           pointRecord.ID,
 		TagID:             tagRecord.ID,
-		Enabled:           boolPtr(req.Enabled),
+		Enabled:           boolPtr(false),
 		TransformPipeline: buildWorkspaceMappingPipeline(pointRecord.DataType, req.TargetType, req.Scale, req.Offset),
 	})
 	if err != nil {
@@ -161,7 +164,7 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
-	if err := h.ruleSvc.SyncRuleDerivedState(c.Request.Context(), rule.ID); err != nil {
+	if err := h.ruleSvc.ConfirmWorkspaceMapping(c.Request.Context(), rule.ID, rule.RevisionID, mappingRecord, req.TargetType); err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
@@ -198,7 +201,7 @@ func (h *StudioV2WorkspaceMappingsHandler) Update(c *gin.Context) {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
-	if err := h.ruleSvc.SyncRuleDerivedState(c.Request.Context(), rule.ID); err != nil {
+	if err := h.ruleSvc.ConfirmWorkspaceMapping(c.Request.Context(), rule.ID, rule.RevisionID, mappingRecord, req.TargetType); err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
@@ -317,13 +320,14 @@ func validateWorkspaceMappingRequest(req studioV2WorkspaceMappingRequest) error 
 
 func buildWorkspaceMappingPipeline(pointType, targetType schema.DataType, scale, offset float64) []schema.TransformStep {
 	steps := make([]schema.TransformStep, 0, 2)
-	order := 0
-	if targetType != pointType {
-		steps = append(steps, schema.TransformStep{Type: schema.TransformCast, Order: order, Params: map[string]interface{}{"target_type": string(targetType)}})
-		order++
+	scaled := scale != 1 || offset != 0
+	if scaled {
+		steps = append(steps, schema.TransformStep{Type: schema.TransformScale, Order: len(steps), Params: map[string]interface{}{"scale": scale, "offset": offset}})
 	}
-	if scale != 1 || offset != 0 {
-		steps = append(steps, schema.TransformStep{Type: schema.TransformScale, Order: order, Params: map[string]interface{}{"scale": scale, "offset": offset}})
+	// Only newly authored pipelines use this order. ExecutePipeline retains the
+	// stored order of existing pipelines, including historical cast-before-scale.
+	if targetType != pointType || scaled {
+		steps = append(steps, schema.TransformStep{Type: schema.TransformCast, Order: len(steps), Params: map[string]interface{}{"target_type": string(targetType)}})
 	}
 	return steps
 }
@@ -411,6 +415,8 @@ func decodeRuleManagedWorkspaceTagLabels(tagRecord *schema.Tag) (map[string]stri
 
 func renderStudioV2WorkspaceMappingError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, mapping.ErrWorkspaceConfirmationConflict):
+		c.JSON(http.StatusConflict, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "Source rule or mapping changed; review and explicitly reapply the source candidate"}})
 	case errors.Is(err, mapping.ErrValidation), errors.Is(err, sourcerule.ErrValidation), errors.Is(err, workspace.ErrValidation):
 		renderStudioV2WorkspaceValidationError(c, err)
 	case errors.Is(err, mapping.ErrMappingNotFound), errors.Is(err, point.ErrPointNotFound), errors.Is(err, tag.ErrTagNotFound), errors.Is(err, sourcerule.ErrSourceRuleNotFound):

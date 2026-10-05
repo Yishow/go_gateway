@@ -517,7 +517,7 @@ func TestMappingHandler_Preview_WithCast(t *testing.T) {
 	r := setupMappingRouterWithExtended()
 
 	pipeline := []schema.TransformStep{
-		{Type: schema.TransformCast, Params: map[string]interface{}{"type": "float64"}},
+		{Type: schema.TransformCast, Params: map[string]interface{}{"target_type": "float64"}},
 		{Type: schema.TransformScale, Params: map[string]interface{}{"multiplier": 2, "offset": 0}},
 	}
 

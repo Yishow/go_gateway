@@ -228,7 +228,7 @@ export function RuntimeDashboardPage({
           </div>
           <div className="grid gap-6 lg:grid-cols-12 items-start">
             <div className="lg:col-span-8">
-              <LivePointsTable liveValues={liveValues} setupContext={setupContext} />
+              <LivePointsTable selectedDeviceId={selectedDeviceId} liveValues={liveValues} setupContext={setupContext} />
             </div>
             <div className="lg:col-span-4">
               <RealtimeLogsPanel logs={logs} />

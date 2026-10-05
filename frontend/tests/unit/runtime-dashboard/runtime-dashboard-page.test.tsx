@@ -58,9 +58,9 @@ const baseState = {
   },
   snapshotError: null,
   liveValues: {
-    'pt-1': {
+    'point-1': {
       device_id: 'device-A',
-      point_id: 'pt-1',
+      point_id: 'point-1',
       address: '40001',
       raw_value: 150,
       transformed_value: 20,
@@ -213,7 +213,7 @@ describe('RuntimeDashboardPage', () => {
           diagnostics: [{
             scope: 'device:device-A',
             device_id: 'device-A',
-            point_id: 'pt-1',
+            point_id: 'point-1',
             tag_id: 'tag-pressure',
             last_success_at: '2026-05-29T10:10:00Z',
             last_failure_at: '2026-05-29T10:12:00Z',

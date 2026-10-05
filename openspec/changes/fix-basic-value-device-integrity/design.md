@@ -7,9 +7,17 @@
 
 ## Decisions
 ### 保留型別並拒絕失真
-buildDefaultMapping 的 target_type 跟隨 point.data_type。executeCast 以 typed integer／十進位字串處理整數；有限 float 僅在精確且範圍合法時轉換。整數轉 float 亦拒絕 precision loss；不以飽和、截斷或零代替失敗。float32 的既有近似語意只允許明確浮點轉換，禁止非有限值。
+buildDefaultMapping 在 neutral scale=1／offset=0 時 target_type 跟隨 point.data_type。executeCast 以 typed integer／十進位字串處理整數；有限 float 僅在精確且範圍合法時轉換。整數轉 float 亦拒絕 precision loss；不以飽和、截斷或零代替失敗。float32 的既有近似語意只允許明確浮點轉換，禁止非有限值。
+### 保留合法縮放與舊步驟順序
+**Supersedes**: fix-basic-value-device-integrity / 保留型別並拒絕失真
+上述保留來源型別限 neutral；使用者明確 non-neutral numeric scale 預設 float64。新 workspace mapping 先 scale 再 checked cast 到宣告 target（包含同 source type 的整數 target）；scale 輸入大整數不可精確轉 float64、非法參數、非有限結果都拒絕。既存 pipeline 的已發布步驟順序保持原樣，不 migration；合法 int16×0.5+10 保持 float64，宣告 tag 型別與值一致。
 ### 依選取設備與 point 身份配對
-LivePointsTable 接 selectedDeviceId；過濾 mapping 與 event，point_id 精確配對；若保留地址 fallback，必須同 device 且無歧義。metadata 不使用全域地址 key。切換時舊 SSE 不顯示為新設備。
+LivePointsTable 接 selectedDeviceId；過濾 mapping 與 event，point_id 精確配對；移除 address fallback；metadata 不使用全域地址 key。切換時舊 SSE 不顯示為新設備。
+
+### 保留合法縮放與舊步驟順序的確認邊界
+只在操作員 workspace mapping Save 全部成功時，以 source revision／link／exact pipeline／tag type CAS 保存已確認 signature。source edit 或未確認 pipeline edit 繼續 out_of_sync，不更新 accepted signature；同 rule 其他 mapping 不被順便接受，先同步其他 links、最後 CAS 當前 mapping。兩次衍生同步／重啟仍保持確認。來源變更後需既有 candidate 明確 Reapply，409 不猜測新來源。
+### 保留型別並拒絕失真的即時顯示
+既有 ValueEvent JSON 將超過 JavaScript safe integer 的 int64／uint64 輸出十進位字串，native sample 與 SQL 型別不改；不新 protocol。pipeline 失敗的第一 binding event quality=bad、transformed=null，保留 raw 診斷，不發布假 good。float underflow 至零拒絕。
 
 ## Implementation Contract
 1. 預設 UI（包含 source uint64、無 scale）產生 uint64 target，workspace mapping 不插 float cast。production 鏈 journal／outbox／SQLite readback 對 9007199254740993 字元精確一致。

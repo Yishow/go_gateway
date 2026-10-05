@@ -776,7 +776,7 @@ func TestService_Create_WithTargetTypeAndScale_PublishesCastThenScaleCandidate(t
 	assert.InDelta(t, -273.15, steps[1].Params["offset"], 0.0001)
 }
 
-func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
+func TestService_Update_WithTargetDataType_PreservesPublishedTagType(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -822,7 +822,7 @@ func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
 	assert.Equal(t, schema.DataTypeFloat64, *savedRule.TargetDataType)
 	tagRecord, err = tagSvc.GetByID(ctx, *links[0].TagID)
 	require.NoError(t, err)
-	assert.Equal(t, schema.DataTypeFloat64, tagRecord.DataType)
+	assert.Equal(t, schema.DataTypeUint16, tagRecord.DataType, "source proposal cannot retag the unchanged published pipeline")
 	mappingRecord, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
 	require.NoError(t, err)
 	var steps []schema.TransformStep
@@ -834,7 +834,7 @@ func TestService_Update_WithTargetDataType_UpdatesTagType(t *testing.T) {
 	assert.NotEmpty(t, mappingRecord.BlockingReason)
 }
 
-func TestService_Update_ClearConversionSettings_RemovesTagCastAndScale(t *testing.T) {
+func TestService_Update_ClearConversionSettings_PreservesPublishedTagCastAndScale(t *testing.T) {
 	ctx := context.Background()
 	deviceRepo := device.NewMemoryRepository()
 	pointRepo := point.NewMemoryRepository()
@@ -887,7 +887,7 @@ func TestService_Update_ClearConversionSettings_RemovesTagCastAndScale(t *testin
 	assert.Nil(t, savedRule.ScaleOffset)
 	tagRecord, err := tagSvc.GetByID(ctx, *links[0].TagID)
 	require.NoError(t, err)
-	assert.Equal(t, schema.DataTypeUint16, tagRecord.DataType)
+	assert.Equal(t, schema.DataTypeFloat64, tagRecord.DataType, "clearing a proposal does not change the published pipeline type")
 	mappingRecord, err := mappingSvc.GetByID(ctx, *links[0].MappingID)
 	require.NoError(t, err)
 	assert.Equal(t, initialPipeline, mappingRecord.TransformPipeline)

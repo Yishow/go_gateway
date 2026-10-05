@@ -1,9 +1,7 @@
 package mapping
 
 import (
-	"encoding/json"
 	"sort"
-	"strconv"
 
 	"go-gateway/internal/datalink/schema"
 )
@@ -13,71 +11,26 @@ import (
 // =============================================================================
 
 func toFloat64Value(v interface{}) (float64, bool) {
-	switch val := v.(type) {
-	case float64:
-		return val, true
-	case float32:
-		return float64(val), true
-	case int:
-		return float64(val), true
-	case int16:
-		return float64(val), true
-	case int32:
-		return float64(val), true
-	case int64:
-		return float64(val), true
-	case uint:
-		return float64(val), true
-	case uint16:
-		return float64(val), true
-	case uint32:
-		return float64(val), true
-	case uint64:
-		return float64(val), true
-	case bool:
-		if val {
-			return 1, true
-		}
-		return 0, true
-	case string:
-		if f, err := strconv.ParseFloat(val, 64); err == nil {
-			return f, true
-		}
-	case json.Number:
-		if f, err := val.Float64(); err == nil {
-			return f, true
-		}
-	}
-	return 0, false
+	f, err := checkedFloat64(v)
+	return f, err == nil
 }
 
 func toUint16Value(v interface{}) (uint16, bool) {
-	f, ok := toFloat64Value(v)
-	if ok {
-		return uint16(f), true
+	value, err := checkedCast(v, schema.DataTypeUint16)
+	if err != nil {
+		return 0, false
 	}
-	return 0, false
+	converted, ok := value.(uint16)
+	return converted, ok
 }
 
 func toUint32Value(v interface{}) (uint32, bool) {
-	f, ok := toFloat64Value(v)
-	if ok {
-		return uint32(f), true
+	value, err := checkedCast(v, schema.DataTypeUint32)
+	if err != nil {
+		return 0, false
 	}
-	return 0, false
-}
-
-func toBoolValue(v interface{}) bool {
-	switch val := v.(type) {
-	case bool:
-		return val
-	case int, int16, int32, int64, uint, uint16, uint32, uint64, float32, float64:
-		f, _ := toFloat64Value(v)
-		return f != 0
-	case string:
-		return val == "true" || val == "1" || val == "on" || val == "yes"
-	}
-	return false
+	converted, ok := value.(uint32)
+	return converted, ok
 }
 
 func normalizeTransformSteps(steps []schema.TransformStep) []schema.TransformStep {

@@ -9,7 +9,7 @@ import (
 	"go-gateway/internal/datalink/schema"
 )
 
-func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool) (tagMappingSyncResult, error) {
+func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule, rule *schema.SourceRule, links []*schema.SourceRuleLink, enabled bool, skipMappingIDs ...string) (tagMappingSyncResult, error) {
 	result := tagMappingSyncResult{
 		updatedMappings: make(map[string]mappingRollbackState),
 		updatedTags:     make(map[string]tagRollbackState),
@@ -28,6 +28,10 @@ func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule, rule *schema
 			continue
 		}
 
+		if len(skipMappingIDs) > 0 && *link.MappingID == skipMappingIDs[0] {
+			continue
+		}
+
 		pointRecord, err := s.pointSvc.GetByID(ctx, link.PointID)
 		if err != nil {
 			return result, fmt.Errorf("取得衍生點位失敗: %w", err)
@@ -36,10 +40,6 @@ func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule, rule *schema
 		tagRecord, err := s.tagSvc.GetByID(ctx, *link.TagID)
 		if err != nil {
 			return result, fmt.Errorf("取得來源規則既有標籤失敗: %w", err)
-		}
-		tagRecord, err = s.syncRuleManagedTagDataType(ctx, rule, link, tagRecord, desiredRuleTargetDataType(rule, pointRecord), &result)
-		if err != nil {
-			return result, err
 		}
 
 		mappingRecord, err := s.mappingSvc.GetByID(ctx, *link.MappingID)
@@ -51,6 +51,30 @@ func (s *Service) syncRuleTagMappings(ctx context.Context, oldRule, rule *schema
 		}
 		if mappingRecord.TagID != tagRecord.ID {
 			return result, fmt.Errorf("來源規則連結映射 tag 不一致: %s", mappingRecord.ID)
+		}
+
+		expectedPipeline := s.buildRuleTransformPipeline(rule, pointRecord)
+		expectedSignature, err := mappingCandidateSignature(expectedPipeline)
+		if err != nil {
+			return result, err
+		}
+		appliedPipeline, err := decodeTransformPipeline(mappingRecord.TransformPipeline)
+		if err != nil {
+			return result, err
+		}
+		appliedSignature, err := mappingCandidateSignature(appliedPipeline)
+		if err != nil {
+			return result, err
+		}
+		// The saved pipeline remains published until an explicit candidate reapply.
+		// A different source proposal must not silently change that pipeline's Tag type.
+		targetType := desiredRuleTargetDataType(rule, pointRecord)
+		if expectedSignature != appliedSignature {
+			targetType = tagRecord.DataType
+		}
+		tagRecord, err = s.syncRuleManagedTagDataType(ctx, rule, link, tagRecord, targetType, &result)
+		if err != nil {
+			return result, err
 		}
 
 		mappingRecord, err = s.syncRuleManagedMapping(

@@ -3,6 +3,12 @@ import { POINT_SEMANTIC, RAW_VALUE_SEEDS, buildDefaultMapping } from '../../../s
 import type { Point } from '../../../src/features/datalink/workbench-v2/state/types';
 
 describe('mappingDefaults', () => {
+  it.each(['bool', 'int16', 'int32', 'int64', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'string'])('preserves default source type %s', (data_type) => {
+    const point: Point = { id: 'point-u64', device_id: 'A', rule_id: 'rule', rule_name: 'rule', name: 'counter', address: 'D0', data_type, function: 'holding_register', width: 4, enabled: true, skipped: false, _rule_scale: 1, _rule_offset: 0 };
+    const mapping = buildDefaultMapping(point, 0);
+    expect(mapping.target_type).toBe(data_type);
+    expect(mapping.local_value?.target_type).toBe(data_type);
+  });
   it('should have 8 entries in POINT_SEMANTIC', () => {
     expect(POINT_SEMANTIC).toHaveLength(8);
   });

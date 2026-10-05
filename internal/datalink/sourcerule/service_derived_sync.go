@@ -34,7 +34,7 @@ func (s *Service) SyncRuleDerivedState(ctx context.Context, ruleID string) error
 	return s.syncDerivedRuleState(ctx, rule)
 }
 
-func (s *Service) syncDerivedRuleState(ctx context.Context, rule *schema.SourceRule) error {
+func (s *Service) syncDerivedRuleState(ctx context.Context, rule *schema.SourceRule, skipMappingIDs ...string) error {
 	enabled, err := s.runtimeRuleEnabled(ctx, rule)
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (s *Service) syncDerivedRuleState(ctx context.Context, rule *schema.SourceR
 		return fmt.Errorf("取得來源規則連結失敗: %w", linkErr)
 	}
 	nextLinks := cloneSourceRuleLinks(currentLinks)
-	syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, rule, nextLinks, enabled)
+	syncResult, syncErr := s.syncRuleTagMappings(ctx, rule, rule, nextLinks, enabled, skipMappingIDs...)
 	if syncErr != nil {
 		return s.finishRollbackErrors(ctx, fmt.Errorf("同步來源規則標籤映射失敗: %w", syncErr), s.rollbackTagMappingSync(ctx, syncResult))
 	}

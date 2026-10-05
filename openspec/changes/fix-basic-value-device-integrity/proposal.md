@@ -21,3 +21,7 @@ buildDefaultMapping 選 float64；executeCast 經 float64 且忽略失敗。Live
 - Affected code:
   - Modified: frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts, frontend/src/features/datalink/runtime-dashboard/LivePointsTable.tsx, frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx, internal/datalink/mapping/pipeline_execution.go, internal/datalink/mapping/pipeline_value_helpers.go
   - New: 對應 Go／Vitest focused regressions 與驗證紀錄。
+
+Review 校正：neutral 保留 source；明確 non-neutral numeric scale 維持 float64 預設，新整數 target 在 scale 後 checked cast；已儲存 pipeline 不重排、不 migration。
+
+確認邊界與直接接線：workspace Save/source derived sync 保存精確 pipeline signature；現有 runtime JSON 保留大整數文字，失敗顯示 bad。直接相關 source rule lifecycle、mapping confirmation repository、API save handler、runtime ValueEvent/ingestor 與 production 回歸納入；不新 schema／auth／protocol。

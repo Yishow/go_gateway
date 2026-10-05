@@ -5,6 +5,7 @@ import type { RuntimeValueEvent } from '../../../types/datalink';
 import type { StudioV2RuntimeSetupContext } from '../../../types/studioV2RuntimeContext';
 
 interface LivePointsTableProps {
+  selectedDeviceId: string | null;
   liveValues: Record<string, RuntimeValueEvent>;
   setupContext?: StudioV2RuntimeSetupContext | null;
 }
@@ -30,15 +31,14 @@ function formatRelativeTime(isoString: string): string {
   }
 }
 
-export function LivePointsTable({ liveValues, setupContext }: LivePointsTableProps) {
+export function LivePointsTable({ selectedDeviceId, liveValues, setupContext }: LivePointsTableProps) {
   const { t } = useTranslation('runtime-dashboard');
 
   const rows = useMemo(() => {
     if (setupContext?.mappings && setupContext.mappings.length > 0) {
-      return setupContext.mappings.map((m) => {
-        const live =
-          liveValues[m.point_id] ||
-          Object.values(liveValues).find((v) => v.address === m.address);
+      return setupContext.mappings.filter((m) => m.device_id === selectedDeviceId).map((m) => {
+        const candidate = liveValues[m.point_id];
+        const live = candidate?.device_id === m.device_id && candidate.point_id === m.point_id ? candidate : undefined;
         return {
           point_id: m.point_id,
           address: m.address,
@@ -52,10 +52,10 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
       }).sort((left, right) => left.address.localeCompare(right.address));
     }
 
-    return Object.values(liveValues)
+    return Object.values(liveValues).filter((item) => item.device_id === selectedDeviceId)
       .sort((left, right) => left.address.localeCompare(right.address))
       .map((item) => ({ ...item, isLive: true }));
-  }, [liveValues, setupContext]);
+  }, [liveValues, setupContext, selectedDeviceId]);
 
   const activeLiveCount = useMemo(() => {
     return rows.filter((r) => r.isLive).length;
@@ -66,19 +66,20 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
     for (const tgt of setupContext?.database_targets ?? []) {
       targetMap.set(tgt.tag_id, tgt.column_name);
     }
-    const map = new Map<string, { name: string; column?: string; unit?: string }>();
+    const map = new Map<string, { name: string; column?: string; unit?: string; type?: string }>();
     for (const m of setupContext?.mappings ?? []) {
+      if (m.device_id !== selectedDeviceId) continue;
       const col = m.tag_id ? targetMap.get(m.tag_id) : undefined;
       const info = {
         name: m.display_name || m.tag_key || m.address,
         column: col,
         unit: m.unit,
+        type: m.target_type,
       };
       map.set(m.point_id, info);
-      map.set(m.address, info);
     }
     return map;
-  }, [setupContext]);
+  }, [setupContext, selectedDeviceId]);
 
   return (
     <section
@@ -120,7 +121,7 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
         )}
       </div>
 
-      {Object.keys(liveValues).length === 0 ? (
+      {activeLiveCount === 0 ? (
         <div
           className="rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8 flex flex-col items-center justify-center space-y-4"
           data-testid="runtime-dashboard-live-points-placeholder"
@@ -153,12 +154,13 @@ export function LivePointsTable({ liveValues, setupContext }: LivePointsTablePro
             <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
               {rows.map((row) => {
                 const isGood = row.quality === 'good' && !row.stale;
-                const meta = pointMetaMap.get(row.point_id) || pointMetaMap.get(row.address);
+                const meta = pointMetaMap.get(row.point_id);
                 return (
                   <tr key={row.point_id} className="transition hover:bg-slate-900/60">
                     <td className="px-4 py-3 font-sans">
                       <div className="flex flex-wrap items-center gap-1.5 font-semibold text-slate-100">
                         <span>{meta?.name ?? row.address}</span>
+                        {meta?.type && <span className="text-xs text-slate-400">{meta.type}</span>}
                         {meta?.column && (
                           <span className="inline-flex items-center gap-1 rounded bg-indigo-500/15 border border-indigo-500/30 px-1.5 py-0.2 font-mono text-[10px] text-indigo-300">
                             <Database className="h-2.5 w-2.5" />

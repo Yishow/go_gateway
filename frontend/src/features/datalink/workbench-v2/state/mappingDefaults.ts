@@ -58,7 +58,11 @@ function buildDefaultDisplayName(point: Point): string {
  * @returns 預設 Mapping 物件
  */
 export function buildDefaultMapping(point: Point, _idx: number): Mapping {
-  const defaultTargetType: Mapping['target_type'] = point.data_type === 'string' ? 'string' : 'float64';
+  const sourceType = point.data_type;
+  const supportedTypes: readonly string[] = ['bool', 'int16', 'int32', 'int64', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'string'];
+  if (!supportedTypes.includes(sourceType)) throw new Error('Unsupported point data type');
+  const scaled = (point._rule_scale ?? 1) !== 1 || (point._rule_offset ?? 0) !== 0;
+  const defaultTargetType = (scaled && sourceType !== 'string' && sourceType !== 'bool' ? 'float64' : sourceType) as Mapping['target_type'];
   const value = {
     tag_key: buildDefaultTagKey(point),
     display_name: buildDefaultDisplayName(point),
