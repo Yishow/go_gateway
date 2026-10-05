@@ -63,4 +63,3 @@ The Step 3 frontend SHALL queue mapping saves by source rule, preserve newer loc
 #### Scenario: Default numeric pipeline remains exact
 - **WHEN** the default uint64 mapping or a scaled numeric mapping is saved through the queue
 - **THEN** default 9007199254740993 remains exact and scale 0.5 plus offset 10 applied to int16 243 remains 131.5 using float64
-

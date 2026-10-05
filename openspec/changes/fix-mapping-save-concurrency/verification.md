@@ -55,6 +55,8 @@
 
 Basic／recovery：`mapping-concurrency-20261005-basic.json` PASS，使用相同 gateway／simulator SHA-256。兩台各8量測點（register寬度依型別），八列來源型別預設保持（其中兩列uint64），包含uint64 9007199254740993與18446744073709551615、string／bool／float。各有3個連續60秒row／bucket／outbox／receipt獨立讀回；A215→B187→A215實際SSE切換沒有外設備tag。缺表修好後Basic Retry送達一次，poison row明確確認Skip→operator_skipped，不假稱送達，frozen destination／payload身份保持，後續bucket能送達。停用drain後正常重啟，停用組SQL列數不增加，另一啟用組仍前進。390／768／1440無文件水平溢出，page errors0；已看過Basic／restart截圖。browserclosed，2sim＋2gateway（含restart前後）正常退出0／無KILL，namespace removed。
 
+原始test-framework logs含既有縮排／trailing whitespace，保留原始位元組與SHA-256；source與artifact whitespace檢查排除這些generated raw logs，不修改或美化RED／GREEN輸出。
+
 所有 commands、退出碼、source／binary SHA、UI結果與cleanup摘要見 `docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005-checks.json`。完整與focused RED／GREEN原始logs位於同目錄的 `mapping-concurrency-20261005/`；沒有把 sandbox bind 阻擋或共享source mutation等待列為行為GREEN。原有migration／legacy take-over／unknown safety回歸隨完整Go套件重跑；實際UI不宣稱正式PostgreSQL／permission／unknown重送驗收。
 
 OpenSpec與最後行數檢查見checks摘要；所有7個scenario有對應可執行回歸，補上5個具體Examples，沒有增加需求／範圍。

@@ -465,5 +465,11 @@
     "exit_code": 0,
     "scope": "All committed source changes relative to approved base; repeated at final exact HEAD after evidence commit",
     "log": "docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/mapping-bootstrap-final-lines-base.log"
+  },
+  "whitespace_check": {
+    "command": "git diff --check d9ba336ecd575ec7f71950677c4ad64af1552ecb -- . ':(exclude)docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005/*.log'",
+    "exit_code": 0,
+    "raw_log_exclusion_reason": "Preserve exact original test-framework output and log hashes, including framework whitespace; all source/spec/artifact formats checked.",
+    "raw_logs_unchanged": true
   }
 }
