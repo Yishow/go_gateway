@@ -23,7 +23,8 @@ export function useCreateStudioV2MappingMutation() {
     mutationFn: (request: StudioV2WorkspaceMappingRequest) => studioV2MappingsAPI.create(request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none' });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none' });
+      // Refresh readiness in the background; a slow GET cannot hold this save.
+      void queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }
@@ -37,7 +38,8 @@ export function useUpdateStudioV2MappingMutation() {
       studioV2MappingsAPI.update(mappingId, request),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none' });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none' });
+      // Refresh readiness in the background; a slow GET cannot hold this save.
+      void queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }
@@ -50,7 +52,8 @@ export function useDeleteStudioV2MappingMutation() {
     mutationFn: (mappingId: string) => studioV2MappingsAPI.remove(mappingId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none' });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none' });
+      // Refresh readiness in the background; a slow GET cannot hold this save.
+      void queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
     },
   });
 }

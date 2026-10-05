@@ -91,7 +91,7 @@ describe('useStudioV2Mappings hooks', () => {
       queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none',
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
 
@@ -118,7 +118,7 @@ describe('useStudioV2Mappings hooks', () => {
       queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none',
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
 
@@ -162,7 +162,7 @@ describe('useStudioV2Mappings hooks', () => {
       queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none',
+      queryKey: studioV2WorkspaceKeys.bootstrap(),
     });
   });
 });
