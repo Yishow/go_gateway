@@ -7,5 +7,5 @@
 - [x] 1.5 [after: 1.3] 補償最終截圖 review 的連線與生效記錄各有唯一設定漏項：SummaryRail 只呈現 connection name/kind 與 canonical group 設定位置，移除誤導的 legacy table/5s/target count，connector subtitle只說連線參數；先新增 summary-rail-connection regression RED 再 GREEN，既有 Basic interval/schema 行為不改。
 
 ## 2. 回查與整體驗收
-- [ ] 2.1 [after: 1.4, 1.5] scope review→fix→rereview、git diff --check、make check-lines 與 affected tests；verification.md 明列差異對應與測試證據。
-- [ ] 2.2 [after: 2.1] 主對話協調後更新 F fresh-ui 走 Basic，串行 simulator 八量測點定時一列／default uint64／同址 A215/B187／disable-restart／legacy migration／DB recovery，UI 截圖與 repo required gates；最后 aggregate exact HEAD review，未做真 PLC/Windows/LAN/長跑明列。
+- [x] 2.1 [after: 1.4, 1.5] scope review→fix→rereview、git diff --check、make check-lines 與 affected tests；verification.md 明列差異對應與測試證據。
+- [x] 2.2 [after: 2.1] 主對話協調後更新 F fresh-ui 走 Basic，串行 simulator 八量測點定時一列／default uint64／同址 A215/B187／disable-restart／legacy migration／DB recovery，UI 截圖與 repo required gates；最后 aggregate exact HEAD review，未做真 PLC/Windows/LAN/長跑明列。

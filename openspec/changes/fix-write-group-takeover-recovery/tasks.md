@@ -8,5 +8,5 @@
 - [x] 2.3 [after: 2.2] operator UI 先 Vitest RED，再實作安全原因、retry、明確 skip、pending/error/unknown states，單 worker GREEN；現有 group authority 不另建狀態模型。
 
 ## 3. 檢查與驗收
-- [ ] 3.1 [after: 2.3] scope review→fix→rereview、git diff --check、make check-lines、affected suite 通過，verification.md 記錄 RED/GREEN 与 provenance assertions。
-- [ ] 3.2 [after: 3.1] 向主對話協調時段後串行 repo required gates、simulator 八量測點定時一列、停用重啟、legacy migration 與 DB 故障恢復；aggregate exact HEAD review，未做現場／平台驗收明列限制。
+- [x] 3.1 [after: 2.3] scope review→fix→rereview、git diff --check、make check-lines、affected suite 通過，verification.md 記錄 RED/GREEN 与 provenance assertions。
+- [x] 3.2 [after: 3.1] 向主對話協調時段後串行 repo required gates、simulator 八量測點定時一列、停用重啟、legacy migration 與 DB 故障恢復；aggregate exact HEAD review，未做現場／平台驗收明列限制。

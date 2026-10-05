@@ -2,7 +2,7 @@
   "base": "d41638b0e2c0a49b51bbeb21f31ccda83f20199b",
   "head_at_execution": "5541a7511219916b00fc5a0f9ef1a22a116d2206",
   "dirty_at_execution": true,
-  "execution": "passed-current (this session); production and test file hashes still match after harness-only fixes",
+  "execution": "Original required gates and F c passed at captured source hashes in this session. The subsequent sidebar-only review fix was revalidated below; no initial F verdict was overwritten.",
   "required_results": [
     {
       "command": "GOMAXPROCS=2 go test -p 1 -parallel 1 ./...",
@@ -235,6 +235,146 @@
       "log": "/tmp/go-gateway-takeover-red.log",
       "sha256": "892f67c2b8ad254b2fa7200d05bfcda72871ab4cabf8463ccaef3bcb810d1373",
       "failure_excerpt": "            \t            \tactual  : 3\n    --- FAIL: TestProductionLegacyTakeoverSurvivesLifecycle/destination (0.14s)\n            \tError:      \tNot equal: \n            \t            \texpected: 2\n            \t            \tactual  : 3\nFAIL\nFAIL\tgo-gateway/cmd/test_ui\t1.039s\nFAIL"
+    },
+    {
+      "log": "/tmp/go-gateway-summary-rail-red.log",
+      "sha256": "8ce80028a64cc29c5c7d44a725fd3ca3c72729de461b664381cdaa497a7c2842",
+      "failure_excerpt": " FAIL  tests/unit/workbench-v2/summary-rail-connection.test.tsx > keeps the connection summary from presenting legacy table and interval as effective group settings\nError: expect(element).toHaveTextContent()\n\nExpected element to have text content:\n  Owned SQLite\nReceived:\n  最近事件尚無事件紀錄設備總數1 個已測試0 / 1PLC Amodbus_tcp接入規則條數1 條點位3 個映射Tags3個別轉換0資料庫寫入類型sqlite表old_schema.legacy_sensor_readings間隔5s目標0 欄位\n ❯ tests/unit/workbench-v2/summary-rail-connection.test.tsx:13:16\n     11|   render(<SummaryRail state={state} />);\n     12|   const rail = screen.getByTestId('summary-rail');\n     13|   expect(rail).toHaveTextContent('Owned SQLite');\n       |                ^\n     14|   expect(rail).toHaveTextContent('sqlite');\n     15|   expect(rail).not.toHaveTextContent('legacy_sensor_readings');\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n"
     }
-  ]
+  ],
+  "post_review_validation": {
+    "execution": "passed-current",
+    "source_head": "a4deda5b25560d2854b3d91245152604128ca0a6",
+    "source_hashes": {
+      "cmd/test_ui/group_pipeline_default_ui_test.go": "a21ab3f6c212c0353280bfebb1a39cee760c07b2e41080768eac0fb15bd82340",
+      "cmd/test_ui/group_pipeline_legacy_takeover_test.go": "5e22e7a0f28a857752304799d979c440daaf911a71dca4ecf186ad23576e1bf5",
+      "cmd/test_ui/group_pipeline_operator_resolution_test.go": "b874801281816da909cc553c22f55b6d59066238a08202b9d04fc0298be0ec42",
+      "cmd/test_ui/workspace_mapping_confirmation_test.go": "8aa4b4c69a22a398f7447fe565861868101c892606c5a7b9ff78cdbad0087bee",
+      "frontend/src/features/datalink/runtime-dashboard/LivePointsTable.tsx": "90a68a51b87d458b5b2e89e06e4a2250bd7c291fe23bb2ed74c144dacd3ba82f",
+      "frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx": "46f929671fad18059f65d781e50cb19fc1a04cd81b6d656595fcc7439535034f",
+      "frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx": "4beeb78b7f656a553839d72f6d47cf27b595ab111465c7846c967ab0936a4c83",
+      "frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts": "9bf60efb654ac66a63b0dba71c453dfa145626d0008d9baf9cbd41efdbb204b4",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingEvidence.tsx": "947ebd5a82bbd07bfe2303e45b2632fbbd78075f18ddf90c179c104b98fba45e",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingPanel.tsx": "3034eafb7cb93023776d8c104306564dc0c65e32e3cad963362a5ba0189795c3",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/BasicRecordingProgress.tsx": "1d049f604afbb941743c9c80758c7ce9b3ccd3112792f9397d2f2b3f64368045",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/BasicSchemaPreparation.tsx": "edd1913c8a4527507fa85f5d8e48e98a818d6aea248219f701609b779d4e714e",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/ConnectorSection.tsx": "3e3217f790bc79574c6f7a221c5c2a2d2ac33590576b0876764df510e85a9f1d",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/KindSelector.tsx": "2ce16883c26496b3c9d2da6102607976ead8402df47aeb99e65c6df64482d794",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx": "af98c292308b3399658df372aee4b4418338eedb2e7813e0b8c8f59c7575c9a1",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/Step4SupportPanels.tsx": "9378d3cf5168b8d20c45ae5fa106fd8ca75386e33c6cc6bfe529ea91aed7e1b7",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/basicRecordingPanelHelpers.ts": "5a56d4fb1f9770c139645198d4db7b2c1aa3e808e74f9b93cd02d7fa837204ac",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryRecovery.tsx": "1ac4903053ef0e9fed98e8a47678c5122040240a292f526356a2dc7b288bed66",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryStrip.tsx": "1dfe0bf16259a8a75ebc8a1979c684718cd0c96de2801164c6839f3a3880999b",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx": "33c25521fa985a871db9c0830d4f9395611f4407b22cf6da0e95ed45b924b2f3",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupSchemaPanel.tsx": "51feae6c758470a53849b2321ff8fd30d5fa672d3d3eca7ca416f48700603de9",
+      "frontend/src/features/datalink/workbench-v2/steps/step4/writeGroupCapabilities.ts": "e61651e5f6fc3f5924091ff31fd1e523bc267bacae4875d4bfa67f8e5072d5f1",
+      "frontend/src/i18n/locales/en/workbench-v2.json": "cd181761cfe9d070e2fc9f1423728a7948338c2849a8fe91df9c05afd93dc309",
+      "frontend/src/i18n/locales/zh-TW/workbench-v2.json": "348099230a78c89bbe0739981e904027bb621151822056e0e5a6c4ba58637a5a",
+      "frontend/src/services/studioV2WorkspaceWriteGroups.ts": "11b7e608d94351d0e829565387aa140ecf1123fdffdf163b8496497179e03aa8",
+      "frontend/src/types/studioV2WriteGroupDelivery.ts": "a582f99d3ca6cf4a3a881f0ec72dafce0ff5ae7732f8eed7a797466af726a854",
+      "frontend/src/utils/studioV2WriteGroupDeliveryJson.ts": "8bc28c1f622f008b160bbf93643dbc71527bb44b3d279b607cdf14dc8053ed22",
+      "frontend/tests/unit/runtime-dashboard/live-point-device-identity.test.tsx": "49e02977ec0856d55b80e38b4e153fa4a7a856697c2f8fc0d9065b8d2e8dc7a7",
+      "frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx": "bc75f5f6c3e8ad34721db2ebcf1a08e1ca551a67e7b99ecd6d28c12ada1c90cf",
+      "frontend/tests/unit/workbench-v2/basic-recording-preparation.test.tsx": "f0cb2c41e6ec4bd60187987f5ea252e64a5e2bf9877a391bf066884a1679fd44",
+      "frontend/tests/unit/workbench-v2/groupDeliveryRecovery.test.tsx": "942ee0e3ca537b2026e344974d2f7a5c7dacee550ee001b476f2200be8c096f9",
+      "frontend/tests/unit/workbench-v2/groupDeliveryStrip.test.tsx": "acfb63d84c3760c7e483c0e4948d07af84562100b4f801d75e7a5abb2095b06f",
+      "frontend/tests/unit/workbench-v2/mappingDefaults.test.ts": "39051e0f49d59e409d40ced7e0ddf6f4f3ccf0f31708a9a86071733558a3ea88",
+      "frontend/tests/unit/workbench-v2/schema-operation.test.tsx": "3a818dca2acb48824fcb2c6dd5818af8c066f2d60ba76eb2cf25cff8bd84b7e2",
+      "frontend/tests/unit/workbench-v2/step4-database-controls.test.tsx": "ef3e56d7464e08e6c8e5aeddeb3d303a9b534d831825daa76c6a1ef20b897fed",
+      "frontend/tests/unit/workbench-v2/step4-database.test.tsx": "66027a3c7c5276bbd920aff5fa3a85a4af6654b074d4a0c12230cb5b9ad64311",
+      "frontend/tests/unit/workbench-v2/summary-rail-connection.test.tsx": "438c5b86402d1f8c980bf8e10cbee20028700820edddad0528cc6028f6d395c1",
+      "internal/api/handlers/mapping_handler_extended_test.go": "edc0f7e34084d055ae41ce076e42a6d9a09c084c0ed69ee9a1b13ed59375a74b",
+      "internal/api/handlers/studio_v2_workspace_mappings_handler.go": "747e71c9f0a81d1e0f7aca6fdba05d5ad29cda379fcac60bed115444d896014c",
+      "internal/api/handlers/studio_v2_workspace_mappings_recovery.go": "1a39baaf216bf2a4c6779686029bcb1ec90777b879ac58dff7e4918e27abf0b9",
+      "internal/api/handlers/studio_v2_write_group_resolution_handler.go": "a1d83f929484719e707394bf261cde9eedf9a6e0037eb53e82ff374b88fd7b3a",
+      "internal/api/handlers/workspace_mapping_scale_integrity_test.go": "49bf961899848d23cc326f39076e3e4530ee584d5950234776420e61fc31a51a",
+      "internal/api/router_studio_v2_write_group_routes.go": "6bcf8e1ecb88a9b44900939bc7fdb6e4a8d237cc18b1f94616ab88eeba45d686",
+      "internal/datalink/groupdelivery/operator_resolution.go": "f68e94bb2b29aa1dddc0d75a40994871ad5a6c96fb0231e60db9c16b30ba53cc",
+      "internal/datalink/groupdelivery/operator_resolution_fault_test.go": "ac84f74c78f989093c276b7dbb11e570f7b1016c673bbc5c735a5ea9481a28b9",
+      "internal/datalink/groupdelivery/outbox.go": "40acc0d0aea5c831397ab561f6f903a80a8d1095ffd923e075f9568f337f5689",
+      "internal/datalink/groupdelivery/takeover.go": "5c81e2fa1054d19661eeb44cfdba0e0e9ef0561c8f5fba4bf69459973972fd65",
+      "internal/datalink/grouppipeline/delivery_view.go": "9aea2326e11e37152fd2682af70b3703defdcdef312ed1caee2516b6e2532ff3",
+      "internal/datalink/grouppipeline/operator_resolution.go": "7b106562a371b4d871ce7ad5a2ff0f8d3dec55bd63932361b98fee2530a74c09",
+      "internal/datalink/grouppipeline/pipeline.go": "f7277cacd438d3212d162dc1caf1d4480f938e91a34e80f5ef265495f50074f4",
+      "internal/datalink/mapping/pipeline_checked_cast.go": "333d4839476b99594b8fdedf20014921aeb2121152e789c207405b17021de5ec",
+      "internal/datalink/mapping/pipeline_exact_cast_test.go": "69e91a8ae43fa4f7c41e5f7735ae5a156ffc9c80976d3c592f4e0e9693258ee9",
+      "internal/datalink/mapping/pipeline_execution.go": "b2f50ddf6d9cb2b895a6b3be3193a940df1723eb632a60e0a6f0513ead4bcb3b",
+      "internal/datalink/mapping/pipeline_value_helpers.go": "cf38f665867a35f48b24e483e0575423b57b26ff9b649987c7079a336cbacc21",
+      "internal/datalink/mapping/workspace_confirmation.go": "db853e5a7360ce84e5487118f7cd334c243760edafc628c80c7c00f4762a13ad",
+      "internal/datalink/runtime/ingestor.go": "1147aa0cb7814d84618a2a4e6099502b17a2ae1f0966d4a40e47946d80330aa5",
+      "internal/datalink/runtime/value_event_json.go": "3ec19fe0d60e022eb0055b0d2879e66ee5a8d40a5c43a2ac625ad24d3a31d2e9",
+      "internal/datalink/runtime/value_integrity_test.go": "113bc1b914dda82789efe96cb11a6177837c75c816fd3180e9fe91589c362f54",
+      "internal/datalink/sourcerule/service_derived_sync.go": "f66445c3a08cdc9e577a6caaa84115a14ade89cf524953494828cfc06af4b60e",
+      "internal/datalink/sourcerule/service_mapping_lifecycle.go": "b823a6dd3515bf898881c94fda5ac14ece7e99d068598388b5f77bf10db98f94",
+      "internal/datalink/sourcerule/service_tag_mapping_sync.go": "20fc8f5bc2b5c33830a1903078f372132acff5e33de82d8647994477294c6a2a",
+      "internal/datalink/sourcerule/service_test.go": "4c163a85bfd7c56697f0cb2b244ffd2c0858b8dcf1b91a15e7db72823e35ea24",
+      "internal/datalink/sourcerule/workspace_mapping_confirmation.go": "60cc6175b136a298230fced4698c59e558af6ee4c3bfc3b26d5041f6ae132bff",
+      "internal/datalink/sourcerule/workspace_mapping_confirmation_test.go": "9eb76ce537ea42b3be744019489f7cf7f1458c5f4d85533a02c5538e2fed11f9",
+      "scripts/tests/f_device_to_sql/basic-integrity-final-ui.mjs": "1913b7443892ccbc7b22168e6d4b2a5803915eff5921639aa1a2345984df0140",
+      "scripts/tests/f_device_to_sql/basic-integrity-lifecycle.mjs": "91c01acbb4c498d02c53884b86180634c1f9db953f49119374d921939bc27322",
+      "scripts/tests/f_device_to_sql/fresh-dual-sqlite.mjs": "b79dc1632c496d2b374c0270d8e5c899e4bb782b909f0020d067cb6c192c524c",
+      "scripts/tests/f_device_to_sql/fresh-single-sqlite.mjs": "778b0188241fa6271904e9a4f788752495f6d02ed9823be29e2cf1c19e737e5b",
+      "scripts/tests/f_device_to_sql/fresh-ui.mjs": "fc614e26cba912ad4639b6fae5a74c49a953ce083eeb7b1a4a6ba000a71a367e",
+      "go.mod": "8d7c8d7ec0d0381a3f7f699a6edadada9e84916257d05932e6fb5811f374204b",
+      "go.sum": "9b10ea52ae763ae87c432ec978c469f6350247aa83c18dfeb7ee44aea3166687",
+      "frontend/package.json": "e8e5665b0a19a022c4989a134ff67a1b575b07a996eaf13e06cd3a9c758f1f67",
+      "frontend/package-lock.json": "a66ba212f302b448b2617416fd94318da5d2a5fd750a896d24d2f64f420d47e4",
+      "frontend/tsconfig.json": "74f78c82eaca63d024916a0a02aec6f26ae52733e621ae4e9c99536fc485fb99",
+      "frontend/vite.config.ts": "d5b802bfcb399564933f33ce5a036b30bbff04de93d09312dc262204cc7def90"
+    },
+    "changed_from_c_build": [
+      "frontend/src/features/datalink/workbench-v2/steps/step4/basicRecordingPanelHelpers.ts",
+      "frontend/src/i18n/locales/en/workbench-v2.json",
+      "frontend/src/i18n/locales/zh-TW/workbench-v2.json",
+      "scripts/tests/f_device_to_sql/basic-integrity-lifecycle.mjs",
+      "scripts/tests/f_device_to_sql/fresh-dual-sqlite.mjs",
+      "scripts/tests/f_device_to_sql/fresh-ui.mjs"
+    ],
+    "added_after_c_build": [
+      "frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx",
+      "frontend/tests/unit/workbench-v2/summary-rail-connection.test.tsx",
+      "scripts/tests/f_device_to_sql/basic-integrity-final-ui.mjs"
+    ],
+    "boundary": "Go, mapping defaults, runtime device/value handling, schema/start, recovery and group lifecycle unchanged. SummaryRail and connection subtitles changed; helper only trailing blank line removed. All frontend gates rerun and new embedded bundle exercised in a real UI. Eight-point timed SQL/recovery acceptance c reused within this stated unchanged-flow boundary.",
+    "results": [
+      {
+        "command": "cd frontend && NODE_OPTIONS=--max-old-space-size=2048 npm run lint",
+        "exit_code": 0,
+        "log": "/tmp/go-gateway-sidebar-final-lint.log",
+        "log_sha256": "b0975a8065fa0c12ce051848241e245ae6a00293c4ecd435fe8d493b7b925ea4",
+        "output_tail": "npm notice run frontend@0.0.0 lint\nnpm notice run eslint . --ext .ts,.tsx"
+      },
+      {
+        "command": "cd frontend && NODE_OPTIONS=--max-old-space-size=2048 npm test -- --run --maxWorkers=1 --no-file-parallelism",
+        "exit_code": 0,
+        "log": "/tmp/go-gateway-sidebar-final-test.log",
+        "log_sha256": "e026bb098e32b7abd9c5dc54d0541db7a55db66a086478498e901b0817daa70e",
+        "output_tail": " ✓ tests/unit/utils/designSystemForms.test.ts (1 test) 1ms\n ✓ tests/unit/utils/viteConfig.test.ts (4 tests) 4ms\n\n Test Files  194 passed (194)\n      Tests  1232 passed (1232)\n   Start at  15:19:32\n   Duration  69.95s (transform 1.59s, setup 2.93s, collect 7.73s, tests 11.82s, environment 30.36s, prepare 3.85s)\n"
+      },
+      {
+        "command": "cd frontend && NODE_OPTIONS=--max-old-space-size=2048 npm run build",
+        "exit_code": 0,
+        "log": "/tmp/go-gateway-sidebar-final-build.log",
+        "log_sha256": "7e6737a24f495e6639a6fdda563e167592581df6bd6abf4b8e5e02f85381fff8",
+        "output_tail": "dist/assets/TestPage--lK4m5dy.js                                466.38 kB │ gzip: 131.04 kB\ndist/assets/index-DS93WDz5.js                                   523.05 kB │ gzip: 164.29 kB\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n✓ built in 3.00s"
+      },
+      {
+        "command": "GOMAXPROCS=2 go build -p 1 -o /tmp/go-gateway-basic-integrity-build-20261005/gateway-ui-final ./cmd/test_ui",
+        "exit_code": 0,
+        "log": "/tmp/go-gateway-sidebar-production-build.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "command": "F_RUN_ID=basic-integrity-20261005-ui-final GW_PORT=3491 F_SIM_PORT_A=15192 F_GATEWAY_BINARY=/tmp/go-gateway-basic-integrity-build-20261005/gateway-ui-final F_SIMULATOR_BINARY=/tmp/go-gateway-basic-integrity-build-20261005/simulator GOMAXPROCS=2 NODE_OPTIONS=--max-old-space-size=2048 node scripts/tests/f_device_to_sql/basic-integrity-final-ui.mjs",
+        "exit_code": 0,
+        "log": "/tmp/go-gateway-sidebar-actual-ui.log",
+        "log_sha256": "c6cf639e53d5ef1ebc1a5892957819ec76d1df15dfd4532b46160d4810526758",
+        "output_tail": "PASS basic-integrity-20261005-ui-final: "
+      }
+    ],
+    "embedded_index_sha256": "89739a939caa262e11b516acabdb3dd274f1f43022145e49e81430e2d7d4be32",
+    "gateway_binary_sha256": "e05150dac8608469c0adc542b78add3ea5468c3a25656d37f9282bb9861c79eb",
+    "ui_proof": "basic-integrity-20261005-ui-final.json"
+  }
 }
