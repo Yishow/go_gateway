@@ -288,9 +288,21 @@ func (p *Pipeline) WantsSample(deviceID, pointID, tagID string) bool {
 	return false
 }
 
-// Owns reports whether an active or still-closing group writes this tag to
-// this connector, in which case the legacy writer must not.
+// Owns includes durable successful Apply history, independent of active
+// intake workers. Ownership read failure suppresses legacy output fail closed.
 func (p *Pipeline) Owns(connectorID, tagID string) bool {
+	if p.deps.Store != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		owned, err := p.deps.Store.HasAppliedOwner(ctx, connectorID, tagID)
+		cancel()
+		if err != nil {
+			p.report(err)
+			return true
+		}
+		if owned {
+			return true
+		}
+	}
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	for _, m := range p.boundaries {

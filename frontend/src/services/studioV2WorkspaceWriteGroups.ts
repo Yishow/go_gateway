@@ -1,3 +1,4 @@
+import type { DeliveryDecision, DeliveryDecisionResult } from '../types/studioV2WriteGroupDelivery';
 import type {
   WriteGroupCreateRequest,
   WriteGroupDeleteRequest,
@@ -157,6 +158,17 @@ export const studioV2WorkspaceWriteGroupsAPI = {
       `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/delivery`,
     );
     return parseWriteGroupAPIData(res.data, 'write-group delivery', parseWriteGroupDeliveryData);
+  },
+
+  async resolveDelivery(id: string, request: DeliveryDecision): Promise<DeliveryDecisionResult> {
+    const res = await studioV2DatalinkApi.post<unknown>(`/studio-v2/workspace/write-groups/${encodeURIComponent(id)}/delivery/resolve`, request);
+    return parseWriteGroupAPIData(res.data, 'write-group delivery decision', (data) => {
+      if (!data || typeof data !== 'object') return null;
+      const result = data as Record<string, unknown>;
+      if (result.decision_id !== request.decision_id || result.effect_key !== request.effect_key || typeof result.state !== 'string' || !['pending', 'operator_skipped', 'sending', 'retrying', 'blocked', 'quarantined', 'unknown', 'sql_committed'].includes(result.state) || typeof result.duplicate !== 'boolean') return null;
+      if (!result.duplicate && result.state !== (request.resolution === 'retry' ? 'pending' : 'operator_skipped')) return null;
+      return result as unknown as DeliveryDecisionResult;
+    });
   },
 
   /** Describes the exact test row and its cleanup; the target is not written. */

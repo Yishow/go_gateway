@@ -16,7 +16,7 @@ The system SHALL persist connector/tag ownership at the first effective canonica
 - **THEN** the original enabled legacy writer continues legitimate delivery.
 
 ### Requirement: Traceable scoped delivery head resolution
-The system SHALL expose safe blocked/quarantined row attention and explicit retry or confirmed skip within the owning workspace and group. Resolution SHALL atomically record decision provenance and validate expected state. Retry SHALL preserve effect identity, payload and frozen destination. Skip SHALL retain the record and identify it as undelivered. Unknown effects SHALL reject retry and skip.
+The system SHALL expose safe blocked/quarantined row attention and explicit retry or confirmed skip within the owning workspace and group. Resolution SHALL atomically record decision provenance and validate expected state, existing claim epoch and payload digest. Retry SHALL preserve effect identity, payload and frozen destination. Skip SHALL retain the record and identify it as undelivered. Unknown effects SHALL reject retry and skip.
 
 #### Scenario: Repair blocked head
 - **WHEN** a missing table or permission failure is repaired and the operator retries that blocked head
@@ -27,5 +27,9 @@ The system SHALL expose safe blocked/quarantined row attention and explicit retr
 - **THEN** its payload and resolution provenance remain available and the next row is unblocked.
 
 #### Scenario: Unsafe or stale resolution
-- **WHEN** a foreign workspace/group effect, stale expected state or unknown effect is submitted for resolution
+- **WHEN** a foreign workspace/group effect, stale expected state or epoch (including blocked → retry → blocked), or unknown effect is submitted for resolution
 - **THEN** the mutation is rejected without resetting delivery or changing provenance.
+
+#### Scenario: Repeated decision and new blocked attempt
+- **WHEN** a decision reply is uncertain, or that effect is blocked again after a new delivery attempt
+- **THEN** the identical decision ID reads its atomic audit without resending, while a new decision requires the latest state revision and the UI permits a fresh repair note.

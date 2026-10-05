@@ -21,6 +21,7 @@ type OutboxItem struct {
 	Payload       []byte
 	PayloadDigest string
 	State         string
+	ClaimEpoch    int64
 	RetryCount    int
 	NextRetryAt   time.Time
 	LastErrorCode string
@@ -36,7 +37,7 @@ var ErrOutboxItemNotFound = errors.New("outbox item not found")
 const outboxColumns = `effect_key, record_id, workspace_id, group_id, group_revision, entity_key, bucket_start,
 	partition_key, destination_scope, connector_id, connector_revision, database_name, table_schema, table_name,
 	dedupe_capability, record_key_column, payload, payload_digest, state, retry_count, next_retry_at,
-	last_error_code, committed_at`
+	last_error_code, committed_at, claim_epoch`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
@@ -51,7 +52,7 @@ func scanOutbox(row rowScanner) (OutboxItem, error) {
 		&item.EntityKey, &bucket, &item.PartitionKey, &item.Destination.Scope, &item.Destination.ConnectorID,
 		&item.Destination.ConnectorRevision, &item.Destination.Database, &item.Destination.TableSchema,
 		&item.Destination.TableName, &item.Destination.DedupeCapability, &item.Destination.RecordKeyColumn,
-		&payload, &item.PayloadDigest, &item.State, &item.RetryCount, &nextRetry, &item.LastErrorCode, &committed,
+		&payload, &item.PayloadDigest, &item.State, &item.RetryCount, &nextRetry, &item.LastErrorCode, &committed, &item.ClaimEpoch,
 	)
 	if err != nil {
 		return OutboxItem{}, err

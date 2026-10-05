@@ -63,7 +63,8 @@ describe('GroupDeliveryStrip', () => {
     }
     expect(screen.queryByTestId('delivery-bucket-causes')).not.toBeInTheDocument();
     expect(screen.getByTestId('delivery-saved')).toHaveTextContent('step4.group.delivery.yes');
-    expect(screen.getByTestId('delivery-applied')).toHaveTextContent('rev-applied');
+    expect(screen.getByTestId('delivery-applied')).toHaveTextContent('step4.group.delivery.yes');
+    expect(screen.getByText('rev-applied').closest('details')).not.toBeNull();
   });
 
   it('keeps delivery facts unconfirmed before the first response', () => {

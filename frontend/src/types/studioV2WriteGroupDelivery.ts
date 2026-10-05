@@ -39,6 +39,7 @@ export interface WriteGroupDeliveryQuota {
 }
 
 export interface WriteGroupDelivery {
+  attention?: DeliveryAttentionItem[];
   group_id: string;
   intake: { state: WriteGroupIntakeState; reason?: string };
   stages: WriteGroupDeliveryStages;
@@ -74,3 +75,14 @@ export interface WriteGroupDeliveryBucketIssue {
   kind: WriteGroupDeliveryBucketIssueKind;
   causes: WriteGroupDeliveryBucketCause[];
 }
+
+export interface DeliveryAttentionItem {
+  effect_key: string; state: 'blocked' | 'quarantined' | 'unknown'; state_revision: number; payload_digest: string;
+  group_revision: string; connector_id: string; connector_revision: string;
+  table_schema: string; table_name: string; error_code: string;
+}
+export interface DeliveryDecision {
+  decision_id: string; effect_key: string; expected_state: string; expected_state_revision: number; payload_digest: string;
+  resolution: 'retry' | 'skip'; reason: string; confirm_skip: boolean;
+}
+export interface DeliveryDecisionResult { decision_id: string; effect_key: string; state: string; duplicate: boolean }

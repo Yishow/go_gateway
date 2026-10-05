@@ -12,6 +12,7 @@ import (
 // is built from the durable store, never from buffers or ACKs, and contains no
 // values, DSNs or driver text.
 type DeliveryView struct {
+	Attention              []groupdelivery.AttentionItem  `json:"attention"`
 	GroupID                string                         `json:"group_id"`
 	Intake                 IntakeView                     `json:"intake"`
 	Stages                 StagesView                     `json:"stages"`
@@ -82,7 +83,12 @@ func (p *Pipeline) Delivery(ctx context.Context, groupID string) (*DeliveryView,
 	if err != nil {
 		return nil, err
 	}
+	attention, err := p.deps.Store.Attention(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
 	view := &DeliveryView{
+		Attention:          attention,
 		GroupID:            groupID,
 		Intake:             IntakeView{State: StateNotRunning},
 		Stages:             deliveryStages(status.Stages),

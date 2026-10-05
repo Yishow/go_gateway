@@ -1,3 +1,4 @@
+import type { DeliveryAttentionItem } from '../types/studioV2WriteGroupDelivery';
 import type {
   WriteGroupDeliveryBucketCause,
   WriteGroupDeliveryBucketIssue,
@@ -178,12 +179,24 @@ export function parseWriteGroupDeliveryData(value: unknown): WriteGroupDelivery 
       (effect.group_revision !== groupRevision || revisionStages.sql_committed === 0))) return null;
     revision = { group_revision: groupRevision, stages: revisionStages };
   }
+  const rawAttention = value.attention;
+  const attention: DeliveryAttentionItem[] = [];
+  if (rawAttention !== undefined) {
+    if (!Array.isArray(rawAttention) || rawAttention.length > 20) return null;
+    for (const item of rawAttention) {
+      if (!isRecord(item) || count(item.state_revision) === null || !['blocked', 'quarantined', 'unknown'].includes(String(item.state))) return null;
+      for (const key of ['effect_key', 'payload_digest', 'group_revision', 'connector_id', 'connector_revision', 'table_name']) if (!boundedString(item[key])) return null;
+      if (typeof item.table_schema !== 'string' || item.table_schema.length > 256 || typeof item.error_code !== 'string' || item.error_code.length > 128) return null;
+      attention.push(item as unknown as DeliveryAttentionItem);
+    }
+  }
   const backlog = rawBacklog.map(parseBacklog);
   if (backlog.some((entry) => entry === null)) return null;
   const recentIssues = rawRecentIssues?.map(parseBucketIssue);
   if (recentIssues?.some((entry) => entry === null)) return null;
   return {
     group_id: groupId,
+    ...(rawAttention !== undefined ? { attention } : {}),
     intake: { state: intakeState as WriteGroupIntakeState, ...(value.intake.reason ? { reason: value.intake.reason as string } : {}) },
     stages, last_sql_committed_at: lastCommitted as string | null, oldest_pending_seconds: oldest,
     ...(rawEffect !== undefined ? { last_sql_committed_effect: effect } : {}),

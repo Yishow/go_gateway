@@ -1,3 +1,4 @@
+import { GroupDeliveryRecovery } from './GroupDeliveryRecovery';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWriteGroupDeliveryQuery } from '../../../../../../hooks/datalink/useStudioV2WriteGroups';
@@ -13,7 +14,7 @@ const SAFE_BUCKET_CAUSES = new Set<WriteGroupDeliveryBucketCause>([
  * revisions come from the group, the rest from the delivery status. Only
  * `sql_committed` is destination evidence; nothing is summed into a success.
  */
-export const GroupDeliveryStrip: React.FC<{ group: WriteGroup }> = ({ group }) => {
+export const GroupDeliveryStrip: React.FC<{ group: WriteGroup; readonly?: boolean }> = ({ group, readonly = false }) => {
   const { t } = useTranslation('workbench-v2');
   const delivery = useWriteGroupDeliveryQuery(group.id, true, 5000);
   const confirmed = delivery.isError ? undefined : delivery.data;
@@ -37,7 +38,7 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup }> = ({ group }) =
       {delivery.isError && <p role="alert" className="text-xs text-amber-300" data-testid="group-delivery-failed">{t('step4.group.delivery.failed')}</p>}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cell(t('step4.group.delivery.saved'), group.status === 'deleted' ? t('step4.group.status.deleted') : t('step4.group.delivery.yes'), 'delivery-saved')}
-        {cell(t('step4.group.delivery.applied'), group.applied_revision ? group.applied_revision : t('step4.group.delivery.no'), 'delivery-applied')}
+        {cell(t('step4.group.delivery.applied'), group.applied_revision ? t('step4.group.delivery.yes') : t('step4.group.delivery.no'), 'delivery-applied')}
         {cell(t('step4.group.delivery.collecting'), num(stages?.collecting), 'delivery-collecting')}
         {cell(t('step4.group.delivery.skipped'), num(confirmed?.skipped_buckets), 'delivery-skipped-buckets')}
         {cell(t('step4.group.delivery.no_data'), num(confirmed?.no_data_buckets), 'delivery-no-data-buckets')}
@@ -59,6 +60,8 @@ export const GroupDeliveryStrip: React.FC<{ group: WriteGroup }> = ({ group }) =
           </ul>
         </div>
       )}
+      {group.applied_revision && <details className="text-[11px] text-slate-500"><summary>{t('step4.group.delivery.recovery.diagnostics')}</summary>{group.applied_revision}</details>}
+      <GroupDeliveryRecovery groupId={group.id} items={confirmed?.attention ?? []} readonly={readonly} onResolved={() => void delivery.refetch()} />
       <p className="text-[11px] text-slate-500">{t('step4.group.delivery.note')}</p>
     </section>
   );

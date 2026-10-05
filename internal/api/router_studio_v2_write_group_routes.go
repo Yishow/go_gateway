@@ -20,6 +20,7 @@ func registerStudioV2WriteGroupRoutes(group *gin.RouterGroup, services *Datalink
 	group.GET("/studio-v2/workspace/write-groups/:id", handler.Get)
 	group.GET("/studio-v2/workspace/write-groups/:id/readiness", handler.Readiness)
 	group.GET("/studio-v2/workspace/write-groups/:id/delivery", handler.Delivery)
+	group.POST("/studio-v2/workspace/write-groups/:id/delivery/resolve", handler.ResolveDelivery)
 	group.POST("/studio-v2/workspace/write-groups/:id/disable", handler.Disable)
 	group.POST("/studio-v2/workspace/write-groups/:id/apply", handler.Apply)
 	group.PUT("/studio-v2/workspace/write-groups/:id", handler.Update)

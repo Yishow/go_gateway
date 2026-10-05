@@ -1803,6 +1803,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/datalink/studio-v2/workspace/write-groups/{id}/delivery/resolve": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Resolve a blocked or quarantined write-group row",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Scoped CAS decision",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/groupdelivery.OperatorDecision"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupResolutionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/datalink/studio-v2/workspace/write-groups/{id}/disable": {
             "post": {
                 "consumes": [
@@ -2434,6 +2504,41 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "groupdelivery.AttentionItem": {
+            "type": "object",
+            "properties": {
+                "connector_id": {
+                    "type": "string"
+                },
+                "connector_revision": {
+                    "type": "string"
+                },
+                "effect_key": {
+                    "type": "string"
+                },
+                "error_code": {
+                    "type": "string"
+                },
+                "group_revision": {
+                    "type": "string"
+                },
+                "payload_digest": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "state_revision": {
+                    "type": "integer"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                }
+            }
+        },
         "groupdelivery.BucketIssue": {
             "type": "object",
             "properties": {
@@ -2476,6 +2581,63 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "groupdelivery.DecisionResult": {
+            "type": "object",
+            "properties": {
+                "decision_id": {
+                    "type": "string"
+                },
+                "duplicate": {
+                    "type": "boolean"
+                },
+                "effect_key": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "groupdelivery.OperatorDecision": {
+            "type": "object",
+            "properties": {
+                "confirm_skip": {
+                    "type": "boolean"
+                },
+                "decision_id": {
+                    "type": "string"
+                },
+                "effect_key": {
+                    "type": "string"
+                },
+                "expected_state": {
+                    "type": "string"
+                },
+                "expected_state_revision": {
+                    "type": "integer"
+                },
+                "payload_digest": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "resolution": {
+                    "$ref": "#/definitions/groupdelivery.QuarantineResolution"
+                }
+            }
+        },
+        "groupdelivery.QuarantineResolution": {
+            "type": "string",
+            "enum": [
+                "retry",
+                "skip"
+            ],
+            "x-enum-varnames": [
+                "ResolutionRetry",
+                "ResolutionSkip"
+            ]
         },
         "groupdelivery.QuotaScope": {
             "type": "string",
@@ -2546,6 +2708,12 @@ const docTemplate = `{
         "grouppipeline.DeliveryView": {
             "type": "object",
             "properties": {
+                "attention": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/groupdelivery.AttentionItem"
+                    }
+                },
                 "backlog": {
                     "type": "array",
                     "items": {
@@ -3023,6 +3191,17 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/workspace.WriteGroupReadiness"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupResolutionResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/groupdelivery.DecisionResult"
                 },
                 "success": {
                     "type": "boolean"

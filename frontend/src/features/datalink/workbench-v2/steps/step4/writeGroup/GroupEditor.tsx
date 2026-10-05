@@ -349,7 +349,7 @@ export const GroupEditor: React.FC<GroupEditorProps> = ({
             <h4 className="text-sm font-semibold text-slate-200">{t('step4.group.readiness.title')}</h4>
             <GroupReadinessPanel readiness={readiness.data} loading={readiness.isLoading && !dirty} failed={readiness.isError} dirty={dirty} onRetry={() => void readiness.refetch()} />
           </section>
-          <GroupDeliveryStrip group={group} />
+          <GroupDeliveryStrip group={group} readonly={readonly} />
           <GroupLifecycleBar
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={readonly}

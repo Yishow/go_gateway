@@ -1,5 +1,28 @@
 basePath: /api
 definitions:
+  groupdelivery.AttentionItem:
+    properties:
+      connector_id:
+        type: string
+      connector_revision:
+        type: string
+      effect_key:
+        type: string
+      error_code:
+        type: string
+      group_revision:
+        type: string
+      payload_digest:
+        type: string
+      state:
+        type: string
+      state_revision:
+        type: integer
+      table_name:
+        type: string
+      table_schema:
+        type: string
+    type: object
   groupdelivery.BucketIssue:
     properties:
       bucket_start:
@@ -28,6 +51,44 @@ definitions:
       record_id:
         type: string
     type: object
+  groupdelivery.DecisionResult:
+    properties:
+      decision_id:
+        type: string
+      duplicate:
+        type: boolean
+      effect_key:
+        type: string
+      state:
+        type: string
+    type: object
+  groupdelivery.OperatorDecision:
+    properties:
+      confirm_skip:
+        type: boolean
+      decision_id:
+        type: string
+      effect_key:
+        type: string
+      expected_state:
+        type: string
+      expected_state_revision:
+        type: integer
+      payload_digest:
+        type: string
+      reason:
+        type: string
+      resolution:
+        $ref: '#/definitions/groupdelivery.QuarantineResolution'
+    type: object
+  groupdelivery.QuarantineResolution:
+    enum:
+    - retry
+    - skip
+    type: string
+    x-enum-varnames:
+    - ResolutionRetry
+    - ResolutionSkip
   groupdelivery.QuotaScope:
     enum:
     - global
@@ -74,6 +135,10 @@ definitions:
     type: object
   grouppipeline.DeliveryView:
     properties:
+      attention:
+        items:
+          $ref: '#/definitions/groupdelivery.AttentionItem'
+        type: array
       backlog:
         items:
           $ref: '#/definitions/grouppipeline.BacklogView'
@@ -388,6 +453,13 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/workspace.WriteGroupReadiness'
+      success:
+        type: boolean
+    type: object
+  handlers.WriteGroupResolutionResponse:
+    properties:
+      data:
+        $ref: '#/definitions/groupdelivery.DecisionResult'
       success:
         type: boolean
     type: object
@@ -2446,6 +2518,52 @@ paths:
           schema:
             $ref: '#/definitions/handlers.APIErrorResponse'
       summary: Read a write group's delivery status
+      tags:
+      - Studio V2 Write Groups
+  /datalink/studio-v2/workspace/write-groups/{id}/delivery/resolve:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Group ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Scoped CAS decision
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/groupdelivery.OperatorDecision'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.WriteGroupResolutionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handlers.APIErrorResponse'
+      summary: Resolve a blocked or quarantined write-group row
       tags:
       - Studio V2 Write Groups
   /datalink/studio-v2/workspace/write-groups/{id}/disable:
