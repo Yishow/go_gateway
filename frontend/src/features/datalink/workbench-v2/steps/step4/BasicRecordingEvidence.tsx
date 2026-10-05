@@ -34,11 +34,13 @@ export const BasicRecordingEvidence: React.FC<BasicRecordingEvidenceProps> = ({
         <div><dt className="text-slate-500">{t('step4.basic.committed')}</dt><dd className="text-slate-200">{committedEffect ? t('step4.basic.committed_verified') : t('step4.basic.unconfirmed')}</dd></div>
       </dl>
       {committedEffect && group && (
+        <details><summary className="cursor-pointer text-[11px] text-slate-500">{t('step4.basic.diagnostics')}</summary>
         <dl className="grid gap-1 text-[11px] text-slate-400 sm:grid-cols-3" data-testid="basic-recording-committed-effect">
           <div><dt className="text-slate-500">{t('step4.basic.effect_group')}</dt><dd className="break-all text-slate-200">{group.id} · {group.applied_revision}</dd></div>
           <div><dt className="text-slate-500">{t('step4.basic.effect_record')}</dt><dd className="break-all text-slate-200">{committedEffect.record_id}</dd></div>
           <div><dt className="text-slate-500">{t('step4.basic.effect_key')}</dt><dd className="break-all text-slate-200">{committedEffect.effect_key}</dd></div>
         </dl>
+        </details>
       )}
     </section>
   );

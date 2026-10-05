@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { RecordingStartOperation } from '../../../../../types/studioV2RecordingStart';
 
 interface BasicRecordingProgressProps {
+  groupNames?: Record<string, string>;
+  deviceNames?: Record<string, string>;
   operation: RecordingStartOperation;
   intentMatchesCurrent: boolean;
   activatedDeviceIds: string[];
@@ -13,7 +15,7 @@ interface BasicRecordingProgressProps {
 }
 
 export const BasicRecordingProgress: React.FC<BasicRecordingProgressProps> = ({
-  operation,
+  groupNames = {}, deviceNames = {}, operation,
   intentMatchesCurrent,
   activatedDeviceIds,
   statusReason,
@@ -33,7 +35,8 @@ export const BasicRecordingProgress: React.FC<BasicRecordingProgressProps> = ({
         <ul className="space-y-1 pt-1 text-[11px]" data-testid="basic-recording-group-progress" aria-label={t('step4.basic.progress.groups')}>
           {operation.groups.map((group) => (
             <li key={group.group_id} className="flex flex-wrap gap-x-2 gap-y-1">
-              <span className="break-all text-slate-400">{t('step4.basic.progress.group')}: {group.group_id}</span>
+              <span className="break-all text-slate-400">{t('step4.basic.progress.group')}: {groupNames[group.group_id] ?? t('step4.basic.progress.group')}</span>
+              <details className="text-slate-500"><summary>{t('step4.basic.diagnostics')}</summary>{group.group_id}</details>
               <span>{group.saved ? t('step4.basic.progress.saved') : t('step4.basic.progress.not_saved')}</span>
               <span>{group.ready ? t('step4.basic.progress.readiness_verified') : t('step4.basic.progress.readiness_unverified')}</span>
               <span>{group.applied ? t('step4.basic.progress.applied') : t('step4.basic.progress.not_applied')}</span>
@@ -45,7 +48,8 @@ export const BasicRecordingProgress: React.FC<BasicRecordingProgressProps> = ({
         <ul className="space-y-1 pt-1 text-[11px]" data-testid="basic-recording-device-progress" aria-label={t('step4.basic.progress.devices')}>
           {operation.devices.map((device) => (
             <li key={device.device_id} className="flex flex-wrap gap-x-2 gap-y-1">
-              <span className="break-all text-slate-400">{t('step4.basic.progress.device')}: {device.device_id}</span>
+              <span className="break-all text-slate-400">{t('step4.basic.progress.device')}: {deviceNames[device.device_id] ?? t('step4.basic.progress.device')}</span>
+              <details className="text-slate-500"><summary>{t('step4.basic.diagnostics')}</summary>{device.device_id}</details>
               <span>{device.activated ? t('step4.basic.progress.activated') : t('step4.basic.progress.not_activated')}</span>
             </li>
           ))}

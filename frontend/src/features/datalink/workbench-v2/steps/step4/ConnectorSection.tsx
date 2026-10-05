@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { KindSelector } from './KindSelector';
-import { WriteStrategy } from './WriteStrategy';
+import { supportsWriteGroupKind } from './writeGroupCapabilities';
 import type { DbConnector, SettingsConnector } from '../../state/types';
 
 /**
@@ -37,10 +37,7 @@ export function ConnectorSection({
     database,
     username,
     password,
-    schema,
-    table,
-    write_mode,
-    write_interval_seconds
+    schema
   } = connector;
 
   // 判定當前資料庫是否需要特定欄位
@@ -60,7 +57,7 @@ export function ConnectorSection({
             defaultValue=""
             onChange={(e) => {
               const found = connectors.find((c) => c.id === e.target.value);
-              if (found?.enabled && onSelectConnector) {
+              if (found?.enabled && supportsWriteGroupKind(found.kind) && onSelectConnector) {
                 onSelectConnector(found);
                 e.target.value = '';
               }
@@ -69,7 +66,7 @@ export function ConnectorSection({
           >
             <option value="" disabled>-- {t('step4.select_existing_connector')} --</option>
             {connectors.map((c) => (
-              <option key={c.id} value={c.id} disabled={!c.enabled}>
+              <option key={c.id} value={c.id} disabled={!c.enabled || !supportsWriteGroupKind(c.kind)}>
                 {c.name} ({c.kind.toUpperCase()} - {c.database})
               </option>
             ))}
@@ -206,29 +203,10 @@ export function ConnectorSection({
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-gray-400">
-            {t('step4.field_table')}
-          </label>
-          <input
-            type="text"
-            aria-label={t('step4.field_table')}
-            value={table}
-            disabled={disabled}
-            onChange={(e) => onUpdateConnector({ table: e.target.value })}
-            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            placeholder="sensor_readings"
-          />
-        </div>
+
       </div>
 
-      <WriteStrategy
-        writeMode={write_mode}
-        writeIntervalSeconds={write_interval_seconds}
-        onWriteModeChange={(mode) => onUpdateConnector({ write_mode: mode })}
-        onWriteIntervalChange={(seconds) => onUpdateConnector({ write_interval_seconds: seconds })}
-        disabled={disabled}
-      />
+
     </div>
   );
 }

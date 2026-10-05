@@ -1,3 +1,7 @@
+import { destinationIsSaved, optionalShareRequest, groupMatchesRequest, operationScopeMatchesCurrent, requestMatchesCurrentControls, groupSnapshotMatchesRequest, operationBelongsToGroupId, unresolvedRequestMatchesCurrentScope } from './basicRecordingPanelHelpers';
+import { BasicSchemaPreparation } from './BasicSchemaPreparation';
+import { GroupDeliveryRecovery } from './writeGroup/GroupDeliveryRecovery';
+import { supportsWriteGroupKind } from './writeGroupCapabilities';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,7 +13,7 @@ import {
 } from '../../../../../hooks/datalink/useStudioV2RecordingStart';
 import { useWriteGroupDeliveryQuery, useWriteGroupsQuery } from '../../../../../hooks/datalink/useStudioV2WriteGroups';
 import type { RecordingStartOperation, RecordingStartRequest } from '../../../../../types/studioV2RecordingStart';
-import type { WriteGroup, WriteGroupCreateRequest, WriteGroupDraft } from '../../../../../types/studioV2WriteGroup';
+import type { WriteGroup, WriteGroupDraft } from '../../../../../types/studioV2WriteGroup';
 import type { ModbusShareStatus } from '../../../../../types/modbusShare';
 import { isModbusShareConfiguredEnabled } from '../../../../../types/modbusShare';
 import { studioV2WorkspaceKeys } from '../../../../../hooks/datalink/keys';
@@ -31,8 +35,6 @@ import {
   isBasicManagedWriteGroup,
   latestRecordingStartOperation,
   loadBasicRecordingIntent,
-  recordingStartRevisionsMatch,
-  recordingStartOperationOwnsCurrentSetupRevision,
   saveBasicRecordingIntent,
   type BasicRecordingIntentRecord,
 } from '../../state/basicRecording';
@@ -51,119 +53,9 @@ export interface BasicRecordingPanelProps {
 const DEFAULT_INTERVAL_SECONDS = 60;
 const BASIC_ROLE = 'managed-recording';
 
-function destinationIsSaved(state: WorkbenchV2State): boolean {
-  const connector = state.db.connector;
-  return connector.persisted === true && connector.save_state === 'saved' &&
-    Boolean(connector.connector_id && connector.identity_revision);
-}
-
-function optionalShareRequest(shareStatus: ModbusShareStatus | null | undefined): Pick<RecordingStartRequest, 'readiness_token' | 'settings_revision' | 'workspace_revision'> {
-  if (!shareStatus?.readiness_token || !shareStatus.settings_revision || !shareStatus.workspace_revision) {
-    return {};
-  }
-  return {
-    readiness_token: shareStatus.readiness_token,
-    settings_revision: shareStatus.settings_revision,
-    workspace_revision: shareStatus.workspace_revision,
-  };
-}
-
-function groupMatchesRequest(record: BasicRecordingIntentRecord | undefined, group: WriteGroup | undefined, connectorRevision?: string, shareStatus?: ModbusShareStatus | null): boolean {
-  const intent = record?.request.groups[0];
-  if (!record || (record.operation_id && !recordingStartRevisionsMatch(record.request, shareStatus?.settings_revision, shareStatus?.workspace_revision))) return false;
-  if (!group) return record.request.groups.length === 0;
-  if (!intent) return false;
-  return intent.group_id === group.id && intent.expected_group_revision === group.revision &&
-    (!connectorRevision || intent.expected_connector_revision === connectorRevision);
-}
-
-function operationScopeMatchesCurrent(
-  record: BasicRecordingIntentRecord | undefined,
-  operation: RecordingStartOperation | undefined,
-  group: WriteGroup | undefined,
-  workspaceId: string | undefined,
-  deviceId: string,
-  connectorRevision?: string,
-): boolean {
-  if (!record || !operation || !group || !connectorRevision || operation.workspace_id !== workspaceId ||
-    !operation.device_ids.includes(deviceId)) return false;
-  const intent = record.request.groups[0];
-  const progress = operation.groups.find((item) => item.group_id === group.id);
-  return Boolean(intent && progress && intent.group_id === group.id &&
-    intent.expected_connector_revision === connectorRevision &&
-    group.destination.connector_revision === connectorRevision &&
-    progress.group_revision === group.revision &&
-    (!progress.applied_revision || progress.applied_revision === group.applied_revision));
-}
-
-function requestMatchesCurrentControls(
-  record: BasicRecordingIntentRecord | undefined,
-  operation: RecordingStartOperation | undefined,
-  group: WriteGroup | undefined,
-  workspaceId: string | undefined,
-  deviceId: string,
-  connectorRevision: string | undefined,
-  intervalSeconds: number,
-  incompletePolicy: string,
-  shareStatus: ModbusShareStatus | null | undefined,
-  workspaceRevision: string,
-): boolean {
-  if (!record || record.request.workspace_id !== workspaceId ||
-    record.request.device_ids.length !== 1 || record.request.device_ids[0] !== deviceId) return false;
-  const intent = record.request.groups[0];
-  if (!group) {
-    const unresolvedRequest = !record.operation_id && record.request.groups.length === 0;
-    return record.request.groups.length === 0 &&
-      (unresolvedRequest || recordingStartRevisionsMatch(record.request, shareStatus?.settings_revision, shareStatus?.workspace_revision));
-  }
-  const operationOwnsRevision = recordingStartOperationOwnsCurrentSetupRevision(operation, workspaceRevision, group);
-  if (!intent || record.request.groups.length !== 1 || !connectorRevision ||
-    intent.group_id !== group.id ||
-    (intent.expected_group_revision !== group.revision && operation !== undefined && !operationOwnsRevision) ||
-    intent.expected_connector_revision !== connectorRevision) return false;
-  if (record.request.expected_workspace_revision !== workspaceRevision && operation !== undefined && !operationOwnsRevision) return false;
-  const draftPolicy = intent.draft?.row_policy;
-  const requestedInterval = draftPolicy?.interval_seconds ?? group.row_policy.interval_seconds;
-  const requestedIncomplete = draftPolicy?.incomplete_policy ?? group.row_policy.incomplete_policy ?? 'skip_row';
-  if (requestedInterval !== intervalSeconds || requestedIncomplete !== incompletePolicy) return false;
-  return !record.operation_id || recordingStartRevisionsMatch(record.request, shareStatus?.settings_revision, shareStatus?.workspace_revision);
-}
-
-function groupSnapshotMatchesRequest(
-  record: BasicRecordingIntentRecord | undefined,
-  groupId: string | undefined,
-  groupRevision: string | undefined,
-  connectorRevision?: string,
-): boolean {
-  if (!record) return false;
-  const intent = record.request.groups[0];
-  if (!groupId) return record.request.groups.length === 0;
-  if (!intent) return false;
-  return intent.group_id === groupId && intent.expected_group_revision === groupRevision &&
-    (!connectorRevision || intent.expected_connector_revision === connectorRevision);
-}
-
-function operationBelongsToGroupId(record: BasicRecordingIntentRecord | undefined, groupId: string | undefined): boolean {
-  if (!record) return false;
-  const intent = record.request.groups[0];
-  return groupId ? intent?.group_id === groupId : record.request.groups.length === 0;
-}
-
-function unresolvedRequestMatchesCurrentScope(
-  record: BasicRecordingIntentRecord | undefined,
-  groupId: string | undefined,
-  connectorRevision: string | undefined,
-): boolean {
-  if (!record || record.operation_id) return false;
-  const intent = record.request.groups[0];
-  if (!groupId) return record.request.groups.length === 0;
-  return Boolean(intent && record.request.groups.length === 1 && intent.group_id === groupId &&
-    connectorRevision && intent.expected_connector_revision === connectorRevision);
-}
-
 /**
- * Basic setup owns one device and one managed group. Schema preview/confirm,
- * custom columns and other group variants remain in the advanced editor.
+ * Basic owns one device and one managed group, including safe schema preparation.
+ * Custom columns and other group variants remain in the advanced editor.
  */
 export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   state,
@@ -312,7 +204,8 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
   const blockReason = !workspaceId ? 'workspace'
     : readonly ? 'readonly'
       : !shareOnly && candidates.length === 0 ? 'mapping'
-        : !shareOnly && !destinationSaved ? 'destination'
+        : !shareOnly && !supportsWriteGroupKind(state.db.connector.kind) ? 'destination_kind'
+          : !shareOnly && !destinationSaved ? 'destination'
           : !workspaceSnapshotReady || (!shareOnly && !workspaceRevision) ? 'workspace_revision'
             : destinationMismatch ? 'destination_mismatch'
               : membersMismatch ? 'members_changed' : undefined;
@@ -331,6 +224,16 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
     ...optionalShareRequest(shareStatus),
   });
 
+  const ensureGroup = async () => {
+    if (basicSelectedGroup) return { group: basicSelectedGroup, workspace_revision: workspaceRevision };
+    if (!selectedDraft || !workspaceId || blockReason) throw new Error('basic preparation unavailable');
+    return ensureMutation.mutateAsync({ deviceId: selectedDeviceId, request: {
+      workspace_id: workspaceId, expected_workspace_revision: workspaceRevision,
+      expected_connector_revision: state.db.connector.identity_revision ?? '',
+      group: { ...selectedDraft, row_policy: { ...selectedDraft.row_policy, interval_seconds: intervalSeconds, incomplete_policy: incompletePolicy } },
+    } });
+  };
+
   const handleStart = async () => {
     if (blockReason || operationActive || actionBusyRef.current || (!shareOnly && !selectedDraft) || !scopeKey) return;
     const scopeAtRequest = scopeKey;
@@ -342,16 +245,7 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       let expectedWorkspaceRevision = workspaceRevision;
       if (!group && !shareOnly) {
         if (!selectedDraft) return;
-        const request: WriteGroupCreateRequest = {
-          workspace_id: workspaceId ?? '',
-          expected_workspace_revision: workspaceRevision,
-          expected_connector_revision: state.db.connector.identity_revision ?? '',
-          group: {
-            ...selectedDraft,
-            row_policy: { ...selectedDraft.row_policy, interval_seconds: intervalSeconds, incomplete_policy: incompletePolicy },
-          },
-        };
-        const ensured = await ensureMutation.mutateAsync({ deviceId: selectedDeviceId, request });
+        const ensured = await ensureGroup();
         if (activeSelectionRef.current !== scopeAtRequest) return;
         group = ensured.group;
         expectedWorkspaceRevision = ensured.workspace_revision;
@@ -471,6 +365,9 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
         />
       )}
 
+      {!shareOnly && <BasicSchemaPreparation key={`${scopeKey}|${connectorRevision}|${selectedGroupMembersMatch}`} group={basicSelectedGroup} workspaceId={workspaceId ?? ''} workspaceRevision={workspaceRevision} disabled={Boolean(blockReason) || operationActive} readonly={readonly || operationActive} destinationMatches={!destinationMismatch} ensureGroup={ensureGroup} onApplied={() => void groupsQuery.refetch()} />}
+      {!shareOnly && selectedGroup && !deliveryQuery.isError && deliveryQuery.data?.group_id === selectedGroup.id && <GroupDeliveryRecovery groupId={selectedGroup.id} items={deliveryQuery.data.attention ?? []} readonly={readonly || operationActive} onResolved={() => void deliveryQuery.refetch()} />}
+
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={Boolean(blockReason) || operationActive || groupsQuery.isLoading} onClick={() => void handleStart()} className="rounded bg-cyan-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" data-testid="basic-recording-start">
           {operationActive ? t('step4.basic.starting') : t('step4.basic.start')}
@@ -482,6 +379,8 @@ export const BasicRecordingPanel: React.FC<BasicRecordingPanelProps> = ({
       {safeActionError && <p role="alert" className="text-xs text-red-300" data-testid="basic-recording-error">{safeActionError}</p>}
       {operation && (
         <BasicRecordingProgress
+          groupNames={Object.fromEntries(groups.map((group) => [group.id, group.name]))}
+          deviceNames={Object.fromEntries(state.devices.map((device) => [device.id, device.name]))}
           operation={operation}
           intentMatchesCurrent={intentMatchesCurrent}
           activatedDeviceIds={activatedDeviceIds}

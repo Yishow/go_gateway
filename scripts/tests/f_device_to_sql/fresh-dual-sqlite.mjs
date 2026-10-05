@@ -21,7 +21,11 @@ import { assertFreshTimingWitness } from './fresh-timing.mjs';
 import { writeFreshResult } from './fresh-result.mjs';
 import { addDevice, addRule } from './lib.mjs';
 import { preflightSQLiteDestination } from './destination-preflight.mjs';
+import { verifyBasicIntegrityLifecycle } from './basic-integrity-lifecycle.mjs';
 
+const integrity = process.env.F_BASIC_INTEGRITY === '1';
+// Eight measurement points; uint64/float widths consume multiple registers.
+const rules = FRESH_RULES.filter((_, index) => !integrity || index !== 6);
 const gatewayBinary = process.env.F_GATEWAY_BINARY ?? DEFAULT_GATEWAY_BINARY;
 const observedTimings = [];
 const runId = process.env.F_RUN_ID ?? `dual-sqlite-${Date.now()}`;
@@ -132,14 +136,15 @@ try {
   await waitForFreshGateway(base);
   ui = await openFreshUI({ port, width: 1440, height: 1400 });
   ({ browser, page } = ui);
+  log('F fresh: UI source setup beginning');
   const devices = [{ name: 'Line A', port: simPortA, prefix: 'A' }, { name: 'Line B', port: simPortB, prefix: 'B' }];
-  await setupFreshMultiDeviceSources(page, devices, FRESH_RULES.map((rule) => ({ ...rule })));
+  await setupFreshMultiDeviceSources(page, devices, rules.map((rule) => ({ ...rule })));
   const targetTypes = [...FRESH_TARGET_TYPES, ...FRESH_TARGET_TYPES];
   const targetTypeByAddress = new Map(FRESH_RULES.map((rule, index) => [String(rule.start), FRESH_TARGET_TYPES[index]]));
   const tags = await persistFreshMappings(page, base, {
-    tagPrefix: 'dual', targetTypes,
-    targetTypeFor: ({ address }) => targetTypeByAddress.get(address),
+    tagPrefix: 'dual', ...(integrity ? {} : { targetTypes, targetTypeFor: ({ address }) => targetTypeByAddress.get(address) }),
   });
+  log('F fresh: default mappings persisted; configuring blank SQLite');
   const deviceData = await observeJSON(base, '/studio-v2/workspace/devices');
   const savedDevices = Array.isArray(deviceData) ? deviceData : deviceData.devices ?? [];
   const deviceIds = devices.map((device) => savedDevices.find((saved) => saved.name === device.name)?.id);
@@ -153,17 +158,22 @@ try {
   const prepared = [];
   for (const deviceId of deviceIds) {
     const first = await prepareFreshBasicGroup(page, base, deviceId);
-    const schema = await previewAndApplyFreshSchema(page);
-    await page.getByTestId('group-editor-close').click();
+    const schema = await previewAndApplyFreshSchema(page, { beforeConfirm: () => {
+      const tables = existsSync(target) ? readSQLiteRows(target, "SELECT name FROM sqlite_master WHERE type='table'") : [];
+      if (tables.some((row) => row.name === first.group.destination.table_name)) throw new Error('preview created the managed table before explicit confirm');
+    } });
+    if (await page.getByTestId('group-editor-close').count()) await page.getByTestId('group-editor-close').click();
     const start = await startFreshBasic(page);
+    log(`F fresh: Basic explicit schema + Start completed for device ${deviceIds.indexOf(deviceId) + 1}`);
     prepared.push({ device_id: deviceId, group: first.group, schema, start });
   }
   const groups = await currentGroups(deviceIds);
-  if (groups.some((group) => group.members.length !== FRESH_RULES.length)) throw new Error('dual Basic groups do not each contain nine members');
+  if (groups.some((group) => group.members.length !== rules.length)) throw new Error('dual Basic groups have incorrect measurement member counts');
   const observations = [];
   // Observe both groups at once: a serial loop would stamp the second group's first
   // SQL row only after the first group's three buckets, inflating its t_sql.
   const mappings = await observeJSON(base, '/studio-v2/workspace/mappings').then((data) => Array.isArray(data) ? data : data.mappings ?? []);
+  log('F fresh: waiting for three independent 60-second SQL buckets per device');
   observations.push(...await Promise.all(groups.map((group) => runGroup(group, mappings, expectedByTag))));
   const timings = observations.map((observation) => {
     const preparedGroup = prepared.find((candidate) => candidate.device_id === observation.device_id);
@@ -183,11 +193,12 @@ try {
   });
   const failures = observations.flatMap((item) => item.verification.failures.map((failureText) => `${item.device_id}: ${failureText}`));
   const screenshots = await captureWidths();
+  const integrityLifecycle = integrity ? await verifyBasicIntegrityLifecycle({ page, base, port, run, target, groups, savedDevices, tags, children, gatewayBinary, evidenceDir: DEFAULT_EVIDENCE_DIR }) : undefined;
   result = {
-    run_id: runId, passed: failures.length === 0, failures, kind: 'sqlite-dual-basic-same-address', destination,
+    run_id: runId, integrity_lifecycle: integrityLifecycle, default_mapping_types_untouched: integrity, measurement_points_per_device: rules.length, passed: failures.length === 0, failures, kind: 'sqlite-dual-basic-same-address', destination,
     target_preflight: { before_ui: initial, after_connector_save: afterConnector }, binary: {
       gateway: binaryIdentity(gatewayBinary), simulator: binaryIdentity(DEFAULT_SIMULATOR_BINARY),
-    }, devices: savedDevices.filter((device) => deviceIds.includes(device.id)), rules: FRESH_RULES, tags,
+    }, devices: savedDevices.filter((device) => deviceIds.includes(device.id)), rules, tags,
     expected_by_tag: expectedByTag, groups, observations, prepared, screenshots, page_errors: ui.pageErrors,
     api_traffic: ui.apiTraffic, clocks: { t_open: ui.t_open }, timings, log: lines, retained_work: run.work,
   };
@@ -196,13 +207,15 @@ try {
 } catch (error) {
   failure = error;
   process.exitCode = 1;
+  try { await page?.screenshot({ path: join(DEFAULT_EVIDENCE_DIR, `${runId}-error.png`), fullPage: true }); } catch { /* best effort failure evidence */ }
   log(`ERROR ${runId}: ${error?.message?.split('\n')[0] ?? String(error)}`);
 } finally {
-  const cleanup = await stopProcesses(children).catch((error) => [{ state: 'error', error: error.message }]);
+  // Close the UI's SSE subscriptions before waiting for normal HTTP shutdown.
   let browserCleanup = { state: 'closed' };
   try { await closeFreshUI(browser); } catch (error) { browserCleanup = { state: 'error', error: error.message.split('\n')[0] }; }
+  const cleanup = await stopProcesses(children).catch((error) => [{ state: 'error', error: error.message }]);
   const processCleanupOk = cleanup.every(isFreshCleanExit);
-  const payload = result ?? { run_id: runId, passed: false, failures: [failure?.message ?? 'fresh dual run failed'], timings_observed: observedTimings, retained_work: run.work, log: lines };
+  const payload = result ?? { run_id: runId, passed: false, failures: [failure?.message ?? 'fresh dual run failed'], page_errors: ui?.pageErrors, api_traffic: ui?.apiTraffic, timings_observed: observedTimings, retained_work: run.work, log: lines };
   const namespace = { path: run.work, absent: false, state: 'pending' };
   if (processCleanupOk && browserCleanup.state === 'closed') {
     try {

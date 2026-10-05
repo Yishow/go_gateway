@@ -1,0 +1,18 @@
+{
+  "run_id": "basic-integrity-20261005b",
+  "original_result": "failed; original cleanup contained gateway SIGKILL and is retained unchanged",
+  "followup_owned_cleanup": {
+    "original_pids": [
+      29526,
+      29527,
+      29528
+    ],
+    "ps_exit_code": 1,
+    "ps_output": "",
+    "processes_absent": true,
+    "browser": "closed per original result",
+    "namespace": "/tmp/gw-f-basic-integrity-20261005b",
+    "namespace_absent": true
+  },
+  "other_resources": "not touched"
+}

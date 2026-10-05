@@ -172,19 +172,14 @@ export const SummaryRail: React.FC<SummaryRailProps> = ({
         <div className="flex items-center gap-2 mb-2">
           <Icon name="db" className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            資料庫寫入
+            資料庫連線
           </span>
         </div>
         {connector && connector.name ? (
           <>
+            <Row label="名稱" value={connector.name} />
             <Row label="類型" value={connector.kind} mono />
-            <Row label="表" value={`${connector.schema}.${connector.table}`} mono />
-            <Row label="間隔" value={`${connector.write_interval_seconds}s`} mono />
-            <Row
-              label="目標"
-              value={`${db?.targets ? Object.values(db.targets).filter((t) => t.enabled).length : 0} 欄位`}
-              mono
-            />
+            <p className="mt-2 text-[10px] text-slate-400">表格、記錄間隔與量測點以 Basic／Advanced 群組設定為準。</p>
           </>
         ) : (
           <div className="text-[11px] text-slate-500 italic">尚未設定</div>

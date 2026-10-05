@@ -42,9 +42,7 @@ export function Step4SupportPanels({
             <span className="rounded-full border border-slate-700 px-2 py-1 font-mono text-[11px] text-slate-200">
               {connector.database}
             </span>
-            <span className="rounded-full border border-slate-700 px-2 py-1 font-mono text-[11px] text-slate-200">
-              {connector.schema ? `${connector.schema}.${connector.table}` : connector.table}
-            </span>
+
           </div>
         }
       >
@@ -61,8 +59,8 @@ export function Step4SupportPanels({
       </CollapsibleSupportCard>
 
       <CollapsibleSupportCard
-        title={t('step4.delivery_truth_title')}
-        subtitle={t('step4.delivery_truth_hint')}
+        title={t('step4.connector_diagnostics_title')}
+        subtitle={t('step4.connector_diagnostics_hint')}
         collapsedLabel={t('step4.delivery_expand_btn')}
         expandedLabel={t('step4.delivery_collapse_btn')}
         summary={
@@ -70,12 +68,7 @@ export function Step4SupportPanels({
             <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
               {connector.status}
             </span>
-            <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
-              {connector.last_write_status ?? 'unknown'}
-            </span>
-            <span className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-200">
-              {connector.last_flush_status ?? 'unknown'}
-            </span>
+
           </div>
         }
       >

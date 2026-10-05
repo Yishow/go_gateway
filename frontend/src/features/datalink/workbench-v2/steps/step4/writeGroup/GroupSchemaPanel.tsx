@@ -291,7 +291,7 @@ export const GroupSchemaPanel: React.FC<GroupSchemaPanelProps> = ({
 
       {effectiveOperation && (
         <div className="space-y-1 text-xs text-slate-300" role="status" data-testid="group-schema-operation">
-          <p>{t('step4.group.schema.operation')}: <span className="font-mono">{effectiveOperation.operation_id}</span></p>
+          <details><summary>{t('step4.basic.diagnostics')}</summary><p>{t('step4.group.schema.operation')}: <span className="font-mono">{effectiveOperation.operation_id}</span></p></details>
           <p>{t('step4.group.schema.status')}: <span className="font-mono">{operationStatus(effectiveOperation, t)}</span></p>
           {detail && <p>{t('step4.group.schema.reason')}: {detail}</p>}
         </div>

@@ -285,13 +285,12 @@ function field(page, english, chinese) {
   return page.getByLabel(new RegExp(`${english}|${chinese}`, 'i')).first();
 }
 
-export async function configureFreshSQLite(page, base, { path, table = '' }) {
+export async function configureFreshSQLite(page, base, { path }) {
   await page.getByTestId('step-nav-button-4').click();
-  await page.getByRole('button', { name: /SQLite/i }).click();
+  await page.getByRole('button', { name: /^SQLite/i }).click();
   await page.waitForTimeout(800);
   const nameField = field(page, 'Connection Name', '連線名稱');
   const databaseField = field(page, 'DB File Path', '資料庫檔案路徑');
-  const tableField = field(page, 'Table Name', '資料表名稱');
   const waitConfig = async (predicate, input, expected, label) => {
     const deadline = Date.now() + 20_000;
     let last;
@@ -321,9 +320,8 @@ export async function configureFreshSQLite(page, base, { path, table = '' }) {
   await databaseField.fill(path);
   await databaseField.press('Tab');
   await waitConfig((data) => data?.database === path, databaseField, path, 'database path');
-  await tableField.fill(table);
-  await tableField.press('Tab');
-  const savedConfig = await waitConfig((data) => data?.database === path && data?.table === table, tableField, table, 'table');
+  const savedConfig = await observeJSON(base, '/studio-v2/workspace/database-config');
+  if (await page.getByTestId('input-table-name').count()) throw new Error('obsolete connector table setting is still present');
   await page.reload();
   await page.getByTestId('step-nav-button-4').click();
   await page.getByTestId('basic-recording-panel').waitFor({ timeout: 20_000 });
@@ -351,34 +349,26 @@ export async function createFreshManagedGroup(page, { name = 'F managed group' }
   return matches[0];
 }
 
-/** Basic Start first owns the canonical group; schema preparation then opens that same group. */
+/** Explicit Basic preparation owns the canonical group; DDL still requires preview and confirmation. */
 export async function prepareFreshBasicGroup(page, base, deviceId) {
   if (deviceId) await page.getByTestId('basic-recording-device').selectOption(deviceId);
   const tStart = monotonicNs();
-  await page.getByTestId('basic-recording-start').click();
-  await page.getByTestId('basic-recording-status').waitFor({ timeout: 30_000 });
-  try {
-    await page.getByTestId('basic-recording-open-advanced').waitFor({ timeout: 30_000 });
-  } catch (error) {
-    const status = await page.getByTestId('basic-recording-status').innerText().catch(() => 'status unavailable');
-    throw new Error(`Basic preparation did not request schema: ${status.replace(/\s+/g, ' ').slice(-1200)} (${error.message.split('\n')[0]})`);
-  }
+  await page.getByTestId('basic-recording-prepare').click();
+  await page.getByTestId('group-schema-panel').waitFor({ timeout: 30_000 });
   const devices = await observeJSON(base, '/studio-v2/workspace/devices');
   const device = (Array.isArray(devices) ? devices : devices.devices ?? []).find((item) => item.id === deviceId) ??
     (Array.isArray(devices) ? devices : devices.devices ?? [])[0];
   const groups = await observeJSON(base, '/studio-v2/workspace/write-groups');
   const basic = (groups.groups ?? []).filter((group) => group.basic_managed_device_id === device?.id);
   if (basic.length !== 1) throw new Error(`expected one Basic canonical group, found ${basic.length}`);
-  await page.getByTestId('basic-recording-open-advanced').click();
-  await page.getByTestId(`group-open-${basic[0].id}`).click();
-  await page.getByTestId('group-schema-panel').waitFor({ timeout: 30_000 });
-  return { t_start: tStart, first_status_text: await page.getByTestId('basic-recording-status').innerText(), group: basic[0] };
+  return { t_start: tStart, first_status_text: 'Basic group prepared; DDL awaits explicit preview and confirmation', group: basic[0] };
 }
 
-export async function previewAndApplyFreshSchema(page) {
+export async function previewAndApplyFreshSchema(page, { beforeConfirm } = {}) {
   await page.getByTestId('group-schema-preview').click();
   await page.getByTestId('group-schema-preview-result').waitFor({ timeout: 20_000 });
   const previewText = await page.getByTestId('group-schema-preview-result').innerText();
+  if (beforeConfirm) await beforeConfirm();
   await page.getByTestId('group-schema-apply').click();
   await page.getByTestId('group-schema-operation').waitFor({ timeout: 30_000 });
   await page.waitForFunction(() => /succeeded|成功/.test(document.querySelector('[data-testid="group-schema-operation"]')?.textContent ?? ''), null, { timeout: 30_000 });

@@ -122,7 +122,7 @@ try {
   const schema = await previewAndApplyFreshSchema(page);
   const afterApply = preflightFreshSQLite(target, run.work);
   if (afterApply.recording_table_present !== false || !existsSync(target)) throw new Error('schema confirmation did not create SQLite target');
-  await page.getByTestId('group-editor-close').click();
+  if (await page.getByTestId('group-editor-close').count()) await page.getByTestId('group-editor-close').click();
   const start = await startFreshBasic(page);
   const tableRows = jsonRows(target, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
   const tables = tableRows.map((row) => row.name).filter((name) => /^gw_group_[A-Za-z0-9_]+$/.test(name));

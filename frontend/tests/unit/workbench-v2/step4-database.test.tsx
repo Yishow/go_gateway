@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ConnectorSection } from '../../../src/features/datalink/workbench-v2/steps/step4/ConnectorSection';
 import { CommitSummary } from '../../../src/features/datalink/workbench-v2/steps/step4/CommitSummary';
 import { Step4Database } from '../../../src/features/datalink/workbench-v2/steps/step4/Step4Database';
@@ -157,184 +157,15 @@ describe('Step 4 Database UI Components & Integration', () => {
       }));
     });
 
-    it('資料庫 target 設定變更後應清掉舊的 DDL 預覽', async () => {
-      vi.mocked(studioV2WorkspaceDatabaseAPI.generateSchema).mockResolvedValue({
-        connector_id: 'db-1',
-        dry_run: true,
-        statements: ['ALTER TABLE sensor_readings ADD COLUMN temp_in_c REAL;'],
-        executed: 0,
-      });
-
-      const dispatch = vi.fn();
-      const initialState = {
-        ...INITIAL_STATE,
-        points: [
-          { id: 'p-1', device_id: 'd-1', rule_id: 'r-1', rule_name: 'Holding Registers', name: 't_1', address: '40001', data_type: 'int16', function: 'holding_register' as const, width: 1, enabled: true, skipped: false, _rule_scale: 1, _rule_offset: 0 },
-        ],
-        mappings: {
-          'p-1': { point_id: 'p-1', tag_key: 'line1.t_1', display_name: 'T1', unit: 'C', target_type: 'float64' as const, scale: 1, offset: 0, enabled: true },
-        },
-        db: {
-          connector: {
-            ...INITIAL_STATE.db.connector,
-            kind: 'postgres' as const,
-            save_state: 'saved' as const,
-          },
-          targets: {
-            'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_in_c', enabled: true, save_state: 'saved' as const },
-          },
-        },
-      };
-
-      const { rerender } = render(
-        <Step4Database
-          state={initialState}
-          dispatch={dispatch}
-          onCommit={() => { }}
-        />
-      );
-
-      fireEvent.click(screen.getByText('step4.schema_preview_btn'));
-
-      await waitFor(() => {
-        expect(screen.getByText('ALTER TABLE sensor_readings ADD COLUMN temp_in_c REAL;')).toBeInTheDocument();
-      });
-
-      rerender(
-        <Step4Database
-          state={{
-            ...initialState,
-            db: {
-              ...initialState.db,
-              targets: {
-                'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_out_c', enabled: true, save_state: 'saved' as const },
-              },
-            },
-          }}
-          dispatch={dispatch}
-          onCommit={() => { }}
-        />
-      );
-
-      await waitFor(() => {
-        expect(screen.queryByText('ALTER TABLE sensor_readings ADD COLUMN temp_in_c REAL;')).not.toBeInTheDocument();
-      });
-    });
-
-    it('connector 或 target autosave 未完成時應禁用 schema 按鈕', () => {
-      const dispatch = vi.fn();
-      const state = {
-        ...INITIAL_STATE,
-        db: {
-          connector: {
-            ...INITIAL_STATE.db.connector,
-            kind: 'postgres' as const,
-            save_state: 'saving' as const,
-          },
-          targets: {
-            'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_in_c', enabled: true, save_state: 'saved' as const },
-          },
-        },
-      };
-
-      render(
-        <Step4Database
-          state={state}
-          dispatch={dispatch}
-          onCommit={() => { }}
-        />
-      );
-
-      expect(screen.getByText('step4.schema_preview_btn')).toBeDisabled();
-      expect(screen.getByText('step4.schema_create_btn')).toBeDisabled();
-    });
-
-    it('target 正在停用 autosave 時也應禁用 schema 按鈕', () => {
-      const dispatch = vi.fn();
-      const state = {
-        ...INITIAL_STATE,
-        db: {
-          connector: {
-            ...INITIAL_STATE.db.connector,
-            kind: 'postgres' as const,
-            save_state: 'saved' as const,
-          },
-          targets: {
-            'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_in_c', enabled: false, save_state: 'saving' as const },
-          },
-        },
-      };
-
-      render(
-        <Step4Database
-          state={state}
-          dispatch={dispatch}
-          onCommit={() => { }}
-        />
-      );
-
-      expect(screen.getByText('step4.schema_preview_btn')).toBeDisabled();
-      expect(screen.getByText('step4.schema_create_btn')).toBeDisabled();
-    });
-
-    it('只修改 password 後也應清掉舊的 DDL 預覽', async () => {
-      vi.mocked(studioV2WorkspaceDatabaseAPI.generateSchema).mockResolvedValue({
-        connector_id: 'db-1',
-        dry_run: true,
-        statements: ['ALTER TABLE sensor_readings ADD COLUMN temp_in_c REAL;'],
-        executed: 0,
-      });
-
-      const dispatch = vi.fn();
-      const initialState = {
-        ...INITIAL_STATE,
-        db: {
-          connector: {
-            ...INITIAL_STATE.db.connector,
-            kind: 'postgres' as const,
-            password: 'secret-a',
-            save_state: 'saved' as const,
-          },
-          targets: {
-            'p-1': { tag_id: 'tag.line1.t_1', column_name: 'temp_in_c', enabled: true, save_state: 'saved' as const },
-          },
-        },
-      };
-
-      const { rerender } = render(
-        <Step4Database
-          state={initialState}
-          dispatch={dispatch}
-          onCommit={() => { }}
-        />
-      );
-
-      fireEvent.click(screen.getByText('step4.schema_preview_btn'));
-
-      await waitFor(() => {
-        expect(screen.getByText('ALTER TABLE sensor_readings ADD COLUMN temp_in_c REAL;')).toBeInTheDocument();
-      });
-
-      rerender(
-        <Step4Database
-          state={{
-            ...initialState,
-            db: {
-              ...initialState.db,
-              connector: {
-                ...initialState.db.connector,
-                password: 'secret-b',
-              },
-            },
-          }}
-          dispatch={dispatch}
-          onCommit={() => { }}
-        />
-      );
-
-      await waitFor(() => {
-        expect(screen.queryByText('ALTER TABLE sensor_readings ADD COLUMN temp_in_c REAL;')).not.toBeInTheDocument();
-      });
+    it('主線不再提供 legacy non-preview DDL 或重複 table/interval 設定', () => {
+      const state = { ...INITIAL_STATE, db: { ...INITIAL_STATE.db, connector: { ...INITIAL_STATE.db.connector, kind: 'postgres' as const, save_state: 'saved' as const } } };
+      const { rerender } = render(<Step4Database state={state} dispatch={vi.fn()} />);
+      expect(screen.queryByText('step4.schema_preview_btn')).not.toBeInTheDocument();
+      expect(screen.queryByText('step4.schema_create_btn')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('step4.field_table')).not.toBeInTheDocument();
+      rerender(<Step4Database state={{ ...state, db: { ...state.db, connector: { ...state.db.connector, password: 'updated-secret', save_state: 'saving' as const } } }} dispatch={vi.fn()} />);
+      expect(screen.queryByText('step4.schema_create_btn')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('group-schema-preview-result')).not.toBeInTheDocument();
     });
 
     it('在 Step 4 選擇 Connector Pool 既有連線時應自動套用連線設定', () => {
@@ -345,11 +176,11 @@ describe('Step 4 Database UI Components & Integration', () => {
           ...INITIAL_STATE.settings,
           connectors: [
             {
-              id: 'conn-mysql-custom',
-              name: 'My Custom MySQL',
-              kind: 'mysql' as const,
+              id: 'conn-postgres-custom',
+              name: 'My Custom PostgreSQL',
+              kind: 'postgres' as const,
               host: '10.0.0.99',
-              port: 3306,
+              port: 5439,
               database: 'custom_db',
               username: 'custom_root',
               password: 'p',
@@ -372,15 +203,15 @@ describe('Step 4 Database UI Components & Integration', () => {
       );
 
       const poolSelect = screen.getByLabelText('step4.load_from_pool');
-      fireEvent.change(poolSelect, { target: { value: 'conn-mysql-custom' } });
+      fireEvent.change(poolSelect, { target: { value: 'conn-postgres-custom' } });
 
       expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
         type: 'updateDbConnector',
         patch: expect.objectContaining({
-          kind: 'mysql',
-          name: 'My Custom MySQL',
+          kind: 'postgres',
+          name: 'My Custom PostgreSQL',
           host: '10.0.0.99',
-          port: 3306,
+          port: 5439,
           database: 'custom_db',
           username: 'custom_root',
         }),

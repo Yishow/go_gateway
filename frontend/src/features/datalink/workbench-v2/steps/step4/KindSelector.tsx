@@ -1,3 +1,4 @@
+import { supportsWriteGroupKind } from './writeGroupCapabilities';
 import { useTranslation } from 'react-i18next';
 import type { DbConnector } from '../../state/types';
 
@@ -42,12 +43,13 @@ export function KindSelector({ value, onChange, disabled = false }: KindSelector
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {options.map((opt) => {
           const isActive = value === opt.kind;
+          const unavailable = !supportsWriteGroupKind(opt.kind);
           return (
             <button
               key={opt.kind}
               type="button"
-              disabled={disabled}
-              onClick={() => onChange(opt.kind)}
+              disabled={disabled || unavailable}
+              onClick={() => { if (!unavailable) onChange(opt.kind); }}
               className={`
                 flex flex-col items-center justify-center p-4 rounded-xl border text-center transition-all duration-200
                 ${disabled 
@@ -67,7 +69,7 @@ export function KindSelector({ value, onChange, disabled = false }: KindSelector
                 {t(`step4.kind_${opt.kind}`, opt.label)}
               </span>
               <span className="text-xs text-gray-500 mt-1 block leading-tight">
-                {opt.desc}
+                {unavailable ? t('step4.group_kind_unsupported') : opt.desc}
               </span>
             </button>
           );

@@ -67,7 +67,8 @@ describe('Step 4 Database controls', () => {
     );
 
     // A 案已移除舊 destination overview 卡；目的地現由 connector 設定與群組編輯器呈現。
-    expect(screen.getByLabelText('step4.field_table')).toHaveValue('sensor_readings');
+    expect(screen.queryByLabelText('step4.field_table')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('step4.field_database')).toBeInTheDocument();
     expect(screen.getByLabelText('step4.field_host')).toBeInTheDocument();
     expect(screen.queryByTestId('database-delivery-truth')).not.toBeInTheDocument();
   });

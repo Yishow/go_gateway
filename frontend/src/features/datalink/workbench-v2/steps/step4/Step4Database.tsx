@@ -3,12 +3,10 @@ import { useMemo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStep4Activation } from './useStep4Activation';
 import {
-  buildSchemaPreviewSignature,
   createPoolConnectorPatch,
   databaseConnectorNeedsPassword,
   isDatabaseConnectorIdentityChange,
   isRowGroupScopeChange,
-  rowGroupsForConnector,
   useStep4Readonly,
 } from './step4DatabaseHelpers';
 import { WriteGroupSection } from './writeGroup/WriteGroupSection';
@@ -18,7 +16,6 @@ import { SafeQueryBoundary } from '@/utils/SafeQueryBoundary';
 import { CommitSummary } from './CommitSummary';
 import { CommitProgress } from './CommitProgress';
 import { CommitSuccessCard } from './CommitSuccessCard';
-import { SchemaSetupSection } from './SchemaSetupSection';
 import { Step4SupportPanels } from './Step4SupportPanels';
 import { ShareOutputSummary } from './ShareOutputSummary';
 import { ActivationNeutralSummary, ActivationRecoveryNotice } from './ActivationNeutralSummary';
@@ -72,7 +69,6 @@ function Step4DatabaseContent({
   const isReadonly = useStep4Readonly(activation.phase);
   const { connector, targets } = state.db;
   const rowGroups = useMemo(() => state.db.row_groups ?? [], [state.db.row_groups]);
-  const scopedRowGroups = useMemo(() => rowGroupsForConnector(connector, rowGroups), [connector, rowGroups]);
   const enabledPoints = useMemo(() => state.points.filter(p => p.enabled), [state.points]);
 
   const clearRowGroupScope = useCallback(() => {
@@ -134,18 +130,6 @@ function Step4DatabaseContent({
     dispatch({ type: 'updateDbConnector', patch: nextPatch });
   }, [clearRowGroupScope, connector, dispatch]);
 
-  const schemaActionsDisabled = useMemo(() => {
-    if (connector.save_state !== 'saved') {
-      return true;
-    }
-
-    return Object.values(targets).some((target) => target.save_state !== 'saved');
-  }, [connector.save_state, targets]);
-
-  const schemaPreviewSignature = useMemo(() => buildSchemaPreviewSignature(connector, targets, {
-    workspaceId, devices: state.devices, points: state.points, mappings: state.mappings, rowGroups: scopedRowGroups,
-  }), [connector, targets, workspaceId, state.devices, state.points, state.mappings, scopedRowGroups]);
-
   const hasActiveDevice = state.devices.some((d) => d.status === 'active' || d.running) ||
     Boolean(activation.recovery?.devices.some((device) => device.running));
   const canContinueToRuntime = activation.canContinue || hasActiveDevice;
@@ -194,14 +178,6 @@ function Step4DatabaseContent({
         onUpdateConnector={handleUpdateConnector}
         onKindChange={handleKindChange}
         onSelectConnector={handleSelectConnectorPool}
-        tableSetup={
-          <SchemaSetupSection
-            connector={connector}
-            workspaceId={workspaceId}
-            schemaActionsDisabled={schemaActionsDisabled || isReadonly}
-            schemaPreviewSignature={schemaPreviewSignature}
-          />
-        }
         disabled={isReadonly || basicOperationActive}
       />
 

@@ -188,36 +188,13 @@ describe('schema operation scope and locking', () => {
     );
 
     fireEvent.click(screen.getByText('step4.activate_btn'));
-    await waitFor(() => expect(screen.getByText('step4.schema_preview_btn')).toBeDisabled());
+    await waitFor(() => expect(screen.getByTestId('basic-recording-prepare')).toBeDisabled());
 
     expect(screen.getByLabelText('step4.field_host')).toBeDisabled();
     // The write group editor is the only database output control left; it is read-only too.
     expect(screen.getByTestId('group-create')).toBeDisabled();
 
     activation.resolve({ workspace_id: 'workspace-step4', results: [{ device_id: 'device-1', status: 'success', message: 'activated' }] });
-  });
-
-  it('ignores a deferred Step 4 preview after the enabled device points change', async () => {
-    const request = deferred<typeof schemaResult>();
-    vi.mocked(studioV2WorkspaceDatabaseAPI.generateSchema).mockReturnValueOnce(request.promise);
-    const initialState = step4State(connector('workspace-step4-scope'));
-    const dispatch = vi.fn();
-    const { rerender } = render(
-      <Step4Database state={initialState} dispatch={dispatch} workspaceId="workspace-step4-scope" />,
-    );
-
-    fireEvent.click(screen.getByTestId('schema-preview-btn'));
-    const movedPoint: Point = { ...point, device_id: 'device-2' };
-    rerender(
-      <Step4Database state={{ ...initialState, points: [movedPoint] }} dispatch={dispatch} workspaceId="workspace-step4-scope" />,
-    );
-    await act(async () => {
-      request.resolve(schemaResult);
-      await request.promise;
-      await Promise.resolve();
-    });
-
-    expect(screen.queryByText(schemaResult.statements[0])).not.toBeInTheDocument();
   });
 
   it('reports that creating tables needs a confirmed preview instead of claiming success', async () => {
