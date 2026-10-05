@@ -19,10 +19,11 @@ export function useCreateStudioV2MappingMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (request: StudioV2WorkspaceMappingRequest) => studioV2MappingsAPI.create(request),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings() });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none' });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none' });
     },
   });
 }
@@ -31,11 +32,12 @@ export function useUpdateStudioV2MappingMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: ({ mappingId, request }: { mappingId: string; request: StudioV2WorkspaceMappingRequest }) =>
       studioV2MappingsAPI.update(mappingId, request),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings() });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none' });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none' });
     },
   });
 }
@@ -44,10 +46,11 @@ export function useDeleteStudioV2MappingMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    retry: false,
     mutationFn: (mappingId: string) => studioV2MappingsAPI.remove(mappingId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings() });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none' });
+      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none' });
     },
   });
 }

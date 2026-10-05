@@ -88,9 +88,10 @@ const studioV2RulesAPI = studioV2ServiceMocks.rules;
 const studioV2MappingsAPI = studioV2ServiceMocks.mappings;
 const studioV2WorkspaceDatabaseAPI = studioV2ServiceMocks.database;
 
+// Match derivePoints(rule-A, float64): IDs stay stable and register span is four.
 const dbPoints = [
   {
-    id: 'point-A',
+    id: 'rule-A-p-0',
     device_id: 'dev-A',
     rule_id: 'rule-A',
     rule_name: 'Line A Registers',
@@ -98,22 +99,22 @@ const dbPoints = [
     address: '40001',
     data_type: 'float64',
     function: 'holding_register',
-    width: 1,
+    width: 4,
     enabled: true,
     skipped: false,
     _rule_scale: 1,
     _rule_offset: 0,
   },
   {
-    id: 'point-B',
+    id: 'rule-A-p-1',
     device_id: 'dev-A',
     rule_id: 'rule-A',
     rule_name: 'Line A Registers',
     name: 'B_0',
-    address: '40002',
+    address: '40005',
     data_type: 'float64',
     function: 'holding_register',
-    width: 1,
+    width: 4,
     enabled: true,
     skipped: false,
     _rule_scale: 1,
@@ -166,12 +167,12 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
       <button
         type="button"
         data-testid="make-point-a-fail"
-        onClick={() => actions.dispatch({ type: 'updateDbTarget', pointId: 'point-A', patch: { column_name: 'missing_column' } })}
+        onClick={() => actions.dispatch({ type: 'updateDbTarget', pointId: 'rule-A-p-0', patch: { column_name: 'missing_column' } })}
       />
       <button
         type="button"
         data-testid="make-point-b-valid"
-        onClick={() => actions.dispatch({ type: 'updateDbTarget', pointId: 'point-B', patch: { column_name: 'line_b_saved' } })}
+        onClick={() => actions.dispatch({ type: 'updateDbTarget', pointId: 'rule-A-p-1', patch: { column_name: 'line_b_saved' } })}
       />
       <button
         type="button"
@@ -220,14 +221,14 @@ vi.mock('../../../src/features/datalink/workbench-v2/shell/WorkbenchV2Shell', ()
       <div data-testid="connector-save-state">{state.db.connector.save_state}</div>
       <div data-testid="point-count">{state.points.length}</div>
       <div data-testid="row-group-count">{state.db.row_groups?.length ?? 0}</div>
-      <div data-testid="target-column-point-A">{state.db.targets['point-A']?.column_name ?? ''}</div>
-      <div data-testid="target-enabled-point-A">{String(state.db.targets['point-A']?.enabled ?? false)}</div>
-      <div data-testid="target-save-state-point-A">{state.db.targets['point-A']?.save_state ?? ''}</div>
-      <div data-testid="target-save-error-point-A">{state.db.targets['point-A']?.save_error ?? ''}</div>
-      <div data-testid="target-column-point-B">{state.db.targets['point-B']?.column_name ?? ''}</div>
-      <div data-testid="target-enabled-point-B">{String(state.db.targets['point-B']?.enabled ?? false)}</div>
-      <div data-testid="target-save-state-point-B">{state.db.targets['point-B']?.save_state ?? ''}</div>
-      <div data-testid="target-save-error-point-B">{state.db.targets['point-B']?.save_error ?? ''}</div>
+      <div data-testid="target-column-point-A">{state.db.targets['rule-A-p-0']?.column_name ?? ''}</div>
+      <div data-testid="target-enabled-point-A">{String(state.db.targets['rule-A-p-0']?.enabled ?? false)}</div>
+      <div data-testid="target-save-state-point-A">{state.db.targets['rule-A-p-0']?.save_state ?? ''}</div>
+      <div data-testid="target-save-error-point-A">{state.db.targets['rule-A-p-0']?.save_error ?? ''}</div>
+      <div data-testid="target-column-point-B">{state.db.targets['rule-A-p-1']?.column_name ?? ''}</div>
+      <div data-testid="target-enabled-point-B">{String(state.db.targets['rule-A-p-1']?.enabled ?? false)}</div>
+      <div data-testid="target-save-state-point-B">{state.db.targets['rule-A-p-1']?.save_state ?? ''}</div>
+      <div data-testid="target-save-error-point-B">{state.db.targets['rule-A-p-1']?.save_error ?? ''}</div>
     </div>
   ),
 }));
@@ -272,12 +273,13 @@ function resetDatabaseAutosaveMocks() {
     mappingFixture({
       id: 'mapping-B',
       point_id: 'persisted-point-B',
-      address: '40002',
+      address: '40005',
       tag_id: 'tag-B',
       tag_key: 'line.b.temp',
       display_name: 'Line B Temp',
     }),
   ]);
+  vi.mocked(studioV2MappingsAPI.remove).mockResolvedValue({ runtime_apply_status: 'not_running' });
   vi.mocked(studioV2WorkspaceDatabaseAPI.getConfig).mockResolvedValue(sqliteConfigFixture());
   vi.mocked(studioV2WorkspaceDatabaseAPI.listTargets).mockResolvedValue([
     dbTargetFixture(),

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { WorkbenchV2State } from '../../state/types';
 import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { useAllPoints, useMappingValidation, useDeviceProtocolMap } from '../../state/selectors';
+import { MappingSaveFailure } from './MappingSaveFailure';
 import { MappingTable } from './MappingTable';
 import { MeasurementTemplateSelector } from './MeasurementTemplateSelector';
 import { useStep3LiveValues } from './useStep3LiveValues';
@@ -30,6 +31,7 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   onBack,
 }) => {
   const { t } = useTranslation('workbench-v2');
+  const { t: mappingErrorText } = useTranslation('mapping-errors');
 
   // 1. 取得設備協議對照表與點位與啟用點位列表
   const deviceProtocolMap = useDeviceProtocolMap(state.devices);
@@ -37,14 +39,14 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
   const enabledPoints = useMemo(() => allPoints.filter((p) => p.enabled && !p.skipped), [allPoints]);
 
   const enabledPointsIdentityStr = enabledPoints
-    .map((p) => `${p.id}:${p.device_id}:${p.rule_id}:${p.address.trim().toUpperCase()}`)
+    .map((p) => `${p.id}:${p.device_id}:${p.rule_id}:${p.address.trim().toUpperCase()}:${p.data_type}:${p.width}`)
     .join(',');
 
   // 2. 自動 mapping 初始化效應
   useEffect(() => {
     dispatch({ type: 'initMappingsForPoints', points: enabledPoints });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledPointsIdentityStr, dispatch]);
+  }, [enabledPointsIdentityStr]);
 
   // 3. 選取列管理
   const [selectedIdx, setSelectedIdx] = useState<number | null>(
@@ -79,6 +81,18 @@ export const Step3Mapping: React.FC<Step3MappingProps> = ({
 
       {/* 量測語意是進階選用功能，基本的名稱／型別／換算流程不需要它 */}
       <MeasurementTemplateSelector deviceId={activeDeviceId} />
+
+      {state.mapping_cleanup_incomplete && (
+        <div role="status" className="text-xs text-amber-300" data-testid="mapping-cleanup-warning">
+          {mappingErrorText('cleanup_incomplete')}
+        </div>
+      )}
+      {Object.entries(state.mappings).filter(([pointId, mapping]) => mapping.save_state === 'save-error' && !enabledPoints.some((point) => point.id === pointId)).map(([pointId, mapping]) => (
+        <div key={pointId} role="alert" className="text-xs text-rose-400" data-testid={`mapping-save-state-${pointId}`}>
+          {mapping.display_name || mapping.tag_key}
+          <MappingSaveFailure pointId={pointId} mapping={mapping} dispatch={dispatch} />
+        </div>
+      ))}
 
       <MappingTable
         points={enabledPoints}

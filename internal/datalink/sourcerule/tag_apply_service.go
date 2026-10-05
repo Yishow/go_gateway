@@ -42,6 +42,8 @@ type ApplyTagCandidatesResponse struct {
 }
 
 func (s *Service) ApplyTagCandidates(ctx context.Context, ruleID string, req ApplyTagCandidatesRequest) (*ApplyTagCandidatesResponse, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	if s.tagSvc == nil || s.mappingSvc == nil {
 		return nil, fmt.Errorf("tag/mapping 服務未配置，無法套用來源規則標籤")
 	}

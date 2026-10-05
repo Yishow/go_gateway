@@ -21,6 +21,8 @@ type UpsertTagReviewDecisionRequest struct {
 }
 
 func (s *Service) UpsertTagReviewDecision(ctx context.Context, ruleID string, req UpsertTagReviewDecisionRequest) (*schema.SourceRuleTagReviewDecision, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	if err := s.ValidateCandidateScope(ctx, ruleID, CandidateScopeRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, RevisionID: req.RevisionID}); err != nil {
 		return nil, err
 	}

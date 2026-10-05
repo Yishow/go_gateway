@@ -5,6 +5,7 @@ import type { WorkbenchV2Action } from '../../state/useWorkbenchV2State';
 import { useDeviceColor } from '../../state/deviceColors';
 import type { RuntimeStreamConnectionState, RuntimeStreamRecovery } from '../../../../../types/datalink';
 import { MappingPreviewCells } from './MappingPreviewCells';
+import { MappingSaveFailure } from './MappingSaveFailure';
 import { MappingPayloadDialog } from './MappingPayloadDialog';
 
 export interface MappingRowProps {
@@ -34,14 +35,6 @@ function formatDeviceValue(value: unknown): string {
   }
 }
 
-function requestIdFromSaveError(value: string | null | undefined): string | undefined {
-  return value?.match(/Request ID:\s*([A-Za-z0-9_-]{1,128})/i)?.[1];
-}
-
-function errorCodeFromSaveError(value: string | null | undefined): string | undefined {
-  return value && /^[a-z][a-z0-9_]{1,63}$/.test(value) ? value : undefined;
-}
-
 /**
  * 點位映射表的單一資料列元件
  * 
@@ -64,9 +57,6 @@ export const MappingRow: React.FC<MappingRowProps> = ({
   const devTheme = useDeviceColor(point.device_id);
 
   const devName = devices.find((d) => d.id === point.device_id)?.name || t('step3.unknownDevice');
-  const saveErrorRequestId = requestIdFromSaveError(mapping.save_error);
-  const saveErrorCode = errorCodeFromSaveError(mapping.save_error);
-
   // 阻止事件傳播，避免點擊輸入框時觸發整列選取
   const preventPropagation = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
@@ -147,17 +137,7 @@ export const MappingRow: React.FC<MappingRowProps> = ({
             data-testid={`mapping-save-state-${point.id}`}
           >
             {t(`step3.saveStates.${mapping.save_state}`)}
-            {mapping.save_state === 'save-error' && mapping.save_error && (
-              <>
-                <span> · {t(`errors.${saveErrorCode ?? 'mapping_save_failed'}`, { defaultValue: t('errors.mapping_save_failed') })}</span>
-                <span> · {t('errors.mapping_save_failed_action')}</span>
-                {saveErrorRequestId && (
-                  <span data-testid={`mapping-save-request-id-${point.id}`}>
-                    {' · '}{t('errors.request_id')}: {saveErrorRequestId}
-                  </span>
-                )}
-              </>
-            )}
+            {mapping.save_state === 'save-error' && <MappingSaveFailure pointId={point.id} mapping={mapping} dispatch={dispatch} />}
           </div>
         )}
       </td>

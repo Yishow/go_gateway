@@ -167,13 +167,8 @@ func (s *Service) restoreRuleSnapshot(ctx context.Context, snapshot *sourceRuleS
 	} else if err := s.repo.Update(ctx, cloneRule(snapshot.rule)); err != nil {
 		restoreErrs = append(restoreErrs, fmt.Errorf("restore source rule: %w", err))
 	}
-	if err := s.repo.DeleteLinks(ctx, snapshot.rule.ID); err != nil {
+	if err := s.repo.ReplaceLinks(ctx, snapshot.rule.ID, cloneSourceRuleLinks(snapshot.links)); err != nil {
 		restoreErrs = append(restoreErrs, fmt.Errorf("restore source-rule links: %w", err))
-	}
-	if len(snapshot.links) > 0 {
-		if err := s.repo.CreateLinks(ctx, cloneSourceRuleLinks(snapshot.links)); err != nil {
-			restoreErrs = append(restoreErrs, fmt.Errorf("restore source-rule links: %w", err))
-		}
 	}
 	if len(snapshot.snapshots) > 0 {
 		if err := s.repo.ReplaceCandidateSnapshots(ctx, cloneCandidateSnapshotsForRollback(snapshot.snapshots)); err != nil {

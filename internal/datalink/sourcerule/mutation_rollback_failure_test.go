@@ -21,14 +21,6 @@ type rollbackSourceRuleRepository struct {
 	createLinksFailures int
 }
 
-func (r *rollbackSourceRuleRepository) CreateLinks(ctx context.Context, links []*schema.SourceRuleLink) error {
-	if r.createLinksFailures > 0 {
-		r.createLinksFailures--
-		return errors.New("injected source-rule link write failure")
-	}
-	return r.MemoryRepository.CreateLinks(ctx, links)
-}
-
 type rollbackPointRepository struct {
 	point.Repository
 	getFailures    map[int]error

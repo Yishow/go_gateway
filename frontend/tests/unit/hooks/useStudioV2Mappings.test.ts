@@ -88,10 +88,10 @@ describe('useStudioV2Mappings hooks', () => {
 
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.mappings(),
+      queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.bootstrap(),
+      queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none',
     });
   });
 
@@ -115,10 +115,10 @@ describe('useStudioV2Mappings hooks', () => {
 
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.mappings(),
+      queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.bootstrap(),
+      queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none',
     });
   });
 
@@ -159,10 +159,10 @@ describe('useStudioV2Mappings hooks', () => {
 
     await options.onSuccess();
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.mappings(),
+      queryKey: studioV2WorkspaceKeys.mappings(), refetchType: 'none',
     });
     expect(invalidateQueriesMock).toHaveBeenCalledWith({
-      queryKey: studioV2WorkspaceKeys.bootstrap(),
+      queryKey: studioV2WorkspaceKeys.bootstrap(), refetchType: 'none',
     });
   });
 });

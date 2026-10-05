@@ -7,6 +7,9 @@
  * `internal/api/handlers/typed_errors.go` `ErrCode*` constants.
  */
 export const BACKEND_ERROR_CODES = [
+  'workspace_mapping_conflict',
+  'workspace_mapping_not_found',
+  'workspace_mapping_save_failed',
   'preview_invalid_request',
   'preview_unavailable',
   'preview_stream_closed',

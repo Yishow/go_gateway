@@ -3,7 +3,6 @@ package sourcerule
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
@@ -26,14 +25,6 @@ type stubRuntimeSync struct {
 type failingLinkRepository struct {
 	*MemoryRepository
 	failCreateLinks bool
-}
-
-func (r *failingLinkRepository) CreateLinks(ctx context.Context, links []*schema.SourceRuleLink) error {
-	if r.failCreateLinks {
-		r.failCreateLinks = false
-		return errors.New("create links failed")
-	}
-	return r.MemoryRepository.CreateLinks(ctx, links)
 }
 
 func (s *stubRuntimeSync) UpsertPoint(pointRecord *schema.Point) {

@@ -14,7 +14,7 @@ func (s *Service) SyncDerivedPointState(ctx context.Context) error {
 	}
 
 	for _, rule := range rules {
-		if err := s.syncDerivedRuleState(ctx, rule); err != nil {
+		if err := s.SyncRuleDerivedState(ctx, rule.ID); err != nil {
 			return err
 		}
 	}
@@ -27,6 +27,8 @@ func (s *Service) SyncDerivedPointState(ctx context.Context) error {
 // group binds to is already the settled one; otherwise the first restart would
 // adopt the mapping and invalidate every group built on it.
 func (s *Service) SyncRuleDerivedState(ctx context.Context, ruleID string) error {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	rule, err := s.repo.GetByID(ctx, ruleID)
 	if err != nil {
 		return fmt.Errorf("取得來源規則失敗: %w", err)

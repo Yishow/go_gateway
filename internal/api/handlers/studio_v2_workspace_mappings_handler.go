@@ -65,40 +65,12 @@ func (h *StudioV2WorkspaceMappingsHandler) List(c *gin.Context) {
 
 	payload := make([]studioV2WorkspaceMappingResponse, 0)
 	for _, rule := range rules {
-		links, err := h.ruleSvc.ListLinks(c.Request.Context(), rule.ID)
+		items, err := h.listWorkspaceRuleMappings(c.Request.Context(), record.ID, rule.ID)
 		if err != nil {
 			renderStudioV2WorkspaceMappingError(c, err)
 			return
 		}
-		linksChanged := false
-		for _, link := range links {
-			mappingRecord, ok, changed, err := h.recoverWorkspaceLinkMapping(c.Request.Context(), link)
-			if err != nil {
-				if errors.Is(err, tag.ErrTagNotFound) {
-					continue
-				}
-				renderStudioV2WorkspaceMappingError(c, err)
-				return
-			}
-			if changed {
-				linksChanged = true
-			}
-			if !ok {
-				continue
-			}
-			item, err := h.buildResponse(c.Request.Context(), record.ID, rule, link, mappingRecord.ID, mappingRecord.TagID)
-			if err != nil {
-				renderStudioV2WorkspaceMappingError(c, err)
-				return
-			}
-			payload = append(payload, item)
-		}
-		if linksChanged {
-			if err := h.ruleSvc.ReplaceLinks(c.Request.Context(), rule.ID, links); err != nil {
-				renderStudioV2WorkspaceMappingError(c, err)
-				return
-			}
-		}
+		payload = append(payload, items...)
 	}
 
 	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true, apiResponseDataKey: payload})
@@ -109,17 +81,16 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 	if !ok {
 		return
 	}
+
+	defer row.release()
 	record, rule, links, link, req := row.record, row.rule, row.links, row.link, row.request
 	if mappingRecord, found, _, err := h.recoverWorkspaceLinkMappingForMutation(c.Request.Context(), link); err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	} else if found {
-		mappingRecord, err = h.saveExistingWorkspaceMapping(c.Request.Context(), rule, links, link, mappingRecord, req)
+		var cleanupStatus string
+		mappingRecord, cleanupStatus, err = h.saveExistingWorkspaceMapping(c.Request.Context(), rule, links, link, mappingRecord, req)
 		if err != nil {
-			renderStudioV2WorkspaceMappingError(c, err)
-			return
-		}
-		if err := h.ruleSvc.ConfirmWorkspaceMapping(c.Request.Context(), rule.ID, rule.RevisionID, mappingRecord, req.TargetType); err != nil {
 			renderStudioV2WorkspaceMappingError(c, err)
 			return
 		}
@@ -128,6 +99,8 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 			renderStudioV2WorkspaceMappingError(c, err)
 			return
 		}
+		payload.CleanupStatus = cleanupStatus
+		row.release()
 		applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{rule.DeviceID}, []string{rule.DeviceID, link.PointID})
 		payload.RuntimeApplyStatus = applyOutcome.Status
 		payload.RuntimeApplyMessage = applyOutcome.Message
@@ -174,6 +147,7 @@ func (h *StudioV2WorkspaceMappingsHandler) Create(c *gin.Context) {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
+	row.release()
 	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{rule.DeviceID}, []string{rule.DeviceID, link.PointID})
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
@@ -186,6 +160,8 @@ func (h *StudioV2WorkspaceMappingsHandler) Update(c *gin.Context) {
 	if !ok {
 		return
 	}
+
+	defer row.release()
 	record, rule, links, link, mappingRecord, req := row.record, row.rule, row.links, row.link, row.mapping, row.request
 	if req.RuleID != "" && req.RuleID != rule.ID {
 		renderStudioV2WorkspaceValidationError(c, errors.New("workspace mapping ownership mismatch"))
@@ -196,12 +172,8 @@ func (h *StudioV2WorkspaceMappingsHandler) Update(c *gin.Context) {
 		return
 	}
 
-	mappingRecord, err := h.saveExistingWorkspaceMapping(c.Request.Context(), rule, links, link, mappingRecord, req)
+	mappingRecord, cleanupStatus, err := h.saveExistingWorkspaceMapping(c.Request.Context(), rule, links, link, mappingRecord, req)
 	if err != nil {
-		renderStudioV2WorkspaceMappingError(c, err)
-		return
-	}
-	if err := h.ruleSvc.ConfirmWorkspaceMapping(c.Request.Context(), rule.ID, rule.RevisionID, mappingRecord, req.TargetType); err != nil {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
@@ -211,6 +183,8 @@ func (h *StudioV2WorkspaceMappingsHandler) Update(c *gin.Context) {
 		renderStudioV2WorkspaceMappingError(c, err)
 		return
 	}
+	payload.CleanupStatus = cleanupStatus
+	row.release()
 	applyOutcome := resolveStudioV2ScopedRuntimeApplyOutcome(c.Request.Context(), h.workspaceSvc, h.deviceSvc, []string{rule.DeviceID}, []string{rule.DeviceID, link.PointID})
 	payload.RuntimeApplyStatus = applyOutcome.Status
 	payload.RuntimeApplyMessage = applyOutcome.Message
@@ -411,19 +385,6 @@ func decodeRuleManagedWorkspaceTagLabels(tagRecord *schema.Tag) (map[string]stri
 		return nil, false
 	}
 	return labels, true
-}
-
-func renderStudioV2WorkspaceMappingError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, mapping.ErrWorkspaceConfirmationConflict):
-		c.JSON(http.StatusConflict, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "Source rule or mapping changed; review and explicitly reapply the source candidate"}})
-	case errors.Is(err, mapping.ErrValidation), errors.Is(err, sourcerule.ErrValidation), errors.Is(err, workspace.ErrValidation):
-		renderStudioV2WorkspaceValidationError(c, err)
-	case errors.Is(err, mapping.ErrMappingNotFound), errors.Is(err, point.ErrPointNotFound), errors.Is(err, tag.ErrTagNotFound), errors.Is(err, sourcerule.ErrSourceRuleNotFound):
-		c.JSON(http.StatusNotFound, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: studioV2MappingRowNotFoundMessage}})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{apiResponseSuccessKey: false, apiResponseErrorKey: gin.H{apiResponseMessageKey: "Studio V2 mapping operation failed"}})
-	}
 }
 
 func boolPtr(value bool) *bool {

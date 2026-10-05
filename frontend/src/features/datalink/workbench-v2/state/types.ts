@@ -143,6 +143,14 @@ export interface MappingValue {
   enabled: boolean;
 }
 
+export interface MappingSaveError {
+  operation?: 'save' | 'delete';
+  code?: string;
+  status?: number;
+  action?: string;
+  requestId?: string;
+}
+
 export interface Mapping {
   point_id: string;
   tag_key: string; // e.g., "line01.temp.inlet"
@@ -163,10 +171,12 @@ export interface Mapping {
   local_value?: MappingValue;
   persisted_value?: MappingValue;
   save_state?: MappingSaveState;
+  save_error_detail?: MappingSaveError | null;
   save_error?: string | null;
 }
 
 export interface WorkbenchV2State {
+  mapping_cleanup_incomplete?: boolean;
   view: 'flow' | 'settings';
   current: 1 | 2 | 3 | 4;
   completed: Set<number>;

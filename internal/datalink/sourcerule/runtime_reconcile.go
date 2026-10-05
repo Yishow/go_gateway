@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-gateway/internal/datalink/common"
+	"strings"
 
 	"go-gateway/internal/datalink/modbusshare"
 	"go-gateway/internal/datalink/schema"
@@ -132,6 +134,15 @@ func (s *Service) reconcileSourceRuleAuthorities(ctx context.Context, operation 
 // CreateWithRuntimeReconcile persists a source rule and hands its derived
 // runtime projections to their configured authorities.
 func (s *Service) CreateWithRuntimeReconcile(ctx context.Context, req CreateRuleRequest) (*schema.SourceRule, RuntimeReconcileOutcome, error) {
+	if strings.TrimSpace(req.ID) == "" {
+		id, err := common.NewUUID()
+		if err != nil {
+			return nil, RuntimeReconcileOutcome{}, err
+		}
+		req.ID = id
+	}
+	ctx, release := s.AcquireRuleMutation(ctx, strings.TrimSpace(req.ID))
+	defer release()
 	rule, err := s.Create(ctx, req)
 	if err != nil {
 		return nil, RuntimeReconcileOutcome{}, err
@@ -181,6 +192,8 @@ func (s *Service) UpdateWithRuntimeReconcile(
 	id string,
 	req UpdateRuleRequest,
 ) (*schema.SourceRule, RuntimeReconcileOutcome, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, id)
+	defer release()
 	snapshot, err := s.snapshotRule(ctx, id)
 	if err != nil {
 		return nil, RuntimeReconcileOutcome{}, err
@@ -201,6 +214,8 @@ func (s *Service) UpdateWithRuntimeReconcile(
 
 // DeleteWithRuntimeReconcile deletes a rule and reconciles its runtime state.
 func (s *Service) DeleteWithRuntimeReconcile(ctx context.Context, id string) (RuntimeReconcileOutcome, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, id)
+	defer release()
 	snapshot, err := s.snapshotRule(ctx, id)
 	if err != nil {
 		return RuntimeReconcileOutcome{}, err
@@ -225,6 +240,8 @@ func (s *Service) setEnabledWithRuntimeReconcile(
 	enabled bool,
 	operation RuntimeReconcileOperation,
 ) (RuntimeReconcileOutcome, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, id)
+	defer release()
 	snapshot, err := s.snapshotRule(ctx, id)
 	if err != nil {
 		return RuntimeReconcileOutcome{}, err

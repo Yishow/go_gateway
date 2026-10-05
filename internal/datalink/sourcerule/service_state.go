@@ -2,6 +2,7 @@ package sourcerule
 
 import (
 	"context"
+	"sync"
 
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
@@ -12,6 +13,8 @@ import (
 
 // Service manages persisted source rules and their derived runtime projections.
 type Service struct {
+	ruleGuardsMu     sync.Mutex
+	ruleGuards       map[string]*ruleMutationGuard
 	repo             Repository
 	deviceSvc        *device.Service
 	pointSvc         *point.Service

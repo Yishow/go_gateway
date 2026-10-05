@@ -96,6 +96,7 @@ export function hydrateStudioV2Mapping(point: Point, record: StudioV2WorkspaceMa
     persisted_value: persistedValue,
     save_state: keepLocal ? current?.save_state ?? 'idle' : 'saved',
     save_error: keepLocal ? current?.save_error ?? null : null,
+    save_error_detail: keepLocal ? current?.save_error_detail ?? null : null,
   };
 }
 

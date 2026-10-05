@@ -1,0 +1,14 @@
+{
+  "workspace_mapping_conflict": "The source changed while saving this mapping.",
+  "workspace_mapping_not_found": "The saved mapping no longer exists.",
+  "workspace_mapping_save_failed": "The mapping could not be saved.",
+  "generic": "The mapping could not be saved.",
+  "review_source": "Review the source rule and reapply it if needed, then retry this draft.",
+  "reload": "Reload the workspace to review the current mapping, then retry your draft.",
+  "retry": "Your draft is retained. Retry saving when ready.",
+  "retry_button": "Retry save",
+  "request_id": "Request ID",
+  "remove_failed": "The mapping could not be removed.",
+  "retry_remove": "Retry removal",
+  "cleanup_incomplete": "The mapping change completed, but unused-tag cleanup is incomplete."
+}

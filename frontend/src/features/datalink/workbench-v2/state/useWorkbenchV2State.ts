@@ -45,6 +45,7 @@ export type WorkbenchV2Action =
   | { type: 'selectRule'; ruleId: string | null }
   | { type: 'initMappingsForPoints'; points: Point[] }
   | { type: 'updateMapping'; pointId: string; patch: Partial<Mapping> }
+  | { type: 'retryMappingSave'; pointId: string }
   | { type: 'toggleMappingEnabled'; pointId: string }
   | { type: 'setAllMappingsEnabled' | 'setAllDbTargetsEnabled'; enabled: boolean }
   | { type: 'bulkApplyTransform'; fromPointId: string; fields: ('scale' | 'offset' | 'target_type' | 'unit')[] }

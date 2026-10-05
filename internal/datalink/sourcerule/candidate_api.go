@@ -39,6 +39,8 @@ type TagCandidateView struct {
 
 // GetCandidateView returns the persisted candidate review projection for a rule.
 func (s *Service) GetCandidateView(ctx context.Context, ruleID string) (*CandidateSnapshotView, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	rule, err := s.repo.GetByID(ctx, ruleID)
 	if err != nil {
 		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
@@ -60,6 +62,8 @@ func (s *Service) GetCandidateView(ctx context.Context, ruleID string) (*Candida
 // It rechecks the rule after the snapshot read so a revision transition cannot
 // leak a mixed response.
 func (s *Service) GetCandidateViewAtRevision(ctx context.Context, ruleID, revisionID string, scope *CandidateScopeRequest) (*CandidateSnapshotView, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	if scope != nil && s.CandidateScopeConfigured() {
 		if err := s.ValidateCandidateScope(ctx, ruleID, *scope); err != nil {
 			return nil, err
@@ -93,6 +97,8 @@ func (s *Service) GetCandidateViewAtRevision(ctx context.Context, ruleID, revisi
 // RecomputeCandidateView rebuilds candidate snapshots and returns their review
 // projection for a rule.
 func (s *Service) RecomputeCandidateView(ctx context.Context, ruleID string) (*CandidateSnapshotView, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	rule, err := s.repo.GetByID(ctx, ruleID)
 	if err != nil {
 		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
@@ -114,6 +120,8 @@ func (s *Service) RecomputeCandidateView(ctx context.Context, ruleID string) (*C
 // RecomputeCandidateViewAtRevision builds and persists candidates only for the
 // selected rule revision. Scope is checked again immediately before the CAS.
 func (s *Service) RecomputeCandidateViewAtRevision(ctx context.Context, ruleID, revisionID string, scope *CandidateScopeRequest) (*CandidateSnapshotView, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	if scope != nil && s.CandidateScopeConfigured() {
 		if err := s.ValidateCandidateScope(ctx, ruleID, *scope); err != nil {
 			return nil, err

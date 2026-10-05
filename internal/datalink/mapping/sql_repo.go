@@ -77,13 +77,13 @@ func (r *SQLRepository) Create(ctx context.Context, mapping *schema.Mapping) err
 func (r *SQLRepository) Update(ctx context.Context, mapping *schema.Mapping) error {
 	query := `
 		UPDATE mappings 
-		SET transform_pipeline = ?, status = ?, rule_candidate_id = ?, proposed_signature = ?,
+		SET tag_id = ?, transform_pipeline = ?, status = ?, rule_candidate_id = ?, proposed_signature = ?,
 		    last_applied_signature = ?, blocking_reason = ?, enabled = ?, updated_at = ?
 		WHERE id = ?
 	`
 
 	result, err := r.db.ExecContext(ctx, query,
-		mapping.TransformPipeline,
+		mapping.TagID, mapping.TransformPipeline,
 		mapping.Status,
 		mapping.RuleCandidateID,
 		mapping.ProposedSignature,

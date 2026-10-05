@@ -141,6 +141,9 @@ func (s *Service) Create(ctx context.Context, req CreateRuleRequest) (*schema.So
 		}
 	}
 
+	ctx, release := s.AcquireRuleMutation(ctx, id)
+	defer release()
+
 	enabled, err := s.initialRuleEnabled(ctx, req.Enabled, req.DeviceID)
 	if err != nil {
 		return nil, contextualRuleValidationError(id, req.StartAddress, deviceRecord.Protocol, err)
@@ -312,6 +315,8 @@ func (s *Service) ListLinks(ctx context.Context, ruleID string) ([]*schema.Sourc
 }
 
 func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) (*schema.SourceRule, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, id)
+	defer release()
 	rule, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("取得來源規則失敗: %w", err)
@@ -600,13 +605,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 		return nil, s.finishUpdateRollback(ctx, fmt.Errorf("同步來源規則標籤映射失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
 	}
 
-	if err := s.repo.DeleteLinks(ctx, next.ID); err != nil {
-		return nil, s.finishUpdateRollback(ctx, fmt.Errorf("清除舊來源規則連結失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
-	}
-	if len(newLinks) > 0 {
-		if err := s.repo.CreateLinks(ctx, newLinks); err != nil {
-			return nil, s.finishUpdateRollback(ctx, fmt.Errorf("重建來源規則連結失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
-		}
+	if err := s.repo.ReplaceLinks(ctx, next.ID, newLinks); err != nil {
+		return nil, s.finishUpdateRollback(ctx, fmt.Errorf("重建來源規則連結失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
 	}
 	if err := s.persistCandidateSnapshots(ctx, &next, newLinks); err != nil {
 		return nil, s.finishUpdateRollback(ctx, fmt.Errorf("持久化來源規則候選快照失敗: %w", err), syncResult, appliedUpdatePlans, rule, rollbackLinks, createdPointIDs)
@@ -622,6 +622,8 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRuleRequest) 
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {
+	ctx, release := s.AcquireRuleMutation(ctx, id)
+	defer release()
 	rule, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("取得來源規則失敗: %w", err)
@@ -719,6 +721,8 @@ func (s *Service) syncRuleLinksEnabled(ctx context.Context, ruleID string, enabl
 }
 
 func (s *Service) setEnabled(ctx context.Context, id string, enabled bool) error {
+	ctx, release := s.AcquireRuleMutation(ctx, id)
+	defer release()
 	rule, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("取得來源規則失敗: %w", err)
@@ -771,25 +775,6 @@ func (s *Service) resolveDerivedPointPollingGroupID(ctx context.Context) (*strin
 
 	groupID := group.ID
 	return &groupID, nil
-}
-
-func (s *Service) replaceRuleLinks(ctx context.Context, ruleID string, previousLinks, nextLinks []*schema.SourceRuleLink) error {
-	if err := s.repo.DeleteLinks(ctx, ruleID); err != nil {
-		return fmt.Errorf("清除來源規則連結失敗: %w", err)
-	}
-	if len(nextLinks) == 0 {
-		return nil
-	}
-	if err := s.repo.CreateLinks(ctx, nextLinks); err != nil {
-		originalErr := fmt.Errorf("重建來源規則連結失敗: %w", err)
-		deleteErr := s.repo.DeleteLinks(ctx, ruleID)
-		var createErr error
-		if len(previousLinks) > 0 {
-			createErr = s.repo.CreateLinks(ctx, previousLinks)
-		}
-		return s.finishRollbackErrors(ctx, originalErr, deleteErr, createErr)
-	}
-	return nil
 }
 
 func (s *Service) syncRuleManagedTagDataType(
@@ -973,13 +958,8 @@ func (s *Service) rollbackRuleState(ctx context.Context, rule *schema.SourceRule
 	if err := s.repo.Update(ctx, rule); err != nil {
 		rollbackErrs = append(rollbackErrs, fmt.Errorf("restore source rule %s: %w", rule.ID, err))
 	}
-	if err := s.repo.DeleteLinks(ctx, rule.ID); err != nil {
+	if err := s.repo.ReplaceLinks(ctx, rule.ID, links); err != nil {
 		rollbackErrs = append(rollbackErrs, fmt.Errorf("restore source-rule links %s: %w", rule.ID, err))
-	}
-	if len(links) > 0 {
-		if err := s.repo.CreateLinks(ctx, links); err != nil {
-			rollbackErrs = append(rollbackErrs, fmt.Errorf("restore source-rule links %s: %w", rule.ID, err))
-		}
 	}
 	return errors.Join(rollbackErrs...)
 }

@@ -186,6 +186,7 @@ export function registerMappingAutosaveFixtures() {
       ruleFixture(),
     ]);
     studioV2ServiceMocks.mappings.list.mockResolvedValue([]);
+    studioV2ServiceMocks.mappings.remove.mockResolvedValue({ runtime_apply_status: 'not_running' });
     studioV2ServiceMocks.database.getConfig.mockResolvedValue(null);
     studioV2ServiceMocks.database.listTargets.mockResolvedValue([]);
   });

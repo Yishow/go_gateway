@@ -10,6 +10,8 @@ import (
 // ValidateWorkspaceMappingSave refuses stale source proposals or unconfirmed
 // edits before the workspace route mutates the tag/pipeline.
 func (s *Service) ValidateWorkspaceMappingSave(ctx context.Context, rule *schema.SourceRule, record *schema.Mapping) error {
+	ctx, release := s.AcquireRuleMutation(ctx, rule.ID)
+	defer release()
 	current, err := s.repo.GetByID(ctx, rule.ID)
 	if err != nil {
 		return err
@@ -45,6 +47,8 @@ func (s *Service) ValidateWorkspaceMappingSave(ctx context.Context, rule *schema
 // ConfirmWorkspaceMapping is used only after an explicit owned workspace save.
 // It confirms one mapping; ordinary derived sync cannot confirm any other edit.
 func (s *Service) ConfirmWorkspaceMapping(ctx context.Context, ruleID, expectedRevision string, saved *schema.Mapping, targetType schema.DataType) error {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	if s.mappingSvc == nil || s.tagSvc == nil || saved == nil {
 		return fmt.Errorf("workspace mapping confirmation services unavailable")
 	}

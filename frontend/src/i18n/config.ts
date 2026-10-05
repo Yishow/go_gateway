@@ -11,6 +11,8 @@ import enWorkbenchV2Translations from './locales/en/workbench-v2.json';
 import enRuntimeDashboardTranslations from './locales/en/runtime-dashboard.json';
 import zhTWWorkbenchV2Translations from './locales/zh-TW/workbench-v2.json';
 import zhTWRuntimeDashboardTranslations from './locales/zh-TW/runtime-dashboard.json';
+import enMappingErrors from './locales/en/mapping-errors.json';
+import zhTWMappingErrors from './locales/zh-TW/mapping-errors.json';
 import { logger } from '../utils/logger';
 import { mergeTranslations } from './mergeTranslations';
 
@@ -38,6 +40,7 @@ i18n
           enTagReviewTranslations,
           enDatabaseOutputTranslations,
         ),
+        'mapping-errors': enMappingErrors,
         'workbench-v2': enWorkbenchV2Translations,
         'runtime-dashboard': enRuntimeDashboardTranslations,
       },
@@ -47,6 +50,7 @@ i18n
           zhTWTagReviewTranslations,
           zhTWDatabaseOutputTranslations,
         ),
+        'mapping-errors': zhTWMappingErrors,
         'workbench-v2': zhTWWorkbenchV2Translations,
         'runtime-dashboard': zhTWRuntimeDashboardTranslations,
       },

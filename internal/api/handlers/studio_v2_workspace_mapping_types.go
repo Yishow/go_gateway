@@ -32,6 +32,7 @@ type studioV2WorkspaceMappingResponse struct {
 	Scale               float64                    `json:"scale"`
 	Offset              float64                    `json:"offset"`
 	Enabled             bool                       `json:"enabled"`
+	CleanupStatus       string                     `json:"cleanup_status,omitempty"`
 	SaveState           string                     `json:"save_state"`
 	RuntimeApplyStatus  string                     `json:"runtime_apply_status,omitempty"`
 	RuntimeApplyMessage string                     `json:"runtime_apply_message,omitempty"`

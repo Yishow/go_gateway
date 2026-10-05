@@ -1,0 +1,14 @@
+{
+  "workspace_mapping_conflict": "儲存映射時來源規則已變更。",
+  "workspace_mapping_not_found": "原本儲存的映射已不存在。",
+  "workspace_mapping_save_failed": "映射無法儲存。",
+  "generic": "映射無法儲存。",
+  "review_source": "請檢查來源規則，必要時重新套用，再重試儲存此草稿。",
+  "reload": "請重新載入工作區以檢查目前映射，再重試您的草稿。",
+  "retry": "已保留您的草稿，可再次儲存。",
+  "retry_button": "重試儲存",
+  "request_id": "請求 ID",
+  "remove_failed": "映射無法移除。",
+  "retry_remove": "重試移除",
+  "cleanup_incomplete": "映射變更已完成，但未使用標籤的清理尚未完成。"
+}

@@ -61,6 +61,8 @@ func (s *Service) ApplyDatabaseOutputCandidates(
 	ruleID string,
 	req ApplyOutputCandidatesRequest,
 ) (*ApplyOutputCandidatesResponse, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	if err := s.ValidateCandidateScope(ctx, ruleID, CandidateScopeRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, RevisionID: req.RevisionID}); err != nil {
 		return nil, err
 	}
@@ -199,6 +201,8 @@ func (s *Service) ApplyLocalModbusOutputCandidates(
 	ruleID string,
 	req ApplyOutputCandidatesRequest,
 ) (*ApplyOutputCandidatesResponse, error) {
+	ctx, release := s.AcquireRuleMutation(ctx, ruleID)
+	defer release()
 	if err := s.ValidateCandidateScope(ctx, ruleID, CandidateScopeRequest{WorkspaceID: req.WorkspaceID, ExpectedWorkspaceRevision: req.ExpectedWorkspaceRevision, RevisionID: req.RevisionID}); err != nil {
 		return nil, err
 	}

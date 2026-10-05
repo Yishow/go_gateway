@@ -33,6 +33,7 @@ function normalizedAddress(address?: string): string | undefined {
 }
 
 function isSamePointRow(mapping: Mapping, point: Point, previousPoint?: Point): boolean {
+  if (previousPoint && previousPoint.data_type !== point.data_type) return false;
   const ruleId = mapping.rule_id ?? previousPoint?.rule_id;
   if (ruleId && ruleId !== point.rule_id) {
     return false;
@@ -61,9 +62,11 @@ export function mappingReducer(state: WorkbenchV2State, action: WorkbenchV2Actio
           nextMappings[p.id] = buildDefaultMapping(p, idx);
         }
       });
+      const failedRemovals = state.points.filter((point) => !nextMappings[point.id] && state.mappings[point.id]?.save_error_detail?.operation === 'delete');
+      for (const point of failedRemovals) nextMappings[point.id] = state.mappings[point.id];
       return {
         ...state,
-        points: action.points,
+        points: [...action.points, ...failedRemovals],
         mappings: nextMappings,
       };
     }

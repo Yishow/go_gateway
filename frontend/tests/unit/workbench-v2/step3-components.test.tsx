@@ -9,7 +9,7 @@ import type { Point, Mapping, Device } from '../../../src/features/datalink/work
 import { pointAPI, mappingAPI } from '../../../src/services/datalink';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
+  useTranslation: (namespace?: string) => ({
     t: (key: string, options?: { count?: number; type?: string; tag?: string }) => {
       if (options && options.count !== undefined) {
         return `${key}_count_${options.count}`;
@@ -20,7 +20,7 @@ vi.mock('react-i18next', () => ({
       if (options && options.tag !== undefined) {
         return `${key}_tag_${options.tag}`;
       }
-      return key;
+      return namespace === 'mapping-errors' ? `${namespace}:${key}` : key;
     },
   }),
 }));
@@ -272,7 +272,7 @@ describe('Step 3 UI components', () => {
     expect(screen.getByPlaceholderText('step3.placeholders.displayName')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('step3.placeholders.unit')).toBeInTheDocument();
     expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('step3.saveStates.save-error');
-    expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('errors.mapping_save_failed');
+    expect(screen.getByTestId('mapping-save-state-p-01')).toHaveTextContent('mapping-errors:generic');
     expect(screen.getByTestId('mapping-save-state-p-01')).not.toHaveTextContent('secret backend details');
   });
 

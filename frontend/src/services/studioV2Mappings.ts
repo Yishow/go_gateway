@@ -14,24 +14,31 @@ export interface StudioV2WorkspaceMappingRequest {
   enabled: boolean;
 }
 
+interface StudioV2MappingCleanupResult {
+  cleanup_status?: 'failed';
+}
+
+export type StudioV2MappingSaveResult = StudioV2RuntimeAppliedRecord<StudioV2WorkspaceMappingRecord> & StudioV2MappingCleanupResult;
+export interface StudioV2MappingDeleteResult extends StudioV2RuntimeApply, StudioV2MappingCleanupResult {}
+
 export const studioV2MappingsAPI = {
   async list(): Promise<StudioV2WorkspaceMappingRecord[]> {
     const res = await studioV2DatalinkApi.get<APIResponse<StudioV2WorkspaceMappingRecord[]>>('/studio-v2/workspace/mappings');
     return res.data.data ?? [];
   },
 
-  async create(request: StudioV2WorkspaceMappingRequest): Promise<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceMappingRecord>> {
-    const res = await studioV2DatalinkApi.post<APIResponse<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceMappingRecord>>>('/studio-v2/workspace/mappings', request);
+  async create(request: StudioV2WorkspaceMappingRequest): Promise<StudioV2MappingSaveResult> {
+    const res = await studioV2DatalinkApi.post<APIResponse<StudioV2MappingSaveResult>>('/studio-v2/workspace/mappings', request);
     return res.data.data!;
   },
 
-  async update(mappingId: string, request: StudioV2WorkspaceMappingRequest): Promise<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceMappingRecord>> {
-    const res = await studioV2DatalinkApi.put<APIResponse<StudioV2RuntimeAppliedRecord<StudioV2WorkspaceMappingRecord>>>(`/studio-v2/workspace/mappings/${mappingId}`, request);
+  async update(mappingId: string, request: StudioV2WorkspaceMappingRequest): Promise<StudioV2MappingSaveResult> {
+    const res = await studioV2DatalinkApi.put<APIResponse<StudioV2MappingSaveResult>>(`/studio-v2/workspace/mappings/${mappingId}`, request);
     return res.data.data!;
   },
 
-  async remove(mappingId: string): Promise<StudioV2RuntimeApply> {
-    const res = await studioV2DatalinkApi.delete<APIResponse<StudioV2RuntimeApply>>(`/studio-v2/workspace/mappings/${mappingId}`);
+  async remove(mappingId: string): Promise<StudioV2MappingDeleteResult> {
+    const res = await studioV2DatalinkApi.delete<APIResponse<StudioV2MappingDeleteResult>>(`/studio-v2/workspace/mappings/${mappingId}`);
     return res.data.data!;
   },
 };

@@ -3,7 +3,12 @@ import enWorkbench from '../../../src/i18n/locales/en/workbench-v2.json';
 import zhWorkbench from '../../../src/i18n/locales/zh-TW/workbench-v2.json';
 import enRuntime from '../../../src/i18n/locales/en/runtime-dashboard.json';
 import zhRuntime from '../../../src/i18n/locales/zh-TW/runtime-dashboard.json';
+import enMappingErrors from '../../../src/i18n/locales/en/mapping-errors.json';
+import zhMappingErrors from '../../../src/i18n/locales/zh-TW/mapping-errors.json';
+import i18n from '../../../src/i18n/config';
 import { BACKEND_ERROR_CODES } from '../../../src/utils/typedErrors';
+
+const MAPPING_ERROR_CODES = new Set<string>(['workspace_mapping_conflict', 'workspace_mapping_not_found', 'workspace_mapping_save_failed']);
 
 function getDeepKeys(obj: Record<string, unknown>, prefix = ''): string[] {
   return Object.keys(obj).flatMap((key) => {
@@ -39,6 +44,12 @@ describe('i18n Locale Parity and Namespace Coverage', () => {
     expect(missingInEn, 'Keys present in ZH-TW but missing in EN').toEqual([]);
   });
 
+  it('ensures configured mapping-errors en and zh-TW have identical keys', () => {
+    expect(getDeepKeys(enMappingErrors).sort()).toEqual(getDeepKeys(zhMappingErrors).sort());
+    expect(i18n.getResourceBundle('en', 'mapping-errors')).toEqual(enMappingErrors);
+    expect(i18n.getResourceBundle('zh-TW', 'mapping-errors')).toEqual(zhMappingErrors);
+  });
+
   it('ensures all required typed error codes are translated', () => {
     const requiredCodes = [...BACKEND_ERROR_CODES, 'generic_failure'];
 
@@ -46,8 +57,17 @@ describe('i18n Locale Parity and Namespace Coverage', () => {
     const zhErrors = (zhWorkbench as Record<string, unknown>).errors as Record<string, string>;
 
     for (const code of requiredCodes) {
-      expect(enErrors[code], `EN translation for ${code}`).toBeTruthy();
-      expect(zhErrors[code], `ZH-TW translation for ${code}`).toBeTruthy();
+      const mappingError = MAPPING_ERROR_CODES.has(code);
+      const namespace = mappingError ? 'mapping-errors' : 'workbench-v2';
+      const key = mappingError ? code : `errors.${code}`;
+      const expectedEn = mappingError ? (enMappingErrors as Record<string, string>)[code] : enErrors[code];
+      const expectedZh = mappingError ? (zhMappingErrors as Record<string, string>)[code] : zhErrors[code];
+      expect(expectedEn, `EN translation for ${code} in ${namespace}`).toBeTruthy();
+      expect(expectedZh, `ZH-TW translation for ${code} in ${namespace}`).toBeTruthy();
+      expect(i18n.getResource('en', namespace, key)).toBe(expectedEn);
+      expect(i18n.getResource('zh-TW', namespace, key)).toBe(expectedZh);
+      expect(i18n.getFixedT('en', namespace)(key)).toBe(expectedEn);
+      expect(i18n.getFixedT('zh-TW', namespace)(key)).toBe(expectedZh);
     }
   });
 });

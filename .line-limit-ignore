@@ -22,3 +22,6 @@ openspec/*
 
 # Generated JSON from the scoped 2026-10-05 simulator acceptance (keep raw evidence)
 docs/plans/studio-v2-flow-completion/evidence-f/basic-integrity-20261005*.json
+
+# Generated JSON from isolated mapping concurrency browser/SQL acceptance
+docs/plans/studio-v2-flow-completion/evidence-f/mapping-concurrency-20261005*.json

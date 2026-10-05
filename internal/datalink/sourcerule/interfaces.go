@@ -15,6 +15,8 @@ type Repository interface {
 	CreateLinks(ctx context.Context, links []*schema.SourceRuleLink) error
 	ListLinks(ctx context.Context, ruleID string) ([]*schema.SourceRuleLink, error)
 	DeleteLinks(ctx context.Context, ruleID string) error
+	// ReplaceLinks atomically replaces the complete rule link set or leaves it unchanged.
+	ReplaceLinks(ctx context.Context, ruleID string, links []*schema.SourceRuleLink) error
 	ReplaceCandidateSnapshots(ctx context.Context, snapshots []*schema.SourceRuleCandidateSnapshot) error
 	ListCandidateSnapshots(ctx context.Context, ruleID, revisionID string) ([]*schema.SourceRuleCandidateSnapshot, error)
 	DeleteCandidateSnapshots(ctx context.Context, ruleID, revisionID string) error
