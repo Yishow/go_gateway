@@ -110,7 +110,9 @@ try {
   for (const text of ['First edit', 'Second edit', 'Final rapid edit']) await name.fill(text);
   await saved(page, (records) => records.some((row) => row.address === '40001' && row.display_name === 'Final rapid edit'));
   assert.equal(await name.inputValue(), 'Final rapid edit');
-  await until(() => page.getByTestId(`preview-final-${firstId}`).innerText(), (text) => text.trim() === '131.5');
+  const previewText = await until(() => page.getByTestId(`preview-final-${firstId}`).innerText(),
+    (text) => Number(text.split('\n', 1)[0].trim()) === 131.5);
+  result.scaled_preview = { display_text: previewText, value: Number(previewText.split('\n', 1)[0].trim()) };
   const scaled = snapshot('bulk-scaled-and-latest-draft');
   assert.ok(scaled.every((row) => row.last_applied_signature !== row.proposed_signature));
   const persistedFirst = scaled.find((row) => row.address === '40001');
